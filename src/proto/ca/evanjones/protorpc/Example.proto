@@ -1,0 +1,14 @@
+package ca.evanjones.protorpc;
+
+message Values {
+    repeated int32 values = 1;
+}
+
+message StatisticsResult {
+    required int32 sum = 1;
+    required double average = 2;
+}
+
+service Statistics {
+    rpc Calculate (Values) returns (StatisticsResult);
+}

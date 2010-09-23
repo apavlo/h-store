@@ -1,0 +1,81 @@
+import "ca/evanjones/protorpc/Protocol.proto";
+
+package edu.brown.simulator;
+
+// -----------------------------------
+// EXECUTION STATUS
+// -----------------------------------
+enum ExecutionStatus {
+   UNKNOWN = 0;
+   SUCCESS = 1;
+   FAIL = 2;
+   ABORT = 3;
+   CONTINUE = 4;
+}
+
+// -----------------------------------
+// PARAMETER WRAPPER
+// -----------------------------------
+
+message Parameter {
+   repeated string param = 1;
+}
+
+// -----------------------------------
+// QUERIES
+// -----------------------------------
+
+message Query {
+   required int32 query_trace_id = 1;
+   repeated int32 partition_id = 2;
+   repeated Parameter param = 3;
+}
+
+message QueryExecuteRequest {
+   required int32 xact_trace_id = 1;
+   required int32 base_partition = 2;
+   repeated Query query = 3;
+}
+
+message QueryExecuteResult {
+   required int32 xact_trace_id = 1;
+   repeated int32 query_trace_id = 2;
+   repeated ExecutionStatus result = 3;
+}
+
+// -----------------------------------
+// TRANSACTIONS
+// -----------------------------------
+
+message XactExecuteRequest {
+   required int32 xact_trace_id = 1;
+   repeated Parameter param = 2;
+}
+
+message XactExecuteResult {
+   required int32 xact_trace_id = 1;
+   required ExecutionStatus result = 2;
+   repeated Query query = 3;
+   optional bool singlesited = 4;
+}
+
+// -----------------------------------
+// Simulation Stuff
+// -----------------------------------
+message StatsRequest {
+}
+
+message StatsResult {
+   required string data = 1;
+}
+
+// -----------------------------------
+// SERVICE
+// -----------------------------------
+
+service SimulatorService {
+   rpc XactExecute (XactExecuteRequest) returns (XactExecuteResult);
+   rpc XactContinue (QueryExecuteResult) returns (XactExecuteResult);
+   rpc QueryExecute (QueryExecuteRequest) returns (QueryExecuteResult);
+   rpc DumpStats(StatsRequest) returns (StatsResult);
+}

@@ -1,0 +1,34 @@
+import "ca/evanjones/protorpc/Protocol.proto";
+
+package ca.evanjones.db;
+
+enum Status {
+    PREPARED = 0;
+    ABORT_DEADLOCK = 1;
+    ABORT_USER = 2;
+}
+
+message TransactionRequest {
+    required int32 transaction_id = 1;
+    required protorpc.RpcRequest request = 2;
+}
+
+message TransactionResult {
+    required Status status = 1 [default = PREPARED];
+
+    // Response may be omitted if status != PREPARED.
+    optional bytes response = 2;
+}
+
+message FinishRequest {
+    required int32 transaction_id = 1;
+    required bool commit = 2;
+}
+
+message FinishResult {
+}
+
+service TransactionService {
+    rpc Request(TransactionRequest) returns (TransactionResult);
+    rpc Finish(FinishRequest) returns (FinishResult);
+}

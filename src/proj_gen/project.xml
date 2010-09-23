@@ -1,0 +1,10 @@
+<?xml version="1.0"?>
+<project>
+    <database name='database'>
+        <schema path='##project_name##-ddl.sql' />
+        <procedure class='##package_prefix##.procedures.Insert' />
+        <procedure class='##package_prefix##.procedures.Delete' />
+        <procedure class='##package_prefix##.procedures.Select' />
+        <partition table='##upper_project_name##' column='##upper_project_name##_ID' />
+    </database>
+</project>

@@ -1,0 +1,42 @@
+#set( $all = ".*" )
+#set( $allTables = ".tables.*")
+
+package $packageName;
+
+import $abstractBenchmark$all;
+import $packageName$allTables;
+
+public class Loader extends AbstractLoader 
+{
+
+    private AbstractTable[] m_tables;
+
+    public Loader(String[] args) 
+    {
+        super(args);
+        m_tables = new AbstractTable[$tblNames.size()];
+    #set( $idx = 0 )
+#foreach( $tblName in $tblNames )
+    m_tables[$idx] = new $tblName();
+    #set( $idx = $idx + 1 )
+#end    
+
+    }
+
+    @Override
+    protected AbstractTable[] getAllTables()
+    {
+        return m_tables;
+    }
+
+    public static void main(String[] args) 
+    {
+        org.voltdb.benchmark.ClientMain.main(Loader.class, args, true);
+    }
+
+    @Override
+    protected String getSchemaFileName()
+    {
+        return $schemaFileName;
+    }
+}

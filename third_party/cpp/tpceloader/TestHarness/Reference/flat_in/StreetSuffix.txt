@@ -1,0 +1,17 @@
+1	Street
+1	Road
+1	Court
+1	Boulevard
+1	Way
+1	Lane
+1	Crescent
+1	Park
+1	Avenue
+1	Rue
+1	Drive
+1	South
+1	North
+1	West
+1	East
+1	Upper
+1	Lower

@@ -1,0 +1,15 @@
+
+To use the Makefile you must first set the following environment variables 
+to match your system and compiler requirements:
+
+CXX: path and name of compiler
+	ex: export CXX=/opt/SUNWspro/bin/CC  (C++ compiler on Solaris)
+CCFLAGS: compiler options
+	ex: export CCFLAGS="-g -O"  
+		-g enable debug
+		-O optimize code
+LDFLAGS: linker/loader options
+	ex: export LDFLAGS="-g"
+LIBS: extra libraries to link in
+	ex: export LIBS="-lpthread"
+

@@ -1,0 +1,22 @@
+% Execution Engine
+
+Modules
+=======
+
+- common
+  - types: value types, xact states, result code types, payload types, ...
+  - value type
+  - containers: bytearray, valueset, ...
+  - file extensions
+  - serializable
+- util
+  - generic: fileutil, stl, debug, strings
+  - hstore: tableutil, ...
+  - depends: common
+- config
+  - depends: util, io headers
+- io
+
+<!--
+vim:ft=mkd
+-->

@@ -1,0 +1,9 @@
+1	US1	U.S. Income Tax Bracket for the poor	0.15
+1	US2	U.S. Income Tax Bracket for the huddled masses	0.275
+1	US3	U.S. Income Tax Bracket for the masses	0.305
+1	US4	U.S. Income Tax Bracket for the well to do	0.355
+1	US5	U.S. Income Tax Bracket for the filthy rich	0.391
+2	CN1	Canadian Income Tax for the poor	0.16
+2	CN2	Canadian Income Tax for the huddled masses	0.22
+2	CN3	Canadian Income Tax for the well to do	0.26
+2	CN4	Canadian Income Tax for the filthy rich	0.29

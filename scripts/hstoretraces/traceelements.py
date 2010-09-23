@@ -1,0 +1,223 @@
+# -*- coding: utf-8 -*-
+
+import sys
+import json
+import logging
+from common import *
+
+## ==============================================
+## AbstractTraceElement
+## ==============================================
+class AbstractTraceElement(object):
+    def __init__(self, id, catalog_name = None, params = [ ], start_timestamp = None, stop_timestamp = None, aborted = False):
+        self.id = id
+        self.catalog_name = catalog_name
+        self.params = list(params)
+        self.start_timestamp = start_timestamp
+        self.stop_timestamp = stop_timestamp
+        self.aborted = aborted
+    ## DEF
+    
+    def toJSON(self):
+        return ({
+            "ID":               self.id,
+            "CATALOG_NAME":     self.catalog_name,
+            "START_TIMESTAMP":  convertTimestamp(self.start_timestamp),
+            "STOP_TIMESTAMP":   convertTimestamp(self.stop_timestamp),
+            "ABORTED":          self.aborted,
+            "PARAMS":           self.params,
+        })
+    ## DEF
+    
+    def fromJSON(self, data):
+        for key in self.__dict__.keys():
+            if key.upper() in data: self.__dict__[key] = data[key.upper()]
+        ## FOR
+    ## DEF
+## CLASS
+
+## ==============================================
+## TransactionTrace
+## ==============================================
+class TransactionTrace(AbstractTraceElement):
+    NEXT_TXN_ID = 1000
+    
+    def __init__(self, id = None, start_timestamp = None, debug = False, strict_matching = False):
+        super(TransactionTrace, self).__init__(id, start_timestamp = start_timestamp)
+        #assert self.id
+        #assert self.start_timestamp
+        assert not self.params
+        
+        self.__queries = [ ]
+        self.next_batch_id = 0
+        self.cur_batch_id = 0
+
+        self.debug = debug
+        self.strict_matching = strict_matching
+        
+        self.txn_id = TransactionTrace.NEXT_TXN_ID
+        TransactionTrace.NEXT_TXN_ID += 1
+    ## DEF
+    
+    def finish(self, proc, stop_timestamp, aborted = False):
+        assert self.catalog_name
+        if self.debug: logging.info("Finishing txn '%s' with %d queries..." % (self.catalog_name, len(self.__queries)))
+
+        ## Make sure all of our queries have the same procedure as the txn
+        for query_trace in self.__queries:
+            assert self.catalog_name == query_trace.proc_name, \
+                "Mismatched procedure name: %s != %s.%s" % (self.catalog_name, query_trace.proc_name, query_trace.catalog_name)
+            assert query_trace.catalog_name in proc.catalog_proc.keys(), \
+                "Unexpected query '%s' in transaction '%s'" % (query_trace.catalog_name, self.catalog_name)
+        ## FOR
+
+        ## Figure out our parameters
+        #print "proc.txn_params=", proc.txn_params
+        for i in range(len(proc.txn_params)):
+            param_name = proc.txn_params[i][0]
+            query_names = proc.txn_params[i][1]
+            param_idxs = proc.txn_params[i][2]
+            param_is_array = proc.txn_params[i][3]
+            param_values = [ ]
+
+            #print "param_name=", param_name
+            #print "query_names=", query_names
+            #print "param_idxs=", param_idxs
+            #print "param_is_array=", param_is_array
+            
+            ## Loop through and find the invocations of the query we're looking for
+            for ii in range(len(query_names)):
+                query_name = query_names[ii]
+                param_idx = param_idxs[ii]
+                queries = self.getQueries(query_name)
+                
+                if self.debug: logging.info("Looking for parameter #%d (%s) from %s.%s:%d [num_queries=%d]" % (i, proc.txn_params[i][0], self.catalog_name, query_name, param_idx, len(queries)))
+                
+                for query_trace in queries:
+                    assert query_trace.catalog_name == query_name, "Unexpected query trace name: %s <-> %s\n%s" % (query_name, query_trace.catalog_name, query_trace.toJSON())
+                    if param_idx >= len(query_trace.params):
+                        logging.error("Parameter Index %d exceeds length of parameters for %s.%s" % (param_idx, self.catalog_name, query_name))
+                        logging.info(query_trace.orig_query)
+                        logging.info("Parameters: %s" % str(query_trace.params))
+                        logging.info(query_trace.toJSON())
+                        sys.exit(1)
+                        continue
+                    ## IF
+                    param_values.append(query_trace.params[param_idx])
+                ## FOR
+            ## FOR
+            
+            ## If we have no values, then just store None
+            if not param_values:
+                self.params.append(None)
+            ## If we have multiple values but we're not array, just store the first
+            elif not param_is_array:
+                self.params.append(param_values[0])
+            ## If we're suppose to be an array, then jam the whole thing in there
+            else:
+                self.params.append(param_values)
+            ## IF
+            if self.debug: logging.info("%s.%s [%d] = %s" % (self.catalog_name, proc.txn_params[i][0], i, str(self.params[-1])))
+        ## FOR
+        
+        ## Make sure that it doesn't have more params than it should 
+        assert len(self.params) == len(proc.txn_params), "Too many parameters for %s: %d != %d\n%s" % (self.catalog_name, len(self.params), len(proc.txn_params), str(self.params))
+        
+        ## And it would be nice if all the params weren't null
+        non_null_param_ctr = len([self.params[i] for i in range(len(self.params)) if self.params[i] != None])
+        parameterized_queries = len([self.__queries[i] for i in range(len(self.__queries)) if self.__queries[i].orig_query.find("?") != -1])
+        if parameterized_queries > 0:
+            assert non_null_param_ctr > 0, \
+                "All the txn parameters are null for '%s': %s\n%s" % (self.catalog_name, self.params, self.debugQueries())
+        
+        self.stop_timestamp = stop_timestamp
+        self.aborted = self.getQueries()[-1].aborted = aborted
+    ## DEF
+    
+    def nextBatchId(self):
+        ret = self.next_batch_id
+        self.next_batch_id += 1
+        self.cur_batch_id = ret
+        return (ret)
+    ## DEF
+    
+    def getQueries(self, name = None):
+        return [ q for q in self.__queries if name == None or q.catalog_name == name ]
+    ## DEF
+    
+    def debugQueries(self):
+        for query_trace in self.__queries:
+            print query_trace.orig_query
+        ## FOR
+        
+        return "\n".join(["[%d] %-20s %s" % (i, self.__queries[i].catalog_name, self.__queries[i].orig_query) for i in range(len(self.__queries))])
+    ## DEF
+    
+    def addQuery(self, query_trace):
+        if self.strict_matching: assert query_trace.catalog_name, "Mising query catalog name for '%s': %s" % (self.catalog_name, query_trace.orig_query)
+        if not query_trace.catalog_name:
+            logging.debug("QueryTrace does not have catalog name. Skipping...")
+            return
+
+        # logging.debug("New QueryTrace: %s.%s" % (self.catalog_name, query_trace.catalog_name))
+        query_trace.batch_id = self.cur_batch_id
+        self.__queries.append(query_trace)
+            
+        ## HACK: Set the stop timestamp of the last query
+        ## to be the start timestamp of this query[\s]*
+        ## But doesn't it matter whether the queries are in
+        ## the same batch or not??
+        
+    ## DEF
+    
+    def toJSON(self):
+        data = AbstractTraceElement.toJSON(self)
+        data["QUERIES"] = [ q.toJSON() for q in self.__queries ]
+        data["XACT_ID"] = self.txn_id
+        return (data)
+        
+    def fromJSON(self, data):
+        super(TransactionTrace, self).fromJSON(data)
+        self.txn_id = data["XACT_ID"]
+        for query_json in data["QUERIES"]:
+            self.addQuery(QueryTrace().fromJSON(query_json))
+        ## FOR
+        return (self)
+    ## DEF
+        
+## CLASS
+
+## ==============================================
+## QueryTrace
+## ==============================================
+class QueryTrace(AbstractTraceElement):
+    
+    def __init__(self, id = None, orig_query = None, name = None, proc_name = None, params = [], start_timestamp = None):
+        super(QueryTrace, self).__init__(id, catalog_name = name, params = params, start_timestamp = start_timestamp)
+        self.proc_name = proc_name
+        self.batch_id = None
+        self.orig_query = orig_query
+        
+        #if self.catalog_name == "get" and self.proc_name == "BrokerVolume":
+            #print "-"*60
+            #print self.orig_query
+            #print
+            #print self.toJSON()
+            #sys.exit(1)
+    ## DEF
+    
+    def toJSON(self):
+        data = AbstractTraceElement.toJSON(self)
+        data["PROC_NAME"] = self.proc_name
+        data["BATCH_ID"] = self.batch_id
+        return (data)
+    ## DEF
+    
+    def fromJSON(self, data):
+        super(QueryTrace, self).fromJSON(data)
+        self.proc_name = data["PROC_NAME"]
+        self.batch_id = data["BATCH_ID"]
+        return (self)
+    ## DEF
+    
+## CLASS

@@ -1,0 +1,114 @@
+Unless otherwise noted, all results are on Dell XPS 410 with Intel Core 2 Duo
+1.8GHz.
+
+caneland is the name of a 16-way 1.6GHz Xeon machine.
+
+JNI benchmark
+-------------
+
+foo()
+22845267 ns for 1000000 calls
+22.845267 ns/call
+bar()
+29373380 ns for 1000000 calls
+29.37338 ns/call
+
+20080824 on Hideaki's laptop (Intel core 2 duo 1.8GHz, fedora 9)
+foo()
+20587973 ns for 1000000 calls
+20.587973 ns/call
+bar()
+34130720 ns for 1000000 calls
+34.13072 ns/call
+bar2()
+883441379 ns for 1000000 calls
+883.441379 ns/call
+bar3()
+709635085 ns for 1000000 calls
+709.635085 ns/call
+bar3a()
+924839355 ns for 1000000 calls
+924.839355 ns/call
+bar4()
+216644772 ns for 1000000 calls
+216.644772 ns/call
+10params_direct()
+1581789421 ns for 1000000 calls
+1581.789421 ns/call
+10params_doublebuffer()
+1607576842 ns for 1000000 calls
+1607.576842 ns/call
+10params_myown()
+1414592121 ns for 1000000 calls
+1414.592121 ns/call
+
+
+
+
+
+reflection benchmark
+--------------------
+
+100000 regular method calls:124 milliseconds.
+100000 reflective method calls without lookup:79 milliseconds.
+100000 reflective method calls with lookup:185 milliseconds.
+
+stored procedure wrapper invocation benchmark
+---------------------------------------------
+
+[java] 347 ms
+[java] 0.347 ns/call
+
+stored procedure client-server call benchmark
+---------------------------------------------
+
+these were run on caneland:
+
+EmptyProcedure with 1 clients: 26760 xacts in 1997.0 ms => 0.07462630792227205 ms/xact => 13400.100150225338tps
+MultivariateEmptyProcedure with 1 clients: 23060 xacts in 1999.0 ms => 0.08668690372940156 ms/xact => 11535.76788394197tps
+EmptyProcedure with 2 clients: 47200 xacts in 1999.0 ms => 0.042351694915254236 ms/xact => 23611.805902951473tps
+MultivariateEmptyProcedure with 2 clients: 40300 xacts in 1999.0 ms => 0.049602977667493796 ms/xact => 20160.08004002001tps
+EmptyProcedure with 3 clients: 52580 xacts in 1999.0 ms => 0.03801825789273488 ms/xact => 26303.151575787895tps
+MultivariateEmptyProcedure with 3 clients: 44080 xacts in 1999.0 ms => 0.045349364791288566 ms/xact => 22051.02551275638tps
+EmptyProcedure with 4 clients: 53750 xacts in 1998.0 ms => 0.03717209302325582 ms/xact => 26901.9019019019tps
+MultivariateEmptyProcedure with 4 clients: 44060 xacts in 1999.0 ms => 0.04536995006808897 ms/xact => 22041.020510255126tps
+EmptyProcedure with 5 clients: 54350 xacts in 1999.0 ms => 0.0367801287948482 ms/xact => 27188.59429714857tps
+MultivariateEmptyProcedure with 5 clients: 43280 xacts in 1998.0 ms => 0.04616451016635859 ms/xact => 21661.66166166166tps
+EmptyProcedure with 6 clients: 52310 xacts in 1998.0 ms => 0.038195373733511756 ms/xact => 26181.181181181182tps
+MultivariateEmptyProcedure with 6 clients: 42850 xacts in 1998.0 ms => 0.04662777129521587 ms/xact => 21446.446446446447tps
+EmptyProcedure with 7 clients: 50900 xacts in 1998.0 ms => 0.03925343811394892 ms/xact => 25475.475475475476tps
+MultivariateEmptyProcedure with 7 clients: 43190 xacts in 1998.0 ms => 0.04626070849733735 ms/xact => 21616.61661661662tps
+EmptyProcedure with 8 clients: 53260 xacts in 1999.0 ms => 0.03753285767930905 ms/xact => 26643.321660830417tps
+MultivariateEmptyProcedure with 8 clients: 43200 xacts in 1998.0 ms => 0.04625 ms/xact => 21621.62162162162tps
+
+benchmark times
+---------------
+
+### dual-core machine ###
+
+params: 10 1 2 2 10
+Time: 10000 ms
+Total transactions: 3160
+New Order transactions: 1489
+Transactions/second = 316.0; tpmC = 8934.0
+
+params: 10 2 2 4 10
+Time: 10000 ms
+Total transactions: 3124
+New Order transactions: 1383
+Transactions/second = 312.40000000000003; tpmC = 8298.0
+
+### 16-core machine ###
+
+params: 10 1 2 2 10
+Time: 10000 ms
+Total transactions: 5939
+New Order transactions: 2687
+Transactions/second = 593.9; tpmC = 16122.0
+
+params: 10 2 2 4 10
+Time: 10000 ms
+Total transactions: 8436
+New Order transactions: 3933
+Transactions/second = 843.6; tpmC = 23597.999999999996
+

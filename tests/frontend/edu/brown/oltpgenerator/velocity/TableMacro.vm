@@ -1,0 +1,48 @@
+#set( $suffix = ".*")
+
+package $packageName;
+
+import $abstractBenchmark$suffix;
+import $abstractBenchmarkRandom$suffix;
+
+public class $className extends AbstractTable
+{
+
+    private AbstractRandomGenerator[] m_colGens;
+
+    public $className()
+    {
+        m_colGens = new AbstractRandomGenerator[$colGenStmts.size()];
+    #set( $idx = 0 )
+#foreach( $stmt in $colGenStmts )
+    m_colGens[$idx] = $stmt;
+    #set( $idx = $idx + 1 )
+#end        
+
+    }
+
+    @Override
+    protected int getCardinality()
+    {
+        return $cardinality;
+    }
+
+    @Override
+    protected AbstractRandomGenerator[] getColumnValGenerators()
+    {
+        return m_colGens;
+    }
+
+    @Override
+    protected String getName()
+    {
+        return $tblName;
+    }
+
+    @Override
+    protected String getCsvLinkPath()
+    {
+        return $csvLinkPath;
+    }
+
+}

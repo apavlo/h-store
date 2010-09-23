@@ -1,0 +1,115 @@
+package edu.brown.gui.designer;
+
+import java.awt.*;
+import java.util.*;
+
+import javax.swing.*;
+import javax.swing.event.ListSelectionEvent;
+import javax.swing.event.ListSelectionListener;
+import javax.swing.table.*;
+
+import org.voltdb.catalog.*;
+
+import edu.brown.designer.*;
+import edu.brown.designer.partitioners.PartitionEntry;
+import edu.brown.designer.partitioners.PartitionPlan;
+import edu.brown.graphs.IGraph;
+import edu.brown.gui.DesignerVisualization;
+import edu.brown.gui.common.GraphVisualizationPanel;
+
+public class PartitionPlanPanel extends JPanel {
+    private static final long serialVersionUID = 1L;
+
+    private final DesignerVisualization parent;
+    private final Designer designer;
+    
+    public PartitionPlanPanel(DesignerVisualization parent) {
+        super();
+        this.parent = parent;
+        this.designer = this.parent.getDesigner();;
+        this.init();
+    }
+    
+    private void init() {
+        this.setLayout(new BorderLayout());
+        
+        final PartitionPlan plan = this.designer.getPartitionPlan();
+        final ArrayList<Table> tables = new ArrayList<Table>();
+        tables.addAll(plan.getTableEntries().keySet());
+        
+        final JTable partitonTable = new JTable(new AbstractTableModel() {
+            protected final String columns[] = { "Table", "Method", "Partition Attribute", "Parent", "Parent Attribute" };
+            
+            public String getColumnName(int col) { return (this.columns[col]); }
+            public int getColumnCount() { return (this.columns.length); }
+            public int getRowCount() { return (tables.size()); }
+            public Object getValueAt(int row, int col) {
+                String ret = null;
+                
+                Table catalog_tbl = tables.get(row);
+                PartitionEntry entry = plan.getTableEntries().get(catalog_tbl);
+                switch (col) {
+                    case 0:
+                        ret = catalog_tbl.getName();
+                        break;
+                    case 1:
+                        ret = entry.getMethod().toString();
+                        break;
+                    case 2:
+                        ret = (entry.getAttribute() != null ? entry.getAttribute().getName() : "-");
+                        break;
+                    case 3:
+                        ret = (entry.getParent() != null ? entry.getParent().getName() : "-");
+                        break;
+                    case 4:
+                        ret = (entry.getParentAttribute() != null ? entry.getParentAttribute().getName() : "-");
+                        break;
+                } // SWITCH
+                return (ret);
+            }
+            public boolean isCellEditable(int row, int col) {
+                return (false);
+            }
+            public Class<?> getColumnClass(int c) {
+                return getValueAt(0, c).getClass();
+            }
+        });
+        
+        partitonTable.setAutoResizeMode(JTable.AUTO_RESIZE_ALL_COLUMNS);
+        partitonTable.setFillsViewportHeight(false);
+        partitonTable.setDragEnabled(false);
+        partitonTable.setColumnSelectionAllowed(false);
+        partitonTable.setSelectionMode(javax.swing.ListSelectionModel.SINGLE_SELECTION);
+        
+        //
+        // Select the vertex in the graph when they select its corresponding row
+        //
+        partitonTable.getSelectionModel().addListSelectionListener(new ListSelectionListener() {
+            @Override
+            public void valueChanged(ListSelectionEvent e) {
+                Table catalog_tbl = tables.get(partitonTable.getSelectedRow());
+                GraphVisualizationPanel<Vertex, Edge> visualizer = PartitionPlanPanel.this.parent.getCurrentVisualizer();
+                IGraph<Vertex, Edge> graph = (IGraph<Vertex, Edge>)visualizer.getGraph();
+                Vertex vertex = graph.getVertex(catalog_tbl);
+                visualizer.selectVertex(vertex);
+                return;
+            }
+        });
+        
+        //
+        // Set the column widths
+        //
+        partitonTable.getColumnModel().getColumn(0).setPreferredWidth(40);
+        partitonTable.getColumnModel().getColumn(1).setPreferredWidth(20);
+        partitonTable.getColumnModel().getColumn(3).setPreferredWidth(40);
+        
+        JScrollPane scrollPane = new JScrollPane(partitonTable);
+        scrollPane.setPreferredSize(new Dimension(DesignerVisualization.WINDOW_WIDTH, 175));
+        //scrollPane.setMaximumSize(this.columnSetTable.getPreferredScrollableViewportSize());
+        scrollPane.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
+        this.add(scrollPane, BorderLayout.SOUTH);
+        
+        return;
+    }
+
+}

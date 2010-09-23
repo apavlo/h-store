@@ -1,0 +1,1120 @@
+Changes 1.3.0b3 => 1.3.0 by C.R.
+* Mon Sep 10, 2007
+    Bless 1.3.0b3 as 1.3.0
+
+Changes 1.3.0b2 => 1.3.0b3 by C.R.
+* Mon Sep 10, 2007
+	Fixed header inc/win/error.h to use = "" for constructor of
+		CODBCERR vs = NULL. (TPCE-20)
+	Fixed header inc/win/ODBCNewsItemLoad.h to bind NI_ITEM to type
+		SQLIMAGE vs SQLTEXT. (TPCE-22)
+
+Changes 1.3.0b1 => 1.3.0b2 by C.R.
+* Fri Aug 24, 2007
+	Fixed header issue with snprintf and strtoull by adding
+		stdio.h and stdlib.h in the appropriate places (TPCE-9)
+	Fixed namespace issues in threading.cpp and strutil.cpp (TPCE-9)
+
+Changes 1.2.1b2 => 1.3.0b1 by C.R.
+* Thu Aug 23, 2007
+	Add load_unit accessed to output of Trade Result (TPCE-17)
+	Update cST_NAME_len and cTT_NAME_len to match Spec (TPCE-18)
+	Fixed a bug related to header file changes for 
+		src/ReadRowFunctions_sscanf.cpp (TPCE-9)
+
+Changes 1.2.1b1 => 1.2.1b2 by C.R.
+* Wed Jun 27, 2007
+	Move consts that were in EGenTables_stdafx.h -> MiscConsts.h (TPCE-9)
+	DM constructor bug (TPCE-12)
+	CE logging bug for non-partitioned CEs (TPCE-13)
+	Miscellaneous header cleanup related to v1.2.1b1 changes (TPCE-9)
+	Make reference files the v1.2.0 files (TPCE-16)
+	Remove unused header FinalTransform.h (TPCE-15)
+	Update ChangeLog.txt to reflect recent bug fixes (TPCE-14)
+		
+Changes 1.2.0 => 1.2.1b1 by C.R.
+* Wed Jun 20, 2007
+	Cleanup headers in inc directory so they are all self-contained.  Each
+		header can be compiled independently.  Also used C++ header 
+		include style for headers like stdio.h, stdlib.h, etc. (TPCE-9)
+
+Changes 1.1.1b4 => 1.2.0 by C.R.
+* Wed Jun 13, 2007
+    Bless 1.1.1b4 as 1.2.0
+
+Changes 1.1.1b3 => 1.1.1b4 by C.R.
+* Thu May 31, 2007
+	Removed "const" keyword from return type of the GetRow function in the 
+	classes CDailyMarketTable and CFinancialTable [CR] (TPCE-11)
+
+Changes 1.1.1b2 => 1.1.1b3 by M.E.
+* Thu May 24, 2007
+    Modified CLastTradeTable and CNewsItemAndXRefTable classes to:
+    - use provided intial trade days value instead of constant [ME] (TPCE-10)
+    - adjust for weekends when calculating last day of initial trades [ME] (TPCE-10)
+    Added Un*x Makefile for TestHarness test suite [ME] (TPCE-10)
+    Added EULA in HTML and text format [ME]
+
+Changes 1.1.1b1 => 1.1.1b2 by S.V.
+* Tue May 22, 2007
+    Modified table classes to be repeatable (InitNextLoadUnit function) [SV] (TPCE-10)
+    Modified CMEESecurity to reset the seed at each load unit boundary [SV] (TPCE-10)
+    Added an option for CCE to zero transaction input buffer [SV] (TPCE-10)
+    Added new directory TestHarness with 2 test suites (one for loading, one for runtime) [SV] (TPCE-10)
+    
+Changes 1.1.0 => 1.1.1b1 by C.C.
+* Thu May  3 13:34:47 CDT 2007
+    Created unittest directory [CC]
+    Added CheckValid and CheckCompliant [CC] (TPCE-7)
+    Change defaults for CDriverGlobalSettings [CC] (TPCE-7)
+    Removed dead trade_id indicator variables [CC] (TPCE-8)
+    Data Maintenance Now logs settings [SV] (TPCE-7)
+    CE now logs partition settings [ME] (TPCE-7)
+    Constructors report if they are valid for publication [ME,SV] (TPCE-7)
+    CE Logs RNG Seeds [SV] (TPCE-7)
+    CETxnMixGenerator Initialize doesn't UpdateTunables (done in CE) [SV] (TPCE-7)
+    CETxnInputGenerator Initialize doesn't UpdateTunables (done in CE) [SV] (TPCE-7)
+    Protect copy of m_DriverCETxnSettings [SV]
+
+Changes 1.0.1b4 => 1.1.0 by C.C.
+* Wed Mar 28 12:14:43 CDT 2007
+    Bless 1.0.1b4 as 1.1.0
+
+Changes 1.0.1b3 => 1.0.1b4 by C.C.
+    Change comment in HoldingsAndTradeTable.h [CR]
+    Fixed database generation broken by TPCE-3 fix [CR,ME,SV] (TPCE-3)
+
+Changes 1.0.1b2 => 1.0.1b3 by C.C.
+* Wed Mar 28 12:14:43 CDT 2007
+    Fix memory leak and delete type in CCEMixTxnGenerator [CC] (TPCE-6)
+    Explictly cast from 64 to 32 bits in ComputeNumSecurities [SV] (TPCE-2)
+
+Changes 1.0.1b1-pre1 => 1.0.1b2 by C.C.
+* Wed Mar 21 12:35:20 CDT 2007
+    Use modulus for ComputeNumSecurities() [ME] (TPCE-2)
+    Removed ChangeLog.doc
+
+Changes 1.0.0 => 1.0.1b1-pre1 by C.C.
+* Wed Mar 20 16:22:00 CDT 2007
+    Fix input parameters to Trade Cleanup [CC] (TPCE-1)
+    Fix EX_NUM_SYMB values [ME] (TPCE-2)
+    Fix end date for trade lookup/update [CR,CC] (TPCE-3)
+    Fix trade order to return missing values [CC] (TPCE-4)
+    Remove unused special country tax rate code [CC] (TPCE-5)
+
+Changes 3.17 Beta 3 => 1.0.0 by C.C.
+    Change version number string output.
+    Fix ident shift issue with max_acct_id.
+
+Changes 3.17 Beta 3 => 3.17 by C.C.
+    Remove unused include file Queue.h as recommended by Sergey.
+
+Changes 3.17 Beta 2 => 3.17 Beta 3 by C.C.
+    Move broker volume back to sequential ids.
+    Exception handling is now throw by value catch by reference.
+    Added FLAT_IN_PATH, FLAT_OUT_PATH, CUSTOM_LOAD_INCLUDE, DEFAULT_LOAD_TYPE
+	#defines for EGenLoader.
+    EGenLoader guard -l arguments with appropriate defines.
+
+Changes 3.17 Beta 1 => 3.17 Beta 2 by C.C.
+    Change #includes in TxnHarnessDBInterface.h
+    EGenValidate Enhancements
+    Use direct random number generation rather than customer selection
+    Early termination of run when a "passing" run is found
+    Removed -L and -f parameters
+    Progress meter now displays maximum standard deviation and elapsed time
+    Some type cleanups
+    Say tpsE rather than TPSE
+    
+Changes 3.16 => 3.17 Beta 1 by M.E.
+    Rename C<txn>Interface virtual classes to C<txn>DBInterface.
+    Update CTxnHarness<txn> to take a pointer to the sponsor's implementation
+	of C<txn>DBInterface.
+    Remove Cleanup method from all CTxnHarness<txn> classes.
+    Update EGenValidate to use "naive" method of calculating the standard
+	deviation.
+    Update EgenValidate to always require that the standard deviation value
+	(from the run) is passed in, so that it will generate pass/fail output
+	(as required by the spec).
+
+Changes 3.16 Beta 3 => 3.16 by M.E.
+    Rename dbinterface to TxnHarnessDBInterface.h, and remove all forward
+	references.
+    Remove ^M from BaseLogger.cpp, Random.cpp, BaseLogger.h, Random.h.
+    Update all TxnHarness<txn_name>.h files to #include
+	"TxnHarnessDBInterface.h" and to reference C<txn>Interface virtual
+	classes instead of C<txn>DB classes.
+    Update Makefile to remove reference driver rules.
+    Update Makefile to update EGenLogger_src rule to include BaseLogger.cpp.
+    Remove all of the [AS]ValueFor* from DriverParamStructs.h values as they
+	are unused.
+    Update MiscConsts.h with A/S NURand changes as discussed and tested by
+	subcommittee.
+    Add acct_id field to TTradeResultTxnOutput structure in TxnHarnessStructs.h
+    Set acct_id field in TTradeResultTxnOutput structure in
+	TxnHarnessTradeResult.h
+    Update EGenVersion.cpp appropriately.
+
+Changes 3.16 beta 2 =>3.16 beta 3 by S.V.
+    Added _CRT_SECURE_NO_DEPRECATE define to Windows project files to suppress
+	warnings in Visual Studio 2005.
+    Added odbc32.lib to EGenLoader project file and excluded uuid.lib from
+	EGenValidate to be able to build on Visual Studio 2005 Express and
+	Visual Studio 2005.
+
+Changes 3.16b1 => 3.16b2 and two thirds by C.C.
+    Some changes to make things compile for Microsoft:
+    ProgressMeter now uses CDateTime
+    DateTime.h includes EgenStandardTypes.h
+    remove unused pthread_t from threading_single.h 
+
+Changes 3.16b1 => 3.16b2 and one half by C.C.
+    Add comment to ReadRowFunctions_sscanf.cpp
+    Use separated BaseLogger.h and .cpp files
+    Changed Trade{Lookup,UPdate}MaxRows in MiscConsts.h from 30 to 20
+    EGenValidate now computes tpse based on customers unless explicitly
+	overriden.
+    Fixed indention in some files which were previously using 8 space indents.
+    Mark parameters in ref/dbconnection_stub.cpp as unused.
+    Fixed some other errors and warnings Matthew Emmerton found.
+
+Changes 3.16b1 => 3.16b2 by C.C.
+    Added revamped EGenValidate
+    Added Reference driver
+    Added ReadRowFunctions_sscanf.cpp for people with slow iostream
+	implementations
+    Reformatted *.h and *.cpp files to spaces (from 4 space tabs)
+    Removed trailing spaces and tabs.
+    Made a few input parameters const.
+    CInputFiles initializes values to NULL
+
+    Cleaned up lots of errors and warnings noted by g++ using
+	-Wall -Wextra -Wfloat-equal -Wundef -Wendif-labels -Wshadow
+	-Wpointer-arith -Wcast-qual -Wcast-align -Wwrite-strings -Wconversion
+	-Wsign-compare -Wredundant-decls -Winline
+    and most errors from Solaris SunStudio 11 +w2
+
+    These changes included
+	Changing GetRow to GetRowByIndex for CustomerTaxRateTable
+	Removed unused parameter for CETxnInputGenerator::Initialize and
+	    MEESecurity::Init
+	Moved szDriverTypeNames into EGenLogFormatterTab.cpp, probably better
+	    somewhere else?
+	changed type of InitialTradePopulationBaseFraction to INT32
+
+Changes 3.15 beta 2 => 3.16 by S.V.
+    Rolled in addressed comments from Matt Emmerton:
+	1314	"Ensure consistent alignment of elements in TxnHarness
+		structures"
+	1321	"Remove broker-volume partitioning"
+	1333	"Make FlatFileLoader output milliseconds for timestamps"
+	1386	"Tie MEETicker limit-trigger/artificial trade generation
+		limits to the value of max_feed_len"
+	????	Performance improvement for TradeGen (CDateTime in
+		THoldingInfo).
+
+    Implemented the following comments:
+	1271	"EGEN transaction names and parameters should match spec"
+		(nothing to do here)
+	1274	"EGen CETxnInputGenerator::UpdateTunables" (was addressed in
+		1273)
+	1292	"IDENT_T and TRADE_T in EGen"
+	1299 	"Trade-Result Frame 3 parameters"
+	1302	"Trade-Order harness cleanup"
+	1325	"Should use iAbortTrade constant instead of 101 literal"
+	1346	"Market-Watch NURnd start_day NURnd Input"
+	1401	"Broker-Volume pseudo-code"
+		Fixed a bug in CCustomerSelection::GenerateRandomCustomer that
+		resulted in out-of-range customers returned when not using
+		partitioning.
+
+Changes 3.15 beta 1 => 3.15 beta 2 by S.V.
+    Implemented the following public review comments:
+	1260	"CDateTime::SetToCurrent -- platform specific code"
+	1273	"New "end_trade_dts" Input for Trade-Lookup & Trade-Update"
+	1303	"Comment EGen Code"	(commented EGenBaseLoader,
+		EGenDriverCELib (my files), EGenGenerateAndLoad, and
+		EGenTables up to CustomerAccountsAndPermissionsTable.h)
+	1310	"Data-Maintenance Transaction"	(items 1, 2, 3 and 5)
+	1312	"Different logs for different instances of EGenLoader"
+	1318	"Customer partitioning and Broker Volume"
+	1323	"Virtual Destructors in EGen"
+
+Changes 3.14 =>3.15 beta 1 by S.V.
+    Implemented public review comments 1263, 1264, 1266, 1267, 1268, 1269,
+    1272, 1275, 1278, 1279, 1284, 1285, 1287, 1290, 1298, 1300, 1304, 1320.
+    Among them was card deck method for mix generation (1304) and a new method
+    to get the number of accounts for a customer.
+
+Changes 3.14 Beta 4 => 3.14 by M.E.
+    1.Add virtual public destructor to CbaseLogger class.
+    2.Update CEGenLogger constructor to take a pointer to a CLogFormatter object
+    3.Fix typos and cosmetic inconsistencies in CLogFormatterTab methods
+    4.Fix frame_executed values in TxnHarnessTradeLookup.h
+    5.Instantiate a formatter object and pass into logger constructor in
+	src/EGenLoader.cpp
+    6.Update Visual Studio solution and project files with new logger and
+	formatter files
+    7.Add TPC legal disclaimer to all source files (as per Clause 5
+	EGenSourceFiles definition); move all individual authorship
+	information to a non-public file for historical and maintenance
+	purposes.
+
+Changes 3.14 Beta 2 => 3.14 Beta 3 by M.E.
+    1.Reorder member variables in CCE, CMEE, CDM so that parameter setting
+	members are always initialized first
+    2.Sync default tunable values (TL, TU, TLoader, TDriverGlobal) to spec
+    3.Fix log string initialization, typos and missing entries in log formatter
+    4.Add error handling to CEGenLogger
+    5.Fix incorrect copyright attribution in TxnHarnessTradeCleanup.h
+    6.Avoid floating-point computations in CDM and CCETxnInputGenerator when
+	computing first run-time trade
+    7.Cosmetic cleanup in TxnHarnessTradeLookup.h
+
+Changes 3.14 Beta 1 => 3.14 Beta 2 by M.E.
+    1.Use sprintf() instead of snprintf() in inc/EGgenLogger.h
+    2.Use proper variable types in inc/SecurityFile.h,
+	inc/DriverParamSettings.h and src/EGenLoader.cpp
+    3.Removed unused variables in src/CustomerTable.cpp,
+	src/EGenGenerateAndLoad.cpp, inc/InputFileNoWeight.h,
+	inc/TxnHarnessMarketFeed.h
+    4.Silence compiler warnings in inc/Random.h and src/CETxnInputGenerator.cpp
+    5.Add "start_day" parameter to Market-Watch transaction inputs in
+	inc/TxnHarnessStructs.  Requested by Cecil, currently unused.
+    6.Fix parameter order in CE constructor, fix CCE::SetTxnTunables()
+    7.Adjust CDM constructor parameter order to match CE order, rename
+	iHoursOfInitialTrades to iDaysOfInitialTrades (name change only)
+    8.Support -p option for ODBC loader in EGenLoader
+    9.Rework CGenerateAndLoad class  to take days of trades, not hours.
+	(Removes a lot of unneeded code from EGenLoader)
+    10.Generic Logger Changes
+    11.Implement base class for logging in inc/BaseLogger.h
+    12.Implement base class for log formatting in inc/BaseLogFormatter.h
+    13.Implement concrete class for logging in inc/EGenLogger.h, which logs to
+	files
+    14.Implement concrete class for log formatting in
+	inc/EGenLogFormatterTab.h which outputs tab-separated format; all log
+	formatting code removed from DriverParamSettings.h
+    15.Update DriverParamSettings.h and various logger classes to handle new
+	parameter structure for EGenLoader
+    16.Logger Changes in Driver
+    17.Update CCE, CDM, CMEE, CCETxnInputGenerator and CCETxnMixGenerator
+	transactions to take a pointer to a logger object, and update methods
+	to use this object instead of a locally-instantiated logger object.
+    18.Logger Changes in EGenLoader
+    19.Update CGenerateAndLoad class to take a pointer to a logger object, and
+	use that to log the parameters provided to CGenerateAndLoad
+
+Changes 3.13 => 3.14 Beta 1 by M.E.
+    1.Updated transaction harnesses to use CDBConnection class intead of a
+	pair of char pointers (suggested and prototyped by Sun)
+    2.Fix assert checks in DateTime.cpp; replace various integer constants
+	with named comments from MiscConsts.h
+    3.Swap Trade-Lookup Frame 3 and Frame 4.
+    4.Introduce macros for wrapping 64-bit integer constants, and update the
+	Makefile with details on what may need to be adjusted at compile time
+	to use these macros.  This is a portability enhancment of the changes
+	in 3.13 item 11.
+    5.Add CTradeCleanup transaction harness and input/output structures.
+    6.Add CTradeCleanup transaction entry point to CDM class, along with
+	related constructor changes and InputFiles requirements.
+    7.Add "Canceled" status-type, remove "Expired", "Cert-Due", "Cash-Due",
+	"Overdue", "At-Risk" status-types.
+    8.Code cleanup in CMEESecurity (remove unused code, rename some members
+	for clarity)
+    9.Remove max_list_len from TxnHarnessStructs.h (unused), add some comments
+    10.Restructure limit/artificial trade code (for clarity reasons) in
+	MEETickerTape.cpp
+    11.Use localtime_r() instead of localtime() in DateTime.cpp, clean up
+	comments
+    12.Update Market-Feed code so that SendToMarket is called from sponsor
+	code.  Harness now passes pointer to SendToMarketInterface to sponsor
+	implementation; frame/transaction output arrays have been removed;
+	SendToMarket processing in frame has been removed.
+    13.CETxnInputGenerator.cpp now uses exec_is_owner tunable properly
+    14.Revisions to TxnHarnessSendToMarketInterface.h; new public methods
+	SendToMarketFromFrame (for use in Market-Feed) and
+	SendToMarketFromHarness (for use in Trade-Order).
+    15.CETxnIntputGenerator.cpp - implement generic functions for computing
+	trade IDs and trade DTS values, used in Trade-Lookup and Trade-Update
+    16.Random.cpp:  Add start-of-range value to NURnd(), adjust callers for
+	new NURnd() API, change AValue to 32-bit
+    17.Add CBaseLogger/CEGenLogger classes, for the purpose of logging driver
+	tunables; update CCE class to use logger methods
+    18.Add DriverTypes.h, contains enum and string representations of various
+	driver types (CE, MEE, DM, etc)
+    19.Various C++ cleanups in FlatXYZLoad.h
+    20.Add "custom" loader capability to EGenLoader.cpp
+    21.CDM, CCE, CMEE constructors changed so that ALL constructurs take a
+	UniqueId parameter; useful to identify driver instances when logging
+    22.Remove unused constructors from CompanyFile.h, SecurityFile.h,
+	CompanyCompetitorFile.h
+    23.Update ConvertTradeTypeIdToEnum() in CMEETickerTape to check all
+	characters of a trade-type; existing implementation would not fail on
+	certain corrupted trade-types (Example:  XLB would be treated as a
+	limit-buy)
+    24.General code cleanup wrt INT32/int, Tident usage
+    25.BETA1 RELEASED
+
+    BETA2 RELEASE
+
+Changes 3.12 => 3.13 by S.V.
+    1.Reduced the number of ticker elements to 20 (1 real + one trigger or
+	purely random).
+    2.Commented out c_tier from TBrokerVolumeTxnInput.
+    3.Modified CCETxnInputGenerator to generate 20 to 40 broker names for
+	Broker Volume.
+    4.Changed BV default mix percentage to 4.9% (stole 1% from CP, MW, SD, TS)
+    5.Modified iBrokersDiv to generate 10 brokers per load unit (instead of
+	100).
+    6.Changed number of watch items per list to 50..150.
+    7.Changed Trade Status input/output structures and TxnHarness to return 50
+	rows (instead of 1).
+    8.Modified VisualStudio project files to prepare for VS 2005 (note: the
+	files are still for VS 2003):
+	a.Added _CRT_SECURE_NO_DEPRECATE preprocessor define to silence CRT
+	    string functions usage warnings.
+	b.Modified intermediate directories to be unique inside obj for every
+	    project (needed for default parallel compile in VS 2005).
+	c.Added odbc32.lib to linked inputs for EGenLoader.
+    9.Added Commit every 20000 rows for WATCH_LIST/WATCH_ITEM (needed for ODBC
+	load).
+    10.Moved FlatFileLoader template instantiations after template function
+	definitions in FlatFileLoader.cpp.
+    11.Suffixed large 64-bit constants in SecurityFile.h and MEE.cpp with "LL".
+
+Changes 3.11 => 3.12 by M.E.
+    1.Rolled in static const initialization patches (from S.V.)
+    2.Remove dead code in FlatFile.h and SecurityFile.h (from M.E.)
+    3.Rolled in changes to CMEESecurity::Initalize (from D.J.)
+    4.Set default TL/TU MaxRows to 10 (per motion 305)
+    5.Cap user-supplied TL/TU MaxRows values at 30 (per coding team discussion)
+    6.Rolled in FlatFile.h template instantiation changes (from M.E)
+    7.Rolled in changes to remove TmarketFeedTxnInput::MaxSize parameter; use
+	max_feed_len instead; set max_feed_len to 40 (from S.V.)
+    8.Rolled in type changes for ex_open and ex_close (from S.V.)
+    9.Add IsAbortedTrade() method to CHoldingsAndTradesTable; this
+	consolidates duplicate logic between TradeGen and CETxnInputGenerator
+    10.Changes for active-vs-configured customers
+	a.Modified CCE, CCETxnInputGenerator, CDM and CInputFiles constructors
+	    to take an additional parameter for active customers
+	b.Add/rename members and methods in CCE, CCETxnInputGenerator, CDM,
+	    CInputFiles, CCompanyFile, CCompanyCompetitorFile and
+	    CSecurityFile to store and provide access to "active" and
+	    "configured" customer, company, and security values
+	c.Change CCETxnInputGenerator to use appropriate methods/members to
+	    get "active" and "configured" customer, company and security
+	    values, to be used when generating inputs
+	d.Update CDM class to use appropriate methods to get "active" customer
+	    and company counts when generating inputs.
+	e.Update CMEEPriceBoard class to use appropriate methods to get
+	    "active" security counts and pass along to CMEETicker.
+	f.Add GetEndingCA_ID() method to CCustomerAccountsAndPermissionsTable
+	    class
+	g.Add max_acct_id field to TradeLookupTxnStruct and
+	    TradeUpdateTxnStruct, and initialize using GetEndingCA_ID() from
+	    CCETxnInputGenerator
+    11.Beta1 Released
+    12.Many minor bugfixes to the active-vs-configured changes, reported by
+	Cecil, Matthew L, and Sergey V.
+    13.Update flat file loader code to throw errors instead of returning rcs.
+    14.Beta2 Released
+    15.More minor bugfixes to transaction harnesses and parameter validation,
+	reported by Cecil, Sergey
+    16.Replace date/time-related constants (ie 24, 3600, etc) with the
+	appropriate constants from MiscConsts.h.  
+    17.Add new target to the Un*x makefile - EgenDriverLib -- which in turn
+	will build EGenDriverCELib, EGenDriverMEELib and EGenDriverDMLib
+    18.Beta3 Released
+
+Changes 3.10 => 3.11 by D.J.
+    1.Rolled in exit-codes patch set (from M.E.)
+    2.Rolled in flat-file-modular patch set (from M.E.)
+    a.Applied bug fix for patch set (from M.E.)
+    3.Added MEE functionality to track outstanding limit orders and trigger
+	them via the Market-Feed batch at the appropriate time.
+    4.Removed the min/max ticker element functionality from the MEE
+	Market-Feed (made obsolete by new limit order tracking/triggering
+	functionality).
+    5.Modified MEE to honor appropriate prices for limit orders. This included
+	changes to Market-Feed to return the trade type for the triggered
+	limit orders.
+    6.Modified TradeGen to honor appropriate prices for limit orders.
+    7.Modified MEESecurity object (and therefore MEEPriceBoard and TradeGen)
+	so that instantiations of MEESecurity no longer scale with the number
+	of securities.
+    8.Modified TxnHarnessStructs.h and TxnHarnessTradeResult.h with changes
+	needed to support isolation level testing (from C.R.)
+    9.Explicitly set initialization of LT_VOL to 0, per request from M.E.
+    10.Applied patches to TxnHarnessStructs.h and TxnHarnessCustomerPosition.h
+	(from M.E.)
+    11.Modified CCustomerSelection so that selection across entire range is
+	now inclusive of partition, rather than exclusive of partition.
+	Consequently updated CCE, CTxnInputGenerator and CTradeGen. The
+	changes to CCE hit a sponsor interface (CCE constructor) when
+	partitioning.
+    12.Removed unused trade types Cover-Buy and Short-Sell per motion 295.
+    13.In TxnHarnessSecurityDetail.h, removed initialization of LOB arrays.
+    14.Modified CCE constructors to either generate unique RNG seeds for the
+	TxnInputGenerator and the TxnMixGenerator based on a sponsor provided
+	unique unsigned 32-bit integer accept two RNG seeds - one for the
+	TxnInputGenerator and the other for the TxnMixGenerator
+    15.Modified CMEE in a fashion similar to that outlined above for the CCE
+	class except the seeds are for the TickerTape and the TradingFloor.
+    16.Modified CDM in a fashion similar to CCE and CMEE for RNG seed
+	generation.
+    17.Rolled in TInputFiles => CInputFiles changes per M.E.
+    18.Removed GetTradeTypeIsSellAndMarket, m_trade_type and
+	m_db.LoadTradeTypeTable() from TxnHarnessTradeOrder.h per note from
+	S.V.  Also removed associated structure from TxnHarnessStructs.h.
+    19.Dropped in changes from M.E. to CustomerAccountsAndPermissions.h to fix
+	a flow control problem where the RNG seed was not being properly
+	restored.
+    20.Rolled in patch from M.E. to EGenLoader.cpp to properly print TIdent
+	fields in Usage().
+
+Changes 3.10 => 3.11 by S.V.
+    1.Added descriptive names for customer accounts (from
+	TaxableAccountName.txt and NonTaxableAccountName.txt)
+    2.Removed S_NAME from Security.txt file (Matt Emmerton's change)
+    3.Changed some internal loader variables to 64-bit to support 10-digit
+	customer ids.
+    4.Removed SQL_NULL_DATA define as it is no longer needed.
+    5.Added parameter validation to EGenLoader executable to prevent incorrect
+	command-line parameter values.
+    6.Removed Short-Sell and Cover-Buy from Charge.txt, CommissionRate.txt,
+	and TradeType.txt input files (change from C.R.) and updated file
+	limits in InputFlatFilesDeclarations.h accordingly.
+    7.Removed unused error codes from CBaseTxnErr and added
+	CBaseTxnErr::ROLLBACK code (useful for aborted TradeOrder).
+    8.Changed ordering of data members in DriverParamSettings.h structures to
+	always align 64-bit integers on 64-bit boundary.
+
+Changes 3.9 => 3.10 by S.V.
+    21.Added parallel loading of security/company related tables.
+    22.Changed table generation switches to -xf (Fixed), -xs (Scaling), and
+	-xg (Growing, former -xdt).
+    23.Added NULL loader option for data generation only (no loading
+	attempted).
+    24.Added security index to holding structure so that generation of HOLDING
+	does not have to recompute it (performance fix).
+    25.Changed generation of unique security indices to use plain array
+	instead of STL set (performance fix).
+    26.S_EXCH_DATE and S_START_DATE end on January 2, 2000
+    27.Changed CO_OPEN_DATE range to January 1, 1800 to January 2, 2000
+    28.Added versioning APIs to EGen (EGenVersion)
+    29.Introduced new CMoney class with integer cents arithmetic. Used for
+	initial trades and MEE in-place of rounding fixes.
+    30.Changed all customer/account/security/company etc. ids to 64-bit
+	(TIdent type).
+    31.TSecurityInputRow no longer reads security name from Security.txt file
+	(it is ignored).
+    32.Always one blank line (instead of one or two) separates various
+	"Generating TABLE_NAME table?" messages.
+    33.Added out-of-memory exception (std::bad_alloc) handling to EGenLoader.
+    34.EGenLoader exits with code 3 when output flat file could not be created
+	(FlatFileLoader.cpp).
+
+Changes 3.8 => 3.9 by D.J.
+    1.Modified suffixing of securities and companies
+    2.Modified the MEE to work with scaled security symbols.
+    3.Removed code in SecurityTable.h for handling NULL 52-week high and low.
+	These columns no longer allow NULLs.
+    4.Updated comments referencing CDriverInput to CCETxnInputGenerator.
+    5.Changed Trade-Lookup Frame mix percentages from 33/33/34/0 to
+	30/30/10/30 per motion 239.
+    6.Modified Market-Watch by Industry case to limit search across a max of
+	5000 companies per 4/26/2005 conference call.
+    7.Modified Customer-Position Frame 2 to use a random account id rather
+	than a customer id per motion 251.
+    8.Modified flat in file TaxRatesCountry.txt to include special entry used
+	by the Data-Maintenance transaction.
+    9.Updated SecurityTable class to generate S_NAME.
+    10.Updated CTradeGen to generate proper values for CT_NAME.
+    11.Modified Trade-Lookup to work with multiple trades instead of just one.
+    12.Fixed company Id generation bugs in CDM class
+    13.Updated CDM to properly use new security file and company file
+	abstractions.
+    14.Updated CDM to include NEWS_ITEM table, per motion 231.
+    15.Added new Trade-Update transaction
+    16.Modified TradeGen.cpp so that initial population trades would have
+	T_DTS set to the completion time, per motion 259.
+    17.Removed divid and divid_ind from TFinInfo structure in
+	TxnHarnessStructs.h.
+
+Changes 3.8 => 3.9 by S.V.
+    1.Implemented scaling of securities and companies with the database size
+	(number of customers in the database).
+    2.New Security.txt, Company.txt, and CompanyCompetitor.txt class
+	abstractions.
+    3.Changed S_SYMB to CHAR(12), CO_NAME to CHAR(50), and S_NAME to CHAR(70).
+    4.Removed FI_DIVIDEND from FINANCIAL table.
+    5.Changed money columns precision from .4 to .2.
+    6.Changed 9999999 to 999999 (six nines) in CommissionRate.txt for new
+	column definitions.
+    7.Removed generation of COMPANY_INDUSTRY table.
+    8.S_NAME is populated from Company.txt input file, not Security.txt.
+    9.Made performance enhancements to CTrageGen::GenerateCommissionRate().
+
+Changes 3.7 => 3.8 by D.J.
+    1.Changed TSDOutput.num_out from UINT64 to INT64 (TxnHarnessStructs.h).
+    2.Changed two occurrences of IsVaild to IsValid for
+	TSecurityDetailSettings in DriverParamSettings.h per note from S.V.
+    3.Replaced two occurrences of double spaces with single spaces in
+	Company.txt per note from M.E.
+    4.Replace four occurrences of double spaces with single spaces in
+	Security.txt per note from M.E.
+    5.Replaced one occurrence of double spaces with a single space in
+	TaxRatesDivision.txt per note from M.E.
+    6.Corrected CPerson::GetMiddleName for ASCII/EBCDIC issue per note from
+	M.E.
+    7.Changed trade_list in TTradeLookupOutput and TTradeLookupFrame4Output
+	from int to INT64 since this is a list of trade IDs - per note from
+	S.V.
+    8.Added support for partitioning C_ID generation at runtime.
+    9.Encapsulated Customer Emulator functionality into a new CE class. This
+	class includes functionality for controlling the transaction mix as
+	well as generating inputs for the various customer-initiated
+	transactions.
+    10.Cleaned up naming convention of EGenTxnHarness at the following levels.
+	Frame method name
+	Transaction level input and output structures (removed combined
+	    super-structures) per motion 219.
+	Frame level input and output structures (removed combined
+	    super-structures) per motion 219.
+    11.Rolled in 64-bit integer printf format changes for flat file loader
+	functionality per note from L.L.
+    12.Removed EGenLoader command line flag "-h" for specifying the number of
+	hours of initial trades to load. Added new flag "-w" for the number of
+	Workdays (8-hour days) of initial trades to populate. Per motion 220.
+    13.Rolled in changes from C.R. (DailyMarketTable.h, MiscConsts.h,
+	TradeGen.h, CETxnInputGenerator.cpp) per motion 221 to
+	    Implement a 5-day work week - no trading on Saturday or Sunday
+	    Move start date for Financial and Daily Market data to Monday
+		January 3, 2000 (end date is now Friday December 31, 2004).
+	    Make start date for initial trades Monday January 3, 2005.
+    14.Removed -u flag from EGenLoader since setting the load unit to anything
+	other than 1000 will break a lot of internal code.
+    15.Added EGenDriverCELib to makefile.
+    16.Changed TTradeLookupFrame3Output. holding_history_id from INT32 to
+	INT64.
+    17.Added HOLDING_SUMMARY functionality to EGenLoader (Flat File and MSSQL
+	implementations)
+    18.Created new CDM class to encapsulate driver functionality for the
+	Data-Maintenance transaction.
+    19.Modified Trade-Order "rollback" input flag to be set 1 time out of 101
+	by default, instead of 1 out of 100.
+    20.Modified CCETxnInputGenerator::GenerateTradeLookupTradeID() to skip
+	over trade ID's that were skipped during load time (as part of
+	simulating rolled back ( or aborted ) trades).
+    21.New flat_in files from Jamie
+	Company.txt
+	CompanyCompetitor.txt
+	CompanyIndustry.txt
+    22.Modified EGenLoader -x command line flag values and meanings.
+
+Changes 3.7 => 3.8 by S.V
+    1.Moved TIMESTAMP_STRUCT inside the TPCE namespace (DateTime.h,
+	DateTime.cpp, DriverInput.cpp)
+
+Changes 3.7 => 3.8 by J.F.
+    2.Commented out initialization of m_NextEvent in EventWheel class of
+	EventWheel.h
+    3.Changed backslash "\" to a slash "/" in TxnMixGenerator.cpp
+    4.Modified ifstream calls in reading input flat files to the base istream
+	class.  Provided an overloaded method to either read input files or
+	read from a passed string.  The file loadstring.patch in patches has a
+	listing of all the changes made to FlatFile.h, InputFile.h,
+	InputFileNoWeight.h, InputFlatFileDeclarations.h, Table_Defs.h,  &
+	ReadRowFunctions.cpp.
+    5.Changed the include path on all header files in the inc directory to
+	remove the "../inc" path directive.  Paths for header files in the inc
+	directory now use just the file name.
+    6.Modified the DoTxn method calls for each of the TxnHarnessTransaction.h
+	to provide an overloaded method to either send a single
+	TxnHarnessStruct for the transaction, or provide separate input and
+	output structures.  
+    7.Modified the individual m_db.Dotransactionframe calls to provide
+	separate in and out pointers, instead of a single superstructure
+	pointer, for all interactions with the database methods m_db.*
+    8.Provided a sample CsyncLock class for implementing pthread locks in an
+	*NIX environment.
+
+Changes 3.6 => 3.7 by D.J.
+    9.Integrated new MEE into EGen as EGenDriverMEELib.
+    10.Removed old MEE code.
+    11.Updated RNG seed for customer selection (was teleconference phone
+	number).
+    12.Changed DailyMarketTable.h to include SecurityPriceRange.h and make use
+	of fMinSecPrice and fMaxSecPrice when setting fDailyMarketCloseMin and
+	fDailyMarketCloseMax.
+    13.Removed dts fields from Trade-Result and Market-Feed structures per
+	motions from the subcommittee.
+    14.Updated Trade-Lookup functionality (TxnHarnessStructs.h,
+	TxnHarnessTradeLookup.h, DriverInput.cpp) per motion 205 on 1/25/2005.
+    15.Updated Security-Detail functionality (DriverParamsSettings.h,
+	DriverInput.cpp, TxnHarnessStructs.h) per motion 203 on 1/25/2005.
+    16.Added CTxnMixGenerator class for generating the runtime transaction mix.
+    17.Added EGenDriverCELib and EGenDriverMEELib projects into EGen/prj
+	directory and incorporated them into EGen solution.
+
+Changes 3.6 => 3.7 by S.V.
+    1.TradeId type is 64-bit integer (flat files still output only 32-bits).
+    2.No dublication of row-reading functions for some tables (that are
+	completely defined in flat files).
+    3.Non-uniform trading by customer tier (a single function for both
+	EGenLoader and CDriverInput to select a customer).
+    4.Fixed bug in TradeGen.h where a time shift occurred after 25 days of
+	initial trading. The internal elapsed time was being fed into
+	CDateTime class as ms only (although Add() function allows days too).
+	Changed the code to submit time in the format (# of days, ms in the
+	day) instead of (0, total ms).
+
+Changes 3.5 => 3.6 by J.R.
+    1.Added meaningful company descriptions to Company.txt file.
+
+Changes 3.5 => 3.6 by S.V.
+    1.Added parallel load.
+    2.Added Data Maintenance harness and driver input generation.
+    3.BROKER YTD fields are updated with initial trades.
+    4.DAILY_MARKET and FINANCIAL generating 5 years of data starting from July
+	1, 1999 (ending on June 30, 2004)
+    5.WL_ID is different from C_ID (a permutation within C_ID's 1000-customer
+	load unit)
+    6.Tax is withheld only for accounts with the corresponding tax status.
+    7.TSDInput includes start_day and max_rows_to_return parameters.
+    8.Removed SE_CA_ID and CT_CA_ID columns.
+    9.Added disconnect and reconnect after every load unit for holdings and
+	trades in ODBC load (saves log space).
+    10.Added ticker auto-adjust mode to CMarketEmulator.
+
+Changes 3.4 => 3.5 by D.J.
+    1.Added transaction harness and input generation for Trade Lookup
+	transaction.
+
+
+Changes 3.4 => 3.5 by S.V.
+    1.Added CTradeGen class to generate initial trades and holdings
+    2.Added CMEEApproximation class for generation of initial trades and
+	holdings
+    3.Modified EGenLoader.cpp and EGenGenerateAndLoad.cpp for new method of
+	initial trade generation.
+    4.Removed HoldingAndTradeCommonData.h because of the new method of initial
+	trade generation.
+
+Changes 3.3 => 3.4 by D.J.
+    1.See RNGUsage.xls for many changes
+    2.Changed CRandom::RndAlphaNumFormated to RndAlphaNumFormatted
+    3.Changed RNG seeding in CPerson::GetTaxID to account for the fact that
+	the call to RndAlphaNumFormatted consumes 14 RNG values. This makes
+	tax IDs independent rather than overlapping 13 out of 14 characters.
+    4.Changed CCustomerAccountsAndPermissionsTable::GetCIDsForPermissions to
+	use a separate RNG sequence for generating each of the additional
+	permissions.
+    5.Changed many places where "Holdings" was being used when really it was
+	"Securities".
+
+Changes 3.3 => 3.4 by S.V.
+    6.EGenLoader.cpp: removed TableIDs enumeration because it is not used
+	anywhere (after the addition of loader class factory).
+    7.Editorial changes: renamed in table generation classes
+    iCount to iCustomerCount
+    iCustCount to iCustomerCount
+    iStartingID to iStartFromCustomer
+    iDefStartCustId to iDefaultStartFromCustomer
+    8.CustomerTable.h: iStartFromCustomer is now 1-based instead of 0-based
+    9.Moved functions that generate and load tables (Generate*Table) from
+	EGenLoader.cpp into a new class CGenerateAndLoad.
+    10.Windows only: added new project EGenGenerateAndLoad.
+    11.Tables loaded from flat files (CCharge, CCommissionRateTable, etc.):
+	encapsulated input file name in the constructor. Only the directory
+	name where the input file is located is passed in.
+    12.EGenLoader.cpp: added -b and -xt (replaces old -x[N,S,L,D]) options.
+    13.CAddressTable, CBrokerTable, CWatchListsAndItemsTable: added an ability
+	to generate data for a subset of customers (not starting from the
+	first customer).
+    14.ODBC loaders: removed table lock hint to enable parallel load.
+    15.FinancialTable.h: modified to generate earnings per share, margin, and
+	dividend data only if total earnings are positive (which also cannot
+	exceed total revenue). Earnings per share are calculated using total
+	earnings and the number of shares outstanding.
+    16.TxnHarness*.h: added Cleanup(void *pException) method to allow error
+	handling by the database class.
+    17.DriverInput.cpp: removed default broker from calculation of the broker
+	list for BrokerVolume.
+    18.CDriverInput: separated generation of a random customer in many places
+	into one private function GenerateRandomCustomerId();
+    19.DriverInput.cpp: renamed CID to iCustomerId.
+
+Changes 3.2 => 3.3 by D.J.
+    1.Added EGenStandardTypes.h. This file is where platform dependent data
+	types are mapped to platform independent types to be used in the EGen
+	package.
+    2.Added a typedef of RNGSEED to clearly show where parameters are seeds to
+	the RNG and where they are not.
+    3.Updated CRandom class to use the 64-bit RNG, and it's associated skip
+	function. Note that this caused a change in the returned data type of
+	two public methods to type RNGSEED (this change rippled into
+	CustomerTable.cpp and AddressTable.cpp).
+	    a.GetSeed
+	    b.RndNthElement
+    4.Reconciled ADDRESS and ZIP_CODE table generation.
+	a.Removed Address.txt input file
+	b.ADDRESS table generation now uses ZipCode.txt input file for zip
+	    codes.
+	c.AD_TOWN and AD_DIV columns removed from ADDRESS generation
+	d.New ZipCode.txt file created
+    5.CO_SP_RATE now uses a weighted distribution across all 39 values instead
+	of using just 4 values.
+    6.Updated CA_BAL range from -999,999.99 - 999,999.99 to -9,999,999.99 to
+	9,999,999.99.
+    7.Reconciled transaction and frame parameters with specification.
+    a.Updated TxnHarnessStructs.h accordingly to match specification.
+    b.Updated DriverInput.cpp to match changes made to TxnHarnessStructs.h
+    c.Updated TxnHarness*.h to match changes made to TxnHarnessStructs.h.
+    8.Added functionality for generating HOLDING_HISTORY table.
+    9.Modified Broker ID assignment to eliminate the use of a default broker
+	ID for the brokerage house.
+    10.Market-Watch
+    a.Changed parameters to match motion passed on 2/24/04
+    b.Updated DriverInput.cpp to generate correct data for the new parameters
+    11.Modified H_QTY and T_QTY from random integers in the range 1-5000
+	during load and 100 during runtime to be selected from 100, 200, 400,
+	800 for both load and runtime
+    12.Modified T_TT_ID initial population to be 30% TMB, 20% TLB, 30% TMS,
+	10% TLS and 10% TSL
+    13.Modified H_QTY during load to be negative in the case of sells.
+    14.Updated Market-Feed parameter names to avoid name-collision
+    15.Updated CDriverInput::GenerateMarketWatchInput() so that CID is
+	selected from [iDefStartCustId, iDefStartCustId+m_iCustCount-1]
+    16.Changed GetCompanySPRate() to GenerateCompanySPRate and hard coded
+	setting m_row.CO_SP_RATE
+    17.Moved definition of cNUM_TRADE_QTY_SIZES and cTRADE_QTY_SIZES from
+	TableConsts.h to HoldingsAndTradesCommonData.h
+    18.Updated CODBCERR definition in error.h
+    19.Updated DriverParamSettings.h for TradeOrderSettings
+    a.Lifo 50 => 35
+    b.Exec_is_ownder 0 => 90
+    c.Rollback 0 => 1
+    20.Added blank line after variable declaration in
+	CCompanyTable::GenerateCompanySPRate()
+    21.CFixedMap::GetElementByPassKey changed ElementID to iElementID
+    22.Added exec_name to TTSOutput in TxnHarnessStructs.h
+    23.Added +1 to length of s_name in Trade-Order Frame 3 structure in
+	TxnHarnessStructs.h
+    24.Added HoldingHistory_Load->FinishLoad() and delete HoldingHistory_Load
+	to EGenLoader.cpp:GenerateHoldingsAndTradesAndRequestsTable()
+    25.Added ++m_pSecID in HoldingsAndTradesCommonData.h (fix from Sergey for
+	all trades for a given account using the same security)
+    26.In HoldingsAndTradesCommonData.h fixed range used for generating index
+	into trade quantity array
+    27.in HoldingsAndTradesCommonData.h fixed trade price range
+    28.Removed generation of pending orders during initial load
+    29.Updated code so that all sells are cash transactions, and 84% of buys
+	are cash during initial load
+    30.Set LT_PRICE and LT_OPEN_PRICE to be 1 (instead of being
+	uninitialized). These should really be set to something else in the
+	future, but for now, setting them to 1 is consistent with previous
+	loader behavior.
+    31.Corrected H_PRICE to match T_BID_PRICE and T_TRAD_PRICE
+    32.In ZipCode.txt, corrected 4-digit zip codes to have leading 0,
+	corrected Canadian zip codes to have a space in the middle.
+    33.Removed HashTable.h and associated hash usage to go along with the
+	removal of LT_LOW_LIMIT and LT_HIGH_LIMIT
+    34.Changed loader to set SE_CASH_DUE_DATE to 2 days after the trade date
+	instead of 30
+    35.Updated loader to generate CT_NAME the same way as it is generated in
+	Trade-Result at runtime
+    36.Updated NewItemAndXRefTable.h, added +1 when setting
+	m_row.news_item.NI_ID to correct offset problem
+    37.Updated all header files to protect from multiple inclusion
+    38.Changed GetCSPRThreshold() to GetCompanySPRateThreshold()
+    39.Changed GetTDZCThreshold() to GetTownDivisionZipCodeThreshold()
+
+Changes 3.2 => 3.3 by J.F.
+    1.Reconciled EGenLoader functionality with schema changes to match 0.23
+	specification
+	a.Removed LT_LOW_LIMIT, LT_HIGH_LIMIT from LAST_TRADE
+	b.Removed T_B_ID from TRADE
+	c.Added T_LIFO to TRADE
+	d.Removed TR_EXP_DATE and TR_LIFO from TRADE_REQUEST
+    2.Reconciled table column name variables with specification.
+
+Changes 3.2=>3.3 by S.V.
+    1.SecurityAndLastTrade.h: generate S_52_WK.HighDate and S_52_WK_LowDate to
+	be within 52 weeks of the build date.
+    2.MarketEmulator.h/cpp: added price change function UpdateStockPrice()
+	based on random walk algorithm.
+    3.ReadRowFunctions.cpp: read IN_NAME and ST_NAME using file.get() because
+	they can contain spaces; also removed some commented code.
+    4.MarketEmulator.cpp: changed NegExp() to use RndDouble() to avoid passing
+	0 occasionally to log().
+    5.DateTime.cpp: changed IsValid() to select monthArray[1] instead of
+	monthArray[2] for February.
+    6.All projects: removed *_stdafx.cpp files and changed Windows
+	configuration to automatically generate precompiled header files (from
+	'Use Precompiled Header").
+    7.Removed references to MCSI.
+    8.Removed code commented out by #if 0.
+    9.Added generation of EXCHANGE addresses and ordered address ids as:
+	exchanges<companies<customers.
+    10.EGenLoader.cpp: moved input file load into a separate function to
+	reduce main() size and improve error reporting for failed input files.
+    11.CustomerTable.h/cpp: generate EMAIL_2 always different from EMAIL_1
+    12.TableConsts.h: changed ST_ID constants from 3 to 4 for the new
+	StatusType.txt
+    13.HoldingsAndTrades.h: moved common data fields generation into new class
+	in HoldingsAndTradesCommonData.h.
+    14.SecurityAndLastTrade.h: decomposed this file into 3 files
+	SecurityTable.h, LastTradeTable.h, and DailyMarketTable.h for
+	independent table generation.
+    15.CompaniesAndFinancials.h: decomposed this file into 2 files
+	CompanyTable.h and FinancialTable.h for independent table generation.
+    16.MiscConsts.h: new file with miscellaneous constants.
+    17.Added loader class factories BaseLoaderFactory.h, ODBCLoaderFactory.h,
+	and FlatLoaderFactory.h to remove loader creation from CreateLoader().
+    18.Address.h/cpp: added street suffix to AD_LINE_1 (selected from
+	StreetSuffix.txt file).
+    19.Upgraded Windows project files to Visual Studio .NET 2003.
+    20.New MarketFeed transaction (without TradeLimit):
+	TxnHarnessMarketFeed.h: new parameters for CMarketFeed and population
+	    of status and trade types by the harness.
+	TxnHarnessStructs.h: new input and output structures for MarketFeed
+	    and no T1_from_MEE as there is no TradeLimit transaction to time
+	    anymore.
+	TxnHarnessTradeOrder.h: removed T1_from_MEE 
+    21.TxnHarnessTradeOrder.h: do not send to market if roll_it_back flag is
+	set
+    22.DriverParamSettings.h: added type_is_margin to TradeOrder settings
+    23.Driver.cpp: use type_is_margin parameter setting in
+	GenerateTradeOrderInput()
+    24.change CDriverInput for new Trade Types
+    25.CustomerTable.h/cpp : fix C_ST_ID to use the new status type 
+    26.Brokers.h: fix B_ST_ID to use the new status type
+    27.InputFlatFileDeclarations.h: add eTradeTypeID and eStatusTypeID enums
+	because they are used by multiple tables, not only Holdings and Trades
+    28.HoldingsAndTradesCommonData.h: remove eTradeTypeID and eStatusTypeID
+	enums
+    29.DriverInput.h/cpp: modified to use the new RNGSEED type + moved local
+	variable declarations in GenerateTradeOrderInput() to the top to
+	comply with the coding standards.
+    30.MarketEmulator.cpp:
+    the trade completion delay is capped at 5 seconds
+    the trade queue size is 10 (instead of 2)
+    lRndSeed is of type RNGSEED
+    31.MarketEmulator.h: lRndSeed is of type RNGSEED
+    32.DriverInput.cpp:
+	generate Stop-Loss order type for Trade Order
+	GenerateTradeOrderInput now returns the order trade type (instead of
+	    bMarket and bSell)
+    33.DriverInput.h: GenerateTradeOrderInput new return type and no bMarket
+	output parameter
+    34.DriverParamSettings.h: added stop_loss percentage (for limit sell
+	orders)
+    35.Queue.h: enqueue() now returns the new size of the queue so there is no
+	need to check size() afterwards (when the lock has been released)
+    36.MarketEmulator.cpp:
+	ReceiveTrade() doesn't call m_queue.size() after m_queue.enqueue()
+	DoTrades() doesn't call m_queue.size(), but gets the dequeue status
+	    directly from m_queue.dequeue()
+	UpdateStockPrice() checks for price not going too far below the low
+	    price range bound, instead of below 0.
+
+Changes 3.1=>3.2 by D.J.
+    1.Added functionality for flat file generation of News Item and News XRef
+	tables.
+    2.Changed default database name from "oltp" to "tpce".
+    3.Rolled in Sergey's changes for the following
+    a.Changed minimum security price from 0.1 to 20.
+    b.Changed maximum security price from 200 to 30.
+    c.Changed maximum securities per account from 200 to 25.
+    4.Fixed bug in DateTime.cpp. The unix code in SetToCurrent was calling
+	YMDtoDayno with tm_mon which is 0 based. But YMDtoDayno expects the
+	month to be 1 based. 1 is now added to tm_mon in the call to
+	YMDtoDayno.
+
+Changes 3.1=>3.2 by S.V.
+    1.DriverParamSettings.h: corrected TMarketWatchSettings::IsValid()
+	(replaced 33 with 0).
+    2.TableConsts.h: changed cAD_CTRY_len to 80 from 10.
+    3.TxnHarnessStructs.h: added iMEEId to TTLInput, TTOInput, and
+	TMarketFeedMessage.
+    4.ReadRowFunctions.cpp: removed last line in SECTOR_ROW::Load() to
+	properly read the last sector row.
+    5.TxnHarnessStructs.h: added iMEEId parameter to TTLInput, TTOInput, and
+	TMarketFeedMessage.
+    6.Added DriverInputMEEIdInterface.h to get MEEId for a symbol in
+	TradeOrder parameter generation.
+    7.ODBCAccountPermissionLoad.h: changed to load AP_L_NAME before AP_F_NAME
+	to conform with the spec.
+    8.ODBCSecurityLoad.h: exchanged S_ISSUE and S_TD_ID to conform with the
+	spec
+    9.MarketEmulator_stdafx.h: removed "#include <iostream>" and "using
+	namespace std;" because there is no output with cout operator anymore.
+    10.DriverInput.h/cpp: added return of "Executor is account owner" flag for
+	Trade Order.
+    11.InputFlatFilesDeclarations.h: removed commented code for Taxrates.txt.
+    12.EGenLoader.cpp: added -d command line option to specify database name.
+    13.EGenLoader.cpp: renamed GenerateSecurityAndLastTradeTable to
+	GenerateSecurityLastTradeAndDailyMarketTable.
+    14.Added NEWS_ITEM and NEWS_XREF table generation and ODBC load.
+	Table_Defs.h: added NEWS_ITEM_ROW and NEWS_XREF_ROW definitions
+	InputFlatFilesDeclarations.h: added TNewsFile declaration.
+	TxnHarnessStructs.h: changed max_news_len to 2 from 20 (to avoid
+	    putting 2MB on stack in SecurityDetailFrame1() - TSDOutput
+	    structure).
+	CompaniesAndFinancials.h: added GenerateNextCO_ID() and
+	    GetCurrentCO_ID().
+	EGenLoader.cpp: added -xN switch to suppress NEWS tables generation.
+	New files: NewsItemAndXRefTable.h, ODBCNewsItemLoad.h,
+	    ODBCNewsXRefLoad.h.
+    15.Performance improvements:
+	Random.cpp: removed calculation of intermediate variables s,hi,lo in
+	    irand()
+	Random.cpp: changed __A, __M, __Q, __R from constants to defines.
+	HoldingsAndTradesTable.h: store C_TIER in class instead of
+	    recalculating it every time it is needed
+	FixedArray.h: changed input validation in [] into an assert that is
+	    only used in debug build
+	FixedMap.h: changed input validation in GetElement() into an assert
+	    that is only used in debug build
+
+Changes rc1-3.1 => rc2-3.1
+    1.Enabled generation of TRADE_REQUEST table. DJ
+    2.TX_RATE from 0<x<100 to 0<x<1 in input flat file. JF
+    3.TX_NAME place holders filled out in input flat file. JF
+    4.CDateTime::AddMinutes fixed. SV
+    5.FI_OUT_BASIC and FI_OUT_DILUT output flat file formats fixed. DJ
+    6.CDateTime::monthArray split into two arrays. SV
+    7.makefile - cleaned up ^Ms. DJ
+    8.Cleaned up input flat file ZipCode.txt. DJ
+
+Changes 3.0 => 3.1 by S.V.
+    1)All code in header files is declared in TPCE namespace. Source files
+	have "using namespace TPCE" directive.
+    2)DriverInput.h/cpp: CDriverInput class modified to accept distribution
+	parameters structure defined in DriverInputSettings.h (new file).
+    3)InputFlatFilesDeclarations.h (and all affected files): renamed
+	TInputFileNames=>TInputFiles in because this structure contains
+	references to actual input files in memory instead of their names.
+    4)Changed VC project files to link with DLL version of C++ runtime library
+	instead of static runtime library linkage (Project
+	Properties->C/C++->Code Generation->Runtime Library)
+    5)MarketEmulator.h/cpp: CMarketEmulator keeps internal time for trade and
+	for ticker as seconds (with fractions) from the base time, which is
+	taken at construction time. This takes care of rounding and 1ms
+	resolution problems. The trade frequency constructor parameters are
+	now in seconds instead of minutes.
+    6)MarketEmulator.cpp: changed NegExp() to use log() instead of logf() all
+	the time, so MPL's change to CMarketEmulator is not #ifdef'ed anymore.
+    7)MarketEmulator.h/cpp: added a parameter to CMarketEmulator constructor
+	for a printf-like function used for informational and debugging output
+	(m_bVerbose=true), instead of using cout. This allows for non stdout
+	output.
+    8)TableConsts.h: organized constants in alphabetical order by table type.
+    9)TxnHarnessStructs.h: organized structs in alphabetical order by
+	transaction type.
+    10)TxnHarnessStructs.h: changed cAD_CTY_len=>cAD_CTRY_len to coincide with
+	DJ change.
+    11)Error.h/cpp: removed CBufferOverflowErr as it is not used anywhere.
+    12)ODBCExchangeLoad.h: binding for EX_AD_ID column changed from type
+	SQLFLT8 to type SQLINT4 because address ids are integers.
+    13)CustomerTaxratesTable.h: strncpy() TAX_ID field since it it char(4)
+	now. Updated  InputFlatFilesDeclarations.h to have char fields in
+	TTaxRateInputRow and correspondingly updated TTaxRateInputRow::Load in
+	ReadRowFunctions.cpp. Updated CUSTOMER_TAXRATE_ROW in Table_Defs.h.
+    14)New Taxrates.h to generate TAXRATE table from new TaxRatesCountry.txt
+	and TaxRatesDivision.txt input files instead of Taxrates.txt input
+	file.
+    15)Removed commented out code:
+	DateTime.cpp: for in-class CDateTime::operator> (there is an external
+	    operator>)
+	ReadRowFunctions.cpp: comment at the end about explicit instantiation
+	    of input file templates (there is no actual code corresponding to
+	    this comment)
+	HoldingsAndTradesTable.h: private m_iTradeType and m_iTradeStatus
+	    (they are publicly defined now as they are needed from other
+	    tables)
+	MarketEmulator.cpp: Sleep(10) along with its comment in DoTrades() as
+	    this trick is no longer needed because T_ID is now primary key in
+	    HOLDING. Also, trade_dts.fraction=0 (not needed - fraction is
+	    properly calculated in GetTimeStamp()).
+	TxnHarnessStructs.h: ticker element fields in TMFInput as they are
+	    contained in TTickerElement structure now
+	Error.h: removed _SERRORMSG and _ErrorLevel declarations
+
+Changes 3.0 => 3.1 by MPL.
+    General Items
+	MarketEmulator.cpp: logf->log on solaris(used same syntax as  found in
+	    Random.cpp)
+	TxnHarnessCustomerPosition.h:
+	    Changed:  CustPosFrame2.in.cust_id = CustPosFrame1.in.cust_id;
+	    To: CustPosFrame2.in.cust_id = CustPosFrame1.out.cust_id;
+    There's also quite a bit of code missing from this TxnHarness piece of
+	code. Almost none of the output parameters are being passed back to
+	the client.  Some of it involves TIMESTAMP_STRUCT copying so we won't
+	add our changes in this version.
+    Other TxnHarness files that need to be changed: TradeResult, TradeOrder,
+	MarketFeed.
+    Removed prj/ChangeLog.doc to avoid confusion.
+
+Changes to 3.0 for 3.1 by DJ.
+    General Items
+	Added COMPANY_COMPETITOR table
+	Added ZIP_CODE table
+	Changed all output flat file generation from inserter (<<) to fprintf
+	Added character constant format strings for flat file output in
+	Table_Defs.h
+	Reconciled table name, column name, column width, column order, and
+	    flat file output precision with v0.20 of the specification
+	Added C_CTRY_3, C_AREA_3, C_LOCAL_3, and C_EXT_3
+	Removed CA_BAL_AVAIL
+	Removed H_QTY_AVAIL
+	Renamed CH_CHARGE to CH_CHRG
+	Corrected random number range  for generating negative CA_BAL
+	Cleaned up all input flat files
+	Removed ^M's
+	Added EOL to last line of every file
+	Removed "extraneous"  security content from Company.txt
+	Removed .ignore() from company and security read row functions
+	Improved logic in container code (fixed array and fixed map) to detect
+	    EOF before trying to insert garbage into memory structure
+	Corrected all container limits (m_iTotalElements in
+	    InputFlatFilesDelarations.h)
+	Set default number of customers to 100
+	Cleaned up S_52_WK High/Low Value/Date into one structure
+
+    File re-naming
+	inc/MCSIGenerateTable_stdafx.h => inc/EGenTables_stdafx.h
+	src/MCSIGenerateTable_stdafx.cpp => src/EGenTables_stdafx.cpp
+
+	inc/MCSIUtils_stdafx.h => inc/EgenUtilities_stdafx.h
+	src/MCSIUtils_stdafx.cpp => src/EgenUtilities_stdafx.cpp
+
+	MCSILoadTable_stdafx.h => EGenBaseLoader_stadafx.h
+	MCSILoadTable_stdafx.cpp => EGenBaseLoader_stadafx.cpp
+
+	src/MCSIGenerate.cpp => src/EGenLoader.cpp
+	src/MCSIGenerate_stdafx.cpp => src/EGenLoader_stdafx.cpp
+	src/MCSIGenerate_stdafx.cpp => src/EGenLoader_stdafx.cpp
+
+    Input Flat File re-naming
+	underscores removed from file names
+	changed file names to be singular, not plural (area code, company,
+	    female, last, male, street name, zip code)
+
+Editorial Changes
+    re-structured Table_Defs.h to be in alphabetical order
+    re-structured FlatFileLoader.cpp so that template class instantiation is
+	in alphabetic order
+    inputFiles.FirstMaleNames => inputFiles.MaleFirstNames to match file name
+    inputFiles.FirstFealeNames => inputFiles.FealeFirstNames to match file name
+    alphabetized portions of EGenLoader.cpp
+
+Table Constants
+    cAD_CTY_len => cAD_CTRY_len
+    cCT_NAME 50 => 100
+    cAREA_len 4 => 3
+    cLOCAL_len 8 => 10
+    cEXEC_NAME_len cF_NAME_len + cL_NAME_len +2 => cF_NAME_len + cM_NAME_len +
+	cL_NAME_len + 3

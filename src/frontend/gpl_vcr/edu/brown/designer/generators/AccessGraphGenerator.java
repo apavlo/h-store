@@ -1,0 +1,580 @@
+/**
+ * 
+ */
+package edu.brown.designer.generators;
+
+import java.util.*;
+
+import org.apache.log4j.Level;
+import org.voltdb.catalog.*;
+import org.voltdb.types.*;
+import org.voltdb.utils.Pair;
+
+import edu.brown.catalog.CatalogUtil;
+import edu.brown.designer.*;
+import edu.brown.designer.AccessGraph.*;
+import edu.brown.utils.*;
+import edu.brown.workload.*;
+import edu.uci.ics.jung.graph.util.EdgeType;
+
+/**
+ * @author pavlo
+ *
+ */
+public class AccessGraphGenerator extends AbstractGenerator<AccessGraph> {
+    private final Procedure catalog_proc;
+    private final Map<Statement, Set<Edge>> stmt_edge_xref = new HashMap<Statement, Set<Edge>>();
+    private final Map<Edge, Set<Set<Statement>>> multi_stmt_edge_xref = new HashMap<Edge, Set<Set<Statement>>>();
+    private final Set<Table> debug_tables = new HashSet<Table>();
+    
+    /**
+     * 
+     * @param stats_catalog_db
+     * @param graph
+     * @param workload
+     * @param catalog_proc
+     */
+    public AccessGraphGenerator(DesignerInfo info, Procedure catalog_proc) {
+        super(info);
+        this.catalog_proc = catalog_proc;
+        
+        debug_tables.add(this.info.catalog_db.getTables().get("CUSTOMER"));
+        debug_tables.add(this.info.catalog_db.getTables().get("DISTRICT"));
+    }
+
+    /* (non-Javadoc)
+     * @see edu.brown.designer.analyzers.AbstractAnalyzer#generate(edu.brown.graphs.AccessGraph)
+     */
+    @Override
+    public void generate(AccessGraph agraph) throws Exception {
+        LOG.debug("Constructing AccessGraph for Procedure '" + this.catalog_proc.getName() + "'");
+        
+        // First initialize our little graph...
+        this.initialize(agraph);
+
+//        for (Statement catalog_stmt : this.catalog_proc.getStatements()) {
+//            if (debug) System.err.println(catalog_stmt.getName());
+//            for (StmtParameter param : catalog_stmt.getParameters()) {
+//                if (debug) System.err.println("\t[" + param.getIndex() + "] " + param + " -> " + param.getProcparameter() + (param.getProcparameter() != null ? " [" + param.getProcparameter().getIndex() + "]" : ""));
+//            }
+//        }
+        //if (true) return;
+        
+        //
+        // Get the list of tables used in the procedure
+        //
+        Set<Table> proc_tables = CatalogUtil.getReferencedTables(this.catalog_proc);
+
+        //
+        // Loop through each query and create edges for the explicitly defined relationships:
+        // (1) Add an edge from each table in the query table to all other tables in the same query
+        // (2) Add a self-referencing edge for table0 if it is used in a filter predicate using a
+        //     variable or an input parameter
+        //
+        for (Statement catalog_stmt : this.catalog_proc.getStatements()) {
+            this.createExplicitEdges(agraph, catalog_stmt);
+        } // FOR
+
+//        if (debug) System.err.println("\n===============================================================\n");
+        
+        //
+        // After the initial edges have been added to the graph, loop back through again looking for
+        // implicit references between two tables:
+        //
+        //  - Tables implicitly joined by sharing parameters on foreign keys
+        //  - Tables implicitly referenced together by using the same values on foreign keys
+        //
+        Statement catalog_stmts[] = this.catalog_proc.getStatements().values();
+        for (int stmt_ctr0 = 0, stmt_cnt = catalog_stmts.length; stmt_ctr0 < stmt_cnt; stmt_ctr0++) {
+            Statement catalog_stmt0 = catalog_stmts[stmt_ctr0];
+            Set<Table> stmt0_tables = CatalogUtil.getReferencedTables(catalog_stmt0);
+            this.setDebug(stmt0_tables.containsAll(debug_tables));
+
+            // --------------------------------------------------------------
+            // (3) Add an edge between the tables in this Statement and all other tables in
+            //     other queries that share input parameters on foreign keys relations
+            // --------------------------------------------------------------
+            List<ProcParameter> params0 = new ArrayList<ProcParameter>();
+            for (StmtParameter param : catalog_stmt0.getParameters()) {
+                if (param.getProcparameter() != null) params0.add(param.getProcparameter());
+            } // FOR
+            if (debug) LOG.debug(catalog_stmt0.getName() + " Params: " + params0);
+
+            for (int stmt_ctr1 = stmt_ctr0 + 1; stmt_ctr1 < stmt_cnt; stmt_ctr1++) {
+                Statement catalog_stmt1 = catalog_stmts[stmt_ctr1];
+                if (catalog_stmt1 == null || catalog_stmt1.getParameters() == null) continue;
+                this.createSharedParamEdges(agraph, catalog_stmt0, catalog_stmt1, params0);
+            } // FOR
+            
+            // --------------------------------------------------------------
+            // (4) Create an edge between implicit references by primary key
+            //     This is when one statement has a predicate that uses an input parameter
+            //     that is not referenced in conjunction with other tables
+            // --------------------------------------------------------------
+            if (debug) LOG.debug("-----------------------------------------\nLooking for implicit reference joins in " + catalog_stmt0 + "\n" + "TABLES: " + stmt0_tables);
+            for (Table catalog_tbl : stmt0_tables) {
+                this.createImplicitEdges(agraph, proc_tables, catalog_stmt0, catalog_tbl);
+            } // FOR
+        } // FOR
+
+
+        //
+        // (5) Now run through the workload and update the edges with all number of times they
+        // are used in the workload
+        //
+//        if (debug) System.err.println("STATEMENT EDGE XREF: " + this.stmt_edge_xref.size());
+//        for (Statement catalog_stmt : this.stmt_edge_xref.keySet()) {
+//            if (debug) System.err.println(catalog_stmt + ": " + this.stmt_edge_xref.get(catalog_stmt).size());
+//        }
+//        if (this.catalog_proc.getName().equals("neworder")) System.exit(1);
+//        if (debug) System.err.println("MULTI-STATEMENT EDGE XREF: " + this.multi_stmt_edge_xref.size());
+//        for (Edge edge : this.multi_stmt_edge_xref.keySet()) {
+//            if (debug) System.err.println(edge + ": " + this.multi_stmt_edge_xref.get(edge).size());
+//        }
+//        if (this.catalog_proc.getName().equals("neworder")) System.exit(1);
+
+        List<TransactionTrace> traces = this.info.workload.getTraces(this.catalog_proc);
+        LOG.debug("Updating edge weights using " + traces.size() + " txn traces from workload");
+        for (TransactionTrace xact : traces) {
+            this.updateEdgeWeights(agraph, xact);
+        } // FOR
+        this.updateEdgeWeighModifiers(agraph);
+
+        // Prune vertices that weren't used in the the procedure
+        agraph.pruneIsolatedVertices();
+        
+        // Make sure all of the table used in the procedure are in the graph
+        for (Table catalog_tbl : proc_tables) {
+            assert(agraph.getVertex(catalog_tbl) != null) :
+                "The AccessGraph is missing a vertex for " + catalog_tbl;
+        }
+        
+        // Done!
+        return;
+    }
+
+    /**
+     * 
+     * @param agraph
+     * @throws Exception
+     */
+    protected void initialize(AccessGraph agraph) throws Exception {
+        //
+        // Copy the vertices from the DependencyGraph into our graph
+        //
+        for (Vertex vertex : this.info.dgraph.getVertices()) {
+            if (agraph.getVertex(vertex.getCatalogItem()) == null) agraph.addVertex(vertex);
+        } // FOR
+    }
+    
+    /**
+     * 
+     * @param agraph
+     * @throws Exception
+     */
+    protected void createExplicitEdges(AccessGraph agraph, Statement catalog_stmt) throws Exception {
+        LOG.debug("Looking at Statement '" + catalog_stmt.getName() + "'");
+        LOG.debug("SQL: " + catalog_stmt.getSqltext());
+        List<Table> tables = new ArrayList<Table>();
+        tables.addAll(CatalogUtil.getReferencedTables(catalog_stmt));
+        for (int ctr = 0, cnt = tables.size(); ctr < cnt; ctr++) {
+            Table table0 = tables.get(ctr);
+            boolean debug = debug_tables.contains(table0);
+
+            // --------------------------------------------------------------
+            // (1) Add an edge from table0 to all other tables in the query
+            // --------------------------------------------------------------
+            for (int ctr2 = ctr + 1; ctr2 < cnt; ctr2++) {
+                Table table1 = tables.get(ctr2);
+                ColumnSet cset = DesignerUtil.extractStatementColumnSet(catalog_stmt, true, table0, table1);
+                if (debug) LOG.debug("Creating join edge between " + table0 + "<->" + table1 + " for " + catalog_stmt);
+                this.addEdge(agraph, AccessType.SQL_JOIN, cset, agraph.getVertex(table0), agraph.getVertex(table1), catalog_stmt);
+            } // FOR
+            // --------------------------------------------------------------
+            
+            // --------------------------------------------------------------
+            // (2) Add a self-referencing edge for table0 if it is used in
+            //     a filter predicate using a variable or an input parameter
+            // --------------------------------------------------------------
+            if (debug) LOG.debug("Looking for scan ColumnSet on table '" + table0.getName() + "'");
+            ColumnSet cset = DesignerUtil.extractStatementColumnSet(catalog_stmt, true, table0);
+            if (!cset.isEmpty()) {
+                if (debug) LOG.debug("Creating scan edge to " + table0 + " for " + catalog_stmt);
+                //if (debug) LOG.debug("Scan Column SET[" + table0.getName() + "]: " + cset.debug());
+                Vertex vertex = agraph.getVertex(table0);
+                this.addEdge(agraph, AccessType.SCAN, cset, vertex, vertex, catalog_stmt);
+            }
+            // --------------------------------------------------------------
+        } // FOR
+        return;
+    }
+    
+    /**
+     * 
+     * @param agraph
+     * @param stmt_ctr0
+     * @throws Exception
+     */
+    protected void createSharedParamEdges(AccessGraph agraph, Statement catalog_stmt0, Statement catalog_stmt1, List<ProcParameter> catalog_stmt0_params) throws Exception {
+        Map<Pair<CatalogType, CatalogType>, ColumnSet> table_csets = new HashMap<Pair<CatalogType,CatalogType>, ColumnSet>();
+
+        //
+        // Check whether these two queries share input parameters
+        //
+        List<ProcParameter> shared_params = new ArrayList<ProcParameter>();
+        for (StmtParameter stmt_param : catalog_stmt1.getParameters()) {
+            if (stmt_param.getProcparameter() != null && catalog_stmt0_params.contains(stmt_param.getProcparameter())) {
+                shared_params.add(stmt_param.getProcparameter());
+            }
+        } // FOR
+        if (shared_params.isEmpty()) return;
+        if (debug) LOG.debug(catalog_stmt0.getName() + " <==> " + catalog_stmt1.getName());
+        if (debug) LOG.debug("SHARED PARAMS: " + shared_params);
+
+        //
+        // For each shared parameter, we need to get the expressions that
+        // use each one and figure out whether there is a foreign key relationship
+        // between the two tables used.
+        //
+        for (ProcParameter param : shared_params) {
+            Set<Column> columns0 = new HashSet<Column>();
+            Set<Column> columns1 = new HashSet<Column>();
+
+            if (this.stmt_edge_xref.containsKey(catalog_stmt0)) {
+                for (Edge edge : this.stmt_edge_xref.get(catalog_stmt0)) {
+                    ColumnSet cset = (ColumnSet)edge.getAttribute(EdgeAttributes.COLUMNSET.name());
+                    columns0.addAll(cset.findAllForOther(Column.class, param));
+                } // FOR
+            }
+            if (this.stmt_edge_xref.containsKey(catalog_stmt1)) {
+                for (Edge edge : this.stmt_edge_xref.get(catalog_stmt1)) {
+                    ColumnSet cset = (ColumnSet)edge.getAttribute(EdgeAttributes.COLUMNSET.name());
+                    columns1.addAll(cset.findAllForOther(Column.class, param));
+                } // FOR
+            }
+
+            //
+            // Partition the columns into sets based on their Table. This is necessary
+            // so that we can have specific edges between vertices
+            //
+            Map<Table, Set<Column>> table_column_xref0 = new HashMap<Table, Set<Column>>();
+            Map<Table, Set<Column>> table_column_xref1 = new HashMap<Table, Set<Column>>();
+            for (CatalogType ctype : columns0) {
+                Column col = (Column)ctype;
+                Table tbl = (Table)col.getParent();
+                if (!table_column_xref0.containsKey(tbl)) {
+                    table_column_xref0.put(tbl, new HashSet<Column>());
+                }
+                table_column_xref0.get(tbl).add(col);
+            } // FOR
+            for (CatalogType ctype : columns1) {
+                Column col = (Column)ctype;
+                Table tbl = (Table)col.getParent();
+                if (!table_column_xref1.containsKey(tbl)) {
+                    table_column_xref1.put(tbl, new HashSet<Column>());
+                }
+                table_column_xref1.get(tbl).add(col);
+            } // FOR
+            
+//            if (debug) {
+//                StringBuilder buffer = new StringBuilder();
+//                buffer.append("table_column_xref0:\n");
+//                for (Table table : table_column_xref0.keySet()) {
+//                    buffer.append("  ").append(table).append(": ").append(table_column_xref0.get(table)).append("\n");
+//                }
+//                LOG.debug(buffer.toString());
+//                
+//                buffer = new StringBuilder();
+//                buffer.append("table_column_xref1:\n");
+//                for (Table table : table_column_xref1.keySet()) {
+//                    buffer.append("  ").append(table).append(": ").append(table_column_xref1.get(table)).append("\n");
+//                }
+//                LOG.debug(buffer.toString());
+//            }
+
+            //
+            // Now create a cross product of the two sets based on tables -- Nasty!!
+            //
+            for (Table table0 : table_column_xref0.keySet()) {
+                for (Table table1 : table_column_xref1.keySet()) {
+                    if (table0 == table1) continue;
+                    Pair<CatalogType, CatalogType> table_pair = CatalogUtil.pair(table0, table1);
+                    ColumnSet cset = null;
+                    if (table_csets.containsKey(table_pair)) {
+                        cset = table_csets.get(table_pair);
+                    } else {
+                        cset = new ColumnSet();
+                    }
+                    for (Column column0 : table_column_xref0.get(table0)) {
+                        for (Column column1 : table_column_xref1.get(table1)) {
+                            //
+                            // TODO: Enforce foreign key dependencies
+                            // TODO: Set real ComparisionExpression attribute
+                            //
+                            cset.add(column0, column1, ExpressionType.COMPARE_EQUAL);
+                        } // FOR
+                    } // FOR
+                    table_csets.put(table_pair, cset);
+                } // FOR
+            } // FOR
+        } // FOR
+        
+        //
+        // Now create the edges between the vertices
+        //
+        for (Pair<CatalogType, CatalogType> table_pair : table_csets.keySet()) {
+            Vertex vertex0 = agraph.getVertex((Table)table_pair.getFirst());
+            Vertex vertex1 = agraph.getVertex((Table)table_pair.getSecond());
+            ColumnSet cset = table_csets.get(table_pair);
+            
+            if (debug) {
+                LOG.debug("Vertex0: " + vertex0.getCatalogKey());
+                LOG.debug("Vertex1: " + vertex0.getCatalogKey());
+                LOG.debug("ColumnSet:\n" + cset.debug() + "\n");
+            }
+
+            Edge edge = this.addEdge(agraph, AccessType.PARAM_JOIN, cset, vertex0, vertex1);
+            if (!this.multi_stmt_edge_xref.containsKey(edge)) {
+                this.multi_stmt_edge_xref.put(edge, new HashSet<Set<Statement>>());
+            }
+            Set<Statement> new_set = new HashSet<Statement>();
+            new_set.add(catalog_stmt0);
+            new_set.add(catalog_stmt1);
+            this.multi_stmt_edge_xref.get(edge).add(new_set);
+            
+            cset.getStatements().add(catalog_stmt0);
+            cset.getStatements().add(catalog_stmt1);
+        } // FOR tablepair columnsets
+    }
+    
+    /**
+     * 
+     * @param agraph
+     * @param proc_tables
+     * @param catalog_stmt0
+     * @param catalog_tbl
+     * @throws Exception
+     */
+    protected void createImplicitEdges(AccessGraph agraph, Set<Table> proc_tables, Statement catalog_stmt0, Table catalog_tbl) throws Exception {
+        //
+        // For each SCAN edge for this vertex, check whether the column has a foreign key
+        //
+        Vertex vertex = agraph.getVertex(catalog_tbl);
+        if (debug) LOG.debug("CURRENT: " + catalog_tbl);
+        for (Edge edge : agraph.getIncidentEdges(vertex, AccessGraph.EdgeAttributes.ACCESSTYPE.name(), AccessType.SCAN)) {
+            ColumnSet scan_cset = (ColumnSet)edge.getAttribute(AccessGraph.EdgeAttributes.COLUMNSET.name());
+            if (debug) LOG.debug("\tSCAN EDGE: " + edge); // + "\n" + scan_cset.debug());
+            
+            //
+            // For each table that our foreign keys reference, will construct a ColumnSet mapping
+            //
+            Map<Table, ColumnSet> fkey_column_xrefs = new HashMap<Table, ColumnSet>();
+            if (debug) LOG.debug("OUR COLUMNS: " + scan_cset.findAllForParent(Column.class, catalog_tbl));
+            for (Column catalog_col : scan_cset.findAllForParent(Column.class, catalog_tbl)) {
+                //
+                // Get the foreign key constraint for this column and then add it to the ColumnSet
+                //
+                Set<Constraint> catalog_consts = CatalogUtil.getConstraints(catalog_col.getConstraints());
+                catalog_consts = CatalogUtil.findAll(catalog_consts, "type", ConstraintType.FOREIGN_KEY.getValue());
+                if (!catalog_consts.isEmpty()) {
+                    assert(catalog_consts.size() == 1) : CatalogUtil.getDisplayName(catalog_col) + " has " + catalog_consts.size() + " foreign key constraints: " + catalog_consts; 
+                    Constraint catalog_const = CollectionUtil.getFirst(catalog_consts);
+                    Table catalog_fkey_tbl = catalog_const.getForeignkeytable();
+                    assert(catalog_fkey_tbl != null);
+                    
+                    //
+                    // Important! We only want to include tables that are actually referenced in this procedure
+                    // 
+                    if (proc_tables.contains(catalog_fkey_tbl)) {
+                        Column catalog_fkey_col = CollectionUtil.getFirst(catalog_const.getForeignkeycols()).getColumn();
+                        assert(catalog_fkey_col != null);
+                        
+                        // TODO: Use real ExpressionType from the entry
+                        if (!fkey_column_xrefs.containsKey(catalog_fkey_tbl)) {
+                            fkey_column_xrefs.put(catalog_fkey_tbl, new ColumnSet());
+                        }
+//                            if (debug) System.err.println("Foreign Keys: " + CollectionUtil.getFirst(catalog_const.getForeignkeycols()).getColumn());
+//                            if (debug) System.err.println("catalog_fkey_tbl: " + catalog_fkey_tbl);
+//                            if (debug) System.err.println("catalog_col: " + catalog_col);
+//                            if (debug) System.err.println("catalog_fkey_col: " + catalog_fkey_col);
+//                            if (debug) System.err.println("fkey_column_xrefs: " + fkey_column_xrefs.get(catalog_fkey_tbl));
+                        fkey_column_xrefs.get(catalog_fkey_tbl).add(catalog_col, catalog_fkey_col, ExpressionType.COMPARE_EQUAL);
+                    } else {
+                        LOG.debug("Skipping Implict Reference Join for " + catalog_fkey_tbl + " because it is not used in " + this.catalog_proc);
+                    }
+                }
+            } // FOR
+            
+            //
+            // Now for each table create an edge from our table to the table referenced in the foreign
+            // key using all the columdns referenced by in the SCAN predicates
+            //
+            for (Table catalog_fkey_tbl : fkey_column_xrefs.keySet()) {
+                Vertex other_vertex = agraph.getVertex(catalog_fkey_tbl);
+                ColumnSet implicit_cset = fkey_column_xrefs.get(catalog_fkey_tbl);
+                if (debug) LOG.debug("\t" + catalog_tbl + "->" + catalog_fkey_tbl + "\n" + implicit_cset.debug());
+                Collection<Edge> edges = agraph.findEdgeSet(vertex, other_vertex);
+                if (edges.isEmpty()) {
+                    this.addEdge(agraph, AccessType.IMPLICIT_JOIN, implicit_cset, vertex, other_vertex, catalog_stmt0);
+                //
+                // Even though we don't need to create a new edge, we still need to know that
+                // we have found a reference that should be counted when we calculate weights
+                //
+                } else {
+                    // 08/25/2009 - Skip tables that already have an edge...
+//                        if (!this.stmt_edge_xref.containsKey(catalog_stmt0)) {
+//                            this.stmt_edge_xref.put(catalog_stmt0, new HashSet<Edge>());
+//                        }
+//                        this.stmt_edge_xref.get(catalog_stmt0).addAll(edges);
+//                        LOG.debug("An edge already exists between " + catalog_tbl + " and " + catalog_fkey_tbl + ". " +
+//                                    "Skipping implicit join edge...");
+                }
+            } // FOR
+        } // FOR
+        return;
+    }
+    
+    /**
+     * 
+     * @param access_type
+     * @param cset
+     * @param vertices
+     * @param catalog_stmt
+     */
+    protected Edge addEdge(AccessGraph agraph, AccessType access_type, ColumnSet cset, Vertex vertex0, Vertex vertex1, Statement... catalog_stmts) {
+        String stmts_debug = "";
+        if (LOG.getLevel() == Level.DEBUG) {
+            stmts_debug = "[";
+            String add = "";
+            for (Statement catalog_stmt : catalog_stmts) {
+                stmts_debug += add + catalog_stmt.getName();
+                add = ", ";
+            } // FOR
+            stmts_debug += "]";
+        }
+        
+        //
+        // We need to first check whether we already have an edge representing this ColumnSet
+        //
+        Edge new_edge = null;
+        for (Edge edge : agraph.getEdges()) {
+            Collection<Vertex> vertices = agraph.getIncidentVertices(edge);
+            ColumnSet other_cset = (ColumnSet)edge.getAttribute(EdgeAttributes.COLUMNSET.name());
+            if (vertices.contains(vertex0) && vertices.contains(vertex1) && cset.equals(other_cset)) {
+                LOG.debug("FOUND DUPLICATE COLUMN SET: " + other_cset.debug() + "\n" + cset.toString() + "\n[" + edge.hashCode() + "] + " + cset.size() + " == " + other_cset.size() + "\n");
+                new_edge = edge;
+                break;
+            }
+        } // FOR
+        if (new_edge == null) {
+            new_edge = new Edge(agraph);
+            new_edge.setAttribute(EdgeAttributes.ACCESSTYPE.name(), access_type);
+            new_edge.setAttribute(EdgeAttributes.COLUMNSET.name(), cset);
+            agraph.addEdge(new_edge, vertex0, vertex1, EdgeType.UNDIRECTED);
+            if (debug) LOG.debug("New " + access_type + " edge for " + stmts_debug + " between " + vertex0 + "<->" + vertex1 + ": " + cset.debug());
+        }
+        //
+        // For edges created by implicitly for joins, we're not going to have a Statement object
+        //
+        if (catalog_stmts.length > 0) {
+            for (Statement catalog_stmt : catalog_stmts) {
+                if (!this.stmt_edge_xref.containsKey(catalog_stmt)) {
+                    this.stmt_edge_xref.put(catalog_stmt, new HashSet<Edge>());
+                }
+                this.stmt_edge_xref.get(catalog_stmt).add(new_edge);
+            } // FOR
+        }
+        if (debug) LOG.debug("# OF EDGES: " + agraph.getEdgeCount());
+        return (new_edge);
+    }
+    
+    /**
+     * 
+     * @param agraph
+     * @param xact
+     * @param time TODO
+     * @throws Exception
+     */
+    protected void updateEdgeWeights(AccessGraph agraph, TransactionTrace xact) throws Exception {
+        int time = info.workload.getTimeInterval(xact, this.info.getNumIntervals());
+
+        // Update the weights for the direct query-to-edge mappings
+        for (QueryTrace query : xact.getQueries()) {
+            Statement catalog_stmt = query.getCatalogItem(this.info.catalog_db);
+            if (!this.stmt_edge_xref.containsKey(catalog_stmt)) {
+                LOG.debug("Missing query '" + catalog_stmt + "' in Statement-Edge Xref mapping");
+            } else {
+                for (Edge edge : this.stmt_edge_xref.get(catalog_stmt)) {
+                    edge.addToWeight(time, 1d);
+                } // FOR
+            }
+        } // FOR
+
+        //
+        // Update the weights for any edges that required multiple statements to be
+        // executed in order the edges to be updated
+        //
+        Map<Statement, Integer> catalog_stmt_counts = xact.getStatementCounts(info.catalog_db);
+        for (Edge edge : this.multi_stmt_edge_xref.keySet()) {
+            //
+            // For each edge in our list, there is a list of Statements that need to be executed
+            // in order for the implicitly join to have occurred. Thus, we need to check whether
+            // this transaction executed all the Statements. We keep the minimum count for each
+            // of these Statements and will update the weight accordingly.
+            //
+            for (Set<Statement> stmts : this.multi_stmt_edge_xref.get(edge)) {
+                int min_cnt = Integer.MAX_VALUE;
+                for (Statement stmt : stmts) {
+                    min_cnt = Math.min(min_cnt, catalog_stmt_counts.get(stmt));
+                } // FOR
+                if (min_cnt > 0) {
+                    edge.addToWeight(time, min_cnt);
+                }
+            } // FOR
+        } // FOR
+        return;
+    }
+    
+    /**
+     * 
+     * @param agraph
+     */
+    protected void updateEdgeWeighModifiers(AccessGraph agraph) {
+        for (Edge edge : agraph.getEdges()) {
+            List<Vertex> vertices = new ArrayList<Vertex>(agraph.getIncidentVertices(edge));
+            AccessGraph.AccessType type = (AccessGraph.AccessType)edge.getAttribute(AccessGraph.EdgeAttributes.ACCESSTYPE.name());
+            
+            // Modifier
+            double modifier = 1.0d;
+
+            // Join Modifier
+            switch (type) {
+                case IMPLICIT_JOIN:
+                    //weight *= AccessGraph.WEIGHT_IMPLICIT;    
+                    break;
+                case PARAM_JOIN:
+                    
+                    break;
+                case SQL_JOIN:
+                    
+                    break;
+            } // SWITCH
+            
+            // Foreign Key Modifier
+            if (!(this.info.dgraph.findEdgeSet(vertices.get(0), vertices.get(1)).isEmpty() &&
+                  this.info.dgraph.findEdgeSet(vertices.get(1), vertices.get(0)).isEmpty())) {
+                modifier += AccessGraph.WEIGHT_FOREIGN_KEY;
+                edge.setAttribute(AccessGraph.EdgeAttributes.FOREIGNKEY.name(), true);
+            } else {
+                edge.setAttribute(AccessGraph.EdgeAttributes.FOREIGNKEY.name(), false);
+            }
+            
+            // Update all weights using our modifier
+            for (int time = 0, cnt = edge.getIntervalCount(); time < cnt; time++) {
+                double weight = edge.getWeight(time) * modifier;
+                edge.setWeight(time, weight);
+            } // FOR
+        } // FOR
+        
+    }
+}

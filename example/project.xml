@@ -1,0 +1,7 @@
+<?xml version="1.0"?>
+<project><database name='database'>
+<schema path="schema.sql" />
+    <procedure class='org.voltdb.EmptyProcedure' />
+    <procedure class='org.voltdb.InsertProcedure' />
+    <partition table='example' column='id' />
+</database></project>
