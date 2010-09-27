@@ -1,5 +1,5 @@
 <?xml version="1.0" ?>
-<project default="default" name="VoltDB">
+<project default="default" name="H-Store">
 
 <!-- GENERAL HELPER MACROS -->
 
@@ -33,9 +33,6 @@
 <fileset id="voltpro.classpath" file="build.xml">
   <exclude name="build.xml"/>
 </fileset>
-
-<!-- import the pro build.xml if it exists and is requested -->
-<import file="${voltpro}/build.xml" optional="true"/>
 
 <property name='build.dir'                   location='obj/${build}' />
 <property name='build.prod.dir'              location='${build.dir}/prod' />
@@ -778,21 +775,6 @@ NATIVE EE STUFF
     </exec>
 </target>
 
-
-<!--
-***************************************
-LICENSING
-***************************************
--->
-
-<target name='licensecheck' description="make sure all source files have approved licenses">
-    <exec dir='tools' executable='python' failonerror='true'>
-        <arg line="licensescheck.py" />
-        <arg line="${voltpro}"/>
-    </exec>
-</target>
-
-
 <!--
 ***************************************
 TEST CASES
@@ -1423,6 +1405,112 @@ TEST CASES
   </copy>
 </target>
 
+<!--
+***************************************
+PROTOCOL BUFFERS
+***************************************
+-->
+<property name="src.protobuf.generated.dir" location='src/proto' />
+<property name="build.protobuf.dir.protoc" value="${build.protobuf.dir}/src/protoc" />
+
+<!-- Common macro for compiling Java source -->
+<macrodef name="ProtobufCompile">
+    <attribute name="srcdir"/>
+    <attribute name="destdir"/>
+    <element name="compileoptions" implicit="true" optional="true"/>
+    <sequential>
+        <mkdir dir="@{destdir}"/>
+        <!-- avoids needing ant clean when changing interfaces -->
+        <depend srcdir="@{srcdir}" destdir="@{destdir}" cache="${depcache}"/>
+        <javac srcdir="@{srcdir}" destdir="@{destdir}" includeAntRuntime="no"
+                debug="${compile.debug}" source="${javac.version}">
+            <compilerarg value="-Xlint:unchecked" />
+            <!--<compilerarg value="-Xlint:deprecation" />-->
+            <compileoptions/>
+        </javac>
+    </sequential>
+</macrodef>
+
+<!-- Generate Java protocol buffers. -->
+<macrodef name="ProtobufGenerateJava">
+    <attribute name="srcdir"/>
+    <attribute name="destdir"/>
+    <element name="files" implicit="true"/>
+    
+    <sequential>
+        <mkdir dir="@{destdir}" />
+        <apply executable="${build.protobuf.dir.protoc}" dest="@{destdir}" resolveexecutable="true" failonerror="true" verbose="true">
+<!--         <apply executable="echo" dest="@{destdir}" resolveexecutable="true" failonerror="true" verbose="true"> -->
+            <arg value="--java_out=@{destdir}" />
+            <arg value="--proto_path=@{srcdir}" />
+            <files/>
+            <mapper type="glob" from="*.proto" to="*.java" />
+        </apply>
+
+        <!-- Delete any generated .java for .proto files which no longer exist. -->
+        <!-- Does not work with the generated .java from Google's protocol buffers library... -->
+        <!--<delete verbose="true"><fileset dir="@{destdir}">
+            <not><present present="both" targetdir="@{srcdir}">
+                <mapper type="glob" from="*.java" to="*.proto" />
+            </present></not>
+        </fileset></delete>-->
+    </sequential>
+</macrodef>
+
+<target name="protoc.check">
+    <available property="protoc.built" file="${build.protobuf.dir.protoc}" />
+</target>
+
+<target name="protobuf.compile" description="Builds the protocol buffer compiler" depends="protoc.check" unless="protoc.built">
+    <mkdir dir="${build.protobuf.dir}" />
+    <exec executable="${src.protobuf.dir}/configure" dir="${build.protobuf.dir}" failonerror="true"  resolveexecutable="true">
+        <arg value="--disable-shared" />
+    </exec>
+    <exec executable="make" dir="${build.protobuf.dir}" failonerror="true">
+<!--         <arg value="protoc" /> -->
+        <arg value="-j2" />
+    </exec>
+</target>
+
+<target name="protobuf.java.check">
+    <available property="protobuf.java.built" file="${build.protobuf.generated.dir}/com/google/protobuf/DescriptorProtos.java" />
+</target>
+
+<target name="protobuf.java" description="Generates require protocol buffer for Java" depends="protobuf.compile,protobuf.java.check" unless="protobuf.java.built" >
+    <!-- Generate the required protocol buffers for the Java build -->
+    <ProtobufGenerateJava srcdir="${src.protobuf.dir}/src" destdir="${build.protobuf.generated.dir}">
+        <fileset file="${src.protobuf.dir}/src/google/protobuf/descriptor.proto" />
+    </ProtobufGenerateJava>
+</target>
+
+<target name="protobuf" description="" depends="protobuf.java,protobuf.compile">
+    <ProtobufGenerateJava srcdir="${src.protobuf.generated.dir}" destdir="${build.protobuf.generated.dir}">
+        <fileset dir="src/proto"><patternset><include name="**/*.proto" /></patternset></fileset>
+    </ProtobufGenerateJava>
+    <mkdir dir='${build.prod.dir}' />
+    <ProtobufCompile srcdir="${src.protobuf.dir}/java/src/main/java:${build.protobuf.generated.dir}" destdir="${build.prod.dir}">
+        <classpath refid="project.classpath"/>
+    </ProtobufCompile>
+</target>
+
+<!--
+***************************************
+DTXN BINARIES + LIBRARIES
+***************************************
+-->
+
+<target name="dtxn.check">
+    <available property="dtxn.built" file="${build.dtxn.dir}/hstore/buildhack.sh" />
+</target>
+
+<target name="dtxn" description="Build DTXN binaries" depends="dtxn.check,protobuf.compile" unless="dtxn.built">
+   <exec executable="make" dir="${src.dtxn.dir}" failonerror="true" resolveexecutable="true" >
+      <arg value="PREFIX=${build.dtxn.dir}" />
+      <arg value="PROTOBUF_SRC=${src.protobuf.dir}" />
+      <arg value="PROTOBUF_BIN=${build.protobuf.dir}" />
+   </exec>
+</target>
+
 
 <!--
 ***************************************
@@ -1933,112 +2021,6 @@ DESIGNER
         <classpath refid='project.classpath' />
         <assertions><enable/></assertions>
     </java>
-</target>
-
-<!--
-***************************************
-PROTOCOL BUFFERS
-***************************************
--->
-<property name="src.protobuf.generated.dir" location='src/proto' />
-<property name="build.protobuf.dir.protoc" value="${build.protobuf.dir}/src/protoc" />
-
-<!-- Common macro for compiling Java source -->
-<macrodef name="ProtobufCompile">
-    <attribute name="srcdir"/>
-    <attribute name="destdir"/>
-    <element name="compileoptions" implicit="true" optional="true"/>
-    <sequential>
-        <mkdir dir="@{destdir}"/>
-        <!-- avoids needing ant clean when changing interfaces -->
-        <depend srcdir="@{srcdir}" destdir="@{destdir}" cache="${depcache}"/>
-        <javac srcdir="@{srcdir}" destdir="@{destdir}" includeAntRuntime="no"
-                debug="${compile.debug}" source="${javac.version}">
-            <compilerarg value="-Xlint:unchecked" />
-            <!--<compilerarg value="-Xlint:deprecation" />-->
-            <compileoptions/>
-        </javac>
-    </sequential>
-</macrodef>
-
-<!-- Generate Java protocol buffers. -->
-<macrodef name="ProtobufGenerateJava">
-    <attribute name="srcdir"/>
-    <attribute name="destdir"/>
-    <element name="files" implicit="true"/>
-    
-    <sequential>
-        <mkdir dir="@{destdir}" />
-        <apply executable="${build.protobuf.dir.protoc}" dest="@{destdir}" resolveexecutable="true" failonerror="true" verbose="true">
-<!--         <apply executable="echo" dest="@{destdir}" resolveexecutable="true" failonerror="true" verbose="true"> -->
-            <arg value="--java_out=@{destdir}" />
-            <arg value="--proto_path=@{srcdir}" />
-            <files/>
-            <mapper type="glob" from="*.proto" to="*.java" />
-        </apply>
-
-        <!-- Delete any generated .java for .proto files which no longer exist. -->
-        <!-- Does not work with the generated .java from Google's protocol buffers library... -->
-        <!--<delete verbose="true"><fileset dir="@{destdir}">
-            <not><present present="both" targetdir="@{srcdir}">
-                <mapper type="glob" from="*.java" to="*.proto" />
-            </present></not>
-        </fileset></delete>-->
-    </sequential>
-</macrodef>
-
-<target name="protoc.check">
-    <available property="protoc.built" file="${build.protobuf.dir.protoc}" />
-</target>
-
-<target name="protobuf.compile" description="Builds the protocol buffer compiler" depends="protoc.check" unless="protoc.built">
-    <mkdir dir="${build.protobuf.dir}" />
-    <exec executable="${src.protobuf.dir}/configure" dir="${build.protobuf.dir}" failonerror="true"  resolveexecutable="true">
-        <arg value="--disable-shared" />
-    </exec>
-    <exec executable="make" dir="${build.protobuf.dir}" failonerror="true">
-<!--         <arg value="protoc" /> -->
-        <arg value="-j2" />
-    </exec>
-</target>
-
-<target name="protobuf.java.check">
-    <available property="protobuf.java.built" file="${build.protobuf.generated.dir}/com/google/protobuf/DescriptorProtos.java" />
-</target>
-
-<target name="protobuf.java" description="Generates require protocol buffer for Java" depends="protobuf.compile,protobuf.java.check" unless="protobuf.java.built" >
-    <!-- Generate the required protocol buffers for the Java build -->
-    <ProtobufGenerateJava srcdir="${basedir}/${src.protobuf.dir}/src" destdir="${build.protobuf.generated.dir}">
-        <fileset file="${src.protobuf.dir}/src/google/protobuf/descriptor.proto" />
-    </ProtobufGenerateJava>
-</target>
-
-<target name="protobuf" description="" depends="protobuf.java,protobuf.compile">
-    <ProtobufGenerateJava srcdir="${src.protobuf.generated.dir}" destdir="${build.protobuf.generated.dir}">
-        <fileset dir="src/proto"><patternset><include name="**/*.proto" /></patternset></fileset>
-    </ProtobufGenerateJava>
-    <mkdir dir='${build.prod.dir}' />
-    <ProtobufCompile srcdir="${src.protobuf.dir}/java/src/main/java:${build.protobuf.generated.dir}" destdir="${build.prod.dir}">
-        <classpath refid="project.classpath"/>
-    </ProtobufCompile>
-</target>
-
-<!--
-***************************************
-DTXN BINARIES + LIBRARIES
-***************************************
--->
-
-<target name="dtxn.check">
-    <available property="dtxn.built" file="${build.dtxn.dir}/hstore/buildhack.sh" />
-</target>
-
-<target name="dtxn" description="Build DTXN binaries" depends="dtxn.check,protobuf.compile" unless="dtxn.built">
-   <exec executable="make" dir="${src.dtxn.dir}" failonerror="true" resolveexecutable="true" >
-      <arg value="PREFIX=${build.dtxn.dir}" />
-      <arg value="PROTOBUF_SRC=${src.protobuf.dir}" />
-      <arg value="PROTOBUF_BIN=${build.protobuf.dir}" />
-   </exec>
 </target>
 
 <!--
