@@ -203,11 +203,11 @@ PRIMARY ENTRY POINTS
 />
 <target name="check"
     depends="compile, voltdbipc, eecheck, junit, distcheck, pythonfser,
-             licensecheck, ant_unit_tests"
+             ant_unit_tests"
     description="Run Java and C++ JNI testcases and test plan fragments."
 />
 <target name="check_quick"
-    depends="licensecheck, compile, voltdbipc, junit_quick, distcheck,
+    depends="compile, voltdbipc, junit_quick, distcheck,
              ant_unit_tests"
     description="Run a subset of Java testcases and test fragments."
 />
