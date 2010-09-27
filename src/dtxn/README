@@ -1,0 +1,135 @@
+= DTXN Transaction System
+Evan Jones <evanj@mit.edu>
+
+////
+NOTE: This is an AsciiDoc document. It can be converted to HTML using:
+asciidoc README
+
+http://www.methods.co.nz/asciidoc/
+
+Helpful quick reference: http://powerman.name/doc/asciidoc
+////
+
+
+DTXN is a system for distributed transactions. It was designed as part of the
+http://db.cs.yale.edu/hstore/[H-Store database project], in order to experiment
+with design decisions for that system. However, it is intended to be a generic
+system for both replication and distributed transactions. I would love to apply
+it to different systems, and am willing to make modifications to make it happen.
+
+It is released under a BSD license. See the +LICENSE+ file.
+
+
+== Quick Start:
+
+. Get stupidbuild, the tool which is used to build the source (unfortunately; I
+would like to transition to something better. Google's
+http://code.google.com/p/swtoolkit/[Hammer tool], based on SCons seems like a
+possibility):
++
+-----
+hg clone http://people.csail.mit.edu/evanj/hg/index.cgi/stupidbuild stupidbuild
+-----
+
+. Get the a local copy of the "root" repository:
++
+----
+hg clone http://people.csail.mit.edu/evanj/hg/index.cgi/hstore hstore-base
+----
+
+. Make a "local" repository for your changes:
++
+----
+hg clone hstore-base hstore-dev
+----
+
+. Build it:
++
+----
+ln -s config.h.linux libevent/config.h
+cd hstore-dev
+../stupidbuild/stupidbuild.py
+----
+
+. Start two servers in two consoles:
++
+----
+build/htableserver 12345 block
+build/htableserver 12346 block
+----
+
+. Start the distributor in another console:
++
+----
+build/htabledistributor 12347 hstore.conf
+----
+
+. Run as many clients as you want:
++
+----
+build/htableclient localhost:12347
+----
+
+
+== Random Tips
+
+* You might want to use http://ccache.samba.org/[ccache] to compile. This way,
+when you switch between debug and optimized, or if you are compiling different
+copies of the code, they will reuse work. This can really speed up full
+rebuilds.
+
+
+== HTable
+
+HTable serves as an example user of the transaction system. It provides a
+horizontally partitioned key/value mapping. It provide "mini-transactions" as
+used in the http://www.sosp2007.org/papers/sosp064-aguilera.pdf[Sinfonia system
+(SOSP 2007)]. Mini-transactions are effectively a very large "compare and swap"
+primitive that can be used to build other concurrency control structures. I
+chose them for HTable because they are a simple primitive that can be combined
+to test that transaction system actually implements serializability.
+
+The data model in HTable is a key-value map from letters (a through z) to
+integers (initialized to 0).
+
+`htableserver` starts a single key-value server. `htabledistributor` starts a
+sequencer, which connects to the servers using the configuration specified in a
+configuration file (eg `hstore.conf`). The test program `htableclient` connects
+to the sequencer and issues transactions. It randomly generates a bunch of
+transactions that increment (update) some subset of the items. The transactions
+are actually paired up so that the first transaction is a read of all the keys,
+and the second is a write of all the involved items conditioned on the items'
+values matching those read in the first transactions. If the values have
+changed, the write operation is aborted and the whole thing is retried. This
+provides atomic increment of a group of variables which may be split across
+multiple partitions.
+
+To test "general" transactions that involve multiple rounds of communication,
+there is also a special "reset maximum" transaction. It reads all keys, then
+sets the one with the largest value to zero, returning the key and value that
+was reset. This is triggered with a random probability set so that it _should_
+happen in most runs of `htableclient`, but that is not guaranteed.
+
+`htableclientperf` is a performance load test.
+
+
+== Replication
+
+DTXN supports replicating transactions across multiple processes in order to
+provide fault tolerance. The system is built around the abstraction of a fault
+tolerant log. The code in the `replication` directory is intended to be
+independent of the DTXN system and have little to no dependencies on other
+components. This way it will be eventually possible to test and validate the
+algorithms using simple test harnesses, or to reuse the code in other projects.
+
+For now, the only implementation that works is primary/backup replication that
+does not actually tolerate any faults. To use it:
+
+. Create a configuration file with multiple host/port pairs for a partition.
+
+. Start the "backup" replicas.
+
+. Start the "primary" replicas.
+
+. Run the system, sending requests to the primary. It will handle replicating
+transactions and responding when appropriate.

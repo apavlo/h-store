@@ -1,0 +1,6 @@
+package protorpc;
+option java_package = "ca.evanjones.protorpc";
+
+// Defines a completely empty message. Useful for generic message handling.
+message NullMessage {
+}

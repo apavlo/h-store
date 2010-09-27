@@ -1,0 +1,6 @@
+simplejson from svn r184:
+svn checkout http://simplejson.googlecode.com/svn/trunk/ simplejson
+perl -pi -e 's/import simplejson/import third_party.simplejson/;' simplejson/*.py
+perl -pi -e 's/from simplejson/from third_party.simplejson/;' simplejson/*.py
+
+TODO: How should we deal with third party Python libraries?

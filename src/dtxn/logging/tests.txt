@@ -1,0 +1,21 @@
+Sysbench can be used for these types of tests:
+
+sysbench --num-threads=1 --test=fileio --file-num=1 --file-total-size=256M --file-test-mode=seqrewr --file-fsync-all prepare
+sysbench --num-threads=1 --test=fileio --file-num=1 --file-total-size=256M --file-test-mode=seqrewr --file-fsync-all run
+
+
+Notes:
+
+* ext4 with barriers (default) *seems* to do the "right" thing even if write caching is enabled.
+* using fallocate/posix_fallocate to allocate the file may be helpful, but we *still* need to write zeros to the whole thing to get better performance with fdatasync.
+* --file-fsync-mode=fdatasync is *much* better than the default (fsync).
+* --file-extra-flags=o_sync only forces the data to be written to the device. If it is write caching, it doesn't use write barriers the way that fdatasync appears to. Thus, it doesn't really do the right thing. TODO: Test this with more recent Linux kernels.
+* 4095 byte writes are quite a bit slower than 4096 byte writes (8655 us VS 8440 us). The issue is that some writes are more than one page. When aligning the writes to 4096 byte boundaries, it works (8443 us; extra system call?). Similarly, offsetting the 4096 byte writes to +1 boundaries screws the performance (8647 us; flush two pages instead of 1?). Using 2048 bytes *may* be slightly better, but less than that seemed to be worse. There was considerable "noise" however.
+
+
+TODO:
+
+* Test O_SYNC + ext4 + write caching with more recent kernels.
+* Test ext4 + fdatasync with power plug testing.
+* Test ext4 + fsync/fdatasync with appending files with power plug testing.
+* Test O_SYNC + ext4 + no write cache with power plug testing.

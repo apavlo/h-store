@@ -1,0 +1,3 @@
+This directory contains "backports" of Python standard library modules with
+bugs in earlier versions. This ensures that the scripts work with older
+versions of Python.

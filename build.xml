@@ -14,6 +14,8 @@
     </sequential>
 </macrodef>
 
+<property name="javac.version" value="1.6" />
+
 <!-- PATHS AND PROPERTIES -->
 
 <!-- make environment var foo available as env.foo -->
@@ -38,7 +40,7 @@
 <property name='build.dir'                   location='obj/${build}' />
 <property name='build.prod.dir'              location='${build.dir}/prod' />
 <property name='build.test.dir'              location='${build.dir}/test' />
-<property name='build.dtxn.dir'              location='${build.dir}/evan-dtxn' />
+<property name='build.dtxn.dir'              location='${build.dir}/dtxn' />
 <property name='dist.dir'                    location='${build.dir}/dist' />
 <property name='dist.examples.dir'           location='${dist.dir}/examples' />
 <property name='dist.examples.auction.dir'   location='${dist.examples.dir}/auction' />
@@ -46,10 +48,10 @@
 <property name='dist.examples.voter.dir'     location='${dist.examples.dir}/voter' />
 <property name='doc.dir'                     location='doc' />
 <property name='src.gpl.dir'                 location='src/frontend/gpl_vcr' />
+<property name='src.dtxn.dir'                location='src/dtxn' />
 <property name='src.hsqldb.dir'              location='src/hsqldb19b3' />
 <property name='src.test.dir'                location='tests/frontend' />
 <property name='src.hsqldb.test.dir'         location='tests/hsqldb' />
-<property name='src.extensions.dir'          location='src/extensions/gpl_vcr' />
 <property name='build.testoutput.dir'        location='${build.dir}/testoutput' />
 <property name='build.testobjects.dir'       location='${build.dir}/testobjects' />
 <property name='vendor.lib.dir'              location='third_party/java/jars' />
@@ -59,6 +61,16 @@
 <property name='src.ee.dir'                  location='src/ee' />
 <property name='m1catalog'                   location='${src.test.dir}/org/voltdb/catalog/catalog.txt' />
 <property name='depcache'                    value='.depcache' />
+
+<!-- Protocol Buffer Source -->
+<property name="src.protobuf.dir"               location="third_party/cpp/protobuf" />
+<property name="build.protobuf.dir"             location="${build.dir}/protobuf" />
+<property name="build.protobuf.generated.dir"   location="${build.dir}/generated/java" />
+
+<!-- TPC-E Generator -->
+<property name="tpce.src.dir"                location="third_party/cpp/tpceloader" />
+<property name="build.tpce.dir"              location="${build.dir}/tpceloader" />
+
 
 <!-- emma build instrumentation location -->
 <property name='build.instr.dir'             location='${build.dir}/instr' />
@@ -511,7 +523,7 @@ JAVA COMPILATION
 ***************************************
 -->
 
-<target name="compile" depends="protobuf_compile, dtxn_compile"> 
+<target name="compile" depends="protobuf, dtxn"> 
 <!-- <target name="compile" depends="tpceloader_compile, protobuf_compile, dtxn_compile">  -->
     <!-- Delete additional class files from third_party jars before we build -->
     <delete dir="${build.prod.dir}/org/apache/" />
@@ -570,7 +582,7 @@ JAVA COMPILATION
 
     <!-- compile the individual source directories -->
     <javac
-        target="1.6"
+        target="${javac.version}"
         srcdir="${src.hsqldb.dir}"
         destdir='${build.prod.dir}'
         debug='true'>
@@ -578,7 +590,7 @@ JAVA COMPILATION
     </javac>
 
     <javac
-        target="1.6"
+        target="${javac.version}"
         srcdir="${vendor.src.dir}"
         destdir='${build.prod.dir}'
         debug='true'>
@@ -586,7 +598,7 @@ JAVA COMPILATION
     </javac>
 
     <javac
-        target="1.6"
+        target="${javac.version}"
         srcdir="${src.gpl.dir}"
         destdir='${build.prod.dir}'
         debug='true'>
@@ -595,7 +607,7 @@ JAVA COMPILATION
 
     <!-- compile the individual test directories -->
     <javac
-        target="1.6"
+        target="${javac.version}"
         srcdir="${src.hsqldb.test.dir}"
         destdir='${build.test.dir}'
         debug='true'>
@@ -603,7 +615,7 @@ JAVA COMPILATION
     </javac>
 
     <javac
-        target="1.6"
+        target="${javac.version}"
         srcdir="${src.test.dir}"
         destdir='${build.test.dir}'
         excludes="org/voltdb/benchmark/tpcc/JDBCClient.java,edu/mit/elt/ELTTester**"
@@ -1405,6 +1417,13 @@ TEST CASES
     </exec>
 </target>
 
+<target name='voltbincopy'>
+  <copy todir="${env.HOME}/voltbin">
+    <fileset dir="${build.dir}/voltbin"/>
+  </copy>
+</target>
+
+
 <!--
 ***************************************
 BENCHMARKS
@@ -1918,20 +1937,14 @@ DESIGNER
 
 <!--
 ***************************************
-SIMULATOR
+PROTOCOL BUFFERS
 ***************************************
 -->
-
-<property name="source_version" value="1.6" />
-<property name="proto.src.dir" value="third_party/cpp/protobuf" />
-<property name="build.proto.dir" value="${build.dir}/protobuf" />
-<property name="build.proto.src.dir" value="${build.dir}/generated/java" />
-
-<property name="src.proto.dir" location='src/proto' />
-<property name="protoc_path" value="${build.proto.dir}/src/protoc" />
+<property name="src.protobuf.generated.dir" location='src/proto' />
+<property name="build.protobuf.dir.protoc" value="${build.protobuf.dir}/src/protoc" />
 
 <!-- Common macro for compiling Java source -->
-<macrodef name="Compile">
+<macrodef name="ProtobufCompile">
     <attribute name="srcdir"/>
     <attribute name="destdir"/>
     <element name="compileoptions" implicit="true" optional="true"/>
@@ -1940,7 +1953,7 @@ SIMULATOR
         <!-- avoids needing ant clean when changing interfaces -->
         <depend srcdir="@{srcdir}" destdir="@{destdir}" cache="${depcache}"/>
         <javac srcdir="@{srcdir}" destdir="@{destdir}" includeAntRuntime="no"
-                debug="${compile.debug}" source="${source_version}">
+                debug="${compile.debug}" source="${javac.version}">
             <compilerarg value="-Xlint:unchecked" />
             <!--<compilerarg value="-Xlint:deprecation" />-->
             <compileoptions/>
@@ -1949,14 +1962,14 @@ SIMULATOR
 </macrodef>
 
 <!-- Generate Java protocol buffers. -->
-<macrodef name="GenJavaProtoBuffer">
+<macrodef name="ProtobufGenerateJava">
     <attribute name="srcdir"/>
     <attribute name="destdir"/>
     <element name="files" implicit="true"/>
     
     <sequential>
         <mkdir dir="@{destdir}" />
-        <apply executable="${protoc_path}" dest="@{destdir}" resolveexecutable="true" failonerror="true" verbose="true">
+        <apply executable="${build.protobuf.dir.protoc}" dest="@{destdir}" resolveexecutable="true" failonerror="true" verbose="true">
 <!--         <apply executable="echo" dest="@{destdir}" resolveexecutable="true" failonerror="true" verbose="true"> -->
             <arg value="--java_out=@{destdir}" />
             <arg value="--proto_path=@{srcdir}" />
@@ -1975,59 +1988,44 @@ SIMULATOR
 </macrodef>
 
 <target name="protoc.check">
-    <available property="protoc.built" file="${protoc_path}" />
+    <available property="protoc.built" file="${build.protobuf.dir.protoc}" />
 </target>
 
-<target name="protoc" description="Builds the protocol buffer compiler" depends="protoc.check" unless="protoc.built">
-    <mkdir dir="${build.proto.dir}" />
-    <exec executable="${proto.src.dir}/configure" dir="${build.proto.dir}" failonerror="true"  resolveexecutable="true">
+<target name="protobuf.compile" description="Builds the protocol buffer compiler" depends="protoc.check" unless="protoc.built">
+    <mkdir dir="${build.protobuf.dir}" />
+    <exec executable="${src.protobuf.dir}/configure" dir="${build.protobuf.dir}" failonerror="true"  resolveexecutable="true">
         <arg value="--disable-shared" />
     </exec>
-    <exec executable="make" dir="${build.proto.dir}" failonerror="true">
+    <exec executable="make" dir="${build.protobuf.dir}" failonerror="true">
 <!--         <arg value="protoc" /> -->
         <arg value="-j2" />
     </exec>
 </target>
 
-<target name="protobuf_java.check">
-    <available property="protobuf_java.built" file="${build.proto.src.dir}/com/google/protobuf/DescriptorProtos.java" />
+<target name="protobuf.java.check">
+    <available property="protobuf.java.built" file="${build.protobuf.generated.dir}/com/google/protobuf/DescriptorProtos.java" />
 </target>
 
-<target name="protobuf_java" description="Generates require protocol buffer for Java" depends="protoc,protobuf_java.check" unless="protobuf_java.built" >
+<target name="protobuf.java" description="Generates require protocol buffer for Java" depends="protobuf.compile,protobuf.java.check" unless="protobuf.java.built" >
     <!-- Generate the required protocol buffers for the Java build -->
-    <GenJavaProtoBuffer srcdir="${basedir}/${proto.src.dir}/src" destdir="${build.proto.src.dir}">
-        <fileset file="${proto.src.dir}/src/google/protobuf/descriptor.proto" />
-    </GenJavaProtoBuffer>
+    <ProtobufGenerateJava srcdir="${basedir}/${src.protobuf.dir}/src" destdir="${build.protobuf.generated.dir}">
+        <fileset file="${src.protobuf.dir}/src/google/protobuf/descriptor.proto" />
+    </ProtobufGenerateJava>
 </target>
 
-<target name="protocol_buffers" description="Generates protocol buffer source code." depends="protoc">
-    <GenJavaProtoBuffer srcdir="${src.proto.dir}" destdir="${build.proto.src.dir}">
+<target name="protobuf" description="" depends="protobuf.java,protobuf.compile">
+    <ProtobufGenerateJava srcdir="${src.protobuf.generated.dir}" destdir="${build.protobuf.generated.dir}">
         <fileset dir="src/proto"><patternset><include name="**/*.proto" /></patternset></fileset>
-    </GenJavaProtoBuffer>
-</target>
-
-<target name="protobuf_compile" description="" depends="protobuf_java,protocol_buffers">
+    </ProtobufGenerateJava>
     <mkdir dir='${build.prod.dir}' />
-    <Compile srcdir="${proto.src.dir}/java/src/main/java:${build.proto.src.dir}" destdir="${build.prod.dir}">
+    <ProtobufCompile srcdir="${src.protobuf.dir}/java/src/main/java:${build.protobuf.generated.dir}" destdir="${build.prod.dir}">
         <classpath refid="project.classpath"/>
-    </Compile>
-</target>
-
-<target name='simcompile' depends='protocol_buffers'>
-   <copy todir="${src.contrib.dir}/edu/brown/simulator/">
-      <fileset dir="${build.proto.src.dir}/edu/brown/simulator/" includes="*.java" />
-   </copy>
-</target>
-
-<target name='voltbincopy'>
-  <copy todir="${env.HOME}/voltbin">
-    <fileset dir="${build.dir}/voltbin"/>
-  </copy>
+    </ProtobufCompile>
 </target>
 
 <!--
 ***************************************
-EVAN'S DTXN STUFF
+DTXN BINARIES + LIBRARIES
 ***************************************
 -->
 
@@ -2035,10 +2033,12 @@ EVAN'S DTXN STUFF
     <available property="dtxn.built" file="${build.dtxn.dir}/hstore/buildhack.sh" />
 </target>
 
-<target name="dtxn_compile" description="Download and build Evan's DTXN stuff" depends="dtxn.check" unless="dtxn.built">
-    <exec executable="./scripts/pull-from-evan.sh" failonerror="true">
-        <arg value="${build}" />
-    </exec>
+<target name="dtxn" description="Build DTXN binaries" depends="dtxn.check,protobuf.compile" unless="dtxn.built">
+   <exec executable="make" dir="${src.dtxn.dir}" failonerror="true" resolveexecutable="true" >
+      <arg value="PREFIX=${build.dtxn.dir}" />
+      <arg value="PROTOBUF_SRC=${src.protobuf.dir}" />
+      <arg value="PROTOBUF_BIN=${build.protobuf.dir}" />
+   </exec>
 </target>
 
 <!--
@@ -2046,9 +2046,6 @@ EVAN'S DTXN STUFF
 TPC-E EGenLoader
 ***************************************
 -->
-
-<property name="tpce.src.dir" value="third_party/cpp/tpceloader" />
-<property name="build.tpce.dir" value="${build.dir}/tpceloader" />
 
 <target name='tpceloader_compile' description="Builds the TPC-E EGenLoader" depends="tpceloader.check" unless="tpceloader.built">
    <mkdir dir="${build.tpce.dir}" />
@@ -2080,7 +2077,7 @@ OLTP Generator
 
 <target name="oltpgen.compile" depends="oltpgen.clean, compile">
         <javac 
-                target="1.6"
+                target="${javac.version}"
                 srcdir="${src.test.dir}"
                 destdir="${build.test.dir}"
                 debug='true'>
