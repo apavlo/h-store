@@ -1,0 +1,7 @@
+def BuildProject(input, output, options):
+    import os.path
+    out_dir = os.path.dirname(output[0])
+    configure_script = os.path.splitext(input[0])[0]
+    return "cd %s; %s --disable-shared; make -j 3; ln -f src/.libs/libprotobuf.a libprotobuf.a; ln -f src/protoc protoc" % (out_dir, configure_script)
+
+rules = [(["configure.ac"], ["libprotobuf.a"], BuildProject, None)]
