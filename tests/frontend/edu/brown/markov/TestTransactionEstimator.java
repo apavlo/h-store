@@ -51,7 +51,7 @@ public class TestTransactionEstimator extends BaseTestCase {
     protected void setUp() throws Exception {
         super.setUp(ProjectType.TPCC);
         this.addPartitions(NUM_PARTITIONS);
-        ALL_PARTITIONS = CatalogUtil.getAllPartitions(catalog_db);
+        ALL_PARTITIONS = CatalogUtil.getAllPartitionIds(catalog_db);
         
         this.catalog_proc = this.getProcedure(TARGET_PROCEDURE);
         

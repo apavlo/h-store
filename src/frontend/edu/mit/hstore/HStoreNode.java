@@ -22,9 +22,8 @@ import edu.brown.utils.PartitionEstimator;
 import edu.brown.workload.AbstractTraceElement;
 import edu.brown.workload.WorkloadTraceFileOutput;
 import edu.mit.dtxn.Dtxn;
-import edu.mit.dtxn.Dtxn.ExecutionEngine;
 
-public class HStoreNode extends ExecutionEngine {
+public class HStoreNode extends Dtxn.ExecutionEngine {
     private static final Logger LOG = Logger.getLogger(HStoreNode.class.getName());
     
     private final ExecutionSite executor;

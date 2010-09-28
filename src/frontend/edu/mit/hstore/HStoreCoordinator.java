@@ -83,7 +83,7 @@ public class HStoreCoordinator implements VoltProcedureListener.Handler {
         
         public StatusMonitorThread(int interval) {
             this.interval = interval;
-            for (Integer partition : CatalogUtil.getAllPartitions(HStoreCoordinator.this.catalog_db)) {
+            for (Integer partition : CatalogUtil.getAllPartitionIds(HStoreCoordinator.this.catalog_db)) {
                 this.partition_txns.put(partition, new TreeSet<Long>());
             } // FOR
             // Throw in -1 for local txns
@@ -480,7 +480,7 @@ public class HStoreCoordinator implements VoltProcedureListener.Handler {
         if (args.hasParam(ArgumentsParser.PARAM_MARKOV)) {
             File path = new File(args.getParam(ArgumentsParser.PARAM_MARKOV));
             if (path.exists()) {
-                markovs = MarkovUtil.load(args.catalog_db, path.getAbsolutePath(), CatalogUtil.getAllPartitions(args.catalog_db));
+                markovs = MarkovUtil.load(args.catalog_db, path.getAbsolutePath(), CatalogUtil.getAllPartitionIds(args.catalog_db));
             } else {
                 LOG.warn("The Markov Graphs file '" + path + "' does not exist");
             }
@@ -488,7 +488,7 @@ public class HStoreCoordinator implements VoltProcedureListener.Handler {
         
         Map<Integer, TransactionEstimator> t_estimators = new HashMap<Integer, TransactionEstimator>();
         Map<Integer, ExecutionSite> executors = new HashMap<Integer, ExecutionSite>();
-        for (int partition : CatalogUtil.getAllPartitions(args.catalog_db)) {
+        for (int partition : CatalogUtil.getAllPartitionIds(args.catalog_db)) {
             TransactionEstimator t_estimator = new TransactionEstimator(partition, p_estimator, args.param_correlations);
             if (markovs != null) {
                 t_estimator.addMarkovGraphs(markovs.get(partition));

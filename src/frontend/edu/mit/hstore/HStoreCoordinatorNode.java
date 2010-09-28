@@ -102,7 +102,7 @@ public class HStoreCoordinatorNode extends ExecutionEngine implements VoltProced
         
         public StatusMonitorThread(int interval) {
             this.interval = interval;
-            for (Integer partition : CatalogUtil.getAllPartitions(HStoreCoordinatorNode.this.catalog_db)) {
+            for (Integer partition : CatalogUtil.getAllPartitionIds(HStoreCoordinatorNode.this.catalog_db)) {
                 this.partition_txns.put(partition, new TreeSet<Long>());
             } // FOR
             // Throw in -1 for local txns
@@ -592,7 +592,7 @@ public class HStoreCoordinatorNode extends ExecutionEngine implements VoltProced
         if (args.hasParam(ArgumentsParser.PARAM_MARKOV)) {
             File path = new File(args.getParam(ArgumentsParser.PARAM_MARKOV));
             if (path.exists()) {
-                markovs = MarkovUtil.load(args.catalog_db, path.getAbsolutePath(), CatalogUtil.getAllPartitions(args.catalog_db));
+                markovs = MarkovUtil.load(args.catalog_db, path.getAbsolutePath(), CatalogUtil.getAllPartitionIds(args.catalog_db));
                 t_estimator.addMarkovGraphs(markovs.get(local_partition));
             } else {
                 LOG.warn("The Markov Graphs file '" + path + "' does not exist");
