@@ -1010,6 +1010,8 @@ TEST CASES
                 <exclude name='edu/brown/benchmark/airline/Test*'/>
                 <exclude name='edu/brown/benchmark/airline/util/TestHistogramUtil*'/>
                 
+                <exclude name='edu/brown/markov/TestMarkovGraph*' />
+                
                 <!-- VoltDB stuff -->
                 <exclude name='org/voltdb/regressionsuites/**'/>
                 <exclude name='org/voltdb/client/TestDistributer*'/>
