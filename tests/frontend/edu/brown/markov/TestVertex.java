@@ -208,7 +208,7 @@ public class TestVertex extends BaseTestCase {
         // System.err.println(start.debug());
         
         assertNotNull(start);
-        List<Integer> partitions = CatalogUtil.getAllPartitions(catalog_db);
+        List<Integer> partitions = CatalogUtil.getAllPartitionIds(catalog_db);
         for (int i = 0; i < startreadprobs.length; i++) {
             int partition_id = partitions.get(i);
             assertNotNull(startreadprobs[i]);
@@ -279,7 +279,7 @@ public class TestVertex extends BaseTestCase {
                 { 0.0, 1.0, 1.0, 1.0, 1.0 }, // Vertex 6
                 { 0.0, 1.0, 1.0, 1.0, 1.0 }  // Vertex 7
         };
-        List<Integer> partitions = CatalogUtil.getAllPartitions(catalog_db);
+        List<Integer> partitions = CatalogUtil.getAllPartitionIds(catalog_db);
         for (int i = 0; i < vertices.length; i++) {
             // System.err.println(vertices[i].debug());
             for (int partition : partitions) {

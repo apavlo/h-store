@@ -114,11 +114,16 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
         return (rand.nextInt(CatalogUtil.getNumberOfPartitions(catalog_item))); 
     }
     
+    public static Iterable<Partition> getAllPartitions(CatalogType catalog_item) {
+        Cluster catalog_clus = CatalogUtil.getCluster(catalog_item);
+        return (catalog_clus.getPartitions());
+    }
+    
     /**
-     * Get a new list of all the partitions in this catalog
+     * Get a new list of all the partition ids in this catalog
      * @return
      */
-    public static List<Integer> getAllPartitions(CatalogType catalog_item) {
+    public static List<Integer> getAllPartitionIds(CatalogType catalog_item) {
         Cluster catalog_clus = CatalogUtil.getCluster(catalog_item);
         if (!CACHE_ALL_PARTITIONS.containsKey(catalog_clus)) {
             int num_partitions = catalog_clus.getPartitions().size();

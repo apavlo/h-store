@@ -158,7 +158,7 @@ public class TimeIntervalCostModel<T extends AbstractCostModel> extends Abstract
     public double estimateCost(Database catalog_db, AbstractWorkload workload, AbstractWorkload.Filter filter) throws Exception {
         this.prepare(catalog_db);
         int num_partitions = CatalogUtil.getNumberOfPartitions(catalog_db);
-        List<Integer> all_partitions = CatalogUtil.getAllPartitions(catalog_db);
+        List<Integer> all_partitions = CatalogUtil.getAllPartitionIds(catalog_db);
         final boolean debug = LOG.isDebugEnabled();
         this.last_debug = "";
         

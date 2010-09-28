@@ -872,6 +872,23 @@ public class ExecutionSite implements Runnable {
         return (result);
     }
     
+    /**
+     * Store the given VoltTable as an input dependency for the given txn
+     * @param txn_id
+     * @param partition
+     * @param dependency_id
+     * @param data
+     */
+    public void storeDependency(long txn_id, int partition, int dependency_id, VoltTable data) {
+        TransactionState ts = this.txn_states.get(txn_id);
+        if (ts == null) {
+            String msg = "No transaction state for txn #" + txn_id;
+            LOG.error(msg);
+            throw new RuntimeException(msg);
+        }
+        ts.addResult(partition, dependency_id, data);
+    }
+    
     public void loadTable(
             long txnId,
             String clusterName,
