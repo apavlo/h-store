@@ -2194,7 +2194,7 @@ H-STORE REMIX
       <sequential>
          <sleep seconds="6"/>
          <echo>Starting DTXN Engine #${partition}...</echo>
-         <exec executable="${build.dtxn.dir}/hstore/build/protodtxn/protodtxnengine" failonerror="true">
+         <exec executable="${build.dtxn.dir}/protodtxn/protodtxnengine" failonerror="true">
             <arg line="${hstore.defaulthost}:${port}"/>
             <arg line="${build.dtxn.dir}/hstore.conf"/>
             <arg line="${partition}"/>
@@ -2209,7 +2209,7 @@ H-STORE REMIX
     <parallel failonany="true">
         <sequential>
             <echo>Starting DTXN Coordinator...</echo>
-            <exec executable="${build.dtxn.dir}/hstore/build/protodtxn/protodtxncoordinator" failonerror="true">
+            <exec executable="${build.dtxn.dir}/protodtxn/protodtxncoordinator" failonerror="true">
                 <arg line="${port}"/>
                 <arg line="${build.dtxn.dir}/hstore.conf"/>
             </exec>

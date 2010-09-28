@@ -1,13 +1,13 @@
 + -----------------------------------------------------------
 + Instructions for setting up Eclipse
 + pavlo 2010-04-01
++ pavlo 2010-09-28
 + -----------------------------------------------------------
 
-1) Checkout H-Store
+1) Build H-Store from the command-line first. This is necessary in order to
+   create the ProtocolBuffer generated Java code.
 
 $ cd $HSTORE
-$ ln -s ../scripts .
-$ ./scripts/pull-from-evan.sh
 $ ant compile
 
 Wait until everything finishes
@@ -16,24 +16,29 @@ Wait until everything finishes
 
 3) Select File -> New -> Java Project
 
-4) Select "create project from existing source" and set the directory to $HSTORE/src/frontend/gpl_vcr
+4) Select "create project from existing source" and set the directory to
+$HSTORE/src
 
-5) Click next, wait a bit..., 
+5) Click next, wait a bit...
 
 6) Click "Link Additional Source" and add the following mapping:
 
-$HSTORE/src/frontend/gpl_vcr -> gpl_vcr
-$HSTORE/src/hsqldb19b3 -> hsqldb
 $HSTORE/third_party/cpp/protobuf/java/src/main/java -> protobuf
 $HSTORE/tests/frontend -> tests
 $HSTORE/third_party/java/src -> third_party
+$HSTORE/obj/release/generated/java -> protobuf_generated
 
-7) Click "Libraries" and click "Add External Jars". Navigate to $HSTORE/third_party/java/jars and select all.
+7) Click "Libraries" and click "Add External Jars". Navigate to
+$HSTORE/third_party/java/jars and select all.
 
-8) Next click "Add External Class Folder" and select $HSTORE/third_party/java/obj
+8) Next click "Add External Class Folder" and select
+$HSTORE/third_party/java/obj
 
-9) Click finish. While it builds, delete the empty "src" directory
+9) Click finish. It should now build without any errors.
 
-10) If it fails, click on "Project -> Properties -> Java Build Path -> Libraries". Click JRE icon at the bottom and then click "Edit". Switch to "Alternate JRE" -> "java-6-openjdk"
+10) If it fails, click on "Project -> Properties -> Java Build Path ->
+Libraries". Click JRE icon at the bottom and then click "Edit". Switch to
+"Alternate JRE" -> "java-6-openjdk"
 
-11) Switch to "Navigator" view. Click on white arrow at the top of the left-panel and select "Filters". Check the boxes for ".*" and "*.class"
+11) Switch to "Navigator" view. Click on white arrow at the top of the
+left-panel and select "Filters". Check the boxes for ".*" and "*.class"
