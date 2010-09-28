@@ -53,6 +53,7 @@ import edu.brown.markov.TransactionEstimator;
 import edu.brown.utils.PartitionEstimator;
 import edu.mit.dtxn.Dtxn;
 import edu.mit.hstore.HStoreCoordinator;
+import edu.mit.hstore.HStoreMessenger;
 import edu.mit.hstore.HStoreNode;
 
 /**
@@ -120,6 +121,7 @@ public class ExecutionSite implements Runnable {
 
     protected HStoreNode hstore_node;
     protected HStoreCoordinator hstore_coordinator;
+    protected HStoreMessenger hstore_messenger;
 
     // ----------------------------------------------------------------------------
     // Execution State
@@ -315,6 +317,9 @@ public class ExecutionSite implements Runnable {
         int pool_size = (this.coordinator ? COORD_THREAD_POOL_SIZE : NODE_THREAD_POOL_SIZE);
         this.pool = Executors.newFixedThreadPool(pool_size);
         LOG.debug("Created ExecutionSite thread pool with " + pool_size + " threads");
+        
+        // Setup our messenger that we'll use to contact all of our friends
+        this.hstore_messenger = new HStoreMessenger(this, this.getPartitionId());
         
         // The PartitionEstimator is what we use to figure our where our transactions are going to go
         this.p_estimator = p_estimator; // t_estimator.getPartitionEstimator();
@@ -515,6 +520,10 @@ public class ExecutionSite implements Runnable {
         return (this.getInitiatorId());
     }
     
+    /**
+     * Return the local partition id for this ExecutionSite
+     * @return
+     */
     public int getPartitionId() {
         return (this.site.getPartition().getId());
     }
@@ -563,6 +572,9 @@ public class ExecutionSite implements Runnable {
         // bit hackish, sorry
         Thread thread = Thread.currentThread();
         thread.setName(this.getThreadName());
+        
+        // Start our messenger
+        this.hstore_messenger.start();
 
         /*
         NDC.push("ExecutionSite - " + siteId + " index " + siteIndex);
@@ -605,6 +617,7 @@ public class ExecutionSite implements Runnable {
                 if (work instanceof FragmentTaskMessage) {
                     FragmentTaskMessage ftask = (FragmentTaskMessage)work;
                     long txn_id = ftask.getTxnId();
+                    int txn_partition_id = ftask.getInitiatorSiteId();
                     TransactionState ts = this.txn_states.get(txn_id);
                     if (ts == null) {
                         String msg = "No transaction state for txn #" + txn_id;
@@ -667,13 +680,16 @@ public class ExecutionSite implements Runnable {
                                 if (trace) LOG.trace("Storing DependencyId #" + ftask.getOutputDependencyIds()[i] + " for txn #" + txn_id);
                                 ts.addResult(init_id, ftask.getOutputDependencyIds()[i], result.dependencies[i]);
                             } // FOR
-                        // Otherwise push the result back to the coordinator
+                            
+                        // Otherwise push dependencies back to the remote partition that needs it
                         } else {
                             if (debug) LOG.debug("Constructing FragmentResponse with " + result.size() + " results to send back to initial site for txn #" + txn_id);
-                            for (int i = 0, cnt = result.size(); i < cnt; i++) {
-                                // fresponse.addDependency(result.depIds[i], result.dependencies[i]);
-                                fresponse.addDependency(ftask.getOutputDependencyIds()[i], result.dependencies[i]);
-                            } // FOR
+                            
+                            this.hstore_messenger.sendDependencySet(txn_id, txn_partition_id, result); 
+//                            for (int i = 0, cnt = result.size(); i < cnt; i++) {
+//                                // fresponse.addDependency(result.depIds[i], result.dependencies[i]);
+//                                fresponse.addDependency(ftask.getOutputDependencyIds()[i], result.dependencies[i]);
+//                            } // FOR
                             this.sendFragmentResponseMessage(fresponse);
                         }
                     }
@@ -721,6 +737,10 @@ public class ExecutionSite implements Runnable {
             LOG.fatal("Something bad happended", ex);
             throw new RuntimeException(ex);
         }
+        
+        // Stop HStoreMessenger (because we're nice)
+        this.hstore_messenger.stop();
+        
         LOG.debug("ExecutionSite thread is stopping");
     }
 
@@ -807,10 +827,10 @@ public class ExecutionSite implements Runnable {
         // TODO(pavlo): Can this always be empty?
         HashMap<Integer, List<VoltTable>> dependencies = new HashMap<Integer, List<VoltTable>>();
         TransactionState ts = this.txn_states.get(txn_id);
-        if (ftask.hasAttachedResults()) {
-            if (trace) LOG.trace("Retreiving internal dependency results attached to FragmentTaskMessage for txn #" + txn_id);
-            dependencies.putAll(ftask.getAttachedResults());
-        }
+//        if (ftask.hasAttachedResults()) {
+//            if (trace) LOG.trace("Retreiving internal dependency results attached to FragmentTaskMessage for txn #" + txn_id);
+//            dependencies.putAll(ftask.getAttachedResults());
+//        }
         if (ftask.hasInputDependencies()) {
             if (ts != null && !ts.getInternalDependencyIds().isEmpty()) {
                 if (trace) LOG.trace("Retreiving internal depdency results from TransactionState for txn #" + txn_id);

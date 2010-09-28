@@ -527,7 +527,7 @@ public class TransactionState {
                 // so that the other partition can get to them
                 } else {
                     if (trace) LOG.trace("Sending unblocked task to partition #" + unblocked.getTargetPartition() + " with attached results for txn #" + this.txn_id);
-                    unblocked.attachResults(d.getDependencyId(), d.getResults());
+//                    unblocked.attachResults(d.getDependencyId(), d.getResults());
                     to_execute.add(unblocked);
                 }
             } // FOR
