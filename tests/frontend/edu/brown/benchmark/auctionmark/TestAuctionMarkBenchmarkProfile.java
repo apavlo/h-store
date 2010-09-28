@@ -1,4 +1,4 @@
-package edu.brown.benchmark.ebay;
+package edu.brown.benchmark.auctionmark;
 
 import java.util.Random;
 
@@ -11,16 +11,16 @@ import edu.brown.utils.ProjectType;
 /**
  * @author pavlo
  */
-public class TestEbayBenchmarkProfile extends BaseTestCase {
+public class TestAuctionMarkBenchmarkProfile extends BaseTestCase {
 
-    private final EbayBenchmarkProfile profile = new EbayBenchmarkProfile();
+    private final AuctionMarkBenchmarkProfile profile = new AuctionMarkBenchmarkProfile();
     private final Random rand = new Random();
     
     @Override
     protected void setUp() throws Exception {
-        super.setUp(ProjectType.EBAY);
+        super.setUp(ProjectType.AUCTIONMARK);
         
-        for (String table_name : EbayConstants.TABLENAMES) {
+        for (String table_name : AuctionMarkConstants.TABLENAMES) {
             long count = Math.abs(this.rand.nextInt()) + 1;
             assert(count > 0);
             this.profile.setTableSize(table_name, count);
@@ -33,7 +33,7 @@ public class TestEbayBenchmarkProfile extends BaseTestCase {
      */
     @Test
     public void testAddToTableSize() {
-        for (String table_name : EbayConstants.TABLENAMES) {
+        for (String table_name : AuctionMarkConstants.TABLENAMES) {
             long count = this.profile.getTableSize(table_name);
             assert(count > 0) : "Unexpected count for " + table_name;
             long delta = this.rand.nextInt();
@@ -49,12 +49,12 @@ public class TestEbayBenchmarkProfile extends BaseTestCase {
     public void testSerialization() throws Exception {
         String json_string = this.profile.toJSONString();
         
-        EbayBenchmarkProfile clone = new EbayBenchmarkProfile();
+        AuctionMarkBenchmarkProfile clone = new AuctionMarkBenchmarkProfile();
         clone.fromJSON(new JSONObject(json_string), catalog_db);
         //assertNotNull(clone.items_per_user);
         assertNotNull(clone.item_category_histogram);
 
-        for (String table_name : EbayConstants.TABLENAMES) {
+        for (String table_name : AuctionMarkConstants.TABLENAMES) {
             assertEquals(this.profile.getTableSize(table_name), clone.getTableSize(table_name));
         } // FOR
         
