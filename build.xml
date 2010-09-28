@@ -1477,7 +1477,7 @@ PROTOCOL BUFFERS
 </target>
 
 <target name="protobuf.java.check">
-    <available property="protobuf.java.built" file="${build.rpc.dir}/java/com/google/protobuf/DescriptorProtos.java" />
+    <available property="protobuf.java.built" file="${build.protorpc.dir}/edu/brown/hstore/Hstore.java" />
 </target>
 
 <target name="protobuf.java" description="Generates require protocol buffer for Java" depends="protobuf.compile,protobuf.java.check" unless="protobuf.java.built" >
@@ -1485,15 +1485,15 @@ PROTOCOL BUFFERS
     <ProtobufGenerateJava srcdir="${src.protobuf.dir}/src" destdir="${build.protorpc.dir}">
         <fileset file="${src.protobuf.dir}/src/google/protobuf/descriptor.proto" />
     </ProtobufGenerateJava>
-</target>
-
-<target name="protobuf" description="" depends="protobuf.java,protobuf.compile">
-    <mkdir dir='${build.prod.dir}' />
     <ProtobufGenerateJava srcdir="${src.protorpc.dir}" destdir="${build.protorpc.dir}">
         <fileset dir="${src.protorpc.dir}">
             <patternset><include name="**/*.proto" /></patternset>
         </fileset>
     </ProtobufGenerateJava>
+</target>
+
+<target name="protobuf" description="" depends="protobuf.java,protobuf.compile">
+    <mkdir dir='${build.prod.dir}' />
     <ProtobufCompile srcdir="${src.protobuf.dir}/java/src/main/java:${build.protorpc.dir}" destdir="${build.prod.dir}">
         <classpath refid="project.classpath"/>
     </ProtobufCompile>
@@ -1506,7 +1506,7 @@ DTXN BINARIES + LIBRARIES
 -->
 
 <target name="dtxn.check">
-    <available property="dtxn.built" file="${build.dtxn.dir}/hstore/buildhack.sh" />
+    <available property="dtxn.built" file="${build.dtxn.dir}/protodtxn/protodtxnengine" />
 </target>
 
 <target name="dtxn" description="Build DTXN binaries" depends="dtxn.check,protobuf.compile" unless="dtxn.built">
