@@ -159,16 +159,24 @@ public class HStoreMessenger {
     }
     
     /**
-     * 
+     * Send an individual dependency to a remote partition for a given transaction
      * @param txn_id
+     * @param partition_id
      * @param dependency_id
      * @param table
      */
     public void sendDependency(long txn_id, int partition_id, int dependency_id, VoltTable table) {
-
+        DependencySet dset = new DependencySet(new int[]{ dependency_id }, new VoltTable[]{ table });
+        this.sendDependencySet(txn_id, partition_id, dset);
     }
     
-    public void setDependencySet(long txn_id, int partition_id, DependencySet dset) {
+    /**
+     * Send a DependencySet to a remote partition for a given transaction
+     * @param txn_id
+     * @param partition_id
+     * @param dset
+     */
+    public void sendDependencySet(long txn_id, int partition_id, DependencySet dset) {
         ProtoRpcController rpc = new ProtoRpcController();
         HStoreService channel = this.channels.get(partition_id);
         assert(channel != null) : "Invalid partition id '" + partition_id + "'";
