@@ -10,10 +10,9 @@ public enum ProjectType {
     TM1,
     SIMPLE,
     AIRLINE,
-    EBAY,
     MARKOV,
     BINGO,
-    AUCTION;
+    AUCTIONMARK;
     
     protected static final Map<Integer, ProjectType> idx_lookup = new HashMap<Integer, ProjectType>();
     protected static final Map<String, ProjectType> name_lookup = new HashMap<String, ProjectType>();

@@ -183,20 +183,20 @@ public abstract class ForeignKeysUtil {
     //
     // Auction Foreign Keys
     //
-    public static final Map<String, ForeignKeyMapping> AUCTION_FOREIGN_KEYS = new HashMap<String, ForeignKeyMapping>();
-    static {
-        AUCTION_FOREIGN_KEYS.put("ITEM", new ForeignKeyMapping());
-        AUCTION_FOREIGN_KEYS.get("ITEM").put("SELLERID", "USER.USERID");
-        AUCTION_FOREIGN_KEYS.get("ITEM").put("CATEGORYID", "CATEGORY.CATID");
-        
-        AUCTION_FOREIGN_KEYS.put("AUCTION", new ForeignKeyMapping());
-        AUCTION_FOREIGN_KEYS.get("AUCTION").put("ITEMID", "ITEM.ITEMID");
-        AUCTION_FOREIGN_KEYS.get("AUCTION").put("HIGHBIDID", "BID.BIDID");
-        
-        AUCTION_FOREIGN_KEYS.put("BID", new ForeignKeyMapping());
-        AUCTION_FOREIGN_KEYS.get("BID").put("AUCTIONID", "AUCTION.AUCTIONID");
-        AUCTION_FOREIGN_KEYS.get("BID").put("BIDDERID", "USER.USERID");
-    } // STATIC
+//     public static final Map<String, ForeignKeyMapping> AUCTION_FOREIGN_KEYS = new HashMap<String, ForeignKeyMapping>();
+//     static {
+//         AUCTION_FOREIGN_KEYS.put("ITEM", new ForeignKeyMapping());
+//         AUCTION_FOREIGN_KEYS.get("ITEM").put("SELLERID", "USER.USERID");
+//         AUCTION_FOREIGN_KEYS.get("ITEM").put("CATEGORYID", "CATEGORY.CATID");
+//         
+// //         AUCTION_FOREIGN_KEYS.put("AUCTION", new ForeignKeyMapping());
+// //         AUCTION_FOREIGN_KEYS.get("AUCTION").put("ITEMID", "ITEM.ITEMID");
+// //         AUCTION_FOREIGN_KEYS.get("AUCTION").put("HIGHBIDID", "BID.BIDID");
+//         
+//         AUCTION_FOREIGN_KEYS.put("BID", new ForeignKeyMapping());
+//         AUCTION_FOREIGN_KEYS.get("BID").put("AUCTIONID", "AUCTION.AUCTIONID");
+//         AUCTION_FOREIGN_KEYS.get("BID").put("BIDDERID", "USER.USERID");
+//     } // STATIC
     
     //
     // TM1 Foreign Keys
@@ -223,7 +223,7 @@ public abstract class ForeignKeysUtil {
     static {
         FOREIGN_KEYS.put(ProjectType.TPCC, TPCC_FOREIGN_KEYS);
         FOREIGN_KEYS.put(ProjectType.TPCE, TPCE_FOREIGN_KEYS);
-        FOREIGN_KEYS.put(ProjectType.AUCTION, AUCTION_FOREIGN_KEYS);
+//         FOREIGN_KEYS.put(ProjectType.AUCTION, AUCTION_FOREIGN_KEYS);
         FOREIGN_KEYS.put(ProjectType.TM1, TM1_FOREIGN_KEYS);
     } // STATIC
     

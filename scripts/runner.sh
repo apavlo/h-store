@@ -15,7 +15,7 @@ BINGO_BENCHMARK_CLIENT="org.voltdb.benchmark.bingo.BingoClient"
 
 ## Brown Benchmarks
 TM1_BENCHMARK_CLIENT="edu.brown.benchmark.tm1.TM1Client"
-EBAY_BENCHMARK_CLIENT="edu.brown.benchmark.ebay.EbayClient"
+AUCTIONMARK_BENCHMARK_CLIENT="edu.brown.benchmark.auctionmark.AuctionMarkClient"
 AIRLINE_BENCHMARK_CLIENT="edu.brown.benchmark.airline.Client"
 TPCE_BENCHMARK_CLIENT="edu.brown.benchmark.tpce.TPCEClient"
 AFFINITY_BENCHMARK_CLIENT="edu.brown.benchmark.affinity.Client"
@@ -135,10 +135,10 @@ for arg in $@; do
         BENCHMARK="TPCC"
     elif [ "$arg" = "tm1" ]; then
         BENCHMARK="TM1"
-    elif [ "$arg" = "ebay" ]; then
-        BENCHMARK="EBAY"
+    elif [ "$arg" = "auctionmark" ]; then
+        BENCHMARK="AUCTIONMARK"
         EXTRA_ARGS="$EXTRA_ARGS \
-            -Debaydir=$CWD/tests/frontend/edu/brown/benchmark/ebay/data "
+            -Dauctionmarkdir=$CWD/tests/frontend/edu/brown/benchmark/auctionmark/data "
     elif [ "$arg" = "markov" ]; then
         BENCHMARK="MARKOV"
 #         DEFAULT_SCALE_FACTOR=5000

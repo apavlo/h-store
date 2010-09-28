@@ -1107,7 +1107,7 @@ public class AirlineLoader extends AirlineBaseClient {
     
     @Override
     public String getApplicationName() {
-        return "eBay Benchmark";
+        return "Airline Benchmark";
     }
 
     @Override

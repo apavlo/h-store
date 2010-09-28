@@ -12,7 +12,7 @@ import org.voltdb.catalog.*;
 import org.voltdb.messaging.FragmentTaskMessage;
 
 import edu.brown.BaseTestCase;
-import edu.brown.benchmark.ebay.procedures.GetWatchedItems;
+import edu.brown.benchmark.auctionmark.procedures.GetWatchedItems;
 import edu.brown.hashing.DefaultHasher;
 import edu.brown.utils.*;
 
@@ -67,7 +67,7 @@ public class TestTransactionStateComplex extends BaseTestCase {
     
     @Override
     protected void setUp() throws Exception {
-        super.setUp(ProjectType.EBAY);
+        super.setUp(ProjectType.AUCTIONMARK);
         this.addPartitions(NUM_PARTITIONS);
         
         if (executor == null) {

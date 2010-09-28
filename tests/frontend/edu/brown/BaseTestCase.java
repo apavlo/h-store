@@ -11,7 +11,7 @@ import org.voltdb.catalog.*;
 import org.voltdb.benchmark.tpcc.TPCCProjectBuilder;
 
 import edu.brown.benchmark.airline.AirlineProjectBuilder;
-import edu.brown.benchmark.ebay.EbayProjectBuilder;
+import edu.brown.benchmark.auctionmark.AuctionMarkProjectBuilder;
 import edu.brown.benchmark.markov.MarkovProjectBuilder;
 import edu.brown.benchmark.tm1.TM1ProjectBuilder;
 import edu.brown.benchmark.tpce.TPCEProjectBuilder;
@@ -71,8 +71,8 @@ public abstract class BaseTestCase extends TestCase {
                 case AIRLINE:
                     catalog = new AirlineProjectBuilder().getFullCatalog(fkeys);
                     break;
-                case EBAY:
-                    catalog = new EbayProjectBuilder().getFullCatalog(fkeys);
+                case AUCTIONMARK:
+                    catalog = new AuctionMarkProjectBuilder().getFullCatalog(fkeys);
                     break;
                 case MARKOV:
                     catalog = new MarkovProjectBuilder().getFullCatalog(fkeys);

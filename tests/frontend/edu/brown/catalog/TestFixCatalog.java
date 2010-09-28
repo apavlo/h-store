@@ -14,7 +14,7 @@ public class TestFixCatalog extends BaseTestCase {
     
     @Override
     protected void setUp() throws Exception {
-        super.setUp(ProjectType.EBAY);
+        super.setUp(ProjectType.AUCTIONMARK);
     }
     
     /**

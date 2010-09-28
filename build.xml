@@ -1626,8 +1626,8 @@ BENCHMARKS
         <arg value="sf=${sf}"/>
         <arg value="multipartition=${multipartition}"/>
         
-        <!-- ebay parameters -->
-        <arg value="ebaydir=${ebaydir}"/>
+        <!-- auctionmark parameters -->
+        <arg value="auctionmarkdir=${auctionmarkdir}"/>
         <arg value="benchmarkprofile=${benchmarkprofile}"/>
 
         <!-- automatic online snapshot parameters -->
