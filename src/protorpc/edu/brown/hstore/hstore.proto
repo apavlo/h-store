@@ -1,0 +1,32 @@
+import "ca/evanjones/protorpc/Protocol.proto";
+
+package edu.brown.hstore;
+
+// -----------------------------------
+// MESSAGES
+// -----------------------------------
+
+message FragmentPayload {
+    required bytes data = 1;
+}
+
+message FragmentTransfer {
+    required int32 sender_partition_id = 1;
+    required int64 txn_id = 2;
+    required int32 dependency_id = 3;
+    repeated FragmentPayload payloads = 4;
+}
+
+message FragmentAcknowledgement {
+    required int32 sender_partition_id = 1;
+    required int64 txn_id = 2;
+    required int32 dependency_id = 3;
+}
+
+// -----------------------------------
+// SERVICE
+// -----------------------------------
+
+service HStoreService {
+   rpc SendFragment (FragmentTransfer) returns (FragmentAcknowledgement);
+}

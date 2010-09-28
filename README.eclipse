@@ -1,5 +1,6 @@
-+ -----------------------------------------------------------
-+ Instructions for setting up Eclipse
+= Instructions for Setting up H-Store in Eclipse
+Andy Pavlo <pavlo@cs.brown.edu>
+
 + pavlo 2010-04-01
 + pavlo 2010-09-28
 + -----------------------------------------------------------
@@ -26,7 +27,7 @@ $HSTORE/src
 $HSTORE/third_party/cpp/protobuf/java/src/main/java -> protobuf
 $HSTORE/tests/frontend -> tests
 $HSTORE/third_party/java/src -> third_party
-$HSTORE/obj/release/generated/java -> protobuf_generated
+$HSTORE/obj/release/protorpc -> protorpc_generated
 
 7) Click "Libraries" and click "Add External Jars". Navigate to
 $HSTORE/third_party/java/jars and select all.

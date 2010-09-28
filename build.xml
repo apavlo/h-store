@@ -44,13 +44,16 @@
 <property name='dist.examples.satellite.dir' location='${dist.examples.dir}/satellite' />
 <property name='dist.examples.voter.dir'     location='${dist.examples.dir}/voter' />
 <property name='doc.dir'                     location='doc' />
-<property name='src.frontend.dir'            location='src/frontend' />
-<property name='src.dtxn.dir'                location='src/dtxn' />
-<property name='src.hsqldb.dir'              location='src/hsqldb19b3' />
+<property name='src.dir'                     location='src' />
+<property name='src.frontend.dir'            location='${src.dir}/frontend' />
+<property name='src.dtxn.dir'                location='${src.dir}/dtxn' />
+<property name='src.hsqldb.dir'              location='${src.dir}/hsqldb19b3' />
+<property name='src.protorpc.dir'            location='${src.dir}/protorpc' />
 <property name='src.test.dir'                location='tests/frontend' />
 <property name='src.hsqldb.test.dir'         location='tests/hsqldb' />
 <property name='build.testoutput.dir'        location='${build.dir}/testoutput' />
 <property name='build.testobjects.dir'       location='${build.dir}/testobjects' />
+<property name='build.protorpc.dir'          location='${build.dir}/protorpc' />
 <property name='vendor.lib.dir'              location='third_party/java/jars' />
 <property name='vendor.src.dir'              location='third_party/java/src'  />
 <property name='vendor.obj.dir'              location='third_party/java/obj'  />
@@ -59,10 +62,10 @@
 <property name='m1catalog'                   location='${src.test.dir}/org/voltdb/catalog/catalog.txt' />
 <property name='depcache'                    value='.depcache' />
 
-<!-- Protocol Buffer Source -->
+<!-- ProtocolBuffer Source -->
 <property name="src.protobuf.dir"               location="third_party/cpp/protobuf" />
 <property name="build.protobuf.dir"             location="${build.dir}/protobuf" />
-<property name="build.protobuf.generated.dir"   location="${build.dir}/generated/java" />
+<property name="build.protobuf.dir.protoc"      location="${build.protobuf.dir}/src/protoc" />
 
 <!-- TPC-E Generator -->
 <property name="tpce.src.dir"                location="third_party/cpp/tpceloader" />
@@ -1413,8 +1416,6 @@ TEST CASES
 PROTOCOL BUFFERS
 ***************************************
 -->
-<property name="src.protobuf.generated.dir" location='src/proto' />
-<property name="build.protobuf.dir.protoc" value="${build.protobuf.dir}/src/protoc" />
 
 <!-- Common macro for compiling Java source -->
 <macrodef name="ProtobufCompile">
@@ -1476,22 +1477,24 @@ PROTOCOL BUFFERS
 </target>
 
 <target name="protobuf.java.check">
-    <available property="protobuf.java.built" file="${build.protobuf.generated.dir}/com/google/protobuf/DescriptorProtos.java" />
+    <available property="protobuf.java.built" file="${build.rpc.dir}/java/com/google/protobuf/DescriptorProtos.java" />
 </target>
 
 <target name="protobuf.java" description="Generates require protocol buffer for Java" depends="protobuf.compile,protobuf.java.check" unless="protobuf.java.built" >
     <!-- Generate the required protocol buffers for the Java build -->
-    <ProtobufGenerateJava srcdir="${src.protobuf.dir}/src" destdir="${build.protobuf.generated.dir}">
+    <ProtobufGenerateJava srcdir="${src.protobuf.dir}/src" destdir="${build.protorpc.dir}">
         <fileset file="${src.protobuf.dir}/src/google/protobuf/descriptor.proto" />
     </ProtobufGenerateJava>
 </target>
 
 <target name="protobuf" description="" depends="protobuf.java,protobuf.compile">
-    <ProtobufGenerateJava srcdir="${src.protobuf.generated.dir}" destdir="${build.protobuf.generated.dir}">
-        <fileset dir="src/proto"><patternset><include name="**/*.proto" /></patternset></fileset>
-    </ProtobufGenerateJava>
     <mkdir dir='${build.prod.dir}' />
-    <ProtobufCompile srcdir="${src.protobuf.dir}/java/src/main/java:${build.protobuf.generated.dir}" destdir="${build.prod.dir}">
+    <ProtobufGenerateJava srcdir="${src.protorpc.dir}" destdir="${build.protorpc.dir}">
+        <fileset dir="${src.protorpc.dir}">
+            <patternset><include name="**/*.proto" /></patternset>
+        </fileset>
+    </ProtobufGenerateJava>
+    <ProtobufCompile srcdir="${src.protobuf.dir}/java/src/main/java:${build.protorpc.dir}" destdir="${build.prod.dir}">
         <classpath refid="project.classpath"/>
     </ProtobufCompile>
 </target>
