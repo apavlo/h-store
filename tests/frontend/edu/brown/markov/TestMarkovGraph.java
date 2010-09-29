@@ -7,7 +7,6 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
-import org.apache.commons.lang.StringEscapeUtils;
 import org.json.JSONObject;
 import org.junit.Before;
 import org.junit.Test;
@@ -17,7 +16,6 @@ import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Statement;
 
 import edu.brown.BaseTestCase;
-import edu.brown.benchmark.tm1.procedures.GetNewDestination;
 import edu.brown.correlations.ParameterCorrelations;
 import edu.brown.graphs.GraphvizExport;
 import edu.brown.graphs.GraphvizExport.Attributes;
@@ -25,7 +23,6 @@ import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.FileUtil;
 import edu.brown.utils.ProjectType;
 import edu.brown.workload.AbstractWorkload;
-import edu.brown.workload.TransactionTrace;
 import edu.brown.workload.WorkloadTraceFileOutput;
 import edu.brown.workload.filters.BasePartitionTxnFilter;
 import edu.brown.workload.filters.ProcedureNameFilter;
@@ -123,9 +120,9 @@ public class TestMarkovGraph extends BaseTestCase {
         for (Vertex v : markov.getVertices()) {
             graphviz.getAttributes(v).put(Attributes.LABEL, start.debug().replace("\n", "\\n").replace("\t", "     "));    
         }
-        FileUtil.writeStringToFile("/home/pavlo/" + this.catalog_proc.getName() + ".dot", graphviz.export(this.catalog_proc.getName()));
+//        FileUtil.writeStringToFile("/home/pavlo/" + this.catalog_proc.getName() + ".dot", graphviz.export(this.catalog_proc.getName()));
         
-        // FIXME validateProbabilities(start);
+        validateProbabilities(start);
     }
 
     /**
