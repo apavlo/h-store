@@ -35,23 +35,26 @@ public class ProcedureNameFilter extends AbstractWorkload.Filter {
      * Add the given catalog object names to this filter's whitelist
      * @param names
      */
-    public void include(String...names) {
+    public AbstractWorkload.Filter include(String...names) {
         for (String name : names) {
             this.include(name, INCLUDE_UNLIMITED);
         }
+        return (this);
     }
     
-    public void include(String name, int limit) {
+    public AbstractWorkload.Filter include(String name, int limit) {
         this.whitelist.put(name, new AtomicInteger(limit));
         this.whitelist_orig_ctr.put(name, limit);
+        return (this);
     }
     
     /**
      * Add the given catalog object names to this filter's blacklist
      * @param names
      */
-    public void exclude(String...names) {
+    public AbstractWorkload.Filter exclude(String...names) {
         Collections.addAll(this.blacklist, names);
+        return (this);
     }
     
     @Override

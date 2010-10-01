@@ -34,7 +34,7 @@ import edu.brown.workload.filters.ProcedureNameFilter;
  * @author pavlo
  */
 public abstract class MarkovUtil {
-    private static final Logger LOG = Logger.getLogger(MarkovUtil.class.getName());
+    private static final Logger LOG = Logger.getLogger(MarkovUtil.class);
 
     /**
      * Wrapper class for our special "marker" vertices
@@ -264,10 +264,10 @@ public abstract class MarkovUtil {
                 g.processTransaction(xact, p_estimator);
             }
         } // WHILE
+        // After we created all of the graphs for each partition, invoke the calculateProbabilities()
+        // method to compute the final edge/vertex probabilities 
         for (MarkovGraph g : partitiongraphs.values()) {
-            g.setTransactionCount(workload.getTransactionCount());
             g.calculateProbabilities();
-            g.unmarkAllEdges();
         } // FOR
         return partitiongraphs;
     }
@@ -378,13 +378,17 @@ public abstract class MarkovUtil {
         }
         LOG.debug(className + " objects were written out to '" + output_path + "'");
     }
-    
+
     /**
-     * 
-     * @param path
+     * Return a GraphvizExport handle for the given MarkovGraph.
+     * This will highlight all of the special vertices
+     * @param markov
+     * @param use_full_output - Whether to use the full debug information for vertex labels
+     * @param path - A path to highlight (can be null)
+     * @return
      * @throws Exception
      */
-    public static GraphvizExport<Vertex, Edge> exportGraphviz(MarkovGraph markov, List<Vertex> path) throws Exception {
+    public static GraphvizExport<Vertex, Edge> exportGraphviz(MarkovGraph markov, boolean use_full_output, List<Edge> path) throws Exception {
         GraphvizExport<Vertex, Edge> graphviz = new GraphvizExport<Vertex, Edge>(markov);
         graphviz.setEdgeLabels(true);
         graphviz.getGlobalGraphAttributes().put(Attributes.PACK, "true");
@@ -404,7 +408,15 @@ public abstract class MarkovUtil {
         graphviz.getAttributes(v).put(Attributes.FONTCOLOR, "white");
         graphviz.getAttributes(v).put(Attributes.STYLE, "filled,bold");
 
-        if (path != null) graphviz.highlightPath(markov.getPath(path), "red");
+        // Highlight Path
+        if (path != null) graphviz.highlightPath(path, "red");
+        
+        // Full Debug Output
+        if (use_full_output) {
+            for (Vertex v0 : markov.getVertices()) {
+                graphviz.getAttributes(v0).put(Attributes.LABEL, v0.debug().replace("\n", "\\n").replace("\t", "     "));    
+            } // FOR
+        }
         
         return (graphviz);
     }

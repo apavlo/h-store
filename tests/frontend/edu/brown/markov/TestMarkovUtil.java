@@ -1,14 +1,8 @@
 package edu.brown.markov;
 
-import java.util.ArrayList;
-
 import org.json.JSONObject;
-import org.voltdb.catalog.Procedure;
-import org.voltdb.catalog.Statement;
 
 import edu.brown.BaseTestCase;
-import edu.brown.benchmark.tm1.procedures.GetNewDestination;
-import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.ProjectType;
 
 public class TestMarkovUtil extends BaseTestCase {

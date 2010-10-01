@@ -68,7 +68,7 @@ public class ArgumentsParser {
         if (initialized_log4j) return;
         String paths[] = new String[]{
             System.getProperty("log4j.configuration", "./log4j.properties"),
-            "/home/pavlo/Documents/H-Store/SVN-Brown/src/log4j.properties",
+            "/home/pavlo/Documents/H-Store/SVN-Brown/trunk/log4j.properties",
             "/host/work/hstore/src/log4j.properties",
         };
         for (String p : paths) {

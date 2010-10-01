@@ -42,6 +42,7 @@ public class GraphvizExport<V extends AbstractVertex, E extends AbstractEdge> {
         SHAPE,
         SIZE,
         LABEL,
+        NOJUSTIFY,
     };
 
     public static class AttributeValues extends HashMap<Attributes, String> {
@@ -87,6 +88,7 @@ public class GraphvizExport<V extends AbstractVertex, E extends AbstractEdge> {
             this.put(Attributes.COLOR, "black");
             this.put(Attributes.STYLE, "filled");
             this.put(Attributes.FONTSIZE, "11");
+            this.put(Attributes.NOJUSTIFY, "true");
         }
     };
     private final AttributeValues global_edge_attrs = new AttributeValues() {

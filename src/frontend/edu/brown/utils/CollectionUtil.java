@@ -211,6 +211,9 @@ public abstract class CollectionUtil {
      * @return
      */
     public static <T> T get(Iterable<T> items, int idx) {
+        if (items instanceof AbstractList) {
+            return ((AbstractList<T>)items).get(idx);
+        }
         int ctr = 0;
         for (T t : items) {
             if (ctr++ == idx) return (t);
@@ -227,7 +230,8 @@ public abstract class CollectionUtil {
     public static <T> T getLast(Iterable<T> items) {
         T last = null;
         if (items instanceof AbstractList) {
-            last = ((AbstractList<T>)items).get(((AbstractList<T>)items).size() - 1);
+            AbstractList<T> list = (AbstractList<T>)items;
+            last = (list.isEmpty() ? null : list.get(list.size() - 1));
         } else {
             for (T t : items) {
                 last = t;

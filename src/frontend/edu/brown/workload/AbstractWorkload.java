@@ -127,10 +127,11 @@ public abstract class AbstractWorkload implements WorkloadTrace, Iterable<Abstra
             this(null);
         }
         
-        public void attach(Filter next) {
+        public Filter attach(Filter next) {
             if (this.next != null) this.next.attach(next);
             else this.next = next;
             assert(this.next != null);
+            return (next);
         }
         
         public FilterResult apply(AbstractTraceElement<? extends CatalogType> element) {

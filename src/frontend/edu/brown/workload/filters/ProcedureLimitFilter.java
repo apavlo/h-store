@@ -18,6 +18,10 @@ public class ProcedureLimitFilter extends AbstractWorkload.Filter {
         this(limit, 0l);
     }
     
+    public ProcedureLimitFilter(long limit) {
+        this(limit, 0l);
+    }
+    
     public ProcedureLimitFilter(Long limit, Long offset) {
         this(limit, offset, null);
     }

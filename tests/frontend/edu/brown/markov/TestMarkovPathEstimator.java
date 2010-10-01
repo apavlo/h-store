@@ -6,21 +6,14 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.Vector;
-import java.util.Map.Entry;
 
 import org.voltdb.VoltProcedure;
 import org.voltdb.benchmark.tpcc.procedures.neworder;
-import org.voltdb.benchmark.tpcc.procedures.slev;
-import org.voltdb.catalog.CatalogType;
 import org.voltdb.catalog.Procedure;
 
 import edu.brown.BaseTestCase;
 import edu.brown.correlations.ParameterCorrelations;
-import edu.brown.graphs.GraphvizExport;
-import edu.brown.graphs.GraphvizExport.Attributes;
-import edu.brown.utils.FileUtil;
 import edu.brown.utils.ProjectType;
-import edu.brown.workload.AbstractTraceElement;
 import edu.brown.workload.AbstractWorkload;
 import edu.brown.workload.TransactionTrace;
 import edu.brown.workload.WorkloadTraceFileOutput;
@@ -141,7 +134,7 @@ public class TestMarkovPathEstimator extends BaseTestCase {
         Vector<Vertex> path = new Vector<Vertex>(estimator.getVisitPath());
         
         assertEquals(start, path.firstElement());
-        // assertEquals(commit, path.lastElement());
+        assertEquals(commit, path.lastElement());
         assertFalse(path.contains(abort));
         
         // All of the vertices should only have the base partition in their partition set
