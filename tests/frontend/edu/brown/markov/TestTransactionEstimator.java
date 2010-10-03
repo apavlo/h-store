@@ -111,11 +111,18 @@ public class TestTransactionEstimator extends BaseTestCase {
      */
     @Test
     public void testStartTransaction() throws Exception {
-        Estimate est = t_estimator.startTransaction(XACT_ID++, this.catalog_proc, singlep_trace.getParams());
+        long txn_id = XACT_ID++;
+        Estimate est = t_estimator.startTransaction(txn_id, this.catalog_proc, singlep_trace.getParams());
         assertNotNull(est);
         System.err.println(est.toString());
-        GraphvizExport<Vertex, Edge> graphviz = MarkovUtil.exportGraphviz(markovs.get(BASE_PARTITION, this.catalog_proc), true, null);
+        
+        MarkovGraph markov = markovs.get(BASE_PARTITION, this.catalog_proc);
+        List<Vertex> initial_path = t_estimator.getInitialPath(txn_id);
+        assertFalse(initial_path.isEmpty());
+        GraphvizExport<Vertex, Edge> graphviz = MarkovUtil.exportGraphviz(markov, true, markov.getPath(initial_path));
         FileUtil.writeStringToFile("/tmp/" + this.catalog_proc.getName() + ".dot", graphviz.export(this.catalog_proc.getName()));
+        
+        System.err.println("INITIAL PATH:\n" + StringUtil.join("\n", initial_path));
         
 // FIXME        assert(est.isSinglePartition(this.thresholds));
 // FIXME        assertFalse(est.isUserAbort(this.thresholds));

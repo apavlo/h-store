@@ -44,11 +44,12 @@ public class TransactionEstimator {
         private Estimate last_estimate;
         private final long start_time;
         private long stop_time;
-        private final List<Vertex> initial_path = new ArrayList<Vertex>();
+        private final List<Vertex> initial_path;
         private final List<Vertex> taken_path = new ArrayList<Vertex>();
 
-        public State(MarkovGraph markov) {
+        public State(MarkovGraph markov, List<Vertex> initial_path) {
             this.start_time = System.currentTimeMillis();
+            this.initial_path = initial_path;
             this.current = markov.getStartVertex();
         }
 
@@ -256,6 +257,17 @@ public class TransactionEstimator {
     public MarkovGraph getMarkovGraph(String catalog_key) {
         return (this.getMarkovGraph(CatalogKey.getFromKey(this.catalog_db, catalog_key, Procedure.class)));
     }
+    
+    /**
+     * Return the initial path estimation for the given transaction id
+     * @param txn_id
+     * @return
+     */
+    protected List<Vertex> getInitialPath(long txn_id) {
+        State s = this.xact_states.get(txn_id);
+        assert(s != null) : "Unexpected Transaction #" + txn_id;
+        return (s.getInitialPath());
+    }
 
     // ----------------------------------------------------------------------------
     // RUNTIME METHODS
@@ -303,16 +315,17 @@ public class TransactionEstimator {
         Vertex start = graph.getStartVertex();
         start.addInstanceTime(xact_id, System.currentTimeMillis());
         
-        State state = new State(graph);
-        this.xact_states.put(xact_id, state);
-        
         // Calculate initial path estimate
+        List<Vertex> initial_path = null;
         try {
-            this.estimatePath(graph, args);
+            initial_path = this.estimatePath(graph, args);
         } catch (Exception e) {
             e.printStackTrace();
         }
+        assert(initial_path != null);
         
+        State state = new State(graph, initial_path);
+        this.xact_states.put(xact_id, state);
         this.populateEstimate(state, estimate);
         
         this.xact_count++;
@@ -415,14 +428,9 @@ public class TransactionEstimator {
      * @throws Exception
      */
     protected List<Vertex> estimatePath(final MarkovGraph markov, final Object args[]) throws Exception {
-        final List<Vertex> path = new Vector<Vertex>();
-        
-        // Walk through the graph as far as we can
-        Vertex start = markov.getStartVertex();
-        assert (start != null);
-        
-        //new PathEstimator(markov, this, args);
-
+        MarkovPathEstimator estimator = new MarkovPathEstimator(markov, this, args);
+        estimator.traverse(markov.getStartVertex());
+        List<Vertex> path = new Vector<Vertex>(estimator.getVisitPath());
         return (path);
     }
     

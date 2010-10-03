@@ -29,7 +29,7 @@ public class TestMarkovGraph extends BaseTestCase {
     private static final Class<? extends VoltProcedure> TARGET_PROCEDURE = neworder.class;
     private static final int WORKLOAD_XACT_LIMIT = 1000;
     private static final int BASE_PARTITION = 1;
-    private static final int NUM_PARTITIONS = 10;
+    private static final int NUM_PARTITIONS = 20;
 
     private static AbstractWorkload workload;
     private static MarkovGraphsContainer markovs;
@@ -112,7 +112,7 @@ public class TestMarkovGraph extends BaseTestCase {
                 assertEquals(v + " Partition #" + partition, 0.0d, write);
                 assertEquals(v + " Partition #" + partition, 0.0d, read_only);
 
-                // Otherwise, we should at least be reading or writing at this partition with some probability
+            // Otherwise, we should at least be reading or writing at this partition with some probability
             } else {
                 double sum = write + read_only;
                 if (sum == 0) {
@@ -145,10 +145,10 @@ public class TestMarkovGraph extends BaseTestCase {
         // System.err.println("Single-Sited: " + start.getSingleSitedProbability());
         // System.err.println("Abort:        " + start.getAbortProbability());
 
-//        GraphvizExport<Vertex, Edge> graphviz = MarkovUtil.exportGraphviz(markov, true, null); // ,
+        GraphvizExport<Vertex, Edge> graphviz = MarkovUtil.exportGraphviz(markov, true, null); // ,
 //                                                                                               // markov.getPath(markov.getStartVertex(),
 //                                                                                               // markov.getCommitVertex()));
-//        FileUtil.writeStringToFile("/tmp/" + this.catalog_proc.getName() + ".dot", graphviz.export(this.catalog_proc.getName()));
+        FileUtil.writeStringToFile("/tmp/" + this.catalog_proc.getName() + ".dot", graphviz.export(this.catalog_proc.getName()));
 
         for (Vertex v : markov.getVertices()) {
             validateProbabilities(v);

@@ -14,6 +14,7 @@ import org.voltdb.catalog.Procedure;
 import edu.brown.BaseTestCase;
 import edu.brown.correlations.ParameterCorrelations;
 import edu.brown.utils.ProjectType;
+import edu.brown.utils.StringUtil;
 import edu.brown.workload.AbstractWorkload;
 import edu.brown.workload.TransactionTrace;
 import edu.brown.workload.WorkloadTraceFileOutput;
@@ -132,6 +133,8 @@ public class TestMarkovPathEstimator extends BaseTestCase {
         MarkovPathEstimator estimator = new MarkovPathEstimator(this.graph, this.t_estimator, multip_trace.getParams());
         estimator.traverse(this.graph.getStartVertex());
         Vector<Vertex> path = new Vector<Vertex>(estimator.getVisitPath());
+        
+//        System.err.println("INITIAL PATH:\n" + StringUtil.join("\n", path));
         
         assertEquals(start, path.firstElement());
         assertEquals(commit, path.lastElement());
