@@ -127,11 +127,11 @@ public abstract class AbstractWorkload implements WorkloadTrace, Iterable<Abstra
             this(null);
         }
         
-        public Filter attach(Filter next) {
+        public final Filter attach(Filter next) {
             if (this.next != null) this.next.attach(next);
             else this.next = next;
             assert(this.next != null);
-            return (next);
+            return (this);
         }
         
         public FilterResult apply(AbstractTraceElement<? extends CatalogType> element) {
@@ -155,7 +155,7 @@ public abstract class AbstractWorkload implements WorkloadTrace, Iterable<Abstra
         
         protected abstract String debug();
         
-        public String toString() {
+        public final String toString() {
             return (this.debug() + (this.next != null ? "\n" + this.next.toString() : ""));
         }
     }

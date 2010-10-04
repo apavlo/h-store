@@ -9,12 +9,9 @@ import org.voltdb.utils.Pair;
 
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.correlations.*;
-import edu.brown.graphs.GraphUtil;
-import edu.brown.graphs.GraphvizExport;
 import edu.brown.graphs.VertexTreeWalker;
 import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.CollectionUtil;
-import edu.brown.utils.FileUtil;
 import edu.brown.utils.PartitionEstimator;
 import edu.brown.utils.StringUtil;
 import edu.brown.workload.TransactionTrace;
@@ -247,20 +244,24 @@ public class MarkovPathEstimator extends VertexTreeWalker<Vertex> {
             
             // Our confidence is based on the total sum of the probabilities for all of the
             // edges that we could have taken in comparison to the one that we did take
-            double total_probability = 0.0;
+            float total_probability = 0.0f;
+            if (trace) LOG.trace("CANDIDATES:");
             for (Edge e : candidates) {
+                Vertex v = markov.getOpposite(element, e);
                 total_probability += e.getProbability();
-                System.err.println(e + " [" + total_probability + "]");
+                if (trace) LOG.trace("  " + element + " --[" + e + "]--> " + v + (next_vertex.equals(v) ? " *******" : ""));
             } // FOR
             double next_probability = next_edge.getProbability();
-            confidence *= next_probability / total_probability;
+            this.confidence *= next_probability / total_probability;
             
-            // System.err.println(next_vertex + 
-            
-            if (trace) LOG.trace("Next Vertex: " + next_vertex);
+            if (trace) {
+                LOG.trace("TOTAL:    " + total_probability);
+                LOG.trace("SELECTED: " + next_vertex + " [confidence=" + this.confidence + "]");
+            }
         } else {
             if (trace) LOG.trace("No matching children found. We have to stop...");
         }
+        System.err.println(StringUtil.repeat("-", 100));
     }
     
     @Override
@@ -305,8 +306,7 @@ public class MarkovPathEstimator extends VertexTreeWalker<Vertex> {
             t_estimators.put(partition, new TransactionEstimator(partition, p_estimator, args.param_correlations));
         } // FOR
         
-        Set<String> skip = new HashSet<String>() {{
-        }};
+        final Set<String> skip = new HashSet<String>();
         
         Map<Procedure, AtomicInteger> totals = new TreeMap<Procedure, AtomicInteger>();
         Map<Procedure, AtomicInteger> correct_partitions_txns = new HashMap<Procedure, AtomicInteger>();
