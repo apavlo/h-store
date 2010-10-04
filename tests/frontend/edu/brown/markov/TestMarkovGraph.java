@@ -14,6 +14,7 @@ import org.voltdb.catalog.*;
 import edu.brown.BaseTestCase;
 import edu.brown.correlations.ParameterCorrelations;
 import edu.brown.graphs.GraphvizExport;
+import edu.brown.markov.Vertex.Type;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.FileUtil;
 import edu.brown.utils.ProjectType;
@@ -122,6 +123,13 @@ public class TestMarkovGraph extends BaseTestCase {
                 assert (sum > 0.0d) : v + " Partition #" + partition + " [" + sum + "]";
             }
         } // FOR
+        
+        // If this vertex touches a partition that is not the same as the BASE_PARTITION, then 
+        // SINGLE_SITED probability should be zero!
+        if (v.getType() == Type.QUERY &&
+            (v.getPartitions().size() > 1 || v.getPartitions().contains(BASE_PARTITION) == false)) {
+            assertEquals(v.toString(), 0.0d, v.getSingleSitedProbability());
+        }
 
     }
 
@@ -139,20 +147,42 @@ public class TestMarkovGraph extends BaseTestCase {
 
         // We want to check that the read/write/finish probabilities are properly set
         Vertex start = markov.getStartVertex();
+        Vertex commit = markov.getCommitVertex();
         assertNotNull(start);
+        assertNotNull(commit);
         // System.err.println(start.debug());
 
         // System.err.println("Single-Sited: " + start.getSingleSitedProbability());
         // System.err.println("Abort:        " + start.getAbortProbability());
 
-        GraphvizExport<Vertex, Edge> graphviz = MarkovUtil.exportGraphviz(markov, true, null); // ,
-//                                                                                               // markov.getPath(markov.getStartVertex(),
-//                                                                                               // markov.getCommitVertex()));
+        GraphvizExport<Vertex, Edge> graphviz = MarkovUtil.exportGraphviz(markov, true, null);
         FileUtil.writeStringToFile("/tmp/" + this.catalog_proc.getName() + ".dot", graphviz.export(this.catalog_proc.getName()));
 
         for (Vertex v : markov.getVertices()) {
             validateProbabilities(v);
         }
+        
+        // Double-check that all of the vertices adjacent to the COMMIT vertex have their DONE
+        // probability set to 1.0 if they don't touch the partition. And if they have only one 
+        // partition then it should be single-partitioned
+        for (Vertex v : markov.getPredecessors(commit)) {
+            Set<Integer> partitions = v.getPartitions();
+            assertFalse(v.toString(), partitions.isEmpty());
+            
+            // MULTI-PARTITION
+            if (partitions.size() > 1) {
+                assertEquals(v.toString(), 0.0d, v.getSingleSitedProbability());
+            }
+            
+            for (int i = 0; i < NUM_PARTITIONS; i++) {
+                if (partitions.contains(i)) {
+                    assertEquals(v.toString(), 0.0d, v.getDoneProbability(i));
+                // We can only do this check if the vertex does not have edges to another vertex
+                } else if (markov.getSuccessorCount(v) == 1) {
+                    assertEquals(v.toString(), 1.0d, v.getDoneProbability(i));
+                }
+            } // FOR
+        } // FOR
 
     }
 
@@ -180,7 +210,6 @@ public class TestMarkovGraph extends BaseTestCase {
         assertTrue(testGraph.isSane());
     }
 
-    
         
      /**
      * testGraphSerialization
