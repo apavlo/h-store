@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.Vector;
 
+import org.apache.log4j.Level;
 import org.voltdb.VoltProcedure;
 import org.voltdb.benchmark.tpcc.procedures.neworder;
 import org.voltdb.catalog.ProcParameter;
@@ -122,6 +123,7 @@ public class TestMarkovPathEstimator extends BaseTestCase {
         Vertex commit = this.graph.getCommitVertex();
         Vertex abort = this.graph.getAbortVertex();
         
+        MarkovPathEstimator.LOG.setLevel(Level.DEBUG);
         MarkovPathEstimator estimator = new MarkovPathEstimator(this.graph, this.t_estimator, singlep_trace.getParams());
         estimator.traverse(this.graph.getStartVertex());
         Vector<Vertex> path = new Vector<Vertex>(estimator.getVisitPath());
@@ -140,6 +142,7 @@ public class TestMarkovPathEstimator extends BaseTestCase {
             assertEquals(1, v.getPartitions().size());
             assert(v.getPartitions().contains(BASE_PARTITION));
         } // FOR
+        MarkovPathEstimator.LOG.setLevel(Level.INFO);
     }
     
     /**

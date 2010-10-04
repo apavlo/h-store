@@ -21,7 +21,7 @@ import edu.brown.workload.TransactionTrace;
  * @author pavlo
  */
 public class MarkovPathEstimator extends VertexTreeWalker<Vertex> {
-    private static final Logger LOG = Logger.getLogger(MarkovPathEstimator.class);
+    protected static final Logger LOG = Logger.getLogger(MarkovPathEstimator.class);
 
     private final TransactionEstimator t_estimator;
     private final PartitionEstimator p_estimator;
@@ -245,23 +245,24 @@ public class MarkovPathEstimator extends VertexTreeWalker<Vertex> {
             // Our confidence is based on the total sum of the probabilities for all of the
             // edges that we could have taken in comparison to the one that we did take
             float total_probability = 0.0f;
-            if (trace) LOG.trace("CANDIDATES:");
+            if (debug) LOG.debug("CANDIDATES:");
             for (Edge e : candidates) {
                 Vertex v = markov.getOpposite(element, e);
                 total_probability += e.getProbability();
-                if (trace) LOG.trace("  " + element + " --[" + e + "]--> " + v + (next_vertex.equals(v) ? " *******" : ""));
+                if (debug) LOG.debug("  " + element + " --[" + e + "]--> " + v + (next_vertex.equals(v) ? " *******" : ""));
+                if (debug && candidates.size() > 1) LOG.debug(StringUtil.addSpacers(v.debug()));
             } // FOR
             double next_probability = next_edge.getProbability();
             this.confidence *= next_probability / total_probability;
             
-            if (trace) {
-                LOG.trace("TOTAL:    " + total_probability);
-                LOG.trace("SELECTED: " + next_vertex + " [confidence=" + this.confidence + "]");
+            if (debug) {
+                LOG.debug("TOTAL:    " + total_probability);
+                LOG.debug("SELECTED: " + next_vertex + " [confidence=" + this.confidence + "]");
             }
         } else {
             if (trace) LOG.trace("No matching children found. We have to stop...");
         }
-        System.err.println(StringUtil.repeat("-", 100));
+        LOG.debug(StringUtil.repeat("-", 100));
     }
     
     @Override
