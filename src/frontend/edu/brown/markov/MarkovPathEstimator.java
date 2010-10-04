@@ -31,6 +31,11 @@ public class MarkovPathEstimator extends VertexTreeWalker<Vertex> {
     private final int base_partition;
     private final Object args[];
     
+    /**
+     * This is how confident we are 
+     */
+    private double confidence = 1.00;
+    
     public MarkovPathEstimator(MarkovGraph markov, TransactionEstimator t_estimator, Object args[]) {
         super(markov);
         this.t_estimator = t_estimator;
@@ -47,6 +52,14 @@ public class MarkovPathEstimator extends VertexTreeWalker<Vertex> {
             LOG.trace("# of Partitions: " + CatalogUtil.getNumberOfPartitions(this.p_estimator.getDatabase()));
 //            LOG.trace("Arguments:       " + Arrays.toString(args));
         }
+    }
+    
+    /**
+     * 
+     * @return
+     */
+    public double getConfidence() {
+        return this.confidence;
     }
     
     /**
@@ -228,9 +241,23 @@ public class MarkovPathEstimator extends VertexTreeWalker<Vertex> {
         // since they will be sorted by their probability
         if (trace) LOG.trace("Candidate Edges: " + candidates);
         if (!candidates.isEmpty()) {
-            Vertex next = markov.getOpposite(element, CollectionUtil.getFirst(candidates));
-            children.addAfter(next);
-            if (trace) LOG.trace("Next Vertex: " + next);
+            Edge next_edge = CollectionUtil.getFirst(candidates);
+            Vertex next_vertex = markov.getOpposite(element, next_edge);
+            children.addAfter(next_vertex);
+            
+            // Our confidence is based on the total sum of the probabilities for all of the
+            // edges that we could have taken in comparison to the one that we did take
+            double total_probability = 0.0;
+            for (Edge e : candidates) {
+                total_probability += e.getProbability();
+                System.err.println(e + " [" + total_probability + "]");
+            } // FOR
+            double next_probability = next_edge.getProbability();
+            confidence *= next_probability / total_probability;
+            
+            // System.err.println(next_vertex + 
+            
+            if (trace) LOG.trace("Next Vertex: " + next_vertex);
         } else {
             if (trace) LOG.trace("No matching children found. We have to stop...");
         }

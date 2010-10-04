@@ -106,6 +106,10 @@ public class TestMarkovPathEstimator extends BaseTestCase {
         MarkovPathEstimator estimator = new MarkovPathEstimator(this.graph, this.t_estimator, singlep_trace.getParams());
         estimator.traverse(this.graph.getStartVertex());
         Vector<Vertex> path = new Vector<Vertex>(estimator.getVisitPath());
+        double confidence = estimator.getConfidence();
+        
+        System.err.println("INITIAL PATH:\n" + StringUtil.join("\n", path));
+        System.err.println("CONFIDENCE: " + confidence);
         
         assertEquals(start, path.firstElement());
         assertEquals(commit, path.lastElement());
@@ -119,38 +123,37 @@ public class TestMarkovPathEstimator extends BaseTestCase {
         } // FOR
     }
     
-    
     /**
      * testMultiPartition
      */
-    public void testMultiPartition() throws Exception {
-//        System.err.println("MULTI-PARTITION: " + multip_trace);
-
-        Vertex start = this.graph.getStartVertex();
-        Vertex commit = this.graph.getCommitVertex();
-        Vertex abort = this.graph.getAbortVertex();
-        
-        MarkovPathEstimator estimator = new MarkovPathEstimator(this.graph, this.t_estimator, multip_trace.getParams());
-        estimator.traverse(this.graph.getStartVertex());
-        Vector<Vertex> path = new Vector<Vertex>(estimator.getVisitPath());
-        
-//        System.err.println("INITIAL PATH:\n" + StringUtil.join("\n", path));
-        
-        assertEquals(start, path.firstElement());
-        assertEquals(commit, path.lastElement());
-        assertFalse(path.contains(abort));
-        
-        // All of the vertices should only have the base partition in their partition set
-        Set<Integer> touched_partitions = new HashSet<Integer>();
-        for (Vertex v : path) {
-            touched_partitions.addAll(v.getPartitions());
-        } // FOR
-//        System.err.println("Expected Partitions: " + multip_partitions);
-//        System.err.println("Touched Partitions:  " + touched_partitions);
-//        System.err.println("MULTI-PARTITION PATH: " + path);
-
-//        this.writeGraphviz(multip_path);
-//        this.writeGraphviz(path);
-//        assertEquals(multip_partitions, touched_partitions);
-    }
+//    public void testMultiPartition() throws Exception {
+////        System.err.println("MULTI-PARTITION: " + multip_trace);
+//
+//        Vertex start = this.graph.getStartVertex();
+//        Vertex commit = this.graph.getCommitVertex();
+//        Vertex abort = this.graph.getAbortVertex();
+//        
+//        MarkovPathEstimator estimator = new MarkovPathEstimator(this.graph, this.t_estimator, multip_trace.getParams());
+//        estimator.traverse(this.graph.getStartVertex());
+//        Vector<Vertex> path = new Vector<Vertex>(estimator.getVisitPath());
+//        
+////        System.err.println("INITIAL PATH:\n" + StringUtil.join("\n", path));
+//        
+//        assertEquals(start, path.firstElement());
+//        assertEquals(commit, path.lastElement());
+//        assertFalse(path.contains(abort));
+//        
+//        // All of the vertices should only have the base partition in their partition set
+//        Set<Integer> touched_partitions = new HashSet<Integer>();
+//        for (Vertex v : path) {
+//            touched_partitions.addAll(v.getPartitions());
+//        } // FOR
+////        System.err.println("Expected Partitions: " + multip_partitions);
+////        System.err.println("Touched Partitions:  " + touched_partitions);
+////        System.err.println("MULTI-PARTITION PATH: " + path);
+//
+////        this.writeGraphviz(multip_path);
+////        this.writeGraphviz(path);
+////        assertEquals(multip_partitions, touched_partitions);
+//    }
 }
