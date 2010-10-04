@@ -14,6 +14,7 @@ import edu.brown.graphs.GraphvizExport;
 import edu.brown.graphs.VertexTreeWalker;
 import edu.brown.graphs.VertexTreeWalker.Direction;
 import edu.brown.graphs.VertexTreeWalker.TraverseOrder;
+import edu.brown.markov.Vertex.Type;
 import edu.brown.utils.AbstractTreeWalker;
 import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.CollectionUtil;
@@ -243,8 +244,8 @@ public class MarkovGraph extends AbstractDirectedGraph<Vertex, Edge> implements 
                         // only one partition, if that partition is not the same as where the java is executing,
                         // then we're going to say that it is multi-partitioned
                         boolean element_islocalonly = element.isLocalPartitionOnly(getBasePartition()); 
-                        if (element_islocalonly) {
-                            if (trace) LOG.trace(element + " is NOT single-partitioned!");
+                        if (element_islocalonly == false) {
+                            if (trace) LOG.trace(element + " NOT is single-partitioned!");
                             element.setSingleSitedProbability(0.0);
                         }
 
@@ -258,11 +259,13 @@ public class MarkovGraph extends AbstractDirectedGraph<Vertex, Edge> implements 
                             assert(successor.isSingleSitedProbabilitySet()) : "Setting " + element + " BEFORE " + successor;
 
                             // Single-Partition Probability
-                            // We need to calculate the sum probability using the edge weights
-                            if (element_islocalonly == false) {
+                            // If our vertex only touches the base partition, then we need to calculate the 
+                            // single-partition probability as the sum of the the edge weights times our
+                            // successors' single-partition probability
+                            if (element_islocalonly) {
                                 double prob = (e.getProbability() * successor.getSingleSitedProbability());
-                                if (trace) LOG.trace(element + " --" + e + "--> " + successor + String.format(" [%f * %f = %f]", e.getProbability(), successor.getSingleSitedProbability(), prob) + "\nprob = " + prob);
                                 element.addSingleSitedProbability(prob);
+                                if (trace) LOG.trace(element + " --" + e + "--> " + successor + String.format(" [%f * %f = %f]", e.getProbability(), successor.getSingleSitedProbability(), prob) + "\nprob = " + prob);
                             }
                             
                             // Abort Probability
