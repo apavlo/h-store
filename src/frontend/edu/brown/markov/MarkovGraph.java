@@ -10,14 +10,10 @@ import org.voltdb.catalog.*;
 
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.graphs.AbstractDirectedGraph;
-import edu.brown.graphs.GraphvizExport;
 import edu.brown.graphs.VertexTreeWalker;
 import edu.brown.graphs.VertexTreeWalker.Direction;
 import edu.brown.graphs.VertexTreeWalker.TraverseOrder;
-import edu.brown.markov.Vertex.Type;
-import edu.brown.utils.AbstractTreeWalker;
 import edu.brown.utils.ArgumentsParser;
-import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.PartitionEstimator;
 import edu.brown.utils.StringUtil;
 import edu.brown.workload.*;
@@ -31,6 +27,13 @@ public class MarkovGraph extends AbstractDirectedGraph<Vertex, Edge> implements 
     private static final Logger LOG = Logger.getLogger(MarkovGraph.class);
     private static final long serialVersionUID = 3548405718926801012L;
 
+    /**
+     * If this global parameter is set to true, then all of the MarkovGraphs will evaluate the 
+     * past partitions set at each vertex. If this is parameter is false, then all of the calculations
+     * to determine the uniqueness of vertices will not include past partitions. 
+     */
+    public static final boolean USE_PAST_PARTITIONS = true;
+    
     protected final Procedure catalog_proc;
     protected final int base_partition;
 
@@ -39,6 +42,9 @@ public class MarkovGraph extends AbstractDirectedGraph<Vertex, Edge> implements 
      */
     private final transient HashMap<Vertex.Type, Vertex> vertex_cache = new HashMap<Vertex.Type, Vertex>();
 
+    /**
+     * 
+     */
     private int xact_count;
 
     // ----------------------------------------------------------------------------
@@ -50,7 +56,7 @@ public class MarkovGraph extends AbstractDirectedGraph<Vertex, Edge> implements 
      * @param catalog_proc
      * @param basePartition
      */
-    public MarkovGraph(Procedure catalog_proc, int basePartition,int xact_count) {
+    public MarkovGraph(Procedure catalog_proc, int basePartition, int xact_count) {
         super((Database) catalog_proc.getParent());
         this.catalog_proc = catalog_proc;
         this.base_partition = basePartition;
@@ -61,6 +67,7 @@ public class MarkovGraph extends AbstractDirectedGraph<Vertex, Edge> implements 
         this.catalog_proc = catalog_proc;
         this.base_partition = basePartition;
     }
+    
     /**
      * Add the START, COMMIT, and ABORT vertices to the current graph
      */
@@ -111,6 +118,9 @@ public class MarkovGraph extends AbstractDirectedGraph<Vertex, Edge> implements 
         return this.base_partition;
     }
     
+    /**
+     * 
+     */
     @Override
     public boolean addVertex(Vertex v) {
         boolean ret = super.addVertex(v);
@@ -142,9 +152,9 @@ public class MarkovGraph extends AbstractDirectedGraph<Vertex, Edge> implements 
      *            query's location in transactiontrace
      * @return
      */
-    protected Vertex getVertex(Statement a, Set<Integer> partitions, long queryInstanceIndex) {
+    protected Vertex getVertex(Statement a, Set<Integer> partitions, Set<Integer> past_partitions, int queryInstanceIndex) {
         for (Vertex v : this.getVertices()) {
-            if (v.isEqual(a, partitions, queryInstanceIndex)) {
+            if (v.isEqual(a, partitions, past_partitions, queryInstanceIndex)) {
                 return v;
             }
         }
@@ -306,84 +316,6 @@ public class MarkovGraph extends AbstractDirectedGraph<Vertex, Edge> implements 
             }.traverse(v);
         } // FOR (COMMIT, ABORT)
     }
-    
-    /**
-     * Calculate the "done at a partition" probability for all vertices
-     */
-//    protected void calculateDoneProbability() {
-//        final boolean trace = (getProcedure().getName().equals("neworder") && base_partition == 1); 
-//        if (trace) LOG.debug("Calculating SINGLE-PARTITION probability");
-//        
-//         
-//        final Set<Edge> visited_edges = new HashSet<Edge>();
-//        
-//        for (Vertex v : new Vertex[]{ this.getCommitVertex(), this.getAbortVertex() }) {
-//            new VertexTreeWalker<Vertex>(this, TraverseOrder.LONGEST_PATH, Direction.REVERSE) {
-//                private Set<Integer> partitions_seen = null;
-//                private final Map<Vertex, Set<Integer>> vertex_partitions_seen = new HashMap<Vertex, Set<Integer>>();
-//                
-//                {
-//                    if (trace) {
-//    //                    VertexTreeWalker.LOG.setLevel(Level.TRACE);
-//    //                    AbstractTreeWalker.LOG.setLevel(Level.TRACE);
-//                    }
-//                }
-//                @Override
-//                protected void callback_last(Vertex element) {
-//    //                VertexTreeWalker.LOG.setLevel(Level.INFO);
-//    //                AbstractTreeWalker.LOG.setLevel(Level.INFO);
-//                }
-//                
-//                @Override
-//                protected void callback_first(Vertex element) {
-//                    this.partitions_seen = new HashSet<Integer>();
-//                }
-//                
-//                @Override
-//                protected void callback(Vertex element) {
-//                    Set<Integer> current_partitions_seen = new HashSet<Integer>(this.partitions_seen);
-//                    this.vertex_partitions_seen.put(element, current_partitions_seen);
-//                    
-//                    // COMMIT/ABORT is always finished at all partitions!
-//                    if (element.getType() == Vertex.Type.COMMIT || element.getType() == Vertex.Type.ABORT) {
-//                        
-//                        
-//                    // Otherwise, we have to look at the edges and figure out what partitions we're going touch
-//                    } else {
-//                        Collection<Edge> edges = MarkovGraph.this.getOutEdges(element);
-//                        for (Edge e : edges) {
-//                            if (visited_edges.contains(e)) continue;
-//                            Vertex successor = MarkovGraph.this.getDest(e);
-//                            assert(successor != null);
-//                            
-//                            // These are the partitions that we touch at this particular vertex
-//                            Set<Integer> seensofar = new HashSet<Integer>(element.getPartitions());
-//                            
-//                            // These are the vertices that we haven't seen at all in the current path back
-//                            // to the commit vertex. We will set their done probability to 1.0 for all
-//                            // of these partitions if the probability is still null
-//                            Set<Integer> current = new HashSet<Integer>(all_partitions);
-//                            current.removeAll(this.partitions_seen);
-//                            current.removeAll(seensofar);
-//                            
-//                            
-//                            visited_edges.add(e);
-//                        } // FOR
-//                    }
-//                    
-//                    // Update the set of partitions that we've seen in the current path to include
-//                    // the ones that we touched at this vertex.
-//                    current_partitions_seen.addAll(element.getPartitions());
-//                    this.partitions_seen = current_partitions_seen;
-//                }
-//                
-//                @Override
-//                protected void callback_after(Vertex element) {
-//                    this.partitions_seen = this.vertex_partitions_seen.remove(element);
-//                }
-//            }.traverse(v);
-//        } // FOR (COMMIT, ABORT)
-//    }
 
     /**
      * Calculates the probabilities for each edge to be traversed
@@ -474,7 +406,7 @@ public class MarkovGraph extends AbstractDirectedGraph<Vertex, Edge> implements 
      * @param dest
      *            - the destination vertex
      */
-    public void addToEdge(Vertex source, Vertex dest) {
+    public Edge addToEdge(Vertex source, Vertex dest) {
         Edge e = this.findEdge(source, dest);
         if (e == null) {
             e = new Edge(this);
@@ -482,6 +414,7 @@ public class MarkovGraph extends AbstractDirectedGraph<Vertex, Edge> implements 
         }
         source.increment();
         e.increment();
+        return (e);
     }
     
     /**
@@ -504,6 +437,11 @@ public class MarkovGraph extends AbstractDirectedGraph<Vertex, Edge> implements 
             query_instance_counters.put(catalog_stmt, new AtomicInteger(0));
         } // FOR
         
+        // The past partitions is all of the partitions that this txn has touched,
+        // included the base partition where the java executes
+        Set<Integer> past_partitions = new HashSet<Integer>();
+        past_partitions.add(this.getBasePartition());
+        
         // -----------QUERY TRACE-VERTEX CREATION--------------
         for (QueryTrace query_trace : xact_trace.getQueries()) {
             Set<Integer> partitions = null;
@@ -514,13 +452,14 @@ public class MarkovGraph extends AbstractDirectedGraph<Vertex, Edge> implements 
             }
             assert(partitions != null);
             assert(!partitions.isEmpty());
+            past_partitions.addAll(partitions);
             Statement catalog_stmnt = query_trace.getCatalogItem(this.getDatabase());
 
             int queryInstanceIndex = query_instance_counters.get(catalog_stmnt).getAndIncrement(); 
-            Vertex v = this.getVertex(catalog_stmnt, partitions, queryInstanceIndex);
+            Vertex v = this.getVertex(catalog_stmnt, partitions, past_partitions, queryInstanceIndex);
             if (v == null) {
                 // If no such vertex exists we simply create one
-                v = new Vertex(catalog_stmnt, Vertex.Type.QUERY, queryInstanceIndex, partitions);
+                v = new Vertex(catalog_stmnt, Vertex.Type.QUERY, queryInstanceIndex, partitions, new HashSet<Integer>(past_partitions));
                 this.addVertex(v);
             }
             // Add to the edge between the previous vertex and the current one

@@ -9,6 +9,7 @@ import java.util.Map.Entry;
 import java.util.Set;
 
 import org.apache.log4j.Logger;
+import org.voltdb.catalog.CatalogType;
 
 import edu.brown.designer.DependencyGraph;
 import edu.brown.designer.Edge;
@@ -159,7 +160,6 @@ public class GraphvizExport<V extends AbstractVertex, E extends AbstractEdge> {
      * @return
      * @throws Exception
      */
-    @SuppressWarnings("unchecked")
     public String export(String name) throws Exception {
         LOG.debug("Exporting " + this.graph.getClass().getSimpleName() + " to Graphviz " +
                   "[vertices=" + this.graph.getVertexCount() + ",edges=" + this.graph.getEdgeCount() + "]");
@@ -254,6 +254,18 @@ public class GraphvizExport<V extends AbstractVertex, E extends AbstractEdge> {
         } // FOR
     }
 
+    /**
+     * Convenience method to write the GraphvizExport handle to a file the temporary directory
+     * @param catalog_obj
+     * @return
+     * @throws Exception
+     */
+    public String writeToTempFile(CatalogType catalog_obj) throws Exception {
+        String filename = "/tmp/" + catalog_obj.getName() + ".dot";
+        FileUtil.writeStringToFile(filename, this.export(catalog_obj.getName()));
+        return (filename);
+    }
+    
     /**
      * Export a graph into the Graphviz Dotty format
      * @param <V>

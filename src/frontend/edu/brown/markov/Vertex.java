@@ -31,6 +31,7 @@ public class Vertex extends AbstractVertex {
         QUERY_INSTANCE_INDEX,
         TYPE,
         PARTITIONS,
+        PAST_PARTITIONS,
         TOTALHITS,
         PROBABILITIES,
         EXECUTION_TIME,
@@ -99,7 +100,7 @@ public class Vertex extends AbstractVertex {
      * The Query Instance Index is the counter for the number of times this particular Statement
      * was executed in the transaction 
      */
-    public long query_instance_index;
+    public int query_instance_index;
     
     /**
      * The number of times this Vertex has been traversed
@@ -115,6 +116,11 @@ public class Vertex extends AbstractVertex {
      * The partitions this query touches
      */
     public Set<Integer> partitions = new HashSet<Integer>();
+    
+    /**
+     * The partitions that the txn has touched in the past
+     */
+    public Set<Integer> past_partitions = new HashSet<Integer>();
 
     // ----------------------------------------------------------------------------
     // ADDITIONAL NON-STATE DATA MEMBERS
@@ -169,7 +175,7 @@ public class Vertex extends AbstractVertex {
      * @param type
      */
     public Vertex(Statement catalog_stmt, Vertex.Type type) {
-        this(catalog_stmt, type, 0, new HashSet<Integer>());
+        this(catalog_stmt, type, 0, new HashSet<Integer>(), new HashSet<Integer>());
     }
     
     /**
@@ -178,8 +184,8 @@ public class Vertex extends AbstractVertex {
      * @param partitions
      * @param xact_count
      */
-    public Vertex(Statement catalog_stmt, Integer[] partitions) {
-        this(catalog_stmt, Type.QUERY, 0, Arrays.asList(partitions));
+    public Vertex(Statement catalog_stmt, Integer[] partitions, Integer[] past_partitions) {
+        this(catalog_stmt, Type.QUERY, 0, Arrays.asList(partitions), Arrays.asList(past_partitions));
     }
 
     /**
@@ -190,10 +196,11 @@ public class Vertex extends AbstractVertex {
      * @param id - the query trace index of this particular vertex, helps to identify
      * @param i - the number of transactions in this workload. used to figure out whether we should recompute
      */
-    public Vertex(Statement catalog_stmt, Vertex.Type type, long query_instance_index, Collection<Integer> partitions) {
+    public Vertex(Statement catalog_stmt, Vertex.Type type, int query_instance_index, Collection<Integer> partitions, Collection<Integer> past_partitions) {
         super(catalog_stmt);
         this.type = type;
         this.partitions.addAll(partitions);
+        this.past_partitions.addAll(past_partitions);
         this.query_instance_index = query_instance_index;
         this.init();
     }
@@ -219,7 +226,7 @@ public class Vertex extends AbstractVertex {
         return this.type;
     }
 
-    public Integer getQueryInstanceIndex() {
+    public int getQueryInstanceIndex() {
         return (int)this.query_instance_index;
     }
     
@@ -231,8 +238,20 @@ public class Vertex extends AbstractVertex {
         return totalhits;
     }
 
+    /**
+     * Return the set of partitions that the query represented by this vertex touches
+     * @return
+     */
     public Set<Integer> getPartitions() {
         return partitions;
+    }
+    
+    /**
+     * Return the set of partitions that the txn has touched in the past
+     * @return
+     */
+    public Set<Integer> getPastPartitions() {
+        return past_partitions;
     }
 
     public boolean equals(Object o) {
@@ -241,9 +260,42 @@ public class Vertex extends AbstractVertex {
             return (this.type.equals(v.type) &&
                     this.catalog_item.equals(v.catalog_item) &&
                     this.partitions.equals(v.partitions) &&
+                    (MarkovGraph.USE_PAST_PARTITIONS == false || this.past_partitions.equals(v.past_partitions)) &&
                     this.query_instance_index == v.query_instance_index);
         }
         return false;
+    }
+    
+    /**
+     * Perform equality check distinct from equals() method. Checks partitions, catalog_statement,
+     * and the index of the query within the transaction
+     * @param other_stmt
+     * @param other_partitions
+     * @param other_past
+     * @param other_queryInstanceIndex
+     * @return
+     */
+    public boolean isEqual(Statement other_stmt, Collection<Integer> other_partitions, Collection<Integer> other_past, int other_queryInstanceIndex) {
+        return (this.isEqual(other_stmt, other_partitions, other_past, other_queryInstanceIndex, MarkovGraph.USE_PAST_PARTITIONS));
+    }
+    
+    /**
+     * Perform equality check distinct from equals() method. Checks partitions, catalog_statement,
+     * and the index of the query within the transaction
+     * This version of isEqual() allows you to pass in the use_past_partitions flag
+     * 
+     * @param other_stmt
+     * @param other_partitions
+     * @param other_past
+     * @param other_queryInstanceIndex
+     * @param use_past_partitions
+     * @return
+     */
+    public boolean isEqual(Statement other_stmt, Collection<Integer> other_partitions, Collection<Integer> other_past, int other_queryInstanceIndex, boolean use_past_partitions) {
+        return (other_stmt.equals(this.catalog_item) &&
+                other_partitions.equals(this.partitions) &&
+                (use_past_partitions == false || other_past.equals(this.past_partitions)) &&
+                other_queryInstanceIndex == this.query_instance_index);
     }
     
     @Override
@@ -252,6 +304,7 @@ public class Vertex extends AbstractVertex {
                this.catalog_item.getName() + "," +
                "Indx:" + this.query_instance_index + "," +
                "Prtns:" + this.partitions +
+               "Past:" + this.past_partitions +
                "}");
     }
 
@@ -418,28 +471,6 @@ public class Vertex extends AbstractVertex {
     public boolean isAbortProbabilitySet() {
         return (this.getSpecificProbability(Probability.DONE, DEFAULT_PARTITION_ID, null) != null);
     }
-    
-    public boolean isQueryVertex() {
-        return this.getType().equals(Type.QUERY);
-    }
-    
-    /**
-     * Perform equality check distinct from equals() method. Checks partitions, catalog_statement,
-     * and the index of the query within the transaction
-     * @param a
-     * @param partitions2
-     * @param queryInstanceIndex
-     * @return
-     */
-    public boolean isEqual(Statement a, Collection<Integer> partitions2, long queryInstanceIndex) {
-        return a.equals(this.catalog_item) && partitions2.equals(partitions)
-                && queryInstanceIndex == query_instance_index;
-    }
-    
-    public boolean isMatch(Statement catalog_stmt, int[] partitions2) {
-        return this.catalog_key.equals(CatalogKey.createKey(catalog_stmt))
-                && partitions.equals(partitions2);
-    }
 
     /**
      * The 'score' of a vertex is a measure of how often it has been hit in the current workload.
@@ -589,7 +620,7 @@ public class Vertex extends AbstractVertex {
      * transaction takes to execute in the on-line model.
      */
     public void addInstanceTime(long xact_id, long time){
-        instancetimes.put(xact_id,time);
+        this.instancetimes.put(xact_id, time);
     }
     
     /**
