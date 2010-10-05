@@ -32,7 +32,7 @@ public class MarkovGraph extends AbstractDirectedGraph<Vertex, Edge> implements 
      * past partitions set at each vertex. If this is parameter is false, then all of the calculations
      * to determine the uniqueness of vertices will not include past partitions. 
      */
-    public static final boolean USE_PAST_PARTITIONS = true;
+    public static final boolean USE_PAST_PARTITIONS = false;
     
     protected final Procedure catalog_proc;
     protected final int base_partition;
@@ -452,7 +452,6 @@ public class MarkovGraph extends AbstractDirectedGraph<Vertex, Edge> implements 
             }
             assert(partitions != null);
             assert(!partitions.isEmpty());
-            past_partitions.addAll(partitions);
             Statement catalog_stmnt = query_trace.getCatalogItem(this.getDatabase());
 
             int queryInstanceIndex = query_instance_counters.get(catalog_stmnt).getAndIncrement(); 
@@ -473,6 +472,7 @@ public class MarkovGraph extends AbstractDirectedGraph<Vertex, Edge> implements 
             v.addExecutionTime(xact_trace.getStopTimestamp() - query_trace.getStartTimestamp());
             previous = v;
             path.add(v);
+            past_partitions.addAll(partitions);
         } // FOR
         if (!previous.equals(this.getAbortVertex())) {
             this.addToEdge(previous, this.getCommitVertex());

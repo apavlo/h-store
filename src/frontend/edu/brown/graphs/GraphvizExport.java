@@ -265,6 +265,11 @@ public class GraphvizExport<V extends AbstractVertex, E extends AbstractEdge> {
         FileUtil.writeStringToFile(filename, this.export(catalog_obj.getName()));
         return (filename);
     }
+    public String writeToTempFile(CatalogType catalog_obj, int i) throws Exception {
+        String filename = "/tmp/" + catalog_obj.getName() + ".dot" + i;
+        FileUtil.writeStringToFile(filename, this.export(catalog_obj.getName()));
+        return (filename);
+    }
     
     /**
      * Export a graph into the Graphviz Dotty format

@@ -43,6 +43,7 @@ public class TransactionEstimator {
         private final long start_time;
         private final MarkovGraph markov;
         private final List<Vertex> initial_path;
+        private final double initial_path_confidence;
         private final List<Vertex> taken_path = new ArrayList<Vertex>();
         private final Set<Integer> touched_partitions = new HashSet<Integer>();
         private final Map<Statement, Integer> query_instance_cnts = new HashMap<Statement, Integer>();
@@ -50,16 +51,16 @@ public class TransactionEstimator {
         private Vertex current;
         private Estimate last_estimate;
 
-
         /**
          * Constructor
          * @param markov - the graph that this txn is using
          * @param initial_path - the initial path estimation from MarkovPathEstimator
          */
-        public State(MarkovGraph markov, List<Vertex> initial_path) {
+        public State(MarkovGraph markov, List<Vertex> initial_path, double confidence) {
             this.markov = markov;
             this.start_time = System.currentTimeMillis();
             this.initial_path = initial_path;
+            this.initial_path_confidence = confidence;
             this.current = markov.getStartVertex();
         }
         
@@ -91,6 +92,9 @@ public class TransactionEstimator {
 
         public List<Vertex> getInitialPath() {
             return (this.initial_path);
+        }
+        public double getInitialPathConfidence() {
+            return (this.initial_path_confidence);
         }
 
         public List<Vertex> getTakenPath() {
@@ -310,6 +314,11 @@ public class TransactionEstimator {
         assert(s != null) : "Unexpected Transaction #" + txn_id;
         return (s.getInitialPath());
     }
+    protected double getConfidence(long txn_id) {
+        State s = this.xact_states.get(txn_id);
+        assert(s != null) : "Unexpected Transaction #" + txn_id;
+        return (s.getInitialPathConfidence());
+    }
 
     // ----------------------------------------------------------------------------
     // RUNTIME METHODS
@@ -355,15 +364,15 @@ public class TransactionEstimator {
         start.addInstanceTime(xact_id, System.currentTimeMillis());
         
         // Calculate initial path estimate
-        List<Vertex> initial_path = null;
+        MarkovPathEstimator path_estimate = null;
         try {
-            initial_path = this.estimatePath(graph, args);
+            path_estimate = this.estimatePath(graph, args);
         } catch (Exception e) {
             e.printStackTrace();
         }
-        assert(initial_path != null);
+        assert(path_estimate != null);
         
-        State state = new State(graph, initial_path);
+        State state = new State(graph, path_estimate.getVisitPath(), path_estimate.getConfidence());
         this.xact_states.put(xact_id, state);
         Estimate estimate = this.generateEstimate(state);
         
@@ -511,11 +520,10 @@ public class TransactionEstimator {
      * @param args
      * @throws Exception
      */
-    protected List<Vertex> estimatePath(final MarkovGraph markov, final Object args[]) throws Exception {
+    protected MarkovPathEstimator estimatePath(final MarkovGraph markov, final Object args[]) throws Exception {
         MarkovPathEstimator estimator = new MarkovPathEstimator(markov, this, args);
         estimator.traverse(markov.getStartVertex());
-        List<Vertex> path = new Vector<Vertex>(estimator.getVisitPath());
-        return (path);
+        return (estimator);
     }
     
     /**
