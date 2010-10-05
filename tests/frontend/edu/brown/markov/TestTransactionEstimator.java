@@ -7,6 +7,7 @@ import org.junit.Test;
 import org.voltdb.VoltProcedure;
 import org.voltdb.benchmark.tpcc.procedures.neworder;
 import org.voltdb.catalog.*;
+import org.voltdb.types.ExpressionType;
 
 import edu.brown.BaseTestCase;
 import edu.brown.catalog.CatalogUtil;
@@ -18,6 +19,9 @@ import edu.brown.workload.AbstractWorkload;
 import edu.brown.workload.TransactionTrace;
 import edu.brown.workload.WorkloadTraceFileOutput;
 import edu.brown.workload.filters.BasePartitionTxnFilter;
+import edu.brown.workload.filters.ProcParameterArraySizeFilter;
+import edu.brown.workload.filters.ProcParameterValueFilter;
+import edu.brown.workload.filters.ProcedureLimitFilter;
 import edu.brown.workload.filters.ProcedureNameFilter;
 
 /**
@@ -29,7 +33,7 @@ public class TestTransactionEstimator extends BaseTestCase {
 
     public static final Random rand = new Random();
     
-    private static final int WORKLOAD_XACT_LIMIT = 10000;
+    private static final int WORKLOAD_XACT_LIMIT = 100000;
     private static final int BASE_PARTITION = 1;
     private static final int NUM_PARTITIONS = 10;
     private static List<Integer> ALL_PARTITIONS;
@@ -61,14 +65,17 @@ public class TestTransactionEstimator extends BaseTestCase {
             correlations = new ParameterCorrelations();
             correlations.load(file.getAbsolutePath(), catalog_db);
             
+            AbstractWorkload.Filter filter = new ProcedureNameFilter()
+                    .include(TARGET_PROCEDURE.getSimpleName())
+                    .attach(new ProcParameterValueFilter().include(1, new Long(5))) // D_ID
+                    .attach(new ProcParameterArraySizeFilter(CatalogUtil.getArrayProcParameters(catalog_proc).get(0), 10, ExpressionType.COMPARE_EQUAL))
+                    .attach(new BasePartitionTxnFilter(p_estimator, BASE_PARTITION))
+                    .attach(new ProcedureLimitFilter(WORKLOAD_XACT_LIMIT));
+
             file = this.getWorkloadFile(ProjectType.TPCC);
             workload = new WorkloadTraceFileOutput(catalog);
-            ProcedureNameFilter filter = new ProcedureNameFilter();
-            filter.include(TARGET_PROCEDURE.getSimpleName(), WORKLOAD_XACT_LIMIT);
-            
-            // Custom filter that only grabs neworders that go to our BASE_PARTITION
-            filter.attach(new BasePartitionTxnFilter(p_estimator, BASE_PARTITION));
             ((WorkloadTraceFileOutput) workload).load(file.getAbsolutePath(), catalog_db, filter);
+            assert(workload.getTransactionCount() > 0);
             
             // Generate MarkovGraphs
             markovs = MarkovUtil.createGraphs(catalog_db, workload, p_estimator);
@@ -95,10 +102,10 @@ public class TestTransactionEstimator extends BaseTestCase {
                 if (singlep_trace != null && multip_trace != null) break;
             } // FOR
         }
-        assertNotNull(singlep_trace);
         assertNotNull(multip_trace);
         assert(multip_partitions.size() > 1);
         assertFalse(multip_path.isEmpty());
+//        assertNotNull(singlep_trace);
         
         // Setup
         this.t_estimator = new TransactionEstimator(BASE_PARTITION, p_estimator, correlations);
@@ -112,17 +119,23 @@ public class TestTransactionEstimator extends BaseTestCase {
     @Test
     public void testStartTransaction() throws Exception {
         long txn_id = XACT_ID++;
-        Estimate est = t_estimator.startTransaction(txn_id, this.catalog_proc, singlep_trace.getParams());
+        Estimate est = t_estimator.startTransaction(txn_id, this.catalog_proc, multip_trace.getParams());
         assertNotNull(est);
         System.err.println(est.toString());
         
         MarkovGraph markov = markovs.get(BASE_PARTITION, this.catalog_proc);
         List<Vertex> initial_path = t_estimator.getInitialPath(txn_id);
         assertFalse(initial_path.isEmpty());
-        GraphvizExport<Vertex, Edge> graphviz = MarkovUtil.exportGraphviz(markov, true, markov.getPath(initial_path));
-        FileUtil.writeStringToFile("/tmp/" + this.catalog_proc.getName() + ".dot", graphviz.export(this.catalog_proc.getName()));
-        
+        System.err.println("# of Vertices: " + markov.getVertexCount());
+        System.err.println("# of Edges:    " + markov.getEdgeCount());
+        System.err.println("Confidence:    " + String.format("%.4f", t_estimator.getConfidence(txn_id)));
         System.err.println("INITIAL PATH:\n" + StringUtil.join("\n", initial_path));
+        
+        GraphvizExport<Vertex, Edge> gv = MarkovUtil.exportGraphviz(markov, false, null);
+        gv.highlightPath(markov.getPath(initial_path), "blue");
+        gv.writeToTempFile(this.catalog_proc, 0);
+
+        MarkovUtil.exportGraphviz(markov, false, markov.getPath(multip_path)).writeToTempFile(this.catalog_proc, 1);
         
 // FIXME        assert(est.isSinglePartition(this.thresholds));
 // FIXME        assertFalse(est.isUserAbort(this.thresholds));

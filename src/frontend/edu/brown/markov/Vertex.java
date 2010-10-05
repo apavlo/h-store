@@ -303,10 +303,83 @@ public class Vertex extends AbstractVertex {
         return ("{" + 
                this.catalog_item.getName() + "," +
                "Indx:" + this.query_instance_index + "," +
-               "Prtns:" + this.partitions +
+               "Prtns:" + this.partitions + ", " +
                "Past:" + this.past_partitions +
                "}");
     }
+    
+    /**
+     * Produce a table of all the partitions
+     */
+    public String debug() {
+        StringBuilder top = new StringBuilder();
+        StringBuilder bot = new StringBuilder();
+        
+        final DecimalFormat formatter = new DecimalFormat("0.000");
+        
+        // First get the list of all the partitions that we know about
+        Set<Integer> partitions = new HashSet<Integer>();
+        Set<Probability> single_ptypes = new HashSet<Probability>();
+        for (Vertex.Probability type : Vertex.Probability.values()) {
+            Map<Integer, Double> probs = this.probabilities.get(type);
+            partitions.addAll(probs.keySet());
+
+            if (probs.size() == 1) {
+                top.append(String.format("+%-12s %s\n", type.toString() + ":", formatter.format(probs.get(DEFAULT_PARTITION_ID))));
+                single_ptypes.add(type);
+            } else {
+                bot.append("\t" + StringUtil.abbrv(type.name(), 6, false));
+            }
+        } // FOR
+        partitions.remove(DEFAULT_PARTITION_ID); 
+        bot.append("\n");
+
+
+        // Now construct the debug output table
+        for (int partition : partitions) {
+            bot.append(String.format("[%02d]", partition));
+            
+            for (Vertex.Probability type : Vertex.Probability.values()) {
+                if (single_ptypes.contains(type)) continue;
+                Double prob = this.probabilities.get(type).get(partition);
+                
+                bot.append("\t");
+                if (prob == null) {
+                    bot.append("<NONE>");
+                } else {
+                    bot.append(formatter.format(prob)); 
+                }
+            } // FOR
+            bot.append("\n");
+        } // FOR
+//        
+//        
+//        for (Vertex.Probability type : Vertex.Probability.values()) {
+//            SortedMap<Integer, Double> prob = this.probabilities.get(type);
+//            if (prob.size() == 1) {
+//                top += String.format("+%-12s %.3g\n", type.toString() + ":", prob.get(DEFAULT_PARTITION_ID));
+//            } else {
+//                bot += "+" + type.toString() + ": " + prob.keySet() + "\n";
+//                if (prob.isEmpty()) {
+//                    bot += "   <NONE>\n";
+//                } else {
+//                    for (int partition : prob.keySet()) {
+//                        bot += String.format("   [%02d] %.3g\n", partition, prob.get(partition));  
+//                    } // FOR
+//                }
+//            }
+//        }
+        String ret = this.toString() + // "Vertex[" + this.getCatalogItem().getName() + "]"
+                     " :: " +
+                     "ExecutionTime " + this.getExecutiontime() + "\n" +
+                     top + bot;
+        return (ret);
+
+    }
+
+    // ----------------------------------------------------------------------------
+    // PROBABILITY METHODS
+    // ----------------------------------------------------------------------------
 
     /**
      * Returns true if the query for this vertex only touches one partition and that
@@ -499,79 +572,9 @@ public class Vertex extends AbstractVertex {
         totalhits += instancehits2;
     }
 
-    /**
-     * Produce a table of all the partitions
-     */
-    public String debug() {
-        StringBuilder top = new StringBuilder();
-        StringBuilder bot = new StringBuilder();
-        
-        final DecimalFormat formatter = new DecimalFormat("0.000");
-        
-        // First get the list of all the partitions that we know about
-        Set<Integer> partitions = new HashSet<Integer>();
-        Set<Probability> single_ptypes = new HashSet<Probability>();
-        for (Vertex.Probability type : Vertex.Probability.values()) {
-            Map<Integer, Double> probs = this.probabilities.get(type);
-            partitions.addAll(probs.keySet());
-
-            if (probs.size() == 1) {
-                top.append(String.format("+%-12s %s\n", type.toString() + ":", formatter.format(probs.get(DEFAULT_PARTITION_ID))));
-                single_ptypes.add(type);
-            } else {
-                bot.append("\t" + StringUtil.abbrv(type.name(), 6, false));
-            }
-        } // FOR
-        partitions.remove(DEFAULT_PARTITION_ID); 
-        bot.append("\n");
-
-
-        // Now construct the debug output table
-        for (int partition : partitions) {
-            bot.append(String.format("[%02d]", partition));
-            
-            for (Vertex.Probability type : Vertex.Probability.values()) {
-                if (single_ptypes.contains(type)) continue;
-                Double prob = this.probabilities.get(type).get(partition);
-                
-                bot.append("\t");
-                if (prob == null) {
-                    bot.append("<NONE>");
-                } else {
-                    bot.append(formatter.format(prob)); 
-                }
-            } // FOR
-            bot.append("\n");
-        } // FOR
-//        
-//        
-//        for (Vertex.Probability type : Vertex.Probability.values()) {
-//            SortedMap<Integer, Double> prob = this.probabilities.get(type);
-//            if (prob.size() == 1) {
-//                top += String.format("+%-12s %.3g\n", type.toString() + ":", prob.get(DEFAULT_PARTITION_ID));
-//            } else {
-//                bot += "+" + type.toString() + ": " + prob.keySet() + "\n";
-//                if (prob.isEmpty()) {
-//                    bot += "   <NONE>\n";
-//                } else {
-//                    for (int partition : prob.keySet()) {
-//                        bot += String.format("   [%02d] %.3g\n", partition, prob.get(partition));  
-//                    } // FOR
-//                }
-//            }
-//        }
-        String ret = this.toString() + // "Vertex[" + this.getCatalogItem().getName() + "]"
-                     " :: " +
-                     "ExecutionTime " + this.getExecutiontime() + "\n" +
-                     top + bot;
-        return (ret);
-
-    }
-
     public void setExecutiontime(Long executiontime) {
         this.execution_time = executiontime;
     }
-
 
     public Long getExecutiontime() {
         return execution_time;
