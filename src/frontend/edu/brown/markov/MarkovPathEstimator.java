@@ -214,7 +214,7 @@ public class MarkovPathEstimator extends VertexTreeWalker<Vertex> {
                     Edge candidate = null;
                     for (Vertex next : next_vertices) {
                         if (next.getCatalogItem().equals(catalog_stmt) &&
-                            next.getQueryInstanceIndex().equals(catalog_stmt_index) &&
+                            next.getQueryInstanceIndex() == catalog_stmt_index &&
                             next.getPartitions().equals(partitions)) {
                             // BINGO!!!
                             assert(candidate == null);

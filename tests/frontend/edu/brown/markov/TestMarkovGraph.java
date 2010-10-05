@@ -155,8 +155,7 @@ public class TestMarkovGraph extends BaseTestCase {
         // System.err.println("Single-Sited: " + start.getSingleSitedProbability());
         // System.err.println("Abort:        " + start.getAbortProbability());
 
-        GraphvizExport<Vertex, Edge> graphviz = MarkovUtil.exportGraphviz(markov, true, null);
-        FileUtil.writeStringToFile("/tmp/" + this.catalog_proc.getName() + ".dot", graphviz.export(this.catalog_proc.getName()));
+        MarkovUtil.exportGraphviz(markov, true, null).writeToTempFile(catalog_proc);
 
         for (Vertex v : markov.getVertices()) {
             validateProbabilities(v);
@@ -198,7 +197,7 @@ public class TestMarkovGraph extends BaseTestCase {
 
         Statement catalog_stmt = CollectionUtil.getFirst(this.catalog_proc.getStatements());
         for (int i = 0; i < 10; i++) {
-            Vertex current = new Vertex(catalog_stmt, Vertex.Type.QUERY, i, new HashSet<Integer>());
+            Vertex current = new Vertex(catalog_stmt, Vertex.Type.QUERY, i, new HashSet<Integer>(), new HashSet<Integer>());
             testGraph.addVertex(current);
             
             long startcount = start.getTotalHits();
@@ -221,8 +220,10 @@ public class TestMarkovGraph extends BaseTestCase {
          graph.initialize();
                 
          Vertex v0 = graph.getStartVertex();
-         Vertex v1 = new Vertex(catalog_stmt, Vertex.Type.QUERY, 0, CollectionUtil.addAll(new ArrayList<Integer>(), BASE_PARTITION));
-         Vertex v2 = new Vertex(catalog_stmt, Vertex.Type.QUERY, 1, CollectionUtil.addAll(new ArrayList<Integer>(), BASE_PARTITION));
+         Vertex v1 = new Vertex(catalog_stmt, Vertex.Type.QUERY, 0, CollectionUtil.addAll(new ArrayList<Integer>(), BASE_PARTITION),
+                                                                    CollectionUtil.addAll(new ArrayList<Integer>(), BASE_PARTITION));
+         Vertex v2 = new Vertex(catalog_stmt, Vertex.Type.QUERY, 1, CollectionUtil.addAll(new ArrayList<Integer>(), BASE_PARTITION),
+                                                                    CollectionUtil.addAll(new ArrayList<Integer>(), BASE_PARTITION));
          graph.addVertex(v1);
          graph.addToEdge(v0, v1);
          graph.addVertex(v2);
