@@ -30,6 +30,7 @@ public class Site extends CatalogType {
     int m_initiatorid;
     boolean m_isUp;
     int m_port;
+    int m_messenger_port;
 
     void setBaseValues(Catalog catalog, CatalogType parent, String path, String name) {
         super.setBaseValues(catalog, parent, path, name);
@@ -39,6 +40,7 @@ public class Site extends CatalogType {
         m_fields.put("initiatorid", m_initiatorid);
         m_fields.put("isUp", m_isUp);
         m_fields.put("port", m_port);
+        m_fields.put("messenger_port", m_messenger_port);
     }
 
     void update() {
@@ -46,6 +48,7 @@ public class Site extends CatalogType {
         m_initiatorid = (Integer) m_fields.get("initiatorid");
         m_isUp = (Boolean) m_fields.get("isUp");
         m_port = (Integer) m_fields.get("port");
+        m_messenger_port = (Integer) m_fields.get("messenger_port");
     }
 
     /** GETTER: Does the site execute workunits? */
@@ -93,6 +96,11 @@ public class Site extends CatalogType {
     public int getPort() {
         return m_port;
     }
+    
+    /** GETTER: Inbound port for receiving data messages */
+    public int getMessenger_port() {
+        return m_messenger_port;
+    }
 
     /** SETTER: Does the site execute workunits? */
     public void setIsexec(boolean value) {
@@ -122,6 +130,11 @@ public class Site extends CatalogType {
     /** SETTER: Yeah, you know what this is */
     public void setPort(int value) {
         m_port = value; m_fields.put("port", value);
+    }
+    
+    /** SETTER: Inbound port for receiving data messages */
+    public void setMessenger_port(int value) {
+        m_messenger_port = value; m_fields.put("messenger_port", value);
     }
 
 }

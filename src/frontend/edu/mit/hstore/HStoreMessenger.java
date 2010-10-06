@@ -81,9 +81,11 @@ public class HStoreMessenger {
     }
     
     protected void initConnections() {
+        final boolean debug = LOG.isDebugEnabled(); 
         Database catalog_db = CatalogUtil.getDatabase(this.executor.getCatalogSite());
         
         // Find all the destinations we need to connect to
+        if (debug) LOG.debug("Configuring outbound network connections");
         Map<Host, Set<Site>> host_partitions = CatalogUtil.getHostPartitions(catalog_db);
         Integer local_port = null;
         ArrayList<Integer> partition_ids = new ArrayList<Integer>();
@@ -92,7 +94,7 @@ public class HStoreMessenger {
             String host = e.getKey().getIpaddr();
             for (Site catalog_site : e.getValue()) {
                 Partition catalog_part = catalog_site.getPartition();
-                int port = catalog_site.getPort();
+                int port = catalog_site.getMessenger_port();
                 int partition_id = catalog_part.getId();
                 if (partition_id == this.local_partition) {
                     local_port = port;
@@ -107,10 +109,12 @@ public class HStoreMessenger {
         
         // Initialize inbound channel
         assert(local_port != null);
+        if (debug) LOG.debug("Binding listener to port " + local_port + " for Partition #" + this.local_partition);
         this.listener.register(this.handler);
         this.listener.bind(local_port);
 
         // Make the outbound connections
+        if (debug) LOG.debug("Connecting to remote nodes");
         ProtoRpcChannel[] channels = ProtoRpcChannel.connectParallel(
                 this.eventLoop, destinations.toArray(new InetSocketAddress[]{}));
         assert channels.length == partition_ids.size();

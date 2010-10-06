@@ -200,7 +200,6 @@ public class HStoreCoordinatorNode extends ExecutionEngine implements VoltProced
         this.executor_thread = new Thread(this.executor);
         this.executor_thread.start();
         
-        assert(this.coordinator != null);
         assert(this.catalog_db != null);
         assert(this.p_estimator != null);
         
@@ -481,13 +480,14 @@ public class HStoreCoordinatorNode extends ExecutionEngine implements VoltProced
                               final String hstore_conf_path, final String dtxnengine_path, final String dtxncoordinator_path,
                               final String execHost, final int execPort,
                               final String coordinatorHost, final int coordinatorPort) throws Exception {
+        final boolean debug = LOG.isDebugEnabled();
         List<Thread> threads = new ArrayList<Thread>();
         final int partition = hstore_node.getLocalPartition();
         
         // ----------------------------------------------------------------------------
-        // (1) ExecutionExecution Thread
+        // (1) ProtoServer Thread
         // ----------------------------------------------------------------------------
-        LOG.debug(String.format("Launching ProtoServer [partition=%d, port=%d]", partition, execPort));
+        if (debug) LOG.debug(String.format("Launching ProtoServer [partition=%d, port=%d]", partition, execPort));
         final NIOEventLoop execEventLoop = new NIOEventLoop();
         final CountDownLatch execLatch = new CountDownLatch(1);
         execEventLoop.setExitOnSigInt(true);
@@ -504,16 +504,19 @@ public class HStoreCoordinatorNode extends ExecutionEngine implements VoltProced
         // ----------------------------------------------------------------------------
         // (2) DTXN Engine Thread
         // ----------------------------------------------------------------------------
-        LOG.debug(String.format("Launching DTXN Engine [partition=%d]", partition));
+        if (debug) LOG.debug(String.format("Launching DTXN Engine [partition=%d]", partition));
         final CountDownLatch dtxnExecLatch = new CountDownLatch(1);
         threads.add(new Thread() {
             public void run() {
+                if (debug) LOG.debug("Waiting for ProtoServer to finish start up for Partition #" + partition);
                 try {
                     execLatch.await();
                 } catch (InterruptedException ex) {
                     // Silently ignore...
                     return;
                 }
+                
+                if (debug) LOG.debug("Forking off protodtxnengine for Partition #" + partition);
                 String[] command = new String[]{
                     dtxnengine_path,                // protodtxnengine
                     execHost + ":" + execPort,      // host:port
@@ -529,23 +532,29 @@ public class HStoreCoordinatorNode extends ExecutionEngine implements VoltProced
         // ----------------------------------------------------------------------------
         // (4) Procedure Request Listener Thread
         // ----------------------------------------------------------------------------
-        threads.add(new Thread() {
-            public void run() {
-                final NIOEventLoop coordinatorEventLoop = new NIOEventLoop();
-                coordinatorEventLoop.setExitOnSigInt(true);
-                InetSocketAddress[] addresses = {
-                        new InetSocketAddress(coordinatorHost, coordinatorPort),
+        if (partition == 0) {
+            threads.add(new Thread() {
+                public void run() {
+                    if (debug) LOG.debug("Creating connection to coordinator at " + coordinatorHost + ":" + coordinatorPort + " for Partition #" + partition);
+                    
+                    final NIOEventLoop coordinatorEventLoop = new NIOEventLoop();
+                    coordinatorEventLoop.setExitOnSigInt(true);
+                    InetSocketAddress[] addresses = {
+                            new InetSocketAddress(coordinatorHost, coordinatorPort),
+                    };
+                    ProtoRpcChannel[] channels =
+                        ProtoRpcChannel.connectParallel(coordinatorEventLoop, addresses);
+                    Dtxn.Coordinator stub = Dtxn.Coordinator.newStub(channels[0]);
+                    hstore_node.setDtxnCoordinator(stub);
+                    VoltProcedureListener voltListener = new VoltProcedureListener(coordinatorEventLoop, hstore_node);
+                    voltListener.bind();
+                    LOG.info("HStoreCoordinatorNode is ready for action [partition=" + partition + "]");
+                    coordinatorEventLoop.run();
                 };
-                ProtoRpcChannel[] channels =
-                    ProtoRpcChannel.connectParallel(coordinatorEventLoop, addresses);
-                Dtxn.Coordinator stub = Dtxn.Coordinator.newStub(channels[0]);
-                hstore_node.setDtxnCoordinator(stub);
-                VoltProcedureListener voltListener = new VoltProcedureListener(coordinatorEventLoop, hstore_node);
-                voltListener.bind();
-                LOG.info("HStoreCoordinatorNode is ready for action [partition=" + hstore_node.getLocalPartition() + "]");
-                coordinatorEventLoop.run();
-            };
-        });
+            });
+        } else {
+            LOG.info("HStoreCoordinatorNode is ready for action [partition=" + partition + "]");
+        }
 
         // Blocks!
         ThreadUtil.run(threads);
@@ -569,7 +578,6 @@ public class HStoreCoordinatorNode extends ExecutionEngine implements VoltProced
                      ArgumentsParser.PARAM_NODE_PORT,
                      ArgumentsParser.PARAM_NODE_PARTITION,
                      ArgumentsParser.PARAM_DTXN_CONF,
-                     ArgumentsParser.PARAM_DTXN_COORDINATOR,
                      ArgumentsParser.PARAM_DTXN_ENGINE
         );
 
@@ -589,6 +597,7 @@ public class HStoreCoordinatorNode extends ExecutionEngine implements VoltProced
         // I'm not proud of this...
         // Load in all the partition-specific TransactionEstimators and ExecutionSites in order to 
         // stick them into the HStoreCoordinator
+        LOG.debug("Creating Partition + Transaction Estimator for Partition #" + local_partition);
         PartitionEstimator p_estimator = new PartitionEstimator(args.catalog_db, args.hasher);
         Map<Integer, Map<Procedure, MarkovGraph>> markovs = null;
         TransactionEstimator t_estimator = new TransactionEstimator(local_partition, p_estimator, args.param_correlations);
@@ -620,6 +629,7 @@ public class HStoreCoordinatorNode extends ExecutionEngine implements VoltProced
         }
         
         // setup the EE
+        LOG.debug("Creating ExecutionSite for Partition #" + local_partition);
         ExecutionSite executor = new ExecutionSite(
                 local_partition,
                 args.catalog,
@@ -638,6 +648,7 @@ public class HStoreCoordinatorNode extends ExecutionEngine implements VoltProced
         }
         
         // Bombs Away!
+        LOG.debug("Instantiating HStoreCoordinator network connections...");
         HStoreCoordinatorNode.launch(node,
                 args.getParam(ArgumentsParser.PARAM_DTXN_CONF), 
                 args.getParam(ArgumentsParser.PARAM_DTXN_ENGINE),

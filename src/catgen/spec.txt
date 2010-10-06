@@ -50,6 +50,7 @@ begin Site             "A physical execution context for the system"
   int initiatorid      "If the site is an initiator, this is its tightly packed id"
   bool isUp            "Is the site up?"
   int port             "Yeah, you know what this is"
+  int messenger_port   "Inbound port for receiving data messages"
 end
 
 begin Database          "A set of schema, procedures and other metadata that together comprise an application"
