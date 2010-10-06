@@ -17,6 +17,7 @@ import org.voltdb.client.ClientResponse;
 import org.voltdb.messaging.FastDeserializer;
 import org.voltdb.messaging.FastSerializer;
 
+import ca.evanjones.protorpc.AbstractEventHandler;
 import ca.evanjones.protorpc.EventLoop;
 import ca.evanjones.protorpc.NIOEventLoop;
 
@@ -26,7 +27,7 @@ import edu.mit.net.MessageConnection;
 import edu.mit.net.NIOMessageConnection;
 
 /** Listens and responds to Volt client stored procedure requests. */
-public class VoltProcedureListener implements EventLoop.Handler {
+public class VoltProcedureListener extends AbstractEventHandler {
     private static final Logger LOG = Logger.getLogger(VoltProcedureListener.class.getName());
     
     private final EventLoop eventLoop;
@@ -58,28 +59,18 @@ public class VoltProcedureListener implements EventLoop.Handler {
         eventLoop.registerRead(client, new ClientConnectionHandler(connection));
     }
 
-    public void readCallback(SelectableChannel channel) {
-        throw new UnsupportedOperationException();
-    }
-
-    public boolean writeCallback(SelectableChannel channel) {
-        throw new UnsupportedOperationException();
-    }
-
     // Not private so it can be used in a JUnit test. Gross, but it makes the test a bit easier
-    class ClientConnectionHandler implements EventLoop.Handler, RpcCallback<byte[]> {
+    class ClientConnectionHandler extends AbstractEventHandler implements RpcCallback<byte[]> {
         public ClientConnectionHandler(MessageConnection connection) {
             this.connection = connection;
         }
 
-        public void acceptCallback(SelectableChannel channel) {
-            throw new UnsupportedOperationException();
-        }
-
+        @Override
         public void readCallback(SelectableChannel channel) {
             read(this);
         }
 
+        @Override
         public boolean writeCallback(SelectableChannel channel) {
             connectionBlocked = connection.tryWrite();
             return connectionBlocked;

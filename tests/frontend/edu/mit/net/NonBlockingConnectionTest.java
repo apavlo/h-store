@@ -8,6 +8,8 @@ import static org.junit.Assert.fail;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.nio.channels.ClosedChannelException;
+import java.nio.channels.NotYetConnectedException;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -16,11 +18,13 @@ import org.junit.Test;
 public class NonBlockingConnectionTest {
     MockByteChannel channel;
     NonBlockingConnection connection;
+    MockSocketChannel mockSocket;
 
     @Before
     public void setUp() throws IOException {
         channel = new MockByteChannel();
         connection = new NonBlockingConnection(null, channel);
+        mockSocket = new MockSocketChannel();
     }
 
     @Test
@@ -119,5 +123,50 @@ public class NonBlockingConnectionTest {
             sum += write.length;
         }
         assertEquals(big.length, sum);
+    }
+
+    @Test
+    public void testCreateWithClosedChannel() throws IOException {
+        MockSocketChannel mock = new MockSocketChannel();
+        mock.close();
+        try {
+            connection = new NonBlockingConnection(mock);
+            fail("expected exception");
+        } catch (RuntimeException e) {
+            assertTrue(e.getCause() instanceof ClosedChannelException);
+        }
+    }
+
+    @Test
+    public void testCreateWithUnconnectedChannel() throws IOException {
+        connection = new NonBlockingConnection(mockSocket);
+        validateUnconnectedChannel();
+    }
+
+    @Test
+    public void testPendingConnectionChannel() throws IOException {
+        mockSocket.setConnecting();
+        connection = new NonBlockingConnection(mockSocket);
+        validateUnconnectedChannel();
+    }
+
+    protected void validateUnconnectedChannel() throws IOException {
+        // Try to write to the connection: not blocked because the connection is already blocked
+        connection.getOutputStream().write(new byte[] {42, 43, 44});
+        boolean blocked = connection.tryFlush();
+        assertFalse(blocked);
+        assertFalse(mockSocket.writeChannel.writeCalled);
+
+        // Not connected yet: attempting to actually write will fail
+        try {
+            connection.writeAvailable();
+            fail("excepted exception");
+        } catch (NotYetConnectedException e) {}
+
+        boolean connected = mockSocket.finishConnect();
+        assertTrue(connected);
+        assertFalse(mockSocket.writeChannel.writeCalled);
+        connection.writeAvailable();
+        assertTrue(mockSocket.writeChannel.writeCalled);
     }
 }

@@ -16,11 +16,12 @@ import com.google.protobuf.Service;
 import edu.mit.net.MessageConnection;
 import edu.mit.net.NIOMessageConnection;
 
-public class ProtoServer implements EventLoop.Handler {
+public class ProtoServer extends AbstractEventHandler {
     public ProtoServer(EventLoop eventLoop) {
         this.eventLoop = eventLoop;
     }
 
+    @Override
     public void acceptCallback(SelectableChannel channel) {
         // accept the connection
         assert channel == serverSocket;
@@ -41,27 +42,17 @@ public class ProtoServer implements EventLoop.Handler {
 //        eventQueue.add(new Event(connection, null));
     }
 
-    public void readCallback(SelectableChannel channel) {
-        throw new UnsupportedOperationException();
-    }
-
-    public boolean writeCallback(SelectableChannel channel) {
-        throw new UnsupportedOperationException();
-    }
-
-    private class EventCallbackWrapper implements EventLoop.Handler {
+    private class EventCallbackWrapper extends AbstractEventHandler {
         public EventCallbackWrapper(MessageConnection connection) {
             this.connection = connection;
         }
 
-        public void acceptCallback(SelectableChannel channel) {
-            throw new UnsupportedOperationException();
-        }
-
+        @Override
         public void readCallback(SelectableChannel channel) {
             read(this);
         }
 
+        @Override
         public boolean writeCallback(SelectableChannel channel) {
             return connection.tryWrite();
         }

@@ -8,8 +8,8 @@
 #include "dtxn/configparser.h"
 #include "dtxn2/blockingscheduler.h"
 #include "dtxn2/common.h"
-//~ #include "dtxn/ordered/orderedscheduler.h"
 #include "io/libeventloop.h"
+#include "net/messageconnectionutil.h"
 #include "protodtxn/dtxn.pb.h"
 #include "protodtxn/protodtxnengine.h"
 #include "protorpc/protorpcchannel.h"
@@ -34,13 +34,19 @@ int main(int argc, const char* argv[]) {
 
     // Connect to the stub
     io::LibEventLoop stub_event_loop;
-    NetworkAddress stub_address;
-    bool success = stub_address.parse(address);
+    vector<NetworkAddress> stub_address(1);
+    bool success = stub_address[0].parse(address);
     CHECK(success);
-    int socket = connectTCP(stub_address.sockaddr());
-    CHECK(socket >= 0);
-    TCPConnection* connection = new TCPConnection(socket);
-    protorpc::ProtoRpcChannel channel(&stub_event_loop, connection);
+
+    vector<TCPConnection*> connections = net::createConnectionsWithRetry(
+            &event_loop, stub_address);
+    if (connections.empty()) {
+        fprintf(stderr, "connection failed\n");
+        return 1;
+    }
+    ASSERT(connections.size() == 1 && connections[0] != NULL);
+    protorpc::ProtoRpcChannel channel(&stub_event_loop, connections[0]);
+    connections.clear();
     protodtxn::ExecutionEngine::Stub service(&channel);
 
     // Run the engine

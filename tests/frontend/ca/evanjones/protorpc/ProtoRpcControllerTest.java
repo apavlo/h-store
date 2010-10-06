@@ -23,9 +23,13 @@ public class ProtoRpcControllerTest {
     }
 
     @Test
-    public void testFailed() {
+    public void testFailedErrorTextSuccess() {
         try {
             rpc.failed();
+            fail("expected exception");
+        } catch (IllegalStateException e) {}
+        try {
+            rpc.errorText();
             fail("expected exception");
         } catch (IllegalStateException e) {}
 
@@ -34,12 +38,40 @@ public class ProtoRpcControllerTest {
             rpc.failed();
             fail("expected exception");
         } catch (IllegalStateException e) {}
+        try {
+            rpc.errorText();
+            fail("expected exception");
+        } catch (IllegalStateException e) {}
 
-        rpc.finishRpc(COUNTER_VALUE);
+        rpc.finishRpcSuccess(COUNTER_VALUE);
         assertFalse(rpc.failed());
         assertEquals(42, ((Counter.Value) callback.getResult()).getValue());
+
+        try {
+            rpc.errorText();
+            fail("expected exception");
+        } catch (IllegalStateException e) {}
     }
 
+    @Test
+    public void testFailedRpc() {
+        rpc.startRpc(eventLoop, Counter.Value.newBuilder(), callback);
+        try {
+            rpc.failed();
+            fail("expected exception");
+        } catch (IllegalStateException e) {}
+
+        String message = "Some user error";
+        rpc.finishRpcFailure(Protocol.Status.ERROR_USER, message);
+        assertTrue(rpc.failed());
+        assertEquals(message, rpc.errorText());
+
+        rpc.startRpc(eventLoop, Counter.Value.newBuilder(), callback);
+        try {
+            rpc.errorText();
+            fail("expected exception");
+        } catch (IllegalStateException e) {}
+    }
 
     @Test
     public void testReuseInCallback() {
@@ -53,9 +85,9 @@ public class ProtoRpcControllerTest {
 
         rpc.startRpc(eventLoop, Counter.Value.newBuilder(), reuseCallback);
         // triggers the reuse callback, then the "real" callback
-        rpc.finishRpc(COUNTER_VALUE);
+        rpc.finishRpcSuccess(COUNTER_VALUE);
         assertNull(callback.getResult());
-        rpc.finishRpc(COUNTER_VALUE);
+        rpc.finishRpcSuccess(COUNTER_VALUE);
         assertFalse(rpc.failed());
         assertEquals(42, ((Counter.Value) callback.getResult()).getValue());
     }
@@ -69,7 +101,7 @@ public class ProtoRpcControllerTest {
             }
         };
         rpc.startRpc(eventLoop, Counter.Value.newBuilder(), callback);
-        rpc.finishRpc(COUNTER_VALUE);
+        rpc.finishRpcSuccess(COUNTER_VALUE);
     }
 
     @Test
@@ -91,6 +123,9 @@ public class ProtoRpcControllerTest {
         // this "fakes" the transaction being done
         rpc.mockFinishRpcForTest();
         assertFalse(rpc.failed());
+
+        // Re-using the RPC controller is okay: calling this again works
+        rpc.mockFinishRpcForTest();
     }
 
     @Test
