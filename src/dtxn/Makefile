@@ -1,4 +1,5 @@
 PROTOBUF_PROTOC=$(PROTOBUF_BIN)/src/protoc
+PROTOBUF_PROTOC=$(PROTOBUF_BIN)/src/protoc
 
 CCFLAGS=-g -D_EVENT_HAVE_CONFIG_H -Wall -Wextra -Werror -Wformat-y2k -Wformat-nonliteral -Wformat-security -Wmissing-include-dirs -Wswitch-enum -Winit-self -Wundef -Wpointer-arith -Wcast-align -Wlogical-op -Wredundant-decls -Winvalid-pch -Wwrite-strings -Wno-sign-compare -Wno-unused-parameter
 # -Woverloaded-virtual -Wconversion
@@ -52,7 +53,7 @@ $(PREFIX)/protorpc/null.pb.cc: protorpc/null.proto
 protorpc: $(PREFIX)/protorpc/Counter.pb.o $(PREFIX)/protorpc/null.pb.o $(PREFIX)/protorpc/Protocol.pb.o $(PREFIX)/protorpc/rpcreplay $(PREFIX)/protorpc/protoserver_test.o $(PREFIX)/protorpc/sequencereader $(PREFIX)/protorpc/sequencereader_main.o $(PREFIX)/protorpc/protorpcchannel_test.o $(PREFIX)/protorpc/sequencereader.o $(PREFIX)/protorpc/protoconnectionbuffer.o $(PREFIX)/protorpc/protoconnectionbuffer_test.o $(PREFIX)/protorpc/protorpcchannel.o $(PREFIX)/protorpc/serviceregistry.o $(PREFIX)/protorpc/counter_demo.o $(PREFIX)/protorpc/rpcreplay.o $(PREFIX)/protorpc/rpcproxy.o $(PREFIX)/protorpc/rpcproxy $(PREFIX)/protorpc/protoserver.o $(PREFIX)/protorpc/protorpccontroller.o $(PREFIX)/protorpc/serviceregistry_test.o $(PREFIX)/protorpc/counter_demo
 $(PREFIX)/protorpc/rpcreplay: $(PREFIX)/protorpc/rpcreplay.o $(PREFIX)/protorpc/Protocol.pb.o $(PREFIX)/protorpc/null.pb.o $(PREFIX)/protorpc/protoconnectionbuffer.o $(PREFIX)/protorpc/protorpcchannel.o $(PREFIX)/protorpc/protorpccontroller.o $(PREFIX)/protorpc/sequencereader.o $(PREFIX)/io/buffer.o $(PREFIX)/networkaddress.o $(PREFIX)/randomgenerator.o $(PREFIX)/strings/utils.o $(PREFIX)/tcplistener.o $(PREFIX)/io/libeventloop.o $(PREFIX)/libevent/libevent_core.a
 	$(CC_BINARY)
-$(PREFIX)/protorpc/counter_demo: $(PREFIX)/protorpc/counter_demo.o $(PREFIX)/protorpc/Protocol.pb.o $(PREFIX)/protorpc/protoconnectionbuffer.o $(PREFIX)/protorpc/protorpcchannel.o $(PREFIX)/protorpc/protorpccontroller.o $(PREFIX)/protorpc/protoserver.o $(PREFIX)/protorpc/serviceregistry.o $(PREFIX)/io/buffer.o $(PREFIX)/networkaddress.o $(PREFIX)/strings/utils.o $(PREFIX)/tcplistener.o $(PREFIX)/protorpc/Counter.pb.o $(PREFIX)/io/libeventloop.o $(PREFIX)/libevent/libevent_core.a
+$(PREFIX)/protorpc/counter_demo: $(PREFIX)/protorpc/counter_demo.o $(PREFIX)/protorpc/Protocol.pb.o $(PREFIX)/protorpc/protoconnectionbuffer.o $(PREFIX)/protorpc/protorpcchannel.o $(PREFIX)/protorpc/protorpccontroller.o $(PREFIX)/protorpc/protoserver.o $(PREFIX)/protorpc/serviceregistry.o $(PREFIX)/buffer.o $(PREFIX)/io/buffer.o $(PREFIX)/messageconnection.o $(PREFIX)/networkaddress.o $(PREFIX)/net/messageconnectionutil.o $(PREFIX)/strings/utils.o $(PREFIX)/tcplistener.o $(PREFIX)/protorpc/Counter.pb.o $(PREFIX)/io/libeventloop.o $(PREFIX)/libevent/libevent_core.a
 	$(CC_BINARY)
 $(PREFIX)/protorpc/protoserver.o: protorpc/protoserver.cc
 	$(CC_COMPILE)

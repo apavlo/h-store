@@ -23,12 +23,26 @@ int main(int argc, const char* argv[]) {
 
     vector<dtxn::Partition> partitions = dtxn::parseConfigurationFromPath(config_file);
 
-    // Create the manager to serve DTXN stuff
     io::LibEventLoop event_loop;
 
+    // Connect to the backends
+    vector<TCPConnection*> tcp_connections = net::createConnectionsWithRetry(
+            &event_loop, primaryAddresses(partitions));
+    if (tcp_connections.empty()) {
+        fprintf(stderr, "some connections failed\n");
+        return 1;
+    }
+    ASSERT(tcp_connections.size() == partitions.size());
+    vector<MessageConnection*> msg_connections(tcp_connections.size());
+    for (int i = 0; i < msg_connections.size(); ++i) {
+        msg_connections[i] = new TCPMessageConnection(event_loop.base(), tcp_connections[i]);
+    }
+    tcp_connections.clear();
+
+    // Create the manager to serve DTXN stuff    
     net::MessageServer msg_server;
-    vector<net::ConnectionHandle*> connections = msg_server.addConnections(
-            net::createConnections(&event_loop, primaryAddresses(partitions)));
+    vector<net::ConnectionHandle*> connections = msg_server.addConnections(msg_connections);
+    msg_connections.clear();
     dtxn::OrderedDtxnManager manager(&event_loop, &msg_server, connections);
     protodtxn::ProtoDtxnCoordinator coordinator(&manager, (int) partitions.size());
 
@@ -36,6 +50,7 @@ int main(int argc, const char* argv[]) {
     protorpc::ProtoServer rpc_server(&event_loop);
     rpc_server.registerService(&coordinator);
     rpc_server.listen(port);
+    printf("listening on port %d\n", port);
 
     event_loop.exitOnSigInt(true);
     event_loop.run();
