@@ -83,9 +83,11 @@ public class HStoreMessenger {
     protected void initConnections() {
         Database catalog_db = CatalogUtil.getDatabase(this.executor.getCatalogSite());
         
-        // Initialize outbound channels
+        // Find all the destinations we need to connect to
         Map<Host, Set<Site>> host_partitions = CatalogUtil.getHostPartitions(catalog_db);
         Integer local_port = null;
+        ArrayList<Integer> partition_ids = new ArrayList<Integer>();
+        ArrayList<InetSocketAddress> destinations = new ArrayList<InetSocketAddress>();
         for (Entry<Host, Set<Site>> e : host_partitions.entrySet()) {
             String host = e.getKey().getIpaddr();
             for (Site catalog_site : e.getValue()) {
@@ -98,8 +100,8 @@ public class HStoreMessenger {
                 }
                 
                 LOG.debug("Creating RpcChannel to " + host + ":" + port);
-                ProtoRpcChannel channel = new ProtoRpcChannel(this.eventLoop, new InetSocketAddress(host, port));
-                this.channels.put(partition_id, HStoreService.newStub(channel));
+                partition_ids.add(partition_id);
+                destinations.add(new InetSocketAddress(host, port));
             } // FOR 
         } // FOR
         
@@ -107,6 +109,14 @@ public class HStoreMessenger {
         assert(local_port != null);
         this.listener.register(this.handler);
         this.listener.bind(local_port);
+
+        // Make the outbound connections
+        ProtoRpcChannel[] channels = ProtoRpcChannel.connectParallel(
+                this.eventLoop, destinations.toArray(new InetSocketAddress[]{}));
+        assert channels.length == partition_ids.size();
+        for (int i = 0; i < partition_ids.size(); i++) {
+            this.channels.put(partition_ids.get(i), HStoreService.newStub(channels[i]));
+        }
     }
     
     /**

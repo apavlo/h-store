@@ -533,8 +533,12 @@ public class HStoreCoordinatorNode extends ExecutionEngine implements VoltProced
             public void run() {
                 final NIOEventLoop coordinatorEventLoop = new NIOEventLoop();
                 coordinatorEventLoop.setExitOnSigInt(true);
-                ProtoRpcChannel channel = new ProtoRpcChannel(coordinatorEventLoop, new InetSocketAddress(coordinatorHost, coordinatorPort));
-                Dtxn.Coordinator stub = Dtxn.Coordinator.newStub(channel);
+                InetSocketAddress[] addresses = {
+                        new InetSocketAddress(coordinatorHost, coordinatorPort),
+                };
+                ProtoRpcChannel[] channels =
+                    ProtoRpcChannel.connectParallel(coordinatorEventLoop, addresses);
+                Dtxn.Coordinator stub = Dtxn.Coordinator.newStub(channels[0]);
                 hstore_node.setDtxnCoordinator(stub);
                 VoltProcedureListener voltListener = new VoltProcedureListener(coordinatorEventLoop, hstore_node);
                 voltListener.bind();
