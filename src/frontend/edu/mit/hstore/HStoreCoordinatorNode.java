@@ -599,7 +599,7 @@ public class HStoreCoordinatorNode extends ExecutionEngine implements VoltProced
             }
         }
 
-        // Workload Trace
+        // Workload Trace Output
         if (args.hasParam(ArgumentsParser.PARAM_WORKLOAD_OUTPUT)) {
             ProcedureProfiler.profilingLevel = ProcedureProfiler.Level.INTRUSIVE;
             String traceClass = WorkloadTraceFileOutput.class.getName();
