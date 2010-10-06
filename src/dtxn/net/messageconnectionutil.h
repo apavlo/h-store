@@ -9,6 +9,7 @@
 
 class MessageConnection;
 class NetworkAddress;
+class TCPConnection;
 
 namespace io {
 class EventLoop;
@@ -21,6 +22,9 @@ std::vector<MessageConnection*> createConnections(
         io::EventLoop* event_loop,
         const std::vector<NetworkAddress>& addresses);
 
-}
+std::vector<TCPConnection*> createConnectionsWithRetry(
+        io::EventLoop* event_loop,
+        const std::vector<NetworkAddress>& addresses);
 
+}  // namespace net
 #endif

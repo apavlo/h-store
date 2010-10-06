@@ -9,6 +9,7 @@
 #include "base/assert.h"
 #include "io/libeventloop.h"
 #include "networkaddress.h"
+#include "net/messageconnectionutil.h"
 #include "protorpc/Counter.pb.h"
 #include "protorpc/protoconnectionbuffer.h"
 #include "protorpc/protorpcchannel.h"
@@ -24,6 +25,7 @@ using google::protobuf::RpcController;
 using protorpc::GetRequest;
 using protorpc::Value;
 using std::string;
+using std::vector;
 
 class CounterServer : public protorpc::CounterService {
 public:
@@ -87,10 +89,20 @@ static int client(int argc, const char* argv[]) {
     bool success = client_address.parse(argv[1]);
     CHECK(success);
 
-    int socket = connectTCP(client_address.sockaddr());
-    CHECK(socket >= 0);
-    TCPConnection* connection = new TCPConnection(socket);
-    protorpc::ProtoRpcChannel channel(&event_loop, connection);
+    vector<NetworkAddress> addresses(1);
+    success = addresses[0].parse(argv[1]);
+    CHECK(success);
+
+    vector<TCPConnection*> connections = net::createConnectionsWithRetry(
+        &event_loop, addresses);
+    if (connections.empty()) {
+        fprintf(stderr, "Connection failed\n");
+        return 1;
+    }
+
+    ASSERT(connections.size() == 1);
+    protorpc::ProtoRpcChannel channel(&event_loop, connections[0]);
+    connections.clear();
 
     // Create the stub
     protorpc::CounterService::Stub service(&channel);
