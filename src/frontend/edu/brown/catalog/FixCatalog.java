@@ -77,6 +77,7 @@ public abstract class FixCatalog {
                 catalog_site.setPartition(catalog_part);
                 catalog_site.setHost(catalog_host);
                 catalog_site.setPort(port);
+                catalog_site.setMessenger_port(port + 10000); // HACK!!!
                 
                 ctr++;
             } // FOR

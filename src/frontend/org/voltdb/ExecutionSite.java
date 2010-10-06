@@ -318,9 +318,6 @@ public class ExecutionSite implements Runnable {
         this.pool = Executors.newFixedThreadPool(pool_size);
         LOG.debug("Created ExecutionSite thread pool with " + pool_size + " threads");
         
-        // Setup our messenger that we'll use to contact all of our friends
-        this.hstore_messenger = new HStoreMessenger(this, this.getPartitionId());
-        
         // The PartitionEstimator is what we use to figure our where our transactions are going to go
         this.p_estimator = p_estimator; // t_estimator.getPartitionEstimator();
         
@@ -573,7 +570,9 @@ public class ExecutionSite implements Runnable {
         Thread thread = Thread.currentThread();
         thread.setName(this.getThreadName());
         
-        // Start our messenger
+        // Setup our messenger that we'll use to contact all of our friends
+        assert(this.hstore_messenger == null);
+        this.hstore_messenger = new HStoreMessenger(this, this.getPartitionId());
         this.hstore_messenger.start();
 
         /*
@@ -739,7 +738,7 @@ public class ExecutionSite implements Runnable {
         }
         
         // Stop HStoreMessenger (because we're nice)
-        this.hstore_messenger.stop();
+        if (this.hstore_messenger != null) this.hstore_messenger.stop();
         
         LOG.debug("ExecutionSite thread is stopping");
     }
