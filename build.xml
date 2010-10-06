@@ -1525,6 +1525,13 @@ DTXN BINARIES + LIBRARIES
    </exec>
 </target>
 
+<target name="dtxn-coordinator" description="H-Store DTXN Coordinator">
+    <exec executable="${build.dtxn.dir}/protodtxn/protodtxncoordinator" failonerror="true">
+        <arg line="${port}"/>
+        <arg line="${build.dtxn.dir}/hstore.conf"/>
+    </exec>
+</target>
+
 
 <!--
 ***************************************
@@ -2159,7 +2166,7 @@ H-STORE REMIX
         <arg value="node.partition=${partition}" />
         <arg value="node.host=${hstore.defaulthost}" />
         <arg value="node.port=${node.port}" />
-        <arg value="coordinator.host=${hstore.defaulthost}" />
+        <arg value="coordinator.host=${coordinator.host}" />
         <arg value="coordinator.port=${coordinator.port}" />
         <arg value="dtxn.conf=${build.dtxn.dir}/hstore.conf" />
         <arg value="dtxn.engine=${build.dtxn.dir}/hstore/build/protodtxn/protodtxnengine" />
@@ -2284,19 +2291,24 @@ H-STORE REMIX
         <param name="jar" value="${project}.jar" />
     </antcall>
     <parallel failonany="true">
+        <antcall target="dtxn-coordinator">
+            <param name="port" value="12348" />
+        </antcall>
         <antcall target="hstore">
             <param name="jar" value="${project}.jar" />
-            <param name="partition" value="0" />
-            <param name="node.port" value="22340" />
-            <param name="coordinator.port" value="12347" />
+            <param name="partition" value="1" />
+            <param name="node.port" value="22341" />
+            <param name="coordinator.host" value="${hstore.defaulthost}" />
+            <param name="coordinator.port" value="12348" />
             <param name="markov" value="./files/markovs/${project}.markovs" />
             <param name="thresholds" value="./files/thresholds/default.thresholds" />
             <param name="correlations" value="./files/correlations/${project}.correlations" />
         </antcall>
         <antcall target="hstore">
             <param name="jar" value="${project}.jar" />
-            <param name="partition" value="1" />
-            <param name="node.port" value="22341" />
+            <param name="partition" value="2" />
+            <param name="node.port" value="22342" />
+            <param name="coordinator.host" value="${hstore.defaulthost}" />
             <param name="coordinator.port" value="12348" />
             <param name="markov" value="./files/markovs/${project}.markovs" />
             <param name="thresholds" value="./files/thresholds/default.thresholds" />
