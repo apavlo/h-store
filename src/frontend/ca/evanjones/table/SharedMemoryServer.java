@@ -140,10 +140,6 @@ public class SharedMemoryServer extends TableService implements TransactionalSer
 
         // Attempt to clean up any threads
         transactionServer.shutdown();
-        System.out.println("cleaned threads");
-        eventLoop.setExitOnSigInt(true);
-        eventLoop.run();
-        transactionServer.shutdown();
 
         int total = table.dumpBalances();
         System.out.println("TOTAL: " + total);

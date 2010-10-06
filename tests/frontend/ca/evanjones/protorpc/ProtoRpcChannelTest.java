@@ -4,6 +4,7 @@ import static org.junit.Assert.*;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.net.ConnectException;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -19,6 +20,7 @@ import com.google.protobuf.RpcCallback;
 import com.google.protobuf.Descriptors.MethodDescriptor;
 
 import edu.mit.net.MockByteChannel;
+import edu.mit.net.MockSocketChannel;
 import edu.mit.net.NonBlockingConnection;
 
 public class ProtoRpcChannelTest {
@@ -34,7 +36,13 @@ public class ProtoRpcChannelTest {
     public void setUp() {
         eventLoop = new MockEventLoop();
         channel = new MockByteChannel();
-        rpcChannel = new ProtoRpcChannel(eventLoop, new NonBlockingConnection(null, channel));
+
+        rpcChannel = new ProtoRpcChannel(eventLoop, new ProtoRpcChannel.ConnectFactory() {
+            @Override
+            public NonBlockingConnection startNewConnection() {
+                return new NonBlockingConnection(null, channel);
+            }
+        });
     }
 
     private Counter.Value makeValue(int v) {
@@ -42,7 +50,11 @@ public class ProtoRpcChannelTest {
     }
 
     private void callAdd(int value, RpcCallback<Message> callback) {
-        rpcChannel.callMethod(ADD_METHOD, new ProtoRpcController(), makeValue(value),
+        callAdd(value, callback, new ProtoRpcController());
+    }
+
+    private void callAdd(int value, RpcCallback<Message> callback, ProtoRpcController controller) {
+        rpcChannel.callMethod(ADD_METHOD, controller, makeValue(value),
                 Counter.Value.getDefaultInstance(), callback);
     }
 
@@ -86,6 +98,98 @@ public class ProtoRpcChannelTest {
         callback.reset();
     }
 
+    private final class MockSocketConnectFactory implements ProtoRpcChannel.ConnectFactory {
+        public MockSocketChannel lastChannel;
+
+        @Override
+        public NonBlockingConnection startNewConnection() {
+            lastChannel = new MockSocketChannel();
+            return new NonBlockingConnection(lastChannel);
+        }
+    }
+
+    @Test
+    public void testUnconnected() {
+        eventLoop.handler = null;
+
+        MockSocketConnectFactory connector = new MockSocketConnectFactory();
+        rpcChannel = new ProtoRpcChannel(eventLoop, connector);
+        assertNull(eventLoop.handler);
+
+        // The socket is not connected yet: queue the write
+        MockSocketChannel mockSocket = connector.lastChannel;
+        mockSocket.writeChannel.numBytesToAccept = 1;
+        callAdd(42, callback);
+        assertFalse(mockSocket.writeChannel.writeCalled);
+
+        // Finish the connection: registered for reading and the write is sent: but it will block
+        assertNull(eventLoop.handler);
+        assertNull(eventLoop.writeHandler);
+        rpcChannel.connectCallback(mockSocket);
+        assertNotNull(eventLoop.handler);
+        assertTrue(mockSocket.writeChannel.writeCalled);
+        assertNotNull(eventLoop.writeHandler);
+
+        mockSocket.writeChannel.writeCalled = false;
+        eventLoop.writeHandler = null;
+        rpcChannel.writeCallback(mockSocket);
+        assertTrue(mockSocket.writeChannel.writeCalled);
+        assertEquals(2, mockSocket.writeChannel.lastWrites.size());
+        assertNull(eventLoop.writeHandler);
+    }
+
+    @Test
+    public void testFailedConnection() throws IOException {
+        MockSocketConnectFactory connector = new MockSocketConnectFactory();
+        rpcChannel = new ProtoRpcChannel(eventLoop, connector);
+
+        // Finish but fail the connection
+        connector.lastChannel.close();
+        try {
+            rpcChannel.connectCallback(connector.lastChannel);
+        } catch (RuntimeException e) {
+            assertTrue(e.getCause() instanceof ConnectException);
+        }
+    }
+
+    @Test
+    public void testSetReconnectInterval() throws IOException {
+        MockSocketConnectFactory connector = new MockSocketConnectFactory();
+        rpcChannel = new ProtoRpcChannel(eventLoop, connector);
+
+        // Enable reconnection
+        rpcChannel.setReconnectInterval(5);
+
+        // Finish but fail the connection: nothing should happen
+        MockSocketChannel mockSocket = connector.lastChannel;
+        connector.lastChannel = null;
+        mockSocket.close();
+        rpcChannel.connectCallback(mockSocket);
+        assertNull(connector.lastChannel);
+        assertSame(eventLoop.timerHandler, rpcChannel);
+
+        // Any RPCs will fail until it attempts to reconnect
+        ProtoRpcController controller = new ProtoRpcController();
+        callAdd(42, callback, controller);
+        assertNull(callback.getResult());
+        assertTrue(controller.failed());
+
+        // Trigger the reconnect
+        rpcChannel.timerCallback();
+        assertNotNull(connector.lastChannel);
+        assertNotSame(connector.lastChannel, mockSocket);
+        mockSocket = connector.lastChannel;
+
+        // Any RPCs will fail until it attempts to reconnect
+        callAdd(42, callback, controller);
+        assertFalse(mockSocket.writeChannel.writeCalled);
+
+        // Connection completed
+        mockSocket.setConnecting();
+        rpcChannel.connectCallback(mockSocket);
+        assertTrue(mockSocket.writeChannel.writeCalled);
+    }
+
     @Test
     public void testOutOfOrderResponses() {
         callAdd(42, callback);
@@ -100,6 +204,26 @@ public class ProtoRpcChannelTest {
 
         // Put the answer for the first request in the connection
         respondAdd(0, callback);
+    }
+
+    /** When the channel is closed, all pending RPCs are failed. */
+    @Test
+    public void testPendingRpcCloseFailure() {
+        ProtoRpcController controller = new ProtoRpcController();
+        callAdd(42, callback, controller);
+        assertFalse(callback.wasCalled());
+
+        rpcChannel.close();
+        assertTrue(callback.wasCalled());
+        assertNull(callback.getResult());
+        assertTrue(controller.failed());
+        assertEquals("Connection closed", controller.errorText());
+
+        // Closing more than once does not work
+        try {
+            rpcChannel.close();
+            fail("expected exception");
+        } catch (IllegalStateException e) {}
     }
 
     @Test

@@ -10,7 +10,11 @@ import com.google.protobuf.MessageLite;
 
 import edu.mit.net.NonBlockingConnection;
 
-/** Provides a non-blocking stream of protocol buffer messages. */ 
+/**
+ * Provides a non-blocking stream of protocol buffers. This is fairly low level, and is intended
+ * to be a building block for more complex protocols. For example, the ProtoRPC system adds
+ * extra logic on top of this "raw" connection. 
+ */
 public class ProtoConnection {
     private final NonBlockingConnection connection;
     private final NonBlockingConnection.NonBlockingConnectionInputStream input;
@@ -78,6 +82,11 @@ public class ProtoConnection {
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
+    }
+
+    // TODO: Only keep one of getConnection and getChannel?
+    public NonBlockingConnection getConnection() {
+        return connection;
     }
 
     public SelectableChannel getChannel() {

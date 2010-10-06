@@ -1,14 +1,16 @@
 package ca.evanjones.protorpc;
 
-import java.nio.channels.ClosedChannelException;
 import java.nio.channels.SelectableChannel;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.ServerSocketChannel;
+import java.nio.channels.SocketChannel;
 
 import java.io.IOException;
 import java.util.Iterator;
+import java.util.Map;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 import sun.misc.Signal;
@@ -67,29 +69,38 @@ public class NIOEventLoop implements EventLoop {
 
     @Override
     public void registerRead(SelectableChannel channel, Handler handler) {
-        register(channel, SelectionKey.OP_READ, handler);
+        // Disallow both being registered for read events and connection events at the same time.
+        // On Linux, when a connect fails, the socket is ready for both events, which causes
+        // errors when reads are attempted on the closed socket.
+        assert channel.keyFor(selector) == null ||
+                (channel.keyFor(selector).interestOps() & SelectionKey.OP_CONNECT) == 0;
+        addInterest(channel, SelectionKey.OP_READ, handler);
     }
 
     @Override
     public void registerAccept(ServerSocketChannel server, Handler handler) {
+        assert server.keyFor(selector) == null;
         register(server, SelectionKey.OP_ACCEPT, handler);
     }
 
     @Override
+    public void registerConnect(SocketChannel channel, Handler handler) {
+        // Should not be registered
+        assert channel.keyFor(selector) == null;
+        register(channel, SelectionKey.OP_CONNECT, handler);
+    }
+
+    @Override
     public void registerWrite(SelectableChannel channel, Handler handler) {
-        // TODO: Support multiple handlers?
-        SelectionKey serverKey = channel.keyFor(selector);
-        if (serverKey != null) {
-            assert (serverKey.interestOps() & SelectionKey.OP_WRITE) == 0;
-            assert handler == serverKey.attachment();
-            serverKey.interestOps(serverKey.interestOps() | SelectionKey.OP_WRITE);
-        } else {
-            try {
-                channel.register(selector, SelectionKey.OP_WRITE, handler);
-            } catch (ClosedChannelException e) {
-                throw new RuntimeException(e);
-            }
-        }
+        addInterest(channel, SelectionKey.OP_WRITE, handler);
+    }
+
+    @Override
+    public void registerTimer(int timerMilliseconds, Handler handler) {
+        assert timerMilliseconds >= 0;
+        assert handler != null;
+        long expirationMs = System.currentTimeMillis() + timerMilliseconds;
+        timers.put(expirationMs, handler);
     }
 
     private void register(SelectableChannel channel, int ops, Handler callback) {
@@ -101,6 +112,22 @@ public class NIOEventLoop implements EventLoop {
         }
     }
 
+    private void addInterest(SelectableChannel channel, int operation, Handler callback) {
+        // TODO: Support multiple handlers?
+        SelectionKey key = channel.keyFor(selector);
+        if (key != null) {
+            assert (key.interestOps() & operation) == 0;
+            if (key.attachment() == null) { 
+                key.attach(callback);
+            } else {
+                assert callback == key.attachment();
+            }
+            key.interestOps(key.interestOps() | operation);
+        } else {
+            register(channel, operation, callback);
+        }
+    }
+
     public void run() {
         while (!exitLoop) {
             runOnce();
@@ -109,12 +136,44 @@ public class NIOEventLoop implements EventLoop {
     }
 
     public void runOnce() {
+        long timeoutMs = 0;
+        if (!timers.isEmpty()) {
+            long now = System.currentTimeMillis();
+            timeoutMs = triggerExpiredTimers(now);
+        }
+
         try {
-            selector.select();
+            int readyCount = selector.select(timeoutMs);
             handleSelectedKeys();
+            if (readyCount == 0) {
+                // TODO: Avoid checking this at both the top and the bottom of the loop.
+                triggerExpiredTimers(System.currentTimeMillis());
+            }
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
+    }
+
+    /** @return milliseconds until the next timer, or 0 if there are none. */
+    private long triggerExpiredTimers(long now) {
+        while (!timers.isEmpty()) {
+            // hope that using an iterator to fetch and remove the least element is efficient?
+            Iterator<Map.Entry<Long, Handler>> it = timers.entrySet().iterator();
+            Map.Entry<Long, Handler> entry = it.next();
+            if (entry.getKey() <= now) {
+                Handler handler = entry.getValue();
+                it.remove();
+
+                handler.timerCallback();
+            } else {
+                // this timer has not expired yet: return its time
+                long timeoutMs = entry.getKey() - now;
+                assert timeoutMs > 0;
+                return timeoutMs;
+            }
+        }
+
+        return 0;
     }
 
 //    public void close() {
@@ -138,7 +197,8 @@ public class NIOEventLoop implements EventLoop {
             SelectionKey key = it.next();
             EventLoop.Handler callback = (EventLoop.Handler) key.attachment();
 
-            // only handle one event per loop. more efficient and avoids cancelled key exceptions
+            // only handle one event per loop. more efficient: most times only one event is ready,
+            // and it avoids canceled key exceptions
             if (key.isReadable()) {
                 callback.readCallback(key.channel());
             } else if (key.isWritable()) {
@@ -150,6 +210,17 @@ public class NIOEventLoop implements EventLoop {
                 }
             } else if (key.isAcceptable()) {
                 callback.acceptCallback(key.channel());
+            } else if (key.isConnectable()) {
+                assert key.interestOps() == SelectionKey.OP_CONNECT;
+                key.interestOps(0);
+                key.attach(null);
+                callback.connectCallback((SocketChannel) key.channel());
+            } else {
+                // Mac OS X has a bug: when an async connect fails, this triggers with key.readyOps == 0.
+                assert key.readyOps() == 0;
+                assert (key.interestOps() & SelectionKey.OP_CONNECT) != 0;
+                System.out.println("Mac bug? no interest: connection failed?");
+                callback.connectCallback((SocketChannel) key.channel());
             }
         }
 
@@ -179,4 +250,5 @@ public class NIOEventLoop implements EventLoop {
     private volatile boolean exitLoop = false;
     private final ConcurrentLinkedQueue<Runnable> threadEvents =
             new ConcurrentLinkedQueue<Runnable>();
+    private final TreeMap<Long, Handler> timers = new TreeMap<Long, Handler>();
 }
