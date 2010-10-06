@@ -254,10 +254,10 @@ final class TransactionThread extends Thread implements RpcCallback<Message> {
     private final TransactionThreadServer server;
     // Wraps this to implement Callback (avoids conflict with Thread.run).
     private final Runnable returnResultCallback = new Runnable() {
-        @SuppressWarnings("unchecked")
         public void run() {
             Message currentResponse = response;
-            RpcCallback callback = (RpcCallback) finalCallback;
+            @SuppressWarnings("unchecked")
+            RpcCallback<Message> callback = (RpcCallback<Message>) finalCallback;
 
             // Must set to null before calling callback: may call back to this class
             response = null;

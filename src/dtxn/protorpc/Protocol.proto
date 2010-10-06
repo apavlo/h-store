@@ -18,6 +18,9 @@ enum Status {
 
     // The implementation code on the server side returned a failure.
     ERROR_USER = 1;
+
+    // Some communication error occurred (eg. failed to connect, connection closed).
+    ERROR_COMMUNICATION = 2;
 }
 
 message RpcResponse {

@@ -18,6 +18,12 @@ public class MockByteChannel implements ByteChannel {
         nextRead = ByteBuffer.wrap(data);
     }
 
+    public byte[] dequeueWrite() {
+        byte[] out = lastWrites.get(0);
+        lastWrites.remove(0);
+        return out;
+    }
+
     public int read(ByteBuffer buffer) {
         if (nextRead == null) {
             if (end) return -1;

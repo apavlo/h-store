@@ -15,6 +15,8 @@ import com.google.protobuf.Message;
 import com.google.protobuf.RpcCallback;
 import com.google.protobuf.RpcController;
 
+import edu.mit.net.MockSocketChannel;
+
 public class ProtoServerTest {
     private byte[] prependLength(Message message) {
         int messageSize = message.getSerializedSize();
@@ -72,6 +74,7 @@ public class ProtoServerTest {
     public void setUp() {
         server = new ProtoServer(eventLoop);
         server.setServerSocketForTest(serverChannel);
+        channel.setConnected();
         serverChannel.nextAccept = channel;
         server.acceptCallback(serverChannel);
         connectionHandler = eventLoop.handler;
@@ -104,7 +107,8 @@ public class ProtoServerTest {
         // Respond to the second request
         secondCallback.run(Value.newBuilder().setValue(2).build());
         try {
-            RpcResponse request = parseLengthPrefixed(channel.lastWrite, RpcResponse.getDefaultInstance());
+            RpcResponse request = parseLengthPrefixed(channel.writeChannel.dequeueWrite(),
+                    RpcResponse.getDefaultInstance());
             assertEquals(1, request.getSequenceNumber());
             assertEquals(Protocol.Status.OK, request.getStatus());
             assertFalse(request.hasErrorReason());
@@ -117,7 +121,8 @@ public class ProtoServerTest {
         // Respond to the first request
         firstCallback.run(Value.newBuilder().setValue(1).build());
         try {
-            RpcResponse request = parseLengthPrefixed(channel.lastWrite, RpcResponse.getDefaultInstance());
+            RpcResponse request = parseLengthPrefixed(channel.writeChannel.dequeueWrite(),
+                    RpcResponse.getDefaultInstance());
             assertEquals(0, request.getSequenceNumber());
             assertEquals(Protocol.Status.OK, request.getStatus());
             assertFalse(request.hasErrorReason());
@@ -149,7 +154,8 @@ public class ProtoServerTest {
         } catch (IllegalStateException e) {}
         counter.lastDone.run(null);
 
-        RpcResponse request = parseLengthPrefixed(channel.lastWrite, RpcResponse.getDefaultInstance());
+        RpcResponse request = parseLengthPrefixed(channel.writeChannel.dequeueWrite(),
+                RpcResponse.getDefaultInstance());
         assertEquals(0, request.getSequenceNumber());
         assertEquals(Protocol.Status.ERROR_USER, request.getStatus());
         assertEquals("failed", request.getErrorReason());
@@ -170,25 +176,23 @@ public class ProtoServerTest {
         counter.lastDone = null;
 
         // block the channel
-        channel.numBytesToAccept = 1;
+        channel.writeChannel.numBytesToAccept = 1;
 
         // Respond to the request
         firstCallback.run(Value.newBuilder().setValue(1).build());
-        assertEquals(1, channel.lastWrite.length);
-        assertEquals(0, channel.numBytesToAccept);
-        channel.lastWrite = null;
+        assertEquals(1, channel.writeChannel.dequeueWrite().length);
+        assertEquals(0, channel.writeChannel.numBytesToAccept);
 
         // trigger the write callback
-        channel.numBytesToAccept = 1;
+        channel.writeChannel.numBytesToAccept = 1;
         assertTrue(eventLoop.writeHandler.writeCallback(channel));
-        assertEquals(1, channel.lastWrite.length);
-        assertEquals(0, channel.numBytesToAccept);
-        channel.lastWrite = null;
+        assertEquals(1, channel.writeChannel.dequeueWrite().length);
+        assertEquals(0, channel.writeChannel.numBytesToAccept);
 
         // unblock the channel and finish writing
-        channel.numBytesToAccept = -1;
+        channel.writeChannel.numBytesToAccept = -1;
         assertFalse(eventLoop.writeHandler.writeCallback(channel));
-        assertTrue(channel.lastWrite.length > 0);
+        assertTrue(channel.writeChannel.dequeueWrite().length > 0);
     }
 
     @Test
@@ -202,14 +206,14 @@ public class ProtoServerTest {
 
         // Respond to the request twice (incorrectly)
         counter.lastDone.run(Value.newBuilder().setValue(1).build());
-        RpcResponse request = parseLengthPrefixed(channel.lastWrite, RpcResponse.getDefaultInstance());
+        RpcResponse request = parseLengthPrefixed(channel.writeChannel.dequeueWrite(),
+                RpcResponse.getDefaultInstance());
         assertEquals(0, request.getSequenceNumber());
-        channel.lastWrite = null;
 
         try {
             counter.lastDone.run(Value.newBuilder().setValue(1).build());
             fail("expected exception");
         } catch (IllegalStateException e) {}
-        assertNull(channel.lastWrite);
+        assertTrue(channel.writeChannel.lastWrites.isEmpty());
     }
 }

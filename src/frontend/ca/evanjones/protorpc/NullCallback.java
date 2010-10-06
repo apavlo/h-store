@@ -2,6 +2,7 @@ package ca.evanjones.protorpc;
 
 import com.google.protobuf.RpcCallback;
 
+/** A singleton RpcCallback that does nothing. */
 public final class NullCallback<ParameterType> implements RpcCallback<ParameterType> {
     @Override
     public void run(ParameterType parameter) {
@@ -15,6 +16,5 @@ public final class NullCallback<ParameterType> implements RpcCallback<ParameterT
 
     private NullCallback() {}
 
-    @SuppressWarnings("unchecked")
-    private static NullCallback instance = new NullCallback();
+    private final static NullCallback<?> instance = new NullCallback<Object>();
 }
