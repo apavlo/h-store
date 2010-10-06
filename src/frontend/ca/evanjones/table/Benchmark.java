@@ -10,10 +10,11 @@ import ca.evanjones.protorpc.NIOEventLoop;
 import ca.evanjones.protorpc.ProtoRpcChannel;
 import ca.evanjones.protorpc.StoreResultCallback;
 import ca.evanjones.table.Table.*;
+import edu.mit.benchmark.ThreadBench;
 
 public class Benchmark {
     private static final int INITIAL_BALANCE = 10000;
-    public static final int MAX_ACCOUNT = 100000;
+    public static final int MAX_ACCOUNT = 100;
     private static final int WARM_UP_SECONDS = 5;
     private static final int MEASURE_SECONDS = 30;
 
@@ -67,7 +68,6 @@ public class Benchmark {
         assert !rpc.failed();
         if (rpc.isAborted()) {
             // retry in case of deadlock
-            aborts += 1;
             transfer(source_account, destination_account, amount);
             return;
         }
@@ -98,7 +98,6 @@ public class Benchmark {
         assert !rpc.failed();
         if (rpc.isAborted()) {
             // retry in case of deadlock
-            aborts += 1;
             transfer(source_account, destination_account, amount);
             return;
         }
@@ -130,7 +129,6 @@ public class Benchmark {
     private static class BenchmarkWorker extends ThreadBench.Worker {
         private final Random rng = new Random();
         private final Benchmark client;
-        private int transactions = 0;
 
         public BenchmarkWorker(Benchmark client) {
             this.client = client;
@@ -139,13 +137,7 @@ public class Benchmark {
         @Override
         protected void doWork(boolean measure) {
             client.randomTransfer(rng);
-            if (measure) {
-                transactions += 1;
-            }
         }
-
-        public int getTransactions() { return transactions; }
-        public int getAborts() { return client.aborts; }
     }
 
     public void randomTransfer(Random rng) {
@@ -174,23 +166,15 @@ public class Benchmark {
         clients.get(0).loadInitialData();
 
         // Run the test
-        long ns = ThreadBench.runBenchmark(benchmarkWorkers, WARM_UP_SECONDS, MEASURE_SECONDS);
-
-        // Collect results
-        int sum = 0;
-        for (BenchmarkWorker worker : benchmarkWorkers) {
-            System.out.println(worker.getTransactions() + " " + worker.getAborts());
-            sum += worker.getTransactions();
-        }
-        double txnsPerS = (double) sum / (double) ns * 1000000000.0;
-        System.out.println(txnsPerS + " transactions/second");
+        ThreadBench.Results results =
+                ThreadBench.runBenchmark(benchmarkWorkers, WARM_UP_SECONDS, MEASURE_SECONDS);
+        System.out.println(results.getRequestsPerSecond() + " transactions/second");
     }
 
     private final NIOEventLoop eventLoop = new NIOEventLoop();
     private final TransactionRpcChannel transactionChannel;
     private final TableService table;
 
-    public int aborts = 0;
     private final TransactionRpcChannel.ClientRpcController rpc;
     private final StoreResultCallback<ReadResult> readCallback = new StoreResultCallback<ReadResult>();
     private final StoreResultCallback<WriteResult> writeCallback = new StoreResultCallback<WriteResult>();

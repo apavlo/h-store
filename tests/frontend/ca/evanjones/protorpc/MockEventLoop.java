@@ -5,6 +5,7 @@ package ca.evanjones.protorpc;
 
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SelectableChannel;
+import java.nio.channels.SocketChannel;
 
 public final class MockEventLoop implements EventLoop {
     @Override
@@ -13,7 +14,9 @@ public final class MockEventLoop implements EventLoop {
     }
 
     @Override
-    public void registerAccept(ServerSocketChannel channel, Handler handler) {}
+    public void registerAccept(ServerSocketChannel channel, Handler handler) {
+        throw new UnsupportedOperationException("not implemented");
+    }
 
     @Override
     public void registerWrite(SelectableChannel channel, Handler handler) {
@@ -21,6 +24,19 @@ public final class MockEventLoop implements EventLoop {
             throw new IllegalStateException("Each channel can only call registerWrite() once");
         }
         writeHandler = handler;
+    }
+
+    @Override
+    public void registerConnect(SocketChannel channel, Handler handler) {
+        // This is just ignored: needed for ProtoRpcChannelTest
+    }
+
+    @Override
+    public void registerTimer(int timerMilliseconds, Handler handler) {
+        assert timerMilliseconds >= 0;
+        assert handler != null;
+        this.timerMilliseconds = timerMilliseconds;
+        timerHandler = handler;
     }
 
     @Override
@@ -40,4 +56,6 @@ public final class MockEventLoop implements EventLoop {
 
     public Handler handler;
     public Handler writeHandler;
+    public int timerMilliseconds;
+    public Handler timerHandler;
 }

@@ -7,20 +7,41 @@ import java.nio.channels.ByteChannel;
 import java.nio.channels.SelectableChannel;
 import java.nio.channels.SocketChannel;
 
-/** Provides a non-blocking buffer for both the sending and receiving to/from a SocketChannel. */
+/** Provides a non-blocking buffer for both sending and receiving to/from a SocketChannel.
+*/
 public class NonBlockingConnection {
     private final SelectableChannel channel;
     private final NIOReadStream read;
     private final NIOWriteStream write;
     private boolean writeBlocked = false;
 
+    /** Creates a NonBlockingConnection wrapping channel. If the channel is not yet connected,
+     * writeAvailable() must be called when it is connected.
+     *  
+     *  @param channel SocketChannel used for I/O. Must be open. 
+     */
     public NonBlockingConnection(SocketChannel channel) {
         this(channel, channel);
         try {
+            // NOTE: On Mac OS X, when an async connect to a localhost socket fails, this
+            // can fail with an illegal argument exception, before finishConnect() is called.
             channel.socket().setTcpNoDelay(true);
             channel.configureBlocking(false);
         } catch (IOException e) {
             throw new RuntimeException(e);
+        }
+
+        if (!channel.isConnected()) {
+            if (!channel.isOpen()) {
+                // not possible? configureBlocking will throw ClosedChannelException
+                throw new IllegalArgumentException("channel is closed");
+            }
+
+            // The channel ether has a pending connect, or the connect hasn't started.
+            writeBlocked = true;
+        } else {
+            // We haven't started connecting yet, to avoid the setTcpNoDelay issue
+            assert channel.isConnectionPending() || channel.isOpen();
         }
     }
 

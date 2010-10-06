@@ -38,8 +38,10 @@ class CounterExample extends CounterService {
     public static void client(String host, int port, boolean isGet, int increment) {
         // Set up the connection to the server
         NIOEventLoop eventLoop = new NIOEventLoop();
-        ProtoRpcChannel channel = new ProtoRpcChannel(eventLoop, new InetSocketAddress(host, port));
-        CounterService stub = CounterService.newStub(channel);
+        ProtoRpcChannel[] channels = ProtoRpcChannel.connectParallel(eventLoop,
+                new InetSocketAddress[] {new InetSocketAddress(host, port)});
+//        ProtoRpcChannel channel = new ProtoRpcChannel(eventLoop, new InetSocketAddress(host, port));
+        CounterService stub = CounterService.newStub(channels[0]);
         ProtoRpcController rpc = new ProtoRpcController();
         StoreResultCallback<Value> callback = new StoreResultCallback<Value>();
 

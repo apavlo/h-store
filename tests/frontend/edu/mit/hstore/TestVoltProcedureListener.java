@@ -1,12 +1,12 @@
 package edu.mit.hstore;
 
+import static org.junit.Assert.assertArrayEquals;
+
 import java.nio.channels.SocketChannel;
 import java.util.Arrays;
 import java.util.Random;
 
-import ca.evanjones.protorpc.MockEventLoop;
-import ca.evanjones.protorpc.MockServerSocketChannel;
-import ca.evanjones.protorpc.MockSocketChannel;
+import junit.framework.TestCase;
 
 import org.voltdb.StoredProcedureInvocation;
 import org.voltdb.VoltTable;
@@ -14,15 +14,14 @@ import org.voltdb.client.Client;
 import org.voltdb.client.ClientFactory;
 import org.voltdb.client.ConnectionUtil;
 
+import ca.evanjones.protorpc.MockEventLoop;
+import ca.evanjones.protorpc.MockServerSocketChannel;
 import ca.evanjones.protorpc.NIOEventLoop;
 
 import com.google.protobuf.RpcCallback;
 
 import edu.mit.hstore.VoltProcedureListener.ClientConnectionHandler;
-
-import junit.framework.TestCase;
-
-import static org.junit.Assert.assertArrayEquals;
+import edu.mit.net.MockSocketChannel;
 
 /**
  * 
@@ -144,6 +143,7 @@ public class TestVoltProcedureListener extends TestCase {
 
         // Make a fake connection arrive
         MockSocketChannel channel = new MockSocketChannel();
+        channel.setConnected();
         mockServer.nextAccept = channel;
         assertTrue(mockEvent.handler == null);
         listener.acceptCallback(mockServer);
@@ -156,22 +156,23 @@ public class TestVoltProcedureListener extends TestCase {
         final byte[] MESSAGE = { 0x1, 0x2, 0x3 };
         final byte[] EXPECTED_MESSAGE = { 0x0, 0x0, 0x0, 0x3, 0x1, 0x2, 0x3 };
         handler.run(MESSAGE);
-        assertArrayEquals(EXPECTED_MESSAGE, channel.lastWrite);
+        assertArrayEquals(EXPECTED_MESSAGE, channel.writeChannel.dequeueWrite());
         
         // Block the write
         assertTrue(mockEvent.writeHandler == null);
-        channel.numBytesToAccept = 1;
+        channel.writeChannel.numBytesToAccept = 1;
         handler.run(MESSAGE);
-        assertArrayEquals(new byte[] { 0x0 }, channel.lastWrite);
+        assertArrayEquals(new byte[] { 0x0 }, channel.writeChannel.dequeueWrite());
         assertEquals(handler, mockEvent.writeHandler);
         mockEvent.writeHandler = null;
 
         // Attempt a second write: does not re-register the handler
         handler.run(MESSAGE);
         assertNull(mockEvent.writeHandler);
+        assertArrayEquals(new byte[0], channel.writeChannel.dequeueWrite());
 
         // Resume the write
-        channel.numBytesToAccept = -1;
+        channel.writeChannel.numBytesToAccept = -1;
         boolean blocked = handler.writeCallback(channel);
         assertFalse(blocked);
         // The output is two copies of EXPECTED_MESSAGE. The first one is missing a byte.
@@ -179,10 +180,10 @@ public class TestVoltProcedureListener extends TestCase {
         for (int i = 0; i < EXPECTED_MESSAGE.length; i++) {
             expected[i+EXPECTED_MESSAGE.length-1] = EXPECTED_MESSAGE[i]; 
         }
-        assertArrayEquals(expected, channel.lastWrite);
+        assertArrayEquals(expected, channel.writeChannel.dequeueWrite());
 
         // Blocked again: re-registers the handler
-        channel.numBytesToAccept = 0;
+        channel.writeChannel.numBytesToAccept = 0;
         handler.run(MESSAGE);
         assertEquals(handler, mockEvent.writeHandler);
     }

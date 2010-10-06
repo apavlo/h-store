@@ -1,6 +1,7 @@
 package ca.evanjones.protorpc;
 
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -14,6 +15,8 @@ import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
 import java.util.concurrent.CountDownLatch;
 
+import org.junit.After;
+import org.junit.Before;
 import org.junit.Test;
 
 import sun.misc.Signal;
@@ -26,9 +29,28 @@ public class NIOEventLoopTest {
         }
     }
 
+    protected NIOEventLoop eventLoop;
+    protected TestHandler serverHandler;
+    protected ServerSocketChannel acceptSocket;
+    protected int serverPort;
+
+    @Before
+    public void setUp() throws IOException {
+        eventLoop = new NIOEventLoop();
+        serverHandler = new TestHandler();
+        acceptSocket = ServerSocketChannel.open();
+        // Mac OS X: Must bind() before calling Selector.register, or you don't get accept() events
+        acceptSocket.socket().bind(null);
+        serverPort = acceptSocket.socket().getLocalPort();
+    }
+
+    @After
+    public void tearDown() throws IOException {
+        acceptSocket.close();
+    }
+
     @Test
     public void testSigInt() throws InterruptedException {
-        final NIOEventLoop eventLoop = new NIOEventLoop();
         try {
             eventLoop.setExitOnSigInt(false);
             fail("expected exception");
@@ -72,9 +94,11 @@ public class NIOEventLoopTest {
         assertFalse(waker.isAlive());
     }
 
-    static final class TestHandler implements EventLoop.Handler {
+    static final class TestHandler extends AbstractEventHandler {
         SocketChannel client;
         boolean write;
+        boolean connected;
+        boolean timerExpired;
 
         @Override
         public void acceptCallback(SelectableChannel channel) {
@@ -89,8 +113,8 @@ public class NIOEventLoopTest {
         }
 
         @Override
-        public void readCallback(SelectableChannel channel) {
-            throw new UnsupportedOperationException("TODO: implement");
+        public void connectCallback(SocketChannel channel) {
+            connected = true;
         }
 
         @Override
@@ -98,6 +122,11 @@ public class NIOEventLoopTest {
             assert !write;
             write = true;
             return true;
+        }
+        
+        @Override
+        public void timerCallback() {
+            timerExpired = true;
         }
     }
 
@@ -118,17 +147,9 @@ public class NIOEventLoopTest {
 
     @Test
     public void testWriteUnblocking() throws IOException, InterruptedException {
-        final NIOEventLoop eventLoop = new NIOEventLoop();
-        final TestHandler serverHandler = new TestHandler();
-
-        final ServerSocketChannel acceptSocket = ServerSocketChannel.open();
-        // Mac OS X: Must bind() before calling Selector.register, or you don't get accept() events
-        acceptSocket.socket().bind(null);
-
         eventLoop.registerAccept(acceptSocket, serverHandler);
 
-        // Run a client in a new thread: connect, wait for a latch, read as much as possible
-        final int serverPort = acceptSocket.socket().getLocalPort();
+        // Run a client in a new thread: connect, wait for a latch, read as much as possible        final CountDownLatch startReadingLatch = new CountDownLatch(1);
         final CountDownLatch startReadingLatch = new CountDownLatch(1);
         Thread client = new Thread() {
             public void run() {
@@ -188,5 +209,59 @@ public class NIOEventLoopTest {
         //~ System.out.println("final write " + count);
 
         client.join();
+    }
+
+    @Test
+    public void testConnectCallback() throws IOException {
+        eventLoop.registerAccept(acceptSocket, serverHandler);
+
+        SocketChannel clientSocket = SocketChannel.open();
+        clientSocket.configureBlocking(false);
+        boolean connected =
+                clientSocket.connect(new InetSocketAddress(InetAddress.getLocalHost(), serverPort));
+        assertFalse(connected);
+        assertTrue(clientSocket.isConnectionPending());
+        eventLoop.registerConnect(clientSocket, serverHandler);
+        // registering it for reading as well is not permitted: causes problems on Linux
+        try {
+            eventLoop.registerRead(clientSocket, serverHandler);
+            fail("expected exception");
+        } catch (AssertionError e) {}
+
+        // The event loop will trigger the accept callback
+        assertNull(serverHandler.client);
+        eventLoop.runOnce();
+        assertNotNull(serverHandler.client);
+        assertTrue(clientSocket.isConnectionPending());
+
+        // The event loop will also have triggered the connect callback
+        assertTrue(serverHandler.connected);
+        connected = clientSocket.finishConnect();
+        assertTrue(connected);
+        assertTrue(clientSocket.isConnected());
+
+        // Registering some other handler in response to the connect event should work 
+        eventLoop.registerRead(clientSocket, new TestHandler());
+
+        clientSocket.close();
+    }
+
+    @Test(timeout=2000)
+    public void testTimeout() {
+        long start = System.nanoTime();
+        int msDelay = 500;
+        eventLoop.registerTimer(msDelay, serverHandler);
+        int loopCount = 0;
+        while (!serverHandler.timerExpired) {
+            eventLoop.runOnce();
+            loopCount += 1;
+        }
+        long end = System.nanoTime();
+        System.out.println("wtf " + end + " - " + start + " = " + (end - start));
+        assertTrue(end - start >= msDelay * 1000000);
+        assertTrue(serverHandler.timerExpired);
+        // Linux typically expires timeouts a few ms early, but we shouldn't have to loop more
+        // than twice. But we could, so this might need adjustment. 
+        assertTrue(loopCount <= 2);
     }
 }
