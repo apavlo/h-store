@@ -464,9 +464,12 @@ public class HStoreCoordinator implements VoltProcedureListener.Handler {
         NIOEventLoop eventLoop = new NIOEventLoop();
         eventLoop.setExitOnSigInt(true);
 
-        // Connect to the server
-        ProtoRpcChannel channel = new ProtoRpcChannel(eventLoop, new InetSocketAddress(host, port));
-        Dtxn.Coordinator stub = Dtxn.Coordinator.newStub(channel);
+        // Connect to the server with retries
+        ProtoRpcChannel[] channels = ProtoRpcChannel.connectParallel(eventLoop,
+                new InetSocketAddress[] { new InetSocketAddress(host, port) });
+        assert channels.length == 1;
+        assert channels[0] != null;
+        Dtxn.Coordinator stub = Dtxn.Coordinator.newStub(channels[0]);
         HStoreCoordinator coordinator = new HStoreCoordinator(stub, p_estimator);
         
         // Initialize TransactionEstimator stuff
