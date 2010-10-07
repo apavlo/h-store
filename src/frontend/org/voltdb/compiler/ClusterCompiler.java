@@ -23,6 +23,8 @@ import org.voltdb.catalog.Host;
 import org.voltdb.catalog.Partition;
 import org.voltdb.catalog.Site;
 
+import edu.brown.catalog.CatalogUtil;
+
 public class ClusterCompiler
 {
     /**
@@ -81,6 +83,7 @@ public class ClusterCompiler
             }
             site.setHost(host);
             site.setIsup(true);
+            System.err.println(CatalogUtil.debug(site));
         }
     }
 }

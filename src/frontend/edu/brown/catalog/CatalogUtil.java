@@ -1303,11 +1303,16 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
         StringBuilder buffer = new StringBuilder();
         buffer.append(catalog_item.toString()).append("\n");
         for (String field : catalog_item.getFields()) {
+            Object value = catalog_item.getField(field);
             buffer.append("  ")
                   .append(field)
-                  .append(":\t")
-                  .append(catalog_item.getField(field))
-                  .append("\n");
+                  .append(":\t");
+            if (value instanceof CatalogMap) {
+                buffer.append(CatalogUtil.debug((CatalogMap<? extends CatalogType>)value));
+            } else {
+                buffer.append(value);
+            }
+            buffer.append("\n");
         } // FOR
         return (buffer.toString());
     }
