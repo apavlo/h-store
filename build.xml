@@ -2285,7 +2285,7 @@ H-STORE REMIX
     </antcall>
 </target>
 
-<target name="hstore-newtest" description="H-Store Test Setup">
+<target name="hstore-benchmark" description="H-Store Test Setup">
     <antcall target="hstore-conf">
         <param name="jar" value="${project}.jar" />
     </antcall>
@@ -2331,7 +2331,7 @@ H-STORE REMIX
     </parallel>
 </target>
 
-<target name="hstore-test" description="H-Store Test Setup">
+<target name="hstore-oldtest" description="H-Store Test Setup">
     <antcall target="hstore-conf">
         <param name="jar" value="${project}.jar" />
     </antcall>
