@@ -103,10 +103,9 @@ public class MockVoltDB implements VoltDBInterface
     {
         getCluster().getSites().add(Integer.toString(siteId));
         getSite(siteId).setHost(getHost(hostId));
-        getSite(siteId).setIsexec(isExec);
         if (isExec)
         {
-            getSite(siteId).setPartition(getPartition(partitionId));
+            getSite(siteId).getPartitions().addObject(getPartition(partitionId));
         }
         getSite(siteId).setIsup(true);
     }

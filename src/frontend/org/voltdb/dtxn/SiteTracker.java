@@ -87,37 +87,37 @@ public class SiteTracker {
             m_hostsToSites.get(hostId).add(siteId);
 
             // don't put non-exec (has ee) sites in the list.
-            if (site.getIsexec() == false)
-            {
-                if (site.getIsup())
-                {
-                    m_liveInitiatorCount++;
-                }
-            }
-            else
-            {
-
-                int partitionId = Integer.parseInt(site.getPartition().getTypeName());
-
-                m_sitesToPartitions.put(siteId, partitionId);
-                if (!m_partitionsToSites.containsKey(partitionId))
-                {
-                    m_partitionsToSites.put(partitionId,
-                                            new ArrayList<Integer>());
-                }
-                m_partitionsToSites.get(partitionId).add(siteId);
-
-                if (!m_partitionsToLiveSites.containsKey(partitionId))
-                {
-                    m_partitionsToLiveSites.put(partitionId,
-                                                new ArrayList<Integer>());
-                }
-                if (site.getIsup() == true)
-                {
-                    m_liveSiteCount++;
-                    m_partitionsToLiveSites.get(partitionId).add(siteId);
-                }
-            }
+//            if (site.getIsexec() == false)
+//            {
+//                if (site.getIsup())
+//                {
+//                    m_liveInitiatorCount++;
+//                }
+//            }
+//            else
+//            {
+//
+//                int partitionId = Integer.parseInt(site.getPartition().getTypeName());
+//
+//                m_sitesToPartitions.put(siteId, partitionId);
+//                if (!m_partitionsToSites.containsKey(partitionId))
+//                {
+//                    m_partitionsToSites.put(partitionId,
+//                                            new ArrayList<Integer>());
+//                }
+//                m_partitionsToSites.get(partitionId).add(siteId);
+//
+//                if (!m_partitionsToLiveSites.containsKey(partitionId))
+//                {
+//                    m_partitionsToLiveSites.put(partitionId,
+//                                                new ArrayList<Integer>());
+//                }
+//                if (site.getIsup() == true)
+//                {
+//                    m_liveSiteCount++;
+//                    m_partitionsToLiveSites.get(partitionId).add(siteId);
+//                }
+//            }
         }
 
         m_tempOldSitesScratch = new int[m_sites.size()];
@@ -152,13 +152,13 @@ public class SiteTracker {
     {
         int lowestNonExecSiteId = -1;
         for (Site site : getUpSites()) {
-            if (!site.getIsexec()) {
-                if (lowestNonExecSiteId == -1) {
-                    lowestNonExecSiteId = Integer.parseInt(site.getTypeName());
-                } else {
-                    lowestNonExecSiteId = Math.min(lowestNonExecSiteId, Integer.parseInt(site.getTypeName()));
-                }
-            }
+//            if (!site.getIsexec()) {
+//                if (lowestNonExecSiteId == -1) {
+//                    lowestNonExecSiteId = Integer.parseInt(site.getTypeName());
+//                } else {
+//                    lowestNonExecSiteId = Math.min(lowestNonExecSiteId, Integer.parseInt(site.getTypeName()));
+//                }
+//            }
         }
         return lowestNonExecSiteId;
     }
@@ -319,11 +319,11 @@ public class SiteTracker {
         ArrayList<Integer> retval = new ArrayList<Integer>();
         for (Integer site_id : m_hostsToSites.get(hostId))
         {
-            if (m_sites.get(Integer.toString(site_id)).getIsexec() &&
-                m_sites.get(Integer.toString(site_id)).getIsup())
-            {
-                retval.add(site_id);
-            }
+//            if (m_sites.get(Integer.toString(site_id)).getIsexec() &&
+//                m_sites.get(Integer.toString(site_id)).getIsup())
+//            {
+//                retval.add(site_id);
+//            }
         }
         return retval;
     }
@@ -364,11 +364,11 @@ public class SiteTracker {
     public int[] getUpExecutionSites()
     {
         ArrayDeque<Integer> tmplist = new ArrayDeque<Integer>();
-        for  (Site site : m_sites) {
-            if (site.getIsup() && site.getIsexec()) {
-                tmplist.add(Integer.parseInt(site.getTypeName()));
-            }
-        }
+//        for  (Site site : m_sites) {
+//            if (site.getIsup() && site.getIsexec()) {
+//                tmplist.add(Integer.parseInt(site.getTypeName()));
+//            }
+//        }
         int[] retval = new int[tmplist.size()];
         for (int i=0; i < retval.length; ++i) {
             retval[i] = tmplist.poll();
@@ -384,10 +384,10 @@ public class SiteTracker {
         Set<Integer> exec_sites = new HashSet<Integer>(m_sites.size());
         for (Site site : m_sites)
         {
-            if (site.getIsexec())
-            {
-                exec_sites.add(Integer.parseInt(site.getTypeName()));
-            }
+//            if (site.getIsexec())
+//            {
+//                exec_sites.add(Integer.parseInt(site.getTypeName()));
+//            }
         }
         return exec_sites;
     }

@@ -27,11 +27,15 @@ public class TestFixCatalog extends BaseTestCase {
 
         Set<Host> hosts = new HashSet<Host>();
         for (Site catalog_site : catalog_clus.getSites()) {
-            Host catalog_host = catalog_site.getHost(); 
-            assertNotNull(catalog_site.getPartition());
+            Host catalog_host = catalog_site.getHost();
             assertNotNull(catalog_host);
             assertFalse(hosts.contains(catalog_host));
             hosts.add(catalog_site.getHost()); 
+
+            assertFalse(catalog_site.getPartitions().isEmpty());
+            for (Partition catalog_part : catalog_site.getPartitions()) {
+                assertNotNull(catalog_part);
+            }
         } // FOR
     }
 }

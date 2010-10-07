@@ -61,7 +61,7 @@ public class TestTransactionState extends BaseTestCase {
             BACKEND_TARGET = (this.hasVoltLib() && false ? BackendTarget.NATIVE_EE_JNI : BackendTarget.HSQLDB_BACKEND);
             
             PartitionEstimator p_estimator = new PartitionEstimator(catalog_db);
-            executor = new ExecutionSite(LOCAL_PARTITION, catalog, BACKEND_TARGET, false, p_estimator, null);
+            executor = new ExecutionSite(LOCAL_PARTITION, catalog, BACKEND_TARGET, p_estimator, null);
             p_estimator = new PartitionEstimator(catalog_db, new DefaultHasher(catalog_db, NUM_PARTITIONS));
             
             // Setup a BatchPlanner for ourselves here

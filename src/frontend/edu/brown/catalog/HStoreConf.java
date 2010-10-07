@@ -22,9 +22,10 @@ public abstract class HStoreConf {
         TreeMap<Integer, String> sorted_output = new TreeMap<Integer, String>();
         for (Host catalog_host : host_partitions.keySet()) {
             for (Site catalog_site : host_partitions.get(catalog_host)) {
-                Partition catalog_part = catalog_site.getPartition();
-                String hostinfo = catalog_host.getIpaddr() + " " +catalog_site.getPort();
-                sorted_output.put(catalog_part.getId(), hostinfo);
+                for (Partition catalog_part : catalog_site.getPartitions()) {
+                    String hostinfo = catalog_host.getIpaddr() + " " +catalog_site.getPort();
+                    sorted_output.put(catalog_part.getId(), hostinfo);    
+                }
             } // FOR
         } // FOR
         

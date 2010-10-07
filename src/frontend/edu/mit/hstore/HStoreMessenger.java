@@ -37,6 +37,7 @@ import edu.brown.hstore.Hstore.FragmentTransfer;
 import edu.brown.hstore.Hstore.HStoreService;
 import edu.brown.hstore.Hstore.StatusAcknowledgement;
 import edu.brown.hstore.Hstore.StatusRequest;
+import edu.brown.utils.CollectionUtil;
 
 /**
  * 
@@ -45,8 +46,9 @@ import edu.brown.hstore.Hstore.StatusRequest;
 public class HStoreMessenger {
     public static final Logger LOG = Logger.getLogger(HStoreMessenger.class);
     
-    private final ExecutionSite executor;
-    private final int local_partition;
+    private final Map<Integer, ExecutionSite> executors;
+    private final Site catalog_site;
+    private final Set<Integer> local_partitions;
     private final NIOEventLoop eventLoop = new NIOEventLoop();
     
     private final Map<Integer, HStoreService> channels = new HashMap<Integer, HStoreService>();
@@ -55,9 +57,12 @@ public class HStoreMessenger {
     private final Handler handler;
     private final Callback callback;
     
-    public HStoreMessenger(ExecutionSite executor, int local_partition) {
-        this.executor = executor;
-        this.local_partition = local_partition;
+    public HStoreMessenger(Map<Integer, ExecutionSite> executors, Site catalog_site) {
+        this.executors = executors;
+        this.catalog_site = catalog_site;
+        this.local_partitions = CatalogUtil.getLocalPartitionIds(CatalogUtil.getDatabase(catalog_site),
+                                                                 CollectionUtil.getFirst(catalog_site.getPartitions()).getId());
+        
         this.listener = new ProtoServer(eventLoop);
         this.handler = new Handler();
         this.callback = new Callback();
@@ -71,12 +76,14 @@ public class HStoreMessenger {
         };
         this.listener_thread.setDaemon(true);
         this.eventLoop.setExitOnSigInt(true);
-        
-        this.initConnections();
     }
     
     public void start() {
+        LOG.debug("Initializing connections");
+        this.initConnections();
+        LOG.debug("Starting listener thread");
         this.listener_thread.start();
+        LOG.debug("Testing connections");
         this.testConnections();
     }
     
@@ -86,7 +93,7 @@ public class HStoreMessenger {
     
     protected void initConnections() {
         final boolean debug = LOG.isDebugEnabled(); 
-        Database catalog_db = CatalogUtil.getDatabase(this.executor.getCatalogSite());
+        Database catalog_db = CatalogUtil.getDatabase(this.catalog_site);
         
         // Find all the destinations we need to connect to
         if (debug) LOG.debug("Configuring outbound network connections");
@@ -97,23 +104,29 @@ public class HStoreMessenger {
         for (Entry<Host, Set<Site>> e : host_partitions.entrySet()) {
             String host = e.getKey().getIpaddr();
             for (Site catalog_site : e.getValue()) {
-                Partition catalog_part = catalog_site.getPartition();
+                int site_id = catalog_site.getId();
                 int port = catalog_site.getMessenger_port();
-                int partition_id = catalog_part.getId();
-                if (partition_id == this.local_partition) {
+                if (site_id == this.catalog_site.getId()) {
                     local_port = port;
                     continue;
                 }
                 
-                LOG.debug("Creating RpcChannel to " + host + ":" + port);
-                partition_ids.add(partition_id);
-                destinations.add(new InetSocketAddress(host, port));
+                for (Partition catalog_part : catalog_site.getPartitions()) {
+                    // TODO: Should group these by site
+                    int partition_id = catalog_part.getId();
+                    // If it's a local partition (i.e., on the same site), then we don't need to create a connection
+                    if (this.local_partitions.contains(partition_id) == false) {
+                        LOG.debug("Creating RpcChannel to " + host + ":" + port);
+                        partition_ids.add(partition_id);
+                        destinations.add(new InetSocketAddress(host, port));
+                    }
+                } // FOR
             } // FOR 
         } // FOR
         
         // Initialize inbound channel
         assert(local_port != null);
-        if (debug) LOG.debug("Binding listener to port " + local_port + " for Partition #" + this.local_partition);
+        if (debug) LOG.debug("Binding listener to port " + local_port + " for Site #" + this.catalog_site.getId());
         this.listener.register(this.handler);
         this.listener.bind(local_port);
 
@@ -151,14 +164,22 @@ public class HStoreMessenger {
             }
         };
         
+        // The sender partition can just be our first partition that we have
+        Partition catalog_part = CollectionUtil.getFirst(this.catalog_site.getPartitions());
+        
         ProtoRpcController rpc = new ProtoRpcController();
         for (Entry<Integer, HStoreService> e : this.channels.entrySet()) {
-            Hstore.StatusRequest sm = Hstore.StatusRequest.newBuilder()
-                                                .setSenderPartitionId(local_partition)
-                                                .setDestPartitionId(e.getKey())
-                                                .build();
-            e.getValue().getStatus(rpc, sm, callback);
-        }
+            if (this.local_partitions.contains(e.getKey())) {
+                responses.put(e.getKey(), "LOCAL");
+            } else {
+                Hstore.StatusRequest sm = Hstore.StatusRequest.newBuilder()
+                                                    .setSenderPartitionId(catalog_part.getId())
+                                                    .setDestPartitionId(e.getKey())
+                                                    .build();
+                e.getValue().getStatus(rpc, sm, callback);
+                waiting.add(e.getKey());
+            }
+        } // FOR
         
     }
     
@@ -186,6 +207,7 @@ public class HStoreMessenger {
         public void sendFragment(RpcController controller, FragmentTransfer request, RpcCallback<FragmentAcknowledgement> done) {
             long txn_id = request.getTxnId();
             int sender_partition_id = request.getSenderPartitionId();
+            int dest_partition_id = request.getDestPartitionId();
 
             for (Hstore.FragmentDependency fd : request.getDependenciesList()) {
                 int dependency_id = fd.getDependencyId();
@@ -200,13 +222,14 @@ public class HStoreMessenger {
                 assert(data != null) : "Null data table from " + request;
                 
                 // Store the VoltTable in the ExecutionSite
-                HStoreMessenger.this.executor.storeDependency(txn_id, sender_partition_id, dependency_id, data);
+                HStoreMessenger.this.executors.get(dest_partition_id).storeDependency(txn_id, sender_partition_id, dependency_id, data);
             }
             
             // Send back a response
             Hstore.FragmentAcknowledgement fa = Hstore.FragmentAcknowledgement.newBuilder()
                                                         .setTxnId(txn_id)
-                                                        .setSenderPartitionId(sender_partition_id)
+                                                        .setSenderPartitionId(dest_partition_id)
+                                                        .setDestPartitionId(sender_partition_id)
                                                         .build();
             done.run(fa);
         }
@@ -228,50 +251,63 @@ public class HStoreMessenger {
     /**
      * Send an individual dependency to a remote partition for a given transaction
      * @param txn_id
-     * @param partition_id
+     * @param sender_partition_id TODO
+     * @param dest_partition_id
      * @param dependency_id
      * @param table
      */
-    public void sendDependency(long txn_id, int partition_id, int dependency_id, VoltTable table) {
+    public void sendDependency(long txn_id, int sender_partition_id, int dest_partition_id, int dependency_id, VoltTable table) {
         DependencySet dset = new DependencySet(new int[]{ dependency_id }, new VoltTable[]{ table });
-        this.sendDependencySet(txn_id, partition_id, dset);
+        this.sendDependencySet(txn_id, sender_partition_id, dest_partition_id, dset);
     }
     
     /**
      * Send a DependencySet to a remote partition for a given transaction
      * @param txn_id
-     * @param partition_id
+     * @param sender_partition_id TODO
+     * @param dest_partition_id
      * @param dset
      */
-    public void sendDependencySet(long txn_id, int partition_id, DependencySet dset) {
-        ProtoRpcController rpc = new ProtoRpcController();
-        HStoreService channel = this.channels.get(partition_id);
-        assert(channel != null) : "Invalid partition id '" + partition_id + "'";
-        
-        // Serialize DependencySet
-        List<Hstore.FragmentDependency> dependencies = new ArrayList<Hstore.FragmentDependency>();
-        for (int i = 0, cnt = dset.size(); i < cnt; i++) {
-            FastSerializer fs = new FastSerializer();
-            try {
-                fs.writeObject(dset.dependencies[i]);
-            } catch (Exception ex) {
-                LOG.fatal("Failed to serialize DependencyId #" + dset.depIds[i], ex);
-            }
-            ByteString bs = ByteString.copyFrom(fs.getBuffer().array());
+    public void sendDependencySet(long txn_id, int sender_partition_id, int dest_partition_id, DependencySet dset) {
+        // Local Transfer
+        if (this.local_partitions.contains(dest_partition_id)) {
+            LOG.debug("Transfering " + dset.size() + " dependencies directly from partition #" + sender_partition_id + " to partition #" + dest_partition_id);
+            for (int i = 0, cnt = dset.size(); i < cnt; i++) {
+                this.executors.get(dest_partition_id).storeDependency(txn_id, dest_partition_id, dset.depIds[i], dset.dependencies[i]);
+            } // FOR
+        // Remote Transfer
+        } else {
+            LOG.debug("Transfering " + dset.size() + " dependencies through network from partition #" + sender_partition_id + " to partition #" + dest_partition_id);
+            ProtoRpcController rpc = new ProtoRpcController();
+            HStoreService channel = this.channels.get(dest_partition_id);
+            assert(channel != null) : "Invalid partition id '" + dest_partition_id + "'";
             
-            Hstore.FragmentDependency fd = Hstore.FragmentDependency.newBuilder()
-                                                    .setDependencyId(dset.depIds[i])
-                                                    .setData(bs)
+            // Serialize DependencySet
+            List<Hstore.FragmentDependency> dependencies = new ArrayList<Hstore.FragmentDependency>();
+            for (int i = 0, cnt = dset.size(); i < cnt; i++) {
+                FastSerializer fs = new FastSerializer();
+                try {
+                    fs.writeObject(dset.dependencies[i]);
+                } catch (Exception ex) {
+                    LOG.fatal("Failed to serialize DependencyId #" + dset.depIds[i], ex);
+                }
+                ByteString bs = ByteString.copyFrom(fs.getBuffer().array());
+                
+                Hstore.FragmentDependency fd = Hstore.FragmentDependency.newBuilder()
+                                                        .setDependencyId(dset.depIds[i])
+                                                        .setData(bs)
+                                                        .build();
+                dependencies.add(fd);
+            } // FOR
+            
+            Hstore.FragmentTransfer ft = Hstore.FragmentTransfer.newBuilder()
+                                                    .setTxnId(txn_id)
+                                                    .setSenderPartitionId(sender_partition_id)
+                                                    .setDestPartitionId(dest_partition_id)
+                                                    .addAllDependencies(dependencies)
                                                     .build();
-            dependencies.add(fd);
-        } // FOR
-        
-        Hstore.FragmentTransfer ft = Hstore.FragmentTransfer.newBuilder()
-                                                .setTxnId(txn_id)
-                                                .setSenderPartitionId(this.local_partition)
-                                                .addAllDependencies(dependencies)
-                                                .build();
-        channel.sendFragment(rpc, ft, this.callback);        
+            channel.sendFragment(rpc, ft, this.callback);
+        }
     }
 
 }

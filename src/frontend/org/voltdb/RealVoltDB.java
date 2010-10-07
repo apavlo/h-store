@@ -303,18 +303,18 @@ public class RealVoltDB implements VoltDBInterface
                 if (sitesHostId == myHostId) {
                     log.l7dlog( Level.TRACE, LogKeys.org_voltdb_VoltDB_CreatingLocalSite.name(), new Object[] { siteId }, null);
                     m_messenger.createLocalSite(siteId);
-                    if (site.getIsexec()) {
-                        if (siteForThisThread == null) {
-                            siteForThisThread = site;
-                        } else {
-                            ExecutionSiteRunner runner = new ExecutionSiteRunner(siteId, m_catalogContext, serializedCatalog);
-                            m_runners.add(runner);
-                            Thread runnerThread = new Thread(runner, "Site " + siteId);
-                            runnerThread.start();
-                            log.l7dlog(Level.TRACE, LogKeys.org_voltdb_VoltDB_CreatingThreadForSite.name(), new Object[] { siteId }, null);
-                            m_siteThreads.put(siteId, runnerThread);
-                        }
-                    }
+//                    if (site.getIsexec()) {
+//                        if (siteForThisThread == null) {
+//                            siteForThisThread = site;
+//                        } else {
+//                            ExecutionSiteRunner runner = new ExecutionSiteRunner(siteId, m_catalogContext, serializedCatalog);
+//                            m_runners.add(runner);
+//                            Thread runnerThread = new Thread(runner, "Site " + siteId);
+//                            runnerThread.start();
+//                            log.l7dlog(Level.TRACE, LogKeys.org_voltdb_VoltDB_CreatingThreadForSite.name(), new Object[] { siteId }, null);
+//                            m_siteThreads.put(siteId, runnerThread);
+//                        }
+//                    }
                 }
             }
 
@@ -377,25 +377,25 @@ public class RealVoltDB implements VoltDBInterface
                 int currSiteId = Integer.parseInt(site.getTypeName());
 
                 // create CI for each local non-EE site
-                if ((sitesHostId == myHostId) && (site.getIsexec() == false)) {
-                    ClientInterface ci =
-                        ClientInterface.create(
-                                               m_network,
-                                               m_messenger,
-                                               m_catalogContext,
-                                               m_catalogContext.numberOfNodes,
-                                               currSiteId,
-                                               site.getInitiatorid(),
-                                               config.m_port + portOffset++,
-                                               schedule);
-                    m_clientInterfaces.add(ci);
-                    try {
-                        ci.startAcceptingConnections();
-                    } catch (IOException e) {
-                        hostLog.l7dlog( Level.FATAL, LogKeys.host_VoltDB_ErrorStartAcceptingConnections.name(), e);
-                        VoltDB.crashVoltDB();
-                    }
-                }
+//                if ((sitesHostId == myHostId) && (site.getIsexec() == false)) {
+//                    ClientInterface ci =
+//                        ClientInterface.create(
+//                                               m_network,
+//                                               m_messenger,
+//                                               m_catalogContext,
+//                                               m_catalogContext.numberOfNodes,
+//                                               currSiteId,
+//                                               site.getInitiatorid(),
+//                                               config.m_port + portOffset++,
+//                                               schedule);
+//                    m_clientInterfaces.add(ci);
+//                    try {
+//                        ci.startAcceptingConnections();
+//                    } catch (IOException e) {
+//                        hostLog.l7dlog( Level.FATAL, LogKeys.host_VoltDB_ErrorStartAcceptingConnections.name(), e);
+//                        VoltDB.crashVoltDB();
+//                    }
+//                }
             }
 
             // Start running the socket handlers

@@ -207,7 +207,6 @@ public class HStoreCoordinator implements VoltProcedureListener.Handler {
         // Start each ExecutionSite thread
         for (int partition : executors.keySet()) {
             ExecutionSite executor = executors.get(partition);
-            assert(executor.isCoordinator());
             Thread thread = new Thread(executor);
             thread.start();
             this.executor_threads.put(partition, thread);
@@ -502,7 +501,6 @@ public class HStoreCoordinator implements VoltProcedureListener.Handler {
                                             partition,
                                             args.catalog,
                                             BackendTarget.NATIVE_EE_JNI, // BackendTarget.NULL,
-                                            true,
                                             p_estimator,
                                             t_estimator);
             executor.setHStoreCoordinator(coordinator);

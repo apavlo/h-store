@@ -74,7 +74,7 @@ public abstract class FixCatalog {
                 
                 Site catalog_site = catalog_clus.getSites().add(siteid.toString());
                 assert(catalog_site != null);
-                catalog_site.setPartition(catalog_part);
+                catalog_site.getPartitions().addObject(catalog_part);
                 catalog_site.setHost(catalog_host);
                 catalog_site.setPort(port);
                 catalog_site.setMessenger_port(port + 10000); // HACK!!!
@@ -124,7 +124,7 @@ public abstract class FixCatalog {
                 
                 Site catalog_site = catalog_clus.getSites().add(site_name);
                 assert(catalog_site != null);
-                catalog_site.setPartition(catalog_part);
+                catalog_site.getPartitions().addObject(catalog_part);
                 catalog_site.setHost(catalog_host);
             } // FOR
             
@@ -236,7 +236,7 @@ public abstract class FixCatalog {
                     Site catalog_site = cluster.getSites().add(partition_name);
                     catalog_site.setHost(catalog_host);
                     catalog_site.setPort(base_port++);
-                    catalog_site.setPartition(catalog_part);
+                    catalog_site.getPartitions().addObject(catalog_part);
                     
                     LOG.info("Created new partition at " + host + ":" + catalog_site.getPort());
                 } // FOR
