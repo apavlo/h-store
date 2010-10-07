@@ -51,6 +51,11 @@ public class HStoreMessenger {
     private final Set<Integer> local_partitions;
     private final NIOEventLoop eventLoop = new NIOEventLoop();
     
+    /**
+     * PartitionId -> SiteId
+     */
+    private final Map<Integer, Integer> partition_site_xref = new HashMap<Integer, Integer>();
+    
     private final Map<Integer, HStoreService> channels = new HashMap<Integer, HStoreService>();
     private final Thread listener_thread;
     private final ProtoServer listener;
@@ -91,6 +96,9 @@ public class HStoreMessenger {
         this.eventLoop.exitLoop();
     }
     
+    /**
+     * Initialize all the network connections to remote 
+     */
     protected void initConnections() {
         final boolean debug = LOG.isDebugEnabled(); 
         Database catalog_db = CatalogUtil.getDatabase(this.catalog_site);
@@ -99,7 +107,7 @@ public class HStoreMessenger {
         if (debug) LOG.debug("Configuring outbound network connections");
         Map<Host, Set<Site>> host_partitions = CatalogUtil.getHostPartitions(catalog_db);
         Integer local_port = null;
-        ArrayList<Integer> partition_ids = new ArrayList<Integer>();
+        ArrayList<Integer> site_ids = new ArrayList<Integer>();
         ArrayList<InetSocketAddress> destinations = new ArrayList<InetSocketAddress>();
         for (Entry<Host, Set<Site>> e : host_partitions.entrySet()) {
             String host = e.getKey().getIpaddr();
@@ -109,17 +117,14 @@ public class HStoreMessenger {
                 if (site_id == this.catalog_site.getId()) {
                     local_port = port;
                     continue;
-                }
-                
-                for (Partition catalog_part : catalog_site.getPartitions()) {
-                    // TODO: Should group these by site
-                    int partition_id = catalog_part.getId();
-                    // If it's a local partition (i.e., on the same site), then we don't need to create a connection
-                    if (this.local_partitions.contains(partition_id) == false) {
-                        LOG.debug("Creating RpcChannel to " + host + ":" + port);
-                        partition_ids.add(partition_id);
-                        destinations.add(new InetSocketAddress(host, port));
-                    }
+                } else {
+                    LOG.debug("Creating RpcChannel to " + host + ":" + port + " for site #" + site_id);
+                    destinations.add(new InetSocketAddress(host, port));
+                    site_ids.add(site_id);
+                    
+                    for (Partition catalog_part : catalog_site.getPartitions()) {
+                        this.partition_site_xref.put(catalog_part.getId(), site_id);
+                    } // FOR
                 } // FOR
             } // FOR 
         } // FOR
@@ -134,9 +139,9 @@ public class HStoreMessenger {
         if (debug) LOG.debug("Connecting to remote nodes");
         ProtoRpcChannel[] channels = ProtoRpcChannel.connectParallel(
                 this.eventLoop, destinations.toArray(new InetSocketAddress[]{}));
-        assert channels.length == partition_ids.size();
-        for (int i = 0; i < partition_ids.size(); i++) {
-            this.channels.put(partition_ids.get(i), HStoreService.newStub(channels[i]));
+        assert channels.length == site_ids.size();
+        for (int i = 0; i < site_ids.size(); i++) {
+            this.channels.put(site_ids.get(i), HStoreService.newStub(channels[i]));
         }
     }
     
@@ -279,7 +284,8 @@ public class HStoreMessenger {
         } else {
             LOG.debug("Transfering " + dset.size() + " dependencies through network from partition #" + sender_partition_id + " to partition #" + dest_partition_id);
             ProtoRpcController rpc = new ProtoRpcController();
-            HStoreService channel = this.channels.get(dest_partition_id);
+            int site_id = this.partition_site_xref.get(dest_partition_id);
+            HStoreService channel = this.channels.get(site_id);
             assert(channel != null) : "Invalid partition id '" + dest_partition_id + "'";
             
             // Serialize DependencySet
