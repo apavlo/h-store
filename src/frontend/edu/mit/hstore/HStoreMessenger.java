@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -34,6 +35,8 @@ import edu.brown.hstore.Hstore;
 import edu.brown.hstore.Hstore.FragmentAcknowledgement;
 import edu.brown.hstore.Hstore.FragmentTransfer;
 import edu.brown.hstore.Hstore.HStoreService;
+import edu.brown.hstore.Hstore.StatusAcknowledgement;
+import edu.brown.hstore.Hstore.StatusRequest;
 
 /**
  * 
@@ -74,6 +77,7 @@ public class HStoreMessenger {
     
     public void start() {
         this.listener_thread.start();
+        this.testConnections();
     }
     
     public void stop() {
@@ -123,11 +127,60 @@ public class HStoreMessenger {
         }
     }
     
+    protected void testConnections() {
+        // Go through and connect to all of our remote partitions
+        final Map<Integer, String> responses = new HashMap<Integer, String>();
+        final Set<Integer> waiting = new HashSet<Integer>();
+        
+        RpcCallback<StatusAcknowledgement> callback = new RpcCallback<StatusAcknowledgement>() {
+            @Override
+            public void run(StatusAcknowledgement parameter) {
+                int sender = parameter.getSenderPartitionId();
+                String status = parameter.getMessage();
+                responses.put(sender, status);
+                waiting.remove(sender);
+                
+                if (waiting.isEmpty()) {
+                    StringBuilder sb = new StringBuilder();
+                    sb.append("TestConnection Responses:\n");
+                    for (Entry<Integer, String> e : responses.entrySet()) {
+                        sb.append(String.format("  Partition %03d: %s\n", e.getKey(), e.getValue()));
+                    } // FOR
+                    LOG.info(sb.toString());
+                }
+            }
+        };
+        
+        ProtoRpcController rpc = new ProtoRpcController();
+        for (Entry<Integer, HStoreService> e : this.channels.entrySet()) {
+            Hstore.StatusRequest sm = Hstore.StatusRequest.newBuilder()
+                                                .setSenderPartitionId(local_partition)
+                                                .setDestPartitionId(e.getKey())
+                                                .build();
+            e.getValue().getStatus(rpc, sm, callback);
+        }
+        
+    }
+    
     /**
      * Messenger Handler
      * This takes in a new FragmentTransfer message and stores it in the ExecutionSite
      */
     private class Handler extends HStoreService {
+
+        @Override
+        public void getStatus(RpcController controller, StatusRequest request, RpcCallback<StatusAcknowledgement> done) {
+            int sender = request.getSenderPartitionId();
+            int dest = request.getDestPartitionId();
+            
+            Hstore.StatusAcknowledgement sa = Hstore.StatusAcknowledgement.newBuilder()
+                                                        .setDestPartitionId(sender)
+                                                        .setSenderPartitionId(dest)
+                                                        .setMessage("OK") // TODO
+                                                        .build();
+            
+            done.run(sa);
+        }
         
         @Override
         public void sendFragment(RpcController controller, FragmentTransfer request, RpcCallback<FragmentAcknowledgement> done) {
