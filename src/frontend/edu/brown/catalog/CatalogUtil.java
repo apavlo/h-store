@@ -94,6 +94,20 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
     }
     
     /**
+     * Return the unique Site catalog object for the given id 
+     * @param catalog_item
+     * @return
+     */
+    public static Site getSiteFromId(CatalogType catalog_item, int site_id) {
+        assert(site_id >= 0);
+        Cluster catalog_clus = CatalogUtil.getCluster(catalog_item);
+        for (Site catalog_site : catalog_clus.getSites()) {
+            if (catalog_site.getId() == site_id) return (catalog_site);
+        } // FOR
+        return (null);
+    }
+    
+    /**
      * Return the number of partitions for a catalog for any catalog item
      * @param catalog_item
      * @return
@@ -152,7 +166,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
             final Comparator<Site> comparator = new Comparator<Site>() {
                 @Override
                 public int compare(Site o1, Site o2) {
-                    return (o1.getPartition().getId() - o2.getPartition().getId()); 
+                    return (o1.getId() - o2.getId()); 
                 }
             };
             
@@ -1245,14 +1259,16 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
         // Now look at what other partitions are on the same host that we are
         //
         for (Site catalog_site : catalog_clus.getSites()) {
-            if (catalog_site.getPartition().equals(catalog_part)) {
-                Host catalog_host = catalog_site.getHost();
-                for (Site other_site : catalog_clus.getSites()) {
-                    if (other_site.equals(catalog_site)) continue;
-                    if (other_site.getHost().equals(catalog_host)) {
-                        //System.out.println(catalog_site + " <--> " + other_site);
-                        partitions.add(other_site.getPartition());
-                    }
+            for (Partition other : catalog_site.getPartitions()) {
+                if (other.equals(catalog_part)) {
+                    Host catalog_host = catalog_site.getHost();
+                    for (Site other_site : catalog_clus.getSites()) {
+                        if (other_site.equals(catalog_site)) continue;
+                        if (other_site.getHost().equals(catalog_host)) {
+                            //System.out.println(catalog_site + " <--> " + other_site);
+                            CollectionUtil.addAll(partitions, other_site.getPartitions());
+                        }
+                    } // FOR
                 } // FOR
             }
         } // FOR

@@ -12,6 +12,7 @@ import org.voltdb.plannodes.AbstractPlanNode;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.catalog.QueryPlanUtil;
 import edu.brown.plannodes.PlanNodeUtil;
+import edu.brown.utils.CollectionUtil;
 
 /**
  * 
@@ -250,7 +251,7 @@ public class CatalogTreeModel extends DefaultTreeModel {
             
             // Construct a xref mapping between host->sites and site->partitions
             Map<Host, Set<Site>> host_site_xref = new HashMap<Host, Set<Site>>();
-            Map<Site, Set<Partition>> site_partition_xref = new HashMap<Site, Set<Partition>>();
+            Map<Site, Collection<Partition>> site_partition_xref = new HashMap<Site, Collection<Partition>>();
             for (Site site_cat : cluster_cat.getSites()) {
                 Host host_cat = site_cat.getHost();
                 if (!host_site_xref.containsKey(host_cat)) {
@@ -258,13 +259,8 @@ public class CatalogTreeModel extends DefaultTreeModel {
                 }
                 host_site_xref.get(host_cat).add(site_cat);
                 
-                Partition part_cat = site_cat.getPartition();
-                if (part_cat != null) {
-                    if (!site_partition_xref.containsKey(site_cat)) {
-                        site_partition_xref.put(site_cat, new HashSet<Partition>());
-                    }
-                    site_partition_xref.get(site_cat).add(part_cat);
-                }
+                Collection<Partition> partitions = CollectionUtil.addAll(new HashSet<Partition>(), site_cat.getPartitions());
+                site_partition_xref.put(site_cat, partitions);
             } // FOR
             
             // Hosts

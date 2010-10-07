@@ -29,7 +29,7 @@ public class VoltProcedureInvoker {
         PartitionEstimator p_estimator = new PartitionEstimator(args.catalog_db, args.hasher);
         
         // setup the EE
-        ExecutionSite executor = new ExecutionSite(local_partition, args.catalog, BackendTarget.NATIVE_EE_JNI, false, p_estimator, null);
+        ExecutionSite executor = new ExecutionSite(local_partition, args.catalog, BackendTarget.NATIVE_EE_JNI, p_estimator, null);
         VoltProcedure procedure = executor.getProcedure("EmptyProcedure");
 
         // Error: EmptyProcedure is supposed to take one argument

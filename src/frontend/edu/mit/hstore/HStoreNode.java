@@ -118,7 +118,7 @@ public class HStoreNode extends Dtxn.ExecutionEngine {
         }
         
         // setup the EE
-        ExecutionSite executor = new ExecutionSite(local_partition, args.catalog, BackendTarget.NATIVE_EE_JNI, false, p_estimator, t_estimator);
+        ExecutionSite executor = new ExecutionSite(local_partition, args.catalog, BackendTarget.NATIVE_EE_JNI, p_estimator, t_estimator);
         HStoreNode node = new HStoreNode(executor);
 
         // Serve RPCs

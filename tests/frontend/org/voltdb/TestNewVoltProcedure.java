@@ -44,7 +44,7 @@ public class TestNewVoltProcedure extends BaseTestCase {
             // BACKEND_TARGET = (this.hasVoltLib() ? BackendTarget.NATIVE_EE_JNI : BackendTarget.HSQLDB_BACKEND);
             
             p_estimator = new PartitionEstimator(catalog_db);
-            site = new ExecutionSite(PARTITION_ID, catalog, BACKEND_TARGET, false, p_estimator, null);
+            site = new ExecutionSite(PARTITION_ID, catalog, BACKEND_TARGET, p_estimator, null);
         }
         volt_proc = site.getProcedure(TARGET_PROCEDURE);
         assertNotNull(volt_proc);

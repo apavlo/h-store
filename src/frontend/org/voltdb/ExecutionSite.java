@@ -97,6 +97,7 @@ public class ExecutionSite implements Runnable {
     protected Cluster cluster;
     protected Database database;
     protected Site site;
+    protected Partition partition;
     
     // Quick lookup for Procedure Name -> Procedure Catalog Object
     private final Map<String, Procedure> proc_lookup = new HashMap<String, Procedure>();
@@ -104,7 +105,6 @@ public class ExecutionSite implements Runnable {
     protected final BackendTarget backend_target;
     protected final ExecutionEngine ee;
     protected final HsqlBackend hsql;
-    protected final boolean coordinator;
     protected final DBBPool buffer_pool = new DBBPool(true, true);
 
     /**
@@ -284,7 +284,6 @@ public class ExecutionSite implements Runnable {
         this.ee = null;
         this.hsql = null;
         this.p_estimator = null;
-        this.coordinator = false;
         this.t_estimator = null;
         this.catalog = null;
         this.cluster = null;
@@ -296,25 +295,27 @@ public class ExecutionSite implements Runnable {
 
     /**
      * Initialize the StoredProcedure runner and EE for this Site.
-     * @param siteId
-     * @param coordinator TODO
+     * @param partitionId
      * @param t_estimator TODO
+     * @param coordinator TODO
      * @param siteManager
      * @param serializedCatalog A list of catalog commands, separated by
      * newlines that, when executed, reconstruct the complete m_catalog.
      */
-    public ExecutionSite(final int siteId, final Catalog catalog, final BackendTarget target, boolean coordinator, PartitionEstimator p_estimator, TransactionEstimator t_estimator) {
-        this.siteId = siteId;
+    public ExecutionSite(final int partitionId, final Catalog catalog, final BackendTarget target, PartitionEstimator p_estimator, TransactionEstimator t_estimator) {
         this.catalog = catalog;
+        this.partition = CatalogUtil.getCluster(this.catalog).getPartitions().get("id", partitionId);
+        assert(this.partition != null) : "Invalid Partition #" + partitionId;
+        this.site = this.partition.getParent();
+        assert(site != null) : "Unable to get Site for Partition #" + partitionId;
+        this.siteId = this.site.getId();
+        
         this.backend_target = target;
         this.cluster = CatalogUtil.getCluster(catalog);
         this.database = CatalogUtil.getDatabase(cluster);
-        this.coordinator = coordinator;
-        this.site = cluster.getSites().get(Integer.toString(siteId));
-        assert(site != null) : "No site entry exists in the catalog with siteId '" + siteId + "'";
 
         // Setup Thread Pool
-        int pool_size = (this.coordinator ? COORD_THREAD_POOL_SIZE : NODE_THREAD_POOL_SIZE);
+        int pool_size = NODE_THREAD_POOL_SIZE;
         this.pool = Executors.newFixedThreadPool(pool_size);
         LOG.debug("Created ExecutionSite thread pool with " + pool_size + " threads");
         
@@ -325,7 +326,7 @@ public class ExecutionSite implements Runnable {
         // transaction is in its execution workflow. This allows us to make predictions about
         // what kind of things we expect the xact to do in the future
         if (t_estimator == null) { // HACK
-            this.t_estimator = new TransactionEstimator(siteId, p_estimator);    
+            this.t_estimator = new TransactionEstimator(partitionId, p_estimator);    
         } else {
             this.t_estimator = t_estimator; 
         }
@@ -344,7 +345,7 @@ public class ExecutionSite implements Runnable {
         try {
             LOG.debug("Creating EE wrapper with target type '" + target + "'");
             if (this.backend_target == BackendTarget.HSQLDB_BACKEND) {
-                hsqlTemp = new HsqlBackend(siteId);
+                hsqlTemp = new HsqlBackend(partitionId);
                 final String hexDDL = database.getSchema();
                 final String ddl = Encoder.hexDecodeToString(hexDDL);
                 final String[] commands = ddl.split(";");
@@ -358,14 +359,14 @@ public class ExecutionSite implements Runnable {
             }
             else if (target == BackendTarget.NATIVE_EE_JNI) {
                 // set up the EE
-                eeTemp = new ExecutionEngineJNI(this, cluster.getRelativeIndex(), siteId, this.getPartitionId(), this.siteId, "localhost");
+                eeTemp = new ExecutionEngineJNI(this, cluster.getRelativeIndex(), partitionId, this.getPartitionId(), this.siteId, "localhost");
                 eeTemp.loadCatalog(catalog.serialize());
                 lastTickTime = System.currentTimeMillis();
                 eeTemp.tick( lastTickTime, 0);
             }
             else {
                 // set up the EE over IPC
-                eeTemp = new ExecutionEngineIPC(this, cluster.getRelativeIndex(), siteId, this.getPartitionId(), this.siteId, "localhost", target);
+                eeTemp = new ExecutionEngineIPC(this, cluster.getRelativeIndex(), partitionId, this.getPartitionId(), this.siteId, "localhost", target);
                 eeTemp.loadCatalog(catalog.serialize());
                 lastTickTime = System.currentTimeMillis();
                 eeTemp.tick( lastTickTime, 0);
@@ -395,7 +396,7 @@ public class ExecutionSite implements Runnable {
             if (catalog_proc.getSystemproc()) {
                 pool_size = 1;
             } else {
-                pool_size = (this.coordinator ? COORD_VOLTPROCEDURE_POOL_SIZE : NODE_VOLTPROCEDURE_POOL_SIZE);
+                pool_size = NODE_VOLTPROCEDURE_POOL_SIZE;
             }
             this.createVoltProcedures(catalog_proc, pool_size);
         } // FOR
@@ -404,7 +405,7 @@ public class ExecutionSite implements Runnable {
         Thread current = Thread.currentThread();
         String current_name = current.getName();
         if (current_name.equals("main")) {
-            current.setName((this.coordinator ? "Coord" : this.getThreadName()) + "-" + current_name);
+            current.setName(this.getThreadName() + "-" + current_name);
         }
     }
 
@@ -449,7 +450,7 @@ public class ExecutionSite implements Runnable {
                     volt_proc = new VoltProcedure.StmtProcedure();
                 }
                 // volt_proc.registerCallback(this.callback);
-                volt_proc.init(this, catalog_proc, this.backend_target, hsql, cluster, this.p_estimator, this.getInitiatorId());
+                volt_proc.init(this, catalog_proc, this.backend_target, hsql, cluster, this.p_estimator, this.getPartitionId());
                 this.all_procs.get(catalog_proc.getName()).add(volt_proc);
                 this.proc_pool.get(catalog_proc.getName()).add(volt_proc);
             } // FOR
@@ -459,16 +460,16 @@ public class ExecutionSite implements Runnable {
 
     }
 
+    public void setHStoreMessenger(HStoreMessenger hstore_messenger) {
+        this.hstore_messenger = hstore_messenger;
+    }
+    
     public void setHStoreCoordinator(HStoreCoordinator hstore_coordinator) {
         this.hstore_coordinator = hstore_coordinator;
     }
     
     public void setHStoreNode(HStoreNode hstore_node) {
         this.hstore_node = hstore_node;
-    }
-    
-    public boolean isCoordinator() {
-        return this.coordinator;
     }
     
     public BackendTarget getBackendTarget() {
@@ -489,32 +490,12 @@ public class ExecutionSite implements Runnable {
         return site;
     }
     
-    public Site getCorrespondingCatalogSite() {
-        return getCatalogSite();
-    }
-
-    public int getCorrespondingSiteId() {
-        return siteId;
-    }
-
-    public int getCorrespondingPartitionId() {
-        return Integer.valueOf(getCatalogSite().getPartition().getTypeName());
-    }
-
-    public int getCorrespondingHostId() {
+    public int getHostId() {
         return Integer.valueOf(getCatalogSite().getHost().getTypeName());
     }
     
-    /**
-     * Return this ExecutionSite's InitiatorId use in FragmentTaskMessage
-     * If it is negative, then it means that we're running at the Coordinator
-     * @return
-     */
-    public int getInitiatorId() {
-        return ((this.isCoordinator() ? Integer.MIN_VALUE : 0) + this.getPartitionId());
-    }
     public int getSiteId() {
-        return (this.getInitiatorId());
+        return (this.site.getId());
     }
     
     /**
@@ -522,7 +503,7 @@ public class ExecutionSite implements Runnable {
      * @return
      */
     public int getPartitionId() {
-        return (this.site.getPartition().getId());
+        return (this.partition.getId());
     }
 
     public VoltProcedure getRunningVoltProcedure(long txn_id) {
@@ -550,7 +531,7 @@ public class ExecutionSite implements Runnable {
     }
 
     public String getThreadName() {
-        String name = (this.isCoordinator() ? "Coord-" : "") + "ES";
+        String name = "ES";
         
         if (siteId < 10) name += "0";
         if (siteId < 100) name += "0";
@@ -572,8 +553,7 @@ public class ExecutionSite implements Runnable {
         
         // Setup our messenger that we'll use to contact all of our friends
         assert(this.hstore_messenger == null);
-        this.hstore_messenger = new HStoreMessenger(this, this.getPartitionId());
-        this.hstore_messenger.start();
+        
 
         /*
         NDC.push("ExecutionSite - " + siteId + " index " + siteIndex);
@@ -673,18 +653,17 @@ public class ExecutionSite implements Runnable {
                         if (is_local) {
                             if (debug) LOG.debug("Storing " + result.size() + " dependency results locally for successful FragmentTaskMessage");
                             assert(ts != null);
-                            int init_id = this.getInitiatorId();
                             for (int i = 0, cnt = result.size(); i < cnt; i++) {
                                 // ts.addResult(result.depIds[i], result.dependencies[i]);
                                 if (trace) LOG.trace("Storing DependencyId #" + ftask.getOutputDependencyIds()[i] + " for txn #" + txn_id);
-                                ts.addResult(init_id, ftask.getOutputDependencyIds()[i], result.dependencies[i]);
+                                ts.addResult(this.getPartitionId(), ftask.getOutputDependencyIds()[i], result.dependencies[i]);
                             } // FOR
                             
                         // Otherwise push dependencies back to the remote partition that needs it
                         } else {
                             if (debug) LOG.debug("Constructing FragmentResponse with " + result.size() + " results to send back to initial site for txn #" + txn_id);
                             
-                            this.hstore_messenger.sendDependencySet(txn_id, txn_partition_id, result); 
+                            this.hstore_messenger.sendDependencySet(txn_id, this.getPartitionId(), txn_partition_id, result); 
 //                            for (int i = 0, cnt = result.size(); i < cnt; i++) {
 //                                // fresponse.addDependency(result.depIds[i], result.dependencies[i]);
 //                                fresponse.addDependency(ftask.getOutputDependencyIds()[i], result.dependencies[i]);
@@ -754,7 +733,7 @@ public class ExecutionSite implements Runnable {
      */
     protected void startTransaction(TransactionState ts, VoltProcedure volt_proc, InitiateTaskMessage init_work) {
         long txn_id = init_work.getTxnId();
-        LOG.debug("Initializing the execution of " + volt_proc.procedure_name + " for txn #" + txn_id + " on partition " + this.getCorrespondingPartitionId());
+        LOG.debug("Initializing the execution of " + volt_proc.procedure_name + " for txn #" + txn_id + " on partition " + this.getPartitionId());
         
         // Tell the TransactionEstimator to begin following this transaction
         // TODO(pavlo+svelgap): We need figure out what is going to do the query estimations at the beginning
@@ -1110,8 +1089,6 @@ public class ExecutionSite implements Runnable {
         assert(ts != null);
         long txn_id = ts.getTransactionId();
 
-        assert(!this.coordinator || (this.coordinator && this.hstore_coordinator != null)) : "Must set HStoreCoordinator handle first";
-
         if (debug) LOG.debug("Combining " + tasks.size() + " FragmentTaskMessages into a single Dtxn.CoordinatorFragment.");
         
         // Now we can go back through and start running all of the FragmentTaskMessages that were not blocked
@@ -1127,9 +1104,6 @@ public class ExecutionSite implements Runnable {
             if (ftask.getFragmentCount() == 0) {
                 LOG.warn("Trying to send a FragmentTask request with 0 fragments for txn #" + ts.getTransactionId());
                 continue;
-            }
-            if (target_partition != this.getInitiatorId() && !this.coordinator) {
-                throw new RuntimeException("Trying to execute multi-partition plan for single-partition txn #" + txn_id);
             }
             
             // Nasty...
@@ -1176,13 +1150,15 @@ public class ExecutionSite implements Runnable {
             throw new RuntimeException("Deadlock! All tasks for txn #" + txn_id + " are blocked waiting on input!");
         }
         
-        if (this.coordinator) {
-            this.requestWork(ts, runnable);
-        } else {
-            for (FragmentTaskMessage task : runnable) {
-                this.work_queue.add(task);
-            } // FOR
-        }
+        // TODO: Need to figure out when we should be executing things locally versus
+        // executing things at remote partitions
+//        if (this.coordinator) {
+//            this.requestWork(ts, runnable);
+//        } else {
+//            for (FragmentTaskMessage task : runnable) {
+//                this.work_queue.add(task);
+//            } // FOR
+//        }
 
         CountDownLatch latch = ts.startRound();
         if (trace) LOG.trace("Txn #" + txn_id + " is blocked waiting for " + latch.getCount() + " dependencies");

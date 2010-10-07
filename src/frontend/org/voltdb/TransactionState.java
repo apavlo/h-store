@@ -203,7 +203,7 @@ public class TransactionState {
      */
     public TransactionState(ExecutionSite executor, long txn_id, long client_handle, boolean exec_local) {
         this.executor = executor;
-        this.local_partition = this.executor.getInitiatorId();
+        this.local_partition = this.executor.getPartitionId();
         this.txn_id = txn_id;
         this.client_handle = client_handle;
         this.exec_local = exec_local;
@@ -569,7 +569,7 @@ public class TransactionState {
             proc_name = this.executor.getRunningVoltProcedure(txn_id).procedure_name;
         }
         String ret = line + "Transaction State #" + txn_id + " [" + proc_name + "]\n";
-        ret += "  Local Partition:       " + this.executor.getInitiatorId() + "\n";
+        ret += "  Local Partition:       " + this.executor.getPartitionId() + "\n";
         ret += "  Dependency Ctr:        " + this.dependency_ctr + "\n";
         ret += "  Internal Ctr:          " + this.internal_dependencies.size() + "\n";
         ret += "  Received Ctr:          " + this.received_ctr + "\n";

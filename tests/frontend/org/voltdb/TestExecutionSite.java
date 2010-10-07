@@ -43,7 +43,7 @@ public class TestExecutionSite extends BaseTestCase {
         
         if (site == null) {
             PartitionEstimator p_estimator = new PartitionEstimator(catalog_db);
-            site = new ExecutionSite(PARTITION_ID, catalog, BACKEND_TARGET, false, p_estimator, null);
+            site = new ExecutionSite(PARTITION_ID, catalog, BACKEND_TARGET, p_estimator, null);
         }
     }
     

@@ -4,6 +4,7 @@ import java.io.File;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
@@ -20,7 +21,9 @@ import org.voltdb.ExecutionSite;
 import org.voltdb.ProcedureProfiler;
 import org.voltdb.StoredProcedureInvocation;
 import org.voltdb.catalog.Database;
+import org.voltdb.catalog.Partition;
 import org.voltdb.catalog.Procedure;
+import org.voltdb.catalog.Site;
 import org.voltdb.messaging.FastDeserializer;
 import org.voltdb.messaging.InitiateTaskMessage;
 import org.voltdb.messaging.TransactionInfoBaseMessage;
@@ -61,14 +64,15 @@ public class HStoreCoordinatorNode extends ExecutionEngine implements VoltProced
     private static final AtomicLong NEXT_TXN_ID = new AtomicLong(1); 
     
     private final DBBPool buffer_pool = new DBBPool(true, true);
+    private final Map<Integer, Thread> executor_threads = new HashMap<Integer, Thread>();
+    private final HStoreMessenger messenger;
     private Dtxn.Coordinator coordinator;
     
+    private final Site catalog_site;
+    private final Map<Integer, ExecutionSite> executors = new HashMap<Integer, ExecutionSite>();
     private final Database catalog_db;
     private final PartitionEstimator p_estimator;
-    private final ExecutionSite executor;
-    private final TransactionEstimator t_estimator;
     private EstimationThresholds thresholds;
-    private final Thread executor_thread;
     
     /**
      * Status Monitor
@@ -188,17 +192,14 @@ public class HStoreCoordinatorNode extends ExecutionEngine implements VoltProced
      * @param coordinator
      * @param p_estimator
      */
-    public HStoreCoordinatorNode(ExecutionSite executor, PartitionEstimator p_estimator, TransactionEstimator t_estimator) {
+    public HStoreCoordinatorNode(Site catalog_site, Map<Integer, ExecutionSite> executors, PartitionEstimator p_estimator) {
         // General Stuff
-        this.catalog_db = p_estimator.getDatabase();
+        this.catalog_site = catalog_site;
+        this.catalog_db = CatalogUtil.getDatabase(this.catalog_site);
         this.p_estimator = p_estimator;
-        this.t_estimator = t_estimator;
         this.thresholds = new EstimationThresholds(); // default values
-        
-        // ExecutionEngine Stuff
-        this.executor = executor;
-        this.executor_thread = new Thread(this.executor);
-        this.executor_thread.start();
+        this.executors.putAll(executors);
+        this.messenger = new HStoreMessenger(this.executors, this.catalog_site); 
         
         assert(this.catalog_db != null);
         assert(this.p_estimator != null);
@@ -207,6 +208,24 @@ public class HStoreCoordinatorNode extends ExecutionEngine implements VoltProced
         Runtime.getRuntime().addShutdownHook(new Thread(new ShutdownThread()));
         
         LOG.debug("Starting HStoreCoordinatorNode...");
+        this.init();
+    }
+    
+    /**
+     * Initializes all the pieces that we need to start this HStore site up
+     */
+    private void init() {
+        // First we need to tell the HStoreMessenger to start-up and initialize its connections
+        LOG.debug("Starting HStoreMessenger");
+        this.messenger.start();
+        
+        // Then we need to start all of the ExecutionSites in threads
+        LOG.debug("Starting threads for " + this.executors.size() + " partitions");
+        for (Entry<Integer, ExecutionSite> e : this.executors.entrySet()) {
+            Thread t = new Thread(e.getValue());
+            this.executor_threads.put(e.getKey(), t);
+            t.start();
+        } // FOR
     }
     
     /**
@@ -229,8 +248,16 @@ public class HStoreCoordinatorNode extends ExecutionEngine implements VoltProced
          this.thresholds = thresholds;
     }
     
-    public int getLocalPartition() {
-        return (this.executor.getPartitionId());
+    /**
+     * Return the Site catalog object for this HStoreCoordinatorNode
+     * @return
+     */
+    public Site getSite() {
+        return (this.catalog_site);
+    }
+    
+    public int getSiteId() {
+        return (this.catalog_site.getId());
     }
 
     @Override
@@ -283,9 +310,17 @@ public class HStoreCoordinatorNode extends ExecutionEngine implements VoltProced
             LOG.trace("Destination Partition = " + dest_partition);
         }
         
+        // TODO: If the dest_partition isn't local, then we need to ship it off to the right location
+        if (this.executors.containsKey(dest_partition) == false) {
+            assert(false) : "Cannot execute a txn for partition #" + dest_partition + " at site #" + this.catalog_site.getId();
+        }
+        
         // Grab the TransactionEstimator for the destination partition and figure out whether
         // this mofo is likely to be single-partition or not. Anything that we can't estimate
         // will just have to be multi-partitioned. This includes sysprocs
+        ExecutionSite executor = this.executors.get(dest_partition);
+        TransactionEstimator t_estimator = executor.getTransactionEstimator();
+        
         Boolean single_partition = null;
         if (!t_estimator.canEstimate(catalog_proc)) {
             single_partition = false;
@@ -438,11 +473,12 @@ public class HStoreCoordinatorNode extends ExecutionEngine implements VoltProced
         }
 
         long txn_id = msg.getTxnId(); // request.getTransactionId();
+        int partition = msg.getTargetPartition();
         if (LOG.isTraceEnabled()) {
             LOG.trace("Got " + msg.getClass().getSimpleName() + " message for txn #" + txn_id + ". Forwarding to ExecutionSite");
             LOG.trace("CONTENTS:\n" + msg);
         }
-        this.executor.doWork(msg, done);
+        this.executors.get(partition).doWork(msg, done);
     }
 
     @Override
@@ -451,17 +487,19 @@ public class HStoreCoordinatorNode extends ExecutionEngine implements VoltProced
         if (LOG.isTraceEnabled()) LOG.trace("Got " + request.getClass().getSimpleName() + " for txn #" + txn_id + " [commit=" + request.getCommit() + "]");
         
         // Tell our node to either commit or abort the txn in the FinishRequest
-        if (request.getCommit()) {
-            this.executor.commitWork(txn_id);
-        } else {
-            this.executor.abortWork(txn_id);
-        }
+        // FIXME: Dtxn.FinishRequest needs to tell us what partition to tell to commit/abort
+        for (ExecutionSite executor : this.executors.values()) {
+            if (request.getCommit()) {
+                executor.commitWork(txn_id);
+            } else {
+                executor.abortWork(txn_id);
+            }
+        } // FOR
         
         // Send back a FinishResponse to let them know we're cool with everything...
         Dtxn.FinishResponse.Builder builder = Dtxn.FinishResponse.newBuilder();
         done.run(builder.build());
     }
-    
     
     /**
      * 
@@ -482,12 +520,13 @@ public class HStoreCoordinatorNode extends ExecutionEngine implements VoltProced
                               final String coordinatorHost, final int coordinatorPort) throws Exception {
         final boolean debug = LOG.isDebugEnabled();
         List<Thread> threads = new ArrayList<Thread>();
-        final int partition = hstore_node.getLocalPartition();
+        final Site catalog_site = hstore_node.getSite();
+        final int num_partitions = catalog_site.getPartitions().size();
         
         // ----------------------------------------------------------------------------
         // (1) ProtoServer Thread
         // ----------------------------------------------------------------------------
-        if (debug) LOG.debug(String.format("Launching ProtoServer [partition=%d, port=%d]", partition, execPort));
+        if (debug) LOG.debug(String.format("Launching ProtoServer [site=%d, port=%d]", catalog_site.getId(), execPort));
         final NIOEventLoop execEventLoop = new NIOEventLoop();
         final CountDownLatch execLatch = new CountDownLatch(1);
         execEventLoop.setExitOnSigInt(true);
@@ -504,38 +543,43 @@ public class HStoreCoordinatorNode extends ExecutionEngine implements VoltProced
         // ----------------------------------------------------------------------------
         // (2) DTXN Engine Thread
         // ----------------------------------------------------------------------------
-        if (debug) LOG.debug(String.format("Launching DTXN Engine [partition=%d]", partition));
-        final CountDownLatch dtxnExecLatch = new CountDownLatch(1);
-        threads.add(new Thread() {
-            public void run() {
-                if (debug) LOG.debug("Waiting for ProtoServer to finish start up for Partition #" + partition);
-                try {
-                    execLatch.await();
-                } catch (InterruptedException ex) {
-                    // Silently ignore...
-                    return;
+        if (debug) LOG.debug(String.format("Launching DTXN Engine for %d partitions", num_partitions));
+        final CountDownLatch dtxnExecLatch = new CountDownLatch(num_partitions);
+        
+        // We need one protodtxnengine per partition
+        for (final Partition catalog_part : catalog_site.getPartitions()) {
+            threads.add(new Thread() {
+                public void run() {
+                    int partition = catalog_part.getId();
+                    if (debug) LOG.debug("Waiting for ProtoServer to finish start up for Partition #" + partition);
+                    try {
+                        execLatch.await();
+                    } catch (InterruptedException ex) {
+                        // Silently ignore...
+                        return;
+                    }
+                    
+                    if (debug) LOG.debug("Forking off protodtxnengine for Partition #" + partition);
+                    String[] command = new String[]{
+                        dtxnengine_path,                // protodtxnengine
+                        execHost + ":" + execPort,      // host:port
+                        hstore_conf_path,               // hstore.conf
+                        Integer.toString(partition),    // partition #
+                        "0"                             // ??
+                    };
+                    String ready_msg = "[ready]";
+                    ThreadUtil.forkLatch(command, ready_msg, dtxnExecLatch);
                 }
-                
-                if (debug) LOG.debug("Forking off protodtxnengine for Partition #" + partition);
-                String[] command = new String[]{
-                    dtxnengine_path,                // protodtxnengine
-                    execHost + ":" + execPort,      // host:port
-                    hstore_conf_path,               // hstore.conf
-                    Integer.toString(partition),    // partition #
-                    "0"                             // ??
-                };
-                String ready_msg = "[ready]";
-                ThreadUtil.forkLatch(command, ready_msg, dtxnExecLatch);
-            }
-        });
+            });
+        } // FOR (partition)
         
         // ----------------------------------------------------------------------------
         // (4) Procedure Request Listener Thread
         // ----------------------------------------------------------------------------
-        if (partition == 0) {
+        if (catalog_site.getId() == 0) { // FIXME
             threads.add(new Thread() {
                 public void run() {
-                    if (debug) LOG.debug("Creating connection to coordinator at " + coordinatorHost + ":" + coordinatorPort + " for Partition #" + partition);
+                    if (debug) LOG.debug("Creating connection to coordinator at " + coordinatorHost + ":" + coordinatorPort + " [site=" + catalog_site.getId() + "]");
                     
                     final NIOEventLoop coordinatorEventLoop = new NIOEventLoop();
                     coordinatorEventLoop.setExitOnSigInt(true);
@@ -548,12 +592,12 @@ public class HStoreCoordinatorNode extends ExecutionEngine implements VoltProced
                     hstore_node.setDtxnCoordinator(stub);
                     VoltProcedureListener voltListener = new VoltProcedureListener(coordinatorEventLoop, hstore_node);
                     voltListener.bind();
-                    LOG.info("HStoreCoordinatorNode is ready for action [partition=" + partition + "]");
+                    LOG.info("HStoreCoordinatorNode is ready for action [site=" + catalog_site.getId() + ", VoltProcedureListener=true]");
                     coordinatorEventLoop.run();
                 };
             });
         } else {
-            LOG.info("HStoreCoordinatorNode is ready for action [partition=" + partition + "]");
+            LOG.info("HStoreCoordinatorNode is ready for action [site=" + catalog_site.getId() + ", VoltProcedureListener=false]");
         }
 
         // Blocks!
@@ -576,13 +620,13 @@ public class HStoreCoordinatorNode extends ExecutionEngine implements VoltProced
                      ArgumentsParser.PARAM_COORDINATOR_PORT,
                      ArgumentsParser.PARAM_NODE_HOST,
                      ArgumentsParser.PARAM_NODE_PORT,
-                     ArgumentsParser.PARAM_NODE_PARTITION,
+                     ArgumentsParser.PARAM_NODE_SITE,
                      ArgumentsParser.PARAM_DTXN_CONF,
                      ArgumentsParser.PARAM_DTXN_ENGINE
         );
 
         // HStoreNode Stuff
-        final int local_partition = args.getIntParam(ArgumentsParser.PARAM_NODE_PARTITION);
+        final int site_id = args.getIntParam(ArgumentsParser.PARAM_NODE_SITE);
         final String nodeHost = args.getParam(ArgumentsParser.PARAM_NODE_HOST);
         final int nodePort = args.getIntParam(ArgumentsParser.PARAM_NODE_PORT);
 
@@ -590,23 +634,19 @@ public class HStoreCoordinatorNode extends ExecutionEngine implements VoltProced
         final String coordinatorHost = args.getParam(ArgumentsParser.PARAM_COORDINATOR_HOST);
         final int coordinatorPort = args.getIntParam(ArgumentsParser.PARAM_COORDINATOR_PORT);
         
-        // Initialize TransactionEstimator stuff
-        // Load the Markov models if we were given an input path and pass them to t_estimator
-        // HACK: For now we have to create a TransactionEstimator for all partitions, since
-        // it is written under the assumption that it was going to be running at just a single partition
-        // I'm not proud of this...
-        // Load in all the partition-specific TransactionEstimators and ExecutionSites in order to 
-        // stick them into the HStoreCoordinator
-        LOG.debug("Creating Partition + Transaction Estimator for Partition #" + local_partition);
+        // For every partition in our local site, we want to setup a new ExecutionSite
+        // Thankfully I had enough sense to have PartitionEstimator take in the local partition
+        // as a parameter, so we can share a single instance across all ExecutionSites
+        Site catalog_site = CatalogUtil.getSiteFromId(args.catalog_db, site_id);
         PartitionEstimator p_estimator = new PartitionEstimator(args.catalog_db, args.hasher);
-        Map<Integer, Map<Procedure, MarkovGraph>> markovs = null;
-        TransactionEstimator t_estimator = new TransactionEstimator(local_partition, p_estimator, args.param_correlations);
+        Map<Integer, ExecutionSite> executors = new HashMap<Integer, ExecutionSite>();
 
+        // MarkovGraphs
+        Map<Integer, Map<Procedure, MarkovGraph>> markovs = null;
         if (args.hasParam(ArgumentsParser.PARAM_MARKOV)) {
             File path = new File(args.getParam(ArgumentsParser.PARAM_MARKOV));
             if (path.exists()) {
                 markovs = MarkovUtil.load(args.catalog_db, path.getAbsolutePath(), CatalogUtil.getAllPartitionIds(args.catalog_db));
-                t_estimator.addMarkovGraphs(markovs.get(local_partition));
             } else {
                 LOG.warn("The Markov Graphs file '" + path + "' does not exist");
             }
@@ -616,28 +656,49 @@ public class HStoreCoordinatorNode extends ExecutionEngine implements VoltProced
         if (args.hasParam(ArgumentsParser.PARAM_WORKLOAD_OUTPUT)) {
             ProcedureProfiler.profilingLevel = ProcedureProfiler.Level.INTRUSIVE;
             String traceClass = WorkloadTraceFileOutput.class.getName();
-            String tracePath = args.getParam(ArgumentsParser.PARAM_WORKLOAD_OUTPUT) + ".hstorenode-" + local_partition;
+            String tracePath = args.getParam(ArgumentsParser.PARAM_WORKLOAD_OUTPUT) + ".hstorenode-" + site_id;
             String traceIgnore = args.getParam(ArgumentsParser.PARAM_WORKLOAD_PROC_EXCLUDE);
             ProcedureProfiler.initializeWorkloadTrace(args.catalog, traceClass, tracePath, traceIgnore);
             
-            // For each HStoreNode, we need to make sure that the trace ids start at our offset
+            // For each HStoreCoordinatorNode, we need to make sure that the trace ids start at our offset
             // This will allow us to merge multiple traces together for a benchmark single-run
-            long start_id = (local_partition + 1) * 100000l;
+            long start_id = (site_id + 1) * 100000l;
             AbstractTraceElement.setStartingId(start_id);
             
             LOG.info("Enabled workload logging '" + tracePath + "' with trace id offset " + start_id);
         }
         
-        // setup the EE
-        LOG.debug("Creating ExecutionSite for Partition #" + local_partition);
-        ExecutionSite executor = new ExecutionSite(
-                local_partition,
-                args.catalog,
-                BackendTarget.NATIVE_EE_JNI, // BackendTarget.NULL,
-                false,
-                p_estimator,
-                t_estimator);
-        HStoreCoordinatorNode node = new HStoreCoordinatorNode(executor, p_estimator, t_estimator);
+        // Partition Initialization
+        for (Partition catalog_part : catalog_site.getPartitions()) {
+            int local_partition = catalog_part.getId();
+
+            // Initialize TransactionEstimator stuff
+            // Load the Markov models if we were given an input path and pass them to t_estimator
+            // HACK: For now we have to create a TransactionEstimator for all partitions, since
+            // it is written under the assumption that it was going to be running at just a single partition
+            // I'm not proud of this...
+            // Load in all the partition-specific TransactionEstimators and ExecutionSites in order to 
+            // stick them into the HStoreCoordinator
+            LOG.debug("Creating Estimator for Site #" + local_partition);
+            TransactionEstimator t_estimator = new TransactionEstimator(local_partition, p_estimator, args.param_correlations);
+            if (markovs != null) {
+                t_estimator.addMarkovGraphs(markovs.get(local_partition));
+            }
+
+            // setup the EE
+            LOG.debug("Creating ExecutionSite for Partition #" + local_partition);
+            ExecutionSite executor = new ExecutionSite(
+                    local_partition,
+                    args.catalog,
+                    BackendTarget.NATIVE_EE_JNI, // BackendTarget.NULL,
+                    p_estimator,
+                    t_estimator);
+            executors.put(local_partition, executor);
+        } // FOR
+        
+        // Now we need to create an HStoreMessenger and pass it to all of our ExecutionSites
+            
+        HStoreCoordinatorNode node = new HStoreCoordinatorNode(catalog_site, executors, p_estimator);
         node.setEstimationThresholds(args.thresholds); // may be null...
         
         // Status Monitor

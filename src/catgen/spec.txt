@@ -44,13 +44,12 @@ begin Partition       "A logical, replicate-able partition"
 end
 
 begin Site             "A physical execution context for the system"
-  bool  isexec         "Does the site execute workunits?"
-  Host? host           "Which host does the site belong to?"
-  Partition? partition "Which logical data partition does this host process?"
-  int initiatorid      "If the site is an initiator, this is its tightly packed id"
-  bool isUp            "Is the site up?"
-  int port             "Yeah, you know what this is"
-  int messenger_port   "Inbound port for receiving data messages"
+   int id               "Site Id"
+   Host? host           "Which host does the site belong to?"
+   Partition* partitions "Which logical data partition does this host process?"
+   bool isUp            "Is the site up?"
+   int port             "Yeah, you know what this is"
+   int messenger_port   "Inbound port for receiving data messages"
 end
 
 begin Database          "A set of schema, procedures and other metadata that together comprise an application"

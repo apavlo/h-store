@@ -132,12 +132,6 @@ public abstract class VoltProcedure {
     protected AbstractHasher hasher;
     protected PartitionEstimator p_estimator;
     
-    // Ok so this is important. We have the "local_partition", which may or may not 
-    // be a real partition. For example, if we are running this VoltProcedure at the
-    // HStoreCoordinator, then the local partition is going to fake. Thus, we also
-    // have to a "selected_local_partition" which we will use with the BatchPlanner
-    // so that FragmentTaskMessages that need local data will use the same partition every round
-    protected boolean is_coordinator = false;
     protected Integer local_partition;
     protected Integer selected_local_partition;
     
@@ -225,9 +219,8 @@ public abstract class VoltProcedure {
         this.hsql = hsql;
         this.m_cluster = cluster;
 
-        this.local_partition = (local_partition != null ? local_partition : this.m_site.site.getPartition().getId());
-        this.is_coordinator = this.m_site.isCoordinator();
-        this.selected_local_partition = (this.is_coordinator ? null : this.local_partition);
+        this.local_partition = this.m_site.getPartitionId();
+        this.selected_local_partition = this.local_partition;
         
         this.p_estimator = p_estimator;
         this.hasher = this.p_estimator.getHasher();
@@ -491,9 +484,6 @@ public abstract class VoltProcedure {
         // Select a local_partition to use if we're on the coordinator, otherwise
         // just use the real partition. We shouldn't have to do this once Evan gets it
         // so that we can have a coordinator on each node
-        if (this.is_coordinator) {
-            this.selected_local_partition = CatalogUtil.getRandomPartition(catProc);
-        }
         assert(this.selected_local_partition != null);
 
         //lastBatchNeedsRollback = false;
@@ -978,7 +968,7 @@ public abstract class VoltProcedure {
         final Integer batchHashCode = VoltProcedure.getBatchHashCode(batchStmts, batchSize);
         BatchPlanner planner = this.batch_planners.get(batchHashCode);
         if (planner == null) {
-            planner = new BatchPlanner(batchStmts, batchSize, this.catProc, this.p_estimator, this.m_site.getInitiatorId());
+            planner = new BatchPlanner(batchStmts, batchSize, this.catProc, this.p_estimator, this.local_partition);
             this.batch_planners.put(batchHashCode, planner);
         }
         assert(planner != null);
@@ -1226,8 +1216,7 @@ public abstract class VoltProcedure {
         @Override
         protected void updateStatsRow(Object rowKey, Object rowValues[]) {
             super.updateStatsRow(rowKey, rowValues);
-            rowValues[columnNameToIndex.get("PARTITION_ID")] =
-                m_site.getCorrespondingPartitionId();
+            rowValues[columnNameToIndex.get("PARTITION_ID")] = m_site.getPartitionId();
             rowValues[columnNameToIndex.get("PROCEDURE")] = catProc.getClassname();
             long invocations = m_invocations;
             long totalTimedExecutionTime = m_totalTimedExecutionTime;

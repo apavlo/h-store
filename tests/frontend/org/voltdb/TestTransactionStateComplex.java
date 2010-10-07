@@ -54,7 +54,7 @@ public class TestTransactionStateComplex extends BaseTestCase {
     private class MockExecutionSite extends ExecutionSite {
         
         public MockExecutionSite(int partition_id, Catalog catalog, PartitionEstimator p_estimator) {
-            super(partition_id, catalog, BACKEND_TARGET, true, p_estimator, null);
+            super(partition_id, catalog, BACKEND_TARGET, p_estimator, null);
         }
         
         @Override

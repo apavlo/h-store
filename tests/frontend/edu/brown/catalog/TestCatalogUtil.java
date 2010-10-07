@@ -394,9 +394,11 @@ public class TestCatalogUtil extends BaseTestCase {
         for (Host catalog_host : cluster.getHosts()) {
             host_partitions.put(catalog_host, new HashSet<Partition>());
             for (Site catalog_site : CatalogUtil.getSitesForHost(catalog_host)) {
-                host_partitions.get(catalog_host).add(catalog_site.getPartition());
-            }
-        }
+                for (Partition catalog_part : catalog_site.getPartitions()) {
+                    host_partitions.get(catalog_host).add(catalog_part);    
+                } // FOR
+            } // FOR
+        } // FOR
         
         for (Host catalog_host : host_partitions.keySet()) {
             Set<Partition> partitions = host_partitions.get(catalog_host);

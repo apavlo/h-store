@@ -20,6 +20,7 @@ import org.voltdb.VoltDB;
 import org.voltdb.catalog.Catalog;
 import org.voltdb.catalog.Cluster;
 import org.voltdb.catalog.Host;
+import org.voltdb.catalog.Partition;
 import org.voltdb.catalog.Site;
 
 public class ClusterCompiler
@@ -70,14 +71,13 @@ public class ClusterCompiler
             Site site = cluster.getSites().add(String.valueOf(siteId));
 
             if (withinHostId >= initiatorsPerHost) {
-                site.setIsexec(true);
                 // serially assign partitions to execution sites.
-                site.setPartition(cluster.getPartitions().get(
-                        String.valueOf((++partitionCounter) % partitionCount)));
+                Partition part = cluster.getPartitions().get(
+                        String.valueOf((++partitionCounter) % partitionCount));
+                site.getPartitions().addObject(part);
             }
             else {
-                site.setInitiatorid(nextInitiatorId++);
-                site.setIsexec(false);
+                site.setId(nextInitiatorId++);
             }
             site.setHost(host);
             site.setIsup(true);
