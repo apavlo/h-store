@@ -18,6 +18,7 @@ import edu.brown.benchmark.tpce.TPCEProjectBuilder;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.catalog.FixCatalog;
 import edu.brown.catalog.ParametersUtil;
+import edu.brown.catalog.FixCatalog.ClusterConfiguration;
 import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.FileUtil;
 import edu.brown.utils.PartitionEstimator;
@@ -206,16 +207,12 @@ public abstract class BaseTestCase extends TestCase {
         // HACK! If we already have this many partitions in the catalog, then we won't recreate it
         // This fixes problems where we need to reference the same catalog objects in multiple test cases
         if (CatalogUtil.getNumberOfPartitions(catalog_db) != num_partitions) {
-            Vector<String[]> triplets = new Vector<String[]>();
+            ClusterConfiguration cc = new ClusterConfiguration();
             for (Integer i = 0; i < num_partitions; i++) {
-                triplets.add(new String[] {
-                    "localhost",
-                    Integer.toString(1000 + i),
-                    i.toString(),
-                });
-                System.err.println("[" + i + "] " + Arrays.toString(triplets.lastElement()));
+                cc.addPartition("localhost", 1000+1, 0, i);
+                // System.err.println("[" + i + "] " + Arrays.toString(triplets.lastElement()));
             } // FOR
-            catalog = FixCatalog.addHostInfo(catalog, triplets);
+            catalog = FixCatalog.addHostInfo(catalog, cc);
             this.init(this.last_type, catalog);
             
         }
