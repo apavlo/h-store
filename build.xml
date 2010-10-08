@@ -2164,8 +2164,6 @@ H-STORE REMIX
         <jvmarg value="-Xcheck:jni" />
         <arg value="catalog.jar=${jar}" />
         <arg value="node.site=${node.site}" />
-        <arg value="node.host=${hstore.defaulthost}" />
-        <arg value="node.port=${node.port}" />
         <arg value="coordinator.host=${coordinator.host}" />
         <arg value="coordinator.port=${coordinator.port}" />
         <arg value="dtxn.conf=${build.dtxn.dir}/hstore.conf" />
@@ -2278,7 +2276,7 @@ H-STORE REMIX
     <antcall target="catalog-fix">
         <param name="jar" value="${project}.jar" />
         <param name="correlations" value="./files/correlations/${project}.correlations" />
-        <param name="hosts" value="${hstore.defaulthost}:33330:0:0,${hstore.defaulthost}:33331:0:1" />
+        <param name="hosts" value="${hstore.defaulthost}:0:0,${hstore.defaulthost}:1:1" />
     </antcall>
 </target>
 
@@ -2293,24 +2291,22 @@ H-STORE REMIX
         <antcall target="hstore-coordinatornode">
             <param name="jar" value="${project}.jar" />
             <param name="node.site" value="0" />
-            <param name="node.port" value="22341" />
             <param name="coordinator.host" value="${hstore.defaulthost}" />
             <param name="coordinator.port" value="12348" />
             <param name="markov" value="./files/markovs/${project}.markovs" />
             <param name="thresholds" value="./files/thresholds/default.thresholds" />
             <param name="correlations" value="./files/correlations/${project}.correlations" />
         </antcall>
-<!--        <antcall target="hstore-coordinatornode">
+        <antcall target="hstore-coordinatornode">
             <param name="jar" value="${project}.jar" />
             <param name="node.site" value="1" />
-            <param name="node.port" value="22342" />
             <param name="coordinator.host" value="${hstore.defaulthost}" />
             <param name="coordinator.port" value="12348" />
             <param name="markov" value="./files/markovs/${project}.markovs" />
             <param name="thresholds" value="./files/thresholds/default.thresholds" />
             <param name="correlations" value="./files/correlations/${project}.correlations" />
-        </antcall>-->
-<!--        <sequential>
+        </antcall>
+        <sequential>
             <sleep seconds="18" />
             <exec executable="./scripts/runner.sh" failonerror="true">
                 <arg line="${project}" />
@@ -2324,7 +2320,7 @@ H-STORE REMIX
                 <arg line="killprotodtxn" />
                 <arg line="blocking" />
             </exec>
-        </sequential>-->
+        </sequential>
     </parallel>
 </target>
 

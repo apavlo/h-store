@@ -53,6 +53,7 @@ import edu.brown.markov.TransactionEstimator;
 import edu.brown.utils.PartitionEstimator;
 import edu.mit.dtxn.Dtxn;
 import edu.mit.hstore.HStoreCoordinator;
+import edu.mit.hstore.HStoreCoordinatorNode;
 import edu.mit.hstore.HStoreMessenger;
 import edu.mit.hstore.HStoreNode;
 
@@ -119,8 +120,7 @@ public class ExecutionSite implements Runnable {
     // H-Store Transaction Stuff
     // ----------------------------------------------------------------------------
 
-    protected HStoreNode hstore_node;
-    protected HStoreCoordinator hstore_coordinator;
+    protected HStoreCoordinatorNode hstore_coordinator;
     protected HStoreMessenger hstore_messenger;
 
     // ----------------------------------------------------------------------------
@@ -359,14 +359,14 @@ public class ExecutionSite implements Runnable {
             }
             else if (target == BackendTarget.NATIVE_EE_JNI) {
                 // set up the EE
-                eeTemp = new ExecutionEngineJNI(this, cluster.getRelativeIndex(), partitionId, this.getPartitionId(), this.siteId, "localhost");
+                eeTemp = new ExecutionEngineJNI(this, cluster.getRelativeIndex(), this.getSiteId(), this.getPartitionId(), this.getHostId(), "localhost");
                 eeTemp.loadCatalog(catalog.serialize());
                 lastTickTime = System.currentTimeMillis();
                 eeTemp.tick( lastTickTime, 0);
             }
             else {
                 // set up the EE over IPC
-                eeTemp = new ExecutionEngineIPC(this, cluster.getRelativeIndex(), partitionId, this.getPartitionId(), this.siteId, "localhost", target);
+                eeTemp = new ExecutionEngineIPC(this, cluster.getRelativeIndex(), this.getSiteId(), this.getPartitionId(), this.getHostId(), "localhost", target);
                 eeTemp.loadCatalog(catalog.serialize());
                 lastTickTime = System.currentTimeMillis();
                 eeTemp.tick( lastTickTime, 0);
@@ -400,13 +400,6 @@ public class ExecutionSite implements Runnable {
             }
             this.createVoltProcedures(catalog_proc, pool_size);
         } // FOR
-        
-        // Mark the name of the main thread to be this ExecutionSite
-        Thread current = Thread.currentThread();
-        String current_name = current.getName();
-        if (current_name.equals("main")) {
-            current.setName(this.getThreadName() + "-" + current_name);
-        }
     }
 
     public void tick() {
@@ -464,12 +457,8 @@ public class ExecutionSite implements Runnable {
         this.hstore_messenger = hstore_messenger;
     }
     
-    public void setHStoreCoordinator(HStoreCoordinator hstore_coordinator) {
+    public void setHStoreCoordinatorNode(HStoreCoordinatorNode hstore_coordinator) {
         this.hstore_coordinator = hstore_coordinator;
-    }
-    
-    public void setHStoreNode(HStoreNode hstore_node) {
-        this.hstore_node = hstore_node;
     }
     
     public BackendTarget getBackendTarget() {
@@ -491,7 +480,8 @@ public class ExecutionSite implements Runnable {
     }
     
     public int getHostId() {
-        return Integer.valueOf(getCatalogSite().getHost().getTypeName());
+        return getCatalogSite().getHost().getRelativeIndex();
+        // return Integer.valueOf(getCatalogSite().getHost().getTypeName());
     }
     
     public int getSiteId() {
@@ -531,12 +521,7 @@ public class ExecutionSite implements Runnable {
     }
 
     public String getThreadName() {
-        String name = "ES";
-        
-        if (siteId < 10) name += "0";
-        if (siteId < 100) name += "0";
-//        if (siteId < 1000) name += "0";
-        name += String.valueOf(siteId);
+        String name = String.format("E%03d-%03d", this.getSiteId(), this.getPartitionId());
         return (name);
     }
 
@@ -550,10 +535,9 @@ public class ExecutionSite implements Runnable {
         // bit hackish, sorry
         Thread thread = Thread.currentThread();
         thread.setName(this.getThreadName());
-        
-        // Setup our messenger that we'll use to contact all of our friends
-        assert(this.hstore_messenger == null);
-        
+
+        assert(this.hstore_coordinator != null);
+        assert(this.hstore_messenger != null);
 
         /*
         NDC.push("ExecutionSite - " + siteId + " index " + siteIndex);
@@ -740,10 +724,10 @@ public class ExecutionSite implements Runnable {
         //                      of the transaction in order to get what partitions this thing will touch.
         // TODO(pavlo+evanj): Once we get back these estimations, I need to know who to tell about them.
         
-        TransactionEstimator.Estimate estimate = this.t_estimator.startTransaction(txn_id, volt_proc.getProcedure(), init_work.getParameters());
-        if (estimate != null) {
-            // Do something!!
-        }
+//        TransactionEstimator.Estimate estimate = this.t_estimator.startTransaction(txn_id, volt_proc.getProcedure(), init_work.getParameters());
+//        if (estimate != null) {
+//            // Do something!!
+//        }
         
         // Invoke the VoltProcedure thread to start the transaction
         assert(!this.running_xacts.values().contains(volt_proc));
@@ -1143,7 +1127,9 @@ public class ExecutionSite implements Runnable {
         // get one response back from another executor
         ts.initRound(this.getNextUndoToken());
         List<FragmentTaskMessage> runnable = new ArrayList<FragmentTaskMessage>();
+        boolean all_local = true;
         for (FragmentTaskMessage ftask : tasks) {
+            all_local = all_local && (ftask.getTargetPartition() == this.getPartitionId());
             if (!ts.addFragmentTaskMessage(ftask)) runnable.add(ftask);
         } // FOR
         if (runnable.isEmpty()) {
@@ -1152,13 +1138,13 @@ public class ExecutionSite implements Runnable {
         
         // TODO: Need to figure out when we should be executing things locally versus
         // executing things at remote partitions
-//        if (this.coordinator) {
-//            this.requestWork(ts, runnable);
-//        } else {
-//            for (FragmentTaskMessage task : runnable) {
-//                this.work_queue.add(task);
-//            } // FOR
-//        }
+        if (all_local) {
+            if (trace) LOG.trace("Adding " + runnable.size() + " FragmentTasks to local work queue");
+            this.work_queue.addAll(runnable);
+        } else {
+            if (trace) LOG.trace("Requesting " + runnable.size() + " FragmentTasks to be executed on remote partitions");
+            this.requestWork(ts, runnable);
+        }
 
         CountDownLatch latch = ts.startRound();
         if (trace) LOG.trace("Txn #" + txn_id + " is blocked waiting for " + latch.getCount() + " dependencies");

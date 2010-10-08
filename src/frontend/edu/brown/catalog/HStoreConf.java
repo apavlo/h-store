@@ -29,7 +29,7 @@ public abstract class HStoreConf {
             for (Site catalog_site : host_sites.get(catalog_host)) {
                 if (debug) LOG.debug("  " + catalog_site + ": " + CatalogUtil.debug(catalog_site.getPartitions()));
                 for (Partition catalog_part : catalog_site.getPartitions()) {
-                    String hostinfo = catalog_host.getIpaddr() + " " + catalog_site.getPort();
+                    String hostinfo = catalog_host.getIpaddr() + " " + catalog_part.getDtxn_port();
                     sorted_output.put(catalog_part.getId(), hostinfo);    
                 }
             } // FOR

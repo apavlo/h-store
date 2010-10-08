@@ -503,7 +503,7 @@ public class HStoreCoordinator implements VoltProcedureListener.Handler {
                                             BackendTarget.NATIVE_EE_JNI, // BackendTarget.NULL,
                                             p_estimator,
                                             t_estimator);
-            executor.setHStoreCoordinator(coordinator);
+            // executor.setHStoreCoordinator(coordinator);
             executors.put(partition, executor);
         } // FOR                                
         coordinator.setEstimationThresholds(args.thresholds); // may be null...

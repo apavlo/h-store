@@ -20,6 +20,8 @@ import org.voltdb.catalog.Partition;
 import org.voltdb.catalog.Site;
 import org.voltdb.messaging.FastDeserializer;
 import org.voltdb.messaging.FastSerializer;
+import org.voltdb.utils.DBBPool;
+import org.voltdb.utils.DBBPool.BBContainer;
 
 import com.google.protobuf.ByteString;
 import com.google.protobuf.RpcCallback;
@@ -48,8 +50,9 @@ public class HStoreMessenger {
     
     private final Map<Integer, ExecutionSite> executors;
     private final Site catalog_site;
-    private final Set<Integer> local_partitions;
+    private final Set<Integer> local_partitions = new HashSet<Integer>();
     private final NIOEventLoop eventLoop = new NIOEventLoop();
+    private final DBBPool buffer_pool = new DBBPool(true, true);
     
     /**
      * PartitionId -> SiteId
@@ -65,8 +68,11 @@ public class HStoreMessenger {
     public HStoreMessenger(Map<Integer, ExecutionSite> executors, Site catalog_site) {
         this.executors = executors;
         this.catalog_site = catalog_site;
-        this.local_partitions = CatalogUtil.getLocalPartitionIds(CatalogUtil.getDatabase(catalog_site),
-                                                                 CollectionUtil.getFirst(catalog_site.getPartitions()).getId());
+        
+        for (Partition catalog_part : this.catalog_site.getPartitions()) {
+            this.local_partitions.add(catalog_part.getId());
+        } // FOR
+        LOG.info("Local Partitions: " + this.local_partitions);
         
         this.listener = new ProtoServer(eventLoop);
         this.handler = new Handler();
@@ -104,9 +110,10 @@ public class HStoreMessenger {
         Database catalog_db = CatalogUtil.getDatabase(this.catalog_site);
         
         // Find all the destinations we need to connect to
-        if (debug) LOG.debug("Configuring outbound network connections");
+        if (debug) LOG.debug("Configuring outbound network connections for Site #" + this.catalog_site.getId());
         Map<Host, Set<Site>> host_partitions = CatalogUtil.getSitesPerHost(catalog_db);
-        Integer local_port = null;
+        Integer local_port = this.catalog_site.getMessenger_port();
+        
         ArrayList<Integer> site_ids = new ArrayList<Integer>();
         ArrayList<InetSocketAddress> destinations = new ArrayList<InetSocketAddress>();
         for (Entry<Host, Set<Site>> e : host_partitions.entrySet()) {
@@ -114,10 +121,7 @@ public class HStoreMessenger {
             for (Site catalog_site : e.getValue()) {
                 int site_id = catalog_site.getId();
                 int port = catalog_site.getMessenger_port();
-                if (site_id == this.catalog_site.getId()) {
-                    local_port = port;
-                    continue;
-                } else {
+                if (site_id != this.catalog_site.getId()) {
                     LOG.debug("Creating RpcChannel to " + host + ":" + port + " for site #" + site_id);
                     destinations.add(new InetSocketAddress(host, port));
                     site_ids.add(site_id);
@@ -136,12 +140,16 @@ public class HStoreMessenger {
         this.listener.bind(local_port);
 
         // Make the outbound connections
-        if (debug) LOG.debug("Connecting to remote nodes");
-        ProtoRpcChannel[] channels = ProtoRpcChannel.connectParallel(
-                this.eventLoop, destinations.toArray(new InetSocketAddress[]{}));
-        assert channels.length == site_ids.size();
-        for (int i = 0; i < site_ids.size(); i++) {
-            this.channels.put(site_ids.get(i), HStoreService.newStub(channels[i]));
+        if (destinations.isEmpty()) {
+            if (debug) LOG.debug("There are no remote sites so we are skipping creating connections");
+        } else {
+            if (debug) LOG.debug("Connecting to " + destinations.size() + " remote sites");
+            ProtoRpcChannel[] channels = ProtoRpcChannel.connectParallel(
+                    this.eventLoop, destinations.toArray(new InetSocketAddress[]{}));
+            assert channels.length == site_ids.size();
+            for (int i = 0; i < site_ids.size(); i++) {
+                this.channels.put(site_ids.get(i), HStoreService.newStub(channels[i]));
+            } // FOR
         }
     }
     
@@ -274,11 +282,15 @@ public class HStoreMessenger {
      * @param dset
      */
     public void sendDependencySet(long txn_id, int sender_partition_id, int dest_partition_id, DependencySet dset) {
+        assert(dset != null);
+        
         // Local Transfer
         if (this.local_partitions.contains(dest_partition_id)) {
             LOG.debug("Transfering " + dset.size() + " dependencies directly from partition #" + sender_partition_id + " to partition #" + dest_partition_id);
             for (int i = 0, cnt = dset.size(); i < cnt; i++) {
-                this.executors.get(dest_partition_id).storeDependency(txn_id, dest_partition_id, dset.depIds[i], dset.dependencies[i]);
+                ExecutionSite executor = this.executors.get(dest_partition_id);
+                assert(executor != null) : "Unexpected null ExecutionSite for Partition #" + dest_partition_id + " on Site #" + catalog_site.getId();
+                executor.storeDependency(txn_id, dest_partition_id, dset.depIds[i], dset.dependencies[i]);
             } // FOR
         // Remote Transfer
         } else {
@@ -291,13 +303,15 @@ public class HStoreMessenger {
             // Serialize DependencySet
             List<Hstore.FragmentDependency> dependencies = new ArrayList<Hstore.FragmentDependency>();
             for (int i = 0, cnt = dset.size(); i < cnt; i++) {
-                FastSerializer fs = new FastSerializer();
+                FastSerializer fs = new FastSerializer(this.buffer_pool);
                 try {
                     fs.writeObject(dset.dependencies[i]);
                 } catch (Exception ex) {
                     LOG.fatal("Failed to serialize DependencyId #" + dset.depIds[i], ex);
                 }
-                ByteString bs = ByteString.copyFrom(fs.getBuffer().array());
+                BBContainer bc = fs.getBBContainer();
+                assert(bc.b.hasArray());
+                ByteString bs = ByteString.copyFrom(bc.b);
                 
                 Hstore.FragmentDependency fd = Hstore.FragmentDependency.newBuilder()
                                                         .setDependencyId(dset.depIds[i])

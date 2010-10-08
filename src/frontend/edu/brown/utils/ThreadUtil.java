@@ -18,6 +18,8 @@ public abstract class ThreadUtil {
      * @param latch
      */
     public static void forkLatch(String command[], String match, final CountDownLatch latch) {
+        LOG.debug("Forking off process: " + Arrays.toString(command));
+
         // Copied from ShellTools
         ProcessBuilder pb = new ProcessBuilder(command);
         pb.redirectErrorStream(true);
@@ -93,7 +95,7 @@ public abstract class ThreadUtil {
                     thread.join(sleep);
                     if (!thread.isAlive()) {
                         running.remove(i);
-                        LOG.debug("Thread " + thread + " is complete");
+                        LOG.debug(thread + " is complete");
                         LOG.debug("Running=" + running.size() + ", Waiting=" + threads.size() + ", Available=" + (max_concurrent - running.size()));
                         break;
                     }
