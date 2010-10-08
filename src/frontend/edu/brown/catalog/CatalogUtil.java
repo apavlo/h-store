@@ -3,6 +3,8 @@ package edu.brown.catalog;
 import java.io.*;
 import java.util.*;
 
+import org.apache.commons.collections15.map.ListOrderedMap;
+import org.apache.commons.collections15.set.ListOrderedSet;
 import org.apache.log4j.Logger;
 
 import org.json.*;
@@ -114,7 +116,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
      */
     public static int getNumberOfPartitions(CatalogType catalog_item) {
         Cluster catalog_clus = CatalogUtil.getCluster(catalog_item);
-        int ret = catalog_clus.getPartitions().size();
+        int ret = catalog_clus.getNum_partitions();
         assert(ret > 0);
         return (ret);
     }
@@ -128,40 +130,50 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
         return (rand.nextInt(CatalogUtil.getNumberOfPartitions(catalog_item))); 
     }
     
-    public static Iterable<Partition> getAllPartitions(CatalogType catalog_item) {
-        Cluster catalog_clus = CatalogUtil.getCluster(catalog_item);
-        return (catalog_clus.getPartitions());
+    public static Partition getPartitionById(CatalogType catalog_item, Integer id) {
+        if (CACHE_ALL_PARTITIONS.isEmpty()) {
+            CatalogUtil.getAllPartitions(catalog_item);
+        }
+        return (CACHE_ALL_PARTITIONS.get(id));
     }
+    
+    public static Collection<Partition> getAllPartitions(CatalogType catalog_item) {
+        Cluster catalog_clus = CatalogUtil.getCluster(catalog_item);
+        
+        if (CACHE_ALL_PARTITIONS.isEmpty()) {
+            for (Site catalog_site : catalog_clus.getSites()) {
+                for (Partition catalog_part : catalog_site.getPartitions()) {
+                    CACHE_ALL_PARTITIONS.put(catalog_part.getId(), catalog_part);
+                } // FOR
+            } // FOR
+        }
+        return (Collections.unmodifiableCollection(CACHE_ALL_PARTITIONS.values()));
+    }
+    private static final ListOrderedMap<Integer, Partition> CACHE_ALL_PARTITIONS = new ListOrderedMap<Integer, Partition>();
     
     /**
      * Get a new list of all the partition ids in this catalog
      * @return
      */
     public static List<Integer> getAllPartitionIds(CatalogType catalog_item) {
-        Cluster catalog_clus = CatalogUtil.getCluster(catalog_item);
-        if (!CACHE_ALL_PARTITIONS.containsKey(catalog_clus)) {
-            int num_partitions = catalog_clus.getPartitions().size();
-            List<Integer> partitions = new ArrayList<Integer>();
-            for (Partition catalog_part : catalog_clus.getPartitions()) {
-                partitions.add(catalog_part.getId());
-            } // FOR
-            assert(partitions.size() == num_partitions);
-            CACHE_ALL_PARTITIONS.put(catalog_clus, Collections.unmodifiableList(partitions));
-            LOG.debug("CATALOG PARTITIONS: " + CACHE_ALL_PARTITIONS.get(num_partitions));
+        if (CACHE_ALL_PARTITIONS.isEmpty()) {
+            CatalogUtil.getAllPartitions(catalog_item);
         }
-        return (CACHE_ALL_PARTITIONS.get(catalog_clus));
+        return (Collections.unmodifiableList(CACHE_ALL_PARTITIONS.asList()));
     }
-    private static final Map<Cluster, List<Integer>> CACHE_ALL_PARTITIONS = new HashMap<Cluster, List<Integer>>();  
     
     /**
      * Get a mapping of partitions for each host. We have to return the Site objects
      * in order to get the Partition handle that we want
      * @return
      */
-    public static Map<Host, Set<Site>> getHostPartitions(CatalogType catalog_item) {
-        if (CACHE_HOST_PARTITIONS.isEmpty()) {
+    public static Map<Host, Set<Site>> getSitesPerHost(CatalogType catalog_item) {
+        final Catalog catalog = catalog_item.getCatalog();
+        Map<Host, Set<Site>> ret = CACHE_HOST_SITES.get(catalog);
+        
+        if (ret == null) {
             Cluster catalog_clus = CatalogUtil.getCluster(catalog_item);
-            Map<Host, Set<Site>> temp = new HashMap<Host, Set<Site>>();
+            ret = new HashMap<Host, Set<Site>>();
             
             final Comparator<Site> comparator = new Comparator<Site>() {
                 @Override
@@ -172,18 +184,20 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
             
             for (Site catalog_site : catalog_clus.getSites()) {
                 Host catalog_host = catalog_site.getHost();
-                if (!temp.containsKey(catalog_host)) {
-                    temp.put(catalog_host, new TreeSet<Site>(comparator));
+                if (!ret.containsKey(catalog_host)) {
+                    ret.put(catalog_host, new TreeSet<Site>(comparator));
                 }
-                temp.get(catalog_host).add(catalog_site);
+                ret.get(catalog_host).add(catalog_site);
+                LOG.debug(catalog_host + " => " + catalog_site);
             } // FOR
-            assert(temp.size() == catalog_clus.getHosts().size());
-            CACHE_HOST_PARTITIONS = Collections.unmodifiableMap(temp);
-            LOG.debug("HOST PARTITIONS: " + CACHE_HOST_PARTITIONS);
+            assert(ret.size() == catalog_clus.getHosts().size());
+            ret = Collections.unmodifiableMap(ret);
+            CACHE_HOST_SITES.put(catalog, ret);
+            LOG.debug("HOST SITES: " + ret);
         }
-        return (CACHE_HOST_PARTITIONS);
+        return (ret);
     }
-    private static Map<Host, Set<Site>> CACHE_HOST_PARTITIONS = new HashMap<Host, Set<Site>>();
+    private static final Map<Catalog, Map<Host, Set<Site>>> CACHE_HOST_SITES = new HashMap<Catalog, Map<Host, Set<Site>>>();
     
     /**
      * For a given VoltTable object, return the matching Table catalog object based
@@ -323,7 +337,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
                 } else if (element instanceof Cluster) {
                     children.addAfter(((Cluster)element).getDatabases().values());
                     children.addAfter(((Cluster)element).getHosts().values());
-                    children.addAfter(((Cluster)element).getPartitions().values());
+//                    children.addAfter(((Cluster)element).getPartitions().values());
                     children.addAfter(((Cluster)element).getSites().values());
                     //children.addAfter(((Cluster)element).getElhosts().values());
                 } else if (element instanceof Database) {
@@ -791,6 +805,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
      */
     public static Cluster getCluster(CatalogType catalog_item) {
         assert(catalog_item != null) : "Null Catalog Item!";
+        if (catalog_item instanceof Cluster) return ((Cluster)catalog_item);
         Catalog catalog = catalog_item.getCatalog();
         assert(catalog != null); 
         return (catalog.getClusters().get(DEFAULT_CLUSTER_NAME));
@@ -1252,7 +1267,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
         //
         Cluster catalog_clus = CatalogUtil.getCluster(catalog_db);
         assert(catalog_clus != null);
-        Partition catalog_part = catalog_clus.getPartitions().get("id", base_partition);
+        Partition catalog_part = CatalogUtil.getPartitionById(catalog_clus, base_partition);
         assert(catalog_part != null);
         
         //
@@ -1298,21 +1313,30 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
         return (ret);
     }
 
-    
+    /**
+     * Return a string representation of this CatalogType handle
+     * @param catalog_item
+     * @return
+     */
     public static String debug(CatalogType catalog_item) {
         StringBuilder buffer = new StringBuilder();
         buffer.append(catalog_item.toString()).append("\n");
-        for (String field : catalog_item.getFields()) {
-            Object value = catalog_item.getField(field);
-            buffer.append("  ")
-                  .append(field)
-                  .append(":\t");
-            if (value instanceof CatalogMap) {
-                buffer.append(CatalogUtil.debug((CatalogMap<? extends CatalogType>)value));
+        Set<String> fields = new HashSet<String>();
+        fields.addAll(catalog_item.getFields());
+        fields.addAll(catalog_item.getChildFields());
+        
+        for (String field : fields) {
+            String value = null;
+            if (catalog_item.getChildFields().contains(field)) {
+                value = CatalogUtil.debug(catalog_item.getChildren(field));
             } else {
-                buffer.append(value);
+                value = catalog_item.getField(field).toString();
             }
-            buffer.append("\n");
+                    
+            buffer.append("  ")
+                  .append(String.format("%-20s", field + ":"))
+                  .append(value)
+                  .append("\n");
         } // FOR
         return (buffer.toString());
     }

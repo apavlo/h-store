@@ -40,6 +40,8 @@ import org.voltdb.messaging.HostMessenger;
 import org.voltdb.messaging.Messenger;
 import org.voltdb.network.VoltNetwork;
 
+import edu.brown.catalog.CatalogUtil;
+
 public class MockVoltDB implements VoltDBInterface
 {
     private final Catalog m_catalog;
@@ -94,10 +96,10 @@ public class MockVoltDB implements VoltDBInterface
         getCluster().getHosts().add(Integer.toString(hostId));
     }
 
-    public void addPartition(int partitionId)
-    {
-        getCluster().getPartitions().add(Integer.toString(partitionId));
-    }
+//    public void addPartition(int partitionId)
+//    {
+//        getCluster().getPartitions().add(Integer.toString(partitionId));
+//    }
 
     public void addSite(int siteId, int hostId, int partitionId, boolean isExec)
     {
@@ -173,7 +175,7 @@ public class MockVoltDB implements VoltDBInterface
 
     Partition getPartition(int partitionId)
     {
-        return getCluster().getPartitions().get(String.valueOf(partitionId));
+        return CatalogUtil.getPartitionById(getCluster(), partitionId);
     }
 
     public Site getSite(int siteId)

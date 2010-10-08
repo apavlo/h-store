@@ -38,7 +38,7 @@ public abstract class TheHashinator {
      */
     public static void initialize(Catalog catalog) {
         Cluster cluster = catalog.getClusters().get("cluster");
-        partitionCount = cluster.getPartitions().size();
+        partitionCount = cluster.getNum_partitions();
     }
 
     /**

@@ -304,7 +304,7 @@ public class ExecutionSite implements Runnable {
      */
     public ExecutionSite(final int partitionId, final Catalog catalog, final BackendTarget target, PartitionEstimator p_estimator, TransactionEstimator t_estimator) {
         this.catalog = catalog;
-        this.partition = CatalogUtil.getCluster(this.catalog).getPartitions().get("id", partitionId);
+        this.partition = CatalogUtil.getPartitionById(this.catalog, partitionId);
         assert(this.partition != null) : "Invalid Partition #" + partitionId;
         this.site = this.partition.getParent();
         assert(site != null) : "Unable to get Site for Partition #" + partitionId;

@@ -32,17 +32,19 @@ import javax.swing.tree.*;
 import java.awt.*;
 import java.awt.event.*;
 import java.util.*;
+import java.util.Map.Entry;
 
+import org.apache.commons.collections15.map.ListOrderedMap;
 import org.voltdb.catalog.*;
 import org.voltdb.catalog.CatalogType.UnresolvedInfo;
 import org.voltdb.plannodes.AbstractPlanNode;
 import org.voltdb.types.*;
-import org.voltdb.utils.CatalogUtil;
 import org.voltdb.utils.Encoder;
 import org.voltdb.*;
 
 import com.sun.tools.javac.util.Pair;
 
+import edu.brown.catalog.CatalogUtil;
 import edu.brown.catalog.QueryPlanUtil;
 import edu.brown.gui.catalog.*;
 import edu.brown.plannodes.PlanNodeUtil;
@@ -125,23 +127,6 @@ public class CatalogViewer extends AbstractViewer {
     public static void main(final String[] vargs) throws Exception {
         final ArgumentsParser args = ArgumentsParser.load(vargs);
         args.require(ArgumentsParser.PARAM_CATALOG);
-        
-        int cols = 0;
-        int fkeys = 0;
-        for (Table t : args.catalog_db.getTables()) {
-            cols += t.getColumns().size();
-            for (Column c : t.getColumns()) {
-                Column fkey = CatalogUtil.getForeignKeyParent(c);
-                if (fkey != null) fkeys++;
-            }
-        }
-        int params = 0;
-        for (Procedure p : args.catalog_db.getProcedures()) {
-            params += p.getParameters().size();
-        }
-        System.err.println("# of Columns: " + cols);
-        System.err.println("# of Fkeys:   " + fkeys);
-        System.err.println("# of Params:  " + params);
         
         javax.swing.SwingUtilities.invokeLater(new Runnable() {
             public void run() {
@@ -227,7 +212,7 @@ public class CatalogViewer extends AbstractViewer {
 				    AttributesNode wrapper = (AttributesNode)user_obj;
 				    new_text += wrapper.getAttributes();
 				} else {
-					// Nothing... CatalogViewer.this.textInfoTextArea.setText("");
+				    new_text += CatalogViewer.this.getSummaryText();
 				}
 				// new_text += "</html>";
 				CatalogViewer.this.textInfoTextArea.setText(new_text);
@@ -246,6 +231,7 @@ public class CatalogViewer extends AbstractViewer {
 		this.textInfoTextArea = new JTextArea();
 		this.textInfoTextArea.setEditable(false);
 		this.textInfoTextArea.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 12));
+		this.textInfoTextArea.setText(this.getSummaryText());
 		this.textInfoTextArea.addFocusListener(new FocusListener() {
             @Override
             public void focusLost(FocusEvent e) {
@@ -372,6 +358,52 @@ public class CatalogViewer extends AbstractViewer {
         verticalScrollBar.setValue(verticalScrollBar.getMinimum());
         horizontalScrollBar.setValue(horizontalScrollBar.getMinimum());
         // System.err.println("VERTICAL=" + verticalScrollBar.getValue() + ", HORIZONTAL=" + horizontalScrollBar.getValue());
+	}
+	
+	/**
+	 * Return text to be used on the summary page
+	 * @return
+	 */
+	protected String getSummaryText() {
+	    StringBuilder buffer = new StringBuilder();
+
+	    buffer.append("Catalog Summary\n").append(StringUtil.repeat("=", 50)).append("\n");
+	    
+        int cols = 0;
+        int fkeys = 0;
+        Cluster catalog_clus = CatalogUtil.getCluster(catalog);
+        Database catalog_db = CatalogUtil.getDatabase(catalog);
+        for (Table t : catalog_db.getTables()) {
+            cols += t.getColumns().size();
+            for (Column c : t.getColumns()) {
+                Column fkey = CatalogUtil.getForeignKeyParent(c);
+                if (fkey != null) fkeys++;
+            }
+        }
+        int params = 0;
+        for (Procedure p : catalog_db.getProcedures()) {
+            params += p.getParameters().size();
+        }
+        
+        final String f = "%-24s%d";
+        Map<String, Integer> m = new ListOrderedMap<String, Integer>();
+        m.put("Tables", catalog_db.getTables().size());
+        m.put("Columns", cols);
+        m.put("FKeys", fkeys);
+        m.put("Params", params);
+        m.put("-", null);
+        m.put("Hosts", catalog_clus.getHosts().size());
+        m.put("Sites", catalog_clus.getSites().size());
+        m.put("Partitions", CatalogUtil.getNumberOfPartitions(catalog_db));
+        
+        for (Entry<String, Integer> e : m.entrySet()) {
+            if (e.getValue() != null) {
+                buffer.append(String.format(f, "Number of " + e.getKey() + ":", e.getValue()));
+            }
+            buffer.append("\n");
+        } // FOR
+	    
+	    return (buffer.toString());
 	}
 	
 	/**

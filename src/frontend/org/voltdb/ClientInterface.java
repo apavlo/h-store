@@ -59,6 +59,8 @@ import org.voltdb.utils.LogKeys;
 import org.voltdb.utils.Pair;
 import org.voltdb.utils.DBBPool.BBContainer;
 
+import edu.brown.catalog.CatalogUtil;
+
 /**
  * Represents VoltDB's connection to client libraries outside the cluster.
  * This class accepts new connections and manages existing connections through
@@ -684,7 +686,7 @@ public class ClientInterface implements DumpManager.Dumpable {
         // create a list of all partitions
         int[] allPartitions = new int[context.numberOfPartitions];
         int index = 0;
-        for (Partition partition : context.cluster.getPartitions())
+        for (Partition partition : CatalogUtil.getAllPartitions(context.cluster))
             allPartitions[index++] = Integer.parseInt(partition.getTypeName());
         assert(index == context.numberOfPartitions);
 
