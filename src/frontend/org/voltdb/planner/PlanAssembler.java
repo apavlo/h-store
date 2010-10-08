@@ -132,7 +132,7 @@ public class PlanAssembler {
         m_context = context;
         m_catalogCluster = catalogCluster;
         m_catalogDb = catalogDb;
-        m_partitionCount = m_catalogCluster.getPartitions().size();
+        m_partitionCount = m_catalogCluster.getNum_partitions();
     }
 
     static void setUseGlobalIds(boolean useGlobalIds) {

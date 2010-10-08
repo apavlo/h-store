@@ -206,20 +206,21 @@ public abstract class BaseTestCase extends TestCase {
         // HACK! If we already have this many partitions in the catalog, then we won't recreate it
         // This fixes problems where we need to reference the same catalog objects in multiple test cases
         if (CatalogUtil.getNumberOfPartitions(catalog_db) != num_partitions) {
-            ArrayList<String[]> triplets = new ArrayList<String[]>();
+            Vector<String[]> triplets = new Vector<String[]>();
             for (Integer i = 0; i < num_partitions; i++) {
                 triplets.add(new String[] {
                     "localhost",
                     Integer.toString(1000 + i),
                     i.toString(),
                 });
+                System.err.println("[" + i + "] " + Arrays.toString(triplets.lastElement()));
             } // FOR
             catalog = FixCatalog.addHostInfo(catalog, triplets);
             this.init(this.last_type, catalog);
             
         }
         Cluster cluster = CatalogUtil.getCluster(catalog_db);
-        assertEquals(num_partitions, cluster.getPartitions().size());
+        assertEquals(num_partitions, cluster.getNum_partitions());
         assertEquals(num_partitions, CatalogUtil.getNumberOfPartitions(cluster));
     }
 

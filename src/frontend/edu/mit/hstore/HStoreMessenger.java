@@ -105,7 +105,7 @@ public class HStoreMessenger {
         
         // Find all the destinations we need to connect to
         if (debug) LOG.debug("Configuring outbound network connections");
-        Map<Host, Set<Site>> host_partitions = CatalogUtil.getHostPartitions(catalog_db);
+        Map<Host, Set<Site>> host_partitions = CatalogUtil.getSitesPerHost(catalog_db);
         Integer local_port = null;
         ArrayList<Integer> site_ids = new ArrayList<Integer>();
         ArrayList<InetSocketAddress> destinations = new ArrayList<InetSocketAddress>();

@@ -113,7 +113,7 @@ public class LoadMultipartitionTable extends VoltSystemProcedure {
         
         VoltTable[] results;
         SynthesizedPlanFragment pfs[];
-        int numPartitions = m_cluster.getPartitions().size();
+        int numPartitions = m_cluster.getNum_partitions();
 
         // if tableName is replicated, just send table everywhere.
         // otherwise, create a VoltTable for each partition and

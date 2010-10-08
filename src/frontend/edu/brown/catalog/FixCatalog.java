@@ -16,8 +16,7 @@ import edu.brown.utils.ProjectType;
 
 
 public abstract class FixCatalog {
-    /** java.util.logging logger. */
-    private static final Logger LOG = Logger.getLogger(FixCatalog.class.getName());
+    private static final Logger LOG = Logger.getLogger(FixCatalog.class);
     
     public static final int HOSTS = 1;
     public static final int HOST_CORES = 2;
@@ -67,79 +66,42 @@ public abstract class FixCatalog {
                 Integer siteid = pair.getSecond();
                 LOG.debug("Adding Site/Partition #" + siteid + " on " + host + ":" + port);
                 
-                Partition catalog_part = catalog_clus.getPartitions().add(siteid.toString());
-                assert(catalog_part != null);
-                catalog_part.setId(siteid);
-                partition_ctr++;
-                
                 Site catalog_site = catalog_clus.getSites().add(siteid.toString());
                 assert(catalog_site != null);
-                catalog_site.getPartitions().addObject(catalog_part);
+                catalog_site.setId(siteid);
                 catalog_site.setHost(catalog_host);
                 catalog_site.setPort(port);
                 catalog_site.setMessenger_port(port + 10000); // HACK!!!
+                
+                Partition catalog_part = catalog_site.getPartitions().add(Integer.toString(partition_ctr));
+                assert(catalog_part != null);
+                catalog_part.setId(siteid);
+                partition_ctr++;
                 
                 ctr++;
             } // FOR
             LOG.debug("Added " + ctr + " partitions for " + catalog_host);
         } // FOR
+        catalog_clus.setNum_partitions(partition_ctr);
         LOG.debug("Updated host information in catalog with " + (host_id-1) + " new hosts and " + partition_ctr + " partitions");
         return (catalog);
     }
     
-    public static Catalog addHostInfo(Catalog orig_catalog, int hosts, int partitions_per_host) {
-        Set<Class<? extends CatalogType>> skipped_types = new HashSet<Class<? extends CatalogType>>();
-        skipped_types.add(Site.class);
-        skipped_types.add(Host.class);
-        skipped_types.add(Partition.class);
+    public static Catalog addHostInfo(Catalog orig_catalog, int num_hosts, int num_partitions_per_host) {
+        int partition_id = 0;
         
-        Catalog catalog = CatalogUtil.cloneBaseCatalog(orig_catalog, skipped_types);
-        Cluster catalog_clus = CatalogUtil.getCluster(catalog);
-        
-        //
-        // Add a bunch of hosts and partitions to this mofo
-        //
-        assert(catalog_clus != null);
-        int partition_id = 1;
-        for (int i = 0; i < hosts; i++) {
-            String name = "host" + i;
-            Host catalog_host = catalog_clus.getHosts().add(name);
-
-            //
-            // Set Attributes
-            //
-            catalog_host.setIpaddr("localhost");
-//            catalog_host.setCores(HOST_CORES);
-//            catalog_host.setMemory(HOST_MEMORY);
-//            catalog_host.setThreadspercore(HOST_THREADS_PER_CORE);
-//            LOG.info("Set ipaddress to " + catalog_host.getIpaddr() + " for " + catalog_host);
-            
-            //
-            // Create a 1-to-1 mapping from Hosts->Sites->Partitions
-            //
-            for (int ii = 0; ii < partitions_per_host; ii++) {
-                String site_name = Integer.toString(partition_id++);
-                Partition catalog_part = catalog_clus.getPartitions().add(site_name);
-                assert(catalog_part != null);
-                
-                Site catalog_site = catalog_clus.getSites().add(site_name);
-                assert(catalog_site != null);
-                catalog_site.getPartitions().addObject(catalog_part);
-                catalog_site.setHost(catalog_host);
+        List<String[]> triplets = new ArrayList<String[]>();
+        for (int host = 0; host < num_hosts; host++) {
+            int port = 33333;
+            for (int partition = 0; partition < num_partitions_per_host; partition++) {
+                triplets.add(new String[] {
+                    String.format("node-%02d", host),
+                    Integer.toString(port++),
+                    Integer.toString(partition_id++)
+                });
             } // FOR
-            
-//            for (int j = 0; j < HOST_CORES; j++) {
-//                for (int k = 0; k < HOST_THREADS_PER_CORE; k++) {
-//                    if (!(i == 0 && j == 0 && k == 0)) {
-//                        String name = "part" + i + "-" + j + "-" + k;
-//                        cluster.getPartitions().add(name);
-//                    }
-//                } // FOR
-//            } // FOR
-            LOG.info("Added " + HOST_CORES + " partitions for " + catalog_host);
         } // FOR
-        LOG.info("Updated host information in catalog by adding " + HOSTS + " hosts");
-        return (catalog);
+        return (FixCatalog.addHostInfo(orig_catalog, triplets));
     }
     
     /**
@@ -231,13 +193,12 @@ public abstract class FixCatalog {
             for (int core_idx = 0; core_idx < host_cores; core_idx++) {
                 for (int thread_idx = 0; thread_idx < host_threads; thread_idx++) {
                     String partition_name = Integer.toString(partition_id); // host + "-" + core_idx + "-" + thread_idx;
-                    Partition catalog_part = cluster.getPartitions().add(partition_name);
-                    catalog_part.setId(partition_id++);
                     Site catalog_site = cluster.getSites().add(partition_name);
                     catalog_site.setHost(catalog_host);
                     catalog_site.setPort(base_port++);
-                    catalog_site.getPartitions().addObject(catalog_part);
                     
+                    Partition catalog_part = catalog_site.getPartitions().add(partition_name);
+                    catalog_part.setId(partition_id++);
                     LOG.info("Created new partition at " + host + ":" + catalog_site.getPort());
                 } // FOR
             } // FOR

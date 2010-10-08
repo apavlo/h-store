@@ -33,8 +33,8 @@ import java.util.Map.Entry;
  */
 public abstract class CatalogType implements Comparable<CatalogType> {
 
-    static class UnresolvedInfo {
-        String path;
+    public static class UnresolvedInfo {
+        public String path;
     }
 
     LinkedHashMap<String, Object> m_fields = new LinkedHashMap<String, Object>();
@@ -50,7 +50,7 @@ public abstract class CatalogType implements Comparable<CatalogType> {
 
     int m_subTreeVersion;
     int m_nodeVersion;
-
+    
     /**
      * Get the parent of this CatalogType instance
      * @return The parent of this CatalogType instance
@@ -67,15 +67,15 @@ public abstract class CatalogType implements Comparable<CatalogType> {
         return m_typename;
     }
     public String getName() {
-        return m_typename;
+        return this.getTypeName();
     }
 
     /**
      * Get the parent of this CatalogType instance
      * @return The parent of this CatalogType instance
      */
-    public CatalogType getParent() {
-        return m_parent;
+    public <T extends CatalogType> T getParent() {
+        return (T)m_parent;
     }
 
     /**
@@ -151,6 +151,10 @@ public abstract class CatalogType implements Comparable<CatalogType> {
     }
 
     abstract void update();
+    
+    public Set<String> getChildFields() {
+        return (m_childCollections.keySet());
+    }
 
     CatalogType addChild(String collectionName, String childName) {
         CatalogMap<? extends CatalogType> map = m_childCollections.get(collectionName);
@@ -159,13 +163,17 @@ public abstract class CatalogType implements Comparable<CatalogType> {
         return map.add(childName);
     }
 
-    CatalogType getChild(String collectionName, String childName) {
+    public CatalogType getChild(String collectionName, String childName) {
         CatalogMap<? extends CatalogType> map = m_childCollections.get(collectionName);
         if (map == null)
             return null;
         return map.get(childName);
     }
-
+    
+    public CatalogMap<? extends CatalogType> getChildren(String collectionName) {
+        return (m_childCollections.get(collectionName));
+    }
+    
     void set(String field, String value) {
         if ((field == null) || (value == null)) {
             throw new CatalogException("Null value where it shouldn't be.");
@@ -315,8 +323,14 @@ public abstract class CatalogType implements Comparable<CatalogType> {
         if (this == o) {
             return 0;
         }
-        // null comparands will throw an exception here:
-        return getPath().compareTo(o.getPath());
+        if (o != null) {
+            if (getPath() == null) {
+                return (this.hashCode() - o.hashCode());
+            } else {
+                return getPath().compareTo(o.getPath());        
+            }
+        }
+        return (1);
     }
 
     CatalogType deepCopy(Catalog catalog, CatalogType parent) {
@@ -364,7 +378,7 @@ public abstract class CatalogType implements Comparable<CatalogType> {
      */
     @Override
     public String toString() {
-        return (this.getClass().getSimpleName() + "{" + m_typename + "}");
+        return (this.getClass().getSimpleName() + "{" + this.getTypeName() + "}");
     }
 
     @Override
@@ -381,28 +395,47 @@ public abstract class CatalogType implements Comparable<CatalogType> {
         // are the fields the same value?
         if (m_fields.size() != other.m_fields.size())
             return false;
-        for (String field : m_fields.keySet()) {
-            if (m_fields.get(field) == null) {
-                if (other.m_fields.get(field) != null)
-                    return false;
+        
+        // SUPER HACK!!!
+        // The only thing that we care about matching up correctly by hash code will be database..
+        if (this instanceof Database) {
+            return (this.hashCode() == other.hashCode());
+        }
+        // Everything else can be about paths...
+        // All of this below is busted, so let's just compare paths if we can...
+        if (this.m_path == null) {
+            String name0 = this.getTypeName();
+            String name1 = other.getTypeName();
+            if (name0 != null) {
+                return (name0.equals(name1));
+            } else if (name1 != null) {
+                return (false);
             }
-            else if (m_fields.get(field).equals(other.m_fields.get(field)) == false)
-                return false;
+            return (other.m_path == null);
         }
-
-        // are the children the same (deep compare)
-        for (String collectionName : m_childCollections.keySet()) {
-            CatalogMap<? extends CatalogType> myMap = m_childCollections.get(collectionName);
-            CatalogMap<? extends CatalogType> otherMap = m_childCollections.get(collectionName);
-
-            // if two types are the same class, this shouldn't happen
-            assert(otherMap != null);
-
-            if (myMap.equals(otherMap) == false)
-                return false;
-        }
-
-        return true;
+        return (this.m_path.equals(other.m_path));
+        
+//        for (String field : m_fields.keySet()) {
+//            if (m_fields.get(field) == null) {
+//                if (other.m_fields.get(field) != null)
+//                    return false;
+//            }
+//            else if (m_fields.get(field).equals(other.m_fields.get(field)) == false)
+//                return false;
+//        }
+//
+//        // are the children the same (deep compare)
+//        for (String collectionName : m_childCollections.keySet()) {
+//            CatalogMap<? extends CatalogType> myMap = m_childCollections.get(collectionName);
+//            CatalogMap<? extends CatalogType> otherMap = m_childCollections.get(collectionName);
+//
+//            // if two types are the same class, this shouldn't happen
+//            assert(otherMap != null);
+//
+//            if (myMap.equals(otherMap) == false)
+//                return false;
+//        }
+//        return true;
     }
 }
 
