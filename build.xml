@@ -2163,7 +2163,7 @@ H-STORE REMIX
         <jvmarg value="-Djava.library.path=${build.dir}/nativelibs" />
         <jvmarg value="-Xcheck:jni" />
         <arg value="catalog.jar=${jar}" />
-        <arg value="node.partition=${partition}" />
+        <arg value="node.site=${node.site}" />
         <arg value="node.host=${hstore.defaulthost}" />
         <arg value="node.port=${node.port}" />
         <arg value="coordinator.host=${coordinator.host}" />
@@ -2278,10 +2278,7 @@ H-STORE REMIX
     <antcall target="catalog-fix">
         <param name="jar" value="${project}.jar" />
         <param name="correlations" value="./files/correlations/${project}.correlations" />
-        <param name="hosts" value="${hstore.defaulthost}:33330:0,${hstore.defaulthost}:33331:1" />
-<!--         <param name="hosts" value="${hstore.defaulthost}:33330:0" /> -->
-<!--         <param name="hosts" value="${hstore.defaulthost}:33330:0,${hstore.defaulthost}:33331:1,${hstore.defaulthost}:33332:2,${hstore.defaulthost}:33333:3,${hstore.defaulthost}:33334:4,${hstore.defaulthost}:33335:5" /> -->
-<!-- <param name="hosts" value="d-01.cs.wisc.edu:33330:0,d-01.cs.wisc.edu:33331:1,d-02.cs.wisc.edu:33330:2,d-02.cs.wisc.edu:33331:3,d-03.cs.wisc.edu:33330:4,d-03.cs.wisc.edu:33331:5,d-04.cs.wisc.edu:33330:6,d-04.cs.wisc.edu:33331:7,d-05.cs.wisc.edu:33330:8,d-05.cs.wisc.edu:33331:9,d-06.cs.wisc.edu:33330:10,d-06.cs.wisc.edu:33331:11,d-07.cs.wisc.edu:33330:12,d-07.cs.wisc.edu:33331:13,d-08.cs.wisc.edu:33330:14,d-08.cs.wisc.edu:33331:15" /> -->
+        <param name="hosts" value="${hstore.defaulthost}:33330:0:0,${hstore.defaulthost}:33331:0:1" />
     </antcall>
 </target>
 
@@ -2295,7 +2292,7 @@ H-STORE REMIX
         </antcall>
         <antcall target="hstore-coordinatornode">
             <param name="jar" value="${project}.jar" />
-            <param name="partition" value="0" />
+            <param name="node.site" value="0" />
             <param name="node.port" value="22341" />
             <param name="coordinator.host" value="${hstore.defaulthost}" />
             <param name="coordinator.port" value="12348" />
@@ -2303,16 +2300,16 @@ H-STORE REMIX
             <param name="thresholds" value="./files/thresholds/default.thresholds" />
             <param name="correlations" value="./files/correlations/${project}.correlations" />
         </antcall>
-        <antcall target="hstore-coordinatornode">
+<!--        <antcall target="hstore-coordinatornode">
             <param name="jar" value="${project}.jar" />
-            <param name="partition" value="1" />
+            <param name="node.site" value="1" />
             <param name="node.port" value="22342" />
             <param name="coordinator.host" value="${hstore.defaulthost}" />
             <param name="coordinator.port" value="12348" />
             <param name="markov" value="./files/markovs/${project}.markovs" />
             <param name="thresholds" value="./files/thresholds/default.thresholds" />
             <param name="correlations" value="./files/correlations/${project}.correlations" />
-        </antcall>
+        </antcall>-->
 <!--        <sequential>
             <sleep seconds="18" />
             <exec executable="./scripts/runner.sh" failonerror="true">

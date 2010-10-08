@@ -179,7 +179,7 @@ public class ArgumentsParser {
     public static final String PARAM_NODE_HOST              = PARAM_NODE + ".host";
     public static final String PARAM_NODE_PORT              = PARAM_NODE + ".port";
     public static final String PARAM_NODE_PARTITION         = PARAM_NODE + ".partition";
-    public static final String PARAM_NODE_SITE              = PARAM_NODE + ".siteid";
+    public static final String PARAM_NODE_SITE              = PARAM_NODE + ".site";
     
     private static final String PARAM_DTXN                  = "dtxn";
     public static final String PARAM_DTXN_CONF              = PARAM_DTXN + ".conf";

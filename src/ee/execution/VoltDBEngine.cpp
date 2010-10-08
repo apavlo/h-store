@@ -1016,25 +1016,25 @@ bool VoltDBEngine::initMaterializedViews() {
 bool VoltDBEngine::initCluster(const catalog::Cluster *catalogCluster) {
 
     // Find the partition id for this execution site.
-    std::map<std::string, catalog::Site*>::const_iterator site_it;
-    for (site_it = catalogCluster->sites().begin();
-         site_it != catalogCluster->sites().end();
-         site_it++)
-    {
-        catalog::Site *site = site_it->second;
-        assert (site);
-        std::string sname = site->name();
-        if (atoi(sname.c_str()) == m_siteId) {
-            assert(site->partition());
-            std::string pname = site->partition()->name();
-            m_partitionId = atoi(pname.c_str());
-            break;
-        }
-    }
+//     std::map<std::string, catalog::Site*>::const_iterator site_it;
+//     for (site_it = catalogCluster->sites().begin();
+//          site_it != catalogCluster->sites().end();
+//          site_it++)
+//     {
+//         catalog::Site *site = site_it->second;
+//         assert (site);
+//         std::string sname = site->name();
+//         if (atoi(sname.c_str()) == m_siteId) {
+//             assert(site->partition());
+//             std::string pname = site->partition()->name();
+//             m_partitionId = atoi(pname.c_str());
+//             break;
+//         }
+//     }
     // need to update executor context as partitionId wasn't
     // available when the structure was initially created.
     m_executorContext->m_partitionId = m_partitionId;
-    m_totalPartitions = catalogCluster->partitions().size();
+    m_totalPartitions = catalogCluster->num_partitions();
     return true;
 }
 

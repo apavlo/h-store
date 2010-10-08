@@ -29,52 +29,58 @@ using namespace catalog;
 using namespace std;
 
 Site::Site(Catalog *catalog, CatalogType *parent, const string &path, const string &name)
-: CatalogType(catalog, parent, path, name)
+: CatalogType(catalog, parent, path, name),
+  m_partitions(catalog, this, path + "/" + "partitions")
 {
     CatalogValue value;
-    m_fields["isexec"] = value;
+    m_fields["id"] = value;
     m_fields["host"] = value;
-    m_fields["partition"] = value;
-    m_fields["initiatorid"] = value;
+    m_childCollections["partitions"] = &m_partitions;
     m_fields["isUp"] = value;
     m_fields["port"] = value;
+    m_fields["messenger_port"] = value;
 }
 
 void Site::update() {
-    m_isexec = m_fields["isexec"].intValue;
+    m_id = m_fields["id"].intValue;
     m_host = m_fields["host"].typeValue;
-    m_partition = m_fields["partition"].typeValue;
-    m_initiatorid = m_fields["initiatorid"].intValue;
     m_isUp = m_fields["isUp"].intValue;
     m_port = m_fields["port"].intValue;
+    m_messenger_port = m_fields["messenger_port"].intValue;
 }
 
 CatalogType * Site::addChild(const std::string &collectionName, const std::string &childName) {
+    if (collectionName.compare("partitions") == 0) {
+        CatalogType *exists = m_partitions.get(childName);
+        if (exists)
+            return NULL;
+        return m_partitions.add(childName);
+    }
     return NULL;
 }
 
 CatalogType * Site::getChild(const std::string &collectionName, const std::string &childName) const {
+    if (collectionName.compare("partitions") == 0)
+        return m_partitions.get(childName);
     return NULL;
 }
 
 void Site::removeChild(const std::string &collectionName, const std::string &childName) {
     assert (m_childCollections.find(collectionName) != m_childCollections.end());
+    if (collectionName.compare("partitions") == 0)
+        return m_partitions.remove(childName);
 }
 
-bool Site::isexec() const {
-    return m_isexec;
+int32_t Site::id() const {
+    return m_id;
 }
 
 const Host * Site::host() const {
     return dynamic_cast<Host*>(m_host);
 }
 
-const Partition * Site::partition() const {
-    return dynamic_cast<Partition*>(m_partition);
-}
-
-int32_t Site::initiatorid() const {
-    return m_initiatorid;
+const CatalogMap<Partition> & Site::partitions() const {
+    return m_partitions;
 }
 
 bool Site::isUp() const {
@@ -83,5 +89,9 @@ bool Site::isUp() const {
 
 int32_t Site::port() const {
     return m_port;
+}
+
+int32_t Site::messenger_port() const {
+    return m_messenger_port;
 }
 

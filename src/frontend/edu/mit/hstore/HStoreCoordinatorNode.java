@@ -516,17 +516,19 @@ public class HStoreCoordinatorNode extends ExecutionEngine implements VoltProced
      */
     public static void launch(final HStoreCoordinatorNode hstore_node,
                               final String hstore_conf_path, final String dtxnengine_path, final String dtxncoordinator_path,
-                              final String execHost, final int execPort,
                               final String coordinatorHost, final int coordinatorPort) throws Exception {
         final boolean debug = LOG.isDebugEnabled();
         List<Thread> threads = new ArrayList<Thread>();
         final Site catalog_site = hstore_node.getSite();
         final int num_partitions = catalog_site.getPartitions().size();
         
+        final String site_host = catalog_site.getHost().getIpaddr();
+        final int site_port = catalog_site.getPort();
+        
         // ----------------------------------------------------------------------------
-        // (1) ProtoServer Thread
+        // (1) ProtoServer Thread (one per site)
         // ----------------------------------------------------------------------------
-        if (debug) LOG.debug(String.format("Launching ProtoServer [site=%d, port=%d]", catalog_site.getId(), execPort));
+        if (debug) LOG.debug(String.format("Launching ProtoServer [site=%d, port=%d]", catalog_site.getId(), site_port));
         final NIOEventLoop execEventLoop = new NIOEventLoop();
         final CountDownLatch execLatch = new CountDownLatch(1);
         execEventLoop.setExitOnSigInt(true);
@@ -534,14 +536,14 @@ public class HStoreCoordinatorNode extends ExecutionEngine implements VoltProced
             public void run() {
                 ProtoServer execServer = new ProtoServer(execEventLoop);
                 execServer.register(hstore_node);
-                execServer.bind(execPort);
+                execServer.bind(site_port);
                 execLatch.countDown();
                 execEventLoop.run();
             };
         });
         
         // ----------------------------------------------------------------------------
-        // (2) DTXN Engine Thread
+        // (2) DTXN Engine Threads (one per partition)
         // ----------------------------------------------------------------------------
         if (debug) LOG.debug(String.format("Launching DTXN Engine for %d partitions", num_partitions));
         final CountDownLatch dtxnExecLatch = new CountDownLatch(num_partitions);
@@ -562,7 +564,7 @@ public class HStoreCoordinatorNode extends ExecutionEngine implements VoltProced
                     if (debug) LOG.debug("Forking off protodtxnengine for Partition #" + partition);
                     String[] command = new String[]{
                         dtxnengine_path,                // protodtxnengine
-                        execHost + ":" + execPort,      // host:port
+                        site_host + ":" + site_port,    // host:port (ProtoServer)
                         hstore_conf_path,               // hstore.conf
                         Integer.toString(partition),    // partition #
                         "0"                             // ??
@@ -576,7 +578,7 @@ public class HStoreCoordinatorNode extends ExecutionEngine implements VoltProced
         // ----------------------------------------------------------------------------
         // (4) Procedure Request Listener Thread
         // ----------------------------------------------------------------------------
-        if (catalog_site.getId() == 0) { // FIXME
+        if (catalog_site.getRelativeIndex() == 0) { // FIXME
             threads.add(new Thread() {
                 public void run() {
                     if (debug) LOG.debug("Creating connection to coordinator at " + coordinatorHost + ":" + coordinatorPort + " [site=" + catalog_site.getId() + "]");
@@ -618,8 +620,6 @@ public class HStoreCoordinatorNode extends ExecutionEngine implements VoltProced
         args.require(ArgumentsParser.PARAM_CATALOG,
                      ArgumentsParser.PARAM_COORDINATOR_HOST,
                      ArgumentsParser.PARAM_COORDINATOR_PORT,
-                     ArgumentsParser.PARAM_NODE_HOST,
-                     ArgumentsParser.PARAM_NODE_PORT,
                      ArgumentsParser.PARAM_NODE_SITE,
                      ArgumentsParser.PARAM_DTXN_CONF,
                      ArgumentsParser.PARAM_DTXN_ENGINE
@@ -627,8 +627,6 @@ public class HStoreCoordinatorNode extends ExecutionEngine implements VoltProced
 
         // HStoreNode Stuff
         final int site_id = args.getIntParam(ArgumentsParser.PARAM_NODE_SITE);
-        final String nodeHost = args.getParam(ArgumentsParser.PARAM_NODE_HOST);
-        final int nodePort = args.getIntParam(ArgumentsParser.PARAM_NODE_PORT);
 
         // HStoreCoordinator Stuff
         final String coordinatorHost = args.getParam(ArgumentsParser.PARAM_COORDINATOR_HOST);
@@ -714,8 +712,6 @@ public class HStoreCoordinatorNode extends ExecutionEngine implements VoltProced
                 args.getParam(ArgumentsParser.PARAM_DTXN_CONF), 
                 args.getParam(ArgumentsParser.PARAM_DTXN_ENGINE),
                 args.getParam(ArgumentsParser.PARAM_DTXN_COORDINATOR),
-                nodeHost, nodePort,
                 coordinatorHost, coordinatorPort);
-
     }
 }
