@@ -54,9 +54,9 @@ public class CatalogDiffEngine {
 
                 /*if (field.equals("fullplan")) {
                     String planHex = (String) prevValue;
-                    String prevPlan = HexEncoder.hexDecodeToString(planHex);
+                    String prevPlan = Encoder.hexDecodeToString(planHex);
                     planHex = (String) newValue;
-                    String newPlan = HexEncoder.hexDecodeToString(planHex);
+                    String newPlan = Encoder.hexDecodeToString(planHex);
 
                     System.err.println("==== OLD ====");
                     System.err.println(prevPlan);

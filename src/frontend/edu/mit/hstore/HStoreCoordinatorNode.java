@@ -45,6 +45,7 @@ import edu.brown.markov.MarkovGraph;
 import edu.brown.markov.MarkovUtil;
 import edu.brown.markov.TransactionEstimator;
 import edu.brown.utils.ArgumentsParser;
+import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.PartitionEstimator;
 import edu.brown.utils.StringUtil;
 import edu.brown.utils.ThreadUtil;
@@ -204,10 +205,6 @@ public class HStoreCoordinatorNode extends ExecutionEngine implements VoltProced
         assert(this.catalog_db != null);
         assert(this.p_estimator != null);
         
-        // Add in our shutdown hook
-        Runtime.getRuntime().addShutdownHook(new Thread(new ShutdownThread()));
-        
-        LOG.debug("Starting HStoreCoordinatorNode...");
         this.init();
     }
     
@@ -215,17 +212,25 @@ public class HStoreCoordinatorNode extends ExecutionEngine implements VoltProced
      * Initializes all the pieces that we need to start this HStore site up
      */
     private void init() {
+        final boolean debug = LOG.isDebugEnabled(); 
+        if (debug) LOG.debug("Initializing HStoreCoordinatorNode...");
+
         // First we need to tell the HStoreMessenger to start-up and initialize its connections
-        LOG.debug("Starting HStoreMessenger");
+        if (debug) LOG.debug("Starting HStoreMessenger for Site #" + this.catalog_site.getId());
         this.messenger.start();
         
         // Then we need to start all of the ExecutionSites in threads
-        LOG.debug("Starting threads for " + this.executors.size() + " partitions");
+        if (debug) LOG.debug("Starting ExecutionSite threads for " + this.executors.size() + " partitions on Site #" + this.catalog_site.getId());
         for (Entry<Integer, ExecutionSite> e : this.executors.entrySet()) {
             Thread t = new Thread(e.getValue());
+            e.getValue().setHStoreCoordinatorNode(this);
+            e.getValue().setHStoreMessenger(this.messenger);
             this.executor_threads.put(e.getKey(), t);
             t.start();
         } // FOR
+        
+        // Add in our shutdown hook
+        Runtime.getRuntime().addShutdownHook(new Thread(new ShutdownThread()));
     }
     
     /**
@@ -288,8 +293,9 @@ public class HStoreCoordinatorNode extends ExecutionEngine implements VoltProced
         // LOG.info("Parameter Size = " + request.getParameters())
         
         Procedure catalog_proc = this.catalog_db.getProcedures().get(request.getProcName());
+        final boolean sysproc = catalog_proc.getSystemproc();
         if (catalog_proc == null) throw new RuntimeException("Unknown procedure '" + request.getProcName() + "'");
-        if (trace) LOG.trace("Executing new stored procedure invocation request for " + catalog_proc.getName() + " as Txn #" + txn_id);
+        if (trace) LOG.trace("Received new stored procedure invocation request for " + catalog_proc.getName() + " as Txn #" + txn_id);
         
         // Setup "Magic Evan" RPC stuff
         ProtoRpcController rpc = new ProtoRpcController();
@@ -299,10 +305,18 @@ public class HStoreCoordinatorNode extends ExecutionEngine implements VoltProced
         
         // First figure out where this sucker needs to go
         Integer dest_partition;
-        try {
-            dest_partition = this.p_estimator.getPartition(catalog_proc, args);
-        } catch (Exception ex) {
-            throw new RuntimeException(ex);
+        
+        // If it's a sysproc, then it doesn't need to go to a specific partition
+        if (sysproc) {
+            // Just pick the first one for now
+            dest_partition = CollectionUtil.getFirst(this.executors.keySet());
+        // Otherwise we use the PartitionEstimator to know where it is going
+        } else {
+            try {
+                dest_partition = this.p_estimator.getPartition(catalog_proc, args);
+            } catch (Exception ex) {
+                throw new RuntimeException(ex);
+            }
         }
         // assert(dest_partition >= 0);
         if (trace) {
@@ -322,7 +336,9 @@ public class HStoreCoordinatorNode extends ExecutionEngine implements VoltProced
         TransactionEstimator t_estimator = executor.getTransactionEstimator();
         
         Boolean single_partition = null;
-        if (!t_estimator.canEstimate(catalog_proc)) {
+        if (sysproc) {
+            single_partition = false;
+        } else if (!t_estimator.canEstimate(catalog_proc)) {
             single_partition = false;
         } else {
             if (trace) LOG.trace("Using TransactionEstimator to check whether txn #" + txn_id + " is single-partition");
@@ -333,22 +349,23 @@ public class HStoreCoordinatorNode extends ExecutionEngine implements VoltProced
         //LOG.debug("Single-Partition = " + single_partition);
         InitiateTaskMessage wrapper = new InitiateTaskMessage(txn_id, client_handle, request);
         
-        // ----------------------------------------------------------------------------
-        // SINGLE-PARTITION
-        // Everything gets shipped off to HStoreNode 
-        // ----------------------------------------------------------------------------
-        if (debug) LOG.debug("Sending " + catalog_proc.getName() + " as single-partition txn #" + txn_id + " on partition " + dest_partition);
-        this.singlepart_ctr.incrementAndGet();
+        if (single_partition) this.singlepart_ctr.incrementAndGet();
+        else this.multipart_ctr.incrementAndGet();
         this.inflight_txns.put(txn_id, dest_partition);
+        if (debug) LOG.debug("Passing " + catalog_proc.getName() + " to Coordinator as " + (single_partition ? "single" : "multi") + "-partition txn #" + txn_id + " for partition " + dest_partition);
         
-        requestBuilder.addFragment(Dtxn.CoordinatorFragment.PartitionFragment.newBuilder()
-                .setPartitionId(dest_partition)
-                // TODO: Use copyFrom(ByteBuffer) in the newer version of protobuf
-                .setWork(ByteString.copyFrom(wrapper.getBufferForMessaging(this.buffer_pool).b.array())))
-                // 2010-06-18: We need to set this for single-partition txns
-                .setLastFragment(single_partition);
-        CoordinatorResponsePassThroughCallback rpcDone = new CoordinatorResponsePassThroughCallback(txn_id, t_estimator, done);
-        coordinator.execute(rpc, requestBuilder.build(), rpcDone);
+        // Even though this is possibly local, we still have to go through the Dtxn.Coordinator <-- Is that true??
+        FragmentResponsePassThroughCallback rpcDone = new FragmentResponsePassThroughCallback(txn_id, t_estimator, done);
+        executor.doWork(wrapper, rpcDone);
+        
+//        requestBuilder.addFragment(Dtxn.CoordinatorFragment.PartitionFragment.newBuilder()
+//                .setPartitionId(dest_partition)
+//                // TODO: Use copyFrom(ByteBuffer) in the newer version of protobuf
+//                .setWork(ByteString.copyFrom(wrapper.getBufferForMessaging(this.buffer_pool).b.array())))
+//                // 2010-06-18: We need to set this for single-partition txns
+//                .setLastFragment(single_partition);
+//        CoordinatorResponsePassThroughCallback rpcDone = new CoordinatorResponsePassThroughCallback(txn_id, t_estimator, done);
+//        coordinator.execute(rpc, requestBuilder.build(), rpcDone);
     }
 
     /**
@@ -521,14 +538,12 @@ public class HStoreCoordinatorNode extends ExecutionEngine implements VoltProced
         List<Thread> threads = new ArrayList<Thread>();
         final Site catalog_site = hstore_node.getSite();
         final int num_partitions = catalog_site.getPartitions().size();
-        
         final String site_host = catalog_site.getHost().getIpaddr();
-        final int site_port = catalog_site.getPort();
         
         // ----------------------------------------------------------------------------
         // (1) ProtoServer Thread (one per site)
         // ----------------------------------------------------------------------------
-        if (debug) LOG.debug(String.format("Launching ProtoServer [site=%d, port=%d]", catalog_site.getId(), site_port));
+        if (debug) LOG.debug(String.format("Launching ProtoServer [site=%d, port=%d]", catalog_site.getId(), catalog_site.getDtxn_port()));
         final NIOEventLoop execEventLoop = new NIOEventLoop();
         final CountDownLatch execLatch = new CountDownLatch(1);
         execEventLoop.setExitOnSigInt(true);
@@ -536,7 +551,7 @@ public class HStoreCoordinatorNode extends ExecutionEngine implements VoltProced
             public void run() {
                 ProtoServer execServer = new ProtoServer(execEventLoop);
                 execServer.register(hstore_node);
-                execServer.bind(site_port);
+                execServer.bind(catalog_site.getDtxn_port());
                 execLatch.countDown();
                 execEventLoop.run();
             };
@@ -551,20 +566,26 @@ public class HStoreCoordinatorNode extends ExecutionEngine implements VoltProced
         // We need one protodtxnengine per partition
         for (final Partition catalog_part : catalog_site.getPartitions()) {
             threads.add(new Thread() {
+                {
+                    this.setName(String.format("H%03d-init", catalog_site.getId()));
+                }
                 public void run() {
                     int partition = catalog_part.getId();
-                    if (debug) LOG.debug("Waiting for ProtoServer to finish start up for Partition #" + partition);
-                    try {
-                        execLatch.await();
-                    } catch (InterruptedException ex) {
-                        // Silently ignore...
-                        return;
+                    if (execLatch.getCount() > 0) {
+                        if (debug) LOG.debug("Waiting for ProtoServer to finish start up for Partition #" + partition);
+                        try {
+                            execLatch.await();
+                        } catch (InterruptedException ex) {
+                            // Silently ignore...
+                            return;
+                        }
                     }
                     
-                    if (debug) LOG.debug("Forking off protodtxnengine for Partition #" + partition);
+                    int port = catalog_site.getDtxn_port();
+                    if (debug) LOG.debug("Forking off protodtxnengine for Partition #" + partition + " [outbound_port=" + port + "]");
                     String[] command = new String[]{
                         dtxnengine_path,                // protodtxnengine
-                        site_host + ":" + site_port,    // host:port (ProtoServer)
+                        site_host + ":" + port,         // host:port (ProtoServer)
                         hstore_conf_path,               // hstore.conf
                         Integer.toString(partition),    // partition #
                         "0"                             // ??
@@ -576,10 +597,13 @@ public class HStoreCoordinatorNode extends ExecutionEngine implements VoltProced
         } // FOR (partition)
         
         // ----------------------------------------------------------------------------
-        // (4) Procedure Request Listener Thread
+        // (3) Procedure Request Listener Thread
         // ----------------------------------------------------------------------------
-        if (catalog_site.getRelativeIndex() == 0) { // FIXME
+        if (catalog_site.getId() == 0) { // FIXME
             threads.add(new Thread() {
+                {
+                    this.setName(String.format("H%03d-coord", catalog_site.getId()));
+                }
                 public void run() {
                     if (debug) LOG.debug("Creating connection to coordinator at " + coordinatorHost + ":" + coordinatorPort + " [site=" + catalog_site.getId() + "]");
                     
@@ -593,7 +617,7 @@ public class HStoreCoordinatorNode extends ExecutionEngine implements VoltProced
                     Dtxn.Coordinator stub = Dtxn.Coordinator.newStub(channels[0]);
                     hstore_node.setDtxnCoordinator(stub);
                     VoltProcedureListener voltListener = new VoltProcedureListener(coordinatorEventLoop, hstore_node);
-                    voltListener.bind();
+                    voltListener.bind(catalog_site.getProc_port());
                     LOG.info("HStoreCoordinatorNode is ready for action [site=" + catalog_site.getId() + ", VoltProcedureListener=true]");
                     coordinatorEventLoop.run();
                 };
@@ -627,11 +651,13 @@ public class HStoreCoordinatorNode extends ExecutionEngine implements VoltProced
 
         // HStoreNode Stuff
         final int site_id = args.getIntParam(ArgumentsParser.PARAM_NODE_SITE);
+        Thread t = Thread.currentThread();
+        t.setName(String.format("H%03d-main", site_id));
 
         // HStoreCoordinator Stuff
         final String coordinatorHost = args.getParam(ArgumentsParser.PARAM_COORDINATOR_HOST);
         final int coordinatorPort = args.getIntParam(ArgumentsParser.PARAM_COORDINATOR_PORT);
-        
+
         // For every partition in our local site, we want to setup a new ExecutionSite
         // Thankfully I had enough sense to have PartitionEstimator take in the local partition
         // as a parameter, so we can share a single instance across all ExecutionSites
@@ -677,7 +703,7 @@ public class HStoreCoordinatorNode extends ExecutionEngine implements VoltProced
             // I'm not proud of this...
             // Load in all the partition-specific TransactionEstimators and ExecutionSites in order to 
             // stick them into the HStoreCoordinator
-            LOG.debug("Creating Estimator for Site #" + local_partition);
+            LOG.debug("Creating Estimator for Site #" + site_id);
             TransactionEstimator t_estimator = new TransactionEstimator(local_partition, p_estimator, args.param_correlations);
             if (markovs != null) {
                 t_estimator.addMarkovGraphs(markovs.get(local_partition));

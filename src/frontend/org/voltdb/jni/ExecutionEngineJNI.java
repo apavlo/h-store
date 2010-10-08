@@ -94,8 +94,7 @@ public class ExecutionEngineJNI extends ExecutionEngine {
         // base class loads the volt shared library
         super(site);
         //exceptionBuffer.order(ByteOrder.nativeOrder());
-        System.out.println("Creating Execution Engine on clusterIndex=" + clusterIndex
-                + ", site_id = " + siteId + "...");
+        LOG.info("Creating Execution Engine [site=" + siteId + ", partition=" + partitionId + "]");
         /*
          * (Ning): The reason I'm testing if we're running in Sun's JVM is that
          * EE needs this info in order to decide whether it's safe to install

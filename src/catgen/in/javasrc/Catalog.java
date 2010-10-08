@@ -115,7 +115,7 @@ public class Catalog extends CatalogType {
         }
     }
 
-    CatalogType getItemForRef(final String ref) {
+    public CatalogType getItemForRef(final String ref) {
         // if it's a path
         return m_pathCache.get(ref);
     }

@@ -18,7 +18,7 @@ import edu.brown.benchmark.tpce.TPCEProjectBuilder;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.catalog.FixCatalog;
 import edu.brown.catalog.ParametersUtil;
-import edu.brown.catalog.FixCatalog.ClusterConfiguration;
+import edu.brown.catalog.ClusterConfiguration;
 import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.FileUtil;
 import edu.brown.utils.PartitionEstimator;
@@ -209,7 +209,7 @@ public abstract class BaseTestCase extends TestCase {
         if (CatalogUtil.getNumberOfPartitions(catalog_db) != num_partitions) {
             ClusterConfiguration cc = new ClusterConfiguration();
             for (Integer i = 0; i < num_partitions; i++) {
-                cc.addPartition("localhost", 1000+1, 0, i);
+                cc.addPartition("localhost", 0, i);
                 // System.err.println("[" + i + "] " + Arrays.toString(triplets.lastElement()));
             } // FOR
             catalog = FixCatalog.addHostInfo(catalog, cc);

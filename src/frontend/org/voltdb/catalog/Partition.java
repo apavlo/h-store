@@ -27,14 +27,17 @@ package org.voltdb.catalog;
 public class Partition extends CatalogType {
 
     int m_id;
+    int m_dtxn_port;
 
     void setBaseValues(Catalog catalog, CatalogType parent, String path, String name) {
         super.setBaseValues(catalog, parent, path, name);
         m_fields.put("id", m_id);
+        m_fields.put("dtxn_port", m_dtxn_port);
     }
 
     void update() {
         m_id = (Integer) m_fields.get("id");
+        m_dtxn_port = (Integer) m_fields.get("dtxn_port");
     }
 
     /** GETTER: Partition id */
@@ -42,9 +45,19 @@ public class Partition extends CatalogType {
         return m_id;
     }
 
+    /** GETTER: Port used by DTXN ProtoEngine */
+    public int getDtxn_port() {
+        return m_dtxn_port;
+    }
+
     /** SETTER: Partition id */
     public void setId(int value) {
         m_id = value; m_fields.put("id", value);
+    }
+
+    /** SETTER: Port used by DTXN ProtoEngine */
+    public void setDtxn_port(int value) {
+        m_dtxn_port = value; m_fields.put("dtxn_port", value);
     }
 
 }

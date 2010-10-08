@@ -133,7 +133,6 @@ public abstract class VoltProcedure {
     protected PartitionEstimator p_estimator;
     
     protected Integer local_partition;
-    protected Integer selected_local_partition;
     
     // Callback for when the VoltProcedure finishes and we need to send a ClientResponse somewhere
     protected final EventObservable observable = new EventObservable();
@@ -220,7 +219,6 @@ public abstract class VoltProcedure {
         this.m_cluster = cluster;
 
         this.local_partition = this.m_site.getPartitionId();
-        this.selected_local_partition = this.local_partition;
         
         this.p_estimator = p_estimator;
         this.hasher = this.p_estimator.getHasher();
@@ -484,7 +482,7 @@ public abstract class VoltProcedure {
         // Select a local_partition to use if we're on the coordinator, otherwise
         // just use the real partition. We shouldn't have to do this once Evan gets it
         // so that we can have a coordinator on each node
-        assert(this.selected_local_partition != null);
+        assert(this.local_partition != null);
 
         //lastBatchNeedsRollback = false;
 
@@ -532,7 +530,7 @@ public abstract class VoltProcedure {
                 LOG.debug("Invoking txn #" + this.txn_id + " [" +
                           "procMethod=" + procMethod.getName() + ", " +
                           "class=" + getClass().getSimpleName() + ", " +
-                          "selectedPartition=" + this.selected_local_partition + 
+                          "partition=" + this.local_partition + 
                           "]");
                 }
                 try {
@@ -984,7 +982,7 @@ public abstract class VoltProcedure {
         //       for this batch. So somehow right now we need to fire this off to either our
         //       local executor or to Evan's magical distributed transaction manager
         //
-        BatchPlanner.BatchPlan plan = planner.plan(params, this.selected_local_partition);
+        BatchPlanner.BatchPlan plan = planner.plan(params, this.local_partition);
         
         // Tell the TransactionEstimator that we're about to execute these mofos
         // TODO(pavlo+evanj): We need to do something with the estimate
