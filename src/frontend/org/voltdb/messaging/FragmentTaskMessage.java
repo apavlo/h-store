@@ -459,9 +459,9 @@ public class FragmentTaskMessage extends TransactionInfoBaseMessage
         StringBuilder sb = new StringBuilder();
 
         sb.append("FRAGMENT_TASK (FROM ");
-        sb.append(m_coordinatorSiteId);
+        sb.append(m_destPartition);
         sb.append(" TO ");
-        sb.append(this.getTargetPartition());
+        sb.append(this.getDestinationPartitionId());
         sb.append(") FOR TXN ");
         sb.append(m_txnId);
 
@@ -470,7 +470,7 @@ public class FragmentTaskMessage extends TransactionInfoBaseMessage
             sb.append("  READ, COORD ");
         else
             sb.append("  WRITE, COORD ");
-        sb.append(m_coordinatorSiteId);
+        sb.append(m_destPartition);
 
         if ((m_fragmentIds != null) && (m_fragmentIds.length > 0)) {
             sb.append("\n");

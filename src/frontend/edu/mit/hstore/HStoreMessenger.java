@@ -80,8 +80,12 @@ public class HStoreMessenger {
         
         // Wrap the listener in a daemon thread
         this.listener_thread = new Thread() {
+//            {
+//                Thread.currentThread().setName(String.format("H%03d-msg", HStoreMessenger.this.catalog_site.getId()));
+//            }
             @Override
             public void run() {
+                Thread.currentThread().setName(String.format("H%03d-msg", HStoreMessenger.this.catalog_site.getId()));
                 eventLoop.run();
             }
         };
@@ -94,8 +98,8 @@ public class HStoreMessenger {
         this.initConnections();
         LOG.debug("Starting listener thread");
         this.listener_thread.start();
-        LOG.debug("Testing connections");
-        this.testConnections();
+//        LOG.debug("Testing connections");
+//        this.testConnections();
     }
     
     public void stop() {
@@ -218,9 +222,12 @@ public class HStoreMessenger {
         
         @Override
         public void sendFragment(RpcController controller, FragmentTransfer request, RpcCallback<FragmentAcknowledgement> done) {
+            final boolean trace = LOG.isTraceEnabled();
             long txn_id = request.getTxnId();
             int sender_partition_id = request.getSenderPartitionId();
             int dest_partition_id = request.getDestPartitionId();
+            if (trace) LOG.trace("Incoming data from Partition #" + sender_partition_id + " to Partition #" + dest_partition_id +
+                                 " for Txn #" + txn_id + " with " + request.getDependenciesCount() + " dependencies");
 
             for (Hstore.FragmentDependency fd : request.getDependenciesList()) {
                 int dependency_id = fd.getDependencyId();
@@ -235,10 +242,12 @@ public class HStoreMessenger {
                 assert(data != null) : "Null data table from " + request;
                 
                 // Store the VoltTable in the ExecutionSite
+                if (trace) LOG.trace("Storing Depedency #" + dependency_id + " for Txn #" + txn_id + " at Partition #" + dest_partition_id);
                 HStoreMessenger.this.executors.get(dest_partition_id).storeDependency(txn_id, sender_partition_id, dependency_id, data);
-            }
+            } // FOR
             
             // Send back a response
+            if (trace) LOG.trace("Sending back FragmentAcknowledgement to Partition #" + sender_partition_id + " for Txn #" + txn_id);
             Hstore.FragmentAcknowledgement fa = Hstore.FragmentAcknowledgement.newBuilder()
                                                         .setTxnId(txn_id)
                                                         .setSenderPartitionId(dest_partition_id)
@@ -256,8 +265,8 @@ public class HStoreMessenger {
         
         @Override
         public void run(FragmentAcknowledgement parameter) {
-            // TODO Auto-generated method stub
-            
+            LOG.trace("Received sendFragment callback from remote Partition #" + parameter.getSenderPartitionId() +
+                      " for Txn #" + parameter.getTxnId());
         }
     }
     
