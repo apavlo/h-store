@@ -97,7 +97,7 @@ public class TestTransactionStateComplex extends BaseTestCase {
             ftasks = plan.getFragmentTaskMessages(TXN_ID, CLIENT_HANDLE);
             assertFalse(ftasks.isEmpty());
         }
-        this.ts = new TransactionState(executor, TXN_ID, CLIENT_HANDLE, EXEC_LOCAL);
+        this.ts = new TransactionState(executor, TXN_ID, LOCAL_PARTITION, CLIENT_HANDLE, EXEC_LOCAL);
         assertNotNull(this.ts);
     }
 
@@ -151,7 +151,7 @@ public class TestTransactionStateComplex extends BaseTestCase {
         assertEquals(1, this.first_tasks.size());
         FragmentTaskMessage first_ftask = CollectionUtil.getFirst(this.first_tasks);
         assertNotNull(first_ftask);
-        int partition = first_ftask.getTargetPartition();
+        int partition = first_ftask.getDestinationPartitionId();
         int first_output_dependency_id = first_ftask.getOutputDepId(0);
         TransactionState.DependencyInfo first_dinfo = this.ts.getDependencyInfo(0, first_output_dependency_id);
         assertNotNull(first_dinfo);
@@ -163,7 +163,7 @@ public class TestTransactionStateComplex extends BaseTestCase {
         TransactionState.DependencyInfo second_dinfo = this.ts.getDependencyInfo(0, CollectionUtil.getFirst(first_dinfo.getBlockedFragmentTaskMessages()).getOutputDepId(0));
         for (FragmentTaskMessage ftask : first_dinfo.getBlockedFragmentTaskMessages()) {
             assertFalse(second_dinfo.hasTasksReady());
-            partition = ftask.getTargetPartition();   
+            partition = ftask.getDestinationPartitionId();   
             int output_dependency_id = ftask.getOutputDepId(0);
             this.ts.addResult(partition, output_dependency_id, FAKE_RESULT);
         } // FOR

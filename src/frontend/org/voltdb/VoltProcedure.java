@@ -163,6 +163,7 @@ public abstract class VoltProcedure {
     protected class VoltProcedureExecutor implements Runnable {
         @Override
         public void run() {
+            Thread.currentThread().setName(VoltProcedure.this.m_site.getThreadName() + "-" + VoltProcedure.this.procedure_name);
             LOG.debug("Starting execution of " + VoltProcedure.this.procedure_name + " for txn #" + VoltProcedure.this.txn_id);
             
             // Execute the txn (this blocks until we return)
@@ -541,11 +542,11 @@ public abstract class VoltProcedure {
                 } catch (IllegalAccessException e) {
                     // If reflection fails, invoke the same error handling that other exceptions do
                     throw new InvocationTargetException(e);
-            } catch (AssertionError e) {
-                LOG.fatal(e);
-                System.exit(1);
+                } catch (AssertionError e) {
+                    LOG.fatal(e);
+                    System.exit(1);
                 }
-            LOG.debug(this.catProc + " is finished for txn #" + this.txn_id);
+                LOG.debug(this.catProc + " is finished for txn #" + this.txn_id);
             }
             catch (InvocationTargetException itex) {
                 Throwable ex = itex.getCause();

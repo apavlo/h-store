@@ -70,9 +70,9 @@ public class TestFragmentTaskMessage extends TestCase {
         assert(bc.b.hasArray());
         
         FragmentTaskMessage f2 = (FragmentTaskMessage)VoltMessage.createMessageFromBuffer(bc.b.asReadOnlyBuffer(), false);
-        assertEquals(f.getInitiatorSiteId(), f2.getInitiatorSiteId());
+        assertEquals(f.getSourcePartitionId(), f2.getSourcePartitionId());
         assertEquals(f.getClientHandle(), f2.getClientHandle());
-        assertEquals(f.getTargetPartition(), f2.getTargetPartition());
+        assertEquals(f.getDestinationPartitionId(), f2.getDestinationPartitionId());
         assertEquals(f.getTxnId(), f2.getTxnId());
         
         assertEquals(f.getFragmentCount(), f2.getFragmentCount());

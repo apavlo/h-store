@@ -61,8 +61,8 @@ public abstract class TransactionState implements Comparable<TransactionState> {
         m_mbox = mbox;
         m_site = null; // site;
         txnId = notice.getTxnId();
-        initiatorSiteId = notice.getInitiatorSiteId();
-        coordinatorSiteId = notice.getCoordinatorSiteId();
+        initiatorSiteId = notice.getSourcePartitionId();
+        coordinatorSiteId = notice.getDestinationPartitionId();
         isReadOnly = notice.isReadOnly();
     }
 

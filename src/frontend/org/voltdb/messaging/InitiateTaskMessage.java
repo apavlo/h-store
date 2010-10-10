@@ -41,19 +41,19 @@ public class InitiateTaskMessage extends TransactionInfoBaseMessage {
         super();
     }
 
-    public InitiateTaskMessage(long txnId, long clientHandle, StoredProcedureInvocation invocation) {
-        this(-1, -1, txnId, clientHandle, false, false, invocation, -1);
+    public InitiateTaskMessage(long txnId, int srcPartitionId, long clientHandle, StoredProcedureInvocation invocation) {
+        this(srcPartitionId, -1, txnId, clientHandle, false, false, invocation, -1);
     }
     
-    public InitiateTaskMessage(int initiatorSiteId,
-                        int coordinatorSiteId,
+    public InitiateTaskMessage(int sourcePartitionId,
+                        int destPartitionId,
                         long txnId,
                         long clientHandle,
                         boolean isReadOnly,
                         boolean isSinglePartition,
                         StoredProcedureInvocation invocation,
                         long lastSafeTxnID) {
-        super(initiatorSiteId, coordinatorSiteId, txnId, clientHandle, isReadOnly);
+        super(sourcePartitionId, destPartitionId, txnId, clientHandle, isReadOnly);
         m_isSinglePartition = isSinglePartition;
         m_invocation = invocation;
         m_invocation.buildParameterSet();
@@ -174,9 +174,9 @@ public class InitiateTaskMessage extends TransactionInfoBaseMessage {
         StringBuilder sb = new StringBuilder();
 
         sb.append("INITITATE_TASK (FROM ");
-        sb.append(m_initiatorSiteId);
+        sb.append(m_srcPartition);
         sb.append(" TO ");
-        sb.append(m_coordinatorSiteId);
+        sb.append(m_destPartition);
         sb.append(") FOR TXN ");
         sb.append(m_txnId);
 
@@ -190,7 +190,7 @@ public class InitiateTaskMessage extends TransactionInfoBaseMessage {
         else
             sb.append("MULTI PARTITION, ");
         sb.append("COORD ");
-        sb.append(m_coordinatorSiteId);
+        sb.append(m_destPartition);
 
         if ((m_nonCoordinatorSites != null) && (m_nonCoordinatorSites.length > 0)) {
             sb.append("\n  NON-COORD SITES: ");

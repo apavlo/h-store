@@ -10,7 +10,7 @@ import edu.mit.dtxn.Dtxn.CoordinatorFragment;
 import edu.mit.dtxn.Dtxn.CoordinatorResponse;
 import edu.mit.dtxn.Dtxn.FinishRequest;
 import edu.mit.dtxn.Dtxn.FinishResponse;
-import edu.mit.hstore.HStoreCoordinator;
+import edu.mit.hstore.HStoreCoordinatorNode;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -28,7 +28,7 @@ public class TestHStoreCoordinator extends BaseTestCase {
     private static final long CLIENT_HANDLE = 1l;
     
     private MockDtxnCoordinator dtxnCoordinator;
-    private HStoreCoordinator coordinator;
+    private HStoreCoordinatorNode coordinator;
     private PartitionEstimator p_estimator;
     private StoredProcedureInvocation invocation;
     private byte[] invocation_bytes;
@@ -63,7 +63,7 @@ public class TestHStoreCoordinator extends BaseTestCase {
         super.setUp(ProjectType.TM1);
         dtxnCoordinator = new MockDtxnCoordinator();
         p_estimator = new PartitionEstimator(catalog_db);
-        coordinator = new HStoreCoordinator(dtxnCoordinator, p_estimator);
+        coordinator = null; // FIXME new HStoreCoordinator(dtxnCoordinator, p_estimator);
         invocation = new StoredProcedureInvocation(CLIENT_HANDLE, TARGET_PROCEDURE, PARAMS);
         invocation_bytes = FastSerializer.serialize(invocation);
     }

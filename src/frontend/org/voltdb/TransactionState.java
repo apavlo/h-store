@@ -49,7 +49,8 @@ public class TransactionState {
     private final ExecutionSite executor;
     private final long txn_id;
     private final long client_handle;
-    private final int local_partition;
+    private final int origin_partition;
+    private final Set<Integer> touched_partitions = new HashSet<Integer>();
     private final boolean exec_local;
     private RpcCallback<Dtxn.FragmentResponse> coordinator_callback;
     private CountDownLatch dependency_latch;
@@ -134,7 +135,7 @@ public class TransactionState {
         }
         public void addBlockedFragmentTaskMessage(FragmentTaskMessage ftask) {
             this.blocked_tasks.add(ftask);
-            this.blocked_all_local = this.blocked_all_local && (ftask.getTargetPartition() == TransactionState.this.local_partition);
+            this.blocked_all_local = this.blocked_all_local && (ftask.getDestinationPartitionId() == TransactionState.this.origin_partition);
         }
 
         /**
@@ -201,9 +202,9 @@ public class TransactionState {
      * @param client_handle
      * @param callback
      */
-    public TransactionState(ExecutionSite executor, long txn_id, long client_handle, boolean exec_local) {
+    public TransactionState(ExecutionSite executor, long txn_id, int origin_partition, long client_handle, boolean exec_local) {
         this.executor = executor;
-        this.local_partition = this.executor.getPartitionId();
+        this.origin_partition = origin_partition;
         this.txn_id = txn_id;
         this.client_handle = client_handle;
         this.exec_local = exec_local;
@@ -361,6 +362,14 @@ public class TransactionState {
     public boolean isExecLocal() {
         return this.exec_local;
     }
+    
+    /**
+     * Returns true if this Transaction only touched a single-partition
+     * @return
+     */
+    public boolean isSinglePartition() {
+        return (this.touched_partitions.size() == 1);
+    }
 
     /**
      * Retrieves and removes the coordinator callback
@@ -428,7 +437,8 @@ public class TransactionState {
         
         // The partition that this task is being sent to for execution
         boolean blocked = false;
-        int partition = ftask.getTargetPartition();
+        int partition = ftask.getDestinationPartitionId();
+        this.touched_partitions.add(partition);
         int num_fragments = ftask.getFragmentCount();
         
         // If this task produces output dependencies, then we need to make 
@@ -526,7 +536,7 @@ public class TransactionState {
                 // But we have to make sure that we attach the dependencies that they need 
                 // so that the other partition can get to them
                 } else {
-                    if (trace) LOG.trace("Sending unblocked task to partition #" + unblocked.getTargetPartition() + " with attached results for txn #" + this.txn_id);
+                    if (trace) LOG.trace("Sending unblocked task to partition #" + unblocked.getDestinationPartitionId() + " with attached results for txn #" + this.txn_id);
 //                    unblocked.attachResults(d.getDependencyId(), d.getResults());
                     to_execute.add(unblocked);
                 }

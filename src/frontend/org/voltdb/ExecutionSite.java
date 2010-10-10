@@ -52,10 +52,8 @@ import edu.brown.catalog.CatalogUtil;
 import edu.brown.markov.TransactionEstimator;
 import edu.brown.utils.PartitionEstimator;
 import edu.mit.dtxn.Dtxn;
-import edu.mit.hstore.HStoreCoordinator;
 import edu.mit.hstore.HStoreCoordinatorNode;
 import edu.mit.hstore.HStoreMessenger;
-import edu.mit.hstore.HStoreNode;
 
 /**
  * The main executor of transactional work in the system. Controls running
@@ -190,6 +188,9 @@ public class ExecutionSite implements Runnable {
             final boolean trace = LOG.isTraceEnabled();
             final boolean debug = LOG.isDebugEnabled();
             
+            // Ignore (I think this is ok...)
+            if (true) return;
+            
             if (debug) LOG.debug("Processing Dtxn.CoordinatorResponse in RPC callback with " + parameter.getResponseCount() + " embedded responses (" + ExecutionSite.this.getThreadName() + ")");
             for (int i = 0, cnt = parameter.getResponseCount(); i < cnt; i++) {
                 ByteString serialized = parameter.getResponse(i).getOutput();
@@ -206,17 +207,18 @@ public class ExecutionSite implements Runnable {
                 long txn_id = response.getTxnId();
                 if (trace) LOG.trace("FragmentResponseMessage [txn_id=" + txn_id + ", size=" + serialized.size() + ", id=" + serialized.byteAt(VoltMessage.HEADER_SIZE) + ",results=" + response.getTableCount() + "]");
                 TransactionState ts = ExecutionSite.this.txn_states.get(txn_id);
-                assert(ts != null) : "No transaction state exists for txn #" + txn_id + " " + txn_states + " -- " + getThreadName();
+                assert(ts != null) : "No transaction state exists for txn #" + txn_id + " " + txn_states;
                 
-                if (trace) LOG.trace("CoordinatorResponse contains data for txn #" + txn_id);
                 int num_tables = response.getTableCount();
-                assert(num_tables > 0) : "No tables in response for txn #" + txn_id;
-                for (int ii = 0; ii < num_tables; ii++) {
-                    int dependency_id = response.getTableDependencyIdAtIndex(ii);
-                    int partition = (int)response.getExecutorSiteId();
-                    VoltTable table = response.getTableAtIndex(ii);
-                    if (trace) LOG.trace("[Response#" + i + " - Table#" + ii + "] Txn#=" + txn_id + ", Partition=" + partition + ", DependencyId=" + dependency_id + ", Table=" + table.getRowCount() + " tuples");
-                    ts.addResult(partition, dependency_id, table);
+                if (num_tables > 0) {
+                    if (trace) LOG.trace("CoordinatorResponse contains data for txn #" + txn_id);
+                    for (int ii = 0; ii < num_tables; ii++) {
+                        int dependency_id = response.getTableDependencyIdAtIndex(ii);
+                        int partition = (int)response.getExecutorSiteId();
+                        VoltTable table = response.getTableAtIndex(ii);
+                        if (trace) LOG.trace("[Response#" + i + " - Table#" + ii + "] Txn#=" + txn_id + ", Partition=" + partition + ", DependencyId=" + dependency_id + ", Table=" + table.getRowCount() + " tuples");
+                        ts.addResult(partition, dependency_id, table);
+                    } // FOR
                 } // FOR
             } // FOR
         }
@@ -580,7 +582,7 @@ public class ExecutionSite implements Runnable {
                 if (work instanceof FragmentTaskMessage) {
                     FragmentTaskMessage ftask = (FragmentTaskMessage)work;
                     long txn_id = ftask.getTxnId();
-                    int txn_partition_id = ftask.getInitiatorSiteId();
+                    int txn_partition_id = ftask.getSourcePartitionId();
                     TransactionState ts = this.txn_states.get(txn_id);
                     if (ts == null) {
                         String msg = "No transaction state for txn #" + txn_id;
@@ -590,7 +592,7 @@ public class ExecutionSite implements Runnable {
 
                     // A txn is "local" if the Java is executing at the same site as we are
                     boolean is_local = ts.isExecLocal();
-                    if (trace) LOG.trace("Executing FragmentTaskMessage txn #" + txn_id + " [is_local=" + is_local + ", partition=" + ftask.getInitiatorSiteId() + ", fragments=" + Arrays.toString(ftask.getFragmentIds()) + "]");
+                    if (trace) LOG.trace("Executing FragmentTaskMessage txn #" + txn_id + " [is_local=" + is_local + ", partition=" + ftask.getSourcePartitionId() + ", fragments=" + Arrays.toString(ftask.getFragmentIds()) + "]");
 
                     // If this txn isn't local, then we have to update our undoToken
                     if (!is_local) ts.initRound(this.getNextUndoToken());
@@ -907,10 +909,15 @@ public class ExecutionSite implements Runnable {
      * 
      */
     public void cleanupTransaction(long txn_id) {
+        if (LOG.isDebugEnabled()) LOG.debug("Cleaning up internal state information for Txn #" + txn_id);
         VoltProcedure volt_proc = this.running_xacts.remove(txn_id);
         assert(volt_proc != null);
         assert(this.all_procs.get(volt_proc.getProcedureName()).contains(volt_proc));
         this.proc_pool.get(volt_proc.getProcedureName()).add(volt_proc);
+        
+//        if (LOG.isTraceEnabled()) LOG.trace("Removing TransactionState for Txn #" + txn_id);
+//        assert(this.txn_states.contains(txn_id));
+//        this.txn_states.remove(txn_id);
     }
     
     public Long getLastCommittedTxnId() {
@@ -952,7 +959,7 @@ public class ExecutionSite implements Runnable {
             long client_handle = task.getClientHandle();
             boolean exec_local = (task instanceof InitiateTaskMessage);
             assert(!exec_local || (exec_local && !this.txn_states.containsKey(txn_id))) : "Unexpected redundant call to doWork for txn #" + txn_id;
-            ts = new TransactionState(this, txn_id, client_handle, exec_local);
+            ts = new TransactionState(this, txn_id, task.getSourcePartitionId(), client_handle, exec_local);
             this.txn_states.put(txn_id, ts);
             if (trace) LOG.trace("Creating transaction state for txn #" + txn_id);
         }
@@ -997,7 +1004,7 @@ public class ExecutionSite implements Runnable {
         }
 
         // IMPORTANT: If we executed this locally, then we need to commit/abort right here 
-        boolean is_local = ts.isExecLocal();
+        boolean is_local = ts.isSinglePartition() && ts.isExecLocal();
         switch (cresponse.getStatus()) {
             case ClientResponseImpl.SUCCESS:
                 if (trace) LOG.trace("Marking txn #" + txn_id + " as success. If only Evan was still alive to see this!");
@@ -1014,6 +1021,8 @@ public class ExecutionSite implements Runnable {
                 if (is_local) this.abortWork(txn_id);
                 break;
         } // SWITCH
+        if (trace) LOG.trace("Invoking finished callback for txn #" + txn_id);
+        System.err.println(callback + " - " + callback.getClass());
         callback.run(builder.build());
     }
 
@@ -1043,7 +1052,7 @@ public class ExecutionSite implements Runnable {
 //        LOG.info("Serialized FragmentResponseMessage [size=" + serialized.capacity() + ",id=" + serialized.get(VoltMessage.HEADER_SIZE) + "]");
 //        assert(serialized.get(VoltMessage.HEADER_SIZE) == VoltMessage.FRAGMENT_RESPONSE_ID);
         
-        if (trace) LOG.trace("Sending FragmentResponseMessage for txn #" + txn_id + " with " + fresponse.getTableCount() + " tables [# of tuples=" + fresponse.getTableAtIndex(0).getRowCount() + "]");
+        if (trace) LOG.trace("Sending FragmentResponseMessage for txn #" + txn_id); //  + " with " + fresponse.getTableCount() + " tables [# of tuples=" + fresponse.getTableAtIndex(0).getRowCount() + "]");
         Dtxn.FragmentResponse.Builder builder = Dtxn.FragmentResponse.newBuilder().setOutput(ByteString.copyFrom(bc.b.array()));
         
         switch (fresponse.getStatusCode()) {
@@ -1082,7 +1091,7 @@ public class ExecutionSite implements Runnable {
         requestBuilder.setTransactionId((int)txn_id);
         for (FragmentTaskMessage ftask : tasks) {
             assert(!ts.isBlocked(ftask));
-            int target_partition = ftask.getTargetPartition();
+            int target_partition = ftask.getDestinationPartitionId();
             int dependency_ids[] = ftask.getOutputDependencyIds();
             if (debug) LOG.debug("Preparing to request fragments " + Arrays.toString(ftask.getFragmentIds()) + " on partition " + target_partition + " to generate " + dependency_ids.length + " output dependencies for txn #" + txn_id);
             if (ftask.getFragmentCount() == 0) {
@@ -1129,7 +1138,7 @@ public class ExecutionSite implements Runnable {
         List<FragmentTaskMessage> runnable = new ArrayList<FragmentTaskMessage>();
         boolean all_local = true;
         for (FragmentTaskMessage ftask : tasks) {
-            all_local = all_local && (ftask.getTargetPartition() == this.getPartitionId());
+            all_local = all_local && (ftask.getDestinationPartitionId() == this.getPartitionId());
             if (!ts.addFragmentTaskMessage(ftask)) runnable.add(ftask);
         } // FOR
         if (runnable.isEmpty()) {
@@ -1173,13 +1182,17 @@ public class ExecutionSite implements Runnable {
     public void commitWork(long txn_id) {
         final boolean debug = LOG.isDebugEnabled();
         final boolean trace = LOG.isTraceEnabled(); 
-        TransactionState ts = this.txn_states.remove(txn_id);
+        
+        // Important: Unless this txn is running locally at ourselves, we always want to remove 
+        // it from our txn map
+        TransactionState ts = this.txn_states.get(txn_id);
         if (ts == null) {
             String msg = "No transaction state for txn #" + txn_id;
             if (trace) LOG.trace(msg + ". Ignoring for now...");
             return;
             // throw new RuntimeException(msg);
         }
+        
         Long undoToken = ts.getLastUndoToken();
         if (debug) LOG.debug("Committing txn #" + txn_id + " [lastCommittedTxnId=" + lastCommittedTxnId + ", undoToken=" + undoToken + "]");
 
@@ -1190,6 +1203,10 @@ public class ExecutionSite implements Runnable {
         }
 
         this.lastCommittedTxnId = txn_id;
+        if (ts.isExecLocal() == false) {
+            if (trace) LOG.trace("Removing TransactionState for Txn #" + txn_id);
+            this.txn_states.remove(txn_id); 
+        }
     }
 
     /**
@@ -1200,7 +1217,7 @@ public class ExecutionSite implements Runnable {
     public void abortWork(long txn_id) {
         final boolean debug = LOG.isDebugEnabled();
         final boolean trace = LOG.isTraceEnabled(); 
-        TransactionState ts = this.txn_states.remove(txn_id);
+        TransactionState ts = this.txn_states.get(txn_id);
         if (ts == null) {
             String msg = "No transaction state for txn #" + txn_id;
             if (trace) LOG.trace(msg + ". Ignoring for now...");
@@ -1218,6 +1235,10 @@ public class ExecutionSite implements Runnable {
         if (this.ee != null && undoToken != null) {
             if (trace) LOG.trace("Rolling back work for txn #" + txn_id + " starting at undoToken " + undoToken);
             this.ee.undoUndoToken(undoToken);
+        }
+        if (ts.isExecLocal() == false) {
+            if (trace) LOG.trace("Removing TransactionState for Txn #" + txn_id);
+            this.txn_states.remove(txn_id);
         }
     }
 }

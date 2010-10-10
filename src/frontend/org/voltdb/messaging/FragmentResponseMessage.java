@@ -58,7 +58,7 @@ public class FragmentResponseMessage extends VoltMessage {
     public FragmentResponseMessage(FragmentTaskMessage task, int siteId) {
         m_executorSiteId = siteId;
         m_txnId = task.m_txnId;
-        m_destinationSiteId = task.m_coordinatorSiteId;
+        m_destinationSiteId = task.m_destPartition;
         m_subject = Subject.DEFAULT.getId();
     }
 

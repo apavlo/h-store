@@ -347,7 +347,7 @@ public class HStoreCoordinatorNode extends ExecutionEngine implements VoltProced
         }
         assert (single_partition != null);
         //LOG.debug("Single-Partition = " + single_partition);
-        InitiateTaskMessage wrapper = new InitiateTaskMessage(txn_id, client_handle, request);
+        InitiateTaskMessage wrapper = new InitiateTaskMessage(txn_id, dest_partition, client_handle, request);
         
         if (single_partition) this.singlepart_ctr.incrementAndGet();
         else this.multipart_ctr.incrementAndGet();
@@ -453,8 +453,9 @@ public class HStoreCoordinatorNode extends ExecutionEngine implements VoltProced
         
         @Override
         public void run(Dtxn.FragmentResponse response) {
+            System.err.println("????????????????????????????");
+            LOG.trace("FragmentResponsePassThroughCallback.run()");
             this.prepareFinish(response.getOutput().toByteArray(), response.getStatus());
-            
         }
     } // END CLASS
 
@@ -490,7 +491,7 @@ public class HStoreCoordinatorNode extends ExecutionEngine implements VoltProced
         }
 
         long txn_id = msg.getTxnId(); // request.getTransactionId();
-        int partition = msg.getTargetPartition();
+        int partition = msg.getDestinationPartitionId();
         if (LOG.isTraceEnabled()) {
             LOG.trace("Got " + msg.getClass().getSimpleName() + " message for txn #" + txn_id + ". Forwarding to ExecutionSite");
             LOG.trace("CONTENTS:\n" + msg);
@@ -548,6 +549,9 @@ public class HStoreCoordinatorNode extends ExecutionEngine implements VoltProced
         final CountDownLatch execLatch = new CountDownLatch(1);
         execEventLoop.setExitOnSigInt(true);
         threads.add(new Thread() {
+            {
+                this.setName(String.format("H%03d-proto", catalog_site.getId()));
+            }
             public void run() {
                 ProtoServer execServer = new ProtoServer(execEventLoop);
                 execServer.register(hstore_node);
