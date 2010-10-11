@@ -137,14 +137,14 @@ public class TestVoltMessageSerialization extends TestCase {
         );
         table.addRow("sandimashighschoolfootballrules");
 
-        FragmentResponseMessage fr = new FragmentResponseMessage(ft, 23);
+        FragmentResponseMessage fr = new FragmentResponseMessage(ft);
         fr.setStatus(FragmentResponseMessage.UNEXPECTED_ERROR, new EEException(1));
         fr.addDependency(99, table);
 
         FragmentResponseMessage fr2 = (FragmentResponseMessage) checkVoltMessage(fr, pool);
 
-        assertEquals(fr.getExecutorSiteId(), fr2.getExecutorSiteId());
-        assertEquals(fr.getDestinationSiteId(), fr2.getDestinationSiteId());
+        assertEquals(fr.getSourcePartitionId(), fr2.getSourcePartitionId());
+        assertEquals(fr.getDestinationPartitionId(), fr2.getDestinationPartitionId());
         assertEquals(fr.getTxnId(), fr2.getTxnId());
         assertEquals(fr.getStatusCode(), fr2.getStatusCode());
         assertEquals(fr.getTableCount(), fr2.getTableCount());

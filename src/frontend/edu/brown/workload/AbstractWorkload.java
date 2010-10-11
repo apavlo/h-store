@@ -662,6 +662,24 @@ public abstract class AbstractWorkload implements WorkloadTrace, Iterable<Abstra
         return;
     }
     
+    @Override
+    public void abortTransaction(Object xact_handle) {
+        if (xact_handle instanceof TransactionTrace) {
+            TransactionTrace xact = (TransactionTrace)xact_handle;
+            
+            // Abort any open queries
+            for (QueryTrace query : xact.getQueries()) {
+                if (query.isStopped() == false) {
+                    query.abort();
+                }
+            } // FOR
+            xact.abort();
+            LOG.debug("Aborted trace for transaction " + xact);
+        } else {
+            LOG.fatal("Unable to abort transaction trace: Invalid transaction handle");
+        }
+    }
+    
     /**
      * 
      * @param txn_id
