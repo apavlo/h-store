@@ -52,9 +52,14 @@ import edu.brown.utils.ThreadUtil;
 import edu.brown.workload.AbstractTraceElement;
 import edu.brown.workload.WorkloadTraceFileOutput;
 import edu.mit.dtxn.Dtxn;
+import edu.mit.dtxn.Dtxn.CoordinatorResponse;
 import edu.mit.dtxn.Dtxn.ExecutionEngine;
 import edu.mit.dtxn.Dtxn.FinishRequest;
 import edu.mit.dtxn.Dtxn.FinishResponse;
+import edu.mit.dtxn.Dtxn.FragmentResponse.Status;
+import edu.mit.hstore.callbacks.CoordinatorResponsePassThroughCallback;
+import edu.mit.hstore.callbacks.FragmentResponsePassThroughCallback;
+import edu.mit.hstore.callbacks.InitiateCallback;
 
 /**
  * 
@@ -91,6 +96,7 @@ public class HStoreCoordinatorNode extends ExecutionEngine implements VoltProced
      */
     private final ConcurrentHashMap<Long, Integer> inflight_txns = new ConcurrentHashMap<Long, Integer>();
     private final AtomicInteger completed_txns = new AtomicInteger(0);
+    private final ConcurrentHashMap<Long, RpcCallback<byte[]>> client_callbacks = new ConcurrentHashMap<Long, RpcCallback<byte[]>>();
     
     /**
      * Simple Status Printer
@@ -264,6 +270,17 @@ public class HStoreCoordinatorNode extends ExecutionEngine implements VoltProced
     public int getSiteId() {
         return (this.catalog_site.getId());
     }
+    
+    /**
+     * Perform final cleanup and book keeping for a completed txn
+     * @param txn_id
+     */
+    public void completeTransaction(long txn_id) {
+        this.inflight_txns.remove(txn_id);
+        this.completed_txns.incrementAndGet();
+        assert(!this.inflight_txns.containsKey(txn_id)) :
+            "Failed to remove InFlight entry for txn #" + txn_id + "\n" + inflight_txns;
+    }
 
     @Override
     public void procedureInvocation(byte[] serializedRequest, RpcCallback<byte[]> done) {
@@ -347,7 +364,7 @@ public class HStoreCoordinatorNode extends ExecutionEngine implements VoltProced
         }
         assert (single_partition != null);
         //LOG.debug("Single-Partition = " + single_partition);
-        InitiateTaskMessage wrapper = new InitiateTaskMessage(txn_id, dest_partition, client_handle, request);
+        InitiateTaskMessage wrapper = new InitiateTaskMessage(txn_id, dest_partition, dest_partition, client_handle, request);
         
         if (single_partition) this.singlepart_ctr.incrementAndGet();
         else this.multipart_ctr.incrementAndGet();
@@ -355,133 +372,30 @@ public class HStoreCoordinatorNode extends ExecutionEngine implements VoltProced
         if (debug) LOG.debug("Passing " + catalog_proc.getName() + " to Coordinator as " + (single_partition ? "single" : "multi") + "-partition txn #" + txn_id + " for partition " + dest_partition);
         
         // Even though this is possibly local, we still have to go through the Dtxn.Coordinator <-- Is that true??
-        FragmentResponsePassThroughCallback rpcDone = new FragmentResponsePassThroughCallback(txn_id, t_estimator, done);
-        executor.doWork(wrapper, rpcDone);
+//        FragmentResponsePassThroughCallback rpcDone = new FragmentResponsePassThroughCallback(txn_id, t_estimator, done);
+//        executor.doWork(wrapper, rpcDone);
         
-//        requestBuilder.addFragment(Dtxn.CoordinatorFragment.PartitionFragment.newBuilder()
-//                .setPartitionId(dest_partition)
-//                // TODO: Use copyFrom(ByteBuffer) in the newer version of protobuf
-//                .setWork(ByteString.copyFrom(wrapper.getBufferForMessaging(this.buffer_pool).b.array())))
-//                // 2010-06-18: We need to set this for single-partition txns
-//                .setLastFragment(single_partition);
-//        CoordinatorResponsePassThroughCallback rpcDone = new CoordinatorResponsePassThroughCallback(txn_id, t_estimator, done);
-//        coordinator.execute(rpc, requestBuilder.build(), rpcDone);
+        requestBuilder.addFragment(Dtxn.CoordinatorFragment.PartitionFragment.newBuilder()
+                .setPartitionId(dest_partition)
+                // TODO: Use copyFrom(ByteBuffer) in the newer version of protobuf
+                .setWork(ByteString.copyFrom(wrapper.getBufferForMessaging(this.buffer_pool).b.array())))
+                // 2010-06-18: We need to set this for single-partition txns
+                .setLastFragment(single_partition);
+        //CoordinatorResponsePassThroughCallback rpcDone = new CoordinatorResponsePassThroughCallback(this, txn_id, t_estimator, done);
+
+        if (trace) LOG.trace("Passing txn #" + txn_id + " through Dtxn.Coordinator using InitiateCallback");
+        InitiateCallback callback = new InitiateCallback(this, txn_id, t_estimator);
+        this.client_callbacks.put(txn_id, done);
+        this.coordinator.execute(rpc, requestBuilder.build(), callback);
     }
 
     /**
-     * Base class used to perform the final operations of when a txn completes
-     */
-    private abstract class AbstractTxnCallback {
-        protected final RpcCallback<byte[]> done;
-        protected final long txn_id;
-        protected final TransactionEstimator t_estimator;
-     
-        public AbstractTxnCallback(long txn_id, TransactionEstimator t_estimator, RpcCallback<byte[]> done) {
-            this.t_estimator = t_estimator;
-            this.txn_id = txn_id;
-            this.done = done;
-        }
-        
-        public void prepareFinish(byte[] output, Dtxn.FragmentResponse.Status status) {
-            boolean commit = (status == Dtxn.FragmentResponse.Status.OK);
-            final boolean trace = LOG.isTraceEnabled();
-            if (trace) LOG.trace("Got callback for txn #" + this.txn_id + " [bytes=" + output.length + ", commit=" + commit + ", status=" + status + "]");
-            
-            // According to the where ever the VoltProcedure was running, our transaction is
-            // now complete (either aborted or committed). So we need to tell Dtxn.Coordinator
-            // to go fuck itself and send the final messages to everyone that was involved
-            FinishRequest.Builder builder = FinishRequest.newBuilder()
-                                                .setTransactionId((int)this.txn_id)
-                                                .setCommit(commit);
-            ClientCallback callback = new ClientCallback(this.txn_id, output, commit, this.done);
-            FinishRequest finish = builder.build();
-            if (trace) LOG.debug("Calling Dtxn.Coordinator.finish() for txn #" + this.txn_id);
-            
-            HStoreCoordinatorNode.this.coordinator.finish(new ProtoRpcController(), finish, callback);
-            
-            // Then clean-up any extra information that we may have for the txn
-            if (this.t_estimator != null) {
-                if (commit) {
-                    if (trace) LOG.trace("Telling the ExecutionSite to COMMIT txn #" + this.txn_id);
-                    this.t_estimator.commit(this.txn_id);
-                } else {
-                    if (trace) LOG.trace("Telling the ExecutionSite to ABORT txn #" + this.txn_id);
-                    this.t_estimator.abort(this.txn_id);
-                }
-            }
-        }
-    } // END CLASS
-    
-    /**
-     * Finally send the output bytes to the client
-     */
-    private class ClientCallback extends AbstractTxnCallback implements RpcCallback<Dtxn.FinishResponse> {
-        private final byte output[];
-        private final boolean commit;
-        
-        public ClientCallback(long txn_id, byte output[], boolean commit, RpcCallback<byte[]> done) {
-            super(txn_id, null, done);
-            this.output = output;
-            this.commit = commit;
-        }
-        
-        /**
-         * We can finally send out the final answer to the client
-         */
-        @Override
-        public void run(FinishResponse parameter) {
-            if (LOG.isDebugEnabled()) {
-                LOG.debug("Sending final response to client for txn #" + this.txn_id + " [" +
-                           "status=" + (this.commit ? "COMMIT" : "ABORT") + ", " + 
-                           "bytes=" + this.output.length + "]");
-            }
-            HStoreCoordinatorNode.this.inflight_txns.remove(this.txn_id);
-            HStoreCoordinatorNode.this.completed_txns.incrementAndGet();
-            assert(!HStoreCoordinatorNode.this.inflight_txns.containsKey(this.txn_id)) :
-                "Failed to remove InFlight entry for txn #" + this.txn_id + "\n" + inflight_txns;
-            this.done.run(this.output);
-        }
-    } // END CLASS
-    
-    /**
-     * Unpack a FragmentResponse and send the bytes to the client
-     */
-    private final class FragmentResponsePassThroughCallback extends AbstractTxnCallback implements RpcCallback<Dtxn.FragmentResponse> {
-        public FragmentResponsePassThroughCallback(long txn_id, TransactionEstimator t_estimator, RpcCallback<byte[]> done) {
-            super(txn_id, t_estimator, done);
-        }
-        
-        @Override
-        public void run(Dtxn.FragmentResponse response) {
-            System.err.println("????????????????????????????");
-            LOG.trace("FragmentResponsePassThroughCallback.run()");
-            this.prepareFinish(response.getOutput().toByteArray(), response.getStatus());
-        }
-    } // END CLASS
-
-    /**
-     * Unpack a CoordinatorResponse and send the bytes to the client
-     */
-    private final class CoordinatorResponsePassThroughCallback extends AbstractTxnCallback implements RpcCallback<Dtxn.CoordinatorResponse> {
-        public CoordinatorResponsePassThroughCallback(long txn_id, TransactionEstimator t_estimator, RpcCallback<byte[]> done) {
-            super(txn_id, t_estimator, done);
-        }
-
-        @Override
-        public void run(Dtxn.CoordinatorResponse response) {
-            assert response.getResponseCount() == 1;
-            // FIXME(evanj): This callback should call AbstractTxnCallback.run() once we get
-            // generate txn working. For now we'll just forward the request back to the client
-            // this.done.run(response.getResponse(0).getOutput().toByteArray());
-            this.prepareFinish(response.getResponse(0).getOutput().toByteArray(), response.getStatus());
-        }
-    } // END CLASS
-
-    /**
-     * Is this always going to be a StoredProcedureInvocation??
+     * Execute some work on a particular ExecutionSite
      */
     @Override
     public void execute(RpcController controller, Dtxn.Fragment request, RpcCallback<Dtxn.FragmentResponse> done) {
+        final boolean trace = LOG.isTraceEnabled();
+        
         // Decode the procedure request
         TransactionInfoBaseMessage msg = null;
         try {
@@ -492,11 +406,45 @@ public class HStoreCoordinatorNode extends ExecutionEngine implements VoltProced
 
         long txn_id = msg.getTxnId(); // request.getTransactionId();
         int partition = msg.getDestinationPartitionId();
-        if (LOG.isTraceEnabled()) {
-            LOG.trace("Got " + msg.getClass().getSimpleName() + " message for txn #" + txn_id + ". Forwarding to ExecutionSite");
+        if (trace) {
+            LOG.trace("Got " + msg.getClass().getSimpleName() + " message for txn #" + txn_id + " running at Partition #" + partition);
             LOG.trace("CONTENTS:\n" + msg);
         }
-        this.executors.get(partition).doWork(msg, done);
+        ExecutionSite executor = this.executors.get(partition);
+        if (executor == null) {
+            throw new RuntimeException("No ExecutionSite exists for Partition #" + partition + " at this site???");
+        }
+        TransactionEstimator t_estimator = executor.getTransactionEstimator();
+        
+        // Two things can now happen based on what type of message we were given:
+        //
+        //  (1) If we have an InitiateTaskMessage, then this call is for starting a new txn
+        //      at this site. We need to send back a placeholder response through the Dtxn.Coordinator
+        //      so that we are allowed to execute queries on remote partitions later.
+        //      Note that we maintain the callback to the client so that we know how to send back
+        //      our ClientResponse once the txn is finished.
+        //
+        //  (2) Any other message can just be sent along to the ExecutionSite without sending
+        //      back anything right away. The ExecutionSite will use our callback handle
+        //      to send back whatever response it needs to on its own.
+        RpcCallback<Dtxn.FragmentResponse> callback = null;
+        if (msg instanceof InitiateTaskMessage) {
+            // We need to send back a response before we actually start executing to avoid a race condition
+            if (trace) LOG.trace("Sending back FragmentResponse for InitiateTaskMessage message on txn #" + txn_id);
+            Dtxn.FragmentResponse response = Dtxn.FragmentResponse.newBuilder()
+                                                    .setStatus(Status.OK)
+                                                    .setOutput(ByteString.EMPTY)
+                                                    .build();
+            done.run(response);
+            
+            RpcCallback<byte[]> client_callback = this.client_callbacks.get(txn_id);
+            assert(client_callback != null) : "Missing original RpcCallback for txn #" + txn_id;
+            callback = new FragmentResponsePassThroughCallback(this, txn_id, t_estimator, client_callback);
+        } else {
+            callback = done;
+        }
+            
+        executor.doWork(msg, callback);
     }
 
     @Override
@@ -603,7 +551,7 @@ public class HStoreCoordinatorNode extends ExecutionEngine implements VoltProced
         // ----------------------------------------------------------------------------
         // (3) Procedure Request Listener Thread
         // ----------------------------------------------------------------------------
-        if (catalog_site.getId() == 0) { // FIXME
+//        if (catalog_site.getId() == 0) { // FIXME
             threads.add(new Thread() {
                 {
                     this.setName(String.format("H%03d-coord", catalog_site.getId()));
@@ -622,13 +570,13 @@ public class HStoreCoordinatorNode extends ExecutionEngine implements VoltProced
                     hstore_node.setDtxnCoordinator(stub);
                     VoltProcedureListener voltListener = new VoltProcedureListener(coordinatorEventLoop, hstore_node);
                     voltListener.bind(catalog_site.getProc_port());
-                    LOG.info("HStoreCoordinatorNode is ready for action [site=" + catalog_site.getId() + ", VoltProcedureListener=true]");
+                    LOG.info("HStoreCoordinatorNode is ready for action [site=" + catalog_site.getId() + ", port=" + catalog_site.getProc_port() + "]");
                     coordinatorEventLoop.run();
                 };
             });
-        } else {
-            LOG.info("HStoreCoordinatorNode is ready for action [site=" + catalog_site.getId() + ", VoltProcedureListener=false]");
-        }
+//        } else {
+//            LOG.info("HStoreCoordinatorNode is ready for action [site=" + catalog_site.getId() + ", VoltProcedureListener=false]");
+//        }
 
         // Blocks!
         ThreadUtil.run(threads);

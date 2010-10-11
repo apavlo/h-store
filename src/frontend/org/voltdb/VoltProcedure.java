@@ -174,7 +174,7 @@ public abstract class VoltProcedure {
             VoltProcedure.this.m_site.sendClientResponse((ClientResponseImpl)response);
             
             // Notify anybody who cares that we're finished (we can probably remove this)
-            VoltProcedure.this.observable.notifyObservers(response);
+            // VoltProcedure.this.observable.notifyObservers(response);
             
             // Clear out our private data
             VoltProcedure.this.m_currentTxnState = null;
@@ -560,6 +560,12 @@ public abstract class VoltProcedure {
                 //LOG.fatal("PROCEDURE "+ catProc.getName() + " USER ABORTED", ex);
                 status = ClientResponseImpl.USER_ABORT;
                 extra = "USER ABORT: " + ex.getMessage();
+                
+                if ((ProcedureProfiler.profilingLevel == ProcedureProfiler.Level.INTRUSIVE) &&
+                        (ProcedureProfiler.workloadTrace != null && m_workloadXactHandle != null)) {
+                    ProcedureProfiler.workloadTrace.abortTransaction(m_workloadXactHandle);
+                }
+                
             }
             else if (ex.getClass() == org.voltdb.exceptions.ConstraintFailureException.class) {
                 status = ClientResponseImpl.UNEXPECTED_FAILURE;

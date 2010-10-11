@@ -20,6 +20,7 @@ public class TestFragmentResponseMessage extends TestCase {
     
     protected final DBBPool buffer_pool = new DBBPool(true, false);
     protected FragmentResponseMessage f;
+    protected FragmentResponseMessage f_nodata;
     
     protected static int initiatorSiteId = 1;
     protected static int coordinatorSiteId = 1;
@@ -59,15 +60,28 @@ public class TestFragmentResponseMessage extends TestCase {
         
         FragmentTaskMessage ftask = new FragmentTaskMessage(initiatorSiteId, coordinatorSiteId, txnId, clientHandle, isReadOnly, fragmentIds, inputDependencyIds, outputDependencyIds, parameterSets, stmtIndexes, isFinal);
         
-        f = new FragmentResponseMessage(ftask, 0);
+        f = new FragmentResponseMessage(ftask);
         f.addDependency(1, result);
         f.setDirtyFlag(false);
         f.setStatus(FragmentResponseMessage.SUCCESS, null);
+        
+        f_nodata = new FragmentResponseMessage(ftask);
+        f_nodata.addDependency(1);
+        f_nodata.setDirtyFlag(false);
+        f_nodata.setStatus(FragmentResponseMessage.SUCCESS, null);
+
     }
     
     public void testToBuffer() {
         BBContainer bc = f.getBufferForMessaging(this.buffer_pool);
         assert(bc.b.hasArray());
+        assertFalse(f.m_nullDependencies);
+    }
+    
+    public void testToBufferNoDependencies() {
+        BBContainer bc = f_nodata.getBufferForMessaging(this.buffer_pool);
+        assert(bc.b.hasArray());
+        assert(f_nodata.m_nullDependencies);
     }
     
     public void testFromBuffer() {
@@ -75,11 +89,13 @@ public class TestFragmentResponseMessage extends TestCase {
         assert(bc.b.hasArray());
         
         FragmentResponseMessage f2 = (FragmentResponseMessage)VoltMessage.createMessageFromBuffer(bc.b.asReadOnlyBuffer(), false);
-        assertEquals(f.m_destinationSiteId, f2.m_destinationSiteId);
+        assertEquals(f.getDestinationPartitionId(), f2.getDestinationPartitionId());
+        assertEquals(f.getSourcePartitionId(), f2.getSourcePartitionId());
+        assertEquals(f.m_nullDependencies, f2.m_nullDependencies);
         assertEquals(f.m_dirty, f2.m_dirty);
-        assertEquals(f.m_executorSiteId, f2.m_executorSiteId);
         assertEquals(f.m_status, f2.m_status);
         assertEquals(f.m_txnId, f2.m_txnId);
+        
         
         assertEquals(f.m_dependencyCount, f2.m_dependencyCount);
         for (int i = 0, cnt = f.getTableCount(); i < cnt; i++) {
@@ -87,6 +103,21 @@ public class TestFragmentResponseMessage extends TestCase {
             VoltTable vt2 = f2.getTableAtIndex(i);
             assertEquals(vt1.getRowCount(), vt2.getRowCount());
         } // FOR
+    }
+    
+    public void testFromBufferNoDependencies() {
+        BBContainer bc = f_nodata.getBufferForMessaging(this.buffer_pool);
+        assert(bc.b.hasArray());
+        
+        FragmentResponseMessage f2 = (FragmentResponseMessage)VoltMessage.createMessageFromBuffer(bc.b.asReadOnlyBuffer(), false);
+        assertEquals(f_nodata.getDestinationPartitionId(), f2.getDestinationPartitionId());
+        assertEquals(f_nodata.getSourcePartitionId(), f2.getSourcePartitionId());
+        assertEquals(f_nodata.m_nullDependencies, f2.m_nullDependencies);
+        assertEquals(f_nodata.m_dirty, f2.m_dirty);
+        assertEquals(f_nodata.m_status, f2.m_status);
+        assertEquals(f_nodata.m_txnId, f2.m_txnId);
+        
+        assertEquals(f_nodata.m_dependencyCount, f2.m_dependencyCount);
     }
 
 }

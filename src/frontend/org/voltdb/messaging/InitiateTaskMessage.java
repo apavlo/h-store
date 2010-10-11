@@ -41,10 +41,17 @@ public class InitiateTaskMessage extends TransactionInfoBaseMessage {
         super();
     }
 
+    // Don't use this one!
     public InitiateTaskMessage(long txnId, int srcPartitionId, long clientHandle, StoredProcedureInvocation invocation) {
         this(srcPartitionId, -1, txnId, clientHandle, false, false, invocation, -1);
     }
     
+    // Use this one asshole!
+    public InitiateTaskMessage(long txnId, int srcPartitionId, int destPartitionId, long clientHandle, StoredProcedureInvocation invocation) {
+        this(srcPartitionId, destPartitionId, txnId, clientHandle, false, false, invocation, -1);
+    }
+
+
     public InitiateTaskMessage(int sourcePartitionId,
                         int destPartitionId,
                         long txnId,

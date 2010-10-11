@@ -96,9 +96,18 @@ public abstract class AbstractTraceElement<T extends CatalogType> implements JSO
         this.stop_timestamp = System.nanoTime();
     }
     
+    public void abort() {
+        this.stop();
+        this.aborted = true;
+    }
+    
     public boolean isStopped() {
         return (this.stop_timestamp != null);
-    }    
+    }
+    
+    public boolean isAborted() {
+        return (this.aborted);
+    }
     
     /**
      * Return the the TraceId for this element
