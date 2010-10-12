@@ -1510,9 +1510,9 @@ PROTOCOL BUFFERS
 
 <target name="protobuf" description="" depends="protobuf.java,protobuf.compile">
     <mkdir dir='${build.prod.dir}' />
-<!--    <ProtobufCompile srcdir="${src.protobuf.dir}/java/src/main/java:${build.protorpc.dir}" destdir="${build.prod.dir}">
+    <ProtobufCompile srcdir="${src.protobuf.dir}/java/src/main/java:${build.protorpc.dir}" destdir="${build.prod.dir}">
         <classpath refid="project.classpath"/>
-    </ProtobufCompile>-->
+    </ProtobufCompile>
 </target>
 
 <!--
