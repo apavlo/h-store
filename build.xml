@@ -530,7 +530,7 @@ JAVA COMPILATION
 ***************************************
 -->
 
-<target name="compile" depends="protobuf, dtxn"> 
+<target name="compile" depends="protobuf, protorpc, dtxn"> 
 <!-- <target name="compile" depends="tpceloader_compile, protobuf_compile, dtxn_compile">  -->
     <!-- Delete additional class files from third_party jars before we build -->
     <delete dir="${build.prod.dir}/org/apache/" />
