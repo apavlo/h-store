@@ -39,6 +39,7 @@ public:
     }
 
     void setResponse(RpcController* controller, CoordinatorResponse* response, Closure* done) {
+        fprintf(stderr, "EVAN: Txn Id #%d\n", id_);
         assert(controller_ == NULL);
         assert(response_ == NULL);
         assert(done_ == NULL);

@@ -405,11 +405,11 @@ public class TestCatalogUtil extends BaseTestCase {
             Partition catalog_part = CollectionUtil.getFirst(partitions);
             int base_partition = catalog_part.getId();
             Set<Partition> local_partitions = CatalogUtil.getLocalPartitions(catalog_db, base_partition);
-            assertEquals(partitions.size() - 1, local_partitions.size());
+            assertEquals(partitions.size(), local_partitions.size());
             
             for (Partition other_part : local_partitions) {
                 assertNotNull(other_part);
-                assertFalse(catalog_part.equals(other_part));
+//                assertFalse(catalog_part.equals(other_part));
                 assertTrue(host_partitions.get(catalog_host).contains(other_part));
             } // FOR
         } // FOR

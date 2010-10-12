@@ -3,6 +3,8 @@
  */
 package org.voltdb;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Observable;
 import java.util.Random;
 import java.util.concurrent.LinkedBlockingDeque;
@@ -13,9 +15,16 @@ import org.voltdb.catalog.*;
 import org.voltdb.client.ClientResponse;
 import org.voltdb.messaging.InitiateTaskMessage;
 
+import com.google.protobuf.RpcCallback;
+
+import edu.brown.catalog.CatalogUtil;
 import edu.brown.utils.*;
 
 import edu.brown.BaseTestCase;
+import edu.mit.dtxn.Dtxn;
+import edu.mit.dtxn.Dtxn.FragmentResponse;
+import edu.mit.hstore.HStoreCoordinatorNode;
+import edu.mit.hstore.HStoreMessenger;
 
 /**
  * @author pavlo
@@ -25,7 +34,7 @@ public class TestExecutionSite extends BaseTestCase {
 
     private static final int NUM_PARTITONS = 10;
     private static final int PARTITION_ID = 1;
-    private static final long CLIENT_HANDLE = -1;
+    private static final long CLIENT_HANDLE = 1001;
     private static final long LAST_SAFE_TXN = -1;
     private static final BackendTarget BACKEND_TARGET = BackendTarget.HSQLDB_BACKEND;
 
@@ -36,6 +45,13 @@ public class TestExecutionSite extends BaseTestCase {
     
     private final Random rand = new Random(); 
     
+    private class MockCallback implements RpcCallback<Dtxn.FragmentResponse> {
+        @Override
+        public void run(FragmentResponse parameter) {
+            // Nothing!
+        }
+    }
+    
     @Override
     protected void setUp() throws Exception {
         super.setUp(ProjectType.TM1);
@@ -43,7 +59,16 @@ public class TestExecutionSite extends BaseTestCase {
         
         if (site == null) {
             PartitionEstimator p_estimator = new PartitionEstimator(catalog_db);
+            Site catalog_site = CollectionUtil.getFirst(CatalogUtil.getCluster(catalog).getSites());
             site = new ExecutionSite(PARTITION_ID, catalog, BACKEND_TARGET, p_estimator, null);
+            
+            Map<Integer, ExecutionSite> executors = new HashMap<Integer, ExecutionSite>();
+            executors.put(PARTITION_ID, site);
+            HStoreCoordinatorNode hstore = new HStoreCoordinatorNode(catalog_site, executors, p_estimator);
+            site.setHStoreCoordinatorNode(hstore);
+            HStoreMessenger messenger = new HStoreMessenger(executors, catalog_site);
+            site.setHStoreMessenger(messenger);
+            
         }
     }
     
@@ -147,10 +172,11 @@ public class TestExecutionSite extends BaseTestCase {
         StoredProcedureInvocation invocation = new StoredProcedureInvocation();
         invocation.setProcName(TARGET_PROCEDURE);
         invocation.setParams(TARGET_PARAMS);
+        invocation.setClientHandle(10001);
         
         Long txn_id = new Long(rand.nextInt());
         InitiateTaskMessage init_task = new InitiateTaskMessage(PARTITION_ID, PARTITION_ID, txn_id, CLIENT_HANDLE, true, true, invocation, LAST_SAFE_TXN); 
-        site.doWork(init_task);
+        site.doWork(init_task, new MockCallback());
         
         int tries = 1000;
         boolean found = false;
