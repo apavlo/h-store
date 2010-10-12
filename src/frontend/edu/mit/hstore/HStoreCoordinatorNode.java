@@ -571,7 +571,12 @@ public class HStoreCoordinatorNode extends ExecutionEngine implements VoltProced
                     VoltProcedureListener voltListener = new VoltProcedureListener(coordinatorEventLoop, hstore_node);
                     voltListener.bind(catalog_site.getProc_port());
                     LOG.info("HStoreCoordinatorNode is ready for action [site=" + catalog_site.getId() + ", port=" + catalog_site.getProc_port() + "]");
-                    coordinatorEventLoop.run();
+                    try {
+                        coordinatorEventLoop.run();
+                    } catch (UnsupportedOperationException ex) {
+                        LOG.trace(ex);
+                        LOG.info("Stopping HStoreCoordinator [site=" + catalog_site.getId() + "]");
+                    }
                 };
             });
 //        } else {

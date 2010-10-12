@@ -173,8 +173,8 @@ public abstract class VoltProcedure {
             // Send the response back immediately!
             VoltProcedure.this.m_site.sendClientResponse((ClientResponseImpl)response);
             
-            // Notify anybody who cares that we're finished (we can probably remove this)
-            // VoltProcedure.this.observable.notifyObservers(response);
+            // Notify anybody who cares that we're finished (used in testing)
+             VoltProcedure.this.observable.notifyObservers(response);
             
             // Clear out our private data
             VoltProcedure.this.m_currentTxnState = null;

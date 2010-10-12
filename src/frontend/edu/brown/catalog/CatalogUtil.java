@@ -1476,34 +1476,21 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
     public static Set<Partition> getLocalPartitions(Database catalog_db, int base_partition) {
         Set<Partition> partitions = new HashSet<Partition>();
 
-        //
         // First figure out what partition we are in the catalog
-        //
         Cluster catalog_clus = CatalogUtil.getCluster(catalog_db);
         assert (catalog_clus != null);
-        Partition catalog_part = CatalogUtil.getPartitionById(catalog_clus,
-                base_partition);
+        Partition catalog_part = CatalogUtil.getPartitionById(catalog_clus, base_partition);
         assert (catalog_part != null);
+        Site catalog_site = catalog_part.getParent();
+        assert(catalog_site != null);
+        Host catalog_host = catalog_site.getHost();
+        assert(catalog_host != null);
 
-        //
         // Now look at what other partitions are on the same host that we are
-        //
-        for (Site catalog_site : catalog_clus.getSites()) {
-            for (Partition other : catalog_site.getPartitions()) {
-                if (other.equals(catalog_part)) {
-                    Host catalog_host = catalog_site.getHost();
-                    for (Site other_site : catalog_clus.getSites()) {
-                        if (other_site.equals(catalog_site))
-                            continue;
-                        if (other_site.getHost().equals(catalog_host)) {
-                            // System.out.println(catalog_site + " <--> " +
-                            // other_site);
-                            CollectionUtil.addAll(partitions, other_site
-                                    .getPartitions());
-                        }
-                    } // FOR
-                } // FOR
-            }
+        for (Site other_site : catalog_clus.getSites()) {
+            if (other_site.getHost().equals(catalog_host) == false) continue;
+            LOG.trace(catalog_host + " => " + CatalogUtil.debug(other_site.getPartitions()));
+            CollectionUtil.addAll(partitions, other_site.getPartitions());
         } // FOR
         return (partitions);
     }

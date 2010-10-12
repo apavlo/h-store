@@ -166,14 +166,16 @@ public class TransactionState {
         }
         
         public boolean addResponse(int partition) {
+            if (LOG.isTraceEnabled()) LOG.trace("Storing RESPONSE for DependencyId #" + this.dependency_id + " from Partition #" + partition + " in txn #" + TransactionState.this.txn_id);
+            assert(this.responses.contains(partition) == false);
             this.responses.add(partition);
-            LOG.trace("Storing response for DependencyId #" + this.dependency_id + " from Partition #" + partition + " in txn #" + TransactionState.this.txn_id);
             return (this.results.containsKey(partition));
         }
         
         public boolean addResult(int partition, VoltTable result) {
+            if (LOG.isTraceEnabled()) LOG.trace("Storing RESULT for DependencyId #" + this.dependency_id + " from Partition #" + partition + " in txn #" + TransactionState.this.txn_id + " with " + result.getRowCount() + " tuples");
+            assert(this.results.containsKey(partition) == false);
             this.results.put(partition, result);
-            LOG.trace("Storing result for DependencyId #" + this.dependency_id + " from Partition #" + partition + " in txn #" + TransactionState.this.txn_id + " with " + result.getRowCount() + " tuples");
             return (this.responses.contains(partition)); 
         }
         
@@ -588,7 +590,7 @@ public class TransactionState {
         assert(this.results_dependency_stmt_ctr.containsKey(result_key)) :
             "Unexpected partition/dependency result pair " + result_key + " in txn #" + this.txn_id;
         assert(!this.results_dependency_stmt_ctr.get(result_key).isEmpty()) :
-            "No more statements for partition/dependency result pair " + result_key + " in txn #" + this.txn_id;
+            "No more statements for partition/dependency result pair " + result_key + " in txn #" + this.txn_id + "\n" + this;
         Integer stmt_index = this.results_dependency_stmt_ctr.get(result_key).remove();
         assert(stmt_index != null) :
             "Null stmt_index for result_pair " + result_key + " in txn #" + this.txn_id;
@@ -617,15 +619,16 @@ public class TransactionState {
      * @param dependency_id
      * @param result
      */
-    private void executeBlockedTasks(DependencyInfo d) {
+    private synchronized void executeBlockedTasks(DependencyInfo d) {
         final boolean debug = LOG.isDebugEnabled();
         final boolean trace = LOG.isTraceEnabled();
-        if (trace) LOG.trace("Unblocking FragmentTaskMessage that was waiting for DependencyId #" + d.getDependencyId() + " in txn #" + this.txn_id);
             
         List<FragmentTaskMessage> to_execute = new ArrayList<FragmentTaskMessage>();
         for (FragmentTaskMessage unblocked : d.getBlockedFragmentTaskMessages()) {
             assert(unblocked != null);
+            assert(this.blocked_tasks.contains(unblocked));
             this.blocked_tasks.remove(unblocked);
+            if (trace) LOG.trace("Unblocking FragmentTaskMessage that was waiting for DependencyId #" + d.getDependencyId() + " in txn #" + this.txn_id);
             
             // If this task needs to execute locally, then we'll just queue up with the Executor
             if (d.blocked_all_local) {
@@ -639,6 +642,7 @@ public class TransactionState {
                 to_execute.add(unblocked);
             }
         } // FOR
+        d.getBlockedFragmentTaskMessages().clear();
         if (!to_execute.isEmpty()) {
             this.executor.requestWork(this, to_execute);
         }
@@ -686,7 +690,8 @@ public class TransactionState {
         ret += "  # of Blocked Tasks:    " + this.blocked_tasks.size() + "\n";
         ret += "  # of Rounds:           " + this.round_ctr + "\n";
         ret += "  # of Statements:       " + this.dependencies.size() + "\n";
-        ret += "  Expected Dependencies: " + this.results_dependency_stmt_ctr.keySet() + "\n";
+        ret += "  Expected Results:      " + this.results_dependency_stmt_ctr.keySet() + "\n";
+        ret += "  Expected Responses:    " + this.responses_dependency_stmt_ctr.keySet() + "\n";
 
         for (int stmt_index : this.dependencies.keySet()) {
             Map<Integer, DependencyInfo> s_dependencies = this.dependencies.get(stmt_index); 

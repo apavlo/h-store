@@ -206,7 +206,7 @@ public class ExecutionSite implements Runnable {
                 assert(txn_id == response.getTxnId());
                 if (trace) LOG.trace("FragmentResponseMessage [txn_id=" + txn_id + ", " +
                                                               "size=" + serialized.size() + ", " +
-                                                              "//id=" + serialized.byteAt(VoltMessage.HEADER_SIZE) + ", " +
+//                                                              "id=" + serialized.byteAt(VoltMessage.HEADER_SIZE) + ", " +
                                                               "src_partition=" + response.getSourcePartitionId() + ", " +
                                                               "deps=" + response.getTableCount() + "]");
                 
@@ -601,10 +601,14 @@ public class ExecutionSite implements Runnable {
 
                     // A txn is "local" if the Java is executing at the same site as we are
                     boolean is_local = ts.isExecLocal();
-                    if (trace) LOG.trace("Executing FragmentTaskMessage txn #" + txn_id + " [is_local=" + is_local + ", partition=" + ftask.getSourcePartitionId() + ", fragments=" + Arrays.toString(ftask.getFragmentIds()) + "]");
+                    boolean is_dtxn = ftask.isUsingDtxnCoordinator();
+                    if (trace) LOG.trace("Executing FragmentTaskMessage txn #" + txn_id + " [partition=" + ftask.getSourcePartitionId() + ", " +
+                    		                                                                "is_local=" + is_local + ", " +
+                                                                                            "is_dtxn=" + is_dtxn + ", " +
+                                                                                            "fragments=" + Arrays.toString(ftask.getFragmentIds()) + "]");
 
                     // If this txn isn't local, then we have to update our undoToken
-                    if (!is_local) ts.initRound(this.getNextUndoToken());
+                    if (is_local == false) ts.initRound(this.getNextUndoToken());
 
                     FragmentResponseMessage fresponse = new FragmentResponseMessage(ftask);
                     fresponse.setStatus(FragmentResponseMessage.NULL, null);
@@ -641,7 +645,7 @@ public class ExecutionSite implements Runnable {
                         
                         // If the transaction is local, store the result in the local TransactionState
                         // Unless we were sent this FragmentTaskMessage through the Dtxn.Coordinator
-                        if (is_local && ftask.isUsingDtxnCoordinator() == false) {
+                        if (is_local && is_dtxn == false) {
                             if (debug) LOG.debug("Storing " + result.size() + " dependency results locally for successful FragmentTaskMessage");
                             assert(ts != null);
                             for (int i = 0, cnt = result.size(); i < cnt; i++) {
@@ -664,7 +668,6 @@ public class ExecutionSite implements Runnable {
                             
                             // Bombs away!
                             this.hstore_messenger.sendDependencySet(txn_id, this.getPartitionId(), txn_partition_id, result); 
-                            
                         }
                     }
                     
@@ -814,7 +817,7 @@ public class ExecutionSite implements Runnable {
 //        }
         if (ftask.hasInputDependencies()) {
             if (ts != null && !ts.getInternalDependencyIds().isEmpty()) {
-                if (trace) LOG.trace("Retreiving internal depdency results from TransactionState for txn #" + txn_id);
+                if (trace) LOG.trace("Retreiving internal dependency results from TransactionState for txn #" + txn_id);
                 dependencies.putAll(ts.removeInternalDependencies(ftask));
             }
         }
@@ -1184,6 +1187,7 @@ public class ExecutionSite implements Runnable {
         // executing things at remote partitions
         if (all_local) {
             if (trace) LOG.trace("Adding " + runnable.size() + " FragmentTasks to local work queue");
+            System.err.println(ts);
             this.work_queue.addAll(runnable);
         } else {
             if (trace) LOG.trace("Requesting " + runnable.size() + " FragmentTasks to be executed on remote partitions");
@@ -1205,7 +1209,7 @@ public class ExecutionSite implements Runnable {
         if (trace) LOG.trace("Txn #" + txn_id + " is now running and looking for love in all the wrong places...");
         final VoltTable results[] = ts.getResults();
         ts.finishRound();
-        if (trace) LOG.trace("Txn #" + txn_id + " is sending back " + results.length + " tables from TransactionState");
+        if (trace) LOG.trace("Txn #" + txn_id + " is returning back " + results.length + " tables to VoltProcedure");
         return (results);
     }
 
@@ -1238,10 +1242,10 @@ public class ExecutionSite implements Runnable {
         }
 
         this.lastCommittedTxnId = txn_id;
-        if (ts.isExecLocal() == false) {
+//        if (ts.isExecLocal() == false) {
             if (trace) LOG.trace("Removing TransactionState for Txn #" + txn_id);
             this.txn_states.remove(txn_id); 
-        }
+//        }
     }
 
     /**
@@ -1271,9 +1275,9 @@ public class ExecutionSite implements Runnable {
             if (trace) LOG.trace("Rolling back work for txn #" + txn_id + " starting at undoToken " + undoToken);
             this.ee.undoUndoToken(undoToken);
         }
-        if (ts.isExecLocal() == false) {
+//        if (ts.isExecLocal() == false) {
             if (trace) LOG.trace("Removing TransactionState for Txn #" + txn_id);
             this.txn_states.remove(txn_id);
-        }
+//        }
     }
 }

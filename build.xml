@@ -1517,7 +1517,7 @@ DTXN BINARIES + LIBRARIES
     <available property="dtxn.built" file="${build.dtxn.dir}/protodtxn/protodtxnengine" />
 </target>
 
-<target name="dtxn" description="Build DTXN binaries" depends="dtxn.check,protobuf.compile" unless="dtxn.built">
+<target name="dtxn" description="Build DTXN binaries" depends="protobuf.compile">
    <exec executable="make" dir="${src.dtxn.dir}" failonerror="true" resolveexecutable="true" >
       <arg value="PREFIX=${build.dtxn.dir}" />
       <arg value="PROTOBUF_SRC=${src.protobuf.dir}" />
