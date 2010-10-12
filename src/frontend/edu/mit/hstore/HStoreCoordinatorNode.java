@@ -528,7 +528,7 @@ public class HStoreCoordinatorNode extends ExecutionEngine implements VoltProced
                         try {
                             execLatch.await();
                         } catch (InterruptedException ex) {
-                            // Silently ignore...
+                            LOG.error(ex);
                             return;
                         }
                     }
@@ -551,37 +551,42 @@ public class HStoreCoordinatorNode extends ExecutionEngine implements VoltProced
         // ----------------------------------------------------------------------------
         // (3) Procedure Request Listener Thread
         // ----------------------------------------------------------------------------
-//        if (catalog_site.getId() == 0) { // FIXME
-            threads.add(new Thread() {
-                {
-                    this.setName(String.format("H%03d-coord", catalog_site.getId()));
-                }
-                public void run() {
-                    if (debug) LOG.debug("Creating connection to coordinator at " + coordinatorHost + ":" + coordinatorPort + " [site=" + catalog_site.getId() + "]");
-                    
-                    final NIOEventLoop coordinatorEventLoop = new NIOEventLoop();
-                    coordinatorEventLoop.setExitOnSigInt(true);
-                    InetSocketAddress[] addresses = {
-                            new InetSocketAddress(coordinatorHost, coordinatorPort),
-                    };
-                    ProtoRpcChannel[] channels =
-                        ProtoRpcChannel.connectParallel(coordinatorEventLoop, addresses);
-                    Dtxn.Coordinator stub = Dtxn.Coordinator.newStub(channels[0]);
-                    hstore_node.setDtxnCoordinator(stub);
-                    VoltProcedureListener voltListener = new VoltProcedureListener(coordinatorEventLoop, hstore_node);
-                    voltListener.bind(catalog_site.getProc_port());
-                    LOG.info("HStoreCoordinatorNode is ready for action [site=" + catalog_site.getId() + ", port=" + catalog_site.getProc_port() + "]");
-                    try {
-                        coordinatorEventLoop.run();
-                    } catch (UnsupportedOperationException ex) {
-                        LOG.trace(ex);
-                        LOG.info("Stopping HStoreCoordinator [site=" + catalog_site.getId() + "]");
-                    }
+        threads.add(new Thread() {
+            {
+                this.setName(String.format("H%03d-coord", catalog_site.getId()));
+            }
+            public void run() {
+                if (debug) LOG.debug("Creating connection to coordinator at " + coordinatorHost + ":" + coordinatorPort + " [site=" + catalog_site.getId() + "]");
+                
+                final NIOEventLoop coordinatorEventLoop = new NIOEventLoop();
+                coordinatorEventLoop.setExitOnSigInt(true);
+                InetSocketAddress[] addresses = {
+                        new InetSocketAddress(coordinatorHost, coordinatorPort),
                 };
-            });
-//        } else {
-//            LOG.info("HStoreCoordinatorNode is ready for action [site=" + catalog_site.getId() + ", VoltProcedureListener=false]");
-//        }
+                ProtoRpcChannel[] channels =
+                    ProtoRpcChannel.connectParallel(coordinatorEventLoop, addresses);
+                Dtxn.Coordinator stub = Dtxn.Coordinator.newStub(channels[0]);
+                hstore_node.setDtxnCoordinator(stub);
+                VoltProcedureListener voltListener = new VoltProcedureListener(coordinatorEventLoop, hstore_node);
+                voltListener.bind(catalog_site.getProc_port());
+                LOG.info("HStoreCoordinatorNode is ready for action [site=" + catalog_site.getId() + ", port=" + catalog_site.getProc_port() + "]");
+                
+                boolean shutdown = false;
+                Exception error = null;
+                try {
+                    coordinatorEventLoop.run();
+                } catch (AssertionError ex) {
+                    LOG.trace(ex);
+                    error = new Exception(ex);
+                    shutdown = true;
+                } catch (Exception ex) {
+                    LOG.trace(ex);
+                    error = ex;
+                    shutdown = true;
+                }
+                if (shutdown) hstore_node.messenger.shutdownCluster(error);
+            };
+        });
 
         // Blocks!
         ThreadUtil.run(threads);

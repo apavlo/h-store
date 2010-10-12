@@ -166,21 +166,27 @@ public abstract class VoltProcedure {
             Thread.currentThread().setName(VoltProcedure.this.m_site.getThreadName() + "-" + VoltProcedure.this.procedure_name);
             LOG.debug("Starting execution of " + VoltProcedure.this.procedure_name + " for txn #" + VoltProcedure.this.txn_id);
             
-            // Execute the txn (this blocks until we return)
-            ClientResponse response = VoltProcedure.this.call();
-            assert(response != null);
-            
-            // Send the response back immediately!
-            VoltProcedure.this.m_site.sendClientResponse((ClientResponseImpl)response);
-            
-            // Notify anybody who cares that we're finished (used in testing)
-             VoltProcedure.this.observable.notifyObservers(response);
-            
-            // Clear out our private data
-            VoltProcedure.this.m_currentTxnState = null;
-            
-            VoltProcedure.this.m_site.cleanupTransaction(VoltProcedure.this.txn_id);
-    
+            try {
+                // Execute the txn (this blocks until we return)
+                ClientResponse response = VoltProcedure.this.call();
+                assert(response != null);
+
+                // Send the response back immediately!
+                VoltProcedure.this.m_site.sendClientResponse((ClientResponseImpl)response);
+                
+                // Notify anybody who cares that we're finished (used in testing)
+                VoltProcedure.this.observable.notifyObservers(response);
+                
+                // Clear out our private data
+                VoltProcedure.this.m_currentTxnState = null;
+                
+                // Tell the ExecutionSite to clean-up any info about this txn
+                VoltProcedure.this.m_site.cleanupTransaction(VoltProcedure.this.txn_id);
+                
+            } catch (Exception ex) {
+                LOG.fatal("Unexpected error while executing txn #" + VoltProcedure.this.txn_id, ex);
+                VoltProcedure.this.m_site.crash();
+            }
             VoltProcedure.this.executor_lock.release();
         }
     };
