@@ -22,7 +22,7 @@ message MessageRequest {
 message MessageAcknowledgement {
     required int32 sender_id = 1;
     required int32 dest_id = 2;
-    required string message = 3;
+    optional bytes data = 3;
 }
 
 // -----------------------------------

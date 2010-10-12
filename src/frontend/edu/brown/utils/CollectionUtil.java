@@ -131,6 +131,19 @@ public abstract class CollectionUtil {
     }
     
     /**
+     * Add all the items in the Enumeration into a Collection
+     * @param <T>
+     * @param data
+     * @param items
+     */
+    public static <T> Collection<T> addAll(Collection<T> data, Enumeration<T> items) {
+        while (items.hasMoreElements()) {
+            data.add(items.nextElement());
+        } // WHILE
+        return (data);
+    }
+    
+    /**
      * Add all of the items from the Iterable into the given collection
      * @param <T>
      * @param data

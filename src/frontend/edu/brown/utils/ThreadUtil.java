@@ -17,19 +17,36 @@ public abstract class ThreadUtil {
      * @param match
      * @param latch
      */
-    public static void forkLatch(String command[], String match, final CountDownLatch latch) {
+    public static void forkLatch(String command[], String match, final CountDownLatch latch, final EventObservable stop_observable) {
         LOG.debug("Forking off process: " + Arrays.toString(command));
 
         // Copied from ShellTools
         ProcessBuilder pb = new ProcessBuilder(command);
         pb.redirectErrorStream(true);
-        Process p = null;
+        Process temp = null;
         try {
-            p = pb.start();
+            temp = pb.start();
         } catch (IOException e) {
             LOG.fatal("Failed to fork command", e);
             return;
         }
+        assert(temp != null);
+        final Process p = temp;
+        
+        // Register a observer if we have a stop observable
+        if (stop_observable != null) {
+            stop_observable.addObserver(new EventObserver() {
+                boolean first = true;
+                @Override
+                public void update(Observable arg0, Object arg1) {
+                    assert(first) : "Trying to stop the process twice??";
+                    LOG.info("Stopping Process " + p);
+                    p.destroy();
+                    first = false;
+                }
+            });
+        }
+        
         BufferedInputStream in = new BufferedInputStream(p.getInputStream());
         StringBuilder buffer = new StringBuilder();
         int c;

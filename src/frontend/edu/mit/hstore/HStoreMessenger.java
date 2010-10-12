@@ -43,6 +43,8 @@ import edu.brown.hstore.Hstore.MessageRequest;
 import edu.brown.hstore.Hstore.MessageAcknowledgement;
 import edu.brown.hstore.Hstore.MessageType;
 import edu.brown.utils.CollectionUtil;
+import edu.brown.utils.EventObservable;
+import edu.mit.hstore.callbacks.ForwardTxnResponseCallback;
 
 /**
  * 
@@ -50,13 +52,14 @@ import edu.brown.utils.CollectionUtil;
  */
 public class HStoreMessenger {
     public static final Logger LOG = Logger.getLogger(HStoreMessenger.class);
-    
+
+    private final HStoreCoordinatorNode coordinator;
     private final Map<Integer, ExecutionSite> executors;
     private final Site catalog_site;
     private final Set<Integer> local_partitions = new HashSet<Integer>();
     private final NIOEventLoop eventLoop = new NIOEventLoop();
     private final DBBPool buffer_pool = new DBBPool(true, true);
-    
+
     /**
      * PartitionId -> SiteId
      */
@@ -71,10 +74,12 @@ public class HStoreMessenger {
     private final ProtoServer listener;
     private final Handler handler;
     private final Callback callback;
+    private boolean shutting_down = false;
     
-    public HStoreMessenger(Map<Integer, ExecutionSite> executors, Site catalog_site) {
+    public HStoreMessenger(HStoreCoordinatorNode coordinator, Map<Integer, ExecutionSite> executors) {
+        this.coordinator = coordinator;
         this.executors = executors;
-        this.catalog_site = catalog_site;
+        this.catalog_site = coordinator.getSite();
         
         for (Partition catalog_part : this.catalog_site.getPartitions()) {
             this.local_partitions.add(catalog_part.getId());
@@ -173,7 +178,7 @@ public class HStoreMessenger {
             @Override
             public void run(MessageAcknowledgement parameter) {
                 int sender = parameter.getSenderId();
-                String status = parameter.getMessage();
+                String status = new String(parameter.getData().toByteArray());
                 responses.put(sender, status);
                 waiting.remove(sender);
                 
@@ -216,27 +221,29 @@ public class HStoreMessenger {
 
         @Override
         public void sendMessage(RpcController controller, MessageRequest request, RpcCallback<MessageAcknowledgement> done) {
+            final boolean trace = LOG.isTraceEnabled();
+            
             int sender = request.getSenderId();
             int dest = request.getDestId();
             MessageType type = request.getType();
+            if (trace) LOG.trace("Received " + type.name() + " request from Site #" + sender);
             
             Hstore.MessageAcknowledgement response = null;
-            
             switch (type) {
                 case STATUS: {
                     response = Hstore.MessageAcknowledgement.newBuilder()
                                                             .setDestId(sender)
                                                             .setSenderId(dest)
-                                                            .setMessage("OK") // TODO
+                                                            .setData(ByteString.copyFrom("OK".getBytes())) // TODO
                                                             .build();
                     done.run(response);
                     break;
                 }
                 case SHUTDOWN: {
-                    // First tell all of our ExecutionSites to shutdown
-                    for (ExecutionSite executor : HStoreMessenger.this.executors.values()) {
-                        executor.shutdown();
-                    } // FOR
+                    HStoreMessenger.this.shutting_down = true;
+                    
+                    // Tell the coordinator to shutdown
+                    HStoreMessenger.this.coordinator.shutdown();
                     
                     // Get exit status code
                     byte exit_status = request.getData().byteAt(0);
@@ -245,18 +252,24 @@ public class HStoreMessenger {
                     response = Hstore.MessageAcknowledgement.newBuilder()
                                                            .setDestId(sender)
                                                            .setSenderId(catalog_site.getId())
-                                                           .setMessage("OK") // TODO
+                                                           .setData(ByteString.copyFrom("OK".getBytes())) // TODO
                                                            .build();
                     // Send this now!
                     done.run(response);
                     LOG.info("Shutting down [site=" + catalog_site.getId() + ", status=" + exit_status + "]");
                     LogManager.shutdown();
                     System.exit(exit_status);
-
                     break;
                 }
                 case FORWARD_TXN: {
-                    
+                    // We need to create a wrapper callback so that we can get the output that
+                    // HStoreCoordinatorNode wants to send to the client and forward 
+                    // it back to whomever told us about this txn
+                    if (trace) LOG.trace("Passing " + type.name() + " information to HStoreCoordinatorNode");
+                    byte serializedRequest[] = request.getData().toByteArray();
+                    ForwardTxnResponseCallback callback = new ForwardTxnResponseCallback(dest, sender, done);
+                    HStoreMessenger.this.coordinator.procedureInvocation(serializedRequest, callback);
+                    break;
                 }
                 default:
                     throw new RuntimeException("Unexpected MessageType " + type);
@@ -398,6 +411,8 @@ public class HStoreMessenger {
      */
     public synchronized void shutdownCluster(Exception ex) {
         final int num_sites = this.channels.size();
+        if (this.shutting_down) return;
+        this.shutting_down = true;
         if (LOG.isDebugEnabled()) LOG.debug("Sending shutdown request to " + num_sites + " remote sites");
         
         final CountDownLatch latch = new CountDownLatch(num_sites);
@@ -414,7 +429,6 @@ public class HStoreMessenger {
             }
         };
         
-        
         ByteString exit_status = ByteString.copyFrom(new byte[] { (byte)(ex == null ? 0 : 1) });
         for (Entry<Integer, HStoreService> e: this.channels.entrySet()) {
             Hstore.MessageRequest sm = Hstore.MessageRequest.newBuilder()
@@ -427,10 +441,8 @@ public class HStoreMessenger {
             if (LOG.isTraceEnabled()) LOG.debug("Sent SHUTDOWN to Site #" + e.getKey());
         } // FOR
         
-        // Tell our local boys to go down too
-        for (ExecutionSite executor : this.executors.values()) {
-            executor.shutdown();
-        } // FOR
+        // Tell ourselves to shutdown while we wait
+        this.coordinator.shutdown();
         
         // Block until the latch releases us
         try {
@@ -439,7 +451,14 @@ public class HStoreMessenger {
             // IGNORE!
         }
         LOG.info("Shutting down [site=" + catalog_site.getId() + ", status=" + exit_status.byteAt(0) + "]");
+        for (Logger l : (ArrayList<Logger>)CollectionUtil.addAll(new ArrayList<Logger>(), LogManager.getCurrentLoggers())) {
+            System.err.println(l);
+        }
         LogManager.shutdown();
         System.exit(exit_status.byteAt(0));
+    }
+    
+    public void forwardTransaction(byte[] serializedRequest, RpcCallback<MessageAcknowledgement> done, int partition) {
+        
     }
 }
