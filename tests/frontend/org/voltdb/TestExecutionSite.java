@@ -66,7 +66,7 @@ public class TestExecutionSite extends BaseTestCase {
             executors.put(PARTITION_ID, site);
             HStoreCoordinatorNode hstore = new HStoreCoordinatorNode(catalog_site, executors, p_estimator);
             site.setHStoreCoordinatorNode(hstore);
-            HStoreMessenger messenger = new HStoreMessenger(executors, catalog_site);
+            HStoreMessenger messenger = new HStoreMessenger(hstore, executors);
             site.setHStoreMessenger(messenger);
             
         }

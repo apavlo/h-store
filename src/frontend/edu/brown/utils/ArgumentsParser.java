@@ -31,6 +31,7 @@ import java.lang.reflect.Field;
 import java.util.*;
 
 import org.apache.commons.collections15.map.ListOrderedMap;
+import org.apache.log4j.LogManager;
 import org.apache.log4j.Logger;
 
 import org.voltdb.catalog.*;
