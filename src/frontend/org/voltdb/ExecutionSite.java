@@ -88,6 +88,8 @@ public class ExecutionSite implements Runnable {
     // ----------------------------------------------------------------------------
 
     public int siteId;
+    private boolean shutdown = false;
+    private CountDownLatch shutdown_latch;
 
     /**
      * Catalog objects
@@ -567,11 +569,15 @@ public class ExecutionSite implements Runnable {
             }
         }
         */
+        
+        // Setup the shutdown latch
+        assert(this.shutdown_latch == null);
+        this.shutdown_latch = new CountDownLatch(1);
 
         try {
             if (LOG.isDebugEnabled()) LOG.debug("Starting ExecutionSite run loop...");
             boolean stop = false;
-            while (!stop) {
+            while (stop == false && this.shutdown == false) {
                 final boolean trace = LOG.isTraceEnabled();
                 final boolean debug = LOG.isDebugEnabled();
                 TransactionInfoBaseMessage work = null;
@@ -718,13 +724,17 @@ public class ExecutionSite implements Runnable {
             LOG.fatal(e);
             throw e;
         } catch (Exception ex) {
-            LOG.fatal("Something bad happended", ex);
+            LOG.fatal("Unexpected error for ExecutionSite Partition #" + this.getPartitionId(), ex);
             throw new RuntimeException(ex);
         }
         
-        // Stop HStoreMessenger (because we're nice)
-        if (this.hstore_messenger != null) this.hstore_messenger.stop();
+        // Release the shutdown latch in case anybody waiting for us
+        this.shutdown_latch.countDown();
         
+        // Stop HStoreMessenger (because we're nice)
+        if (this.shutdown == false) {
+            if (this.hstore_messenger != null) this.hstore_messenger.stop();
+        }
         LOG.debug("ExecutionSite thread is stopping");
     }
 
@@ -931,13 +941,11 @@ public class ExecutionSite implements Runnable {
     public void cleanupTransaction(long txn_id) {
         if (LOG.isDebugEnabled()) LOG.debug("Cleaning up internal state information for Txn #" + txn_id);
         VoltProcedure volt_proc = this.running_xacts.remove(txn_id);
-        assert(volt_proc != null);
-        assert(this.all_procs.get(volt_proc.getProcedureName()).contains(volt_proc));
+        assert(volt_proc != null) :
+            "Trying to cleanup txn #" + txn_id + " more than once??";
+        assert(this.all_procs.get(volt_proc.getProcedureName()).contains(volt_proc)) :
+            "Trying to cleanup txn #" + txn_id + " more than once??";
         this.proc_pool.get(volt_proc.getProcedureName()).add(volt_proc);
-        
-//        if (LOG.isTraceEnabled()) LOG.trace("Removing TransactionState for Txn #" + txn_id);
-//        assert(this.txn_states.contains(txn_id));
-//        this.txn_states.remove(txn_id);
     }
     
     public Long getLastCommittedTxnId() {
@@ -1279,5 +1287,29 @@ public class ExecutionSite implements Runnable {
             if (trace) LOG.trace("Removing TransactionState for Txn #" + txn_id);
             this.txn_states.remove(txn_id);
 //        }
+    }
+    
+    /**
+     * Cause this ExecutionSite to make the entire HStore cluster shutdown
+     */
+    public synchronized void crash() {
+        assert(this.hstore_messenger != null);
+        this.hstore_messenger.shutdownCluster(); // This won't return
+    }
+    
+    /**
+     * Somebody from the outside wants us to shutdown
+     */
+    public void shutdown() {
+        // Tell the main loop to shutdown (if it's running)
+        this.shutdown = true;
+        if (this.shutdown_latch != null) {
+            try {
+                this.shutdown_latch.await();
+            } catch (Exception ex) {
+                LOG.fatal("Unexpected error while shutting down", ex);
+            }
+        }
+        // Anything else to do?
     }
 }

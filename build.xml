@@ -590,6 +590,14 @@ JAVA COMPILATION
     <!-- compile the individual source directories -->
     <javac
         target="${javac.version}"
+        srcdir="${build.protorpc.dir}"
+        destdir='${build.prod.dir}'
+        debug='true'>
+        <classpath refid="project.classpath" />
+    </javac>
+    
+    <javac
+        target="${javac.version}"
         srcdir="${src.hsqldb.dir}"
         destdir='${build.prod.dir}'
         debug='true'>
@@ -1485,14 +1493,44 @@ PROTOCOL BUFFERS
 </target>
 
 <target name="protobuf.java.check">
-    <available property="protobuf.java.built" file="${build.protorpc.dir}/edu/brown/hstore/Hstore.java" />
+    <uptodate property="protobuf.java.built"
+              targetfile="${build.protorpc.dir}/protorpc/com/google/protobuf/DescriptorProtos.java">
+        <srcfiles dir="${src.protobuf.dir}/java/src/main/java" includes="**/*.proto" />
+    </uptodate>
 </target>
 
-<target name="protobuf.java" description="Generates require protocol buffer for Java" depends="protobuf.compile,protobuf.java.check" unless="protobuf.java.built" >
+<target name="protobuf.java" description="Generates require protocol buffer for Java"
+                             depends="protobuf.compile, protobuf.java.check" 
+                             unless="protobuf.java.built" >
     <!-- Generate the required protocol buffers for the Java build -->
     <ProtobufGenerateJava srcdir="${src.protobuf.dir}/src" destdir="${build.protorpc.dir}">
         <fileset file="${src.protobuf.dir}/src/google/protobuf/descriptor.proto" />
     </ProtobufGenerateJava>
+</target>
+
+<target name="protobuf" description="" depends="protobuf.java,protobuf.compile">
+    <mkdir dir='${build.prod.dir}' />
+<!--    <ProtobufCompile srcdir="${src.protobuf.dir}/java/src/main/java:${build.protorpc.dir}" destdir="${build.prod.dir}">
+        <classpath refid="project.classpath"/>
+    </ProtobufCompile>-->
+</target>
+
+<!--
+***************************************
+PROTORPC
+***************************************
+-->
+
+<target name="protorpc.check">
+    <uptodate property="protorpc.built"
+              targetfile="${build.protorpc.dir}/edu/brown/hstore/Hstore.java">
+        <srcfiles dir="${src.protorpc.dir}" includes="**/*.proto" />
+    </uptodate>
+</target>
+
+<target name="protorpc" description="Generates ProtoRPC files"
+                        depends="protobuf, protorpc.check"
+                        unless="protorpc.built">
     <ProtobufGenerateJava srcdir="${src.protorpc.dir}" destdir="${build.protorpc.dir}">
         <fileset dir="${src.protorpc.dir}">
             <patternset><include name="**/*.proto" /></patternset>
@@ -1500,22 +1538,11 @@ PROTOCOL BUFFERS
     </ProtobufGenerateJava>
 </target>
 
-<target name="protobuf" description="" depends="protobuf.java,protobuf.compile">
-    <mkdir dir='${build.prod.dir}' />
-    <ProtobufCompile srcdir="${src.protobuf.dir}/java/src/main/java:${build.protorpc.dir}" destdir="${build.prod.dir}">
-        <classpath refid="project.classpath"/>
-    </ProtobufCompile>
-</target>
-
 <!--
 ***************************************
 DTXN BINARIES + LIBRARIES
 ***************************************
 -->
-
-<target name="dtxn.check">
-    <available property="dtxn.built" file="${build.dtxn.dir}/protodtxn/protodtxnengine" />
-</target>
 
 <target name="dtxn" description="Build DTXN binaries" depends="protobuf.compile">
    <exec executable="make" dir="${src.dtxn.dir}" failonerror="true" resolveexecutable="true" >
