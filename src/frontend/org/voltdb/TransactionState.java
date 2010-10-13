@@ -35,6 +35,7 @@ import org.voltdb.utils.Pair;
 
 import com.google.protobuf.RpcCallback;
 
+import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.StringUtil;
 import edu.mit.dtxn.Dtxn;
 
@@ -120,6 +121,7 @@ public class TransactionState {
          * We assume a 1-to-n mapping from DependencyInfos to blocked FragmentTaskMessages
          */
         private final Set<FragmentTaskMessage> blocked_tasks = new HashSet<FragmentTaskMessage>();
+        private boolean blocked_tasks_released = false;
         private boolean blocked_all_local = true;
         
         /**
@@ -141,12 +143,24 @@ public class TransactionState {
         public List<Integer> getPartitions() {
             return (this.partitions);
         }
-        public Set<FragmentTaskMessage> getBlockedFragmentTaskMessages() {
-            return (this.blocked_tasks);
-        }
         public void addBlockedFragmentTaskMessage(FragmentTaskMessage ftask) {
             this.blocked_tasks.add(ftask);
             this.blocked_all_local = this.blocked_all_local && (ftask.getDestinationPartitionId() == TransactionState.this.origin_partition);
+        }
+        
+        
+        public Set<FragmentTaskMessage> getBlockedFragmentTaskMessages() {
+            return (Collections.unmodifiableSet(this.blocked_tasks));
+        }
+        
+        /**
+         * Gets the blocked tasks for this DependencyInfo and marks them as "released"
+         * @return
+         */
+        public synchronized Set<FragmentTaskMessage> getAndReleaseBlockedFragmentTaskMessages() {
+            assert(this.blocked_tasks_released == false) : "Trying to unblock tasks more than once for txn #" + txn_id;
+            this.blocked_tasks_released = true;
+            return (this.getBlockedFragmentTaskMessages());
         }
 
         /**
@@ -180,13 +194,13 @@ public class TransactionState {
         }
         
         protected List<VoltTable> getResults() {
-            return (new ArrayList<VoltTable>(this.results.values()));
+            return (Collections.unmodifiableList(new ArrayList<VoltTable>(this.results.values())));
         }
         
         public VoltTable getResult() {
             assert(this.results.isEmpty() == false) : "There are no result available for " + this;
             assert(this.results.size() == 1) : "There are " + this.results.size() + " results for " + this + "\n-------\n" + this.getResults();
-            return (this.results.get(0));
+            return (CollectionUtil.getFirst(this.results.values()));
         }
         
         /**
@@ -201,6 +215,7 @@ public class TransactionState {
                 LOG.trace("# of <Responses/Results> Needed = " + this.partitions.size());
             }
             boolean ready = (this.blocked_tasks.isEmpty() == false) &&
+                            (this.blocked_tasks_released == false) &&
                             (this.results.size() == this.partitions.size()) &&
                             (this.responses.size() == this.partitions.size());
             return (ready);
@@ -210,6 +225,10 @@ public class TransactionState {
             return (!this.blocked_tasks.isEmpty());
         }
         
+        public boolean hasTasksReleased() {
+            return (this.blocked_tasks_released);
+        }
+        
         @Override
         public String toString() {
             StringBuilder b = new StringBuilder();
@@ -217,7 +236,8 @@ public class TransactionState {
              .append("  Partitions: ").append(this.partitions).append("\n")
              .append("  Responses:  ").append(this.responses.size()).append("\n")
              .append("  Results:    ").append(this.results.size()).append("\n")
-             .append("  Blocked:    ").append(this.blocked_tasks).append("\n");
+             .append("  Blocked:    ").append(this.blocked_tasks).append("\n")
+             .append("  Status:     ").append(this.blocked_tasks_released ? "RELEASED" : "BLOCKED").append("\n");
             return b.toString();
         }
     } // END CLASS
@@ -535,7 +555,7 @@ public class TransactionState {
      * @param dependency_id
      */
     public void addResponse(int partition, int dependency_id) {
-        final boolean debug = LOG.isDebugEnabled();
+//        final boolean debug = LOG.isDebugEnabled();
         final boolean trace = LOG.isTraceEnabled();
 
         // Each partition+dependency_id should be unique for a Statement batch.
@@ -577,7 +597,7 @@ public class TransactionState {
      * @param result
      */
     public void addResult(int partition, int dependency_id, VoltTable result) {
-        final boolean debug = LOG.isDebugEnabled();
+//        final boolean debug = LOG.isDebugEnabled();
         final boolean trace = LOG.isTraceEnabled();
 
         assert(result != null) :
@@ -620,11 +640,12 @@ public class TransactionState {
      * @param result
      */
     private synchronized void executeBlockedTasks(DependencyInfo d) {
-        final boolean debug = LOG.isDebugEnabled();
+//        final boolean debug = LOG.isDebugEnabled();
         final boolean trace = LOG.isTraceEnabled();
             
         List<FragmentTaskMessage> to_execute = new ArrayList<FragmentTaskMessage>();
-        for (FragmentTaskMessage unblocked : d.getBlockedFragmentTaskMessages()) {
+        Set<FragmentTaskMessage> tasks = d.getAndReleaseBlockedFragmentTaskMessages();
+        for (FragmentTaskMessage unblocked : tasks) {
             assert(unblocked != null);
             assert(this.blocked_tasks.contains(unblocked));
             this.blocked_tasks.remove(unblocked);
@@ -642,7 +663,6 @@ public class TransactionState {
                 to_execute.add(unblocked);
             }
         } // FOR
-        d.getBlockedFragmentTaskMessages().clear();
         if (!to_execute.isEmpty()) {
             this.executor.requestWork(this, to_execute);
         }

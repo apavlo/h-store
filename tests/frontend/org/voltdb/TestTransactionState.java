@@ -240,13 +240,14 @@ public class TestTransactionState extends BaseTestCase {
             LOG.info(internal_dinfo);
         }
         assertEquals(internal_dinfo.getResults().toString(), NUM_PARTITIONS, internal_dinfo.getResults().size());
-        assert(internal_dinfo.hasTasksReady());
+        assert(internal_dinfo.hasTasksReleased());
         
         // Make sure that all other Statements didn't accidently unblock their FragmentTaskMessages...
         for (int stmt_index = 1; stmt_index < NUM_DUPLICATE_STATEMENTS; stmt_index++) {
             TransactionState.DependencyInfo other = this.ts.getDependencyInfo(stmt_index, this.internal_dependency_ids.get(stmt_index));
             assertNotNull(other);
             assertFalse(other.hasTasksReady());
+            assertFalse(other.hasTasksReleased());
             assertEquals(1, other.getResults().size());
         } // FOR
         // System.err.println(this.ts);

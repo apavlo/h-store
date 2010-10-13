@@ -1,5 +1,6 @@
 package org.voltdb;
 
+import java.util.List;
 import java.util.Observable;
 import java.util.Random;
 import java.util.concurrent.LinkedBlockingDeque;
@@ -8,6 +9,7 @@ import java.util.concurrent.atomic.AtomicLong;
 
 import org.voltdb.catalog.*;
 import org.voltdb.client.ClientResponse;
+import org.voltdb.messaging.FragmentTaskMessage;
 
 import edu.brown.utils.*;
 
@@ -33,6 +35,24 @@ public class TestNewVoltProcedure extends BaseTestCase {
     
     private VoltProcedure volt_proc;
     
+    private class MockExecutionSite extends ExecutionSite {
+        
+        public MockExecutionSite(int partition_id, Catalog catalog, PartitionEstimator p_estimator) {
+            super(partition_id, catalog, BACKEND_TARGET, p_estimator, null);
+        }
+        
+        @Override
+        protected void requestWork(TransactionState ts, List<FragmentTaskMessage> tasks) {
+            // Nothing!
+        }
+        
+        @Override
+        public void sendClientResponse(ClientResponseImpl cresponse) {
+            // Nothing!
+        }
+        
+    }
+    
     @Override
     protected void setUp() throws Exception {
         super.setUp(ProjectType.TM1);
@@ -44,7 +64,7 @@ public class TestNewVoltProcedure extends BaseTestCase {
             // BACKEND_TARGET = (this.hasVoltLib() ? BackendTarget.NATIVE_EE_JNI : BackendTarget.HSQLDB_BACKEND);
             
             p_estimator = new PartitionEstimator(catalog_db);
-            site = new ExecutionSite(PARTITION_ID, catalog, BACKEND_TARGET, p_estimator, null);
+            site = new MockExecutionSite(PARTITION_ID, catalog, p_estimator);
         }
         volt_proc = site.getProcedure(TARGET_PROCEDURE);
         assertNotNull(volt_proc);
