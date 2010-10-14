@@ -64,6 +64,7 @@ public:
 
 private:
     void executeDone() {
+fprintf(stderr, "protocoordinator: executeDone %d\n", id_);
         // Pass back the answers to the client
         // TODO: Need to handle more complicated things?
         for (int i = 0; i < transaction_->received().size(); ++i) {
@@ -118,6 +119,7 @@ void ProtoDtxnCoordinator::Execute(RpcController* controller,
         const CoordinatorFragment* request,
         CoordinatorResponse* response,
         Closure* done) {
+    fprintf(stderr, "protocoordinator: Execute %d\n", request->transaction_id());
     CHECK(request->fragment_size() > 0);
     assert(!response->IsInitialized());
 
@@ -154,6 +156,7 @@ void ProtoDtxnCoordinator::Finish(RpcController* controller,
         const FinishRequest* request,
         FinishResponse* response,
         Closure* done) {
+fprintf(stderr, "protocoordinator: Finish %d\n", request->transaction_id());
     // Finish this transaction
     TransactionMap::iterator it = transactions_.find(request->transaction_id());
     CHECK(it != transactions_.end());
