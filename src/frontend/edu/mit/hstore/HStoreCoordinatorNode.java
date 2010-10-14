@@ -103,7 +103,13 @@ public class HStoreCoordinatorNode extends ExecutionEngine implements VoltProced
      */
     private final ConcurrentHashMap<Long, Integer> inflight_txns = new ConcurrentHashMap<Long, Integer>();
     private final AtomicInteger completed_txns = new AtomicInteger(0);
+
+    /**
+     * 
+     */
     private final ConcurrentHashMap<Long, RpcCallback<byte[]>> client_callbacks = new ConcurrentHashMap<Long, RpcCallback<byte[]>>();
+    
+    private final ConcurrentHashMap<Long, CountDownLatch> init_latches = new ConcurrentHashMap<Long, CountDownLatch>();
     
     /**
      * Simple Status Printer
@@ -423,10 +429,14 @@ public class HStoreCoordinatorNode extends ExecutionEngine implements VoltProced
                 // 2010-06-18: We need to set this for single-partition txns
                 .setLastFragment(single_partition);
         //CoordinatorResponsePassThroughCallback rpcDone = new CoordinatorResponsePassThroughCallback(this, txn_id, t_estimator, done);
-
         if (trace) LOG.trace("Passing txn #" + txn_id + " through Dtxn.Coordinator using InitiateCallback");
-        InitiateCallback callback = new InitiateCallback(this, txn_id, t_estimator);
+        
+        // Create a latch so that we don't start executing until we know the coordinator confirmed are initialization request
+        CountDownLatch latch = new CountDownLatch(1);
+        InitiateCallback callback = new InitiateCallback(this, txn_id, t_estimator, latch);
         this.client_callbacks.put(txn_id, done);
+        this.init_latches.put(txn_id, latch);
+        
         this.coordinator.execute(rpc, requestBuilder.build(), callback);
     }
 
@@ -480,6 +490,18 @@ public class HStoreCoordinatorNode extends ExecutionEngine implements VoltProced
                                                     .setOutput(ByteString.EMPTY)
                                                     .build();
             done.run(response);
+            
+            // Now wait until we know the Dtxn.Coordinator processed our request
+            if (trace) LOG.trace("Waiting for Dtxn.coordinator to process our initialization response because Evan eats babies!!");
+            CountDownLatch latch = this.init_latches.remove(txn_id);
+            assert(latch != null) : "Missing initialization latch for txn #" + txn_id;
+            try {
+                latch.await();
+            } catch (Exception ex) {
+                LOG.fatal("Unexpected error when waiting for latch on txn #" + txn_id, ex);
+                this.shutdown();
+            }
+            if (trace) LOG.trace("Got the all clear message for txn #" + txn_id);
             
             RpcCallback<byte[]> client_callback = this.client_callbacks.get(txn_id);
             assert(client_callback != null) : "Missing original RpcCallback for txn #" + txn_id;

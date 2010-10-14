@@ -585,9 +585,9 @@ public class PartitionEstimator {
         } else if (!force && partition_param_idx == NullProcParameter.PARAM_IDX) {
             if (debug) LOG.debug(catalog_proc + " does not have a pre-defined partition parameter. Executing as multi-partition");
             return (null);
-        } else if (!force && !catalog_proc.getSinglepartition()) {
-            if (debug) LOG.debug(catalog_proc + " is not marked as single-partitioned. Executing as multi-partition");
-            return (null);
+//        } else if (!force && !catalog_proc.getSinglepartition()) {
+//            if (debug) LOG.debug(catalog_proc + " is not marked as single-partitioned. Executing as multi-partition");
+//            return (null);
         }
         assert(partition_param_idx >= 0);
         ProcParameter catalog_param = catalog_proc.getParameters().get(partition_param_idx);

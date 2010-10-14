@@ -719,7 +719,7 @@ public class TransactionState {
 
             ret += line;
             ret += "  Statement #" + stmt_index + "\n";
-            ret += "  Output Dependency Id: " + this.output_order.get(stmt_index) + "\n";
+            ret += "  Output Dependency Id: " + (this.output_order.contains(stmt_index) ? this.output_order.get(stmt_index) : "<ERROR>") + "\n";
             
             ret += "  Dependency Partitions:\n";
             for (Integer dependency_id : dependency_ids) {

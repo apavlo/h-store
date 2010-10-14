@@ -451,14 +451,23 @@ public class HStoreMessenger {
             // IGNORE!
         }
         LOG.info("Shutting down [site=" + catalog_site.getId() + ", status=" + exit_status.byteAt(0) + "]");
-        for (Logger l : (ArrayList<Logger>)CollectionUtil.addAll(new ArrayList<Logger>(), LogManager.getCurrentLoggers())) {
-            System.err.println(l);
-        }
         LogManager.shutdown();
         System.exit(exit_status.byteAt(0));
     }
     
     public void forwardTransaction(byte[] serializedRequest, RpcCallback<MessageAcknowledgement> done, int partition) {
+        final boolean trace = LOG.isTraceEnabled();
         
+        int dest_site_id = this.partition_site_xref.get(partition);
+        if (trace) LOG.trace("Forwarding a transaction request to Partition #" + partition + " on Site #" + dest_site_id);
+        Hstore.MessageRequest mr = Hstore.MessageRequest.newBuilder()
+                                        .setSenderId(this.catalog_site.getId())
+                                        .setDestId(dest_site_id)
+                                        .setType(MessageType.FORWARD_TXN)
+                                        .setData(ByteString.copyFrom(serializedRequest))
+                                        .build();
+        
+        ProtoRpcController rpc = new ProtoRpcController();
+        this.channels.get(dest_site_id).sendMessage(rpc, mr, done);
     }
 }
