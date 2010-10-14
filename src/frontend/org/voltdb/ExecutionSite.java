@@ -194,8 +194,6 @@ public class ExecutionSite implements Runnable {
             if (trace) LOG.trace("Processing Dtxn.CoordinatorResponse in RPC callback with " + parameter.getResponseCount() + " embedded responses");
             for (int i = 0, cnt = parameter.getResponseCount(); i < cnt; i++) {
                 ByteString serialized = parameter.getResponse(i).getOutput();
-                long txn_id = parameter.getTransactionId(); // response.getTxnId();
-                if (trace) LOG.trace("Got FragmentResponseMessage for Txn #"+ txn_id + " [size=" + serialized.size() + "]");
                 
                 FragmentResponseMessage response = null;
                 try {
@@ -205,7 +203,7 @@ public class ExecutionSite implements Runnable {
                     System.exit(1);
                 }
                 assert(response != null);
-                assert(txn_id == response.getTxnId());
+                long txn_id = response.getTxnId();
                 if (trace) LOG.trace("FragmentResponseMessage [txn_id=" + txn_id + ", " +
                                                               "size=" + serialized.size() + ", " +
 //                                                              "id=" + serialized.byteAt(VoltMessage.HEADER_SIZE) + ", " +

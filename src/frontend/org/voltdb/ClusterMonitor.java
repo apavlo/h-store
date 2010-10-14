@@ -250,7 +250,7 @@ public class ClusterMonitor {
         int successfulConnections = 0;
         for (String host : voltHosts) {
             try {
-                m_client.createConnection(host, voltUsername, voltPassword);
+                m_client.createConnection(host, Client.VOLTDB_SERVER_PORT, voltUsername, voltPassword);
                 successfulConnections++;
             } catch (IOException e) {
                 e.printStackTrace();

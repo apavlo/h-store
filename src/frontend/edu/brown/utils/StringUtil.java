@@ -3,6 +3,9 @@ package edu.brown.utils;
 import java.util.Arrays;
 import java.util.Collection;
 
+import org.voltdb.client.Client;
+import org.voltdb.utils.Pair;
+
 public abstract class StringUtil {
 
     public static final String SPACER       = "   ";
@@ -119,5 +122,25 @@ public abstract class StringUtil {
      
         return sb.toString();
     }
+    
+    /**
+     * Return the HOST+PORT pair extracted from a string with "<hostname>:<portnum>"
+     * @param hostnport
+     * @return
+     */
+    public static Pair<String, Integer> getHostPort(String hostnport) {
+        return (getHostPort(hostnport, Client.VOLTDB_SERVER_PORT));
+    }
+    
+    public static Pair<String, Integer> getHostPort(String hostnport, int port) {
+        String host = hostnport;
+        if (host.contains(":")) {
+            String split[] = hostnport.split("\\:", 2);
+            host = split[0];
+            port = Integer.valueOf(split[1]);
+        }
+        return (Pair.of(host, port));
+    }
+
 
 }

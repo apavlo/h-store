@@ -56,6 +56,8 @@ import org.voltdb.utils.Pair;
 import org.voltdb.utils.VoltSampler;
 import org.voltdb.utils.DBBPool.BBContainer;
 
+import edu.brown.utils.StringUtil;
+
 /**
  * Base class for clients that will work with the multi-host multi-process
  * benchmark framework that is driven from stdin
@@ -82,6 +84,7 @@ public abstract class ClientMain {
      * at the end of run.
      */
     private String m_host;
+    private int m_port;
 
     /**
      * Username supplied to the Volt client
@@ -552,12 +555,12 @@ public abstract class ClientMain {
                 continue;
             }
             else if (parts[0].equals("HOST")) {
-                final String hostnport[] = parts[1].split("\\:", 2);
-                m_host = hostnport[0];
+                final Pair<String, Integer> hostnport = StringUtil.getHostPort(parts[1]);
+                m_host = hostnport.getFirst();
+                m_port = hostnport.getSecond();
                 try {
-                    System.err.println("Creating connection to  "
-                        + hostnport[0]);
-                    createConnection(hostnport[0]);
+                    System.err.println("Creating connection to " + hostnport);
+                    createConnection(m_host, m_port);
                     System.err.println("Created connection.");
                     atLeastOneConnection = true;
                 }
@@ -637,9 +640,9 @@ public abstract class ClientMain {
             m_reason = reason;
     }
 
-    private void createConnection(final String hostname)
+    private void createConnection(final String hostname, final int port)
         throws UnknownHostException, IOException {
-        m_voltClient.createConnection(hostname, m_username, m_password);
+        m_voltClient.createConnection(hostname, port, m_username, m_password);
     }
 
     private boolean checkConstraints(String procName, ClientResponse response) {

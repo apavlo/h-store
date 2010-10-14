@@ -587,7 +587,7 @@ public class BenchmarkController {
         Client client = ClientFactory.createClient();
         try {
             if (m_config.hosts.length > 0) {
-                client.createConnection(m_config.hosts[0], "", "");
+                client.createConnection(m_config.hosts[0], Client.VOLTDB_SERVER_PORT, "", "");
                 NullCallback cb = new NullCallback();
                 client.callProcedure(cb, "@Shutdown");
             }
@@ -735,7 +735,7 @@ public class BenchmarkController {
         Client dumpClient = ClientFactory.createClient();
         for (String host : m_config.hosts) {
             try {
-                dumpClient.createConnection(host, "program", "password");
+                dumpClient.createConnection(host, Client.VOLTDB_SERVER_PORT, "program", "password");
                 dumpClient.callProcedure("@dump");
             } catch (UnknownHostException e) {
                 e.printStackTrace();

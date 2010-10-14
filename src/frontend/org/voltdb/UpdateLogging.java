@@ -22,6 +22,9 @@ import java.io.BufferedReader;
 import java.io.FileReader;
 
 import org.voltdb.client.*;
+import org.voltdb.utils.Pair;
+
+import edu.brown.utils.StringUtil;
 
 /**
  * A utility class that can be invoked from the command line to connect
@@ -32,6 +35,7 @@ import org.voltdb.client.*;
 public class UpdateLogging {
     public static void main(String args[]) throws Exception {
         String host = "localhost";
+        int port = Client.VOLTDB_SERVER_PORT;
         String configFilePath = null;
         String username = "";
         String password = "";
@@ -45,7 +49,9 @@ public class UpdateLogging {
                 continue;
             }
             else if (parts[0].equalsIgnoreCase("host")) {
-                host = parts[1];
+                Pair<String, Integer> p = StringUtil.getHostPort(parts[1]);
+                host = p.getFirst();
+                port = p.getSecond();
             }
             else if (parts[0].equalsIgnoreCase("config")) {
                 configFilePath = parts[1];
@@ -57,7 +63,7 @@ public class UpdateLogging {
             }
         }
 
-        client.createConnection( host, username, password);
+        client.createConnection(host, port, username, password);
 
         File configFile = new File(configFilePath);
 

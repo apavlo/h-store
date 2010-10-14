@@ -20,6 +20,7 @@ import org.voltdb.BackendTarget;
 import org.voltdb.ExecutionSite;
 import org.voltdb.ProcedureProfiler;
 import org.voltdb.StoredProcedureInvocation;
+import org.voltdb.TransactionIdManager;
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Partition;
 import org.voltdb.catalog.Procedure;
@@ -38,7 +39,6 @@ import ca.evanjones.protorpc.ProtoServer;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.RpcCallback;
 import com.google.protobuf.RpcController;
-import com.sun.swing.internal.plaf.synth.resources.synth;
 
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.markov.EstimationThresholds;
@@ -66,11 +66,13 @@ import edu.mit.hstore.callbacks.InitiateCallback;
  */
 public class HStoreCoordinatorNode extends ExecutionEngine implements VoltProcedureListener.Handler {
     private static final Logger LOG = Logger.getLogger(HStoreCoordinatorNode.class.getName());
-    private static final AtomicLong NEXT_TXN_ID = new AtomicLong(1); 
+    private static final AtomicLong NEXT_TXN_ID = new AtomicLong(1);
     
     private final DBBPool buffer_pool = new DBBPool(true, true);
     private final Map<Integer, Thread> executor_threads = new HashMap<Integer, Thread>();
     private final HStoreMessenger messenger;
+    private final TransactionIdManager txnid_manager;
+//    private final AtomicInteger fake_evan_txn_ids = new AtomicInteger(0);
     
     // Dtxn Stuff
     private Dtxn.Coordinator coordinator;
@@ -211,7 +213,8 @@ public class HStoreCoordinatorNode extends ExecutionEngine implements VoltProced
         this.p_estimator = p_estimator;
         this.thresholds = new EstimationThresholds(); // default values
         this.executors.putAll(executors);
-        this.messenger = new HStoreMessenger(this, this.executors); 
+        this.messenger = new HStoreMessenger(this, this.executors);
+        this.txnid_manager = new TransactionIdManager(this.catalog_site.getId());
         
         assert(this.catalog_db != null);
         assert(this.p_estimator != null);
@@ -372,10 +375,13 @@ public class HStoreCoordinatorNode extends ExecutionEngine implements VoltProced
             // we will just forward it back to the client. How sweet is that??
             ForwardTxnRequestCallback callback = new ForwardTxnRequestCallback(done);
             this.messenger.forwardTransaction(serializedRequest, callback, dest_partition);
+            return;
         }
 
+        // Important: We have two txn ids here. We have the real one that we're going to use internally
         // Setup "Magic Evan" RPC stuff
         long txn_id = NEXT_TXN_ID.getAndIncrement();
+//        long txn_id = txnid_manager.getNextUniqueTransactionId();
         ProtoRpcController rpc = new ProtoRpcController();
         Dtxn.CoordinatorFragment.Builder requestBuilder = Dtxn.CoordinatorFragment.newBuilder();
         requestBuilder.setTransactionId((int)txn_id);
@@ -439,7 +445,10 @@ public class HStoreCoordinatorNode extends ExecutionEngine implements VoltProced
             throw new RuntimeException(e);
         }
 
-        long txn_id = msg.getTxnId(); // request.getTransactionId();
+        // IMPORTANT: Evan betrayed our love so we can't use his txn ids because they are meaningless to us
+        //            Make sure that we always use the txn ids pulled from our internal messages
+//        long txn_id = NEXT_TXN_ID.getAndIncrement();
+        long txn_id = msg.getTxnId(); // 
         int partition = msg.getDestinationPartitionId();
         if (trace) {
             LOG.trace("Got " + msg.getClass().getSimpleName() + " message for txn #" + txn_id + " running at Partition #" + partition);
@@ -610,11 +619,11 @@ public class HStoreCoordinatorNode extends ExecutionEngine implements VoltProced
                 try {
                     hstore_node.coordinatorEventLoop.run();
                 } catch (AssertionError ex) {
-                    LOG.fatal(ex);
+                    LOG.fatal("Coordinator thread failed", ex);
                     error = new Exception(ex);
                     shutdown = true;
                 } catch (Exception ex) {
-                    LOG.fatal(ex);
+                    LOG.fatal("Coordinator thread failed", ex);
                     error = ex;
                     shutdown = true;
                 }
