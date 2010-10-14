@@ -6,7 +6,6 @@ import com.google.protobuf.RpcCallback;
 
 import edu.brown.markov.TransactionEstimator;
 import edu.mit.dtxn.Dtxn;
-import edu.mit.dtxn.Dtxn.CoordinatorResponse;
 import edu.mit.hstore.HStoreCoordinatorNode;
 
 /**
@@ -22,9 +21,9 @@ public class InitiateCallback extends AbstractTxnCallback implements RpcCallback
     }
 
     @Override
-    public void run(CoordinatorResponse parameter) {
+    public void run(Dtxn.CoordinatorResponse parameter) {
         if (LOG.isTraceEnabled())
-            LOG.trace("Got initialization callback for txn #" + parameter.getTransactionId() + ". " +
+            LOG.trace("Got initialization callback for txn #" + this.txn_id + ". " +
                       "Nothing else to do for now...");
     }
 }

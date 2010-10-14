@@ -183,6 +183,9 @@ public abstract class VoltProcedure {
                 // Tell the ExecutionSite to clean-up any info about this txn
                 VoltProcedure.this.m_site.cleanupTransaction(VoltProcedure.this.txn_id);
                 
+            } catch (AssertionError ex) {
+                LOG.fatal("Unexpected error while executing txn #" + VoltProcedure.this.txn_id, ex);
+                VoltProcedure.this.m_site.crash();
             } catch (Exception ex) {
                 LOG.fatal("Unexpected error while executing txn #" + VoltProcedure.this.txn_id, ex);
                 VoltProcedure.this.m_site.crash();
