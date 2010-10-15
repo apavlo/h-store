@@ -676,7 +676,7 @@ public class ExecutionSite implements Runnable {
                     }
                     
                     // Again, if we're not local, just clean up our TransactionState
-                    if (!is_local) {
+                    if (is_local == false && is_dtxn == true) {
                         if (debug) LOG.debug("Executed non-local FragmentTask. Notifying TransactionState for txn #" + txn_id + " to finish round");
                         ts.finishRound();
                     }
