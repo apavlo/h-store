@@ -18,6 +18,7 @@ public abstract class ThreadUtil {
      * @param latch
      */
     public static void forkLatch(String command[], String match, final CountDownLatch latch, final EventObservable stop_observable) {
+        final String prog_name = FileUtil.basename(command[0]);
         LOG.debug("Forking off process: " + Arrays.toString(command));
 
         // Copied from ShellTools
@@ -40,7 +41,7 @@ public abstract class ThreadUtil {
                 @Override
                 public void update(Observable arg0, Object arg1) {
                     assert(first) : "Trying to stop the process twice??";
-                    LOG.info("Stopping Process " + p);
+                    LOG.info("Stopping Process -> " + prog_name);
                     p.destroy();
                     first = false;
                 }

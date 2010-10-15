@@ -10,6 +10,7 @@ enum MessageType {
     STATUS = 0;
     SHUTDOWN = 1;
     FORWARD_TXN = 2;
+    NEXT_TXN_ID = 3;
 }
 
 message MessageRequest {

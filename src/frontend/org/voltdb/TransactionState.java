@@ -642,7 +642,10 @@ public class TransactionState {
     private synchronized void executeBlockedTasks(DependencyInfo d) {
 //        final boolean debug = LOG.isDebugEnabled();
         final boolean trace = LOG.isTraceEnabled();
-            
+        
+        // Always double check whether somebody beat us to the punch
+        if (this.blocked_tasks.isEmpty()) return;
+        
         List<FragmentTaskMessage> to_execute = new ArrayList<FragmentTaskMessage>();
         Set<FragmentTaskMessage> tasks = d.getAndReleaseBlockedFragmentTaskMessages();
         for (FragmentTaskMessage unblocked : tasks) {
@@ -699,6 +702,7 @@ public class TransactionState {
         if (this.executor != null && this.executor.getRunningVoltProcedure(txn_id) != null) {
             proc_name = this.executor.getRunningVoltProcedure(txn_id).procedure_name;
         }
+        
         String ret = line + "Transaction State #" + txn_id + " [" + proc_name + "]\n";
         ret += "  Local Partition:       " + this.executor.getPartitionId() + "\n";
         ret += "  Dependency Ctr:        " + this.dependency_ctr + "\n";
@@ -719,7 +723,7 @@ public class TransactionState {
 
             ret += line;
             ret += "  Statement #" + stmt_index + "\n";
-            ret += "  Output Dependency Id: " + (this.output_order.contains(stmt_index) ? this.output_order.get(stmt_index) : "<ERROR>") + "\n";
+            ret += "  Output Dependency Id: " + (this.output_order.contains(stmt_index) ? this.output_order.get(stmt_index) : "<NOT STARTED>") + "\n";
             
             ret += "  Dependency Partitions:\n";
             for (Integer dependency_id : dependency_ids) {

@@ -16,6 +16,8 @@ import org.voltdb.client.NoConnectionsException;
 import org.voltdb.client.ProcCallException;
 import org.voltdb.client.ProcedureCallback;
 
+import edu.brown.utils.ArgumentsParser;
+
 /**
  * @author pavlo
  *
@@ -28,16 +30,19 @@ public class BlockingClient extends Semaphore implements Client {
     
     private class BlockingCallback implements ProcedureCallback {
         private final ProcedureCallback inner_callback;
+        private final String proc_name;
         
-        public BlockingCallback(ProcedureCallback inner_callback) {
+        public BlockingCallback(String proc_name, ProcedureCallback inner_callback) {
+            final boolean debug = LOG.isDebugEnabled(); 
             assert(inner_callback != null);
             this.inner_callback = inner_callback;
+            this.proc_name = proc_name;
             
-            final boolean debug = LOG.isDebugEnabled(); 
+            System.err.println("Created a new BlockingCallback around " + inner_callback.getClass().getSimpleName() + " for '" + proc_name + "'");
             try {
-                if (debug) LOG.debug("Trying to acquire procedure invocation lock");
+                System.err.println("Trying to acquire procedure invocation lock");
                 BlockingClient.this.acquire();
-                if (debug) LOG.debug("We got it! Let's get it on!");
+                System.err.println("We got it! Let's get it on! [proc_name=" + this.proc_name + "]");
             } catch (InterruptedException ex) {
                 LOG.fatal("Got interrupted while waiting for lock", ex);
                 System.exit(1);
@@ -47,7 +52,10 @@ public class BlockingClient extends Semaphore implements Client {
         
         @Override
         public void clientCallback(ClientResponse clientResponse) {
-            if (LOG.isDebugEnabled()) LOG.debug("BlockingCallback is forwarding the client callback on to inner callback");
+            final boolean debug = LOG.isDebugEnabled();
+            System.err.println("BlockingCallback is forwarding the client callback for to inner callback [" +
+                               "txn=" + clientResponse.getTransactionId() + ", " +
+                               "proc=" + this.proc_name + "]");
             this.inner_callback.clientCallback(clientResponse);
             BlockingClient.this.release();
         }
@@ -59,6 +67,7 @@ public class BlockingClient extends Semaphore implements Client {
     public BlockingClient(Client inner) {
         super(1);
         this.inner = inner;
+        ArgumentsParser.setupLogging();
     }
 
     /* (non-Javadoc)
@@ -108,7 +117,7 @@ public class BlockingClient extends Semaphore implements Client {
     @Override
     public boolean callProcedure(ProcedureCallback callback, String procName, Object... parameters) throws IOException,
             NoConnectionsException {
-        return this.inner.callProcedure(new BlockingCallback(callback), procName, parameters);
+        return this.inner.callProcedure(new BlockingCallback(procName, callback), procName, parameters);
     }
 
     /* (non-Javadoc)
