@@ -467,7 +467,6 @@ public class HStoreMessenger {
                                         .setData(ByteString.copyFrom(serializedRequest))
                                         .build();
         
-        ProtoRpcController rpc = new ProtoRpcController();
-        this.channels.get(dest_site_id).sendMessage(rpc, mr, done);
+        this.channels.get(dest_site_id).sendMessage(new ProtoRpcController(), mr, done);
     }
 }
