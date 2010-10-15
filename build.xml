@@ -2193,6 +2193,7 @@ H-STORE REMIX
         <arg value="node.site=${node.site}" />
         <arg value="coordinator.host=${coordinator.host}" />
         <arg value="coordinator.port=${coordinator.port}" />
+        <arg value="coordinator.statusinterval=${statusinterval}" />
         <arg value="dtxn.conf=${build.dtxn.dir}/hstore.conf" />
         <arg value="dtxn.engine=${build.dtxn.dir}/protodtxn/protodtxnengine" />
         <arg value="hasher.class=${hasher}" />

@@ -11,7 +11,7 @@ import edu.brown.hstore.Hstore.MessageAcknowledgement;
 public class ForwardTxnResponseCallback implements RpcCallback<byte[]> {
     private static final Logger LOG = Logger.getLogger(ForwardTxnResponseCallback.class);
     
-    private final RpcCallback<MessageAcknowledgement> done;
+    private final RpcCallback<MessageAcknowledgement> orig_callback;
     private final int source_id;
     private final int dest_id;
     
@@ -22,7 +22,7 @@ public class ForwardTxnResponseCallback implements RpcCallback<byte[]> {
      * @param orig_callback
      */
     public ForwardTxnResponseCallback(int source_id, int dest_id, RpcCallback<MessageAcknowledgement> orig_callback) {
-        this.done = orig_callback;
+        this.orig_callback = orig_callback;
         this.source_id = source_id;
         this.dest_id = dest_id;
     }
@@ -36,7 +36,7 @@ public class ForwardTxnResponseCallback implements RpcCallback<byte[]> {
                                                                               .setDestId(this.dest_id)
                                                                               .setData(bs)
                                                                               .build();
-        this.done.run(response);
+        this.orig_callback.run(response);
         
     }
     

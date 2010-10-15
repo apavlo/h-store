@@ -1169,7 +1169,8 @@ public class ExecutionSite implements Runnable {
      * @return
      */
     public VoltTable[] waitForResponses(long txn_id, List<FragmentTaskMessage> tasks) {
-        final boolean trace = LOG.isTraceEnabled(); 
+        final boolean trace = LOG.isTraceEnabled();
+        final boolean debug = LOG.isDebugEnabled();
         TransactionState ts = this.txn_states.get(txn_id);
         if (ts == null) {
             throw new RuntimeException("No transaction state for txn #" + txn_id + " at " + this.getThreadName());
@@ -1193,7 +1194,6 @@ public class ExecutionSite implements Runnable {
         // executing things at remote partitions
         if (all_local) {
             if (trace) LOG.trace("Adding " + runnable.size() + " FragmentTasks to local work queue");
-            System.err.println(ts);
             this.work_queue.addAll(runnable);
         } else {
             if (trace) LOG.trace("Requesting " + runnable.size() + " FragmentTasks to be executed on remote partitions");
@@ -1201,7 +1201,8 @@ public class ExecutionSite implements Runnable {
         }
 
         CountDownLatch latch = ts.startRound();
-        if (trace) LOG.trace("Txn #" + txn_id + " is blocked waiting for " + latch.getCount() + " dependencies");
+        if (debug) LOG.debug("Txn #" + txn_id + " is blocked waiting for " + latch.getCount() + " dependencies");
+        if (trace) LOG.trace(ts.toString());
         try {
             latch.await();
         } catch (InterruptedException ex) {
