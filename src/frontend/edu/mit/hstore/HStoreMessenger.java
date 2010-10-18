@@ -221,6 +221,9 @@ public class HStoreMessenger {
             final boolean trace = LOG.isTraceEnabled();
             final boolean debug = LOG.isDebugEnabled();
             
+            // HACK
+            HStoreMessenger.this.eventLoop.clearAllTimers();
+            
             int sender = request.getSenderId();
             int dest = request.getDestId();
             MessageType type = request.getType();

@@ -228,8 +228,7 @@ public class HStoreCoordinatorNode extends Dtxn.ExecutionEngine implements VoltP
                 if (this.last_completed != null) {
                     // If we're not making progress, bring the whole thing down!
                     if (this.last_completed == completed && inflight_txns.size() > 0) {
-                        LOG.fatal("System is stuck! We're going down so that we can investigate!");
-                        messenger.shutdownCluster();
+                        messenger.shutdownCluster(new RuntimeException("System is stuck! We're going down so that we can investigate!"));
                     }
                 }
                 this.last_completed = completed;
@@ -406,6 +405,9 @@ public class HStoreCoordinatorNode extends Dtxn.ExecutionEngine implements VoltP
         if (this.status_monitor != null && !this.status_monitor.isAlive()) this.status_monitor.start();
         final boolean debug = LOG.isDebugEnabled();
         final boolean trace = LOG.isTraceEnabled();
+
+        // HACK
+        this.coordinatorEventLoop.clearAllTimers();
         
         // The serializedRequest is a ProcedureInvocation object
         StoredProcedureInvocation request = null;
