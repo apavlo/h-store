@@ -407,7 +407,7 @@ public class HStoreCoordinatorNode extends Dtxn.ExecutionEngine implements VoltP
         final boolean trace = LOG.isTraceEnabled();
 
         // HACK
-        this.coordinatorEventLoop.clearAllTimers();
+//        this.coordinatorEventLoop.clearAllTimers();
         
         // The serializedRequest is a ProcedureInvocation object
         StoredProcedureInvocation request = null;
