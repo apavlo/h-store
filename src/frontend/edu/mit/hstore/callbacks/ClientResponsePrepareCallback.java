@@ -15,14 +15,16 @@ import edu.mit.hstore.HStoreCoordinatorNode;
  * Unpack a FragmentResponse and send the bytes to the client
  * @author pavlo
  */
-public final class FragmentResponsePassThroughCallback extends AbstractTxnCallback implements RpcCallback<Dtxn.FragmentResponse> {
-    private static final Logger LOG = Logger.getLogger(FragmentResponsePassThroughCallback.class);
+public final class ClientResponsePrepareCallback extends AbstractTxnCallback implements RpcCallback<Dtxn.FragmentResponse> {
+    private static final Logger LOG = Logger.getLogger(ClientResponsePrepareCallback.class);
     
-    protected final TransactionEstimator t_estimator;
+    private final TransactionEstimator t_estimator;
+    private final int dtxn_txn_id; 
     
-    public FragmentResponsePassThroughCallback(HStoreCoordinatorNode hstore_coordinator, long txn_id, TransactionEstimator t_estimator, RpcCallback<byte[]> done) {
+    public ClientResponsePrepareCallback(HStoreCoordinatorNode hstore_coordinator, long txn_id, int dtxn_txn_id, TransactionEstimator t_estimator, RpcCallback<byte[]> done) {
         super(hstore_coordinator, txn_id, done);
         assert(done != null);
+        this.dtxn_txn_id = dtxn_txn_id;
         this.t_estimator = t_estimator;
         assert(this.t_estimator != null) : "Null TransactionEstimator for txn #" + this.txn_id;
     }
@@ -47,13 +49,12 @@ public final class FragmentResponsePassThroughCallback extends AbstractTxnCallba
         // now complete (either aborted or committed). So we need to tell Dtxn.Coordinator
         // to go fuck itself and send the final messages to everyone that was involved
         // We have to pack in our txn id in the payload
-        ByteString bs = ByteString.copyFrom(Long.toString(txn_id).getBytes()); 
         Dtxn.FinishRequest request = Dtxn.FinishRequest.newBuilder()
-                                            .setTransactionId((int)this.txn_id)
+                                            .setTransactionId(this.dtxn_txn_id)
                                             .setCommit(commit)
-                                            .setPayload(bs)
+                                            .setPayload(HStoreCoordinatorNode.encodeTxnId(this.txn_id))
                                             .build();
-        ClientCallback callback = new ClientCallback(this.hstore_coordinator, this.txn_id, output, commit, this.done);
+        ClientResponseFinalCallback callback = new ClientResponseFinalCallback(this.hstore_coordinator, this.txn_id, output, commit, this.done);
         if (trace) LOG.debug("Calling Dtxn.Coordinator.finish() for txn #" + this.txn_id + " [payload=" + request.hasPayload() + "]");
         
         this.hstore_coordinator.getDtxnCoordinator().finish(new ProtoRpcController(), request, callback);

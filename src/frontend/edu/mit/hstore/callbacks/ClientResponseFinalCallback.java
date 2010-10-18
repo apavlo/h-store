@@ -11,13 +11,13 @@ import edu.mit.hstore.HStoreCoordinatorNode;
  * Callback used to send the final output bytes to the client
  * @author pavlo
  */
-public class ClientCallback extends AbstractTxnCallback implements RpcCallback<Dtxn.FinishResponse> {
-    private static final Logger LOG = Logger.getLogger(ClientCallback.class);
+public class ClientResponseFinalCallback extends AbstractTxnCallback implements RpcCallback<Dtxn.FinishResponse> {
+    private static final Logger LOG = Logger.getLogger(ClientResponseFinalCallback.class);
     
     private final byte output[];
     private final boolean commit;
     
-    public ClientCallback(HStoreCoordinatorNode hstore_coordinator, long txn_id, byte output[], boolean commit, RpcCallback<byte[]> done) {
+    public ClientResponseFinalCallback(HStoreCoordinatorNode hstore_coordinator, long txn_id, byte output[], boolean commit, RpcCallback<byte[]> done) {
         super(hstore_coordinator, txn_id, done);
         this.output = output;
         this.commit = commit;

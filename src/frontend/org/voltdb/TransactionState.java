@@ -47,8 +47,18 @@ public class TransactionState {
     
     private final Object lock = new Object();
     
-    private final ExecutionSite executor;
+    /**
+     * This is the real txn id that we want to use for all correspondence
+     */
     private final long txn_id;
+
+    /**
+     * This is the txn id assigned to us by the coordinator. We need to use it 
+     * whenever we need to send new requests to the coordinator.
+     */
+    private final Integer dtxn_txn_id;
+    
+    private final ExecutionSite executor;
     private final long client_handle;
     private final int origin_partition;
     private final Set<Integer> touched_partitions = new HashSet<Integer>();
@@ -244,15 +254,20 @@ public class TransactionState {
 
     /**
      * Constructor
+     * @param dtxn_txn_id TODO
      * @param client_handle
      * @param callback
      */
-    public TransactionState(ExecutionSite executor, long txn_id, int origin_partition, long client_handle, boolean exec_local) {
+    public TransactionState(ExecutionSite executor, long txn_id, Integer dtxn_txn_id, int origin_partition, long client_handle, boolean exec_local) {
         this.executor = executor;
         this.origin_partition = origin_partition;
         this.txn_id = txn_id;
+        this.dtxn_txn_id = dtxn_txn_id;
         this.client_handle = client_handle;
         this.exec_local = exec_local;
+        
+        assert(this.exec_local == false || (this.exec_local == true && this.dtxn_txn_id != null)) :
+            "Missing Dtxn.Coordinator Txn Id for local Txn #" + this.txn_id; 
     }
     
     /**
@@ -382,6 +397,15 @@ public class TransactionState {
     public long getTransactionId() {
         return this.txn_id;
     }
+    
+    /**
+     * Get this transaction's Dtxn.Coordinator id
+     * @return
+     */
+    public Integer getDtxnTransactionId() {
+        return this.dtxn_txn_id;
+    }
+    
     /**
      * 
      * @return

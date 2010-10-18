@@ -3,7 +3,6 @@ package edu.brown.utils;
 import java.io.BufferedInputStream;
 import java.io.IOException;
 import java.util.*;
-import java.util.concurrent.CountDownLatch;
 
 import org.apache.log4j.Logger;
 
@@ -14,10 +13,8 @@ public abstract class ThreadUtil {
      * Fork the command (in the current thread) and countdown the latch everytime we see
      * our match string in the output
      * @param command
-     * @param match
-     * @param latch
      */
-    public static void forkLatch(String command[], String match, final CountDownLatch latch, final EventObservable stop_observable) {
+    public static void fork(String command[], final String prefix, final EventObservable stop_observable) {
         final String prog_name = FileUtil.basename(command[0]);
         LOG.debug("Forking off process: " + Arrays.toString(command));
 
@@ -54,22 +51,15 @@ public abstract class ThreadUtil {
         try {
             while((c = in.read()) != -1) {
                 buffer.append((char)c);
-                
-                // As soon as we see our match message, let the next guy go!
-                // We reset the buffer so that we can correctly identify the next match
-                if (latch.getCount() > 0 && buffer.toString().contains(match)) {
-                    latch.countDown();
-                    buffer = new StringBuilder();
-                }
                 if (((char)c) == '\n') {
-                    System.out.print(buffer.toString());
+                    System.out.print(prefix + buffer.toString());
                     buffer = new StringBuilder();
                 }
             }
         } catch (Exception e) {
             p.destroy();
         }
-        if (buffer.length() > 0) System.out.println(buffer);
+        if (buffer.length() > 0) System.out.println(prefix + buffer);
         
         try {
             p.waitFor();

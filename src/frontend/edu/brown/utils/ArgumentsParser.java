@@ -91,6 +91,7 @@ public class ArgumentsParser {
                 public void run() {
                     if (!initialized_log4j) setupLogging();
                     Thread self = Thread.currentThread();
+                    self.setName("LogCheck");
                     while (!self.isInterrupted()) {
                         try {
                             Thread.sleep(interval);

@@ -176,7 +176,7 @@ public class TestExecutionSite extends BaseTestCase {
         
         Long txn_id = new Long(rand.nextInt());
         InitiateTaskMessage init_task = new InitiateTaskMessage(PARTITION_ID, PARTITION_ID, txn_id, CLIENT_HANDLE, true, true, invocation, LAST_SAFE_TXN); 
-        site.doWork(init_task, new MockCallback());
+        site.doWork(init_task, txn_id.intValue(), new MockCallback());
         
         int tries = 1000;
         boolean found = false;

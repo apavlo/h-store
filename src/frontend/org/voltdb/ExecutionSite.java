@@ -532,8 +532,7 @@ public class ExecutionSite implements Runnable {
     }
 
     public String getThreadName() {
-        String name = String.format("E%03d-%03d", this.getSiteId(), this.getPartitionId());
-        return (name);
+        return (this.hstore_coordinator.getThreadName(String.format("%03d", this.getPartitionId())));
     }
 
     /**
@@ -542,14 +541,10 @@ public class ExecutionSite implements Runnable {
      */
     @Override
     public void run() {
-        // pick a name with four places for siteid so it can be sorted later
-        // bit hackish, sorry
-        Thread thread = Thread.currentThread();
-        thread.setName(this.getThreadName());
-
         assert(this.hstore_coordinator != null);
         assert(this.hstore_messenger != null);
-
+        Thread.currentThread().setName(this.getThreadName());
+        
         /*
         NDC.push("ExecutionSite - " + siteId + " index " + siteIndex);
         if (VoltDB.getUseThreadAffinity()) {
@@ -575,6 +570,7 @@ public class ExecutionSite implements Runnable {
         try {
             if (LOG.isDebugEnabled()) LOG.debug("Starting ExecutionSite run loop...");
             boolean stop = false;
+            long ctr = 0;
             while (stop == false && this.shutdown == false) {
                 final boolean trace = LOG.isTraceEnabled();
                 final boolean debug = LOG.isDebugEnabled();
@@ -582,7 +578,7 @@ public class ExecutionSite implements Runnable {
                 
                 // Check if there is any work that we need to execute
                 try {
-                    // LOG.info("Polling work queue [" + this.work_queue + "]");
+                    if (debug && ctr++ % 50 == 0) LOG.debug("Polling work queue: " + this.work_queue + "");
                     work = this.work_queue.poll(250, TimeUnit.MILLISECONDS);
                 } catch (InterruptedException ex) {
                     if (debug) LOG.debug("Interupted while polling work queue. Halting ExecutionSite...", ex);
@@ -716,7 +712,7 @@ public class ExecutionSite implements Runnable {
                 }
 
                 this.tick();
-                stop = stop || thread.isInterrupted();
+                stop = stop || Thread.currentThread().isInterrupted();
             } // WHILE
         } catch (final RuntimeException e) {
             LOG.fatal(e);
@@ -965,8 +961,8 @@ public class ExecutionSite implements Runnable {
      * New work from an internal mechanism  
      * @param task
      */
-    public void doWork(TransactionInfoBaseMessage task) {
-        this.doWork(task, null);
+    protected void doWork(TransactionInfoBaseMessage task) {
+        this.doWork(task, null, null);
     }
 
     /**
@@ -975,7 +971,7 @@ public class ExecutionSite implements Runnable {
      * @param task
      * @param callback the RPC handle to send the response to
      */
-    public void doWork(TransactionInfoBaseMessage task, RpcCallback<Dtxn.FragmentResponse> callback) {
+    public void doWork(TransactionInfoBaseMessage task, Integer dtxn_txn_id, RpcCallback<Dtxn.FragmentResponse> callback) {
         final boolean debug = LOG.isDebugEnabled(); 
         final boolean trace = LOG.isTraceEnabled();
 
@@ -985,9 +981,9 @@ public class ExecutionSite implements Runnable {
         
         TransactionState ts = this.txn_states.get(txn_id);
         if (ts == null) {
-            ts = new TransactionState(this, txn_id, task.getSourcePartitionId(), client_handle, start_txn);
+            ts = new TransactionState(this, txn_id, dtxn_txn_id, task.getSourcePartitionId(), client_handle, start_txn);
             this.txn_states.put(txn_id, ts);
-            if (trace) LOG.trace("Creating transaction state for txn #" + txn_id);
+            if (trace) LOG.trace("Creating transaction state for txn #" + txn_id + " [dtxn_txn_id=" + dtxn_txn_id + "]");
         }
         
         // Again, we could be getting an InitiateTaskMessage or some other stuff
@@ -1121,13 +1117,17 @@ public class ExecutionSite implements Runnable {
         assert(ts != null);
         long txn_id = ts.getTransactionId();
 
-        if (debug) LOG.debug("Combining " + tasks.size() + " FragmentTaskMessages into a single Dtxn.CoordinatorFragment.");
+        if (trace) LOG.trace("Combining " + tasks.size() + " FragmentTaskMessages into a single Dtxn.CoordinatorFragment.");
         
         // Now we can go back through and start running all of the FragmentTaskMessages that were not blocked
         // waiting for an input dependency. Note that we pack all the fragments into a single
         // CoordinatorFragment rather than sending each FragmentTaskMessage in its own message
-        Dtxn.CoordinatorFragment.Builder requestBuilder = Dtxn.CoordinatorFragment.newBuilder();
-        requestBuilder.setTransactionId((int)txn_id);
+        // IMPORTANT: Notice that we use the dtxn txn id for the Dtxn.CoordinatorFragment and not
+        // the regular txn id that we use for everything else!
+        assert(ts.getDtxnTransactionId() != null) : "Missing Dtxn.Coordinator txn id for txn #" + txn_id;
+        Dtxn.CoordinatorFragment.Builder requestBuilder = Dtxn.CoordinatorFragment
+                                                                .newBuilder()
+                                                                .setTransactionId(ts.getDtxnTransactionId());
         for (FragmentTaskMessage ftask : tasks) {
             assert(!ts.isBlocked(ftask));
             
@@ -1158,7 +1158,8 @@ public class ExecutionSite implements Runnable {
         this.hstore_coordinator.getDtxnCoordinator().execute(new ProtoRpcController(),
                                                              requestBuilder.build(),
                                                              this.request_work_callback);
-        if (debug) LOG.debug("Work request is sent for txn #" + txn_id);
+        if (debug) LOG.debug("Work request is sent for txn #" + txn_id + " " +
+                             "[#fragments=" + tasks.size() + ", dtxn_txn_id=" + ts.getDtxnTransactionId() + "]");
     }
 
     /**
