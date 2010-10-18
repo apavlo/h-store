@@ -69,7 +69,7 @@ BROWN_SITES_PER_HOST=1
 BROWN_NUM_WAREHOUSES=2
 BROWN_SCALE_FACTOR=1000
 BROWN_DURATION=60000
-BROWN_TXN_RATE=3
+BROWN_TXN_RATE=1
 
 ## ---------------------------------------
 ## Wisconsin Configuration

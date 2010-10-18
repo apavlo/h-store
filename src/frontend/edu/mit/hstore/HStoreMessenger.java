@@ -10,7 +10,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.Map.Entry;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.atomic.AtomicLong;
 
 import org.apache.log4j.LogManager;
 import org.apache.log4j.Logger;
@@ -92,13 +91,11 @@ public class HStoreMessenger {
         
         // Wrap the listener in a daemon thread
         this.listener_thread = new Thread() {
-//            {
-//                Thread.currentThread().setName(String.format("H%03d-msg", HStoreMessenger.this.catalog_site.getId()));
-//            }
             @Override
             public void run() {
-                Thread.currentThread().setName(String.format("H%03d-msg", HStoreMessenger.this.catalog_site.getId()));
-                eventLoop.run();
+                Thread.currentThread().setName(HStoreMessenger.this.coordinator.getThreadName("msg"));
+                HStoreMessenger.this.eventLoop.run();
+                if (LOG.isTraceEnabled()) LOG.trace("Messenger Thread for Site #" + catalog_site.getId() + " has stopped!");
             }
         };
         this.listener_thread.setDaemon(true);

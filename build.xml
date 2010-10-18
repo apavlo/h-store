@@ -2347,13 +2347,13 @@ H-STORE REMIX
                 <arg line="SKEW_FACTOR=${skew}" />
                 <arg line="cataloghosts" />
                 <arg line="killprotodtxn" />
-                <arg line="blocking" />
+<!--                 <arg line="blocking" /> -->
             </exec>
         </sequential>
     </parallel>
 </target>
 
-<target name="hstore-oldtest" description="H-Store Test Setup">
+<!--<target name="hstore-oldtest" description="H-Store Test Setup">
     <antcall target="hstore-conf">
         <param name="jar" value="${project}.jar" />
     </antcall>
@@ -2400,7 +2400,7 @@ H-STORE REMIX
             </exec>
         </sequential>
     </parallel>
-</target>
+</target>-->
 
 <!-- END PROJECT -->
 </project>

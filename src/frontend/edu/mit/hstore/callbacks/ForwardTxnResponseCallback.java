@@ -29,7 +29,9 @@ public class ForwardTxnResponseCallback implements RpcCallback<byte[]> {
 
     @Override
     public void run(byte[] parameter) {
-        if (LOG.isTraceEnabled()) LOG.trace("Got ClientResponse callback! Sending back to Site #" + this.dest_id);
+        final boolean trace = LOG.isTraceEnabled();
+        if (trace) LOG.trace("Got ClientResponse callback! Sending back to Site #" + this.dest_id + " " +
+                             "[bytes=" + parameter.length + "]");
         ByteString bs = ByteString.copyFrom(parameter);
         Hstore.MessageAcknowledgement response = Hstore.MessageAcknowledgement.newBuilder()
                                                                               .setSenderId(this.source_id)
@@ -37,7 +39,7 @@ public class ForwardTxnResponseCallback implements RpcCallback<byte[]> {
                                                                               .setData(bs)
                                                                               .build();
         this.orig_callback.run(response);
-        
+        if (trace) LOG.trace("Sent our ClientResponse back. Returning to regularly scheduled program...");
     }
     
 }
