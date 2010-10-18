@@ -222,7 +222,7 @@ public class HStoreMessenger {
             final boolean debug = LOG.isDebugEnabled();
             
             // HACK
-            HStoreMessenger.this.eventLoop.clearAllTimers();
+//            HStoreMessenger.this.eventLoop.clearAllTimers();
             
             int sender = request.getSenderId();
             int dest = request.getDestId();

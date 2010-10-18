@@ -231,7 +231,11 @@ public class ProtoRpcChannel extends AbstractEventHandler implements RpcChannel 
         class ExitLoopHandler extends AbstractEventHandler {
             @Override
             public void timerCallback() {
-                ((NIOEventLoop) eventLoop).exitLoop();
+                if (barrierCount == 0) {
+                    System.err.println("timer callback; all connections done");
+                } else {
+                    ((NIOEventLoop) eventLoop).exitLoop();
+                }
             }
 
             public void connectFinished() {
