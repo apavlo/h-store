@@ -99,6 +99,10 @@ public class NIOEventLoop implements EventLoop {
         addInterest(channel, SelectionKey.OP_WRITE, handler);
     }
 
+    public void clearAllTimers() {
+        this.timers.clear();
+    }
+    
     @Override
     public void registerTimer(int timerMilliseconds, Handler handler) {
         assert timerMilliseconds >= 0;
