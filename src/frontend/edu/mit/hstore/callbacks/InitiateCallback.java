@@ -6,7 +6,6 @@ import org.apache.log4j.Logger;
 
 import com.google.protobuf.RpcCallback;
 
-import edu.brown.markov.TransactionEstimator;
 import edu.mit.dtxn.Dtxn;
 import edu.mit.hstore.HStoreCoordinatorNode;
 
@@ -19,8 +18,8 @@ public class InitiateCallback extends AbstractTxnCallback implements RpcCallback
     private static final Logger LOG = Logger.getLogger(InitiateCallback.class);
     private final CountDownLatch latch;
     
-    public InitiateCallback(HStoreCoordinatorNode hstore_coordinator, long txnId, TransactionEstimator tEstimator, CountDownLatch latch) {
-        super(hstore_coordinator, txnId, tEstimator, null);
+    public InitiateCallback(HStoreCoordinatorNode hstore_coordinator, long txnId, CountDownLatch latch) {
+        super(hstore_coordinator, txnId, null);
         this.latch = latch;
     }
 

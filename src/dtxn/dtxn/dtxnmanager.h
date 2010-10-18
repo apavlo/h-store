@@ -29,7 +29,7 @@ public:
 
     // Must be called to commit/abort a distributed transaction. If transaction was a single
     // partition transaction (one participant, last_fragment == true), then this is not required.
-    virtual void finish(DistributedTransaction* transaction, bool commit,
+    virtual void finish(DistributedTransaction* transaction, bool commit, const std::string& payload,
             const Callback& callback) = 0;
 };
 

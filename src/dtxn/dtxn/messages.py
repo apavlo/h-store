@@ -13,6 +13,7 @@ request.addField(BOOL, "multiple_partitions", False, "True if this transaction s
 request.addField(BOOL, "last_fragment", True, "True if this is the last fragment of this transaction for this partition.")
 # TODO: Rename this to command? or fragment?
 request.addField(STRING, "transaction", None, "The actual transaction to be processed.")
+request.addField(STRING, "payload", None, "Fragment messsage payload")
 
 response = MessageDefinition("FragmentResponse", "The response from the partition.")
 response.addField(INT32, "id", 0, "Identifies the transaction that this decision refers to.")
@@ -27,6 +28,7 @@ commit_decision = MessageDefinition("CommitDecision", "Instructs a replica to co
 commit_decision.addField(INT32, "client_id", 0, "Unique identifier for the client sending the transaction.")
 commit_decision.addField(INT32, "id", 0, "Identifies the transaction that this decision refers to.")
 commit_decision.addField(BOOL, "commit", False, "True if the transaction should commit.")
+commit_decision.addField(STRING, "payload", None, "Commit messsage payload")
 
 log_entry = MessageDefinition("LogEntry", "Transaction record stored in a log.")
 log_entry.addField(List(STRING), "fragments", None, "All fragments for the transaction collected together.")

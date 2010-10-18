@@ -7,6 +7,9 @@ message Fragment {
 
     // If true then the fragment must be undoable using a call to Finish.
     required bool undoable = 3;
+    
+    // PAVLO: Attach extra info for the txn
+    optional bytes payload = 4;
 }
 
 message FragmentResponse {
@@ -28,11 +31,14 @@ message FragmentResponse {
 message FinishRequest {
     required int32 transaction_id = 1;
     required bool commit = 2;
+    // PAVLO: Attach extra info for the txn
+    optional bytes payload = 3;
 }
 
 
 message FinishResponse {
     //required bool committed = 1;
+    optional bytes payload = 1;
 }
 
 
@@ -77,6 +83,9 @@ message CoordinatorFragment {
 
     // If true, this is the final chunk of work for this transaction (indicates autocommit).
     optional bool last_fragment = 3 [default = false];
+    
+    // PAVLO: Attach extra info for the txn
+    optional bytes payload = 4;
 }
 
 

@@ -61,10 +61,16 @@ public abstract class ThreadUtil {
                     latch.countDown();
                     buffer = new StringBuilder();
                 }
+                if (((char)c) == '\n') {
+                    System.out.print(buffer.toString());
+                    buffer = new StringBuilder();
+                }
             }
         } catch (Exception e) {
             p.destroy();
         }
+        if (buffer.length() > 0) System.out.println(buffer);
+        
         try {
             p.waitFor();
         } catch (InterruptedException e) {

@@ -224,11 +224,12 @@ public class HStoreMessenger {
         @Override
         public void sendMessage(RpcController controller, MessageRequest request, RpcCallback<MessageAcknowledgement> done) {
             final boolean trace = LOG.isTraceEnabled();
+            final boolean debug = LOG.isDebugEnabled();
             
             int sender = request.getSenderId();
             int dest = request.getDestId();
             MessageType type = request.getType();
-            if (trace) LOG.trace("Received " + type.name() + " request from Site #" + sender);
+            if (debug) LOG.debug("Received " + type.name() + " request from Site #" + sender);
             
             Hstore.MessageAcknowledgement response = null;
             switch (type) {
@@ -312,6 +313,7 @@ public class HStoreMessenger {
         @Override
         public void sendFragment(RpcController controller, FragmentTransfer request, RpcCallback<FragmentAcknowledgement> done) {
             final boolean trace = LOG.isTraceEnabled();
+            
             long txn_id = request.getTxnId();
             int sender_partition_id = request.getSenderPartitionId();
             int dest_partition_id = request.getDestPartitionId();
@@ -337,12 +339,12 @@ public class HStoreMessenger {
             
             // Send back a response
             if (trace) LOG.trace("Sending back FragmentAcknowledgement to Partition #" + sender_partition_id + " for Txn #" + txn_id);
-            Hstore.FragmentAcknowledgement fa = Hstore.FragmentAcknowledgement.newBuilder()
+            Hstore.FragmentAcknowledgement ack = Hstore.FragmentAcknowledgement.newBuilder()
                                                         .setTxnId(txn_id)
                                                         .setSenderPartitionId(dest_partition_id)
                                                         .setDestPartitionId(sender_partition_id)
                                                         .build();
-            done.run(fa);
+            done.run(ack);
         }
     };
     
@@ -442,10 +444,13 @@ public class HStoreMessenger {
      * @param ex
      */
     public synchronized void shutdownCluster(Exception ex) {
+        final boolean trace = LOG.isTraceEnabled();
+        final boolean debug = LOG.isDebugEnabled();
+        
         final int num_sites = this.channels.size();
         if (this.shutting_down) return;
         this.shutting_down = true;
-        if (LOG.isDebugEnabled()) LOG.debug("Sending shutdown request to " + num_sites + " remote sites");
+        if (debug) LOG.debug("Sending shutdown request to " + num_sites + " remote sites");
         
         final CountDownLatch latch = new CountDownLatch(num_sites);
         RpcCallback<MessageAcknowledgement> callback = new RpcCallback<MessageAcknowledgement>() {
@@ -456,7 +461,7 @@ public class HStoreMessenger {
                 int siteid = parameter.getSenderId();
                 assert(this.siteids.contains(siteid) == false) : "Duplicate response from Site #" + siteid;
                 this.siteids.add(siteid);
-                LOG.debug("Received " + this.siteids.size() + "/" + num_sites + " shutdown acknowledgements");
+                if (trace) LOG.trace("Received " + this.siteids.size() + "/" + num_sites + " shutdown acknowledgements");
                 latch.countDown();
             }
         };
@@ -470,7 +475,7 @@ public class HStoreMessenger {
                                             .setType(MessageType.SHUTDOWN)
                                             .build();
             e.getValue().sendMessage(new ProtoRpcController(), sm, callback);
-            if (LOG.isTraceEnabled()) LOG.debug("Sent SHUTDOWN to Site #" + e.getKey());
+            if (trace) LOG.trace("Sent SHUTDOWN to Site #" + e.getKey());
         } // FOR
         
         // Tell ourselves to shutdown while we wait

@@ -5,7 +5,6 @@ import org.apache.log4j.Logger;
 import com.google.protobuf.RpcCallback;
 
 import edu.mit.dtxn.Dtxn;
-import edu.mit.dtxn.Dtxn.FinishResponse;
 import edu.mit.hstore.HStoreCoordinatorNode;
 
 /**
@@ -19,7 +18,7 @@ public class ClientCallback extends AbstractTxnCallback implements RpcCallback<D
     private final boolean commit;
     
     public ClientCallback(HStoreCoordinatorNode hstore_coordinator, long txn_id, byte output[], boolean commit, RpcCallback<byte[]> done) {
-        super(hstore_coordinator, txn_id, null, done);
+        super(hstore_coordinator, txn_id, done);
         this.output = output;
         this.commit = commit;
     }
@@ -28,11 +27,12 @@ public class ClientCallback extends AbstractTxnCallback implements RpcCallback<D
      * We can finally send out the final answer to the client
      */
     @Override
-    public void run(FinishResponse parameter) {
+    public void run(Dtxn.FinishResponse parameter) {
         if (LOG.isDebugEnabled()) {
             LOG.debug("Sending final response to client for txn #" + this.txn_id + " [" +
-                       "status=" + (this.commit ? "COMMIT" : "ABORT") + ", " + 
-                       "bytes=" + this.output.length + "]");
+                      "status=" + (this.commit ? "COMMIT" : "ABORT") + ", " + 
+                      "payload=" + parameter.hasPayload() + ", " +
+                      "bytes=" + this.output.length + "]");
         }
         this.hstore_coordinator.completeTransaction(this.txn_id);
         this.done.run(this.output);

@@ -234,7 +234,7 @@ void PartitionServer::decisionReceived(
             (transaction->last_fragment().request().last_fragment &&
             transaction->last_fragment().response().status != ExecutionEngine::INVALID));
     transaction->decide(decision.commit);
-    scheduler_->decide(transaction, decision.commit);
+    scheduler_->decide(transaction, decision.commit, decision.payload);
     if (transaction->last_fragment().request().last_fragment) {
         log_->submit(decision, transaction);
     } else if (transaction->isDone()) {

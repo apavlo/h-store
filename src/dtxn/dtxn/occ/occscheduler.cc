@@ -57,7 +57,8 @@ void OCCScheduler::commit(Transaction* transaction) {
 
     // Free the undo buffer and the transaction state
     if (*transaction->undo() != NULL) {
-        engine_->freeUndo(*transaction->undo());
+        // PAVLO
+        engine_->freeUndo(*transaction->undo(), std::string("OCCScheduler::commit-1"));
     }
     delete transaction;
     transaction = NULL;
@@ -75,10 +76,11 @@ void OCCScheduler::commit(Transaction* transaction) {
             independent_queue_.push_back(speculative);
         } else if (*speculative->undo() != NULL) {
             if (speculative->last_status() == ExecutionEngine::ABORT_USER) {
-                engine_->applyUndo(*speculative->undo());
+                engine_->applyUndo(*speculative->undo(), std::string("OCCScheduler::commit-2"));
             } else {
                 assert(speculative->last_status() == ExecutionEngine::OK);
-                engine_->freeUndo(*speculative->undo());
+                // PAVLO
+                engine_->freeUndo(*speculative->undo(), std::string("OCCScheduler::commit-3"));
             }
             *speculative->undo() = NULL;
         }
@@ -105,7 +107,7 @@ void OCCScheduler::abort(Transaction* txn) {
         OCCTransaction* speculative = speculative_queue_.back();
         speculative_queue_.pop_back();
         if (*speculative->undo() != NULL) {
-            engine_->applyUndo(*speculative->undo());
+            engine_->applyUndo(*speculative->undo(), std::string("OCCScheduler::abort-1"));
         }
         speculative->prepareReExecute();
         execute_queue_.push_front(speculative);
@@ -117,7 +119,7 @@ void OCCScheduler::abort(Transaction* txn) {
 
     // abort the actual transaction
     if (*transaction->undo() != NULL) {
-        engine_->applyUndo(*transaction->undo());
+        engine_->applyUndo(*transaction->undo(), std::string("OCCScheduler::abort-2"));
     }
     delete transaction;
 }
@@ -144,7 +146,7 @@ void OCCScheduler::backupApplyTransaction(const std::vector<std::string>& work_u
     string out;
     for (int i = 0; i < work_units.size(); ++i) {
         out.clear();
-        ExecutionEngine::Status status = engine_->tryExecute(work_units[i], &out, NULL, NULL);
+        ExecutionEngine::Status status = engine_->tryExecute(work_units[i], &out, NULL, NULL, NULL);
         CHECK(status == ExecutionEngine::OK);
     }
 }
@@ -183,7 +185,7 @@ void OCCScheduler::removeFromIndependentQueue(OCCTransaction* transaction) {
 void OCCScheduler::executeWorkUnit(OCCTransaction* transaction) {
     // Execute the transaction to collect the read/write set
     ExecutionEngine::Status status = engine_->tryExecute(
-            transaction->last_work_unit(), transaction->output(), transaction->undo(), transaction);
+            transaction->last_work_unit(), transaction->output(), transaction->undo(), transaction, NULL);
     assert(status == ExecutionEngine::OK || status == ExecutionEngine::ABORT_USER);
     transaction->setWorkUnitStatus(status);
 
@@ -202,10 +204,11 @@ void OCCScheduler::executeWorkUnit(OCCTransaction* transaction) {
         independent_queue_.push_back(transaction);
     } else if (*transaction->undo() != NULL) {
         if (transaction->last_status() == ExecutionEngine::ABORT_USER) {
-            engine_->applyUndo(*transaction->undo());
+            engine_->applyUndo(*transaction->undo(), std::string("OCCScheduler::executeWorkUnit-1"));
         } else {
             assert(transaction->last_status() == ExecutionEngine::OK);
-            engine_->freeUndo(*transaction->undo());
+            // PAVLO
+            engine_->freeUndo(*transaction->undo(), std::string("OCCScheduler::executeWorkUnit-2"));
         }
         *transaction->undo() = NULL;
     }

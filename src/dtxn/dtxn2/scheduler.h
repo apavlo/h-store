@@ -36,7 +36,7 @@ public:
 
     // Commit or abort transaction. It must be a multi-partition transaction. This makes
     // the changes permanent or undoes the effects.
-    virtual void decide(TransactionState* transaction, bool commit) = 0;
+    virtual void decide(TransactionState* transaction, bool commit, const std::string& payload) = 0;
 
     // The Scheduler should perform as much work as it decides, calling replicate() and executed()
     // to return results. When this returns, the server will block waiting for network input

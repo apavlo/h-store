@@ -48,8 +48,10 @@ void OrderedScheduler::commit(TransactionState* transaction) {
     assert(unfinished_queue_.front() == transaction);
     unfinished_queue_.pop_front();
 
+    // PAVLO
+    fprintf(stderr, "%s:%d => Called commit with a TransactionState that has payload '%s'\n", __FILE__, __LINE__, transaction->payload().c_str());
     if (*transaction->undo() != NULL) {
-        engine_->freeUndo(*transaction->undo());
+        engine_->freeUndo(*transaction->undo(), transaction->payload());
     }
 
     // Speculative execution was correct: output transactions
@@ -69,7 +71,7 @@ void OrderedScheduler::commit(TransactionState* transaction) {
             // finish single partition transactions, freeing any undo buffers they may have
             unfinished_queue_.pop_front();
             if (*speculative->undo() != NULL) {
-                engine_->freeUndo(*speculative->undo());
+                engine_->freeUndo(*speculative->undo(), speculative->payload());
             }
         } else {
             if (batch_mps_ && !results_already_exposed) {
@@ -121,7 +123,7 @@ void OrderedScheduler::abort(TransactionState* transaction) {
                     unfinished_queue_.pop_back();
                     // undo can be null if it speculatively aborted or if it does no writes
                     if (*speculative->undo() != NULL) {
-                        engine_->applyUndo(*speculative->undo());
+                        engine_->applyUndo(*speculative->undo(), speculative->payload());
                         *speculative->undo() = NULL;
                     }
                     speculative->mutable_last()->mutable_response()->result.clear();
@@ -132,7 +134,7 @@ void OrderedScheduler::abort(TransactionState* transaction) {
                 assert(unfinished_queue_.back() == transaction);
                 unfinished_queue_.pop_back();
                 if (*transaction->undo() != NULL) {
-                    engine_->applyUndo(*transaction->undo());
+                    engine_->applyUndo(*transaction->undo(), transaction->payload());
                 }
 
                 // Adjust the last batch id to the correct value
@@ -207,7 +209,7 @@ bool OrderedScheduler::realExecute(FragmentState* state) {
                 unfinished_queue_.back()->last_fragment().request().last_fragment) {
             // speculate with undo
             response->status = engine_->tryExecute(state->request().transaction, &response->result,
-                    state->transaction()->undo(), NULL);
+                    state->transaction()->undo(), NULL, state->transaction()->payload());
             unfinished_queue_.push_back(state->transaction());
 
             // Look to see if this has the same coordinator as the previously "released"
@@ -246,7 +248,7 @@ bool OrderedScheduler::realExecute(FragmentState* state) {
         // Execute without undo
         assert(unfinished_queue_.empty());
         response->status = engine_->tryExecute(
-                state->request().transaction, &response->result, NULL, NULL);
+                state->request().transaction, &response->result, NULL, NULL, std::string("OrderedScheduler::realExecute-1"));
     } else {
         assert(state->multiple_partitions() || state->transaction() == unfinished_queue_.front());
         assert(unfinished_queue_.empty() || unfinished_queue_.front() == state->transaction());
@@ -256,7 +258,7 @@ bool OrderedScheduler::realExecute(FragmentState* state) {
 
         // Execute with undo
         response->status = engine_->tryExecute(state->request().transaction, &response->result,
-                state->transaction()->undo(), NULL);
+                state->transaction()->undo(), NULL, std::string("OrderedScheduler::realExecute-2"));
         if (batch_mps_) {
             last_batch_id_ = response->id;
         }

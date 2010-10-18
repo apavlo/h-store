@@ -1549,6 +1549,7 @@ DTXN BINARIES + LIBRARIES
       <arg value="PREFIX=${build.dtxn.dir}" />
       <arg value="PROTOBUF_SRC=${src.protobuf.dir}" />
       <arg value="PROTOBUF_BIN=${build.protobuf.dir}" />
+      <arg value="PROTORPC_PATH=${src.protorpc.dir}" />
    </exec>
 </target>
 
