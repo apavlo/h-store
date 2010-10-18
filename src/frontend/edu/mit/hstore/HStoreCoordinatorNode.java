@@ -20,7 +20,7 @@ import org.voltdb.BackendTarget;
 import org.voltdb.ExecutionSite;
 import org.voltdb.ProcedureProfiler;
 import org.voltdb.StoredProcedureInvocation;
-import org.voltdb.TransactionIdManager;
+//import org.voltdb.TransactionIdManager;
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Partition;
 import org.voltdb.catalog.Procedure;
@@ -54,7 +54,6 @@ import edu.brown.utils.ThreadUtil;
 import edu.brown.workload.AbstractTraceElement;
 import edu.brown.workload.WorkloadTraceFileOutput;
 import edu.mit.dtxn.Dtxn;
-import edu.mit.dtxn.Dtxn.ExecutionEngine;
 import edu.mit.dtxn.Dtxn.FragmentResponse.Status;
 import edu.mit.hstore.callbacks.ForwardTxnRequestCallback;
 import edu.mit.hstore.callbacks.FragmentResponsePassThroughCallback;
@@ -64,14 +63,14 @@ import edu.mit.hstore.callbacks.InitiateCallback;
  * 
  * @author pavlo
  */
-public class HStoreCoordinatorNode extends ExecutionEngine implements VoltProcedureListener.Handler {
+public class HStoreCoordinatorNode extends Dtxn.ExecutionEngine implements VoltProcedureListener.Handler {
     private static final Logger LOG = Logger.getLogger(HStoreCoordinatorNode.class.getName());
-    protected static final AtomicLong NEXT_TXN_ID = new AtomicLong(1);
+    protected static final AtomicLong NEXT_TXN_ID = new AtomicLong(1000);
     
     private final DBBPool buffer_pool = new DBBPool(true, true);
     private final Map<Integer, Thread> executor_threads = new HashMap<Integer, Thread>();
     private final HStoreMessenger messenger;
-    private final TransactionIdManager txnid_manager;
+//    private final TransactionIdManager txnid_manager;
 //    private final AtomicInteger fake_evan_txn_ids = new AtomicInteger(0);
     
     // Dtxn Stuff
@@ -82,6 +81,7 @@ public class HStoreCoordinatorNode extends ExecutionEngine implements VoltProced
     private final EventObservable shutdown_observable = new EventObservable();
     
     private final Site catalog_site;
+    private final int site_id;
     private final Map<Integer, ExecutionSite> executors = new HashMap<Integer, ExecutionSite>();
     private final Database catalog_db;
     private final PartitionEstimator p_estimator;
@@ -216,12 +216,13 @@ public class HStoreCoordinatorNode extends ExecutionEngine implements VoltProced
     public HStoreCoordinatorNode(Site catalog_site, Map<Integer, ExecutionSite> executors, PartitionEstimator p_estimator) {
         // General Stuff
         this.catalog_site = catalog_site;
+        this.site_id = this.catalog_site.getId();
         this.catalog_db = CatalogUtil.getDatabase(this.catalog_site);
         this.p_estimator = p_estimator;
         this.thresholds = new EstimationThresholds(); // default values
         this.executors.putAll(executors);
         this.messenger = new HStoreMessenger(this, this.executors);
-        this.txnid_manager = new TransactionIdManager(this.catalog_site.getId());
+//        this.txnid_manager = new TransactionIdManager(this.site_id);
         
         assert(this.catalog_db != null);
         assert(this.p_estimator != null);
@@ -237,11 +238,11 @@ public class HStoreCoordinatorNode extends ExecutionEngine implements VoltProced
         if (debug) LOG.debug("Initializing HStoreCoordinatorNode...");
 
         // First we need to tell the HStoreMessenger to start-up and initialize its connections
-        if (debug) LOG.debug("Starting HStoreMessenger for Site #" + this.catalog_site.getId());
+        if (debug) LOG.debug("Starting HStoreMessenger for Site #" + this.site_id);
         this.messenger.start();
         
         // Then we need to start all of the ExecutionSites in threads
-        if (debug) LOG.debug("Starting ExecutionSite threads for " + this.executors.size() + " partitions on Site #" + this.catalog_site.getId());
+        if (debug) LOG.debug("Starting ExecutionSite threads for " + this.executors.size() + " partitions on Site #" + this.site_id);
         for (Entry<Integer, ExecutionSite> e : this.executors.entrySet()) {
             Thread t = new Thread(e.getValue());
             e.getValue().setHStoreCoordinatorNode(this);
@@ -312,7 +313,7 @@ public class HStoreCoordinatorNode extends ExecutionEngine implements VoltProced
     }
     
     public int getSiteId() {
-        return (this.catalog_site.getId());
+        return (this.site_id);
     }
     
     /**
@@ -323,7 +324,7 @@ public class HStoreCoordinatorNode extends ExecutionEngine implements VoltProced
     private String getThreadName(String suffix) {
         if (suffix == null) suffix = "";
         if (suffix.isEmpty() == false) suffix = "-" + suffix; 
-        return (String.format("H%03d%s", catalog_site.getId(), suffix));
+        return (String.format("H%03d%s", this.site_id, suffix));
     }
     
     /**
@@ -335,6 +336,13 @@ public class HStoreCoordinatorNode extends ExecutionEngine implements VoltProced
         this.completed_txns.incrementAndGet();
         assert(!this.inflight_txns.containsKey(txn_id)) :
             "Failed to remove InFlight entry for txn #" + txn_id + "\n" + inflight_txns;
+    }
+    
+    public static ByteString encodeTxnId(long txn_id) {
+        return (ByteString.copyFrom(Long.toString(txn_id).getBytes()));
+    }
+    public static long decodeTxnId(ByteString bs) {
+        return (Long.valueOf(new String(bs.toByteArray())));
     }
 
     @Override
@@ -366,7 +374,7 @@ public class HStoreCoordinatorNode extends ExecutionEngine implements VoltProced
         Procedure catalog_proc = this.catalog_db.getProcedures().get(request.getProcName());
         final boolean sysproc = catalog_proc.getSystemproc();
         if (catalog_proc == null) throw new RuntimeException("Unknown procedure '" + request.getProcName() + "'");
-        if (trace) LOG.trace("Received new stored procedure invocation request for " + catalog_proc);
+        if (debug) LOG.trace("Received new stored procedure invocation request for " + catalog_proc);
         
         // First figure out where this sucker needs to go
         Integer dest_partition;
@@ -390,7 +398,7 @@ public class HStoreCoordinatorNode extends ExecutionEngine implements VoltProced
         
         // TODO: If the dest_partition isn't local, then we need to ship it off to the right location
         if (this.executors.containsKey(dest_partition) == false) {
-            if (trace) LOG.trace("StoredProcedureInvocation request for " +  catalog_proc + " needs to be forwarded to Partition #" + dest_partition);
+            if (debug) LOG.debug("StoredProcedureInvocation request for " +  catalog_proc + " needs to be forwarded to Partition #" + dest_partition);
             
             // Make a wrapper for the original callback so that when the result comes back frm the remote partition
             // we will just forward it back to the client. How sweet is that??
@@ -400,7 +408,6 @@ public class HStoreCoordinatorNode extends ExecutionEngine implements VoltProced
         }
 
         // Important: We have two txn ids here. We have the real one that we're going to use internally
-        // Setup "Magic Evan" RPC stuff
         long txn_id = -1;
         if (this.getSiteId() == 0) {
             txn_id = NEXT_TXN_ID.getAndIncrement();
@@ -408,12 +415,7 @@ public class HStoreCoordinatorNode extends ExecutionEngine implements VoltProced
             txn_id = this.messenger.getNextTxnId();
         }
         assert(txn_id != -1);
-        
-        ProtoRpcController rpc = new ProtoRpcController();
-        Dtxn.CoordinatorFragment.Builder requestBuilder = Dtxn.CoordinatorFragment.newBuilder();
-        requestBuilder.setTransactionId((int)txn_id);
-        requestBuilder.setLastFragment(true);
-        
+                
         // Grab the TransactionEstimator for the destination partition and figure out whether
         // this mofo is likely to be single-partition or not. Anything that we can't estimate
         // will just have to be multi-partitioned. This includes sysprocs
@@ -438,26 +440,34 @@ public class HStoreCoordinatorNode extends ExecutionEngine implements VoltProced
         else this.multipart_ctr.incrementAndGet();
         this.inflight_txns.put(txn_id, dest_partition);
         if (debug) LOG.debug("Passing " + catalog_proc.getName() + " to Coordinator as " + (single_partition ? "single" : "multi") + "-partition txn #" + txn_id + " for partition " + dest_partition);
+
+        // Construct the message for the Dtxn.Coordinator
+        ProtoRpcController rpc = new ProtoRpcController();
+        Dtxn.CoordinatorFragment.Builder requestBuilder = Dtxn.CoordinatorFragment.newBuilder();
+        requestBuilder.setTransactionId((int)txn_id);
         
-        // Even though this is possibly local, we still have to go through the Dtxn.Coordinator <-- Is that true??
-//        FragmentResponsePassThroughCallback rpcDone = new FragmentResponsePassThroughCallback(txn_id, t_estimator, done);
-//        executor.doWork(wrapper, rpcDone);
+        // FIXME: Need to use TransactionEstimator to determine this
+        requestBuilder.setLastFragment(true);
         
+        // NOTE: Evan betrayed our love so we can't use his txn ids because they are meaningless to us
+        // So we're going to pack in our txn id in the payload. Any message they we get from Evan
+        // will have this payload so that we can figure out what the hell is going on...
+        requestBuilder.setPayload(HStoreCoordinatorNode.encodeTxnId(txn_id));
+
+        // Pack the StoredProcedureInvocation into a Dtxn.PartitionFragment
         requestBuilder.addFragment(Dtxn.CoordinatorFragment.PartitionFragment.newBuilder()
                 .setPartitionId(dest_partition)
                 // TODO: Use copyFrom(ByteBuffer) in the newer version of protobuf
                 .setWork(ByteString.copyFrom(wrapper.getBufferForMessaging(this.buffer_pool).b.array())))
-                // 2010-06-18: We need to set this for single-partition txns
                 .setLastFragment(single_partition);
-        //CoordinatorResponsePassThroughCallback rpcDone = new CoordinatorResponsePassThroughCallback(this, txn_id, t_estimator, done);
-        if (trace) LOG.trace("Passing txn #" + txn_id + " through Dtxn.Coordinator using InitiateCallback");
         
         // Create a latch so that we don't start executing until we know the coordinator confirmed are initialization request
         CountDownLatch latch = new CountDownLatch(1);
-        InitiateCallback callback = new InitiateCallback(this, txn_id, t_estimator, latch);
+        InitiateCallback callback = new InitiateCallback(this, txn_id, latch);
         this.client_callbacks.put(txn_id, done);
         this.init_latches.put(txn_id, latch);
         
+        if (trace) LOG.trace("Passing txn #" + txn_id + " through Dtxn.Coordinator using " + callback.getClass().getSimpleName());
         this.coordinator.execute(rpc, requestBuilder.build(), callback);
     }
 
@@ -467,6 +477,7 @@ public class HStoreCoordinatorNode extends ExecutionEngine implements VoltProced
     @Override
     public void execute(RpcController controller, Dtxn.Fragment request, RpcCallback<Dtxn.FragmentResponse> done) {
         final boolean trace = LOG.isTraceEnabled();
+        final boolean debug = LOG.isDebugEnabled();
         
         // Decode the procedure request
         TransactionInfoBaseMessage msg = null;
@@ -476,15 +487,11 @@ public class HStoreCoordinatorNode extends ExecutionEngine implements VoltProced
             throw new RuntimeException(e);
         }
 
-        // IMPORTANT: Evan betrayed our love so we can't use his txn ids because they are meaningless to us
-        //            Make sure that we always use the txn ids pulled from our internal messages
-//        long txn_id = NEXT_TXN_ID.getAndIncrement();
-        long txn_id = msg.getTxnId(); // 
+        long txn_id = msg.getTxnId(); // This is from the VoltMessage!
         int partition = msg.getDestinationPartitionId();
-        if (trace) {
-            LOG.trace("Got " + msg.getClass().getSimpleName() + " message for txn #" + txn_id + " running at Partition #" + partition);
-            LOG.trace("CONTENTS:\n" + msg);
-        }
+        if (debug) LOG.debug("Got " + msg.getClass().getSimpleName() + " message for txn #" + txn_id + " running at Partition #" + partition);
+        if (trace) LOG.trace("CONTENTS:\n" + msg);
+        
         ExecutionSite executor = this.executors.get(partition);
         if (executor == null) {
             throw new RuntimeException("No ExecutionSite exists for Partition #" + partition + " at this site???");
@@ -534,11 +541,24 @@ public class HStoreCoordinatorNode extends ExecutionEngine implements VoltProced
         executor.doWork(msg, callback);
     }
 
+    /**
+     * 
+     */
     @Override
     public void finish(RpcController controller, Dtxn.FinishRequest request, RpcCallback<Dtxn.FinishResponse> done) {
-        final boolean trace = LOG.isTraceEnabled(); 
-        long txn_id = request.getTransactionId();
-        if (trace) LOG.trace("Got " + request.getClass().getSimpleName() + " for txn #" + txn_id + " [commit=" + request.getCommit() + "]");
+        final boolean trace = LOG.isTraceEnabled();
+        final boolean debug = LOG.isDebugEnabled();
+        
+        // The payload will have our stored txn id. We can't use the FinishRequest's txn id because that is
+        // going to be internal to Evan's stuff and is not guarenteed to be unique for this HStoreCoordinatorNode
+        if (request.hasPayload() == false) {
+            throw new RuntimeException("Got Dtxn.FinishRequest without a payload. Can't determine txn id!");
+        }
+//        Long txn_id = new Long(request.getTransactionId()); 
+        Long txn_id = Long.valueOf(new String(request.getPayload().toByteArray()));
+        assert(txn_id != null) : "Null txn id in Dtxn.FinishRequest payload";
+        if (debug) LOG.debug("Got " + request.getClass().getSimpleName() + " for txn #" + txn_id + " " +
+                             "[commit=" + request.getCommit() + "]");
         
         // Tell our node to either commit or abort the txn in the FinishRequest
         // FIXME: Dtxn.FinishRequest needs to tell us what partition to tell to commit/abort
@@ -581,7 +601,7 @@ public class HStoreCoordinatorNode extends ExecutionEngine implements VoltProced
         // ----------------------------------------------------------------------------
         // (1) ProtoServer Thread (one per site)
         // ----------------------------------------------------------------------------
-        if (debug) LOG.debug(String.format("Launching ProtoServer [site=%d, port=%d]", catalog_site.getId(), catalog_site.getDtxn_port()));
+        if (debug) LOG.debug(String.format("Launching ProtoServer [site=%d, port=%d]", hstore_node.getSiteId(), catalog_site.getDtxn_port()));
         final NIOEventLoop execEventLoop = new NIOEventLoop();
         final CountDownLatch execLatch = new CountDownLatch(1);
         execEventLoop.setExitOnSigInt(true);
@@ -594,7 +614,21 @@ public class HStoreCoordinatorNode extends ExecutionEngine implements VoltProced
                 execServer.register(hstore_node);
                 execServer.bind(catalog_site.getDtxn_port());
                 execLatch.countDown();
-                execEventLoop.run();
+                
+                boolean shutdown = false;
+                Exception error = null;
+                try {
+                    execEventLoop.run();
+                } catch (AssertionError ex) {
+                    LOG.fatal("ProtoServer thread failed", ex);
+                    error = new Exception(ex);
+                    shutdown = true;
+                } catch (Exception ex) {
+                    LOG.fatal("ProtoServer thread failed", ex);
+                    error = ex;
+                    shutdown = true;
+                }
+                if (shutdown && hstore_node.shutdown == false) hstore_node.messenger.shutdownCluster(error);
             };
         });
         
@@ -645,7 +679,7 @@ public class HStoreCoordinatorNode extends ExecutionEngine implements VoltProced
                 this.setName(hstore_node.getThreadName("coord"));
             }
             public void run() {
-                if (debug) LOG.debug("Creating connection to coordinator at " + coordinatorHost + ":" + coordinatorPort + " [site=" + catalog_site.getId() + "]");
+                if (debug) LOG.debug("Creating connection to coordinator at " + coordinatorHost + ":" + coordinatorPort + " [site=" + hstore_node.getSiteId() + "]");
                 
                 hstore_node.coordinatorEventLoop.setExitOnSigInt(true);
                 InetSocketAddress[] addresses = {
@@ -657,7 +691,7 @@ public class HStoreCoordinatorNode extends ExecutionEngine implements VoltProced
                 hstore_node.setDtxnCoordinator(stub);
                 VoltProcedureListener voltListener = new VoltProcedureListener(hstore_node.coordinatorEventLoop, hstore_node);
                 voltListener.bind(catalog_site.getProc_port());
-                LOG.info("HStoreCoordinatorNode is ready for action [site=" + catalog_site.getId() + ", port=" + catalog_site.getProc_port() + "]");
+                LOG.info("HStoreCoordinatorNode is ready for action [site=" + hstore_node.getSiteId() + ", port=" + catalog_site.getProc_port() + "]");
                 
                 boolean shutdown = false;
                 Exception error = null;

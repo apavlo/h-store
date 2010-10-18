@@ -9,6 +9,7 @@
 
 #include "base/circularbuffer.h"
 #include "dtxn/executionengine.h"
+#include "dtxn/transaction.h"
 
 namespace io {
 class EventLoop;
@@ -30,13 +31,13 @@ public:
     virtual ~ProtoDtxnEngine() {}
 
     virtual dtxn::ExecutionEngine::Status tryExecute(const std::string& work_unit, std::string* output, void** undo,
-            dtxn::Transaction* transaction);
+            dtxn::Transaction* transaction, const std::string& payload);
     virtual bool supports_locks() const { return false; }
-    virtual void applyUndo(void* undo_buffer);
-    virtual void freeUndo(void* undo_buffer);
+    virtual void applyUndo(void* undo_buffer, const std::string& payload);
+    virtual void freeUndo(void* undo_buffer, const std::string& payload);
 
 private:
-    void finish(void* undo_buffer, bool commit);
+    void finish(void* undo_buffer, bool commit, const std::string& payload);
     void responseArrived();
 
     io::EventLoop* event_loop_;

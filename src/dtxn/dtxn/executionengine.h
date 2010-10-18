@@ -45,7 +45,7 @@ public:
     // object per transaction. However, the optimistic concurrency control scheduler may want to
     // undo just ONE work unit, to avoid redoing extra work. Which is better?
     virtual Status tryExecute(const std::string& work_unit, std::string* output, void** undo,
-            Transaction* transaction) = 0;
+            Transaction* transaction, const std::string& payload) = 0;
 
     /** Returns true if this engine supports locks. If true, then we can call tryExecute with a
     non-null TransactionState. */
@@ -56,10 +56,10 @@ public:
 
     // Undo a transaction using the given undo buffer. The undo buffer should be freed after this
     // returns. The caller will ensure that undo buffers are applied in the right order.
-    virtual void applyUndo(void* undo_buffer) = 0;
+    virtual void applyUndo(void* undo_buffer, const std::string& payload) = 0;
 
     // Frees an undo buffer without applying it.
-    virtual void freeUndo(void* undo_buffer) = 0;
+    virtual void freeUndo(void* undo_buffer, const std::string& payload) = 0;
 
     // Runs the engine by listening on port. This will return only when SIGINT is delivered.
     static void run(ExecutionEngine* engine, int port);

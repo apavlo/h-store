@@ -39,7 +39,7 @@ public:
     }
 
     void setResponse(RpcController* controller, CoordinatorResponse* response, Closure* done) {
-        fprintf(stderr, "EVAN: Txn Id #%d\n", id_);
+        fprintf(stderr, "%s:%d => Set Response Txn Id #%d\n", __FILE__, __LINE__, id_);
         assert(controller_ == NULL);
         assert(response_ == NULL);
         assert(done_ == NULL);
@@ -61,10 +61,10 @@ public:
         CHECK(done != NULL);
         done_ = done;
     }
-
+    
 private:
     void executeDone() {
-fprintf(stderr, "protocoordinator: executeDone %d\n", id_);
+        fprintf(stderr, "%s:%d => executeDone %d\n", __FILE__, __LINE__, id_);
         // Pass back the answers to the client
         // TODO: Need to handle more complicated things?
         for (int i = 0; i < transaction_->received().size(); ++i) {
@@ -119,7 +119,7 @@ void ProtoDtxnCoordinator::Execute(RpcController* controller,
         const CoordinatorFragment* request,
         CoordinatorResponse* response,
         Closure* done) {
-    fprintf(stderr, "protocoordinator: Execute %d\n", request->transaction_id());
+    fprintf(stderr, "%s:%d => Execute %d\n", __FILE__, __LINE__, request->transaction_id());
     CHECK(request->fragment_size() > 0);
     assert(!response->IsInitialized());
 
@@ -137,6 +137,12 @@ void ProtoDtxnCoordinator::Execute(RpcController* controller,
         CHECK(state->transaction()->multiple_partitions());
     }
     state->setResponse(controller, response, done);
+    
+    // PAVLO:
+    if (state->transaction()->has_payload() == false && request->has_payload() == true) {
+        fprintf(stderr, "%s:%d => Setting DistributedTransaction payload [%s]\n", __FILE__, __LINE__, request->payload().c_str());
+        state->transaction()->set_payload(request->payload());
+    }
 
     for (int i = 0; i < request->fragment_size(); ++i) {
         state->transaction()->send(
@@ -156,7 +162,8 @@ void ProtoDtxnCoordinator::Finish(RpcController* controller,
         const FinishRequest* request,
         FinishResponse* response,
         Closure* done) {
-fprintf(stderr, "protocoordinator: Finish %d\n", request->transaction_id());
+    fprintf(stderr, "%s:%d => Finish %d [payload=%s]\n", __FILE__, __LINE__, request->transaction_id(), request->payload().c_str());
+    
     // Finish this transaction
     TransactionMap::iterator it = transactions_.find(request->transaction_id());
     CHECK(it != transactions_.end());
@@ -165,7 +172,8 @@ fprintf(stderr, "protocoordinator: Finish %d\n", request->transaction_id());
     if (state->transaction()->multiple_partitions() &&
             state->transaction()->status() == DistributedTransaction::OK) {
         state->setFinish(done);
-        dtxn_manager_->finish(state->transaction(), request->commit(), state->finish_callback());
+        fprintf(stderr, "%s:%d => Telling our DtxnManager that we want to finish\n", __FILE__, __LINE__);
+        dtxn_manager_->finish(state->transaction(), request->commit(), request->payload(), state->finish_callback());
     } else {
         CHECK(request->commit() == (state->transaction()->status() == DistributedTransaction::OK));
         // This is a single partition transaction, or it aborted: just delete the state

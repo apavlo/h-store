@@ -87,7 +87,8 @@ public:
             partition_status_(num_partitions),
             received_count_(0),
             multiple_partitions_(true),
-            state_(NULL) {
+            state_(NULL),
+            payload_(NULL) {
         assert(partition_status_.size() > 0);
     }
 
@@ -283,6 +284,15 @@ public:
     void state(void* next_state) { state_ = next_state; }
     void* state() { return state_; }
 
+
+    // PAVLO
+    inline bool has_payload() const { return (payload_ != NULL); }
+    void set_payload(const std::string& payload) {
+        if (payload_ == NULL) payload_ = new ::std::string;
+        payload_->assign(payload);
+    }
+    inline const ::std::string& payload() const { return (*payload_); }
+
 private:
     bool validPartitionIndex(int index) const {
         return 0 <= index && index < partition_status_.size();
@@ -317,6 +327,10 @@ private:
 
     // Opaque pointer for use by the Coordinator.
     void* state_;
+    
+    // PAVLO: Let things attach payload data that we can send around during the finish process
+    std::string *payload_;
+
 };
 
 }  // namespace dtxn

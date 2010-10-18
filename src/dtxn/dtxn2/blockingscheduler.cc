@@ -28,7 +28,7 @@ void BlockingScheduler::fragmentArrived(TransactionState* transaction) {
     }
 }
 
-void BlockingScheduler::decide(TransactionState* transaction, bool commit) {
+void BlockingScheduler::decide(TransactionState* transaction, bool commit, const std::string& payload) {
     assert(transaction == execute_queue_.front());
     // TODO: Support aborting unprepared transactions
     assert(!commit || transaction->last_fragment().request().last_fragment);
@@ -37,9 +37,10 @@ void BlockingScheduler::decide(TransactionState* transaction, bool commit) {
     void* undo = transaction->scheduler_state();
     if (undo != NULL) {
         if (commit) {
-            engine_->freeUndo(undo);
+            // PAVLO
+            engine_->freeUndo(undo, payload);
         } else {
-            engine_->applyUndo(undo);
+            engine_->applyUndo(undo, payload);
         }
     }
     transaction->scheduler_state(NULL);
@@ -73,6 +74,17 @@ bool BlockingScheduler::doWork(SchedulerOutput* output) {
         FragmentState* fragment = transaction->mutable_last();
         FragmentResponse* response = fragment->mutable_response();
 
+        // PAVLO: Check whether we can jam the payload for the Fragment message
+        // that is inside of FragmentState into our TransactionState if it
+        // doesnt already have one
+        if (fragment->request().payload.empty() == false &&
+            transaction->has_payload() == false) {
+            transaction->set_payload(fragment->request().payload);
+            fprintf(stderr, "%s:%d => Retrieving payload from Fragment and storing it in TransactionState [%s]\n", __FILE__, __LINE__, transaction->payload().c_str());
+        } else if (transaction->has_payload() == false) {
+            fprintf(stderr, "%s:%d => Didn't find payload in Fragment! This may be trouble...\n", __FILE__, __LINE__);
+        }
+    
         void** undo_pointer = NULL;
         void* undo = transaction->scheduler_state();
         if (undo != NULL || fragment->request().multiple_partitions) {
@@ -88,7 +100,7 @@ bool BlockingScheduler::doWork(SchedulerOutput* output) {
             assert(!fragment->request().transaction.empty());
             assert(response->status == ExecutionEngine::INVALID);
             response->status = engine_->tryExecute(
-                    fragment->request().transaction, &response->result, undo_pointer, NULL);
+                    fragment->request().transaction, &response->result, undo_pointer, NULL, transaction->payload());
             assert(response->status == ExecutionEngine::OK ||
                     response->status == ExecutionEngine::ABORT_USER);
             assert(undo == NULL || undo_pointer != NULL);
@@ -98,7 +110,18 @@ bool BlockingScheduler::doWork(SchedulerOutput* output) {
         if (!fragment->request().multiple_partitions) {
             // finishing single partition transaction: clean up any undo buffer. This is possible
             // if this was speculative or downgraded from a multi-partition txn.
-            BlockingScheduler::decide(transaction, response->status == ExecutionEngine::OK);
+            
+            // PAVLO: Check whether somebody was nice and attached a payload to the Fragment
+            std::string payload;
+            if (transaction->has_payload()) {
+                fprintf(stderr, "%s:%d => Retrieving payload from TransactionState [%s]\n", __FILE__, __LINE__, transaction->payload().c_str());
+                payload = transaction->payload();
+            } else {
+                fprintf(stderr, "%s:%d => No attached payload for TransactionState!!!\n", __FILE__, __LINE__);
+                payload = std::string("BlockingScheduler::dowWork()");
+            }
+            
+            BlockingScheduler::decide(transaction, response->status == ExecutionEngine::OK, payload);
         }
 
         // Return results at the end to avoid touching deleted memory

@@ -34,7 +34,7 @@ public:
     virtual void execute(DistributedTransaction* transaction,
             const std::tr1::function<void()>& callback);
 
-    virtual void finish(DistributedTransaction* transaction, bool commit,
+    virtual void finish(DistributedTransaction* transaction, bool commit, const std::string& payload,
             const std::tr1::function<void()>& callback);
 
     // INTERNAL: response has been received from connection.
