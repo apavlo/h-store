@@ -1,6 +1,5 @@
 package edu.mit.hstore;
 
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
@@ -11,7 +10,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.Map.Entry;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.Exchanger;
 import java.util.concurrent.atomic.AtomicLong;
 
 import org.apache.log4j.LogManager;
@@ -284,22 +282,6 @@ public class HStoreMessenger {
                     break;
                 }
                 // -----------------------------------------------------------------
-                // HACK: NEXT TXN ID
-                // -----------------------------------------------------------------
-                case NEXT_TXN_ID: {
-                    assert(catalog_site.getId() == 0);
-                    // The lazy man's way of byte serialization....
-                    Long next_id = HStoreCoordinatorNode.NEXT_TXN_ID.getAndIncrement();
-                    response = Hstore.MessageAcknowledgement.newBuilder()
-                                                            .setDestId(sender)
-                                                            .setSenderId(dest)
-                                                            .setData(ByteString.copyFrom(next_id.toString().getBytes()))
-                                                            .build();
-                    done.run(response);
-                    if (trace) LOG.trace("Next Txn Id: " + next_id);
-                    break;
-                }
-                // -----------------------------------------------------------------
                 // UNKNOWN
                 // -----------------------------------------------------------------
                 default:
@@ -512,43 +494,5 @@ public class HStoreMessenger {
                                         .build();
         this.channels.get(dest_site_id).sendMessage(new ProtoRpcController(), mr, done);
         if (trace) LOG.debug("Sent " + MessageType.FORWARD_TXN.name() + " to Site #" + dest_site_id);
-    }
-    
-    /**
-     * 
-     * @return
-     */
-    public long getNextTxnId() {
-        final boolean trace = LOG.isTraceEnabled();
-        final boolean debug = LOG.isDebugEnabled();
-        
-        if (debug) LOG.debug("Requesting next txn id from first site because our txn ids are a mess...");
-        
-        // Use an exchanger to block guys until we get back the next txn id
-        final AtomicLong next_id = new AtomicLong(-1);
-        RpcCallback<MessageAcknowledgement> callback = new RpcCallback<MessageAcknowledgement>() {
-            @Override
-            public void run(MessageAcknowledgement parameter) {
-                assert(parameter.getSenderId() == 0);
-                ByteString bs = parameter.getData();
-                next_id.set(Long.valueOf(new String(bs.toByteArray())));
-                assert(next_id != null);
-                if (trace) LOG.trace("Got back next txn id: " + next_id); 
-            }
-        };
-        
-        Hstore.MessageRequest mr = Hstore.MessageRequest.newBuilder()
-                                        .setSenderId(this.catalog_site.getId())
-                                        .setDestId(0)
-                                        .setType(MessageType.NEXT_TXN_ID)
-                                        .build();
-        ProtoRpcController rpc = new ProtoRpcController();
-        this.channels.get(0).sendMessage(rpc, mr, callback);
-        rpc.block();
-        assert(next_id != null);
-        assert(next_id.get() != -1);
-        
-        if (trace) LOG.trace("Next txn #" + next_id);
-        return (next_id.get());
     }
 }

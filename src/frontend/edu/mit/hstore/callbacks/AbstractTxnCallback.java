@@ -21,4 +21,8 @@ public abstract class AbstractTxnCallback {
         this.done = done;
         assert(this.hstore_coordinator != null) : "Null HStoreCoordinatorNode for txn #" + this.txn_id;
     }
+    
+    public long getTransactionId() {
+        return txn_id;
+    }
 } // END CLASS

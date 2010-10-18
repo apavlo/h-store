@@ -10,7 +10,6 @@ enum MessageType {
     STATUS = 0;
     SHUTDOWN = 1;
     FORWARD_TXN = 2;
-    NEXT_TXN_ID = 3;
 }
 
 message MessageRequest {
@@ -37,7 +36,6 @@ message Fragment {
     // If true then the fragment must be undoable using a call to Finish.
     required bool undoable = 3;
 }
-
 
 message FragmentDependency {
 	required int32 dependency_id = 1;

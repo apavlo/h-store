@@ -20,7 +20,7 @@ import org.voltdb.BackendTarget;
 import org.voltdb.ExecutionSite;
 import org.voltdb.ProcedureProfiler;
 import org.voltdb.StoredProcedureInvocation;
-//import org.voltdb.TransactionIdManager;
+import org.voltdb.TransactionIdManager;
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Partition;
 import org.voltdb.catalog.Procedure;
@@ -65,13 +65,22 @@ import edu.mit.hstore.callbacks.InitiateCallback;
  */
 public class HStoreCoordinatorNode extends Dtxn.ExecutionEngine implements VoltProcedureListener.Handler {
     private static final Logger LOG = Logger.getLogger(HStoreCoordinatorNode.class.getName());
-    protected static final AtomicLong NEXT_TXN_ID = new AtomicLong(1000);
+    
+    /**
+     * We need to maintain a separate counter that generates locally unique txn ids for the Dtxn.Coordinator
+     * Note that these aren't the txn ids that we will actually use. They're just necessary because Evan's
+     * stuff can't take longs and we have to give it a new id that it will use internally  
+     */
+    private final AtomicInteger fake_txn_id_counter = new AtomicInteger(0);
+    
+    /**
+     * This is the thing that we will actually use to generate txn ids used by our H-Store specific code
+     */
+    private final TransactionIdManager txnid_manager;
     
     private final DBBPool buffer_pool = new DBBPool(true, true);
     private final Map<Integer, Thread> executor_threads = new HashMap<Integer, Thread>();
     private final HStoreMessenger messenger;
-//    private final TransactionIdManager txnid_manager;
-//    private final AtomicInteger fake_evan_txn_ids = new AtomicInteger(0);
     
     // Dtxn Stuff
     private Dtxn.Coordinator coordinator;
@@ -222,7 +231,7 @@ public class HStoreCoordinatorNode extends Dtxn.ExecutionEngine implements VoltP
         this.thresholds = new EstimationThresholds(); // default values
         this.executors.putAll(executors);
         this.messenger = new HStoreMessenger(this, this.executors);
-//        this.txnid_manager = new TransactionIdManager(this.site_id);
+        this.txnid_manager = new TransactionIdManager(this.site_id);
         
         assert(this.catalog_db != null);
         assert(this.p_estimator != null);
@@ -407,14 +416,11 @@ public class HStoreCoordinatorNode extends Dtxn.ExecutionEngine implements VoltP
             return;
         }
 
-        // Important: We have two txn ids here. We have the real one that we're going to use internally
-        long txn_id = -1;
-        if (this.getSiteId() == 0) {
-            txn_id = NEXT_TXN_ID.getAndIncrement();
-        } else {
-            txn_id = this.messenger.getNextTxnId();
-        }
-        assert(txn_id != -1);
+        // IMPORTANT: We have two txn ids here. We have the real one that we're going to use internally
+        // and the fake one that we pass to Evan. We don't care about the fake one and will always ignore the
+        // txn ids found in any Dtxn.Coordinator messages. 
+        long real_txn_id = this.txnid_manager.getNextUniqueTransactionId();
+        int fake_txn_id = fake_txn_id_counter.getAndIncrement();
                 
         // Grab the TransactionEstimator for the destination partition and figure out whether
         // this mofo is likely to be single-partition or not. Anything that we can't estimate
@@ -428,23 +434,25 @@ public class HStoreCoordinatorNode extends Dtxn.ExecutionEngine implements VoltP
         } else if (!t_estimator.canEstimate(catalog_proc)) {
             single_partition = false;
         } else {
-            if (trace) LOG.trace("Using TransactionEstimator to check whether txn #" + txn_id + " is single-partition");
-            TransactionEstimator.Estimate estimate = t_estimator.startTransaction(txn_id, catalog_proc, args);
+            if (trace) LOG.trace("Using TransactionEstimator to check whether txn #" + real_txn_id + " is single-partition");
+            TransactionEstimator.Estimate estimate = t_estimator.startTransaction(real_txn_id, catalog_proc, args);
             single_partition = estimate.isSinglePartition(this.thresholds);
         }
         assert (single_partition != null);
         //LOG.debug("Single-Partition = " + single_partition);
-        InitiateTaskMessage wrapper = new InitiateTaskMessage(txn_id, dest_partition, dest_partition, client_handle, request);
+        InitiateTaskMessage wrapper = new InitiateTaskMessage(real_txn_id, dest_partition, dest_partition, client_handle, request);
         
         if (single_partition) this.singlepart_ctr.incrementAndGet();
         else this.multipart_ctr.incrementAndGet();
-        this.inflight_txns.put(txn_id, dest_partition);
-        if (debug) LOG.debug("Passing " + catalog_proc.getName() + " to Coordinator as " + (single_partition ? "single" : "multi") + "-partition txn #" + txn_id + " for partition " + dest_partition);
+        this.inflight_txns.put(real_txn_id, dest_partition);
+        if (debug) LOG.debug("Passing " + catalog_proc.getName() + " to Coordinator as " + (single_partition ? "single" : "multi") + "-partition txn #" + real_txn_id + " for partition " + dest_partition);
 
         // Construct the message for the Dtxn.Coordinator
         ProtoRpcController rpc = new ProtoRpcController();
         Dtxn.CoordinatorFragment.Builder requestBuilder = Dtxn.CoordinatorFragment.newBuilder();
-        requestBuilder.setTransactionId((int)txn_id);
+        
+        // Note that we pass the fake txn id to the Dtxn.Coordinator. 
+        requestBuilder.setTransactionId(fake_txn_id);
         
         // FIXME: Need to use TransactionEstimator to determine this
         requestBuilder.setLastFragment(true);
@@ -452,7 +460,7 @@ public class HStoreCoordinatorNode extends Dtxn.ExecutionEngine implements VoltP
         // NOTE: Evan betrayed our love so we can't use his txn ids because they are meaningless to us
         // So we're going to pack in our txn id in the payload. Any message they we get from Evan
         // will have this payload so that we can figure out what the hell is going on...
-        requestBuilder.setPayload(HStoreCoordinatorNode.encodeTxnId(txn_id));
+        requestBuilder.setPayload(HStoreCoordinatorNode.encodeTxnId(real_txn_id));
 
         // Pack the StoredProcedureInvocation into a Dtxn.PartitionFragment
         requestBuilder.addFragment(Dtxn.CoordinatorFragment.PartitionFragment.newBuilder()
@@ -463,11 +471,13 @@ public class HStoreCoordinatorNode extends Dtxn.ExecutionEngine implements VoltP
         
         // Create a latch so that we don't start executing until we know the coordinator confirmed are initialization request
         CountDownLatch latch = new CountDownLatch(1);
-        InitiateCallback callback = new InitiateCallback(this, txn_id, latch);
-        this.client_callbacks.put(txn_id, done);
-        this.init_latches.put(txn_id, latch);
+        InitiateCallback callback = new InitiateCallback(this, real_txn_id, latch);
+        this.client_callbacks.put(real_txn_id, done);
+        this.init_latches.put(real_txn_id, latch);
         
-        if (trace) LOG.trace("Passing txn #" + txn_id + " through Dtxn.Coordinator using " + callback.getClass().getSimpleName());
+        if (trace) LOG.trace("Passing " + catalog_proc.getName() + " through Dtxn.Coordinator using " + callback.getClass().getSimpleName() +
+                             "[real_txn_id=" + real_txn_id + ", fake_txn_id=" + fake_txn_id + "]");
+        assert(requestBuilder.getTransactionId() != callback.getTransactionId());
         this.coordinator.execute(rpc, requestBuilder.build(), callback);
     }
 
