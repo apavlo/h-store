@@ -1550,7 +1550,7 @@ DTXN BINARIES + LIBRARIES
       <arg value="PROTOBUF_SRC=${src.protobuf.dir}" />
       <arg value="PROTOBUF_BIN=${build.protobuf.dir}" />
       <arg value="PROTORPC_PATH=${src.protorpc.dir}" />
-      <arg value="LOG_LEVEL=500" />
+<!--       <arg value="LOG_LEVEL=100" /> -->
    </exec>
 </target>
 
@@ -2348,7 +2348,7 @@ H-STORE REMIX
                 <arg line="SKEW_FACTOR=${skew}" />
                 <arg line="cataloghosts" />
                 <arg line="killprotodtxn" />
-                <arg line="blocking" />
+<!--                 <arg line="blocking" /> -->
             </exec>
         </sequential>
     </parallel>

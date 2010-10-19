@@ -4,7 +4,6 @@ import org.apache.log4j.Logger;
 
 import ca.evanjones.protorpc.ProtoRpcController;
 
-import com.google.protobuf.ByteString;
 import com.google.protobuf.RpcCallback;
 
 import edu.brown.markov.TransactionEstimator;
@@ -19,9 +18,9 @@ public final class ClientResponsePrepareCallback extends AbstractTxnCallback imp
     private static final Logger LOG = Logger.getLogger(ClientResponsePrepareCallback.class);
     
     private final TransactionEstimator t_estimator;
-    private final int dtxn_txn_id; 
+    private final long dtxn_txn_id; 
     
-    public ClientResponsePrepareCallback(HStoreCoordinatorNode hstore_coordinator, long txn_id, int dtxn_txn_id, TransactionEstimator t_estimator, RpcCallback<byte[]> done) {
+    public ClientResponsePrepareCallback(HStoreCoordinatorNode hstore_coordinator, long txn_id, long dtxn_txn_id, TransactionEstimator t_estimator, RpcCallback<byte[]> done) {
         super(hstore_coordinator, txn_id, done);
         assert(done != null);
         this.dtxn_txn_id = dtxn_txn_id;

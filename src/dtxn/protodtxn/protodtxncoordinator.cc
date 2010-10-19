@@ -22,7 +22,7 @@ namespace protodtxn {
 class ProtoDtxnCoordinatorRequest {
 public:
     ProtoDtxnCoordinatorRequest(ProtoDtxnCoordinator* coordinator,
-            int id,
+            int64_t id,
             int num_partitions) :
             coordinator_(coordinator),
             controller_(NULL),
@@ -40,7 +40,7 @@ public:
     }
 
     void setResponse(RpcController* controller, CoordinatorResponse* response, Closure* done) {
-        LOG_DEBUG("Set Response Txn Id #%d", id_);
+        LOG_DEBUG("Set Response Txn Id #%ld", id_);
         assert(controller_ == NULL);
         assert(response_ == NULL);
         assert(done_ == NULL);
@@ -50,6 +50,7 @@ public:
         controller_ = controller;
         response_ = response;
         done_ = done;
+        LOG_DEBUG("Txn #%ld now has a response! What do you think about that?", id_);
     }
 
     DistributedTransaction* transaction() { return transaction_; }
@@ -65,7 +66,7 @@ public:
     
 private:
     void executeDone() {
-        LOG_DEBUG("executeDone %d", id_);
+        LOG_DEBUG("executeDone %ld", id_);
         // Pass back the answers to the client
         // TODO: Need to handle more complicated things?
         for (int i = 0; i < transaction_->received().size(); ++i) {
@@ -100,7 +101,7 @@ private:
     CoordinatorResponse* response_;
     Closure* done_;
 
-    int id_;
+    int64_t id_;
     DistributedTransaction* transaction_;
     std::tr1::function<void()> callback_;
     std::tr1::function<void()> finish_callback_;
@@ -120,7 +121,7 @@ void ProtoDtxnCoordinator::Execute(RpcController* controller,
         const CoordinatorFragment* request,
         CoordinatorResponse* response,
         Closure* done) {
-    LOG_DEBUG("Execute %d", request->transaction_id());
+    LOG_DEBUG("Execute %ld", request->transaction_id());
     CHECK(request->fragment_size() > 0);
     assert(!response->IsInitialized());
 
@@ -163,7 +164,7 @@ void ProtoDtxnCoordinator::Finish(RpcController* controller,
         const FinishRequest* request,
         FinishResponse* response,
         Closure* done) {
-    LOG_DEBUG("Finish %d [payload=%s]", request->transaction_id(), request->payload().c_str());
+    LOG_DEBUG("Finish %ld [payload=%s]", request->transaction_id(), request->payload().c_str());
     
     // Finish this transaction
     TransactionMap::iterator it = transactions_.find(request->transaction_id());
@@ -183,7 +184,7 @@ void ProtoDtxnCoordinator::Finish(RpcController* controller,
     }
 }
 
-ProtoDtxnCoordinatorRequest* ProtoDtxnCoordinator::internalDeleteTransaction(int32_t transaction_id) {
+ProtoDtxnCoordinatorRequest* ProtoDtxnCoordinator::internalDeleteTransaction(int64_t transaction_id) {
     TransactionMap::iterator it = transactions_.find(transaction_id);
     CHECK(it != transactions_.end());
 

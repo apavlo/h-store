@@ -78,7 +78,7 @@ public class HStoreCoordinatorNode extends Dtxn.ExecutionEngine implements VoltP
      * Mapping from real txn ids => fake dtxn ids (the first one we sent to the
      * Dtxn.Coordinator in procedureInvocation());
      */
-    private final Map<Long, Integer> dtxn_id_xref = new ConcurrentHashMap<Long, Integer>();
+    private final Map<Long, Long> dtxn_id_xref = new ConcurrentHashMap<Long, Long>();
     
     /**
      * This is the thing that we will actually use to generate txn ids used by our H-Store specific code
@@ -472,7 +472,7 @@ public class HStoreCoordinatorNode extends Dtxn.ExecutionEngine implements VoltP
         // and the fake one that we pass to Evan. We don't care about the fake one and will always ignore the
         // txn ids found in any Dtxn.Coordinator messages. 
         long real_txn_id = this.txnid_manager.getNextUniqueTransactionId();
-        int dtxn_txn_id = this.dtxn_txn_id_counter.getAndIncrement();
+        long dtxn_txn_id = real_txn_id; // this.dtxn_txn_id_counter.getAndIncrement();
         this.dtxn_id_xref.put(real_txn_id, dtxn_txn_id);
                 
         // Grab the TransactionEstimator for the destination partition and figure out whether
@@ -530,7 +530,7 @@ public class HStoreCoordinatorNode extends Dtxn.ExecutionEngine implements VoltP
         
         if (trace) LOG.trace("Passing " + catalog_proc.getName() + " through Dtxn.Coordinator using " + callback.getClass().getSimpleName() + " " +
                              "[real_txn_id=" + real_txn_id + ", dtxn_txn_id=" + dtxn_txn_id + "]");
-        assert(requestBuilder.getTransactionId() != callback.getTransactionId());
+//        assert(requestBuilder.getTransactionId() != callback.getTransactionId());
         this.coordinator.execute(rpc, requestBuilder.build(), callback);
     }
 
@@ -552,7 +552,7 @@ public class HStoreCoordinatorNode extends Dtxn.ExecutionEngine implements VoltP
 
         long real_txn_id = msg.getTxnId();
         int partition = msg.getDestinationPartitionId();
-        Integer dtxn_txn_id = this.dtxn_id_xref.get(real_txn_id);
+        Long dtxn_txn_id = this.dtxn_id_xref.get(real_txn_id);
         
         if (debug) LOG.debug("Got " + msg.getClass().getSimpleName() + " message for txn #" + real_txn_id + " " +
                              "[partition=" + partition + ", dtxn_txn_id=" + dtxn_txn_id + "]");
@@ -770,11 +770,11 @@ public class HStoreCoordinatorNode extends Dtxn.ExecutionEngine implements VoltP
                 } catch (Exception ex) {
                     if (hstore_node.shutdown == false && ex != null &&
                         ex.getMessage() != null && ex.getMessage().contains("Connection closed") == false) {
-                        LOG.fatal("Dtxn.Coordinator thread failed", ex);
+                        LOG.fatal("Dtxn.Coordinator thread stopped", ex);
                         error = ex;
                         shutdown = true;
-                    } else {
-                        LOG.warn("Dtxn.Coordinator thread stopped", ex);
+//                    } else {
+//                        LOG.warn("Dtxn.Coordinator thread stopped", ex);
                     }
                 }
                 if (debug) LOG.debug("Dtxn.Coordinator thread is stopping! [error=" + (error != null ? error.getMessage() : null) + "]");

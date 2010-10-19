@@ -65,7 +65,7 @@ public class TransactionState {
      * This is the txn id assigned to us by the coordinator. We need to use it 
      * whenever we need to send new requests to the coordinator.
      */
-    private final Integer dtxn_txn_id;
+    private final Long dtxn_txn_id;
     
     private final ExecutionSite executor;
     private final long client_handle;
@@ -267,7 +267,7 @@ public class TransactionState {
      * @param client_handle
      * @param callback
      */
-    public TransactionState(ExecutionSite executor, long txn_id, Integer dtxn_txn_id, int origin_partition, long client_handle, boolean exec_local) {
+    public TransactionState(ExecutionSite executor, long txn_id, Long dtxn_txn_id, int origin_partition, long client_handle, boolean exec_local) {
         this.executor = executor;
         this.origin_partition = origin_partition;
         this.txn_id = txn_id;
@@ -433,7 +433,7 @@ public class TransactionState {
      * Get this transaction's Dtxn.Coordinator id
      * @return
      */
-    public Integer getDtxnTransactionId() {
+    public Long getDtxnTransactionId() {
         return this.dtxn_txn_id;
     }
     
