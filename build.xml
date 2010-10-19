@@ -1550,6 +1550,7 @@ DTXN BINARIES + LIBRARIES
       <arg value="PROTOBUF_SRC=${src.protobuf.dir}" />
       <arg value="PROTOBUF_BIN=${build.protobuf.dir}" />
       <arg value="PROTORPC_PATH=${src.protorpc.dir}" />
+      <arg value="LOG_LEVEL=500" />
    </exec>
 </target>
 

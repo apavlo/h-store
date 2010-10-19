@@ -5,6 +5,7 @@
 #include "protodtxn/protodtxnengine.h"
 
 #include "base/assert.h"
+#include "base/debuglog.h"
 #include "io/eventloop.h"
 #include "protodtxn/dtxn.pb.h"
 #include "protorpc/protorpccontroller.h"
@@ -43,10 +44,10 @@ dtxn::ExecutionEngine::Status ProtoDtxnEngine::tryExecute(
     
     // PAVLO
     if (&payload != NULL) {
-        fprintf(stderr, "%s:%d => Setting Fragment (request?) payload directly [%s]\n", __FILE__, __LINE__, payload.c_str());
+        LOG_DEBUG("Setting Fragment (request?) payload directly [%s]", payload.c_str());
         request.set_payload(payload);
     } else {
-        fprintf(stderr, "%s:%d => Given a NULL payload! I can't live like this\n", __FILE__, __LINE__);
+        LOG_DEBUG("Given a NULL payload! I can't live like this");
     }
 
     FragmentResponse response;
@@ -60,16 +61,12 @@ dtxn::ExecutionEngine::Status ProtoDtxnEngine::tryExecute(
 }
 
 void ProtoDtxnEngine::applyUndo(void* undo_buffer, const std::string& payload) {
-    fprintf(stderr, "%s:%d => applyUndo() [payload=%s]\n",
-                    __FILE__, __LINE__,
-                    payload.c_str());
+    LOG_DEBUG("Applying Undo Buffer [payload=%s]", payload.c_str());
     finish(undo_buffer, false, payload);
 }
 
 void ProtoDtxnEngine::freeUndo(void* undo_buffer, const std::string& payload) {
-    fprintf(stderr, "%s:%d => freeUndo() [payload=%s]\n",
-                    __FILE__, __LINE__,
-                    payload.c_str());
+    LOG_DEBUG("Freeing Undo Buffer [payload=%s]", payload.c_str());
     finish(undo_buffer, true, payload);
 }
 
@@ -79,10 +76,7 @@ void ProtoDtxnEngine::finish(void* undo_buffer, bool commit, const std::string& 
 
     intptr_t transaction_id = reinterpret_cast<intptr_t>(undo_buffer);
     assert(transaction_id > 0);
-    fprintf(stderr, "%s:%d => Finish [txn_id=%d, payload=%s]\n", 
-                    __FILE__, __LINE__,
-                    static_cast<int32_t>(transaction_id),
-                    payload.c_str());
+    LOG_DEBUG("Finish [txn_id=%d, payload=%s]", static_cast<int32_t>(transaction_id), payload.c_str());
 
     // TODO: Cache these objects?
     protorpc::ProtoRpcController controller;

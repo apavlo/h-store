@@ -1,10 +1,12 @@
+LOG_LEVEL=500
+
 PROTOBUF_PROTOC=$(PROTOBUF_BIN)/src/protoc
 PROTOBUF_PROTOC=$(PROTOBUF_BIN)/src/protoc
 
 DTXN_PROTO_NAME=edu/mit/dtxn/dtxn
 DTXN_PROTO_PATH=$(PROTORPC_PATH)/$(DTXN_PROTO_NAME).proto
 
-CCFLAGS=-g -D_EVENT_HAVE_CONFIG_H -Wall -Wextra -Werror -Wformat-y2k -Wformat-nonliteral -Wformat-security -Wmissing-include-dirs -Wswitch-enum -Winit-self -Wundef -Wpointer-arith -Wcast-align -Wlogical-op -Wredundant-decls -Winvalid-pch -Wwrite-strings -Wno-sign-compare -Wno-unused-parameter
+CCFLAGS=-g -D_EVENT_HAVE_CONFIG_H -DLOG_LEVEL=$(LOG_LEVEL) -Wall -Wextra -Werror -Wformat-y2k -Wformat-nonliteral -Wformat-security -Wmissing-include-dirs -Wswitch-enum -Winit-self -Wundef -Wpointer-arith -Wcast-align -Wlogical-op -Wredundant-decls -Winvalid-pch -Wwrite-strings -Wno-sign-compare -Wno-unused-parameter
 # -Woverloaded-virtual -Wconversion
 
 LDFLAGS=$(PROTOBUF_BIN)/src/.libs/libprotobuf.a -lrt

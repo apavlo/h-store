@@ -5,6 +5,7 @@
 #include "dtxn2/blockingscheduler.h"
 
 #include "base/stlutil.h"
+#include "base/debuglog.h"
 #include "dtxn/executionengine.h"
 #include "dtxn2/transactionstate.h"
 
@@ -80,9 +81,9 @@ bool BlockingScheduler::doWork(SchedulerOutput* output) {
         if (fragment->request().payload.empty() == false &&
             transaction->has_payload() == false) {
             transaction->set_payload(fragment->request().payload);
-            fprintf(stderr, "%s:%d => Retrieving payload from Fragment and storing it in TransactionState [%s]\n", __FILE__, __LINE__, transaction->payload().c_str());
+            LOG_DEBUG("Retrieving payload from Fragment and storing it in TransactionState [%s]", transaction->payload().c_str());
         } else if (transaction->has_payload() == false) {
-            fprintf(stderr, "%s:%d => Didn't find payload in Fragment! This may be trouble...\n", __FILE__, __LINE__);
+            LOG_DEBUG("Didn't find payload in Fragment! This may be trouble...");
         }
     
         void** undo_pointer = NULL;
@@ -114,10 +115,10 @@ bool BlockingScheduler::doWork(SchedulerOutput* output) {
             // PAVLO: Check whether somebody was nice and attached a payload to the Fragment
             std::string payload;
             if (transaction->has_payload()) {
-                fprintf(stderr, "%s:%d => Retrieving payload from TransactionState [%s]\n", __FILE__, __LINE__, transaction->payload().c_str());
+                LOG_DEBUG("Retrieving payload from TransactionState [%s]", transaction->payload().c_str());
                 payload = transaction->payload();
             } else {
-                fprintf(stderr, "%s:%d => No attached payload for TransactionState!!!\n", __FILE__, __LINE__);
+                LOG_DEBUG("No attached payload for TransactionState!!!");
                 payload = std::string("BlockingScheduler::dowWork()");
             }
             

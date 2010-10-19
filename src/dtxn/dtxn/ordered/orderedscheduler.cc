@@ -8,6 +8,7 @@
 #include <string>
 
 #include "base/assert.h"
+#include "base/debuglog.h"
 #include "base/stlutil.h"
 #include "dtxn/executionengine.h"
 #include "dtxn/transactionstate.h"
@@ -49,7 +50,7 @@ void OrderedScheduler::commit(TransactionState* transaction) {
     unfinished_queue_.pop_front();
 
     // PAVLO
-    fprintf(stderr, "%s:%d => Called commit with a TransactionState that has payload '%s'\n", __FILE__, __LINE__, transaction->payload().c_str());
+    LOG_DEBUG("Called commit with a TransactionState that has payload '%s'", transaction->payload().c_str());
     if (*transaction->undo() != NULL) {
         engine_->freeUndo(*transaction->undo(), transaction->payload());
     }

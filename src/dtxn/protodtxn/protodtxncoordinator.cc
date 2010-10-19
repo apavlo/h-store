@@ -7,6 +7,7 @@
 #include <tr1/functional>
 
 #include "base/assert.h"
+#include "base/debuglog.h"
 #include "dtxn/dtxnmanager.h"
 #include "dtxn/distributedtransaction.h"
 
@@ -39,7 +40,7 @@ public:
     }
 
     void setResponse(RpcController* controller, CoordinatorResponse* response, Closure* done) {
-        fprintf(stderr, "%s:%d => Set Response Txn Id #%d\n", __FILE__, __LINE__, id_);
+        LOG_DEBUG("Set Response Txn Id #%d", id_);
         assert(controller_ == NULL);
         assert(response_ == NULL);
         assert(done_ == NULL);
@@ -64,7 +65,7 @@ public:
     
 private:
     void executeDone() {
-        fprintf(stderr, "%s:%d => executeDone %d\n", __FILE__, __LINE__, id_);
+        LOG_DEBUG("executeDone %d", id_);
         // Pass back the answers to the client
         // TODO: Need to handle more complicated things?
         for (int i = 0; i < transaction_->received().size(); ++i) {
@@ -119,7 +120,7 @@ void ProtoDtxnCoordinator::Execute(RpcController* controller,
         const CoordinatorFragment* request,
         CoordinatorResponse* response,
         Closure* done) {
-    fprintf(stderr, "%s:%d => Execute %d\n", __FILE__, __LINE__, request->transaction_id());
+    LOG_DEBUG("Execute %d", request->transaction_id());
     CHECK(request->fragment_size() > 0);
     assert(!response->IsInitialized());
 
@@ -140,7 +141,7 @@ void ProtoDtxnCoordinator::Execute(RpcController* controller,
     
     // PAVLO:
     if (state->transaction()->has_payload() == false && request->has_payload() == true) {
-        fprintf(stderr, "%s:%d => Setting DistributedTransaction payload [%s]\n", __FILE__, __LINE__, request->payload().c_str());
+        LOG_DEBUG("Setting DistributedTransaction payload [%s]", request->payload().c_str());
         state->transaction()->set_payload(request->payload());
     }
 
@@ -162,7 +163,7 @@ void ProtoDtxnCoordinator::Finish(RpcController* controller,
         const FinishRequest* request,
         FinishResponse* response,
         Closure* done) {
-    fprintf(stderr, "%s:%d => Finish %d [payload=%s]\n", __FILE__, __LINE__, request->transaction_id(), request->payload().c_str());
+    LOG_DEBUG("Finish %d [payload=%s]", request->transaction_id(), request->payload().c_str());
     
     // Finish this transaction
     TransactionMap::iterator it = transactions_.find(request->transaction_id());
@@ -172,7 +173,7 @@ void ProtoDtxnCoordinator::Finish(RpcController* controller,
     if (state->transaction()->multiple_partitions() &&
             state->transaction()->status() == DistributedTransaction::OK) {
         state->setFinish(done);
-        fprintf(stderr, "%s:%d => Telling our DtxnManager that we want to finish\n", __FILE__, __LINE__);
+        LOG_DEBUG("Telling our DtxnManager that we want to finish");
         dtxn_manager_->finish(state->transaction(), request->commit(), request->payload(), state->finish_callback());
     } else {
         CHECK(request->commit() == (state->transaction()->status() == DistributedTransaction::OK));

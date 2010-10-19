@@ -23,7 +23,7 @@ import edu.brown.utils.*;
 public class TestTransactionState extends BaseTestCase {
     private static final Logger LOG = Logger.getLogger(TestTransactionState.class.getName());
 
-    private static final long TXN_ID = 1000l;
+    private static final Long TXN_ID = 1000l;
     private static final long CLIENT_HANDLE = 99999l;
     private static final boolean EXEC_LOCAL = true;
     private static final long UNDO_TOKEN = 10l;
@@ -89,7 +89,7 @@ public class TestTransactionState extends BaseTestCase {
             ftasks = plan.getFragmentTaskMessages(TXN_ID, CLIENT_HANDLE);
             assertFalse(ftasks.isEmpty());
         }
-        this.ts = new TransactionState(executor, TXN_ID, null, LOCAL_PARTITION, CLIENT_HANDLE, EXEC_LOCAL);
+        this.ts = new TransactionState(executor, TXN_ID, TXN_ID.intValue(), LOCAL_PARTITION, CLIENT_HANDLE, EXEC_LOCAL);
         assertNotNull(this.ts);
     }
 

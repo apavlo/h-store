@@ -7,6 +7,8 @@ import java.nio.channels.SelectableChannel;
 import java.nio.channels.SocketChannel;
 import java.util.HashMap;
 
+import org.apache.log4j.Logger;
+
 import ca.evanjones.protorpc.Protocol.RpcRequest;
 import ca.evanjones.protorpc.Protocol.RpcResponse;
 
@@ -19,6 +21,8 @@ import com.google.protobuf.RpcController;
 import edu.mit.net.NonBlockingConnection;
 
 public class ProtoRpcChannel extends AbstractEventHandler implements RpcChannel {
+    private static final Logger LOG = Logger.getLogger(ProtoRpcChannel.class);
+    
     private final EventLoop eventLoop;
     private final ConnectFactory connector;
     private int sequence;
@@ -232,7 +236,7 @@ public class ProtoRpcChannel extends AbstractEventHandler implements RpcChannel 
             @Override
             public void timerCallback() {
                 if (barrierCount == 0) {
-                    System.err.println("timer callback; all connections done");
+                    if (LOG.isDebugEnabled()) LOG.debug("Timer callback; all connections done");
                 } else {
                     ((NIOEventLoop) eventLoop).exitLoop();
                 }

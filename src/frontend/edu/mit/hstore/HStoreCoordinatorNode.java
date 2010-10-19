@@ -765,9 +765,11 @@ public class HStoreCoordinatorNode extends Dtxn.ExecutionEngine implements VoltP
                     error = new Exception(ex);
                     shutdown = true;
                 } catch (Exception ex) {
-                    LOG.fatal("Dtxn.Coordinator thread failed", ex);
-                    error = ex;
-                    shutdown = true;
+                    if (hstore_node.shutdown == false && ex != null && ex.getMessage().contains("Connection closed") == false) {
+                        LOG.fatal("Dtxn.Coordinator thread failed", ex);
+                        error = ex;
+                        shutdown = true;
+                    }
                 }
                 if (debug) LOG.debug("Dtxn.Coordinator thread is stopping! [error=" + (error != null ? error.getMessage() : null) + "]");
                 if (shutdown && hstore_node.shutdown == false) hstore_node.messenger.shutdownCluster(error);

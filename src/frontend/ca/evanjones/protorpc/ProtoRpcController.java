@@ -119,7 +119,7 @@ public class ProtoRpcController implements RpcController {
     }
 
     private void finishRpc(Protocol.Status status, ByteString response, String errorText) {
-        assert this.status == Protocol.Status.INVALID;
+        assert this.status == Protocol.Status.INVALID : "Status = " + this.status;
         assert callback != null;
 
         assert status != Protocol.Status.INVALID;

@@ -253,7 +253,6 @@ public class NIOEventLoop implements EventLoop {
         if (LOG.isDebugEnabled()) LOG.debug("Stopping running loop");
         exitLoop = true;
         selector.wakeup();
-        Thread.dumpStack();
     }
 
     private final Selector selector;
