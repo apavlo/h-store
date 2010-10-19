@@ -83,7 +83,7 @@ public class HStoreMessenger {
         for (Partition catalog_part : this.catalog_site.getPartitions()) {
             this.local_partitions.add(catalog_part.getId());
         } // FOR
-        LOG.info("Local Partitions: " + this.local_partitions);
+        LOG.debug("Local Partitions: " + this.local_partitions);
         
         this.listener = new ProtoServer(eventLoop);
         this.handler = new Handler();

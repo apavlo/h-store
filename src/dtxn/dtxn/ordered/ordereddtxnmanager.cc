@@ -11,6 +11,7 @@
 
 #include "base/stlutil.h"
 #include "base/unordered_map.h"
+#include "base/debuglog.h"
 #include "dtxn/distributedtransaction.h"
 #include "dtxn/executionengine.h"
 #include "dtxn/messages.h"
@@ -229,9 +230,9 @@ void OrderedDtxnManager::finish(DistributedTransaction* transaction, bool commit
     assert(state->transaction() == transaction);
     
     // PAVLO: Stick our payload in the TransactionState
-    fprintf(stderr, "%s:%d => Got finish request from beyond the ether...\n", __FILE__, __LINE__);
+    LOG_DEBUG("Got finish request from beyond the ether...");
     if (transaction->has_payload() == false) {
-        fprintf(stderr, "%s:%d => Attaching payload '%s' to DistributedTransaction\n", __FILE__, __LINE__, payload.c_str());
+        LOG_DEBUG("Attaching payload '%s' to DistributedTransaction", payload.c_str());
         state->transaction()->set_payload(payload);
     }
     
@@ -244,7 +245,7 @@ void OrderedDtxnManager::finish(DistributedTransaction* transaction, bool commit
         state->setCallback(std::tr1::bind(
                 &OrderedDtxnManager::verifyPrepareRound, this, transaction, callback));
                 
-        fprintf(stderr, "%s:%d => Going to call sendFragments to perform Canadian Voodoo Magic!!\n", __FILE__, __LINE__);
+        LOG_DEBUG("Going to call sendFragments to perform Canadian Voodoo Magic!!");
         sendFragments(state);
     } else {
         finishTransaction(state, commit);
@@ -263,7 +264,7 @@ void OrderedDtxnManager::verifyPrepareRound(DistributedTransaction* transaction,
         // You're killing me here Evan...
         TransactionState* state = (TransactionState*) transaction->state();
         assert(state->transaction() == transaction);
-        fprintf(stderr, "%s:%d => verifyPrepareRound() is also sending payload '%s'\n", __FILE__, __LINE__, state->transaction()->payload().c_str());
+        LOG_DEBUG("verifyPrepareRound() is also sending payload '%s'", state->transaction()->payload().c_str());
         
         finish(transaction, true, state->transaction()->payload(), callback);
     } else {
@@ -395,7 +396,7 @@ void OrderedDtxnManager::sendFragments(TransactionState* state) {
     // PAVLO: Pull the payload from the TransactionState's inner Transaction
     if (state->transaction()->has_payload()) {
         request.payload.assign(state->transaction()->payload());
-        fprintf(stderr, "%s:%d => Yes! Attaching payload from TransactionState to a Fragment that we're sending off! Evan hates children! [%s]\n", __FILE__, __LINE__, request.payload.c_str());
+        LOG_DEBUG("Yes! Attaching payload from TransactionState to a Fragment that we're sending off! Evan hates children! [%s]", request.payload.c_str());
     }
         
     const DistributedTransaction::MessageList& messages = state->transaction()->sent();
@@ -464,7 +465,7 @@ void OrderedDtxnManager::finishTransaction(TransactionState* state, bool commit)
     assert(state->dependenciesResolved());
     assert(state->transaction()->isAllDone() || !commit);
 
-    fprintf(stderr, "%s:%d => In finishTransaction() but we're out of control!!\n", __FILE__, __LINE__);
+    LOG_DEBUG("In finishTransaction() but we're out of control!!");
     
     if (state->transaction()->multiple_partitions()) {
         CommitDecision decision;
@@ -472,7 +473,7 @@ void OrderedDtxnManager::finishTransaction(TransactionState* state, bool commit)
         decision.commit = commit;
         // PAVLO
         if (state->transaction()->has_payload()) {
-            fprintf(stderr, "%s:%d => Setting CommitDecision.payload [%s]\n", __FILE__, __LINE__, state->transaction()->payload().c_str());
+            LOG_DEBUG("Setting CommitDecision.payload [%s]", state->transaction()->payload().c_str());
             decision.payload.assign(state->transaction()->payload());
         }
 

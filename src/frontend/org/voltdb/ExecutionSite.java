@@ -578,7 +578,7 @@ public class ExecutionSite implements Runnable {
                 
                 // Check if there is any work that we need to execute
                 try {
-                    if (debug && ctr++ % 50 == 0) LOG.debug("Polling work queue: " + this.work_queue + "");
+                    if (trace && ctr++ % 50 == 0) LOG.trace("Polling work queue: " + this.work_queue + "");
                     work = this.work_queue.poll(250, TimeUnit.MILLISECONDS);
                 } catch (InterruptedException ex) {
                     if (debug) LOG.debug("Interupted while polling work queue. Halting ExecutionSite...", ex);
@@ -1077,6 +1077,8 @@ public class ExecutionSite implements Runnable {
 
         RpcCallback<Dtxn.FragmentResponse> callback = ts.getFragmentTaskCallback(ftask);
         if (callback == null) {
+            LOG.fatal("Unable to send FragmentResponseMessage:\n" + fresponse);
+            LOG.fatal("Orignal FragmentTaskMessage:\n" + ftask);
             throw new RuntimeException("No RPC callback to HStoreCoordinator for txn #" + txn_id);
         }
 
