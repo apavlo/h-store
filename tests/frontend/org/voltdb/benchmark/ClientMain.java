@@ -505,21 +505,21 @@ public abstract class ClientMain {
             }
         }
         StatsUploaderSettings statsSettings = null;
-        if (statsDatabaseURL != null) {
-            try {
-                statsSettings =
-                    new
-                        StatsUploaderSettings(
-                            statsDatabaseURL,
-                            getApplicationName(),
-                            getSubApplicationName(),
-                            statsPollInterval);
-            } catch (Exception e) {
-                System.err.println(e.getMessage());
-                //e.printStackTrace();
-                statsSettings = null;
-            }
-        }
+//        if (statsDatabaseURL != null) {
+//            try {
+//                statsSettings =
+//                    new
+//                        StatsUploaderSettings(
+//                            statsDatabaseURL,
+//                            getApplicationName(),
+//                            getSubApplicationName(),
+//                            statsPollInterval);
+//            } catch (Exception e) {
+//                System.err.println(e.getMessage());
+//                //e.printStackTrace();
+//                statsSettings = null;
+//            }
+//        }
         Client new_client =
             ClientFactory.createClient(
                 getExpectedOutgoingMessageSize(),

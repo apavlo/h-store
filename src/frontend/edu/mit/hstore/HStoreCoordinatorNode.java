@@ -406,9 +406,6 @@ public class HStoreCoordinatorNode extends Dtxn.ExecutionEngine implements VoltP
         final boolean debug = LOG.isDebugEnabled();
         final boolean trace = LOG.isTraceEnabled();
 
-        // HACK
-//        this.coordinatorEventLoop.clearAllTimers();
-        
         // The serializedRequest is a ProcedureInvocation object
         StoredProcedureInvocation request = null;
         FastDeserializer fds = new FastDeserializer(serializedRequest);
@@ -433,6 +430,12 @@ public class HStoreCoordinatorNode extends Dtxn.ExecutionEngine implements VoltP
         final boolean sysproc = catalog_proc.getSystemproc();
         if (catalog_proc == null) throw new RuntimeException("Unknown procedure '" + request.getProcName() + "'");
         if (debug) LOG.trace("Received new stored procedure invocation request for " + catalog_proc);
+        
+        // HACK
+//        if (catalog_proc.getName().equals("@Shutdown")) {
+//            this.messenger.shutdownCluster();
+//            return;
+//        }
         
         // First figure out where this sucker needs to go
         Integer dest_partition;
@@ -765,10 +768,13 @@ public class HStoreCoordinatorNode extends Dtxn.ExecutionEngine implements VoltP
                     error = new Exception(ex);
                     shutdown = true;
                 } catch (Exception ex) {
-                    if (hstore_node.shutdown == false && ex != null && ex.getMessage().contains("Connection closed") == false) {
+                    if (hstore_node.shutdown == false && ex != null &&
+                        ex.getMessage() != null && ex.getMessage().contains("Connection closed") == false) {
                         LOG.fatal("Dtxn.Coordinator thread failed", ex);
                         error = ex;
                         shutdown = true;
+                    } else {
+                        LOG.warn("Dtxn.Coordinator thread stopped", ex);
                     }
                 }
                 if (debug) LOG.debug("Dtxn.Coordinator thread is stopping! [error=" + (error != null ? error.getMessage() : null) + "]");

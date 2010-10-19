@@ -38,11 +38,11 @@ public class BlockingClient extends Semaphore implements Client {
             this.inner_callback = inner_callback;
             this.proc_name = proc_name;
             
-            System.err.println("Created a new BlockingCallback around " + inner_callback.getClass().getSimpleName() + " for '" + proc_name + "'");
+            if (debug) LOG.debug("Created a new BlockingCallback around " + inner_callback.getClass().getSimpleName() + " for '" + proc_name + "'");
             try {
-                System.err.println("Trying to acquire procedure invocation lock");
+                if (debug) LOG.debug("Trying to acquire procedure invocation lock");
                 BlockingClient.this.acquire();
-                System.err.println("We got it! Let's get it on! [proc_name=" + this.proc_name + "]");
+                if (debug) LOG.debug("We got it! Let's get it on! [proc_name=" + this.proc_name + "]");
             } catch (InterruptedException ex) {
                 LOG.fatal("Got interrupted while waiting for lock", ex);
                 System.exit(1);
@@ -53,7 +53,7 @@ public class BlockingClient extends Semaphore implements Client {
         @Override
         public void clientCallback(ClientResponse clientResponse) {
             final boolean debug = LOG.isDebugEnabled();
-            System.err.println("BlockingCallback is forwarding the client callback for to inner callback [" +
+            if (debug) LOG.debug("BlockingCallback is forwarding the client callback for to inner callback [" +
                                "txn=" + clientResponse.getTransactionId() + ", " +
                                "proc=" + this.proc_name + "]");
             this.inner_callback.clientCallback(clientResponse);

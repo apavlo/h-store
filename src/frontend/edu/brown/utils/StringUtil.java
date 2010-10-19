@@ -6,6 +6,8 @@ import java.util.Collection;
 import org.voltdb.client.Client;
 import org.voltdb.utils.Pair;
 
+import com.google.protobuf.ByteString;
+
 public abstract class StringUtil {
 
     public static final String SPACER       = "   ";
@@ -141,6 +143,31 @@ public abstract class StringUtil {
         }
         return (Pair.of(host, port));
     }
+    
+    private static final char[] CHARACTERS = { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f' };
+    private static char nibbleToHexChar(int nibble) {
+        assert 0 <= nibble && nibble < CHARACTERS.length;
+        return CHARACTERS[nibble];
+    }
+
+    /**
+     * Dump a ByteString to a text representation
+     * Copied from: http://people.csail.mit.edu/evanj/hg/index.cgi/javatxn/file/tip/src/edu/mit/ExampleServer.java
+     * @param bytes
+     * @return
+     */
+    public static StringBuilder hexDump(ByteString bytes) {
+        StringBuilder out = new StringBuilder();
+        for (int i = 0; i < bytes.size(); ++i) {
+            if (i != 0 && i % 2 == 0) {
+                out.append(' ');
+            }
+            byte b = bytes.byteAt(i);
+            out.append(nibbleToHexChar((b >> 4) & 0xf));
+            out.append(nibbleToHexChar(b & 0xf));
+        }
+        return out;
+    } 
 
 
 }

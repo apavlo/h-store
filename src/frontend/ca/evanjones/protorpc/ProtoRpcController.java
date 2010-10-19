@@ -6,6 +6,8 @@ import com.google.protobuf.Message;
 import com.google.protobuf.RpcCallback;
 import com.google.protobuf.RpcController;
 
+import edu.brown.utils.StringUtil;
+
 public class ProtoRpcController implements RpcController {
     // Call reset() to initialize everything
     public ProtoRpcController() { reset(); }
@@ -147,6 +149,8 @@ public class ProtoRpcController implements RpcController {
                 tempBuilder.mergeFrom(response);
                 result = tempBuilder.build();
             } catch (InvalidProtocolBufferException e) {
+                System.err.println("RESPONSE: " + StringUtil.hexDump(response));
+                System.err.println("BUILDER:  " + tempBuilder.toString());
                 throw new RuntimeException(e);
             }
         }

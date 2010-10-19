@@ -225,12 +225,14 @@ public class FragmentResponseMessage extends TransactionInfoBaseMessage {
 
         for (int i = 0; i < m_dependencyCount; i++) {
             sb.append("\n  DEP ").append(m_dependencyIds[i]);
-            sb.append(" WITH ").append(m_dependencies[i].getRowCount()).append(" ROWS (");
-            for (int j = 0; j < m_dependencies[i].getColumnCount(); j++) {
-                sb.append(m_dependencies[i].getColumnName(j)).append(", ");
+            if (m_nullDependencies == false) {
+                sb.append(" WITH ").append(m_dependencies[i].getRowCount()).append(" ROWS (");
+                for (int j = 0; j < m_dependencies[i].getColumnCount(); j++) {
+                    sb.append(m_dependencies[i].getColumnName(j)).append(", ");
+                }
+                sb.setLength(sb.lastIndexOf(", "));
+                sb.append(")");
             }
-            sb.setLength(sb.lastIndexOf(", "));
-            sb.append(")");
         }
 
         return sb.toString();

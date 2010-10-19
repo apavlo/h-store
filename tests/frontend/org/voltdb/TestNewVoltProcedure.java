@@ -1,6 +1,5 @@
 package org.voltdb;
 
-import java.util.List;
 import java.util.Observable;
 import java.util.Random;
 import java.util.concurrent.LinkedBlockingDeque;
@@ -9,7 +8,6 @@ import java.util.concurrent.atomic.AtomicLong;
 
 import org.voltdb.catalog.*;
 import org.voltdb.client.ClientResponse;
-import org.voltdb.messaging.FragmentTaskMessage;
 
 import edu.brown.utils.*;
 
@@ -34,24 +32,6 @@ public class TestNewVoltProcedure extends BaseTestCase {
     private final Random rand = new Random(); 
     
     private VoltProcedure volt_proc;
-    
-    private class MockExecutionSite extends ExecutionSite {
-        
-        public MockExecutionSite(int partition_id, Catalog catalog, PartitionEstimator p_estimator) {
-            super(partition_id, catalog, BACKEND_TARGET, p_estimator, null);
-        }
-        
-        @Override
-        protected void requestWork(TransactionState ts, List<FragmentTaskMessage> tasks) {
-            // Nothing!
-        }
-        
-        @Override
-        public void sendClientResponse(ClientResponseImpl cresponse) {
-            // Nothing!
-        }
-        
-    }
     
     @Override
     protected void setUp() throws Exception {
