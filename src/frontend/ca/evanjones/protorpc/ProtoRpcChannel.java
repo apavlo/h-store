@@ -120,7 +120,6 @@ public class ProtoRpcChannel extends AbstractEventHandler implements RpcChannel 
             rpc.finishRpcFailure(Protocol.Status.ERROR_COMMUNICATION, "Connection closed");
             return;
         }
-        pendingRpcs.put(sequence, rpc);
 
         // Package up the request and send it
         synchronized (this) {
