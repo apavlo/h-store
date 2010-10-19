@@ -2348,60 +2348,12 @@ H-STORE REMIX
                 <arg line="SKEW_FACTOR=${skew}" />
                 <arg line="cataloghosts" />
                 <arg line="killprotodtxn" />
-<!--                 <arg line="blocking" /> -->
+                <arg line="blocking" />
             </exec>
         </sequential>
     </parallel>
 </target>
 
-<!--<target name="hstore-oldtest" description="H-Store Test Setup">
-    <antcall target="hstore-conf">
-        <param name="jar" value="${project}.jar" />
-    </antcall>
-    <parallel failonany="true">
-        <antcall target="hstore-node">
-            <param name="jar" value="${project}.jar" />
-            <param name="partition" value="0" />
-            <param name="port" value="22340" />
-            <param name="markov" value="./files/markovs/${project}.markovs" />
-            <param name="thresholds" value="./files/thresholds/default.thresholds" />
-            <param name="correlations" value="./files/correlations/${project}.correlations" />
-        </antcall>
-        <antcall target="hstore-node">
-            <param name="jar" value="${project}.jar" />
-            <param name="partition" value="1" />
-            <param name="port" value="22341" />
-            <param name="markov" value="./files/markovs/${project}.markovs" />
-            <param name="thresholds" value="./files/thresholds/default.thresholds" />
-            <param name="correlations" value="./files/correlations/${project}.correlations" />
-        </antcall>
-        <sequential>
-            <sleep seconds="10" />
-            <antcall target="hstore-coordinator">
-                <param name="jar" value="${project}.jar" />
-                <param name="port" value="12347" />
-                <param name="markov" value="./files/markovs/${project}.markovs" />
-                <param name="thresholds" value="./files/thresholds/default.thresholds" />
-                <param name="correlations" value="./files/correlations/${project}.correlations" />
-            </antcall>
-        </sequential>
-        <sequential>
-            <sleep seconds="18" />
-            <exec executable="./scripts/runner.sh" failonerror="true">
-                <arg line="${project}" />
-                <arg line="nocompile" />
-                <arg line="BUILD_JAVA=0" />
-                <arg line="BUILD_EE=0" />
-                <arg line="BUILD_VOLTBIN=0" />
-                <arg line="DELETE_BENCHMARK_JAR=0" />
-                <arg line="SKEW_FACTOR=${skew}" />
-                <arg line="cataloghosts" />
-                <arg line="killprotodtxn" />
-                <arg line="blocking" />
-            </exec>
-        </sequential>
-    </parallel>
-</target>-->
 
 <!-- END PROJECT -->
 </project>

@@ -33,7 +33,6 @@ public class TestTransactionStateComplex extends BaseTestCase {
     
     private static final int NUM_PARTITIONS = 10;
     private static final int LOCAL_PARTITION = 1;
-    private static BackendTarget BACKEND_TARGET = BackendTarget.HSQLDB_BACKEND;
 
     private static final VoltTable.ColumnInfo FAKE_RESULTS_COLUMNS[] = new VoltTable.ColumnInfo[] {
         new VoltTable.ColumnInfo("ID", VoltType.INTEGER),
@@ -51,21 +50,7 @@ public class TestTransactionStateComplex extends BaseTestCase {
     private List<Integer> output_dependency_ids = new ArrayList<Integer>();
     private List<FragmentTaskMessage> first_tasks = new ArrayList<FragmentTaskMessage>();
     private Map<Integer, Set<Integer>> dependency_partitions = new HashMap<Integer, Set<Integer>>();
-    
-    private class MockExecutionSite extends ExecutionSite {
-        
-        public MockExecutionSite(int partition_id, Catalog catalog, PartitionEstimator p_estimator) {
-            super(partition_id, catalog, BACKEND_TARGET, p_estimator, null);
-        }
-        
-        @Override
-        protected void requestWork(TransactionState ts, List<FragmentTaskMessage> tasks) {
-            // Nothing!
-        }
-        
-    }
-    
-    
+
     @Override
     protected void setUp() throws Exception {
         super.setUp(ProjectType.AUCTIONMARK);

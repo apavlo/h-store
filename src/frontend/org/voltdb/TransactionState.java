@@ -26,9 +26,11 @@
 package org.voltdb;
 
 import java.util.*;
+import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 
+import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.log4j.Logger;
 import org.voltdb.messaging.FragmentTaskMessage;
 import org.voltdb.utils.Pair;
@@ -44,6 +46,13 @@ import edu.mit.dtxn.Dtxn;
  */
 public class TransactionState {
     protected static final Logger LOG = Logger.getLogger(TransactionState.class);
+    
+    enum RoundState {
+        NULL,
+        INITIALIZED,
+        STARTED,
+        FINISHED;
+    }
     
     private final Object lock = new Object();
     
@@ -66,7 +75,7 @@ public class TransactionState {
     private CountDownLatch dependency_latch;
     private Long start_undo_token;
     private Long last_undo_token;
-    private boolean initialized = false;
+    private RoundState round_state = RoundState.NULL;
     private int round_ctr = 0;
 
     /**
@@ -78,7 +87,7 @@ public class TransactionState {
      * Callbacks for specific FragmentTaskMessages
      * We have to keep these separate because the txn may request to execute a bunch of tasks that also go to this partition
      */
-    private final ConcurrentHashMap<FragmentTaskMessage, RpcCallback<Dtxn.FragmentResponse>> fragment_callbacks = new ConcurrentHashMap<FragmentTaskMessage, RpcCallback<Dtxn.FragmentResponse>>(); 
+    private final HashMap<FragmentTaskMessage, RpcCallback<Dtxn.FragmentResponse>> fragment_callbacks = new HashMap<FragmentTaskMessage, RpcCallback<Dtxn.FragmentResponse>>(); 
     
     /**
      * SQLStmt Index -> DependencyId -> DependencyInfo
@@ -275,21 +284,25 @@ public class TransactionState {
      * @param undoToken
      */
     public void initRound(long undoToken) {
-        assert(!this.initialized) : "Trying to initialize txn #" + this.txn_id + " more than once!";
-        this.initialized = true;
-        if (this.start_undo_token == null) {
-            this.start_undo_token = undoToken;
-        // Reset these guys here so that we don't waste time in the last round
-        } else {
-            this.internal_dependencies.clear();
-            this.output_order.clear();
-            this.blocked_tasks.clear();
-            this.dependencies.clear();
-            this.results_dependency_stmt_ctr.clear();
-            this.received_ctr = 0;
-            this.dependency_ctr = 0;
+        assert(this.round_state == RoundState.NULL || this.round_state == RoundState.FINISHED) :
+            "Invalid round state " + this.round_state + " for txn #" + this.txn_id;
+        
+        synchronized (this.lock) {
+            if (this.start_undo_token == null) {
+                this.start_undo_token = undoToken;
+            // Reset these guys here so that we don't waste time in the last round
+            } else {
+                this.internal_dependencies.clear();
+                this.output_order.clear();
+                this.blocked_tasks.clear();
+                this.dependencies.clear();
+                this.results_dependency_stmt_ctr.clear();
+                this.received_ctr = 0;
+                this.dependency_ctr = 0;
+            }
+            this.last_undo_token = undoToken;
+            this.round_state = RoundState.INITIALIZED;
         }
-        this.last_undo_token = undoToken;
         LOG.debug("Initializing new round information for txn #" + this.txn_id + " [undoToken=" + undoToken + "]");
     }
     
@@ -298,21 +311,34 @@ public class TransactionState {
      * @return
      */
     public CountDownLatch startRound() {
-        assert(this.initialized);
-        assert(this.output_order.isEmpty());
-        for (int stmt_index : this.dependencies.keySet()) {
-            for (DependencyInfo dinfo : this.dependencies.get(stmt_index).values()) {
-                if (!dinfo.isInternal()) this.output_order.add(dinfo.getDependencyId());
+        assert(this.round_state == RoundState.INITIALIZED) :
+            "Invalid round state " + this.round_state + " for txn #" + this.txn_id;
+
+        if (this.exec_local) {
+            assert(this.output_order.isEmpty());
+            for (int stmt_index : this.dependencies.keySet()) {
+                for (DependencyInfo dinfo : this.dependencies.get(stmt_index).values()) {
+                    if (!dinfo.isInternal()) this.output_order.add(dinfo.getDependencyId());
+                } // FOR
             } // FOR
-        } // FOR
-        assert(this.getStatementCount() == this.output_order.size()) :
-            "Expected " + this.getStatementCount() + " output dependencies but we queued up " + this.output_order.size();
-        
-        synchronized (this.lock) {
-            int count = this.dependency_ctr - this.received_ctr;
-            assert(count >= 0);
-            assert(this.dependency_latch == null);
-            this.dependency_latch = new CountDownLatch(count);
+            assert(this.getStatementCount() == this.output_order.size()) :
+                "Expected " + this.getStatementCount() + " output dependencies but we queued up " + this.output_order.size();
+            
+            synchronized (this.lock) {
+                int count = this.dependency_ctr - this.received_ctr;
+                assert(count >= 0);
+                assert(this.dependency_latch == null);
+                this.dependency_latch = new CountDownLatch(count);
+                this.round_state = RoundState.STARTED;
+            }
+        } else {
+            // If the stored procedure is not executing locally then we need at least
+            // one FragmentTaskMessage callback
+            assert(this.fragment_callbacks.isEmpty() == false) :
+                "No FragmentTaskMessage callbacks available for txn #" + this.txn_id;
+            synchronized (this.lock) {
+                this.round_state = RoundState.STARTED;
+            }
         }
         return (this.dependency_latch);
     }
@@ -322,21 +348,26 @@ public class TransactionState {
      * dependency tracking information that we have
      */
     public void finishRound() {
-        assert(this.initialized) : "Trying to clean up txn #" + this.txn_id + " before it was initialized";
-        assert(this.dependency_ctr == this.received_ctr);
+        assert(this.round_state == RoundState.STARTED) :
+            "Invalid round state " + this.round_state + " for txn #" + this.txn_id;
+        assert(this.dependency_ctr == this.received_ctr) : "Trying to finish round for txn #" + this.txn_id + " before it was started"; 
 
         LOG.debug("Finishing round for txn #" + this.txn_id);
         synchronized (this.lock) {
-            this.fragment_callbacks.clear();
-            
             // Reset our initialization flag so that we can be ready to run more stuff the next round
             if (this.dependency_latch != null) {
                 assert(this.dependency_latch.getCount() == 0);
                 this.dependency_latch = null;
             }
-            this.initialized = false;
-            this.round_ctr++;            
+            this.round_state = RoundState.FINISHED;
+            this.round_ctr++;
         }
+        // This needs to be here because we need to store these before initRound() gets called! 
+//        this.fragment_callbacks.clear();
+    }
+    
+    protected RoundState getCurrentRoundState() {
+        return (this.round_state);
     }
     
     /**
@@ -476,6 +507,7 @@ public class TransactionState {
      * @param callback
      */
     public void setFragmentTaskCallback(FragmentTaskMessage ftask, RpcCallback<Dtxn.FragmentResponse> callback) {
+        assert(callback != null) : "Null callback for txn #" + this.txn_id;
         if (LOG.isTraceEnabled()) LOG.trace("Storing FragmentTask callback for txn #" + this.txn_id);
         this.fragment_callbacks.put(ftask, callback);
     }
@@ -489,7 +521,6 @@ public class TransactionState {
     protected Set<FragmentTaskMessage> getBlockedFragmentTaskMessages() {
         return (this.blocked_tasks);
     }
-    
     
     /**
      * Return the number of statements that have been queued up in the last batch
@@ -523,7 +554,7 @@ public class TransactionState {
      * @param ftask
      */
     public synchronized boolean addFragmentTaskMessage(FragmentTaskMessage ftask) {
-        assert(this.initialized);
+        assert(this.round_state == RoundState.INITIALIZED) : "Invalid round state " + this.round_state + " for txn #" + this.txn_id;
         final boolean trace = LOG.isTraceEnabled();
         final boolean debug = LOG.isDebugEnabled();
         
@@ -579,6 +610,8 @@ public class TransactionState {
      * @param dependency_id
      */
     public void addResponse(int partition, int dependency_id) {
+        assert(this.round_state == RoundState.INITIALIZED || this.round_state == RoundState.STARTED) :
+            "Invalid round state " + this.round_state + " for txn #" + this.txn_id;
 //        final boolean debug = LOG.isDebugEnabled();
         final boolean trace = LOG.isTraceEnabled();
 
@@ -621,6 +654,9 @@ public class TransactionState {
      * @param result
      */
     public void addResult(int partition, int dependency_id, VoltTable result) {
+        assert(this.round_state == RoundState.INITIALIZED || this.round_state == RoundState.STARTED) :
+            "Invalid round state " + this.round_state + " for txn #" + this.txn_id;
+
 //        final boolean debug = LOG.isDebugEnabled();
         final boolean trace = LOG.isTraceEnabled();
 
@@ -728,63 +764,81 @@ public class TransactionState {
         }
         
         String ret = line + "Transaction State #" + txn_id + " [" + proc_name + "]\n";
-        ret += "  Local Partition:       " + this.executor.getPartitionId() + "\n";
-        ret += "  Dependency Ctr:        " + this.dependency_ctr + "\n";
-        ret += "  Internal Ctr:          " + this.internal_dependencies.size() + "\n";
-        ret += "  Received Ctr:          " + this.received_ctr + "\n";
-        ret += "  CountdownLatch:        " + this.dependency_latch + "\n";
-        ret += "  Start UndoToken:       " + this.start_undo_token + "\n";
-        ret += "  Last UndoToken:        " + this.last_undo_token + "\n";
-        ret += "  # of Blocked Tasks:    " + this.blocked_tasks.size() + "\n";
-        ret += "  # of Rounds:           " + this.round_ctr + "\n";
-        ret += "  # of Statements:       " + this.dependencies.size() + "\n";
-        ret += "  Expected Results:      " + this.results_dependency_stmt_ctr.keySet() + "\n";
-        ret += "  Expected Responses:    " + this.responses_dependency_stmt_ctr.keySet() + "\n";
 
-        for (int stmt_index : this.dependencies.keySet()) {
-            Map<Integer, DependencyInfo> s_dependencies = this.dependencies.get(stmt_index); 
-            Set<Integer> dependency_ids = s_dependencies.keySet();
+        ListOrderedMap<String, Object> m = new ListOrderedMap<String, Object>();
+        m.put("Current Round State", this.round_state);
+        m.put("Dtxn.Coordinator Id", this.dtxn_txn_id);
+        m.put("Dtxn.Coordinator Callback", this.coordinator_callback);
+        m.put("FragmentTask Callbacks", this.fragment_callbacks.size());
+        m.put("Executing Locally", this.exec_local);
+        m.put("Local Partition", this.executor.getPartitionId());
+        m.put("Dependency Ctr", this.dependency_ctr);
+        m.put("Start UndoToken", this.start_undo_token);
+        m.put("Last UndoToken", this.last_undo_token);
+        m.put("# of Rounds", this.round_ctr);
+        
+        if (this.exec_local) {
+            m.put("Internal Ctr", this.internal_dependencies.size());
+            m.put("Received Ctr", this.received_ctr);
+            m.put("CountdownLatch", this.dependency_latch);
+            m.put("# of Blocked Tasks", this.blocked_tasks.size());
+            m.put("# of Statements", this.dependencies.size());
+            m.put("Expected Results", this.results_dependency_stmt_ctr.keySet());
+            m.put("Expected Responses", this.responses_dependency_stmt_ctr.keySet());
+        }
+        
+        final String f = "  %-30s%s\n";
+        for (Entry<String, Object> e : m.entrySet()) {
+            ret += String.format(f, e.getKey()+":", e.getValue());
+        } // FOR
+        
 
-            ret += line;
-            ret += "  Statement #" + stmt_index + "\n";
-            ret += "  Output Dependency Id: " + (this.output_order.contains(stmt_index) ? this.output_order.get(stmt_index) : "<NOT STARTED>") + "\n";
-            
-            ret += "  Dependency Partitions:\n";
-            for (Integer dependency_id : dependency_ids) {
-                ret += "    [" + dependency_id + "] => " + s_dependencies.get(dependency_id).partitions + "\n";
-            } // FOR
-            
-            ret += "  Dependency Results:\n";
-            for (Integer dependency_id : dependency_ids) {
-                ret += "    [" + dependency_id + "] => [";
-                String add = "";
-                for (VoltTable vt : s_dependencies.get(dependency_id).getResults()) {
-                    ret += add + (vt == null ? vt : vt.getClass());
-                    add = ",";
-                }
-                ret += "]\n";
-            } // FOR
+        if (this.exec_local) {
+            for (int stmt_index : this.dependencies.keySet()) {
+                Map<Integer, DependencyInfo> s_dependencies = this.dependencies.get(stmt_index); 
+                Set<Integer> dependency_ids = s_dependencies.keySet();
     
-            ret += "  Blocked FragmentTaskMessages:\n";
-            boolean none = true;
-            for (Integer dependency_id : dependency_ids) {
-                DependencyInfo d = s_dependencies.get(dependency_id);
-                for (FragmentTaskMessage task : d.getBlockedFragmentTaskMessages()) {
-                    if (task == null) continue;
+                ret += line;
+                ret += "  Statement #" + stmt_index + "\n";
+                ret += "  Output Dependency Id: " + (this.output_order.contains(stmt_index) ? this.output_order.get(stmt_index) : "<NOT STARTED>") + "\n";
+                
+                ret += "  Dependency Partitions:\n";
+                for (Integer dependency_id : dependency_ids) {
+                    ret += "    [" + dependency_id + "] => " + s_dependencies.get(dependency_id).partitions + "\n";
+                } // FOR
+                
+                ret += "  Dependency Results:\n";
+                for (Integer dependency_id : dependency_ids) {
                     ret += "    [" + dependency_id + "] => [";
                     String add = "";
-                    for (long id : task.getFragmentIds()) {
-                        ret += add + id;
-                        add = ", ";
-                    } // FOR
-                    ret += "]";
-                    if (d.hasTasksReady()) ret += " READY!"; 
-                    ret += "\n";
-                    none = false;
-                }
-            } // FOR
-            if (none) ret += "    <none>\n";
-        }
+                    for (VoltTable vt : s_dependencies.get(dependency_id).getResults()) {
+                        ret += add + (vt == null ? vt : vt.getClass());
+                        add = ",";
+                    }
+                    ret += "]\n";
+                } // FOR
+        
+                ret += "  Blocked FragmentTaskMessages:\n";
+                boolean none = true;
+                for (Integer dependency_id : dependency_ids) {
+                    DependencyInfo d = s_dependencies.get(dependency_id);
+                    for (FragmentTaskMessage task : d.getBlockedFragmentTaskMessages()) {
+                        if (task == null) continue;
+                        ret += "    [" + dependency_id + "] => [";
+                        String add = "";
+                        for (long id : task.getFragmentIds()) {
+                            ret += add + id;
+                            add = ", ";
+                        } // FOR
+                        ret += "]";
+                        if (d.hasTasksReady()) ret += " READY!"; 
+                        ret += "\n";
+                        none = false;
+                    }
+                } // FOR
+                if (none) ret += "    <none>\n";
+            } // (dependencies)
+        } // (exec_local)
         
         return (ret);
     }

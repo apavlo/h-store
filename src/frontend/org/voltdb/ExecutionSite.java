@@ -608,7 +608,10 @@ public class ExecutionSite implements Runnable {
                                                                                             "fragments=" + Arrays.toString(ftask.getFragmentIds()) + "]");
 
                     // If this txn isn't local, then we have to update our undoToken
-                    if (is_local == false) ts.initRound(this.getNextUndoToken());
+                    if (is_local == false) {
+                        ts.initRound(this.getNextUndoToken());
+                        ts.startRound();
+                    }
 
                     FragmentResponseMessage fresponse = new FragmentResponseMessage(ftask);
                     fresponse.setStatus(FragmentResponseMessage.NULL, null);
@@ -1077,8 +1080,9 @@ public class ExecutionSite implements Runnable {
 
         RpcCallback<Dtxn.FragmentResponse> callback = ts.getFragmentTaskCallback(ftask);
         if (callback == null) {
-            LOG.fatal("Unable to send FragmentResponseMessage:\n" + fresponse);
+            LOG.fatal("Unable to send FragmentResponseMessage:\n" + fresponse.toString());
             LOG.fatal("Orignal FragmentTaskMessage:\n" + ftask);
+            LOG.fatal(ts.toString());
             throw new RuntimeException("No RPC callback to HStoreCoordinator for txn #" + txn_id);
         }
 
@@ -1193,8 +1197,10 @@ public class ExecutionSite implements Runnable {
             throw new RuntimeException("Deadlock! All tasks for txn #" + txn_id + " are blocked waiting on input!");
         }
         
-        // TODO: Need to figure out when we should be executing things locally versus
-        // executing things at remote partitions
+        // We have to tell the TransactinState to start the round before we send off the
+        // FragmentTasks for execution, since they might start executing locally!
+        CountDownLatch latch = ts.startRound();
+        
         if (all_local) {
             if (trace) LOG.trace("Adding " + runnable.size() + " FragmentTasks to local work queue");
             this.work_queue.addAll(runnable);
@@ -1202,8 +1208,7 @@ public class ExecutionSite implements Runnable {
             if (trace) LOG.trace("Requesting " + runnable.size() + " FragmentTasks to be executed on remote partitions");
             this.requestWork(ts, runnable);
         }
-
-        CountDownLatch latch = ts.startRound();
+        
         if (debug) LOG.debug("Txn #" + txn_id + " is blocked waiting for " + latch.getCount() + " dependencies");
         if (trace) LOG.trace(ts.toString());
         try {
