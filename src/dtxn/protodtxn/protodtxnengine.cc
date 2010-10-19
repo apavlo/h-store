@@ -21,9 +21,9 @@ dtxn::ExecutionEngine::Status ProtoDtxnEngine::tryExecute(
     request_active_ = true;
 
     // Get the transaction id, or allocate a new one
-    int transaction_id = 0;
+    int64_t transaction_id = 0;
     if (undo != NULL && *undo != NULL) {
-        transaction_id = static_cast<int>(reinterpret_cast<intptr_t>(*undo));
+        transaction_id = static_cast<int64_t>(reinterpret_cast<intptr_t>(*undo));
     } else {
         // Allocate a new transaction id
         transaction_id = next_id_;
@@ -44,10 +44,10 @@ dtxn::ExecutionEngine::Status ProtoDtxnEngine::tryExecute(
     
     // PAVLO
     if (&payload != NULL) {
-        LOG_DEBUG("Setting Fragment (request?) payload directly [%s]", payload.c_str());
+        LOG_DEBUG("Setting Fragment (request?) payload directly for txn %ld [%s]", transaction_id, payload.c_str());
         request.set_payload(payload);
     } else {
-        LOG_DEBUG("Given a NULL payload! I can't live like this");
+        LOG_DEBUG("Given a NULL payload for txn %ld! I can't live like this", transaction_id);
     }
 
     FragmentResponse response;
@@ -76,12 +76,12 @@ void ProtoDtxnEngine::finish(void* undo_buffer, bool commit, const std::string& 
 
     intptr_t transaction_id = reinterpret_cast<intptr_t>(undo_buffer);
     assert(transaction_id > 0);
-    LOG_DEBUG("Finish [txn_id=%d, payload=%s]", static_cast<int32_t>(transaction_id), payload.c_str());
+    LOG_DEBUG("Finish [txn_id=%ld, payload=%s]", static_cast<int64_t>(transaction_id), payload.c_str());
 
     // TODO: Cache these objects?
     protorpc::ProtoRpcController controller;
     FinishRequest request;
-    request.set_transaction_id(static_cast<int32_t>(transaction_id));
+    request.set_transaction_id(static_cast<int64_t>(transaction_id));
     request.set_commit(commit);
     request.set_payload(payload);
     FinishResponse response;

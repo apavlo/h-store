@@ -33,13 +33,13 @@ public:
             ::google::protobuf::Closure* done);
 
     // INTERNAL: Remove request from the transaction map and delete state.
-    ProtoDtxnCoordinatorRequest* internalDeleteTransaction(int32_t transaction_id);
+    ProtoDtxnCoordinatorRequest* internalDeleteTransaction(int64_t transaction_id);
 
 private:
     dtxn::DtxnManager* dtxn_manager_;
     int num_partitions_;
 
-    typedef base::unordered_map<int32_t, ProtoDtxnCoordinatorRequest*> TransactionMap;
+    typedef base::unordered_map<int64_t, ProtoDtxnCoordinatorRequest*> TransactionMap;
     TransactionMap transactions_;
 };
 

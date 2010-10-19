@@ -974,7 +974,7 @@ public class ExecutionSite implements Runnable {
      * @param task
      * @param callback the RPC handle to send the response to
      */
-    public void doWork(TransactionInfoBaseMessage task, Integer dtxn_txn_id, RpcCallback<Dtxn.FragmentResponse> callback) {
+    public void doWork(TransactionInfoBaseMessage task, Long dtxn_txn_id, RpcCallback<Dtxn.FragmentResponse> callback) {
         final boolean debug = LOG.isDebugEnabled(); 
         final boolean trace = LOG.isTraceEnabled();
 

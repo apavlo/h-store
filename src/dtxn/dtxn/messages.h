@@ -29,7 +29,7 @@ public:
     int32_t client_id;
 
     // Unique identifier for this transaction. Used to identify messages that belong to a single transaction.
-    int32_t id;
+    int64_t id;
 
     // True if this transaction spans multiple partitions.
     bool multiple_partitions;
@@ -49,7 +49,7 @@ public:
         if (multiple_partitions != other.multiple_partitions) return false;
         if (last_fragment != other.last_fragment) return false;
         if (transaction != other.transaction) return false;
-        // if (payload != other.payload) return false;
+//         if (payload != other.payload) return false;
         return true;
     }
     bool operator!=(const Fragment& other) const { return !(*this == other); }
@@ -87,7 +87,7 @@ public:
         ASSERT(end == _str_.data() + _str_.size());
     }
 
-    static int32_t typeCode() { return 348068130; }
+    static int32_t typeCode() { return 1229065059; }
 };
 
 // The response from the partition.
@@ -99,7 +99,7 @@ public:
         dependency(-1) {}
 
     // Identifies the transaction that this decision refers to.
-    int32_t id;
+    int64_t id;
 
     // Contains the ExecutionEngine::Status for this transaction.
     int32_t status;
@@ -146,7 +146,7 @@ public:
         ASSERT(end == _str_.data() + _str_.size());
     }
 
-    static int32_t typeCode() { return -659991461; }
+    static int32_t typeCode() { return 704147483; }
 };
 
 // Instructs a replica to commit or abort a transaction.
@@ -161,7 +161,7 @@ public:
     int32_t client_id;
 
     // Identifies the transaction that this decision refers to.
-    int32_t id;
+    int64_t id;
 
     // True if the transaction should commit.
     bool commit;
@@ -173,7 +173,7 @@ public:
         if (client_id != other.client_id) return false;
         if (id != other.id) return false;
         if (commit != other.commit) return false;
-        // if (payload != other.payload) return false;
+//         if (payload != other.payload) return false;
         return true;
     }
     bool operator!=(const CommitDecision& other) const { return !(*this == other); }
@@ -205,7 +205,7 @@ public:
         ASSERT(end == _str_.data() + _str_.size());
     }
 
-    static int32_t typeCode() { return -472908962; }
+    static int32_t typeCode() { return -1953901859; }
 };
 
 // Transaction record stored in a log.
@@ -286,7 +286,7 @@ public:
         ASSERT(end == _str_.data() + _str_.size());
     }
 
-    static int32_t typeCode() { return -477062385; }
+    static int32_t typeCode() { return -1915125041; }
 };
 
 }  // namespace dtxn
