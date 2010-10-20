@@ -389,11 +389,11 @@ class Distributer {
             int arenaSizes[],
             boolean useMultipleThreads,
             StatsUploaderSettings statsSettings) {
-        if (statsSettings != null) {
-            m_statsLoader = new ClientStatsLoader(statsSettings, this);
-        } else {
+//        if (statsSettings != null) {
+//            m_statsLoader = new ClientStatsLoader(statsSettings, this);
+//        } else {
             m_statsLoader = null;
-        }
+//        }
         m_useMultipleThreads = useMultipleThreads;
         m_network = new VoltNetwork( useMultipleThreads, true, 3);
         m_expectedOutgoingMessageSize = expectedOutgoingMessageSize;

@@ -2348,7 +2348,7 @@ H-STORE REMIX
                 <arg line="SKEW_FACTOR=${skew}" />
                 <arg line="cataloghosts" />
                 <arg line="killprotodtxn" />
-<!--                 <arg line="blocking" /> -->
+                <arg line="blocking" />
             </exec>
         </sequential>
     </parallel>
