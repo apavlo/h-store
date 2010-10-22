@@ -114,6 +114,18 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
     }
 
     /**
+     * Return the list of ProcParameters that are array parameters for the given procedure
+     */
+    public static List<ProcParameter> getArrayProcParameters(final Procedure catalog_proc) {
+        List<ProcParameter> params = new ArrayList<ProcParameter>();
+        for (ProcParameter catalog_param : catalog_proc.getParameters()) {
+            if (catalog_param.getIsarray()) params.add(catalog_param);
+        } // FOR
+        return (params);
+    }
+    
+    
+    /**
      * Return the number of partitions for a catalog for any catalog item
      * 
      * @param catalog_item

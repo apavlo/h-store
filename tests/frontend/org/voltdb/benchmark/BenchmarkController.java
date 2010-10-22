@@ -118,70 +118,78 @@ public class BenchmarkController {
 
                 // assume stdout at this point
 
-                // split the string on commas and strip whitespace
-                String[] parts = line.value.split(",");
-                for (int i = 0; i < parts.length; i++)
-                    parts[i] = parts[i].trim();
-
-                // expect at least time and status
-                if (parts.length < 2) {
-                    if (line.value.startsWith("Listening for transport dt_socket at address:") ||
-                            line.value.contains("Attempting to load") ||
-                            line.value.contains("Successfully loaded native VoltDB library")) {
-                        benchmarkLog.info(line.processName + ": " + line.value + "\n");
+                // General Debug Output
+                if (line.value.startsWith(ClientMain.CONTROL_PREFIX) == false) {
+                    System.out.println(line.value);
+                    
+                // BenchmarkController Coordination Message
+                } else {
+                    // split the string on commas and strip whitespace
+                    String control_line = line.value.substring(ClientMain.CONTROL_PREFIX.length());
+                    String[] parts = control_line.split(",");
+                    for (int i = 0; i < parts.length; i++)
+                        parts[i] = parts[i].trim();
+    
+                    // expect at least time and status
+                    if (parts.length < 2) {
+                        if (line.value.startsWith("Listening for transport dt_socket at address:") ||
+                                line.value.contains("Attempting to load") ||
+                                line.value.contains("Successfully loaded native VoltDB library")) {
+                            benchmarkLog.info(line.processName + ": " + control_line + "\n");
+                            continue;
+                        }
+    //                    m_clientPSM.killProcess(line.processName);
+    //                    LogKeys logkey =
+    //                        LogKeys.benchmark_BenchmarkController_ProcessReturnedMalformedLine;
+    //                    benchmarkLog.l7dlog( Level.ERROR, logkey.name(),
+    //                            new Object[] { line.processName, line.value }, null);
                         continue;
                     }
-//                    m_clientPSM.killProcess(line.processName);
-//                    LogKeys logkey =
-//                        LogKeys.benchmark_BenchmarkController_ProcessReturnedMalformedLine;
-//                    benchmarkLog.l7dlog( Level.ERROR, logkey.name(),
-//                            new Object[] { line.processName, line.value }, null);
-                    continue;
-                }
-
-                long time = -1;
-                try {
-                    time = Long.parseLong(parts[0]);
-                } catch (NumberFormatException ex) {
-                    continue; // IGNORE
-                }
-                String status = parts[1];
-
-                if (status.equals("READY")) {
-                    LogKeys logkey = LogKeys.benchmark_BenchmarkController_GotReadyMessage;
-                    benchmarkLog.l7dlog( Level.INFO, logkey.name(),
-                            new Object[] { line.processName }, null);
-                    benchmarkLog.info("Got ready message.");
-                    m_clientsNotReady.decrementAndGet();
-                }
-                else if (status.equals("ERROR")) {
-                    m_clientPSM.killProcess(line.processName);
-                    LogKeys logkey = LogKeys.benchmark_BenchmarkController_ReturnedErrorMessage;
-                    benchmarkLog.l7dlog( Level.ERROR, logkey.name(),
-                            new Object[] { line.processName, parts[2] }, null);
-                    benchmarkLog.error(
-                            "(" + line.processName + ") Returned error message:\n"
-                            + " \"" + parts[2] + "\"\n");
-                    continue;
-                }
-                else if (status.equals("RUNNING")) {
-                    //System.out.println("Got running message.");
-                    HashMap<String, Long> results = new HashMap<String, Long>();
-                    if ((parts.length % 2) != 0) {
+    
+                    long time = -1;
+                    try {
+                        time = Long.parseLong(parts[0]);
+                    } catch (NumberFormatException ex) {
+                        continue; // IGNORE
+                    }
+                    String status = parts[1];
+    
+                    if (status.equals("READY")) {
+                        LogKeys logkey = LogKeys.benchmark_BenchmarkController_GotReadyMessage;
+                        benchmarkLog.l7dlog( Level.INFO, logkey.name(),
+                                new Object[] { line.processName }, null);
+                        benchmarkLog.info("Got ready message.");
+                        m_clientsNotReady.decrementAndGet();
+                    }
+                    else if (status.equals("ERROR")) {
                         m_clientPSM.killProcess(line.processName);
-                        LogKeys logkey =
-                            LogKeys.benchmark_BenchmarkController_ProcessReturnedMalformedLine;
+                        LogKeys logkey = LogKeys.benchmark_BenchmarkController_ReturnedErrorMessage;
                         benchmarkLog.l7dlog( Level.ERROR, logkey.name(),
-                                new Object[] { line.processName, line.value }, null);
+                                new Object[] { line.processName, parts[2] }, null);
+                        benchmarkLog.error(
+                                "(" + line.processName + ") Returned error message:\n"
+                                + " \"" + parts[2] + "\"\n");
                         continue;
                     }
-                    for (int i = 2; i < parts.length; i += 2) {
-                        String txnName = parts[i];
-                        long txnCount = Long.valueOf(parts[i+1]);
-                        results.put(txnName, txnCount);
+                    else if (status.equals("RUNNING")) {
+                        //System.out.println("Got running message.");
+                        HashMap<String, Long> results = new HashMap<String, Long>();
+                        if ((parts.length % 2) != 0) {
+                            m_clientPSM.killProcess(line.processName);
+                            LogKeys logkey =
+                                LogKeys.benchmark_BenchmarkController_ProcessReturnedMalformedLine;
+                            benchmarkLog.l7dlog( Level.ERROR, logkey.name(),
+                                    new Object[] { line.processName, control_line }, null);
+                            continue;
+                        }
+                        for (int i = 2; i < parts.length; i += 2) {
+                            String txnName = parts[i];
+                            long txnCount = Long.valueOf(parts[i+1]);
+                            results.put(txnName, txnCount);
+                        }
+                        resultsToRead--;
+                        setPollResponseInfo(line.processName, time, results, null);
                     }
-                    resultsToRead--;
-                    setPollResponseInfo(line.processName, time, results, null);
                 }
             }
         }

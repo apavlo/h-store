@@ -1,6 +1,7 @@
 package edu.brown.markov;
 
 import java.util.*;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.log4j.Logger;
 
@@ -31,29 +32,69 @@ public class TransactionEstimator {
     private transient ParameterCorrelations correlations;
     
     private final int base_partition;
-    private final HashMap<Long, MarkovGraph> xact_graphs = new HashMap<Long, MarkovGraph>();
     private final HashMap<Procedure, MarkovGraph> procedure_graphs = new HashMap<Procedure, MarkovGraph>();
     private final transient Map<Long, State> xact_states = new HashMap<Long, State>();
-    private int xact_count;
+    private final AtomicInteger xact_count = new AtomicInteger(0); 
 
     /**
      * The current state of a transaction
      */
     private final class State {
+        private final long start_time;
+        private final MarkovGraph markov;
+        private final List<Vertex> initial_path;
+        private final double initial_path_confidence;
+        private final List<Vertex> taken_path = new ArrayList<Vertex>();
+        private final Set<Integer> touched_partitions = new HashSet<Integer>();
+        private final Map<Statement, Integer> query_instance_cnts = new HashMap<Statement, Integer>();
+        
         private Vertex current;
         private Estimate last_estimate;
-        private final long start_time;
-        private long stop_time;
-        private final List<Vertex> initial_path = new ArrayList<Vertex>();
-        private final List<Vertex> taken_path = new ArrayList<Vertex>();
 
-        public State(MarkovGraph markov) {
+        /**
+         * Constructor
+         * @param markov - the graph that this txn is using
+         * @param initial_path - the initial path estimation from MarkovPathEstimator
+         */
+        public State(MarkovGraph markov, List<Vertex> initial_path, double confidence) {
+            this.markov = markov;
             this.start_time = System.currentTimeMillis();
+            this.initial_path = initial_path;
+            this.initial_path_confidence = confidence;
             this.current = markov.getStartVertex();
+        }
+        
+        public MarkovGraph getMarkovGraph() {
+            return (this.markov);
+        }
+        
+        /**
+         * Get the number of milli-seconds that have passed since the txn started
+         * @return
+         */
+        public long getExecutionTimeOffset() {
+            return (System.currentTimeMillis() - this.start_time);
+        }
+        
+        public int updateQueryInstanceCount(Statement catalog_stmt) {
+            Integer cnt = this.query_instance_cnts.get(catalog_stmt);
+            if (cnt == null) cnt = 0;
+            this.query_instance_cnts.put(catalog_stmt, cnt + 1);
+            return (cnt);
+        }
+        
+        public Set<Integer> getTouchedPartitions() {
+            return (this.touched_partitions);
+        }
+        public void addTouchedPartitions(Collection<Integer> partitions) {
+            this.touched_partitions.addAll(partitions);
         }
 
         public List<Vertex> getInitialPath() {
             return (this.initial_path);
+        }
+        public double getInitialPathConfidence() {
+            return (this.initial_path_confidence);
         }
 
         public List<Vertex> getTakenPath() {
@@ -72,16 +113,22 @@ public class TransactionEstimator {
             return this.start_time;
         }
 
-        public long getStopTime() {
-            return this.stop_time;
-        }
-
         public Estimate getLastEstimate() {
             return this.last_estimate;
         }
 
         public void setLastEstimate(Estimate last_estimate) {
             this.last_estimate = last_estimate;
+        }
+        
+        @Override
+        public String toString() {
+            StringBuilder sb = new StringBuilder();
+            sb.append("{")
+              .append("Current=").append(this.current).append(", ")
+              .append("Touched=").append(this.touched_partitions)
+              .append("}");
+            return sb.toString();
         }
     } // END CLASS
 
@@ -90,14 +137,14 @@ public class TransactionEstimator {
      */
     public final class Estimate {
         // Global
-        public double singlepartition;
-        public double userabort;
+        private double singlepartition;
+        private double userabort;
 
         // Partition-specific
-        public final double finished[];
-        public final double read[];
-        public final double write[];
-        public Long time;
+        private final double finished[];
+        private final double read[];
+        private final double write[];
+        private Long time;
 
         public Estimate() {
             this.finished = new double[TransactionEstimator.this.num_partitions];
@@ -256,6 +303,22 @@ public class TransactionEstimator {
     public MarkovGraph getMarkovGraph(String catalog_key) {
         return (this.getMarkovGraph(CatalogKey.getFromKey(this.catalog_db, catalog_key, Procedure.class)));
     }
+    
+    /**
+     * Return the initial path estimation for the given transaction id
+     * @param txn_id
+     * @return
+     */
+    protected List<Vertex> getInitialPath(long txn_id) {
+        State s = this.xact_states.get(txn_id);
+        assert(s != null) : "Unexpected Transaction #" + txn_id;
+        return (s.getInitialPath());
+    }
+    protected double getConfidence(long txn_id) {
+        State s = this.xact_states.get(txn_id);
+        assert(s != null) : "Unexpected Transaction #" + txn_id;
+        return (s.getInitialPathConfidence());
+    }
 
     // ----------------------------------------------------------------------------
     // RUNTIME METHODS
@@ -283,7 +346,6 @@ public class TransactionEstimator {
      */
     public Estimate startTransaction(long xact_id, Procedure catalog_proc, Object args[]) {
         assert (catalog_proc != null);
-        Estimate estimate = new Estimate();
 
         // If we don't have a graph for this procedure, we should probably just return null
         // This will be the case for all sysprocs
@@ -295,27 +357,26 @@ public class TransactionEstimator {
         }
 
         MarkovGraph graph = this.procedure_graphs.get(catalog_proc);
-        
-        xact_graphs.put(xact_id, graph);
         assert (graph != null);
-        graph.resetCounters();
+        // ??? graph.resetCounters();
 
         Vertex start = graph.getStartVertex();
         start.addInstanceTime(xact_id, System.currentTimeMillis());
         
-        State state = new State(graph);
-        this.xact_states.put(xact_id, state);
-        
         // Calculate initial path estimate
+        MarkovPathEstimator path_estimate = null;
         try {
-            this.estimatePath(graph, args);
+            path_estimate = this.estimatePath(graph, args);
         } catch (Exception e) {
             e.printStackTrace();
         }
+        assert(path_estimate != null);
         
-        this.populateEstimate(state, estimate);
+        State state = new State(graph, path_estimate.getVisitPath(), path_estimate.getConfidence());
+        this.xact_states.put(xact_id, state);
+        Estimate estimate = this.generateEstimate(state);
         
-        this.xact_count++;
+        this.xact_count.incrementAndGet();
         return (estimate);
     }
 
@@ -329,20 +390,32 @@ public class TransactionEstimator {
      * @return
      */
     public Estimate executeQueries(long xact_id, Statement catalog_stmts[], int partitions[][]) {
-        assert (catalog_stmts.length == partitions.length);
-        MarkovGraph g = procedure_graphs.get((catalog_stmts[0].getParent()));
-        Estimate estimate = new Estimate();
+        assert (catalog_stmts.length == partitions.length);       
+        State state = this.xact_states.get(xact_id);
+        if (state == null) {
+            String msg = "No state information exists for txn #" + xact_id;
+            LOG.debug(msg);
+            return (null);
+            // throw new RuntimeException(msg);
+        }
+        
+        // Roll through the Statements in this batch and move the current vertex
+        // for the txn's State handle along the path in the MarkovGraph
         for (int i = 0; i < catalog_stmts.length; i++) {
-            Statement catalog_stmt = catalog_stmts[i];
-            int stmt_partitions[] = partitions[i];
-            consume(catalog_stmt, stmt_partitions, g, xact_id);
+            List<Integer> stmt_partitions = new ArrayList<Integer>();
+            for (int p : partitions[i]) stmt_partitions.add(p);
+            
+            this.consume(xact_id, state, catalog_stmts[i], stmt_partitions);
         } // FOR
-        populateEstimate(xact_states.get(xact_id), estimate);
+        
+        // Now 
+        Estimate estimate = this.generateEstimate(state);
+        assert(estimate != null);
         
         // Once the workload shifts we detect it and trigger this method. Recomputes
         // the graph with the data we collected with the current workload method.
-        if (g.shouldRecompute(xact_count, RECOMPUTE_TOLERANCE)) {
-            g.recomputeGraph();
+        if (state.getMarkovGraph().shouldRecompute(this.xact_count.get(), RECOMPUTE_TOLERANCE)) {
+            state.getMarkovGraph().recomputeGraph();
         }
         return (estimate);
     }
@@ -361,8 +434,23 @@ public class TransactionEstimator {
             return;
             // throw new RuntimeException(msg);
         }
-        MarkovGraph g = this.xact_graphs.remove(xact_id);
-        g.getCommitVertex().addInstanceTime(xact_id, s.getStopTime());
+        
+        // We need to update the counter information in our MarkovGraph so that we know
+        // that the procedure may transition to the ABORT vertex from where ever it was before 
+        MarkovGraph g = s.getMarkovGraph();
+        Vertex next_v = g.getCommitVertex();
+        
+        // If no edge exists to the ABORT vertex, then we need to create one
+        Edge next_e = g.findEdge(s.getCurrent(), next_v);
+        if (next_e == null) {
+            next_e = g.addToEdge(s.getCurrent(), next_v);
+        }
+        assert(next_e != null);
+
+        // Update counters
+        next_v.incrementInstancehits();
+        next_v.addInstanceTime(xact_id, s.getExecutionTimeOffset());
+        next_e.incrementInstancehits();
     }
 
     /**
@@ -378,8 +466,23 @@ public class TransactionEstimator {
             return;
             // throw new RuntimeException(msg);
         }
-        MarkovGraph g = this.xact_graphs.remove(xact_id);
-        g.getAbortVertex().addInstanceTime(xact_id, s.getStopTime());
+        
+        // We need to update the counter information in our MarkovGraph so that we know
+        // that the procedure may transition to the ABORT vertex from where ever it was before 
+        MarkovGraph g = s.getMarkovGraph();
+        Vertex next_v = g.getAbortVertex();
+        
+        // If no edge exists to the ABORT vertex, then we need to create one
+        Edge abort_e = g.findEdge(s.getCurrent(), next_v);
+        if (abort_e == null) {
+            abort_e = g.addToEdge(s.getCurrent(), next_v);
+        }
+        assert(abort_e != null);
+
+        // Update counters
+        next_v.incrementInstancehits();
+        next_v.addInstanceTime(xact_id, s.getExecutionTimeOffset());
+        abort_e.incrementInstancehits();
     }
 
     // ----------------------------------------------------------------------------
@@ -394,7 +497,8 @@ public class TransactionEstimator {
      * @param current
      *            - the Vertex we are currently at in the MarkovGraph
      */
-    protected void populateEstimate(State state, Estimate estimate) {
+    protected Estimate generateEstimate(State state) {
+        Estimate estimate = new Estimate();
         Vertex current = state.getCurrent();
         estimate.singlepartition = current.getSingleSitedProbability();
         estimate.userabort = current.getAbortProbability();
@@ -404,6 +508,8 @@ public class TransactionEstimator {
             estimate.read[i] = current.getReadOnlyProbability(i);
             estimate.write[i] = current.getWriteProbability(i);
         } // FOR
+        state.setLastEstimate(estimate);
+        return (estimate);
     }
 
     /**
@@ -414,51 +520,69 @@ public class TransactionEstimator {
      * @param args
      * @throws Exception
      */
-    protected List<Vertex> estimatePath(final MarkovGraph markov, final Object args[]) throws Exception {
-        final List<Vertex> path = new Vector<Vertex>();
-        
-        // Walk through the graph as far as we can
-        Vertex start = markov.getStartVertex();
-        assert (start != null);
-        
-        //new PathEstimator(markov, this, args);
-
-        return (path);
+    protected MarkovPathEstimator estimatePath(final MarkovGraph markov, final Object args[]) throws Exception {
+        MarkovPathEstimator estimator = new MarkovPathEstimator(markov, this, args);
+        estimator.traverse(markov.getStartVertex());
+        return (estimator);
     }
     
     /**
-     * TODO(svelagap)
-     * 
+     * Figure out the next vertex that the txn will transition to for the give Statement catalog object
+     * and the partitions that it will touch when it is executed. If no vertex exists, we will create
+     * it and dynamically add it to our MarkovGraph
+     * @param xact_id
+     * @param state
      * @param catalog_stmt
      * @param partitions
-     * @param g
-     * @param xact_id
      */
-    protected void consume(Statement catalog_stmt, int partitions[], MarkovGraph g, long xact_id) {
-        State state = this.xact_states.get(xact_id);
-        if (g == null || g.getEdgeCount() == 0) {
-            // When would this happen?
-            assert(false) : "Unexpected execution path in TransactionEstimator";
-            // xact_states.put(xact_id, g.getStartVertex());
-            return;
-        }
-        assert(state != null);
+    protected void consume(long xact_id, State state, Statement catalog_stmt, Collection<Integer> partitions) {
+        final boolean trace = LOG.isTraceEnabled(); 
         
-        Vertex current = state.getCurrent();
-        for (Edge e : g.getOutEdges(current)) {
-            Vertex v = g.getSource(e);
-            //TODO (svelagap): Should use equals, not isMatch..
-            if (v.isMatch(catalog_stmt, partitions)) {
-                state.setCurrent(v);
-                // TODO (svelagap) : We need to keep track of query_instance_index
-                v.addInstanceTime(xact_id, System.currentTimeMillis());
-                e.incrementInstancehits();
-                v.incrementInstancehits();
-                return;
+        // Update the number of times that we have executed this query in the txn
+        int queryInstanceIndex = state.updateQueryInstanceCount(catalog_stmt);
+        
+        MarkovGraph g = state.getMarkovGraph();
+        assert(g != null);
+        
+        // Examine all of the vertices that are adjacent to our current vertex
+        // and see which vertex we are going to move to next
+        Collection<Edge> edges = g.getOutEdges(state.getCurrent()); 
+        if (trace) LOG.trace("Examining " + edges.size() + " edges from " + state.getCurrent() + " for Txn #" + xact_id);
+        Vertex next_v = null;
+        Edge next_e = null;
+        for (Edge e : edges) {
+            Vertex v = g.getDest(e);
+            if (v.isEqual(catalog_stmt, partitions, state.getTouchedPartitions(), queryInstanceIndex)) {
+                if (trace) LOG.trace("Found next vertex " + v + " for Txn #" + xact_id);
+                next_v = v;
+                next_e = e;
+                break;
             }
         } // FOR
-        // What happens if we get down here??
-        assert(false) : "Unexpected execution path in TransactionEstimator";
+        
+        // If we fail to find the next vertex, that means we have to dynamically create a new 
+        // one. The graph is self-managed, so we don't need to worry about whether 
+        // we need to recompute probabilities.
+        if (next_v == null) {
+            next_v = new Vertex(catalog_stmt,
+                                Vertex.Type.QUERY,
+                                queryInstanceIndex,
+                                partitions,
+                                state.getTouchedPartitions());
+            g.addVertex(next_v);
+            next_e = g.addToEdge(state.getCurrent(), next_v);
+            if (trace) LOG.trace("Created new edge/vertex from " + state.getCurrent() + " for Txn #" + xact_id);
+        }
+
+        // Update the counters and other info for the next vertex and edge
+        next_v.addInstanceTime(xact_id, state.getExecutionTimeOffset());
+        next_v.incrementInstancehits();
+        next_e.incrementInstancehits();
+        
+        // Update the state information
+        state.setCurrent(next_v);
+        state.addTouchedPartitions(partitions);
+        if (trace) LOG.trace("Updated State Information for Txn #" + xact_id + ": " + state);
     }
 
     // ----------------------------------------------------------------------------

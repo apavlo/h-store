@@ -2,14 +2,21 @@ package edu.brown.utils;
 
 import java.util.*;
 
+import org.apache.log4j.Logger;
+
+/**
+ * @author pavlo
+ * @param <E> element type
+ */
 public abstract class AbstractTreeWalker<E> {
+    protected static final Logger LOG = Logger.getLogger(AbstractTreeWalker.class);
     
     public class Children {
         private final E parent;
         private final List<E> before_list = new ArrayList<E>();
         private final List<E> after_list = new ArrayList<E>();
         
-        public Children(E parent) {
+        private Children(E parent) {
             this.parent = parent;
         }
 
@@ -84,7 +91,27 @@ public abstract class AbstractTreeWalker<E> {
      * How many nodes we have visited
      */
     private int counter = 0;
+    /**
+     * Others can attach Children to elements out-of-band so that we can do other
+     * types of traversal through the tree
+     */
+    private final Map<E, Children> attached_children = new HashMap<E, Children>();
     
+    
+    /**
+     * Return a Children singleton for a specific element
+     * This allows us to add children either before our element is invoked
+     * @param element
+     * @return
+     */
+    protected final Children getChildren(E element) {
+        Children c = this.attached_children.get(element);
+        if (c == null) {
+            c = new Children(element);
+            this.attached_children.put(element, c);
+        }
+        return (c);
+    }
     /**
      * Returns the parent of the current node in callback()
      * @return
@@ -153,37 +180,53 @@ public abstract class AbstractTreeWalker<E> {
      * Depth first traversal
      * @param element
      */
-    @SuppressWarnings("unchecked")
     public final void traverse(E element) {
+        final boolean trace = LOG.isTraceEnabled();
         assert(element != null) : "AbstractTreeWalker.traverse() was passed a null element";
-        if (this.first == null) this.first = element;
-        if (this.stop) return;
-        if (this.counter == 0) this.callback_first(element);
+        
+        if (trace) LOG.trace("traverse(" + element + ")");
+        if (this.stop) {
+            if (trace) LOG.trace("Stop Called. Halting traversal.");
+            return;
+        }
+        if (this.first == null) {
+            assert(this.counter == 0) : "Unexpected counter value on first element [" + this.counter + "]";
+            this.first = element;
+            if (trace) LOG.trace("callback_first(" + element + ")");
+            this.callback_first(element);
+        }
+
         this.stack.push(element);
         this.depth++;
         this.counter++;
+        if (trace) LOG.trace("[Stack=" + this.stack.size() + ", " +
+                              "Depth=" + this.depth + ", " + 
+                              "Counter=" + this.counter + ", " +
+                              "Visited=" + this.visited.size() + "]");
     
-        if (depth > 150) {
-            System.err.println("Stack:\n" + StringUtil.join("\n", this.stack));
-            throw new RuntimeException("I think we've gone too far: " + element + " [parent=" + this.getPrevious() + "]");
-        }
-        
+        if (trace) LOG.trace("callback_before(" + element + ")");
         this.callback_before(element);
         
         // Get the list of children to visit before and after we call ourself
 //        if (!this.visited.contains(element)) {
-            AbstractTreeWalker<E>.Children children = new AbstractTreeWalker.Children(element);
+            AbstractTreeWalker<E>.Children children = this.getChildren(element);
             this.populate_children(children, element);
+            if (trace) LOG.trace("Populate Children: " + children);
             for (E child : children.before_list) {
+                if (trace) LOG.trace("Traversing child " + child + "' before " + element);
                 this.traverse(child);
-            }
+            } // FOR
             
+            // Why is this here and not up above when we update the stack?
             this.visited.add(element);
+            
+            if (trace) LOG.trace("callback(" + element + ")");
             this.callback(element);
 
             for (E child : children.after_list) {
+                if (trace) LOG.trace("Traversing child " + child + " after " + element);
                 this.traverse(child);
-            }
+            } // FOR
 //        }
         
         E check_exp = this.stack.pop();
@@ -191,11 +234,16 @@ public abstract class AbstractTreeWalker<E> {
         
         this.callback_after(element);
         this.depth--;
-        if (this.depth == -1) this.callback_last(element);
+        if (this.depth == -1) {
+            if (trace) LOG.trace("callback_last(" + element + ")");
+            this.callback_last(element);
+        }
         return;
     }
+    
     /**
-     * 
+     * For the given element, populate the Children object with the next items to visit either
+     * before or after the callback method is called for the element 
      * @param element
      */
     protected abstract void populate_children(AbstractTreeWalker<E>.Children children, E element);
@@ -211,29 +259,29 @@ public abstract class AbstractTreeWalker<E> {
     protected abstract void callback(E element);
     
     /**
-     * Callback method before we visit any of the node's children
+     * Optional callback method before we visit any of the node's children
      * @param element
      */
     protected void callback_before(E element) {
         // Do nothing
     }
     /**
-     * Callback method after we have finished visiting all of a node's children
-     * and will return back to their parent
+     * Optional callback method after we have finished visiting all of a node's children
+     * and will return back to their parent.
      * @param element
      */
     protected void callback_after(E element) {
         // Do nothing
     }
     /**
-     * Callback method on the very first element in the tree
+     * Optional callback method on the very first element in the tree.
      * @param element
      */
     protected void callback_first(E element) {
         // Do nothing
     }
     /**
-     * Callback method on the very last element in the tree
+     * Optional callback method on the very last element in the tree
      * @param element
      */
     protected void callback_last(E element) {

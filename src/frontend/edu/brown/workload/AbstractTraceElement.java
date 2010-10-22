@@ -150,7 +150,15 @@ public abstract class AbstractTraceElement<T extends CatalogType> implements JSO
     }
     
     /**
-     * 
+     * Get the number of parameters that this trace element has
+     * @return
+     */
+    public int getParamCount() {
+        return (this.params.length);
+    }
+    
+    /**
+     * Get the parameters object array for this trace element
      * @return
      */
     public Object[] getParams() {

@@ -14,9 +14,9 @@ public class MarkovGraphsContainer extends HashMap<Integer, Map<Procedure, Marko
         this.get(partition).put(markov.getProcedure(), markov);
     }
     
-    public MarkovGraph get(Object key, Procedure catalog_proc) {
-        if (this.containsKey(key)) {
-            return (this.get(key).get(catalog_proc));
+    public MarkovGraph get(Integer partition, Procedure catalog_proc) {
+        if (this.containsKey(partition)) {
+            return (this.get(partition).get(catalog_proc));
         }
         return (null);
     }
