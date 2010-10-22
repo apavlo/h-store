@@ -8,7 +8,7 @@ Andy Pavlo <pavlo@cs.brown.edu>
 1) We first need to create the ProtoRPC Java source files from the ProtocolBuffers compiler.
    From the command line, execute the following command:
 
-$ ant protobuf
+$ ant protorpc
 
 Wait until everything finishes
 
