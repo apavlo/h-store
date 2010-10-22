@@ -178,6 +178,14 @@ public class PlanColumn
     public int width() {
         return m_expression.getValueSize();
     }
+    
+    public SortOrder getSortOrder() {
+        return (this.m_sortOrder);
+    }
+    public Storage getStorage() {
+        return (this.m_storage);
+    }
+    
 
     public AbstractExpression getExpression()
     {

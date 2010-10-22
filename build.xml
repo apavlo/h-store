@@ -1601,7 +1601,7 @@ BENCHMARKS
         <jvmarg value="-Xmx512m" />
         <jvmarg value="-Djava.library.path=${build.dir}/nativelibs" />
         <jvmarg value="-Dlog4j.configuration=${basedir}/log4j.properties"/>
-        <assertions><disable/></assertions>
+        <assertions><enable/></assertions>
         <arg value="CLIENT=${client}" />
         <arg value="BACKEND=${backend}" />
         <arg value="HOSTCOUNT=${hostcount}" />
@@ -2171,17 +2171,13 @@ H-STORE REMIX
     <exec executable="./scripts/runner.sh" failonerror="true">
         <arg line="${project}" />
         <arg line="compileonly" />
+        <arg line="BUILD_JAVA=0" />
+        <arg line="BUILD_EE=0" />
+<!--         <arg line="BUILD_VOLTBIN=0" /> -->
     </exec>
     <antcall target="hstore-jar">
         <param name="jar" value="${project}.jar" />
     </antcall>    
-<!--    <exec executable="./scripts/runner.sh" failonerror="true">
-        <arg line="${project}" />
-        <arg line="DELETE_BENCHMARK_JAR=0" />
-        <arg line="RUN_BENCHMARK=0" />
-        <arg line="BUILD_JAVA=0" />
-        <arg line="BUILD_ENGINE=0" />
-    </exec>-->
 </target>
 
 <target name="hstore-coordinatornode" description="H-Store Execution Node/Coordinator">
