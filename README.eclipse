@@ -5,11 +5,10 @@ Andy Pavlo <pavlo@cs.brown.edu>
 + pavlo 2010-09-28
 + -----------------------------------------------------------
 
-1) Build H-Store from the command-line first. This is necessary in order to
-   create the ProtocolBuffer generated Java code.
+1) We first need to create the ProtoRPC Java source files from the ProtocolBuffers compiler.
+   From the command line, execute the following command:
 
-$ cd $HSTORE
-$ ant compile
+$ ant protobuf
 
 Wait until everything finishes
 
@@ -24,8 +23,8 @@ $HSTORE/src
 
 6) Click "Link Additional Source" and add the following mapping:
 
-$HSTORE/third_party/cpp/protobuf/java/src/main/java -> protobuf
 $HSTORE/tests/frontend -> tests
+$HSTORE/third_party/cpp/protobuf/java/src/main/java -> protobuf
 $HSTORE/third_party/java/src -> third_party
 $HSTORE/obj/release/protorpc -> protorpc_generated
 

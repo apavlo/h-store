@@ -1,7 +1,10 @@
 package edu.brown.markov;
 
+import java.text.DecimalFormat;
 import java.util.*;
+import java.util.Map.Entry;
 
+import org.apache.log4j.Logger;
 import org.json.*;
 import org.voltdb.catalog.*;
 
@@ -9,13 +12,16 @@ import edu.brown.catalog.CatalogKey;
 import edu.brown.graphs.AbstractVertex;
 import edu.brown.utils.ClassUtil;
 import edu.brown.utils.CollectionUtil;
+import edu.brown.utils.MathUtil;
 import edu.brown.utils.StringUtil;
 
 /**
  * 
  * @author svelagap
+ * @author pavlo
  */
 public class Vertex extends AbstractVertex {
+    private static final Logger LOG = Logger.getLogger(Vertex.class);
     
     // ----------------------------------------------------------------------------
     // INTERNAL DATA ENUMS
@@ -25,21 +31,30 @@ public class Vertex extends AbstractVertex {
         QUERY_INSTANCE_INDEX,
         TYPE,
         PARTITIONS,
+        PAST_PARTITIONS,
         TOTALHITS,
         PROBABILITIES,
         EXECUTION_TIME,
     };
 
     public enum Type {
-        QUERY, START, COMMIT, ABORT
+        QUERY,
+        START,
+        COMMIT,
+        ABORT
     };
 
     public enum Probability {
-        SINGLE_SITED,
-        ABORT,
-        READ_ONLY,
-        WRITE,
-        DONE;
+        SINGLE_SITED    (true),
+        ABORT           (true),
+        READ_ONLY       (false),
+        WRITE           (false),
+        DONE            (false);
+        
+        final boolean single_value;
+        Probability(boolean single_value) {
+            this.single_value = single_value;
+        }
         
         protected static final Map<Integer, Probability> idx_lookup = new HashMap<Integer, Probability>();
         protected static final Map<String, Probability> name_lookup = new HashMap<String, Probability>();
@@ -69,7 +84,13 @@ public class Vertex extends AbstractVertex {
      * For example, the ABORT probability is global to all partitions, so we only need to store one
      * value for it
      */
-    private static final int DEFAULT_PARTITION_ID = Integer.MAX_VALUE;
+    private static final int DEFAULT_PARTITION_ID = -1; // Integer.MAX_VALUE;
+    
+    /**
+     * I'm getting back some funky results so we'll just round everything to this
+     * number of decimal places.
+     */
+    private static final int PROBABILITY_PRECISION = 7;
 
     // ----------------------------------------------------------------------------
     // EXECUTION STATE DATA MEMBERS
@@ -79,7 +100,7 @@ public class Vertex extends AbstractVertex {
      * The Query Instance Index is the counter for the number of times this particular Statement
      * was executed in the transaction 
      */
-    public long query_instance_index;
+    public int query_instance_index;
     
     /**
      * The number of times this Vertex has been traversed
@@ -95,6 +116,11 @@ public class Vertex extends AbstractVertex {
      * The partitions this query touches
      */
     public Set<Integer> partitions = new HashSet<Integer>();
+    
+    /**
+     * The partitions that the txn has touched in the past
+     */
+    public Set<Integer> past_partitions = new HashSet<Integer>();
 
     // ----------------------------------------------------------------------------
     // ADDITIONAL NON-STATE DATA MEMBERS
@@ -108,7 +134,7 @@ public class Vertex extends AbstractVertex {
     /**
      * Mapping from Probability type to another map from partition id
      */
-    public Map<Vertex.Probability, SortedMap<Integer, Float>> probabilities = new HashMap<Probability, SortedMap<Integer, Float>>();
+    public Map<Vertex.Probability, SortedMap<Integer, Double>> probabilities = new HashMap<Probability, SortedMap<Integer, Double>>();
     
     // ----------------------------------------------------------------------------
     // TRANSIENT DATA MEMBERS
@@ -123,7 +149,7 @@ public class Vertex extends AbstractVertex {
      * The execution times of the transactions in the on-line run
      * A map of the xact_id to the time it took to get to this vertex
      */
-    private transient Map<Long,Long> instancetimes = new HashMap<Long,Long>();
+    private transient Map<Long, Long> instancetimes = new HashMap<Long,Long>();
     
     /**
      * The count, used to figure out the average execution time above
@@ -149,7 +175,7 @@ public class Vertex extends AbstractVertex {
      * @param type
      */
     public Vertex(Statement catalog_stmt, Vertex.Type type) {
-        this(catalog_stmt, type, 0, new HashSet<Integer>());
+        this(catalog_stmt, type, 0, new HashSet<Integer>(), new HashSet<Integer>());
     }
     
     /**
@@ -158,8 +184,8 @@ public class Vertex extends AbstractVertex {
      * @param partitions
      * @param xact_count
      */
-    public Vertex(Statement catalog_stmt, Integer[] partitions) {
-        this(catalog_stmt, Type.QUERY, 0, Arrays.asList(partitions));
+    public Vertex(Statement catalog_stmt, Integer[] partitions, Integer[] past_partitions) {
+        this(catalog_stmt, Type.QUERY, 0, Arrays.asList(partitions), Arrays.asList(past_partitions));
     }
 
     /**
@@ -170,10 +196,11 @@ public class Vertex extends AbstractVertex {
      * @param id - the query trace index of this particular vertex, helps to identify
      * @param i - the number of transactions in this workload. used to figure out whether we should recompute
      */
-    public Vertex(Statement catalog_stmt, Vertex.Type type, long query_instance_index, Collection<Integer> partitions) {
+    public Vertex(Statement catalog_stmt, Vertex.Type type, int query_instance_index, Collection<Integer> partitions, Collection<Integer> past_partitions) {
         super(catalog_stmt);
         this.type = type;
         this.partitions.addAll(partitions);
+        this.past_partitions.addAll(past_partitions);
         this.query_instance_index = query_instance_index;
         this.init();
     }
@@ -182,8 +209,8 @@ public class Vertex extends AbstractVertex {
      * Initialize the probability tables
      */
     private void init() {
-        for (Vertex.Probability probability_type : Vertex.Probability.values()) {
-            this.probabilities.put(probability_type, new TreeMap<Integer, Float>());
+        for (Vertex.Probability ptype : Vertex.Probability.values()) {
+            this.probabilities.put(ptype, new TreeMap<Integer, Double>());
         } // FOR
     }
 
@@ -199,7 +226,7 @@ public class Vertex extends AbstractVertex {
         return this.type;
     }
 
-    public Integer getQueryInstanceIndex() {
+    public int getQueryInstanceIndex() {
         return (int)this.query_instance_index;
     }
     
@@ -211,8 +238,20 @@ public class Vertex extends AbstractVertex {
         return totalhits;
     }
 
+    /**
+     * Return the set of partitions that the query represented by this vertex touches
+     * @return
+     */
     public Set<Integer> getPartitions() {
         return partitions;
+    }
+    
+    /**
+     * Return the set of partitions that the txn has touched in the past
+     * @return
+     */
+    public Set<Integer> getPastPartitions() {
+        return past_partitions;
     }
 
     public boolean equals(Object o) {
@@ -221,9 +260,42 @@ public class Vertex extends AbstractVertex {
             return (this.type.equals(v.type) &&
                     this.catalog_item.equals(v.catalog_item) &&
                     this.partitions.equals(v.partitions) &&
+                    (MarkovGraph.USE_PAST_PARTITIONS == false || this.past_partitions.equals(v.past_partitions)) &&
                     this.query_instance_index == v.query_instance_index);
         }
         return false;
+    }
+    
+    /**
+     * Perform equality check distinct from equals() method. Checks partitions, catalog_statement,
+     * and the index of the query within the transaction
+     * @param other_stmt
+     * @param other_partitions
+     * @param other_past
+     * @param other_queryInstanceIndex
+     * @return
+     */
+    public boolean isEqual(Statement other_stmt, Collection<Integer> other_partitions, Collection<Integer> other_past, int other_queryInstanceIndex) {
+        return (this.isEqual(other_stmt, other_partitions, other_past, other_queryInstanceIndex, MarkovGraph.USE_PAST_PARTITIONS));
+    }
+    
+    /**
+     * Perform equality check distinct from equals() method. Checks partitions, catalog_statement,
+     * and the index of the query within the transaction
+     * This version of isEqual() allows you to pass in the use_past_partitions flag
+     * 
+     * @param other_stmt
+     * @param other_partitions
+     * @param other_past
+     * @param other_queryInstanceIndex
+     * @param use_past_partitions
+     * @return
+     */
+    public boolean isEqual(Statement other_stmt, Collection<Integer> other_partitions, Collection<Integer> other_past, int other_queryInstanceIndex, boolean use_past_partitions) {
+        return (other_stmt.equals(this.catalog_item) &&
+                other_partitions.equals(this.partitions) &&
+                (use_past_partitions == false || other_past.equals(this.past_partitions)) &&
+                other_queryInstanceIndex == this.query_instance_index);
     }
     
     @Override
@@ -231,10 +303,95 @@ public class Vertex extends AbstractVertex {
         return ("{" + 
                this.catalog_item.getName() + "," +
                "Indx:" + this.query_instance_index + "," +
-               "Prtns:" + this.partitions +
+               "Prtns:" + this.partitions + ", " +
+               "Past:" + this.past_partitions +
                "}");
     }
+    
+    /**
+     * Produce a table of all the partitions
+     */
+    public String debug() {
+        StringBuilder top = new StringBuilder();
+        StringBuilder bot = new StringBuilder();
+        
+        final DecimalFormat formatter = new DecimalFormat("0.000");
+        
+        // First get the list of all the partitions that we know about
+        Set<Integer> partitions = new HashSet<Integer>();
+        Set<Probability> single_ptypes = new HashSet<Probability>();
+        for (Vertex.Probability type : Vertex.Probability.values()) {
+            Map<Integer, Double> probs = this.probabilities.get(type);
+            partitions.addAll(probs.keySet());
 
+            if (probs.size() == 1) {
+                top.append(String.format("+%-12s %s\n", type.toString() + ":", formatter.format(probs.get(DEFAULT_PARTITION_ID))));
+                single_ptypes.add(type);
+            } else {
+                bot.append("\t" + StringUtil.abbrv(type.name(), 6, false));
+            }
+        } // FOR
+        partitions.remove(DEFAULT_PARTITION_ID); 
+        bot.append("\n");
+
+
+        // Now construct the debug output table
+        for (int partition : partitions) {
+            bot.append(String.format("[%02d]", partition));
+            
+            for (Vertex.Probability type : Vertex.Probability.values()) {
+                if (single_ptypes.contains(type)) continue;
+                Double prob = this.probabilities.get(type).get(partition);
+                
+                bot.append("\t");
+                if (prob == null) {
+                    bot.append("<NONE>");
+                } else {
+                    bot.append(formatter.format(prob)); 
+                }
+            } // FOR
+            bot.append("\n");
+        } // FOR
+//        
+//        
+//        for (Vertex.Probability type : Vertex.Probability.values()) {
+//            SortedMap<Integer, Double> prob = this.probabilities.get(type);
+//            if (prob.size() == 1) {
+//                top += String.format("+%-12s %.3g\n", type.toString() + ":", prob.get(DEFAULT_PARTITION_ID));
+//            } else {
+//                bot += "+" + type.toString() + ": " + prob.keySet() + "\n";
+//                if (prob.isEmpty()) {
+//                    bot += "   <NONE>\n";
+//                } else {
+//                    for (int partition : prob.keySet()) {
+//                        bot += String.format("   [%02d] %.3g\n", partition, prob.get(partition));  
+//                    } // FOR
+//                }
+//            }
+//        }
+        String ret = this.toString() + // "Vertex[" + this.getCatalogItem().getName() + "]"
+                     " :: " +
+                     "ExecutionTime " + this.getExecutiontime() + "\n" +
+                     top + bot;
+        return (ret);
+
+    }
+
+    // ----------------------------------------------------------------------------
+    // PROBABILITY METHODS
+    // ----------------------------------------------------------------------------
+
+    /**
+     * Returns true if the query for this vertex only touches one partition and that
+     * partition is the as the base_partition (i.e., where the procedure's Java code is executing)
+     * @param base_partition
+     * @return
+     */
+    public boolean isLocalPartitionOnly(int base_partition) {
+        return ((this.type != Type.QUERY) || 
+                (this.partitions.size() == 1 && CollectionUtil.getFirst(this.partitions) == base_partition));
+    }
+    
     public boolean isSingleSited() {
         return partitions.size() <= 1;
     }
@@ -246,17 +403,22 @@ public class Vertex extends AbstractVertex {
     /**
      * Returns the probability of name if it is found in the mapping, otherwise returns d
      * @param name
-     * @param d
+     * @param default_value
      * @return
      */
-    private float getSpecificProbability(Vertex.Probability type, int partition, float d) {
-        SortedMap<Integer, Float> prob = this.probabilities.get(type);
-        assert(prob != null);
-        if (prob.containsKey(partition)) {
-            return (prob.get(partition));
+    private Double getSpecificProbability(Vertex.Probability ptype, int partition, Double default_value) {
+        SortedMap<Integer, Double> probs = this.probabilities.get(ptype);
+        assert(probs != null);
+        
+        Double prob = probs.get(partition);
+        if (prob == null) {
+            probs.put(partition, default_value);
+            prob = default_value;
         }
-        prob.put(partition, d);
-        return (d);
+        // Handle funky rounding error that I think is due to casting
+        // Note that we only round when we hand out the number. If we try to round it before we 
+        // stick it in then it still comes out wrong sometimes...
+        return (prob != null ? MathUtil.roundToDecimals(prob, PROBABILITY_PRECISION) : null); 
     }
     
     /**
@@ -264,287 +426,124 @@ public class Vertex extends AbstractVertex {
      * @param name
      * @param probability
      */
-    private void addToProbability(Vertex.Probability type, int partition, float probability) {
-        float previous = (float) 0.0;
-        SortedMap<Integer, Float> prob = this.probabilities.get(type);
+    private void addToProbability(Vertex.Probability type, int partition, double probability) {
+        SortedMap<Integer, Double> prob = this.probabilities.get(type);
         assert(prob != null);
-        if (prob.containsKey(partition)) {
-            previous = prob.get(partition);
-        }
-        setProbability(type, partition, (previous + probability));
+        Double previous = prob.get(partition);
+        if (previous == null) previous = 0.0;
+        this.setProbability(type, partition, (previous+probability));
     }
 
     /**
      * 
-     * @param type
+     * @param ptype
      * @param partition
      * @param probability
      */
-    private void setProbability(Vertex.Probability type, int partition, float probability) {
-        this.probabilities.get(type).put(partition, probability);
+    private void setProbability(Vertex.Probability ptype, int partition, double probability) {
+        LOG.trace("(" + ptype + ", " + partition + ") => " + probability);
+        this.probabilities.get(ptype).put(partition, probability);
     }
 
+    /**
+     * Reset all probabilities. Keeps partitions in maps
+     */
+    public synchronized void resetAllProbabilities() {
+        for (Vertex.Probability ptype : this.probabilities.keySet()) {
+            if (ptype.single_value) {
+                this.probabilities.get(ptype).put(DEFAULT_PARTITION_ID, null);
+            } else {
+                for (Entry<Integer, Double> e : this.probabilities.get(ptype).entrySet()) {
+                    this.probabilities.get(ptype).put(e.getKey(), null);
+                } // FOR
+            }
+        } // FOR
+    }
+    
     // ----------------------------------------------------------------------------
     // SINGLE-SITED PROBABILITY
     // ----------------------------------------------------------------------------
     
-    public void addSingleSitedProbability(float probability) {
+    public void addSingleSitedProbability(double probability) {
         this.addToProbability(Probability.SINGLE_SITED, DEFAULT_PARTITION_ID, probability);
     }
-    public void setSingleSitedProbability(float probability) {
+    public void setSingleSitedProbability(double probability) {
         this.setProbability(Probability.SINGLE_SITED, DEFAULT_PARTITION_ID, probability);
     }
-    public float getSingleSitedProbability() {
-        return (this.getSpecificProbability(Probability.SINGLE_SITED, DEFAULT_PARTITION_ID, 0.0f));
+    public Double getSingleSitedProbability() {
+        return (this.getSpecificProbability(Probability.SINGLE_SITED, DEFAULT_PARTITION_ID, 0.0d));
     }
-    public static void calculateSingleSitedProbability(Set<Vertex> vs, MarkovGraph g) {
-        g.unmarkAllEdges();
-        calculateSingleSited(vs, g);
-    }
-    private static void calculateSingleSited(Set<Vertex> vs, MarkovGraph g) {
-        if (vs.size() == 0)
-            return;
-        Set<Edge> edges = getEdgesTo(vs, g);
-        Set<Vertex> vertices = new HashSet<Vertex>();
-        for (Edge e : edges) {
-            if (!e.marked()) {
-                Vertex v = g.getSource(e);
-                Vertex dest = g.getDest(e);
-                if (dest.isSingleSited() && dest.isQueryVertex()) {
-                    v.addSingleSitedProbability((float) (e.getProbability() * 1.0));
-                }
-                vertices.add(v);
-                e.mark();
-            }
-        }
-        calculateSingleSited(vertices, g);
+    public boolean isSingleSitedProbabilitySet() {
+        return (this.getSpecificProbability(Probability.SINGLE_SITED, DEFAULT_PARTITION_ID, null) != null);
     }
 
     // ----------------------------------------------------------------------------
     // READ-ONLY PROBABILITY
     // ----------------------------------------------------------------------------
     
-    public void addReadOnlyProbability(int partition, float probability) {
+    public void addReadOnlyProbability(int partition, double probability) {
         this.addToProbability(Probability.READ_ONLY, partition, probability);
     }
-    public void setReadOnlyProbability(int partition, float probability) {
+    public void setReadOnlyProbability(int partition, double probability) {
         this.setProbability(Probability.READ_ONLY, partition, probability);
     }
-    public float getReadOnlyProbability(int partition) {
-        return (this.getSpecificProbability(Probability.READ_ONLY, partition, 0.0f));
+    public Double getReadOnlyProbability(int partition) {
+        return (this.getSpecificProbability(Probability.READ_ONLY, partition, 0.0d));
     }
-    public static void calculateReadOnlyProbability(Set<Vertex> vs, MarkovGraph g) {
-        g.unmarkAllEdges();
-        calculateReadWriteProbability(vs, g);
+    public boolean isReadOnlyProbabilitySet(int partition) {
+        return (this.getSpecificProbability(Probability.READ_ONLY, partition, null) != null);
     }
     
     // ----------------------------------------------------------------------------
     // WRITE PROBABILITY
     // ----------------------------------------------------------------------------
     
-    public void addWriteProbability(int partition, float probability) {
+    public void addWriteProbability(int partition, double probability) {
         this.addToProbability(Probability.WRITE, partition, probability);
     }
-    public void setWriteProbability(int partition, float probability) {
+    public void setWriteProbability(int partition, double probability) {
         this.setProbability(Probability.WRITE, partition, probability);
     }
-    public float getWriteProbability(int partition) {
-        return (this.getSpecificProbability(Probability.WRITE, partition, 0.0f));
+    public Double getWriteProbability(int partition) {
+        return (this.getSpecificProbability(Probability.WRITE, partition, 0.0d));
+    }
+    public boolean isWriteProbabilitySet(int partition) {
+        return (this.getSpecificProbability(Probability.WRITE, partition, null) != null);
     }
     
     // ----------------------------------------------------------------------------
     // DONE PROBABILITY
     // ----------------------------------------------------------------------------
     
-    public void addDoneProbability(int partition, float probability) {
+    public void addDoneProbability(int partition, double probability) {
         this.addToProbability(Probability.DONE, partition, probability);
     }
-    public void setDoneProbability(int partition, float probability) {
+    public void setDoneProbability(int partition, double probability) {
         this.setProbability(Probability.DONE, partition, probability);
     }
-    public float getDoneProbability(int partition) {
-        return (this.getSpecificProbability(Probability.DONE, partition, 1.0f));
+    public Double getDoneProbability(int partition) {
+        return (this.getSpecificProbability(Probability.DONE, partition, 1.0d));
     }
-    /**
-     * Calculates the probability that each vertex will be done at each partition.
-     * @param vs
-     * @param markovGraph
-     */
-    public static void calculateDoneProbability(Vertex vs, MarkovGraph markovGraph) {
-        markovGraph.unmarkAllEdges();
-        calculateMultiDoneProbability(vs, markovGraph, new HashSet<Integer>());
+    public boolean isDoneProbabilitySet(int partition) {
+        return (this.getSpecificProbability(Probability.DONE, partition, null) != null);
     }
-
 
     // ----------------------------------------------------------------------------
     // ABORT PROBABILITY
     // ----------------------------------------------------------------------------
 
-    public void addAbortProbability(float probability) {
+    public void addAbortProbability(double probability) {
         this.addToProbability(Probability.ABORT, DEFAULT_PARTITION_ID, probability);
     }
-    public void setAbortProbability(float probability) {
+    public void setAbortProbability(double probability) {
         this.setProbability(Probability.ABORT, DEFAULT_PARTITION_ID, probability);
     }
-    public float getAbortProbability() {
-        return (this.getSpecificProbability(Probability.ABORT, DEFAULT_PARTITION_ID, 0.0f));
+    public Double getAbortProbability() {
+        return (this.getSpecificProbability(Probability.ABORT, DEFAULT_PARTITION_ID, 0.0d));
     }
-    public static void calculateAbortProbability(Set<Vertex> vs, MarkovGraph g) {
-        g.unmarkAllEdges();
-        calculateAllAbortProbability(vs, g);
+    public boolean isAbortProbabilitySet() {
+        return (this.getSpecificProbability(Probability.DONE, DEFAULT_PARTITION_ID, null) != null);
     }
-
-    /**
-     * Calculates abort probability. 
-     * This method is recursive: it should be fed the abort node. Then it will trace back through the graph
-     * and propagate the abort probability through the graph based on the probability of traversals of the edge
-     * we are backtracking on.
-     * @param vs
-     * @param g
-     * @param probtype
-     */
-    private static void calculateAllAbortProbability(Set<Vertex> vs, MarkovGraph g) {
-        if (vs.size() == 0)
-            return;
-        Set<Edge> edges = getEdgesTo(vs, g);
-        Set<Vertex> vertices = new HashSet<Vertex>();
-        for (Edge e : edges) {
-            if (!e.marked()) {
-                Vertex v = g.getSource(e);
-                Vertex dest = g.getDest(e);
-                v.addAbortProbability((float) (e.getProbability() * dest.getAbortProbability()));
-                vertices.add(v);
-                e.mark();
-            }
-        }
-        calculateAllAbortProbability(vertices, g);
-    }
-
-    /**
-     * Calculates the probability that each vertex will be done at each partition.
-     * @param vs
-     * @param g
-     * @param seen
-     */
-    private static void calculateMultiDoneProbability(Vertex vs, MarkovGraph g, Set<Integer> seen) {
-        if (vs == null)
-            return;
-        Set<Vertex> one = new HashSet<Vertex>();
-        one.add(vs);
-        Set<Edge> edges = getEdgesTo(one, g);
-        // Keep track of the new partition IDs we have seen so far at this depth
-        // of the graph
-        for (Edge e : edges) {
-            Vertex v = g.getSource(e);
-            Vertex dest = g.getDest(e);
-            Set<Integer> allpartitions = new HashSet<Integer>(g.getAllPartitions());
-            Set<Integer> seensofar = new HashSet<Integer>(v.getPartitions());
-            allpartitions.removeAll(seen);
-            allpartitions.removeAll(seensofar);
-            if (!e.marked()) {
-                for (int i : allpartitions) {
-                    // set all we havent seen at all to 1.0
-                    if (v.equals(g.getStartVertex())) {
-                        v.getDoneProbability(i);
-                    }
-                    dest.getDoneProbability(i);
-                }
-                for (int i : seen) {
-                    // set all we've seen based on the neighbor's probabilities
-                    v.addDoneProbability(i, (float)e.getProbability() * dest.getDoneProbability(i));
-                }
-                seensofar.removeAll(seen);
-                for (int i : seensofar) {
-                    seensofar.add(i);
-                    v.setDoneProbability(i, 0.0f);
-                } // FOR
-                e.mark();
-                Set<Integer> newseen = new HashSet<Integer>(seen);
-                newseen.addAll(seensofar);
-                // System.out.println(newseen);
-                calculateMultiDoneProbability(v, g, newseen);
-            }
-        }
-    }
-
-    /**
-     * We start at the end with the commit/stop vertex. We work backwards, if the destination vertex
-     * is readonly, we set it's read-only probability to 1.0 at all the partitions it touches, otherwise
-     * we set it's write probability to 1.0 at all the partitions it touches.
-     * To calculate further down the graph we use the probability of transitioning to the next vertex
-     * times the RO or W probability at the next vertex for a particular partition.
-     * @param vs
-     * @param g
-     */
-    private static void calculateReadWriteProbability(Set<Vertex> vs, MarkovGraph g) {
-        if (vs.size() == 0)
-            return;
-        Set<Edge> edges = getEdgesTo(vs, g);
-        Set<Vertex> vertices = new HashSet<Vertex>();
-        List<Integer> partitions = g.getAllPartitions();
-        for (Edge e : edges) {
-            if (!e.marked()) {
-                Vertex v = g.getSource(e);
-                Vertex dest = g.getDest(e);
-                for (int i : partitions) {
-                    if (dest.isQueryVertex() && dest.partitions.contains(i)) {
-                        if (!dest.isReadOnly()) {
-                            dest.setWriteProbability(i, (float) 1.0);
-                        } else {
-                            dest.setReadOnlyProbability(i, (float) 1.0);
-                        }
-                    }
-                    float read = (float) (e.getProbability() * dest.getReadOnlyProbability(i));
-                    float write = (float) (e.getProbability() * dest.getWriteProbability(i));
-                    v.addReadOnlyProbability(i, read);
-                    v.addWriteProbability(i, write);
-                }
-                vertices.add(v);
-                e.mark();
-            }
-        }
-        calculateReadWriteProbability(vertices, g);
-    }
-
-    public boolean isQueryVertex() {
-        return this.getType().equals(Type.QUERY);
-    }
-    
-    /**
-     * Perform equality check distinct from equals() method. Checks partitions, catalog_statement,
-     * and the index of the query within the transaction
-     * @param a
-     * @param partitions2
-     * @param queryInstanceIndex
-     * @return
-     */
-    public boolean isEqual(Statement a, Collection<Integer> partitions2, long queryInstanceIndex) {
-        return a.equals(this.catalog_item) && partitions2.equals(partitions)
-                && queryInstanceIndex == query_instance_index;
-    }
-    
-    public boolean isMatch(Statement catalog_stmt, int[] partitions2) {
-        return this.catalog_key.equals(CatalogKey.createKey(catalog_stmt))
-                && partitions.equals(partitions2);
-    }
-
-    /**
-     * Gives all edges to the set of vertices vs in the MarkovGraph g
-     * @param vs
-     * @param g
-     * @return
-     */
-    static Set<Edge> getEdgesTo(Set<Vertex> vs, MarkovGraph g) {
-        Set<Edge> edges = new HashSet<Edge>();
-        for (Vertex v : vs) {
-            if (v != null) {
-                edges.addAll(g.getInEdges(v));
-            }
-        }
-        return edges;
-    }
-
-
 
     /**
      * The 'score' of a vertex is a measure of how often it has been hit in the current workload.
@@ -552,8 +551,8 @@ public class Vertex extends AbstractVertex {
      * @param xact_count
      * @return
      */
-    public float getChangeScore(int xact_count) {
-        return (float) (instancehits * 1.0 / xact_count);
+    public double getChangeScore(int xact_count) {
+        return (double) (instancehits * 1.0 / xact_count);
     }
 
     /**
@@ -573,76 +572,9 @@ public class Vertex extends AbstractVertex {
         totalhits += instancehits2;
     }
 
-    /**
-     * Produce a table of all the partitions
-     */
-    public String debug() {
-        StringBuilder top = new StringBuilder();
-        StringBuilder bot = new StringBuilder();
-        
-        // First get the list of all the partitions that we know about
-        Set<Integer> partitions = new HashSet<Integer>();
-        Set<Probability> single_ptypes = new HashSet<Probability>();
-        for (Vertex.Probability type : Vertex.Probability.values()) {
-            Map<Integer, Float> probs = this.probabilities.get(type);
-            partitions.addAll(probs.keySet());
-
-            if (probs.size() == 1) {
-                top.append(String.format("+%-12s %.3g\n", type.toString() + ":", probs.get(DEFAULT_PARTITION_ID)));
-                single_ptypes.add(type);
-            } else {
-                bot.append("\t" + StringUtil.abbrv(type.name(), 6, false));
-            }
-        } // FOR
-        partitions.remove(DEFAULT_PARTITION_ID); 
-        bot.append("\n");
-
-
-        // Now construct the debug output table
-        for (int partition : partitions) {
-            bot.append(String.format("[%02d]", partition));
-            
-            for (Vertex.Probability type : Vertex.Probability.values()) {
-                if (single_ptypes.contains(type)) continue;
-                Float prob = this.probabilities.get(type).get(partition);
-                
-                bot.append("\t");
-                if (prob == null) {
-                    bot.append("<NONE>");
-                } else {
-                    bot.append(String.format("%.3g", prob)); 
-                }
-            } // FOR
-            bot.append("\n");
-        } // FOR
-//        
-//        
-//        for (Vertex.Probability type : Vertex.Probability.values()) {
-//            SortedMap<Integer, Float> prob = this.probabilities.get(type);
-//            if (prob.size() == 1) {
-//                top += String.format("+%-12s %.3g\n", type.toString() + ":", prob.get(DEFAULT_PARTITION_ID));
-//            } else {
-//                bot += "+" + type.toString() + ": " + prob.keySet() + "\n";
-//                if (prob.isEmpty()) {
-//                    bot += "   <NONE>\n";
-//                } else {
-//                    for (int partition : prob.keySet()) {
-//                        bot += String.format("   [%02d] %.3g\n", partition, prob.get(partition));  
-//                    } // FOR
-//                }
-//            }
-//        }
-        String ret = "Vertex[" + this.getCatalogItem().getName() + "] :: " +
-                     "ExecutionTime " + this.getExecutiontime() + "\n" +
-                     top + bot;
-        return (ret);
-
-    }
-
     public void setExecutiontime(Long executiontime) {
         this.execution_time = executiontime;
     }
-
 
     public Long getExecutiontime() {
         return execution_time;
@@ -691,7 +623,7 @@ public class Vertex extends AbstractVertex {
      * transaction takes to execute in the on-line model.
      */
     public void addInstanceTime(long xact_id, long time){
-        instancetimes.put(xact_id,time);
+        this.instancetimes.put(xact_id, time);
     }
     
     /**
@@ -732,7 +664,7 @@ public class Vertex extends AbstractVertex {
         //
         stringer.key(Members.PROBABILITIES.name()).object();
         for (Probability type : Probability.values()) {
-            SortedMap<Integer, Float> probs = this.probabilities.get(type);
+            SortedMap<Integer, Double> probs = this.probabilities.get(type);
 
             stringer.key(type.name()).object();
             for (Integer partition : probs.keySet()) {
@@ -768,7 +700,14 @@ public class Vertex extends AbstractVertex {
                 String partition_key = keys_partitions.next();
                 Integer partition = Integer.valueOf(partition_key);
                 assert(partition != null);
-                this.probabilities.get(type).put(partition, (float)json_map.getDouble(partition_key));
+                Double probability = null;
+                try {
+                    if (!json_map.isNull(partition_key)) probability = json_map.getDouble(partition_key);    
+                } catch (JSONException ex) {
+                    LOG.error("Failed to get " + type + " probability at Partition #" + partition);
+                    throw ex;
+                }
+                this.probabilities.get(type).put(partition, probability);
             } // WHILE
         } // WHILE
         

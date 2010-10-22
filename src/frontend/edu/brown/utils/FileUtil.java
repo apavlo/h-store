@@ -43,11 +43,11 @@ public abstract class FileUtil {
         return (new File(path)).getName();
     }
     
-    public static void writeStringToFile(String file_path, String content) throws Exception {
+    public static void writeStringToFile(String file_path, String content) throws IOException {
         FileUtil.writeStringToFile(new File(file_path), content);
     }
 
-    public static void writeStringToFile(File file, String content) throws Exception {
+    public static void writeStringToFile(File file, String content) throws IOException {
         FileWriter writer = new FileWriter(file);
         writer.write(content);
         writer.flush();

@@ -165,6 +165,8 @@ public abstract class ClientMain {
 
         public final String display;
     };
+    
+    public static String CONTROL_PREFIX = "{HSTORE} ";
 
     /**
      * Implements the simple state machine for the remote controller protocol.
@@ -180,7 +182,7 @@ public abstract class ClientMain {
 
             // transition to ready and send ready message
             if (m_controlState == ControlState.PREPARING) {
-                System.out.printf("%d,%s\n", System.currentTimeMillis(),
+                System.out.printf("%s%d,%s\n", CONTROL_PREFIX, System.currentTimeMillis(),
                                   ControlState.READY.display);
                 m_controlState = ControlState.READY;
             }
@@ -246,7 +248,7 @@ public abstract class ClientMain {
         }
 
         public void answerWithError() {
-            System.out.printf("%d,%s,%s\n", System.currentTimeMillis(),
+            System.out.printf("%s%d,%s,%s\n", CONTROL_PREFIX, System.currentTimeMillis(),
                               m_controlState.display, m_reason);
         }
 
@@ -260,7 +262,7 @@ public abstract class ClientMain {
                     txncounts.append(m_counts[i].get());
                 }
             }
-            System.out.printf("%d,%s%s\n", System.currentTimeMillis(),
+            System.out.printf("%s%d,%s%s\n", CONTROL_PREFIX, System.currentTimeMillis(),
                               m_controlState.display, txncounts.toString());
         }
 

@@ -25,6 +25,7 @@ import edu.brown.hashing.AbstractHasher;
 import edu.brown.hashing.DefaultHasher;
 import edu.brown.plannodes.PlanNodeUtil;
 import edu.brown.workload.QueryTrace;
+import edu.brown.workload.TransactionTrace;
 
 /**
  * 
@@ -612,6 +613,24 @@ public class PartitionEstimator {
         return (partition);
     }
 
+    /**
+     * 
+     * @param xact
+     * @return
+     * @throws Exception
+     */
+    public Set<Integer> getAllPartitions(final TransactionTrace xact) throws Exception {
+        Set<Integer> partitions = new HashSet<Integer>();
+        int base_partition = this.getPartition(xact.getCatalogItem(this.catalog_db), xact.getParams(), true);
+        partitions.add(base_partition);
+        
+        for (QueryTrace query : xact.getQueries()) {
+            partitions.addAll(this.getPartitions(query, base_partition));
+        } // FOR
+        
+        return (partitions);
+    }
+    
     /**
      * Return the list of partitions that this QueryTrace object will touch
      * @param query

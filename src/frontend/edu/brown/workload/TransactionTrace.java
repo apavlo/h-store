@@ -94,9 +94,11 @@ public class TransactionTrace extends AbstractTraceElement<Procedure> {
         for (int i = 0; i < this.params.length; i++) {
             ProcParameter catalog_param = catalog_proc.getParameters().get(i);
             Object param = this.params[i];
+            String type_name = VoltType.get(catalog_param.getType()).name();
+            if (ClassUtil.isArray(param)) type_name += "[" + ((Object[])param).length + "]";
             
             sb.append("   [" + i + "] -> ")
-              .append(String.format("%-11s ", "(" + VoltType.get(catalog_param.getType()).name() + ")"))
+              .append(String.format("%-11s ", "(" + type_name + ")"))
               .append(ClassUtil.isArray(param) ? Arrays.toString((Object[])param) : param)
               .append("\n");
         } // FOR

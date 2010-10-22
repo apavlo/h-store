@@ -35,28 +35,31 @@ public class ProcedureNameFilter extends AbstractWorkload.Filter {
      * Add the given catalog object names to this filter's whitelist
      * @param names
      */
-    public void include(String...names) {
+    public ProcedureNameFilter include(String...names) {
         for (String name : names) {
             this.include(name, INCLUDE_UNLIMITED);
         }
+        return (this);
     }
     
-    public void include(String name, int limit) {
+    public ProcedureNameFilter include(String name, int limit) {
         this.whitelist.put(name, new AtomicInteger(limit));
         this.whitelist_orig_ctr.put(name, limit);
+        return (this);
     }
     
     /**
      * Add the given catalog object names to this filter's blacklist
      * @param names
      */
-    public void exclude(String...names) {
+    public ProcedureNameFilter exclude(String...names) {
         Collections.addAll(this.blacklist, names);
+        return (this);
     }
     
     @Override
     protected String debug() {
-        return (this.getClass().getSimpleName() + ": include=" + this.whitelist + " exclude=" + this.blacklist);
+        return (this.getClass().getSimpleName() + "[include=" + this.whitelist + " exclude=" + this.blacklist + "]");
     }
     
     @Override

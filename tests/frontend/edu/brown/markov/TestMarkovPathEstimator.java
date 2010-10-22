@@ -6,29 +6,35 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.Vector;
-import java.util.Map.Entry;
 
+import org.apache.log4j.Level;
 import org.voltdb.VoltProcedure;
 import org.voltdb.benchmark.tpcc.procedures.neworder;
-import org.voltdb.benchmark.tpcc.procedures.slev;
-import org.voltdb.catalog.CatalogType;
+import org.voltdb.catalog.ProcParameter;
 import org.voltdb.catalog.Procedure;
+import org.voltdb.types.ExpressionType;
 
 import edu.brown.BaseTestCase;
+import edu.brown.catalog.CatalogUtil;
 import edu.brown.correlations.ParameterCorrelations;
 import edu.brown.graphs.GraphvizExport;
-import edu.brown.graphs.GraphvizExport.Attributes;
 import edu.brown.utils.FileUtil;
 import edu.brown.utils.ProjectType;
-import edu.brown.workload.AbstractTraceElement;
+import edu.brown.utils.StringUtil;
 import edu.brown.workload.AbstractWorkload;
 import edu.brown.workload.TransactionTrace;
 import edu.brown.workload.WorkloadTraceFileOutput;
 import edu.brown.workload.filters.BasePartitionTxnFilter;
+import edu.brown.workload.filters.ProcParameterArraySizeFilter;
+import edu.brown.workload.filters.ProcParameterValueFilter;
+import edu.brown.workload.filters.ProcedureLimitFilter;
 import edu.brown.workload.filters.ProcedureNameFilter;
 
+/**
+ * @author pavlo
+ */
 public class TestMarkovPathEstimator extends BaseTestCase {
-    private static final int WORKLOAD_XACT_LIMIT = 10000;
+    private static final int WORKLOAD_XACT_LIMIT = 1000;
     private static final int BASE_PARTITION = 1;
     private static final int NUM_PARTITIONS = 10;
     private static final Class<? extends VoltProcedure> TARGET_PROCEDURE = neworder.class;
@@ -55,14 +61,25 @@ public class TestMarkovPathEstimator extends BaseTestCase {
             correlations = new ParameterCorrelations();
             correlations.load(file.getAbsolutePath(), catalog_db);
             
+            // Workload Filter:
+            //  (1) Only include TARGET_PROCEDURE traces
+            //  (2) Only include traces with 10 orderline items
+            //  (3) Only include traces that execute on the BASE_PARTITION
+            //  (4) Limit the total number of traces to WORKLOAD_XACT_LIMIT
+            List<ProcParameter> array_params = CatalogUtil.getArrayProcParameters(this.catalog_proc);
+            AbstractWorkload.Filter filter = new ProcedureNameFilter()
+                  .include(TARGET_PROCEDURE.getSimpleName())
+                  .attach(new ProcParameterArraySizeFilter(array_params.get(0), 10, ExpressionType.COMPARE_EQUAL))
+                  .attach(new BasePartitionTxnFilter(p_estimator, BASE_PARTITION))
+                  .attach(new ProcedureLimitFilter(WORKLOAD_XACT_LIMIT));
+            
             file = this.getWorkloadFile(ProjectType.TPCC);
             workload = new WorkloadTraceFileOutput(catalog);
-            ProcedureNameFilter filter = new ProcedureNameFilter();
-            filter.include(TARGET_PROCEDURE.getSimpleName(), WORKLOAD_XACT_LIMIT);
-            
-            // Custom filter that only grabs neworders that go to our BASE_PARTITION
-            filter.attach(new BasePartitionTxnFilter(p_estimator, BASE_PARTITION));
             ((WorkloadTraceFileOutput) workload).load(file.getAbsolutePath(), catalog_db, filter);
+//             for (TransactionTrace xact : workload.getTransactions()) {
+//                 System.err.println(xact.debug(catalog_db));
+//                 System.err.println(StringUtil.repeat("+", 100));
+//             }
             
             // Generate MarkovGraphs
             markovs = MarkovUtil.createGraphs(catalog_db, workload, p_estimator);
@@ -109,9 +126,14 @@ public class TestMarkovPathEstimator extends BaseTestCase {
         Vertex commit = this.graph.getCommitVertex();
         Vertex abort = this.graph.getAbortVertex();
         
+        MarkovPathEstimator.LOG.setLevel(Level.DEBUG);
         MarkovPathEstimator estimator = new MarkovPathEstimator(this.graph, this.t_estimator, singlep_trace.getParams());
         estimator.traverse(this.graph.getStartVertex());
         Vector<Vertex> path = new Vector<Vertex>(estimator.getVisitPath());
+        double confidence = estimator.getConfidence();
+        
+//        System.err.println("INITIAL PATH:\n" + StringUtil.join("\n", path));
+//        System.err.println("CONFIDENCE: " + confidence);
         
         assertEquals(start, path.firstElement());
         assertEquals(commit, path.lastElement());
@@ -123,8 +145,11 @@ public class TestMarkovPathEstimator extends BaseTestCase {
             assertEquals(1, v.getPartitions().size());
             assert(v.getPartitions().contains(BASE_PARTITION));
         } // FOR
+        MarkovPathEstimator.LOG.setLevel(Level.INFO);
+        
+        GraphvizExport<Vertex, Edge> gv = MarkovUtil.exportGraphviz(this.graph, true, this.graph.getPath(path));
+        FileUtil.writeStringToFile("/tmp/dump.dot", gv.export(this.graph.getProcedure().getName()));
     }
-    
     
     /**
      * testMultiPartition
@@ -140,8 +165,10 @@ public class TestMarkovPathEstimator extends BaseTestCase {
         estimator.traverse(this.graph.getStartVertex());
         Vector<Vertex> path = new Vector<Vertex>(estimator.getVisitPath());
         
+//        System.err.println("INITIAL PATH:\n" + StringUtil.join("\n", path));
+        
         assertEquals(start, path.firstElement());
-        // assertEquals(commit, path.lastElement());
+        assertEquals(commit, path.lastElement());
         assertFalse(path.contains(abort));
         
         // All of the vertices should only have the base partition in their partition set
