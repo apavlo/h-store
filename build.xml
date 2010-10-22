@@ -404,6 +404,14 @@ CLEANING
   </exec>
 </target>
 
+<target name="clean-protorpc">
+    <delete includeemptydirs="true" dir="${build.protorpc.dir}" />
+</target>
+
+<target name="clean-dtxn">
+    <delete includeemptydirs="true" dir="${build.dtxn.dir}" />
+</target>
+
 <!--
 ***************************************
 JAR BUILDING
@@ -522,7 +530,7 @@ JAVA COMPILATION
 ***************************************
 -->
 
-<target name="compile" depends="protobuf, dtxn"> 
+<target name="compile" depends="protobuf, protorpc, dtxn"> 
 <!-- <target name="compile" depends="tpceloader_compile, protobuf_compile, dtxn_compile">  -->
     <!-- Delete additional class files from third_party jars before we build -->
     <delete dir="${build.prod.dir}/org/apache/" />
@@ -580,6 +588,14 @@ JAVA COMPILATION
         todir='${build.test.dir}/org/voltdb/catalog'/>
 
     <!-- compile the individual source directories -->
+    <javac
+        target="${javac.version}"
+        srcdir="${build.protorpc.dir}"
+        destdir='${build.prod.dir}'
+        debug='true'>
+        <classpath refid="project.classpath" />
+    </javac>
+    
     <javac
         target="${javac.version}"
         srcdir="${src.hsqldb.dir}"
@@ -1477,18 +1493,18 @@ PROTOCOL BUFFERS
 </target>
 
 <target name="protobuf.java.check">
-    <available property="protobuf.java.built" file="${build.protorpc.dir}/edu/brown/hstore/Hstore.java" />
+    <uptodate property="protobuf.java.built"
+              targetfile="${build.protorpc.dir}/protorpc/com/google/protobuf/DescriptorProtos.java">
+        <srcfiles dir="${src.protobuf.dir}/java/src/main/java" includes="**/*.proto" />
+    </uptodate>
 </target>
 
-<target name="protobuf.java" description="Generates require protocol buffer for Java" depends="protobuf.compile,protobuf.java.check" unless="protobuf.java.built" >
+<target name="protobuf.java" description="Generates require protocol buffer for Java"
+                             depends="protobuf.compile, protobuf.java.check" 
+                             unless="protobuf.java.built" >
     <!-- Generate the required protocol buffers for the Java build -->
     <ProtobufGenerateJava srcdir="${src.protobuf.dir}/src" destdir="${build.protorpc.dir}">
         <fileset file="${src.protobuf.dir}/src/google/protobuf/descriptor.proto" />
-    </ProtobufGenerateJava>
-    <ProtobufGenerateJava srcdir="${src.protorpc.dir}" destdir="${build.protorpc.dir}">
-        <fileset dir="${src.protorpc.dir}">
-            <patternset><include name="**/*.proto" /></patternset>
-        </fileset>
     </ProtobufGenerateJava>
 </target>
 
@@ -1501,20 +1517,48 @@ PROTOCOL BUFFERS
 
 <!--
 ***************************************
+PROTORPC
+***************************************
+-->
+
+<target name="protorpc.check">
+    <uptodate property="protorpc.built"
+              targetfile="${build.protorpc.dir}/edu/brown/hstore/Hstore.java">
+        <srcfiles dir="${src.protorpc.dir}" includes="**/*.proto" />
+    </uptodate>
+</target>
+
+<target name="protorpc" description="Generates ProtoRPC files"
+                        depends="protobuf, protorpc.check"
+                        unless="protorpc.built">
+    <ProtobufGenerateJava srcdir="${src.protorpc.dir}" destdir="${build.protorpc.dir}">
+        <fileset dir="${src.protorpc.dir}">
+            <patternset><include name="**/*.proto" /></patternset>
+        </fileset>
+    </ProtobufGenerateJava>
+</target>
+
+<!--
+***************************************
 DTXN BINARIES + LIBRARIES
 ***************************************
 -->
 
-<target name="dtxn.check">
-    <available property="dtxn.built" file="${build.dtxn.dir}/protodtxn/protodtxnengine" />
-</target>
-
-<target name="dtxn" description="Build DTXN binaries" depends="dtxn.check,protobuf.compile" unless="dtxn.built">
+<target name="dtxn" description="Build DTXN binaries" depends="protobuf.compile">
    <exec executable="make" dir="${src.dtxn.dir}" failonerror="true" resolveexecutable="true" >
       <arg value="PREFIX=${build.dtxn.dir}" />
       <arg value="PROTOBUF_SRC=${src.protobuf.dir}" />
       <arg value="PROTOBUF_BIN=${build.protobuf.dir}" />
+      <arg value="PROTORPC_PATH=${src.protorpc.dir}" />
+<!--       <arg value="LOG_LEVEL=100" /> -->
    </exec>
+</target>
+
+<target name="dtxn-coordinator" description="H-Store DTXN Coordinator">
+    <exec executable="${build.dtxn.dir}/protodtxn/protodtxncoordinator" failonerror="true">
+        <arg line="${port}"/>
+        <arg line="${build.dtxn.dir}/hstore.conf"/>
+    </exec>
 </target>
 
 
@@ -1557,7 +1601,7 @@ BENCHMARKS
         <jvmarg value="-Xmx512m" />
         <jvmarg value="-Djava.library.path=${build.dir}/nativelibs" />
         <jvmarg value="-Dlog4j.configuration=${basedir}/log4j.properties"/>
-        <assertions><disable/></assertions>
+        <assertions><enable/></assertions>
         <arg value="CLIENT=${client}" />
         <arg value="BACKEND=${backend}" />
         <arg value="HOSTCOUNT=${hostcount}" />
@@ -2127,20 +2171,16 @@ H-STORE REMIX
     <exec executable="./scripts/runner.sh" failonerror="true">
         <arg line="${project}" />
         <arg line="compileonly" />
+        <arg line="BUILD_JAVA=0" />
+        <arg line="BUILD_EE=0" />
+<!--         <arg line="BUILD_VOLTBIN=0" /> -->
     </exec>
     <antcall target="hstore-jar">
         <param name="jar" value="${project}.jar" />
     </antcall>    
-<!--    <exec executable="./scripts/runner.sh" failonerror="true">
-        <arg line="${project}" />
-        <arg line="DELETE_BENCHMARK_JAR=0" />
-        <arg line="RUN_BENCHMARK=0" />
-        <arg line="BUILD_JAVA=0" />
-        <arg line="BUILD_ENGINE=0" />
-    </exec>-->
 </target>
 
-<target name="hstore" description="H-Store Execution Node/Coordinator">
+<target name="hstore-site" description="H-Store Execution Node/Coordinator">
     <java fork="yes" classname="edu.mit.hstore.HStoreCoordinatorNode">
         <jvmarg value="-Xmx${volt.server.memory}m" />
         <jvmarg value="-Dlog4j.configuration=${basedir}/log4j.properties"/>
@@ -2148,14 +2188,12 @@ H-STORE REMIX
         <jvmarg value="-Djava.library.path=${build.dir}/nativelibs" />
         <jvmarg value="-Xcheck:jni" />
         <arg value="catalog.jar=${jar}" />
-        <arg value="node.partition=${partition}" />
-        <arg value="node.host=${hstore.defaulthost}" />
-        <arg value="node.port=${node.port}" />
-        <arg value="coordinator.host=${hstore.defaulthost}" />
+        <arg value="node.site=${node.site}" />
+        <arg value="coordinator.host=${coordinator.host}" />
         <arg value="coordinator.port=${coordinator.port}" />
+        <arg value="coordinator.statusinterval=${statusinterval}" />
         <arg value="dtxn.conf=${build.dtxn.dir}/hstore.conf" />
-        <arg value="dtxn.engine=${build.dtxn.dir}/hstore/build/protodtxn/protodtxnengine" />
-        <arg value="dtxn.coordinator=${build.dtxn.dir}/hstore/build/protodtxn/protodtxncoordinator" />
+        <arg value="dtxn.engine=${build.dtxn.dir}/protodtxn/protodtxnengine" />
         <arg value="hasher.class=${hasher}" />
         <arg value="markov=${markov}" />
         <arg value="markov.thresholds=${thresholds}" />
@@ -2167,82 +2205,6 @@ H-STORE REMIX
         <classpath refid='project.classpath' />
         <assertions><enable /></assertions>
     </java>
-</target>
-
-<target name="hstore-node" description="H-Store Execution Node">
-  <parallel failonany="true">
-      <sequential>
-        <echo>Starting HStoreNode #${partition}...</echo>
-        <java fork="yes" classname="edu.mit.hstore.HStoreNode">
-            <jvmarg value="-Xmx${volt.server.memory}m" />
-            <jvmarg value="-Dlog4j.configuration=${basedir}/log4j.properties"/>
-            <jvmarg value="-server" />
-            <jvmarg value="-Djava.library.path=${build.dir}/nativelibs" />
-            <jvmarg value="-Xcheck:jni" />
-            <arg value="catalog.jar=${jar}" />
-            <arg value="node.partition=${partition}" />
-            <arg value="node.port=${port}" />
-            <arg value="hasher.class=${hasher}" />
-            <arg value="markov=${markov}" />
-            <arg value="markov.thresholds=${thresholds}" />
-            <arg value="correlations=${correlations}" />
-            <arg value="partitionplan=${partitionplan}" />
-            <arg value="partitionplan.apply=true" />
-            <arg value="workload.output=${trace}" />
-            <arg value="workload.procexclude=${ignore}" />
-            <classpath refid='project.classpath' />
-            <assertions><enable /></assertions>
-        </java>
-      </sequential>
-      <sequential>
-         <sleep seconds="6"/>
-         <echo>Starting DTXN Engine #${partition}...</echo>
-         <exec executable="${build.dtxn.dir}/protodtxn/protodtxnengine" failonerror="true">
-            <arg line="${hstore.defaulthost}:${port}"/>
-            <arg line="${build.dtxn.dir}/hstore.conf"/>
-            <arg line="${partition}"/>
-            <arg line="0"/>
-         </exec>
-         <echo>DTXN Engine #${partition} is stopped!</echo>
-      </sequential>
-   </parallel>
-</target>
-
-<target name="hstore-coordinator" description="H-Store Coordinator">
-    <parallel failonany="true">
-        <sequential>
-            <echo>Starting DTXN Coordinator...</echo>
-            <exec executable="${build.dtxn.dir}/protodtxn/protodtxncoordinator" failonerror="true">
-                <arg line="${port}"/>
-                <arg line="${build.dtxn.dir}/hstore.conf"/>
-            </exec>
-        </sequential>
-        <sequential>
-            <sleep seconds="3"/>
-            <echo>Starting HStoreCoordinator...</echo>
-            <java fork="yes" classname="edu.mit.hstore.HStoreCoordinator">
-                <jvmarg value="-Xmx${volt.server.memory}m" />
-                <jvmarg value="-Dlog4j.configuration=${basedir}/log4j.properties"/>
-                <jvmarg value="-server" />
-                <jvmarg value="-Djava.library.path=${build.dir}/nativelibs" />
-                <jvmarg value="-Xcheck:jni" />
-                <arg value="catalog.jar=${jar}" />
-                <arg value="coordinator.host=${hstore.defaulthost}" />
-                <arg value="coordinator.port=${port}" />
-                <arg value="coordinator.statusinterval=${statusinterval}" />
-                <arg value="hasher.class=${hasher}" />
-                <arg value="markov=${markov}" />
-                <arg value="markov.thresholds=${thresholds}" />
-                <arg value="correlations=${correlations}" />
-                <arg value="partitionplan=${partitionplan}" />
-                <arg value="partitionplan.apply=true" />
-                <arg value="workload.output=${trace}" />
-                <arg value="workload.procexclude=${ignore}" />
-                <classpath refid='project.classpath' />
-                <assertions><enable /></assertions>
-            </java>
-        </sequential>
-    </parallel>
 </target>
 
 <target name='hstore-client' description="H-Store Simple Example Client">
@@ -2264,31 +2226,34 @@ H-STORE REMIX
     <antcall target="catalog-fix">
         <param name="jar" value="${project}.jar" />
         <param name="correlations" value="./files/correlations/${project}.correlations" />
-        <param name="hosts" value="${hstore.defaulthost}:33330:0,${hstore.defaulthost}:33331:1" />
-<!--         <param name="hosts" value="${hstore.defaulthost}:33330:0" /> -->
-<!--         <param name="hosts" value="${hstore.defaulthost}:33330:0,${hstore.defaulthost}:33331:1,${hstore.defaulthost}:33332:2,${hstore.defaulthost}:33333:3,${hstore.defaulthost}:33334:4,${hstore.defaulthost}:33335:5" /> -->
-<!-- <param name="hosts" value="d-01.cs.wisc.edu:33330:0,d-01.cs.wisc.edu:33331:1,d-02.cs.wisc.edu:33330:2,d-02.cs.wisc.edu:33331:3,d-03.cs.wisc.edu:33330:4,d-03.cs.wisc.edu:33331:5,d-04.cs.wisc.edu:33330:6,d-04.cs.wisc.edu:33331:7,d-05.cs.wisc.edu:33330:8,d-05.cs.wisc.edu:33331:9,d-06.cs.wisc.edu:33330:10,d-06.cs.wisc.edu:33331:11,d-07.cs.wisc.edu:33330:12,d-07.cs.wisc.edu:33331:13,d-08.cs.wisc.edu:33330:14,d-08.cs.wisc.edu:33331:15" /> -->
+        
+        <!-- <hostname>:<site#>:<partition#> -->
+        <param name="hosts" value="${hstore.defaulthost}:0:0,${hstore.defaulthost}:1:1" />
+<!--         <param name="hosts" value="${hstore.defaulthost}:0:0,${hstore.defaulthost}:0:1,${hstore.defaulthost}:1:2,${hstore.defaulthost}:1:3" /> -->
     </antcall>
 </target>
 
-<target name="hstore-newtest" description="H-Store Test Setup">
+<target name="hstore-benchmark" description="H-Store Test Setup">
     <antcall target="hstore-conf">
         <param name="jar" value="${project}.jar" />
     </antcall>
     <parallel failonany="true">
-        <antcall target="hstore">
+        <antcall target="dtxn-coordinator">
+            <param name="port" value="12348" />
+        </antcall>
+        <antcall target="hstore-site">
             <param name="jar" value="${project}.jar" />
-            <param name="partition" value="0" />
-            <param name="node.port" value="22340" />
-            <param name="coordinator.port" value="12347" />
+            <param name="node.site" value="0" />
+            <param name="coordinator.host" value="${hstore.defaulthost}" />
+            <param name="coordinator.port" value="12348" />
             <param name="markov" value="./files/markovs/${project}.markovs" />
             <param name="thresholds" value="./files/thresholds/default.thresholds" />
             <param name="correlations" value="./files/correlations/${project}.correlations" />
         </antcall>
-        <antcall target="hstore">
+        <antcall target="hstore-site">
             <param name="jar" value="${project}.jar" />
-            <param name="partition" value="1" />
-            <param name="node.port" value="22341" />
+            <param name="node.site" value="1" />
+            <param name="coordinator.host" value="${hstore.defaulthost}" />
             <param name="coordinator.port" value="12348" />
             <param name="markov" value="./files/markovs/${project}.markovs" />
             <param name="thresholds" value="./files/thresholds/default.thresholds" />
@@ -2312,54 +2277,6 @@ H-STORE REMIX
     </parallel>
 </target>
 
-<target name="hstore-test" description="H-Store Test Setup">
-    <antcall target="hstore-conf">
-        <param name="jar" value="${project}.jar" />
-    </antcall>
-    <parallel failonany="true">
-        <antcall target="hstore-node">
-            <param name="jar" value="${project}.jar" />
-            <param name="partition" value="0" />
-            <param name="port" value="22340" />
-            <param name="markov" value="./files/markovs/${project}.markovs" />
-            <param name="thresholds" value="./files/thresholds/default.thresholds" />
-            <param name="correlations" value="./files/correlations/${project}.correlations" />
-        </antcall>
-        <antcall target="hstore-node">
-            <param name="jar" value="${project}.jar" />
-            <param name="partition" value="1" />
-            <param name="port" value="22341" />
-            <param name="markov" value="./files/markovs/${project}.markovs" />
-            <param name="thresholds" value="./files/thresholds/default.thresholds" />
-            <param name="correlations" value="./files/correlations/${project}.correlations" />
-        </antcall>
-        <sequential>
-            <sleep seconds="10" />
-            <antcall target="hstore-coordinator">
-                <param name="jar" value="${project}.jar" />
-                <param name="port" value="12347" />
-                <param name="markov" value="./files/markovs/${project}.markovs" />
-                <param name="thresholds" value="./files/thresholds/default.thresholds" />
-                <param name="correlations" value="./files/correlations/${project}.correlations" />
-            </antcall>
-        </sequential>
-        <sequential>
-            <sleep seconds="18" />
-            <exec executable="./scripts/runner.sh" failonerror="true">
-                <arg line="${project}" />
-                <arg line="nocompile" />
-                <arg line="BUILD_JAVA=0" />
-                <arg line="BUILD_EE=0" />
-                <arg line="BUILD_VOLTBIN=0" />
-                <arg line="DELETE_BENCHMARK_JAR=0" />
-                <arg line="SKEW_FACTOR=${skew}" />
-                <arg line="cataloghosts" />
-                <arg line="killprotodtxn" />
-                <arg line="blocking" />
-            </exec>
-        </sequential>
-    </parallel>
-</target>
 
 <!-- END PROJECT -->
 </project>

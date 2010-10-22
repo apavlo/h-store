@@ -66,7 +66,7 @@ public abstract class ProcEnv
             args.require(ArgumentsParser.PARAM_CATALOG, ArgumentsParser.PARAM_MARKOV);
             Map<Procedure, MarkovGraph> tmp = MarkovUtil.load(args.catalog_db,
                                                               args.getParam(ArgumentsParser.PARAM_MARKOV),
-                                                              CatalogUtil.getAllPartitions(args.catalog_db)).get(0);
+                                                              CatalogUtil.getAllPartitionIds(args.catalog_db)).get(0);
 
             s_mapProcToGraph = filterSysProcs(tmp);
         }

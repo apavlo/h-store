@@ -40,12 +40,12 @@ class Site : public CatalogType {
 protected:
     Site(Catalog * catalog, CatalogType * parent, const std::string &path, const std::string &name);
 
-    bool m_isexec;
+    int32_t m_id;
     CatalogType* m_host;
-    CatalogType* m_partition;
-    int32_t m_initiatorid;
+    CatalogMap<Partition> m_partitions;
     bool m_isUp;
     int32_t m_port;
+    int32_t m_messenger_port;
 
     virtual void update();
 
@@ -54,18 +54,18 @@ protected:
     virtual void removeChild(const std::string &collectionName, const std::string &childName);
 
 public:
-    /** GETTER: Does the site execute workunits? */
-    bool isexec() const;
+    /** GETTER: Site Id */
+    int32_t id() const;
     /** GETTER: Which host does the site belong to? */
     const Host * host() const;
     /** GETTER: Which logical data partition does this host process? */
-    const Partition * partition() const;
-    /** GETTER: If the site is an initiator, this is its tightly packed id */
-    int32_t initiatorid() const;
+    const CatalogMap<Partition> & partitions() const;
     /** GETTER: Is the site up? */
     bool isUp() const;
     /** GETTER: Yeah, you know what this is */
     int32_t port() const;
+    /** GETTER: Inbound port for receiving data messages */
+    int32_t messenger_port() const;
 };
 
 } // namespace catalog

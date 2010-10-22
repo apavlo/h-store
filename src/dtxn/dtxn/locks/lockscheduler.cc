@@ -49,11 +49,11 @@ void LockScheduler::executeWork(LockTransaction* transaction) {
     ExecutionEngine::Status status;
     if (!transaction->multiple_partitions() && active_count_ == 0) {
         // TODO: Single partition transactions might still need undo?
-        status = engine_->tryExecute(transaction->last_work_unit(), transaction->output(), NULL, NULL);
+        status = engine_->tryExecute(transaction->last_work_unit(), transaction->output(), NULL, NULL, NULL);
         assert(status != ExecutionEngine::BLOCKED);
     } else {
         status = engine_->tryExecute(
-                transaction->last_work_unit(), transaction->output(), transaction->undo(), transaction);
+                transaction->last_work_unit(), transaction->output(), transaction->undo(), transaction, NULL);
         if (transaction->last_status() == ExecutionEngine::INVALID) {
             // Transaction is starting: it should have acquired SOME locks, or else it did not
             // access the database.
@@ -203,7 +203,7 @@ void LockScheduler::backupApplyTransaction(const std::vector<std::string>& work_
     string out;
     for (int i = 0; i < work_units.size(); ++i) {
         out.clear();
-        ExecutionEngine::Status status = engine_->tryExecute(work_units[i], &out, NULL, NULL);
+        ExecutionEngine::Status status = engine_->tryExecute(work_units[i], &out, NULL, NULL, NULL);
         CHECK(status == ExecutionEngine::OK);
     }
 }
@@ -303,9 +303,10 @@ void LockScheduler::finishTransaction(LockTransaction* transaction) {
     // apply or free undo
     if (*transaction->undo() != NULL) {
         if (transaction->last_status() != ExecutionEngine::OK) {
-            engine_->applyUndo(*transaction->undo());
+            engine_->applyUndo(*transaction->undo(), std::string("LockScheduler::finishTransaction"));
         } else {
-            engine_->freeUndo(*transaction->undo());
+            // PAVLO
+            engine_->freeUndo(*transaction->undo(), std::string("LockScheduler::finishTransaction"));
         }
         *transaction->undo() = NULL;
     }

@@ -89,7 +89,7 @@ private:
 /** Represents the state machine for a transaction. */
 class TransactionState {
 public:
-    TransactionState() : undo_(NULL), commit_(false) {}
+    TransactionState() : undo_(NULL), commit_(false), payload_(NULL) {}
     ~TransactionState();
 
     FragmentState* addFragment(const Fragment& fragment);
@@ -118,6 +118,14 @@ public:
     const std::vector<FragmentState*>& fragments() const {
         return fragments_;
     }
+    
+    // PAVLO
+    inline bool has_payload() const { return (payload_ != NULL); }
+    void set_payload(const std::string& payload) {
+        if (payload_ == NULL) payload_ = new ::std::string;
+        payload_->assign(payload);
+    }
+    inline const ::std::string& payload() const { return (*payload_); }
 
 private:
     std::vector<FragmentState*> fragments_;
@@ -127,6 +135,9 @@ private:
 
     ReplicationStateMachine decision_state_;
     bool commit_;
+    
+    // PAVLO: Let things attach payload data that we can send around during the finish process
+    std::string *payload_;
 };
 
 }  // namespace dtxn

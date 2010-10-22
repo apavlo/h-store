@@ -42,7 +42,10 @@ public class TestPartitionEstimatorMultiSite extends BaseTestCase {
             new Long(1000),     // LOCATION
             "Doesn't Matter",   // SUB_NBR
         };
-        assertNull(p_estimator.getPartition(catalog_proc, params));
+        // Note that this used to return a null whenever we got a null partition, but
+        // now actually need to know what partition to go to because we are going to 
+        // be able to determine whether it is a multi-partition or not on the fly
+        assertNotNull(p_estimator.getPartition(catalog_proc, params));
     }
     
     /**

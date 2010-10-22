@@ -3,12 +3,14 @@ package edu.brown.catalog;
 import java.util.*;
 import java.util.Map.Entry;
 
+import org.apache.log4j.Logger;
 import org.voltdb.catalog.*;
 
 import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.FileUtil;
 
 public abstract class HStoreConf {
+    private static final Logger LOG = Logger.getLogger(HStoreConf.class);
     
     /**
      * Converts a host/site/partition information stored in a catalog object to 
@@ -18,13 +20,18 @@ public abstract class HStoreConf {
      * @throws Exception
      */
     public static String toHStoreConf(Catalog catalog) throws Exception {
-        Map<Host, Set<Site>> host_partitions = CatalogUtil.getHostPartitions(catalog);
+        final boolean debug = LOG.isDebugEnabled();
+        Map<Host, Set<Site>> host_sites = CatalogUtil.getSitesPerHost(catalog);
+        
         TreeMap<Integer, String> sorted_output = new TreeMap<Integer, String>();
-        for (Host catalog_host : host_partitions.keySet()) {
-            for (Site catalog_site : host_partitions.get(catalog_host)) {
-                Partition catalog_part = catalog_site.getPartition();
-                String hostinfo = catalog_host.getIpaddr() + " " +catalog_site.getPort();
-                sorted_output.put(catalog_part.getId(), hostinfo);
+        for (Host catalog_host : host_sites.keySet()) {
+            if (debug) LOG.debug(catalog_host + ": " + host_sites.get(catalog_host));
+            for (Site catalog_site : host_sites.get(catalog_host)) {
+                if (debug) LOG.debug("  " + catalog_site + ": " + CatalogUtil.debug(catalog_site.getPartitions()));
+                for (Partition catalog_part : catalog_site.getPartitions()) {
+                    String hostinfo = catalog_host.getIpaddr() + " " + catalog_part.getDtxn_port();
+                    sorted_output.put(catalog_part.getId(), hostinfo);    
+                }
             } // FOR
         } // FOR
         

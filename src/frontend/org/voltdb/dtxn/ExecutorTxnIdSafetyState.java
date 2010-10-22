@@ -56,7 +56,7 @@ public class ExecutorTxnIdSafetyState {
             // ignore down sites
             if (!s.getIsup()) continue;
 
-            Partition p = s.getPartition();
+            Partition p = null; // s.getPartition();
             assert(p != null);
             int partitionId = Integer.parseInt(p.getTypeName());
 

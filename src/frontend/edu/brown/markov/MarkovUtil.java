@@ -116,7 +116,7 @@ public abstract class MarkovUtil {
                 assert(false) : "Unexpected Vertex type '" + type + "'";
         } // SWITCH
         if (type != Vertex.Type.START) {
-            for (int i : CatalogUtil.getAllPartitions(catalog_db)) {
+            for (int i : CatalogUtil.getAllPartitionIds(catalog_db)) {
                 v.addDoneProbability(i, 1.0f);
             } // FOR
         }
@@ -163,7 +163,7 @@ public abstract class MarkovUtil {
     public static Map<Integer, MarkovGraph> getBlankPartitionGraphs(Procedure catalog_proc) {
         HashMap<Integer, MarkovGraph> graphs = new HashMap<Integer, MarkovGraph>();
         Database catalog_db = CatalogUtil.getDatabase(catalog_proc);
-        for (int i : CatalogUtil.getAllPartitions(catalog_db)) {
+        for (int i : CatalogUtil.getAllPartitionIds(catalog_db)) {
             MarkovGraph g = new MarkovGraph(catalog_proc, i);
             g.addVertex(MarkovUtil.getStartVertex(catalog_db));
             g.addVertex(MarkovUtil.getAbortVertex(catalog_db));
@@ -200,7 +200,7 @@ public abstract class MarkovUtil {
         assert(workload != null);
         assert(p_estimator != null);
         
-        final List<Integer> partitions = CatalogUtil.getAllPartitions(catalog_db);
+        final List<Integer> partitions = CatalogUtil.getAllPartitionIds(catalog_db);
         
         final MarkovGraphsContainer graphs_per_partition = new MarkovGraphsContainer();
         for (Procedure catalog_proc : catalog_db.getProcedures()) {
@@ -273,7 +273,7 @@ public abstract class MarkovUtil {
     }
 
     public static MarkovGraphsContainer load(Database catalog_db, String input_path) throws Exception {
-        return (MarkovUtil.load(catalog_db, input_path, CatalogUtil.getAllPartitions(catalog_db)));
+        return (MarkovUtil.load(catalog_db, input_path, CatalogUtil.getAllPartitionIds(catalog_db)));
     }
     
     /**

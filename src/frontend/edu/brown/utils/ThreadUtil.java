@@ -3,7 +3,6 @@ package edu.brown.utils;
 import java.io.BufferedInputStream;
 import java.io.IOException;
 import java.util.*;
-import java.util.concurrent.CountDownLatch;
 
 import org.apache.log4j.Logger;
 
@@ -14,37 +13,54 @@ public abstract class ThreadUtil {
      * Fork the command (in the current thread) and countdown the latch everytime we see
      * our match string in the output
      * @param command
-     * @param match
-     * @param latch
      */
-    public static void forkLatch(String command[], String match, final CountDownLatch latch) {
+    public static void fork(String command[], final String prefix, final EventObservable stop_observable) {
+        final String prog_name = FileUtil.basename(command[0]);
+        LOG.debug("Forking off process: " + Arrays.toString(command));
+
         // Copied from ShellTools
         ProcessBuilder pb = new ProcessBuilder(command);
         pb.redirectErrorStream(true);
-        Process p = null;
+        Process temp = null;
         try {
-            p = pb.start();
+            temp = pb.start();
         } catch (IOException e) {
             LOG.fatal("Failed to fork command", e);
             return;
         }
+        assert(temp != null);
+        final Process p = temp;
+        
+        // Register a observer if we have a stop observable
+        if (stop_observable != null) {
+            stop_observable.addObserver(new EventObserver() {
+                boolean first = true;
+                @Override
+                public void update(Observable arg0, Object arg1) {
+                    assert(first) : "Trying to stop the process twice??";
+                    LOG.info("Stopping Process -> " + prog_name);
+                    p.destroy();
+                    first = false;
+                }
+            });
+        }
+        
         BufferedInputStream in = new BufferedInputStream(p.getInputStream());
         StringBuilder buffer = new StringBuilder();
         int c;
         try {
             while((c = in.read()) != -1) {
                 buffer.append((char)c);
-                
-                // As soon as we see our match message, let the next guy go!
-                // We reset the buffer so that we can correctly identify the next match
-                if (latch.getCount() > 0 && buffer.toString().contains(match)) {
-                    latch.countDown();
+                if (((char)c) == '\n') {
+                    System.out.print(prefix + buffer.toString());
                     buffer = new StringBuilder();
                 }
             }
         } catch (Exception e) {
             p.destroy();
         }
+        if (buffer.length() > 0) System.out.println(prefix + buffer);
+        
         try {
             p.waitFor();
         } catch (InterruptedException e) {
@@ -93,7 +109,7 @@ public abstract class ThreadUtil {
                     thread.join(sleep);
                     if (!thread.isAlive()) {
                         running.remove(i);
-                        LOG.debug("Thread " + thread + " is complete");
+                        LOG.debug(thread + " is complete");
                         LOG.debug("Running=" + running.size() + ", Waiting=" + threads.size() + ", Available=" + (max_concurrent - running.size()));
                         break;
                     }

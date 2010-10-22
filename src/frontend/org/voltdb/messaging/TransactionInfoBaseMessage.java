@@ -28,8 +28,8 @@ import org.voltdb.debugstate.MailboxHistory.MessageState;
  */
 public abstract class TransactionInfoBaseMessage extends VoltMessage {
 
-    int m_initiatorSiteId;
-    int m_coordinatorSiteId;
+    int m_srcPartition;
+    int m_destPartition;
     long m_txnId;
     long m_clientHandle;
     boolean m_isReadOnly;
@@ -39,29 +39,25 @@ public abstract class TransactionInfoBaseMessage extends VoltMessage {
         m_subject = Subject.DEFAULT.getId();
     }
 
-    TransactionInfoBaseMessage(int initiatorSiteId,
-                                      int coordinatorSiteId,
+    TransactionInfoBaseMessage(int srcPartition,
+                                      int destPartition,
                                       long txnId,
                                       long clientHandle,
                                       boolean isReadOnly) {
-        m_initiatorSiteId = initiatorSiteId;
-        m_coordinatorSiteId = coordinatorSiteId;
+        m_srcPartition = srcPartition;
+        m_destPartition = destPartition;
         m_txnId = txnId;
         m_clientHandle = clientHandle;
         m_isReadOnly = isReadOnly;
         m_subject = Subject.DEFAULT.getId();
     }
 
-    public int getTargetPartition() {
-        return (int)m_coordinatorSiteId;
+    public int getDestinationPartitionId() {
+        return (int)m_destPartition;
     }
     
-    public int getInitiatorSiteId() {
-        return m_initiatorSiteId;
-    }
-
-    public int getCoordinatorSiteId() {
-        return m_coordinatorSiteId;
+    public int getSourcePartitionId() {
+        return m_srcPartition;
     }
 
     public long getTxnId() {
@@ -85,16 +81,16 @@ public abstract class TransactionInfoBaseMessage extends VoltMessage {
     }
 
     protected void writeToBuffer() {
-        m_buffer.putInt(m_initiatorSiteId);
-        m_buffer.putInt(m_coordinatorSiteId);
+        m_buffer.putInt(m_srcPartition);
+        m_buffer.putInt(m_destPartition);
         m_buffer.putLong(m_txnId);
         m_buffer.putLong(m_clientHandle);
         m_buffer.put(m_isReadOnly ? (byte) 1 : (byte) 0);
     }
 
     protected void readFromBuffer() {
-        m_initiatorSiteId = m_buffer.getInt();
-        m_coordinatorSiteId = m_buffer.getInt();
+        m_srcPartition = m_buffer.getInt();
+        m_destPartition = m_buffer.getInt();
         m_txnId = m_buffer.getLong();
         m_clientHandle = m_buffer.getLong();
         m_isReadOnly = m_buffer.get() == 1;
@@ -103,7 +99,7 @@ public abstract class TransactionInfoBaseMessage extends VoltMessage {
     @Override
     public MessageState getDumpContents() {
         MessageState ms = super.getDumpContents();
-        ms.fromSiteId = m_initiatorSiteId;
+        ms.fromSiteId = m_srcPartition;
         ms.txnId = m_txnId;
         return ms;
     }

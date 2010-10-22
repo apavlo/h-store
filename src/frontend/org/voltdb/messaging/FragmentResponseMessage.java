@@ -32,19 +32,17 @@ import org.voltdb.utils.DBBPool;
  * event of an error, a text message can be embedded in a table attached.
  *
  */
-public class FragmentResponseMessage extends VoltMessage {
+public class FragmentResponseMessage extends TransactionInfoBaseMessage {
 
     public static final byte NULL             = 0;
     public static final byte SUCCESS          = 1;
     public static final byte USER_ERROR       = 2;
     public static final byte UNEXPECTED_ERROR = 3;
 
-    int m_executorSiteId;
-    int m_destinationSiteId;
-    long m_txnId;
     byte m_status;
     // default dirty to true until proven otherwise
     boolean m_dirty = true;
+    boolean m_nullDependencies = false;
     short m_dependencyCount = 0;
     int[] m_dependencyIds = new int[50];
     VoltTable[] m_dependencies = new VoltTable[50];
@@ -55,10 +53,8 @@ public class FragmentResponseMessage extends VoltMessage {
         m_subject = Subject.DEFAULT.getId();
     }
 
-    public FragmentResponseMessage(FragmentTaskMessage task, int siteId) {
-        m_executorSiteId = siteId;
-        m_txnId = task.m_txnId;
-        m_destinationSiteId = task.m_coordinatorSiteId;
+    public FragmentResponseMessage(FragmentTaskMessage task) {
+        super(task.getDestinationPartitionId(), task.getSourcePartitionId(), task.getTxnId(), task.getClientHandle(), task.isReadOnly());
         m_subject = Subject.DEFAULT.getId();
     }
 
@@ -80,13 +76,10 @@ public class FragmentResponseMessage extends VoltMessage {
         m_dependencyIds[m_dependencyCount] = dependencyId;
         m_dependencies[m_dependencyCount++] = table;
     }
-
-    public int getExecutorSiteId() {
-        return m_executorSiteId;
-    }
-
-    public int getDestinationSiteId() {
-        return m_destinationSiteId;
+    
+    public void addDependency(int dependencyId) {
+        this.addDependency(dependencyId, null);
+        m_nullDependencies = true;
     }
 
     public long getTxnId() {
@@ -104,6 +97,7 @@ public class FragmentResponseMessage extends VoltMessage {
     public int getTableCount() {
         return m_dependencyCount;
     }
+    
 
     public int getTableDependencyIdAtIndex(int index) {
         return m_dependencyIds[index];
@@ -119,7 +113,11 @@ public class FragmentResponseMessage extends VoltMessage {
 
     @Override
     protected void flattenToBuffer(final DBBPool pool) {
-        int msgsize = 4 + 4 + 8 + 1 + 1 + 2;
+        int msgsize = super.getMessageByteCount();
+        msgsize += 1 + // m_status 
+                   1 + // m_nullDependencies
+                   1 + // m_dirty
+                   2;  // m_dependencyCount
         assert(m_exception == null || m_status != SUCCESS);
 
         if (m_exception != null) {
@@ -130,7 +128,8 @@ public class FragmentResponseMessage extends VoltMessage {
 
         // stupid lame flattening of the tables
         ByteBuffer tableBytes = null;
-        if (m_dependencyCount > 0) {
+        msgsize += 4 * m_dependencyCount;
+        if (m_dependencyCount > 0 && m_nullDependencies == false) {
 
             FastSerializer fs = new FastSerializer();
             try {
@@ -142,7 +141,6 @@ public class FragmentResponseMessage extends VoltMessage {
             }
             tableBytes = fs.getBuffer();
             msgsize += tableBytes.remaining();
-            msgsize += 4 * m_dependencyCount;
         }
 
         if (m_buffer == null) {
@@ -154,14 +152,16 @@ public class FragmentResponseMessage extends VoltMessage {
         m_buffer.position(HEADER_SIZE);
         m_buffer.put(FRAGMENT_RESPONSE_ID);
 
-        m_buffer.putInt(m_executorSiteId);
-        m_buffer.putInt(m_destinationSiteId);
-        m_buffer.putLong(m_txnId);
+        super.writeToBuffer();
+        
         m_buffer.put(m_status);
+        m_buffer.put((byte) (m_nullDependencies ? 1 : 0));
         m_buffer.put((byte) (m_dirty ? 1 : 0));
+
         m_buffer.putShort(m_dependencyCount);
         for (int i = 0; i < m_dependencyCount; i++)
             m_buffer.putInt(m_dependencyIds[i]);
+        
         if (tableBytes != null)
             m_buffer.put(tableBytes);
         if (m_exception != null) {
@@ -176,22 +176,25 @@ public class FragmentResponseMessage extends VoltMessage {
     @Override
     protected void initFromBuffer() {
         m_buffer.position(HEADER_SIZE + 1); // skip the msg id
-        m_executorSiteId = m_buffer.getInt();
-        m_destinationSiteId = m_buffer.getInt();
-        m_txnId = m_buffer.getLong();
+        super.readFromBuffer();
+        
         m_status = m_buffer.get();
-        m_dirty = m_buffer.get() == 0 ? false : true;
+        m_nullDependencies = (m_buffer.get() == 1);
+        m_dirty = (m_buffer.get() == 1);
+        
         m_dependencyCount = m_buffer.getShort();
         assert(m_dependencyCount <= 50);
         for (int i = 0; i < m_dependencyCount; i++)
             m_dependencyIds[i] = m_buffer.getInt();
-        for (int i = 0; i < m_dependencyCount; i++) {
-            FastDeserializer fds = new FastDeserializer(m_buffer);
-            try {
-                m_dependencies[i] = fds.readObject(VoltTable.class);
-            } catch (IOException e) {
-                e.printStackTrace();
-                assert(false);
+        if (m_nullDependencies == false) {
+            for (int i = 0; i < m_dependencyCount; i++) {
+                FastDeserializer fds = new FastDeserializer(m_buffer);
+                try {
+                    m_dependencies[i] = fds.readObject(VoltTable.class);
+                } catch (IOException e) {
+                    e.printStackTrace();
+                    assert(false);
+                }
             }
         }
         m_exception = SerializableException.deserializeFromBuffer(m_buffer);
@@ -202,11 +205,11 @@ public class FragmentResponseMessage extends VoltMessage {
         StringBuilder sb = new StringBuilder();
 
         sb.append("FRAGMENT_RESPONSE (FROM ");
-        sb.append(m_executorSiteId);
+        sb.append(this.getSourcePartitionId());
         sb.append(" TO ");
-        sb.append(m_destinationSiteId);
+        sb.append(this.getDestinationPartitionId());
         sb.append(") FOR TXN ");
-        sb.append(m_txnId);
+        sb.append(this.getTxnId());
 
         if (m_status == SUCCESS)
             sb.append("\n  SUCCESS");
@@ -222,12 +225,14 @@ public class FragmentResponseMessage extends VoltMessage {
 
         for (int i = 0; i < m_dependencyCount; i++) {
             sb.append("\n  DEP ").append(m_dependencyIds[i]);
-            sb.append(" WITH ").append(m_dependencies[i].getRowCount()).append(" ROWS (");
-            for (int j = 0; j < m_dependencies[i].getColumnCount(); j++) {
-                sb.append(m_dependencies[i].getColumnName(j)).append(", ");
+            if (m_nullDependencies == false) {
+                sb.append(" WITH ").append(m_dependencies[i].getRowCount()).append(" ROWS (");
+                for (int j = 0; j < m_dependencies[i].getColumnCount(); j++) {
+                    sb.append(m_dependencies[i].getColumnName(j)).append(", ");
+                }
+                sb.setLength(sb.lastIndexOf(", "));
+                sb.append(")");
             }
-            sb.setLength(sb.lastIndexOf(", "));
-            sb.append(")");
         }
 
         return sb.toString();
@@ -237,8 +242,8 @@ public class FragmentResponseMessage extends VoltMessage {
     public MessageState getDumpContents() {
         MessageState ms = super.getDumpContents();
         ms.txnId = m_txnId;
-        ms.fromSiteId = m_executorSiteId;
-        ms.toSiteId = m_destinationSiteId;
+        ms.fromSiteId = this.getSourcePartitionId();
+        ms.toSiteId = this.getDestinationPartitionId();
         return ms;
     }
 }

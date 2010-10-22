@@ -125,7 +125,7 @@ public class TestVoltProcedureListener extends TestCase {
     public void testExecution() throws Exception {
         // Connect to listener and try to invoke something...
         Client client = ClientFactory.createClient();
-        client.createConnection(HOST, USERNAME, PASSWORD);
+        client.createConnection(HOST, Client.VOLTDB_SERVER_PORT, USERNAME, PASSWORD);
         
         Long expected = rand.nextLong();
         VoltTable[] result = client.callProcedure(PROC_NAME, expected).getResults();

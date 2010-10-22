@@ -57,8 +57,8 @@ public class InitiateResponseMessage extends VoltMessage {
      */
     public InitiateResponseMessage(InitiateTaskMessage task) {
         m_txnId = task.m_txnId;
-        m_initiatorSiteId = task.m_initiatorSiteId;
-        m_coordinatorSiteId = task.m_coordinatorSiteId;
+        m_initiatorSiteId = task.m_srcPartition;
+        m_coordinatorSiteId = task.m_destPartition;
         m_subject = Subject.DEFAULT.getId();
     }
 

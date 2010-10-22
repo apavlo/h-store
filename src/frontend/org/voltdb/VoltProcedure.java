@@ -132,14 +132,7 @@ public abstract class VoltProcedure {
     protected AbstractHasher hasher;
     protected PartitionEstimator p_estimator;
     
-    // Ok so this is important. We have the "local_partition", which may or may not 
-    // be a real partition. For example, if we are running this VoltProcedure at the
-    // HStoreCoordinator, then the local partition is going to fake. Thus, we also
-    // have to a "selected_local_partition" which we will use with the BatchPlanner
-    // so that FragmentTaskMessages that need local data will use the same partition every round
-    protected boolean is_coordinator = false;
     protected Integer local_partition;
-    protected Integer selected_local_partition;
     
     // Callback for when the VoltProcedure finishes and we need to send a ClientResponse somewhere
     protected final EventObservable observable = new EventObservable();
@@ -170,23 +163,33 @@ public abstract class VoltProcedure {
     protected class VoltProcedureExecutor implements Runnable {
         @Override
         public void run() {
+            Thread.currentThread().setName(VoltProcedure.this.m_site.getThreadName() + "-" + VoltProcedure.this.procedure_name);
             LOG.debug("Starting execution of " + VoltProcedure.this.procedure_name + " for txn #" + VoltProcedure.this.txn_id);
             
-            // Execute the txn (this blocks until we return)
-            ClientResponse response = VoltProcedure.this.call();
-            assert(response != null);
-            
-            // Send the response back immediately!
-            VoltProcedure.this.m_site.sendClientResponse((ClientResponseImpl)response);
-            
-            // Notify anybody who cares that we're finished (we can probably remove this)
-            VoltProcedure.this.observable.notifyObservers(response);
-            
-            // Clear out our private data
-            VoltProcedure.this.m_currentTxnState = null;
-            
-            VoltProcedure.this.m_site.cleanupTransaction(VoltProcedure.this.txn_id);
-    
+            try {
+                // Execute the txn (this blocks until we return)
+                ClientResponse response = VoltProcedure.this.call();
+                assert(response != null);
+
+                // Send the response back immediately!
+                VoltProcedure.this.m_site.sendClientResponse((ClientResponseImpl)response);
+                
+                // Notify anybody who cares that we're finished (used in testing)
+                VoltProcedure.this.observable.notifyObservers(response);
+                
+                // Clear out our private data
+                VoltProcedure.this.m_currentTxnState = null;
+                
+                // Tell the ExecutionSite to clean-up any info about this txn
+                VoltProcedure.this.m_site.cleanupTransaction(VoltProcedure.this.txn_id);
+                
+            } catch (AssertionError ex) {
+                LOG.fatal("Unexpected error while executing txn #" + VoltProcedure.this.txn_id, ex);
+                VoltProcedure.this.m_site.crash();
+            } catch (Exception ex) {
+                LOG.fatal("Unexpected error while executing txn #" + VoltProcedure.this.txn_id, ex);
+                VoltProcedure.this.m_site.crash();
+            }
             VoltProcedure.this.executor_lock.release();
         }
     };
@@ -225,9 +228,7 @@ public abstract class VoltProcedure {
         this.hsql = hsql;
         this.m_cluster = cluster;
 
-        this.local_partition = (local_partition != null ? local_partition : this.m_site.site.getPartition().getId());
-        this.is_coordinator = this.m_site.isCoordinator();
-        this.selected_local_partition = (this.is_coordinator ? null : this.local_partition);
+        this.local_partition = this.m_site.getPartitionId();
         
         this.p_estimator = p_estimator;
         this.hasher = this.p_estimator.getHasher();
@@ -491,10 +492,7 @@ public abstract class VoltProcedure {
         // Select a local_partition to use if we're on the coordinator, otherwise
         // just use the real partition. We shouldn't have to do this once Evan gets it
         // so that we can have a coordinator on each node
-        if (this.is_coordinator) {
-            this.selected_local_partition = CatalogUtil.getRandomPartition(catProc);
-        }
-        assert(this.selected_local_partition != null);
+        assert(this.local_partition != null);
 
         //lastBatchNeedsRollback = false;
 
@@ -542,7 +540,7 @@ public abstract class VoltProcedure {
                 LOG.debug("Invoking txn #" + this.txn_id + " [" +
                           "procMethod=" + procMethod.getName() + ", " +
                           "class=" + getClass().getSimpleName() + ", " +
-                          "selectedPartition=" + this.selected_local_partition + 
+                          "partition=" + this.local_partition + 
                           "]");
                 }
                 try {
@@ -553,11 +551,11 @@ public abstract class VoltProcedure {
                 } catch (IllegalAccessException e) {
                     // If reflection fails, invoke the same error handling that other exceptions do
                     throw new InvocationTargetException(e);
-            } catch (AssertionError e) {
-                LOG.fatal(e);
-                System.exit(1);
+                } catch (AssertionError e) {
+                    LOG.fatal(e);
+                    System.exit(1);
                 }
-            LOG.debug(this.catProc + " is finished for txn #" + this.txn_id);
+                LOG.debug(this.catProc + " is finished for txn #" + this.txn_id);
             }
             catch (InvocationTargetException itex) {
                 Throwable ex = itex.getCause();
@@ -571,6 +569,12 @@ public abstract class VoltProcedure {
                 //LOG.fatal("PROCEDURE "+ catProc.getName() + " USER ABORTED", ex);
                 status = ClientResponseImpl.USER_ABORT;
                 extra = "USER ABORT: " + ex.getMessage();
+                
+                if ((ProcedureProfiler.profilingLevel == ProcedureProfiler.Level.INTRUSIVE) &&
+                        (ProcedureProfiler.workloadTrace != null && m_workloadXactHandle != null)) {
+                    ProcedureProfiler.workloadTrace.abortTransaction(m_workloadXactHandle);
+                }
+                
             }
             else if (ex.getClass() == org.voltdb.exceptions.ConstraintFailureException.class) {
                 status = ClientResponseImpl.UNEXPECTED_FAILURE;
@@ -978,7 +982,7 @@ public abstract class VoltProcedure {
         final Integer batchHashCode = VoltProcedure.getBatchHashCode(batchStmts, batchSize);
         BatchPlanner planner = this.batch_planners.get(batchHashCode);
         if (planner == null) {
-            planner = new BatchPlanner(batchStmts, batchSize, this.catProc, this.p_estimator, this.m_site.getInitiatorId());
+            planner = new BatchPlanner(batchStmts, batchSize, this.catProc, this.p_estimator, this.local_partition);
             this.batch_planners.put(batchHashCode, planner);
         }
         assert(planner != null);
@@ -994,7 +998,7 @@ public abstract class VoltProcedure {
         //       for this batch. So somehow right now we need to fire this off to either our
         //       local executor or to Evan's magical distributed transaction manager
         //
-        BatchPlanner.BatchPlan plan = planner.plan(params, this.selected_local_partition);
+        BatchPlanner.BatchPlan plan = planner.plan(params, this.local_partition);
         
         // Tell the TransactionEstimator that we're about to execute these mofos
         // TODO(pavlo+evanj): We need to do something with the estimate
@@ -1226,8 +1230,7 @@ public abstract class VoltProcedure {
         @Override
         protected void updateStatsRow(Object rowKey, Object rowValues[]) {
             super.updateStatsRow(rowKey, rowValues);
-            rowValues[columnNameToIndex.get("PARTITION_ID")] =
-                m_site.getCorrespondingPartitionId();
+            rowValues[columnNameToIndex.get("PARTITION_ID")] = m_site.getPartitionId();
             rowValues[columnNameToIndex.get("PROCEDURE")] = catProc.getClassname();
             long invocations = m_invocations;
             long totalTimedExecutionTime = m_totalTimedExecutionTime;

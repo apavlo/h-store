@@ -31,6 +31,9 @@ import org.voltdb.VoltTable;
 import org.voltdb.client.ClientFactory;
 import org.voltdb.client.NoConnectionsException;
 import org.voltdb.client.ProcCallException;
+import org.voltdb.utils.Pair;
+
+import edu.brown.utils.StringUtil;
 
 public class ClientDelete {
     public static void main(String args[]) {
@@ -59,8 +62,8 @@ public class ClientDelete {
         for (String thisServer : voltServers) {
             try {
                 System.out.printf("Connecting to server: %s\n",thisServer);
-
-                voltclient.createConnection(thisServer, "program", "none");
+                Pair<String, Integer> p = StringUtil.getHostPort(thisServer);
+                voltclient.createConnection(p.getFirst(), p.getSecond(), "program", "none");
             } catch (IOException e) {
                 e.printStackTrace();
                 System.exit(-1);

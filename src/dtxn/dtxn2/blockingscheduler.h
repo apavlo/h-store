@@ -21,7 +21,7 @@ public:
     virtual ~BlockingScheduler();
 
     virtual void fragmentArrived(TransactionState* transaction);
-    virtual void decide(TransactionState* transaction, bool commit);
+    virtual void decide(TransactionState* transaction, bool commit, const std::string& payload);
     virtual bool doWork(SchedulerOutput* output);
 
 private:

@@ -1057,7 +1057,7 @@ public class SingleSitedCostModel extends AbstractCostModel {
         long multipartition = 0;
         long total = 0;
         SingleSitedCostModel costmodel = new SingleSitedCostModel(args.catalog_db);
-        List<Integer> all_partitions = CatalogUtil.getAllPartitions(args.catalog_db);
+        List<Integer> all_partitions = CatalogUtil.getAllPartitionIds(args.catalog_db);
 //        costmodel.setEntropyWeight(4.0);
 //        costmodel.setJavaExecutionWeightEnabled(true);
 //        costmodel.setJavaExecutionWeight(100);

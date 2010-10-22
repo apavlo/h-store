@@ -61,7 +61,7 @@ public class MultiPartitionParticipantMessage extends TransactionInfoBaseMessage
         StringBuilder sb = new StringBuilder();
 
         sb.append("MULTI_PARTITION_PARTICIPANT (FROM ");
-        sb.append(m_coordinatorSiteId);
+        sb.append(m_destPartition);
         sb.append(" TO ");
         sb.append(receivedFromSiteId);
         sb.append(") FOR TXN ");

@@ -26,31 +26,36 @@ package org.voltdb.catalog;
  */
 public class Site extends CatalogType {
 
-    boolean m_isexec;
-    int m_initiatorid;
+    int m_id;
+    CatalogMap<Partition> m_partitions;
     boolean m_isUp;
-    int m_port;
+    int m_proc_port;
+    int m_dtxn_port;
+    int m_messenger_port;
 
     void setBaseValues(Catalog catalog, CatalogType parent, String path, String name) {
         super.setBaseValues(catalog, parent, path, name);
-        m_fields.put("isexec", m_isexec);
+        m_fields.put("id", m_id);
         m_fields.put("host", null);
-        m_fields.put("partition", null);
-        m_fields.put("initiatorid", m_initiatorid);
+        m_partitions = new CatalogMap<Partition>(catalog, this, path + "/" + "partitions", Partition.class);
+        m_childCollections.put("partitions", m_partitions);
         m_fields.put("isUp", m_isUp);
-        m_fields.put("port", m_port);
+        m_fields.put("proc_port", m_proc_port);
+        m_fields.put("dtxn_port", m_dtxn_port);
+        m_fields.put("messenger_port", m_messenger_port);
     }
 
     void update() {
-        m_isexec = (Boolean) m_fields.get("isexec");
-        m_initiatorid = (Integer) m_fields.get("initiatorid");
+        m_id = (Integer) m_fields.get("id");
         m_isUp = (Boolean) m_fields.get("isUp");
-        m_port = (Integer) m_fields.get("port");
+        m_proc_port = (Integer) m_fields.get("proc_port");
+        m_dtxn_port = (Integer) m_fields.get("dtxn_port");
+        m_messenger_port = (Integer) m_fields.get("messenger_port");
     }
 
-    /** GETTER: Does the site execute workunits? */
-    public boolean getIsexec() {
-        return m_isexec;
+    /** GETTER: Site Id */
+    public int getId() {
+        return m_id;
     }
 
     /** GETTER: Which host does the site belong to? */
@@ -67,21 +72,8 @@ public class Site extends CatalogType {
     }
 
     /** GETTER: Which logical data partition does this host process? */
-    public Partition getPartition() {
-        Object o = getField("partition");
-        if (o instanceof UnresolvedInfo) {
-            UnresolvedInfo ui = (UnresolvedInfo) o;
-            Partition retval = (Partition) m_catalog.getItemForRef(ui.path);
-            assert(retval != null);
-            m_fields.put("partition", retval);
-            return retval;
-        }
-        return (Partition) o;
-    }
-
-    /** GETTER: If the site is an initiator, this is its tightly packed id */
-    public int getInitiatorid() {
-        return m_initiatorid;
+    public CatalogMap<Partition> getPartitions() {
+        return m_partitions;
     }
 
     /** GETTER: Is the site up? */
@@ -89,14 +81,24 @@ public class Site extends CatalogType {
         return m_isUp;
     }
 
-    /** GETTER: Yeah, you know what this is */
-    public int getPort() {
-        return m_port;
+    /** GETTER: Port used by VoltProcedureListener */
+    public int getProc_port() {
+        return m_proc_port;
     }
 
-    /** SETTER: Does the site execute workunits? */
-    public void setIsexec(boolean value) {
-        m_isexec = value; m_fields.put("isexec", value);
+    /** GETTER: Port used by DTXN ProtoServer */
+    public int getDtxn_port() {
+        return m_dtxn_port;
+    }
+
+    /** GETTER: Port used by HStoreMessenger */
+    public int getMessenger_port() {
+        return m_messenger_port;
+    }
+
+    /** SETTER: Site Id */
+    public void setId(int value) {
+        m_id = value; m_fields.put("id", value);
     }
 
     /** SETTER: Which host does the site belong to? */
@@ -104,24 +106,24 @@ public class Site extends CatalogType {
         m_fields.put("host", value);
     }
 
-    /** SETTER: Which logical data partition does this host process? */
-    public void setPartition(Partition value) {
-        m_fields.put("partition", value);
-    }
-
-    /** SETTER: If the site is an initiator, this is its tightly packed id */
-    public void setInitiatorid(int value) {
-        m_initiatorid = value; m_fields.put("initiatorid", value);
-    }
-
     /** SETTER: Is the site up? */
     public void setIsup(boolean value) {
         m_isUp = value; m_fields.put("isUp", value);
     }
 
-    /** SETTER: Yeah, you know what this is */
-    public void setPort(int value) {
-        m_port = value; m_fields.put("port", value);
+    /** SETTER: Port used by VoltProcedureListener */
+    public void setProc_port(int value) {
+        m_proc_port = value; m_fields.put("proc_port", value);
+    }
+
+    /** SETTER: Port used by DTXN ProtoServer */
+    public void setDtxn_port(int value) {
+        m_dtxn_port = value; m_fields.put("dtxn_port", value);
+    }
+
+    /** SETTER: Port used by HStoreMessenger */
+    public void setMessenger_port(int value) {
+        m_messenger_port = value; m_fields.put("messenger_port", value);
     }
 
 }

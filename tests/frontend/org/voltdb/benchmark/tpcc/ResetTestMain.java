@@ -67,7 +67,7 @@ public class ResetTestMain {
         server.start();
         server.waitForInitialization();
         Client client = ClientFactory.createClient();
-        client.createConnection("localhost", "program", "none");
+        client.createConnection("localhost", Client.VOLTDB_SERVER_PORT, "program", "none");
 
         Date generationDateTime = new Date();
         long tm = System.currentTimeMillis();

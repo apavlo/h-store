@@ -7,6 +7,7 @@
 #include <tr1/functional>
 
 #include "base/assert.h"
+#include "base/debuglog.h"
 #include "dtxn/dtxnmanager.h"
 #include "dtxn/distributedtransaction.h"
 
@@ -21,7 +22,7 @@ namespace protodtxn {
 class ProtoDtxnCoordinatorRequest {
 public:
     ProtoDtxnCoordinatorRequest(ProtoDtxnCoordinator* coordinator,
-            int id,
+            int64_t id,
             int num_partitions) :
             coordinator_(coordinator),
             controller_(NULL),
@@ -39,6 +40,7 @@ public:
     }
 
     void setResponse(RpcController* controller, CoordinatorResponse* response, Closure* done) {
+        LOG_DEBUG("Set Response Txn Id #%ld", id_);
         assert(controller_ == NULL);
         assert(response_ == NULL);
         assert(done_ == NULL);
@@ -48,6 +50,7 @@ public:
         controller_ = controller;
         response_ = response;
         done_ = done;
+        LOG_DEBUG("Txn #%ld now has a response! What do you think about that?", id_);
     }
 
     DistributedTransaction* transaction() { return transaction_; }
@@ -60,9 +63,10 @@ public:
         CHECK(done != NULL);
         done_ = done;
     }
-
+    
 private:
     void executeDone() {
+        LOG_DEBUG("executeDone %ld", id_);
         // Pass back the answers to the client
         // TODO: Need to handle more complicated things?
         for (int i = 0; i < transaction_->received().size(); ++i) {
@@ -97,7 +101,7 @@ private:
     CoordinatorResponse* response_;
     Closure* done_;
 
-    int id_;
+    int64_t id_;
     DistributedTransaction* transaction_;
     std::tr1::function<void()> callback_;
     std::tr1::function<void()> finish_callback_;
@@ -117,6 +121,7 @@ void ProtoDtxnCoordinator::Execute(RpcController* controller,
         const CoordinatorFragment* request,
         CoordinatorResponse* response,
         Closure* done) {
+    LOG_DEBUG("Execute %ld", request->transaction_id());
     CHECK(request->fragment_size() > 0);
     assert(!response->IsInitialized());
 
@@ -134,6 +139,12 @@ void ProtoDtxnCoordinator::Execute(RpcController* controller,
         CHECK(state->transaction()->multiple_partitions());
     }
     state->setResponse(controller, response, done);
+    
+    // PAVLO:
+    if (state->transaction()->has_payload() == false && request->has_payload() == true) {
+        LOG_DEBUG("Setting DistributedTransaction payload [%s]", request->payload().c_str());
+        state->transaction()->set_payload(request->payload());
+    }
 
     for (int i = 0; i < request->fragment_size(); ++i) {
         state->transaction()->send(
@@ -153,6 +164,8 @@ void ProtoDtxnCoordinator::Finish(RpcController* controller,
         const FinishRequest* request,
         FinishResponse* response,
         Closure* done) {
+    LOG_DEBUG("Finish %ld [payload=%s]", request->transaction_id(), request->payload().c_str());
+    
     // Finish this transaction
     TransactionMap::iterator it = transactions_.find(request->transaction_id());
     CHECK(it != transactions_.end());
@@ -161,7 +174,8 @@ void ProtoDtxnCoordinator::Finish(RpcController* controller,
     if (state->transaction()->multiple_partitions() &&
             state->transaction()->status() == DistributedTransaction::OK) {
         state->setFinish(done);
-        dtxn_manager_->finish(state->transaction(), request->commit(), state->finish_callback());
+        LOG_DEBUG("Telling our DtxnManager that we want to finish");
+        dtxn_manager_->finish(state->transaction(), request->commit(), request->payload(), state->finish_callback());
     } else {
         CHECK(request->commit() == (state->transaction()->status() == DistributedTransaction::OK));
         // This is a single partition transaction, or it aborted: just delete the state
@@ -170,7 +184,7 @@ void ProtoDtxnCoordinator::Finish(RpcController* controller,
     }
 }
 
-ProtoDtxnCoordinatorRequest* ProtoDtxnCoordinator::internalDeleteTransaction(int32_t transaction_id) {
+ProtoDtxnCoordinatorRequest* ProtoDtxnCoordinator::internalDeleteTransaction(int64_t transaction_id) {
     TransactionMap::iterator it = transactions_.find(transaction_id);
     CHECK(it != transactions_.end());
 

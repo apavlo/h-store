@@ -13,10 +13,12 @@ public class CatalogInfo {
         
         // Just print out the Host/Partition Information
         int num_hosts = CatalogUtil.getCluster(args.catalog).getHosts().size();
+        int num_sites = CatalogUtil.getCluster(args.catalog).getSites().size();
         int num_partitions = CatalogUtil.getNumberOfPartitions(args.catalog);
         
         System.out.println("Catalog File:    " + args.catalog_path.getName());
         System.out.println("# of Hosts:      " + num_hosts);
+        System.out.println("# of Sites:      " + num_sites);
         System.out.println("# of Partitions: " + num_partitions);
     }
 

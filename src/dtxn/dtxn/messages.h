@@ -1,10 +1,6 @@
-// Copyright 2008,2009,2010 Massachusetts Institute of Technology.
-// All rights reserved. Use of this source code is governed by a
-// BSD-style license that can be found in the LICENSE file.
-
 /* AUTOMATICALLY GENERATED: DO NOT EDIT */
-#ifndef DTXN_MESSAGES_H
-#define DTXN_MESSAGES_H
+#ifndef __DTXN_MESSAGES_H
+#define __DTXN_MESSAGES_H
 
 #include <cassert>
 #include <string>
@@ -33,7 +29,7 @@ public:
     int32_t client_id;
 
     // Unique identifier for this transaction. Used to identify messages that belong to a single transaction.
-    int32_t id;
+    int64_t id;
 
     // True if this transaction spans multiple partitions.
     bool multiple_partitions;
@@ -44,12 +40,16 @@ public:
     // The actual transaction to be processed.
     std::string transaction;
 
+    // Fragment messsage payload
+    std::string payload;
+
     bool operator==(const Fragment& other) const {
         if (client_id != other.client_id) return false;
         if (id != other.id) return false;
         if (multiple_partitions != other.multiple_partitions) return false;
         if (last_fragment != other.last_fragment) return false;
         if (transaction != other.transaction) return false;
+//         if (payload != other.payload) return false;
         return true;
     }
     bool operator!=(const Fragment& other) const { return !(*this == other); }
@@ -60,6 +60,7 @@ public:
         serialization::serialize(multiple_partitions, _out_);
         serialization::serialize(last_fragment, _out_);
         serialization::serialize(transaction, _out_);
+        serialization::serialize(payload, _out_);
     }
 
     virtual void serialize(io::FIFOBuffer* _out_) const {
@@ -68,6 +69,7 @@ public:
         serialization::serialize(multiple_partitions, _out_);
         serialization::serialize(last_fragment, _out_);
         serialization::serialize(transaction, _out_);
+        serialization::serialize(payload, _out_);
     }
 
     const char* parseFromString(const char* _start_, const char* _end_) {
@@ -76,6 +78,7 @@ public:
         _start_ = serialization::deserialize(&multiple_partitions, _start_, _end_);
         _start_ = serialization::deserialize(&last_fragment, _start_, _end_);
         _start_ = serialization::deserialize(&transaction, _start_, _end_);
+        _start_ = serialization::deserialize(&payload, _start_, _end_);
         return _start_;
     }
 
@@ -84,7 +87,7 @@ public:
         ASSERT(end == _str_.data() + _str_.size());
     }
 
-    static int32_t typeCode() { return 871500942; }
+    static int32_t typeCode() { return 1229065059; }
 };
 
 // The response from the partition.
@@ -96,7 +99,7 @@ public:
         dependency(-1) {}
 
     // Identifies the transaction that this decision refers to.
-    int32_t id;
+    int64_t id;
 
     // Contains the ExecutionEngine::Status for this transaction.
     int32_t status;
@@ -143,7 +146,7 @@ public:
         ASSERT(end == _str_.data() + _str_.size());
     }
 
-    static int32_t typeCode() { return -659991461; }
+    static int32_t typeCode() { return 704147483; }
 };
 
 // Instructs a replica to commit or abort a transaction.
@@ -158,15 +161,19 @@ public:
     int32_t client_id;
 
     // Identifies the transaction that this decision refers to.
-    int32_t id;
+    int64_t id;
 
     // True if the transaction should commit.
     bool commit;
+
+    // Commit messsage payload
+    std::string payload;
 
     bool operator==(const CommitDecision& other) const {
         if (client_id != other.client_id) return false;
         if (id != other.id) return false;
         if (commit != other.commit) return false;
+//         if (payload != other.payload) return false;
         return true;
     }
     bool operator!=(const CommitDecision& other) const { return !(*this == other); }
@@ -175,18 +182,21 @@ public:
         serialization::serialize(client_id, _out_);
         serialization::serialize(id, _out_);
         serialization::serialize(commit, _out_);
+        serialization::serialize(payload, _out_);
     }
 
     virtual void serialize(io::FIFOBuffer* _out_) const {
         serialization::serialize(client_id, _out_);
         serialization::serialize(id, _out_);
         serialization::serialize(commit, _out_);
+        serialization::serialize(payload, _out_);
     }
 
     const char* parseFromString(const char* _start_, const char* _end_) {
         _start_ = serialization::deserialize(&client_id, _start_, _end_);
         _start_ = serialization::deserialize(&id, _start_, _end_);
         _start_ = serialization::deserialize(&commit, _start_, _end_);
+        _start_ = serialization::deserialize(&payload, _start_, _end_);
         return _start_;
     }
 
@@ -195,7 +205,7 @@ public:
         ASSERT(end == _str_.data() + _str_.size());
     }
 
-    static int32_t typeCode() { return 1928811122; }
+    static int32_t typeCode() { return -1953901859; }
 };
 
 // Transaction record stored in a log.
@@ -276,8 +286,8 @@ public:
         ASSERT(end == _str_.data() + _str_.size());
     }
 
-    static int32_t typeCode() { return -477062385; }
+    static int32_t typeCode() { return -1915125041; }
 };
 
 }  // namespace dtxn
-#endif  // DTXN_MESSAGES_H
+#endif  // __DTXN_MESSAGES_H

@@ -228,7 +228,7 @@ public abstract class PlanNodeUtil {
         if (node instanceof AggregatePlanNode) {
             AggregatePlanNode cast_node = (AggregatePlanNode)node;
             ret += spacer + "AggregateTypes[" + cast_node.getAggregateTypes() + "]\n";
-            // ret += spacer + "AggregateColumns[" + cast_node.getAggregateOutputColumns() + "]\n";
+            ret += spacer + "AggregateColumns[" + cast_node.getAggregateOutputColumns() + "]\n";
             ret += spacer + "GroupByColumns" + cast_node.getGroupByColumns() + "\n";
             ret += PlanNodeUtil.debugOutputColumns("OutputColumns", cast_node, spacer);
         } else if (node instanceof DeletePlanNode) {
@@ -276,10 +276,11 @@ public abstract class PlanNodeUtil {
             
         } else if (node instanceof ReceivePlanNode) {
             ReceivePlanNode cast_node = (ReceivePlanNode)node;
-            ret += PlanNodeUtil.debugOutputColumns("TableColumns", cast_node, spacer);
+            ret += PlanNodeUtil.debugOutputColumns("OutputColumns", cast_node, spacer);
             
         } else if (node instanceof SendPlanNode) {
             ret += spacer + "Fake[" + ((SendPlanNode)node).getFake() + "]\n";
+            ret += PlanNodeUtil.debugOutputColumns("InputColumns", node, spacer);
             
         } else if (node instanceof SeqScanPlanNode) {
             ret += spacer + "Scan Expression: " + (((SeqScanPlanNode)node).getPredicate() != null ? "\n" + ExpressionUtil.debug(((SeqScanPlanNode)node).getPredicate(), spacer) : null + "\n");

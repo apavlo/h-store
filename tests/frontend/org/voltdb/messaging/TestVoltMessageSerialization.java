@@ -61,7 +61,7 @@ public class TestVoltMessageSerialization extends TestCase {
 
         InitiateTaskMessage itask2 = (InitiateTaskMessage) checkVoltMessage(itask, pool);
 
-        assertEquals(itask.getInitiatorSiteId(), itask2.getInitiatorSiteId());
+        assertEquals(itask.getSourcePartitionId(), itask2.getSourcePartitionId());
         assertEquals(itask.getTxnId(), itask2.getTxnId());
         assertEquals(itask.isReadOnly(), itask2.isReadOnly());
         assertEquals(itask.isSinglePartition(), itask2.isSinglePartition());
@@ -111,8 +111,8 @@ public class TestVoltMessageSerialization extends TestCase {
 
         FragmentTaskMessage ft2 = (FragmentTaskMessage) checkVoltMessage(ft, pool);
 
-        assertEquals(ft.getInitiatorSiteId(), ft2.getInitiatorSiteId());
-        assertEquals(ft.getCoordinatorSiteId(), ft2.getCoordinatorSiteId());
+        assertEquals(ft.getSourcePartitionId(), ft2.getSourcePartitionId());
+        assertEquals(ft.getDestinationPartitionId(), ft2.getDestinationPartitionId());
         assertEquals(ft.getTxnId(), ft2.getTxnId());
         assertEquals(ft.isReadOnly(), ft2.isReadOnly());
 
@@ -137,14 +137,14 @@ public class TestVoltMessageSerialization extends TestCase {
         );
         table.addRow("sandimashighschoolfootballrules");
 
-        FragmentResponseMessage fr = new FragmentResponseMessage(ft, 23);
+        FragmentResponseMessage fr = new FragmentResponseMessage(ft);
         fr.setStatus(FragmentResponseMessage.UNEXPECTED_ERROR, new EEException(1));
         fr.addDependency(99, table);
 
         FragmentResponseMessage fr2 = (FragmentResponseMessage) checkVoltMessage(fr, pool);
 
-        assertEquals(fr.getExecutorSiteId(), fr2.getExecutorSiteId());
-        assertEquals(fr.getDestinationSiteId(), fr2.getDestinationSiteId());
+        assertEquals(fr.getSourcePartitionId(), fr2.getSourcePartitionId());
+        assertEquals(fr.getDestinationPartitionId(), fr2.getDestinationPartitionId());
         assertEquals(fr.getTxnId(), fr2.getTxnId());
         assertEquals(fr.getStatusCode(), fr2.getStatusCode());
         assertEquals(fr.getTableCount(), fr2.getTableCount());
@@ -164,8 +164,8 @@ public class TestVoltMessageSerialization extends TestCase {
 
         MultiPartitionParticipantMessage mn2 = (MultiPartitionParticipantMessage) checkVoltMessage(mn, pool);
 
-        assertEquals(mn.getInitiatorSiteId(), mn2.getInitiatorSiteId());
-        assertEquals(mn.getCoordinatorSiteId(), mn2.getCoordinatorSiteId());
+        assertEquals(mn.getSourcePartitionId(), mn2.getSourcePartitionId());
+        assertEquals(mn.getDestinationPartitionId(), mn2.getDestinationPartitionId());
         assertEquals(mn.getTxnId(), mn2.getTxnId());
         assertEquals(mn.isReadOnly(), mn2.isReadOnly());
         mn.discard();
@@ -179,8 +179,8 @@ public class TestVoltMessageSerialization extends TestCase {
 
         HeartbeatMessage mn2 = (HeartbeatMessage) checkVoltMessage(mn, pool);
 
-        assertEquals(mn.getInitiatorSiteId(), mn2.getInitiatorSiteId());
-        assertEquals(mn.getCoordinatorSiteId(), mn2.getCoordinatorSiteId());
+        assertEquals(mn.getSourcePartitionId(), mn2.getSourcePartitionId());
+        assertEquals(mn.getDestinationPartitionId(), mn2.getDestinationPartitionId());
         assertEquals(mn.getTxnId(), mn2.getTxnId());
         assertEquals(mn.isReadOnly(), mn2.isReadOnly());
         assertEquals(mn.getLastSafeTxnId(), mn2.getLastSafeTxnId());

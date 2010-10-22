@@ -31,6 +31,7 @@ import java.lang.reflect.Field;
 import java.util.*;
 
 import org.apache.commons.collections15.map.ListOrderedMap;
+import org.apache.log4j.LogManager;
 import org.apache.log4j.Logger;
 
 import org.voltdb.catalog.*;
@@ -66,8 +67,10 @@ public class ArgumentsParser {
     
     public static void setupLogging() {
         if (initialized_log4j) return;
+        // Hack for testing...
         String paths[] = new String[]{
             System.getProperty("log4j.configuration", "./log4j.properties"),
+            "/home/pavlo/Documents/H-Store/SVN-Brown/branches/protorpc-messaging-branch/log4j.properties",
             "/home/pavlo/Documents/H-Store/SVN-Brown/trunk/log4j.properties",
             "/host/work/hstore/src/log4j.properties",
         };
@@ -88,6 +91,7 @@ public class ArgumentsParser {
                 public void run() {
                     if (!initialized_log4j) setupLogging();
                     Thread self = Thread.currentThread();
+                    self.setName("LogCheck");
                     while (!self.isInterrupted()) {
                         try {
                             Thread.sleep(interval);
@@ -179,6 +183,7 @@ public class ArgumentsParser {
     public static final String PARAM_NODE_HOST              = PARAM_NODE + ".host";
     public static final String PARAM_NODE_PORT              = PARAM_NODE + ".port";
     public static final String PARAM_NODE_PARTITION         = PARAM_NODE + ".partition";
+    public static final String PARAM_NODE_SITE              = PARAM_NODE + ".site";
     
     private static final String PARAM_DTXN                  = "dtxn";
     public static final String PARAM_DTXN_CONF              = PARAM_DTXN + ".conf";

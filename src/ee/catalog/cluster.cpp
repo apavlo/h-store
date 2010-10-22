@@ -22,7 +22,6 @@
 #include <cassert>
 #include "cluster.h"
 #include "catalog.h"
-#include "partition.h"
 #include "database.h"
 #include "host.h"
 #include "site.h"
@@ -32,19 +31,20 @@ using namespace std;
 
 Cluster::Cluster(Catalog *catalog, CatalogType *parent, const string &path, const string &name)
 : CatalogType(catalog, parent, path, name),
-  m_databases(catalog, this, path + "/" + "databases"), m_hosts(catalog, this, path + "/" + "hosts"), m_sites(catalog, this, path + "/" + "sites"), m_partitions(catalog, this, path + "/" + "partitions")
+  m_databases(catalog, this, path + "/" + "databases"), m_hosts(catalog, this, path + "/" + "hosts"), m_sites(catalog, this, path + "/" + "sites")
 {
     CatalogValue value;
     m_childCollections["databases"] = &m_databases;
     m_childCollections["hosts"] = &m_hosts;
     m_childCollections["sites"] = &m_sites;
-    m_childCollections["partitions"] = &m_partitions;
+    m_fields["num_partitions"] = value;
     m_fields["leaderaddress"] = value;
     m_fields["localepoch"] = value;
     m_fields["securityEnabled"] = value;
 }
 
 void Cluster::update() {
+    m_num_partitions = m_fields["num_partitions"].intValue;
     m_leaderaddress = m_fields["leaderaddress"].strValue.c_str();
     m_localepoch = m_fields["localepoch"].intValue;
     m_securityEnabled = m_fields["securityEnabled"].intValue;
@@ -69,12 +69,6 @@ CatalogType * Cluster::addChild(const std::string &collectionName, const std::st
             return NULL;
         return m_sites.add(childName);
     }
-    if (collectionName.compare("partitions") == 0) {
-        CatalogType *exists = m_partitions.get(childName);
-        if (exists)
-            return NULL;
-        return m_partitions.add(childName);
-    }
     return NULL;
 }
 
@@ -85,8 +79,6 @@ CatalogType * Cluster::getChild(const std::string &collectionName, const std::st
         return m_hosts.get(childName);
     if (collectionName.compare("sites") == 0)
         return m_sites.get(childName);
-    if (collectionName.compare("partitions") == 0)
-        return m_partitions.get(childName);
     return NULL;
 }
 
@@ -98,8 +90,6 @@ void Cluster::removeChild(const std::string &collectionName, const std::string &
         return m_hosts.remove(childName);
     if (collectionName.compare("sites") == 0)
         return m_sites.remove(childName);
-    if (collectionName.compare("partitions") == 0)
-        return m_partitions.remove(childName);
 }
 
 const CatalogMap<Database> & Cluster::databases() const {
@@ -114,8 +104,8 @@ const CatalogMap<Site> & Cluster::sites() const {
     return m_sites;
 }
 
-const CatalogMap<Partition> & Cluster::partitions() const {
-    return m_partitions;
+int32_t Cluster::num_partitions() const {
+    return m_num_partitions;
 }
 
 const string & Cluster::leaderaddress() const {

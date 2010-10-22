@@ -23,7 +23,7 @@ import edu.brown.utils.*;
 public class TestTransactionState extends BaseTestCase {
     private static final Logger LOG = Logger.getLogger(TestTransactionState.class.getName());
 
-    private static final long TXN_ID = 1000l;
+    private static final Long TXN_ID = 1000l;
     private static final long CLIENT_HANDLE = 99999l;
     private static final boolean EXEC_LOCAL = true;
     private static final long UNDO_TOKEN = 10l;
@@ -35,7 +35,6 @@ public class TestTransactionState extends BaseTestCase {
     private static final int NUM_PARTITIONS = 4;
     private static final int NUM_EXPECTED_DEPENDENCIES = (NUM_PARTITIONS + 1) * NUM_DUPLICATE_STATEMENTS;
     private static final int LOCAL_PARTITION = 0;
-    private static BackendTarget BACKEND_TARGET = BackendTarget.HSQLDB_BACKEND;
 
     private static final VoltTable.ColumnInfo FAKE_RESULTS_COLUMNS[] = new VoltTable.ColumnInfo[] {
         new VoltTable.ColumnInfo("ID", VoltType.INTEGER),
@@ -58,10 +57,8 @@ public class TestTransactionState extends BaseTestCase {
         this.addPartitions(NUM_PARTITIONS);
         
         if (executor == null) {
-            BACKEND_TARGET = (this.hasVoltLib() && false ? BackendTarget.NATIVE_EE_JNI : BackendTarget.HSQLDB_BACKEND);
-            
             PartitionEstimator p_estimator = new PartitionEstimator(catalog_db);
-            executor = new ExecutionSite(LOCAL_PARTITION, catalog, BACKEND_TARGET, false, p_estimator, null);
+            executor = new MockExecutionSite(LOCAL_PARTITION, catalog, p_estimator);
             p_estimator = new PartitionEstimator(catalog_db, new DefaultHasher(catalog_db, NUM_PARTITIONS));
             
             // Setup a BatchPlanner for ourselves here
@@ -89,8 +86,9 @@ public class TestTransactionState extends BaseTestCase {
             ftasks = plan.getFragmentTaskMessages(TXN_ID, CLIENT_HANDLE);
             assertFalse(ftasks.isEmpty());
         }
-        this.ts = new TransactionState(executor, TXN_ID, CLIENT_HANDLE, EXEC_LOCAL);
+        this.ts = new TransactionState(executor, TXN_ID, TXN_ID, LOCAL_PARTITION, CLIENT_HANDLE, EXEC_LOCAL);
         assertNotNull(this.ts);
+        assertEquals(TransactionState.RoundState.NULL, this.ts.getCurrentRoundState());
     }
 
     /**
@@ -127,6 +125,7 @@ public class TestTransactionState extends BaseTestCase {
      */
     public void testInitRound() throws Exception {
         this.ts.initRound(UNDO_TOKEN);
+        assertEquals(TransactionState.RoundState.INITIALIZED, this.ts.getCurrentRoundState());
         assertNotNull(this.ts.getLastUndoToken());
         assertEquals(UNDO_TOKEN, this.ts.getLastUndoToken().longValue());
         //System.err.println(this.ts);
@@ -137,6 +136,7 @@ public class TestTransactionState extends BaseTestCase {
      */
     public void testStartRound() throws Exception {
         this.ts.initRound(UNDO_TOKEN);
+        assertEquals(TransactionState.RoundState.INITIALIZED, this.ts.getCurrentRoundState());
         this.addFragments();
         CountDownLatch latch = this.ts.startRound();
         assertNotNull(latch);
@@ -207,6 +207,7 @@ public class TestTransactionState extends BaseTestCase {
         this.ts.initRound(UNDO_TOKEN);
         this.addFragments();
         this.ts.startRound();
+        assertEquals(TransactionState.RoundState.STARTED, this.ts.getCurrentRoundState());
         
         // We want to add results for just one of the duplicated statements and make sure that
         // we only unblock one of them. First we need to find an internal dependency that has blocked tasks 
@@ -231,6 +232,7 @@ public class TestTransactionState extends BaseTestCase {
                 int dependency_id = this.internal_dependency_ids.get(stmt_index);
                 LOG.debug("Adding result for [partition=" + partition + ", dependency_id=" + dependency_id + ", stmt_index=" + stmt_index + "]");
                 this.ts.addResult(partition, dependency_id, FAKE_RESULT);
+                this.ts.addResponse(partition, dependency_id);
             } // FOR
         } // FOR
         if (NUM_PARTITIONS != internal_dinfo.getResults().size()) {
@@ -239,13 +241,14 @@ public class TestTransactionState extends BaseTestCase {
             LOG.info(internal_dinfo);
         }
         assertEquals(internal_dinfo.getResults().toString(), NUM_PARTITIONS, internal_dinfo.getResults().size());
-        assert(internal_dinfo.hasTasksReady());
+        assert(internal_dinfo.hasTasksReleased());
         
         // Make sure that all other Statements didn't accidently unblock their FragmentTaskMessages...
         for (int stmt_index = 1; stmt_index < NUM_DUPLICATE_STATEMENTS; stmt_index++) {
             TransactionState.DependencyInfo other = this.ts.getDependencyInfo(stmt_index, this.internal_dependency_ids.get(stmt_index));
             assertNotNull(other);
             assertFalse(other.hasTasksReady());
+            assertFalse(other.hasTasksReleased());
             assertEquals(1, other.getResults().size());
         } // FOR
         // System.err.println(this.ts);
@@ -257,6 +260,7 @@ public class TestTransactionState extends BaseTestCase {
     public void testAddResultsBeforeStart() throws Exception {
         this.ts.initRound(UNDO_TOKEN);
         this.addFragments();
+        assertEquals(TransactionState.RoundState.INITIALIZED, this.ts.getCurrentRoundState());
         
         // We need to test to make sure that we don't get a CountDownLatch with the wrong count
         // if we start the round *after* a bunch of results have arrived.
@@ -274,10 +278,12 @@ public class TestTransactionState extends BaseTestCase {
                     VoltTable copy = new VoltTable(FAKE_RESULTS_COLUMNS);
                     copy.addRow(marker, "XXXX");
                     this.ts.addResult(partition, dependency_id, copy);
+                    this.ts.addResponse(partition, dependency_id);
                     markers.add(marker++);
                 // Otherwise just stuff in our fake result
                 } else {
                     this.ts.addResult(partition, dependency_id, FAKE_RESULT);
+                    this.ts.addResponse(partition, dependency_id);
                 }
             } // FOR (partition)
         } // FOR (dependency ids)
@@ -286,6 +292,7 @@ public class TestTransactionState extends BaseTestCase {
         CountDownLatch latch = this.ts.startRound();
         assertNotNull(latch);
         assertEquals(0, latch.getCount());
+        assertEquals(TransactionState.RoundState.STARTED, this.ts.getCurrentRoundState());
     }
     
     /**
@@ -313,10 +320,12 @@ public class TestTransactionState extends BaseTestCase {
                     VoltTable copy = new VoltTable(FAKE_RESULTS_COLUMNS);
                     copy.addRow(marker, "XXXX");
                     this.ts.addResult(partition, dependency_id, copy);
+                    this.ts.addResponse(partition, dependency_id);
                     markers.add(marker++);
                 // Otherwise just stuff in our fake result
                 } else {
                     this.ts.addResult(partition, dependency_id, FAKE_RESULT);
+                    this.ts.addResponse(partition, dependency_id);
                     LOG.debug("Adding result for [partition=" + partition + ", dependency_id=" + dependency_id + "]");
                 }
             } // FOR (partition)
@@ -340,5 +349,4 @@ public class TestTransactionState extends BaseTestCase {
         } // FOR
         // System.err.println(this.ts);
     }
-
 }

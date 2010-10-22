@@ -2,11 +2,14 @@ package protodtxn;
 option java_package = "edu.mit.dtxn";
 
 message Fragment {
-    required int32 transaction_id = 1;
+    required int64 transaction_id = 1;
     required bytes work = 2;
 
     // If true then the fragment must be undoable using a call to Finish.
     required bool undoable = 3;
+    
+    // PAVLO: Attach extra info for the txn
+    optional bytes payload = 4;
 }
 
 message FragmentResponse {
@@ -26,13 +29,16 @@ message FragmentResponse {
 
 
 message FinishRequest {
-    required int32 transaction_id = 1;
+    required int64 transaction_id = 1;
     required bool commit = 2;
+    // PAVLO: Attach extra info for the txn
+    optional bytes payload = 3;
 }
 
 
 message FinishResponse {
     //required bool committed = 1;
+    optional bytes payload = 1;
 }
 
 
@@ -70,13 +76,16 @@ message CoordinatorFragment {
     }
 
     // Transaction id that is local for this connection.
-    required int32 transaction_id = 1;
+    required int64 transaction_id = 1;
 
     // Set of partitions to send work to. A partition can appear only once in this list
     repeated PartitionFragment fragment = 2;
 
     // If true, this is the final chunk of work for this transaction (indicates autocommit).
     optional bool last_fragment = 3 [default = false];
+    
+    // PAVLO: Attach extra info for the txn
+    optional bytes payload = 4;
 }
 
 
@@ -87,7 +96,7 @@ message CoordinatorResponse {
     }
 
     // Transaction id that is local for this connection.
-    required int32 transaction_id = 1;
+    required int64 transaction_id = 1;
 
     required FragmentResponse.Status status = 2;
 

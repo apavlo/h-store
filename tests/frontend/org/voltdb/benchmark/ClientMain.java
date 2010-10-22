@@ -56,6 +56,8 @@ import org.voltdb.utils.Pair;
 import org.voltdb.utils.VoltSampler;
 import org.voltdb.utils.DBBPool.BBContainer;
 
+import edu.brown.utils.StringUtil;
+
 /**
  * Base class for clients that will work with the multi-host multi-process
  * benchmark framework that is driven from stdin
@@ -82,6 +84,7 @@ public abstract class ClientMain {
      * at the end of run.
      */
     private String m_host;
+    private int m_port;
 
     /**
      * Username supplied to the Volt client
@@ -162,6 +165,8 @@ public abstract class ClientMain {
 
         public final String display;
     };
+    
+    public static String CONTROL_PREFIX = "{HSTORE} ";
 
     /**
      * Implements the simple state machine for the remote controller protocol.
@@ -177,7 +182,7 @@ public abstract class ClientMain {
 
             // transition to ready and send ready message
             if (m_controlState == ControlState.PREPARING) {
-                System.out.printf("%d,%s\n", System.currentTimeMillis(),
+                System.out.printf("%s%d,%s\n", CONTROL_PREFIX, System.currentTimeMillis(),
                                   ControlState.READY.display);
                 m_controlState = ControlState.READY;
             }
@@ -243,7 +248,7 @@ public abstract class ClientMain {
         }
 
         public void answerWithError() {
-            System.out.printf("%d,%s,%s\n", System.currentTimeMillis(),
+            System.out.printf("%s%d,%s,%s\n", CONTROL_PREFIX, System.currentTimeMillis(),
                               m_controlState.display, m_reason);
         }
 
@@ -257,7 +262,7 @@ public abstract class ClientMain {
                     txncounts.append(m_counts[i].get());
                 }
             }
-            System.out.printf("%d,%s%s\n", System.currentTimeMillis(),
+            System.out.printf("%s%d,%s%s\n", CONTROL_PREFIX, System.currentTimeMillis(),
                               m_controlState.display, txncounts.toString());
         }
 
@@ -502,21 +507,21 @@ public abstract class ClientMain {
             }
         }
         StatsUploaderSettings statsSettings = null;
-        if (statsDatabaseURL != null) {
-            try {
-                statsSettings =
-                    new
-                        StatsUploaderSettings(
-                            statsDatabaseURL,
-                            getApplicationName(),
-                            getSubApplicationName(),
-                            statsPollInterval);
-            } catch (Exception e) {
-                System.err.println(e.getMessage());
-                //e.printStackTrace();
-                statsSettings = null;
-            }
-        }
+//        if (statsDatabaseURL != null) {
+//            try {
+//                statsSettings =
+//                    new
+//                        StatsUploaderSettings(
+//                            statsDatabaseURL,
+//                            getApplicationName(),
+//                            getSubApplicationName(),
+//                            statsPollInterval);
+//            } catch (Exception e) {
+//                System.err.println(e.getMessage());
+//                //e.printStackTrace();
+//                statsSettings = null;
+//            }
+//        }
         Client new_client =
             ClientFactory.createClient(
                 getExpectedOutgoingMessageSize(),
@@ -552,12 +557,12 @@ public abstract class ClientMain {
                 continue;
             }
             else if (parts[0].equals("HOST")) {
-                final String hostnport[] = parts[1].split("\\:", 2);
-                m_host = hostnport[0];
+                final Pair<String, Integer> hostnport = StringUtil.getHostPort(parts[1]);
+                m_host = hostnport.getFirst();
+                m_port = hostnport.getSecond();
                 try {
-                    System.err.println("Creating connection to  "
-                        + hostnport[0]);
-                    createConnection(hostnport[0]);
+                    System.err.println("Creating connection to " + hostnport);
+                    createConnection(m_host, m_port);
                     System.err.println("Created connection.");
                     atLeastOneConnection = true;
                 }
@@ -637,9 +642,9 @@ public abstract class ClientMain {
             m_reason = reason;
     }
 
-    private void createConnection(final String hostname)
+    private void createConnection(final String hostname, final int port)
         throws UnknownHostException, IOException {
-        m_voltClient.createConnection(hostname, m_username, m_password);
+        m_voltClient.createConnection(hostname, port, m_username, m_password);
     }
 
     private boolean checkConstraints(String procName, ClientResponse response) {

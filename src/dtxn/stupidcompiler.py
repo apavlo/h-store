@@ -1,4 +1,5 @@
 #!/usr/bin/python
+# -*- coding: utf-8 -*-
 
 """A stupid message compiler for C++."""
 
@@ -21,10 +22,11 @@ def reinterpretAsInt32(x):
 
 class Type(object):
     INT32 = 0
-    BOOL = 1
-    STRING = 2
-    STRUCT = 3
-    LIST = 4
+    INT64 = 1
+    BOOL = 2
+    STRING = 3
+    STRUCT = 4
+    LIST = 5
 
     def __init__(self, code):
         assert Type.INT32 <= code and code <= Type.LIST
@@ -37,6 +39,7 @@ INT32_MAX = 2147483647
 INT32_MIN = -2147483648
 
 INT32 = Type(Type.INT32)
+INT64 = Type(Type.INT64)
 BOOL = Type(Type.BOOL)
 STRING = Type(Type.STRING)
 STRUCT = Type(Type.STRUCT)
@@ -61,6 +64,8 @@ class MessageDefinition(object):
         if type_structure.typecode == Type.INT32:
             assert isinstance(default, int)
             assert INT32_MIN <= default and default <= INT32_MAX
+        elif type_structure.typecode == Type.INT64:
+            assert isinstance(default, int)
         elif type_structure.typecode == Type.BOOL:
             assert isinstance(default, bool)
         elif type_structure.typecode == Type.STRING:
@@ -137,6 +142,8 @@ namespace %(namespace)s {\n\n""" % {'guard': self.includeGuard(), 'namespace': n
     def typeString(self, type_structure):
         if type_structure.typecode == Type.INT32:
             return "int32_t"
+        if type_structure.typecode == Type.INT64:
+            return "int64_t"
         if type_structure.typecode == Type.BOOL:
             return "bool"
         if type_structure.typecode == Type.STRING:
@@ -150,6 +157,8 @@ namespace %(namespace)s {\n\n""" % {'guard': self.includeGuard(), 'namespace': n
 
     def typeValueString(self, type_structure, value):
         if type_structure.typecode == Type.INT32:
+            return str(value)
+        if type_structure.typecode == Type.INT64:
             return str(value)
         if type_structure.typecode == Type.BOOL:
             if value: return "true"
@@ -350,6 +359,8 @@ public final class %(classname)s {
     def referenceTypeString(self, type_structure):
         if type_structure.typecode == Type.INT32:
             return "Integer"
+        if type_structure.typecode == Type.INT64:
+            return "Long"
         if type_structure.typecode == Type.BOOL:
             return "Boolean"
         else:
@@ -358,6 +369,8 @@ public final class %(classname)s {
     def typeString(self, type_structure):
         if type_structure.typecode == Type.INT32:
             return "int"
+        if type_structure.typecode == Type.INT64:
+            return "long"
         if type_structure.typecode == Type.BOOL:
             return "boolean"
         if type_structure.typecode == Type.STRING:
@@ -371,6 +384,9 @@ public final class %(classname)s {
     def typeValueString(self, type_structure, value):
         if type_structure.typecode == Type.INT32:
             if value is None: return "0"
+            return str(value)
+        if type_structure.typecode == Type.INT64:
+            if value is None: return "0l"
             return str(value)
         if type_structure.typecode == Type.BOOL:
             if value: return "true"
