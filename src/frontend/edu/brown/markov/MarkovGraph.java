@@ -166,7 +166,7 @@ public class MarkovGraph extends AbstractDirectedGraph<Vertex, Edge> implements 
      * @return
      */
     protected List<Integer> getAllPartitions() {
-        return (CatalogUtil.getAllPartitions(this.getDatabase()));
+        return (CatalogUtil.getAllPartitionIds(this.getDatabase()));
     }
     
     /**

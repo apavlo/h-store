@@ -12,7 +12,7 @@ begin Cluster           "A set of connected hosts running one or more database a
   Database* databases   "The set of databases the cluster is running"
   Host* hosts           "The set of host that belong to this cluster"
   Site* sites           "The set of physical execution contexts executing on this cluster"
-  Partition* partitions "The set of logical partitions in this cluster"
+  int num_partitions    "The number of partitions in the cluster"
   string leaderaddress  "The ip or hostname of the cluster 'leader' - see docs for details"
   int localepoch        "The number of seconds since the epoch that we're calling our local epoch"
   bool securityEnabled   "Whether security and authentication should be enabled/disabled"
@@ -41,15 +41,17 @@ end
 
 begin Partition       "A logical, replicate-able partition"
    int id             "Partition id"
+   int dtxn_port      "Port used by DTXN ProtoEngine"
 end
 
 begin Site             "A physical execution context for the system"
-  bool  isexec         "Does the site execute workunits?"
-  Host? host           "Which host does the site belong to?"
-  Partition? partition "Which logical data partition does this host process?"
-  int initiatorid      "If the site is an initiator, this is its tightly packed id"
-  bool isUp            "Is the site up?"
-  int port             "Yeah, you know what this is"
+   int id               "Site Id"
+   Host? host           "Which host does the site belong to?"
+   Partition* partitions "Which logical data partition does this host process?"
+   bool isUp            "Is the site up?"
+   int proc_port        "Port used by VoltProcedureListener"
+   int dtxn_port        "Port used by DTXN ProtoServer"
+   int messenger_port   "Port used by HStoreMessenger"
 end
 
 begin Database          "A set of schema, procedures and other metadata that together comprise an application"

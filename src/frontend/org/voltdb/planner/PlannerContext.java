@@ -56,6 +56,14 @@ public class PlannerContext {
         return retval;
     }
     
+    public PlanColumn clonePlanColumn(PlanColumn orig) {
+        PlanColumn clone = this.getPlanColumn(orig.m_expression,
+                                              orig.displayName(),
+                                              orig.getSortOrder(),
+                                              orig.getStorage());
+        return (clone);
+    }
+    
     public void add(int guid, PlanColumn col) {
         assert(!this.s_columnPool.containsKey(guid)) :
             "PlannerContext already contains entry for guid #" + guid + ": " + this.s_columnPool.get(guid);
@@ -72,7 +80,13 @@ public class PlannerContext {
     }
 
     public synchronized void freeColumn(int guid) {
+//        System.err.println("REMOVED: " + guid);
         s_columnPool.remove(guid);
+    }
+    
+    @Override
+    public String toString() {
+        return this.s_columnPool.toString();
     }
     
     // PAVLO: Global singleton for us to use to get back the PlanColumns we need

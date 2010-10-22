@@ -26,6 +26,8 @@ import java.util.Iterator;
 import java.util.TreeMap;
 import java.util.Map.Entry;
 
+import edu.brown.catalog.CatalogUtil;
+
 /**
  * A safe interface to a generic map of CatalogType instances. It is safe
  * because it is mostly read-only. All operations that modify the map are
@@ -54,6 +56,17 @@ public final class CatalogMap<T extends CatalogType> implements Iterable<T> {
 
     public Class<T> getGenericClass() {
         return (m_cls);
+    }
+    
+    /**
+     * Returns an array containing all of the elements in this collection;
+     * the runtime type of the returned array is that of the specified array.
+     * If the collection fits in the specified array, it is returned therein.
+     * Otherwise, a new array is allocated with the runtime type of the
+     * specified array and the size of this collection.
+     */
+    public T[] toArray(T arr[]) {
+        return (m_items.values().toArray(arr));
     }
     
     /**
@@ -102,13 +115,32 @@ public final class CatalogMap<T extends CatalogType> implements Iterable<T> {
         return m_items.values().iterator();
     }
     
-    public T get(int index) {
-        // HACK
-        int i = 0;
+//    public T get(int index) {
+//        // HACK
+//        index++;
+//        int i = 0;
+//        T ret = null;
+//        for (T t : m_items.values()) {
+//            System.err.println("[" + (i++) + "] " + t + " (index=" + t.m_relativeIndex + ")");
+//            if (t.m_relativeIndex == index) ret = t; // return (t);
+//        } // FOR
+//        return (ret);
+//    }
+    
+    public T get(String field, Object value) {
+        T ret = null;
         for (T t : m_items.values()) {
-            if (i++ == index) return (t);
-        }
-        return (null);
+            assert(t.m_fields.containsKey(field)) : t.getClass() + " does not contain field '" + field + "'";
+            if (t.getField(field).equals(value)) {
+                ret = t;
+                break;
+            }
+        } // FOR
+        return (ret);
+    }
+    
+    public T get(int index) {
+        return (this.get("index", index));
     }
     
     @SuppressWarnings("unchecked")
@@ -121,7 +153,6 @@ public final class CatalogMap<T extends CatalogType> implements Iterable<T> {
         }
         return a;
     }
-    
 
     public int getSubTreeVersion() {
         return m_subTreeVersion;
@@ -159,6 +190,28 @@ public final class CatalogMap<T extends CatalogType> implements Iterable<T> {
             return x;
         } catch (Exception ex) {
             throw new RuntimeException(ex);
+        }
+    }
+    
+    public void addObject(T x) {
+        String name = x.getName();
+        if (m_items.containsKey(name))
+            throw new CatalogException("Catalog item '" + name + "' already exists for " + m_parent);
+        
+        String childPath = m_path + "[" + name + "]";
+        x.setBaseValues(m_catalog, m_parent, childPath, name);
+        x.m_parentMap = this;
+
+        m_items.put(name, x);
+
+        // update versioning if needed
+        updateVersioning();
+        m_catalog.m_changesMadePerUpdateCount++;
+
+        // assign a relative index to every child item
+        int index = 1;
+        for (Entry<String, T> e : m_items.entrySet()) {
+            e.getValue().m_relativeIndex = index++;
         }
     }
 
@@ -235,5 +288,10 @@ public final class CatalogMap<T extends CatalogType> implements Iterable<T> {
         }
 
         return true;
+    }
+    
+    @Override
+    public String toString() {
+        return CatalogUtil.debug(this);
     }
 }

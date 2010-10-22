@@ -77,15 +77,16 @@ public class CatalogContext {
         // count exec sites
         int execSiteCount = 0;
         for (Site site : sites) {
-            if (site.getPartition() != null) {
-                assert (site.getIsexec());
-                execSiteCount++;
-            }
+            assert(false);
+//            if (site.getPartition() != null) {
+//                assert (site.getIsexec());
+//                execSiteCount++;
+//            }
         }
         numberOfExecSites = execSiteCount;
 
         // count partitions
-        numberOfPartitions = cluster.getPartitions().size();
+        numberOfPartitions = cluster.getNum_partitions();
     }
 
     public CatalogContext deepCopy() {

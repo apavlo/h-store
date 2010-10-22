@@ -31,7 +31,6 @@ namespace catalog {
 class Database;
 class Host;
 class Site;
-class Partition;
 /**
  * A set of connected hosts running one or more database application contexts
  */
@@ -45,7 +44,7 @@ protected:
     CatalogMap<Database> m_databases;
     CatalogMap<Host> m_hosts;
     CatalogMap<Site> m_sites;
-    CatalogMap<Partition> m_partitions;
+    int32_t m_num_partitions;
     std::string m_leaderaddress;
     int32_t m_localepoch;
     bool m_securityEnabled;
@@ -63,8 +62,8 @@ public:
     const CatalogMap<Host> & hosts() const;
     /** GETTER: The set of physical execution contexts executing on this cluster */
     const CatalogMap<Site> & sites() const;
-    /** GETTER: The set of logical partitions in this cluster */
-    const CatalogMap<Partition> & partitions() const;
+    /** GETTER: The number of partitions in the cluster */
+    int32_t num_partitions() const;
     /** GETTER: The ip or hostname of the cluster 'leader' - see docs for details */
     const std::string & leaderaddress() const;
     /** GETTER: The number of seconds since the epoch that we're calling our local epoch */

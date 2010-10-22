@@ -98,12 +98,12 @@ final class ClientImpl implements Client {
      /**
      * Create a connection to another VoltDB node.
      * @param host
-     * @param program
      * @param password
+     * @param program
      * @throws UnknownHostException
      * @throws IOException
      */
-    public void createConnection(String host, String program, String password)
+    public void createConnection(String host, int port, String program, String password)
         throws UnknownHostException, IOException
     {
         if (m_isShutdown) {

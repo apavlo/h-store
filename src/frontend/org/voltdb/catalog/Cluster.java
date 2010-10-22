@@ -29,7 +29,7 @@ public class Cluster extends CatalogType {
     CatalogMap<Database> m_databases;
     CatalogMap<Host> m_hosts;
     CatalogMap<Site> m_sites;
-    CatalogMap<Partition> m_partitions;
+    int m_num_partitions;
     String m_leaderaddress = new String();
     int m_localepoch;
     boolean m_securityEnabled;
@@ -42,14 +42,14 @@ public class Cluster extends CatalogType {
         m_childCollections.put("hosts", m_hosts);
         m_sites = new CatalogMap<Site>(catalog, this, path + "/" + "sites", Site.class);
         m_childCollections.put("sites", m_sites);
-        m_partitions = new CatalogMap<Partition>(catalog, this, path + "/" + "partitions", Partition.class);
-        m_childCollections.put("partitions", m_partitions);
+        m_fields.put("num_partitions", m_num_partitions);
         m_fields.put("leaderaddress", m_leaderaddress);
         m_fields.put("localepoch", m_localepoch);
         m_fields.put("securityEnabled", m_securityEnabled);
     }
 
     void update() {
+        m_num_partitions = (Integer) m_fields.get("num_partitions");
         m_leaderaddress = (String) m_fields.get("leaderaddress");
         m_localepoch = (Integer) m_fields.get("localepoch");
         m_securityEnabled = (Boolean) m_fields.get("securityEnabled");
@@ -70,9 +70,9 @@ public class Cluster extends CatalogType {
         return m_sites;
     }
 
-    /** GETTER: The set of logical partitions in this cluster */
-    public CatalogMap<Partition> getPartitions() {
-        return m_partitions;
+    /** GETTER: The number of partitions in the cluster */
+    public int getNum_partitions() {
+        return m_num_partitions;
     }
 
     /** GETTER: The ip or hostname of the cluster 'leader' - see docs for details */
@@ -88,6 +88,11 @@ public class Cluster extends CatalogType {
     /** GETTER: Whether security and authentication should be enabled/disabled */
     public boolean getSecurityenabled() {
         return m_securityEnabled;
+    }
+
+    /** SETTER: The number of partitions in the cluster */
+    public void setNum_partitions(int value) {
+        m_num_partitions = value; m_fields.put("num_partitions", value);
     }
 
     /** SETTER: The ip or hostname of the cluster 'leader' - see docs for details */

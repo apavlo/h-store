@@ -45,6 +45,8 @@ public interface WorkloadTrace {
      * @param xact_handle - the transaction handle created by startTransaction()
      */
     public void stopTransaction(Object xact_handle);
+    
+    public void abortTransaction(Object xact_handle);
 
     /**
      * Start a new query trace record

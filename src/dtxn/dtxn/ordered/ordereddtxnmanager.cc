@@ -11,6 +11,7 @@
 
 #include "base/stlutil.h"
 #include "base/unordered_map.h"
+#include "base/debuglog.h"
 #include "dtxn/distributedtransaction.h"
 #include "dtxn/executionengine.h"
 #include "dtxn/messages.h"
@@ -221,12 +222,20 @@ void OrderedDtxnManager::execute(DistributedTransaction* transaction,
     }
 }
 
-void OrderedDtxnManager::finish(DistributedTransaction* transaction, bool commit,
+void OrderedDtxnManager::finish(DistributedTransaction* transaction, bool commit, const std::string& payload,
         const std::tr1::function<void()>& callback) {
     CHECK(transaction->multiple_partitions());
     CHECK(transaction->status() == DistributedTransaction::OK);
     TransactionState* state = (TransactionState*) transaction->state();
     assert(state->transaction() == transaction);
+    
+    // PAVLO: Stick our payload in the TransactionState
+    LOG_DEBUG("Got finish request from beyond the ether...");
+    if (transaction->has_payload() == false) {
+        LOG_DEBUG("Attaching payload '%s' to DistributedTransaction", payload.c_str());
+        state->transaction()->set_payload(payload);
+    }
+    
     if (!transaction->isAllDone() && commit) {
         // Need a "prepare" round
         transaction->setAllDone();
@@ -235,6 +244,8 @@ void OrderedDtxnManager::finish(DistributedTransaction* transaction, bool commit
         // Create a callback that will call this again once prepared
         state->setCallback(std::tr1::bind(
                 &OrderedDtxnManager::verifyPrepareRound, this, transaction, callback));
+                
+        LOG_DEBUG("Going to call sendFragments to perform Canadian Voodoo Magic!!");
         sendFragments(state);
     } else {
         finishTransaction(state, commit);
@@ -250,7 +261,12 @@ void OrderedDtxnManager::verifyPrepareRound(DistributedTransaction* transaction,
     assert(transaction->received().empty());
     // Can only call finish for multi-partition transactions
     if (transaction->multiple_partitions()) {
-        finish(transaction, true, callback);
+        // You're killing me here Evan...
+        TransactionState* state = (TransactionState*) transaction->state();
+        assert(state->transaction() == transaction);
+        LOG_DEBUG("verifyPrepareRound() is also sending payload '%s'", state->transaction()->payload().c_str());
+        
+        finish(transaction, true, state->transaction()->payload(), callback);
     } else {
         // This is a single partition prepare that has completed: we are all done here
         assert(transaction->state() == NULL);
@@ -371,11 +387,18 @@ void OrderedDtxnManager::sendFragments(TransactionState* state) {
         }
 #endif
     }
-
+    
     // Send out messages to partitions
     Fragment request;
     request.id = state->manager_id();
     request.multiple_partitions = state->transaction()->multiple_partitions();
+
+    // PAVLO: Pull the payload from the TransactionState's inner Transaction
+    if (state->transaction()->has_payload()) {
+        request.payload.assign(state->transaction()->payload());
+        LOG_DEBUG("Yes! Attaching payload from TransactionState to a Fragment that we're sending off! Evan hates children! [%s]", request.payload.c_str());
+    }
+        
     const DistributedTransaction::MessageList& messages = state->transaction()->sent();
     for (int i = 0; i < messages.size(); ++i) {
         int partition_index = messages[i].first;
@@ -442,10 +465,17 @@ void OrderedDtxnManager::finishTransaction(TransactionState* state, bool commit)
     assert(state->dependenciesResolved());
     assert(state->transaction()->isAllDone() || !commit);
 
+    LOG_DEBUG("In finishTransaction() but we're out of control!!");
+    
     if (state->transaction()->multiple_partitions()) {
         CommitDecision decision;
         decision.id = state->manager_id();
         decision.commit = commit;
+        // PAVLO
+        if (state->transaction()->has_payload()) {
+            LOG_DEBUG("Setting CommitDecision.payload [%s]", state->transaction()->payload().c_str());
+            decision.payload.assign(state->transaction()->payload());
+        }
 
         vector<int> participants = state->transaction()->getParticipants();
         assert(!participants.empty());

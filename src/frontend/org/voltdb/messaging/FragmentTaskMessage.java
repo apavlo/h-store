@@ -51,6 +51,7 @@ public class FragmentTaskMessage extends TransactionInfoBaseMessage
     boolean m_isFinal = false;
     byte m_taskType = 0;
     boolean m_shouldUndo = false;
+    boolean m_usingDtxn = false;
     int m_inputDepCount = 0;
     
 
@@ -69,8 +70,8 @@ public class FragmentTaskMessage extends TransactionInfoBaseMessage
     }
     
     /** PAVLO **/
-    public FragmentTaskMessage(int initiatorSiteId,
-            int coordinatorSiteId,
+    public FragmentTaskMessage(int srcPartition,
+            int destPartition,
             long txnId,
             long clientHandle,
             boolean isReadOnly,
@@ -80,7 +81,7 @@ public class FragmentTaskMessage extends TransactionInfoBaseMessage
             ByteBuffer[] parameterSets,
             int[] fragmentStmtIndexes,
             boolean isFinal) {
-        this(initiatorSiteId, coordinatorSiteId, txnId, clientHandle, isReadOnly, fragmentIds, outputDepIds, parameterSets, fragmentStmtIndexes, isFinal);
+        this(srcPartition, destPartition, txnId, clientHandle, isReadOnly, fragmentIds, outputDepIds, parameterSets, fragmentStmtIndexes, isFinal);
         if (inputDepIds != null) {
             for (int i = 0; i < inputDepIds.length; i++) {
                 this.addInputDepId(i, inputDepIds[i]);
@@ -91,8 +92,8 @@ public class FragmentTaskMessage extends TransactionInfoBaseMessage
 
     /**
      *
-     * @param initiatorSiteId
-     * @param coordinatorSiteId
+     * @param srcPartition
+     * @param destPartition
      * @param txnId
      * @param isReadOnly
      * @param fragmentIds
@@ -100,8 +101,8 @@ public class FragmentTaskMessage extends TransactionInfoBaseMessage
      * @param parameterSets
      * @param isFinal
      */
-    public FragmentTaskMessage(int initiatorSiteId,
-                        int coordinatorSiteId,
+    public FragmentTaskMessage(int srcPartition,
+                        int destPartition,
                         long txnId,
                         long clientHandle,
                         boolean isReadOnly,
@@ -110,7 +111,7 @@ public class FragmentTaskMessage extends TransactionInfoBaseMessage
                         ByteBuffer[] parameterSets,
                         int[] fragmentStmtIndexes,
                         boolean isFinal) {
-        super(initiatorSiteId, coordinatorSiteId, txnId, clientHandle, isReadOnly);
+        super(srcPartition, destPartition, txnId, clientHandle, isReadOnly);
 
         assert(fragmentIds != null);
         assert(parameterSets != null);
@@ -222,6 +223,14 @@ public class FragmentTaskMessage extends TransactionInfoBaseMessage
         m_shouldUndo = value;
     }
 
+    public void setUsingDtxnCoordinator(boolean value) {
+        m_usingDtxn = value;
+    }
+    
+    public boolean isUsingDtxnCoordinator() {
+        return (m_usingDtxn);
+    }
+    
     public boolean isFinalTask() {
         return m_isFinal;
     }
@@ -262,12 +271,13 @@ public class FragmentTaskMessage extends TransactionInfoBaseMessage
         // m_fragmentIds count (2)
         // m_outputDepIds count (2)
         // m_inputDepIds count (2)
+        // m_usingDtxn (1)
         // m_isFinal (1)
         // m_taskType (1)
         // m_shouldUndo (1)
         // m_attachedResults count (2)
 
-        msgsize += 2 + 2 + 2 + 1 + 1 + 1 + 2;
+        msgsize += 2 + 2 + 2 + 1 + 1 + 1 + 1 + 2;
         if (m_fragmentIds != null) {
             msgsize += 8 * m_fragmentIds.length;
             msgsize += 4 * m_fragmentStmtIndexes.length;
@@ -361,6 +371,7 @@ public class FragmentTaskMessage extends TransactionInfoBaseMessage
             }
         }
 
+        m_buffer.put(m_usingDtxn ? (byte) 1 : (byte) 0);
         m_buffer.put(m_isFinal ? (byte) 1 : (byte) 0);
         m_buffer.put(m_taskType);
         m_buffer.put(m_shouldUndo ? (byte) 1 : (byte) 0);
@@ -428,6 +439,7 @@ public class FragmentTaskMessage extends TransactionInfoBaseMessage
             }
         }
 
+        m_usingDtxn = m_buffer.get() == 1;
         m_isFinal = m_buffer.get() == 1;
         m_taskType = m_buffer.get();
         m_shouldUndo = m_buffer.get() == 1;
@@ -459,18 +471,19 @@ public class FragmentTaskMessage extends TransactionInfoBaseMessage
         StringBuilder sb = new StringBuilder();
 
         sb.append("FRAGMENT_TASK (FROM ");
-        sb.append(m_coordinatorSiteId);
+        sb.append(this.getSourcePartitionId());
         sb.append(" TO ");
-        sb.append(this.getTargetPartition());
+        sb.append(this.getDestinationPartitionId());
         sb.append(") FOR TXN ");
-        sb.append(m_txnId);
+        sb.append(this.getTxnId());
+        sb.append(" [using_dtxn=").append(m_usingDtxn).append("]");
 
         sb.append("\n");
         if (m_isReadOnly)
             sb.append("  READ, COORD ");
         else
             sb.append("  WRITE, COORD ");
-        sb.append(m_coordinatorSiteId);
+        sb.append(m_destPartition);
 
         if ((m_fragmentIds != null) && (m_fragmentIds.length > 0)) {
             sb.append("\n");

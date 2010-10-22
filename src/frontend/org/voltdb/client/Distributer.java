@@ -389,11 +389,11 @@ class Distributer {
             int arenaSizes[],
             boolean useMultipleThreads,
             StatsUploaderSettings statsSettings) {
-        if (statsSettings != null) {
-            m_statsLoader = new ClientStatsLoader(statsSettings, this);
-        } else {
+//        if (statsSettings != null) {
+//            m_statsLoader = new ClientStatsLoader(statsSettings, this);
+//        } else {
             m_statsLoader = null;
-        }
+//        }
         m_useMultipleThreads = useMultipleThreads;
         m_network = new VoltNetwork( useMultipleThreads, true, 3);
         m_expectedOutgoingMessageSize = expectedOutgoingMessageSize;
@@ -443,7 +443,15 @@ class Distributer {
     void createConnection(String host, String program, String password)
         throws UnknownHostException, IOException
     {
-        createConnection(host, program, password, Client.VOLTDB_SERVER_PORT);
+        // HACK: If they stick the port # at the end of the host name, we'll extract
+        // it out because we're generally nice people
+        int port = Client.VOLTDB_SERVER_PORT;
+        if (host.contains(":")) {
+            String split[] = host.split(":");
+            host = split[0];
+            port = Integer.valueOf(split[1]);
+        }
+        createConnection(host, program, password, port);
     }
 
     synchronized void createConnection(String host, String program, String password, int port)

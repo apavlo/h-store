@@ -29,7 +29,7 @@ public class VoltProcedureInvoker {
         PartitionEstimator p_estimator = new PartitionEstimator(args.catalog_db, args.hasher);
         
         // setup the EE
-        ExecutionSite executor = new ExecutionSite(local_partition, args.catalog, BackendTarget.NATIVE_EE_JNI, false, p_estimator, null);
+        ExecutionSite executor = new ExecutionSite(local_partition, args.catalog, BackendTarget.NATIVE_EE_JNI, p_estimator, null);
         VoltProcedure procedure = executor.getProcedure("EmptyProcedure");
 
         // Error: EmptyProcedure is supposed to take one argument
@@ -43,7 +43,7 @@ public class VoltProcedureInvoker {
 
         procedure = executor.getProcedure("InsertProcedure");
         for (long i = 0; i < 10; i++) {
-            TransactionState txnState = new TransactionState(null, i, i, true);
+            TransactionState txnState = new TransactionState(null, i, null, 0, i, true);
             result = procedure.callAndBlock(txnState, 100L);
             System.out.println("[" + i + "] Insert status = " + result.getStatus());
             System.out.println("[" + i + "] Insert result (rows affected) = " + result.getResults()[0].asScalarLong());

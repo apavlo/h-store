@@ -151,6 +151,10 @@ public abstract class CatalogType implements Comparable<CatalogType> {
     }
 
     abstract void update();
+    
+    public Set<String> getChildFields() {
+        return (m_childCollections.keySet());
+    }
 
     CatalogType addChild(String collectionName, String childName) {
         CatalogMap<? extends CatalogType> map = m_childCollections.get(collectionName);
@@ -159,13 +163,17 @@ public abstract class CatalogType implements Comparable<CatalogType> {
         return map.add(childName);
     }
 
-    CatalogType getChild(String collectionName, String childName) {
+    public CatalogType getChild(String collectionName, String childName) {
         CatalogMap<? extends CatalogType> map = m_childCollections.get(collectionName);
         if (map == null)
             return null;
         return map.get(childName);
     }
-
+    
+    public CatalogMap<? extends CatalogType> getChildren(String collectionName) {
+        return (m_childCollections.get(collectionName));
+    }
+    
     void set(String field, String value) {
         if ((field == null) || (value == null)) {
             throw new CatalogException("Null value where it shouldn't be.");

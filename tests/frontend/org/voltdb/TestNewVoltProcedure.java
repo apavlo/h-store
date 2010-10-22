@@ -44,7 +44,7 @@ public class TestNewVoltProcedure extends BaseTestCase {
             // BACKEND_TARGET = (this.hasVoltLib() ? BackendTarget.NATIVE_EE_JNI : BackendTarget.HSQLDB_BACKEND);
             
             p_estimator = new PartitionEstimator(catalog_db);
-            site = new ExecutionSite(PARTITION_ID, catalog, BACKEND_TARGET, false, p_estimator, null);
+            site = new MockExecutionSite(PARTITION_ID, catalog, p_estimator);
         }
         volt_proc = site.getProcedure(TARGET_PROCEDURE);
         assertNotNull(volt_proc);
@@ -65,13 +65,13 @@ public class TestNewVoltProcedure extends BaseTestCase {
         };
         volt_proc.registerCallback(observer);
 
-        long xact_id = NEXT_TXN_ID.getAndIncrement();
-        TransactionState ts = new TransactionState(site, xact_id, CLIENT_HANDLE++, true);
+        Long xact_id = NEXT_TXN_ID.getAndIncrement();
+        TransactionState ts = new TransactionState(site, xact_id, xact_id, PARTITION_ID, CLIENT_HANDLE++, true);
         site.txn_states.put(xact_id, ts);
         site.running_xacts.put(xact_id, volt_proc);
         
         volt_proc.call(ts, TARGET_PARAMS);
-        assertEquals(xact_id, volt_proc.getTransactionId());
+        assertEquals(xact_id.longValue(), volt_proc.getTransactionId());
         assertEquals(TARGET_PARAMS.length, volt_proc.procParams.length);
         
         // Now check whether we got the ClientResponse

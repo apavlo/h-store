@@ -214,8 +214,11 @@ public class TestVertex extends BaseTestCase {
     public void testResetAllProbabilities() {
         Procedure catalog_proc = this.getProcedure(GetNewDestination.class);
         Statement catalog_stmt = this.getStatement(catalog_proc, "GetData");
-        Vertex v = new Vertex(catalog_stmt, Type.QUERY, 0, CatalogUtil.getAllPartitions(catalog_stmt), new HashSet<Integer>());
+        Vertex v = new Vertex(catalog_stmt, Type.QUERY, 0, CatalogUtil.getAllPartitionIds(catalog_stmt), new HashSet<Integer>());
         
+        // System.err.println(start.debug());
+        
+        assertNotNull(start);
         v.setAbortProbability(0.50d);
         v.setSingleSitedProbability(0.50d);
         for (int i = 0; i < NUM_PARTITIONS; i++) {

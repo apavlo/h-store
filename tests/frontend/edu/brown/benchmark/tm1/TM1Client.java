@@ -47,7 +47,7 @@ import org.voltdb.client.ClientResponse;
  * @author pavlo
  */
 public class TM1Client extends TM1BaseClient {
-    private static final Logger LOG = Logger.getLogger(TM1Client.class.getName());
+    private static final Logger LOG = Logger.getLogger(TM1Client.class);
 
     /**
      * Each Transaction element provides an ArgGenerator to create the proper
@@ -235,6 +235,7 @@ public class TM1Client extends TM1BaseClient {
      */
     @Override
     public void runLoop() {
+        LOG.debug("Starting runLoop()");
         try {
             while (true) {
                 this.runOnce();

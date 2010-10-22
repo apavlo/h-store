@@ -13,11 +13,15 @@ import java.util.Set;
 import java.util.TreeMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
+import org.apache.log4j.Logger;
+
 import sun.misc.Signal;
 import sun.misc.SignalHandler;
 
 /** Wraps a Java NIO selector to dispatch events. */
 public class NIOEventLoop implements EventLoop {
+    private static final Logger LOG = Logger.getLogger(NIOEventLoop.class);
+    
     public NIOEventLoop() {
         try {
             selector = Selector.open();
@@ -95,6 +99,10 @@ public class NIOEventLoop implements EventLoop {
         addInterest(channel, SelectionKey.OP_WRITE, handler);
     }
 
+    public void clearAllTimers() {
+        this.timers.clear();
+    }
+    
     @Override
     public void registerTimer(int timerMilliseconds, Handler handler) {
         assert timerMilliseconds >= 0;
@@ -129,10 +137,12 @@ public class NIOEventLoop implements EventLoop {
     }
 
     public void run() {
+        if (LOG.isDebugEnabled()) LOG.debug("Starting run() loop");
         while (!exitLoop) {
             runOnce();
         }
         exitLoop = false;
+        if (LOG.isDebugEnabled()) LOG.debug("Completed run() loop");
     }
 
     public void runOnce() {
@@ -240,6 +250,7 @@ public class NIOEventLoop implements EventLoop {
     }
 
     public void exitLoop() {
+        if (LOG.isDebugEnabled()) LOG.debug("Stopping running loop");
         exitLoop = true;
         selector.wakeup();
     }

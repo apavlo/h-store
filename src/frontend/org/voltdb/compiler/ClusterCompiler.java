@@ -20,7 +20,10 @@ import org.voltdb.VoltDB;
 import org.voltdb.catalog.Catalog;
 import org.voltdb.catalog.Cluster;
 import org.voltdb.catalog.Host;
+import org.voltdb.catalog.Partition;
 import org.voltdb.catalog.Site;
+
+import edu.brown.catalog.CatalogUtil;
 
 public class ClusterCompiler
 {
@@ -42,6 +45,7 @@ public class ClusterCompiler
 
         // add all the hosts
         Cluster cluster = catalog.getClusters().get("cluster");
+        cluster.setNum_partitions(partitionCount);
         // set the address of the coordinator
         cluster.setLeaderaddress(clusterConfig.getLeaderAddress().trim());
         for (int i = 0; i < hostCount; i++) {
@@ -50,37 +54,33 @@ public class ClusterCompiler
 
         // add all the partitions.
         for (int i = 0; i < partitionCount; ++i) {
-            cluster.getPartitions().add(String.valueOf(i));
+            //cluster.getPartitions().add(String.valueOf(i));
         }
 
         // add all the sites
         int initiatorsPerHost = 1;
         int partitionCounter = -1;
         int nextInitiatorId = 1;
-        for (int i = 0; i < (sitesPerHost + initiatorsPerHost) * hostCount; i++) {
+        int siteId = -1;
+        for (int i = 0, cnt = (sitesPerHost * hostCount); i < cnt; i++) {
 
-            int hostForSite = i / (sitesPerHost + initiatorsPerHost);
+            int hostForSite = i / cnt;
             Host host = cluster.getHosts().get(String.valueOf(hostForSite));
             int hostId = Integer.parseInt(host.getTypeName());
 
-            int withinHostId = i % (sitesPerHost + initiatorsPerHost);
+//            int withinHostId = i % (sitesPerHost + initiatorsPerHost);
 
-            int siteId = hostId * VoltDB.SITES_TO_HOST_DIVISOR + withinHostId;
+            //int siteId = hostId * VoltDB.SITES_TO_HOST_DIVISOR;// + withinHostId;
 
-            Site site = cluster.getSites().add(String.valueOf(siteId));
-
-            if (withinHostId >= initiatorsPerHost) {
-                site.setIsexec(true);
-                // serially assign partitions to execution sites.
-                site.setPartition(cluster.getPartitions().get(
-                        String.valueOf((++partitionCounter) % partitionCount)));
-            }
-            else {
-                site.setInitiatorid(nextInitiatorId++);
-                site.setIsexec(false);
-            }
+            Site site = cluster.getSites().add(String.valueOf(++siteId));
+            site.setId(siteId);
             site.setHost(host);
             site.setIsup(true);
+
+            Partition part = site.getPartitions().add(String.valueOf(++partitionCounter));
+            part.setId(partitionCounter);
+//            System.err.println("[" + partitionCounter + "] " + CatalogUtil.getDisplayName(site) + " => " + CatalogUtil.getDisplayName(part));
+//            System.err.println(CatalogUtil.debug(site));
         }
     }
 }

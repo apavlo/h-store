@@ -107,6 +107,7 @@ int ProtoConnectionBuffer::tryRead(io::InputStream* input, google::protobuf::Mes
 
 // Serializes message to the internal buffer.
 void ProtoConnectionBuffer::bufferMessage(const google::protobuf::MessageLite& message) {
+    assert(message.IsInitialized());
     ZeroCopyFIFOWriteAdapter adapter(&output_buffer_);
     google::protobuf::io::CodedOutputStream out(&adapter);
 

@@ -384,7 +384,7 @@ public class TestPartitionEstimator extends BaseTestCase {
         catalog_stmt = catalog_proc.getStatements().get("getWarehouseTaxRate");
         
         Set<Integer> new_partitions = p_estimator.getPartitions(catalog_stmt, params, BASE_PARTITION);
-        List<Integer> all_partitions = CatalogUtil.getAllPartitions(new_database);
+        List<Integer> all_partitions = CatalogUtil.getAllPartitionIds(new_database);
         assertNotNull(new_partitions);
         assertEquals(all_partitions.size(), new_partitions.size());
     }

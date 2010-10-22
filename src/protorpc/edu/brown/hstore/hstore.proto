@@ -6,21 +6,53 @@ package edu.brown.hstore;
 // MESSAGES
 // -----------------------------------
 
-message FragmentPayload {
-    required bytes data = 1;
+enum MessageType {
+    STATUS = 0;
+    SHUTDOWN = 1;
+    FORWARD_TXN = 2;
+}
+
+message MessageRequest {
+    required int32 sender_id = 1;
+    required int32 dest_id = 2;
+    required MessageType type = 3;
+    optional bytes data = 4;
+}
+
+message MessageAcknowledgement {
+    required int32 sender_id = 1;
+    required int32 dest_id = 2;
+    optional bytes data = 3;
+}
+
+// -----------------------------------
+// FRAGMENT TRANSFERS
+// -----------------------------------
+
+message Fragment {
+    required int32 transaction_id = 1;
+    required bytes work = 2;
+
+    // If true then the fragment must be undoable using a call to Finish.
+    required bool undoable = 3;
+}
+
+message FragmentDependency {
+	required int32 dependency_id = 1;
+    required bytes data = 2;
 }
 
 message FragmentTransfer {
     required int32 sender_partition_id = 1;
-    required int64 txn_id = 2;
-    required int32 dependency_id = 3;
-    repeated FragmentPayload payloads = 4;
+    required int32 dest_partition_id = 2;
+    required int64 txn_id = 3;
+    repeated FragmentDependency dependencies = 4;
 }
 
 message FragmentAcknowledgement {
     required int32 sender_partition_id = 1;
-    required int64 txn_id = 2;
-    required int32 dependency_id = 3;
+    required int32 dest_partition_id = 2;
+    required int64 txn_id = 3;
 }
 
 // -----------------------------------
@@ -28,5 +60,6 @@ message FragmentAcknowledgement {
 // -----------------------------------
 
 service HStoreService {
-   rpc SendFragment (FragmentTransfer) returns (FragmentAcknowledgement);
+    rpc SendMessage(MessageRequest) returns (MessageAcknowledgement);
+    rpc SendFragment (FragmentTransfer) returns (FragmentAcknowledgement);
 }

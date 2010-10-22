@@ -54,7 +54,7 @@ public class TestAdHocQueries extends TestCase {
 
         // do the test
         Client client = ClientFactory.createClient();
-        client.createConnection("localhost", "program", "password");
+        client.createConnection("localhost", Client.VOLTDB_SERVER_PORT, "program", "password");
 
         VoltTable modCount = client.callProcedure("@AdHoc", "INSERT INTO NEW_ORDER VALUES (1, 1, 1);").getResults()[0];
         assertTrue(modCount.getRowCount() == 1);

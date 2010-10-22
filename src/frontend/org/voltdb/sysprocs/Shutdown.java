@@ -63,7 +63,7 @@ public class Shutdown extends VoltSystemProcedure {
         super.init(site, catProc, eeType, hsql, cluster, p_estimator, local_partition);
         site.registerPlanFragment(SysProcFragmentId.PF_shutdownCommand, this);
         site.registerPlanFragment(SysProcFragmentId.PF_procedureDone, this);
-        this.all_partitions = CatalogUtil.getAllPartitions(catProc);
+        this.all_partitions = CatalogUtil.getAllPartitionIds(catProc);
     }
 
     @Override

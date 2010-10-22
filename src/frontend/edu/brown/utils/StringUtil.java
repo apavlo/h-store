@@ -3,6 +3,11 @@ package edu.brown.utils;
 import java.util.Arrays;
 import java.util.Collection;
 
+import org.voltdb.client.Client;
+import org.voltdb.utils.Pair;
+
+import com.google.protobuf.ByteString;
+
 public abstract class StringUtil {
 
     public static final String SPACER       = "   ";
@@ -119,5 +124,50 @@ public abstract class StringUtil {
      
         return sb.toString();
     }
+    
+    /**
+     * Return the HOST+PORT pair extracted from a string with "<hostname>:<portnum>"
+     * @param hostnport
+     * @return
+     */
+    public static Pair<String, Integer> getHostPort(String hostnport) {
+        return (getHostPort(hostnport, Client.VOLTDB_SERVER_PORT));
+    }
+    
+    public static Pair<String, Integer> getHostPort(String hostnport, int port) {
+        String host = hostnport;
+        if (host.contains(":")) {
+            String split[] = hostnport.split("\\:", 2);
+            host = split[0];
+            port = Integer.valueOf(split[1]);
+        }
+        return (Pair.of(host, port));
+    }
+    
+    private static final char[] CHARACTERS = { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f' };
+    private static char nibbleToHexChar(int nibble) {
+        assert 0 <= nibble && nibble < CHARACTERS.length;
+        return CHARACTERS[nibble];
+    }
+
+    /**
+     * Dump a ByteString to a text representation
+     * Copied from: http://people.csail.mit.edu/evanj/hg/index.cgi/javatxn/file/tip/src/edu/mit/ExampleServer.java
+     * @param bytes
+     * @return
+     */
+    public static StringBuilder hexDump(ByteString bytes) {
+        StringBuilder out = new StringBuilder();
+        for (int i = 0; i < bytes.size(); ++i) {
+            if (i != 0 && i % 2 == 0) {
+                out.append(' ');
+            }
+            byte b = bytes.byteAt(i);
+            out.append(nibbleToHexChar((b >> 4) & 0xf));
+            out.append(nibbleToHexChar(b & 0xf));
+        }
+        return out;
+    } 
+
 
 }

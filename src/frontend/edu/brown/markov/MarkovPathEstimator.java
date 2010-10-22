@@ -303,7 +303,7 @@ public class MarkovPathEstimator extends VertexTreeWalker<Vertex> {
         
         // Blah blah blah...
         Map<Integer, TransactionEstimator> t_estimators = new HashMap<Integer, TransactionEstimator>();
-        for (Integer partition : CatalogUtil.getAllPartitions(args.catalog_db)) {
+        for (Integer partition : CatalogUtil.getAllPartitionIds(args.catalog_db)) {
             t_estimators.put(partition, new TransactionEstimator(partition, p_estimator, args.param_correlations));
         } // FOR
         

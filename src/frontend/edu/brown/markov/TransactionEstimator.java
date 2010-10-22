@@ -503,7 +503,7 @@ public class TransactionEstimator {
         estimate.singlepartition = current.getSingleSitedProbability();
         estimate.userabort = current.getAbortProbability();
         estimate.time = current.getExecutiontime();
-        for (int i : CatalogUtil.getAllPartitions(this.catalog_db)) {
+        for (int i : CatalogUtil.getAllPartitionIds(this.catalog_db)) {
             estimate.finished[i] = current.getDoneProbability(i);
             estimate.read[i] = current.getReadOnlyProbability(i);
             estimate.write[i] = current.getWriteProbability(i);

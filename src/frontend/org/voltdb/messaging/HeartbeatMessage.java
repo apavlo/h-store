@@ -71,7 +71,7 @@ public class HeartbeatMessage extends TransactionInfoBaseMessage {
         StringBuilder sb = new StringBuilder();
 
         sb.append("HEARTBEAT (FROM ");
-        sb.append(m_coordinatorSiteId);
+        sb.append(m_destPartition);
         sb.append(" TO ");
         sb.append(receivedFromSiteId);
         sb.append(") FOR TXN ");

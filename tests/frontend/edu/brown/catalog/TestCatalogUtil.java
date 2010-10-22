@@ -394,20 +394,22 @@ public class TestCatalogUtil extends BaseTestCase {
         for (Host catalog_host : cluster.getHosts()) {
             host_partitions.put(catalog_host, new HashSet<Partition>());
             for (Site catalog_site : CatalogUtil.getSitesForHost(catalog_host)) {
-                host_partitions.get(catalog_host).add(catalog_site.getPartition());
-            }
-        }
+                for (Partition catalog_part : catalog_site.getPartitions()) {
+                    host_partitions.get(catalog_host).add(catalog_part);    
+                } // FOR
+            } // FOR
+        } // FOR
         
         for (Host catalog_host : host_partitions.keySet()) {
             Set<Partition> partitions = host_partitions.get(catalog_host);
             Partition catalog_part = CollectionUtil.getFirst(partitions);
             int base_partition = catalog_part.getId();
             Set<Partition> local_partitions = CatalogUtil.getLocalPartitions(catalog_db, base_partition);
-            assertEquals(partitions.size() - 1, local_partitions.size());
+            assertEquals(partitions.size(), local_partitions.size());
             
             for (Partition other_part : local_partitions) {
                 assertNotNull(other_part);
-                assertFalse(catalog_part.equals(other_part));
+//                assertFalse(catalog_part.equals(other_part));
                 assertTrue(host_partitions.get(catalog_host).contains(other_part));
             } // FOR
         } // FOR

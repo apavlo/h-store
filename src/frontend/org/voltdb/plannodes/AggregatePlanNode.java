@@ -156,6 +156,10 @@ public class AggregatePlanNode extends AbstractPlanNode {
     public List<Integer> getGroupByColumns() {
         return m_groupByColumns;
     }
+    
+    public List<Integer> getGroupByColumnIds() {
+        return m_groupByColumnGuids;
+    }
 
     public void appendGroupByColumn(PlanColumn colInfo) {
         m_groupByColumnGuids.add(colInfo.guid());
