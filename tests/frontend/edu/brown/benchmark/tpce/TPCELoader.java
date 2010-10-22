@@ -47,23 +47,26 @@ import org.voltdb.VoltTable;
 public class TPCELoader extends ClientMain {
     private static final Logger LOG = Logger.getLogger(TPCELoader.class);
     protected final EGenLoader egenloader;
-    public static final String EGENLOADER_HOME = "egenloader_home";
-
-	public TPCELoader(String[] args) {
+    
+    /**
+     * Constructor
+     * @param args
+     */
+    public TPCELoader(String[] args) {
 		super(args);
 		
 		//
 		// We need to also be given the path to where the TPC-E EGenLoader binaries are
 		//
 		// System.out.println("EXTRA PARAMS: " + m_extraParams);
-		if (!m_extraParams.containsKey(EGENLOADER_HOME)) {
-		    LOG.error("Unable to start benchmark. Missing '" + EGENLOADER_HOME + "' parameter");
+		if (!m_extraParams.containsKey(TPCEConstants.PARAM_EGENLOADER_HOME.toLowerCase())) {
+		    LOG.error("Unable to start benchmark. Missing '" + TPCEConstants.PARAM_EGENLOADER_HOME + "' parameter");
 		    System.exit(1);
 		}
 		int total_customers = TPCEConstants.DEFAULT_NUM_CUSTOMERS;
 		int scale_factor = TPCEConstants.DEFAULT_SCALE_FACTOR;
 		int initial_days = TPCEConstants.DEFAULT_INITIAL_DAYS;
-	    this.egenloader = new EGenLoader(m_extraParams.get(EGENLOADER_HOME), total_customers, scale_factor, initial_days);
+	    this.egenloader = new EGenLoader(m_extraParams.get(TPCEConstants.PARAM_EGENLOADER_HOME), total_customers, scale_factor, initial_days);
 	}
 
 	public static void main(String[] args) {

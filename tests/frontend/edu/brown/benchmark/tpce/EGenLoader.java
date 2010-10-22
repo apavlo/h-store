@@ -36,12 +36,11 @@ import org.voltdb.catalog.*;
 import edu.brown.utils.TableDataIterable;
 
 /**
- * 
+ * Java wrapper around the TPC-E EGenLoader executable
  * @author pavlo
- *
  */
 public class EGenLoader {
-    private static final Logger LOG = Logger.getLogger(EGenLoader.class.getName());
+    private static final Logger LOG = Logger.getLogger(EGenLoader.class);
     
     protected final File base_path;
     protected final File loader_bin;
@@ -233,9 +232,8 @@ public class EGenLoader {
                 LOG.error(msg);
                 throw new Exception(msg);
             }
-        }
-        catch (InterruptedException e) {
-            System.err.println(e);
+        } catch (InterruptedException e) {
+            LOG.error(e);
         }
 
     }

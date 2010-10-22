@@ -63,12 +63,12 @@
 <property name='depcache'                    value='.depcache' />
 
 <!-- ProtocolBuffer Source -->
-<property name="src.protobuf.dir"               location="third_party/cpp/protobuf" />
-<property name="build.protobuf.dir"             location="${build.dir}/protobuf" />
-<property name="build.protobuf.dir.protoc"      location="${build.protobuf.dir}/src/protoc" />
+<property name="src.protobuf.dir"            location="third_party/cpp/protobuf" />
+<property name="build.protobuf.dir"          location="${build.dir}/protobuf" />
+<property name="build.protobuf.dir.protoc"   location="${build.protobuf.dir}/src/protoc" />
 
 <!-- TPC-E Generator -->
-<property name="tpce.src.dir"                location="third_party/cpp/tpceloader" />
+<property name="src.tpce.dir"                location="third_party/cpp/tpceloader" />
 <property name="build.tpce.dir"              location="${build.dir}/tpceloader" />
 
 <!-- emma build instrumentation location -->
@@ -530,8 +530,7 @@ JAVA COMPILATION
 ***************************************
 -->
 
-<target name="compile" depends="protobuf, protorpc, dtxn"> 
-<!-- <target name="compile" depends="tpceloader_compile, protobuf_compile, dtxn_compile">  -->
+<target name="compile" depends="protobuf, protorpc, dtxn, tpceloader"> 
     <!-- Delete additional class files from third_party jars before we build -->
     <delete dir="${build.prod.dir}/org/apache/" />
     <delete dir="${build.prod.dir}/edu/uci/" />
@@ -942,9 +941,6 @@ TEST CASES
                 <exclude name="**/TestSqlUpdateSuite.class" />
                 <exclude name="**/TestTPCCSuite.class" />
                 
-                <!-- We run out of memory on this one -->
-                <exclude name='edu/brown/benchmark/tpce/*'/>
-
                 <!-- Busted tests because of hacking -->
                 <exclude name='edu/brown/benchmark/airline/Test*'/>
                 <exclude name='edu/brown/benchmark/airline/util/TestHistogramUtil*'/>
@@ -2079,22 +2075,28 @@ TPC-E EGenLoader
 ***************************************
 -->
 
-<target name='tpceloader_compile' description="Builds the TPC-E EGenLoader" depends="tpceloader.check" unless="tpceloader.built">
-   <mkdir dir="${build.tpce.dir}" />
+<target name='tpceloader' description="Builds the TPC-E EGenLoader" depends="tpceloader.check" unless="tpceloader.built">
+    <mkdir dir="${build.tpce.dir}" />
    
-   <exec executable="make" dir="${tpce.src.dir}/prj" failonerror="true"  resolveexecutable="true" >
-      <arg value="SOURCE=.." />
-      <arg value="PREFIX=${build.tpce.dir}" />
-   </exec>
-   
-   <mkdir dir="${build.tpce.dir}/flat_in" />
-   <copy todir="${build.tpce.dir}/flat_in">
-      <fileset dir="${tpce.src.dir}/flat_in"/>
-   </copy>
+    <echo message="src.tpce.dir: ${src.tpce.dir}" />
+    <exec executable="make" dir="${src.tpce.dir}/prj" failonerror="true" resolveexecutable="true" >
+        <arg value="SOURCE=.." />
+        <arg value="PREFIX=${build.tpce.dir}" />
+    </exec>
+    
+    <!-- Copy Input Files -->
+    <mkdir dir="${build.tpce.dir}/flat_in" />
+    <copy todir="${build.tpce.dir}/flat_in">
+        <fileset dir="${src.tpce.dir}/flat_in"/>
+    </copy>
 </target>
 
 <target name="tpceloader.check">
-    <available property="tpceloader.built" file="${build.tpce.dir}/lib/libegen.so" />
+    <uptodate property="tpceloader.built"
+              targetfile="${build.tpce.dir}/lib/libegen.so">
+        <srcfiles dir="${src.tpce.dir}" includes="src/*.cpp" />
+        <srcfiles dir="${src.tpce.dir}" includes="drivers/*.cpp" />
+    </uptodate>
 </target>
 
 <!--

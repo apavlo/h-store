@@ -5,6 +5,7 @@ PROTOBUF_PROTOC=$(PROTOBUF_BIN)/src/protoc
 
 DTXN_PROTO_NAME=edu/mit/dtxn/dtxn
 DTXN_PROTO_PATH=$(PROTORPC_PATH)/$(DTXN_PROTO_NAME).proto
+DTXN_PROTO_SYMLINK:=$(PREFIX)/protodtxn/$(shell basename $(DTXN_PROTO_NAME)).pb.h
 
 CCFLAGS=-g -D_EVENT_HAVE_CONFIG_H -DLOG_LEVEL=$(LOG_LEVEL) -Wall -Wextra -Werror -Wformat-y2k -Wformat-nonliteral -Wformat-security -Wmissing-include-dirs -Wswitch-enum -Winit-self -Wundef -Wpointer-arith -Wcast-align -Wlogical-op -Wredundant-decls -Winvalid-pch -Wwrite-strings -Wno-sign-compare -Wno-unused-parameter
 # -Woverloaded-virtual -Wconversion
@@ -69,7 +70,7 @@ protobuf: $(PREFIX) $(PREFIX)/$(DTXN_PROTO_NAME).pb.cc $(PREFIX)/protorpc/Counte
 
 $(PREFIX)/$(DTXN_PROTO_NAME).pb.cc: $(DTXN_PROTO_PATH)
 	$(PROTOBUF_PROTOC) --proto_path=$(PROTORPC_PATH) --cpp_out=$(PREFIX) $(DTXN_PROTO_PATH)
-	ln -s $(PREFIX)/$(DTXN_PROTO_NAME).pb.h $(PREFIX)/protodtxn/$(shell basename $(DTXN_PROTO_NAME)).pb.h
+	test -L $(DTXN_PROTO_SYMLINK) || ln -s $(PREFIX)/$(DTXN_PROTO_NAME).pb.h $(DTXN_PROTO_SYMLINK)
 $(PREFIX)/protorpc/Counter.pb.cc: protorpc/Counter.proto
 	$(PROTOBUF_PROTOC) --proto_path=./ --cpp_out=$(PREFIX) protorpc/Counter.proto
 $(PREFIX)/protorpc/Protocol.pb.cc: protorpc/Protocol.proto

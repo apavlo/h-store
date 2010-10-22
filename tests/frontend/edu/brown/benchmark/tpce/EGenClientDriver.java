@@ -29,8 +29,10 @@
 package edu.brown.benchmark.tpce;
 
 import java.io.File;
+import java.util.Date;
 
 import org.apache.log4j.Logger;
+import org.voltdb.types.TimestampType;
 
 public class EGenClientDriver {
     private static final Logger LOG = Logger.getLogger(EGenClientDriver.class.getName());
@@ -81,28 +83,38 @@ public class EGenClientDriver {
         this.driver_ptr = this.initialize(input_path, totalCustomerCount, totalCustomerCount, scaleFactor, initialDays);
     }
     
+    private Object[] cleanParams(Object[] orig) {
+        // We need to switch java.util.Dates to the stupid volt TimestampType
+        for (int i = 0; i < orig.length; i++) {
+            if (orig[i] instanceof Date) {
+                orig[i] = new TimestampType(((Date)orig[i]).getTime());
+            }
+        } // FOR
+        return (orig);
+    }
+    
     public Object[] getBrokerVolumeParams() {
-        return (this.egenBrokerVolume(this.driver_ptr));
+        return (this.cleanParams(this.egenBrokerVolume(this.driver_ptr)));
     }
     public Object[] getCustomerPositionParams() {
-        return (this.egenCustomerPosition(this.driver_ptr));
+        return (this.cleanParams(this.egenCustomerPosition(this.driver_ptr)));
     }
     public Object[] getMarketWatchParams() {
-        return (this.egenMarketWatch(this.driver_ptr));
+        return (this.cleanParams(this.egenMarketWatch(this.driver_ptr)));
     }
     public Object[] getSecurityDetailParams() {
-        return (this.egenSecurityDetail(this.driver_ptr));
+        return (this.cleanParams(this.egenSecurityDetail(this.driver_ptr)));
     }
     public Object[] getTradeLookupParams() {
-        return (this.egenTradeLookup(this.driver_ptr));
+        return (this.cleanParams(this.egenTradeLookup(this.driver_ptr)));
     }
     public Object[] getTradeOrderParams() {
-        return (this.egenTradeOrder(this.driver_ptr));
+        return (this.cleanParams(this.egenTradeOrder(this.driver_ptr)));
     }
     public Object[] getTradeStatusParams() {
-        return (this.egenTradeStatus(this.driver_ptr));
+        return (this.cleanParams(this.egenTradeStatus(this.driver_ptr)));
     }
     public Object[] getTradeUpdateParams() {
-        return (this.egenTradeUpdate(this.driver_ptr));
+        return (this.cleanParams(this.egenTradeUpdate(this.driver_ptr)));
     }
 }
