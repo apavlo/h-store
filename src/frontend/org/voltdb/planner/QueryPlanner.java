@@ -237,11 +237,12 @@ public class QueryPlanner {
                     PlanNodeList nodeList = new PlanNodeList(planGraph);
 
                     // get the json serialized version of the plan
-                    String json = null;
-                    try {
+                    String json = "";
+//                    try {
                         String crunchJson = nodeList.toJSONString();
                         //System.out.println(crunchJson);
                         //System.out.flush();
+                        /* FIXME
                         JSONObject jobj = new JSONObject(crunchJson);
                         json = jobj.toString(4);
                     } catch (JSONException e2) {
@@ -253,6 +254,7 @@ public class QueryPlanner {
                                            "' can't be serialized to JSON";
                         return null;
                     }
+                    */
 
                     // compute the cost based on the resources using the current cost model
                     double cost = costModel.getPlanCost(stats);

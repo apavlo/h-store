@@ -155,17 +155,17 @@ public class BenchmarkController {
                     String status = parts[1];
     
                     if (status.equals("READY")) {
-                        LogKeys logkey = LogKeys.benchmark_BenchmarkController_GotReadyMessage;
-                        benchmarkLog.l7dlog( Level.INFO, logkey.name(),
-                                new Object[] { line.processName }, null);
+//                        LogKeys logkey = LogKeys.benchmark_BenchmarkController_GotReadyMessage;
+//                        benchmarkLog.l7dlog( Level.INFO, logkey.name(),
+//                                new Object[] { line.processName }, null);
                         benchmarkLog.info("Got ready message.");
                         m_clientsNotReady.decrementAndGet();
                     }
                     else if (status.equals("ERROR")) {
                         m_clientPSM.killProcess(line.processName);
-                        LogKeys logkey = LogKeys.benchmark_BenchmarkController_ReturnedErrorMessage;
-                        benchmarkLog.l7dlog( Level.ERROR, logkey.name(),
-                                new Object[] { line.processName, parts[2] }, null);
+//                        LogKeys logkey = LogKeys.benchmark_BenchmarkController_ReturnedErrorMessage;
+//                        benchmarkLog.l7dlog( Level.ERROR, logkey.name(),
+//                                new Object[] { line.processName, parts[2] }, null);
                         benchmarkLog.error(
                                 "(" + line.processName + ") Returned error message:\n"
                                 + " \"" + parts[2] + "\"\n");

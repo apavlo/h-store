@@ -35,12 +35,12 @@ import java.util.HashSet;
 
 public abstract class TPCEConstants {
 
+    // Parameter that 
+    public static final String PARAM_EGENLOADER_HOME = "EGENLOADER_HOME";
+    
     // Helpers
     public static final int TRUE = 1;
     public static final int FALSE = 0;
-
-    // Parameter Names
-    public static final String PARAM_EGENLOADER_HOME = "egenloader_home";
 
     // ----------------------------------------------------------------
     // STORED PROCEDURE EXECUTION FREQUENCIES (0-100)
@@ -175,6 +175,5 @@ public abstract class TPCEConstants {
     public static TableType getTableType(String table_name) {
         return (TPCEConstants.TABLE_TYPES.get(table_name));
     }
-
     
 }

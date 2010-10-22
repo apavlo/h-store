@@ -37,13 +37,13 @@ import edu.brown.utils.ProjectType;
 public class TestEGenLoader extends BaseTestCase {
 
     // HACK
-    private static final String EGENLOADER_HOME = System.getenv(TPCELoader.EGENLOADER_HOME.toUpperCase());
+    private static final String EGENLOADER_HOME = System.getenv(TPCEConstants.PARAM_EGENLOADER_HOME);
     protected static EGenLoader loader;
     protected static Catalog catalog;
     protected static Database catalog_db;
     
     protected static final int NUM_CUSTOMERS = 1000;
-    protected static final int SCALE_FACTOR = 2880;
+    protected static final int SCALE_FACTOR = 1000;
     protected static final int INITIAL_DAYS = 1;
     
     @Override

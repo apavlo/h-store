@@ -38,7 +38,7 @@ import edu.brown.utils.StringUtil;
 public class TestEGenClientDriver extends BaseTestCase {
 
     // HACK
-    private static final String EGENLOADER_HOME = System.getenv(TPCELoader.EGENLOADER_HOME.toUpperCase());
+    private static final String EGENLOADER_HOME = System.getenv(TPCEConstants.PARAM_EGENLOADER_HOME);
     protected static EGenClientDriver driver;
     
     @Override
@@ -81,17 +81,17 @@ public class TestEGenClientDriver extends BaseTestCase {
         } // FOR
     }
     
-    /**
-     * testGetBrokerVolumeParams
-     */
-    public void testGetBrokerVolumeParams() throws Exception {
-        Object params[] = driver.getBrokerVolumeParams();
-        assertNotNull(params);
-        
-        Procedure catalog_proc = this.getProcedure("BrokerVolume");
-        assertNotNull(catalog_proc);
-        this.checkParamTypes(catalog_proc, params);
-    }
+//    /**
+//     * testGetBrokerVolumeParams
+//     */
+//    public void testGetBrokerVolumeParams() throws Exception {
+//        Object params[] = driver.getBrokerVolumeParams();
+//        assertNotNull(params);
+//        
+//        Procedure catalog_proc = this.getProcedure("BrokerVolume");
+//        assertNotNull(catalog_proc);
+//        this.checkParamTypes(catalog_proc, params);
+//    }
     
     /**
      * testGetCustomerPositionParams
