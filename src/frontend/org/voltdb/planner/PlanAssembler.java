@@ -24,6 +24,7 @@ import java.util.Set;
 import java.util.Stack;
 import java.util.Map.Entry;
 
+import org.apache.log4j.Logger;
 import org.voltdb.VoltType;
 import org.voltdb.catalog.CatalogMap;
 import org.voltdb.catalog.Cluster;
@@ -60,6 +61,10 @@ import org.voltdb.types.PlanNodeType;
 import org.voltdb.types.SortDirectionType;
 import org.voltdb.utils.CatalogUtil;
 
+import edu.brown.plannodes.PlanNodeUtil;
+import edu.brown.utils.CollectionUtil;
+import edu.brown.utils.StringUtil;
+
 /**
  * The query planner accepts catalog data, SQL statements from the catalog, then
  * outputs a set of complete and correct query plans. It will output MANY plans
@@ -69,6 +74,7 @@ import org.voltdb.utils.CatalogUtil;
  *
  */
 public class PlanAssembler {
+    private static final Logger LOG = Logger.getLogger(PlanAssembler.class);
 
     private static final boolean INCLUDE_SEND_FOR_ALL = true;
     
@@ -410,8 +416,17 @@ public class PlanAssembler {
          */
         root.updateOutputColumns(m_catalogDb);
 
+        // PAVLO: Ok so now before this just assumed that we were going to stick a AggregatePlanNode on top
+        // of the root that we sent it (which should be a AbstractScanPlanNode or a ReceievePlanNode).
+        // But now because we are trying to impress John Hugg (and who isn't really?), we may actually perform
+        // part of the aggregation at the remote partitions, so we need a buttom up approach for cleaning
+        // up the PlanColumns...
         root = handleAggregationOperators(root);
-        root.updateOutputColumns(m_catalogDb);
+        
+//        if (PlanNodeUtil.getPlanNodes(root, ReceivePlanNode.class).isEmpty() == false) {
+//            LOG.debug("PAVLO OPTIMIZATION:\n" + PlanNodeUtil.debug(root));
+//        }
+         root.updateOutputColumns(m_catalogDb);
 
         if ((subSelectRoot.getPlanNodeType() != PlanNodeType.INDEXSCAN ||
             ((IndexScanPlanNode) subSelectRoot).getSortDirection() == SortDirectionType.INVALID) &&
@@ -977,8 +992,8 @@ public class PlanAssembler {
                     ++offset;
                 }
                 if (!found) {
-                    System.out.println("PLANNER ERROR: could not match aggregate column alias");
-                    System.out.println(getSQLText());
+                    LOG.error("PLANNER ERROR: could not match aggregate column alias");
+                    LOG.error(getSQLText());
                     throw new RuntimeException("Could not match aggregate column alias.");
                 }
                 break;
@@ -1006,8 +1021,8 @@ public class PlanAssembler {
                 if (!found) {
                     // rtb: would like to throw here but doing so breaks sqlcoverage suite.
                     // for now - make this error obvious at least.
-                    System.out.println("PLANNER ERROR: could not match tve column alias");
-                    System.out.println(getSQLText());
+                    LOG.error("PLANNER ERROR: could not match tve column alias");
+                    LOG.error(getSQLText());
                     throw new RuntimeException("Could not match TVE column alias.");
                 }
             }
@@ -1052,8 +1067,11 @@ public class PlanAssembler {
     }
 
     AbstractPlanNode handleAggregationOperators(AbstractPlanNode root) {
+        final boolean debug = LOG.isDebugEnabled();
+        
         boolean containsAggregateExpression = false;
         HashAggregatePlanNode aggNode = null;
+//        String orig_root_debug = PlanNodeUtil.debug(root);
 
         /* Check if any aggregate expressions are present */
         for (ParsedSelectStmt.ParsedColInfo col : m_parsedSelect.displayColumns) {
@@ -1172,6 +1190,121 @@ public class PlanAssembler {
             aggNode.addAndLinkChild(root);
             root = aggNode;
         }
+        
+        // PAVLO: Push non-AVG aggregates down into the scan for multi-partition queries
+        while (false && aggNode != null) {
+            // String orig_root_debug2 = PlanNodeUtil.debug(root);
+            if (debug) LOG.debug("Trying to apply Aggregate pushdown optimization!");
+            
+            // TODO: Can only do single aggregates
+            if (aggNode.getAggregateTypes().size() != 1) {
+                if (debug) LOG.debug("SKIP => Multiple aggregates");
+                break;
+            }
+            // Can't do averages
+            if (aggNode.getAggregateTypes().get(0) == ExpressionType.AGGREGATE_AVG) {
+                if (debug) LOG.debug("SKIP => Can't optimize AVG()");
+                break;
+            }
+            
+            // Get the AbstractScanPlanNode that is directly below us
+            Set<AbstractScanPlanNode> scans = PlanNodeUtil.getPlanNodes(aggNode, AbstractScanPlanNode.class);
+            if (scans.size() != 1) {
+                if (debug) LOG.debug("SKIP => Multiple scans!");
+                break;
+            }
+            
+            AbstractScanPlanNode scan_node = CollectionUtil.getFirst(scans);
+            assert(scan_node != null);
+            // For some reason we have to do this??
+            for (int col = 0, cnt = scan_node.m_outputColumns.size(); col < cnt; col++) {
+                int col_guid = scan_node.m_outputColumns.get(col);
+                assert(m_context.get(col_guid) != null) : "Failed [" + col_guid + "]"; 
+                // PlanColumn retval = new PlanColumn(guid, expression, columnName, sortOrder, storage);
+            } // FOR
+
+            // Skip if we're already directly after the scan (meaning no network traffic)
+            AbstractPlanNode orig_scan_parent = scan_node.getParent(0); 
+            if (orig_scan_parent.equals(aggNode)) {
+                if (debug) LOG.debug("SKIP => Single-partition query!");
+                break;
+            }
+            
+            // Note that we don't want actually replace the aggregate. We just want to attach it
+            // down below the SEND/RECIEVE so that we calculate the aggregate in parallel
+            AggregatePlanNode clone_node = new HashAggregatePlanNode(m_context, getNextPlanNodeId());
+            orig_scan_parent.clearChildren();
+            scan_node.clearParents();
+            orig_scan_parent.addAndLinkChild(clone_node);
+
+//            // Clone Group-By Columns
+//            for (int col_idx = 0, col_cnt = aggNode.getGroupByColumns().size(); col_idx < col_cnt; col_idx++) {
+//                PlanColumn orig_col = m_context.get(aggNode.getGroupByColumns().get(col_idx));
+//                assert(orig_col != null);
+//                clone_node.getGroupByColumns().add(aggNode.getGroupByColumns().get(col_idx));
+//                clone_node.getGroupByColumnNames().add(aggNode.getGroupByColumnNames().get(col_idx));
+//                clone_node.appendGroupByColumn(m_context.clonePlanColumn(orig_col));
+//            } // FOR
+//            
+//            // Clone Aggregate Columns
+//            for (int col_idx = 0, col_cnt = aggNode.getAggregateColumnGuids().size(); col_idx < col_cnt; col_idx++) {
+//                clone_node.getAggregateTypes().add(aggNode.getAggregateTypes().get(col_idx));
+//                clone_node.getAggregateColumnGuids().add(aggNode.getAggregateColumnGuids().get(col_idx));
+//                clone_node.getAggregateColumnNames().add(aggNode.getAggregateColumnNames().get(col_idx));
+//                clone_node.getAggregateOutputColumns().add(aggNode.getAggregateOutputColumns().get(col_idx));
+//            } // FOR
+//            
+//            for (int col_idx = 0, col_cnt = aggNode.m_outputColumns.size(); col_idx < col_cnt; col_idx++) {
+//                PlanColumn orig_col = m_context.get(aggNode.m_outputColumns.get(col_idx));
+//                assert(orig_col != null);
+//                clone_node.appendOutputColumn(m_context.clonePlanColumn(orig_col));
+//            } // FOR
+
+            
+            clone_node.getGroupByColumns().addAll(aggNode.getGroupByColumns());
+            clone_node.getGroupByColumnNames().addAll(aggNode.getGroupByColumnNames());
+            clone_node.getAggregateColumnGuids().addAll(aggNode.getAggregateColumnGuids());
+            clone_node.getAggregateColumnNames().addAll(aggNode.getAggregateColumnNames());
+            clone_node.getAggregateTypes().addAll(aggNode.getAggregateTypes());
+            clone_node.getAggregateOutputColumns().addAll(aggNode.getAggregateOutputColumns());
+            clone_node.m_outputColumns.addAll(aggNode.m_outputColumns); // HACK
+            
+            assert(clone_node.getGroupByColumns().size() == aggNode.getGroupByColumns().size());
+            assert(clone_node.getGroupByColumnNames().size() == aggNode.getGroupByColumnNames().size());
+            assert(clone_node.getGroupByColumnIds().size() == aggNode.getGroupByColumnIds().size());
+            assert(clone_node.getAggregateTypes().size() == aggNode.getAggregateTypes().size());
+            assert(clone_node.getAggregateColumnGuids().size() == aggNode.getAggregateColumnGuids().size());
+            assert(clone_node.getAggregateColumnNames().size() == aggNode.getAggregateColumnNames().size());
+            assert(clone_node.getAggregateOutputColumns().size() == aggNode.getAggregateOutputColumns().size());
+            assert(clone_node.m_outputColumns.size() == aggNode.m_outputColumns.size());
+
+            clone_node.addAndLinkChild(scan_node);
+            assert(scan_node.getParentCount() > 0);
+
+            // But this means we have to also update the RECEIVE to only expect the columns that
+            // the AggregateNode will be sending along
+            assert(aggNode.getChild(0) instanceof ReceivePlanNode);
+            ReceivePlanNode recv_node = (ReceivePlanNode)aggNode.getChild(0);
+            recv_node.m_outputColumns.clear();
+            recv_node.m_outputColumns.addAll(clone_node.m_outputColumns);
+            
+            assert(recv_node.getChild(0) instanceof SendPlanNode);
+            SendPlanNode send_node = (SendPlanNode)recv_node.getChild(0);
+            send_node.m_outputColumns.clear();
+            send_node.m_outputColumns.addAll(clone_node.m_outputColumns);
+            
+            if (debug) LOG.debug("Successfully applied optimization! Eat that John Hugg!");
+            
+//            System.err.println(PlanNodeUtil.debug(root));
+//            System.err.println(StringUtil.repeat("=", 100));
+//            System.err.println(orig_root_debug2);
+//            System.err.println(StringUtil.repeat("=", 100));
+//            System.err.println(orig_root_debug);
+//            System.exit(1);
+            
+            break;
+        } // WHILE
+        
 
         // handle select distinct a from t - which is planned as an aggregate but
         // doesn't trigger the above aggregate conditions as it is neither grouped

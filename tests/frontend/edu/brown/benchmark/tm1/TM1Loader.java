@@ -42,7 +42,7 @@ import org.voltdb.VoltType;
 import edu.brown.benchmark.tm1.procedures.GetTableCounts;
 
 public class TM1Loader extends TM1BaseClient {
-    private static final Logger LOG = Logger.getLogger(TM1Loader.class.getName());
+    private static final Logger LOG = Logger.getLogger(TM1Loader.class);
     public volatile boolean notDone = true;
     
     /**
