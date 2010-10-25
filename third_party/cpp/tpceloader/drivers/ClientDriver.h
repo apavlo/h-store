@@ -34,7 +34,7 @@
 #include <TxnHarnessStructs.h>
 #include <CETxnInputGenerator.h>
 #include <DM.h>
-#include <DMSUTInterface.h>
+#include <MEE.h>
 
 using namespace std;
 
@@ -71,6 +71,8 @@ class ClientDriver {
         CCETxnInputGenerator*   m_TxnInputGenerator;
         CDM*                    m_DataMaintenanceGenerator;
         CDMSUTInterface*        m_DataMaintenanceCallback;
+        CMEE*                   m_MarketExchangeGenerator;
+        CMEESUTInterface*       m_MarketExchangeCallback;
     
         TBrokerVolumeTxnInput       m_BrokerVolumeTxnInput;
         TCustomerPositionTxnInput   m_CustomerPositionTxnInput;

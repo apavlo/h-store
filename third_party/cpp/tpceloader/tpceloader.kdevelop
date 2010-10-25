@@ -12,15 +12,15 @@
     <absoluteprojectpath>false</absoluteprojectpath>
     <description></description>
     <defaultencoding></defaultencoding>
-    <versioncontrol></versioncontrol>
+    <versioncontrol/>
   </general>
   <kdevcustomproject>
     <run>
       <directoryradio>executable</directoryradio>
-      <mainprogram>../../../obj/release/tpceloader/bin/EGenDriverJNITest</mainprogram>
+      <mainprogram>/home/pavlo/Documents/H-Store/SVN-Brown/trunk/obj/release/tpceloader/bin/EGenDriverJNITest</mainprogram>
       <programargs>-i ../flat_in -o ../flat_out -f 1 -w 1 -c 1000 -vsf 0.5 COMPANY</programargs>
       <globaldebugarguments>-i ../flat_in -o ../flat_out -f 1 -w 1 -c 1000 -vsf 0.5 COMPANY</globaldebugarguments>
-      <globalcwd>/home/pavlo/Documents/H-Store/SVN-Brown/trunk/third_party/cpp/tpceloader</globalcwd>
+      <globalcwd>/home/pavlo/Documents/H-Store/SVN-Brown/trunk/obj/release/tpceloader/bin/</globalcwd>
       <useglobalprogram>false</useglobalprogram>
       <terminal>false</terminal>
       <autocompile>true</autocompile>
@@ -299,7 +299,7 @@
     </blacklist>
     <build>
       <buildtool>make</buildtool>
-      <builddir>prj</builddir>
+      <builddir>/home/pavlo/Documents/H-Store/SVN-Brown/trunk/third_party/cpp/tpceloader/prj</builddir>
     </build>
     <other>
       <prio>0</prio>
@@ -318,7 +318,7 @@
       <dontact>false</dontact>
       <makebin></makebin>
       <defaulttarget></defaulttarget>
-      <makeoptions>SOURCE=.. PREFIX=../../../obj/release/tpceloader</makeoptions>
+      <makeoptions>SOURCE=.. PREFIX=../../../../obj/release/tpceloader DEBUG_OPTS=&quot;-DDEBUG -Wall -Wextra&quot;</makeoptions>
       <selectedenvironment>default</selectedenvironment>
       <environments>
         <default/>
@@ -464,9 +464,9 @@
   </kdevfileview>
   <kdevdocumentation>
     <projectdoc>
-      <docsystem></docsystem>
-      <docurl></docurl>
-      <usermanualurl></usermanualurl>
+      <docsystem/>
+      <docurl/>
+      <usermanualurl/>
     </projectdoc>
   </kdevdocumentation>
 </kdevelop>
