@@ -71,7 +71,7 @@ ClientDriver::~ClientDriver() {
 
 TBrokerVolumeTxnInput& ClientDriver::generateBrokerVolumeInput() {
     #ifdef DEBUG
-    fprintf(stderr, "Executing %s...\n", "generateBrokerVolumeInput");
+    fprintf(stderr, "Executing %s...\n", __FUNCTION__);
     #endif
     m_TxnInputGenerator->GenerateBrokerVolumeInput( m_BrokerVolumeTxnInput );
     return (m_BrokerVolumeTxnInput);
@@ -79,15 +79,31 @@ TBrokerVolumeTxnInput& ClientDriver::generateBrokerVolumeInput() {
 
 TCustomerPositionTxnInput& ClientDriver::generateCustomerPositionInput() {
     #ifdef DEBUG
-    fprintf(stderr, "Executing %s...\n", "generateCustomerPositionInput");
+    fprintf(stderr, "Executing %s...\n", __FUNCTION__);
     #endif
     m_TxnInputGenerator->GenerateCustomerPositionInput( m_CustomerPositionTxnInput );
     return (m_CustomerPositionTxnInput);
 }
 
+TDataMaintenanceTxnInput& ClientDriver::generateDataMaintenanceInput() {
+    #ifdef DEBUG
+    fprintf(stderr, "Executing %s...\n", __FUNCTION__);
+    #endif
+    m_TxnInputGenerator->GenerateDataMaintenanceInput( m_DataMaintenanceTxnInput );
+    return (m_DataMaintenanceTxnInput);
+}
+
+TMarketFeedTxnInput& ClientDriver::generateMarketFeedInput() {
+    #ifdef DEBUG
+    fprintf(stderr, "Executing %s...\n", __FUNCTION__);
+    #endif
+    m_TxnInputGenerator->GenerateMarketFeedInput( m_MarketFeedTxnInput );
+    return (m_MarketFeedTxnInput);
+}
+
 TMarketWatchTxnInput& ClientDriver::generateMarketWatchInput() {
     #ifdef DEBUG
-    fprintf(stderr, "Executing %s...\n", "generateMarketWatchInput");
+    fprintf(stderr, "Executing %s...\n", __FUNCTION__);
     #endif
     m_TxnInputGenerator->GenerateMarketWatchInput( m_MarketWatchTxnInput );
     return (m_MarketWatchTxnInput);
@@ -95,15 +111,23 @@ TMarketWatchTxnInput& ClientDriver::generateMarketWatchInput() {
 
 TSecurityDetailTxnInput& ClientDriver::generateSecurityDetailInput() {
     #ifdef DEBUG
-    fprintf(stderr, "Executing %s...\n", "generateSecurityDetailInput");
+    fprintf(stderr, "Executing %s...\n", __FUNCTION__);
     #endif
     m_TxnInputGenerator->GenerateSecurityDetailInput( m_SecurityDetailTxnInput );
     return (m_SecurityDetailTxnInput);
 }
 
+TTradeCleanupTxnInput& ClientDriver::generateTradeCleanupInput() {
+    #ifdef DEBUG
+    fprintf(stderr, "Executing %s...\n", __FUNCTION__);
+    #endif
+    m_TxnInputGenerator->GenerateTradeCleanupInput( m_TradeCleanupTxnInput );
+    return (m_TradeCleanTxnInput);
+}
+
 TTradeLookupTxnInput& ClientDriver::generateTradeLookupInput() {
     #ifdef DEBUG
-    fprintf(stderr, "Executing %s...\n", "generateTradeLookupInput");
+    fprintf(stderr, "Executing %s...\n", __FUNCTION__);
     #endif
     m_TxnInputGenerator->GenerateTradeLookupInput( m_TradeLookupTxnInput );
     return (m_TradeLookupTxnInput);
@@ -111,15 +135,23 @@ TTradeLookupTxnInput& ClientDriver::generateTradeLookupInput() {
 
 TTradeOrderTxnInput& ClientDriver::generateTradeOrderInput(INT32 &iTradeType, bool &bExecutorIsAccountOwner) {
     #ifdef DEBUG
-    fprintf(stderr, "Executing %s...\n", "generateTradeOrderInput");
+    fprintf(stderr, "Executing %s...\n", __FUNCTION__);
     #endif
     m_TxnInputGenerator->GenerateTradeOrderInput( m_TradeOrderTxnInput, iTradeType, bExecutorIsAccountOwner );
     return (m_TradeOrderTxnInput);
 }
 
+TTradeResultTxnInput& ClientDriver::generateTradeResultInput() {
+    #ifdef DEBUG
+    fprintf(stderr, "Executing %s...\n", __FUNCTION__);
+    #endif
+    m_TxnInputGenerator->GenerateTradeResultInput( m_TradeResultTxnInput );
+    return (m_TradeResultTxnInput);
+}
+
 TTradeStatusTxnInput& ClientDriver::generateTradeStatusInput() {
     #ifdef DEBUG
-    fprintf(stderr, "Executing %s...\n", "generateTradeStatusInput");
+    fprintf(stderr, "Executing %s...\n", __FUNCTION__);
     #endif
     m_TxnInputGenerator->GenerateTradeStatusInput( m_TradeStatusTxnInput );
     return (m_TradeStatusTxnInput);
@@ -127,7 +159,7 @@ TTradeStatusTxnInput& ClientDriver::generateTradeStatusInput() {
 
 TTradeUpdateTxnInput& ClientDriver::generateTradeUpdateInput() {
     #ifdef DEBUG
-    fprintf(stderr, "Executing %s...\n", "generateTradeUpdateInput");
+    fprintf(stderr, "Executing %s...\n", __FUNCTION__);
     #endif
     m_TxnInputGenerator->GenerateTradeUpdateInput( m_TradeUpdateTxnInput );
     return (m_TradeUpdateTxnInput);

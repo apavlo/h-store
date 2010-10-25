@@ -48,7 +48,7 @@ public class TPCEProjectBuilder extends AbstractProjectBuilder {
         TradeUpdate.class,
         TradeStatus.class,
         CustomerPosition.class,
-//        BrokerVolume.class,
+        BrokerVolume.class,
         SecurityDetail.class,
         MarketFeed.class,
         MarketWatch.class,

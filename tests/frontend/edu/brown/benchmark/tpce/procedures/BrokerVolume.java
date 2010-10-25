@@ -33,13 +33,12 @@
  ***************************************************************************/
 package edu.brown.benchmark.tpce.procedures;
 
-import java.util.HashMap;
-import java.util.Map;
-
 import org.voltdb.ProcInfo;
 import org.voltdb.SQLStmt;
 import org.voltdb.VoltProcedure;
 import org.voltdb.VoltTable;
+import org.voltdb.VoltType;
+import org.voltdb.VoltTable.ColumnInfo;
 
 import edu.brown.benchmark.tpce.util.ProcedureUtil;
 
@@ -54,32 +53,53 @@ import edu.brown.benchmark.tpce.util.ProcedureUtil;
 public class BrokerVolume extends VoltProcedure {
 
     // Note: sum(TR_QTY * TR_BID_PRICE) not supported
-    // Compiling this statement results in "java.lang.OutOfMemoryError: GC overhead limit exceed"
     public final SQLStmt get = new SQLStmt(
-            "select B_NAME "
-                    // +" , sum(TR_QTY * TR_BID_PRICE) "
-                    + "from TRADE_REQUEST, SECTOR, INDUSTRY, COMPANY, BROKER, SECURITY "
-                    + "where TR_S_SYMB = S_SYMB and " + "S_CO_ID = CO_ID and "
-                    + "CO_IN_ID = IN_ID and " + "SC_ID = IN_SC_ID and "
-                    // FIXME + "B_NAME in (?) and "
-                    + "B_NAME = ? and "
-                    + " SC_NAME = ? " + "group by B_NAME "
-    // + "order by 2 DESC"
+        "SELECT B_NAME, TR_QTY * TR_BID_PRICE" +  // sum(TR_QTY * TR_BID_PRICE)
+        "  FROM TRADE_REQUEST, SECTOR, INDUSTRY, COMPANY, BROKER, SECURITY, CUSTOMER_ACCOUNT " +
+        " WHERE TR_CA_ID = CA_ID " +
+        "   AND CA_B_ID = B_ID " +
+        "   AND TR_S_SYMB = S_SYMB " +
+        "   AND S_CO_ID = CO_ID " +
+        "   AND CO_IN_ID = IN_ID " +
+        "   AND SC_ID = IN_SC_ID " +
+        "   AND B_NAME = ? " + // B_NAME IN (?)
+        "   AND SC_NAME = ? "
+        // " GROUP BY B_NAME "
+        // " ORDER BY 2 DESC " 
     );
 
+    
+    private final ColumnInfo[] returnColumns = {
+        new ColumnInfo("broker_name", VoltType.STRING), 
+        new ColumnInfo("volume", VoltType.DECIMAL),  
+    };
+    
+    /**
+     * 
+     * @param broker_list
+     * @param sector_name
+     * @return
+     * @throws VoltAbortException
+     */
     public VoltTable[] run(
             String[] broker_list,
             String sector_name) throws VoltAbortException {
         
-        Map<String, Object[]> ret = new HashMap<String, Object[]>();
-        int row_count = ProcedureUtil.execute(ret, this, get,
-                new Object[] { broker_list[0], sector_name },
-                new String[] { "broker_name", "volume" },
-                new Object[] { "B_NAME", 1 });
-
-        ret.put("list_len", new Integer[] { row_count });
-
-        return ProcedureUtil.mapToTable(ret);
+        VoltTable ret = new VoltTable(returnColumns);
+        
+        for (String bname : broker_list) {
+            voltQueueSQL(get, bname, sector_name);
+            final VoltTable results[] = voltExecuteSQL();
+            assert(results.length > 0);
+            double total = 0.0d;
+            for (VoltTable vt : results) {
+                boolean advrow = vt.advanceRow();
+                assert(advrow);
+                assert(vt.getColumnCount() == 2);
+                total += vt.getDouble(1);
+            } // FOR
+            ret.addRow(bname, total);
+        } // FOR
+        return (new VoltTable[] { ProcedureUtil.getStatusTable(true), ret });
     }
-
 }

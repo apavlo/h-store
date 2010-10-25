@@ -11,10 +11,69 @@ import org.voltdb.VoltProcedure;
 import org.voltdb.VoltTable;
 import org.voltdb.VoltTableRow;
 import org.voltdb.VoltType;
+import org.voltdb.VoltTable.ColumnInfo;
+import org.voltdb.utils.VoltTypeUtil;
 
 public abstract class ProcedureUtil {
     private static final Logger LOG = Logger.getLogger(ProcedureUtil.class.getName());
 
+    private static final ColumnInfo[] statusColumns = {
+        new ColumnInfo("status", VoltType.BIGINT), 
+    };
+    
+    public static VoltTable getStatusTable(boolean success) {
+        VoltTable vt = new VoltTable(statusColumns);
+        vt.addRow((success ? 1 : 0));
+        return (vt);
+    }
+
+    /**
+     * Combine multiple VoltTables into a single table
+     * @param vts
+     * @return
+     */
+    public static VoltTable combineTables(final VoltTable...vts) {
+        assert(vts.length > 0);
+        ColumnInfo cols[] = new ColumnInfo[vts[0].getColumnCount()];
+        for (int i = 0; i < cols.length; i++) {
+            cols[i] = new ColumnInfo(vts[0].getColumnName(i), vts[0].getColumnType(i));
+        } // FOR
+        
+        VoltTable ret = new VoltTable(cols);
+        for (VoltTable vt : vts) {
+            assert(vt.getColumnCount() == ret.getColumnCount());
+            vt.resetRowPosition();
+            while (vt.advanceRow()) {
+                ret.add(vt.cloneRow());
+            } // WHILE
+        } // FOR
+        return (ret);
+    }
+
+    /**
+     * Store 
+     * @param map
+     * @param vt
+     */
+    public static void storeTableInMap(final Map<String, Object[]> map, final VoltTable vt) {
+        assert(vt != null);
+        assert(map != null);
+        
+        int num_rows = vt.getRowCount();
+        while (vt.advanceRow()) {
+            int row_idx = vt.getActiveRowIndex();
+            for (int i = 0, cnt = vt.getColumnCount(); i < cnt; i++) {
+                String col_name = vt.getColumnName(i);
+                VoltType vtype = vt.getColumnType(i);
+                if (row_idx == 0) {
+                    map.put(col_name, new Object[num_rows]);
+                }
+                map.get(col_name)[row_idx] = vt.get(col_name, vtype);
+            } // FOR
+        } // WHILE
+    }
+    
+    
     /**
      * Execute stmt with args, and put result, which is an array of columns,
      * into map
@@ -105,6 +164,11 @@ public abstract class ProcedureUtil {
         execute(null, sp, stmt, args, null, null);
     }
 
+    /**
+     * 
+     * @param map
+     * @return
+     */
     public static VoltTable[] mapToTable(Map<String, Object[]> map) {
         VoltTable[] tables = new VoltTable[map.size()];
 

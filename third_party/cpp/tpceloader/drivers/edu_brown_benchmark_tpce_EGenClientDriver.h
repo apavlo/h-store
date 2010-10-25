@@ -7,6 +7,8 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+/* Inaccessible static: LOG */
+/* Inaccessible static: _00024assertionsDisabled */
 /*
  * Class:     edu_brown_benchmark_tpce_EGenClientDriver
  * Method:    initialize
@@ -29,6 +31,14 @@ JNIEXPORT jobjectArray JNICALL Java_edu_brown_benchmark_tpce_EGenClientDriver_eg
  * Signature: (J)[Ljava/lang/Object;
  */
 JNIEXPORT jobjectArray JNICALL Java_edu_brown_benchmark_tpce_EGenClientDriver_egenCustomerPosition
+  (JNIEnv *, jobject, jlong);
+
+/*
+ * Class:     edu_brown_benchmark_tpce_EGenClientDriver
+ * Method:    egenDataMaintenance
+ * Signature: (J)[Ljava/lang/Object;
+ */
+JNIEXPORT jobjectArray JNICALL Java_edu_brown_benchmark_tpce_EGenClientDriver_egenDataMaintenance
   (JNIEnv *, jobject, jlong);
 
 /*
@@ -57,6 +67,14 @@ JNIEXPORT jobjectArray JNICALL Java_edu_brown_benchmark_tpce_EGenClientDriver_eg
 
 /*
  * Class:     edu_brown_benchmark_tpce_EGenClientDriver
+ * Method:    egenTradeCleanup
+ * Signature: (J)[Ljava/lang/Object;
+ */
+JNIEXPORT jobjectArray JNICALL Java_edu_brown_benchmark_tpce_EGenClientDriver_egenTradeCleanup
+  (JNIEnv *, jobject, jlong);
+
+/*
+ * Class:     edu_brown_benchmark_tpce_EGenClientDriver
  * Method:    egenTradeLookup
  * Signature: (J)[Ljava/lang/Object;
  */
@@ -69,6 +87,14 @@ JNIEXPORT jobjectArray JNICALL Java_edu_brown_benchmark_tpce_EGenClientDriver_eg
  * Signature: (J)[Ljava/lang/Object;
  */
 JNIEXPORT jobjectArray JNICALL Java_edu_brown_benchmark_tpce_EGenClientDriver_egenTradeOrder
+  (JNIEnv *, jobject, jlong);
+
+/*
+ * Class:     edu_brown_benchmark_tpce_EGenClientDriver
+ * Method:    egenTradeResult
+ * Signature: (J)[Ljava/lang/Object;
+ */
+JNIEXPORT jobjectArray JNICALL Java_edu_brown_benchmark_tpce_EGenClientDriver_egenTradeResult
   (JNIEnv *, jobject, jlong);
 
 /*
