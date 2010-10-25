@@ -39,7 +39,7 @@ class DataMaintenanceCallback : public CDMSUTInterface {
         DataMaintenanceCallback(TDataMaintenanceTxnInput *dmTxnInput, 
                                 TTradeCleanupTxnInput *tcTxnInput) :
             m_DataMaintenanceTxnInput(dmTxnInput),
-            m_TradeCleanupTxnInput(m_TradeCleanupTxnInput) {
+            m_TradeCleanupTxnInput(tcTxnInput) {
             // Nothing else...
         }
     
@@ -65,12 +65,10 @@ class DataMaintenanceCallback : public CDMSUTInterface {
             fprintf(stderr, "TradeCleanup callback!\n");
             #endif
             
-            if (pTxnInput != NULL) {
-                m_TradeCleanupTxnInput->start_trade_id = pTxnInput->start_trade_id;
-                strncpy(m_TradeCleanupTxnInput->st_canceled_id, pTxnInput->st_canceled_id, sizeof(pTxnInput->st_canceled_id));
-                strncpy(m_TradeCleanupTxnInput->st_pending_id, pTxnInput->st_pending_id, sizeof(pTxnInput->st_pending_id));
-                strncpy(m_TradeCleanupTxnInput->st_submitted_id, pTxnInput->st_submitted_id, sizeof(pTxnInput->st_submitted_id));
-            }
+            m_TradeCleanupTxnInput->start_trade_id = pTxnInput->start_trade_id;
+            strncpy(m_TradeCleanupTxnInput->st_canceled_id, pTxnInput->st_canceled_id, sizeof(pTxnInput->st_canceled_id));
+            strncpy(m_TradeCleanupTxnInput->st_pending_id, pTxnInput->st_pending_id, sizeof(pTxnInput->st_pending_id));
+            strncpy(m_TradeCleanupTxnInput->st_submitted_id, pTxnInput->st_submitted_id, sizeof(pTxnInput->st_submitted_id));
             
             return (true);
         }
