@@ -35,11 +35,29 @@ int main(int argc, char* argv[]) {
         TDataMaintenanceTxnInput dm_params = driver.generateDataMaintenanceInput();
         TCustomerPositionTxnInput cp_params = driver.generateCustomerPositionInput();
         TMarketWatchTxnInput mw_params = driver.generateMarketWatchInput();
+        TMarketFeedTxnInput mf_params = driver.generateMarketFeedInput();
         TSecurityDetailTxnInput sd_params = driver.generateSecurityDetailInput();
         TTradeCleanupTxnInput tc_params = driver.generateTradeCleanupInput();
         TTradeLookupTxnInput tl_params = driver.generateTradeLookupInput();
+        TTradeResultTxnInput tr_params = driver.generateTradeResultInput();
     
         fprintf(stderr, "\n-----------------------------------------------\n\n");
+    
+        // MARKET FEED
+/*        fprintf(stderr, "feeds:\n");
+        for (int i = 0; i < max_feed_len; i++) {
+            TTickerEntry tentry = mf_params.Entries[i];
+            fprintf(stderr, "    [%02d]:        %g, %d, %s\n", i, tentry.price_quote, tentry.trade_qty, tentry.symbol);
+        } // FOR
+        TStatusAndTradeType ttype = mf_params.StatusAndTradeType;
+        fprintf(stderr, "status_submitted: %s\n", ttype.status_submitted);
+        fprintf(stderr, "type_limit_buy:   %s\n", ttype.type_limit_buy);
+        fprintf(stderr, "type_limit_sell:  %s\n", ttype.type_limit_sell);
+        fprintf(stderr, "type_stop_loss:   %s\n", ttype.type_stop_loss);*/
+        
+        // TRADE RESULT
+        fprintf(stderr, "trade_id:           %ld\n", tr_params.trade_id);
+        fprintf(stderr, "trade_price:        %g\n", tr_params.trade_price);
     
 /*        fprintf(stderr, "acct_id:      %ld\n", dm_params.acct_id);
         fprintf(stderr, "c_id:         %ld\n", dm_params.c_id);
@@ -50,10 +68,10 @@ int main(int argc, char* argv[]) {
         fprintf(stderr, "table_name:   %s\n", dm_params.table_name);
         fprintf(stderr, "tx_id:        %s\n", dm_params.tx_id);*/
         
-        fprintf(stderr, "start_trade_id:     %ld\n", tc_params.start_trade_id);
-        fprintf(stderr, "st_canceled_id:     %s\n", tc_params.st_canceled_id);
-        fprintf(stderr, "st_pending_id:      %s\n", tc_params.st_pending_id);
-        fprintf(stderr, "st_submitted_id:    %s\n", tc_params.st_submitted_id);
+//         fprintf(stderr, "start_trade_id:     %ld\n", tc_params.start_trade_id);
+//         fprintf(stderr, "st_canceled_id:     %s\n", tc_params.st_canceled_id);
+//         fprintf(stderr, "st_pending_id:      %s\n", tc_params.st_pending_id);
+//         fprintf(stderr, "st_submitted_id:    %s\n", tc_params.st_submitted_id);
     }
 
 /*    fprintf(stderr, "trade_id:\n");

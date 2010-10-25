@@ -299,11 +299,6 @@ void CDM::DoCleanupTxn( void )
                         (m_pStatusType->GetRecord(eCanceled))->ST_ID,
                         sizeof(m_CleanupTxnInput.st_canceled_id));
 
-    fprintf(stderr, "start_trade_id:     %ld\n", m_CleanupTxnInput.start_trade_id);
-    fprintf(stderr, "st_canceled_id:     %s\n", m_CleanupTxnInput.st_canceled_id);
-    fprintf(stderr, "st_pending_id:      %s\n", m_CleanupTxnInput.st_pending_id);
-    fprintf(stderr, "st_submitted_id:    %s\n", m_CleanupTxnInput.st_submitted_id);
-
     // Execute Transaction
     m_pSUT->TradeCleanup( &m_CleanupTxnInput );
 }

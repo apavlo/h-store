@@ -36,8 +36,8 @@ namespace TPCE {
 
 class DataMaintenanceCallback : public CDMSUTInterface {
     public:
-        DataMaintenanceCallback(TDataMaintenanceTxnInput *dmTxnInput, 
-                                TTradeCleanupTxnInput *tcTxnInput) :
+        DataMaintenanceCallback(PDataMaintenanceTxnInput dmTxnInput, 
+                                PTradeCleanupTxnInput tcTxnInput) :
             m_DataMaintenanceTxnInput(dmTxnInput),
             m_TradeCleanupTxnInput(tcTxnInput) {
             // Nothing else...
@@ -45,7 +45,7 @@ class DataMaintenanceCallback : public CDMSUTInterface {
     
         virtual bool DataMaintenance( PDataMaintenanceTxnInput pTxnInput ) {
             #ifdef DEBUG
-            fprintf(stderr, "DataMaintenance callback!\n");
+            fprintf(stderr, "%s callback!\n", __FUNCTION__);
             #endif
         
             m_DataMaintenanceTxnInput->acct_id = pTxnInput->acct_id;
@@ -62,7 +62,7 @@ class DataMaintenanceCallback : public CDMSUTInterface {
         
         virtual bool TradeCleanup( PTradeCleanupTxnInput pTxnInput ) {
             #ifdef DEBUG
-            fprintf(stderr, "TradeCleanup callback!\n");
+            fprintf(stderr, "%s callback!\n", __FUNCTION__);
             #endif
             
             m_TradeCleanupTxnInput->start_trade_id = pTxnInput->start_trade_id;
@@ -74,8 +74,47 @@ class DataMaintenanceCallback : public CDMSUTInterface {
         }
         
     private:
-        TDataMaintenanceTxnInput *m_DataMaintenanceTxnInput;
-        TTradeCleanupTxnInput    *m_TradeCleanupTxnInput;
+        PDataMaintenanceTxnInput m_DataMaintenanceTxnInput;
+        PTradeCleanupTxnInput    m_TradeCleanupTxnInput;
+};
+
+class MarketExchangeCallback : public CMEESUTInterface {
+    public:
+        MarketExchangeCallback(PTradeResultTxnInput trTxnInput, 
+                               PMarketFeedTxnInput mfTxnInput) :
+            m_TradeResultTxnInput(trTxnInput),
+            m_MarketFeedTxnInput(mfTxnInput) {
+            // Nothing else...
+        }
+    
+        virtual bool TradeResult( PTradeResultTxnInput pTxnInput ) {
+            #ifdef DEBUG
+            fprintf(stderr, "%s callback!\n", __FUNCTION__);
+            #endif
+        
+            m_TradeResultTxnInput->trade_id = pTxnInput->trade_id;
+            m_TradeResultTxnInput->trade_price = pTxnInput->trade_price;
+            // strncpy(m_TradeResultTxnInput->st_completed_id, pTxnInput->st_completed_id, sizeof(pTxnInput->st_completed_id));
+            
+            return (true);
+        }
+        
+        virtual bool MarketFeed( PMarketFeedTxnInput pTxnInput ) {
+            #ifdef DEBUG
+            fprintf(stderr, "%s callback!\n", __FUNCTION__);
+            #endif
+            
+            for (int i = 0; i < max_feed_len; i++) {
+                m_MarketFeedTxnInput->Entries[i] = pTxnInput->Entries[i];
+            } // FOR
+            m_MarketFeedTxnInput->StatusAndTradeType = pTxnInput->StatusAndTradeType;
+            
+            return (true);
+        }
+        
+    private:
+        PTradeResultTxnInput    m_TradeResultTxnInput;
+        PMarketFeedTxnInput     m_MarketFeedTxnInput;
 };
 
 
@@ -104,9 +143,14 @@ ClientDriver::ClientDriver(string dataPath, int configuredCustomerCount, int tot
     m_TxnInputGenerator = new CCETxnInputGenerator(inputFiles, m_configuredCustomerCount, m_totalCustomerCount, m_scaleFactor, m_initialDays * HoursPerWorkDay, m_Logger, &m_DriverCETxnSettings);
     m_TxnInputGenerator->UpdateTunables();
     
-    // We also need a DataMaintence input generator
+    // We also need a DataMaintenance input generator
     m_DataMaintenanceCallback = new DataMaintenanceCallback(&m_DataMaintenanceTxnInput, &m_TradeCleanupTxnInput);
     m_DataMaintenanceGenerator = new CDM(m_DataMaintenanceCallback, m_Logger, inputFiles, m_configuredCustomerCount, m_totalCustomerCount, m_scaleFactor, m_initialDays, 1);
+    
+    // As well as our trusty ol' MarketExchange input generator
+    m_MarketExchangeCallback = new MarketExchangeCallback(&m_TradeResultTxnInput, &m_MarketFeedTxnInput);
+    m_MarketExchangeGenerator = new CMEE(0, m_MarketExchangeCallback, m_Logger, inputFiles.Securities, 1);
+    m_MarketExchangeGenerator->EnableTickerTape();
 }
 
 /**
@@ -193,7 +237,7 @@ TTradeResultTxnInput& ClientDriver::generateTradeResultInput() {
     #ifdef DEBUG
     fprintf(stderr, "Executing %s...\n", __FUNCTION__);
     #endif
-    // m_TxnInputGenerator->GenerateTradeResultInput( m_TradeResultTxnInput );
+    m_MarketExchangeGenerator->GenerateTradeResult();
     return (m_TradeResultTxnInput);
 }
 
