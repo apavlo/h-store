@@ -1,5 +1,5 @@
 /***************************************************************************
- *  Copyright (C) 2009 by H-Store Project                                  *
+ *  Copyright (C) 2010 by H-Store Project                                  *
  *  Brown University                                                       *
  *  Massachusetts Institute of Technology                                  *
  *  Yale University                                                        *
@@ -33,6 +33,8 @@
 
 #include <TxnHarnessStructs.h>
 #include <CETxnInputGenerator.h>
+#include <DM.h>
+#include <DMSUTInterface.h>
 
 using namespace std;
 
@@ -65,8 +67,10 @@ class ClientDriver {
     
         TDriverCETxnSettings    m_DriverCETxnSettings;
         CLogFormatTab           m_LogFormat;
-        CEGenLogger*            m_Logger;
+        CBaseLogger*            m_Logger;
         CCETxnInputGenerator*   m_TxnInputGenerator;
+        CDM*                    m_DataMaintenanceGenerator;
+        CDMSUTInterface*        m_DataMaintenanceCallback;
     
         TBrokerVolumeTxnInput       m_BrokerVolumeTxnInput;
         TCustomerPositionTxnInput   m_CustomerPositionTxnInput;
@@ -80,7 +84,6 @@ class ClientDriver {
         TTradeResultTxnInput        m_TradeResultTxnInput;
         TTradeStatusTxnInput        m_TradeStatusTxnInput;
         TTradeUpdateTxnInput        m_TradeUpdateTxnInput;
-
 };
 
 }

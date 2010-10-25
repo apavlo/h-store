@@ -117,17 +117,17 @@ public class TestEGenClientDriver extends BaseTestCase {
         this.checkParamTypes(catalog_proc, params);
     }
 
-    /**
-     * testGetMarketFeedParams
-     */
-    public void testGetMarketFeedParams() throws Exception {
-        Object params[] = driver.getMarketFeedParams();
-        assertNotNull(params);
-        
-        Procedure catalog_proc = this.getProcedure("MarketFeed");
-        assertNotNull(catalog_proc);
-        this.checkParamTypes(catalog_proc, params);
-    }
+//    /**
+//     * testGetMarketFeedParams
+//     */
+//    public void testGetMarketFeedParams() throws Exception {
+//        Object params[] = driver.getMarketFeedParams();
+//        assertNotNull(params);
+//        
+//        Procedure catalog_proc = this.getProcedure("MarketFeed");
+//        assertNotNull(catalog_proc);
+//        this.checkParamTypes(catalog_proc, params);
+//    }
     
     /**
      * testGetMarketWatchParams
@@ -189,17 +189,17 @@ public class TestEGenClientDriver extends BaseTestCase {
         this.checkParamTypes(catalog_proc, params);
     }
     
-    /**
-     * testGetTradeResultParams
-     */
-    public void testGetTradeResultParams() throws Exception {
-        Object params[] = driver.getTradeResultParams();
-        assertNotNull(params);
-        
-        Procedure catalog_proc = this.getProcedure("TradeResult");
-        assertNotNull(catalog_proc);
-        this.checkParamTypes(catalog_proc, params);
-    }
+//    /**
+//     * testGetTradeResultParams
+//     */
+//    public void testGetTradeResultParams() throws Exception {
+//        Object params[] = driver.getTradeResultParams();
+//        assertNotNull(params);
+//        
+//        Procedure catalog_proc = this.getProcedure("TradeResult");
+//        assertNotNull(catalog_proc);
+//        this.checkParamTypes(catalog_proc, params);
+//    }
     
     /**
      * testGetTradeStatusParams
