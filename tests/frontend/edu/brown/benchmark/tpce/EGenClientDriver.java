@@ -48,10 +48,14 @@ public class EGenClientDriver {
     
     private native Object[] egenBrokerVolume(long driver_ptr);
     private native Object[] egenCustomerPosition(long driver_ptr);
+    private native Object[] egenDataMaintenance(long driver_ptr);
+    private native Object[] egenMarketFeed(long driver_ptr);
     private native Object[] egenMarketWatch(long driver_ptr);
     private native Object[] egenSecurityDetail(long driver_ptr);
+    private native Object[] egenTradeCleanup(long driver_ptr);
     private native Object[] egenTradeLookup(long driver_ptr);
     private native Object[] egenTradeOrder(long driver_ptr);
+    private native Object[] egenTradeResult(long driver_ptr);
     private native Object[] egenTradeStatus(long driver_ptr);
     private native Object[] egenTradeUpdate(long driver_ptr);
     
@@ -99,17 +103,29 @@ public class EGenClientDriver {
     public Object[] getCustomerPositionParams() {
         return (this.cleanParams(this.egenCustomerPosition(this.driver_ptr)));
     }
+    public Object[] getDataMaintenanceParams() {
+        return (this.cleanParams(this.egenDataMaintenance(this.driver_ptr)));
+    }
+    public Object[] getMarketFeedParams() {
+        return (this.cleanParams(this.egenMarketFeed(this.driver_ptr)));
+    }
     public Object[] getMarketWatchParams() {
         return (this.cleanParams(this.egenMarketWatch(this.driver_ptr)));
     }
     public Object[] getSecurityDetailParams() {
         return (this.cleanParams(this.egenSecurityDetail(this.driver_ptr)));
     }
+    public Object[] getTradeCleanupParams() {
+        return (this.cleanParams(this.egenTradeCleanup(this.driver_ptr)));
+    }
     public Object[] getTradeLookupParams() {
         return (this.cleanParams(this.egenTradeLookup(this.driver_ptr)));
     }
     public Object[] getTradeOrderParams() {
         return (this.cleanParams(this.egenTradeOrder(this.driver_ptr)));
+    }
+    public Object[] getTradeResultParams() {
+        return (this.cleanParams(this.egenTradeResult(this.driver_ptr)));
     }
     public Object[] getTradeStatusParams() {
         return (this.cleanParams(this.egenTradeStatus(this.driver_ptr)));

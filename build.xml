@@ -2091,6 +2091,16 @@ TPC-E EGenLoader
     </copy>
 </target>
 
+<target name="tpceloader.javah">
+    <javah
+        classpathref="project.classpath"
+        force="yes"
+        verbose="yes"
+        class="edu.brown.benchmark.tpce.EGenClientDriver"
+        destdir="${src.tpce.dir}/drivers"
+    />
+</target>
+
 <target name="tpceloader.check">
     <uptodate property="tpceloader.built"
               targetfile="${build.tpce.dir}/lib/libegen.so">

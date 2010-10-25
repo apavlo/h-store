@@ -106,6 +106,30 @@ public class TestEGenClientDriver extends BaseTestCase {
     }
     
     /**
+     * testGetDataMaintenanceParams
+     */
+    public void testGetDataMaintenanceParams() throws Exception {
+        Object params[] = driver.getDataMaintenanceParams();
+        assertNotNull(params);
+        
+        Procedure catalog_proc = this.getProcedure("DataMaintenance");
+        assertNotNull(catalog_proc);
+        this.checkParamTypes(catalog_proc, params);
+    }
+
+    /**
+     * testGetMarketFeedParams
+     */
+    public void testGetMarketFeedParams() throws Exception {
+        Object params[] = driver.getMarketFeedParams();
+        assertNotNull(params);
+        
+        Procedure catalog_proc = this.getProcedure("MarketFeed");
+        assertNotNull(catalog_proc);
+        this.checkParamTypes(catalog_proc, params);
+    }
+    
+    /**
      * testGetMarketWatchParams
      */
     public void testGetMarketWatchParams() throws Exception {
@@ -125,6 +149,18 @@ public class TestEGenClientDriver extends BaseTestCase {
         assertNotNull(params);
         
         Procedure catalog_proc = this.getProcedure("SecurityDetail");
+        assertNotNull(catalog_proc);
+        this.checkParamTypes(catalog_proc, params);
+    }
+
+    /**
+     * testGetTradeCleanupParams
+     */
+    public void testGetTradeCleanupParams() throws Exception {
+        Object params[] = driver.getTradeCleanupParams();
+        assertNotNull(params);
+        
+        Procedure catalog_proc = this.getProcedure("TradeCleanup");
         assertNotNull(catalog_proc);
         this.checkParamTypes(catalog_proc, params);
     }
@@ -149,6 +185,18 @@ public class TestEGenClientDriver extends BaseTestCase {
         assertNotNull(params);
         
         Procedure catalog_proc = this.getProcedure("TradeOrder");
+        assertNotNull(catalog_proc);
+        this.checkParamTypes(catalog_proc, params);
+    }
+    
+    /**
+     * testGetTradeResultParams
+     */
+    public void testGetTradeResultParams() throws Exception {
+        Object params[] = driver.getTradeResultParams();
+        assertNotNull(params);
+        
+        Procedure catalog_proc = this.getProcedure("TradeResult");
         assertNotNull(catalog_proc);
         this.checkParamTypes(catalog_proc, params);
     }

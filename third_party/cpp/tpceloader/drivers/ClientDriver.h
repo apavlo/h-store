@@ -45,10 +45,14 @@ class ClientDriver {
         
         TBrokerVolumeTxnInput&       generateBrokerVolumeInput();
         TCustomerPositionTxnInput&   generateCustomerPositionInput();
+        TDataMaintenanceTxnInput&    generateDataMaintenanceInput();
+        TMarketFeedTxnInput&         generateMarketFeedInput();
         TMarketWatchTxnInput&        generateMarketWatchInput();
         TSecurityDetailTxnInput&     generateSecurityDetailInput();
+        TTradeCleanupTxnInput&       generateTradeCleanupInput();
         TTradeLookupTxnInput&        generateTradeLookupInput();
         TTradeOrderTxnInput&         generateTradeOrderInput(INT32 &iTradeType, bool &bExecutorIsAccountOwner);
+        TTradeResultTxnInput&        generateTradeResultInput();
         TTradeStatusTxnInput&        generateTradeStatusInput();
         TTradeUpdateTxnInput&        generateTradeUpdateInput();
         
@@ -66,10 +70,14 @@ class ClientDriver {
     
         TBrokerVolumeTxnInput       m_BrokerVolumeTxnInput;
         TCustomerPositionTxnInput   m_CustomerPositionTxnInput;
+        TDataMaintenanceTxnInput    m_DataMaintenanceTxnInput;
+        TMarketFeedTxnInput         m_MarketFeedTxnInput;
         TMarketWatchTxnInput        m_MarketWatchTxnInput;
         TSecurityDetailTxnInput     m_SecurityDetailTxnInput;
+        TTradeCleanupTxnInput       m_TradeCleanupTxnInput;
         TTradeLookupTxnInput        m_TradeLookupTxnInput;
         TTradeOrderTxnInput         m_TradeOrderTxnInput;
+        TTradeResultTxnInput        m_TradeResultTxnInput;
         TTradeStatusTxnInput        m_TradeStatusTxnInput;
         TTradeUpdateTxnInput        m_TradeUpdateTxnInput;
 
