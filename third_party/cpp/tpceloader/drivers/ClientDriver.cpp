@@ -1,5 +1,5 @@
 /***************************************************************************
- *  Copyright (C) 2009 by H-Store Project                                  *
+ *  Copyright (C) 2010 by H-Store Project                                  *
  *  Brown University                                                       *
  *  Massachusetts Institute of Technology                                  *
  *  Yale University                                                        *
@@ -29,9 +29,57 @@
 #include "ClientDriver.h"
 
 #include <InputFlatFilesStructure.h>
+#include <TxnHarnessStructs.h>
 #include <EGenLogger.h>
 
 namespace TPCE {
+
+class DataMaintenanceCallback : public CDMSUTInterface {
+    public:
+        DataMaintenanceCallback(TDataMaintenanceTxnInput *dmTxnInput, 
+                                TTradeCleanupTxnInput *tcTxnInput) :
+            m_DataMaintenanceTxnInput(dmTxnInput),
+            m_TradeCleanupTxnInput(m_TradeCleanupTxnInput) {
+            // Nothing else...
+        }
+    
+        virtual bool DataMaintenance( PDataMaintenanceTxnInput pTxnInput ) {
+            #ifdef DEBUG
+            fprintf(stderr, "DataMaintenance callback!\n");
+            #endif
+        
+            m_DataMaintenanceTxnInput->acct_id = pTxnInput->acct_id;
+            m_DataMaintenanceTxnInput->c_id = pTxnInput->c_id;
+            m_DataMaintenanceTxnInput->co_id = pTxnInput->co_id;
+            m_DataMaintenanceTxnInput->day_of_month = pTxnInput->day_of_month;
+            m_DataMaintenanceTxnInput->vol_incr = pTxnInput->vol_incr;
+            strncpy(m_DataMaintenanceTxnInput->symbol, pTxnInput->symbol, sizeof(pTxnInput->symbol));
+            strncpy(m_DataMaintenanceTxnInput->table_name, pTxnInput->table_name, sizeof(pTxnInput->table_name));
+            strncpy(m_DataMaintenanceTxnInput->tx_id, pTxnInput->tx_id, sizeof(pTxnInput->tx_id));
+            
+            return (true);
+        }
+        
+        virtual bool TradeCleanup( PTradeCleanupTxnInput pTxnInput ) {
+            #ifdef DEBUG
+            fprintf(stderr, "TradeCleanup callback!\n");
+            #endif
+            
+            if (pTxnInput != NULL) {
+                m_TradeCleanupTxnInput->start_trade_id = pTxnInput->start_trade_id;
+                strncpy(m_TradeCleanupTxnInput->st_canceled_id, pTxnInput->st_canceled_id, sizeof(pTxnInput->st_canceled_id));
+                strncpy(m_TradeCleanupTxnInput->st_pending_id, pTxnInput->st_pending_id, sizeof(pTxnInput->st_pending_id));
+                strncpy(m_TradeCleanupTxnInput->st_submitted_id, pTxnInput->st_submitted_id, sizeof(pTxnInput->st_submitted_id));
+            }
+            
+            return (true);
+        }
+        
+    private:
+        TDataMaintenanceTxnInput *m_DataMaintenanceTxnInput;
+        TTradeCleanupTxnInput    *m_TradeCleanupTxnInput;
+};
+
 
 ClientDriver::ClientDriver(string dataPath, int configuredCustomerCount, int totalCustomerCount, int scaleFactor, int initialDays) :
         m_dataPath(dataPath),
@@ -48,17 +96,19 @@ ClientDriver::ClientDriver(string dataPath, int configuredCustomerCount, int tot
     fprintf(stderr, "%-15s %d\n", "m_initialDays", m_initialDays);
     #endif
         
-    //
-    // Setup the input generator object that we will use
-    //
-    CInputFiles inputFiles;
-    inputFiles.Initialize(eDriverCE, m_configuredCustomerCount, m_totalCustomerCount, m_dataPath.c_str());
-    
     const char *filename = "/tmp/EGenClientDriver.log";
     m_Logger = new CEGenLogger(eDriverEGenLoader, 0, filename, &m_LogFormat);
 
+    // Setup the input generator object that we will use
+    CInputFiles inputFiles;
+    inputFiles.Initialize(eDriverCE, m_configuredCustomerCount, m_totalCustomerCount, m_dataPath.c_str());
+    
     m_TxnInputGenerator = new CCETxnInputGenerator(inputFiles, m_configuredCustomerCount, m_totalCustomerCount, m_scaleFactor, m_initialDays * HoursPerWorkDay, m_Logger, &m_DriverCETxnSettings);
     m_TxnInputGenerator->UpdateTunables();
+    
+    // We also need a DataMaintence input generator
+    m_DataMaintenanceCallback = new DataMaintenanceCallback(&m_DataMaintenanceTxnInput, &m_TradeCleanupTxnInput);
+    m_DataMaintenanceGenerator = new CDM(m_DataMaintenanceCallback, m_Logger, inputFiles, m_configuredCustomerCount, m_totalCustomerCount, m_scaleFactor, m_initialDays, 1);
 }
 
 /**
@@ -89,7 +139,7 @@ TDataMaintenanceTxnInput& ClientDriver::generateDataMaintenanceInput() {
     #ifdef DEBUG
     fprintf(stderr, "Executing %s...\n", __FUNCTION__);
     #endif
-    m_TxnInputGenerator->GenerateDataMaintenanceInput( m_DataMaintenanceTxnInput );
+    m_DataMaintenanceGenerator->DoTxn();
     return (m_DataMaintenanceTxnInput);
 }
 
@@ -97,7 +147,7 @@ TMarketFeedTxnInput& ClientDriver::generateMarketFeedInput() {
     #ifdef DEBUG
     fprintf(stderr, "Executing %s...\n", __FUNCTION__);
     #endif
-    m_TxnInputGenerator->GenerateMarketFeedInput( m_MarketFeedTxnInput );
+    // m_TxnInputGenerator->GenerateMarketFeedInput( m_MarketFeedTxnInput );
     return (m_MarketFeedTxnInput);
 }
 
@@ -121,8 +171,8 @@ TTradeCleanupTxnInput& ClientDriver::generateTradeCleanupInput() {
     #ifdef DEBUG
     fprintf(stderr, "Executing %s...\n", __FUNCTION__);
     #endif
-    m_TxnInputGenerator->GenerateTradeCleanupInput( m_TradeCleanupTxnInput );
-    return (m_TradeCleanTxnInput);
+    m_DataMaintenanceGenerator->DoCleanupTxn();
+    return (m_TradeCleanupTxnInput);
 }
 
 TTradeLookupTxnInput& ClientDriver::generateTradeLookupInput() {
@@ -145,7 +195,7 @@ TTradeResultTxnInput& ClientDriver::generateTradeResultInput() {
     #ifdef DEBUG
     fprintf(stderr, "Executing %s...\n", __FUNCTION__);
     #endif
-    m_TxnInputGenerator->GenerateTradeResultInput( m_TradeResultTxnInput );
+    // m_TxnInputGenerator->GenerateTradeResultInput( m_TradeResultTxnInput );
     return (m_TradeResultTxnInput);
 }
 

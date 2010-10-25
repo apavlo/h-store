@@ -1,5 +1,5 @@
 /***************************************************************************
- *  Copyright (C) 2009 by H-Store Project                                  *
+ *  Copyright (C) 2010 by H-Store Project                                  *
  *  Brown University                                                       *
  *  Massachusetts Institute of Technology                                  *
  *  Yale University                                                        *
@@ -121,8 +121,8 @@ JNIEXPORT jobjectArray JNICALL Java_edu_brown_benchmark_tpce_EGenClientDriver_eg
     jobjectArray result = makeObjectArray(env, "java/lang/Object", 4);
 
     #ifdef DEBUG
-    fprintf(stderr, "acct_id_idx:  %lld\n", params.acct_id_idx);
-    fprintf(stderr, "cust_id:      %lld\n", params.cust_id);
+    fprintf(stderr, "acct_id_idx:  %ld\n", params.acct_id_idx);
+    fprintf(stderr, "cust_id:      %ld\n", params.cust_id);
     fprintf(stderr, "get_history:  %d\n", params.get_history);
     fprintf(stderr, "tax_id:       %s\n", params.tax_id);
     #endif
@@ -132,6 +132,100 @@ JNIEXPORT jobjectArray JNICALL Java_edu_brown_benchmark_tpce_EGenClientDriver_eg
     env->SetObjectArrayElement(result, i++, makeLong(env, params.cust_id));
     env->SetObjectArrayElement(result, i++, makeLong(env, params.get_history));
     env->SetObjectArrayElement(result, i++, makeString(env, params.tax_id));
+    
+    assert(i == env->GetArrayLength(result));
+    checkException(env);
+    
+    return (result);
+}
+
+/*
+ * Class:     edu_brown_benchmark_tpce_EGenClientDriver
+ * Method:    egenDataMaintenance
+ * Signature: (J)[Ljava/lang/Object;
+ */
+JNIEXPORT jobjectArray JNICALL Java_edu_brown_benchmark_tpce_EGenClientDriver_egenDataMaintenance(
+    JNIEnv *env, jobject obj,
+    jlong driver_ptr) {
+    
+    ClientDriver *driver = castToDriver(driver_ptr);
+    TDataMaintenanceTxnInput params = driver->generateDataMaintenanceInput();
+    jobjectArray result = makeObjectArray(env, "java/lang/Object", 8);
+
+    #ifdef DEBUG
+    fprintf(stderr, "acct_id:      %ld\n", params.acct_id);
+    fprintf(stderr, "c_id:         %ld\n", params.c_id);
+    fprintf(stderr, "co_id:        %ld\n", params.co_id);
+    fprintf(stderr, "day_of_month: %d\n", params.day_of_month);
+    fprintf(stderr, "vol_incr:     %d\n", params.vol_incr);
+    fprintf(stderr, "symbol:       %s\n", params.symbol);
+    fprintf(stderr, "table_name:   %s\n", params.table_name);
+    fprintf(stderr, "tx_id:        %s\n", params.tx_id);
+    #endif
+    
+    int i = 0;
+    env->SetObjectArrayElement(result, i++, makeLong(env, params.acct_id));
+    env->SetObjectArrayElement(result, i++, makeLong(env, params.c_id));
+    env->SetObjectArrayElement(result, i++, makeLong(env, params.co_id));
+    env->SetObjectArrayElement(result, i++, makeLong(env, params.day_of_month));
+    env->SetObjectArrayElement(result, i++, makeString(env, params.symbol));
+    env->SetObjectArrayElement(result, i++, makeString(env, params.table_name));
+    env->SetObjectArrayElement(result, i++, makeString(env, params.tx_id));
+    env->SetObjectArrayElement(result, i++, makeLong(env, params.vol_incr));
+    
+    assert(i == env->GetArrayLength(result));
+    checkException(env);
+    
+    return (result);
+}
+
+/*
+ * Class:     edu_brown_benchmark_tpce_EGenClientDriver
+ * Method:    egenMarketFeed
+ * Signature: (J)[Ljava/lang/Object;
+ */
+JNIEXPORT jobjectArray JNICALL Java_edu_brown_benchmark_tpce_EGenClientDriver_egenMarketFeed(
+    JNIEnv *env, jobject obj,
+    jlong driver_ptr) {
+    
+    ClientDriver *driver = castToDriver(driver_ptr);
+    TMarketFeedTxnInput params = driver->generateMarketFeedInput();
+    jobjectArray result = makeObjectArray(env, "java/lang/Object", 7);
+
+    // Make arrays for price_quotes + trade_qtys + symbols
+    jobjectArray price_quotes = makeObjectArray(env, "java/lang/Double", max_feed_len);
+    jobjectArray trade_qtys = makeObjectArray(env, "java/lang/Long", max_feed_len);
+    jobjectArray symbols = makeObjectArray(env, "java/lang/String", max_feed_len);
+    
+    #ifdef DEBUG
+    fprintf(stderr, "feeds:\n");
+    #endif
+    for (int i = 0; i < max_feed_len; i++) {
+        TTickerEntry tentry = params.Entries[i];
+        #ifdef DEBUG
+        fprintf(stderr, "    [%02d]:        %g, %d, %s\n", i, tentry.price_quote, tentry.trade_qty, tentry.symbol);
+        #endif
+        env->SetObjectArrayElement(price_quotes, i, makeDouble(env, tentry.price_quote));
+        env->SetObjectArrayElement(trade_qtys, i, makeLong(env, tentry.trade_qty));
+        env->SetObjectArrayElement(symbols, i, makeString(env, tentry.symbol));
+    } // FOR
+    
+    TStatusAndTradeType ttype = params.StatusAndTradeType;
+    #ifdef DEBUG
+    fprintf(stderr, "status_submitted: %s\n", ttype.status_submitted);
+    fprintf(stderr, "type_limit_buy:   %s\n", ttype.type_limit_buy);
+    fprintf(stderr, "type_limit_sell:  %s\n", ttype.type_limit_sell);
+    fprintf(stderr, "type_stop_loss:   %s\n", ttype.type_stop_loss);
+    #endif
+    
+    int i = 0;
+    env->SetObjectArrayElement(result, i++, price_quotes);
+    env->SetObjectArrayElement(result, i++, makeString(env, ttype.status_submitted));
+    env->SetObjectArrayElement(result, i++, symbols);
+    env->SetObjectArrayElement(result, i++, trade_qtys);
+    env->SetObjectArrayElement(result, i++, makeString(env, ttype.type_limit_buy));
+    env->SetObjectArrayElement(result, i++, makeString(env, ttype.type_limit_sell));
+    env->SetObjectArrayElement(result, i++, makeString(env, ttype.type_stop_loss));
     
     assert(i == env->GetArrayLength(result));
     checkException(env);
@@ -153,10 +247,10 @@ JNIEXPORT jobjectArray JNICALL Java_edu_brown_benchmark_tpce_EGenClientDriver_eg
     jobjectArray result = makeObjectArray(env, "java/lang/Object", 5);
 
     #ifdef DEBUG
-    fprintf(stderr, "acct_id:       %lld\n", params.acct_id);
-    fprintf(stderr, "c_id:          %lld\n", params.c_id);
-    fprintf(stderr, "ending_co_id:  %lld\n", params.ending_co_id);
-    fprintf(stderr, "starting_co_id:%lld\n", params.starting_co_id);
+    fprintf(stderr, "acct_id:       %ld\n", params.acct_id);
+    fprintf(stderr, "c_id:          %ld\n", params.c_id);
+    fprintf(stderr, "ending_co_id:  %ld\n", params.ending_co_id);
+    fprintf(stderr, "starting_co_id:%ld\n", params.starting_co_id);
     // fprintf(stderr, "start_day:     %s\n", "----");
     fprintf(stderr, "industry_name: %s\n", params.industry_name);
     #endif
@@ -210,6 +304,38 @@ JNIEXPORT jobjectArray JNICALL Java_edu_brown_benchmark_tpce_EGenClientDriver_eg
 
 /*
  * Class:     edu_brown_benchmark_tpce_EGenClientDriver
+ * Method:    egenTradeCleanup
+ * Signature: (J)[Ljava/lang/Object;
+ */
+JNIEXPORT jobjectArray JNICALL Java_edu_brown_benchmark_tpce_EGenClientDriver_egenTradeCleanup(
+    JNIEnv *env, jobject obj,
+    jlong driver_ptr) {
+    
+    ClientDriver *driver = castToDriver(driver_ptr);
+    TTradeCleanupTxnInput params = driver->generateTradeCleanupInput();
+    jobjectArray result = makeObjectArray(env, "java/lang/Object", 4);
+
+    #ifdef DEBUG
+    fprintf(stderr, "start_trade_id:     %ld\n", params.start_trade_id);
+    fprintf(stderr, "st_canceled_id:     %s\n", params.st_canceled_id);
+    fprintf(stderr, "st_pending_id:      %s\n", params.st_pending_id);
+    fprintf(stderr, "st_submitted_id:    %s\n", params.st_submitted_id);
+    #endif
+    
+    int i = 0;
+    env->SetObjectArrayElement(result, i++, makeString(env, params.st_canceled_id));
+    env->SetObjectArrayElement(result, i++, makeString(env, params.st_pending_id));
+    env->SetObjectArrayElement(result, i++, makeString(env, params.st_submitted_id));
+    env->SetObjectArrayElement(result, i++, makeLong(env, params.start_trade_id));
+    
+    assert(i == env->GetArrayLength(result));
+    checkException(env);
+    
+    return (result);
+}
+
+/*
+ * Class:     edu_brown_benchmark_tpce_EGenClientDriver
  * Method:    egenTradeLookup
  * Signature: (J)[Ljava/lang/Object;
  */
@@ -230,16 +356,16 @@ JNIEXPORT jobjectArray JNICALL Java_edu_brown_benchmark_tpce_EGenClientDriver_eg
     #endif
     for (int i = 0; i < TradeLookupFrame1MaxRows; i++) {
         #ifdef DEBUG
-        fprintf(stderr, "    [%02d]:        %lld\n", i, params.trade_id[i]);
+        fprintf(stderr, "    [%02d]:        %ld\n", i, params.trade_id[i]);
         #endif
         env->SetObjectArrayElement(trade_ids, i, makeLong(env, params.trade_id[i]));
     } // FOR
 
     #ifdef DEBUG
-    fprintf(stderr, "%-15s %lld\n", "acct_id", params.acct_id);
-    fprintf(stderr, "%-15s %lld\n", "max_acct_id", params.max_acct_id);
-    fprintf(stderr, "%-15s %lld\n", "frame_to_execute", params.frame_to_execute);
-    fprintf(stderr, "%-15s %lld\n", "max_trades", params.max_trades);
+    fprintf(stderr, "%-15s %ld\n", "acct_id", params.acct_id);
+    fprintf(stderr, "%-15s %ld\n", "max_acct_id", params.max_acct_id);
+    fprintf(stderr, "%-15s %d\n",  "frame_to_execute", params.frame_to_execute);
+    fprintf(stderr, "%-15s %d\n",  "max_trades", params.max_trades);
     fprintf(stderr, "%-15s %s\n", "end_trade_dts", "----");
     fprintf(stderr, "%-15s %s\n", "start_trade_dts", "----");
     fprintf(stderr, "%-15s %s\n", "symbol", params.symbol);
@@ -281,7 +407,7 @@ JNIEXPORT jobjectArray JNICALL Java_edu_brown_benchmark_tpce_EGenClientDriver_eg
 
     #ifdef DEBUG
     fprintf(stderr, "requested_price: %g\n", params.requested_price);
-    fprintf(stderr, "acct_id:         %lld\n", params.acct_id);
+    fprintf(stderr, "acct_id:         %ld\n", params.acct_id);
     fprintf(stderr, "is_lifo:         %d\n", params.is_lifo);
     fprintf(stderr, "roll_it_back:    %d\n", params.roll_it_back);
     fprintf(stderr, "trade_qty:       %d\n", params.trade_qty);
@@ -321,6 +447,36 @@ JNIEXPORT jobjectArray JNICALL Java_edu_brown_benchmark_tpce_EGenClientDriver_eg
     assert(i == env->GetArrayLength(result));
     checkException(env);
 
+    return (result);
+}
+
+/*
+ * Class:     edu_brown_benchmark_tpce_EGenClientDriver
+ * Method:    egenTradeResult
+ * Signature: (J)[Ljava/lang/Object;
+ */
+JNIEXPORT jobjectArray JNICALL Java_edu_brown_benchmark_tpce_EGenClientDriver_egenTradeResult(
+    JNIEnv *env, jobject obj,
+    jlong driver_ptr) {
+    
+    ClientDriver *driver = castToDriver(driver_ptr);
+    TTradeResultTxnInput params = driver->generateTradeResultInput();
+    jobjectArray result = makeObjectArray(env, "java/lang/Object", 3);
+
+    #ifdef DEBUG
+    fprintf(stderr, "trade_id:           %ld\n", params.trade_id);
+    fprintf(stderr, "trade_price:        %g\n", params.trade_price);
+    fprintf(stderr, "st_completed_id:    %s\n", "???");
+    #endif
+    
+    int i = 0;
+    env->SetObjectArrayElement(result, i++, makeLong(env, params.trade_id));
+    env->SetObjectArrayElement(result, i++, makeDouble(env, params.trade_price));
+    env->SetObjectArrayElement(result, i++, makeString(env, "XXX"));
+    
+    assert(i == env->GetArrayLength(result));
+    checkException(env);
+    
     return (result);
 }
 
@@ -367,20 +523,20 @@ JNIEXPORT jobjectArray JNICALL Java_edu_brown_benchmark_tpce_EGenClientDriver_eg
     #endif
     for (int i = 0; i < TradeUpdateFrame1MaxRows; i++) {
         #ifdef DEBUG
-        fprintf(stderr, "    [%02d]:        %lld\n", i, params.trade_id[i]);
+        fprintf(stderr, "    [%02d]:        %ld\n", i, params.trade_id[i]);
         #endif
         env->SetObjectArrayElement(trade_ids, i, makeLong(env, params.trade_id[i]));
     } // FOR
 
     #ifdef DEBUG
-    fprintf(stderr, "%-15s %lld\n", "acct_id", params.acct_id);
-    fprintf(stderr, "%-15s %lld\n", "max_acct_id", params.max_acct_id);
-    fprintf(stderr, "%-15s %lld\n", "frame_to_execute", params.frame_to_execute);
-    fprintf(stderr, "%-15s %lld\n", "max_trades", params.max_trades);
-    fprintf(stderr, "%-15s %lld\n", "max_trades", params.max_updates);
-    fprintf(stderr, "%-15s %s\n", "end_trade_dts", "----");
-    fprintf(stderr, "%-15s %s\n", "start_trade_dts", "----");
-    fprintf(stderr, "%-15s %s\n", "symbol", params.symbol);
+    fprintf(stderr, "%-15s %ld\n", "acct_id", params.acct_id);
+    fprintf(stderr, "%-15s %ld\n", "max_acct_id", params.max_acct_id);
+    fprintf(stderr, "%-15s %d\n",  "frame_to_execute", params.frame_to_execute);
+    fprintf(stderr, "%-15s %d\n",  "max_trades", params.max_trades);
+    fprintf(stderr, "%-15s %d\n",  "max_updates", params.max_updates);
+    fprintf(stderr, "%-15s %s\n",  "end_trade_dts", "----");
+    fprintf(stderr, "%-15s %s\n",  "start_trade_dts", "----");
+    fprintf(stderr, "%-15s %s\n",  "symbol", params.symbol);
     #endif
 
     int i = 0;

@@ -2082,6 +2082,7 @@ TPC-E EGenLoader
     <exec executable="make" dir="${src.tpce.dir}/prj" failonerror="true" resolveexecutable="true" >
         <arg value="SOURCE=.." />
         <arg value="PREFIX=${build.tpce.dir}" />
+        <arg value="DEBUG_OPTS=-DDEBUG -Wall -Wextra" />
     </exec>
     
     <!-- Copy Input Files -->

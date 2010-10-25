@@ -41,6 +41,7 @@ OUTPUT = $(PREFIX)/flat_out
 # Platform specific defines
 CCFLAGS=-g -ggdb -D__STDC_FORMAT_MACROS -D__STDC_CONSTANT_MACROS \
         -DLINUX -fPIC \
+        $(DEBUG_OPTS) \
 	-I$(JNI) \
 	-I$(INC)
 LDFLAGS=-lpthread
@@ -181,6 +182,7 @@ EGenDriverJNI:			EGenDriverLib \
 		$(EGenLogger_obj) \
 		$(EGenUtilities_obj) \
 		$(EGenDriverCELib_obj) \
+		$(EGenDriverDMLib_obj) \
 		$(EGenDriverMEELib_obj) \
 		$(FlatFileLoader_obj) \
 		$(EGenTables_obj) \
