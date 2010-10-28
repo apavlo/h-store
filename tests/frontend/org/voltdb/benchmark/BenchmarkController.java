@@ -30,6 +30,7 @@ import java.io.IOException;
 import java.lang.reflect.Field;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -172,7 +173,7 @@ public class BenchmarkController {
                         continue;
                     }
                     else if (status.equals("RUNNING")) {
-                        //System.out.println("Got running message.");
+                        // System.out.println("Got running message: " + Arrays.toString(parts));
                         HashMap<String, Long> results = new HashMap<String, Long>();
                         if ((parts.length % 2) != 0) {
                             m_clientPSM.killProcess(line.processName);

@@ -266,7 +266,7 @@ public abstract class ClientMain {
             final StringBuilder txncounts = new StringBuilder();
             synchronized (m_counts) {
                 for (int i = 0; i < m_counts.length; ++i) {
-                    txncounts.append(",");
+                    if (i > 0) txncounts.append(",");
                     txncounts.append(m_countDisplayNames[i]);
                     txncounts.append(",");
                     txncounts.append(m_counts[i].get());
@@ -548,7 +548,7 @@ public abstract class ClientMain {
         m_blocking = blocking;
 
         if (m_blocking) {
-            System.out.println("Using BlockingClient!");
+            LOG.debug("Using BlockingClient!");
             m_voltClient = new BlockingClient(new_client);
         } else {
             m_voltClient = new_client;
