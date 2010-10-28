@@ -3,20 +3,20 @@ package edu.brown.catalog;
 import java.io.*;
 import java.util.*;
 
-import org.apache.commons.collections15.set.ListOrderedSet;
 import org.apache.log4j.Logger;
 
 import org.voltdb.VoltDB;
 import org.voltdb.catalog.*;
-import org.voltdb.utils.Pair;
 
 import edu.brown.correlations.ParameterCorrelations;
 import edu.brown.utils.ArgumentsParser;
-import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.FileUtil;
 import edu.brown.utils.ProjectType;
 
-
+/**
+ * 
+ * @author pavlo
+ */
 public abstract class FixCatalog {
     private static final Logger LOG = Logger.getLogger(FixCatalog.class);
     

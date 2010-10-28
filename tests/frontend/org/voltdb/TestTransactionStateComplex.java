@@ -4,9 +4,9 @@
 package org.voltdb;
 
 import java.util.*;
+import java.util.concurrent.CountDownLatch;
 
 import org.apache.commons.collections15.set.ListOrderedSet;
-import org.apache.log4j.Logger;
 import org.voltdb.BatchPlanner.BatchPlan;
 import org.voltdb.catalog.*;
 import org.voltdb.messaging.FragmentTaskMessage;
@@ -20,8 +20,6 @@ import edu.brown.utils.*;
  * @author pavlo
  */
 public class TestTransactionStateComplex extends BaseTestCase {
-    private static final Logger LOG = Logger.getLogger(TestTransactionState.class.getName());
-
     private static final Long TXN_ID = 1000l;
     private static final long CLIENT_HANDLE = 99999l;
     private static final boolean EXEC_LOCAL = true;
@@ -137,7 +135,7 @@ public class TestTransactionStateComplex extends BaseTestCase {
         TransactionState.DependencyInfo internal_dinfo = this.ts.getDependencyInfo(0, internal_d_id);
         assertNotNull(internal_dinfo);
         
-        LOG.debug(this.ts);
+        // System.err.println(this.ts);
         
         // So for this test the query plan is a diamond, so we are going to add results in waves 
         // and make sure that the things get unblocked at the right time
@@ -167,43 +165,43 @@ public class TestTransactionStateComplex extends BaseTestCase {
     }
     
     
-//    /**
-//     * testAddResultsBeforeStart
-//     */
-//    public void testAddResultsBeforeStart() throws Exception {
-//        this.ts.initRound(UNDO_TOKEN);
-//        this.addFragments();
-//        
-//        // We need to test to make sure that we don't get a CountDownLatch with the wrong count
-//        // if we start the round *after* a bunch of results have arrived.
-//        // Add a bunch of fake results
-//        Long marker = 1000l;
-//        List<Long> markers = new ArrayList<Long>();
-//        for (int dependency_id : this.dependency_ids) {
-//            for (int partition = 0; partition < NUM_PARTITIONS; partition++) {
-//                // If this dependency is meant to go back to the VoltProcedure, then
-//                // we want to add a row so that we can figure out whether we are getting
-//                // the results back in the right order
-//                if (!this.internal_dependency_ids.contains(dependency_id)) {
-//                    // Skip anything that isn't our local partition
-//                    if (partition != LOCAL_PARTITION) continue;
-//                    VoltTable copy = new VoltTable(FAKE_RESULTS_COLUMNS);
-//                    copy.addRow(marker, "XXXX");
-//                    this.ts.addResult(partition, dependency_id, copy);
-//                    markers.add(marker++);
-//                // Otherwise just stuff in our fake result
-//                } else {
-//                    this.ts.addResult(partition, dependency_id, FAKE_RESULT);
-//                }
-//            } // FOR (partition)
-//        } // FOR (dependency ids)
-//        assertEquals(NUM_DUPLICATE_STATEMENTS, markers.size());
-//
-//        CountDownLatch latch = this.ts.startRound();
-//        assertNotNull(latch);
-//        assertEquals(0, latch.getCount());
-//    }
-//    
+    /**
+     * testAddResultsBeforeStart
+     */
+    public void testAddResultsBeforeStart() throws Exception {
+        this.ts.initRound(UNDO_TOKEN);
+        this.addFragments();
+        
+        // We need to test to make sure that we don't get a CountDownLatch with the wrong count
+        // if we start the round *after* a bunch of results have arrived.
+        // Add a bunch of fake results
+        Long marker = 1000l;
+        List<Long> markers = new ArrayList<Long>();
+        for (int dependency_id : this.dependency_ids) {
+            for (int partition = 0; partition < NUM_PARTITIONS; partition++) {
+                // If this dependency is meant to go back to the VoltProcedure, then
+                // we want to add a row so that we can figure out whether we are getting
+                // the results back in the right order
+                if (!this.internal_dependency_ids.contains(dependency_id)) {
+                    // Skip anything that isn't our local partition
+                    if (partition != LOCAL_PARTITION) continue;
+                    VoltTable copy = new VoltTable(FAKE_RESULTS_COLUMNS);
+                    copy.addRow(marker, "XXXX");
+                    this.ts.addResultWithResponse(partition, dependency_id, copy);
+                    markers.add(marker++);
+                // Otherwise just stuff in our fake result (if they actually need it)
+                } else if (this.dependency_partitions.get(dependency_id).contains(partition)) {
+                    this.ts.addResultWithResponse(partition, dependency_id, FAKE_RESULT);
+                }
+            } // FOR (partition)
+        } // FOR (dependency ids)
+        assertEquals(NUM_DUPLICATE_STATEMENTS, markers.size());
+
+        CountDownLatch latch = this.ts.startRound();
+        assertNotNull(latch);
+        assertEquals(0, latch.getCount());
+    }
+    
     /**
      * testGetResults
      */

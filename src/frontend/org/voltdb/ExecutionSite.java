@@ -615,6 +615,8 @@ public class ExecutionSite implements Runnable {
 
                     FragmentResponseMessage fresponse = new FragmentResponseMessage(ftask);
                     fresponse.setStatus(FragmentResponseMessage.NULL, null);
+                    assert(fresponse.getSourcePartitionId() == this.getPartitionId()) : "Unexpected source partition #" + fresponse.getSourcePartitionId() + "\n" + fresponse;
+                    
                     DependencySet result = null;
                     try {
                         result = this.processFragmentTaskMessage(ftask, ts.getLastUndoToken());
@@ -660,7 +662,7 @@ public class ExecutionSite implements Runnable {
                             
                         // Otherwise push dependencies back to the remote partition that needs it
                         } else {
-                            if (debug) LOG.debug("Constructing FragmentResponseMessage with " + result.size() + " results to send back to initial site for txn #" + txn_id);
+                            if (debug) LOG.debug("Constructing FragmentResponseMessage with " + result.size() + " from Partition #" + this.getPartitionId() + " results to send back to initial site for txn #" + txn_id);
                             
                             // We need to include the DependencyIds in our response, but we will send the actual
                             // data through the HStoreMessenger
@@ -720,9 +722,13 @@ public class ExecutionSite implements Runnable {
         } catch (final RuntimeException e) {
             LOG.fatal(e);
             throw e;
+        } catch (AssertionError ex) {
+            LOG.fatal("Unexpected error for ExecutionSite Partition #" + this.getPartitionId(), ex);
+            this.hstore_messenger.shutdownCluster(new Exception(ex));
         } catch (Exception ex) {
             LOG.fatal("Unexpected error for ExecutionSite Partition #" + this.getPartitionId(), ex);
-            throw new RuntimeException(ex);
+            this.hstore_messenger.shutdownCluster(new Exception(ex));
+//            throw new RuntimeException(ex);
         }
         
         // Release the shutdown latch in case anybody waiting for us

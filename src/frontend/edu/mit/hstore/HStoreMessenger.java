@@ -373,7 +373,7 @@ public class HStoreMessenger {
             for (int i = 0, cnt = dset.size(); i < cnt; i++) {
                 ExecutionSite executor = this.executors.get(dest_partition_id);
                 assert(executor != null) : "Unexpected null ExecutionSite for Partition #" + dest_partition_id + " on Site #" + catalog_site.getId();
-                executor.storeDependency(txn_id, dest_partition_id, dset.depIds[i], dset.dependencies[i]);
+                executor.storeDependency(txn_id, sender_partition_id, dset.depIds[i], dset.dependencies[i]);
             } // FOR
         // Remote Transfer
         } else {
