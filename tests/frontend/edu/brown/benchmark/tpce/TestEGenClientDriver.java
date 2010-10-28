@@ -81,17 +81,17 @@ public class TestEGenClientDriver extends BaseTestCase {
         } // FOR
     }
     
-//    /**
-//     * testGetBrokerVolumeParams
-//     */
-//    public void testGetBrokerVolumeParams() throws Exception {
-//        Object params[] = driver.getBrokerVolumeParams();
-//        assertNotNull(params);
-//        
-//        Procedure catalog_proc = this.getProcedure("BrokerVolume");
-//        assertNotNull(catalog_proc);
-//        this.checkParamTypes(catalog_proc, params);
-//    }
+    /**
+     * testGetBrokerVolumeParams
+     */
+    public void testGetBrokerVolumeParams() throws Exception {
+        Object params[] = driver.getBrokerVolumeParams();
+        assertNotNull(params);
+        
+        Procedure catalog_proc = this.getProcedure("BrokerVolume");
+        assertNotNull(catalog_proc);
+        this.checkParamTypes(catalog_proc, params);
+    }
     
     /**
      * testGetCustomerPositionParams

@@ -33,6 +33,10 @@
  ***************************************************************************/
 package edu.brown.benchmark.tpce.procedures;
 
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Map.Entry;
+
 import org.voltdb.ProcInfo;
 import org.voltdb.SQLStmt;
 import org.voltdb.VoltProcedure;
@@ -52,20 +56,38 @@ import edu.brown.benchmark.tpce.util.ProcedureUtil;
 )
 public class BrokerVolume extends VoltProcedure {
 
+    public final SQLStmt getSectorIndustries = new SQLStmt(
+        "SELECT IN_ID " +
+        "  FROM SECTOR, INDUSTRY " +
+        " WHERE SC_NAME = ? " +
+        "   AND IN_SC_ID = SC_ID"
+    );
+    
     // Note: sum(TR_QTY * TR_BID_PRICE) not supported
     public final SQLStmt get = new SQLStmt(
         "SELECT B_NAME, TR_QTY * TR_BID_PRICE" +  // sum(TR_QTY * TR_BID_PRICE)
-        "  FROM TRADE_REQUEST, SECTOR, INDUSTRY, COMPANY, BROKER, SECURITY, CUSTOMER_ACCOUNT " +
+        "  FROM TRADE_REQUEST, COMPANY, BROKER, SECURITY, CUSTOMER_ACCOUNT " +
         " WHERE TR_CA_ID = CA_ID " +
         "   AND CA_B_ID = B_ID " +
         "   AND TR_S_SYMB = S_SYMB " +
         "   AND S_CO_ID = CO_ID " +
-        "   AND CO_IN_ID = IN_ID " +
-        "   AND SC_ID = IN_SC_ID " +
-        "   AND B_NAME = ? " + // B_NAME IN (?)
-        "   AND SC_NAME = ? "
-        // " GROUP BY B_NAME "
-        // " ORDER BY 2 DESC " 
+        "   AND CO_IN_ID = ? " +
+        "   AND B_NAME = ? "
+        
+        // ORIGINAL QUERY
+//        "SELECT B_NAME, TR_QTY * TR_BID_PRICE" +  // sum(TR_QTY * TR_BID_PRICE)
+//        "  FROM TRADE_REQUEST, SECTOR, INDUSTRY, COMPANY, BROKER, SECURITY, CUSTOMER_ACCOUNT " +
+//        " WHERE TR_CA_ID = CA_ID " +
+//        "   AND CA_B_ID = B_ID " +
+//        "   AND TR_S_SYMB = S_SYMB " +
+//        "   AND S_CO_ID = CO_ID " +
+//        "   AND CO_IN_ID = IN_ID " +
+//        "   AND SC_ID = IN_SC_ID " +
+//        "   AND B_NAME = ? " + // B_NAME IN (?)
+//        "   AND SC_NAME = ? "
+//         " GROUP BY B_NAME "
+//         " ORDER BY 2 DESC " 
+
     );
 
     
@@ -84,21 +106,33 @@ public class BrokerVolume extends VoltProcedure {
     public VoltTable[] run(
             String[] broker_list,
             String sector_name) throws VoltAbortException {
+        Map<String, Double> totals = new HashMap<String, Double>();
+        
+        voltQueueSQL(getSectorIndustries, sector_name);
+        final VoltTable sec_results[] = voltExecuteSQL();
+        assert(sec_results.length == 1);
+        while (sec_results[0].advanceRow()) {
+            long in_id = sec_results[0].getLong(0);
+            for (String bname : broker_list) {
+                Double total = totals.get(bname);
+                if (total == null) total = 0.0d;
+                
+                voltQueueSQL(get, in_id, bname);
+                final VoltTable results[] = voltExecuteSQL();
+                assert(results.length > 0);
+                for (VoltTable vt : results) {
+                    boolean advrow = vt.advanceRow();
+                    assert(advrow);
+                    assert(vt.getColumnCount() == 2);
+                    total += vt.getDouble(1);
+                } // FOR
+                totals.put(bname, total);
+            } // FOR
+        } // WHILE
         
         VoltTable ret = new VoltTable(returnColumns);
-        
-        for (String bname : broker_list) {
-            voltQueueSQL(get, bname, sector_name);
-            final VoltTable results[] = voltExecuteSQL();
-            assert(results.length > 0);
-            double total = 0.0d;
-            for (VoltTable vt : results) {
-                boolean advrow = vt.advanceRow();
-                assert(advrow);
-                assert(vt.getColumnCount() == 2);
-                total += vt.getDouble(1);
-            } // FOR
-            ret.addRow(bname, total);
+        for (Entry<String, Double> e : totals.entrySet()) {
+            ret.addRow(e.getKey(), e.getValue());
         } // FOR
         return (new VoltTable[] { ProcedureUtil.getStatusTable(true), ret });
     }

@@ -40,6 +40,7 @@ import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.atomic.AtomicLong;
 
+import org.apache.log4j.Logger;
 import org.voltdb.PrivateVoltTableFactory;
 import org.voltdb.VoltTable;
 import org.voltdb.VoltType;
@@ -63,6 +64,7 @@ import edu.brown.utils.StringUtil;
  * benchmark framework that is driven from stdin
  */
 public abstract class ClientMain {
+    private static final Logger LOG = Logger.getLogger(ClientMain.class);
 
     /**
      * Client initialized here and made available for use in derived classes
@@ -168,6 +170,19 @@ public abstract class ClientMain {
     
     public static String CONTROL_PREFIX = "{HSTORE} ";
 
+    public static void printControlMessage(ControlState state) {
+        printControlMessage(state, null);
+    }
+    
+    public static void printControlMessage(ControlState state, String message) {
+        StringBuilder sb = new StringBuilder();
+        sb.append(String.format("%s%d,%s", CONTROL_PREFIX, System.currentTimeMillis(), state.display)); // PREFIX TIMESTAMP, STATE
+        if (message != null && message.isEmpty() == false) {
+            sb.append(",").append(message);
+        }
+        System.out.println(sb);
+    }
+    
     /**
      * Implements the simple state machine for the remote controller protocol.
      * Hypothetically, you can extend this and override the answerPoll() and
@@ -182,13 +197,12 @@ public abstract class ClientMain {
 
             // transition to ready and send ready message
             if (m_controlState == ControlState.PREPARING) {
-                System.out.printf("%s%d,%s\n", CONTROL_PREFIX, System.currentTimeMillis(),
-                                  ControlState.READY.display);
+                printControlMessage(ControlState.READY);
                 m_controlState = ControlState.READY;
             }
             else {
-                System.err.println("Error - not starting prepared!");
-                System.err.println(m_controlState.display + " " + m_reason);
+                LOG.error("Not starting prepared!");
+                LOG.error(m_controlState.display + " " + m_reason);
             }
 
             while (true) {
@@ -197,8 +211,7 @@ public abstract class ClientMain {
                 }
                 catch (final IOException e) {
                     // Hm. quit?
-                    System.err.println("Error on standard input: "
-                        + e.getMessage());
+                    LOG.fatal("Error on standard input", e);
                     System.exit(-1);
                 }
 
@@ -235,21 +248,18 @@ public abstract class ClientMain {
                         }
                         System.exit(0);
                     }
-                    System.err.println("Error: STOP when not RUNNING");
+                    LOG.fatal("STOP when not RUNNING");
                     System.exit(-1);
                 }
                 else {
-                    System.err
-                        .println("Error on standard input: unknown command "
-                            + command);
+                    LOG.fatal("Error on standard input: unknown command " + command);
                     System.exit(-1);
                 }
             }
         }
 
         public void answerWithError() {
-            System.out.printf("%s%d,%s,%s\n", CONTROL_PREFIX, System.currentTimeMillis(),
-                              m_controlState.display, m_reason);
+            printControlMessage(m_controlState, m_reason);
         }
 
         public void answerPoll() {
@@ -262,8 +272,7 @@ public abstract class ClientMain {
                     txncounts.append(m_counts[i].get());
                 }
             }
-            System.out.printf("%s%d,%s%s\n", CONTROL_PREFIX, System.currentTimeMillis(),
-                              m_controlState.display, txncounts.toString());
+            printControlMessage(m_controlState, txncounts.toString()); 
         }
 
         public void answerStart() {
@@ -291,7 +300,7 @@ public abstract class ClientMain {
                 }
             }
             else {
-                System.err.println("Running rate controlled m_txnRate == "
+                LOG.debug("Running rate controlled m_txnRate == "
                     + m_txnRate + " m_txnsPerMillisecond == "
                     + m_txnsPerMillisecond);
                 System.err.flush();
@@ -561,9 +570,9 @@ public abstract class ClientMain {
                 m_host = hostnport.getFirst();
                 m_port = hostnport.getSecond();
                 try {
-                    System.err.println("Creating connection to " + hostnport);
+                    LOG.debug("Creating connection to " + hostnport);
                     createConnection(m_host, m_port);
-                    System.err.println("Created connection.");
+                    LOG.debug("Created connection.");
                     atLeastOneConnection = true;
                 }
                 catch (final Exception ex) {
@@ -574,7 +583,7 @@ public abstract class ClientMain {
         }
         if (!atLeastOneConnection) {
             setState(ControlState.ERROR, "No HOSTS specified on command line.");
-            System.err.println("ERROR: NO HOSTS WERE PROVIDED!");
+            LOG.fatal("NO HOSTS WERE PROVIDED!");
         }
         m_checkTransaction = checkTransaction;
         m_checkTables = checkTables;

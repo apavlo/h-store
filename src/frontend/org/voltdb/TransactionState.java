@@ -31,6 +31,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 
 import org.apache.commons.collections15.map.ListOrderedMap;
+import org.apache.commons.collections15.set.ListOrderedSet;
 import org.apache.log4j.Logger;
 import org.voltdb.messaging.FragmentTaskMessage;
 import org.voltdb.utils.Pair;
@@ -104,8 +105,13 @@ public class TransactionState {
      * the data for. Note that we have to maintain two separate lists for results and responses
      * <Partition, DependencyId> -> Next SQLStmt Index
      */
-    private final ConcurrentHashMap<Pair<Integer, Integer>, Queue<Integer>> results_dependency_stmt_ctr = new ConcurrentHashMap<Pair<Integer,Integer>, Queue<Integer>>();
-    private final ConcurrentHashMap<Pair<Integer, Integer>, Queue<Integer>> responses_dependency_stmt_ctr = new ConcurrentHashMap<Pair<Integer,Integer>, Queue<Integer>>();
+    private final Map<PartitionDependencyKey, Queue<Integer>> results_dependency_stmt_ctr = new ConcurrentHashMap<PartitionDependencyKey, Queue<Integer>>();
+    private final Map<PartitionDependencyKey, Queue<Integer>> responses_dependency_stmt_ctr = new ConcurrentHashMap<PartitionDependencyKey, Queue<Integer>>();
+
+    
+    private final Set<PartitionDependencyKey> queued_responses = new ListOrderedSet<PartitionDependencyKey>();
+    private final Map<PartitionDependencyKey, VoltTable> queued_results = new ListOrderedMap<PartitionDependencyKey, VoltTable>();
+    
     
     /**
      * Blocked FragmentTaskMessages
@@ -125,6 +131,15 @@ public class TransactionState {
      * The total # of dependencies received thus far
      */
     private int received_ctr = 0;
+
+    /**
+     * PartitionDependencyKey
+     */
+    private class PartitionDependencyKey extends Pair<Integer, Integer> {
+        public PartitionDependencyKey(Integer partition_id, Integer dependency_id) {
+            super(partition_id, dependency_id);
+        }
+    }
     
     /**
      * DependencyInfo
@@ -280,148 +295,6 @@ public class TransactionState {
     }
     
     /**
-     * Must be called once before one can add new FragmentTaskMessages for this txn 
-     * @param undoToken
-     */
-    public void initRound(long undoToken) {
-        assert(this.round_state == RoundState.NULL || this.round_state == RoundState.FINISHED) :
-            "Invalid round state " + this.round_state + " for txn #" + this.txn_id;
-        
-        synchronized (this.lock) {
-            if (this.start_undo_token == null) {
-                this.start_undo_token = undoToken;
-            // Reset these guys here so that we don't waste time in the last round
-            } else {
-                this.internal_dependencies.clear();
-                this.output_order.clear();
-                this.blocked_tasks.clear();
-                this.dependencies.clear();
-                this.results_dependency_stmt_ctr.clear();
-                this.received_ctr = 0;
-                this.dependency_ctr = 0;
-            }
-            this.last_undo_token = undoToken;
-            this.round_state = RoundState.INITIALIZED;
-        }
-        LOG.debug("Initializing new round information for txn #" + this.txn_id + " [undoToken=" + undoToken + "]");
-    }
-    
-    /**
-     * 
-     * @return
-     */
-    public CountDownLatch startRound() {
-        assert(this.round_state == RoundState.INITIALIZED) :
-            "Invalid round state " + this.round_state + " for txn #" + this.txn_id;
-
-        if (this.exec_local) {
-            assert(this.output_order.isEmpty());
-            for (int stmt_index : this.dependencies.keySet()) {
-                for (DependencyInfo dinfo : this.dependencies.get(stmt_index).values()) {
-                    if (!dinfo.isInternal()) this.output_order.add(dinfo.getDependencyId());
-                } // FOR
-            } // FOR
-            assert(this.getStatementCount() == this.output_order.size()) :
-                "Expected " + this.getStatementCount() + " output dependencies but we queued up " + this.output_order.size();
-            
-            synchronized (this.lock) {
-                int count = this.dependency_ctr - this.received_ctr;
-                assert(count >= 0);
-                assert(this.dependency_latch == null);
-                this.dependency_latch = new CountDownLatch(count);
-                this.round_state = RoundState.STARTED;
-            }
-        } else {
-            // If the stored procedure is not executing locally then we need at least
-            // one FragmentTaskMessage callback
-            assert(this.fragment_callbacks.isEmpty() == false) :
-                "No FragmentTaskMessage callbacks available for txn #" + this.txn_id;
-            synchronized (this.lock) {
-                this.round_state = RoundState.STARTED;
-            }
-        }
-        return (this.dependency_latch);
-    }
-    
-    /**
-     * When a round is over, this must be called so that we can clean up the various
-     * dependency tracking information that we have
-     */
-    public void finishRound() {
-        assert(this.round_state == RoundState.STARTED) :
-            "Invalid round state " + this.round_state + " for txn #" + this.txn_id;
-        assert(this.dependency_ctr == this.received_ctr) : "Trying to finish round for txn #" + this.txn_id + " before it was started"; 
-
-        LOG.debug("Finishing round for txn #" + this.txn_id);
-        synchronized (this.lock) {
-            // Reset our initialization flag so that we can be ready to run more stuff the next round
-            if (this.dependency_latch != null) {
-                assert(this.dependency_latch.getCount() == 0);
-                this.dependency_latch = null;
-            }
-            this.round_state = RoundState.FINISHED;
-            this.round_ctr++;
-        }
-        // This needs to be here because we need to store these before initRound() gets called! 
-//        this.fragment_callbacks.clear();
-    }
-    
-    protected RoundState getCurrentRoundState() {
-        return (this.round_state);
-    }
-    
-    /**
-     * 
-     * @param stmt_index Statement Index
-     * @param d_id Output Dependency Id
-     * @return
-     */
-    protected DependencyInfo getDependencyInfo(int stmt_index, int d_id) {
-        return (this.dependencies.get(stmt_index).get(d_id));
-    }
-    
-    /**
-     * 
-     * @param d_id
-     * @return
-     */
-    protected DependencyInfo getOrCreateDependencyInfo(int stmt_index, int d_id) {
-        ConcurrentHashMap<Integer, DependencyInfo> stmt_dinfos = this.dependencies.get(stmt_index);
-        if (stmt_dinfos == null) {
-            stmt_dinfos = new ConcurrentHashMap<Integer, DependencyInfo>();
-            this.dependencies.put(stmt_index, stmt_dinfos);
-        }
-        DependencyInfo d = stmt_dinfos.get(d_id);
-        if (d == null) {
-            d = new DependencyInfo(stmt_index, d_id);
-            stmt_dinfos.put(d_id, d);
-        }
-        return (d);
-    }
-    
-    /**
-     * Get the final results of the last round of execution for this Transaction
-     * @return
-     */
-    public VoltTable[] getResults() {
-        final VoltTable results[] = new VoltTable[this.output_order.size()];
-        LOG.debug("Generating output results with " + results.length + " tables for txn #" + this.txn_id);
-        for (int stmt_index = 0, cnt = this.output_order.size(); stmt_index < cnt; stmt_index++) {
-            Integer dependency_id = this.output_order.get(stmt_index);
-            assert(dependency_id != null) :
-                "Null output dependency id for Statement index " + stmt_index + " in txn #" + this.txn_id;
-            assert(this.dependencies.containsKey(stmt_index)) :
-                "Missing dependency set for stmt_index #" + stmt_index + " in txn #" + this.txn_id;
-            assert(this.dependencies.get(stmt_index).containsKey(dependency_id)) :
-                "Missing info for DependencyId " + dependency_id + " for Statement index " + stmt_index + " in txn #" + this.txn_id;
-            results[stmt_index] = this.dependencies.get(stmt_index).get(dependency_id).getResult();
-            assert(results[stmt_index] != null) :
-                "Null output result for Statement index " + stmt_index + " in txn #" + this.txn_id;
-        } // FOR
-        return (results);
-    }
-    
-    /**
      * Get this transaction's id
      * @return
      */
@@ -548,12 +421,176 @@ public class TransactionState {
     public boolean isBlocked(FragmentTaskMessage ftask) {
         return (this.blocked_tasks.contains(ftask));
     }
-
+    
+    protected RoundState getCurrentRoundState() {
+        return (this.round_state);
+    }
+    
+    /**
+     * Must be called once before one can add new FragmentTaskMessages for this txn 
+     * @param undoToken
+     */
+    public void initRound(long undoToken) {
+        assert(this.round_state == RoundState.NULL || this.round_state == RoundState.FINISHED) : "Invalid round state " + this.round_state + " for txn #" + this.txn_id;
+        assert(this.queued_responses.isEmpty()) : "Trying to initialize round for txn #" + this.txn_id + " but there are " + this.queued_responses.size() + " queued responses";
+        assert(this.queued_results.isEmpty()) : "Trying to initialize round for txn #" + this.txn_id + " but there are " + this.queued_results.size() + " queued results";
+        
+        synchronized (this.lock) {
+            if (this.start_undo_token == null) {
+                this.start_undo_token = undoToken;
+            // Reset these guys here so that we don't waste time in the last round
+            } else {
+                this.internal_dependencies.clear();
+                this.output_order.clear();
+                this.blocked_tasks.clear();
+                this.dependencies.clear();
+                this.results_dependency_stmt_ctr.clear();
+                this.received_ctr = 0;
+                this.dependency_ctr = 0;
+            }
+            this.last_undo_token = undoToken;
+            this.round_state = RoundState.INITIALIZED;
+        }
+        if (LOG.isDebugEnabled()) LOG.debug("Initializing new round information for " + (this.exec_local ? "" : "non-") + "local txn #" + this.txn_id + " [undoToken=" + undoToken + "]");
+    }
+    
     /**
      * 
+     * @return
+     */
+    public CountDownLatch startRound() {
+        assert(this.round_state == RoundState.INITIALIZED) : "Invalid round state " + this.round_state + " for txn #" + this.txn_id;
+        final boolean trace = LOG.isTraceEnabled();
+        
+        if (this.exec_local) {
+            assert(this.output_order.isEmpty());
+            if (LOG.isDebugEnabled()) LOG.debug("Starting round for local txn #" + this.txn_id + " with " + this.dependencies.size() + " queued Statements");
+            
+            synchronized (this.lock) {
+                this.round_state = RoundState.STARTED;
+                
+                // Create our output counters
+                for (int stmt_index : this.dependencies.keySet()) {
+                    for (DependencyInfo dinfo : this.dependencies.get(stmt_index).values()) {
+                        if (!dinfo.isInternal()) this.output_order.add(dinfo.getDependencyId());
+                    } // FOR
+                } // FOR
+                assert(this.getStatementCount() == this.output_order.size()) :
+                    "Expected " + this.getStatementCount() + " output dependencies but we queued up " + this.output_order.size();
+                
+                // Release any queued responses/results
+                if (trace) LOG.trace("Releasing " + this.queued_responses.size() + " queued responses");
+                for (Pair<Integer, Integer> p : this.queued_responses) {
+                    this.addResponse(p.getFirst(), p.getSecond());
+                } // FOR
+                if (trace) LOG.trace("Releasing " + this.queued_results.size() + " queued results");
+                for (Entry<PartitionDependencyKey, VoltTable> e : this.queued_results.entrySet()) {
+                    this.addResult(e.getKey().getFirst(), e.getKey().getSecond(), e.getValue());
+                } // FOR
+                this.queued_responses.clear();
+                this.queued_results.clear();
+                
+                // Now create the latch
+                int count = this.dependency_ctr - this.received_ctr;
+                assert(count >= 0);
+                assert(this.dependency_latch == null);
+                this.dependency_latch = new CountDownLatch(count);
+            }
+            
+        } else {
+            // If the stored procedure is not executing locally then we need at least
+            // one FragmentTaskMessage callback
+            assert(this.fragment_callbacks.isEmpty() == false) :
+                "No FragmentTaskMessage callbacks available for txn #" + this.txn_id;
+            synchronized (this.lock) {
+                this.round_state = RoundState.STARTED;
+            }
+        }
+        return (this.dependency_latch);
+    }
+    
+    /**
+     * When a round is over, this must be called so that we can clean up the various
+     * dependency tracking information that we have
+     */
+    public void finishRound() {
+        assert(this.round_state == RoundState.STARTED) : "Invalid round state " + this.round_state + " for txn #" + this.txn_id;
+        assert(this.dependency_ctr == this.received_ctr) : "Trying to finish round for txn #" + this.txn_id + " before it was started"; 
+        assert(this.queued_responses.isEmpty()) : "Trying to finish round for txn #" + this.txn_id + " but there are " + this.queued_responses.size() + " queued responses";
+        assert(this.queued_results.isEmpty()) : "Trying to finish round for txn #" + this.txn_id + " but there are " + this.queued_results.size() + " queued results";
+        
+        if (LOG.isDebugEnabled()) LOG.debug("Finishing " + (this.exec_local ? "" : "non-") + "local round for txn #" + this.txn_id);
+        synchronized (this.lock) {
+            // Reset our initialization flag so that we can be ready to run more stuff the next round
+            if (this.dependency_latch != null) {
+                assert(this.dependency_latch.getCount() == 0);
+                if (LOG.isTraceEnabled()) LOG.debug("Setting CountDownLatch to null for txn #" + this.txn_id);
+                this.dependency_latch = null;
+            }
+            this.round_state = RoundState.FINISHED;
+            this.round_ctr++;
+        }
+        // This needs to be here because we need to store these before initRound() gets called! 
+//        this.fragment_callbacks.clear();
+    }
+        
+    /**
+     * 
+     * @param stmt_index Statement Index
+     * @param d_id Output Dependency Id
+     * @return
+     */
+    protected DependencyInfo getDependencyInfo(int stmt_index, int d_id) {
+        return (this.dependencies.get(stmt_index).get(d_id));
+    }
+    
+    /**
+     * 
+     * @param d_id
+     * @return
+     */
+    protected DependencyInfo getOrCreateDependencyInfo(int stmt_index, int d_id) {
+        ConcurrentHashMap<Integer, DependencyInfo> stmt_dinfos = this.dependencies.get(stmt_index);
+        if (stmt_dinfos == null) {
+            stmt_dinfos = new ConcurrentHashMap<Integer, DependencyInfo>();
+            this.dependencies.put(stmt_index, stmt_dinfos);
+        }
+        DependencyInfo d = stmt_dinfos.get(d_id);
+        if (d == null) {
+            d = new DependencyInfo(stmt_index, d_id);
+            stmt_dinfos.put(d_id, d);
+        }
+        return (d);
+    }
+    
+    /**
+     * Get the final results of the last round of execution for this Transaction
+     * @return
+     */
+    public VoltTable[] getResults() {
+        final VoltTable results[] = new VoltTable[this.output_order.size()];
+        LOG.debug("Generating output results with " + results.length + " tables for txn #" + this.txn_id);
+        for (int stmt_index = 0, cnt = this.output_order.size(); stmt_index < cnt; stmt_index++) {
+            Integer dependency_id = this.output_order.get(stmt_index);
+            assert(dependency_id != null) :
+                "Null output dependency id for Statement index " + stmt_index + " in txn #" + this.txn_id;
+            assert(this.dependencies.containsKey(stmt_index)) :
+                "Missing dependency set for stmt_index #" + stmt_index + " in txn #" + this.txn_id;
+            assert(this.dependencies.get(stmt_index).containsKey(dependency_id)) :
+                "Missing info for DependencyId " + dependency_id + " for Statement index " + stmt_index + " in txn #" + this.txn_id;
+            results[stmt_index] = this.dependencies.get(stmt_index).get(dependency_id).getResult();
+            assert(results[stmt_index] != null) :
+                "Null output result for Statement index " + stmt_index + " in txn #" + this.txn_id;
+        } // FOR
+        return (results);
+    }
+
+    /**
+     * Queues up a FragmentTaskMessage for this txn
+     * Returns true if the FragmentTaskMessage can be executed immediately (either locally or on at a remote partition)
      * @param ftask
      */
-    public synchronized boolean addFragmentTaskMessage(FragmentTaskMessage ftask) {
+    public boolean addFragmentTaskMessage(FragmentTaskMessage ftask) {
         assert(this.round_state == RoundState.INITIALIZED) : "Invalid round state " + this.round_state + " for txn #" + this.txn_id;
         final boolean trace = LOG.isTraceEnabled();
         final boolean debug = LOG.isDebugEnabled();
@@ -566,39 +603,43 @@ public class TransactionState {
         
         // If this task produces output dependencies, then we need to make 
         // sure that the txn wait for it to arrive first
-        if (ftask.hasOutputDependencies()) {
-            for (int i = 0; i < num_fragments; i++) {
-                int dependency_id = ftask.getOutputDependencyIds()[i];
-                int stmt_index = ftask.getFragmentStmtIndexes()[i];
-                
-                if (trace) LOG.trace("Adding new Dependency [stmt_index=" + stmt_index + ",id=" + dependency_id + ",partition=" + partition + "] for txn #" + this.txn_id);
-                this.getOrCreateDependencyInfo(stmt_index, dependency_id).addPartition(partition);
-                this.dependency_ctr++;
-
-                // Store the stmt_index of when this dependency will show up
-                Pair<Integer, Integer> result_key = Pair.of(partition, dependency_id);
-                if (!this.results_dependency_stmt_ctr.containsKey(result_key)) {
-                    this.results_dependency_stmt_ctr.put(result_key, new LinkedList<Integer>());
-                    this.responses_dependency_stmt_ctr.put(result_key, new LinkedList<Integer>());
-                }
-                this.results_dependency_stmt_ctr.get(result_key).add(stmt_index);
-                this.responses_dependency_stmt_ctr.get(result_key).add(stmt_index);
-            } // FOR
-        }
-        
-        // If this task needs an input dependency, then we need to make sure it arrives at
-        // the executor before it is allowed to start executing
-        if (ftask.hasInputDependencies()) {
-            if (trace) LOG.trace("Blocking fragments " + Arrays.toString(ftask.getFragmentIds()) + " waiting for " + ftask.getInputDependencyCount() + " dependencies in txn #" + this.txn_id + ": " + Arrays.toString(ftask.getAllUnorderedInputDepIds()));
-            for (int i = 0; i < num_fragments; i++) {
-                int dependency_id = ftask.getOnlyInputDepId(i);
-                int stmt_index = ftask.getFragmentStmtIndexes()[i];
-                this.getOrCreateDependencyInfo(stmt_index, dependency_id).addBlockedFragmentTaskMessage(ftask);
-                this.internal_dependencies.add(dependency_id);
-            } // FOR
-            this.blocked_tasks.add(ftask);
-            blocked = true;
-        }
+        synchronized (this.lock) {
+            if (ftask.hasOutputDependencies()) {
+                for (int i = 0; i < num_fragments; i++) {
+                    int dependency_id = ftask.getOutputDependencyIds()[i];
+                    int stmt_index = ftask.getFragmentStmtIndexes()[i];
+                    
+                    if (trace) LOG.trace("Adding new Dependency [stmt_index=" + stmt_index + ", id=" + dependency_id + ", partition=" + partition + "] for txn #" + this.txn_id);
+                    this.getOrCreateDependencyInfo(stmt_index, dependency_id).addPartition(partition);
+                    this.dependency_ctr++;
+    
+                    // Store the stmt_index of when this dependency will show up
+                    PartitionDependencyKey result_key = new PartitionDependencyKey(partition, dependency_id);
+                    if (!this.results_dependency_stmt_ctr.containsKey(result_key)) {
+                        this.results_dependency_stmt_ctr.put(result_key, new LinkedList<Integer>());
+                        this.responses_dependency_stmt_ctr.put(result_key, new LinkedList<Integer>());
+                    }
+                    this.results_dependency_stmt_ctr.get(result_key).add(stmt_index);
+                    this.responses_dependency_stmt_ctr.get(result_key).add(stmt_index);
+                    if (trace) LOG.trace("Set Dependency Statement Counters for " + result_key + ": " + this.results_dependency_stmt_ctr);
+                    assert(this.responses_dependency_stmt_ctr.get(result_key).size() == this.results_dependency_stmt_ctr.get(result_key).size());
+                } // FOR
+            }
+            
+            // If this task needs an input dependency, then we need to make sure it arrives at
+            // the executor before it is allowed to start executing
+            if (ftask.hasInputDependencies()) {
+                if (trace) LOG.trace("Blocking fragments " + Arrays.toString(ftask.getFragmentIds()) + " waiting for " + ftask.getInputDependencyCount() + " dependencies in txn #" + this.txn_id + ": " + Arrays.toString(ftask.getAllUnorderedInputDepIds()));
+                for (int i = 0; i < num_fragments; i++) {
+                    int dependency_id = ftask.getOnlyInputDepId(i);
+                    int stmt_index = ftask.getFragmentStmtIndexes()[i];
+                    this.getOrCreateDependencyInfo(stmt_index, dependency_id).addBlockedFragmentTaskMessage(ftask);
+                    this.internal_dependencies.add(dependency_id);
+                } // FOR
+                this.blocked_tasks.add(ftask);
+                blocked = true;
+            }
+        } // SYNC
         if (debug) LOG.debug("Queued up FragmentTaskMessage in txn #" + this.txn_id + " for partition " + partition + " and marked as" + (blocked ? "" : " not") + " blocked");
         if (trace) LOG.trace("FragmentTaskMessage Contents for txn #" + this.txn_id + ":\n" + ftask);
         return (blocked);
@@ -608,32 +649,57 @@ public class TransactionState {
      * 
      * @param partition
      * @param dependency_id
+     * @param result
      */
-    public void addResponse(int partition, int dependency_id) {
+    private void processResultResponse(int partition, int dependency_id, VoltTable result) {
+        final String type = (result != null ? "RESULT" : "RESPONSE");
         assert(this.round_state == RoundState.INITIALIZED || this.round_state == RoundState.STARTED) :
             "Invalid round state " + this.round_state + " for txn #" + this.txn_id;
+        assert(this.exec_local) :
+            "Trying to store " + type + " for txn #" + this.txn_id + " but it is not executing locally!";
 //        final boolean debug = LOG.isDebugEnabled();
         final boolean trace = LOG.isTraceEnabled();
 
-        // Each partition+dependency_id should be unique for a Statement batch.
-        // So as the results come back to us, we have to figure out which Statement it belongs to
-        Pair<Integer, Integer> result_key = Pair.of(partition, dependency_id);
-        if (trace) LOG.trace("responses_dependency_stmt_ctr(result_key=" + result_key + "): " + this.responses_dependency_stmt_ctr.get(result_key));  
-
-        assert(this.responses_dependency_stmt_ctr.containsKey(result_key)) :
-            "Unexpected partition/dependency result pair " + result_key + " in txn #" + this.txn_id;
-        assert(!this.responses_dependency_stmt_ctr.get(result_key).isEmpty()) :
-            "No more statements for partition/dependency responses pair " + result_key + " in txn #" + this.txn_id;
+        final PartitionDependencyKey key = new PartitionDependencyKey(partition, dependency_id);
+        DependencyInfo d = null;
         
-        Integer stmt_index = this.responses_dependency_stmt_ctr.get(result_key).remove();
-        assert(stmt_index != null) :
-            "Null stmt_index for result_pair " + result_key + " in txn #" + this.txn_id;
-        
-        DependencyInfo d = this.getDependencyInfo(stmt_index, dependency_id);
-        assert(d != null) :
-            "Unexpected DependencyId " + dependency_id + " from partition " + partition + " for txn #" + this.txn_id + " " + this.dependencies.keySet() + " [stmt_index=" + stmt_index + "]";
+        // If the txn is still in the INITIALIZED state, then we just want to queue up the results
+        // for now. They will get released when we switch to STARTED 
         synchronized (this.lock) {
-            if (d.addResponse(partition)) {
+            if (this.round_state == RoundState.INITIALIZED) {
+                if (result != null) {
+                    assert(this.queued_results.containsKey(key) == false) : "Duplicate " + type + " " + key + " for txn #" + this.txn_id;
+                    this.queued_results.put(key, result);
+                } else {
+                    assert(this.queued_responses.contains(key) == false) : "Duplicate " + type + " " + key + " for txn #" + this.txn_id;
+                    this.queued_responses.add(key);
+                }
+                if (trace) LOG.trace("Queued " + type + " " + key + " for txn #" + this.txn_id + " until the round is started");
+                return;
+            }
+            
+            Map<PartitionDependencyKey, Queue<Integer>> stmt_ctr = (result != null ? this.results_dependency_stmt_ctr : this.responses_dependency_stmt_ctr);
+            if (trace) LOG.trace("Storing new " + type + " for key " + key + " in txn #" + this.txn_id);
+        
+            // Each partition+dependency_id should be unique for a Statement batch.
+            // So as the results come back to us, we have to figure out which Statement it belongs to
+            if (trace) LOG.trace(type + " stmt_ctr(key=" + key + "): " + stmt_ctr.get(key));
+            if (stmt_ctr.containsKey(key) == false) System.err.println(stmt_ctr);
+            assert(stmt_ctr.containsKey(key)) :
+                "Unexpected partition/dependency " + type + " pair " + key + " in txn #" + this.txn_id;
+            assert(!stmt_ctr.get(key).isEmpty()) :
+                "No more statements for partition/dependency " + type + " pair " + key + " in txn #" + this.txn_id + "\n" + this;
+            Integer stmt_index = stmt_ctr.get(key).remove();
+            assert(stmt_index != null) :
+                "Null stmt_index for " + type + " " + key + " in txn #" + this.txn_id;
+            
+            d = this.getDependencyInfo(stmt_index, dependency_id);
+            assert(d != null) :
+                "Unexpected DependencyId " + dependency_id + " from partition " + partition + " for txn #" + this.txn_id + " " + this.dependencies.keySet() + " [stmt_index=" + stmt_index + "]\n" + result;
+
+            final boolean complete = (result != null ? d.addResult(partition, result) : d.addResponse(partition));
+            if (complete) {
+                if (trace) LOG.trace("Received all RESULTS + RESPONSES for [stmt#" + stmt_index + ", dep#=" + dependency_id + "] for txn #" + this.txn_id);
                 this.received_ctr++;
                 if (this.dependency_latch != null) {
                     this.dependency_latch.countDown();
@@ -646,6 +712,16 @@ public class TransactionState {
             this.executeBlockedTasks(d);
         }
     }
+
+    /**
+     * 
+     * @param partition
+     * @param dependency_id
+     */
+    public void addResponse(int partition, int dependency_id) {
+        this.processResultResponse(partition, dependency_id, null);
+    }
+    
     
     /**
      * 
@@ -654,43 +730,14 @@ public class TransactionState {
      * @param result
      */
     public void addResult(int partition, int dependency_id, VoltTable result) {
-        assert(this.round_state == RoundState.INITIALIZED || this.round_state == RoundState.STARTED) :
-            "Invalid round state " + this.round_state + " for txn #" + this.txn_id;
-
-//        final boolean debug = LOG.isDebugEnabled();
-        final boolean trace = LOG.isTraceEnabled();
-
         assert(result != null) :
             "The result for DependencyId " + dependency_id + " is null in txn #" + this.txn_id;
-
-        // Each partition+dependency_id should be unique for a Statement batch.
-        // So as the results come back to us, we have to figure out which Statement it belongs to
-        Pair<Integer, Integer> result_key = Pair.of(partition, dependency_id);
-        if (trace) LOG.trace("results_dependency_stmt_ctr(result_key=" + result_key + "): " + this.results_dependency_stmt_ctr.get(result_key));  
-        assert(this.results_dependency_stmt_ctr.containsKey(result_key)) :
-            "Unexpected partition/dependency result pair " + result_key + " in txn #" + this.txn_id;
-        assert(!this.results_dependency_stmt_ctr.get(result_key).isEmpty()) :
-            "No more statements for partition/dependency result pair " + result_key + " in txn #" + this.txn_id + "\n" + this;
-        Integer stmt_index = this.results_dependency_stmt_ctr.get(result_key).remove();
-        assert(stmt_index != null) :
-            "Null stmt_index for result_pair " + result_key + " in txn #" + this.txn_id;
-        
-        DependencyInfo d = this.getDependencyInfo(stmt_index, dependency_id);
-        assert(d != null) :
-            "Unexpected DependencyId " + dependency_id + " from partition " + partition + " for txn #" + this.txn_id + " " + this.dependencies.keySet() + " [stmt_index=" + stmt_index + "]\n" + result;
-        synchronized (this.lock) {
-            if (d.addResult(partition, result)) {
-                this.received_ctr++;
-                if (this.dependency_latch != null) {
-                    this.dependency_latch.countDown();
-                    if (trace) LOG.trace("Setting CountDownLatch to " + this.dependency_latch.getCount() + " for txn #" + this.txn_id);
-                }    
-            }
-        } // SYNC
-        // Check whether we need to start running stuff now
-        if (!this.blocked_tasks.isEmpty() && d.hasTasksReady()) {
-            this.executeBlockedTasks(d);
-        }
+        this.processResultResponse(partition, dependency_id, result);
+    }
+    
+    protected void addResultWithResponse(int partition, int dependency_id, VoltTable result) {
+        this.addResult(partition, dependency_id, result);
+        this.addResponse(partition, dependency_id);
     }
     
 
