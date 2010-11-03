@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/bash -x
 
 ## ---------------------------------------
 ## General Configuration
@@ -10,17 +10,13 @@ CWD=`pwd`
 
 ## Volt Benchmarks
 TPCC_BENCHMARK_CLIENT="org.voltdb.benchmark.tpcc.TPCCClient"
-MULTISITE_BENCHMARK_CLIENT="org.voltdb.benchmark.multisite.MultisiteClient"
-BINGO_BENCHMARK_CLIENT="org.voltdb.benchmark.bingo.BingoClient"
 
 ## Brown Benchmarks
 TM1_BENCHMARK_CLIENT="edu.brown.benchmark.tm1.TM1Client"
 AUCTIONMARK_BENCHMARK_CLIENT="edu.brown.benchmark.auctionmark.AuctionMarkClient"
 AIRLINE_BENCHMARK_CLIENT="edu.brown.benchmark.airline.Client"
 TPCE_BENCHMARK_CLIENT="edu.brown.benchmark.tpce.TPCEClient"
-AFFINITY_BENCHMARK_CLIENT="edu.brown.benchmark.affinity.Client"
 MARKOV_BENCHMARK_CLIENT="edu.brown.benchmark.markov.MarkovClient"
-HELLOWORLD_BENCHMARK_CLIENT="edu.brown.benchmark.helloworld.HelloWorldClient"
 
 EXTRA_ARGS=""
 HOSTNAME=`hostname -f`
@@ -44,9 +40,11 @@ SKEW_FACTOR=0.0
 ## ---------------------------------------
 DEFAULT_COORDINATOR_HOST="localhost"
 DEFAULT_NUM_HOSTS=1
+
 DEFAULT_NUM_CLIENTS=1
 DEFAULT_CLIENT_HOST="localhost"
 DEFAULT_NUM_CLIENTPROCESSES=10
+
 DEFAULT_HOST_MEMORY=1024
 DEFAULT_CLIENT_MEMORY=256
 DEFAULT_SITES_PER_HOST=1
@@ -285,7 +283,6 @@ if [ "$BUILD_VOLTBIN" = "1" ]; then
         rm -rf $HOME/voltbin
      fi
      $ANT $EXTRA_ARGS voltbin voltbincopy || exit
-     ln -s `pwd`/workloads ~/voltbin/workloads
 fi
 
 # -Dskewfactor=0.0 \
