@@ -43,6 +43,7 @@
 <property name='dist.examples.auction.dir'   location='${dist.examples.dir}/auction' />
 <property name='dist.examples.satellite.dir' location='${dist.examples.dir}/satellite' />
 <property name='dist.examples.voter.dir'     location='${dist.examples.dir}/voter' />
+<property name='properties.dir'              location='properties' />
 <property name='doc.dir'                     location='doc' />
 <property name='src.dir'                     location='src' />
 <property name='src.frontend.dir'            location='${src.dir}/frontend' />
@@ -51,14 +52,14 @@
 <property name='src.protorpc.dir'            location='${src.dir}/protorpc' />
 <property name='src.test.dir'                location='tests/frontend' />
 <property name='src.hsqldb.test.dir'         location='tests/hsqldb' />
+<property name='src.ee.parent.dir'           location='src/ee' />
+<property name='src.ee.dir'                  location='src/ee' />
 <property name='build.testoutput.dir'        location='${build.dir}/testoutput' />
 <property name='build.testobjects.dir'       location='${build.dir}/testobjects' />
 <property name='build.protorpc.dir'          location='${build.dir}/protorpc' />
 <property name='vendor.lib.dir'              location='third_party/java/jars' />
 <property name='vendor.src.dir'              location='third_party/java/src'  />
 <property name='vendor.obj.dir'              location='third_party/java/obj'  />
-<property name='src.ee.parent.dir'           location='src/ee' />
-<property name='src.ee.dir'                  location='src/ee' />
 <property name='m1catalog'                   location='${src.test.dir}/org/voltdb/catalog/catalog.txt' />
 <property name='depcache'                    value='.depcache' />
 
@@ -73,6 +74,15 @@
 
 <!-- emma build instrumentation location -->
 <property name='build.instr.dir'             location='${build.dir}/instr' />
+
+<!-- Default H-Store Properties File  -->
+<condition property="hstore.properties" value="${properties.dir}/default.properties">
+    <not><isset property="hstore.properties"/></not>
+</condition>
+<property file="${hstore.properties}" prefix="hstore" />
+
+<!-- Benchmarks Properties File -->
+<property file="${properties.dir}/benchmarks.properties" prefix="benchmarks" />
 
 <!-- Default heap size for Volt server (MB)  -->
 <condition property="volt.server.memory" value="2048">
@@ -218,7 +228,7 @@ PRIMARY ENTRY POINTS
     description="Do all tasks."
 />
 <target name="jars"
-    depends="voltdb.jar, voltdbfat.jar"
+    depends="voltdb.jar"
     description="Create production JAR files."
 />
 <target name="dist"
@@ -427,7 +437,7 @@ JAR BUILDING
   </exec>
 </target>
 
-<target name="voltdb.jar" depends="compile, buildinfo">
+<!--<target name="voltdb.jar" depends="compile, buildinfo">
     <jar destfile="${build.prod.dir}/voltdb-${dist.version}.jar">
         <fileset dir="${build.prod.dir}" defaultexcludes="yes" >
             <include name="org/**" />
@@ -481,9 +491,9 @@ JAR BUILDING
             <include name="edu/**" />
         </fileset>
     </jar>
-</target>
+</target>-->
 
-<target name="voltdbfat.jar" depends="compile, buildinfo">
+<target name="voltdb.jar" depends="compile, buildinfo">
     <jar destfile="${build.prod.dir}/voltdbfat.jar">
         <fileset dir="${build.prod.dir}" defaultexcludes="yes" >
             <include name="org/**" />
@@ -1187,7 +1197,6 @@ TEST CASES
 
 <target
     name='testability-report'
-    depends="voltdbthin.jar"
     description="produce Google Code testability-explorer report">
     <path id="testability.lib">
         <pathelement
@@ -1564,40 +1573,18 @@ BENCHMARKS
 ***************************************
 -->
 
-<target name="benchmarkcluster"
-    description="Call the standard benchmark target configured to use test cluster.">
-    <antcall target="benchmark" inheritAll='true'>
-        <param name="hostcount" value="12"/>
-        <param name="sitesperhost" value="12"/>
-        <param name="clientcount" value="3"/>
-        <param name="processesperclient" value="1"/>
-        <param name="duration" value="60000" />
-        <param name="warehouses" value="144"/>
-        <param name="loadthreads" value="12" />
-    </antcall>
-</target>
-
-<target name="benchmarkone"
-    description="Call the standard benchmark target configured to use one node of the test cluster.">
-    <antcall target="benchmark" inheritAll='true'>
-        <param name="hostcount" value="1"/>
-        <param name="sitesperhost" value="2"/>
-        <param name="clientcount" value="1"/>
-        <param name="processesperclient" value="1"/>
-        <param name="warehouses" value="2"/>
-        <param name="volt.server.memory" value="2048"/>
-    </antcall>
-</target>
-
 <target name='benchmark'
     description="Compile VoltDB and run a benchmark">
     <java fork="true" failonerror="true"
         classname="org.voltdb.benchmark.BenchmarkController">
         <classpath refid='project.classpath' />
-        <jvmarg value="-Xmx512m" />
+        <jvmarg value="-server" />
+        <jvmarg value="-Xmx2048m" />
+        <jvmarg value="-Xcheck:jni"/>
         <jvmarg value="-Djava.library.path=${build.dir}/nativelibs" />
         <jvmarg value="-Dlog4j.configuration=${basedir}/log4j.properties"/>
         <assertions><enable/></assertions>
+        
         <arg value="CLIENT=${client}" />
         <arg value="BACKEND=${backend}" />
         <arg value="HOSTCOUNT=${hostcount}" />
@@ -1609,41 +1596,25 @@ BENCHMARKS
         <arg value="DURATION=${duration}" />
         <arg value="REMOTEPATH=${remotepath}" />
         <arg value="REMOTEUSER=${remoteuser}"/>
-        <arg value="HOST=${manualhost1}" />
-        <arg value="HOST=${manualhost2}" />
-        <arg value="HOST=${manualhost3}" />
-        <arg value="HOST=${manualhost4}" />
-        <arg value="HOST=${manualhost5}" />
-        <arg value="HOST=${manualhost6}" />
-        <arg value="HOST=${host1}" />
-        <arg value="HOST=${host2}" />
-        <arg value="HOST=${host3}" />
-        <arg value="HOST=${host4}" />
-        <arg value="HOST=${host5}" />
-        <arg value="HOST=${host6}" />
-        <arg value="HOST=${host7}" />
-        <arg value="HOST=${host8}" />
-        <arg value="HOST=${host9}" />
-        <arg value="HOST=${host10}" />
-        <arg value="HOST=${host11}" />
-        <arg value="HOST=${host12}" />
-        <arg value="CLIENTHOST=${clienthost1}" />
-        <arg value="CLIENTHOST=${clienthost2}" />
-        <arg value="CLIENTHOST=${clienthost3}" />
-        <arg value="CLIENTHOST=${clienthost4}" />
-        <arg value="LISTENFORDEBUGGER=${debug}" />
-        <arg value="USEPROFILE=${useprofile}" />
-        <arg value="CHECKTRANSACTION=${checktransaction}" />
-        <arg value="CHECKTABLES=${checktables}" />
+        
         <arg value="CLIENTHEAP=${volt.client.memory}" />
         <arg value="SERVERHEAP=${volt.server.memory}" />
+        
+        <!-- These are currently ignored... -->
+        <arg value="HOST=${manualhost1}" />
+        <arg value="HOST=${host1}" />
+        <arg value="CLIENTHOST=${clienthost1}" />
+        <arg value="LISTENFORDEBUGGER=${debug}" />
+        <arg value="USEPROFILE=${hstore.useprofile}" />
+        <arg value="CHECKTRANSACTION=${checktransaction}" />
+        <arg value="CHECKTABLES=${checktables}" />
         <arg value="LOCAL=${local}" />
         
         <arg value="COMPILE=${compile}" />
         <arg value="COMPILEONLY=${compileonly}" />
         <arg value="CATALOGHOSTS=${cataloghosts}" />
         <arg value="NODATALOAD=${nodataload}" />
-        <arg value="BLOCKING=${blocking}" />
+        <arg value="BLOCKING=${hstore.blocking}" />
         
         <!-- Actual TXN rate sent to cluster will be:
             TXNRATE * CLIENTCOUNT * PROCESSESPERCLIENT -->
@@ -1651,40 +1622,28 @@ BENCHMARKS
         <!-- Actual number of connections opened to cluster will be:
             NUMCONNECTIONS * CLIENTCOUNT * PROCESSESPERCLIENT * HOSTCOUNT -->
         <arg value="NUMCONNECTIONS=${numconnections}" />
-        <arg value="STATSTAG=${statsTag}" />
-        <arg value="STATSDATABASEURL=${statsDatabaseURL}" />
+<!--         <arg value="STATSTAG=${statsTag}" /> -->
+<!--         <arg value="STATSDATABASEURL=${statsDatabaseURL}" /> -->
         <arg value="APPLICATIONNAME=${applicationName}" />
         <arg value="SUBAPPLICATIONNAME=${subApplicationName}" />
 
+        <!-- Global Parameters -->
+        <arg value="scalefactor=${hstore.scalefactor}" />
+        <arg value="skewfactor=${hstore.skewfactor}" />
+        
         <!-- tpcc parameters -->
-        <arg value="warehouses=${warehouses}" />
-        <arg value="scalefactor=${sf}" />
-        <arg value="skewfactor=${skew}" />
-        <arg value="loadthreads=${loadthreads}" />
+        <arg value="warehouses=${benchmarks.tpcc.warehouses}" />
+        <arg value="loadthreads=${benchmarks.tpcc.loadthreads}" />
 
         <!-- measureoverhead parameters -->
         <arg value="transaction=${transaction}"/>
 
-        <!-- multisite parameters -->
-        <arg value="sf=${sf}"/>
-        <arg value="multipartition=${multipartition}"/>
-        
         <!-- auctionmark parameters -->
         <arg value="auctionmarkdir=${auctionmarkdir}"/>
         <arg value="benchmarkprofile=${benchmarkprofile}"/>
 
-        <!-- automatic online snapshot parameters -->
-        <arg value="SNAPSHOTPATH=${snapshotPath}" />
-        <arg value="SNAPSHOTFREQUENCY=${snapshotFrequency}" />
-        <arg value="SNAPSHOTPREFIX=${snapshotPrefix}" />
-        <arg value="SNAPSHOTRETAIN=${snapshotRetain}" />
-
         <!-- miscellaneous reporting parameters -->
         <arg value="OS=${os}" />
-
-        <jvmarg value="-server" />
-        <jvmarg value="-Xmx2048m" />
-        <jvmarg value="-Xcheck:jni"/>
     </java>
 </target>
 
@@ -2181,16 +2140,45 @@ H-STORE REMIX
 </target>
 
 <target name="hstore-prepare" description="Prepares a benchmark catalog">
-    <exec executable="./scripts/runner.sh" failonerror="true">
+<!--    <exec executable="./scripts/runner.sh" failonerror="true">
         <arg line="${project}" />
         <arg line="compileonly" />
         <arg line="BUILD_JAVA=0" />
         <arg line="BUILD_EE=0" />
-<!--         <arg line="BUILD_VOLTBIN=0" /> -->
-    </exec>
+         <arg line="BUILD_VOLTBIN=0" />
+     </exec>-->
+    <echoproperties prefix="hstore."/>
+    <echoproperties prefix="benchmarks."/>
+    
+    <echo message="benchmark = ${benchmarks.${project}}" />
+    
+    <fail/>
+<!--     [exec] + ant -Dcompileonly=true -Dhost1=localhost -Dloadthreads=1 -Dclienthost1=localhost voltbin voltbincopy -->
+
+    <!-- Creates voltbin -->
+    <antcall target="voltbin">
+<!--        <param name="compileonly" value="true" />-->
+        <param name="host1" value="${hstore.defaulthost}" />
+        <param name="loadthreads" value="${hstore.loadthreads}" />
+        <param name="clienthost1" value="${hstore.defaulthost}" />
+    </antcall>
+    
+    <!-- Copies voltbin to home directory -->
+    <antcall target="voltbincopy" />
+    
+<!--     ant benchmark -Dcompileonly=true -Dhost1=localhost -Dloadthreads=1 -Dclienthost1=localhost -Dduration=60000 -Dvolt.server.memory=1024 -Dvolt.client.memory=256 -Dclient= -Dclientcount=1 -Dprocessesperclient=10 -Dsf=1000 -Dtxnrate=100 -Dwarehouses=10 -Dloadthreads=1 -Dskew=0.0 -->
+    <antcall target="benchmark">
+        <param name="compileonly" value="true" />
+        <param name="host1" value="${hstore.defaulthost}" />
+        <param name="clienthost1" value="${hstore.defaulthost}" />
+        <param name="loadthreads" value="${hstore.loadthreads}" />
+        <param name="client" value="???" />
+    </antcall>
+    
+    <!-- Sets up host/site/partition information in system catalogs -->
     <antcall target="hstore-jar">
         <param name="jar" value="${project}.jar" />
-    </antcall>    
+    </antcall>
 </target>
 
 <target name="hstore-site" description="H-Store Execution Node/Coordinator">
