@@ -76,6 +76,11 @@
 <!-- emma build instrumentation location -->
 <property name='build.instr.dir'             location='${build.dir}/instr' />
 
+<!-- Default hostname -->
+<condition property="hstore.defaulthost" value="localhost">
+    <not><isset property="hstore.defaulthost"/></not>
+</condition>
+
 <!-- Default H-Store Properties File  -->
 <condition property="hstore.properties" value="${properties.dir}/default.properties">
     <not><isset property="hstore.properties"/></not>
@@ -86,7 +91,7 @@
 <condition property="project" value="tpcc">
     <not><isset property="project"/></not>
 </condition>
-<property file="${benchmark.dir}/${project}.properties" prefix="benchmarks" />
+<property file="${benchmark.dir}/${project}.properties" prefix="benchmark" />
 
 <!-- Default heap size for Volt server (MB)  -->
 <condition property="volt.server.memory" value="2048">
@@ -2114,11 +2119,6 @@ H-STORE REMIX
 ***************************************
 -->
 
-<!-- Default hostname for 'hstore-test' -->
-<condition property="hstore.defaulthost" value="localhost">
-    <not><isset property="hstore.defaulthost"/></not>
-</condition>
-
 <target name="javaexec" description="Execute a Java class from the cmd line">
    <java fork="yes" classname="${javafile}">
       <jvmarg value="-Dlog4j.configuration=log4j.properties"/>
@@ -2152,6 +2152,7 @@ H-STORE REMIX
     <!-- Compile + create benchmark project jar -->
     <antcall target="benchmark">
         <param name="compileonly"   value="true" />
+        <param name="compile"       value="true" />
         <param name="host1"         value="${hstore.defaulthost}" />
         <param name="clienthost1"   value="${hstore.defaulthost}" />
         <param name="loadthreads"   value="${hstore.loadthreads}" />
@@ -2173,8 +2174,8 @@ H-STORE REMIX
         <jvmarg value="-Xcheck:jni" />
         <arg value="catalog.jar=${jar}" />
         <arg value="node.site=${node.site}" />
-        <arg value="coordinator.host=${coordinator.host}" />
-        <arg value="coordinator.port=${coordinator.port}" />
+        <arg value="coordinator.host=${hstore.coordinator.host}" />
+        <arg value="coordinator.port=${hstore.coordinator.port}" />
         <arg value="coordinator.statusinterval=${statusinterval}" />
         <arg value="dtxn.conf=${build.dtxn.dir}/hstore.conf" />
         <arg value="dtxn.engine=${build.dtxn.dir}/protodtxn/protodtxnengine" />
@@ -2228,8 +2229,8 @@ H-STORE REMIX
         <antcall target="hstore-site">
             <param name="jar" value="${project}.jar" />
             <param name="node.site" value="0" />
-            <param name="coordinator.host" value="${hstore.coordinator.host}" />
-            <param name="coordinator.port" value="${hstore.coordinator.port}" />
+<!--             <param name="coordinator.host" value="${hstore.coordinator.host}" /> -->
+<!--             <param name="coordinator.port" value="${hstore.coordinator.port}" /> -->
             <param name="markov" value="./files/markovs/${project}.markovs" />
             <param name="thresholds" value="./files/thresholds/default.thresholds" />
             <param name="correlations" value="./files/correlations/${project}.correlations" />
@@ -2237,8 +2238,8 @@ H-STORE REMIX
         <antcall target="hstore-site">
             <param name="jar" value="${project}.jar" />
             <param name="node.site" value="1" />
-            <param name="coordinator.host" value="${hstore.coordinator.host}" />
-            <param name="coordinator.port" value="${hstore.coordinator.port}" />
+<!--             <param name="coordinator.host" value="${hstore.coordinator.host}" /> -->
+<!--             <param name="coordinator.port" value="${hstore.coordinator.port}" /> -->
             <param name="markov" value="./files/markovs/${project}.markovs" />
             <param name="thresholds" value="./files/thresholds/default.thresholds" />
             <param name="correlations" value="./files/correlations/${project}.correlations" />
