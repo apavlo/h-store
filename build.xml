@@ -44,6 +44,7 @@
 <property name='dist.examples.satellite.dir' location='${dist.examples.dir}/satellite' />
 <property name='dist.examples.voter.dir'     location='${dist.examples.dir}/voter' />
 <property name='properties.dir'              location='properties' />
+<property name='benchmark.dir'              location='${properties.dir}/benchmarks' />
 <property name='doc.dir'                     location='doc' />
 <property name='src.dir'                     location='src' />
 <property name='src.frontend.dir'            location='${src.dir}/frontend' />
@@ -82,7 +83,10 @@
 <property file="${hstore.properties}" prefix="hstore" />
 
 <!-- Benchmarks Properties File -->
-<property file="${properties.dir}/benchmarks.properties" prefix="benchmarks" />
+<condition property="project" value="tpcc">
+    <not><isset property="project"/></not>
+</condition>
+<property file="${benchmark.dir}/${project}.properties" prefix="benchmarks" />
 
 <!-- Default heap size for Volt server (MB)  -->
 <condition property="volt.server.memory" value="2048">
@@ -110,6 +114,12 @@
     <pathelement path="${java.class.path}"/>
     <fileset refid="voltpro.classpath"/>
 </path>
+
+<taskdef resource="net/sf/antcontrib/antcontrib.properties">
+    <classpath>
+        <pathelement location="${vendor.lib.dir}/ant-contrib.jar"/>
+    </classpath>
+</taskdef>
 
 <!-- select which set of regression suite configuration types to run -->
 <condition property="regressions" value="${regressions}" else="all">
@@ -196,12 +206,6 @@
         </condition>
     </fail>
 </target>
-
-<taskdef resource="net/sf/antcontrib/antcontrib.properties">
-    <classpath>
-        <pathelement location="${vendor.lib.dir}/ant-contrib.jar"/>
-    </classpath>
-</taskdef>
 
 <!--
 ***************************************
@@ -1632,8 +1636,8 @@ BENCHMARKS
         <arg value="skewfactor=${hstore.skewfactor}" />
         
         <!-- tpcc parameters -->
-        <arg value="warehouses=${benchmarks.tpcc.warehouses}" />
-        <arg value="loadthreads=${benchmarks.tpcc.loadthreads}" />
+        <arg value="warehouses=${benchmark.warehouses}" />
+        <arg value="loadthreads=${benchmark.loadthreads}" />
 
         <!-- measureoverhead parameters -->
         <arg value="transaction=${transaction}"/>
@@ -2140,39 +2144,19 @@ H-STORE REMIX
 </target>
 
 <target name="hstore-prepare" description="Prepares a benchmark catalog">
-<!--    <exec executable="./scripts/runner.sh" failonerror="true">
-        <arg line="${project}" />
-        <arg line="compileonly" />
-        <arg line="BUILD_JAVA=0" />
-        <arg line="BUILD_EE=0" />
-         <arg line="BUILD_VOLTBIN=0" />
-     </exec>-->
-    <echoproperties prefix="hstore."/>
-    <echoproperties prefix="benchmarks."/>
-    
-    <echo message="benchmark = ${benchmarks.${project}}" />
-    
-    <fail/>
-<!--     [exec] + ant -Dcompileonly=true -Dhost1=localhost -Dloadthreads=1 -Dclienthost1=localhost voltbin voltbincopy -->
-
     <!-- Creates voltbin -->
-    <antcall target="voltbin">
-<!--        <param name="compileonly" value="true" />-->
-        <param name="host1" value="${hstore.defaulthost}" />
-        <param name="loadthreads" value="${hstore.loadthreads}" />
-        <param name="clienthost1" value="${hstore.defaulthost}" />
-    </antcall>
+    <antcall target="voltbin" />
     
     <!-- Copies voltbin to home directory -->
     <antcall target="voltbincopy" />
-    
-<!--     ant benchmark -Dcompileonly=true -Dhost1=localhost -Dloadthreads=1 -Dclienthost1=localhost -Dduration=60000 -Dvolt.server.memory=1024 -Dvolt.client.memory=256 -Dclient= -Dclientcount=1 -Dprocessesperclient=10 -Dsf=1000 -Dtxnrate=100 -Dwarehouses=10 -Dloadthreads=1 -Dskew=0.0 -->
+
+    <!-- Compile + create benchmark project jar -->
     <antcall target="benchmark">
-        <param name="compileonly" value="true" />
-        <param name="host1" value="${hstore.defaulthost}" />
-        <param name="clienthost1" value="${hstore.defaulthost}" />
-        <param name="loadthreads" value="${hstore.loadthreads}" />
-        <param name="client" value="???" />
+        <param name="compileonly"   value="true" />
+        <param name="host1"         value="${hstore.defaulthost}" />
+        <param name="clienthost1"   value="${hstore.defaulthost}" />
+        <param name="loadthreads"   value="${hstore.loadthreads}" />
+        <param name="client"        value="${benchmark.client}" />
     </antcall>
     
     <!-- Sets up host/site/partition information in system catalogs -->
