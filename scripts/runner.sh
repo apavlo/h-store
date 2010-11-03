@@ -290,6 +290,7 @@ if [ -n "$ANT_TARGET" ]; then
     echo "Executing '$ANT_TARGET'..."
     $ANT $ANT_TARGET \
         $EXTRA_ARGS \
+        -Dproject=`echo $BENCHMARK | tr "[:upper:]" "[:lower:]"`
         -Dduration=$DURATION \
         -Dvolt.server.memory=$HOST_MEMORY \
         -Dvolt.client.memory=$CLIENT_MEMORY \
