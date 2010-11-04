@@ -153,6 +153,11 @@ public abstract class AbstractDirectedGraph<V extends AbstractVertex, E extends 
         }
         return;
     }
+    
+    @Override
+    public String toString(E e, boolean verbose) {
+        return (this.inner.toString(e, verbose));
+    }
 
     @Override
     public String toString() {

@@ -52,9 +52,15 @@ public class AbstractEdge extends AbstractGraphElement {
         return this.graph;
     }
     
+    @SuppressWarnings("unchecked")
     public <T> T getAttribute(String key) {
 //        System.out.println("EDGE-GET[" + this.graph + "]: " + key);
         return (T)this.getAttribute(this.graph, key);
+    }
+    
+    @SuppressWarnings("unchecked")
+    public <T, E extends Enum<?>> T getAttribute(E e) {
+        return ((T)this.getAttribute(this.graph, e));
     }
     
     public Set<String> getAttributes() {
@@ -69,19 +75,13 @@ public class AbstractEdge extends AbstractGraphElement {
         return this.hasAttribute(this.graph, key);
     }
     
+    public String toString(boolean verbose) {
+        return (this.graph.toString(this, verbose));   
+    }
+    
     @Override
     public String toString() {
-        String ret = "";
-        if (this.graph.getEdgeType(this) == EdgeType.DIRECTED) {
-            ret = this.graph.getSource(this).toString() + "->" +  this.graph.getDest(this).toString();
-        } else {
-            String add = "";
-            for (AbstractVertex vertex : this.graph.getIncidentVertices(this)) {
-                ret += add + vertex.toString();
-                add = "--";
-            } // FOR
-        }
-        return (ret);
+        return (this.toString(this.getVerbose()));
     }
     
     @Override

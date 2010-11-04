@@ -11,6 +11,7 @@ import org.voltdb.catalog.Database;
 import edu.brown.catalog.CatalogKey;
 import edu.uci.ics.jung.algorithms.shortestpath.ShortestPathUtils;
 import edu.uci.ics.jung.algorithms.shortestpath.UnweightedShortestPath;
+import edu.uci.ics.jung.graph.util.EdgeType;
 
 public class InnerGraphInformation<V extends AbstractVertex, E extends AbstractEdge> {
 
@@ -83,6 +84,39 @@ public class InnerGraphInformation<V extends AbstractVertex, E extends AbstractE
     }
     public void setName(String name) {
         this.name = name;
+    }
+    
+    public String toString(E e, boolean verbose) {
+        String edge_marker = null;
+        V source = null;
+        V dest = null;
+        
+        // Directed
+        if (this.graph.getEdgeType(e) == EdgeType.DIRECTED) {
+            edge_marker = "->";
+            source = this.graph.getSource(e);
+            dest = this.graph.getDest(e);
+        // Undirected
+        } else {
+            edge_marker = "--";
+            for (V v : this.graph.getIncidentVertices(e)) {
+                if (source == null) source = v;
+                else if (dest == null) dest = v;
+                else assert(false);
+            } // FOR
+        }
+        assert(source != null);
+        assert(dest != null);
+        
+        String source_lbl = source.toString();
+        String dest_lbl = dest.toString();
+
+        // If the edge doesn't have verbose output enabled, truncate the vertex labels
+        if (verbose == false) {
+            source_lbl = source_lbl.substring(0, 2);
+            dest_lbl = dest_lbl.substring(0, 2);
+        }
+        return (String.format("%s %s %s", source_lbl, edge_marker, dest_lbl));
     }
     
     

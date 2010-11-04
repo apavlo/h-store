@@ -9,6 +9,14 @@ import org.apache.log4j.Logger;
 public abstract class ThreadUtil {
     private static final Logger LOG = Logger.getLogger(ThreadUtil.class);
 
+    public static void sleep(long millis) {
+        try {
+            Thread.sleep(millis);
+        } catch (InterruptedException ex) {
+            // IGNORE!
+        }
+    }
+    
     /**
      * Fork the command (in the current thread) and countdown the latch everytime we see
      * our match string in the output

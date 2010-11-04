@@ -4,6 +4,7 @@ import org.apache.log4j.Logger;
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Procedure;
 
+import edu.brown.catalog.CatalogUtil;
 import edu.brown.costmodel.SingleSitedCostModel;
 import edu.brown.costmodel.TimeIntervalCostModel;
 import edu.brown.designer.partitioners.BranchAndBoundPartitioner;
@@ -23,25 +24,33 @@ public class LowerBounds {
     
     /**
      * InnerCostModel
+     * This has to be static so that we can dynamically create it in TimeIntervalCostModel
      */
     public static class InnerCostModel extends SingleSitedCostModel {
         private static LowerBounds lb = null;
+        private boolean first = true;
         
-        private final SingleSitedCostModel sscm;
+        private final TimeIntervalCostModel<SingleSitedCostModel> sscm;
         
         public InnerCostModel(Database catalog_db, PartitionEstimator p_estimator) {
             super(catalog_db, p_estimator);
-            this.sscm = new SingleSitedCostModel(catalog_db, p_estimator);
+            this.sscm = new TimeIntervalCostModel<SingleSitedCostModel>(catalog_db, SingleSitedCostModel.class, 1);
         }
-        
         
         @Override
         public TransactionCacheEntry processTransaction(final Database catalog_db, final TransactionTrace txnTrace, final Filter filter) throws Exception {
             assert(lb.info != null);
             assert(lb.hints != null);
             assert(lb.designer != null);
+            final boolean trace = LowerBounds.LOG.isTraceEnabled();
+            
+            if (this.first) {
+                this.sscm.applyDesignerHints(lb.hints);
+                this.first = false;
+            }
             
             final Procedure catalog_proc = txnTrace.getCatalogItem(catalog_db);
+            if (trace) LowerBounds.LOG.trace("Processing " + txnTrace);
             
             // Ok so now what need to do is do a local search to find the best way to partition this mofo
             AbstractWorkload workload = new AbstractWorkload() {
@@ -51,15 +60,22 @@ public class LowerBounds {
                 public void setOutputPath(String path) { }
                 public void save(String path, Database catalogDb) { }
             };
+            assert(workload.getTransactionCount() == 1) : "Unexpected workload size: " + workload.getTransactionCount();
+            assert(workload.getTransactions().contains(txnTrace)) : "Unexpected workload contents: " + workload.getTransactions();
+            if (trace) LowerBounds.LOG.trace("Created a single transaction workload");
             
             DesignerInfo info = new DesignerInfo(lb.info);
             info.setWorkload(workload);
             info.setCostModel(this.sscm);
+            
+            if (trace) LowerBounds.LOG.trace("Calculating optimal PartitionPlan for " + txnTrace);
             BranchAndBoundPartitioner partitioner = new BranchAndBoundPartitioner(lb.designer, info);
+            partitioner.setUpperBounds(lb.hints, lb.upper_bounds, Double.MAX_VALUE, Long.MAX_VALUE);
             PartitionPlan pplan = partitioner.generate(lb.hints);
             pplan.apply(catalog_db);
+            this.sscm.clear();
             
-            return super.processTransaction(catalog_db, txnTrace, filter);
+            return (super.processTransaction(catalog_db, txnTrace, null));
         }
     } // END CLASS
     
@@ -68,6 +84,8 @@ public class LowerBounds {
     private final DesignerInfo info;
     private final DesignerHints hints;
     private final TimeIntervalCostModel<InnerCostModel> costmodel;
+    
+    private final PartitionPlan upper_bounds;
     
     /**
      * Constructor
@@ -92,6 +110,9 @@ public class LowerBounds {
         this.info = info;
         this.hints = hints;
         this.costmodel = new TimeIntervalCostModel<InnerCostModel>(info.catalog_db, InnerCostModel.class, args.num_intervals);
+        
+        // For fake upper-bounds
+        this.upper_bounds = PartitionPlan.createFromCatalog(args.catalog_db);
     }
     
     /**
@@ -101,6 +122,8 @@ public class LowerBounds {
      * @throws Exception
      */
     public double calculate(final AbstractWorkload workload) throws Exception {
+        if (LOG.isDebugEnabled()) LOG.debug("Calculating lower bounds using " + workload.getTransactionCount() + " transactions" +
+                                            " on " + CatalogUtil.getNumberOfPartitions(info.catalog_db) + " partitions");
         return (this.costmodel.estimateCost(this.info.catalog_db, workload));
     }
     
@@ -122,6 +145,7 @@ public class LowerBounds {
         //
         DesignerInfo info = new DesignerInfo(args);
         DesignerHints hints = args.designer_hints;
+        hints.max_memory_per_partition = Long.MAX_VALUE;
         
         long start = System.currentTimeMillis();
         LowerBounds lb = new LowerBounds(info, hints, args);

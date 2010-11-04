@@ -3,7 +3,6 @@ package edu.brown.graphs;
 import java.io.IOException;
 import java.util.*;
 
-import org.apache.log4j.Logger;
 import org.json.*;
 import org.voltdb.catalog.Database;
 import org.voltdb.utils.NotImplementedException;
@@ -12,11 +11,12 @@ import edu.brown.utils.JSONSerializable;
 import edu.brown.utils.JSONUtil;
 
 public abstract class AbstractGraphElement implements JSONSerializable {
-    private static final Logger LOG = Logger.getLogger(AbstractGraphElement.class.getName());
+//    private static final Logger LOG = Logger.getLogger(AbstractGraphElement.class.getName());
     public static final String DEBUG_SPACER = "  ";
     
     private final Map<IGraph<?, ?>, Map<String, Object>> attributes = new HashMap<IGraph<?, ?>, Map<String,Object>>();
     private Long element_id;
+    private transient boolean enable_verbose = false;
 
     public AbstractGraphElement() {
         this.element_id = (long)super.hashCode();
@@ -64,21 +64,43 @@ public abstract class AbstractGraphElement implements JSONSerializable {
         return (this.attributes.containsKey(graph) && this.attributes.get(graph).containsKey(key));
     }
     
-    public Object getAttribute(IGraph<?, ?> graph, String key) {
-        return (this.attributes.containsKey(graph) ? this.attributes.get(graph).get(key) : null);
+    @SuppressWarnings("unchecked")
+    public <T> T getAttribute(IGraph<?, ?> graph, String key) {
+        return (this.attributes.containsKey(graph) ? (T)this.attributes.get(graph).get(key) : null);
     }
     
-    public void setAttribute(IGraph<?, ?> graph, String key, Object value) {
+    @SuppressWarnings("unchecked")
+    public <T, E extends Enum<?>> T getAttribute(IGraph<?, ?> graph, E e) {
+        return ((T)this.getAttribute(graph, e.name()));
+    }
+    
+    public <T> void setAttribute(IGraph<?, ?> graph, String key, T value) {
         if (!this.attributes.containsKey(graph)) {
             this.attributes.put(graph, new HashMap<String, Object>());
         }
         this.attributes.get(graph).put(key, value);
     }
     
+    public <T, E extends Enum<?>> void setAttribute(IGraph<?, ?> graph, E key, T value) {
+        this.setAttribute(graph, key.name(), value);
+    }
+    
     public void copyAttributes(IGraph<?, ?> graph0, IGraph<?, ?> graph1) {
         for (String key : this.getAttributes(graph0)) {
             this.setAttribute(graph1, key, this.getAttribute(graph0, key));
         } // FOR
+    }
+    
+    /**
+     * Enable verbose output when toString() is called
+     * @param enableVerbose
+     */
+    public void setVerbose(boolean enableVerbose) {
+        this.enable_verbose = enableVerbose;
+    }
+    
+    public boolean getVerbose() {
+        return (this.enable_verbose);
     }
     
     public String debug() {
@@ -152,7 +174,6 @@ public abstract class AbstractGraphElement implements JSONSerializable {
      * @param members
      * @throws JSONException
      */
-    @SuppressWarnings("unchecked")
     protected <E extends Enum<?>> void fieldsFromJSONObject(JSONObject object, Database catalog_db, Class<? extends AbstractGraphElement> base_class, E members[]) throws JSONException {
         JSONUtil.fieldsFromJSON(object, catalog_db, this, base_class, members);
     }

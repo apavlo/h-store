@@ -125,6 +125,11 @@ public abstract class AbstractUndirectedGraph<V extends AbstractVertex, E extend
 //    }
 
     @Override
+    public String toString(E e, boolean verbose) {
+        return (this.inner.toString(e, verbose));
+    }
+    
+    @Override
     public String toString() {
         return (this.getClass().getSimpleName() + "@" + this.hashCode());
     }

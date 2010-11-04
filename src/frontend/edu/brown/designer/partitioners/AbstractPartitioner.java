@@ -109,7 +109,11 @@ public abstract class AbstractPartitioner {
         AccessGraph agraph = new AccessGraph(info.catalog_db);
         LOG.debug("Generating AccessGraph for entire catalog");
         for (Procedure catalog_proc : info.catalog_db.getProcedures()) {
-            if (this.designer.getGraphs(catalog_proc) != null) {
+            // Skip if there are no transactions in the workload for this procedure
+            assert(info.workload != null);
+            if (info.workload.getTraces(catalog_proc).isEmpty()) {
+                LOG.debug("No " + catalog_proc + " transactions in workload. Skipping...");
+            } else if (this.designer.getGraphs(catalog_proc) != null) {
                 this.designer.getGraphs(catalog_proc).add(agraph);
                 new AccessGraphGenerator(info, catalog_proc).generate(agraph);
             }
@@ -126,7 +130,7 @@ public abstract class AbstractPartitioner {
      * @throws Exception
      */
     protected LinkedList<String> generateProcedureOrder(final Database catalog_db, final DesignerHints hints) throws Exception {
-        LOG.info("Generating Procedure visit order");
+        if (LOG.isDebugEnabled()) LOG.debug("Generating Procedure visit order");
         
         final Map<Procedure, Double> proc_weights = new HashMap<Procedure, Double>();
         Histogram hist = info.workload.getProcedureHistogram();
@@ -240,6 +244,8 @@ public abstract class AbstractPartitioner {
      * @throws Exception
      */
     protected static LinkedList<String> generateTableOrder(final DesignerInfo info, final AccessGraph agraph, final DesignerHints hints) throws Exception {
+        final boolean debug = LOG.isDebugEnabled();
+        
         final LinkedList<String> table_visit_order = new LinkedList<String>();
 
         // Put small read-only tables at the top of the list so that we can try everything with
@@ -252,7 +258,7 @@ public abstract class AbstractPartitioner {
                 assert(ts != null);
                 double size_ratio = ts.tuple_size_total / (double)hints.max_memory_per_partition;
                 if (ts.readonly && size_ratio <= hints.force_replication_size_limit) {
-                    LOG.debug(CatalogUtil.getDisplayName(catalog_tbl) + " is read-only and only " + String.format("%.02f", (size_ratio * 100)) + "% of total memory. Forcing replication...");
+                    if (debug) LOG.debug(CatalogUtil.getDisplayName(catalog_tbl) + " is read-only and only " + String.format("%.02f", (size_ratio * 100)) + "% of total memory. Forcing replication...");
                     replication_weights.put(catalog_tbl, size_ratio);
                     temp_list.add(catalog_tbl);
                 }
@@ -261,11 +267,11 @@ public abstract class AbstractPartitioner {
                 table_visit_order.addLast(CatalogKey.createKey(catalog_tbl));
             }
             Collections.reverse(table_visit_order);
-            LOG.debug("Forced Replication: " + table_visit_order);
+            if (debug) LOG.debug("Forced Replication: " + table_visit_order);
         }
         
         for (Vertex root : DesignerUtil.createCandidateRoots(info, hints, agraph)) {
-            LOG.debug("Examining edges for candidate root '" + root.getCatalogItem().getName() + "'");
+            if (debug) LOG.debug("Examining edges for candidate root '" + root.getCatalogItem().getName() + "'");
             // From each candidate root, traverse the graph in breadth first order based on
             // the edge weights in the AccessGraph
             new VertexTreeWalker<Vertex>(info.dgraph, VertexTreeWalker.TraverseOrder.BREADTH) {
@@ -297,10 +303,12 @@ public abstract class AbstractPartitioner {
                     for (Table child_tbl : sorted) {
                         children.addAfter(this.getGraph().getVertex(child_tbl));
                     } // FOR
-                    LOG.debug(element);
-                    LOG.debug("  sorted=" + sorted);
-                    LOG.debug("  weights=" + vertex_weights);
-                    LOG.debug("  children=" + children);
+                    if (debug) { 
+                        LOG.debug(element);
+                        LOG.debug("  sorted=" + sorted);
+                        LOG.debug("  weights=" + vertex_weights);
+                        LOG.debug("  children=" + children);
+                    }
                 };
                 
                 @Override
@@ -323,7 +331,7 @@ public abstract class AbstractPartitioner {
                     assert(catalog_tbl != null);
                     String table_key = CatalogKey.createKey(catalog_tbl);
                     if (!table_visit_order.contains(table_key)) {
-                        LOG.warn("Added " + catalog_tbl + " because it does not appear in the AccessGraph");
+                        if (debug) LOG.warn("Added " + catalog_tbl + " because it does not appear in the AccessGraph");
                         table_visit_order.add(table_key);
                     }
                 };
@@ -371,7 +379,7 @@ public abstract class AbstractPartitioner {
         if (debug) LOG.debug("Retreiving edges for " + vertex + " from AccessGraph");
         Collection<Edge> edges = agraph.getIncidentEdges(vertex);
         if (edges == null) {
-            LOG.warn("No edges were found for " + vertex + " in AccessGraph");
+            if (debug) LOG.warn("No edges were found for " + vertex + " in AccessGraph");
         } else {
             for (Edge edge : agraph.getIncidentEdges(vertex)) {
                 ColumnSet orig_cset = (ColumnSet)edge.getAttribute(AccessGraph.EdgeAttributes.COLUMNSET.name());
@@ -396,7 +404,7 @@ public abstract class AbstractPartitioner {
         
         // Increase the weight of the columns based on the number foreign key descendants they have
         DependencyUtil dependencies = DependencyUtil.singleton(CatalogUtil.getDatabase(catalog_tbl));
-        LOG.debug("Calculating descendants for columns");
+        if (debug) LOG.debug("Calculating descendants for columns");
         for (Column catalog_col : column_weights.keySet()) {
             Double weight = column_weights.get(catalog_col);
             int descendants = dependencies.getDescendants(catalog_col).size();
@@ -411,10 +419,12 @@ public abstract class AbstractPartitioner {
         LinkedList<Column> sorted = new LinkedList<Column>(column_weights.keySet());
         Collections.sort(sorted, new CatalogWeightComparator<Column>(column_weights));
         
-        LOG.debug(catalog_tbl);
-        LOG.debug("  sorted=" + sorted);
-        LOG.debug("  weights=" + column_weights);
-        LOG.debug("  children=" + agraph.getIncidentEdges(vertex));
+        if (debug) {
+            LOG.debug(catalog_tbl);
+            LOG.debug("  sorted=" + sorted);
+            LOG.debug("  weights=" + column_weights);
+            LOG.debug("  children=" + agraph.getIncidentEdges(vertex));
+        }
 
         // Always add replicated column placeholder
         // Simple Optimization: Put the replication placeholder as the last attribute in the 

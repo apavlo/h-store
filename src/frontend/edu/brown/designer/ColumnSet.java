@@ -70,9 +70,9 @@ public class ColumnSet extends LinkedHashSet<ColumnSet.Entry> {
         @Override
         public String toString() {
             String ret = "( ";
-            ret += CatalogUtil.getDisplayName(this.getFirst()) + " ";
+            ret += CatalogUtil.getDisplayName(this.getFirst(), true) + " ";
             ret += ExpressionUtil.EXPRESSION_STRING.get(this.getComparisonExp());
-            ret += " " + CatalogUtil.getDisplayName(this.getSecond());
+            ret += " " + CatalogUtil.getDisplayName(this.getSecond(), true);
             ret += " )";
             return (ret);
         }

@@ -192,12 +192,13 @@ public class PartitionPlan implements JSONSerializable {
      * @param catalog_db
      */
     public void apply(Database catalog_db) {
-        LOG.debug("Applying PartitionPlan to catalog");
+        final boolean debug = LOG.isDebugEnabled();
+        if (debug) LOG.debug("Applying PartitionPlan to catalog");
         
         for (Table catalog_tbl : catalog_db.getTables()) {
             PartitionEntry pentry = this.table_entries.get(catalog_tbl);
             if (pentry != null) {
-                LOG.debug("Applying PartitionEntry to " + catalog_tbl.getName() + ": " + pentry);
+                if (debug) LOG.debug("Applying PartitionEntry to " + catalog_tbl.getName() + ": " + pentry);
                 
                 if (pentry.getMethod() == PartitionMethodType.REPLICATION) {
                     catalog_tbl.setIsreplicated(true);
@@ -208,14 +209,14 @@ public class PartitionPlan implements JSONSerializable {
                     assert(catalog_tbl.getPartitioncolumn() != null);
                 }
             } else {
-                LOG.warn("Missing PartitionEntry for " + catalog_tbl);
+                if (debug) LOG.warn("Missing PartitionEntry for " + catalog_tbl);
             }
         } // FOR
         
         for (Procedure catalog_proc : catalog_db.getProcedures()) {
             PartitionEntry pentry = this.proc_entries.get(catalog_proc);
             if (catalog_proc.getSystemproc() || pentry == null || catalog_proc.getParameters().size() == 0) continue;
-            LOG.debug("Applying PartitionEntry to " + catalog_proc.getName() + ": " + pentry);
+            if (debug) LOG.debug("Applying PartitionEntry to " + catalog_proc.getName() + ": " + pentry);
             
             ProcParameter catalog_proc_param = null;
             switch (pentry.getMethod()) {

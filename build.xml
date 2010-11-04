@@ -1837,7 +1837,8 @@ DESIGNER
         <arg value="correlations=${correlations}" />
         <arg value="simulator.host=${hosts}" />
         <arg value="simulator.numhosts=${numhosts}" />
-        <arg value="simulator.host.partitions=${partitions}" />
+        <arg value="simulator.host.numsites=${numsites}" />
+        <arg value="simulator.site.numpartitions=${numpartitions}" />
         <arg value="simulator.host.cores=${cores}" />
         <arg value="simulator.host.threads=${threads}" />
         <arg value="simulator.host.memory=${memory}" />
@@ -1989,6 +1990,7 @@ DESIGNER
     </antcall>
 </target>
 
+
 <target name='designer-jar'
         description="Prepare a jar file for the designer!">
     <copy tofile="${project}-designer-benchmark.jar" file="${project}.jar"/>
@@ -1997,7 +1999,9 @@ DESIGNER
         <param name="type" value="${project}" />
         <param name="correlations" value="./files/correlations/${project}.correlations" />
         <param name="numhosts" value="25" />
-        <param name="partitions" value="4" />
+        <param name="numsites" value="2" />
+        <param name="numpartitions" value="2" />
+        <param name="simulator.site.numpartitions" value="partitionspersite" />
     </antcall>
     <antcall target="catalog-info">
         <param name="jar" value="${project}-designer-benchmark.jar" />
