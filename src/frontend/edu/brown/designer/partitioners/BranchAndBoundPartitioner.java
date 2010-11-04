@@ -17,6 +17,7 @@ import edu.brown.catalog.special.NullProcParameter;
 import edu.brown.catalog.special.ReplicatedColumn;
 import edu.brown.costmodel.*;
 import edu.brown.designer.*;
+import edu.brown.gui.common.GraphVisualizationPanel;
 import edu.brown.utils.*;
 import edu.brown.workload.*;
 import edu.uci.ics.jung.graph.*;
@@ -156,8 +157,10 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
         this.upper_bounds_pplan = pplan;
         this.upper_bounds_pplan.apply(this.info.catalog_db);
         this.upper_bounds_vertex = StateVertex.getUpperBoundVertex(cost, memory);
-        LOG.info(String.format("UpperBounds Cost Estimate:   %.02f", this.upper_bounds_vertex.cost));
-        LOG.info(String.format("UpperBounds Memory Estimate: %.02f", (this.upper_bounds_vertex.cost / (double)hints.max_memory_per_partition)));
+        if (LOG.isDebugEnabled()) {
+            LOG.debug(String.format("UpperBounds Cost Estimate:   %.02f", this.upper_bounds_vertex.cost));
+            LOG.debug(String.format("UpperBounds Memory Estimate: %.02f", (this.upper_bounds_vertex.cost / (double)hints.max_memory_per_partition)));
+        }
     }
     
     public StateVertex getUpperBounds() {
@@ -189,7 +192,9 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
      * @throws Exception
      */
     protected void init(final DesignerHints hints) throws Exception {
-        LOG.debug("Initializing partitioner for new generate run");
+        final boolean trace = LOG.isTraceEnabled();
+        final boolean debug = LOG.isDebugEnabled();
+        if (debug) LOG.debug("Initializing partitioner for new generate run");
         
         // (1) We first need to construct an AccessGraph that represents the entire workload for all procedures
         final AccessGraph agraph = this.generateAccessGraph();
@@ -199,6 +204,7 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
         boolean need_attributes = this.base_traversal_attributes.isEmpty();
         if (need_attributes) {
             table_visit_order = generateTableOrder(this.info, agraph, hints);
+            //GraphVisualizationPanel.createFrame(agraph).setVisible(true);
             proc_visit_order = this.generateProcedureOrder(info.catalog_db, hints);
         } else {
             assert(this.num_tables < this.base_traversal_attributes.size());
@@ -214,13 +220,13 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
         }
 
         // (2) Then get the ordered list of tables that we will visit during the search 
-        LOG.info("Table Visit Order: " + table_visit_order);
+        if (debug) LOG.debug("Table Visit Order: " + table_visit_order);
             
         // (3) Now for each table we're going to visit, come up with a ordered list of how
         //     we will visit the columns of each table. We also will generate filters so that
         //     we can quickly walk through the workload and only evaluate queries that access the
         //     tables for our level in the search tree.
-        LOG.debug("Creating table specific data structures for the " + table_visit_order.size() + " traversal levels");
+        if (debug) LOG.debug("Creating table specific data structures for the " + table_visit_order.size() + " traversal levels");
         List<Table> filter_tables = new ArrayList<Table>();
         
         // IMPORTANT: Add in any table that is not in the attributes list
@@ -230,7 +236,7 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
                 filter_tables.add(catalog_tbl);
             }
         } // FOR
-        LOG.debug("Tables to never filter: " + filter_tables);
+        if (debug) LOG.debug("Tables to never filter: " + filter_tables);
         
         for (String table_key : table_visit_order) {
             Table catalog_tbl = CatalogKey.getFromKey(info.catalog_db, table_key, Table.class);
@@ -240,7 +246,7 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
                 LinkedList<String> columns_visit_order = generateColumnOrder(info, agraph, catalog_tbl, hints);
                 this.base_traversal_attributes.put(table_key, columns_visit_order);
                 this.num_tables++;
-                LOG.info(catalog_tbl.getName() + " Column Visit Order: " + columns_visit_order);
+                if (trace) LOG.trace(catalog_tbl.getName() + " Column Visit Order: " + columns_visit_order);
             }
 
             // Now construct all of the workload filters for this level of the traversal
@@ -256,7 +262,7 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
 //            "Missing Procedures from visit order list:\n" +
 //            "Expected[" + info.workload.getProcedureHistogram().getValueCount() + "]: " + info.workload.getProcedureHistogram().values() + "\n" +
 //            "Got Back[" + proc_visit_order.size() + "]: " + proc_visit_order; 
-        LOG.info("Procedure Visit Order: " + proc_visit_order);
+        if (debug) LOG.debug("Procedure Visit Order: " + proc_visit_order);
         if (hints.enable_procparameter_search) {
             for (String proc_key : proc_visit_order) {
                 assert(proc_key != null);
@@ -274,7 +280,7 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
 
         // Pure genius! Then use the PrimaryKeyPartitioner to calculate an upper-bounds
         if (this.upper_bounds_pplan == null) {
-            LOG.info("Calculating upper bounds...");
+            if (debug) LOG.debug("Calculating upper bounds...");
             PartitionPlan pplan = new MostPopularPartitioner(this.designer, this.info).generate(hints);
             
             // Cost Estimate
@@ -299,6 +305,9 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
      */
     @Override
     public PartitionPlan generate(final DesignerHints hints) throws Exception {
+        final boolean trace = LOG.isTraceEnabled();
+        final boolean debug = LOG.isDebugEnabled();
+        
 //        hints.addTablePartitionCandidate(info.catalog_db, "CUSTOMER", "C_D_ID");
 //        hints.addTablePartitionCandidate(info.catalog_db, "CUSTOMER_NAME", Designer.REPLICATED_COLUMN_NAME);
 //        hints.addTablePartitionCandidate(info.catalog_db, "DISTRICT", "D_ID");
@@ -333,10 +342,12 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
         this.info.getCostModel().applyDesignerHints(hints);
         this.init(hints);
         
-        LOG.debug("Number of partitions: " + CatalogUtil.getNumberOfPartitions(info.catalog_db));
-        LOG.debug("Memory per Partition: " + hints.max_memory_per_partition);
-        LOG.debug("Cost Model Weights:   [execution=" + info.getCostModel().getExecutionWeight() + ", entropy=" + info.getCostModel().getEntropyWeight() + "]"); 
-        LOG.debug("Procedure Histogram:\n" + info.workload.getProcedureHistogram());
+        if (trace) {
+            LOG.trace("Number of partitions: " + CatalogUtil.getNumberOfPartitions(info.catalog_db));
+            LOG.trace("Memory per Partition: " + hints.max_memory_per_partition);
+            LOG.trace("Cost Model Weights:   [execution=" + info.getCostModel().getExecutionWeight() + ", entropy=" + info.getCostModel().getEntropyWeight() + "]"); 
+            LOG.trace("Procedure Histogram:\n" + info.workload.getProcedureHistogram());
+        }
         
         this.thread = new TraverseThread(info, hints, this.best_vertex, this.base_traversal_attributes, this.num_tables);
         thread.run();
@@ -346,7 +357,7 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
         // If the best solution is still the start vertex, then we know that it was the upper bound
         // limit was the best solution, so we can just use that. What a waste of a search!
         if (this.best_vertex.isStartVertex()) {
-            LOG.info("No new solution was found. Using upper bounds");
+            if (debug) LOG.debug("No new solution was found. Using upper bounds");
             assert(this.upper_bounds_vertex.isUpperBoundVertex());
             assert(this.upper_bounds_pplan != null);
             assert(this.best_vertex.getCost().equals(this.upper_bounds_vertex.getCost())) : this.best_vertex.getCost() + " == " + this.upper_bounds_vertex.getCost();
@@ -524,6 +535,9 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
          * @throws Exception
          */
         protected void traverse(StateVertex parent, int idx) throws Exception {
+            final boolean trace = LOG.isTraceEnabled();
+            final boolean debug = LOG.isDebugEnabled();
+            
             assert(idx < this.traversal_attributes.size());
             final String current_key = this.traversal_attributes.get(idx);
             final boolean is_table = (idx < this.num_tables);
@@ -532,10 +546,10 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
             
             if (!this.halt_search) {
                 if (hints.limit_back_tracks != null && is_table && this.backtrack_ctr > hints.limit_back_tracks) {
-                    LOG.info("Hit back track limit. Halting search [" + this.backtrack_ctr + "]");
+                    if (debug) LOG.debug("Hit back track limit. Halting search [" + this.backtrack_ctr + "]");
                     this.halt_search = true;
                 } else if (System.currentTimeMillis() >= this.halt_time) {
-                    LOG.info("Hit time limit. Halting search [" + this.backtrack_ctr + "]");
+                    if (debug) LOG.debug("Hit time limit. Halting search [" + this.backtrack_ctr + "]");
                     this.halt_search = true;
                 }
             } else {
@@ -549,7 +563,7 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
             } else {
                 current = CatalogKey.getFromKey(this.search_db, current_key, Procedure.class);
             }
-            LOG.debug("Traverse [current=" + current.getName() + ", # of attributes=" + this.traversal_attributes.get(current_key).size() + "]");
+            if (trace) LOG.trace("Traverse [current=" + current.getName() + ", # of attributes=" + this.traversal_attributes.get(current_key).size() + "]");
     
             // Get our workload filter for this level of the traversal
             AbstractWorkload.Filter filter = BranchAndBoundPartitioner.this.traversal_filters.get(current_key);
@@ -583,7 +597,7 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
             // Iterate through the columns and find the one with the best cost
             for (String attribute_key : this.traversal_attributes.get(current_key)) {
                 assert(attribute_key != null) : "Null attribute key for " + current + ": " + this.traversal_attributes.get(current_key); 
-                LOG.debug("Evaluating " + current.getName() + "." + CatalogKey.getNameFromKey(attribute_key));
+                if (trace) LOG.trace("Evaluating " + current.getName() + "." + CatalogKey.getNameFromKey(attribute_key));
                 this.traverse_ctr++;
                 boolean memory_exceeded = false;
                 Long memory = null;
@@ -596,7 +610,7 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
                 // below us in the search tree!
                 if (this.cost_model.isCachingEnabled()) {
                     for (int i = idx; i < this.num_elements; i++) {
-                        LOG.debug("Invalidating " + this.traversal_attributes.get(i));
+                        if (trace) LOG.trace("Invalidating " + this.traversal_attributes.get(i));
                         this.cost_model.invalidateCache(this.traversal_attributes.get(i));
                     } // FOR
                 // If we're not using caching, then just clear out the cost model completely
@@ -633,7 +647,7 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
                         "Unexpected " + current_col.getName() + " != " + current_tbl.getPartitioncolumn().getName();
                     
                     // Estimate memory size
-                    LOG.debug("Calculating memory size of current solution [" + CatalogUtil.getDisplayName(current_col) + "]");                
+                    if (trace) LOG.trace("Calculating memory size of current solution [" + CatalogUtil.getDisplayName(current_col) + "]");                
                     memory = this.memory_estimator.estimate(search_db, info.getNumPartitions(), previous_tables);
                     memory_exceeded = (memory > this.hints.max_memory_per_partition);
                     
@@ -673,7 +687,7 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
                 // DEBUG OUTPUT
                 // ----------------------------------------------
                 state.debug = this.cost_model.getLastDebugMessages();
-                LOG.info(this.createLevelOutput(state, CatalogUtil.getDisplayName(current_attribute, false), spacer, memory_exceeded));
+                if (debug) LOG.debug(this.createLevelOutput(state, CatalogUtil.getDisplayName(current_attribute, false), spacer, memory_exceeded));
                 
                 // ----------------------------------------------
                 // ANALYSIS
@@ -686,12 +700,12 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
                     double parent_cost = MathUtil.roundToDecimals(parent.cost, 2);
                     double current_cost = MathUtil.roundToDecimals(cost, 2) + fudge;
                     
-                    if (!(parent_cost <= current_cost)) {
-                        LOG.info("Parent Cost Model Info:\n " + parent.debug);
-                        LOG.info("Parent:\n" + parent.toString());
-                        LOG.info(StringUtil.DOUBLE_LINE);
-                        LOG.info("Current:\n" + state.toString());
-                        LOG.info("Last Cost Model:\n" + state.debug);
+                    if (!(parent_cost <= current_cost) && debug) {
+                        LOG.debug("Parent Cost Model Info:\n " + parent.debug);
+                        LOG.debug("Parent:\n" + parent.toString());
+                        LOG.debug(StringUtil.DOUBLE_LINE);
+                        LOG.debug("Current:\n" + state.toString());
+                        LOG.debug("Last Cost Model:\n" + state.debug);
                     }
                     assert(parent_cost <= current_cost) :
                         attribute_key + ": Parent[" + parent.cost + "] <= Current[" + cost + "]" + "\n" +
@@ -715,8 +729,8 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
                         assert(upper_bounds_vertex.cost > state.cost) : "Upper=" + upper_bounds_vertex.cost + ", Current=" + state.cost;
                         
                         BranchAndBoundPartitioner.this.best_vertex = state;
-                        LOG.debug("Last Cost Model Info:\n " + this.cost_model.getLastDebugMessages());
-                        LOG.info("New Best Solution: " + best_vertex.toString());
+                        if (trace) LOG.trace("Last Cost Model Info:\n " + this.cost_model.getLastDebugMessages());
+                        if (debug) LOG.debug("New Best Solution: " + best_vertex.toString());
 //                        for (int i = 0; i < ((TimeIntervalCostModel)this.cost_model).getIntevalCount(); i++) {
 //                            System.err.println("Interval #" + i);
 //                            System.err.println(((TimeIntervalCostModel)this.cost_model).getCostModel(i).getTxnPartitionAccessHistogram());
@@ -783,7 +797,7 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
                 // Is this necessary?
                 this.cost_model.invalidateCache(current_proc);
                 
-                LOG.info(this.createLevelOutput(local_best_vertex, CatalogUtil.getDisplayName(current_param), spacer, false));
+                if (debug) LOG.debug(this.createLevelOutput(local_best_vertex, CatalogUtil.getDisplayName(current_param), spacer, false));
                 
                 // If there are more Procedures to partition and we have gone past our best cost
                 // our upper bounds, then keep going... 

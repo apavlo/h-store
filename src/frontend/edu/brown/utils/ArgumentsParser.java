@@ -193,7 +193,6 @@ public class ArgumentsParser {
     public static final String PARAM_SIMULATOR_CONF_OUTPUT  = PARAM_SIMULATOR + ".conf.output";
     public static final String PARAM_SIMULATOR_HOST         = PARAM_SIMULATOR + ".host";
     public static final String PARAM_SIMULATOR_NUM_HOSTS    = PARAM_SIMULATOR + ".numhosts";
-    public static final String PARAM_SIMULATOR_HOST_PARTITIONS = PARAM_SIMULATOR + ".host.partitions";
     public static final String PARAM_SIMULATOR_HOST_CORES   = PARAM_SIMULATOR + ".host.cores";
     public static final String PARAM_SIMULATOR_HOST_THREADS = PARAM_SIMULATOR + ".host.threads";
     public static final String PARAM_SIMULATOR_HOST_MEMORY  = PARAM_SIMULATOR + ".host.memory";
@@ -202,6 +201,8 @@ public class ArgumentsParser {
     public static final String PARAM_SIMULATOR_PARTITION    = PARAM_SIMULATOR + ".partition";
     public static final String PARAM_SIMULATOR_CLIENT_THREADS = PARAM_SIMULATOR + ".client.threads";
     public static final String PARAM_SIMULATOR_CLIENT_TIME  = PARAM_SIMULATOR + ".client.time";
+    public static final String PARAM_SIMULATOR_SITES_PER_HOST = PARAM_SIMULATOR + ".host.numsites";
+    public static final String PARAM_SIMULATOR_PARTITIONS_PER_SITE = PARAM_SIMULATOR + ".site.numpartitions";
     
     public static final List<String> PARAMS = new ArrayList<String>();
     static {

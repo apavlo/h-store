@@ -4,9 +4,7 @@ import java.util.*;
 
 import edu.brown.designer.AccessGraph.EdgeAttributes;
 import edu.brown.graphs.AbstractEdge;
-import edu.brown.graphs.AbstractVertex;
 import edu.brown.graphs.IGraph;
-import edu.uci.ics.jung.graph.util.EdgeType;
 
 public class Edge extends AbstractEdge {
     
@@ -84,17 +82,10 @@ public class Edge extends AbstractEdge {
     
     @Override
     public String toString() {
-        String ret = "";
-        if (this.graph.getEdgeType(this) == EdgeType.DIRECTED) {
-            ret = this.graph.getSource(this).toString().substring(0, 2) + "->" +  this.graph.getDest(this).toString().substring(0, 2);
-        } else {
-            String add = "";
-            for (AbstractVertex vertex : this.graph.getIncidentVertices(this)) {
-                ret += add + vertex.toString().substring(0, 2);
-                add = "--";
-            } // FOR
+        String ret = super.toString();
+        if (this.getVerbose()) {
+            ret += String.format(" [%.03f]", this.getTotalWeight());
         }
-        ret += String.format(" [%.03f]", this.getTotalWeight());
         return (ret);
     }
 }

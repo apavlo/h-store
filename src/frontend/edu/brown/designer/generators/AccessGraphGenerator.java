@@ -51,7 +51,7 @@ public class AccessGraphGenerator extends AbstractGenerator<AccessGraph> {
         
         // First initialize our little graph...
         this.initialize(agraph);
-
+        
 //        for (Statement catalog_stmt : this.catalog_proc.getStatements()) {
 //            if (debug) System.err.println(catalog_stmt.getName());
 //            for (StmtParameter param : catalog_stmt.getParameters()) {

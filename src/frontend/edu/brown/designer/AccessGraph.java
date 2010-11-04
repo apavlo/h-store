@@ -55,4 +55,13 @@ public class AccessGraph extends AbstractUndirectedGraph<Vertex, Edge>  {
         } // WHILE
         return (edges);
     }
+    
+    @Override
+    public String toString(Edge e, boolean verbose) {
+        if (verbose == false) return super.toString(e, verbose);
+        
+        ColumnSet cset = e.getAttribute(EdgeAttributes.COLUMNSET.name());
+        assert(cset != null);
+        return (cset.debug());
+    }
 }

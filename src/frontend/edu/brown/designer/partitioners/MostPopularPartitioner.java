@@ -82,6 +82,7 @@ public class MostPopularPartitioner extends AbstractPartitioner {
                     if (trace) LOG.trace("No edges for " + catalog_tbl);
                     continue;
                 }
+                if (trace) LOG.trace(catalog_tbl + " has " + edges.size() + " edges in AccessGraph");
                 
                 Histogram column_histogram = new Histogram();
                 // Map<Column, Double> unsorted = new HashMap<Column, Double>();
@@ -92,8 +93,12 @@ public class MostPopularPartitioner extends AbstractPartitioner {
                     if (v0.equals(v) && v1.equals(v)) continue;
                     
                     double edge_weight = e.getTotalWeight();
-                    ColumnSet cset = e.getAttribute(AccessGraph.EdgeAttributes.COLUMNSET.name());
+                    ColumnSet cset = e.getAttribute(AccessGraph.EdgeAttributes.COLUMNSET);
+                    if (trace) LOG.trace("Examining ColumnSet for " + e + "\n" + cset);
+                    
                     Histogram cset_histogram = cset.buildHistogramForType(Column.class);
+                    if (trace) LOG.trace("Constructed Histogram for " + catalog_tbl + " from ColumnSet:\n" + cset_histogram.toString());
+                    
                     Set<Column> columns = cset_histogram.values();
                     for (Column catalog_col : columns) {
                         if (!catalog_col.getParent().equals(catalog_tbl)) continue;
@@ -104,7 +109,28 @@ public class MostPopularPartitioner extends AbstractPartitioner {
                     
     //                LOG.info("[" + e.getTotalWeight() + "]: " + cset);
                 } // FOR
-                assert(!column_histogram.isEmpty()) : "Failed to find any ColumnSets for " + catalog_tbl;
+//                if (column_histogram.isEmpty()) {
+//                    EventObserver observer = new EventObserver() {
+//                        @Override
+//                        public void update(Observable o, Object arg) {
+//                            Vertex v = (Vertex)arg;
+//                            
+//                            for (Edge e : agraph.getIncidentEdges(v)) {
+//                                System.err.println(e.getAttribute(AccessGraph.EdgeAttributes.COLUMNSET));
+//                            }
+//                            System.err.println(StringUtil.repeat("-", 100));
+//                        }
+//                    };
+//                    GraphVisualizationPanel.createFrame(agraph, observer).setVisible(true);
+////                    ThreadUtil.sleep(10000);
+//                }
+
+                // We might not find anything if we are calculating the lower bounds using only one transaction
+                if (column_histogram.isEmpty()) {
+                    if (trace) LOG.trace("Failed to find any ColumnSets for " + catalog_tbl);
+                    continue;
+                }
+                // assert(!column_histogram.isEmpty()) : 
                 if (trace) LOG.trace("Column Histogram:\n" + column_histogram);
                 
                 total_memory_used += (size_ratio / (double)info.getNumPartitions());

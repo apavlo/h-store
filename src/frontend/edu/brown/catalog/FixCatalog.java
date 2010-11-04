@@ -169,38 +169,34 @@ public abstract class FixCatalog {
         String hosts_list = "";
         if (args.hasIntParam(ArgumentsParser.PARAM_SIMULATOR_NUM_HOSTS)) {
             int num_hosts = args.getIntParam(ArgumentsParser.PARAM_SIMULATOR_NUM_HOSTS);
-            int num_partitions_per_host = (args.hasIntParam(ArgumentsParser.PARAM_SIMULATOR_HOST_PARTITIONS) ?
-                                                args.getIntParam(ArgumentsParser.PARAM_SIMULATOR_HOST_PARTITIONS) : 4);
-            int partition_id = 0;
-            for (int host = 0; host < num_hosts; host++) {
-                for (int partition = 0; partition < num_partitions_per_host; partition++) {
-                    assert(false); // FIXME
-                    if (!(host == 0 && partition == 0)) hosts_list += ",";
-                    hosts_list += String.format("node-%02d:%d", host, partition_id);
-                    partition_id++;
-                } // FOR
-            } // FOR
+            int num_sites_per_host = (args.hasIntParam(ArgumentsParser.PARAM_SIMULATOR_SITES_PER_HOST) ?
+                                      args.getIntParam(ArgumentsParser.PARAM_SIMULATOR_SITES_PER_HOST) : 2);
+            int num_partitions_per_site = (args.hasIntParam(ArgumentsParser.PARAM_SIMULATOR_PARTITIONS_PER_SITE) ?
+                                           args.getIntParam(ArgumentsParser.PARAM_SIMULATOR_PARTITIONS_PER_SITE) : 2);
+
+            new_catalog = FixCatalog.addHostInfo(new_catalog, num_hosts, num_sites_per_host, num_partitions_per_site);
+
+        // Use host list
         } else {
             hosts_list = args.getParam(ArgumentsParser.PARAM_SIMULATOR_HOST);
+            ClusterConfiguration cc = new ClusterConfiguration();
+            Set<Integer> partitions = new HashSet<Integer>();
+            for (String host_info : hosts_list.split(",")) {
+                String data[] = host_info.split(":");
+                assert(data.length == 3) : "Invalid host information '" + host_info + "'";
+                
+                String host = data[0];
+                int site = Integer.parseInt(data[1]);
+                int partition = Integer.parseInt(data[2]);
+                
+                if (partitions.contains(partition)) {
+                    throw new Exception("Duplicate partition id #" + partition + " for host '" + host + "'");
+                }
+                partitions.add(partition);
+                cc.addPartition(host, site, partition);
+            } // FOR
+            new_catalog = FixCatalog.addHostInfo(new_catalog, cc);
         }
-        
-        ClusterConfiguration cc = new ClusterConfiguration();
-        Set<Integer> partitions = new HashSet<Integer>();
-        for (String host_info : hosts_list.split(",")) {
-            String data[] = host_info.split(":");
-            assert(data.length == 3) : "Invalid host information '" + host_info + "'";
-            
-            String host = data[0];
-            int site = Integer.parseInt(data[1]);
-            int partition = Integer.parseInt(data[2]);
-            
-            if (partitions.contains(partition)) {
-                throw new Exception("Duplicate partition id #" + partition + " for host '" + host + "'");
-            }
-            partitions.add(partition);
-            cc.addPartition(host, site, partition);
-        } // FOR
-        new_catalog = FixCatalog.addHostInfo(new_catalog, cc);
         
 //        
 //        Catalog new_catalog = args.catalog;
