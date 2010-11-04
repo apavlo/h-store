@@ -10,7 +10,7 @@ import edu.brown.workload.*;
  */
 public class ProcedureLimitFilter extends AbstractWorkload.Filter {
     private final long limit;
-    private final long offset;
+    private long offset;
     private long count = 0;
     private long included_count = 0;
 
@@ -32,6 +32,10 @@ public class ProcedureLimitFilter extends AbstractWorkload.Filter {
         this.offset = offset;
     }
     
+    public void setOffset(long offset) {
+        this.offset = offset;
+    }
+    
     @Override
     protected String debug() {
         return (this.getClass().getSimpleName() + ": limit=" + this.limit);
@@ -42,7 +46,7 @@ public class ProcedureLimitFilter extends AbstractWorkload.Filter {
         this.count = 0;
         this.included_count = 0;
     }
-    
+        
     @Override
     public FilterResult filter(AbstractTraceElement<? extends CatalogType> element) {
         FilterResult result = FilterResult.ALLOW;

@@ -50,7 +50,7 @@ public class DesignerInfo {
     /**
      * The sample workload trace used as the basis of the physical design 
      */
-    public final AbstractWorkload workload;
+    public AbstractWorkload workload;
     
     /**
      * WorkloadStatistics
@@ -102,6 +102,31 @@ public class DesignerInfo {
      * Where the designer can write out checkpoint information
      */
     private File checkpoint;
+    
+    /**
+     * Copy Constructor
+     * @param src
+     */
+    public DesignerInfo(DesignerInfo src) {
+        this.args = src.args;
+        this.catalog_db = src.catalog_db;
+        this.workload = src.workload;
+        this.stats = src.stats;
+        this.partitioner_class = src.partitioner_class;
+        this.mapper_class = src.mapper_class;
+        this.indexer_class = src.indexer_class;
+        this.num_threads = src.num_threads;
+        this.num_intervals = src.num_intervals;
+        this.num_partitions = src.num_partitions;
+        this.dependencies = src.dependencies;
+        this.costmodel_class = src.costmodel_class;
+        this.costmodel = src.costmodel;
+        this.checkpoint = src.checkpoint;
+        this.m_estimator = src.m_estimator;
+        this.correlations = src.correlations;
+        this.correlations_file = src.correlations_file;
+        this.dgraph = src.dgraph;
+    }
     
     /**
      * 
@@ -172,6 +197,9 @@ public class DesignerInfo {
     
     public AbstractWorkload getWorkload() {
         return this.workload;
+    }
+    public void setWorkload(AbstractWorkload workload) {
+        this.workload = workload;
     }
 
     /** Parameter Correlations **/
