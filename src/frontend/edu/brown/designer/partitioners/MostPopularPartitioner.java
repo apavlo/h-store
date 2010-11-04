@@ -76,9 +76,16 @@ public class MostPopularPartitioner extends AbstractPartitioner {
                 pentry = new PartitionEntry(PartitionMethodType.REPLICATION);
             
             } else {
+                // If there are no edges, then we'll just skip it
+                final Collection<Edge> edges = agraph.getIncidentEdges(v);
+                if (edges.isEmpty()) {
+                    if (trace) LOG.trace("No edges for " + catalog_tbl);
+                    continue;
+                }
+                
                 Histogram column_histogram = new Histogram();
                 // Map<Column, Double> unsorted = new HashMap<Column, Double>();
-                for (Edge e : agraph.getIncidentEdges(v)) {
+                for (Edge e : edges) {
                     Collection<Vertex> vertices = agraph.getVertices();
                     Vertex v0 = CollectionUtil.get(vertices, 0);
                     Vertex v1 = CollectionUtil.get(vertices, 1);

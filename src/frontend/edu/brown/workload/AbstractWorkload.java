@@ -227,9 +227,7 @@ public abstract class AbstractWorkload implements WorkloadTrace, Iterable<Abstra
      * Default Constructor
      */
     public AbstractWorkload() {
-        //
         // Create a shutdown hook to make sure that always call finalize()
-        //
         Runtime.getRuntime().addShutdownHook(new Thread() {
             @Override
             public void run() {
@@ -250,6 +248,24 @@ public abstract class AbstractWorkload implements WorkloadTrace, Iterable<Abstra
     public AbstractWorkload(Catalog catalog) {
         this();
         this.catalog = catalog;
+    }
+    
+    /**
+     * Copy Constructor with a Filter!
+     * @param workload
+     * @param filter
+     */
+    public AbstractWorkload(AbstractWorkload workload, Filter filter) {
+        this(workload.catalog);
+        
+        Iterator<AbstractTraceElement<? extends CatalogType>> it = workload.iterator(filter);
+        while (it.hasNext()) {
+            AbstractTraceElement<? extends CatalogType> trace = it.next();
+            if (trace instanceof TransactionTrace) {
+                TransactionTrace txn = (TransactionTrace)trace;
+                this.addTransaction(txn.getCatalogItem(CatalogUtil.getDatabase(this.catalog)), txn);
+            }
+        } // WHILE
     }
     
     // ----------------------------------------------------------

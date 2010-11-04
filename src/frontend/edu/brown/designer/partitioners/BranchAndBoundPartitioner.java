@@ -329,7 +329,8 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
         */
         
         // Initialize our various data structures
-        info.getCostModel().applyDesignerHints(hints);
+        assert(this.info.getCostModel() != null);
+        this.info.getCostModel().applyDesignerHints(hints);
         this.init(hints);
         
         LOG.debug("Number of partitions: " + CatalogUtil.getNumberOfPartitions(info.catalog_db));
