@@ -59,7 +59,7 @@ public class LowerBounds {
             // Ok so now what need to do is do a local search to find the best way to partition this mofo
             AbstractWorkload workload = new AbstractWorkload() {
                 {
-                    this.addTransaction(catalog_proc, txnTrace);
+                    this.addTransaction(catalog_proc, txnTrace, true);
                 }
                 public void setOutputPath(String path) { }
                 public void save(String path, Database catalogDb) { }

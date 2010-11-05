@@ -5,6 +5,7 @@ import java.util.*;
 
 import org.json.*;
 import org.voltdb.catalog.*;
+import org.voltdb.utils.Pair;
 
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.JSONSerializable;
@@ -148,17 +149,23 @@ public class ParameterCorrelations extends TreeSet<Correlation> implements JSONS
     public SortedSet<Correlation> get(ProcParameter catalog_proc_param, Column catalog_col) {
         assert(catalog_proc_param != null);
         assert(catalog_col != null);
-        Procedure catalog_proc = catalog_proc_param.getParent();
-        assert(catalog_proc != null);
         
-        SortedSet<Correlation> set = new TreeSet<Correlation>();
-        if (this.proc_correlations.containsKey(catalog_proc) && this.proc_correlations.get(catalog_proc).containsKey(catalog_proc_param)) {
-            for (Correlation c : this.proc_correlations.get(catalog_proc).get(catalog_proc_param)) {
-                if (c.getColumn().equals(catalog_col)) set.add(c);
-            } // FOR
+        Pair<ProcParameter, Column> p = Pair.of(catalog_proc_param, catalog_col);
+        SortedSet<Correlation> set = CACHE_ProcParameter_Column.get(p);
+        if (set == null) {
+            Procedure catalog_proc = catalog_proc_param.getParent();
+            assert(catalog_proc != null);
+            set = new TreeSet<Correlation>();
+            if (this.proc_correlations.containsKey(catalog_proc) && this.proc_correlations.get(catalog_proc).containsKey(catalog_proc_param)) {
+                for (Correlation c : this.proc_correlations.get(catalog_proc).get(catalog_proc_param)) {
+                    if (c.getColumn().equals(catalog_col)) set.add(c);
+                } // FOR
+            }
+            CACHE_ProcParameter_Column.put(p, set);
         }
         return (set);
     }
+    private final Map<Pair<ProcParameter, Column>, SortedSet<Correlation>> CACHE_ProcParameter_Column = new HashMap<Pair<ProcParameter,Column>, SortedSet<Correlation>>();
 
     /**
      * Return all of the correlation objects where the StmtParameter in the Statement

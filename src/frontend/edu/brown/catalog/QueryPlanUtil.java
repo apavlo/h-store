@@ -156,10 +156,6 @@ public abstract class QueryPlanUtil {
      * @throws Exception
      */
     public static AbstractPlanNode deserializeStatement(Statement catalog_stmt, boolean singlesited) throws Exception {
-        AbstractPlanNode ret = null;
-        String cache_key = CatalogKey.createKey(catalog_stmt);
-        Map<String, AbstractPlanNode> cache = (singlesited ? QueryPlanUtil.CACHE_DESERIALIZE_SS_STATEMENT : QueryPlanUtil.CACHE_DESERIALIZE_MS_STATEMENT);
-        
         if (singlesited && !catalog_stmt.getHas_singlesited()) {
             String msg = "No single-sited plan is available for " + catalog_stmt + ". ";
             if (catalog_stmt.getHas_multisited()) {
@@ -180,12 +176,16 @@ public abstract class QueryPlanUtil {
             }
         }
         
+        AbstractPlanNode ret = null;
+        String cache_key = CatalogKey.createKey(catalog_stmt);
+        Map<String, AbstractPlanNode> cache = (singlesited ? QueryPlanUtil.CACHE_DESERIALIZE_SS_STATEMENT : QueryPlanUtil.CACHE_DESERIALIZE_MS_STATEMENT);
+        
         // This is probably not thread-safe because the AbstractPlanNode tree has pointers to
         // specific table catalog objects 
         if (cache.containsKey(cache_key)) {
             return (cache.get(cache_key));
         }
-        Database catalog_db = (Database)catalog_stmt.getParent().getParent();
+        Database catalog_db = CatalogUtil.getDatabase(catalog_stmt);
         
         if (catalog_stmt.getFullplan() == null || catalog_stmt.getFullplan().isEmpty()) {
             throw new Exception("Unable to deserialize full query plan tree for " + catalog_stmt + ": The plan attribute is empty");

@@ -171,9 +171,11 @@ public abstract class AbstractPartitioner {
         final boolean debug = LOG.isDebugEnabled();
         
         // HACK: Reload the correlations file so that we can get the proper catalog objects
-        ParameterCorrelations correlations = new ParameterCorrelations();
-        assert(info.getCorrelationsFile() != null) : "The correlations file path was not set";
-        correlations.load(info.getCorrelationsFile(), catalog_db);
+        ParameterCorrelations correlations = info.getCorrelations();
+        assert(correlations != null);
+//        ParameterCorrelations correlations = new ParameterCorrelations();
+//        assert(info.getCorrelationsFile() != null) : "The correlations file path was not set";
+//        correlations.load(info.getCorrelationsFile(), catalog_db);
 
         // For each procedure, we need to generate a list of potential partitioning parameters
         String proc_key = CatalogKey.createKey(catalog_proc);
@@ -331,20 +333,20 @@ public abstract class AbstractPartitioner {
         // Add in any missing tables to the end of the list
         // This can occur if there are tables that do not appear in the AccessGraph for whatever reason
         // Note that we have to traverse the graph so that we don't try to plan a parent before a child
-        for (Vertex root : info.dgraph.getRoots()) {
-            new VertexTreeWalker<Vertex>(info.dgraph, VertexTreeWalker.TraverseOrder.BREADTH) {
-                protected void callback(Vertex element) {
-                    Table catalog_tbl = element.getCatalogItem();
-                    assert(catalog_tbl != null);
-                    String table_key = CatalogKey.createKey(catalog_tbl);
-                    if (!table_visit_order.contains(table_key)) {
-                        if (debug) LOG.warn("Added " + catalog_tbl + " because it does not appear in the AccessGraph");
-                        table_visit_order.add(table_key);
-                    }
-                };
-            }.traverse(root);
-            if (table_visit_order.size() == info.catalog_db.getTables().size()) break;
-        } // FOR
+//        for (Vertex root : info.dgraph.getRoots()) {
+//            new VertexTreeWalker<Vertex>(info.dgraph, VertexTreeWalker.TraverseOrder.BREADTH) {
+//                protected void callback(Vertex element) {
+//                    Table catalog_tbl = element.getCatalogItem();
+//                    assert(catalog_tbl != null);
+//                    String table_key = CatalogKey.createKey(catalog_tbl);
+//                    if (!table_visit_order.contains(table_key)) {
+//                        if (debug) LOG.warn("Added " + catalog_tbl + " because it does not appear in the AccessGraph");
+//                        table_visit_order.add(table_key);
+//                    }
+//                };
+//            }.traverse(root);
+//            if (table_visit_order.size() == info.catalog_db.getTables().size()) break;
+//        } // FOR
         return (table_visit_order);
     }
 

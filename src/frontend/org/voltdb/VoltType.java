@@ -17,6 +17,7 @@
 
 package org.voltdb;
 import java.math.BigDecimal;
+import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -149,6 +150,15 @@ public enum VoltType {
         }
     }
 
+    protected static final Map<Byte, VoltType> idx_lookup = new HashMap<Byte, VoltType>();
+    protected static final Map<String, VoltType> name_lookup = new HashMap<String, VoltType>();
+    static {
+        for (VoltType vt : EnumSet.allOf(VoltType.class)) {
+            VoltType.idx_lookup.put(vt.m_val, vt);
+            VoltType.name_lookup.put(vt.name().toLowerCase().intern(), vt);
+        }
+    }
+    
     /**
      * Gets the byte that corresponds to the enum value (for serialization).
      * @return A byte representing the enum value
@@ -177,10 +187,9 @@ public enum VoltType {
      * @return The appropriate enum value
      */
     public static VoltType get(byte val) {
-        for (VoltType type : VoltType.values()) {
-            if (type.m_val == val) return type;
-        }
-        throw new AssertionError("Unknown type: " + String.valueOf(val));
+        VoltType type = idx_lookup.get(val);
+        if (type == null) throw new AssertionError("Unknown type: " + String.valueOf(val));
+        return (type);
     }
     public static VoltType get(int val) {
         return (get((byte)val));

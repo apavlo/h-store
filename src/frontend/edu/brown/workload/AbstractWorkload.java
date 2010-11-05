@@ -465,13 +465,17 @@ public abstract class AbstractWorkload implements WorkloadTrace, Iterable<Abstra
      * @param xact
      */
     protected void addTransaction(Procedure catalog_proc, TransactionTrace xact) {
+        this.addTransaction(catalog_proc, xact, false);
+    }
+    
+    protected void addTransaction(Procedure catalog_proc, TransactionTrace xact, boolean force_index_update) {
         this.xact_trace.add(xact);
         this.xact_trace_xref.put(xact.xact_id, xact);
         
         // Check whether we need to add the element id of the txn and all of its queries.
         // This happens when if we are trying to insert the txn from another one
         // It's kind of a hack, but what times are tough..
-        if (this.element_ids.contains(xact.getId()) == false) {
+        if (force_index_update || this.element_ids.contains(xact.getId()) == false) {
             this.element_ids.add(xact.getId());
             this.element_id_xref.put(xact.getId(), xact);
             for (QueryTrace query : xact.getQueries()) {
@@ -611,8 +615,8 @@ public abstract class AbstractWorkload implements WorkloadTrace, Iterable<Abstra
 
                     // TERRIBLE HACK!
                     String stmt_key = CatalogKey.createKey(catalog_stmt);
-                    CatalogUtil.CACHE_STATEMENT_COLUMNS.put(stmt_key, new java.util.HashSet<String>());
-                    CatalogUtil.CACHE_STATEMENT_COLUMNS.get(stmt_key).add(table_key);
+                    CatalogUtil.CACHE_STATEMENT_COLUMNS_KEYS.put(stmt_key, new java.util.HashSet<String>());
+                    CatalogUtil.CACHE_STATEMENT_COLUMNS_KEYS.get(stmt_key).add(table_key);
                 }
                 QueryTrace loader_query = new QueryTrace(caller.toString(), catalog_stmt, new Object[0], 0);
                 loader_xact.addQuery(loader_query);
