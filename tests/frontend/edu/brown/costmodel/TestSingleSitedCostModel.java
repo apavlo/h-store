@@ -23,10 +23,10 @@ import edu.brown.costmodel.SingleSitedCostModel.QueryCacheEntry;
 import edu.brown.costmodel.SingleSitedCostModel.TransactionCacheEntry;
 import edu.brown.statistics.Histogram;
 import edu.brown.utils.ProjectType;
-import edu.brown.workload.AbstractWorkload;
+import edu.brown.workload.Workload;
 import edu.brown.workload.QueryTrace;
 import edu.brown.workload.TransactionTrace;
-import edu.brown.workload.WorkloadTraceFileOutput;
+import edu.brown.workload.Workload;
 import edu.brown.workload.filters.ProcedureNameFilter;
 
 public class TestSingleSitedCostModel extends BaseTestCase {
@@ -46,7 +46,7 @@ public class TestSingleSitedCostModel extends BaseTestCase {
     private static final int NUM_PARTITIONS = 10;
     
     // Reading the workload takes a long time, so we only want to do it once
-    private static AbstractWorkload workload;
+    private static Workload workload;
     
     @Override
     protected void setUp() throws Exception {
@@ -56,7 +56,7 @@ public class TestSingleSitedCostModel extends BaseTestCase {
         // Super hack! Walk back the directories and find out workload directory
         if (workload == null) {
             File workload_file = this.getWorkloadFile(ProjectType.TM1); 
-            workload = new WorkloadTraceFileOutput(catalog);
+            workload = new Workload(catalog);
             
             // Workload Filter
             ProcedureNameFilter filter = new ProcedureNameFilter();
@@ -65,7 +65,7 @@ public class TestSingleSitedCostModel extends BaseTestCase {
                 filter.include(proc_name, PROC_COUNT);
                 total += PROC_COUNT;
             }
-            ((WorkloadTraceFileOutput)workload).load(workload_file.getAbsolutePath(), catalog_db, filter);
+            ((Workload)workload).load(workload_file.getAbsolutePath(), catalog_db, filter);
             assertEquals(total, workload.getTransactionCount());
             assertEquals(TARGET_PROCEDURES.length, workload.getProcedureHistogram().getValueCount());
             // System.err.println(workload.getProcedureHistogram());

@@ -8,7 +8,7 @@ import edu.brown.workload.*;
  * @author pavlo
  *
  */
-public class QueryLimitFilter extends AbstractWorkload.Filter {
+public class QueryLimitFilter extends Workload.Filter {
     private final long limit;
     private long count = 0;
 
@@ -16,7 +16,7 @@ public class QueryLimitFilter extends AbstractWorkload.Filter {
         this(limit, null);
     }
     
-    public QueryLimitFilter(Long limit, AbstractWorkload.Filter next) {
+    public QueryLimitFilter(Long limit, Workload.Filter next) {
         super(next);
         this.limit = (limit == null ? -1 : limit);
     }

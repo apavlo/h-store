@@ -21,7 +21,7 @@ import edu.brown.designer.partitioners.PartitionPlan;
 import edu.brown.designer.partitioners.RandomPartitioner;
 import edu.brown.graphs.IGraph;
 import edu.brown.utils.ArgumentsParser;
-import edu.brown.workload.AbstractWorkload;
+import edu.brown.workload.Workload;
 
 public class Designer {
     private static final Logger LOG = Logger.getLogger(Designer.class.getName());
@@ -161,7 +161,7 @@ public class Designer {
         return this.info.catalog_db;
     }
     
-    public AbstractWorkload getWorkload() {
+    public Workload getWorkload() {
         return this.info.workload;
     }
     

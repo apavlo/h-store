@@ -134,7 +134,7 @@ public class WorkloadStatistics implements JSONSerializable {
      * @param workload
      * @throws Exception
      */
-    public void process(final Database catalog_db, final AbstractWorkload workload) throws Exception {
+    public void process(final Database catalog_db, final Workload workload) throws Exception {
         // -----------------------------------------------------
         // PRE-PROCESS
         // -----------------------------------------------------

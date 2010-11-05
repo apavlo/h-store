@@ -43,7 +43,7 @@ import edu.brown.workload.*;
  *
  */
 public class ProcedureStatistics extends AbstractStatistics<Procedure> {
-    private static final Logger LOG = Logger.getLogger(WorkloadTraceFileOutput.class.getName());
+    private static final Logger LOG = Logger.getLogger(Workload.class.getName());
     
     public enum Members {
         TABLE_TUPLE_COUNTS,

@@ -12,7 +12,7 @@ import edu.brown.workload.*;
 /**
  * @author pavlo
  */
-public class ProcedureNameFilter extends AbstractWorkload.Filter {
+public class ProcedureNameFilter extends Workload.Filter {
     private static final Logger LOG = Logger.getLogger(ProcedureNameFilter.class);
     
     public static final String INCLUDE_ALL = "*";

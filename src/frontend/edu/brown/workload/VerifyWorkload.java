@@ -11,7 +11,7 @@ import edu.brown.utils.ArgumentsParser;
 public abstract class VerifyWorkload {
     private static final Logger LOG = Logger.getLogger(VerifyWorkload.class);
     
-    public static boolean verify(Database catalog_db, AbstractWorkload workload) throws Exception {
+    public static boolean verify(Database catalog_db, Workload workload) throws Exception {
         Set<Long> trace_ids = new HashSet<Long>();
         Set<String> txn_ids = new HashSet<String>();
         

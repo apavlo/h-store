@@ -7,7 +7,7 @@ import org.voltdb.types.ExpressionType;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.utils.ClassUtil;
 import edu.brown.workload.AbstractTraceElement;
-import edu.brown.workload.AbstractWorkload;
+import edu.brown.workload.Workload;
 import edu.brown.workload.TransactionTrace;
 
 /**
@@ -15,7 +15,7 @@ import edu.brown.workload.TransactionTrace;
  * ProcParameter that is an array
  * @author pavlo
  */
-public class ProcParameterArraySizeFilter extends AbstractWorkload.Filter {
+public class ProcParameterArraySizeFilter extends Workload.Filter {
     
     private final int param_idx;
     private final int param_size;

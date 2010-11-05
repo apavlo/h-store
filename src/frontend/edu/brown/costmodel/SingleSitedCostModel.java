@@ -35,10 +35,10 @@ import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.PartitionEstimator;
 import edu.brown.utils.StringUtil;
 import edu.brown.workload.AbstractTraceElement;
-import edu.brown.workload.AbstractWorkload;
+import edu.brown.workload.Workload;
 import edu.brown.workload.QueryTrace;
 import edu.brown.workload.TransactionTrace;
-import edu.brown.workload.AbstractWorkload.Filter;
+import edu.brown.workload.Workload.Filter;
 
 /**
  * @author pavlo
@@ -486,7 +486,7 @@ public class SingleSitedCostModel extends AbstractCostModel {
      * 
      */
     @Override
-    public double estimateCost(Database catalog_db, AbstractWorkload workload, AbstractWorkload.Filter filter, TransactionTrace xact) throws Exception {
+    public double estimateCost(Database catalog_db, Workload workload, Workload.Filter filter, TransactionTrace xact) throws Exception {
         // Sanity Check: If we don't have any TransactionCacheEntries, then the histograms should all be wiped out!
         if (this.txn_entries.size() == 0) {
             assert(this.histogram_txn_partitions.isEmpty()) : this.histogram_txn_partitions;
@@ -733,7 +733,7 @@ public class SingleSitedCostModel extends AbstractCostModel {
      * @return
      * @throws Exception
      */
-    public TransactionCacheEntry processTransaction(Database catalog_db, TransactionTrace txn_trace, AbstractWorkload.Filter filter) throws Exception {
+    public TransactionCacheEntry processTransaction(Database catalog_db, TransactionTrace txn_trace, Workload.Filter filter) throws Exception {
         final boolean debug = LOG.isDebugEnabled();
         final boolean trace = LOG.isTraceEnabled();
         final boolean debug_txn = DEBUG_TRACE_IDS.contains(txn_trace.getId());

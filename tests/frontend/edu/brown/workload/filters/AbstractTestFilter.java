@@ -4,8 +4,8 @@ import java.io.File;
 
 import edu.brown.BaseTestCase;
 import edu.brown.utils.ProjectType;
-import edu.brown.workload.AbstractWorkload;
-import edu.brown.workload.WorkloadTraceFileOutput;
+import edu.brown.workload.Workload;
+import edu.brown.workload.Workload;
 
 public abstract class AbstractTestFilter extends BaseTestCase {
 
@@ -14,7 +14,7 @@ public abstract class AbstractTestFilter extends BaseTestCase {
     protected static final int BASE_PARTITION = 1;
     
     // Reading the workload takes a long time, so we only want to do it once
-    protected static AbstractWorkload workload;
+    protected static Workload workload;
     protected static File workload_file;
     
     @Override
@@ -24,9 +24,9 @@ public abstract class AbstractTestFilter extends BaseTestCase {
         
         if (workload == null) {
             workload_file = this.getWorkloadFile(ProjectType.TPCC); 
-            workload = new WorkloadTraceFileOutput(catalog);
+            workload = new Workload(catalog);
             
-            ((WorkloadTraceFileOutput)workload).load(workload_file.getAbsolutePath(), catalog_db, new ProcedureLimitFilter(WORKLOAD_XACT_LIMIT));
+            ((Workload)workload).load(workload_file.getAbsolutePath(), catalog_db, new ProcedureLimitFilter(WORKLOAD_XACT_LIMIT));
             assert(workload.getTransactionCount() > 0) : "No transaction loaded from workload";
             assertEquals(WORKLOAD_XACT_LIMIT, workload.getTransactionCount());
         }

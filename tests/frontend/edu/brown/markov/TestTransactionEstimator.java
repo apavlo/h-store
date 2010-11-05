@@ -15,9 +15,9 @@ import edu.brown.correlations.ParameterCorrelations;
 import edu.brown.graphs.GraphvizExport;
 import edu.brown.markov.TransactionEstimator.Estimate;
 import edu.brown.utils.*;
-import edu.brown.workload.AbstractWorkload;
+import edu.brown.workload.Workload;
 import edu.brown.workload.TransactionTrace;
-import edu.brown.workload.WorkloadTraceFileOutput;
+import edu.brown.workload.Workload;
 import edu.brown.workload.filters.BasePartitionTxnFilter;
 import edu.brown.workload.filters.ProcParameterArraySizeFilter;
 import edu.brown.workload.filters.ProcParameterValueFilter;
@@ -40,7 +40,7 @@ public class TestTransactionEstimator extends BaseTestCase {
     private static final Class<? extends VoltProcedure> TARGET_PROCEDURE = neworder.class;
     private static int XACT_ID = 1000;
 
-    private static AbstractWorkload workload;
+    private static Workload workload;
     private static MarkovGraphsContainer markovs;
     private static ParameterCorrelations correlations;
     private static TransactionTrace singlep_trace;
@@ -65,7 +65,7 @@ public class TestTransactionEstimator extends BaseTestCase {
             correlations = new ParameterCorrelations();
             correlations.load(file.getAbsolutePath(), catalog_db);
             
-            AbstractWorkload.Filter filter = new ProcedureNameFilter()
+            Workload.Filter filter = new ProcedureNameFilter()
                     .include(TARGET_PROCEDURE.getSimpleName())
                     .attach(new ProcParameterValueFilter().include(1, new Long(5))) // D_ID
                     .attach(new ProcParameterArraySizeFilter(CatalogUtil.getArrayProcParameters(catalog_proc).get(0), 10, ExpressionType.COMPARE_EQUAL))
@@ -73,8 +73,8 @@ public class TestTransactionEstimator extends BaseTestCase {
                     .attach(new ProcedureLimitFilter(WORKLOAD_XACT_LIMIT));
 
             file = this.getWorkloadFile(ProjectType.TPCC);
-            workload = new WorkloadTraceFileOutput(catalog);
-            ((WorkloadTraceFileOutput) workload).load(file.getAbsolutePath(), catalog_db, filter);
+            workload = new Workload(catalog);
+            ((Workload) workload).load(file.getAbsolutePath(), catalog_db, filter);
             assert(workload.getTransactionCount() > 0);
             
             // Generate MarkovGraphs

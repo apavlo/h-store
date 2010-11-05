@@ -7,12 +7,12 @@ import org.apache.log4j.Logger;
 import org.voltdb.catalog.CatalogType;
 
 import edu.brown.workload.AbstractTraceElement;
-import edu.brown.workload.AbstractWorkload;
+import edu.brown.workload.Workload;
 
 /**
  * @author pavlo
  */
-public class DuplicateTraceFilter extends AbstractWorkload.Filter {
+public class DuplicateTraceFilter extends Workload.Filter {
     private static final Logger LOG = Logger.getLogger(DuplicateTraceFilter.class);
     
     private final Set<Long> trace_ids = new HashSet<Long>();

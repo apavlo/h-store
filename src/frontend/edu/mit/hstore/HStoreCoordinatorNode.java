@@ -53,7 +53,7 @@ import edu.brown.utils.PartitionEstimator;
 import edu.brown.utils.StringUtil;
 import edu.brown.utils.ThreadUtil;
 import edu.brown.workload.AbstractTraceElement;
-import edu.brown.workload.WorkloadTraceFileOutput;
+import edu.brown.workload.Workload;
 import edu.mit.dtxn.Dtxn;
 import edu.mit.dtxn.Dtxn.FragmentResponse.Status;
 import edu.mit.hstore.callbacks.ForwardTxnRequestCallback;
@@ -840,7 +840,7 @@ public class HStoreCoordinatorNode extends Dtxn.ExecutionEngine implements VoltP
         // Workload Trace Output
         if (args.hasParam(ArgumentsParser.PARAM_WORKLOAD_OUTPUT)) {
             ProcedureProfiler.profilingLevel = ProcedureProfiler.Level.INTRUSIVE;
-            String traceClass = WorkloadTraceFileOutput.class.getName();
+            String traceClass = Workload.class.getName();
             String tracePath = args.getParam(ArgumentsParser.PARAM_WORKLOAD_OUTPUT) + ".hstorenode-" + site_id;
             String traceIgnore = args.getParam(ArgumentsParser.PARAM_WORKLOAD_PROC_EXCLUDE);
             ProcedureProfiler.initializeWorkloadTrace(args.catalog, traceClass, tracePath, traceIgnore);

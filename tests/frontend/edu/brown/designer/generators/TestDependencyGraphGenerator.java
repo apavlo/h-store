@@ -8,7 +8,7 @@ import edu.brown.BaseTestCase;
 import edu.brown.catalog.CatalogKey;
 import edu.brown.designer.*;
 import edu.brown.utils.ProjectType;
-import edu.brown.workload.WorkloadTraceFileOutput;
+import edu.brown.workload.Workload;
 
 /**
  * 
@@ -23,7 +23,7 @@ public class TestDependencyGraphGenerator extends BaseTestCase {
     protected void setUp() throws Exception {
         super.setUp(ProjectType.TPCC, true);
         
-        WorkloadTraceFileOutput workload = new WorkloadTraceFileOutput(catalog);
+        Workload workload = new Workload(catalog);
         info = new DesignerInfo(catalog_db, workload);
     }
 

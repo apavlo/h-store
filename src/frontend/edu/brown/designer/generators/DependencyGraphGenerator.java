@@ -7,8 +7,8 @@ import org.voltdb.types.ConstraintType;
 
 import edu.brown.designer.*;
 import edu.brown.graphs.*;
-import edu.brown.workload.AbstractWorkload;
-import edu.brown.workload.WorkloadTraceFileOutput;
+import edu.brown.workload.Workload;
+import edu.brown.workload.Workload;
 import edu.uci.ics.jung.graph.util.EdgeType;
 
 /**
@@ -29,7 +29,7 @@ public class DependencyGraphGenerator extends AbstractGenerator<AbstractDirected
      */
     public static DependencyGraph generate(Database catalog_db) {
         DependencyGraph dgraph = new DependencyGraph(catalog_db);
-        DesignerInfo info = new DesignerInfo(catalog_db, new WorkloadTraceFileOutput(catalog_db.getCatalog()));
+        DesignerInfo info = new DesignerInfo(catalog_db, new Workload(catalog_db.getCatalog()));
         try {
             new DependencyGraphGenerator(info).generate(dgraph);
         } catch (Exception ex) {

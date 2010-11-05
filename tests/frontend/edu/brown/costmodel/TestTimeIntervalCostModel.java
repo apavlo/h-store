@@ -22,9 +22,9 @@ import edu.brown.rand.RandomDistribution;
 import edu.brown.statistics.Histogram;
 import edu.brown.utils.ProjectType;
 import edu.brown.workload.AbstractTraceElement;
-import edu.brown.workload.AbstractWorkload;
+import edu.brown.workload.Workload;
 import edu.brown.workload.TransactionTrace;
-import edu.brown.workload.WorkloadTraceFileOutput;
+import edu.brown.workload.Workload;
 import edu.brown.workload.filters.ProcedureLimitFilter;
 import edu.brown.workload.filters.ProcedureNameFilter;
 
@@ -46,8 +46,8 @@ public class TestTimeIntervalCostModel extends BaseTestCase {
     private static final int NUM_INTERVALS = 10;
     
     // Reading the workload takes a long time, so we only want to do it once
-    private static AbstractWorkload multi_workload;
-    private static AbstractWorkload single_workload;
+    private static Workload multi_workload;
+    private static Workload single_workload;
     
     private TimeIntervalCostModel<SingleSitedCostModel> cost_model;
     private final Random rand = new Random();
@@ -65,16 +65,16 @@ public class TestTimeIntervalCostModel extends BaseTestCase {
             ProcedureNameFilter multi_filter = new ProcedureNameFilter();
             multi_filter.include(MULTIPARTITION_PROCEDURES);
             multi_filter.attach(new ProcedureLimitFilter(WORKLOAD_XACT_LIMIT));
-            multi_workload = new WorkloadTraceFileOutput(catalog);
-            ((WorkloadTraceFileOutput)multi_workload).load(workload_file.getAbsolutePath(), catalog_db, multi_filter);
+            multi_workload = new Workload(catalog);
+            ((Workload)multi_workload).load(workload_file.getAbsolutePath(), catalog_db, multi_filter);
             assert(multi_workload.getTransactionCount() > 0);
 
             // All Single-Partition Txn Workload
             ProcedureNameFilter single_filter = new ProcedureNameFilter();
             single_filter.include(SINGLEPARTITION_PROCEDURES);
             single_filter.attach(new ProcedureLimitFilter(WORKLOAD_XACT_LIMIT));
-            single_workload = new WorkloadTraceFileOutput(catalog);
-            ((WorkloadTraceFileOutput)single_workload).load(workload_file.getAbsolutePath(), catalog_db, single_filter);
+            single_workload = new Workload(catalog);
+            ((Workload)single_workload).load(workload_file.getAbsolutePath(), catalog_db, single_filter);
             assert(single_workload.getTransactionCount() > 0);
         }
         this.cost_model = new TimeIntervalCostModel<SingleSitedCostModel>(catalog_db, SingleSitedCostModel.class, NUM_INTERVALS);
@@ -125,7 +125,7 @@ public class TestTimeIntervalCostModel extends BaseTestCase {
         // This workload should will only consist of single-partition txns and 
         // is evenly spread out across all partitions
         final Map<Integer, Boolean> txn_for_partition = new HashMap<Integer, Boolean>();
-        AbstractWorkload.Filter filter = new AbstractWorkload.Filter() {
+        Workload.Filter filter = new Workload.Filter() {
             @Override
             protected void resetImpl() {
                 // Nothing...
@@ -189,7 +189,7 @@ public class TestTimeIntervalCostModel extends BaseTestCase {
             probs.put(i, cnt / 100.0d);
         } // FOR
         
-        AbstractWorkload.Filter filter = new AbstractWorkload.Filter() {
+        Workload.Filter filter = new Workload.Filter() {
             @Override
             protected void resetImpl() {
                 // Nothing...

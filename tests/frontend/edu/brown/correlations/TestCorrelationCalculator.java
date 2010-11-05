@@ -18,7 +18,7 @@ public class TestCorrelationCalculator extends BaseTestCase {
     private static final int WORKLOAD_XACT_LIMIT = 1000;
     private static final Class<? extends VoltProcedure> TARGET_PROCEDURE = neworder.class;
     
-    private static AbstractWorkload workload;
+    private static Workload workload;
     private Random rand = new Random(0);
     private CorrelationCalculator pc;
     private Procedure catalog_proc;
@@ -29,10 +29,10 @@ public class TestCorrelationCalculator extends BaseTestCase {
 
         if (workload == null) {
             File file = this.getWorkloadFile(ProjectType.TPCC);
-            workload = new WorkloadTraceFileOutput(catalog);
+            workload = new Workload(catalog);
             ProcedureNameFilter filter = new ProcedureNameFilter();
             filter.include(TARGET_PROCEDURE.getSimpleName(), WORKLOAD_XACT_LIMIT);
-            ((WorkloadTraceFileOutput) workload).load(file.getAbsolutePath(), catalog_db, filter);
+            ((Workload) workload).load(file.getAbsolutePath(), catalog_db, filter);
         }
         
         // Setup

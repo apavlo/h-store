@@ -49,7 +49,7 @@ import edu.brown.statistics.TableStatistics;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.MathUtil;
 import edu.brown.workload.AbstractTraceElement;
-import edu.brown.workload.AbstractWorkload;
+import edu.brown.workload.Workload;
 import edu.brown.workload.QueryTrace;
 import edu.brown.workload.TransactionTrace;
 
@@ -577,7 +577,7 @@ public abstract class AbstractPartitioner {
     /**
      * 
      */
-    protected class WorkloadFilter extends AbstractWorkload.Filter {
+    protected class WorkloadFilter extends Workload.Filter {
         private final Set<String> stmt_cache = new HashSet<String>();
 
         public WorkloadFilter() {

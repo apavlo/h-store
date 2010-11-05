@@ -20,13 +20,13 @@ import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.FileUtil;
 import edu.brown.utils.ProjectType;
-import edu.brown.workload.AbstractWorkload;
+import edu.brown.workload.Workload;
 
 public class TestVertex extends BaseTestCase {
 
     private static final int NUM_PARTITIONS = 5;
     private static final double EPSILON = 0.00001;
-    AbstractWorkload g;
+    Workload g;
     MarkovGraph graph;
     Vertex commit;
     Vertex abort;

@@ -25,7 +25,15 @@
  ***************************************************************************/
 package edu.brown.workload;
 
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.FileReader;
+import java.io.InputStreamReader;
+import java.io.OutputStream;
 import java.util.*;
+import java.util.zip.GZIPInputStream;
 
 import org.apache.log4j.Logger;
 
@@ -38,14 +46,38 @@ import org.voltdb.types.*;
 import edu.brown.catalog.CatalogKey;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.statistics.*;
+import edu.brown.workload.Workload.Filter.FilterResult;
 
 /**
  * 
  * @author Andy Pavlo <pavlo@cs.brown.edu>
  *
  */
-public abstract class AbstractWorkload implements WorkloadTrace, Iterable<AbstractTraceElement<? extends CatalogType>> {
-    private static final Logger LOG = Logger.getLogger(WorkloadTraceFileOutput.class.getName());
+public class Workload implements WorkloadTrace, Iterable<AbstractTraceElement<? extends CatalogType>> {
+    /** java.util.logging logger. */
+    private static final Logger LOG = Logger.getLogger(Workload.class.getName());
+    //
+    // The output stream that we're going to write our traces to
+    //
+    private FileOutputStream out;
+
+    //
+    // Handle -> Database
+    //
+    private final Map<TransactionTrace, Database> xact_db_xref = new HashMap<TransactionTrace, Database>();
+    
+    //
+    // The last file that we loaded from
+    //
+    private File input_path;
+    private File output_path;
+    
+    //
+    // Stats Path
+    //
+    protected String stats_output;
+    protected boolean saved_stats = false;
+    
     
     public static boolean ENABLE_SHUTDOWN_HOOKS = true; 
     
@@ -169,9 +201,9 @@ public abstract class AbstractWorkload implements WorkloadTrace, Iterable<Abstra
         private int idx = 0;
         private boolean is_init = false;
         private AbstractTraceElement<? extends CatalogType> peek;
-        private final AbstractWorkload.Filter filter;
+        private final Workload.Filter filter;
         
-        public WorkloadIterator(AbstractWorkload.Filter filter) {
+        public WorkloadIterator(Workload.Filter filter) {
             this.filter = filter;
         }
         
@@ -202,15 +234,15 @@ public abstract class AbstractWorkload implements WorkloadTrace, Iterable<Abstra
             this.peek = null;
             
             // Now figure out what the next element should be the next time next() is called
-            int size = AbstractWorkload.this.element_ids.size();
+            int size = Workload.this.element_ids.size();
             while (this.peek == null && this.idx++ < size) {
-                Long next_id = AbstractWorkload.this.element_ids.get(this.idx - 1);
-                AbstractTraceElement<? extends CatalogType> element = AbstractWorkload.this.element_id_xref.get(next_id);
+                Long next_id = Workload.this.element_ids.get(this.idx - 1);
+                AbstractTraceElement<? extends CatalogType> element = Workload.this.element_id_xref.get(next_id);
                 if (element == null) {
                     System.err.println("idx: " + this.idx);
                     System.err.println("next_id: " + next_id);
-                    System.err.println("elements: " + AbstractWorkload.this.element_id_xref);
-                    System.err.println("size: " + AbstractWorkload.this.element_id_xref.size());
+                    System.err.println("elements: " + Workload.this.element_id_xref);
+                    System.err.println("size: " + Workload.this.element_id_xref.size());
                 }
                 if (this.filter == null || (this.filter != null && this.filter.apply(element) == Filter.FilterResult.ALLOW)) {
                     this.peek = element;
@@ -228,15 +260,15 @@ public abstract class AbstractWorkload implements WorkloadTrace, Iterable<Abstra
     /**
      * Default Constructor
      */
-    public AbstractWorkload() {
+    public Workload() {
         // Create a shutdown hook to make sure that always call finalize()
         if (ENABLE_SHUTDOWN_HOOKS) {
-            if (LOG.isDebugEnabled()) LOG.debug("Created shutdown hook for " + AbstractWorkload.class.getName());
+            if (LOG.isDebugEnabled()) LOG.debug("Created shutdown hook for " + Workload.class.getName());
             Runtime.getRuntime().addShutdownHook(new Thread() {
                 @Override
                 public void run() {
                     try {
-                        AbstractWorkload.this.finalize();
+                        Workload.this.finalize();
                     } catch (Throwable ex) {
                         ex.printStackTrace();
                     }
@@ -250,7 +282,7 @@ public abstract class AbstractWorkload implements WorkloadTrace, Iterable<Abstra
      * The real constructor
      * @param catalog
      */
-    public AbstractWorkload(Catalog catalog) {
+    public Workload(Catalog catalog) {
         this();
         this.catalog = catalog;
     }
@@ -260,7 +292,7 @@ public abstract class AbstractWorkload implements WorkloadTrace, Iterable<Abstra
      * @param workload
      * @param filter
      */
-    public AbstractWorkload(AbstractWorkload workload, Filter filter) {
+    public Workload(Workload workload, Filter filter) {
         this(workload.catalog);
         
         Iterator<AbstractTraceElement<? extends CatalogType>> it = workload.iterator(filter);
@@ -272,6 +304,184 @@ public abstract class AbstractWorkload implements WorkloadTrace, Iterable<Abstra
             }
         } // WHILE
     }
+    
+    /**
+     * We want to dump out index structures and other things to the output file
+     * when we are going down.
+     */
+    @Override
+    protected void finalize() throws Throwable {
+        if (this.out != null) {
+            System.err.println("Flushing workload trace output and closing files...");
+            
+            //
+            // Workload Statistics
+            //
+            if (this.stats != null) this.saveStats();
+            //
+            // This was here in case I wanted to dump out auxillary data structures
+            // As of right now, I don't need to do that, so we'll just flush and close the file
+            //
+            this.out.flush();
+            this.out.close();
+        }
+        super.finalize();
+    }
+
+    /**
+     * 
+     */
+    protected void validate() {
+        LOG.debug("Checking to make sure there are no duplicate trace objects in workload");
+        Set<Long> trace_ids = new HashSet<Long>();
+        for (AbstractTraceElement<?> element : this) {
+            long trace_id = element.getId();
+            assert(!trace_ids.contains(trace_id)) : "Duplicate Trace Element: " + element;
+            trace_ids.add(trace_id);
+        } // FOR
+    }
+
+    /**
+     * 
+     */
+    @Override
+    public void setOutputPath(String path) {
+        this.output_path = new File(path);
+        try {
+            this.out = new FileOutputStream(path);
+            LOG.debug("Opened file '" + path + "' for logging workload trace");
+        } catch (Exception ex) {
+            LOG.fatal("Failed to open trace output file: " + path);
+            ex.printStackTrace();
+            System.exit(1);
+        }
+    }
+
+    public void setStatsOutputPath(String path) {
+        this.stats_output = path;
+    }
+    
+    /**
+     * 
+     * @throws Exception
+     */
+    private void saveStats() throws Exception {
+        for (TableStatistics table_stats : this.stats.getTableStatistics()) {
+            table_stats.postprocess(this.stats_catalog_db);
+        } // FOR
+        if (this.stats_output != null) {
+            this.stats.save(this.stats_output);
+        }
+    }
+
+    /**
+     * 
+     * @param input_path
+     * @param catalog_db
+     * @throws Exception
+     */
+    public void load(String input_path, Database catalog_db) throws Exception {
+        this.load(input_path, catalog_db, null);
+    }
+    
+    /**
+     * 
+     * @param input_path
+     * @param catalog_db
+     * @param limit
+     * @throws Exception
+     */
+    public void load(String input_path, Database catalog_db, Filter filter) throws Exception {
+        final boolean trace = LOG.isTraceEnabled();
+        final boolean debug = LOG.isDebugEnabled();
+        
+        if (debug) LOG.debug("Reading workload trace from file '" + input_path + "'");
+        File file = new File(input_path);
+
+        // Check whether it's gzipped. Yeah that's right, we support that!
+        BufferedReader in = null;
+        if (file.getPath().endsWith(".gz")) {
+            FileInputStream fin = new FileInputStream(file);
+            GZIPInputStream gzis = new GZIPInputStream(fin);
+            in = new BufferedReader(new InputStreamReader(gzis));
+        } else {
+            in = new BufferedReader(new FileReader(file));   
+        }
+        
+        long xact_ctr = 0;
+        long query_ctr = 0;
+        long line_ctr = 0;
+        long element_ctr = 0;
+        
+        while (in.ready()) {
+//            StringBuilder buffer = new StringBuilder();
+//            do {
+//                String line = in.readLine();
+//                buffer.append(line);
+//                if (line.equals("}")) break;
+//            } while (in.ready());
+//            JSONObject jsonObject = new JSONObject(buffer.toString()); //in.readLine());
+            String line = in.readLine().trim();
+            if (line.isEmpty()) continue;
+            JSONObject jsonObject = null; 
+            try {
+                jsonObject = new JSONObject(line);
+            } catch (Exception ex) {
+                throw new Exception("Error on line " + (line_ctr+1) + " of workload trace file '" + file.getName() + "'", ex);
+            }
+            
+            //
+            // TransactionTrace
+            //
+            if (jsonObject.has(TransactionTrace.Members.XACT_ID.name())) {
+                // If we have already loaded in up to our limit, then we don't need to
+                // do anything else. But we still have to keep reading because we need
+                // be able to load in our index structures that are at the bottom of the file
+                //
+                // NOTE: If we ever load something else but the straight trace dumps, then the following
+                // line should be a continue and not a break.
+                
+                // Load the xact from the jsonObject
+                TransactionTrace xact = null;
+                try {
+                    xact = TransactionTrace.loadFromJSONObject(jsonObject, catalog_db);
+                } catch (Exception ex) {
+                    LOG.error("Failed JSONObject:\n" + jsonObject.toString(2));
+                    throw ex;
+                }
+                if (xact == null) {
+                    throw new Exception("Failed to deserialize transaction trace on line " + xact_ctr);
+                } else if (filter != null) {
+                    FilterResult result = filter.apply(xact);
+                    if (result == FilterResult.HALT) break;
+                    else if (result == FilterResult.SKIP) continue;
+                    if (trace) LOG.trace(result + ": " + xact);
+                }
+
+                // Keep track of how many trace elements we've loaded so that we can make sure
+                // that our element trace list is complete
+                xact_ctr++;
+                query_ctr += xact.getQueryCount();
+                if (trace && xact_ctr % 10000 == 0) LOG.trace("Read in " + xact_ctr + " transactions...");
+                element_ctr += 1 + xact.getQueries().size();
+                
+                // This call just updates the various other index structures 
+                this.addTransaction(xact.getCatalogItem(catalog_db), xact, true);
+                
+            // Unknown!
+            } else {
+                LOG.fatal("Unexpected serialization line in workload trace '" + input_path + "' on line " + line_ctr);
+                System.exit(1);
+            }
+            line_ctr++;
+        } // WHILE
+        in.close();
+        this.validate();
+        LOG.info("Loaded in " + this.xact_trace.size() + " transactions with a total of " + query_ctr + " queries from workload trace '" + file.getName() + "'");
+        this.input_path = new File(input_path);
+        return;
+    }
+    
     
     // ----------------------------------------------------------
     // ITERATORS METHODS
@@ -290,11 +500,11 @@ public abstract class AbstractWorkload implements WorkloadTrace, Iterable<Abstra
      */
     @Override
     public Iterator<AbstractTraceElement<? extends CatalogType>> iterator() {
-        return (new AbstractWorkload.WorkloadIterator());
+        return (new Workload.WorkloadIterator());
     }
 
-    public Iterator<AbstractTraceElement<? extends CatalogType>> iterator(AbstractWorkload.Filter filter) {
-        return (new AbstractWorkload.WorkloadIterator(filter));
+    public Iterator<AbstractTraceElement<? extends CatalogType>> iterator(Workload.Filter filter) {
+        return (new Workload.WorkloadIterator(filter));
     }
     
     // ----------------------------------------------------------
@@ -669,6 +879,23 @@ public abstract class AbstractWorkload implements WorkloadTrace, Iterable<Abstra
             this.element_id_xref.put(xact_handle.getId(), xact_handle);
             LOG.debug("Created '" + catalog_proc.getName() + "' transaction trace record with " + xact_handle.getParams().length + " parameters");
         }
+
+        if (xact_handle != null) {
+            this.xact_db_xref.put(xact_handle, (Database)catalog_proc.getParent());
+            // If this is the first non bulk-loader proc that we have seen, then
+            // go ahead and save the stats out to a file in case we crash later on
+            if (!this.saved_stats && this.stats != null) {
+                try {
+                    this.saveStats();
+                    this.saved_stats = true;
+                } catch (Exception ex) {
+                    ex.printStackTrace();
+                    System.exit(1);
+                }
+            }
+        }
+
+        
         return (xact_handle);
     }
     
@@ -698,8 +925,41 @@ public abstract class AbstractWorkload implements WorkloadTrace, Iterable<Abstra
         } else {
             LOG.fatal("Unable to stop transaction trace: Invalid transaction handle");
         }
+
+        //
+        // Write the trace object out to our file if it is not null
+        //
+        if (xact_handle != null && xact_handle instanceof TransactionTrace) {
+            TransactionTrace xact = (TransactionTrace)xact_handle;
+            Database catalog_db = this.xact_db_xref.remove(xact);
+            
+            if (catalog_db == null) {
+                LOG.warn("The database catalog handle is null: " + xact);
+            } else {
+                if (this.out == null) {
+                    LOG.warn("No output path is set. Unable to log trace information to file");
+                } else {
+                    writeTransactionToStream(catalog_db, xact, this.out);
+                }
+            }
+            // Remove from cache
+            this.removeTransaction(xact);
+        }
+        
         return;
     }
+
+    public static void writeTransactionToStream(Database catalog_db, TransactionTrace xact, OutputStream output) {
+        try {
+            output.write(xact.toJSONString(catalog_db).getBytes());
+            output.write("\n".getBytes());
+            output.flush();
+            LOG.debug("Wrote out new trace record for " + xact + " with " + xact.getQueries().size() + " queries");
+        } catch (Exception ex) {
+            LOG.fatal(ex.getMessage());
+            ex.printStackTrace();
+        }
+    }  
     
     @Override
     public void abortTransaction(Object xact_handle) {
@@ -757,7 +1017,32 @@ public abstract class AbstractWorkload implements WorkloadTrace, Iterable<Abstra
         return;
     }
     
-    public abstract void save(String path, Database catalog_db);
+    public void save(String path, Database catalog_db) {
+        this.setOutputPath(path);
+        this.save(catalog_db);
+    }
+
+    public void save(Database catalog_db) {
+        LOG.info("Writing out workload trace to '" + this.output_path + "'");
+        for (AbstractTraceElement<?> element : this) {
+            if (element instanceof TransactionTrace) {
+                TransactionTrace xact = (TransactionTrace)element;
+                try {
+                    //String json = xact.toJSONString(catalog_db);
+                    //JSONObject jsonObject = new JSONObject(json);
+                    //this.out.write(jsonObject.toString(2).getBytes());
+                    
+                    this.out.write(xact.toJSONString(catalog_db).getBytes());
+                    this.out.write("\n".getBytes());
+                    this.out.flush();
+                    LOG.debug("Wrote out new trace record for " + xact + " with " + xact.getQueries().size() + " queries");
+                } catch (Exception ex) {
+                    LOG.fatal(ex.getMessage());
+                    ex.printStackTrace();
+                }
+            }
+        } // FOR
+    }    
     
     /**
      * 

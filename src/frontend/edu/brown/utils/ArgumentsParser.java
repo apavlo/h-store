@@ -249,12 +249,12 @@ public class ArgumentsParser {
     /**
      * Workload Trace Attributes
      */
-    public AbstractWorkload workload = null;
+    public Workload workload = null;
     public String workload_path = null;
     public Long workload_xact_limit = null;
     public Long workload_xact_offset = 0l;
     public Long workload_query_limit = null;
-    public AbstractWorkload.Filter workload_filter = null;
+    public Workload.Filter workload_filter = null;
     
     /**
      * Workload Statistics Attributes
@@ -617,8 +617,8 @@ public class ArgumentsParser {
                 }
             }
             if (this.workload_filter != null) LOG.debug("Workload Filters: " + this.workload_filter);
-            this.workload = new WorkloadTraceFileOutput(this.catalog);
-            ((WorkloadTraceFileOutput)this.workload).load(path, this.catalog_db, this.workload_filter);
+            this.workload = new Workload(this.catalog);
+            ((Workload)this.workload).load(path, this.catalog_db, this.workload_filter);
             this.workload_path = new File(path).getAbsolutePath();
             if (this.workload_filter != null) this.workload_filter.reset();
         }

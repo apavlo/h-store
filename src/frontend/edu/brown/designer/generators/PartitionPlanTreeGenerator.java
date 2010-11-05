@@ -11,7 +11,7 @@ import edu.brown.designer.*;
 import edu.brown.designer.partitioners.PartitionEntry;
 import edu.brown.designer.partitioners.PartitionPlan;
 import edu.brown.graphs.*;
-import edu.brown.workload.WorkloadTraceFileOutput;
+import edu.brown.workload.Workload;
 import edu.uci.ics.jung.graph.util.*;
 
 /**

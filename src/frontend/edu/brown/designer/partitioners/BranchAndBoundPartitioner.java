@@ -584,7 +584,7 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
             if (trace) LOG.trace("Traverse [current=" + current.getName() + ", # of attributes=" + this.traversal_attributes.get(current_key).size() + "]");
     
             // Get our workload filter for this level of the traversal
-            AbstractWorkload.Filter filter = BranchAndBoundPartitioner.this.traversal_filters.get(current_key);
+            Workload.Filter filter = BranchAndBoundPartitioner.this.traversal_filters.get(current_key);
             
             // Create a clone of the catalog and add in our table
 //            Catalog new_catalog = CatalogUtil.cloneBaseCatalog(parent.catalog_db.getCatalog());

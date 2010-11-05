@@ -9,7 +9,7 @@ import org.voltdb.catalog.ProcParameter;
 import org.voltdb.catalog.Procedure;
 
 import edu.brown.workload.AbstractTraceElement;
-import edu.brown.workload.AbstractWorkload;
+import edu.brown.workload.Workload;
 import edu.brown.workload.TransactionTrace;
 
 /**
@@ -36,7 +36,7 @@ public class TestProcParameterValueFilter extends AbstractTestFilter {
      */
     @Test
     public void testFilter() throws Exception {
-        AbstractWorkload.Filter filter = new ProcedureNameFilter().include(TARGET_PROCEDURE)
+        Workload.Filter filter = new ProcedureNameFilter().include(TARGET_PROCEDURE)
             .attach(new ProcParameterValueFilter().include(this.catalog_param, PARAM_VALUE));
         
         Iterator<AbstractTraceElement<? extends CatalogType>> it = workload.iterator(filter);

@@ -45,7 +45,7 @@ import edu.brown.statistics.Histogram;
 import edu.brown.utils.PartitionEstimator;
 import edu.brown.utils.StringUtil;
 import edu.brown.workload.AbstractTraceElement;
-import edu.brown.workload.AbstractWorkload;
+import edu.brown.workload.Workload;
 import edu.brown.workload.TransactionTrace;
 
 /**
@@ -278,7 +278,7 @@ public abstract class AbstractCostModel implements Cloneable {
      * @return
      * @throws Exception
      */
-    public abstract double estimateCost(Database catalog_db, AbstractWorkload workload, AbstractWorkload.Filter filter, TransactionTrace xact) throws Exception;
+    public abstract double estimateCost(Database catalog_db, Workload workload, Workload.Filter filter, TransactionTrace xact) throws Exception;
     
     /**
      * Invalidate cache entries for the given CatalogKey
@@ -530,7 +530,7 @@ public abstract class AbstractCostModel implements Cloneable {
      * @return
      * @throws Exception
      */
-    public double estimateCost(Database catalog_db, AbstractWorkload workload, AbstractWorkload.Filter filter) throws Exception {
+    public double estimateCost(Database catalog_db, Workload workload, Workload.Filter filter) throws Exception {
         this.prepare(catalog_db);
         double cost = 0.0d;
         
@@ -569,7 +569,7 @@ public abstract class AbstractCostModel implements Cloneable {
      * @return
      * @throws Exception
      */
-    public final double estimateCost(Database catalog_db, AbstractWorkload workload) throws Exception {
+    public final double estimateCost(Database catalog_db, Workload workload) throws Exception {
         return (this.estimateCost(catalog_db, workload, null));
     }
 

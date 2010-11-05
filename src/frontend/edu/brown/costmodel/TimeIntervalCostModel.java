@@ -25,9 +25,9 @@ import edu.brown.utils.MathUtil;
 import edu.brown.utils.PartitionEstimator;
 import edu.brown.utils.StringUtil;
 import edu.brown.workload.AbstractTraceElement;
-import edu.brown.workload.AbstractWorkload;
+import edu.brown.workload.Workload;
 import edu.brown.workload.TransactionTrace;
-import edu.brown.workload.AbstractWorkload.Filter;
+import edu.brown.workload.Workload.Filter;
 
 /**
  * @author pavlo
@@ -146,7 +146,7 @@ public class TimeIntervalCostModel<T extends AbstractCostModel> extends Abstract
      * @see edu.brown.costmodel.AbstractCostModel#estimateCost(org.voltdb.catalog.Database, edu.brown.workload.TransactionTrace, edu.brown.workload.AbstractWorkload.Filter)
      */
     @Override
-    public double estimateCost(Database catalog_db, AbstractWorkload workload, Filter filter, TransactionTrace xact) throws Exception {
+    public double estimateCost(Database catalog_db, Workload workload, Filter filter, TransactionTrace xact) throws Exception {
         assert(workload != null) : "The workload handle is null";
         // First figure out the time interval of this 
         int interval = workload.getTimeInterval(xact, this.cost_models.length);
@@ -157,7 +157,7 @@ public class TimeIntervalCostModel<T extends AbstractCostModel> extends Abstract
      * 
      */
     @Override
-    public double estimateCost(Database catalog_db, AbstractWorkload workload, AbstractWorkload.Filter filter) throws Exception {
+    public double estimateCost(Database catalog_db, Workload workload, Workload.Filter filter) throws Exception {
         final boolean trace = LOG.isTraceEnabled();
         final boolean debug = LOG.isDebugEnabled();
         this.last_debug = "";
