@@ -512,9 +512,9 @@ public class SingleSitedCostModel extends AbstractCostModel {
     // query access histogram
     // 2010-11-05: I moved this out because the profiler said that we were spending to much time allocating them over
     //             and over again
-    private final Set<TransactionCacheEntry> invalidate_modifiedTxns = new HashSet<TransactionCacheEntry>();
-    private final Set<String> invalidate_targetKeys = new HashSet<String>();
-    private final Histogram invalidate_removedTouchedPartitions = new Histogram();
+//    private final Set<TransactionCacheEntry> invalidate_modifiedTxns = new HashSet<TransactionCacheEntry>();
+//    private final Set<String> invalidate_targetKeys = new HashSet<String>();
+//    private final Histogram invalidate_removedTouchedPartitions = new Histogram();
     
     /**
      * Invalidate cache entries for the given CatalogKey
@@ -528,16 +528,21 @@ public class SingleSitedCostModel extends AbstractCostModel {
         final boolean trace = LOG.isTraceEnabled();
         int query_ctr = 0;
         int txn_ctr = 0;
+
+        Set<TransactionCacheEntry> invalidate_modifiedTxns = new HashSet<TransactionCacheEntry>();
+        Set<String> invalidate_targetKeys = new HashSet<String>();
+        Histogram invalidate_removedTouchedPartitions = new Histogram();
         
         // ---------------------------------------------
         // Table Key
         // ---------------------------------------------
         if (this.cache_tbl_xref.containsKey(catalog_key)) {
             if (trace) LOG.trace("Invalidate Cache for Table '" + CatalogKey.getNameFromKey(catalog_key) + "'");
-            
-            this.invalidate_modifiedTxns.clear();
-            this.invalidate_targetKeys.clear();
-            this.invalidate_removedTouchedPartitions.clear();
+
+
+//            this.invalidate_modifiedTxns.clear();
+//            this.invalidate_targetKeys.clear();
+//            this.invalidate_removedTouchedPartitions.clear();
             
             for (QueryCacheEntry query_entry : this.cache_tbl_xref.get(catalog_key)) {
                 if (query_entry.isInvalid()) continue;
@@ -551,7 +556,7 @@ public class SingleSitedCostModel extends AbstractCostModel {
                 assert (txn_entry != null);
                 txn_entry.touched_partitions.setKeepZeroEntries(true);
                 
-                this.invalidate_modifiedTxns.add(txn_entry);
+                invalidate_modifiedTxns.add(txn_entry);
                 
                 if (query_entry.isUnknown()) {
                     txn_entry.unknown_queries--;
@@ -579,7 +584,7 @@ public class SingleSitedCostModel extends AbstractCostModel {
                 assert(txn_entry.multisite_queries >= 0) : txn_entry + " has negative multisited queries!\n" +  txn_entry.debug();
                 
                 // Populate this histogram so that we know what to remove from the global histogram
-                this.invalidate_removedTouchedPartitions.putValues(query_entry.getAllPartitions());
+                invalidate_removedTouchedPartitions.putValues(query_entry.getAllPartitions());
                 
                 // Remove the partitions this query touches from the txn's touched partitions histogram
                 txn_entry.touched_partitions.removeValues(query_entry.getAllPartitions());
@@ -621,9 +626,9 @@ public class SingleSitedCostModel extends AbstractCostModel {
             } // FOR
             
             // We can now remove the touched query partitions if we have any
-            if (!this.invalidate_removedTouchedPartitions.isEmpty()) {
-                if (trace) LOG.trace("Removing " + this.invalidate_removedTouchedPartitions.getSampleCount() + " partition touches for " + query_ctr + " queries");
-                this.histogram_query_partitions.removeHistogram(this.invalidate_removedTouchedPartitions);
+            if (!invalidate_removedTouchedPartitions.isEmpty()) {
+                if (trace) LOG.trace("Removing " + invalidate_removedTouchedPartitions.getSampleCount() + " partition touches for " + query_ctr + " queries");
+                this.histogram_query_partitions.removeHistogram(invalidate_removedTouchedPartitions);
             }
             
         // ---------------------------------------------
@@ -632,8 +637,8 @@ public class SingleSitedCostModel extends AbstractCostModel {
         } else if (this.cache_proc_xref.containsKey(catalog_key)) {
             if (trace) LOG.trace("Invalidate Cache for Procedure '" + CatalogKey.getNameFromKey(catalog_key) + "'");
 
-            this.invalidate_modifiedTxns.clear();
-            this.invalidate_targetKeys.clear();
+            invalidate_modifiedTxns.clear();
+            invalidate_targetKeys.clear();
             
             // NEW: If this procedure accesses any table that is replicated, then we also need to invalidate
             // the cache for that table so that the tables are wiped 
@@ -647,7 +652,7 @@ public class SingleSitedCostModel extends AbstractCostModel {
                     this.histogram_java_partitions.remove(txn_entry.base_partition);
                     if (this.isJavaExecutionWeightEnabled()) txn_entry.touched_partitions.remove(txn_entry.base_partition, this.getJavaExecutionWeight());
                     txn_entry.base_partition = null;
-                    this.invalidate_modifiedTxns.add(txn_entry);
+                    invalidate_modifiedTxns.add(txn_entry);
                     txn_ctr++;
                 }
             } // FOR
@@ -657,14 +662,14 @@ public class SingleSitedCostModel extends AbstractCostModel {
             for (String table_key : this.touched_tables.get(catalog_key)) {
                 if (this.replicated_tables.contains(table_key)) {
                     if (trace) LOG.trace(catalog_key + " => " + table_key + ": is replicated and will need to be invalidated too!");
-                    this.invalidate_targetKeys.add(table_key);
+                    invalidate_targetKeys.add(table_key);
                 }
             } // FOR
         }
         
         // Update the TransactionCacheEntry objects that we modified in the loop above
-        if (trace && !this.invalidate_modifiedTxns.isEmpty()) LOG.trace("Updating partition information for " + this.invalidate_modifiedTxns.size() + " TransactinCacheEntries");
-        for (TransactionCacheEntry txn_entry : this.invalidate_modifiedTxns) {
+        if (trace && !invalidate_modifiedTxns.isEmpty()) LOG.trace("Updating partition information for " + invalidate_modifiedTxns.size() + " TransactinCacheEntries");
+        for (TransactionCacheEntry txn_entry : invalidate_modifiedTxns) {
             // Get the list of partitions that are no longer being touched by this txn
             // We remove these from the costmodel's global txn touched histogram
             Set<Integer> zero_partitions = txn_entry.touched_partitions.getValuesForCount(0);
@@ -709,11 +714,11 @@ public class SingleSitedCostModel extends AbstractCostModel {
         if (debug && (query_ctr > 0 || txn_ctr > 0))
             LOG.debug("Invalidated Cache [" + catalog_key + "]: Queries=" + query_ctr + ", Txns=" + txn_ctr);
         
-        if (!this.invalidate_targetKeys.isEmpty()) {
-            if (debug) LOG.debug("Calling invalidateCache for " + this.invalidate_targetKeys.size() + " dependent catalog items of " + catalog_key);
+        if (!invalidate_targetKeys.isEmpty()) {
+            if (debug) LOG.debug("Calling invalidateCache for " + invalidate_targetKeys.size() + " dependent catalog items of " + catalog_key);
             
             // We have to make a copy here, otherwise the recursive call will blow away our list
-            for (String next_catalog_key : new HashSet<String>(this.invalidate_targetKeys)) {
+            for (String next_catalog_key : new HashSet<String>(invalidate_targetKeys)) {
                 this.invalidateCache(next_catalog_key);
             } // FOR
         }

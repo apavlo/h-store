@@ -304,6 +304,9 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
      * @throws Exception
      */
     protected void calculateInitialSolution(final DesignerHints hints) throws Exception {
+        final boolean trace = LOG.isTraceEnabled();
+        final boolean debug = LOG.isDebugEnabled();
+        
         this.initial_solution = new MostPopularPartitioner(this.designer, this.info).generate(hints);
         this.initial_solution.apply(this.info.catalog_db);
         
@@ -328,14 +331,16 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
             // sure that we do it to the hints so that it is picked up by everyone!
             hints.weight_costmodel_entropy = entropy_weight;
             
-            LOG.info("Initial Solution has " + untouched_partitions.size() + " unused partitions. New Entropy Weight: " + entropy_weight);
+            if (trace) LOG.trace("Initial Solution has " + untouched_partitions.size() + " unused partitions. New Entropy Weight: " + entropy_weight);
             this.costmodel.applyDesignerHints(hints);
             this.initial_cost = this.costmodel.estimateCost(this.info.catalog_db, this.info.workload);
         }
         
-        LOG.info("Initial Solution Cost: " + String.format("%.03f", this.initial_cost));
-        LOG.info("Initial Solution Memory: " + String.format("%.03f", this.initial_memory));
-        LOG.info("Initial Solution:\n" + this.initial_solution);
+        if (debug) {
+            LOG.debug("Initial Solution Cost: " + String.format("%.03f", this.initial_cost));
+            LOG.debug("Initial Solution Memory: " + String.format("%.03f", this.initial_memory));
+            LOG.debug("Initial Solution:\n" + this.initial_solution);
+        }
     }
     
     /**
@@ -521,6 +526,7 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
             LOG.info("Best Solution Memory: " + String.format("%.03f", this.best_memory));
             LOG.info("Best Solution:\n" + this.best_solution);
         }
+        this.best_solution.apply(info.catalog_db);
         return;
     }
     

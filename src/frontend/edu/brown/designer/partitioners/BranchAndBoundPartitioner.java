@@ -514,6 +514,7 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
         
         @Override
         public void run() {
+            final boolean debug = LOG.isDebugEnabled(); 
             Long stop_local = null; 
             Long stop_total = null;
             
@@ -530,6 +531,8 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
             } else if (stop_total != null) {
                 this.halt_time = stop_total;
             }
+            if (debug && this.halt_time != null)
+                LOG.debug("Remaining Search Time: " + (this.halt_time - System.currentTimeMillis()) / 1000d);  
                 
             try {
                 this.graph.addVertex(this.start);

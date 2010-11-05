@@ -26,6 +26,7 @@ import edu.brown.designer.Designer;
 import edu.brown.statistics.Histogram;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.ProjectType;
+import edu.brown.utils.StringUtil;
 
 /**
  * @author pavlo
@@ -248,7 +249,9 @@ public class TestLNSPartitioner extends BasePartitionerTestCase {
      */
     public void testLocalSearchCostCheck() throws Exception {
         // Make sure that the cost of the initial solution before the local search is the same
-        // one that we get after (assuming the same PartitionPlan)
+        // one that we get after (assuming the same PartitionPlan). We do this by setting the time limit
+        // to zero so that won't actually traverse the search tree
+        hints.limit_local_time = 0;
         this.partitioner.calculateInitialSolution(hints);
         assert(this.partitioner.initial_cost > 0);
         PartitionPlan orig_solution = new PartitionPlan(this.partitioner.initial_solution);
@@ -279,7 +282,13 @@ public class TestLNSPartitioner extends BasePartitionerTestCase {
 //        System.err.println(this.partitioner.best_solution);
         
         // Now check that the cost before and after are the same
+        if (orig_solution.equals(this.partitioner.best_solution) == false) {
+            System.err.println(orig_solution);
+            System.err.println(StringUtil.repeat("*", 100));
+            System.err.println(this.partitioner.best_solution);
+        }
         assertEquals(orig_solution, this.partitioner.best_solution);
+        info.getCostModel().clear();
         new_cost = info.getCostModel().estimateCost(catalog_db, workload);
         assert(new_cost > 0);
         assertEquals(this.partitioner.initial_cost, new_cost);
