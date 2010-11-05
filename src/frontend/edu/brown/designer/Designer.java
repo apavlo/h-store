@@ -141,9 +141,9 @@ public class Designer {
         return (this.info.dgraph);
     }
     
-    public PartitionTree getPartitionTree() {
-        return (this.pplan.getPartitionTree());
-    }
+//    public PartitionTree getPartitionTree() {
+//        return (this.pplan.getPartitionTree());
+//    }
     
     public AccessGraph getAccessGraph(Procedure catalog_proc) {
         return (this.proc_access_graphs.get(catalog_proc));

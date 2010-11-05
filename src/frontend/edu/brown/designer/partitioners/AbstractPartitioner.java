@@ -81,9 +81,14 @@ public abstract class AbstractPartitioner {
         return (!catalog_proc.getSystemproc() && catalog_proc.getParameters().size() > 0);
     }
     
+    /**
+     * Apply the PartitionPlan to the catalog and then run through the entire workload to determine
+     * which procedures are single-partition all of the time
+     * @param pplan
+     * @param hints
+     * @throws Exception
+     */
     protected void setProcedureSinglePartitionFlags(final PartitionPlan pplan, final DesignerHints hints) throws Exception {
-        // Apply the PartitionPlan to the catalog and then run through the entire workload to determine
-        // which procedures are single-partition all of the time
         pplan.apply(info.catalog_db);
         if (LOG.isDebugEnabled()) LOG.debug("Processing workload and checking which procedures are single-partitioned");
         if (info.getCostModel() != null) {
@@ -106,13 +111,15 @@ public abstract class AbstractPartitioner {
      * @throws Exception
      */
     protected AccessGraph generateAccessGraph() throws Exception {
+        final boolean debug = LOG.isDebugEnabled();
+        if (debug) LOG.debug("Generating AccessGraph for entire catalog");
+        
         AccessGraph agraph = new AccessGraph(info.catalog_db);
-        LOG.debug("Generating AccessGraph for entire catalog");
         for (Procedure catalog_proc : info.catalog_db.getProcedures()) {
             // Skip if there are no transactions in the workload for this procedure
             assert(info.workload != null);
             if (info.workload.getTraces(catalog_proc).isEmpty()) {
-                LOG.debug("No " + catalog_proc + " transactions in workload. Skipping...");
+                if (debug) LOG.debug("No " + catalog_proc + " transactions in workload. Skipping...");
             } else if (this.designer.getGraphs(catalog_proc) != null) {
                 this.designer.getGraphs(catalog_proc).add(agraph);
                 new AccessGraphGenerator(info, catalog_proc).generate(agraph);
@@ -588,7 +595,8 @@ public abstract class AbstractPartitioner {
         
         @Override
         protected String debug() {
-            return (this.getClass().getSimpleName() + ": cache=" + this.stmt_cache);
+            return (AbstractPartitioner.class.getSimpleName() + "." + this.getClass().getSimpleName() + 
+                    "[cache=" + this.stmt_cache + "]");
         }
         
         /**

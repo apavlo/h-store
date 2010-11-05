@@ -109,7 +109,7 @@ public class ArgumentsParser {
     }
     static {
         ArgumentsParser.setupLogging();
-        ArgumentsParser.refreshLogging(10000); // 180000l); // 3 min
+        ArgumentsParser.refreshLogging(20000); // 180000l); // 3 min
     }
 
     // --------------------------------------------------------------

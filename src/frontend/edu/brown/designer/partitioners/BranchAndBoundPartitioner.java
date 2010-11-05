@@ -436,7 +436,7 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
         
         private boolean halt_search = false;
         private boolean completed_search = false;
-        private long halt_time;
+        private Long halt_time;
         
         // These tables aren't in our attributes but we still need to use them for estimating size
         private final Set<Table> remaining_tables = new HashSet<Table>();
@@ -457,14 +457,16 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
             this.num_elements = this.traversal_attributes.size();
             
             // This the catalog that this thread will muck around with
-            Database clone_db = null;
-            try {
-                clone_db = CatalogUtil.cloneDatabase(info.catalog_db);
-            } catch (Exception ex) {
-                LOG.fatal("Failed to clone database", ex);
-                System.exit(1);
-            }
-            this.search_db = clone_db;
+//            Database clone_db = null;
+//            try {
+//                clone_db = CatalogUtil.cloneDatabase(info.catalog_db);
+//            } catch (Exception ex) {
+//                LOG.fatal("Failed to clone database", ex);
+//                System.exit(1);
+//            }
+//            this.search_db = clone_db;
+            this.search_db = info.catalog_db;
+
 //            Catalog search_catalog = new Catalog();
 //            search_catalog.execute(info.catalog_db.getCatalog().serialize());
 //            this.search_db = CatalogUtil.getDatabase(search_catalog);
@@ -512,9 +514,22 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
         
         @Override
         public void run() {
-            long stop_total = this.hints.getGlobalStopTime();
-            long stop_local = this.hints.getNextLocalStopTime();
-            this.halt_time = Math.min(stop_local, stop_total);
+            Long stop_local = null; 
+            Long stop_total = null;
+            
+            if (this.hints.limit_local_time != null) {
+                stop_local = this.hints.getNextLocalStopTime();    
+            }
+            if (this.hints.limit_total_time != null) {
+                stop_total = this.hints.getGlobalStopTime();
+            }
+            if (stop_local != null && stop_total != null) {
+                this.halt_time = Math.min(stop_local, stop_total);
+            } else if (stop_local != null) {
+                this.halt_time = stop_local;
+            } else if (stop_total != null) {
+                this.halt_time = stop_total;
+            }
                 
             try {
                 this.graph.addVertex(this.start);
@@ -525,7 +540,7 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
                 System.exit(1);
             }
             this.completed_search = true;
-            System.gc();
+            // System.gc();
         }
     
         /**
@@ -548,7 +563,7 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
                 if (hints.limit_back_tracks != null && is_table && this.backtrack_ctr > hints.limit_back_tracks) {
                     if (debug) LOG.debug("Hit back track limit. Halting search [" + this.backtrack_ctr + "]");
                     this.halt_search = true;
-                } else if (System.currentTimeMillis() >= this.halt_time) {
+                } else if (this.halt_time != null && System.currentTimeMillis() >= this.halt_time) {
                     if (debug) LOG.debug("Hit time limit. Halting search [" + this.backtrack_ctr + "]");
                     this.halt_search = true;
                 }
@@ -730,7 +745,7 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
                         
                         BranchAndBoundPartitioner.this.best_vertex = state;
                         if (trace) LOG.trace("Last Cost Model Info:\n " + this.cost_model.getLastDebugMessages());
-                        if (debug) LOG.debug("New Best Solution: " + best_vertex.toString());
+                        if (debug) LOG.debug("New Best Solution:\n" + StringUtil.box(best_vertex.toString()));
 //                        for (int i = 0; i < ((TimeIntervalCostModel)this.cost_model).getIntevalCount(); i++) {
 //                            System.err.println("Interval #" + i);
 //                            System.err.println(((TimeIntervalCostModel)this.cost_model).getCostModel(i).getTxnPartitionAccessHistogram());

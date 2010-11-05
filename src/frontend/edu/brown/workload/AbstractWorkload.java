@@ -47,6 +47,8 @@ import edu.brown.statistics.*;
 public abstract class AbstractWorkload implements WorkloadTrace, Iterable<AbstractTraceElement<? extends CatalogType>> {
     private static final Logger LOG = Logger.getLogger(WorkloadTraceFileOutput.class.getName());
     
+    public static boolean ENABLE_SHUTDOWN_HOOKS = true; 
+    
     //
     // Basic data members
     //
@@ -228,17 +230,20 @@ public abstract class AbstractWorkload implements WorkloadTrace, Iterable<Abstra
      */
     public AbstractWorkload() {
         // Create a shutdown hook to make sure that always call finalize()
-        Runtime.getRuntime().addShutdownHook(new Thread() {
-            @Override
-            public void run() {
-                try {
-                    AbstractWorkload.this.finalize();
-                } catch (Throwable ex) {
-                    ex.printStackTrace();
+        if (ENABLE_SHUTDOWN_HOOKS) {
+            if (LOG.isDebugEnabled()) LOG.debug("Created shutdown hook for " + AbstractWorkload.class.getName());
+            Runtime.getRuntime().addShutdownHook(new Thread() {
+                @Override
+                public void run() {
+                    try {
+                        AbstractWorkload.this.finalize();
+                    } catch (Throwable ex) {
+                        ex.printStackTrace();
+                    }
+                    return;
                 }
-                return;
-            }
-        });
+            });
+        }
     }
     
     /**
@@ -462,6 +467,19 @@ public abstract class AbstractWorkload implements WorkloadTrace, Iterable<Abstra
     protected void addTransaction(Procedure catalog_proc, TransactionTrace xact) {
         this.xact_trace.add(xact);
         this.xact_trace_xref.put(xact.xact_id, xact);
+        
+        // Check whether we need to add the element id of the txn and all of its queries.
+        // This happens when if we are trying to insert the txn from another one
+        // It's kind of a hack, but what times are tough..
+        if (this.element_ids.contains(xact.getId()) == false) {
+            this.element_ids.add(xact.getId());
+            this.element_id_xref.put(xact.getId(), xact);
+            for (QueryTrace query : xact.getQueries()) {
+                this.element_ids.add(query.getId());
+                this.element_id_xref.put(query.getId(), query);
+            } // FOR
+        }
+        
         String proc_key = CatalogKey.createKey(catalog_proc);
         if (!this.proc_xact_xref.containsKey(proc_key)) {
             this.proc_xact_xref.put(proc_key, new ArrayList<TransactionTrace>());

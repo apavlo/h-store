@@ -810,28 +810,28 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
      * @return
      */
     public static String getDisplayName(CatalogType item, boolean include_class) {
-        String ret = null;
         if (item != null) {
+            StringBuilder sb = new StringBuilder();
             if (item instanceof Column || item instanceof Statement) {
-                ret = item.getParent().getName() + "." + item.getName();
+                sb.append(item.getParent().getName()).append(".").append(item.getName());
             } else if (item instanceof ProcParameter
                     || item instanceof StmtParameter) {
-                ret = item.getParent().getName() + "."
-                        + (include_class ? item : item.getName());
+                sb.append(item.getParent().getName()).append(".").append(include_class ? item : item.getName());
             } else if (item instanceof PlanFragment) {
-                ret = item.getParent().getParent().getName() + "."
-                        + item.getParent().getName() + "[Fragment #"
-                        + item.getName() + "]";
+                sb.append(item.getParent().getParent().getName())
+                  .append(".")
+                  .append(item.getParent().getName())
+                  .append("[Fragment #").append(item.getName()).append("]");
             } else if (item instanceof ConstantValue) {
-                ret = item.getClass().getSimpleName() + "{"
-                        + ((ConstantValue) item).getValue() + "}";
+                sb.append(item.getClass().getSimpleName())
+                  .append("{").append(((ConstantValue) item).getValue()).append("}");
             } else {
-                ret = (include_class ? item.getClass().getSimpleName() + ":"
-                        : "")
-                        + item.getName();
+                sb.append(include_class ? item.getClass().getSimpleName() + ":" : "")
+                  .append(item.getName());
             }
+            return (sb.toString());
         }
-        return (ret);
+        return (null);
     }
 
     /**
@@ -842,18 +842,18 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
      * @return
      */
     public static Catalog loadCatalogFromJar(String jar_path) {
+        final boolean debug = LOG.isDebugEnabled();
+            
         Catalog catalog = null;
         String serializedCatalog = null;
         File file_path = new File(jar_path);
-        LOG.debug("Loading catalog from jar file at '"
-                + file_path.getAbsolutePath() + "'");
+        if (debug) LOG.debug("Loading catalog from jar file at '" + file_path.getAbsolutePath() + "'");
         if (!file_path.exists()) {
             LOG.error("The catalog jar file '" + jar_path + "' does not exist");
             return (null);
         }
         try {
-            serializedCatalog = JarReader.readFileFromJarfile(jar_path,
-                    CatalogUtil.CATALOG_FILENAME);
+            serializedCatalog = JarReader.readFileFromJarfile(jar_path, CatalogUtil.CATALOG_FILENAME);
         } catch (Exception ex) {
             ex.printStackTrace();
             return (null);
@@ -866,8 +866,8 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
                     + "' in jar file '" + jar_path + "' is empty");
         } else {
             catalog = new Catalog();
-            LOG.debug("Extracted file '" + CatalogUtil.CATALOG_FILENAME
-                    + "' from jar file '" + jar_path + "'");
+            if (debug) LOG.debug("Extracted file '" + CatalogUtil.CATALOG_FILENAME
+                                 + "' from jar file '" + jar_path + "'");
             catalog.execute(serializedCatalog);
         }
         return (catalog);
@@ -982,8 +982,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
      * @return
      * @throws Exception
      */
-    public static Set<Column> getReferencedColumns(Procedure catalog_proc)
-            throws Exception {
+    public static Set<Column> getReferencedColumns(Procedure catalog_proc) throws Exception {
         Set<Column> ret = new HashSet<Column>();
         for (Statement catalog_stmt : catalog_proc.getStatements()) {
             ret.addAll(CatalogUtil.getReferencedColumns(catalog_stmt));
@@ -1075,43 +1074,35 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
      * @return
      * @throws Exception
      */
-    public static Set<Column> getReferencedColumns(Statement catalog_stmt)
-            throws Exception {
-        LOG.debug("Extracting table set from statement "
-                + CatalogUtil.getDisplayName(catalog_stmt));
+    public static Set<Column> getReferencedColumns(Statement catalog_stmt) throws Exception {
+        final boolean debug = LOG.isDebugEnabled();
+
+        if (debug) LOG.debug("Extracting table set from statement " + CatalogUtil.getDisplayName(catalog_stmt));
         final String catalog_key = CatalogKey.createKey(catalog_stmt);
         if (!CatalogUtil.CACHE_STATEMENT_COLUMNS.containsKey(catalog_key)) {
-            final Database catalog_db = (Database) catalog_stmt.getParent()
-                    .getParent();
+            final Database catalog_db = (Database) catalog_stmt.getParent().getParent();
 
             // 2010-07-14: Always use the AbstractPlanNodes from the
             // PlanFragments to figure out
             // what columns the query touches. It's more accurate because we
             // will pick apart plan nodes
             // and expression trees to figure things out
-            AbstractPlanNode node = QueryPlanUtil.deserializeStatement(
-                    catalog_stmt, true);
-            Set<Column> columns = CatalogUtil.getPartitionableColumnReferences(
-                    catalog_db, node);
-            assert (columns != null) : "Failed to get catalog tables for "
-                    + CatalogUtil.getDisplayName(catalog_stmt);
+            AbstractPlanNode node = QueryPlanUtil.deserializeStatement(catalog_stmt, true);
+            Set<Column> columns = CatalogUtil.getPartitionableColumnReferences(catalog_db, node);
+            assert (columns != null) : "Failed to get catalog tables for " + CatalogUtil.getDisplayName(catalog_stmt);
 
             // Convert to ColumnKeys
             Set<String> column_keys = new HashSet<String>();
             for (Column catalog_col : columns) {
                 column_keys.add(CatalogKey.createKey(catalog_col));
             } // FOR
-            CatalogUtil.CACHE_STATEMENT_COLUMNS.put(catalog_key, Collections
-                    .unmodifiableSet(column_keys));
+            CatalogUtil.CACHE_STATEMENT_COLUMNS.put(catalog_key, Collections.unmodifiableSet(column_keys));
         }
         Set<Column> ret = new HashSet<Column>();
         Database catalog_db = (Database) catalog_stmt.getParent().getParent();
-        for (String column_key : CatalogUtil.CACHE_STATEMENT_COLUMNS
-                .get(catalog_key)) {
-            Column catalog_col = CatalogKey.getFromKey(catalog_db, column_key,
-                    Column.class);
-            if (catalog_col != null)
-                ret.add(catalog_col);
+        for (String column_key : CatalogUtil.CACHE_STATEMENT_COLUMNS.get(catalog_key)) {
+            Column catalog_col = CatalogKey.getFromKey(catalog_db, column_key, Column.class);
+            if (catalog_col != null) ret.add(catalog_col);
         } // FOR
         return (ret);
     }
@@ -1124,8 +1115,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
      * @return
      * @throws Exception
      */
-    public static Set<Column> getReferencedColumns(final Database catalog_db,
-            AbstractExpression exp) throws Exception {
+    public static Set<Column> getReferencedColumns(final Database catalog_db, AbstractExpression exp) throws Exception {
         final Set<Column> found_columns = new HashSet<Column>();
         new ExpressionTreeWalker() {
             @Override
@@ -1135,8 +1125,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
                             .getTableName();
                     Table catalog_tbl = catalog_db.getTables().get(table_name);
                     if (catalog_tbl == null) {
-                        LOG.fatal("Unknown table '" + table_name
-                                + "' referenced in Expression node " + element);
+                        LOG.fatal("Unknown table '" + table_name + "' referenced in Expression node " + element);
                         this.stop();
                         return;
                     }
@@ -1173,8 +1162,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
         final Set<Table> found = new HashSet<Table>();
         new PlanNodeTreeWalker() {
             @Override
-            protected void populate_children(
-                    PlanNodeTreeWalker.Children children, AbstractPlanNode node) {
+            protected void populate_children(PlanNodeTreeWalker.Children children, AbstractPlanNode node) {
                 super.populate_children(children, node);
                 // Visit the inline nodes after the parent
                 for (AbstractPlanNode inline_node : node.getInlinePlanNodes()
@@ -1224,8 +1212,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
      * @return
      * @throws Exception
      */
-    public static Set<Column> getPartitionableColumnReferences(
-            final Database catalog_db, AbstractPlanNode node) throws Exception {
+    public static Set<Column> getPartitionableColumnReferences(final Database catalog_db, AbstractPlanNode node) throws Exception {
         final Set<Column> columns = new TreeSet<Column>();
         new PlanNodeTreeWalker() {
             @Override

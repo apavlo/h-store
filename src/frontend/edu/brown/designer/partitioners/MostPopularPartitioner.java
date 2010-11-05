@@ -87,7 +87,7 @@ public class MostPopularPartitioner extends AbstractPartitioner {
                 Histogram column_histogram = new Histogram();
                 // Map<Column, Double> unsorted = new HashMap<Column, Double>();
                 for (Edge e : edges) {
-                    Collection<Vertex> vertices = agraph.getVertices();
+                    Collection<Vertex> vertices = agraph.getIncidentVertices(e);
                     Vertex v0 = CollectionUtil.get(vertices, 0);
                     Vertex v1 = CollectionUtil.get(vertices, 1);
                     if (v0.equals(v) && v1.equals(v)) continue;

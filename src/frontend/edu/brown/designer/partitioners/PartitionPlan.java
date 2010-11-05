@@ -59,7 +59,7 @@ public class PartitionPlan implements JSONSerializable {
     /**
      * 
      */
-    private transient PartitionTree ptree;
+    // private transient PartitionTree ptree;
     
     /**
      * Constructor
@@ -80,10 +80,10 @@ public class PartitionPlan implements JSONSerializable {
     /**
      * Constructor
      */
-    public PartitionPlan(PartitionTree ptree) {
-        this();
-        this.ptree = ptree;
-    }
+//    public PartitionPlan(PartitionTree ptree) {
+//        this();
+//        this.ptree = ptree;
+//    }
     
     public void addTablePartitionEntry(Table catalog_tbl, PartitionEntry pentry) {
         this.table_entries.put(catalog_tbl, pentry);
@@ -94,13 +94,13 @@ public class PartitionPlan implements JSONSerializable {
     }
     
     
-    public void setPartitionTree(PartitionTree ptree) {
-        this.ptree = ptree;
-    }
-    
-    public PartitionTree getPartitionTree() {
-        return (this.ptree);
-    }
+//    public void setPartitionTree(PartitionTree ptree) {
+//        this.ptree = ptree;
+//    }
+//    
+//    public PartitionTree getPartitionTree() {
+//        return (this.ptree);
+//    }
     
     public Map<Table, PartitionEntry> getTableEntries() {
         return (this.table_entries);
@@ -182,9 +182,9 @@ public class PartitionPlan implements JSONSerializable {
             last_tbl = catalog_tbl;
         } // FOR
         
-        if (this.ptree == null && last_tbl != null) {
-            this.setPartitionTree(PartitionPlanTreeGenerator.generate((Database)last_tbl.getParent(), this));
-        }
+//        if (this.ptree == null && last_tbl != null) {
+//            this.setPartitionTree(PartitionPlanTreeGenerator.generate((Database)last_tbl.getParent(), this));
+//        }
     }
     
     /**
@@ -434,7 +434,8 @@ public class PartitionPlan implements JSONSerializable {
      * @return
      */
     public static PartitionPlan createFromTree(PartitionTree ptree) {
-        PartitionPlan pplan = new PartitionPlan(ptree);
+        assert(false);
+        PartitionPlan pplan = new PartitionPlan(); // ptree);
         //
         // Create partition entries
         //
@@ -559,8 +560,8 @@ public class PartitionPlan implements JSONSerializable {
         } // FOR
 
         // Construct a partition tree from ourselves and then populate the dependency relationships
-        PartitionTree ptree = PartitionPlanTreeGenerator.generate(catalog_db, pplan);
-        pplan.setPartitionTree(ptree);
+//        PartitionTree ptree = PartitionPlanTreeGenerator.generate(catalog_db, pplan);
+//        pplan.setPartitionTree(ptree);
         pplan.initializeDependencies();
         return (pplan);
         
