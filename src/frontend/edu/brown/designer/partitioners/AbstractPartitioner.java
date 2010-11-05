@@ -118,7 +118,7 @@ public abstract class AbstractPartitioner {
         for (Procedure catalog_proc : info.catalog_db.getProcedures()) {
             // Skip if there are no transactions in the workload for this procedure
             assert(info.workload != null);
-            if (info.workload.getTraces(catalog_proc).isEmpty()) {
+            if (false && info.workload.getTraces(catalog_proc).isEmpty()) {
                 if (debug) LOG.debug("No " + catalog_proc + " transactions in workload. Skipping...");
             } else if (this.designer.getGraphs(catalog_proc) != null) {
                 this.designer.getGraphs(catalog_proc).add(agraph);
@@ -333,20 +333,20 @@ public abstract class AbstractPartitioner {
         // Add in any missing tables to the end of the list
         // This can occur if there are tables that do not appear in the AccessGraph for whatever reason
         // Note that we have to traverse the graph so that we don't try to plan a parent before a child
-//        for (Vertex root : info.dgraph.getRoots()) {
-//            new VertexTreeWalker<Vertex>(info.dgraph, VertexTreeWalker.TraverseOrder.BREADTH) {
-//                protected void callback(Vertex element) {
-//                    Table catalog_tbl = element.getCatalogItem();
-//                    assert(catalog_tbl != null);
-//                    String table_key = CatalogKey.createKey(catalog_tbl);
-//                    if (!table_visit_order.contains(table_key)) {
-//                        if (debug) LOG.warn("Added " + catalog_tbl + " because it does not appear in the AccessGraph");
-//                        table_visit_order.add(table_key);
-//                    }
-//                };
-//            }.traverse(root);
-//            if (table_visit_order.size() == info.catalog_db.getTables().size()) break;
-//        } // FOR
+        for (Vertex root : info.dgraph.getRoots()) {
+            new VertexTreeWalker<Vertex>(info.dgraph, VertexTreeWalker.TraverseOrder.BREADTH) {
+                protected void callback(Vertex element) {
+                    Table catalog_tbl = element.getCatalogItem();
+                    assert(catalog_tbl != null);
+                    String table_key = CatalogKey.createKey(catalog_tbl);
+                    if (!table_visit_order.contains(table_key)) {
+                        if (debug) LOG.warn("Added " + catalog_tbl + " because it does not appear in the AccessGraph");
+                        table_visit_order.add(table_key);
+                    }
+                };
+            }.traverse(root);
+            if (table_visit_order.size() == info.catalog_db.getTables().size()) break;
+        } // FOR
         return (table_visit_order);
     }
 
