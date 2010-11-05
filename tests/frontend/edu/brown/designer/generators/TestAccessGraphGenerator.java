@@ -18,9 +18,9 @@ import edu.brown.designer.Vertex;
 import edu.brown.gui.common.GraphVisualizationPanel;
 import edu.brown.statistics.Histogram;
 import edu.brown.utils.ProjectType;
-import edu.brown.workload.AbstractWorkload;
+import edu.brown.workload.Workload;
 import edu.brown.workload.TransactionTrace;
-import edu.brown.workload.WorkloadTraceFileOutput;
+import edu.brown.workload.Workload;
 import edu.brown.workload.filters.ProcedureLimitFilter;
 import edu.brown.workload.filters.ProcedureNameFilter;
 
@@ -35,7 +35,7 @@ public class TestAccessGraphGenerator extends BaseTestCase {
     private static final String TARGET_STATEMENT = "GetStockCount";
     
     // Reading the workload takes a long time, so we only want to do it once
-    private static AbstractWorkload workload;
+    private static Workload workload;
     
     private Procedure catalog_proc;
     private DesignerInfo info;
@@ -50,13 +50,13 @@ public class TestAccessGraphGenerator extends BaseTestCase {
         // Super hack! Walk back the directories and find out workload directory
         if (workload == null) {
             File workload_file = this.getWorkloadFile(ProjectType.TPCC); 
-            workload = new WorkloadTraceFileOutput(catalog);
+            workload = new Workload(catalog);
         
             // Workload Filter
             ProcedureNameFilter filter = new ProcedureNameFilter();
             filter.include(TARGET_PROCEDURE);
             filter.attach(new ProcedureLimitFilter(WORKLOAD_XACT_LIMIT));
-            ((WorkloadTraceFileOutput)workload).load(workload_file.getAbsolutePath(), catalog_db, filter);
+            ((Workload)workload).load(workload_file.getAbsolutePath(), catalog_db, filter);
         }
         
         // Setup everything else

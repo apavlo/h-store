@@ -15,7 +15,7 @@ public class TestAbstractCostModel extends TestCase {
     
     protected Catalog catalog;
     protected Database catalog_db;
-    protected WorkloadTraceFileOutput workload;
+    protected Workload workload;
     
     /*
     @Override
@@ -30,7 +30,7 @@ public class TestAbstractCostModel extends TestCase {
         catalog_db = catalog.getClusters().get(0).getDatabases().get(0);
         assertNotNull(catalog_db);
         
-        workload = new WorkloadTraceFileOutput(catalog);
+        workload = new Workload(catalog);
         workload.load(workload_path, catalog_db, new ProcedureLimitFilter(10l));
     }
     */

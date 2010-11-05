@@ -21,9 +21,9 @@ import edu.brown.graphs.GraphvizExport;
 import edu.brown.utils.FileUtil;
 import edu.brown.utils.ProjectType;
 import edu.brown.utils.StringUtil;
-import edu.brown.workload.AbstractWorkload;
+import edu.brown.workload.Workload;
 import edu.brown.workload.TransactionTrace;
-import edu.brown.workload.WorkloadTraceFileOutput;
+import edu.brown.workload.Workload;
 import edu.brown.workload.filters.BasePartitionTxnFilter;
 import edu.brown.workload.filters.ProcParameterArraySizeFilter;
 import edu.brown.workload.filters.ProcParameterValueFilter;
@@ -39,7 +39,7 @@ public class TestMarkovPathEstimator extends BaseTestCase {
     private static final int NUM_PARTITIONS = 10;
     private static final Class<? extends VoltProcedure> TARGET_PROCEDURE = neworder.class;
     
-    private static AbstractWorkload workload;
+    private static Workload workload;
     private static MarkovGraphsContainer markovs;
     private static ParameterCorrelations correlations;
     private static TransactionTrace singlep_trace;
@@ -67,15 +67,15 @@ public class TestMarkovPathEstimator extends BaseTestCase {
             //  (3) Only include traces that execute on the BASE_PARTITION
             //  (4) Limit the total number of traces to WORKLOAD_XACT_LIMIT
             List<ProcParameter> array_params = CatalogUtil.getArrayProcParameters(this.catalog_proc);
-            AbstractWorkload.Filter filter = new ProcedureNameFilter()
+            Workload.Filter filter = new ProcedureNameFilter()
                   .include(TARGET_PROCEDURE.getSimpleName())
                   .attach(new ProcParameterArraySizeFilter(array_params.get(0), 10, ExpressionType.COMPARE_EQUAL))
                   .attach(new BasePartitionTxnFilter(p_estimator, BASE_PARTITION))
                   .attach(new ProcedureLimitFilter(WORKLOAD_XACT_LIMIT));
             
             file = this.getWorkloadFile(ProjectType.TPCC);
-            workload = new WorkloadTraceFileOutput(catalog);
-            ((WorkloadTraceFileOutput) workload).load(file.getAbsolutePath(), catalog_db, filter);
+            workload = new Workload(catalog);
+            ((Workload) workload).load(file.getAbsolutePath(), catalog_db, filter);
 //             for (TransactionTrace xact : workload.getTransactions()) {
 //                 System.err.println(xact.debug(catalog_db));
 //                 System.err.println(StringUtil.repeat("+", 100));

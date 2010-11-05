@@ -14,9 +14,9 @@ import edu.brown.designer.partitioners.PartitionPlan;
 import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.PartitionEstimator;
 import edu.brown.utils.StringUtil;
-import edu.brown.workload.AbstractWorkload;
+import edu.brown.workload.Workload;
 import edu.brown.workload.TransactionTrace;
-import edu.brown.workload.AbstractWorkload.Filter;
+import edu.brown.workload.Workload.Filter;
 
 /**
  * 
@@ -57,7 +57,7 @@ public class LowerBounds {
             if (trace) LowerBounds.LOG.trace("Processing " + txnTrace);
             
             // Ok so now what need to do is do a local search to find the best way to partition this mofo
-            AbstractWorkload workload = new AbstractWorkload() {
+            Workload workload = new Workload() {
                 {
                     this.addTransaction(catalog_proc, txnTrace, true);
                 }
@@ -126,7 +126,7 @@ public class LowerBounds {
         this.upper_bounds = PartitionPlan.createFromCatalog(args.catalog_db);
         
         // Disable AbstractWorkload shutdown hooks
-        AbstractWorkload.ENABLE_SHUTDOWN_HOOKS = false;
+        Workload.ENABLE_SHUTDOWN_HOOKS = false;
         
         // Disable any time limits
         this.hints.limit_back_tracks = null;
@@ -140,7 +140,7 @@ public class LowerBounds {
      * @return
      * @throws Exception
      */
-    public double calculate(final AbstractWorkload workload) throws Exception {
+    public double calculate(final Workload workload) throws Exception {
         if (LOG.isDebugEnabled()) LOG.debug("Calculating lower bounds using " + workload.getTransactionCount() + " transactions" +
                                             " on " + CatalogUtil.getNumberOfPartitions(info.catalog_db) + " partitions");
         return (this.costmodel.estimateCost(this.info.catalog_db, workload));

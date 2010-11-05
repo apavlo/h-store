@@ -50,7 +50,7 @@ public class DesignerInfo {
     /**
      * The sample workload trace used as the basis of the physical design 
      */
-    public AbstractWorkload workload;
+    public Workload workload;
     
     /**
      * WorkloadStatistics
@@ -178,7 +178,7 @@ public class DesignerInfo {
      * Constructor
      * @param args
      */
-    public DesignerInfo(final Database _catalog_db, final AbstractWorkload _workload, final WorkloadStatistics _stats) {
+    public DesignerInfo(final Database _catalog_db, final Workload _workload, final WorkloadStatistics _stats) {
         this(new ArgumentsParser() {{
             this.catalog_db = _catalog_db;
             this.workload = _workload;
@@ -191,14 +191,14 @@ public class DesignerInfo {
      * @param catalog_db
      * @param workload
      */
-    public DesignerInfo(Database catalog_db, AbstractWorkload workload) {
+    public DesignerInfo(Database catalog_db, Workload workload) {
         this(catalog_db, workload, new WorkloadStatistics(catalog_db));
     }
     
-    public AbstractWorkload getWorkload() {
+    public Workload getWorkload() {
         return this.workload;
     }
-    public void setWorkload(AbstractWorkload workload) {
+    public void setWorkload(Workload workload) {
         this.workload = workload;
     }
 

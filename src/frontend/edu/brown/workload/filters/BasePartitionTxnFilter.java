@@ -6,10 +6,10 @@ import org.voltdb.catalog.Procedure;
 
 import edu.brown.utils.PartitionEstimator;
 import edu.brown.workload.AbstractTraceElement;
-import edu.brown.workload.AbstractWorkload;
+import edu.brown.workload.Workload;
 import edu.brown.workload.TransactionTrace;
 
-public class BasePartitionTxnFilter extends AbstractWorkload.Filter {
+public class BasePartitionTxnFilter extends Workload.Filter {
     
     private final PartitionEstimator p_estimator;
     private final Database catalog_db;

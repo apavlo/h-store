@@ -18,8 +18,8 @@ import edu.brown.markov.Vertex.Type;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.FileUtil;
 import edu.brown.utils.ProjectType;
-import edu.brown.workload.AbstractWorkload;
-import edu.brown.workload.WorkloadTraceFileOutput;
+import edu.brown.workload.Workload;
+import edu.brown.workload.Workload;
 import edu.brown.workload.filters.BasePartitionTxnFilter;
 //import edu.brown.workload.filters.MultiPartitionTxnFilter;
 import edu.brown.workload.filters.ProcedureLimitFilter;
@@ -32,7 +32,7 @@ public class TestMarkovGraph extends BaseTestCase {
     private static final int BASE_PARTITION = 1;
     private static final int NUM_PARTITIONS = 20;
 
-    private static AbstractWorkload workload;
+    private static Workload workload;
     private static MarkovGraphsContainer markovs;
     private static ParameterCorrelations correlations;
 
@@ -50,7 +50,7 @@ public class TestMarkovGraph extends BaseTestCase {
             correlations.load(file.getAbsolutePath(), catalog_db);
 
             file = this.getWorkloadFile(ProjectType.TPCC);
-            workload = new WorkloadTraceFileOutput(catalog);
+            workload = new Workload(catalog);
 
             // Check out this beauty:
             // (1) Filter by procedure name
@@ -58,11 +58,11 @@ public class TestMarkovGraph extends BaseTestCase {
             // (3) Filter to only include multi-partition txns
             // (4) Another limit to stop after allowing ### txns
             // Where is your god now???
-            AbstractWorkload.Filter filter = new ProcedureNameFilter().include(TARGET_PROCEDURE.getSimpleName());
+            Workload.Filter filter = new ProcedureNameFilter().include(TARGET_PROCEDURE.getSimpleName());
             filter.attach(new BasePartitionTxnFilter(p_estimator, BASE_PARTITION))
             // .attach(new MultiPartitionTxnFilter(p_estimator))
                     .attach(new ProcedureLimitFilter(WORKLOAD_XACT_LIMIT));
-            ((WorkloadTraceFileOutput) workload).load(file.getAbsolutePath(), catalog_db, filter);
+            ((Workload) workload).load(file.getAbsolutePath(), catalog_db, filter);
             // assertEquals(WORKLOAD_XACT_LIMIT, workload.getTransactionCount());
 
             // for (TransactionTrace xact : workload.getTransactions()) {

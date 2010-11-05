@@ -27,7 +27,7 @@ public class CombineWorkloadTraces {
      * @param workloads
      */
     @SuppressWarnings("unchecked")
-    public static void combineWorkloads(OutputStream output, Database catalog_db, AbstractWorkload workloads[]) {
+    public static void combineWorkloads(OutputStream output, Database catalog_db, Workload workloads[]) {
         Integer next_idxs[] = new Integer[workloads.length];
         Integer max_idxs[] = new Integer[workloads.length];
         List<TransactionTrace> txns[] = new List[workloads.length];
@@ -74,7 +74,7 @@ public class CombineWorkloadTraces {
                 query_trace.start_timestamp -= relative_starts[min_idx];
                 query_trace.stop_timestamp -= relative_starts[min_idx];
             } // FOR
-            WorkloadTraceFileOutput.writeTransactionToStream(catalog_db, xact, output);
+            Workload.writeTransactionToStream(catalog_db, xact, output);
             proc_histogram.put(xact.getCatalogItemName());
             
             // And increment the counter for the next txn we could use from this workload
@@ -111,12 +111,12 @@ public class CombineWorkloadTraces {
         Collections.sort(workload_files);
         
         int num_workloads = workload_files.size();
-        WorkloadTraceFileOutput workloads[] = new WorkloadTraceFileOutput[num_workloads];
+        Workload workloads[] = new Workload[num_workloads];
         LOG.info("Combining " + num_workloads + " workloads into '" + output_path + "'");
         for (int i = 0; i < num_workloads; i++) {
             File input_path = workload_files.get(i);
             LOG.info("Loading workload '" + input_path + "'");
-            workloads[i] = new WorkloadTraceFileOutput(args.catalog);
+            workloads[i] = new Workload(args.catalog);
             workloads[i].load(input_path.getAbsolutePath(), args.catalog_db);
         } // FOR
 

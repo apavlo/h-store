@@ -177,7 +177,7 @@ public class DesignerVisualization extends AbstractViewer {
     public Designer getDesigner() {
         return this.designer;
     }
-    public AbstractWorkload getWorkload() {
+    public Workload getWorkload() {
         return this.args.workload;
     }
     public VertexInfoPanel getVertexInfoPanel() {

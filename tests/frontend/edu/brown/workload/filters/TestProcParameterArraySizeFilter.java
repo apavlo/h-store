@@ -13,7 +13,7 @@ import org.voltdb.types.ExpressionType;
 
 import edu.brown.utils.ClassUtil;
 import edu.brown.workload.AbstractTraceElement;
-import edu.brown.workload.AbstractWorkload;
+import edu.brown.workload.Workload;
 import edu.brown.workload.TransactionTrace;
 
 /**
@@ -38,8 +38,8 @@ public class TestProcParameterArraySizeFilter extends AbstractTestFilter {
         assert(this.array_params.size() > 0);
     }
     
-    private AbstractWorkload.Filter makeFilter(ExpressionType exp_type) {
-        AbstractWorkload.Filter filter = new ProcedureNameFilter().include(TARGET_PROCEDURE)
+    private Workload.Filter makeFilter(ExpressionType exp_type) {
+        Workload.Filter filter = new ProcedureNameFilter().include(TARGET_PROCEDURE)
             .attach(new ProcParameterArraySizeFilter(this.array_params.get(0), ARRAY_SIZE, exp_type));
         return (filter);
     }
@@ -49,7 +49,7 @@ public class TestProcParameterArraySizeFilter extends AbstractTestFilter {
      */
     @Test
     public void testEquals() throws Exception {
-        AbstractWorkload.Filter filter = this.makeFilter(ExpressionType.COMPARE_EQUAL);
+        Workload.Filter filter = this.makeFilter(ExpressionType.COMPARE_EQUAL);
         Iterator<AbstractTraceElement<? extends CatalogType>> it = workload.iterator(filter);
         assertNotNull(it);
 
@@ -78,7 +78,7 @@ public class TestProcParameterArraySizeFilter extends AbstractTestFilter {
      */
     @Test
     public void testLessThan() throws Exception {
-        AbstractWorkload.Filter filter = this.makeFilter(ExpressionType.COMPARE_LESSTHAN);
+        Workload.Filter filter = this.makeFilter(ExpressionType.COMPARE_LESSTHAN);
         Iterator<AbstractTraceElement<? extends CatalogType>> it = workload.iterator(filter);
         assertNotNull(it);
 

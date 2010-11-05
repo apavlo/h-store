@@ -10,7 +10,7 @@ import org.voltdb.catalog.*;
 import edu.brown.utils.*;
 import edu.brown.BaseTestCase;
 
-public class TestWorkloadTraceFileOutput extends BaseTestCase {
+public class TestWorkload extends BaseTestCase {
 
     public static final Random rand = new Random();
     
@@ -37,7 +37,7 @@ public class TestWorkloadTraceFileOutput extends BaseTestCase {
         } // FOR
     };
     
-    protected WorkloadTraceFileOutput workload;
+    protected Workload workload;
     protected Procedure catalog_proc;
     protected Object single_xact_args[] = new Object[BASE_ARGS.length];
     protected Object multi_xact_args[] = new Object[BASE_ARGS.length];
@@ -47,7 +47,7 @@ public class TestWorkloadTraceFileOutput extends BaseTestCase {
     protected void setUp() throws Exception {
         super.setUp(ProjectType.TPCC);
         
-        this.workload = new WorkloadTraceFileOutput(catalog);
+        this.workload = new Workload(catalog);
         this.catalog_proc = this.getProcedure(TARGET_PROCEDURE);
         
         //

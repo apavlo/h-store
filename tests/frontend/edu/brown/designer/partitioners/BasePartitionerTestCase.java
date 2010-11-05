@@ -9,8 +9,8 @@ import edu.brown.designer.DesignerHints;
 import edu.brown.designer.DesignerInfo;
 import edu.brown.statistics.WorkloadStatistics;
 import edu.brown.utils.ProjectType;
-import edu.brown.workload.AbstractWorkload;
-import edu.brown.workload.WorkloadTraceFileOutput;
+import edu.brown.workload.Workload;
+import edu.brown.workload.Workload;
 import edu.brown.workload.filters.ProcedureLimitFilter;
 
 public abstract class BasePartitionerTestCase extends BaseTestCase {
@@ -21,7 +21,7 @@ public abstract class BasePartitionerTestCase extends BaseTestCase {
     protected static final int NUM_INTERVALS = 10;
 
     // Reading the workload takes a long time, so we only want to do it once
-    protected static AbstractWorkload workload;
+    protected static Workload workload;
     protected static WorkloadStatistics stats;
     protected static ParameterCorrelations correlations;
     protected static File correlations_file;
@@ -42,9 +42,9 @@ public abstract class BasePartitionerTestCase extends BaseTestCase {
             File workload_file = this.getWorkloadFile(type);
             assertNotNull(workload_file);
             assert(workload_file.exists());
-            workload = new WorkloadTraceFileOutput(catalog);
-            AbstractWorkload.Filter filter = new ProcedureLimitFilter(WORKLOAD_XACT_LIMIT);
-            ((WorkloadTraceFileOutput) workload).load(workload_file.getAbsolutePath(), catalog_db, filter);
+            workload = new Workload(catalog);
+            Workload.Filter filter = new ProcedureLimitFilter(WORKLOAD_XACT_LIMIT);
+            ((Workload) workload).load(workload_file.getAbsolutePath(), catalog_db, filter);
             
             File stats_file = this.getStatsFile(type);
             assertNotNull(stats_file);

@@ -399,7 +399,7 @@ public abstract class FixWorkload {
         return;
     }
     
-    private static final void fixTM1(AbstractWorkload workload) throws Exception {
+    private static final void fixTM1(Workload workload) throws Exception {
         // Fix UpdateSubscriberData
         long fix_ctr = 0;
         for (TransactionTrace txn_trace : workload.getTransactions()) {
@@ -415,7 +415,7 @@ public abstract class FixWorkload {
         return;
     }
     
-    private static final void updateTraceIds(Database catalog_db, AbstractWorkload workload, String output_path) throws Exception {
+    private static final void updateTraceIds(Database catalog_db, Workload workload, String output_path) throws Exception {
         FileOutputStream output = new FileOutputStream(output_path);
         
         long new_id = 1;
@@ -424,7 +424,7 @@ public abstract class FixWorkload {
             for (QueryTrace query_trace : txn_trace.getQueries()) {
                 query_trace.id = new_id++;
             }
-            WorkloadTraceFileOutput.writeTransactionToStream(catalog_db, txn_trace, output);
+            Workload.writeTransactionToStream(catalog_db, txn_trace, output);
         } // FOR
     }
     

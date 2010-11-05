@@ -14,13 +14,13 @@ import edu.brown.designer.DesignerHints;
 import edu.brown.designer.DesignerInfo;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.ProjectType;
-import edu.brown.workload.AbstractWorkload;
-import edu.brown.workload.WorkloadTraceFileOutput;
+import edu.brown.workload.Workload;
+import edu.brown.workload.Workload;
 
 public class TestRandomPartitioner extends BaseTestCase {
 
     private RandomPartitioner partitioner;
-    private AbstractWorkload workload;
+    private Workload workload;
     private Designer designer;
     private DesignerInfo info;
     private DesignerHints hints;
@@ -30,7 +30,7 @@ public class TestRandomPartitioner extends BaseTestCase {
         super.setUp(ProjectType.TM1, true);
         
         // Setup everything else (that's just how we roll up in this ma)
-        this.workload = new WorkloadTraceFileOutput(catalog);
+        this.workload = new Workload(catalog);
         this.info = new DesignerInfo(catalog_db, this.workload);
         this.info.setPartitionerClass(RandomPartitioner.class);
         this.hints = new DesignerHints();

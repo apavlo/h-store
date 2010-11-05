@@ -30,7 +30,7 @@ public class TestHeuristicPartitioner extends BaseTestCase {
     private static final int NUM_THREADS = 1;
     
     // Reading the workload takes a long time, so we only want to do it once
-    private static AbstractWorkload workload;
+    private static Workload workload;
 
     private Designer designer;
     private DesignerInfo info;
@@ -45,13 +45,13 @@ public class TestHeuristicPartitioner extends BaseTestCase {
         // Super hack! Walk back the directories and find out workload directory
         if (workload == null) {
             File workload_file = this.getWorkloadFile(ProjectType.TPCC); 
-            workload = new WorkloadTraceFileOutput(catalog);
+            workload = new Workload(catalog);
             
             // Workload Filter
             ProcedureNameFilter filter = new ProcedureNameFilter();
             filter.include(TARGET_PROCEDURE);
             filter.attach(new ProcedureLimitFilter(WORKLOAD_XACT_LIMIT));
-            ((WorkloadTraceFileOutput)workload).load(workload_file.getAbsolutePath(), catalog_db, filter);
+            ((Workload)workload).load(workload_file.getAbsolutePath(), catalog_db, filter);
         }
         
         // Setup everything else (that's just how we roll up in this ma)

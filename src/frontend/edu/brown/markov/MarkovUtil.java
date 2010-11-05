@@ -196,7 +196,7 @@ public abstract class MarkovUtil {
      * @return
      */
     public static MarkovGraphsContainer createGraphs(
-            Database catalog_db, AbstractWorkload workload, PartitionEstimator p_estimator) {
+            Database catalog_db, Workload workload, PartitionEstimator p_estimator) {
         assert(workload != null);
         assert(p_estimator != null);
         
@@ -230,13 +230,13 @@ public abstract class MarkovUtil {
      * @return
      */
     public static Map<Integer, MarkovGraph> createGraphsForProcedure(
-            Procedure catalog_proc, AbstractWorkload workload, PartitionEstimator p_estimator) {
+            Procedure catalog_proc, Workload workload, PartitionEstimator p_estimator) {
         final boolean trace = LOG.isTraceEnabled();
         assert(catalog_proc != null);
         assert(workload != null);
         assert(p_estimator != null);
         
-        // read in from WorkloadTraceFileOutput
+        // read in from Workload
         ProcedureNameFilter filter = new ProcedureNameFilter();
         filter.include(catalog_proc.getName());
         Iterator<AbstractTraceElement<? extends CatalogType>> it = workload.iterator(filter);
