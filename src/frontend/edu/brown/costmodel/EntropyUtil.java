@@ -55,7 +55,7 @@ public abstract class EntropyUtil {
         double ratio = 0.0d;
         double orig_ratio = 0.0d;
         ArrayList<Long> counts = new ArrayList<Long>();
-        StringBuilder sb = new StringBuilder();
+        StringBuilder sb = (debug ? new StringBuilder() : null);
         for (int i = 0; i < num_partitions; i++) {
             Long current = h.get(i);
             if (current == null) current = 0l;
@@ -74,7 +74,7 @@ public abstract class EntropyUtil {
             log = Math.abs(Math.log(ratio / best_ratio));
             // log = Math.abs(Math.log(abs_ratio / best_ratio) * abs_ratio);
             entropy += log;
-            sb.append(String.format(DEBUG_F, i, current, orig_ratio, ratio, log, entropy));
+            if (debug) sb.append(String.format(DEBUG_F, i, current, orig_ratio, ratio, log, entropy));
         } // FOR
         entropy = MathUtil.roundToDecimals(entropy, PERCISION);
         
@@ -84,13 +84,12 @@ public abstract class EntropyUtil {
             LOG.debug("Best:      " + best);
             LOG.debug("BestRatio: " + best_ratio);
             LOG.debug("Worst:     " + worst);
-        }
-
-        // We use the min and max entropy values to normalize the calculated entropy to be between [0, 1]
-        if (entropy > worst) {
-            System.err.println("\n" + sb.toString());
-            System.err.println(h);
-            System.err.println(entropy + " <= " + worst);
+            // We use the min and max entropy values to normalize the calculated entropy to be between [0, 1]
+            if (entropy > worst) {
+                System.err.println("\n" + sb.toString());
+                System.err.println(h);
+                System.err.println(entropy + " <= " + worst);
+            }
         }
         assert(entropy <= worst) : entropy + " <= " + worst;
         assert(entropy >= best) : entropy + " >= " + best;

@@ -171,7 +171,10 @@ public class WorkloadTraceFileOutput extends AbstractWorkload {
      * @throws Exception
      */
     public void load(String input_path, Database catalog_db, Filter filter) throws Exception {
-        LOG.debug("Reading workload trace from file '" + input_path + "'");
+        final boolean trace = LOG.isTraceEnabled();
+        final boolean debug = LOG.isDebugEnabled();
+        
+        if (debug) LOG.debug("Reading workload trace from file '" + input_path + "'");
         File file = new File(input_path);
 
         // Check whether it's gzipped. Yeah that's right, we support that!
@@ -231,27 +234,15 @@ public class WorkloadTraceFileOutput extends AbstractWorkload {
                     FilterResult result = filter.apply(xact);
                     if (result == FilterResult.HALT) break;
                     else if (result == FilterResult.SKIP) continue;
-//                    LOG.info(result + ": " + xact);
+                    if (trace) LOG.trace(result + ": " + xact);
                 }
-                //
+
                 // Keep track of how many trace elements we've loaded so that we can make sure
                 // that our element trace list is complete
-                //
                 xact_ctr++;
-                if (xact_ctr % 10000 == 0) LOG.debug("Read in " + xact_ctr + " transactions...");
+                query_ctr += xact.getQueryCount();
+                if (trace && xact_ctr % 10000 == 0) LOG.trace("Read in " + xact_ctr + " transactions...");
                 element_ctr += 1 + xact.getQueries().size();
-                
-                //
-                // We need to populate the catalog objects and update the element id xref mapping
-                // for each trace element that we just loaded in
-                //
-                this.element_ids.add(xact.getId());
-                this.element_id_xref.put(xact.getId(), xact);
-                for (QueryTrace query : xact.getQueries()) {
-                    this.element_ids.add(query.getId());
-                    this.element_id_xref.put(query.getId(), query);
-                    query_ctr++;
-                } // FOR
                 
                 // This call just updates the various other index structures 
                 this.addTransaction(xact.getCatalogItem(catalog_db), xact);

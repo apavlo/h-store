@@ -41,6 +41,37 @@ public abstract class StringUtil {
     }
     
     /**
+     * Make a box around some text. If str has multiple lines, then the box will be the length
+     * of the longest string.
+     * @param str
+     * @return
+     */
+    public static String box(String str) {
+        return (StringUtil.box(str, "*"));
+    }
+    
+    public static String box(String str, String mark) {
+        String lines[] = str.split("\n");
+        if (lines.length == 0) return ("");
+        int max_len = 0;
+        for (String line : lines) {
+            if (line.length() > max_len) max_len = line.length();
+        } // FOR
+        
+        final String top_line = StringUtil.repeat(mark, max_len + 4); // padding
+        final String f = "%s %-" + max_len + "s %s\n";
+        
+        StringBuilder sb = new StringBuilder();
+        sb.append(top_line).append("\n");
+        for (String line : lines) {
+            sb.append(String.format(f, mark, line, mark));
+        } // FOR
+        sb.append(top_line);
+        
+        return (sb.toString());
+    }
+    
+    /**
      * Abbreviate the given string. The last three chars will be periods
      * @param str
      * @param max

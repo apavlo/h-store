@@ -22,6 +22,7 @@ public abstract class CatalogKey {
     private static final String MULTIATTRIBUTE_DELIMITER = "#";
     
     private static final Map<CatalogType, String> CACHE_CREATEKEY = new HashMap<CatalogType, String>();
+    private static final Map<Database, Map<String, CatalogType>> CACHE_GETFROMKEY = new HashMap<Database, Map<String,CatalogType>>();
      
     
     /**
@@ -103,12 +104,25 @@ public abstract class CatalogKey {
      */
     @SuppressWarnings("unchecked")
     public static <T extends CatalogType> T getFromKey(Database catalog_db, String key, Class<T> catalog_class) {
-        LOG.debug("Grabbing " + catalog_class + " object for '" + key + "'");
+        final boolean debug = LOG.isDebugEnabled();
+        if (debug) LOG.debug("Grabbing " + catalog_class + " object for '" + key + "'");
+        
+        assert(catalog_db != null);
         assert(catalog_class != null);
-        int idx = key.indexOf(PARENT_DELIMITER);
-        assert (idx != -1) : "Invalid CatalogKey format '" + key + "'";
+
+        // Caching...
+        Map<String, CatalogType> cache = CatalogKey.CACHE_GETFROMKEY.get(catalog_db);
+        if (cache != null) {
+            if (cache.containsKey(key)) return (T)cache.get(key);
+        } else {
+            cache = new HashMap<String, CatalogType>();
+            CatalogKey.CACHE_GETFROMKEY.put(catalog_db, cache);
+        }
+
         T catalog_child = null;
         CatalogType catalog_parent = null;
+        int idx = key.indexOf(PARENT_DELIMITER);
+        assert (idx != -1) : "Invalid CatalogKey format '" + key + "'";
         String parent_key = key.substring(0, idx);
         String child_key = key.substring(idx + 1);
         
@@ -204,6 +218,7 @@ public abstract class CatalogKey {
             }
             // if (catalog_child == null) LOG.warn("The child catalog item is null for '" + key + "'");
             assert (catalog_child != null) : "The child catalog item is null for '" + key + "'";
+            cache.put(key, catalog_child);
             return (catalog_child);
         }
         return (null);

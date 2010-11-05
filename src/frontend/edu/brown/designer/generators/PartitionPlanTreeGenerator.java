@@ -34,7 +34,7 @@ public class PartitionPlanTreeGenerator extends AbstractGenerator<PartitionTree>
      */
     public static PartitionTree generate(Database catalog_db, PartitionPlan pplan) {
         PartitionTree ptree = new PartitionTree(catalog_db);
-        DesignerInfo info = new DesignerInfo(catalog_db, new WorkloadTraceFileOutput(catalog_db.getCatalog()));
+        DesignerInfo info = new DesignerInfo(catalog_db, null, null);
         try {
             new PartitionPlanTreeGenerator(info, pplan).generate(ptree);
         } catch (Exception ex) {
@@ -50,9 +50,7 @@ public class PartitionPlanTreeGenerator extends AbstractGenerator<PartitionTree>
             Vertex root = info.dgraph.getVertex(catalog_tbl);
             LOG.debug("ROOT: " + root);
             
-            //
             // Walk down the paths in the plans and create the partition tree that represents the PartitionPlan
-            //
             new VertexTreeWalker<Vertex>(info.dgraph) {
                 protected void populate_children(VertexTreeWalker<Vertex>.Children children, Vertex element) {
                     Set<Table> element_children = pplan.getChildren((Table)element.getCatalogItem());
@@ -68,14 +66,10 @@ public class PartitionPlanTreeGenerator extends AbstractGenerator<PartitionTree>
                 @Override
                 protected void callback(Vertex element) {
                     PartitionEntry entry = PartitionPlanTreeGenerator.this.pplan.getTableEntries().get((Table) element.getCatalogItem());
-                    //
                     // Bad Mojo!
-                    //
                     if (entry == null) {
                         LOG.warn("ERROR: No PartitionPlan entry for '" + element + "'");
-                    //
                     // Non-Root
-                    //
                     } else if (entry.getParent() != null) {
                         LOG.debug("Trying to create: " + entry.getParent() + "->" + element);
                         Vertex parent = info.dgraph.getVertex(entry.getParent());
@@ -90,9 +84,7 @@ public class PartitionPlanTreeGenerator extends AbstractGenerator<PartitionTree>
                             ptree.addEdge(edge, parent, element, EdgeType.DIRECTED);
                             element.setAttribute(ptree, PartitionTree.VertexAttributes.PARENT_ATTRIBUTE.name(), entry.getParentAttribute());
                         }
-                    //
                     // Root
-                    //
                     } else if (!ptree.containsVertex(element)) {
                         ptree.addVertex(element);
                         element.setAttribute(ptree, PartitionTree.VertexAttributes.ATTRIBUTE.name(), entry.getAttribute());

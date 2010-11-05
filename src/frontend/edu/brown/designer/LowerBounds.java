@@ -1,5 +1,7 @@
 package edu.brown.designer;
 
+import java.util.concurrent.atomic.AtomicInteger;
+
 import org.apache.log4j.Logger;
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Procedure;
@@ -11,6 +13,7 @@ import edu.brown.designer.partitioners.BranchAndBoundPartitioner;
 import edu.brown.designer.partitioners.PartitionPlan;
 import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.PartitionEstimator;
+import edu.brown.utils.StringUtil;
 import edu.brown.workload.AbstractWorkload;
 import edu.brown.workload.TransactionTrace;
 import edu.brown.workload.AbstractWorkload.Filter;
@@ -43,6 +46,7 @@ public class LowerBounds {
             assert(lb.hints != null);
             assert(lb.designer != null);
             final boolean trace = LowerBounds.LOG.isTraceEnabled();
+            final boolean debug = LowerBounds.LOG.isDebugEnabled();
             
             if (this.first) {
                 this.sscm.applyDesignerHints(lb.hints);
@@ -73,7 +77,13 @@ public class LowerBounds {
             partitioner.setUpperBounds(lb.hints, lb.upper_bounds, Double.MAX_VALUE, Long.MAX_VALUE);
             PartitionPlan pplan = partitioner.generate(lb.hints);
             pplan.apply(catalog_db);
+            if (trace) LOG.trace("Optimal Solution for " + txnTrace + "\n" + StringUtil.box(pplan.toString()));
             this.sscm.clear();
+            
+            if (debug && lb.txn_ctr.incrementAndGet() % 100 == 0) {
+                LOG.debug("Processed " + lb.txn_ctr.get() + " txns");
+//                System.gc();
+            }
             
             return (super.processTransaction(catalog_db, txnTrace, null));
         }
@@ -84,6 +94,7 @@ public class LowerBounds {
     private final DesignerInfo info;
     private final DesignerHints hints;
     private final TimeIntervalCostModel<InnerCostModel> costmodel;
+    private AtomicInteger txn_ctr = new AtomicInteger(0);
     
     private final PartitionPlan upper_bounds;
     
@@ -111,8 +122,16 @@ public class LowerBounds {
         this.hints = hints;
         this.costmodel = new TimeIntervalCostModel<InnerCostModel>(info.catalog_db, InnerCostModel.class, args.num_intervals);
         
-        // For fake upper-bounds
+        // Calculate the upper-bounds once using the default 
         this.upper_bounds = PartitionPlan.createFromCatalog(args.catalog_db);
+        
+        // Disable AbstractWorkload shutdown hooks
+        AbstractWorkload.ENABLE_SHUTDOWN_HOOKS = false;
+        
+        // Disable any time limits
+        this.hints.limit_back_tracks = null;
+        this.hints.limit_local_time = null;
+        this.hints.limit_total_time = null;
     }
     
     /**
@@ -145,7 +164,8 @@ public class LowerBounds {
         //
         DesignerInfo info = new DesignerInfo(args);
         DesignerHints hints = args.designer_hints;
-        hints.max_memory_per_partition = Long.MAX_VALUE;
+//        hints.max_memory_per_partition = Long.MAX_VALUE;
+//        hints.enable_costmodel_caching = false;
         
         long start = System.currentTimeMillis();
         LowerBounds lb = new LowerBounds(info, hints, args);

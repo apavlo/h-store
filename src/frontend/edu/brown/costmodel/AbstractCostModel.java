@@ -54,7 +54,7 @@ import edu.brown.workload.TransactionTrace;
  *
  */
 public abstract class AbstractCostModel implements Cloneable {
-    protected final Logger LOG;
+    private static final Logger LOG = Logger.getLogger(AbstractCostModel.class);
     
     /**
      * Child Class (keep this around just in case...)
@@ -66,7 +66,7 @@ public abstract class AbstractCostModel implements Cloneable {
      * Really? Do we really want to always be able to do that ourselves?
      * Why not? It's not working the way we have it now? Go fuck yourself!
      */
-    protected PartitionPlan last_pplan = null;
+    // protected PartitionPlan last_pplan = null;
     
     /**
      * Caching Parameter
@@ -215,9 +215,6 @@ public abstract class AbstractCostModel implements Cloneable {
     public AbstractCostModel(final Class<? extends AbstractCostModel> child_class, final Database catalog_db, final PartitionEstimator p_estimator) {
         this.child_class = child_class;
         this.p_estimator = p_estimator;
-
-//         this.LOG = new DynamicLogger(child_class);
-        this.LOG = Logger.getLogger(child_class);
         this.orig_log_level = LOG.getLevel();
     }
     
@@ -237,7 +234,7 @@ public abstract class AbstractCostModel implements Cloneable {
         this.histogram_txn_partitions.clear();
         this.query_ctr.set(0);
         this.txn_ctr.set(0);
-        if (this.LOG instanceof DynamicLogger) ((DynamicLogger)this.LOG).clear();
+        if (LOG instanceof DynamicLogger) ((DynamicLogger)LOG).clear();
     }
     
     /**
@@ -250,6 +247,8 @@ public abstract class AbstractCostModel implements Cloneable {
         
         // Construct a PartitionPlan for the current state of the catalog so that we 
         // know how to invalidate ourselves
+        
+        /* I don't think we need this anymore...
         PartitionPlan new_pplan = PartitionPlan.createFromCatalog(catalog_db);
         if (this.last_pplan != null) {
             Set<CatalogType> changed = new_pplan.getChangedEntries(this.last_pplan);
@@ -259,6 +258,7 @@ public abstract class AbstractCostModel implements Cloneable {
             }
         }
         this.last_pplan = new_pplan;
+        */
     }
     
     // ----------------------------------------------------------------------------

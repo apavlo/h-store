@@ -34,7 +34,7 @@ public class SimpleIndexSelector extends AbstractIndexSelector {
         //
         // Go through and count up all the attribute sets that aren't used for partitioning
         //
-        PartitionTree ptree = designer.getPartitionTree();
+        PartitionTree ptree = null; // FIXME designer.getPartitionTree();
         for (Procedure catalog_proc : info.catalog_db.getProcedures()) {
             AccessGraph agraph = designer.getAccessGraph(catalog_proc);
             if (agraph == null) continue;

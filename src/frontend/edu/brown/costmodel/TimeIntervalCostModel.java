@@ -11,6 +11,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 
+import org.apache.log4j.Logger;
 import org.voltdb.catalog.*;
 
 import edu.brown.catalog.CatalogKey;
@@ -32,6 +33,7 @@ import edu.brown.workload.AbstractWorkload.Filter;
  * @author pavlo
  */
 public class TimeIntervalCostModel<T extends AbstractCostModel> extends AbstractCostModel {
+    private static final Logger LOG = Logger.getLogger(TimeIntervalCostModel.class);
 
     /**
      * Internal cost models (one per interval)
@@ -156,11 +158,13 @@ public class TimeIntervalCostModel<T extends AbstractCostModel> extends Abstract
      */
     @Override
     public double estimateCost(Database catalog_db, AbstractWorkload workload, AbstractWorkload.Filter filter) throws Exception {
+        final boolean trace = LOG.isTraceEnabled();
+        final boolean debug = LOG.isDebugEnabled();
+        this.last_debug = "";
+        
         this.prepare(catalog_db);
         int num_partitions = CatalogUtil.getNumberOfPartitions(catalog_db);
         List<Integer> all_partitions = CatalogUtil.getAllPartitionIds(catalog_db);
-        final boolean debug = LOG.isDebugEnabled();
-        this.last_debug = "";
         
         if (debug) LOG.debug("Calculating workload execution cost across " + num_intervals + " intervals for " + num_partitions + " partitions");
 
@@ -211,6 +215,10 @@ public class TimeIntervalCostModel<T extends AbstractCostModel> extends Abstract
         
         // (2) Now go through the workload and estimate the partitions that each txn will touch
         //     for the given catalog setups
+        if (trace) {
+            LOG.trace("Total # of Txns in Workload: " + workload.getTransactionCount());
+            LOG.trace("Workload Filter Chain:       " + filter);
+        }
         Iterator<AbstractTraceElement<?>> it = workload.iterator(filter);
         while (it.hasNext()) {
             AbstractTraceElement<?> element = it.next();
@@ -271,7 +279,7 @@ public class TimeIntervalCostModel<T extends AbstractCostModel> extends Abstract
                     } else {
                         exec_histogram[i].putValues(all_partitions);
                     }
-                    if (debug) LOG.debug(txn_trace + ": " + (txn_entry.isSingleSited() ? "Single" : "Multi") + "-Sited [" +
+                    if (trace) LOG.trace(txn_trace + ": " + (txn_entry.isSingleSited() ? "Single" : "Multi") + "-Sited [" +
                                          "singlep_ctrs=" + singlepartition_ctrs[i] + ", " +
                                          "singlep_with_partitions_ctrs=" + singlepartition_with_partitions_ctrs[i] + ", " +
                                          "p_touched=" + partitions_touched[i] + ", " +
@@ -281,6 +289,7 @@ public class TimeIntervalCostModel<T extends AbstractCostModel> extends Abstract
                     // completely so that we can update the access histograms down below for entropy calculations
                     // Note that this is at the txn level, not the query level.
                     if (!txn_entry.isComplete()) {
+                        if (trace) LOG.trace("Marking " + txn_trace + " as incomplete in interval #" + i);
                         incomplete_txn_ctrs[i]++;
                         Set<Integer> missing_partitions = new HashSet<Integer>(all_partitions);
                         missing_partitions.removeAll(txn_entry.getTouchedPartitions());
@@ -295,7 +304,6 @@ public class TimeIntervalCostModel<T extends AbstractCostModel> extends Abstract
                 }
             }
         } // WHILE
-        // System.err.println(test_h);
         
         // We have to convert all of the costs into the range of [0.0, 1.0]
         // For each interval, divide the number of partitions touched by the total number of partitions
@@ -308,8 +316,9 @@ public class TimeIntervalCostModel<T extends AbstractCostModel> extends Abstract
         ArrayList<Long> total = new ArrayList<Long>();
         ArrayList<Double> penalties = new ArrayList<Double>();
         
+        if (debug) LOG.debug("Calculating execution cost for " + this.num_intervals + " intervals...");
         long total_multipartition_txns = 0;
-        for (int i = 0; i < num_intervals; i++) {
+        for (int i = 0; i < this.num_intervals; i++) {
             long total_txns_in_interval = histogram_proc_intervals.get(i, 0);
             long total_queries_in_interval = histogram_query_intervals.get(i, 0);
             long num_txns = this.cost_models[i].txn_ctr.get();
@@ -334,7 +343,7 @@ public class TimeIntervalCostModel<T extends AbstractCostModel> extends Abstract
             
             // For each txn that wasn't even evaluated, add all of the partitions to the incomplete histogram
             if (num_txns < total_txns_in_interval) {
-                LOG.debug("Adding " + (total_txns_in_interval - num_txns) + " entries to the incomplete histogram for interval #" + i);
+                if (trace) LOG.trace("Adding " + (total_txns_in_interval - num_txns) + " entries to the incomplete histogram for interval #" + i);
                 for (long ii = num_txns; ii < total_txns_in_interval; ii++) {
                     missing_txn_histogram[i].putValues(all_partitions);
                 } // WHILE
@@ -345,7 +354,7 @@ public class TimeIntervalCostModel<T extends AbstractCostModel> extends Abstract
             touched.add(partitions_touched[i]);
             potential.add(potential_txn_touches);
             
-            if (true || debug) {
+            if (trace) {
                 sb.append("Interval #" + i + ": ")
                   .append("PartTouched=" + partitions_touched[i] + ", ")
                   .append("PotentialTouched="  + potential_txn_touches + ", ")
@@ -360,7 +369,7 @@ public class TimeIntervalCostModel<T extends AbstractCostModel> extends Abstract
             }
         } // FOR
         
-        if (true || debug) {
+        if (debug) {
             sb.append("SinglePartition Txns: ").append(total_txns - total_multipartition_txns).append("\n");
             sb.append("MultiPartition Txns:  ").append(total_multipartition_txns).append("\n");
             sb.append("Total Txns:           ").append(total_txns).append(" [").append(1.0d - (total_multipartition_txns / (double)total_txns)).append("]\n");
@@ -371,17 +380,18 @@ public class TimeIntervalCostModel<T extends AbstractCostModel> extends Abstract
             sb.append("total = " + total.toString() + "\n");
             sb.append("multipartition = " + Arrays.toString(multipartition_ctrs) + "\n");
             sb.append("penalties = " + penalties + "\n");
-            LOG.debug(sb);
+            LOG.debug("**** Execution Cost ****\n" + sb);
             this.last_debug += sb.toString();
         }
         
         // LOG.debug("Execution By Intervals:\n" + sb.toString());
         
         // (3) We then need to go through and grab the histograms of partitions were accessed
+        if (debug) LOG.debug("Calculating skew factor for " + this.num_intervals + " intervals...");
         final double txn_skews[] = new double[num_intervals];
         final double exec_skews[] = new double[num_intervals];
         final double total_skews[] = new double[num_intervals];
-        sb = new StringBuilder();
+        if (debug) sb = new StringBuilder();
         for (int i = 0; i < num_intervals; i++) {
             Histogram histogram_query = this.cost_models[i].getQueryPartitionAccessHistogram();
             this.histogram_query_partitions.putHistogram(histogram_query);
@@ -402,7 +412,6 @@ public class TimeIntervalCostModel<T extends AbstractCostModel> extends Abstract
                 }
                 System.err.println("Check Touched Partitions: sample=" + check.getSampleCount() + ", value=" + check.getValueCount());
                 System.err.println("Cache Touched Partitions: sample=" + this.cost_models[i].getTxnPartitionAccessHistogram().getSampleCount() + ", value=" + this.cost_models[i].getTxnPartitionAccessHistogram().getValueCount());
-                
                 
                 int qtotal = singlesited_cost_model.getQueryCacheEntries().size();
                 int ctr = 0;
@@ -445,13 +454,12 @@ public class TimeIntervalCostModel<T extends AbstractCostModel> extends Abstract
             // look uniform. Then as more information is added, we will
             // This is an attempt to make sure that the entropy cost never decreases but only increases
             long total_txns_in_interval = histogram_proc_intervals.get(i, 0);
-            if (debug) {
+            if (trace) {
                 sb.append("INTERVAL #" + i + " [total_txns_in_interval=" + total_txns_in_interval + ", num_txns=" + num_txns + ", incomplete_txns=" + incomplete_txn_ctrs[i] + ", sample_count=" + target_histogram.getSampleCount() + "]\n");
                 sb.append("Incomplete Txn Histogram: [sample_count=" + incomplete_txn_histogram[i].getSampleCount() + "]\n");
                 sb.append(incomplete_txn_histogram[i].toString() + "\n");
                 sb.append("Missing Txn Histogram: [sample_count=" + missing_txn_histogram[i].getSampleCount() + "]\n");
                 sb.append(missing_txn_histogram[i].toString() + "\n");
-                
                 sb.append("BEFORE: [sample_count=" + target_histogram.getSampleCount() + "]\n" + target_histogram.toString() + "\n");
             }
 
@@ -466,7 +474,7 @@ public class TimeIntervalCostModel<T extends AbstractCostModel> extends Abstract
             assert(num_elements <= potential.get(i)) : 
                 "New Partitions Touched Sample Count [" + num_elements + "] < " +
                 "Maximum Potential Touched Count [" + potential.get(i) + "]";
-            if (debug) {
+            if (trace) {
                 sb.append("AFTER: [sample_count=" + num_elements + "]\n");
                 sb.append(target_histogram + "\n");
             }
@@ -486,25 +494,28 @@ public class TimeIntervalCostModel<T extends AbstractCostModel> extends Abstract
             }
             total_skews[i] = (0.5 * exec_skews[i]) + (0.5 * txn_skews[i]); 
             
-            if (true || debug) {
+            if (trace) {
                 sb.append("Txn Skew   = " + MathUtil.roundToDecimals(txn_skews[i], 6) + "\n");
                 sb.append("Exec Skew  = " + MathUtil.roundToDecimals(exec_skews[i], 6) + "\n");
                 sb.append("Total Skew = " + MathUtil.roundToDecimals(total_skews[i], 6) + "\n");
                 sb.append(StringUtil.DOUBLE_LINE);
             }
         } // FOR
-        if (debug) LOG.debug("\n" + sb);
-        this.last_debug += sb.toString();
-        // DEBUG
-//        for (int i = 0; i < num_intervals; i++) {
-//            LOG.debug("Time Interval #" + i + "\n" +
-//                      "Total # of Txns: " + this.cost_models[i].txn_ctr.get() + "\n" +
-//                      "Multi-Partition Txns: " + multipartition_ctrs[i] + "\n" + 
-//                      "Execution Cost: " + execution_costs[i] + "\n" +
-//                      "ProcHistogram:\n" + this.cost_models[i].getProcedureHistogram().toString() + "\n" +
-//                      //"TransactionsPerPartitionHistogram:\n" + this.cost_models[i].getTxnPartitionAccessHistogram() + "\n" +
-//                      StringUtil.SINGLE_LINE);
-//        }
+        if (debug && sb.length() > 0) {
+            LOG.debug("**** Skew Factor ****\n" + sb);
+            this.last_debug += sb.toString();
+        }
+        if (trace) {
+            for (int i = 0; i < num_intervals; i++) {
+                LOG.trace("Time Interval #" + i + "\n" +
+                          "Total # of Txns: " + this.cost_models[i].txn_ctr.get() + "\n" +
+                          "Multi-Partition Txns: " + multipartition_ctrs[i] + "\n" + 
+                          "Execution Cost: " + execution_costs[i] + "\n" +
+                          "ProcHistogram:\n" + this.cost_models[i].getProcedureHistogram().toString() + "\n" +
+                          //"TransactionsPerPartitionHistogram:\n" + this.cost_models[i].getTxnPartitionAccessHistogram() + "\n" +
+                          StringUtil.SINGLE_LINE);
+            }
+        }
         
         
         // (3) We can now calculate the final total estimate cost of this workload as the following
@@ -520,7 +531,7 @@ public class TimeIntervalCostModel<T extends AbstractCostModel> extends Abstract
                                 (this.use_entropy ? (this.entropy_weight * this.last_entropy_cost) : 0);
 
         String f = "%.06f";
-        if (true || debug) {
+        if (debug) {
             sb = new StringBuilder();
             sb.append("Total Txns:      ").append(total_txns).append("\n");
             
