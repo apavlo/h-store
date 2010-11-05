@@ -29,9 +29,9 @@ import java.io.*;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.util.*;
+import java.util.regex.Pattern;
 
 import org.apache.commons.collections15.map.ListOrderedMap;
-import org.apache.log4j.LogManager;
 import org.apache.log4j.Logger;
 
 import org.voltdb.catalog.*;
@@ -62,11 +62,12 @@ public class ArgumentsParser {
     /**
      * Hack to hook in log4j.properties
      */
-    private static boolean initialized_log4j = false;
+    private static File log4j_properties_file = null;
     private static Thread refresh_thread = null;
+    private static long last_timestamp = 0;
     
     public static void setupLogging() {
-        if (initialized_log4j) return;
+        if (log4j_properties_file != null) return;
         // Hack for testing...
         String paths[] = new String[]{
             System.getProperty("log4j.configuration", "./log4j.properties"),
@@ -78,7 +79,8 @@ public class ArgumentsParser {
             if (file.exists()) {
                 org.apache.log4j.PropertyConfigurator.configure(file.getAbsolutePath());
                 Logger.getRootLogger().debug("Loaded log4j configuration file '" + file.getAbsolutePath() + "'");
-                initialized_log4j = true;
+                log4j_properties_file = file;
+                last_timestamp = file.lastModified();
                 break;
             }
         } // FOR
@@ -88,7 +90,7 @@ public class ArgumentsParser {
             LOG.debug("Starting log4j refresh thread [update interval = " + interval + "]");
             refresh_thread = new Thread() {
                 public void run() {
-                    if (!initialized_log4j) setupLogging();
+                    if (log4j_properties_file == null) setupLogging();
                     Thread self = Thread.currentThread();
                     self.setName("LogCheck");
                     while (!self.isInterrupted()) {
@@ -97,9 +99,12 @@ public class ArgumentsParser {
                         } catch (InterruptedException ex) {
                             break;
                         }
-                        initialized_log4j = false;
-                        setupLogging();
-                        LOG.debug("Refreshed log4j configuration");
+                        // Refresh our configuration if the file has changed
+                        if (last_timestamp != log4j_properties_file.lastModified()) {
+                            log4j_properties_file = null;
+                            setupLogging();
+                            if (LOG.isDebugEnabled()) LOG.debug("Refreshed log4j configuration");
+                        }
                     }
                 }
             };
@@ -109,7 +114,7 @@ public class ArgumentsParser {
     }
     static {
         ArgumentsParser.setupLogging();
-        ArgumentsParser.refreshLogging(20000); // 180000l); // 3 min
+        ArgumentsParser.refreshLogging(10000); // 180000l); // 3 min
     }
 
     // --------------------------------------------------------------
@@ -426,8 +431,10 @@ public class ArgumentsParser {
      */
     @SuppressWarnings("unchecked")
     public void process(String[] args) throws Exception {
+        Pattern p = Pattern.compile("=");
+        
         for (String arg : args) {
-            String[] parts = arg.split("=",2);
+            String[] parts = p.split(arg, 2);
             if (parts[0].startsWith("-")) parts[0] = parts[0].substring(1);
             parts[0] = parts[0].toLowerCase();
             

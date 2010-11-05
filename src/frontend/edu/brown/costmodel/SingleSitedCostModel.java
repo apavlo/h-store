@@ -711,7 +711,9 @@ public class SingleSitedCostModel extends AbstractCostModel {
         
         if (!this.invalidate_targetKeys.isEmpty()) {
             if (debug) LOG.debug("Calling invalidateCache for " + this.invalidate_targetKeys.size() + " dependent catalog items of " + catalog_key);
-            for (String next_catalog_key : this.invalidate_targetKeys) {
+            
+            // We have to make a copy here, otherwise the recursive call will blow away our list
+            for (String next_catalog_key : new HashSet<String>(this.invalidate_targetKeys)) {
                 this.invalidateCache(next_catalog_key);
             } // FOR
         }

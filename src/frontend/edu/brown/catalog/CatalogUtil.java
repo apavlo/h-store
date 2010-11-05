@@ -46,7 +46,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
     /**
      * StatementKey -> Set<ColumnKey>
      */
-    public static final Map<String, Set<String>> CACHE_STATEMENT_COLUMNS = new HashMap<String, Set<String>>();
+    public static final Map<String, Set<String>> CACHE_STATEMENT_COLUMNS_KEYS = new HashMap<String, Set<String>>();
 
     /**
      * Table -> Long
@@ -1079,13 +1079,11 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
 
         if (debug) LOG.debug("Extracting table set from statement " + CatalogUtil.getDisplayName(catalog_stmt));
         final String catalog_key = CatalogKey.createKey(catalog_stmt);
-        if (!CatalogUtil.CACHE_STATEMENT_COLUMNS.containsKey(catalog_key)) {
+        if (!CatalogUtil.CACHE_STATEMENT_COLUMNS_KEYS.containsKey(catalog_key)) {
             final Database catalog_db = (Database) catalog_stmt.getParent().getParent();
 
-            // 2010-07-14: Always use the AbstractPlanNodes from the
-            // PlanFragments to figure out
-            // what columns the query touches. It's more accurate because we
-            // will pick apart plan nodes
+            // 2010-07-14: Always use the AbstractPlanNodes from the PlanFragments to figure out
+            // what columns the query touches. It's more accurate because we will pick apart plan nodes
             // and expression trees to figure things out
             AbstractPlanNode node = QueryPlanUtil.deserializeStatement(catalog_stmt, true);
             Set<Column> columns = CatalogUtil.getPartitionableColumnReferences(catalog_db, node);
@@ -1096,11 +1094,11 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
             for (Column catalog_col : columns) {
                 column_keys.add(CatalogKey.createKey(catalog_col));
             } // FOR
-            CatalogUtil.CACHE_STATEMENT_COLUMNS.put(catalog_key, Collections.unmodifiableSet(column_keys));
+            CatalogUtil.CACHE_STATEMENT_COLUMNS_KEYS.put(catalog_key, Collections.unmodifiableSet(column_keys));
         }
         Set<Column> ret = new HashSet<Column>();
         Database catalog_db = (Database) catalog_stmt.getParent().getParent();
-        for (String column_key : CatalogUtil.CACHE_STATEMENT_COLUMNS.get(catalog_key)) {
+        for (String column_key : CatalogUtil.CACHE_STATEMENT_COLUMNS_KEYS.get(catalog_key)) {
             Column catalog_col = CatalogKey.getFromKey(catalog_db, column_key, Column.class);
             if (catalog_col != null) ret.add(catalog_col);
         } // FOR

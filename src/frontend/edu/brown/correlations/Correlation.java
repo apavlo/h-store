@@ -117,7 +117,7 @@ public class Correlation implements Comparable<Correlation>, JSONSerializable {
         
         // Sort them by their attributes as they appear in the catalog
         // No! We want to sort them by their coefficients!
-        Comparable items0[] = new Comparable<?>[] {
+        final Comparable items0[] = new Comparable<?>[] {
                 this.coefficient,
                 this.statement,
                 this.statement_index,
@@ -125,7 +125,7 @@ public class Correlation implements Comparable<Correlation>, JSONSerializable {
                 this.procedure_parameter,
                 this.procedure_parameter_index,
         };
-        Comparable items1[] = new Comparable<?>[] {
+        final Comparable items1[] = new Comparable<?>[] {
                 o.coefficient,
                 o.statement,
                 o.statement_index,

@@ -22,6 +22,8 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Random;
 import java.util.logging.Logger;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import org.voltdb.VoltType;
 import org.voltdb.VoltTypeException;
@@ -217,9 +219,16 @@ public abstract class VoltTypeUtil {
                                     left + "' and '" + right + "' types");
     }
 
+    /**
+     * Some of our workloads (like TPC-E) will have commands and other crap in the #s that we need to strip out 
+     * @param value
+     * @return
+     */
     private static String cleanNumberString(String value) {
-        return (value.replace(",", "").replace(")", ""));
+        Matcher m = pattern_cleanNumberString.matcher(value);
+        return (m.replaceAll(""));
     }
+    private static final Pattern pattern_cleanNumberString = Pattern.compile("[,)]");
     
     /**
      * Returns a casted object of the input value string based on the given type
@@ -246,14 +255,22 @@ public abstract class VoltTypeUtil {
                 //ret = Integer.valueOf(value);
                 //break;
             case BIGINT:
-                ret = Long.valueOf(cleanNumberString(value));
+                try {
+                    ret = Long.valueOf(value);
+                } catch (NumberFormatException ex) {
+                    ret = Long.valueOf(cleanNumberString(value));
+                }
                 break;
             // --------------------------------
             // FLOATS
             // --------------------------------
             case FLOAT:
             case DECIMAL:
-                ret = Double.valueOf(cleanNumberString(value));
+                try {
+                    ret = Double.valueOf(value);
+                } catch (NumberFormatException ex) {
+                    ret = Double.valueOf(cleanNumberString(value));
+                }
                 break;
             // --------------------------------
             // STRINGS

@@ -245,7 +245,7 @@ public class WorkloadTraceFileOutput extends AbstractWorkload {
                 element_ctr += 1 + xact.getQueries().size();
                 
                 // This call just updates the various other index structures 
-                this.addTransaction(xact.getCatalogItem(catalog_db), xact);
+                this.addTransaction(xact.getCatalogItem(catalog_db), xact, true);
                 
             // Unknown!
             } else {
