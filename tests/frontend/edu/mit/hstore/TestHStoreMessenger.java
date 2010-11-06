@@ -1,5 +1,8 @@
 package edu.mit.hstore;
 
+import java.io.IOException;
+import java.net.InetSocketAddress;
+import java.nio.channels.ServerSocketChannel;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -29,14 +32,12 @@ import edu.brown.hstore.Hstore.MessageType;
 import edu.brown.utils.ProjectType;
 import edu.brown.utils.ThreadUtil;
 
+/**
+ * 
+ * @author pavlo
+ */
 public class TestHStoreMessenger extends BaseTestCase {
 
-    /**
-     * REMOVE THIS VARIABLE ONCE YOU GET STOP CONNECTIONS WORKING!!!
-     */
-    private final boolean DYLAN_REMOVE_FLAG = false;
-    
-    
     private final int NUM_HOSTS               = 1;
     private final int NUM_SITES_PER_HOST      = 4;
     private final int NUM_PARTITIONS_PER_SITE = 2;
@@ -71,14 +72,30 @@ public class TestHStoreMessenger extends BaseTestCase {
             this.messengers[i] = this.sites[i].getMessenger();
         } // FOR
         
-        // XXX
-        if (DYLAN_REMOVE_FLAG) this.startMessengers();
+        this.startMessengers();
     }
     
     @Override
     protected void tearDown() throws Exception {
+        System.err.println("TEAR DOWN!");
         super.tearDown();
         this.stopMessengers();
+        
+        // Check to make sure all of the ports are free for each messenger
+        for (HStoreMessenger m : this.messengers) {
+            // assert(m.isStopped()) : "Site #" + m.getLocalSiteId() + " wasn't stopped";
+            int port = m.getLocalMessengerPort();
+            ServerSocketChannel channel = ServerSocketChannel.open();
+            try {
+                channel.socket().bind(new InetSocketAddress(port));
+            } catch (IOException ex) {
+                ex.printStackTrace();
+                assert(false) : "Messenger port #" + port + " for Site #" + m.getLocalSiteId() + " isn't open: " + ex.getLocalizedMessage();
+            } finally {
+                channel.close();
+                Thread.yield();
+            }
+        } // FOR
     }
     
     /**
@@ -105,14 +122,16 @@ public class TestHStoreMessenger extends BaseTestCase {
         List<Thread> threads = new ArrayList<Thread>();
         AssertThreadGroup group = new AssertThreadGroup();
         for (final HStoreMessenger m : this.messengers) {
-            threads.add(new Thread(group, Integer.toString(m.getLocalSiteId())) {
+            threads.add(new Thread(group, "Site#" + m.getLocalSiteId()) {
                 @Override
                 public void run() {
                     m.start();
+                    System.err.println("START: " + m);
                 } 
             });
         } // FOR
         ThreadUtil.run(threads);
+        if (group.exceptions.isEmpty() == false) stopMessengers(); 
         assert(group.exceptions.isEmpty()) : group.exceptions;
     }
     
@@ -182,9 +201,6 @@ public class TestHStoreMessenger extends BaseTestCase {
      */
     @Test
     public void testSendMessage() throws Exception {
-        // XXX
-        if (DYLAN_REMOVE_FLAG == false) return; 
-        
         // Send a StatusRequest message to each of our remote sites
         final Map<Integer, String> responses = new HashMap<Integer, String>();
         final Set<Integer> waiting = new HashSet<Integer>();
