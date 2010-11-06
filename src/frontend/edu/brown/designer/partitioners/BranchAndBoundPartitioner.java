@@ -404,6 +404,7 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
             LOG.error("Failed to complete search successfully:\n" + pplan);
             assert(false);
         }
+        pplan.apply(info.catalog_db);
         return (pplan);
     }
     

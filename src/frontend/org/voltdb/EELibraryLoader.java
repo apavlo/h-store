@@ -62,11 +62,11 @@ public class EELibraryLoader {
                 } catch (Throwable t) {
                     if (mustSuccede) {
                         hostLog.fatal("Library VOLTDB JNI shared library loading failed. Library path "
-                                + System.getProperty("java.library.path"));
+                                + System.getProperty("java.library.path"), t);
                         VoltDB.crashVoltDB();
                     } else {
                         hostLog.error("Library VOLTDB JNI shared library loading failed. Library path "
-                                + System.getProperty("java.library.path"));
+                                + System.getProperty("java.library.path"), t);
                     }
                     return false;
                 }
