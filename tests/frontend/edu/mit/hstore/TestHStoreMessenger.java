@@ -178,10 +178,10 @@ public class TestHStoreMessenger extends BaseTestCase {
     @Test
     public void testSendFragmentLocal() throws Exception {
         // TODO: Write a test case that tests that we can send a data fragment (i.e., VoltTable) from
-        //       one partition to another that is on the same site. You can cast the destination ExecutionSite 
-        //       to a MockExecutionSite and use getDependency() to get back the VoltTable stored by HStoreMessenger
-        //       You can check that there is no HStoreService for target partition and thus it couldn't possibly
-        //       use the network to send the message.
+        //       one partition to another that is on the same site using HStoreMessenger.sendFragment().
+        //       You can cast the destination ExecutionSite to a MockExecutionSite and use getDependency()
+        //       to get back the VoltTable stored by HStoreMessenger. You can check that there is no
+        //       HStoreService for target partition and thus it couldn't possibly use the network to send the message.
     }
 
     /**
@@ -190,8 +190,8 @@ public class TestHStoreMessenger extends BaseTestCase {
     @Test
     public void testSendFragmentRemote() throws Exception {
         // TODO: Write a test case that tests that we can send a data fragment (i.e., VoltTable) from
-        //       one partition to another that is on a remote site. This will exercise whether the
-        //       HStoreMessenger can properly discern that a partition is remote and should use
+        //       one partition to another that is on a remote site. This will check whether the
+        //       HStoreMessenger.sendFragment() can properly discern that a partition is remote and should use
         //       a network message to send the data. You can stuff some data into the fragment
         //       and make sure that it arrives on the other side with the proper values.
     }
