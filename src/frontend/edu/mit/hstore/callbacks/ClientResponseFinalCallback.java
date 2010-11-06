@@ -5,7 +5,7 @@ import org.apache.log4j.Logger;
 import com.google.protobuf.RpcCallback;
 
 import edu.mit.dtxn.Dtxn;
-import edu.mit.hstore.HStoreCoordinatorNode;
+import edu.mit.hstore.HStoreSite;
 
 /**
  * Callback used to send the final output bytes to the client
@@ -17,7 +17,7 @@ public class ClientResponseFinalCallback extends AbstractTxnCallback implements 
     private final byte output[];
     private final boolean commit;
     
-    public ClientResponseFinalCallback(HStoreCoordinatorNode hstore_coordinator, long txn_id, byte output[], boolean commit, RpcCallback<byte[]> done) {
+    public ClientResponseFinalCallback(HStoreSite hstore_coordinator, long txn_id, byte output[], boolean commit, RpcCallback<byte[]> done) {
         super(hstore_coordinator, txn_id, done);
         this.output = output;
         this.commit = commit;

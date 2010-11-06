@@ -52,7 +52,7 @@ import edu.brown.catalog.CatalogUtil;
 import edu.brown.markov.TransactionEstimator;
 import edu.brown.utils.PartitionEstimator;
 import edu.mit.dtxn.Dtxn;
-import edu.mit.hstore.HStoreCoordinatorNode;
+import edu.mit.hstore.HStoreSite;
 import edu.mit.hstore.HStoreMessenger;
 
 /**
@@ -106,7 +106,7 @@ public class ExecutionSite implements Runnable {
     protected final BackendTarget backend_target;
     protected final ExecutionEngine ee;
     protected final HsqlBackend hsql;
-    protected final DBBPool buffer_pool = new DBBPool(true, true);
+    protected final DBBPool buffer_pool = new DBBPool(true, false);
 
     /**
      * Runtime Estimators
@@ -120,7 +120,7 @@ public class ExecutionSite implements Runnable {
     // H-Store Transaction Stuff
     // ----------------------------------------------------------------------------
 
-    protected HStoreCoordinatorNode hstore_coordinator;
+    protected HStoreSite hstore_coordinator;
     protected HStoreMessenger hstore_messenger;
 
     // ----------------------------------------------------------------------------
@@ -468,7 +468,7 @@ public class ExecutionSite implements Runnable {
         this.hstore_messenger = hstore_messenger;
     }
     
-    public void setHStoreCoordinatorNode(HStoreCoordinatorNode hstore_coordinator) {
+    public void setHStoreCoordinatorNode(HStoreSite hstore_coordinator) {
         this.hstore_coordinator = hstore_coordinator;
     }
     

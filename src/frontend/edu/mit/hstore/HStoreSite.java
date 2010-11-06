@@ -5,6 +5,7 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
@@ -64,28 +65,15 @@ import edu.mit.hstore.callbacks.InitiateCallback;
  * 
  * @author pavlo
  */
-public class HStoreCoordinatorNode extends Dtxn.ExecutionEngine implements VoltProcedureListener.Handler {
-    private static final Logger LOG = Logger.getLogger(HStoreCoordinatorNode.class.getName());
-    
-    /**
-     * We need to maintain a separate counter that generates locally unique txn ids for the Dtxn.Coordinator
-     * Note that these aren't the txn ids that we will actually use. They're just necessary because Evan's
-     * stuff can't take longs and we have to give it a new id that it will use internally  
-     */
-    private final AtomicInteger dtxn_txn_id_counter = new AtomicInteger(1);
-    
-    /**
-     * Mapping from real txn ids => fake dtxn ids (the first one we sent to the
-     * Dtxn.Coordinator in procedureInvocation());
-     */
-    private final Map<Long, Long> dtxn_id_xref = new ConcurrentHashMap<Long, Long>();
+public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureListener.Handler {
+    private static final Logger LOG = Logger.getLogger(HStoreSite.class.getName());
     
     /**
      * This is the thing that we will actually use to generate txn ids used by our H-Store specific code
      */
     private final TransactionIdManager txnid_manager;
     
-    private final DBBPool buffer_pool = new DBBPool(true, true);
+    private final DBBPool buffer_pool = new DBBPool(true, false);
     private final Map<Integer, Thread> executor_threads = new HashMap<Integer, Thread>();
     private final HStoreMessenger messenger;
     
@@ -98,7 +86,7 @@ public class HStoreCoordinatorNode extends Dtxn.ExecutionEngine implements VoltP
     
     private final Site catalog_site;
     private final int site_id;
-    private final Map<Integer, ExecutionSite> executors = new HashMap<Integer, ExecutionSite>();
+    private final Map<Integer, ExecutionSite> executors;
     private final Database catalog_db;
     private final PartitionEstimator p_estimator;
     private EstimationThresholds thresholds;
@@ -142,7 +130,7 @@ public class HStoreCoordinatorNode extends Dtxn.ExecutionEngine implements VoltP
         
         public StatusMonitorThread(int interval) {
             this.interval = interval;
-            for (Integer partition : CatalogUtil.getAllPartitionIds(HStoreCoordinatorNode.this.catalog_db)) {
+            for (Integer partition : CatalogUtil.getAllPartitionIds(HStoreSite.this.catalog_db)) {
                 this.partition_txns.put(partition, new TreeSet<Long>());
             } // FOR
             // Throw in -1 for local txns
@@ -152,7 +140,7 @@ public class HStoreCoordinatorNode extends Dtxn.ExecutionEngine implements VoltP
         @Override
         public void run() {
             Thread self = Thread.currentThread();
-            self.setName(HStoreCoordinatorNode.this.getThreadName("mon"));
+            self.setName(HStoreSite.this.getThreadName("mon"));
             
             LOG.debug("Starting HStoreCoordinator status monitor thread [interval=" + interval + " secs]");
             while (!self.isInterrupted()) {
@@ -175,7 +163,7 @@ public class HStoreCoordinatorNode extends Dtxn.ExecutionEngine implements VoltP
                 int singlep_txns = singlepart_ctr.get();
                 int multip_txns = multipart_ctr.get();
                 int total_txns = singlep_txns + multip_txns;
-                int completed = HStoreCoordinatorNode.this.completed_txns.get();
+                int completed = HStoreSite.this.completed_txns.get();
 
                 StringBuilder sb = new StringBuilder();
                 sb.append(prefix).append(StringUtil.DOUBLE_LINE)
@@ -255,27 +243,25 @@ public class HStoreCoordinatorNode extends Dtxn.ExecutionEngine implements VoltP
      * @param coordinator
      * @param p_estimator
      */
-    public HStoreCoordinatorNode(Site catalog_site, Map<Integer, ExecutionSite> executors, PartitionEstimator p_estimator) {
+    public HStoreSite(Site catalog_site, Map<Integer, ExecutionSite> executors, PartitionEstimator p_estimator) {
         // General Stuff
         this.catalog_site = catalog_site;
         this.site_id = this.catalog_site.getId();
         this.catalog_db = CatalogUtil.getDatabase(this.catalog_site);
         this.p_estimator = p_estimator;
         this.thresholds = new EstimationThresholds(); // default values
-        this.executors.putAll(executors);
-        this.messenger = new HStoreMessenger(this, this.executors);
+        this.executors = Collections.unmodifiableMap(new HashMap<Integer, ExecutionSite>(executors));
+        this.messenger = new HStoreMessenger(this);
         this.txnid_manager = new TransactionIdManager(this.site_id);
         
         assert(this.catalog_db != null);
         assert(this.p_estimator != null);
-        
-        this.init();
     }
     
     /**
      * Initializes all the pieces that we need to start this HStore site up
      */
-    private void init() {
+    public void start() {
         final boolean debug = LOG.isDebugEnabled(); 
         if (debug) LOG.debug("Initializing HStoreCoordinatorNode...");
 
@@ -343,12 +329,20 @@ public class HStoreCoordinatorNode extends Dtxn.ExecutionEngine implements VoltP
         }
     }
     
+    public Map<Integer, ExecutionSite> getExecutors() {
+        return executors;
+    }
+    
     public void setDtxnCoordinator(Dtxn.Coordinator coordinator) {
         this.coordinator = coordinator;
     }
     
     public Dtxn.Coordinator getDtxnCoordinator() {
         return (this.coordinator);
+    }
+    
+    public HStoreMessenger getMessenger() {
+        return messenger;
     }
     
     private void setEstimationThresholds(EstimationThresholds thresholds) {
@@ -384,10 +378,8 @@ public class HStoreCoordinatorNode extends Dtxn.ExecutionEngine implements VoltP
      */
     public synchronized void completeTransaction(long txn_id) {
         if (LOG.isTraceEnabled()) LOG.trace("Cleaning up internal info for Txn #" + txn_id);
-        assert(this.dtxn_id_xref.containsKey(txn_id)) : "Duplicate clean-up for Txn #" + txn_id + "???"; 
         this.inflight_txns.remove(txn_id);
         this.completed_txns.incrementAndGet();
-        this.dtxn_id_xref.remove(txn_id);
         
         assert(!this.inflight_txns.containsKey(txn_id)) :
             "Failed to remove InFlight entry for txn #" + txn_id + "\n" + inflight_txns;
@@ -473,7 +465,6 @@ public class HStoreCoordinatorNode extends Dtxn.ExecutionEngine implements VoltP
         // txn ids found in any Dtxn.Coordinator messages. 
         long real_txn_id = this.txnid_manager.getNextUniqueTransactionId();
         long dtxn_txn_id = real_txn_id; // this.dtxn_txn_id_counter.getAndIncrement();
-        this.dtxn_id_xref.put(real_txn_id, dtxn_txn_id);
                 
         // Grab the TransactionEstimator for the destination partition and figure out whether
         // this mofo is likely to be single-partition or not. Anything that we can't estimate
@@ -513,7 +504,7 @@ public class HStoreCoordinatorNode extends Dtxn.ExecutionEngine implements VoltP
         // NOTE: Evan betrayed our love so we can't use his txn ids because they are meaningless to us
         // So we're going to pack in our txn id in the payload. Any message they we get from Evan
         // will have this payload so that we can figure out what the hell is going on...
-        requestBuilder.setPayload(HStoreCoordinatorNode.encodeTxnId(real_txn_id));
+        requestBuilder.setPayload(HStoreSite.encodeTxnId(real_txn_id));
 
         // Pack the StoredProcedureInvocation into a Dtxn.PartitionFragment
         requestBuilder.addFragment(Dtxn.CoordinatorFragment.PartitionFragment.newBuilder()
@@ -552,7 +543,7 @@ public class HStoreCoordinatorNode extends Dtxn.ExecutionEngine implements VoltP
 
         long real_txn_id = msg.getTxnId();
         int partition = msg.getDestinationPartitionId();
-        Long dtxn_txn_id = this.dtxn_id_xref.get(real_txn_id);
+        Long dtxn_txn_id = real_txn_id; // TODO: This is not needed anymore
         
         if (debug) LOG.debug("Got " + msg.getClass().getSimpleName() + " message for txn #" + real_txn_id + " " +
                              "[partition=" + partition + ", dtxn_txn_id=" + dtxn_txn_id + "]");
@@ -621,7 +612,7 @@ public class HStoreCoordinatorNode extends Dtxn.ExecutionEngine implements VoltP
         if (request.hasPayload() == false) {
             throw new RuntimeException("Got Dtxn.FinishRequest without a payload. Can't determine txn id!");
         }
-        Long txn_id = HStoreCoordinatorNode.decodeTxnId(request.getPayload());
+        Long txn_id = HStoreSite.decodeTxnId(request.getPayload());
         assert(txn_id != null) : "Null txn id in Dtxn.FinishRequest payload";
         if (debug) LOG.debug("Got " + request.getClass().getSimpleName() + " for txn #" + txn_id + " " +
                              "[commit=" + request.getCommit() + "]");
@@ -655,7 +646,7 @@ public class HStoreCoordinatorNode extends Dtxn.ExecutionEngine implements VoltP
      * @param coordinatorPort
      * @throws Exception
      */
-    public static void launch(final HStoreCoordinatorNode hstore_node,
+    public static void launch(final HStoreSite hstore_node,
                               final String hstore_conf_path, final String dtxnengine_path, final String dtxncoordinator_path,
                               final String coordinatorHost, final int coordinatorPort) throws Exception {
         final boolean debug = LOG.isDebugEnabled();
@@ -663,6 +654,12 @@ public class HStoreCoordinatorNode extends Dtxn.ExecutionEngine implements VoltP
         final Site catalog_site = hstore_node.getSite();
         final int num_partitions = catalog_site.getPartitions().size();
         final String site_host = catalog_site.getHost().getIpaddr();
+        
+        // ----------------------------------------------------------------------------
+        // (1) ProtoServer Thread (one per site)
+        // ----------------------------------------------------------------------------
+        if (debug) LOG.debug(String.format("Starting HStoreSite [site=%d]", hstore_node.getSiteId()));
+        hstore_node.start();
         
         // ----------------------------------------------------------------------------
         // (1) ProtoServer Thread (one per site)
@@ -883,19 +880,19 @@ public class HStoreCoordinatorNode extends Dtxn.ExecutionEngine implements VoltP
         
         // Now we need to create an HStoreMessenger and pass it to all of our ExecutionSites
             
-        HStoreCoordinatorNode node = new HStoreCoordinatorNode(catalog_site, executors, p_estimator);
-        node.setEstimationThresholds(args.thresholds); // may be null...
+        HStoreSite site = new HStoreSite(catalog_site, executors, p_estimator);
+        site.setEstimationThresholds(args.thresholds); // may be null...
         
         // Status Monitor
         if (args.hasParam(ArgumentsParser.PARAM_COORDINATOR_STATUS_INTERVAL)) {
             int interval = args.getIntParam(ArgumentsParser.PARAM_COORDINATOR_STATUS_INTERVAL);
             // assert(interval > 0) : "Invalid value '" + interval + "' for parameter " + ArgumentsParser.PARAM_COORDINATOR_STATUS_INTERVAL; 
-            node.enableStatusMonitor(interval);
+            site.enableStatusMonitor(interval);
         }
         
         // Bombs Away!
         LOG.debug("Instantiating HStoreCoordinator network connections...");
-        HStoreCoordinatorNode.launch(node,
+        HStoreSite.launch(site,
                 args.getParam(ArgumentsParser.PARAM_DTXN_CONF), 
                 args.getParam(ArgumentsParser.PARAM_DTXN_ENGINE),
                 args.getParam(ArgumentsParser.PARAM_DTXN_COORDINATOR),

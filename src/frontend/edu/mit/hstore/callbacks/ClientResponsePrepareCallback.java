@@ -8,7 +8,7 @@ import com.google.protobuf.RpcCallback;
 
 import edu.brown.markov.TransactionEstimator;
 import edu.mit.dtxn.Dtxn;
-import edu.mit.hstore.HStoreCoordinatorNode;
+import edu.mit.hstore.HStoreSite;
 
 /**
  * Unpack a FragmentResponse and send the bytes to the client
@@ -20,7 +20,7 @@ public final class ClientResponsePrepareCallback extends AbstractTxnCallback imp
     private final TransactionEstimator t_estimator;
     private final long dtxn_txn_id; 
     
-    public ClientResponsePrepareCallback(HStoreCoordinatorNode hstore_coordinator, long txn_id, long dtxn_txn_id, TransactionEstimator t_estimator, RpcCallback<byte[]> done) {
+    public ClientResponsePrepareCallback(HStoreSite hstore_coordinator, long txn_id, long dtxn_txn_id, TransactionEstimator t_estimator, RpcCallback<byte[]> done) {
         super(hstore_coordinator, txn_id, done);
         assert(done != null);
         this.dtxn_txn_id = dtxn_txn_id;
@@ -51,7 +51,7 @@ public final class ClientResponsePrepareCallback extends AbstractTxnCallback imp
         Dtxn.FinishRequest request = Dtxn.FinishRequest.newBuilder()
                                             .setTransactionId(this.dtxn_txn_id)
                                             .setCommit(commit)
-                                            .setPayload(HStoreCoordinatorNode.encodeTxnId(this.txn_id))
+                                            .setPayload(HStoreSite.encodeTxnId(this.txn_id))
                                             .build();
         ClientResponseFinalCallback callback = new ClientResponseFinalCallback(this.hstore_coordinator, this.txn_id, output, commit, this.done);
         if (trace) LOG.debug("Calling Dtxn.Coordinator.finish() for txn #" + this.txn_id + " [payload=" + request.hasPayload() + "]");

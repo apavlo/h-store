@@ -124,6 +124,29 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
         return (params);
     }
     
+    /**
+     * Return the number of hosts for a catalog for any catalog item
+     * @param catalog_item
+     * @return
+     */
+    public static int getNumberOfHosts(CatalogType catalog_item) {
+        Cluster catalog_clus = CatalogUtil.getCluster(catalog_item);
+        int ret = catalog_clus.getHosts().size();
+        assert (ret > 0);
+        return (ret);
+    }
+    
+    /**
+     * Return the number of sites for a catalog for any catalog item
+     * @param catalog_item
+     * @return
+     */
+    public static int getNumberOfSites(CatalogType catalog_item) {
+        Cluster catalog_clus = CatalogUtil.getCluster(catalog_item);
+        int ret = catalog_clus.getSites().size();
+        assert (ret > 0);
+        return (ret);
+    }
     
     /**
      * Return the number of partitions for a catalog for any catalog item

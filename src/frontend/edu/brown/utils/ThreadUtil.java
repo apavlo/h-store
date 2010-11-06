@@ -9,6 +9,10 @@ import org.apache.log4j.Logger;
 public abstract class ThreadUtil {
     private static final Logger LOG = Logger.getLogger(ThreadUtil.class);
 
+    /**
+     * Convenience wrapper around Thread.sleep() for when we don't care about exceptions
+     * @param millis
+     */
     public static void sleep(long millis) {
         try {
             Thread.sleep(millis);
@@ -23,8 +27,10 @@ public abstract class ThreadUtil {
      * @param command
      */
     public static void fork(String command[], final String prefix, final EventObservable stop_observable) {
+        final boolean debug = LOG.isDebugEnabled(); 
+        
         final String prog_name = FileUtil.basename(command[0]);
-        LOG.debug("Forking off process: " + Arrays.toString(command));
+        if (debug) LOG.debug("Forking off process: " + Arrays.toString(command));
 
         // Copied from ShellTools
         ProcessBuilder pb = new ProcessBuilder(command);
@@ -46,7 +52,7 @@ public abstract class ThreadUtil {
                 @Override
                 public void update(Observable arg0, Object arg1) {
                     assert(first) : "Trying to stop the process twice??";
-                    LOG.info("Stopping Process -> " + prog_name);
+                    if (debug) LOG.debug("Stopping Process -> " + prog_name);
                     p.destroy();
                     first = false;
                 }
@@ -78,36 +84,41 @@ public abstract class ThreadUtil {
     }
     
     /**
-     * For a given list of threads, execute them all at the same time and return once they have completed
+     * For a given list of threads, execute them all at the same time and block until they have all completed
      * @param threads
      * @throws Exception
      */
-    public static void run(final List<? extends Thread> orig_threads) throws Exception {
-        ThreadUtil.run(orig_threads, -1);
+    public static void run(final List<? extends Thread> threads) throws Exception {
+        ThreadUtil.run(threads, null);
     }
     
     /**
      * For a given list of threads, execute them all (up to max_concurrent at a time) and return
-     * once they have completed
+     * once they have completed. If max_concurrent is null, then all threads will be fired off at the same time
      * @param threads
      * @param max_concurrent
      * @throws Exception
      */
-    public static void run(final List<? extends Thread> orig_threads, int max_concurrent) throws Exception {
+    public static void run(final List<? extends Thread> threads, Integer max_concurrent) throws Exception {
+        final boolean debug = LOG.isDebugEnabled();
+        
         // Make a new list of threads so that we can modify its contents without affecting
         // the data structures of whoever called us.
-        List<Thread> threads = new ArrayList<Thread>(orig_threads);
+        List<Thread> available = new ArrayList<Thread>(threads);
         List<Thread> running = new Vector<Thread>();
+        if (max_concurrent == null) max_concurrent = -1;
         
-        LOG.debug("Executing " + threads.size() + " threads [max_concurrent=" + max_concurrent + "]");
+        if (debug) LOG.debug("Executing " + available.size() + " threads [max_concurrent=" + max_concurrent + "]");
         long max_sleep = 16000;
-        while (!threads.isEmpty() || !running.isEmpty()) {
-            while ((max_concurrent < 0 || running.size() < max_concurrent) && !threads.isEmpty()) {
-                Thread thread = threads.remove(0);
+        while (!available.isEmpty() || !running.isEmpty()) {
+            while ((max_concurrent < 0 || running.size() < max_concurrent) && !available.isEmpty()) {
+                Thread thread = available.remove(0);
                 thread.start();
                 running.add(thread);
-                LOG.debug("Started " + thread);
-                LOG.debug("Running=" + running.size() + ", Waiting=" + threads.size() + ", Available=" + (max_concurrent - running.size()));
+                if (debug) {
+                    LOG.debug("Started " + thread);
+                    LOG.debug("Running=" + running.size() + ", Waiting=" + available.size() + ", Available=" + (max_concurrent - running.size()));
+                }
             } // WHILE
             int num_running = running.size();
             long sleep = 1000;
@@ -117,8 +128,10 @@ public abstract class ThreadUtil {
                     thread.join(sleep);
                     if (!thread.isAlive()) {
                         running.remove(i);
-                        LOG.debug(thread + " is complete");
-                        LOG.debug("Running=" + running.size() + ", Waiting=" + threads.size() + ", Available=" + (max_concurrent - running.size()));
+                        if (debug) {
+                            LOG.debug(thread + " is complete");
+                            LOG.debug("Running=" + running.size() + ", Waiting=" + available.size() + ", Available=" + (max_concurrent - running.size()));
+                        }
                         break;
                     }
                 } // FOR
@@ -127,7 +140,7 @@ public abstract class ThreadUtil {
                 if (sleep > max_sleep) sleep = max_sleep;
             } // WHILE
         } // WHILE
-        LOG.debug("All threads are finished");
+        if (debug) LOG.debug("All threads are finished");
         return;
     }
     

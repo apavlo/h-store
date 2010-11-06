@@ -2,7 +2,7 @@ package edu.mit.hstore.callbacks;
 
 import com.google.protobuf.RpcCallback;
 
-import edu.mit.hstore.HStoreCoordinatorNode;
+import edu.mit.hstore.HStoreSite;
 
 /**
  * Base class used to perform the final operations of when a txn completes
@@ -10,12 +10,12 @@ import edu.mit.hstore.HStoreCoordinatorNode;
  */
 public abstract class AbstractTxnCallback {
     
-    protected final HStoreCoordinatorNode hstore_coordinator;
+    protected final HStoreSite hstore_coordinator;
     protected final RpcCallback<byte[]> done;
     protected final long txn_id;
     
  
-    public AbstractTxnCallback(HStoreCoordinatorNode hstore_coordinator, long txn_id, RpcCallback<byte[]> done) {
+    public AbstractTxnCallback(HStoreSite hstore_coordinator, long txn_id, RpcCallback<byte[]> done) {
         this.hstore_coordinator = hstore_coordinator;
         this.txn_id = txn_id;
         this.done = done;

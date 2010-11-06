@@ -24,6 +24,10 @@ import edu.brown.utils.FileUtil;
 import edu.brown.utils.PartitionEstimator;
 import edu.brown.utils.ProjectType;
 
+/**
+ * Base class that provides a lot of the common functionality that our HStore test cases need
+ * @author pavlo
+ */
 public abstract class BaseTestCase extends TestCase {
 
     // log4j Hack
@@ -33,23 +37,47 @@ public abstract class BaseTestCase extends TestCase {
     
     protected ProjectType last_type;
     
+    /**
+     * There is always a static catalog that gets created for each project type
+     * This is so that for each test case invocation we don't have to recompile the catalog every time
+     */
     protected static Catalog catalog;
-    protected static final Map<ProjectType, Catalog> project_catalogs = new HashMap<ProjectType, Catalog>();
+    private static final Map<ProjectType, Catalog> project_catalogs = new HashMap<ProjectType, Catalog>();
     
     protected static Database catalog_db;
-    protected static final Map<ProjectType, Database> project_databases = new HashMap<ProjectType, Database>();
+    private static final Map<ProjectType, Database> project_databases = new HashMap<ProjectType, Database>();
 
     protected static PartitionEstimator p_estimator;
-    protected static final Map<ProjectType, PartitionEstimator> project_p_estimators = new HashMap<ProjectType, PartitionEstimator>();
-    
+    private static final Map<ProjectType, PartitionEstimator> project_p_estimators = new HashMap<ProjectType, PartitionEstimator>();
+
+    /**
+     * Setup the test case for the given project type
+     * By default we don't include foreign keys in the catalog (I forget why we did this)
+     * @param type
+     * @throws Exception
+     */
     protected void setUp(ProjectType type) throws Exception {
         this.setUp(type, false);
     }
     
+    /**
+     * Setup the test case for the given project type
+     * @param type
+     * @param fkeys - if true, then 
+     * @throws Exception
+     */
     protected void setUp(ProjectType type, boolean fkeys) throws Exception {
         this.setUp(type, fkeys, true);
     }
     
+    /**
+     * Main setUp method for test cases. Given the ProjectType we will populate the static catalog field members 
+     * The full_catalog flag is a hack to work around OutofMemory issues with TPC-E
+     * @param type
+     * @param fkeys
+     * @param full_catalog
+     * @throws Exception
+     */
     protected void setUp(ProjectType type, boolean fkeys, boolean full_catalog) throws Exception {
         super.setUp();
         this.last_type = type;
@@ -122,11 +150,23 @@ public abstract class BaseTestCase extends TestCase {
         return (false);
     }
     
+    // --------------------------------------------------------------------------------------
+    // CONVENIENCE METHODS
+    // --------------------------------------------------------------------------------------
+    
     protected Cluster getCluster() {
         assertNotNull(catalog);
         Cluster catalog_clus = CatalogUtil.getCluster(catalog);
         assert(catalog_clus != null) : "Failed to retriever cluster object from catalog";
         return (catalog_clus);
+    }
+    
+    protected Site getSite(int site_id) {
+        assertNotNull(catalog);
+        Cluster catalog_clus = this.getCluster();
+        Site catalog_site = catalog_clus.getSites().get("id", site_id);
+        assert(catalog_site != null) : "Failed to retrieve Site #" + site_id + " from catalog";
+        return (catalog_site);
     }
     
     protected Table getTable(Database catalog_db, String table_name) {
@@ -220,6 +260,26 @@ public abstract class BaseTestCase extends TestCase {
         assertEquals(num_partitions, cluster.getNum_partitions());
         assertEquals(num_partitions, CatalogUtil.getNumberOfPartitions(cluster));
     }
+    
+    protected void initializeCluster(int num_hosts, int num_sites, int num_partitions) throws Exception {
+        // HACK! If we already have this many partitions in the catalog, then we won't recreate it
+        // This fixes problems where we need to reference the same catalog objects in multiple test cases
+        if (CatalogUtil.getNumberOfHosts(catalog_db) != num_hosts ||
+                CatalogUtil.getNumberOfSites(catalog_db) != (num_hosts * num_sites) ||
+                CatalogUtil.getNumberOfPartitions(catalog_db) != (num_hosts * num_sites * num_partitions)) {
+            catalog = FixCatalog.addHostInfo(catalog, "localhost", num_hosts, num_sites, num_partitions);
+            this.init(this.last_type, catalog);
+        }
+        Cluster cluster = CatalogUtil.getCluster(catalog_db);
+        assertEquals(num_hosts, CatalogUtil.getNumberOfHosts(catalog_db));
+        assertEquals((num_hosts * num_sites), CatalogUtil.getNumberOfSites(catalog_db));
+        assertEquals((num_hosts * num_sites * num_partitions), CatalogUtil.getNumberOfPartitions(cluster));
+        assertEquals((num_hosts * num_sites * num_partitions), cluster.getNum_partitions());
+    }
+    
+    // --------------------------------------------------------------------------------------
+    // FILE LOADING METHODS
+    // --------------------------------------------------------------------------------------
 
     /**
      * Find a trace file for a given project type

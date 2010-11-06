@@ -73,6 +73,7 @@ public class ArgumentsParser {
             System.getProperty("log4j.configuration", "./log4j.properties"),
             "/home/pavlo/Documents/H-Store/SVN-Brown/trunk/log4j.properties",
             "/host/work/hstore/src/log4j.properties",
+            "/research/hstore/sw47/trunk/log4j.properties",
         };
         for (String p : paths) {
             File file = new File(p);
