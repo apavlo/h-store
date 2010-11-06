@@ -114,11 +114,14 @@ public class HStoreMessenger {
                     if (HStoreMessenger.this.state == MessengerState.STOPPED) {
                         // IGNORE
                     } else {
-                        LOG.info("CURRENT STATE: " + HStoreMessenger.this.state);
                         LOG.fatal("Unexpected error in messenger listener thread", cause);
                     }
+                } finally {
+                    if (HStoreMessenger.this.state != MessengerState.STOPPED) HStoreMessenger.this.stop();
                 }
-                if (LOG.isTraceEnabled()) LOG.trace("Messenger Thread for Site #" + catalog_site.getId() + " has stopped!");
+                if (LOG.isTraceEnabled()) {
+                    LOG.trace("Messenger Thread for Site #" + catalog_site.getId() + " has stopped!");
+                }
             }
         };
         this.listener_thread.setDaemon(true);
@@ -159,20 +162,23 @@ public class HStoreMessenger {
         this.state = MessengerState.STOPPED;
         
         try {
+            if (trace) LOG.trace("Stopping eventLoop for Site #" + this.getLocalSiteId());
+            this.eventLoop.exitLoop();
+
             if (trace) LOG.trace("Stopping listener thread for Site #" + this.getLocalSiteId());
             this.listener_thread.interrupt();
             
-            if (trace) LOG.trace("Stopping eventLoop for Site #" + this.getLocalSiteId());
-            this.eventLoop.exitLoop();
-            
             if (trace) LOG.trace("Joining on listener thread for Site #" + this.getLocalSiteId());
             this.listener_thread.join();
+        } catch (InterruptedException ex) {
+            // IGNORE
         } catch (Exception ex) {
             LOG.error("Unexpected error when trying to stop messenger for Site #" + this.getLocalSiteId(), ex);
         } finally {
             if (trace) LOG.trace("Closing listener socket for Site #" + this.getLocalSiteId());
-            this.listener.close();            
+            this.listener.close();
         }
+        assert(this.isStopped());
     }
     
     /**
@@ -186,7 +192,9 @@ public class HStoreMessenger {
     protected int getLocalSiteId() {
         return (this.hstore_site.getSiteId());
     }
-    
+    protected int getLocalMessengerPort() {
+        return (this.hstore_site.getSite().getMessenger_port());
+    }
     protected final Thread getListenerThread() {
         return (this.listener_thread);
     }
@@ -218,7 +226,7 @@ public class HStoreMessenger {
                 int site_id = catalog_site.getId();
                 int port = catalog_site.getMessenger_port();
                 if (site_id != this.catalog_site.getId()) {
-                    LOG.debug("Creating RpcChannel to " + host + ":" + port + " for site #" + site_id);
+                    if (debug) LOG.debug("Creating RpcChannel to " + host + ":" + port + " for site #" + site_id);
                     destinations.add(new InetSocketAddress(host, port));
                     site_ids.add(site_id);
                     
@@ -239,21 +247,29 @@ public class HStoreMessenger {
         if (destinations.isEmpty()) {
             if (debug) LOG.debug("There are no remote sites so we are skipping creating connections");
         } else {
-            if (debug) LOG.debug("Connecting to " + destinations.size() + " remote sites");
+            if (debug) LOG.debug("Connecting to " + destinations.size() + " remote site messengers");
+            ProtoRpcChannel[] channels = null;
             try {
-                ProtoRpcChannel[] channels = ProtoRpcChannel.connectParallel(this.eventLoop,
-                                                                             destinations.toArray(new InetSocketAddress[]{}));
-                assert channels.length == site_ids.size();
-                for (int i = 0; i < site_ids.size(); i++) {
-                    this.channels.put(site_ids.get(i), HStoreService.newStub(channels[i]));
-                } // FOR
+                channels = ProtoRpcChannel.connectParallel(this.eventLoop, destinations.toArray(new InetSocketAddress[]{}), 15000);
             } catch (RuntimeException ex) {
-                this.listener.close();
-                throw ex;
+                LOG.warn("Failed to connect to remote sites. Going to try again...");
+                // Try again???
+                try {
+                    channels = ProtoRpcChannel.connectParallel(this.eventLoop, destinations.toArray(new InetSocketAddress[]{}));
+                } catch (Exception ex2) {
+                    LOG.fatal("Site #" + this.getLocalSiteId() + " failed to connect to remote sites");
+                    this.listener.close();
+                    throw ex;    
+                }
             }
+            assert channels.length == site_ids.size();
+            for (int i = 0; i < site_ids.size(); i++) {
+                this.channels.put(site_ids.get(i), HStoreService.newStub(channels[i]));
+            } // FOR
+
+            
+            if (debug) LOG.debug("Site #" + this.getLocalSiteId() + " is fully connected to all sites");
         }
-        
-        this.state = MessengerState.INITIALIZED;
     }
     
     /**

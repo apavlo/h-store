@@ -227,10 +227,13 @@ public class ProtoRpcChannel extends AbstractEventHandler implements RpcChannel 
         pendingRpcs.clear();
     }
 
-    private static final int RECONNECT_TIMEOUT_MS = 5000;
+    private static final int RECONNECT_TIMEOUT_MS = 2000;
     private static final int TOTAL_CONNECT_TIMEOUT_MS = 30000;
-    public static ProtoRpcChannel[] connectParallel(final EventLoop eventLoop,
-            final InetSocketAddress[] addresses) {
+    public static ProtoRpcChannel[] connectParallel(final EventLoop eventLoop, final InetSocketAddress[] addresses) {
+        return connectParallel(eventLoop, addresses, TOTAL_CONNECT_TIMEOUT_MS);
+    }
+    
+    public static ProtoRpcChannel[] connectParallel(final EventLoop eventLoop, final InetSocketAddress[] addresses, final int total_time) {
         class ExitLoopHandler extends AbstractEventHandler {
             @Override
             public void timerCallback() {
@@ -306,7 +309,7 @@ public class ProtoRpcChannel extends AbstractEventHandler implements RpcChannel 
             channels[i] = new ConnectHandler(i);
         }
 
-        eventLoop.registerTimer(TOTAL_CONNECT_TIMEOUT_MS, exitLoopHandler);
+        eventLoop.registerTimer(total_time, exitLoopHandler);
         eventLoop.run();
 
         if (exitLoopHandler.barrierCount == 0) {
@@ -327,7 +330,7 @@ public class ProtoRpcChannel extends AbstractEventHandler implements RpcChannel 
                     }
                 }
             }
-            throw new RuntimeException("some connection failed after " + TOTAL_CONNECT_TIMEOUT_MS / 1000 + " seconds");
+            throw new RuntimeException("some connection failed after " + total_time / 1000 + " seconds");
         }
 
     }

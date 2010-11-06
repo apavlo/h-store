@@ -197,7 +197,7 @@ public class ProtoServer extends AbstractEventHandler {
             // Mac OS X: Must bind() before calling Selector.register, or you don't get accept() events
             serverSocket.socket().bind(new InetSocketAddress(port));
             eventLoop.registerAccept(serverSocket, this);
-        } catch (IOException e) { throw new RuntimeException(e); }
+        } catch (IOException e) { throw new RuntimeException("Failed to bind socket on port #" + port, e); }
     }
     
     public void close() {
