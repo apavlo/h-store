@@ -54,16 +54,12 @@ import edu.brown.workload.Workload.Filter.FilterResult;
  *
  */
 public class Workload implements WorkloadTrace, Iterable<AbstractTraceElement<? extends CatalogType>> {
-    /** java.util.logging logger. */
     private static final Logger LOG = Logger.getLogger(Workload.class.getName());
-    //
+
     // The output stream that we're going to write our traces to
-    //
     private FileOutputStream out;
 
-    //
     // Handle -> Database
-    //
     private final Map<TransactionTrace, Database> xact_db_xref = new HashMap<TransactionTrace, Database>();
     
     //
@@ -894,8 +890,6 @@ public class Workload implements WorkloadTrace, Iterable<AbstractTraceElement<? 
                 }
             }
         }
-
-        
         return (xact_handle);
     }
     

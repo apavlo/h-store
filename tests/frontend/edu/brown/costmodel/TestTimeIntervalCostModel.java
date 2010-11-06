@@ -5,6 +5,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Random;
 
+import org.apache.log4j.Level;
 import org.voltdb.catalog.*;
 
 import edu.brown.BaseTestCase;
@@ -24,7 +25,6 @@ import edu.brown.utils.ProjectType;
 import edu.brown.workload.AbstractTraceElement;
 import edu.brown.workload.Workload;
 import edu.brown.workload.TransactionTrace;
-import edu.brown.workload.Workload;
 import edu.brown.workload.filters.ProcedureLimitFilter;
 import edu.brown.workload.filters.ProcedureNameFilter;
 
@@ -248,6 +248,10 @@ public class TestTimeIntervalCostModel extends BaseTestCase {
         hints.enable_costmodel_java_execution = false;
         final PartitionPlan initial = PartitionPlan.createFromCatalog(catalog_db);
         
+        // HACK: Enable debug output in BranchAndBoundPartitioner so that it slows the
+        // the traversal. There is a race condition since we were able to speed things up
+        BranchAndBoundPartitioner.LOG.setLevel(Level.DEBUG);
+        
         Double last_cost = null;
         while (tries-- > 0) {
             final Database clone_db = CatalogUtil.cloneDatabase(catalog_db);
@@ -278,6 +282,7 @@ public class TestTimeIntervalCostModel extends BaseTestCase {
             
             // Which then means we should get the exact same cost back
             initial.apply(clone_db);
+            cm.clear(true);
             double cost1 = cm.estimateCost(clone_db, single_workload);
             assert(cost1 > 0) : "[1] Invalid Cost: " + cost0;
             assertEquals("[1] Try #" + tries, cost0, cost1);

@@ -27,7 +27,7 @@ import edu.uci.ics.jung.graph.*;
  *
  */
 public class BranchAndBoundPartitioner extends AbstractPartitioner {
-    protected static final Logger LOG = Logger.getLogger(BranchAndBoundPartitioner.class);
+    public static final Logger LOG = Logger.getLogger(BranchAndBoundPartitioner.class);
 
     /**
      * Debug Output Spacers
