@@ -15,7 +15,7 @@ import edu.mit.dtxn.Dtxn.CoordinatorFragment;
 import edu.mit.dtxn.Dtxn.CoordinatorResponse;
 import edu.mit.dtxn.Dtxn.FinishRequest;
 import edu.mit.dtxn.Dtxn.FinishResponse;
-import edu.mit.hstore.HStoreCoordinatorNode;
+import edu.mit.hstore.HStoreSite;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -30,12 +30,12 @@ import com.google.protobuf.ByteString;
 import com.google.protobuf.RpcCallback;
 import com.google.protobuf.RpcController;
 
-public class TestHStoreCoordinator extends BaseTestCase {
+public class TestHStoreSite extends BaseTestCase {
     private static final String TARGET_PROCEDURE = "GetNewDestination";
     private static final long CLIENT_HANDLE = 1l;
     
     private MockDtxnCoordinator dtxnCoordinator;
-    private HStoreCoordinatorNode coordinator;
+    private HStoreSite coordinator;
     private PartitionEstimator p_estimator;
     private StoredProcedureInvocation invocation;
     private byte[] invocation_bytes;
@@ -57,7 +57,7 @@ public class TestHStoreCoordinator extends BaseTestCase {
         
         Site catalog_site = CollectionUtil.getFirst(CatalogUtil.getCluster(catalog).getSites());
         Map<Integer, ExecutionSite> executors = new HashMap<Integer, ExecutionSite>();
-        coordinator = new HStoreCoordinatorNode(catalog_site, executors, p_estimator);
+        coordinator = new HStoreSite(catalog_site, executors, p_estimator);
         coordinator.setDtxnCoordinator(dtxnCoordinator);
                 
     }

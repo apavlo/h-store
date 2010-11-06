@@ -7,7 +7,7 @@ import org.apache.log4j.Logger;
 import com.google.protobuf.RpcCallback;
 
 import edu.mit.dtxn.Dtxn;
-import edu.mit.hstore.HStoreCoordinatorNode;
+import edu.mit.hstore.HStoreSite;
 
 /**
  * Placeholder callback that we need to use when we pass the StoredProcedureInvocation through
@@ -18,7 +18,7 @@ public class InitiateCallback extends AbstractTxnCallback implements RpcCallback
     private static final Logger LOG = Logger.getLogger(InitiateCallback.class);
     private final CountDownLatch latch;
     
-    public InitiateCallback(HStoreCoordinatorNode hstore_coordinator, long txnId, CountDownLatch latch) {
+    public InitiateCallback(HStoreSite hstore_coordinator, long txnId, CountDownLatch latch) {
         super(hstore_coordinator, txnId, null);
         this.latch = latch;
     }

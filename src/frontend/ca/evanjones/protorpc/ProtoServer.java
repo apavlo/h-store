@@ -199,6 +199,12 @@ public class ProtoServer extends AbstractEventHandler {
             eventLoop.registerAccept(serverSocket, this);
         } catch (IOException e) { throw new RuntimeException(e); }
     }
+    
+    public void close() {
+        try {
+            serverSocket.close();
+        } catch (IOException e) { throw new RuntimeException(e); }
+    }
 
     public void setServerSocketForTest(ServerSocketChannel serverSocket) {
         this.serverSocket = serverSocket;

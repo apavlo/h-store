@@ -3,6 +3,7 @@ package edu.mit.hstore;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -42,7 +43,6 @@ import edu.brown.hstore.Hstore.HStoreService;
 import edu.brown.hstore.Hstore.MessageRequest;
 import edu.brown.hstore.Hstore.MessageAcknowledgement;
 import edu.brown.hstore.Hstore.MessageType;
-import edu.brown.utils.CollectionUtil;
 import edu.mit.hstore.callbacks.ForwardTxnResponseCallback;
 
 /**
@@ -52,12 +52,17 @@ import edu.mit.hstore.callbacks.ForwardTxnResponseCallback;
 public class HStoreMessenger {
     public static final Logger LOG = Logger.getLogger(HStoreMessenger.class);
 
-    private final HStoreCoordinatorNode coordinator;
-    private final Map<Integer, ExecutionSite> executors;
+    enum MessengerState {
+        INITIALIZED,
+        STARTED,
+        STOPPED
+    };
+    
+    private final HStoreSite hstore_site;
     private final Site catalog_site;
-    private final Set<Integer> local_partitions = new HashSet<Integer>();
+    private final Set<Integer> local_partitions;
     private final NIOEventLoop eventLoop = new NIOEventLoop();
-    private final DBBPool buffer_pool = new DBBPool(true, true);
+    private final DBBPool buffer_pool = new DBBPool(true, false);
 
     /**
      * PartitionId -> SiteId
@@ -74,16 +79,22 @@ public class HStoreMessenger {
     private final Handler handler;
     private final Callback callback;
     private boolean shutting_down = false;
+    private MessengerState state = MessengerState.INITIALIZED;
     
-    public HStoreMessenger(HStoreCoordinatorNode coordinator, Map<Integer, ExecutionSite> executors) {
-        this.coordinator = coordinator;
-        this.executors = executors;
-        this.catalog_site = coordinator.getSite();
+    /**
+     * Constructor
+     * @param site
+     */
+    public HStoreMessenger(HStoreSite site) {
+        this.hstore_site = site;
+        this.catalog_site = site.getSite();
         
+        Set<Integer> partitions = new HashSet<Integer>();
         for (Partition catalog_part : this.catalog_site.getPartitions()) {
-            this.local_partitions.add(catalog_part.getId());
+            partitions.add(catalog_part.getId());
         } // FOR
-        LOG.debug("Local Partitions: " + this.local_partitions);
+        this.local_partitions = Collections.unmodifiableSet(partitions);
+        if (LOG.isDebugEnabled()) LOG.debug("Local Partitions for Site #" + site.getSiteId() + ": " + this.local_partitions);
         
         this.listener = new ProtoServer(eventLoop);
         this.handler = new Handler();
@@ -93,8 +104,20 @@ public class HStoreMessenger {
         this.listener_thread = new Thread() {
             @Override
             public void run() {
-                Thread.currentThread().setName(HStoreMessenger.this.coordinator.getThreadName("msg"));
-                HStoreMessenger.this.eventLoop.run();
+                Thread.currentThread().setName(HStoreMessenger.this.hstore_site.getThreadName("msg"));
+                try {
+                    HStoreMessenger.this.eventLoop.run();
+                } catch (Exception ex) {
+                    Throwable cause = (ex instanceof RuntimeException ? ex.getCause() : ex);
+                    
+                    // These errors are ok if we're actually stopping...
+                    if (HStoreMessenger.this.state == MessengerState.STOPPED) {
+                        // IGNORE
+                    } else {
+                        LOG.info("CURRENT STATE: " + HStoreMessenger.this.state);
+                        LOG.fatal("Unexpected error in messenger listener thread", cause);
+                    }
+                }
                 if (LOG.isTraceEnabled()) LOG.trace("Messenger Thread for Site #" + catalog_site.getId() + " has stopped!");
             }
         };
@@ -102,23 +125,83 @@ public class HStoreMessenger {
         this.eventLoop.setExitOnSigInt(true);
     }
     
-    public void start() {
+    /**
+     * Start the messenger. This is a blocking call that will initialize the connections
+     * and start the listener thread!
+     */
+    public synchronized void start() {
+        assert(this.state == MessengerState.INITIALIZED) : "Invalid MessengerState " + this.state;
+        
+        this.state = MessengerState.STARTED;
+        
         LOG.debug("Initializing connections");
         this.initConnections();
+
         LOG.debug("Starting listener thread");
         this.listener_thread.start();
-//        LOG.debug("Testing connections");
-//        this.testConnections();
+    }
+
+    /**
+     * Returns true if the messenger has started
+     * @return
+     */
+    public boolean isStarted() {
+        return (this.state == MessengerState.STARTED);
     }
     
-    public void stop() {
-        this.eventLoop.exitLoop();
+    /**
+     * Stop this messenger. This kills the ProtoRpc event loop
+     */
+    public synchronized void stop() {
+        assert(this.state == MessengerState.STARTED) : "Invalid MessengerState " + this.state;
+        final boolean trace = LOG.isTraceEnabled();
+        
+        this.state = MessengerState.STOPPED;
+        
+        try {
+            if (trace) LOG.trace("Stopping listener thread for Site #" + this.getLocalSiteId());
+            this.listener_thread.interrupt();
+            
+            if (trace) LOG.trace("Stopping eventLoop for Site #" + this.getLocalSiteId());
+            this.eventLoop.exitLoop();
+            
+            if (trace) LOG.trace("Joining on listener thread for Site #" + this.getLocalSiteId());
+            this.listener_thread.join();
+        } catch (Exception ex) {
+            LOG.error("Unexpected error when trying to stop messenger for Site #" + this.getLocalSiteId(), ex);
+        } finally {
+            if (trace) LOG.trace("Closing listener socket for Site #" + this.getLocalSiteId());
+            this.listener.close();            
+        }
+    }
+    
+    /**
+     * Returns true if the messenger has stopped
+     * @return
+     */
+    public boolean isStopped() {
+        return (this.state == MessengerState.STOPPED);
+    }
+    
+    protected int getLocalSiteId() {
+        return (this.hstore_site.getSiteId());
+    }
+    
+    protected final Thread getListenerThread() {
+        return (this.listener_thread);
+    }
+    
+    protected final HStoreService getSiteChannel(int site_id) {
+        return (this.channels.get(site_id));
+    }
+    protected final Set<Integer> getLocalPartitionIds() {
+        return (this.local_partitions);
     }
     
     /**
      * Initialize all the network connections to remote 
      */
-    protected void initConnections() {
+    private void initConnections() {
         final boolean debug = LOG.isDebugEnabled(); 
         Database catalog_db = CatalogUtil.getDatabase(this.catalog_site);
         
@@ -157,57 +240,20 @@ public class HStoreMessenger {
             if (debug) LOG.debug("There are no remote sites so we are skipping creating connections");
         } else {
             if (debug) LOG.debug("Connecting to " + destinations.size() + " remote sites");
-            ProtoRpcChannel[] channels = ProtoRpcChannel.connectParallel(
-                    this.eventLoop, destinations.toArray(new InetSocketAddress[]{}));
-            assert channels.length == site_ids.size();
-            for (int i = 0; i < site_ids.size(); i++) {
-                this.channels.put(site_ids.get(i), HStoreService.newStub(channels[i]));
-            } // FOR
+            try {
+                ProtoRpcChannel[] channels = ProtoRpcChannel.connectParallel(this.eventLoop,
+                                                                             destinations.toArray(new InetSocketAddress[]{}));
+                assert channels.length == site_ids.size();
+                for (int i = 0; i < site_ids.size(); i++) {
+                    this.channels.put(site_ids.get(i), HStoreService.newStub(channels[i]));
+                } // FOR
+            } catch (RuntimeException ex) {
+                this.listener.close();
+                throw ex;
+            }
         }
-    }
-    
-    protected void testConnections() {
-        // Go through and connect to all of our remote partitions
-        final Map<Integer, String> responses = new HashMap<Integer, String>();
-        final Set<Integer> waiting = new HashSet<Integer>();
         
-        RpcCallback<MessageAcknowledgement> callback = new RpcCallback<MessageAcknowledgement>() {
-            @Override
-            public void run(MessageAcknowledgement parameter) {
-                int sender = parameter.getSenderId();
-                String status = new String(parameter.getData().toByteArray());
-                responses.put(sender, status);
-                waiting.remove(sender);
-                
-                if (waiting.isEmpty()) {
-                    StringBuilder sb = new StringBuilder();
-                    sb.append("TestConnection Responses:\n");
-                    for (Entry<Integer, String> e : responses.entrySet()) {
-                        sb.append(String.format("  Partition %03d: %s\n", e.getKey(), e.getValue()));
-                    } // FOR
-                    LOG.info(sb.toString());
-                }
-            }
-        };
-        
-        // The sender partition can just be our first partition that we have
-        Partition catalog_part = CollectionUtil.getFirst(this.catalog_site.getPartitions());
-        
-        ProtoRpcController rpc = new ProtoRpcController();
-        for (Entry<Integer, HStoreService> e : this.channels.entrySet()) {
-            if (this.local_partitions.contains(e.getKey())) {
-                responses.put(e.getKey(), "LOCAL");
-            } else {
-                Hstore.MessageRequest sm = Hstore.MessageRequest.newBuilder()
-                                                    .setSenderId(catalog_part.getId())
-                                                    .setDestId(e.getKey())
-                                                    .setType(MessageType.STATUS)
-                                                    .build();
-                e.getValue().sendMessage(rpc, sm, callback);
-                waiting.add(e.getKey());
-            }
-        } // FOR
-        
+        this.state = MessengerState.INITIALIZED;
     }
     
     /**
@@ -250,7 +296,7 @@ public class HStoreMessenger {
                     HStoreMessenger.this.shutting_down = true;
                     
                     // Tell the coordinator to shutdown
-                    HStoreMessenger.this.coordinator.shutdown();
+                    HStoreMessenger.this.hstore_site.shutdown();
                     
                     // Get exit status code
                     byte exit_status = request.getData().byteAt(0);
@@ -278,7 +324,7 @@ public class HStoreMessenger {
                     if (trace) LOG.trace("Passing " + type.name() + " information to HStoreCoordinatorNode");
                     byte serializedRequest[] = request.getData().toByteArray();
                     ForwardTxnResponseCallback callback = new ForwardTxnResponseCallback(dest, sender, done);
-                    HStoreMessenger.this.coordinator.procedureInvocation(serializedRequest, callback);
+                    HStoreMessenger.this.hstore_site.procedureInvocation(serializedRequest, callback);
                     break;
                 }
                 // -----------------------------------------------------------------
@@ -316,7 +362,7 @@ public class HStoreMessenger {
                 
                 // Store the VoltTable in the ExecutionSite
                 if (trace) LOG.trace("Storing Depedency #" + dependency_id + " for Txn #" + txn_id + " at Partition #" + dest_partition_id);
-                HStoreMessenger.this.executors.get(dest_partition_id).storeDependency(txn_id, sender_partition_id, dependency_id, data);
+                HStoreMessenger.this.hstore_site.getExecutors().get(dest_partition_id).storeDependency(txn_id, sender_partition_id, dependency_id, data);
             } // FOR
             
             // Send back a response
@@ -338,11 +384,12 @@ public class HStoreMessenger {
         
         @Override
         public void run(FragmentAcknowledgement parameter) {
-            LOG.trace("Received sendFragment callback from remote Partition #" + parameter.getSenderPartitionId() +
-                      " for Txn #" + parameter.getTxnId());
+            if (LOG.isTraceEnabled())
+                LOG.trace("Received sendFragment callback from remote Partition #" + parameter.getSenderPartitionId() +
+                          " for Txn #" + parameter.getTxnId());
         }
     }
-    
+ 
     
     /**
      * Send an individual dependency to a remote partition for a given transaction
@@ -366,18 +413,19 @@ public class HStoreMessenger {
      */
     public void sendDependencySet(long txn_id, int sender_partition_id, int dest_partition_id, DependencySet dset) {
         assert(dset != null);
+        final boolean debug = LOG.isDebugEnabled();
         
         // Local Transfer
         if (this.local_partitions.contains(dest_partition_id)) {
-            LOG.debug("Transfering " + dset.size() + " dependencies directly from partition #" + sender_partition_id + " to partition #" + dest_partition_id);
+            if (debug) LOG.debug("Transfering " + dset.size() + " dependencies directly from partition #" + sender_partition_id + " to partition #" + dest_partition_id);
             for (int i = 0, cnt = dset.size(); i < cnt; i++) {
-                ExecutionSite executor = this.executors.get(dest_partition_id);
+                ExecutionSite executor = this.hstore_site.getExecutors().get(dest_partition_id);
                 assert(executor != null) : "Unexpected null ExecutionSite for Partition #" + dest_partition_id + " on Site #" + catalog_site.getId();
                 executor.storeDependency(txn_id, sender_partition_id, dset.depIds[i], dset.dependencies[i]);
             } // FOR
         // Remote Transfer
         } else {
-            LOG.debug("Transfering " + dset.size() + " dependencies through network from partition #" + sender_partition_id + " to partition #" + dest_partition_id);
+            if (debug) LOG.debug("Transfering " + dset.size() + " dependencies through network from partition #" + sender_partition_id + " to partition #" + dest_partition_id);
             ProtoRpcController rpc = new ProtoRpcController();
             int site_id = this.partition_site_xref.get(dest_partition_id);
             HStoreService channel = this.channels.get(site_id);
@@ -461,7 +509,7 @@ public class HStoreMessenger {
         } // FOR
         
         // Tell ourselves to shutdown while we wait
-        this.coordinator.shutdown();
+        this.hstore_site.shutdown();
         
         // Block until the latch releases us
         try {

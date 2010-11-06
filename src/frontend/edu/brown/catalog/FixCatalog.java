@@ -83,12 +83,17 @@ public abstract class FixCatalog {
     }
     
     public static Catalog addHostInfo(Catalog orig_catalog, int num_hosts, int num_sites_per_host, int num_partitions_per_site) {
+        return (FixCatalog.addHostInfo(orig_catalog, "node-%d", num_hosts, num_sites_per_host, num_partitions_per_site));
+    }
+    
+    public static Catalog addHostInfo(Catalog orig_catalog, String hostname_format, int num_hosts, int num_sites_per_host, int num_partitions_per_site) {
         ClusterConfiguration cc = new ClusterConfiguration();
         int siteid = 0;
         int partitionid = 0;
         
+        final boolean use_format = hostname_format.contains("%");
         for (int host = 0; host < num_hosts; host++) {
-            String hostname = String.format("node-%02d", host);
+            String hostname = (use_format ? String.format(hostname_format, host) : hostname_format);
             for (int site = 0; site < num_sites_per_host; site++) {
                 for (int partition = 0; partition < num_partitions_per_site; partition++) {
                     cc.addPartition(hostname, siteid, partitionid++);

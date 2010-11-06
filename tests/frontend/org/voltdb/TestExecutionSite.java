@@ -23,7 +23,7 @@ import edu.brown.utils.*;
 import edu.brown.BaseTestCase;
 import edu.mit.dtxn.Dtxn;
 import edu.mit.dtxn.Dtxn.FragmentResponse;
-import edu.mit.hstore.HStoreCoordinatorNode;
+import edu.mit.hstore.HStoreSite;
 import edu.mit.hstore.HStoreMessenger;
 
 /**
@@ -64,10 +64,9 @@ public class TestExecutionSite extends BaseTestCase {
             
             Map<Integer, ExecutionSite> executors = new HashMap<Integer, ExecutionSite>();
             executors.put(PARTITION_ID, site);
-            HStoreCoordinatorNode hstore = new HStoreCoordinatorNode(catalog_site, executors, p_estimator);
-            site.setHStoreCoordinatorNode(hstore);
-            HStoreMessenger messenger = new HStoreMessenger(hstore, executors);
-            site.setHStoreMessenger(messenger);
+            HStoreSite hstore_site = new HStoreSite(catalog_site, executors, p_estimator);
+            site.setHStoreCoordinatorNode(hstore_site);
+            site.setHStoreMessenger(hstore_site.getMessenger());
             
         }
     }

@@ -2233,8 +2233,6 @@ H-STORE REMIX
         <antcall target="hstore-site">
             <param name="jar" value="${project}.jar" />
             <param name="node.site" value="0" />
-<!--             <param name="coordinator.host" value="${hstore.coordinator.host}" /> -->
-<!--             <param name="coordinator.port" value="${hstore.coordinator.port}" /> -->
             <param name="markov" value="./files/markovs/${project}.markovs" />
             <param name="thresholds" value="./files/thresholds/default.thresholds" />
             <param name="correlations" value="./files/correlations/${project}.correlations" />
@@ -2242,8 +2240,6 @@ H-STORE REMIX
         <antcall target="hstore-site">
             <param name="jar" value="${project}.jar" />
             <param name="node.site" value="1" />
-<!--             <param name="coordinator.host" value="${hstore.coordinator.host}" /> -->
-<!--             <param name="coordinator.port" value="${hstore.coordinator.port}" /> -->
             <param name="markov" value="./files/markovs/${project}.markovs" />
             <param name="thresholds" value="./files/thresholds/default.thresholds" />
             <param name="correlations" value="./files/correlations/${project}.correlations" />

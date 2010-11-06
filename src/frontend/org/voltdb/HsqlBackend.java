@@ -84,7 +84,7 @@ public class HsqlBackend {
                 sqlLog.warn(warn.getMessage());
             //LOG.info("SQL DDL execute result: " + (success ? "true" : "false"));
         } catch (SQLException e) {
-            hostLog.l7dlog( Level.ERROR, LogKeys.host_Backend_RunDDLFailed.name(), new Object[] { ddl }, e);
+            // IGNORE??? hostLog.l7dlog( Level.ERROR, LogKeys.host_Backend_RunDDLFailed.name(), new Object[] { ddl }, e);
         }
 
     }
