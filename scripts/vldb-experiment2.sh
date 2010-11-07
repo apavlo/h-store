@@ -57,5 +57,5 @@ for total_time in ${HSTORE_TOTAL_TIME[@]}; do
         -Dcheckpoint=./checkpoints/$workload.$total_time.checkpoint \
         -Dcorrelations=./files/correlations/${benchmark}.correlations \
         -Doutput=files/vldb/${workload}.${total_time}.pplan \
-        -Dextraparams=\"designer.hints.LIMIT_TOTAL_TIME=${total_time} -designer.hints.LIMIT_LOCAL_TIME=${HSTORE_LOCAL_TIME}\"" $output
+        -Dextraparams=\"designer.hints.LIMIT_TOTAL_TIME=${total_time} -designer.hints.LIMIT_LOCAL_TIME=${HSTORE_LOCAL_TIME} designer.hints.LOG_SOLUTIONS_COSTS=$output.costs\"" $output
 done
