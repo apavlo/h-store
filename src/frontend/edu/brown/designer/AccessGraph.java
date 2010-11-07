@@ -1,6 +1,8 @@
 package edu.brown.designer;
 
 import java.util.*;
+import java.util.Map.Entry;
+
 import org.voltdb.catalog.*;
 
 import edu.brown.graphs.AbstractUndirectedGraph;
@@ -58,10 +60,17 @@ public class AccessGraph extends AbstractUndirectedGraph<Vertex, Edge>  {
     
     @Override
     public String toString(Edge e, boolean verbose) {
-        if (verbose == false) return super.toString(e, verbose);
+        StringBuilder sb = new StringBuilder();
+        sb.append(super.toString(e, verbose));
         
-        ColumnSet cset = e.getAttribute(EdgeAttributes.COLUMNSET.name());
-        assert(cset != null);
-        return (cset.debug());
+        if (verbose) {
+            for (Entry<String, Object> entry : e.getAttributeValues(this).entrySet()) {
+                sb.append(String.format("\n => %-15s%s", entry.getKey()+":", entry.getValue().toString()));
+            }
+            ColumnSet cset = e.getAttribute(EdgeAttributes.COLUMNSET.name());
+            assert(cset != null);
+            sb.append("\n").append(cset.debug());
+        }
+        return (sb.toString());
     }
 }

@@ -2,6 +2,7 @@ package edu.brown.utils;
 
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.regex.Pattern;
 
 import org.voltdb.client.Client;
 import org.voltdb.utils.Pair;
@@ -17,6 +18,8 @@ public abstract class StringUtil {
     private static String CACHE_REPEAT_STR = null;
     private static Integer CACHE_REPEAT_SIZE = null;
     private static String CACHE_REPEAT_RESULT = null;
+    
+    private static Pattern LINE_SPLIT = Pattern.compile("\n");
     
     /**
      * Returns the given string repeated the given # of times
@@ -47,16 +50,25 @@ public abstract class StringUtil {
      * @return
      */
     public static String box(String str) {
-        return (StringUtil.box(str, "*"));
+        return (StringUtil.box(str, "*", null));
     }
     
-    public static String box(String str, String mark) {
-        String lines[] = str.split("\n");
+    /**
+     * Create a box around some text
+     * @param str
+     * @param mark
+     * @param max_len
+     * @return
+     */
+    public static String box(String str, String mark, Integer max_len) {
+        String lines[] = LINE_SPLIT.split(str);
         if (lines.length == 0) return ("");
-        int max_len = 0;
-        for (String line : lines) {
-            if (line.length() > max_len) max_len = line.length();
-        } // FOR
+        
+        if (max_len == null) {
+            for (String line : lines) {
+                if (max_len == null || line.length() > max_len) max_len = line.length();
+            } // FOR
+        }
         
         final String top_line = StringUtil.repeat(mark, max_len + 4); // padding
         final String f = "%s %-" + max_len + "s %s\n";
@@ -122,7 +134,7 @@ public abstract class StringUtil {
      */
     public static String addSpacers(String str) {
         StringBuilder sb = new StringBuilder();
-        for (String line : str.split("\n")) {
+        for (String line : LINE_SPLIT.split(str)) {
             sb.append(SPACER).append(line).append("\n");
         } // FOR
         return (sb.toString());

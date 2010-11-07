@@ -100,8 +100,9 @@ public class Histogram implements JSONSerializable {
      * Helper method used for replacing the object's toString() output with labels
      * @param names_map
      */
-    public void setDebugLabels(Map<Object, String> names_map) {
+    public Histogram setDebugLabels(Map<Object, String> names_map) {
         this.debug_names.putAll(names_map);
+        return (this);
     }
     public boolean hasDebugLabels() {
         return (!this.debug_names.isEmpty());
@@ -524,14 +525,13 @@ public class Histogram implements JSONSerializable {
      * 
     */
     public String toString() {
-        return (this.toString(MAX_CHARS));
+        return (this.toString(MAX_CHARS, MAX_VALUE_LENGTH));
     }
     
-    private String toString(int max_chars) {
+    public String toString(Integer max_chars, Integer max_length) {
         StringBuilder s = new StringBuilder();
         
         // Don't let anything go longer than MAX_VALUE_LENGTH chars
-        int max_length = MAX_VALUE_LENGTH;
         String f = "%-" + max_length + "s [%5d] ";
         boolean first = true;
         boolean has_labels = this.hasDebugLabels();

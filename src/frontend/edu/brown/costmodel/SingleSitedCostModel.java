@@ -22,6 +22,7 @@ import java.io.File;
 import java.util.*;
 import java.util.Map.Entry;
 
+import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.log4j.Logger;
 import org.voltdb.catalog.*;
 
@@ -129,6 +130,10 @@ public class SingleSitedCostModel extends AbstractCostModel {
             return (this.proc_key);
         }
 
+        protected void addTouchedPartition(int partition) {
+            this.touched_partitions.put(partition);
+        }
+        
         public Set<Integer> getAllTouchedPartitions() {
             Set<Integer> partitions = this.touched_partitions.values();
             if (this.base_partition != null && !partitions.contains(this.base_partition)) {
@@ -157,6 +162,9 @@ public class SingleSitedCostModel extends AbstractCostModel {
         public boolean isSingleSited() {
             return this.singlesited;
         }
+        protected void setSingleSited(boolean singlesited) {
+            this.singlesited = singlesited;
+        }
 
         public Integer getExecutionPartition() {
             return (this.base_partition);
@@ -169,17 +177,29 @@ public class SingleSitedCostModel extends AbstractCostModel {
         public int getExaminedQueryCount() {
             return this.examined_queries;
         }
+        protected void setExaminedQueryCount(int examined_queries) {
+            this.examined_queries = examined_queries;
+        }
 
         public int getSingleSiteQueryCount() {
             return this.singlesite_queries;
+        }
+        protected void setSingleSiteQueryCount(int singlesite_queries) {
+            this.singlesite_queries = singlesite_queries;
         }
 
         public int getMultiSiteQueryCount() {
             return this.multisite_queries;
         }
+        protected void setMultiSiteQueryCount(int multisite_queries) {
+            this.multisite_queries = multisite_queries;
+        }
 
         public int getUnknownQueryCount() {
             return this.unknown_queries;
+        }
+        protected void setUnknownQueryCount(int unknown_queries) {
+            this.unknown_queries = unknown_queries;
         }
 
         public Set<Integer> getTouchedPartitions() {
@@ -725,6 +745,61 @@ public class SingleSitedCostModel extends AbstractCostModel {
     }
 
     /**
+     * Create a new TransactionCacheEntry and update our histograms appropriately
+     * @param txn_trace
+     * @param proc_key
+     * @return
+     */
+    protected TransactionCacheEntry createTransactionCacheEntry(TransactionTrace txn_trace, String proc_key) {
+        final boolean trace = LOG.isTraceEnabled();
+        
+        if (this.use_caching && !this.cache_proc_xref.containsKey(proc_key)) {
+            this.cache_proc_xref.put(proc_key, new HashSet<TransactionCacheEntry>());
+        }
+
+        TransactionCacheEntry txn_entry = new TransactionCacheEntry(proc_key, txn_trace.getId(), txn_trace.getQueries().size());
+        this.txn_entries.put(txn_trace.getId(), txn_entry);
+        if (this.use_caching) {
+            this.cache_proc_xref.get(proc_key).add(txn_entry);
+        }
+        if (trace) LOG.trace("New " + txn_entry);
+
+        // Update txn counter
+        this.txn_ctr.incrementAndGet();
+
+        // Record that we executed this procedure
+        this.histogram_procs.put(proc_key);
+        
+        // Always record that it was single-partition in the beginning... we can switch later on
+        this.histogram_sp_procs.put(proc_key);
+        
+        return (txn_entry);
+    }
+
+    /**
+     * 
+     * @param txn_entry
+     * @param txn_trace
+     * @param catalog_proc
+     * @param proc_param_idx
+     */
+    protected void setBasePartition(TransactionCacheEntry txn_entry, Integer base_partition) {
+        txn_entry.base_partition = base_partition;
+        
+        // If the partition is null, then there's nothing we can do here other than just pick a random one
+        // For now we'll always pick zero to keep things consistent
+        if (txn_entry.base_partition == null) txn_entry.base_partition = 0;
+
+        // Record what partition the VoltProcedure executed on
+        // We'll throw the base_partition into the txn_entry's touched partitions histogram, but notice
+        // that we can weight how much the java execution costs
+        if (this.isJavaExecutionWeightEnabled()) {
+            txn_entry.touched_partitions.put(txn_entry.base_partition, this.getJavaExecutionWeight());
+        }
+        this.histogram_java_partitions.put(txn_entry.base_partition);
+    }
+    
+    /**
      * Returns whether a transaction is single-sited for the given catalog, and
      * the number of queries that were examined.
      * 
@@ -756,25 +831,7 @@ public class SingleSitedCostModel extends AbstractCostModel {
 
         // Initialize a new Cache entry for this txn
         if (txn_entry == null) {
-            if (this.use_caching && !this.cache_proc_xref.containsKey(proc_key)) {
-                this.cache_proc_xref.put(proc_key, new HashSet<TransactionCacheEntry>());
-            }
-
-            txn_entry = new TransactionCacheEntry(proc_key, txn_trace.getId(), txn_trace.getQueries().size());
-            this.txn_entries.put(txn_trace.getId(), txn_entry);
-            if (this.use_caching) {
-                this.cache_proc_xref.get(proc_key).add(txn_entry);
-            }
-            if (trace) LOG.trace("New " + txn_entry);
-
-            // Update txn counter
-            this.txn_ctr.incrementAndGet();
-
-            // Record that we executed this procedure
-            this.histogram_procs.put(proc_key);
-            
-            // Always record that it was single-partition in the beginning... we can switch later on
-            this.histogram_sp_procs.put(proc_key);
+            txn_entry = this.createTransactionCacheEntry(txn_trace, proc_key);
         }
 
         // We need to keep track of what partitions we have already added into the various histograms
@@ -791,22 +848,14 @@ public class SingleSitedCostModel extends AbstractCostModel {
         if (proc_param_idx != NullProcParameter.PARAM_IDX && txn_entry.base_partition == null) {
             assert (proc_param_idx >= 0) : "Invalid ProcParameter Index " + proc_param_idx;
             assert (proc_param_idx < catalog_proc.getParameters().size()) : "Invalid ProcParameter Index " + proc_param_idx;
+            
+            Integer base_partition = null; 
             try {
-                txn_entry.base_partition = this.p_estimator.getPartition(catalog_proc, txn_trace.getParams(), true);
+                base_partition = this.p_estimator.getPartition(catalog_proc, txn_trace.getParams(), true);
             } catch (Exception ex) {
                 LOG.error("Unexpected error from PartitionEstimator for " + txn_trace, ex);
             }
-            // If the partition is null, then there's nothing we can do here other than just pick a random one
-            // For now we'll always pick zero to keep things consistent
-            if (txn_entry.base_partition == null) txn_entry.base_partition = 0;
-
-            // Record what partition the VoltProcedure executed on
-            // We'll throw the base_partition into the txn_entry's touched partitions histogram, but notice
-            // that we can weight how much the java execution costs
-            if (this.isJavaExecutionWeightEnabled()) {
-                txn_entry.touched_partitions.put(txn_entry.base_partition, this.getJavaExecutionWeight());
-            }
-            this.histogram_java_partitions.put(txn_entry.base_partition);
+            this.setBasePartition(txn_entry, base_partition);
             if (trace) LOG.trace("Base partition for " + catalog_proc + " is '" + txn_entry.base_partition + "' using parameter #" + catalog_proc.getParameters().get(proc_param_idx));
         }
 
@@ -1123,28 +1172,38 @@ public class SingleSitedCostModel extends AbstractCostModel {
         System.out.println(StringUtil.addSpacers(h.toString()));
         System.out.print(StringUtil.DOUBLE_LINE);
 
+        ListOrderedMap<String, Object> m = new ListOrderedMap<String, Object>();
+        
         // Execution Cost
-        System.out.println("SINGLE-PARTITION: " + singlepartition);
-        System.out.println("MULTI-PARTITION:  " + multipartition);
-        System.out.println("TOTAL:            " + total + " [" + singlepartition / (double) total + "]");
-        System.out.print(StringUtil.DOUBLE_LINE);
+        m.put("SINGLE-PARTITION", singlepartition);
+        m.put("MULTI-PARTITION", multipartition);
+        m.put("TOTAL:", total + " [" + singlepartition / (double) total + "]");
+        m.put("XXX", null);
 
         // Utilization
         costmodel.getJavaExecutionHistogram().setKeepZeroEntries(false);
         int active_partitions = costmodel.getJavaExecutionHistogram().getValueCount();
-        System.out.println("ACTIVE PARTITIONS: " + active_partitions);
-        System.out.println("IDLE PARTITIONS:   " + (all_partitions.size() - active_partitions));
+        m.put("ACTIVE PARTITIONS", active_partitions);
+        m.put("IDLE PARTITIONS", (all_partitions.size() - active_partitions));
 //        System.out.println("Partitions Touched By Queries: " + total_partitions_touched_queries);
 
         Histogram entropy_h = costmodel.getJavaExecutionHistogram();
-        System.out.println("JAVA ENTROPY:      " + EntropyUtil.calculateEntropy(all_partitions.size(), entropy_h.getSampleCount(), entropy_h));
+        m.put("JAVA SKEW", EntropyUtil.calculateEntropy(all_partitions.size(), entropy_h.getSampleCount(), entropy_h));
         
         entropy_h = costmodel.getTxnPartitionAccessHistogram();
-        System.out.println("TXN ENTROPY:       " + EntropyUtil.calculateEntropy(all_partitions.size(), entropy_h.getSampleCount(), entropy_h));
+        m.put("TRANSACTION SKEW", EntropyUtil.calculateEntropy(all_partitions.size(), entropy_h.getSampleCount(), entropy_h));
         
 //        TimeIntervalCostModel<SingleSitedCostModel> timecostmodel = new TimeIntervalCostModel<SingleSitedCostModel>(args.catalog_db, SingleSitedCostModel.class, 1);
 //        timecostmodel.estimateCost(args.catalog_db, args.workload);
 //        double entropy = timecostmodel.getLastEntropyCost()
-        System.out.println("UTILIZATION:       " + (costmodel.getJavaExecutionHistogram().getValueCount() / (double)all_partitions.size())); 
+        m.put("UTILIZATION",  (costmodel.getJavaExecutionHistogram().getValueCount() / (double)all_partitions.size()));
+
+        final String f = "%-25s%s";
+        for (Entry<String, Object> e : m.entrySet()) {
+            if (e.getKey().startsWith("XXX")) System.out.print(StringUtil.DOUBLE_LINE);
+            else {
+                System.out.println(String.format(f, e.getKey().toUpperCase()+":", e.getValue().toString()));
+            }
+        } // FOR
     }
 }

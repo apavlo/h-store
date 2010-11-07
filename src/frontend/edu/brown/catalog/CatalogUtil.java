@@ -53,6 +53,14 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
      */
     public static final Map<String, Long> CACHE_TABLE_TUPLE_SIZE = new HashMap<String, Long>();
 
+    public static Map<Object, String> getHistogramLabels(Set<Object> items) {
+        Map<Object, String> labels = new HashMap<Object, String>();
+        for (Object o : items) {
+            if (o instanceof CatalogType) labels.put(o, CatalogUtil.getDisplayName((CatalogType)o));
+        } // FOR
+        return (labels);
+    }
+    
     // TODO: Make generic!
     public static List<Column> getColumns(CatalogMap<ColumnRef> map) {
         int capacity = map.size();

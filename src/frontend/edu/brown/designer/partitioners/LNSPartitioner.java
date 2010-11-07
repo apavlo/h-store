@@ -29,6 +29,7 @@ import edu.brown.designer.AccessGraph;
 import edu.brown.designer.Designer;
 import edu.brown.designer.DesignerHints;
 import edu.brown.designer.DesignerInfo;
+import edu.brown.designer.LowerBoundsCalculator;
 import edu.brown.rand.RandomDistribution;
 import edu.brown.statistics.Histogram;
 import edu.brown.statistics.TableStatistics;
@@ -116,11 +117,18 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
         assert(info.getCorrelationsFile() != null) : "The correlations file path was not set";
     }
     
-    
+    /**
+     * Initialize the LNS partitioner. Creates all of the internal data structures that we need
+     * for performing the various relaxations and local searches
+     * @param hints
+     * @throws Exception
+     */
     protected void init(DesignerHints hints) throws Exception {
+        final boolean trace = LOG.isTraceEnabled();
+        final boolean debug = LOG.isDebugEnabled();
+        
         this.init_called = true;
         this.agraph = this.generateAccessGraph();
-        final boolean debug = LOG.isDebugEnabled();
         
         // HACK: Reload the correlations file so that we can get the proper catalog objects
         this.correlations.load(info.getCorrelationsFile(), info.catalog_db);
@@ -164,7 +172,7 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
             HashMap<ProcParameter, Set<MultiProcParameter>> multiparams = new HashMap<ProcParameter, Set<MultiProcParameter>>();
             if (hints.enable_multi_partitioning) {
                 multiparams.putAll(AbstractPartitioner.generateMultiProcParameters(info, hints, catalog_proc));
-                if (debug) LOG.debug(catalog_proc + " MultiProcParameters:\n" + multiparams);
+                if (trace) LOG.trace(catalog_proc + " MultiProcParameters:\n" + multiparams);
             }
             this.proc_multipoc_map.put(catalog_proc, multiparams);
             
@@ -177,7 +185,7 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
             if (hints.enable_multi_partitioning) {
                 Map<Table, Set<MultiColumn>> multicolumns = AbstractPartitioner.generateMultiColumns(info, hints, catalog_proc);
                 for (Entry<Table, Set<MultiColumn>> e : multicolumns.entrySet()) {
-                    if (debug) LOG.debug(e.getKey().getName() + " MultiColumns:\n" + multicolumns);
+                    if (trace) LOG.trace(e.getKey().getName() + " MultiColumns:\n" + multicolumns);
                     this.orig_table_attributes.get(e.getKey()).addAll(e.getValue());
                 } // FOR    
             }
@@ -209,7 +217,6 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
                 for (Column catalog_col1 : this.orig_table_attributes.get(catalog_tbl)) {
                     if (catalog_col0.equals(catalog_col1)) continue;
                     Set<Procedure> procs1 = this.column_procedures.get(catalog_col1);
-                    
                     intersections.put(catalog_col1, new HashSet<Procedure>(procs0));
                     intersections.get(catalog_col1).retainAll(procs1);
                 } // FOR
@@ -219,7 +226,6 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
         
 //        LOG.info("\n" + this.debug());
     }
-    
 
     /* (non-Javadoc)
      * @see edu.brown.designer.partitioners.AbstractPartitioner#generate(edu.brown.designer.DesignerHints)
@@ -275,6 +281,7 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
             
             // Sanity Check!
             this.best_solution.apply(info.catalog_db);
+            this.costmodel.clear(true);
             double cost2 = this.costmodel.estimateCost(info.catalog_db, info.workload);
             assert(MathUtil.equals(this.best_cost, cost2, 2, 0.2)) : cost2 + " == " + this.best_cost + "\n" + PartitionPlan.createFromCatalog(info.catalog_db) + "\n" + this.costmodel.getLastDebugMessages();
 
@@ -309,7 +316,6 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
         
         this.initial_solution = new MostPopularPartitioner(this.designer, this.info).generate(hints);
         this.initial_solution.apply(this.info.catalog_db);
-        
         if (hints.max_memory_per_partition > 0) {
             this.initial_memory = this.info.getMemoryEstimator().estimate(this.info.catalog_db, this.num_partitions) /
                                   (double)hints.max_memory_per_partition;
@@ -341,6 +347,7 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
             LOG.debug("Initial Solution Memory: " + String.format("%.03f", this.initial_memory));
             LOG.debug("Initial Solution:\n" + this.initial_solution);
         }
+        if (hints.shouldLogSolutionCosts()) hints.logSolutionCost(this.initial_cost);
     }
     
     /**
@@ -384,13 +391,11 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
         
         if (LOG.isInfoEnabled()) {
             StringBuilder sb = new StringBuilder();
-            sb.append(StringUtil.repeat("*", 80)).append("\n")
-              .append(String.format("** LNS RESTART #%03d  [relax_size=%d]\n", restart_ctr, relax_size))
-              .append(String.format("**  last_relax_size = %d\n", this.last_relax_size))
-              .append(String.format("**  last_exhausted  = %s\n", this.last_exhausted_search))
-              .append(String.format("**  elapsed_ratio   = %.02f\n", elapsed_ratio))
-              .append(StringUtil.repeat("*", 80));
-            LOG.info("\n" + sb.toString());
+            sb.append(String.format("LNS RESTART #%03d  [relax_size=%d]\n", restart_ctr, relax_size))
+              .append(String.format(" - last_relax_size = %d\n", this.last_relax_size))
+              .append(String.format(" - last_exhausted  = %s\n", this.last_exhausted_search))
+              .append(String.format(" - elapsed_ratio   = %.02f\n", elapsed_ratio));
+            LOG.info("\n" + StringUtil.box(sb.toString(), "*", 80));
         }
 
         // Select which tables we want to relax on this restart

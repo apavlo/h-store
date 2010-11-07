@@ -250,10 +250,8 @@ public class Designer {
             ArgumentsParser.PARAM_CORRELATIONS
         );
         
-        //
         // Create the container object that will hold all the information that
         // the designer will need to use
-        //
         DesignerInfo info = new DesignerInfo(args);
         DesignerHints hints = args.designer_hints;
         
@@ -263,7 +261,6 @@ public class Designer {
         PhysicalDesign design = designer.process();
         LOG.info("STOP: " + (System.currentTimeMillis() - start) / 1000d);
         
-//        
 //        int total = 0;
 //        int singlesited = 0;
 //        SingleSitedCostModel cmodel = new SingleSitedCostModel(design.catalog_db);
