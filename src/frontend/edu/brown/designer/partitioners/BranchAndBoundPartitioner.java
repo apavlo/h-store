@@ -17,7 +17,6 @@ import edu.brown.catalog.special.NullProcParameter;
 import edu.brown.catalog.special.ReplicatedColumn;
 import edu.brown.costmodel.*;
 import edu.brown.designer.*;
-import edu.brown.gui.common.GraphVisualizationPanel;
 import edu.brown.utils.*;
 import edu.brown.workload.*;
 import edu.uci.ics.jung.graph.*;
@@ -750,6 +749,10 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
                         BranchAndBoundPartitioner.this.best_vertex = state;
                         if (trace) LOG.trace("Last Cost Model Info:\n " + this.cost_model.getLastDebugMessages());
                         if (debug) LOG.debug("New Best Solution:\n" + StringUtil.box(best_vertex.toString()));
+                        
+                        // Log new solution cost
+                        if (this.hints.shouldLogSolutionCosts()) this.hints.logSolutionCost(state.cost);
+                        
 //                        for (int i = 0; i < ((TimeIntervalCostModel)this.cost_model).getIntevalCount(); i++) {
 //                            System.err.println("Interval #" + i);
 //                            System.err.println(((TimeIntervalCostModel)this.cost_model).getCostModel(i).getTxnPartitionAccessHistogram());

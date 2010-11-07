@@ -5,6 +5,7 @@ package edu.brown.designer.partitioners;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.Observable;
 import java.util.Set;
 
 import org.apache.log4j.Logger;
@@ -24,9 +25,12 @@ import edu.brown.designer.DesignerHints;
 import edu.brown.designer.DesignerInfo;
 import edu.brown.designer.Edge;
 import edu.brown.designer.Vertex;
+import edu.brown.gui.common.GraphVisualizationPanel;
 import edu.brown.statistics.Histogram;
 import edu.brown.statistics.TableStatistics;
 import edu.brown.utils.CollectionUtil;
+import edu.brown.utils.EventObserver;
+import edu.brown.utils.StringUtil;
 
 /**
  * @author pavlo
@@ -84,53 +88,61 @@ public class MostPopularPartitioner extends AbstractPartitioner {
                 }
                 if (trace) LOG.trace(catalog_tbl + " has " + edges.size() + " edges in AccessGraph");
                 
-                Histogram column_histogram = new Histogram();
+                Histogram column_histogram = null;
+                Histogram join_column_histogram = new Histogram();
+                Histogram self_column_histogram = new Histogram();
                 // Map<Column, Double> unsorted = new HashMap<Column, Double>();
                 for (Edge e : edges) {
                     Collection<Vertex> vertices = agraph.getIncidentVertices(e);
                     Vertex v0 = CollectionUtil.get(vertices, 0);
                     Vertex v1 = CollectionUtil.get(vertices, 1);
-                    if (v0.equals(v) && v1.equals(v)) continue;
+                    boolean self = (v0.equals(v) && v1.equals(v));
+                    column_histogram = (self ? self_column_histogram : join_column_histogram);
                     
                     double edge_weight = e.getTotalWeight();
                     ColumnSet cset = e.getAttribute(AccessGraph.EdgeAttributes.COLUMNSET);
-                    if (trace) LOG.trace("Examining ColumnSet for " + e + "\n" + cset);
+                    if (trace) LOG.trace("Examining ColumnSet for " + e.toString(true));
                     
                     Histogram cset_histogram = cset.buildHistogramForType(Column.class);
                     if (trace) LOG.trace("Constructed Histogram for " + catalog_tbl + " from ColumnSet:\n" + cset_histogram.toString());
                     
                     Set<Column> columns = cset_histogram.values();
+//                    System.out.println(cset_histogram.setDebugLabels(CatalogUtil.getHistogramLabels(cset_histogram.values())).toString(100, 50));
                     for (Column catalog_col : columns) {
                         if (!catalog_col.getParent().equals(catalog_tbl)) continue;
                         long cnt = cset_histogram.get(catalog_col);
+                        if (trace) LOG.trace("Found Match: " + catalog_col + " [cnt=" + cnt + "]");
                         column_histogram.put(catalog_col, Math.round(cnt * edge_weight));    
                     } // FOR
     //                System.err.println(cset.debug());
-                    
     //                LOG.info("[" + e.getTotalWeight() + "]: " + cset);
                 } // FOR
-//                if (column_histogram.isEmpty()) {
-//                    EventObserver observer = new EventObserver() {
-//                        @Override
-//                        public void update(Observable o, Object arg) {
-//                            Vertex v = (Vertex)arg;
-//                            
-//                            for (Edge e : agraph.getIncidentEdges(v)) {
-//                                System.err.println(e.getAttribute(AccessGraph.EdgeAttributes.COLUMNSET));
-//                            }
-//                            System.err.println(StringUtil.repeat("-", 100));
-//                        }
-//                    };
-//                    GraphVisualizationPanel.createFrame(agraph, observer).setVisible(true);
-////                    ThreadUtil.sleep(10000);
-//                }
+                
+                // If there were no join columns, then use the self-reference histogram
+                column_histogram = (join_column_histogram.isEmpty() ? self_column_histogram : join_column_histogram); 
+                if (column_histogram.isEmpty()) {
+                    EventObserver observer = new EventObserver() {
+                        @Override
+                        public void update(Observable o, Object arg) {
+                            Vertex v = (Vertex)arg;
+                            
+                            for (Edge e : agraph.getIncidentEdges(v)) {
+                                System.err.println(e.getAttribute(AccessGraph.EdgeAttributes.COLUMNSET));
+                            }
+                            System.err.println(StringUtil.repeat("-", 100));
+                        }
+                    };
+                    System.err.println("Edges: " + edges);
+                    GraphVisualizationPanel.createFrame(agraph, observer).setVisible(true);
+//                    ThreadUtil.sleep(10000);
+                }
 
                 // We might not find anything if we are calculating the lower bounds using only one transaction
-                if (column_histogram.isEmpty()) {
-                    if (trace) LOG.trace("Failed to find any ColumnSets for " + catalog_tbl);
-                    continue;
-                }
-                // assert(!column_histogram.isEmpty()) : 
+//                if (column_histogram.isEmpty()) {
+//                    if (trace) LOG.trace("Failed to find any ColumnSets for " + catalog_tbl);
+//                    continue;
+//                }
+                assert(!column_histogram.isEmpty()) : "Failed to find any ColumnSets for " + catalog_tbl;
                 if (trace) LOG.trace("Column Histogram:\n" + column_histogram);
                 
                 total_memory_used += (size_ratio / (double)info.getNumPartitions());

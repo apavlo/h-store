@@ -1,10 +1,13 @@
 package edu.brown.designer;
 
+import java.io.File;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.util.*;
 import java.util.Map.Entry;
 
 import org.apache.commons.collections15.set.ListOrderedSet;
+import org.apache.log4j.Logger;
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.json.JSONStringer;
@@ -18,6 +21,7 @@ import edu.brown.utils.JSONSerializable;
 import edu.brown.utils.JSONUtil;
 
 public class DesignerHints implements Cloneable, JSONSerializable {
+    private static final Logger LOG = Logger.getLogger(DesignerHints.class);
     
     public enum Members {
         START_RANDOM,
@@ -46,6 +50,7 @@ public class DesignerHints implements Cloneable, JSONSerializable {
         // FIXME FORCE_TABLE_PARTITION,
         FORCE_DEBUGGING,
         FORCE_DEPENDENCY,
+        LOG_SOLUTIONS_COSTS,
     };
     
     private transient String source_file;
@@ -164,6 +169,12 @@ public class DesignerHints implements Cloneable, JSONSerializable {
     public int weight_costmodel_java_execution = 1;
 
     private final transient long start_time;
+
+    /**
+     * Keep track of the cost of the solutions as we find them
+     */
+    public String log_solutions_costs = null;
+    private transient FileWriter log_solutions_costs_writer = null;
     
     /**
      * Empty Constructor
@@ -174,6 +185,31 @@ public class DesignerHints implements Cloneable, JSONSerializable {
     
     public String getSourceFile() {
         return (this.source_file);
+    }
+
+    public boolean shouldLogSolutionCosts() {
+        return (this.log_solutions_costs != null);
+    }
+    /**
+     * Write a solution cost out to a file. Each entry will also include the time at which
+     * the new cost was discovered 
+     * @param cost
+     */
+    public void logSolutionCost(double cost) {
+        assert(this.log_solutions_costs != null);
+        try {
+            if (this.log_solutions_costs_writer == null) {
+                File file = new File(this.log_solutions_costs);
+                this.log_solutions_costs_writer = new FileWriter(file);
+                LOG.info("Creating solution costs log file: " + file.getAbsolutePath());
+            }
+            long offset = System.currentTimeMillis() - this.start_time;
+            this.log_solutions_costs_writer.write(String.format("%d\t%.05f\n", offset, cost));
+            this.log_solutions_costs_writer.flush();
+        } catch (Exception ex) {
+            ex.printStackTrace();
+            System.exit(1);
+        }
     }
     
     /**

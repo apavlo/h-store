@@ -98,7 +98,7 @@ public class TimeIntervalCostModel<T extends AbstractCostModel> extends Abstract
     public void clear(boolean force) {
         super.clear(force);
         if (force || !this.isCachingEnabled()) {
-            LOG.info("Clearing out all interval cost models");
+            if (LOG.isDebugEnabled()) LOG.debug("Clearing out all interval cost models");
             for (int i = 0; i < this.num_intervals; i++) {
                 this.cost_models[i].clear(force);
             } // FOR
