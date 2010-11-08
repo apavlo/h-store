@@ -55,7 +55,8 @@ public class HStoreMessenger {
     enum MessengerState {
         INITIALIZED,
         STARTED,
-        STOPPED
+        PREPARE_STOP,
+        STOPPED,
     };
     
     private final HStoreSite hstore_site;
@@ -111,13 +112,14 @@ public class HStoreMessenger {
                     Throwable cause = (ex instanceof RuntimeException ? ex.getCause() : ex);
                     
                     // These errors are ok if we're actually stopping...
-                    if (HStoreMessenger.this.state == MessengerState.STOPPED) {
+                    if (HStoreMessenger.this.state == MessengerState.STOPPED ||
+                        HStoreMessenger.this.state == MessengerState.PREPARE_STOP) {
                         // IGNORE
                     } else {
                         LOG.fatal("Unexpected error in messenger listener thread", cause);
                     }
                 } finally {
-                    if (HStoreMessenger.this.state != MessengerState.STOPPED) HStoreMessenger.this.stop();
+                    // if (HStoreMessenger.this.state != MessengerState.STOPPED) HStoreMessenger.this.stop();
                 }
                 if (LOG.isTraceEnabled()) {
                     LOG.trace("Messenger Thread for Site #" + catalog_site.getId() + " has stopped!");
@@ -149,14 +151,23 @@ public class HStoreMessenger {
      * @return
      */
     public boolean isStarted() {
-        return (this.state == MessengerState.STARTED);
+        return (this.state == MessengerState.STARTED ||
+                this.state == MessengerState.PREPARE_STOP);
+    }
+    
+    /**
+     * Internal call for testing to hide errors
+     */
+    protected void prepareToStop() {
+        assert(this.state == MessengerState.STARTED) : "Invalid MessengerState " + this.state;
+        this.state = MessengerState.PREPARE_STOP;
     }
     
     /**
      * Stop this messenger. This kills the ProtoRpc event loop
      */
     public synchronized void stop() {
-        assert(this.state == MessengerState.STARTED) : "Invalid MessengerState " + this.state;
+        assert(this.state == MessengerState.STARTED || this.state == MessengerState.PREPARE_STOP) : "Invalid MessengerState " + this.state;
         final boolean trace = LOG.isTraceEnabled();
         
         this.state = MessengerState.STOPPED;
