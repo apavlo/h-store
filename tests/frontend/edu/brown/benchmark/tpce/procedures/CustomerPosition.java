@@ -33,19 +33,13 @@
  ***************************************************************************/
 package edu.brown.benchmark.tpce.procedures;
 
+import java.util.HashMap;
 import java.util.Map;
-import java.util.TreeMap;
-import java.util.Vector;
-import java.util.Map.Entry;
 
 import org.voltdb.SQLStmt;
 import org.voltdb.VoltProcedure;
 import org.voltdb.VoltTable;
-import org.voltdb.VoltType;
-import org.voltdb.VoltTable.ColumnInfo;
-import org.voltdb.utils.Pair;
 
-import edu.brown.benchmark.tpce.TPCEConstants;
 import edu.brown.benchmark.tpce.util.ProcedureUtil;
 
 /**
@@ -57,33 +51,26 @@ public class CustomerPosition extends VoltProcedure {
     private static final int max_acct_len = 10;
 
     public final SQLStmt getCID = new SQLStmt(
-        "SELECT C_ID FROM CUSTOMER WHERE C_TAX_ID = ?"
-    );
+            "select C_ID from CUSTOMER where C_TAX_ID=?");
 
     public final SQLStmt getCustomer = new SQLStmt(
-        "SELECT * FROM CUSTOMER WHERE C_ID = ?"
-    );
+            "select C_ST_ID, C_L_NAME, C_F_NAME, C_M_NAME, C_GNDR, C_TIER, C_DOB, C_AD_ID, "
+                    + "C_CTRY_1, C_AREA_1, C_LOCAL_1, C_EXT_1, C_CTRY_2, C_AREA_2, C_LOCAL_2, C_EXT_2, "
+                    + "C_CTRY_3, C_AREA_3, C_LOCAL_3, C_EXT_3, C_EMAIL_1, C_EMAIL_2 "
+                    + "from CUSTOMER " + "where C_ID=?");
 
     // Note: The parameter max_trade should be used for the LIMIT value but
     // we don't support parameters in the LIMIT clause. Hardcoding to 10 for now.
     public final SQLStmt getAssets = new SQLStmt(
-        "SELECT CA_ID, CA_BAL, HS_QTY * LT_PRICE " + // FIXME ifnull((sum(HS_QTY*LT_PRICE)),0) "
-        "  FROM CUSTOMER_ACCOUNT LEFT OUTER JOIN HOLDING_SUMMARY ON HS_CA_ID = CA_ID, " +
-        "       LAST_TRADE " +
-        " WHERE CA_C_ID = ? " +
-        "   AND LT_S_SYMB = HS_S_SYMB "
-        // " GROUP BY CA_ID, CA_BAL "
-        // "order by 3 asc"
-        // " LIMIT " + max_acct_len
-    );
-    private final static ColumnInfo getAssetsColumns[] = new ColumnInfo[] {
-        new ColumnInfo("CA_ID", VoltType.BIGINT),
-        new ColumnInfo("CA_BAL", VoltType.DECIMAL),
-        new ColumnInfo("SUM", VoltType.DECIMAL),
-    };
+            "select CA_ID, CA_BAL " // FIXME ifnull((sum(HS_QTY*LT_PRICE)),0) "
+                    + "from CUSTOMER_ACCOUNT left outer join HOLDING_SUMMARY on HS_CA_ID=CA_ID, LAST_TRADE "
+                    + "where CA_C_ID=? and LT_S_SYMB=HS_S_SYMB "
+                    + "group by CA_ID,CA_BAL "
+                    // FIXME "order by 3 asc"
+                    + " limit 10"); // limit ?
     
     public final SQLStmt getTrades = new SQLStmt(
-        "SELECT T_ID FROM TRADE WHERE T_CA_ID = ? ORDER BY T_DTS DESC LIMIT 10"
+        "SELECT t_id FROM trade WHERE t_ca_id = ? ORDER BY t_dts DESC LIMIT 10"
     );
     
     public final SQLStmt getTradeHistory = new SQLStmt(
@@ -97,77 +84,44 @@ public class CustomerPosition extends VoltProcedure {
     );
     
 
-    /**
-     * 
-     * @param acct_id_idx
-     * @param cust_id
-     * @param get_history
-     * @param tax_id
-     * @return
-     * @throws VoltAbortException
-     */
     public VoltTable[] run(
             long acct_id_idx,
             long cust_id,
             long get_history,
             String tax_id) throws VoltAbortException {
-        VoltTable[] results = null;
-        final Vector<VoltTable> final_results = new Vector<VoltTable>(); 
+        Map<String, Object[]> ret = new HashMap<String, Object[]>();
         
         /** FRAME 1 **/
         
         // Use the tax_id to get the cust_id
         if (cust_id == 0) {
-            voltQueueSQL(getCID, tax_id);
-            results = voltExecuteSQL();
-            assert(results.length == 1);
-            boolean advrow = results[0].advanceRow();
-            assert(advrow);
-            cust_id = results[0].getLong(0);
-            assert(cust_id > 0);
+            ProcedureUtil.execute(ret, this, getCID,
+                    new Object[] { tax_id },
+                    new String[] { "cust_id" },
+                    new Object[] { "C_ID" });
         }
 
-        // Get customer information
-        voltQueueSQL(getCustomer, cust_id);
-        voltQueueSQL(getAssets, cust_id);
-        results = voltExecuteSQL();
-        assert(results.length == 2);
-        
-        // We can stick the results from the first query directly into our final result
-        final_results.add(results[0]);
-        
-        // We have to perform the aggregation ourselves here...
-        Map<Pair<Long, Double>, Double> aggregate = new TreeMap<Pair<Long, Double>, Double>();
-        while (results[1].advanceRow()) {
-            long ca_id = results[1].getLong(0); // CA_ID
-            double ca_bal = results[1].getDouble(1); // CA_BAL
-            double agg = results[1].getDouble(2);   // HS_QTY * LT_PRICE
-            if (results[1].wasNull()) agg = 0.0d;
-            
-            Pair<Long, Double> key = Pair.of(ca_id, ca_bal);
-            Double sum = aggregate.get(key);
-            if (sum == null) sum = 0.0d;
-            aggregate.put(key, sum + agg);
-        }
-        
-        final VoltTable getResultsTable = new VoltTable(getAssetsColumns);
-        for (Entry<Pair<Long, Double>, Double> e : aggregate.entrySet()) {
-            getResultsTable.addRow(e.getKey().getFirst(), e.getKey().getSecond(), e.getValue());
-        } // FOR
-        final_results.add(getResultsTable);
+        ProcedureUtil.execute(ret, this, getCustomer,
+                new Object[] { cust_id },
+                new String[] { "c_st_id", "c_l_name", "c_f_name", "c_m_name", "c_gndr", "c_tier", "c_dob", "c_ad_id", "c_ctry_1", "c_area_1", "c_local_1", "c_ext_1", "c_ctry_2", "c_area_2", "c_local_2", "c_ext_2", "c_ctry_3", "c_area_3", "c_local_3", "c_ext_3", "c_email_1", "c_email_2" },
+                new Object[] { "C_ST_ID", "C_L_NAME", "C_F_NAME", "C_M_NAME", "C_GNDR", "C_TIER", "C_DOB", "C_AD_ID", "C_CTRY_1", "C_AREA_1", "C_LOCAL_1", "C_EXT_1", "C_CTRY_2", "C_AREA_2", "C_LOCAL_2", "C_EXT_2", "C_CTRY_3", "C_AREA_3", "C_LOCAL_3", "C_EXT_3", "C_EMAIL_1", "C_EMAIL_2" });
+        int row_count = ProcedureUtil.execute(ret, this, getAssets,
+                new Object[] { cust_id },
+                new String[] { "acct_id", "cash_bal" }, // Add "assets_total" once getAssets is fixed
+                new Object[] { "CA_ID", "CA_BAL"});     // Add 2 to this list once getAssets is fixed
+
+        ret.put("acct_len", new Integer[] { row_count });
 
         /** FRAME 2 **/
-        if (get_history == TPCEConstants.TRUE) {
-            voltQueueSQL(getTrades, cust_id);
-            results = voltExecuteSQL();
-            assert results.length == 1;
-            while (results[0].advanceRow()) {
-                long t_id = results[0].getLong(0);
-                voltQueueSQL(getTradeHistory, t_id); 
-            } // WHILE
-            final_results.add(ProcedureUtil.combineTables(voltExecuteSQL()));
-        }
+        voltQueueSQL(getTrades, cust_id);
+        VoltTable results[] = voltExecuteSQL();
+        assert results.length == 1;
+        while (results[0].advanceRow()) {
+            long t_id = results[0].getLong(0);
+            voltQueueSQL(getTradeHistory, t_id); 
+        } // WHILE
+        results = voltExecuteSQL();
         
-        return final_results.toArray(new VoltTable[]{});
+        return ProcedureUtil.mapToTable(ret);
     }
 }
