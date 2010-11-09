@@ -290,6 +290,7 @@ public class PartitionEstimator {
                 
                 // Check whether the predicate expression in this PlanFragment contains an OR
                 // We need to know this if we get hit with Multi-Column Partitioning
+                // XXX: Why does this matter??
                 Set<ExpressionType> exp_types = PlanNodeUtil.getScanExpressionTypes(catalog_db, root);
                 if (exp_types.contains(ExpressionType.CONJUNCTION_OR)) {
                     if (debug) LOG.warn(CatalogUtil.getDisplayName(catalog_frag) + " contains OR conjunction. Cannot be used with multi-column partitioning");
@@ -801,7 +802,7 @@ public class PartitionEstimator {
                 // Strap on your seatbelts, we're going in!!!
                 if (catalog_col instanceof MultiColumn) {
                     assert(!cache_entry.isContainsOr()) :
-                        "Trying to use multi-column partitioning on query that contains an 'OR': " + cache_entry;
+                        "Trying to use multi-column partitioning [" + catalog_col + "] on query that contains an 'OR': " + cache_entry;
                     
                     MultiColumn mc = (MultiColumn)catalog_col;
                     @SuppressWarnings("unchecked")
