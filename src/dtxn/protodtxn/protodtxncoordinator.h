@@ -6,7 +6,7 @@
 #define PROTODTXN_PROTODTXNCOORDINATOR_H__
 
 #include "base/unordered_map.h"
-#include "edu/mit/dtxn/dtxn.pb.h"
+#include "protodtxn/dtxn.pb.h"
 
 namespace dtxn {
 class DtxnManager;
