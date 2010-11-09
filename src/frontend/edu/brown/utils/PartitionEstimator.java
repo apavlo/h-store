@@ -801,43 +801,47 @@ public class PartitionEstimator {
                 // Special Case: Multi-Column Partitioning
                 // Strap on your seatbelts, we're going in!!!
                 if (catalog_col instanceof MultiColumn) {
-                    assert(!cache_entry.isContainsOr()) :
-                        "Trying to use multi-column partitioning [" + catalog_col + "] on query that contains an 'OR': " + cache_entry;
                     
-                    MultiColumn mc = (MultiColumn)catalog_col;
-                    @SuppressWarnings("unchecked")
-                    HashSet<Integer> mc_partitions[] = new HashSet[]{ new HashSet<Integer>(), new HashSet<Integer>() };
-                    
-                    if (trace) LOG.trace("Calculating columns for multi-partition colunmn: " + mc);
-                    boolean is_valid = true;
-                    for (int i = 0; i < 2; i++) {
-                        Column mc_column = mc.get(i);
-                        String mc_column_key = CatalogKey.createKey(mc_column);
-                        // assert(cache_entry.get(mc_column_key) != null) : "Null CacheEntry: " + mc_column_key;
-                        if (cache_entry.get(mc_column_key) != null) {
-                            this.calculatePartitions(mc_partitions[i], params, cache_entry.get(mc_column_key), mc_column);
-                        }
+                    // HACK: All multi-column look-ups on queries with an OR must be broadcast
+                    if (cache_entry.isContainsOr()) {
+                        if (debug) LOG.warn("Trying to use multi-column partitioning [" + catalog_col + "] on query that contains an 'OR': " + cache_entry);
+                        table_partitions.addAll(this.all_partitions);
+                    } else {
+                        MultiColumn mc = (MultiColumn)catalog_col;
+                        @SuppressWarnings("unchecked")
+                        HashSet<Integer> mc_partitions[] = new HashSet[]{ new HashSet<Integer>(), new HashSet<Integer>() };
                         
-                        // Unless we have partition values for both keys, then it has to be a broadcast 
-                        if (mc_partitions[i].isEmpty()) {
-                            if (debug) LOG.warn("No partitions for " + mc_column + " from " + mc + ". Cache entry " + cache_entry + " must be broadcast to all partitions");
-                            table_partitions.addAll(this.all_partitions);
-                            is_valid = false;
-                            break;
-                        }
-                        if (trace) LOG.trace(CatalogUtil.getDisplayName(mc_column) + ": " + mc_partitions[i]);
-                    } // FOR
-                    
-                    // Now if we're here, then we have partitions for both of the columns and we're legit
-                    // We therefore just need to take the cross product of the two sets and hash them together
-                    if (is_valid) {
-                        for (int part0 : mc_partitions[0]) {
-                            for (int part1 : mc_partitions[1]) {
-                                int partition = this.hasher.multiValueHash(part0, part1);
-                                table_partitions.add(partition);
-                                if (trace) LOG.trace("MultiColumn Partitions[" + part0 + ", " + part1 + "] => " + partition);
-                            } // FOR
+                        if (trace) LOG.trace("Calculating columns for multi-partition colunmn: " + mc);
+                        boolean is_valid = true;
+                        for (int i = 0; i < 2; i++) {
+                            Column mc_column = mc.get(i);
+                            String mc_column_key = CatalogKey.createKey(mc_column);
+                            // assert(cache_entry.get(mc_column_key) != null) : "Null CacheEntry: " + mc_column_key;
+                            if (cache_entry.get(mc_column_key) != null) {
+                                this.calculatePartitions(mc_partitions[i], params, cache_entry.get(mc_column_key), mc_column);
+                            }
+                            
+                            // Unless we have partition values for both keys, then it has to be a broadcast 
+                            if (mc_partitions[i].isEmpty()) {
+                                if (debug) LOG.warn("No partitions for " + mc_column + " from " + mc + ". Cache entry " + cache_entry + " must be broadcast to all partitions");
+                                table_partitions.addAll(this.all_partitions);
+                                is_valid = false;
+                                break;
+                            }
+                            if (trace) LOG.trace(CatalogUtil.getDisplayName(mc_column) + ": " + mc_partitions[i]);
                         } // FOR
+                        
+                        // Now if we're here, then we have partitions for both of the columns and we're legit
+                        // We therefore just need to take the cross product of the two sets and hash them together
+                        if (is_valid) {
+                            for (int part0 : mc_partitions[0]) {
+                                for (int part1 : mc_partitions[1]) {
+                                    int partition = this.hasher.multiValueHash(part0, part1);
+                                    table_partitions.add(partition);
+                                    if (trace) LOG.trace("MultiColumn Partitions[" + part0 + ", " + part1 + "] => " + partition);
+                                } // FOR
+                            } // FOR
+                        }
                     }
                 } else {
                     Set<Integer> param_idxs = cache_entry.get(column_key);
@@ -855,7 +859,7 @@ public class PartitionEstimator {
                         this.calculatePartitions(table_partitions, params, param_idxs, catalog_col);
                     }
                 }
-            }
+            } // ELSE
             assert(table_partitions.size() <= max_partitions);
             partitions.put(table_key, table_partitions);
         } // FOR
