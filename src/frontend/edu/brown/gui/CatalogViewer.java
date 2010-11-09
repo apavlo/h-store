@@ -317,7 +317,7 @@ public class CatalogViewer extends AbstractViewer {
         // Otherwise search by name...
         //
         if (guid == null && value.length() >= SEARCH_MIN_LENGTH) {
-            LOG.info("Searching for matching name '" + value + "'");
+            LOG.debug("Searching for matching name '" + value + "'");
             for (String name : this.catalogTreeModel.getNameNodeXref().keySet()) {
                 if (name.indexOf(value) != -1) {
                     found.addAll(this.catalogTreeModel.getNameNodeXref().get(name));

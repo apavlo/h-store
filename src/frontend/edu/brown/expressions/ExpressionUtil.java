@@ -68,48 +68,51 @@ public abstract class ExpressionUtil {
     }
     public static String debug(AbstractExpression exp, String spacer) {
         assert(exp != null);
-        String ret = spacer + "+ " + exp.getClass().getSimpleName() + "\n";
+        final String orig_spacer = spacer;
+        String name = exp.getClass().getSimpleName();
+        ExpressionType etype = exp.getExpressionType();
+        
+        final StringBuilder sb = new StringBuilder();
         spacer += "   ";
-        ret += spacer + "ValueType[" + exp.getValueType() + "]\n";
+        sb.append(spacer).append("ValueType[").append(exp.getValueType()).append("]\n");
         
         if (exp instanceof AggregateExpression) {
             // Nothing
         } else if (exp instanceof ComparisonExpression) {
-            // Nothing
+            name += "[" + etype.name().replace("COMPARE_", "") + "]";
         } else if (exp instanceof ConjunctionExpression) {
-            // Nothing
+            name += "[" + etype.name().replace("CONJUNCTION_", "") + "]";
         } else if (exp instanceof ConstantValueExpression) {
-            ret += spacer + "Value[" + ((ConstantValueExpression)exp).getValue() + "]\n";
+            sb.append(spacer).append("Value[").append(((ConstantValueExpression)exp).getValue()).append("]\n");
         } else if (exp instanceof InComparisonExpression) {
             InComparisonExpression in_exp = (InComparisonExpression)exp;
-            ret += spacer + "Values[" + in_exp.getValues().size()+ "]:\n";
+            sb.append(spacer).append("Values[").append(in_exp.getValues().size()).append("]:\n");
             for (int ctr = 0, cnt = in_exp.getValues().size(); ctr < cnt; ctr++) {
-                ret += ExpressionUtil.debug(in_exp.getValues().get(ctr), spacer);
+                sb.append(ExpressionUtil.debug(in_exp.getValues().get(ctr), spacer));
             } // FOR
         } else if (exp instanceof NullValueExpression) {
             // Nothing
         } else if (exp instanceof OperatorExpression) {
-            // Nothing
+            name += "[" + etype.name().replace("OPERATOR_", "") + "]";
         } else if (exp instanceof ParameterValueExpression) {
-            ret += spacer + "Parameter[" + ((ParameterValueExpression)exp).getParameterId() + "]\n";
+            sb.append(spacer).append("Parameter[").append(((ParameterValueExpression)exp).getParameterId()).append("]\n");
         } else if (exp instanceof TupleAddressExpression) {
             // Nothing
         } else if (exp instanceof TupleValueExpression) {
-            ret += spacer + "Column Reference: ";
-            ret += "[" + ((TupleValueExpression)exp).getColumnIndex() + "] ";
-            ret += ((TupleValueExpression)exp).getTableName() + ".";
-            ret += ((TupleValueExpression)exp).getColumnName() + " AS ";
-            ret += ((TupleValueExpression)exp).getColumnAlias() + "\n";
+            sb.append(spacer).append("Column Reference: ")
+              .append("[").append(((TupleValueExpression)exp).getColumnIndex()).append("] ")
+              .append(((TupleValueExpression)exp).getTableName()).append(".")
+              .append(((TupleValueExpression)exp).getColumnName()).append(" AS ")
+              .append(((TupleValueExpression)exp).getColumnAlias()).append("\n");
         }
         
-        //
         // Print out all of our children
-        //
         if (exp.getLeft() != null || exp.getRight() != null) {
-            ret += spacer + "left:  " + (exp.getLeft() != null ? "\n" + ExpressionUtil.debug(exp.getLeft(), spacer) : null + "\n");
-            ret += spacer + "right:  " + (exp.getRight() != null ? "\n" + ExpressionUtil.debug(exp.getRight(), spacer) : null + "\n");
+            sb.append(spacer).append("left:  ").append(exp.getLeft() != null ? "\n" + ExpressionUtil.debug(exp.getLeft(), spacer) : null + "\n");
+            sb.append(spacer).append("right:  ").append(exp.getRight() != null ? "\n" + ExpressionUtil.debug(exp.getRight(), spacer) : null + "\n");
         }
-        return (ret);
+        
+        return (orig_spacer + "+ " + name  + "\n" + sb.toString()); 
     }
 
 }
