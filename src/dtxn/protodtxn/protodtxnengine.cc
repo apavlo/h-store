@@ -6,8 +6,8 @@
 
 #include "base/assert.h"
 #include "base/debuglog.h"
+#include "edu/mit/dtxn/dtxn.pb.h"
 #include "io/eventloop.h"
-#include "protodtxn/dtxn.pb.h"
 #include "protorpc/protorpccontroller.h"
 
 using google::protobuf::NewCallback;
