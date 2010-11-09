@@ -31,6 +31,9 @@ public interface EventLoop {
     /** Registers a one time callback to be triggered after timerMilliseconds. */
     void registerTimer(int timerMilliseconds, Handler handler);
 
+    /** Cancel a timer that has not yet been called. */
+    void cancelTimer(Handler handler);
+
     void runInEventThread(Runnable callback);
 
     void run();

@@ -99,16 +99,25 @@ public class NIOEventLoop implements EventLoop {
         addInterest(channel, SelectionKey.OP_WRITE, handler);
     }
 
-    public void clearAllTimers() {
-        this.timers.clear();
-    }
-    
     @Override
     public void registerTimer(int timerMilliseconds, Handler handler) {
         assert timerMilliseconds >= 0;
         assert handler != null;
         long expirationMs = System.currentTimeMillis() + timerMilliseconds;
         timers.put(expirationMs, handler);
+    }
+
+    @Override
+    public void cancelTimer(Handler handler) {
+        Iterator<Handler> timerIterator = timers.values().iterator();
+        while (timerIterator.hasNext()) {
+            Handler timerHandler = timerIterator.next();
+            if (timerHandler == handler) {
+                timerIterator.remove();
+                return;
+            }
+        }
+        throw new IllegalArgumentException("Timer handler not found");
     }
 
     private void register(SelectableChannel channel, int ops, Handler callback) {
@@ -125,7 +134,7 @@ public class NIOEventLoop implements EventLoop {
         SelectionKey key = channel.keyFor(selector);
         if (key != null) {
             assert (key.interestOps() & operation) == 0;
-            if (key.attachment() == null) { 
+            if (key.attachment() == null) {
                 key.attach(callback);
             } else {
                 assert callback == key.attachment();
@@ -226,7 +235,8 @@ public class NIOEventLoop implements EventLoop {
                 key.attach(null);
                 callback.connectCallback((SocketChannel) key.channel());
             } else {
-                // Mac OS X has a bug: when an async connect fails, this triggers with key.readyOps == 0.
+                // Mac OS X has a bug: when an async connect fails, this triggers with
+                // key.readyOps == 0.
                 assert key.readyOps() == 0;
                 assert (key.interestOps() & SelectionKey.OP_CONNECT) != 0;
                 System.out.println("Mac bug? no interest: connection failed?");
