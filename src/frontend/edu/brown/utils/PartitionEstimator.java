@@ -681,14 +681,19 @@ public class PartitionEstimator {
         Map<String, Set<Integer>> all_partitions = new HashMap<String, Set<Integer>>();
         CatalogMap<PlanFragment> fragments = (catalog_stmt.getHas_singlesited() ? catalog_stmt.getFragments() : catalog_stmt.getMs_fragments());
         for (PlanFragment catalog_frag : fragments) {
-            Map<String, Set<Integer>> frag_partitions = this.getTablePartitions(catalog_frag, params, base_partition);
-            for (String table_key : frag_partitions.keySet()) {
-                if (!all_partitions.containsKey(table_key)) {
-                    all_partitions.put(table_key, frag_partitions.get(table_key));
-                } else {
-                    all_partitions.get(table_key).addAll(frag_partitions.get(table_key));
-                }
-            } // FOR
+            try {
+                Map<String, Set<Integer>> frag_partitions = this.getTablePartitions(catalog_frag, params, base_partition);
+                for (String table_key : frag_partitions.keySet()) {
+                    if (!all_partitions.containsKey(table_key)) {
+                        all_partitions.put(table_key, frag_partitions.get(table_key));
+                    } else {
+                        all_partitions.get(table_key).addAll(frag_partitions.get(table_key));
+                    }
+                } // FOR
+            } catch (AssertionError ex) {
+                LOG.fatal("Failed to calculate table partitions for " + CatalogUtil.getDisplayName(catalog_frag));
+                throw new RuntimeException(ex);
+            }
         } // FOR
         return (all_partitions);
     }
