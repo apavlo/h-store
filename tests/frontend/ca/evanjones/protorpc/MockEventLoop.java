@@ -40,6 +40,11 @@ public final class MockEventLoop implements EventLoop {
     }
 
     @Override
+    public void cancelTimer(Handler handler) {
+        throw new UnsupportedOperationException("TODO: implement");
+    }
+
+    @Override
     public void run() {
         throw new UnsupportedOperationException("TODO: implement");
     }

@@ -228,7 +228,7 @@ public class ProtoRpcChannel extends AbstractEventHandler implements RpcChannel 
     }
 
     private static final int RECONNECT_TIMEOUT_MS = 2000;
-    private static final int TOTAL_CONNECT_TIMEOUT_MS = 30000;
+    static final int TOTAL_CONNECT_TIMEOUT_MS = 30000;
     public static ProtoRpcChannel[] connectParallel(final EventLoop eventLoop, final InetSocketAddress[] addresses) {
         return connectParallel(eventLoop, addresses, TOTAL_CONNECT_TIMEOUT_MS);
     }
@@ -237,17 +237,17 @@ public class ProtoRpcChannel extends AbstractEventHandler implements RpcChannel 
         class ExitLoopHandler extends AbstractEventHandler {
             @Override
             public void timerCallback() {
-                if (barrierCount == 0) {
-                    if (LOG.isDebugEnabled()) LOG.debug("Timer callback; all connections done");
-                } else {
-                    ((NIOEventLoop) eventLoop).exitLoop();
-                }
+                assert barrierCount > 0;
+                ((NIOEventLoop) eventLoop).exitLoop();
             }
 
             public void connectFinished() {
                 barrierCount -= 1;
                 assert barrierCount >= 0;
-                if (barrierCount == 0) ((NIOEventLoop) eventLoop).exitLoop(); 
+                if (barrierCount == 0) {
+                    eventLoop.cancelTimer(this);
+                    ((NIOEventLoop) eventLoop).exitLoop(); 
+                }
             }
 
             private int barrierCount = addresses.length;

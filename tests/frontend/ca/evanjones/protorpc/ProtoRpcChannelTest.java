@@ -5,6 +5,10 @@ import static org.junit.Assert.*;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.net.ConnectException;
+import java.net.InetSocketAddress;
+import java.net.ServerSocket;
+import java.net.Socket;
+import java.net.SocketException;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -15,9 +19,9 @@ import ca.evanjones.protorpc.Protocol.RpcResponse;
 
 import com.google.protobuf.CodedInputStream;
 import com.google.protobuf.CodedOutputStream;
+import com.google.protobuf.Descriptors.MethodDescriptor;
 import com.google.protobuf.Message;
 import com.google.protobuf.RpcCallback;
-import com.google.protobuf.Descriptors.MethodDescriptor;
 
 import edu.mit.net.MockByteChannel;
 import edu.mit.net.MockSocketChannel;
@@ -269,5 +273,138 @@ public class ProtoRpcChannelTest {
         channel.numBytesToAccept = -1;
         assertFalse(eventLoop.writeHandler.writeCallback(null));
         assertTrue(channel.writeCalled);
+    }
+
+    private static final class Listener {
+        private final ServerSocket listenSocket;
+        private final Thread listenThread;
+
+        private volatile boolean quit = false;
+        
+        public Listener() {
+            try {
+                listenSocket = new ServerSocket(0);
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+
+            // Start the thread running
+            listenThread = new Thread() {
+                @Override
+                public void run() {
+                    acceptThread();
+                }
+            };
+            listenThread.start();
+        }
+
+        private void acceptThread() {
+            try {
+                while (!quit) {
+                    final Socket client = listenSocket.accept();
+                    new Thread() {
+                        @Override
+                        public void run() {
+                            byte[] data = new byte[64];
+                            try {
+                                while (true) {
+                                    int count = client.getInputStream().read(data);
+                                    if (count == -1) break;
+                                    assert count > 0;
+                                }
+                            } catch (IOException e) {
+                                throw new RuntimeException(e);
+                            }
+                        }
+                    }.start();
+                }
+            } catch (SocketException e) {
+                assert e.getMessage().equals("Socket closed");
+                assert quit;
+            } catch (IOException e1) {
+                throw new RuntimeException(e1);
+            }
+        }
+
+        public void shutdown() {
+            assert listenThread.isAlive();
+            assert !quit;
+            quit = true;
+            try {
+                listenSocket.close();
+                listenThread.join();
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        }
+
+        public InetSocketAddress getAddress() {
+            return new InetSocketAddress(listenSocket.getLocalPort());
+        }
+    }
+
+    private static final class TimerHandler extends AbstractEventHandler {
+        boolean timerExpired;
+        NIOEventLoop eventLoop;
+
+        @Override
+        public void timerCallback() {
+            timerExpired = true;
+            eventLoop.exitLoop();
+        }
+    }
+
+    @Test(timeout=ProtoRpcChannel.TOTAL_CONNECT_TIMEOUT_MS*2)
+    public void testConnectParallel() {
+        NIOEventLoop realEventLoop = new NIOEventLoop();
+
+        Listener l1 = new Listener();
+        Listener l2 = new Listener();
+        Listener l3 = new Listener();
+
+        // Set a timer to expire after the parallel connect timer
+        TimerHandler handler = new TimerHandler();
+        handler.eventLoop = realEventLoop;
+        realEventLoop.registerTimer(ProtoRpcChannel.TOTAL_CONNECT_TIMEOUT_MS + 2000, handler);
+
+        InetSocketAddress[] addresses = { l1.getAddress(), l2.getAddress(), l3.getAddress() };
+        ProtoRpcChannel[] channels = ProtoRpcChannel.connectParallel(realEventLoop, addresses);
+        assertEquals(3, channels.length);
+
+        realEventLoop.run();
+        assertTrue(handler.timerExpired);
+
+        for (ProtoRpcChannel c : channels) {
+            c.close();
+        }
+
+        l1.shutdown();
+        l2.shutdown();
+        l3.shutdown();
+    }
+
+    @Test
+    public void testConnectParallel2() {
+        NIOEventLoop realEventLoop = new NIOEventLoop();
+
+        Listener l1 = new Listener();
+        Listener l2 = new Listener();
+        Listener l3 = new Listener();
+
+        for (int i = 0; i < 100; ++i) {
+            InetSocketAddress[] addresses = { l1.getAddress(), l2.getAddress(), l3.getAddress() };
+            ProtoRpcChannel[] channels = ProtoRpcChannel.connectParallel(realEventLoop, addresses);
+            assertEquals(3, channels.length);
+
+            for (ProtoRpcChannel c : channels) {
+                c.close();
+            }
+        }
+
+        l1.shutdown();
+        l2.shutdown();
+        l3.shutdown();
     }
 }

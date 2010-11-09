@@ -49,7 +49,7 @@ public class NIOEventLoopTest {
         acceptSocket.close();
     }
 
-    @Test
+    @Test(timeout=5000)
     public void testSigInt() throws InterruptedException {
         try {
             eventLoop.setExitOnSigInt(false);
@@ -123,7 +123,7 @@ public class NIOEventLoopTest {
             write = true;
             return true;
         }
-        
+
         @Override
         public void timerCallback() {
             timerExpired = true;
@@ -149,7 +149,7 @@ public class NIOEventLoopTest {
     public void testWriteUnblocking() throws IOException, InterruptedException {
         eventLoop.registerAccept(acceptSocket, serverHandler);
 
-        // Run a client in a new thread: connect, wait for a latch, read as much as possible        final CountDownLatch startReadingLatch = new CountDownLatch(1);
+        // Run a client in a new thread: connect, wait for a latch, read as much as possible
         final CountDownLatch startReadingLatch = new CountDownLatch(1);
         Thread client = new Thread() {
             public void run() {
@@ -217,8 +217,8 @@ public class NIOEventLoopTest {
 
         SocketChannel clientSocket = SocketChannel.open();
         clientSocket.configureBlocking(false);
-        boolean connected =
-                clientSocket.connect(new InetSocketAddress(InetAddress.getLocalHost(), serverPort));
+        boolean connected = clientSocket.connect(
+                new InetSocketAddress(InetAddress.getLocalHost(), serverPort));
         assertFalse(connected);
         assertTrue(clientSocket.isConnectionPending());
         eventLoop.registerConnect(clientSocket, serverHandler);
@@ -240,7 +240,7 @@ public class NIOEventLoopTest {
         assertTrue(connected);
         assertTrue(clientSocket.isConnected());
 
-        // Registering some other handler in response to the connect event should work 
+        // Registering some other handler in response to the connect event should work
         eventLoop.registerRead(clientSocket, new TestHandler());
 
         clientSocket.close();
@@ -257,11 +257,25 @@ public class NIOEventLoopTest {
             loopCount += 1;
         }
         long end = System.nanoTime();
-        System.out.println("wtf " + end + " - " + start + " = " + (end - start));
         assertTrue(end - start >= msDelay * 1000000);
         assertTrue(serverHandler.timerExpired);
         // Linux typically expires timeouts a few ms early, but we shouldn't have to loop more
-        // than twice. But we could, so this might need adjustment. 
+        // than twice. But we could, so this might need adjustment.
         assertTrue(loopCount <= 2);
+    }
+
+    @Test(timeout=2000)
+    public void testCancelTimeout() {
+        final int REAL_DELAY = 100;
+        eventLoop.registerTimer(REAL_DELAY - 50, serverHandler);
+        TestHandler handler2 = new TestHandler();
+        eventLoop.registerTimer(REAL_DELAY, handler2);
+        eventLoop.cancelTimer(serverHandler);
+
+        while (!handler2.timerExpired) {
+            eventLoop.runOnce();
+        }
+
+        assertFalse(serverHandler.timerExpired);
     }
 }
