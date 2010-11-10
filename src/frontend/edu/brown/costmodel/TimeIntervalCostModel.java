@@ -72,6 +72,7 @@ public class TimeIntervalCostModel<T extends AbstractCostModel> extends Abstract
             System.exit(1);
         }
         assert(this.num_intervals > 0);
+        LOG.info("TimeIntervalCostModel: " + this.num_intervals + " intervals");
     }
     
     @Override

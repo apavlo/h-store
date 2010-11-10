@@ -29,7 +29,6 @@ import edu.brown.designer.AccessGraph;
 import edu.brown.designer.Designer;
 import edu.brown.designer.DesignerHints;
 import edu.brown.designer.DesignerInfo;
-import edu.brown.designer.LowerBoundsCalculator;
 import edu.brown.rand.RandomDistribution;
 import edu.brown.statistics.Histogram;
 import edu.brown.statistics.TableStatistics;
