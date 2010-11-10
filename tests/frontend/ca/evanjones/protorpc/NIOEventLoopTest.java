@@ -1,10 +1,6 @@
 package ca.evanjones.protorpc;
 
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.Assert.*;
 
 import java.io.IOException;
 import java.net.InetAddress;
@@ -98,7 +94,7 @@ public class NIOEventLoopTest {
         SocketChannel client;
         boolean write;
         boolean connected;
-        boolean timerExpired;
+        int timerExpiredCount = 0;
 
         @Override
         public void acceptCallback(SelectableChannel channel) {
@@ -126,7 +122,7 @@ public class NIOEventLoopTest {
 
         @Override
         public void timerCallback() {
-            timerExpired = true;
+            timerExpiredCount += 1;
         }
     }
 
@@ -252,16 +248,30 @@ public class NIOEventLoopTest {
         int msDelay = 500;
         eventLoop.registerTimer(msDelay, serverHandler);
         int loopCount = 0;
-        while (!serverHandler.timerExpired) {
+        while (serverHandler.timerExpiredCount == 0) {
             eventLoop.runOnce();
             loopCount += 1;
         }
         long end = System.nanoTime();
         assertTrue(end - start >= msDelay * 1000000);
-        assertTrue(serverHandler.timerExpired);
         // Linux typically expires timeouts a few ms early, but we shouldn't have to loop more
         // than twice. But we could, so this might need adjustment.
         assertTrue(loopCount <= 2);
+    }
+
+    // If this times out, it probably means all the timers didn't get set
+    @Test(timeout=500)
+    public void testManyTimeouts() {
+        final int MS_DELAY = 100;
+        final int NUM_TIMERS = 10;
+
+        for (int i = 0; i < NUM_TIMERS; ++i) {
+            eventLoop.registerTimer(MS_DELAY, serverHandler);
+        }
+
+        while (serverHandler.timerExpiredCount < NUM_TIMERS) {
+            eventLoop.runOnce();
+        }
     }
 
     @Test(timeout=2000)
@@ -272,10 +282,10 @@ public class NIOEventLoopTest {
         eventLoop.registerTimer(REAL_DELAY, handler2);
         eventLoop.cancelTimer(serverHandler);
 
-        while (!handler2.timerExpired) {
+        while (handler2.timerExpiredCount == 0) {
             eventLoop.runOnce();
         }
 
-        assertFalse(serverHandler.timerExpired);
+        assertEquals(0, serverHandler.timerExpiredCount);
     }
 }

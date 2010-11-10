@@ -1,16 +1,14 @@
 package ca.evanjones.protorpc;
 
+import java.io.IOException;
 import java.nio.channels.SelectableChannel;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
-
-import java.io.IOException;
 import java.util.Iterator;
-import java.util.Map;
+import java.util.PriorityQueue;
 import java.util.Set;
-import java.util.TreeMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 import org.apache.log4j.Logger;
@@ -104,15 +102,15 @@ public class NIOEventLoop implements EventLoop {
         assert timerMilliseconds >= 0;
         assert handler != null;
         long expirationMs = System.currentTimeMillis() + timerMilliseconds;
-        timers.put(expirationMs, handler);
+        timers.add(new Timer(expirationMs, handler));
     }
 
     @Override
     public void cancelTimer(Handler handler) {
-        Iterator<Handler> timerIterator = timers.values().iterator();
+        Iterator<Timer> timerIterator = timers.iterator();
         while (timerIterator.hasNext()) {
-            Handler timerHandler = timerIterator.next();
-            if (timerHandler == handler) {
+            Timer timer = timerIterator.next();
+            if (timer.handler == handler) {
                 timerIterator.remove();
                 return;
             }
@@ -177,16 +175,14 @@ public class NIOEventLoop implements EventLoop {
     private long triggerExpiredTimers(long now) {
         while (!timers.isEmpty()) {
             // hope that using an iterator to fetch and remove the least element is efficient?
-            Iterator<Map.Entry<Long, Handler>> it = timers.entrySet().iterator();
-            Map.Entry<Long, Handler> entry = it.next();
-            if (entry.getKey() <= now) {
-                Handler handler = entry.getValue();
-                it.remove();
+            Timer least = timers.peek();
+            if (least.expirationMs <= now) {
+                timers.poll();
 
-                handler.timerCallback();
+                least.handler.timerCallback();
             } else {
                 // this timer has not expired yet: return its time
-                long timeoutMs = entry.getKey() - now;
+                long timeoutMs = least.expirationMs - now;
                 assert timeoutMs > 0;
                 return timeoutMs;
             }
@@ -271,5 +267,32 @@ public class NIOEventLoop implements EventLoop {
     private volatile boolean exitLoop = false;
     private final ConcurrentLinkedQueue<Runnable> threadEvents =
             new ConcurrentLinkedQueue<Runnable>();
-    private final TreeMap<Long, Handler> timers = new TreeMap<Long, Handler>();
+
+    private static final class Timer implements Comparable<Timer> {
+        public final long expirationMs;
+        public final Handler handler;
+
+        public Timer(long expirationMs, Handler handler) {
+            this.expirationMs = expirationMs;
+            this.handler = handler;
+        }
+
+        @Override
+        public int compareTo(Timer other) {
+            if (this.expirationMs < other.expirationMs) return -1;
+            if (this.expirationMs > other.expirationMs) return 1;
+            return 0;
+        }
+
+        @Override
+        public boolean equals(Object other) {
+            throw new RuntimeException("TODO: implement");
+        }
+
+        @Override
+        public int hashCode() {
+            throw new RuntimeException("TODO: implement");
+        }
+    }
+    private final PriorityQueue<Timer> timers = new PriorityQueue<Timer>();
 }

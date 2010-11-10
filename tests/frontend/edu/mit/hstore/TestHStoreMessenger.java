@@ -51,7 +51,6 @@ public class TestHStoreMessenger extends BaseTestCase {
         new VoltTable.ColumnInfo("value", VoltType.BIGINT),
     };
     private final VoltTable fragment = new VoltTable(columns);
-    private boolean first = true;
     
     @Before
     public void setUp() throws Exception {
@@ -73,12 +72,7 @@ public class TestHStoreMessenger extends BaseTestCase {
             this.messengers[i] = this.sites[i].getMessenger();
         } // FOR
 
-        // HACK: Sleep for a little before we start each test so that we have time for the 
-        // sockets to settle.
-//        if (this.first == false) 
-            ThreadUtil.sleep(1000);
         this.startMessengers();
-        this.first = false;
     }
     
     @Override
