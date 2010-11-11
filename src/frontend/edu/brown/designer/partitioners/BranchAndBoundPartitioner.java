@@ -4,6 +4,7 @@
 package edu.brown.designer.partitioners;
 
 import java.util.*;
+import java.util.Map.Entry;
 
 import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.log4j.Logger;
@@ -13,6 +14,7 @@ import org.voltdb.catalog.*;
 import edu.brown.catalog.CatalogKey;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.catalog.special.MultiColumn;
+import edu.brown.catalog.special.MultiProcParameter;
 import edu.brown.catalog.special.NullProcParameter;
 import edu.brown.catalog.special.ReplicatedColumn;
 import edu.brown.costmodel.*;
@@ -202,7 +204,7 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
         List<String> proc_visit_order = null;
         boolean need_attributes = this.base_traversal_attributes.isEmpty();
         if (need_attributes) {
-            table_visit_order = generateTableOrder(this.info, agraph, hints);
+            table_visit_order = AbstractPartitioner.generateTableOrder(this.info, agraph, hints);
             //GraphVisualizationPanel.createFrame(agraph).setVisible(true);
             proc_visit_order = this.generateProcedureOrder(info.catalog_db, hints);
         } else {
@@ -236,14 +238,43 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
             }
         } // FOR
         if (debug) LOG.debug("Tables to never filter: " + filter_tables);
+
+        // Generate the multi-attribute partitioning candidates
+        final Map<String, Set<String>> multicolumns = new HashMap<String, Set<String>>();
+        final Map<String, Set<String>> multiparams = new HashMap<String, Set<String>>();
+        if (hints.enable_multi_partitioning) {
+            for (Procedure catalog_proc : info.catalog_db.getProcedures()) {
+                if (catalog_proc.getSystemproc()) continue;
+                
+                // MultiProcParameters
+                String proc_key = CatalogKey.createKey(catalog_proc);
+                multiparams.put(proc_key, new HashSet<String>());
+                for (Set<MultiProcParameter> mpps : AbstractPartitioner.generateMultiProcParameters(info, hints, catalog_proc).values()) {
+                    multiparams.get(proc_key).addAll(CatalogKey.createKeys(mpps));
+                } // FOR 
+                
+                // MultiColumns
+                for (Entry<Table, Set<MultiColumn>> e : AbstractPartitioner.generateMultiColumns(info, hints, catalog_proc).entrySet()) {
+                    String table_key = CatalogKey.createKey(e.getKey());
+                    if (!multicolumns.containsKey(table_key)) multicolumns.put(table_key, new HashSet<String>()); 
+                    multicolumns.get(table_key).addAll(CatalogKey.createKeys(e.getValue()));
+                } // FOR (entry)
+            } // FOR (procedure)
+        }
         
         for (String table_key : table_visit_order) {
             Table catalog_tbl = CatalogKey.getFromKey(info.catalog_db, table_key, Table.class);
         
             // Columns Visit Order
             if (need_attributes) {
-                LinkedList<String> columns_visit_order = generateColumnOrder(info, agraph, catalog_tbl, hints);
+                LinkedList<String> columns_visit_order = AbstractPartitioner.generateColumnOrder(info, agraph, catalog_tbl, hints);
                 this.base_traversal_attributes.put(table_key, columns_visit_order);
+
+                // Add multi-column partitioning parameters for each table
+                if (hints.enable_multi_partitioning && multicolumns.containsKey(table_key)) {
+                    this.base_traversal_attributes.get(table_key).addAll(multicolumns.get(table_key));
+                }
+
                 this.num_tables++;
                 if (trace) LOG.trace(catalog_tbl.getName() + " Column Visit Order: " + columns_visit_order);
             }
@@ -267,7 +298,7 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
                 assert(proc_key != null);
                 assert(proc_key.isEmpty() == false);
                 
-                // Just put in an empty list for now
+                // Just put in an empty list for now -- WHY???
                 if (need_attributes) this.base_traversal_attributes.put(proc_key, new LinkedList<String>());
                 
                 // Important: Don't put in any workload filters here because we want to estimate the cost of
@@ -423,7 +454,7 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
         private final DesignerInfo info;
         private final DesignerHints hints;
         private final DelegateForest<StateVertex, StateEdge> graph = new DelegateForest<StateVertex, StateEdge>();
-        private final ListOrderedMap<String, List<String>> traversal_attributes;
+        private final ListOrderedMap<String, List<String>> traversal_attributes = new ListOrderedMap<String, List<String>>();
         private final int num_elements;
         private final int num_tables;
         private final String start_name;
@@ -453,7 +484,7 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
             this.hints = hints;
             this.start = start;
             this.start_name = CatalogKey.getNameFromKey(start.getCatalogKey());
-            this.traversal_attributes = traversal_attributes;
+            this.traversal_attributes.putAll(traversal_attributes);
             this.num_elements = this.traversal_attributes.size();
             
             // This the catalog that this thread will muck around with
@@ -484,7 +515,6 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
                 String table_key = CatalogKey.createKey(catalog_tbl);
                 if (!this.traversal_attributes.containsKey(table_key)) this.remaining_tables.add(catalog_tbl);
             }
-            
             
             // Memory Estimator
             this.memory_estimator = info.getMemoryEstimator();
@@ -518,10 +548,10 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
             Long stop_local = null; 
             Long stop_total = null;
             
-            if (this.hints.limit_local_time != null) {
+            if (this.hints.limit_local_time != null && this.hints.limit_local_time > 0) {
                 stop_local = this.hints.getNextLocalStopTime();    
             }
-            if (this.hints.limit_total_time != null) {
+            if (this.hints.limit_total_time != null && this.hints.limit_total_time > 0) {
                 stop_total = this.hints.getGlobalStopTime();
             }
             if (stop_local != null && stop_total != null) {
@@ -563,7 +593,7 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
             CatalogType current = null;
             
             if (!this.halt_search) {
-                if (hints.limit_back_tracks != null && is_table && this.backtrack_ctr > hints.limit_back_tracks) {
+                if (hints.limit_back_tracks != null && hints.limit_back_tracks > 0 && is_table && this.backtrack_ctr > hints.limit_back_tracks) {
                     if (debug) LOG.debug("Hit back track limit. Halting search [" + this.backtrack_ctr + "]");
                     this.halt_search = true;
                 } else if (this.halt_time != null && System.currentTimeMillis() >= this.halt_time) {
@@ -788,7 +818,7 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
                         for (int i = idx + 1; i < this.num_elements; i++) {
                             String proc_key = this.traversal_attributes.get(i);
                             Procedure catalog_proc = CatalogKey.getFromKey(this.search_db, proc_key, Procedure.class);
-                            LinkedList<String> attributes = BranchAndBoundPartitioner.generateProcParameterOrder(info, this.search_db, catalog_proc, hints);
+                            LinkedList<String> attributes = AbstractPartitioner.generateProcParameterOrder(info, this.search_db, catalog_proc, hints);
                             
                             // We should have ProcParameter candidates!
                             assert(attributes.isEmpty() == false) : "No ProcParameter candidates: " + catalog_proc + "\n" + state;

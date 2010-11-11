@@ -64,7 +64,7 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
     };
     
     
-    protected final Random rng = new Random(1);
+    protected final Random rng = new Random();
     protected final AbstractCostModel costmodel;
     protected final ParameterCorrelations correlations;
     protected AccessGraph agraph;
