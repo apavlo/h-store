@@ -24,18 +24,21 @@ public abstract class AbstractTreeWalker<E> {
             return (this.before_list);
         }
         public void addBefore(E child) {
-            if (child != null) this.before_list.add(child);
+            if (child != null) {
+                // assert(child.equals(parent) == false) : "Trying to add " + parent + " as a child of itself";
+                this.before_list.add(child);
+            }
         }
         public void addBefore(Collection<E> children) {
             if (children != null) {
                 for (E child : children) {
-                    if (child != null) this.before_list.add(child);
+                    this.addBefore(child);
                 } // FOR
             }
         }
         public void addBefore(E children[]) {
             for (E child : children) {
-                if (child != null) this.before_list.add(child);
+                this.addBefore(child);
             } // FOR
         }
         
@@ -43,17 +46,20 @@ public abstract class AbstractTreeWalker<E> {
             return (this.after_list);
         }
         public void addAfter(E child) {
-            this.after_list.add(child);
+            if (child != null) {
+                // assert(child.equals(parent) == false) : "Trying to add " + parent + " as a child of itself";
+                this.after_list.add(child);
+            }
         }
         public void addAfter(Collection<E> children) {
             for (E child : children) {
-                if (child != null) this.after_list.add(child);
+                this.addAfter(child);
             } // FOR
         }
         public void addAfter(E children[]) {
             if (children != null) {
                 for (E child : children) {
-                    if (child != null) this.after_list.add(child);
+                    this.addAfter(child);
                 } // FOR
             }
         }

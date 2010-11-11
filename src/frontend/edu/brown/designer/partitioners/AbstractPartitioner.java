@@ -334,6 +334,9 @@ public abstract class AbstractPartitioner {
         // This can occur if there are tables that do not appear in the AccessGraph for whatever reason
         // Note that we have to traverse the graph so that we don't try to plan a parent before a child
         for (Vertex root : info.dgraph.getRoots()) {
+            // if (trace)
+            LOG.info("Creating table visit order starting from root " + root);
+            
             new VertexTreeWalker<Vertex>(info.dgraph, VertexTreeWalker.TraverseOrder.BREADTH) {
                 protected void callback(Vertex element) {
                     Table catalog_tbl = element.getCatalogItem();
@@ -498,6 +501,7 @@ public abstract class AbstractPartitioner {
         Map<ProcParameter, Set<MultiProcParameter>> param_map = new ListOrderedMap<ProcParameter, Set<MultiProcParameter>>();
         CollectionUtil.addAll(params, catalog_proc.getParameters());
         
+        // Why do I need to make a map like this?
         for (ProcParameter catalog_param : params) {
             param_map.put(catalog_param, new HashSet<MultiProcParameter>());
         } // FOR

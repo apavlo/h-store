@@ -101,6 +101,8 @@ public abstract class VertexTreeWalker<V extends AbstractVertex> extends Abstrac
         final boolean trace = LOG.isTraceEnabled();
         ListOrderedSet<V> bfs_children = new ListOrderedSet<V>();
         
+        if (trace) LOG.trace("Populating Children for " + element + " [direction=" + this.search_direction + "]"); 
+        
         for (V child : this.getNext(this.search_direction, element)) {
             if (!this.hasVisited(child)) {
                 switch (this.search_order) {
@@ -143,7 +145,10 @@ public abstract class VertexTreeWalker<V extends AbstractVertex> extends Abstrac
 
                 // Put all of our children into the last element's in our depth children
                 Children last_element_c = this.getChildren(last_element);
-                last_element_c.addAfter(bfs_children);
+                for (V child : bfs_children) {
+                    // We have to do this to avoid duplicates...
+                    if (last_element_c.getAfter().contains(child) == false) last_element_c.addAfter(child);
+                } // FOR
                 
                 if (trace) LOG.trace("BFS Last Element [depth=" + this.getDepth() + "]: " + last_element + " => " + last_element_c.getAfter());
             }

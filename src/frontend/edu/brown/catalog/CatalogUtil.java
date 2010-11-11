@@ -1091,8 +1091,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
     public static Set<Table> getReferencedTables(Statement catalog_stmt)
             throws Exception {
         Set<Table> ret = new HashSet<Table>();
-        for (Column catalog_col : CatalogUtil
-                .getReferencedColumns(catalog_stmt)) {
+        for (Column catalog_col : CatalogUtil.getReferencedColumns(catalog_stmt)) {
             ret.add((Table) catalog_col.getParent());
         }
         return (ret);
