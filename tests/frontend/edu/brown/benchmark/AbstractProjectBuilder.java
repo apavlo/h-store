@@ -84,6 +84,10 @@ public abstract class AbstractProjectBuilder extends VoltProjectBuilder {
     public String getJarName() {
         return (this.project_name + "-jni.jar");
     }
+    public File getJarPath() {
+        String testDir = BuildDirectoryUtils.getBuildDirectoryPath();
+        return (new File(testDir + File.separator + this.getJarName()));
+    }
     
     public void addPartitions() {
         for (String i[] : this.partitioning) {
@@ -103,9 +107,6 @@ public abstract class AbstractProjectBuilder extends VoltProjectBuilder {
      */
     public Catalog createCatalog(boolean fkeys, boolean full_catalog) throws IOException {
         // compile a catalog
-        String testDir = BuildDirectoryUtils.getBuildDirectoryPath();
-        String catalogJar = testDir + File.separator + this.getJarName();
-
         if (full_catalog) {
             this.addProcedures(this.procedures);    
         } else {
@@ -116,6 +117,7 @@ public abstract class AbstractProjectBuilder extends VoltProjectBuilder {
         addSchema(fkeys ? this.ddlFkeysURL : this.ddlURL);
         addPartitions();
 
+        String catalogJar = this.getJarPath().getAbsolutePath();
         boolean status = compile(catalogJar);
         assert (status);
 

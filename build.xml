@@ -740,6 +740,8 @@ TEST CASES
             <jvmarg value="-Xcheck:jni" />
             <jvmarg value="-Xmx2048m"/>
             <jvmarg value="-XX:+HeapDumpOnOutOfMemoryError"/>
+            
+            <env key="ENABLE_JAR_REUSE" value="true"/>
             <env key="VOLTDB_BUILD_DIR" value="${build.dir}"/>
             <env key="TEST_DIR" value="${build.testobjects.dir}" />
             <env key="VOLT_REGRESSIONS" value="${regressions}" />
