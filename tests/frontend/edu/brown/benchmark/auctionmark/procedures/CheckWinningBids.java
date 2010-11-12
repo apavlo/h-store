@@ -1,5 +1,6 @@
 package edu.brown.benchmark.auctionmark.procedures;
 
+import org.apache.log4j.Logger;
 import org.voltdb.ProcInfo;
 import org.voltdb.SQLStmt;
 import org.voltdb.VoltProcedure;
@@ -19,7 +20,8 @@ import edu.brown.benchmark.auctionmark.AuctionMarkConstants;
     partitionInfo = "USER.U_ID: 2",
     singlePartition = false
 )
-public class CheckWinningBids extends VoltProcedure{
+public class CheckWinningBids extends VoltProcedure {
+    protected static final Logger LOG = Logger.getLogger(CheckWinningBids.class);
 	
 	/*
 	public final SQLStmt select_due_items = new SQLStmt(
@@ -76,14 +78,17 @@ public class CheckWinningBids extends VoltProcedure{
      */
     
     public VoltTable run(TimestampType startTime, TimestampType endTime, int clientId, long clientMaxElements) {
+        final boolean debug = LOG.isDebugEnabled();
         
         long startUserId = ((long)(clientId - 1)) * clientMaxElements;
         long endUserId = ((long)clientId) * clientMaxElements;
         
-        System.out.println("CheckWinningBids::: startUserId = " + startUserId);
-        System.out.println("CheckWinningBids::: endUserId = " + endUserId);
-        System.out.println("CheckWinningBids::: startTime = " + startTime);
-        System.out.println("CheckWinningBids::: endTime = " + endTime);
+        if (debug) {
+            LOG.debug("CheckWinningBids::: startUserId = " + startUserId);
+            LOG.debug("CheckWinningBids::: endUserId = " + endUserId);
+            LOG.debug("CheckWinningBids::: startTime = " + startTime);
+            LOG.debug("CheckWinningBids::: endTime = " + endTime);
+        }
         
         /*
         voltQueueSQL(select_all_items);
@@ -100,7 +105,7 @@ public class CheckWinningBids extends VoltProcedure{
         VoltTable[] dueItemsTable = voltExecuteSQL();
         assert(1 == dueItemsTable.length);
         
-        System.out.println("CheckWinningBids::: total due items = " + dueItemsTable[0].getRowCount());
+        if (debug) LOG.debug("CheckWinningBids::: total due items = " + dueItemsTable[0].getRowCount());
         
         ColumnInfo[] columnInfo = {
         	new ColumnInfo("i_id", VoltType.BIGINT), 
@@ -143,7 +148,7 @@ public class CheckWinningBids extends VoltProcedure{
             }
         }
         
-        System.out.println("CheckWinningBids::: ret row count = " + ret.getRowCount());
+        if (debug) LOG.debug("CheckWinningBids::: ret row count = " + ret.getRowCount());
         
         /*
         voltQueueSQL(select_due_items_with_bids, startTime, endTime, startUserId, endUserId);

@@ -48,7 +48,7 @@ import edu.brown.utils.JSONSerializable;
 import edu.brown.utils.JSONUtil;
 
 public class AuctionMarkBenchmarkProfile implements JSONSerializable {
-    protected static final Logger LOG = Logger.getLogger(AuctionMarkBaseClient.class.getName());
+    protected static final Logger LOG = Logger.getLogger(AuctionMarkBaseClient.class);
     
     public List<Long> user_ids;
     
@@ -140,6 +140,33 @@ public class AuctionMarkBenchmarkProfile implements JSONSerializable {
         gag_gav_map = new ConcurrentHashMap<Long, List<Long>>();
         gag_gav_histogram = new Histogram();
     }
+    
+    // -----------------------------------------------------------------
+    // SKEWING METHODS
+    // -----------------------------------------------------------------
+    
+    private boolean enable_skew = false;
+    private Integer skew_size = null;
+    private Integer num_ticks = null;
+    private Integer num_partitions = null;
+    private Integer current_tick = null;
+    
+    public void enableTemporalSkew(int skew_size, int num_ticks, int num_partitions) {
+        this.skew_size = skew_size;
+        this.enable_skew = true;
+        this.num_ticks = num_ticks;
+        this.num_partitions = num_partitions; 
+    }
+    
+    
+    public void tick() {
+        this.current_tick++;
+    }
+
+    // -----------------------------------------------------------------
+    // GENERAL METHODS
+    // -----------------------------------------------------------------
+
     
     /**
      * Get the scale factor value for this benchmark profile

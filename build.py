@@ -99,7 +99,8 @@ if CTX.LEVEL == "MEMCHECK_NOFREELIST":
 
 if CTX.LEVEL == "DEBUG":
     CTX.EXTRAFLAGS += " -g3 -rdynamic -DDEBUG -DVOLT_LOG_LEVEL=500"
-    CTX.OUTPUT_PREFIX = "obj/debug"
+    #CTX.OUTPUT_PREFIX = "obj/debug"
+    CTX.OUTPUT_PREFIX = "obj/release"
 
 if CTX.LEVEL == "RELEASE":
     CTX.EXTRAFLAGS += " -g3 -O3 -mmmx -msse -msse2 -msse3 -DNDEBUG -DVOLT_LOG_LEVEL=500"
@@ -383,7 +384,7 @@ elif CTX.PLATFORM == "Linux":
             numHardwareThreads = numHardwareThreads + 1
 print "Detected %d hardware threads to use during the build" % (numHardwareThreads)
 
-retval = os.system("make --directory=%s -j%d" % (CTX.OUTPUT_PREFIX, numHardwareThreads))
+retval = os.system("make --directory=%s -j%d nativelibs/libvoltdb.sym" % (CTX.OUTPUT_PREFIX, numHardwareThreads))
 print "Make returned: ", retval
 if retval != 0:
     sys.exit(-1)

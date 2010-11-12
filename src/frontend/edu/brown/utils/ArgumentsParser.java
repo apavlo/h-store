@@ -101,7 +101,7 @@ public class ArgumentsParser {
                             break;
                         }
                         // Refresh our configuration if the file has changed
-                        if (last_timestamp != log4j_properties_file.lastModified()) {
+                        if (log4j_properties_file != null && last_timestamp != log4j_properties_file.lastModified()) {
                             log4j_properties_file = null;
                             setupLogging();
                             if (LOG.isDebugEnabled()) LOG.debug("Refreshed log4j configuration");

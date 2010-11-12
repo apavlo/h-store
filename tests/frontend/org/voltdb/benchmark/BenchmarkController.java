@@ -829,6 +829,7 @@ public class BenchmarkController {
         boolean compileOnly = false;
         boolean useCatalogHosts = false;
         boolean noDataLoad = false;
+        int num_partitions = 0;
         String backend = "jni";
         String snapshotPath = null;
         String snapshotFrequency = null;
@@ -919,11 +920,13 @@ public class BenchmarkController {
                  * The interval to poll for results in milliseconds
                  */
                 interval = Integer.parseInt(parts[1]);
+                clientParams.put(parts[0], parts[1]);
             } else if (parts[0].equals("DURATION")) {
                 /*
                  * Duration of the benchmark in milliseconds
                  */
                 duration = Integer.parseInt(parts[1]);
+                clientParams.put(parts[0], parts[1]);
             } else if (parts[0].equals("CLIENT")) {
                 /*
                  * Name of the client class for this benchmark.
@@ -973,6 +976,12 @@ public class BenchmarkController {
                 subApplicationName = parts[1];
 
             /** PAVLO **/
+            } else if (parts[0].equals("CATALOG")) {
+                // HACK
+                Catalog catalog = CatalogUtil.loadCatalogFromJar(parts[1]);
+                assert(catalog != null);
+                num_partitions = CatalogUtil.getNumberOfPartitions(catalog);
+                clientParams.put("NUMPARTITIONS", Integer.toString(num_partitions));
             } else if (parts[0].equals("COMPILE")) {
                 /*
                  * Whether to compile the benchmark jar

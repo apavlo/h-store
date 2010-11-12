@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import os, sys, threading, shutil
 from subprocess import Popen, PIPE, STDOUT
 
@@ -49,6 +50,8 @@ try:
 except:
     print "ERROR: Unable to read version number from version.txt."
     sys.exit(-1)
+baselibname = "libvoltdb"
+    
 
 def getAllDependencies(inputs, threads, retval={}):
     if threads == 1:
@@ -106,7 +109,7 @@ def namesForTestCode(filename):
     return binname, objectname, sourcename
 
 def buildMakefile(CTX):
-    global version
+    global version, baselibname
 
     CPPFLAGS = " ".join(CTX.CPPFLAGS.split())
     MAKECPPFLAGS = CPPFLAGS
@@ -178,7 +181,7 @@ def buildMakefile(CTX):
     elif CTX.TARGET == "TEST":
         makefile.write("main: ")
     else:
-        makefile.write("main: nativelibs/libvoltdb-%s.$(JNIEXT)\n" % version)
+        makefile.write("main: nativelibs/%s.$(JNIEXT)\n" % baselibname)
     makefile.write("\n")
 
     jni_objects = []
@@ -192,13 +195,13 @@ def buildMakefile(CTX):
         jni_objects.append(jni)
         static_objects.append(static)
 
-    makefile.write("# create symbols by running nm against libvoltdb-%s\n" % version)
-    makefile.write("nativelibs/libvoltdb-%s.sym: nativelibs/libvoltdb-%s.$(JNIEXT)\n" % (version, version))
-    makefile.write("\t$(NM) $(NMFLAGS) nativelibs/libvoltdb-%s.$(JNIEXT) > $@\n" % version)
+    makefile.write("# create symbols by running nm against %s\n" % baselibname)
+    makefile.write("nativelibs/%s.sym: nativelibs/%s.$(JNIEXT)\n" % (baselibname, baselibname))
+    makefile.write("\t$(NM) $(NMFLAGS) nativelibs/%s.$(JNIEXT) > $@\n" % baselibname)
     makefile.write("\n")
 
     makefile.write("# main jnilib target\n")
-    makefile.write("nativelibs/libvoltdb-%s.$(JNIEXT): " % version + " ".join(jni_objects) + "\n")
+    makefile.write("nativelibs/%s.$(JNIEXT): " % (baselibname) + " ".join(jni_objects) + "\n")
     makefile.write("\t$(LINK.cpp) $(JNILIBFLAGS) -o $@ $^\n")
     makefile.write("\n")
 

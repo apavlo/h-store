@@ -333,6 +333,10 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         return executors;
     }
     
+    public int getExecutorCount() {
+        return (this.executors.size());
+    }
+    
     public void setDtxnCoordinator(Dtxn.Coordinator coordinator) {
         this.coordinator = coordinator;
     }
@@ -635,7 +639,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
     
     /**
      * 
-     * @param hstore_node
+     * @param hstore_site
      * @param hstore_conf_path
      * @param dtxnengine_path
      * @param dtxncoordinator_path
@@ -646,35 +650,35 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
      * @param coordinatorPort
      * @throws Exception
      */
-    public static void launch(final HStoreSite hstore_node,
+    public static void launch(final HStoreSite hstore_site,
                               final String hstore_conf_path, final String dtxnengine_path, final String dtxncoordinator_path,
                               final String coordinatorHost, final int coordinatorPort) throws Exception {
         final boolean debug = LOG.isDebugEnabled();
         List<Thread> threads = new ArrayList<Thread>();
-        final Site catalog_site = hstore_node.getSite();
+        final Site catalog_site = hstore_site.getSite();
         final int num_partitions = catalog_site.getPartitions().size();
         final String site_host = catalog_site.getHost().getIpaddr();
         
         // ----------------------------------------------------------------------------
         // (1) ProtoServer Thread (one per site)
         // ----------------------------------------------------------------------------
-        if (debug) LOG.debug(String.format("Starting HStoreSite [site=%d]", hstore_node.getSiteId()));
-        hstore_node.start();
+        if (debug) LOG.debug(String.format("Starting HStoreSite [site=%d]", hstore_site.getSiteId()));
+        hstore_site.start();
         
         // ----------------------------------------------------------------------------
         // (1) ProtoServer Thread (one per site)
         // ----------------------------------------------------------------------------
-        if (debug) LOG.debug(String.format("Launching ProtoServer [site=%d, port=%d]", hstore_node.getSiteId(), catalog_site.getDtxn_port()));
+        if (debug) LOG.debug(String.format("Launching ProtoServer [site=%d, port=%d]", hstore_site.getSiteId(), catalog_site.getDtxn_port()));
         final NIOEventLoop execEventLoop = new NIOEventLoop();
         final CountDownLatch execLatch = new CountDownLatch(1);
         execEventLoop.setExitOnSigInt(true);
         threads.add(new Thread() {
             {
-                this.setName(hstore_node.getThreadName("proto"));
+                this.setName(hstore_site.getThreadName("proto"));
             }
             public void run() {
                 ProtoServer execServer = new ProtoServer(execEventLoop);
-                execServer.register(hstore_node);
+                execServer.register(hstore_site);
                 execServer.bind(catalog_site.getDtxn_port());
                 execLatch.countDown();
                 
@@ -692,7 +696,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
                     shutdown = true;
                 }
                 if (debug) LOG.debug("ProtoServer thread is stopping! [error=" + (error != null ? error.getMessage() : null) + "]");
-                if (shutdown && hstore_node.shutdown == false) hstore_node.messenger.shutdownCluster(error);
+                if (shutdown && hstore_site.shutdown == false) hstore_site.messenger.shutdownCluster(error);
             };
         });
         
@@ -703,7 +707,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         for (final Partition catalog_part : catalog_site.getPartitions()) {
             threads.add(new Thread() {
                 {
-                    this.setName(hstore_node.getThreadName("init"));
+                    this.setName(hstore_site.getThreadName("init"));
                 }
                 public void run() {
                     int partition = catalog_part.getId();
@@ -727,8 +731,8 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
                         "0"                             // ??
                     };
                     ThreadUtil.fork(command, 
-                                    String.format("[%s] ", hstore_node.getThreadName("protodtxnengine")),
-                                    hstore_node.shutdown_observable);
+                                    String.format("[%s] ", hstore_site.getThreadName("protodtxnengine")),
+                                    hstore_site.shutdown_observable);
                     if (debug) LOG.debug("ProtoDtxnEngine for Partition #" + partition + " is stopping!");
                 }
             });
@@ -739,33 +743,36 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         // ----------------------------------------------------------------------------
         threads.add(new Thread() {
             {
-                this.setName(hstore_node.getThreadName("coord"));
+                this.setName(hstore_site.getThreadName("coord"));
             }
             public void run() {
-                if (debug) LOG.debug("Creating connection to coordinator at " + coordinatorHost + ":" + coordinatorPort + " [site=" + hstore_node.getSiteId() + "]");
+                if (debug) LOG.debug("Creating connection to coordinator at " + coordinatorHost + ":" + coordinatorPort + " [site=" + hstore_site.getSiteId() + "]");
                 
-                hstore_node.coordinatorEventLoop.setExitOnSigInt(true);
+                hstore_site.coordinatorEventLoop.setExitOnSigInt(true);
                 InetSocketAddress[] addresses = {
                         new InetSocketAddress(coordinatorHost, coordinatorPort),
                 };
                 ProtoRpcChannel[] channels =
-                    ProtoRpcChannel.connectParallel(hstore_node.coordinatorEventLoop, addresses);
+                    ProtoRpcChannel.connectParallel(hstore_site.coordinatorEventLoop, addresses);
                 Dtxn.Coordinator stub = Dtxn.Coordinator.newStub(channels[0]);
-                hstore_node.setDtxnCoordinator(stub);
-                VoltProcedureListener voltListener = new VoltProcedureListener(hstore_node.coordinatorEventLoop, hstore_node);
+                hstore_site.setDtxnCoordinator(stub);
+                VoltProcedureListener voltListener = new VoltProcedureListener(hstore_site.coordinatorEventLoop, hstore_site);
                 voltListener.bind(catalog_site.getProc_port());
-                LOG.info("HStoreCoordinatorNode is ready for action [site=" + hstore_node.getSiteId() + ", port=" + catalog_site.getProc_port() + "]");
+                LOG.info(String.format("Site is ready for action [site=%d, port=%d, num_partitions=%d]",
+                                       hstore_site.getSiteId(),
+                                       catalog_site.getProc_port(),
+                                       hstore_site.getExecutorCount()));
                 
                 boolean shutdown = false;
                 Exception error = null;
                 try {
-                    hstore_node.coordinatorEventLoop.run();
+                    hstore_site.coordinatorEventLoop.run();
                 } catch (AssertionError ex) {
                     LOG.fatal("Dtxn.Coordinator thread failed", ex);
                     error = new Exception(ex);
                     shutdown = true;
                 } catch (Exception ex) {
-                    if (hstore_node.shutdown == false && ex != null &&
+                    if (hstore_site.shutdown == false && ex != null &&
                         ex.getMessage() != null && ex.getMessage().contains("Connection closed") == false) {
                         LOG.fatal("Dtxn.Coordinator thread stopped", ex);
                         error = ex;
@@ -775,7 +782,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
                     }
                 }
                 if (debug) LOG.debug("Dtxn.Coordinator thread is stopping! [error=" + (error != null ? error.getMessage() : null) + "]");
-                if (shutdown && hstore_node.shutdown == false) hstore_node.messenger.shutdownCluster(error);
+                if (shutdown && hstore_site.shutdown == false) hstore_site.messenger.shutdownCluster(error);
             };
         });
         

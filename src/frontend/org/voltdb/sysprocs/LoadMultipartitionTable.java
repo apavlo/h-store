@@ -68,13 +68,11 @@ public class LoadMultipartitionTable extends VoltSystemProcedure {
             long txn_id,
             HashMap<Integer, List<VoltTable>> dependencies, int fragmentId,
             ParameterSet params, SystemProcedureExecutionContext context) {
-        this.txn_id = txn_id;
         
         // need to return something ..
         VoltTable[] result = new VoltTable[1];
-        result[0] = new VoltTable(new VoltTable.ColumnInfo("TxnId",
-                VoltType.BIGINT));
-        result[0].addRow(1);
+        result[0] = new VoltTable(new VoltTable.ColumnInfo("TxnId", VoltType.BIGINT));
+        result[0].addRow(txn_id);
 
         if (fragmentId == SysProcFragmentId.PF_distribute) {
             assert context.getCluster().getName() != null;
@@ -85,7 +83,7 @@ public class LoadMultipartitionTable extends VoltSystemProcedure {
             assert params.toArray()[1] != null;
             String table_name = (String) (params.toArray()[0]);
             
-            LOG.debug("Executing voltLoadTable() sysproc fragment for table '" + table_name + "' in txn #" + this.txn_id);
+            LOG.debug("Executing voltLoadTable() sysproc fragment for table '" + table_name + "' in txn #" + txn_id);
             assert(this.isInitialized()) : " The sysproc " + this.getClass().getSimpleName() + " was not initialized properly";
             try {
                 // voltLoadTable is void. Assume success or exception.
@@ -107,9 +105,9 @@ public class LoadMultipartitionTable extends VoltSystemProcedure {
     }
 
     public VoltTable[] run(String tableName, VoltTable table) throws VoltAbortException {
-        assert(table != null) : "VoltTable to be loaded into " + tableName + " is null in txn #" + this.txn_id;
+        assert(table != null) : "VoltTable to be loaded into " + tableName + " is null in txn #" + this.getTransactionId();
         final boolean debug = LOG.isDebugEnabled();
-        if (debug) LOG.debug("Executing multi-partition loader for " + tableName + " with " + table.getRowCount() + " tuples in txn #" + this.txn_id);
+        if (debug) LOG.debug("Executing multi-partition loader for " + tableName + " with " + table.getRowCount() + " tuples in txn #" + this.getTransactionId());
         
         VoltTable[] results;
         SynthesizedPlanFragment pfs[];
