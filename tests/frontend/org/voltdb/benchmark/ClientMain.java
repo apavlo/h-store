@@ -238,8 +238,8 @@ public abstract class ClientMain {
                     answerPoll();
                     
                     // Call tick on the client!
-                    if (LOG.isDebugEnabled()) LOG.debug("Got poll message! Calling tick()!");
-                    ClientMain.this.tick();
+                    // if (LOG.isDebugEnabled()) LOG.debug("Got poll message! Calling tick()!");
+                    // ClientMain.this.tick();
                 }
                 else if (command.equalsIgnoreCase("STOP")) {
                     if (m_controlState == ControlState.RUNNING) {

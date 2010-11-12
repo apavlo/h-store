@@ -11,15 +11,12 @@ import org.apache.commons.collections15.set.ListOrderedSet;
 import org.voltdb.catalog.*;
 
 import edu.brown.BaseTestCase;
-import edu.brown.catalog.ParametersUtil;
-import edu.brown.correlations.ParameterCorrelations;
 import edu.brown.designer.AccessGraph;
 import edu.brown.designer.DesignerInfo;
 import edu.brown.designer.Edge;
 import edu.brown.designer.Vertex;
 import edu.brown.gui.common.GraphVisualizationPanel;
 import edu.brown.statistics.Histogram;
-import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.ProjectType;
 import edu.brown.workload.Workload;
 import edu.brown.workload.TransactionTrace;

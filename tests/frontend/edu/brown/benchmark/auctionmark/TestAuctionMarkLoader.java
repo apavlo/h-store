@@ -12,7 +12,6 @@ import org.apache.log4j.Logger;
 import org.voltdb.VoltTable;
 
 import edu.brown.BaseTestCase;
-import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.ProjectType;
 
 /**
@@ -25,7 +24,7 @@ public class TestAuctionMarkLoader extends BaseTestCase {
 //    protected static final int SCALE_FACTOR = 20000;
 	protected static final int SCALE_FACTOR = 1000;
     protected static final String LOADER_ARGS[] = {
-        "scalefactor=" + SCALE_FACTOR, 
+        "SCALEFACTOR=" + SCALE_FACTOR, 
         "HOST=localhost"
     };
     
@@ -55,7 +54,7 @@ public class TestAuctionMarkLoader extends BaseTestCase {
         @Override
         protected void loadTable(String tablename, VoltTable table) {
             boolean debug = DEBUG_TABLES.contains(tablename);
-            LOG.info("loadTable() called for " + tablename);
+            if (debug) LOG.debug("loadTable() called for " + tablename);
             long current_tablesize = TestAuctionMarkLoader.EXPECTED_TABLESIZES.get(tablename);
             long current_batchsize = TestAuctionMarkLoader.EXPECTED_BATCHSIZES.get(tablename);
             long total_rows = TestAuctionMarkLoader.TOTAL_ROWS.get(tablename);

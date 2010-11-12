@@ -113,7 +113,7 @@ public class BenchmarkController {
             while (resultsToRead > 0) {
                 ProcessSetManager.OutputLine line = m_clientPSM.nextBlocking();
                 if (line.stream == ProcessSetManager.Stream.STDERR) {
-                    //System.err.printf("(%s): \"%s\"\n", line.processName, line.value);
+                    System.err.printf("(%s): \"%s\"\n", line.processName, line.value);
                     continue;
                 }
 
@@ -1094,9 +1094,9 @@ public class BenchmarkController {
         clientParams.put("INTERVAL", Long.toString(interval));
         clientParams.put("DURATION", Long.toString(duration));
         
-        // Set all of the client params to lowercase...
+        // Set all of the client params to uppercase...
         for (Entry<String, String> e : clientParams.entrySet()) {
-            config.parameters.put(e.getKey().toLowerCase(), e.getValue());    
+            config.parameters.put(e.getKey().toUpperCase(), e.getValue());    
         } // FOR
 
         // ACTUALLY RUN THE BENCHMARK

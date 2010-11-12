@@ -100,22 +100,22 @@ public abstract class AuctionMarkBaseClient extends ClientMain {
             String value = m_extraParams.get(key);
 
             // Scale Factor
-            if (key.equals("scalefactor")) {
+            if (key.equals("SCALEFACTOR")) {
                 scale_factor = Integer.parseInt(value);
             // Benchmark Profile File
-            } else if (key.equals("benchmarkprofile")) {
+            } else if (key.equals("BENCHMARKPROFILE")) {
                 profile_file = value;
             // Random Generator Seed
-            } else if (key.equals("randomseed")) {
+            } else if (key.equals("RANDOMSEED")) {
                 seed = Integer.parseInt(value);
             // Random Generator Class
-            } else if (key.equals("randomgenerator")) {
+            } else if (key.equals("RANDOMGENERATOR")) {
                 randGenClassName = value;
             // Random Generator Profile File
-            } else if (key.equals("randomprofile")) {
+            } else if (key.equals("RANDOMPROFILE")) {
                 randGenProfilePath = value;
             // Data directory
-            } else if (key.equals("auctionmarkdir")) {
+            } else if (key.equals("AUCTIONMARKDIR")) {
                 dataDir = value;
             }
         } // FOR

@@ -498,16 +498,22 @@ public class AuctionMarkClient extends AuctionMarkBaseClient {
         clientProfile = new AuctionMarkClientBenchmarkProfile(profile, getClientId(), AuctionMarkConstants.MAXIMUM_CLIENT_IDS);
         if (LOG.isTraceEnabled()) LOG.trace("constructor : histogram size = " + this.clientProfile.user_available_items_histogram.getSampleCount());
                
-        LOG.info("EXTRA PARAMS: " + m_extraParams);
-        
         // Enable temporal skew
-        if (m_extraParams.containsKey("temporalskew")) {
-            int skew_size = Integer.valueOf(m_extraParams.get("temporalskew"));
+        if (m_extraParams.containsKey("TEMPORALSKEW")) {
+            int skew_size = Integer.valueOf(m_extraParams.get("TEMPORALSKEW"));
             if (skew_size > 0) {
-                int num_ticks = (Integer.valueOf(m_extraParams.get("numintervals")) / Integer.valueOf(m_extraParams.get("duration"))); 
-                int num_partitions = m_numPartitions;
-                this.clientProfile.enableTemporalSkew(skew_size, num_ticks, num_partitions);
-                LOG.info(String.format("Enabling temporal skew [skew_size=%d, num_ticks=%d, num_partitions=%d]", skew_size, num_ticks, num_partitions));
+                try {
+                    long num_intervals = Long.valueOf(m_extraParams.get("INTERVAL"));
+                    long duration = Long.valueOf(m_extraParams.get("DURATION"));
+                    int num_ticks = Math.round(num_intervals / duration); 
+                    int num_partitions = m_numPartitions;
+                    this.clientProfile.enableTemporalSkew(skew_size, num_ticks, num_partitions);
+                    System.err.println(String.format("Enabling temporal skew [skew_size=%d, num_ticks=%d, num_partitions=%d]", skew_size, num_ticks, num_partitions));
+                } catch (Exception ex) {
+                    System.err.println(ex.getLocalizedMessage());
+                    ex.printStackTrace();
+                    System.exit(1);
+                }
             }
         }
         

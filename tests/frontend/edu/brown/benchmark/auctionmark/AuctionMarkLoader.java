@@ -197,6 +197,8 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
      * @param tableName
      */
     protected void generateTableData(String tableName) {
+        final boolean debug = LOG.isDebugEnabled();
+        
         // LOG.setLevel(Level.DEBUG);
         final AbstractTableGenerator generator = this.generators.get(tableName);
         assert (generator != null);
@@ -208,8 +210,8 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
             try {
                 this.dependencyLock.lock();
                 while (!dependingGenerator.isFinish()) {
-                    LOG.info("The generator for " + tableName + " is blocked waiting for "
-                            + dependingGenerator.getTableName() + " [" + this + "]");
+                    if (debug) LOG.debug("The generator for " + tableName + " is blocked waiting for "
+                                         + dependingGenerator.getTableName() + " [" + this + "]");
                     this.dependencyCondition.await();
                 } // WHILE
             } catch (InterruptedException e) {
@@ -221,7 +223,7 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
 
         generator.init();
 
-        LOG.trace("Loading " + generator.getTableSize() + " tuples for table '" + tableName + "'");
+        if (debug) LOG.debug("Loading " + generator.getTableSize() + " tuples for table '" + tableName + "'");
         while (generator.hasMore()) {
             generator.generateBatch();
             this.loadTable(tableName, volt_table);
@@ -229,7 +231,7 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
 
             // Dependent Tables
             if (generator.hasSubGenerators()) {
-                LOG.debug("Invoking " + generator.sub_generators.size() + " sub-generators for " + tableName);
+                if (debug) LOG.debug("Invoking " + generator.sub_generators.size() + " sub-generators for " + tableName);
                 for (AbstractTableGenerator sub_generator : generator.sub_generators) {
                     // Always call init() for the sub-generator in each new round
                     sub_generator.init();
