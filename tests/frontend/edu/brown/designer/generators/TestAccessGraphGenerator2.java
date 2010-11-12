@@ -14,7 +14,6 @@ import edu.brown.designer.Edge;
 import edu.brown.designer.Vertex;
 import edu.brown.utils.ProjectType;
 import edu.brown.workload.Workload;
-import edu.brown.workload.Workload;
 import edu.brown.workload.filters.ProcedureLimitFilter;
 import edu.brown.workload.filters.ProcedureNameFilter;
 
