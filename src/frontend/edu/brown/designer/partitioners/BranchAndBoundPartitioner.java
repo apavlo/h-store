@@ -548,10 +548,10 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
             Long stop_local = null; 
             Long stop_total = null;
             
-            if (this.hints.limit_local_time != null && this.hints.limit_local_time > 0) {
+            if (this.hints.limit_local_time != null && this.hints.limit_local_time >= 0) {
                 stop_local = this.hints.getNextLocalStopTime();    
             }
-            if (this.hints.limit_total_time != null && this.hints.limit_total_time > 0) {
+            if (this.hints.limit_total_time != null && this.hints.limit_total_time >= 0) {
                 stop_total = this.hints.getGlobalStopTime();
             }
             if (stop_local != null && stop_total != null) {
@@ -593,7 +593,7 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
             CatalogType current = null;
             
             if (!this.halt_search) {
-                if (hints.limit_back_tracks != null && hints.limit_back_tracks > 0 && is_table && this.backtrack_ctr > hints.limit_back_tracks) {
+                if (hints.limit_back_tracks != null && hints.limit_back_tracks >= 0 && is_table && this.backtrack_ctr > hints.limit_back_tracks) {
                     if (debug) LOG.debug("Hit back track limit. Halting search [" + this.backtrack_ctr + "]");
                     this.halt_search = true;
                 } else if (this.halt_time != null && System.currentTimeMillis() >= this.halt_time) {

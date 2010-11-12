@@ -10,6 +10,7 @@ import org.voltdb.VoltProcedure;
 import org.voltdb.catalog.*;
 import org.voltdb.benchmark.tpcc.TPCCProjectBuilder;
 
+import edu.brown.benchmark.AbstractProjectBuilder;
 import edu.brown.benchmark.airline.AirlineProjectBuilder;
 import edu.brown.benchmark.auctionmark.AuctionMarkProjectBuilder;
 import edu.brown.benchmark.markov.MarkovProjectBuilder;
@@ -30,10 +31,18 @@ import edu.brown.utils.ProjectType;
  */
 public abstract class BaseTestCase extends TestCase {
 
-    // log4j Hack
+    protected static boolean ENABLE_JAR_REUSE = false;
+    
     static {
+        // log4j Hack
         ArgumentsParser.setupLogging();
+        
+        // Jar Caching!
+        if (System.getenv("ENABLE_JAR_REUSE") != null) {
+            ENABLE_JAR_REUSE = Boolean.valueOf(System.getenv("ENABLE_JAR_REUSE"));
+        }
     }
+    
     
     protected ProjectType last_type;
     
@@ -85,30 +94,60 @@ public abstract class BaseTestCase extends TestCase {
         catalog_db = project_databases.get(type);
         p_estimator = project_p_estimators.get(type);
         if (catalog == null) {
+            AbstractProjectBuilder projectBuilder = null;
             switch (type) {
                 case TPCC:
-                    catalog = TPCCProjectBuilder.getTPCCSchemaCatalog(fkeys);
-                    // Update the ProcParameter mapping used in the catalogs
-                    ParametersUtil.populateCatalog(CatalogUtil.getDatabase(catalog), ParametersUtil.getParameterMapping(type));
+                    projectBuilder = new TPCCProjectBuilder();
                     break;
                 case TPCE:
-                    catalog = new TPCEProjectBuilder().createCatalog(fkeys, full_catalog);
+                    projectBuilder = new TPCEProjectBuilder();
                     break;
                 case TM1:
-                    catalog = new TM1ProjectBuilder().getFullCatalog(fkeys);
+                    projectBuilder = new TM1ProjectBuilder();
                     break;
                 case AIRLINE:
-                    catalog = new AirlineProjectBuilder().getFullCatalog(fkeys);
+                    projectBuilder = new AirlineProjectBuilder();
                     break;
                 case AUCTIONMARK:
-                    catalog = new AuctionMarkProjectBuilder().getFullCatalog(fkeys);
+                    projectBuilder = new AuctionMarkProjectBuilder();
                     break;
                 case MARKOV:
-                    catalog = new MarkovProjectBuilder().getFullCatalog(fkeys);
+                    projectBuilder = new MarkovProjectBuilder();
                     break;
                 default:
                     assert(false) : "Invalid project type - " + type;
             } // SWITCH
+            assert(projectBuilder != null);
+            
+            if (ENABLE_JAR_REUSE) {
+                File jar_path = projectBuilder.getJarPath();
+                if (jar_path.exists()) {
+//                    System.err.println("LOAD CACHE JAR: " + jar_path.getAbsolutePath());
+                    catalog = CatalogUtil.loadCatalogFromJar(jar_path.getAbsolutePath());
+//                } else {
+//                    System.err.println("MISSING JAR: " + jar_path.getAbsolutePath());
+                }
+            }
+            if (catalog == null) {
+                switch (type) {
+                    case TPCC:
+                        catalog = TPCCProjectBuilder.getTPCCSchemaCatalog(fkeys);
+                        // Update the ProcParameter mapping used in the catalogs
+                        ParametersUtil.populateCatalog(CatalogUtil.getDatabase(catalog), ParametersUtil.getParameterMapping(type));
+                        break;
+                    case TPCE:
+                        catalog = projectBuilder.createCatalog(fkeys, full_catalog);
+                        break;
+                    case TM1:
+                    case AIRLINE:
+                    case AUCTIONMARK:
+                    case MARKOV:
+                        catalog = projectBuilder.getFullCatalog(fkeys);
+                        break;
+                    default:
+                        assert(false) : "Invalid project type - " + type;
+                } // SWITCH
+            }
             this.init(type, catalog);
         }
     }

@@ -227,7 +227,7 @@ public abstract class VoltProcedure {
      * Allow VoltProcedures access to their transaction id.
      * @return transaction id
      */
-    public long getTransactionId() {
+    public Long getTransactionId() {
         return this.txn_id; // m_currentTxnState.txnId;
     }
 

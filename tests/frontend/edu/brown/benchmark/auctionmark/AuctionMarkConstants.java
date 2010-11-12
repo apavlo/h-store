@@ -72,6 +72,19 @@ public abstract class AuctionMarkConstants {
     public static final int FREQUENCY_NEW_PURCHASE          = 2;
     public static final int FREQUENCY_NEW_USER              = 8;
     public static final int FREQUENCY_UPDATE_ITEM           = 2;
+    
+//    public static final int FREQUENCY_GET_ITEM              = 0;
+//    public static final int FREQUENCY_GET_USER_INFO         = 100;
+//    public static final int FREQUENCY_GET_WATCHED_ITEMS     = 0;
+//    public static final int FREQUENCY_NEW_BID               = 0;
+//    public static final int FREQUENCY_NEW_COMMENT           = 0;
+//    public static final int FREQUENCY_GET_COMMENT           = 0;
+//    public static final int FREQUENCY_NEW_COMMENT_RESPONSE  = 0;
+//    public static final int FREQUENCY_NEW_FEEDBACK          = 0;
+//    public static final int FREQUENCY_NEW_ITEM              = 0;
+//    public static final int FREQUENCY_NEW_PURCHASE          = 0;
+//    public static final int FREQUENCY_NEW_USER              = 0;
+//    public static final int FREQUENCY_UPDATE_ITEM           = 0;
 
     
     // ----------------------------------------------------------------

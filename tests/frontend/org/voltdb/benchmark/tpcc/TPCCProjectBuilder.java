@@ -48,13 +48,16 @@ import org.voltdb.compiler.VoltProjectBuilder;
 import org.voltdb.utils.BuildDirectoryUtils;
 import org.voltdb.utils.CatalogUtil;
 
+import edu.brown.benchmark.AbstractProjectBuilder;
+import edu.brown.benchmark.tm1.TM1ProjectBuilder;
+
 /**
  * A subclass of VoltProjectBuilder that already knows about all of the
  * procedures, schema and partitioning info for TPC-C. It also contains
  * some helper code for other tests that use part of TPC-C.
  *
  */
-public class TPCCProjectBuilder extends VoltProjectBuilder {
+public class TPCCProjectBuilder extends AbstractProjectBuilder {
 
     /**
      * All procedures needed for TPC-C tests + benchmark
@@ -87,6 +90,10 @@ public class TPCCProjectBuilder extends VoltProjectBuilder {
     public static final URL ddlFkeysURL = TPCCProjectBuilder.class.getResource("tpcc-ddl-fkeys.sql");
     public static final String jarFilename = "tpcc.jar";
 
+    public TPCCProjectBuilder() {
+        super("tpcc", TPCCProjectBuilder.class, PROCEDURES, partitioning, null, true);
+    }
+    
     /**
      * Add the TPC-C procedures to the VoltProjectBuilder base class.
      */
@@ -145,8 +152,6 @@ public class TPCCProjectBuilder extends VoltProjectBuilder {
         addDefaultSchema();
         // addDefaultELT();
     }
-
-    public String getJARFilename() { return jarFilename; }
 
     /**
      * Get a pointer to a compiled catalog for TPCC with all the procedures.

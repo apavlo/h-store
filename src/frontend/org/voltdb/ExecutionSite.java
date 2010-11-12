@@ -22,6 +22,7 @@ import org.apache.log4j.Logger;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.*;
+import java.util.Map.Entry;
 import java.util.concurrent.*;
 
 import org.voltdb.catalog.*;
@@ -836,13 +837,13 @@ public class ExecutionSite implements Runnable {
         // TODO(pavlo): Can this always be empty?
         HashMap<Integer, List<VoltTable>> dependencies = new HashMap<Integer, List<VoltTable>>();
         TransactionState ts = this.txn_states.get(txn_id);
-//        if (ftask.hasAttachedResults()) {
-//            if (trace) LOG.trace("Retreiving internal dependency results attached to FragmentTaskMessage for txn #" + txn_id);
-//            dependencies.putAll(ftask.getAttachedResults());
-//        }
+        if (ftask.hasAttachedResults()) {
+            if (trace) LOG.trace("Retrieving internal dependency results attached to FragmentTaskMessage for txn #" + txn_id);
+            dependencies.putAll(ftask.getAttachedResults());
+        }
         if (ftask.hasInputDependencies()) {
             if (ts != null && !ts.getInternalDependencyIds().isEmpty()) {
-                if (trace) LOG.trace("Retreiving internal dependency results from TransactionState for txn #" + txn_id);
+                if (trace) LOG.trace("Retrieving internal dependency results from TransactionState for txn #" + txn_id);
                 dependencies.putAll(ts.removeInternalDependencies(ftask));
             }
         }
@@ -1148,6 +1149,7 @@ public class ExecutionSite implements Runnable {
         Dtxn.CoordinatorFragment.Builder requestBuilder = Dtxn.CoordinatorFragment
                                                                 .newBuilder()
                                                                 .setTransactionId(ts.getDtxnTransactionId());
+        
         for (FragmentTaskMessage ftask : tasks) {
             assert(!ts.isBlocked(ftask));
             
@@ -1162,8 +1164,16 @@ public class ExecutionSite implements Runnable {
                 LOG.warn("Trying to send a FragmentTask request with 0 fragments for txn #" + ts.getTransactionId());
                 continue;
             }
-            
-            // TODO: SEND DATA!!!!
+
+            // Since we know that we have to send these messages everywhere, then any internal dependencies
+            // that we have stored locally here need to go out with them
+            if (ftask.hasInputDependencies()) {
+                HashMap<Integer, List<VoltTable>> dependencies = ts.removeInternalDependencies(ftask);
+                if (trace) LOG.trace("Attaching " + dependencies.size() + " dependencies to " + ftask);
+                for (Entry<Integer, List<VoltTable>> e : dependencies.entrySet()) {
+                    ftask.attachResults(e.getKey(), e.getValue());
+                } // FOR
+            }
             
             // Nasty...
             ByteString bs = null;

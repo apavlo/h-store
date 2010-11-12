@@ -70,9 +70,10 @@ public class TestNewVoltProcedure extends BaseTestCase {
         site.txn_states.put(xact_id, ts);
         site.running_xacts.put(xact_id, volt_proc);
         
+        // 2010-11-12: call() no longer immediately updates the internal state of the VoltProcedure
+        //             so there is no way for us to check whether things look legit until we get
+        //             back the results
         volt_proc.call(ts, TARGET_PARAMS);
-        assertEquals(xact_id.longValue(), volt_proc.getTransactionId());
-        assertEquals(TARGET_PARAMS.length, volt_proc.procParams.length);
         
         // Now check whether we got the ClientResponse
         ClientResponse response = null;
