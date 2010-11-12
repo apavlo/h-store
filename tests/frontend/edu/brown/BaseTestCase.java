@@ -20,6 +20,7 @@ import edu.brown.catalog.CatalogUtil;
 import edu.brown.catalog.FixCatalog;
 import edu.brown.catalog.ParametersUtil;
 import edu.brown.catalog.ClusterConfiguration;
+import edu.brown.correlations.ParameterCorrelations;
 import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.FileUtil;
 import edu.brown.utils.PartitionEstimator;
@@ -133,7 +134,7 @@ public abstract class BaseTestCase extends TestCase {
                     case TPCC:
                         catalog = TPCCProjectBuilder.getTPCCSchemaCatalog(fkeys);
                         // Update the ProcParameter mapping used in the catalogs
-                        ParametersUtil.populateCatalog(CatalogUtil.getDatabase(catalog), ParametersUtil.getParameterMapping(type));
+//                        ParametersUtil.populateCatalog(CatalogUtil.getDatabase(catalog), ParametersUtil.getParameterMapping(type));
                         break;
                     case TPCE:
                         catalog = projectBuilder.createCatalog(fkeys, full_catalog);
@@ -187,6 +188,17 @@ public abstract class BaseTestCase extends TestCase {
             }
         }
         return (false);
+    }
+    
+    protected void applyCatalogCorrelations(ProjectType type) throws Exception {
+        // We need the correlations file in order to make sure the parameters 
+        // get mapped properly
+        File correlations_path = this.getCorrelationsFile(type);
+        if (correlations_path != null) {
+            ParameterCorrelations correlations = new ParameterCorrelations();
+            correlations.load(correlations_path.getAbsolutePath(), catalog_db);
+            ParametersUtil.applyParameterCorrelations(catalog_db, correlations);
+        }
     }
     
     // --------------------------------------------------------------------------------------

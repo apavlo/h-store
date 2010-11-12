@@ -87,7 +87,7 @@ public abstract class AuctionMarkBaseClient extends ClientMain {
     public AuctionMarkBaseClient(Class<? extends AuctionMarkBaseClient> child_class, String[] args) {
         super(args);
         LOG = Logger.getLogger(child_class);
-        this.debug = true; // LOG.isDebugEnabled();
+        this.debug = LOG.isDebugEnabled();
         
         Integer scale_factor = 1;
         String profile_file = null;

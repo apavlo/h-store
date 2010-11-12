@@ -44,12 +44,10 @@ import org.voltdb.benchmark.tpcc.procedures.paymentByCustomerNameC;
 import org.voltdb.benchmark.tpcc.procedures.paymentByCustomerNameW;
 import org.voltdb.benchmark.tpcc.procedures.slev;
 import org.voltdb.catalog.Catalog;
-import org.voltdb.compiler.VoltProjectBuilder;
 import org.voltdb.utils.BuildDirectoryUtils;
 import org.voltdb.utils.CatalogUtil;
 
 import edu.brown.benchmark.AbstractProjectBuilder;
-import edu.brown.benchmark.tm1.TM1ProjectBuilder;
 
 /**
  * A subclass of VoltProjectBuilder that already knows about all of the
@@ -88,7 +86,6 @@ public class TPCCProjectBuilder extends AbstractProjectBuilder {
 
     public static final URL ddlURL = TPCCProjectBuilder.class.getResource("tpcc-ddl.sql");
     public static final URL ddlFkeysURL = TPCCProjectBuilder.class.getResource("tpcc-ddl-fkeys.sql");
-    public static final String jarFilename = "tpcc.jar";
 
     public TPCCProjectBuilder() {
         super("tpcc", TPCCProjectBuilder.class, PROCEDURES, partitioning, null, true);

@@ -14,6 +14,7 @@ public class TestGraphvizExport extends BaseTestCase {
     @Override
     protected void setUp() throws Exception {
         super.setUp(ProjectType.TPCC, true);
+        this.applyCatalogCorrelations(ProjectType.TPCC);
     }
     
     /**

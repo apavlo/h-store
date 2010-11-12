@@ -11,16 +11,18 @@ import org.apache.commons.collections15.set.ListOrderedSet;
 import org.voltdb.catalog.*;
 
 import edu.brown.BaseTestCase;
+import edu.brown.catalog.ParametersUtil;
+import edu.brown.correlations.ParameterCorrelations;
 import edu.brown.designer.AccessGraph;
 import edu.brown.designer.DesignerInfo;
 import edu.brown.designer.Edge;
 import edu.brown.designer.Vertex;
 import edu.brown.gui.common.GraphVisualizationPanel;
 import edu.brown.statistics.Histogram;
+import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.ProjectType;
 import edu.brown.workload.Workload;
 import edu.brown.workload.TransactionTrace;
-import edu.brown.workload.Workload;
 import edu.brown.workload.filters.ProcedureLimitFilter;
 import edu.brown.workload.filters.ProcedureNameFilter;
 
@@ -49,6 +51,9 @@ public class TestAccessGraphGenerator extends BaseTestCase {
         
         // Super hack! Walk back the directories and find out workload directory
         if (workload == null) {
+            this.applyCatalogCorrelations(ProjectType.TPCC);
+            
+            // Load up the workload!
             File workload_file = this.getWorkloadFile(ProjectType.TPCC); 
             workload = new Workload(catalog);
         

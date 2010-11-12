@@ -498,13 +498,17 @@ public class AuctionMarkClient extends AuctionMarkBaseClient {
         clientProfile = new AuctionMarkClientBenchmarkProfile(profile, getClientId(), AuctionMarkConstants.MAXIMUM_CLIENT_IDS);
         if (LOG.isTraceEnabled()) LOG.trace("constructor : histogram size = " + this.clientProfile.user_available_items_histogram.getSampleCount());
                
+        LOG.info("EXTRA PARAMS: " + m_extraParams);
+        
         // Enable temporal skew
-        if (m_extraParams.containsKey("TEMPORALSKEW")) {
-            int skew_size = Integer.valueOf(m_extraParams.get("TEMPORALSKEW"));
-            int num_ticks = (Integer.valueOf(m_extraParams.get("NUMINTERVALS")) / Integer.valueOf(m_extraParams.get("DURATION"))); 
-            int num_partitions = m_numPartitions;
-            this.clientProfile.enableTemporalSkew(skew_size, num_ticks, num_partitions);
-            LOG.info(String.format("Enabling temporal skew [skew_size=%d, num_ticks=%d, num_partitions=%d]", skew_size, num_ticks, num_partitions));
+        if (m_extraParams.containsKey("temporalskew")) {
+            int skew_size = Integer.valueOf(m_extraParams.get("temporalskew"));
+            if (skew_size > 0) {
+                int num_ticks = (Integer.valueOf(m_extraParams.get("numintervals")) / Integer.valueOf(m_extraParams.get("duration"))); 
+                int num_partitions = m_numPartitions;
+                this.clientProfile.enableTemporalSkew(skew_size, num_ticks, num_partitions);
+                LOG.info(String.format("Enabling temporal skew [skew_size=%d, num_ticks=%d, num_partitions=%d]", skew_size, num_ticks, num_partitions));
+            }
         }
         
         // Initialize Default Weights
@@ -565,6 +569,12 @@ public class AuctionMarkClient extends AuctionMarkBaseClient {
 			e.printStackTrace();
 		}
         return (true);
+    }
+    
+    @Override
+    protected void tick() {
+        super.tick();
+        this.clientProfile.tick();
     }
     
     /**

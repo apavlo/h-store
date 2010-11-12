@@ -17,28 +17,18 @@
 
 package org.voltdb;
 
-import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
 
 import java.lang.reflect.*;
 import java.math.BigDecimal;
 import java.math.BigInteger;
-import java.nio.ByteBuffer;
 import java.util.*;
 import java.util.concurrent.LinkedBlockingDeque;
-import java.util.concurrent.Semaphore;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantLock;
 
 import org.voltdb.catalog.*;
 import org.voltdb.client.ClientResponse;
-import org.voltdb.dtxn.DtxnConstants;
 import org.voltdb.exceptions.SerializableException;
 import org.voltdb.exceptions.EEException;
-import org.voltdb.jni.ExecutionEngine;
-import org.voltdb.jni.ExecutionEngineJNI;
-import org.voltdb.messaging.FastSerializer;
 import org.voltdb.messaging.FragmentTaskMessage;
 import org.voltdb.types.TimestampType;
 
@@ -48,7 +38,6 @@ import edu.brown.utils.EventObservable;
 import edu.brown.utils.EventObserver;
 import edu.brown.utils.PartitionEstimator;
 
-import java.io.IOException;
 import java.io.StringWriter;
 import java.io.PrintWriter;
 
@@ -75,11 +64,6 @@ public abstract class VoltProcedure {
     public static final String ANON_STMT_NAME = "sql";
 
     protected HsqlBackend hsql;
-
-    final private ProcedureProfiler profiler = new ProcedureProfiler();
-
-    //For runtime statistics collection
-    private ProcedureStatsCollector statsCollector;
 
     // package scoped members used by VoltSystemProcedure
     Cluster m_cluster;
