@@ -920,13 +920,11 @@ public class BenchmarkController {
                  * The interval to poll for results in milliseconds
                  */
                 interval = Integer.parseInt(parts[1]);
-                clientParams.put(parts[0], parts[1]);
             } else if (parts[0].equals("DURATION")) {
                 /*
                  * Duration of the benchmark in milliseconds
                  */
                 duration = Integer.parseInt(parts[1]);
-                clientParams.put(parts[0], parts[1]);
             } else if (parts[0].equals("CLIENT")) {
                 /*
                  * Name of the client class for this benchmark.
@@ -1091,7 +1089,15 @@ public class BenchmarkController {
                 snapshotFrequency, snapshotRetain, databaseURL[0], databaseURL[1], statsTag,
                 applicationName, subApplicationName,
                 compileBenchmark, compileOnly, useCatalogHosts, noDataLoad);
-        config.parameters.putAll(clientParams);
+
+        // Always pass the interval and duration parameters
+        clientParams.put("INTERVAL", Long.toString(interval));
+        clientParams.put("DURATION", Long.toString(duration));
+        
+        // Set all of the client params to lowercase...
+        for (Entry<String, String> e : clientParams.entrySet()) {
+            config.parameters.put(e.getKey().toLowerCase(), e.getValue());    
+        } // FOR
 
         // ACTUALLY RUN THE BENCHMARK
         BenchmarkController controller = new BenchmarkController(config);
