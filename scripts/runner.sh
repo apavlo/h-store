@@ -43,7 +43,7 @@ DEFAULT_NUM_HOSTS=1
 
 DEFAULT_NUM_CLIENTS=1
 DEFAULT_CLIENT_HOST="localhost"
-DEFAULT_NUM_CLIENTPROCESSES=10
+DEFAULT_NUM_CLIENTPROCESSES=1
 
 DEFAULT_HOST_MEMORY=1024
 DEFAULT_CLIENT_MEMORY=256
@@ -51,7 +51,7 @@ DEFAULT_SITES_PER_HOST=1
 DEFAULT_NUM_WAREHOUSES=10
 DEFAULT_SCALE_FACTOR=1000
 DEFAULT_DURATION=60000
-DEFAULT_TXN_RATE=100
+DEFAULT_TXN_RATE=1
 
 ## ---------------------------------------
 ## Brown Configuration
@@ -290,7 +290,8 @@ if [ -n "$ANT_TARGET" ]; then
     echo "Executing '$ANT_TARGET'..."
     $ANT $ANT_TARGET \
         $EXTRA_ARGS \
-        -Dproject=`echo $BENCHMARK | tr "[:upper:]" "[:lower:]"`
+        -Dcatalog=`realpath $BENCHMARK_JAR` \
+        -Dproject=`echo $BENCHMARK | tr "[:upper:]" "[:lower:]"` \
         -Dduration=$DURATION \
         -Dvolt.server.memory=$HOST_MEMORY \
         -Dvolt.client.memory=$CLIENT_MEMORY \

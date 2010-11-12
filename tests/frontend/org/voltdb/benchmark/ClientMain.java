@@ -143,6 +143,11 @@ public abstract class ClientMain {
      * Total # of Clients
      */
     protected final int m_numClients;
+    
+    /**
+     * Total # of Partitions
+     */
+    protected final int m_numPartitions;
 
     private final boolean m_exitOnCompletion;
 
@@ -231,6 +236,10 @@ public abstract class ClientMain {
                         continue;
                     }
                     answerPoll();
+                    
+                    // Call tick on the client!
+                    if (LOG.isDebugEnabled()) LOG.debug("Got poll message! Calling tick()!");
+                    ClientMain.this.tick();
                 }
                 else if (command.equalsIgnoreCase("STOP")) {
                     if (m_controlState == ControlState.RUNNING) {
@@ -386,6 +395,15 @@ public abstract class ClientMain {
      * procedures. Method never returns and never receives any updates.
      */
     abstract protected void runLoop() throws IOException;
+    
+    /**
+     * Is called every time the interval time is reached
+     */
+    protected void tick() {
+        // Default is to do nothing!
+//        System.out.println("ClientMain.tick()");
+    }
+    
 
     protected boolean useHeavyweightClient() {
         return false;
@@ -432,6 +450,7 @@ public abstract class ClientMain {
         m_txnsPerMillisecond = 0;
         m_id = 0;
         m_numClients = 1;
+        m_numPartitions = 0;
         m_counts = null;
         m_countDisplayNames = null;
         m_checkTransaction = 0;
@@ -464,6 +483,7 @@ public abstract class ClientMain {
         boolean blocking = false;
         int id = 0;
         int num_clients = 0;
+        int num_partitions = 0;
         boolean exitOnCompletion = true;
         float checkTransaction = 0;
         boolean checkTables = false;
@@ -502,6 +522,9 @@ public abstract class ClientMain {
             else if (parts[0].equals("NUMCLIENTS")) {
                 num_clients = Integer.parseInt(parts[1]);
             }
+            else if (parts[0].equals("NUMPARTITIONS")) {
+                num_partitions = Integer.parseInt(parts[1]);
+            }
             else if (parts[0].equals("CHECKTRANSACTION")) {
                 checkTransaction = Float.parseFloat(parts[1]);
             }
@@ -515,6 +538,9 @@ public abstract class ClientMain {
                 m_extraParams.put(parts[0], parts[1]);
             }
         }
+        
+        // Thread.currentThread().setName(String.format("client-%02d", id));
+        
         StatsUploaderSettings statsSettings = null;
 //        if (statsDatabaseURL != null) {
 //            try {
@@ -540,6 +566,7 @@ public abstract class ClientMain {
 
         m_id = id;
         m_numClients = num_clients;
+        m_numPartitions = num_partitions;
         m_exitOnCompletion = exitOnCompletion;
         m_username = username;
         m_password = password;

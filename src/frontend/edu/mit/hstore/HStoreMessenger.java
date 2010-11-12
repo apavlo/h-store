@@ -63,7 +63,7 @@ public class HStoreMessenger {
     private final Site catalog_site;
     private final Set<Integer> local_partitions;
     private final NIOEventLoop eventLoop = new NIOEventLoop();
-    private final DBBPool buffer_pool = new DBBPool(true, false);
+    private static final DBBPool buffer_pool = new DBBPool(true, false);
 
     /**
      * PartitionId -> SiteId
@@ -431,6 +431,18 @@ public class HStoreMessenger {
         this.sendDependencySet(txn_id, sender_partition_id, dest_partition_id, dset);
     }
     
+    private VoltTable copyVoltTable(VoltTable vt) throws Exception {
+        FastSerializer fs = new FastSerializer(buffer_pool);
+        fs.writeObject(vt);
+        BBContainer bc = fs.getBBContainer();
+        assert(bc.b.hasArray());
+        ByteString bs = ByteString.copyFrom(bc.b);
+        
+        FastDeserializer fds = new FastDeserializer(bs.asReadOnlyByteBuffer());
+        VoltTable copy = fds.readObject(VoltTable.class);
+        return (copy);
+    }
+    
     /**
      * Send a DependencySet to a remote partition for a given transaction
      * @param txn_id
@@ -448,7 +460,18 @@ public class HStoreMessenger {
             for (int i = 0, cnt = dset.size(); i < cnt; i++) {
                 ExecutionSite executor = this.hstore_site.getExecutors().get(dest_partition_id);
                 assert(executor != null) : "Unexpected null ExecutionSite for Partition #" + dest_partition_id + " on Site #" + catalog_site.getId();
-                executor.storeDependency(txn_id, sender_partition_id, dset.depIds[i], dset.dependencies[i]);
+                
+                // 2010-11-12: We have to copy each VoltTable, otherwise we get an error down in the EE when it tries
+                //             to read data from another EE.
+                VoltTable copy = null;
+                try {
+                    // copy = dset.dependencies[i];
+                    copy = this.copyVoltTable(dset.dependencies[i]);
+                } catch (Exception ex) {
+                    LOG.fatal("Failed to copy DependencyId #" + dset.depIds[i]);
+                    this.shutdownCluster(ex);
+                }
+                executor.storeDependency(txn_id, sender_partition_id, dset.depIds[i], copy);
             } // FOR
         // Remote Transfer
         } else {
@@ -461,7 +484,7 @@ public class HStoreMessenger {
             // Serialize DependencySet
             List<Hstore.FragmentDependency> dependencies = new ArrayList<Hstore.FragmentDependency>();
             for (int i = 0, cnt = dset.size(); i < cnt; i++) {
-                FastSerializer fs = new FastSerializer(this.buffer_pool);
+                FastSerializer fs = new FastSerializer(buffer_pool);
                 try {
                     fs.writeObject(dset.dependencies[i]);
                 } catch (Exception ex) {

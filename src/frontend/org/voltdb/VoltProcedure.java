@@ -29,6 +29,7 @@ import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 
 import org.voltdb.catalog.*;
 import org.voltdb.client.ClientResponse;
@@ -84,18 +85,7 @@ public abstract class VoltProcedure {
     Cluster m_cluster;
     //SiteProcedureConnection m_site;
     ExecutionSite m_site;
-    TransactionState m_currentTxnState;  // assigned in call()
-
-    /**
-     * Allow VoltProcedures access to their transaction id.
-     * @return transaction id
-     */
-    public long getTransactionId() {
-        return this.txn_id; // m_currentTxnState.txnId;
-    }
-    
-    private ExecutionEngine engine;
-
+     
     private boolean m_initialized;
 
     // private members reserved exclusively to VoltProcedure
@@ -118,8 +108,9 @@ public abstract class VoltProcedure {
     private Set<Object> m_workloadQueryHandles;
 
     // data copied from EE proc wrapper
-    protected Long txn_id;
-    protected Long client_handle;
+    private Long txn_id;
+    private  Long client_handle;
+    private  TransactionState m_currentTxnState;  // assigned in call()
     private final SQLStmt batchQueryStmts[] = new SQLStmt[1000];
     private int batchQueryStmtIndex = 0;
     private final Object[] batchQueryArgs[] = new Object[1000][];
@@ -159,38 +150,69 @@ public abstract class VoltProcedure {
     /**
      * Execution runnable for handling transactions
      */
-    protected Semaphore executor_lock = new Semaphore(1);
+    // protected final Semaphore executor_lock = new Semaphore(1);
+    protected final Object executor_lock = new Object();
     protected class VoltProcedureExecutor implements Runnable {
+        
+        private final TransactionState txnState;
+        private final Object paramList[];
+        
+        public VoltProcedureExecutor(TransactionState txnState, Object paramList[]) {
+            this.txnState = txnState;
+            this.paramList = paramList;
+        }
+        
         @Override
         public void run() {
-            Thread.currentThread().setName(VoltProcedure.this.m_site.getThreadName() + "-" + VoltProcedure.this.procedure_name);
-            LOG.debug("Starting execution of " + VoltProcedure.this.procedure_name + " for txn #" + VoltProcedure.this.txn_id);
-            
-            try {
-                // Execute the txn (this blocks until we return)
-                ClientResponse response = VoltProcedure.this.call();
-                assert(response != null);
+            final boolean trace = LOG.isTraceEnabled();
+            final boolean debug = LOG.isDebugEnabled();
 
-                // Send the response back immediately!
-                VoltProcedure.this.m_site.sendClientResponse((ClientResponseImpl)response);
+            synchronized (executor_lock) {
+                Thread.currentThread().setName(VoltProcedure.this.m_site.getThreadName() + "-" + VoltProcedure.this.procedure_name);
+    
+                long current_txn_id = txnState.getTransactionId();
+                long client_handle = txnState.getClientHandle();
+                assert(VoltProcedure.this.txn_id == null) : "Old Transaction Id: " + VoltProcedure.this.txn_id + " -> New Transaction Id: " + current_txn_id;
+                VoltProcedure.this.m_currentTxnState = txnState;
+                VoltProcedure.this.txn_id = current_txn_id;
+                VoltProcedure.this.client_handle = client_handle;
+                VoltProcedure.this.procParams = paramList;
                 
-                // Notify anybody who cares that we're finished (used in testing)
-                VoltProcedure.this.observable.notifyObservers(response);
+                if (debug) LOG.debug("Starting execution of txn #" + current_txn_id);
                 
-                // Clear out our private data
-                VoltProcedure.this.m_currentTxnState = null;
-                
-                // Tell the ExecutionSite to clean-up any info about this txn
-                VoltProcedure.this.m_site.cleanupTransaction(VoltProcedure.this.txn_id);
-                
-            } catch (AssertionError ex) {
-                LOG.fatal("Unexpected error while executing txn #" + VoltProcedure.this.txn_id, ex);
-                VoltProcedure.this.m_site.crash();
-            } catch (Exception ex) {
-                LOG.fatal("Unexpected error while executing txn #" + VoltProcedure.this.txn_id, ex);
-                VoltProcedure.this.m_site.crash();
+                try {
+                    // Execute the txn (this blocks until we return)
+                    if (trace) LOG.trace("Invoking VoltProcedure.call for txn #" + current_txn_id);
+                    ClientResponse response = VoltProcedure.this.call();
+                    assert(response != null);
+    
+                    // Send the response back immediately!
+                    if (trace) LOG.trace("Sending ClientResponse back for txn #" + current_txn_id);
+                    VoltProcedure.this.m_site.sendClientResponse((ClientResponseImpl)response);
+                    
+                    // Notify anybody who cares that we're finished (used in testing)
+                    if (trace) LOG.trace("Notifying observers that txn #" + current_txn_id + " is finished");
+                    VoltProcedure.this.observable.notifyObservers(response);
+                    
+                    // Clear out our private data
+                    VoltProcedure.this.m_currentTxnState = null;
+                    
+                } catch (AssertionError ex) {
+                    LOG.fatal("Unexpected error while executing txn #" + current_txn_id, ex);
+                    VoltProcedure.this.m_site.crash();
+                } catch (Exception ex) {
+                    LOG.fatal("Unexpected error while executing txn #" + current_txn_id, ex);
+                    VoltProcedure.this.m_site.crash();
+                } finally {
+                    assert(VoltProcedure.this.txn_id == current_txn_id) : VoltProcedure.this.txn_id + " != " + current_txn_id;
+                    if (trace) LOG.trace("Releasing lock for txn #" + current_txn_id);
+    
+                    // Tell the ExecutionSite to clean-up any info about this txn
+                    VoltProcedure.this.txn_id = null;
+                    if (trace) LOG.trace("Cleaning up txn #" + current_txn_id);
+                    VoltProcedure.this.m_site.cleanupTransaction(current_txn_id);
+                }
             }
-            VoltProcedure.this.executor_lock.release();
         }
     };
 
@@ -201,6 +223,35 @@ public abstract class VoltProcedure {
      */
     public VoltProcedure() {}
 
+    /**
+     * Allow VoltProcedures access to their transaction id.
+     * @return transaction id
+     */
+    public long getTransactionId() {
+        return this.txn_id; // m_currentTxnState.txnId;
+    }
+
+    /**
+     * Allow VoltProcedures access to their transaction id.
+     * @return transaction id
+     */
+    public void setTransactionId(long txn_id) {
+        this.txn_id = txn_id;
+    }
+
+    /**
+     * Allow sysprocs to update m_currentTxnState manually. User procedures are
+     * passed this state in call(); sysprocs have other entry points on
+     * non-coordinator sites.
+     */
+    public void setTransactionState(TransactionState txnState) {
+        m_currentTxnState = txnState;
+    }
+
+    public TransactionState getTransactionState() {
+        return m_currentTxnState;
+    }
+    
     /**
      * Main initialization method
      * @param site
@@ -220,7 +271,6 @@ public abstract class VoltProcedure {
         assert(site != null);
 
         this.m_site = site;
-        this.engine = this.m_site.getExecutionEngine();
         this.catProc = catProc;
         this.procedure_name = this.catProc.getName();
         this.catalog = this.catProc.getCatalog();
@@ -453,30 +503,20 @@ public abstract class VoltProcedure {
      * @return
      */
     public final void call(TransactionState txnState, Object... paramList) {
+        final boolean trace = LOG.isTraceEnabled(); 
 //        LOG.debug("started");
 //        if (ProcedureProfiler.profilingLevel != ProcedureProfiler.Level.DISABLED)
 //            profiler.startCounter(catProc);
 //        statsCollector.beginProcedure();
 
         // Wait to make sure that the other transaction is finished before we plow through
-        try {
-            this.executor_lock.acquire();
-        } catch (InterruptedException ex) {
-            LOG.fatal("Unexpected InterruptedException", ex);
-            System.exit(1);
-        }
+//        if (trace && this.txn_id != null) LOG.trace("Txn #" + txnState.getTransactionId() + " is going to wait for txn #" + this.txn_id);
         
-        // assert(this.m_currentTxnState == null);
-        long xact_id = txnState.getTransactionId();
-        long client_handle = txnState.getClientHandle();
-        assert(this.txn_id == null || this.txn_id != xact_id) : "Old Transaction Id: " + this.txn_id + " -> New Transaction Id: " + xact_id;
-        this.m_currentTxnState = txnState;
-        this.txn_id = xact_id;
-        this.client_handle = client_handle;
-        this.procParams = paramList;
+        if (trace) LOG.trace("Setting up internal state for txn #" + txnState.getTransactionId());
+//        assert(this.txn_id == null) : "Conflict with txn #" + this.txn_id; // This should never happen!
         
         // Bombs away!
-        this.m_site.pool.execute(new VoltProcedureExecutor());
+         this.m_site.pool.execute(new VoltProcedureExecutor(txnState, paramList));
     }
 
     /**
@@ -484,6 +524,9 @@ public abstract class VoltProcedure {
      * @return
      */
     private final ClientResponse call() {
+        final boolean trace = LOG.isTraceEnabled();
+        final boolean debug = LOG.isDebugEnabled();
+        
         // in case someone queues sql but never calls execute,
         //  clear the queue here.
         batchQueryStmtIndex = 0;
@@ -536,7 +579,7 @@ public abstract class VoltProcedure {
         // Unblock the thread 
             try {
 //            m_site.currentProc = this;
-            if (LOG.getLevel() == Level.DEBUG) {
+            if (debug) {
                 LOG.debug("Invoking txn #" + this.txn_id + " [" +
                           "procMethod=" + procMethod.getName() + ", " +
                           "class=" + getClass().getSimpleName() + ", " +

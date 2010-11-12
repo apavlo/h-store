@@ -36,7 +36,6 @@ import org.voltdb.exceptions.SerializableException;
 import org.voltdb.messaging.FastDeserializer;
 import org.voltdb.messaging.FastSerializer;
 import org.voltdb.messaging.FastSerializer.BufferGrowCallback;
-import org.voltdb.utils.VoltLoggerFactory;
 import org.voltdb.utils.DBBPool.BBContainer;
 
 /**
@@ -53,7 +52,7 @@ import org.voltdb.utils.DBBPool.BBContainer;
 public class ExecutionEngineJNI extends ExecutionEngine {
 
     /** java.util.logging logger. */
-    private static final Logger LOG = Logger.getLogger(ExecutionEngine.class.getName(), VoltLoggerFactory.instance());
+    private static final Logger LOG = Logger.getLogger(ExecutionEngineJNI.class); 
 
     /** The HStoreEngine pointer. */
     private long pointer;
@@ -304,7 +303,8 @@ public class ExecutionEngineJNI extends ExecutionEngine {
             int numParameterSets,
             long txnId, long lastCommittedTxnId, long undoToken) throws EEException {
         
-
+        final boolean trace = LOG.isTraceEnabled();
+        
         assert(planFragmentIds != null) : "Null PlanFragments for txn #" + txnId;
         assert(parameterSets != null) : "Null ParameterSets for txn #" + txnId;
         assert (planFragmentIds.length == parameterSets.length);
@@ -312,17 +312,13 @@ public class ExecutionEngineJNI extends ExecutionEngine {
             return (new DependencySet(new int[0], new VoltTable[0]));
         }
         final int batchSize = numFragmentIds;
-        if (LOG.isTraceEnabled()) {
-            for (int i = 0; i < batchSize; ++i) {
-                LOG.trace("Batch Executing planfragment:" + planFragmentIds[i] + ", params=" + parameterSets[i].toString());
-            }
-        }
 
         // serialize the param sets
         fsForParameterSet.clear();
         try {
             for (int i = 0; i < batchSize; ++i) {
                 parameterSets[i].writeExternal(fsForParameterSet);
+                if (trace) LOG.trace("Batch Executing planfragment:" + planFragmentIds[i] + ", params=" + parameterSets[i].toString());
             }
         } catch (final IOException exception) {
             throw new RuntimeException(exception); // can't happen
@@ -427,13 +423,10 @@ public class ExecutionEngineJNI extends ExecutionEngine {
         final long txnId, final long lastCommittedTxnId,
         final long undoToken, boolean allowELT) throws EEException
     {
-        if (LOG.isTraceEnabled()) {
-            LOG.trace("loading table id=" + tableId + "...");
-        }
+        final boolean trace = LOG.isTraceEnabled();
+        
         byte[] serialized_table = table.getTableDataReference().array();
-        if (LOG.isTraceEnabled()) {
-            LOG.trace("passing " + serialized_table.length + " bytes to EE...");
-        }
+        if (trace) LOG.trace(String.format("Passing table into EE [id=%d, bytes=%s]", tableId, serialized_table.length));
 
         final int errorCode = nativeLoadTable(pointer, tableId, serialized_table,
                                               txnId, lastCommittedTxnId,

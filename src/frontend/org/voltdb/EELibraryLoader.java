@@ -50,7 +50,7 @@ public class EELibraryLoader {
 
                 try {
                     final Logger hostLog = Logger.getLogger("HOST", VoltLoggerFactory.instance());
-                    final String libname = "voltdb-" + VoltDB.instance().getVersionString();
+                    final String libname = "voltdb"; // -" + VoltDB.instance().getVersionString();
                     hostLog.debug("Attempting to load native VoltDB library " + libname +
                             ". Expect to see a confirmation following this upon success. " +
                             "If none appears then you may need to compile VoltDB for your platform " +

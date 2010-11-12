@@ -78,19 +78,6 @@ public abstract class VoltSystemProcedure extends VoltProcedure {
         return result;
     }
 
-    /**
-     * Allow sysprocs to update m_currentTxnState manually. User procedures are
-     * passed this state in call(); sysprocs have other entry points on
-     * non-coordinator sites.
-     */
-    public void setTransactionState(TransactionState txnState) {
-        m_currentTxnState = txnState;
-    }
-
-    public TransactionState getTransactionState() {
-        return m_currentTxnState;
-    }
-
     /** Bundles the data needed to describe a plan fragment. */
     public static class SynthesizedPlanFragment {
         public long siteId = -1;
@@ -158,11 +145,11 @@ public abstract class VoltSystemProcedure extends VoltProcedure {
                 parambytes = fs.getBuffer();
             }
 
-            LOG.debug("Creating SysProc FragmentTaskMessage for " + (pf.siteId < 0 ? "coordinator" : "partition #" + pf.siteId) + " in txn #" + this.txn_id);
+            LOG.debug("Creating SysProc FragmentTaskMessage for " + (pf.siteId < 0 ? "coordinator" : "partition #" + pf.siteId) + " in txn #" + this.getTransactionId());
             FragmentTaskMessage task = new FragmentTaskMessage(
                     this.m_site.getSiteId(),
                     (int)pf.siteId,
-                    this.txn_id,
+                    this.getTransactionId(),
                     -1,
                     false,
                     new long[] { pf.fragmentId },
@@ -175,6 +162,6 @@ public abstract class VoltSystemProcedure extends VoltProcedure {
             ftasks.add(task);
         } // FOR
         
-        return (this.m_site.waitForResponses(this.txn_id, ftasks));
+        return (this.m_site.waitForResponses(this.getTransactionId(), ftasks));
     }
 }

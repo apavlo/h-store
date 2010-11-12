@@ -64,6 +64,8 @@ public class MostPopularPartitioner extends AbstractPartitioner {
         for (Vertex v : agraph.getVertices()) {
             Table catalog_tbl = v.getCatalogItem();
             String table_key = CatalogKey.createKey(catalog_tbl);
+            
+            Set<Column> forced_columns = hints.getTablePartitionCandidates(catalog_tbl); 
             if (trace) LOG.trace("Processing Table " + catalog_tbl.getName());
             
             TableStatistics ts = info.stats.getTableStatistics(catalog_tbl);
@@ -78,7 +80,16 @@ public class MostPopularPartitioner extends AbstractPartitioner {
                 total_memory_used += size_ratio;
                 if (debug) LOG.debug(String.format("PARTITION %-25s%s", catalog_tbl.getName(), ReplicatedColumn.COLUMN_NAME));
                 pentry = new PartitionEntry(PartitionMethodType.REPLICATION);
+            // Forced partitioning
+            } else if (forced_columns.isEmpty() == false) {
+                
+                // Assume there is only one candidate
+                assert(forced_columns.size() == 1) : "Unexpected number of forced columns: " + forced_columns;
+                Column catalog_col = CollectionUtil.getFirst(forced_columns);
+                pentry = new PartitionEntry(PartitionMethodType.HASH, catalog_col);
+                if (debug) LOG.debug(String.format("FORCED PARTITION %-25s%s", catalog_tbl.getName(), catalog_col.getName()));
             
+            // Select most popular
             } else {
                 // If there are no edges, then we'll just skip it
                 final Collection<Edge> edges = agraph.getIncidentEdges(v);

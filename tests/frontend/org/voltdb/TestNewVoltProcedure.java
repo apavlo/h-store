@@ -93,7 +93,7 @@ public class TestNewVoltProcedure extends BaseTestCase {
      * testExecuteLocalBatch
      */
     public void testExecuteLocalBatch() throws Exception {
-        volt_proc.txn_id = rand.nextLong();
+        volt_proc.setTransactionId(rand.nextLong());
         
         //
         // We have to slap some queries into a BatchPlan

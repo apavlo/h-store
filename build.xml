@@ -24,16 +24,6 @@
 <!-- allow env.VOLTBUILD to override "build" property -->
 <envdefault prop="build" var="VOLTBUILD" default="release" />
 
-<!-- allow env.VOLTPRO to override "voltpro" property -->
-<condition property="voltpro" value="${env.VOLTPRO}">
-    <isset property="env.VOLTPRO"/>
-</condition>
-
-<!-- stub the voltpro classpath fileset so a fileset with this id always exists -->
-<fileset id="voltpro.classpath" file="build.xml">
-  <exclude name="build.xml"/>
-</fileset>
-
 <property name='build.dir'                   location='obj/${build}' />
 <property name='build.prod.dir'              location='${build.dir}/prod' />
 <property name='build.test.dir'              location='${build.dir}/test' />
@@ -44,7 +34,7 @@
 <property name='dist.examples.satellite.dir' location='${dist.examples.dir}/satellite' />
 <property name='dist.examples.voter.dir'     location='${dist.examples.dir}/voter' />
 <property name='properties.dir'              location='properties' />
-<property name='benchmark.dir'              location='${properties.dir}/benchmarks' />
+<property name='benchmark.dir'               location='${properties.dir}/benchmarks' />
 <property name='doc.dir'                     location='doc' />
 <property name='src.dir'                     location='src' />
 <property name='src.frontend.dir'            location='${src.dir}/frontend' />
@@ -117,7 +107,6 @@
         <exclude name='ant.jar' />
     </fileset>
     <pathelement path="${java.class.path}"/>
-    <fileset refid="voltpro.classpath"/>
 </path>
 
 <taskdef resource="net/sf/antcontrib/antcontrib.properties">
@@ -142,76 +131,6 @@
     <not><isset property="workload.trace.ignore"/></not>
 </condition>
 
-<!-- cluster machine names -->
-<macrodef name="nexthosthelper">
-    <attribute name="h1" />
-    <attribute name="h2" />
-    <attribute name="p1" />
-    <attribute name="p2" />
-    <sequential>
-        <condition property="@{p2}" value="@{h2}">
-            <equals arg1="${@{p1}}" arg2="@{h1}" />
-        </condition>
-    </sequential>
-</macrodef>
-
-<macrodef name="nexthostprop">
-    <attribute name="prop" />
-    <attribute name="next" />
-    <sequential>
-        <nexthosthelper h1="volt3a" h2="volt3b" p1="@{prop}" p2="@{next}" />
-        <nexthosthelper h1="volt3b" h2="volt3c" p1="@{prop}" p2="@{next}" />
-        <nexthosthelper h1="volt3c" h2="volt3d" p1="@{prop}" p2="@{next}" />
-        <nexthosthelper h1="volt3d" h2="volt3e" p1="@{prop}" p2="@{next}" />
-        <nexthosthelper h1="volt3e" h2="volt3f" p1="@{prop}" p2="@{next}" />
-        <nexthosthelper h1="volt3f" h2="volt3g" p1="@{prop}" p2="@{next}" />
-        <nexthosthelper h1="volt3g" h2="volt3h" p1="@{prop}" p2="@{next}" />
-        <nexthosthelper h1="volt3h" h2="volt3i" p1="@{prop}" p2="@{next}" />
-        <nexthosthelper h1="volt3i" h2="volt3j" p1="@{prop}" p2="@{next}" />
-        <nexthosthelper h1="volt3j" h2="volt3k" p1="@{prop}" p2="@{next}" />
-        <nexthosthelper h1="volt3k" h2="volt3l" p1="@{prop}" p2="@{next}" />
-
-        <nexthosthelper h1="volt4a" h2="volt4b" p1="@{prop}" p2="@{next}" />
-        <nexthosthelper h1="volt4b" h2="volt4c" p1="@{prop}" p2="@{next}" />
-        <nexthosthelper h1="volt4c" h2="volt2"  p1="@{prop}" p2="@{next}" />
-
-        <nexthosthelper h1="volt5a" h2="volt5b" p1="@{prop}" p2="@{next}" />
-        <nexthosthelper h1="volt5b" h2="volt5c" p1="@{prop}" p2="@{next}" />
-        <nexthosthelper h1="volt5c" h2="volt5d" p1="@{prop}" p2="@{next}" />
-    </sequential>
-</macrodef>
-
-<envdefault prop="host1" var="FIRSTSERVER" default="volt3a" />
-<nexthostprop prop="host1"  next="host2"  />
-<nexthostprop prop="host2"  next="host3"  />
-<nexthostprop prop="host3"  next="host4"  />
-<nexthostprop prop="host4"  next="host5"  />
-<nexthostprop prop="host5"  next="host6"  />
-<nexthostprop prop="host6"  next="host7"  />
-<nexthostprop prop="host7"  next="host8"  />
-<nexthostprop prop="host8"  next="host9"  />
-<nexthostprop prop="host9"  next="host10" />
-<nexthostprop prop="host10" next="host11" />
-<nexthostprop prop="host11" next="host12" />
-
-<envdefault prop="clienthost1" var="FIRSTCLIENT" default="volt4a" />
-<nexthostprop prop="clienthost1" next="clienthost2" />
-<nexthostprop prop="clienthost2" next="clienthost3" />
-<nexthostprop prop="clienthost3" next="clienthost4" />
-
-<target name="testnexthostprop">
-    <fail>
-        <condition>
-            <not>
-                <and>
-                    <equals arg1="${host12}" arg2="volt3l" />
-                    <equals arg1="${clienthost4}" arg2="volt2" />
-                </and>
-            </not>
-        </condition>
-    </fail>
-</target>
-
 <!--
 ***************************************
 PRIMARY ENTRY POINTS
@@ -223,13 +142,11 @@ PRIMARY ENTRY POINTS
     description="Compile Java classes and C++ JNI library."
 />
 <target name="check"
-    depends="compile, voltdbipc, eecheck, junit, distcheck, pythonfser,
-             ant_unit_tests"
+    depends="compile, voltdbipc, eecheck, junit, distcheck, pythonfser"
     description="Run Java and C++ JNI testcases and test plan fragments."
 />
 <target name="check_quick"
-    depends="compile, voltdbipc, junit_quick, distcheck,
-             ant_unit_tests"
+    depends="compile, voltdbipc, junit_quick, distcheck"
     description="Run a subset of Java testcases and test fragments."
 />
 <target name="all"
@@ -237,7 +154,7 @@ PRIMARY ENTRY POINTS
     description="Do all tasks."
 />
 <target name="jars"
-    depends="voltdb.jar"
+    depends="hstore.jar"
     description="Create production JAR files."
 />
 <target name="dist"
@@ -256,7 +173,7 @@ DISTRIBUTION
     <copy todir="${build.dir}/voltbin" flatten="true">
         <fileset dir="${build.dir}" defaultexcludes="yes">
             <include name="nativelibs/libvoltdb*" />
-            <include name="prod/voltdbfat.jar" />
+            <include name="prod/hstore.jar" />
         </fileset>
     </copy>
     <!-- use cp to preserve permissions -->
@@ -271,7 +188,7 @@ DISTRIBUTION
     </exec>
 </target>
 
-<target name="dist_internal" depends="compile, ee, voltdb.jar">
+<target name="dist_internal" depends="compile, ee, hstore.jar">
     <!-- prepare release directory for new content -->
     <delete includeemptydirs="true" failonerror='false'>
         <fileset dir="${dist.dir}" includes="**/*" />
@@ -415,6 +332,7 @@ CLEANING
     <delete includeemptydirs="true" dir="${build.dir}/objects" />
     <delete includeemptydirs="true" dir="${build.dir}/cpptests" />
     <delete includeemptydirs="true" dir="${build.testobjects.dir}" />
+    <delete includeemptydirs="true" dir="${build.dir}/voltbin" />
 </target>
 
 <target name="clean-all" description="Remove all compiled files.">
@@ -446,64 +364,8 @@ JAR BUILDING
   </exec>
 </target>
 
-<!--<target name="voltdb.jar" depends="compile, buildinfo">
-    <jar destfile="${build.prod.dir}/voltdb-${dist.version}.jar">
-        <fileset dir="${build.prod.dir}" defaultexcludes="yes" >
-            <include name="org/**" />
-            <include name="edu/**" />
-        </fileset>
-        <fileset dir="${build.test.dir}" defaultexcludes="yes" >
-            <include name="org/voltdb/ServerThread.class" />
-            <include name="org/voltdb/benchmark/*" />
-            <include name="org/voltdb/regressionsuites/Local*" />
-            <include name="org/voltdb/regressionsuites/MultiConfigSuiteBuilder.class" />
-            <include name="org/voltdb/regressionsuites/RegressionSuite.class" />
-            <include name="org/voltdb/regressionsuites/VoltServerConfig.class" />
-        </fileset>
-        <fileset dir="${src.frontend.dir}" defaultexcludes="yes" >
-            <include name="org/voltdb/**" />
-            <include name="edu/brown/**" />
-            <include name="edu/mit/**" />
-        </fileset>
-        <fileset dir="${src.test.dir}" defaultexcludes="yes" >
-            <include name="org/voltdb/ServerThread.java" />
-            <include name="org/voltdb/benchmark/Benchmark*.java" />
-            <include name="org/voltdb/regressionsuites/Local*" />
-            <include name="org/voltdb/regressionsuites/MultiConfigSuiteBuilder.java" />
-            <include name="org/voltdb/regressionsuites/RegressionSuite.java" />
-            <include name="org/voltdb/regressionsuites/VoltServerConfig.java" />
-        </fileset>
-        <fileset dir="${vendor.obj.dir}" defaultexcludes="yes" >
-            <include name="**" />
-        </fileset>
-        <fileset dir="."><include name="buildstring.txt"/></fileset>
-        <manifest>
-            <section name="Credits">
-                <attribute name="Author" value="VoltDB LLC" />
-            </section>
-            <section name="Shared">
-                <attribute
-                    name="Title"
-                    value="VoltDB compiler, server, and client interface libraries"
-                />
-                <attribute name="Date" value="${TODAY}" />
-            </section>
-        </manifest>
-    </jar>
-</target>
-
-<target name="voltdbthin.jar" depends="compile"
-    description="used by testability-explorer">
-    <jar destfile="${build.prod.dir}/voltdbthin.jar">
-        <fileset dir="${build.prod.dir}" defaultexcludes="yes" >
-            <include name="org/**" />
-            <include name="edu/**" />
-        </fileset>
-    </jar>
-</target>-->
-
-<target name="voltdb.jar" depends="compile, buildinfo">
-    <jar destfile="${build.prod.dir}/voltdbfat.jar">
+<target name="hstore.jar" depends="compile, buildinfo">
+    <jar destfile="${build.prod.dir}/hstore.jar">
         <fileset dir="${build.prod.dir}" defaultexcludes="yes" >
             <include name="org/**" />
             <include name="edu/**" />
@@ -530,7 +392,7 @@ JAR BUILDING
         <fileset dir="."><include name="buildstring.txt"/></fileset>
         <manifest>
             <section name="Credits">
-                <attribute name="Author" value="VoltDB LLC" />
+                <attribute name="Author" value="H-Store" />
             </section>
             <section name="Shared">
                 <attribute
@@ -796,12 +658,13 @@ NATIVE EE STUFF
 <target name='ee' depends="buildinfo, jnicompile"
     description="Build C++ JNI library and copy it to production folder.">
     <exec dir='.' executable='python' failonerror='true'>
-        <arg line="build.py ${build}" />
+<!--         <arg line="build.py ${build}" /> -->
+        <arg line="build.py debug" />
     </exec>
-     <exec dir='.' executable='/bin/sh'>
+<!--     <exec dir='.' executable='/bin/sh'>
         <arg line="-c 'rm -f ${build.dir}/nativelibs/libvoltdb.so'"/>
     </exec>
-   <symlink link="${build.dir}/nativelibs/libvoltdb.so" resource="${build.dir}/nativelibs/libvoltdb-${dist.version}.so" overwrite="true" failonerror="false"/>
+   <symlink link="${build.dir}/nativelibs/libvoltdb.so" resource="${build.dir}/nativelibs/libvoltdb-${dist.version}.so" overwrite="true" failonerror="false"/>-->
 </target>
 
 <target name='execplanfrag' depends="ee"
@@ -816,9 +679,6 @@ NATIVE EE STUFF
 TEST CASES
 ***************************************
 -->
-
-<!-- tests of build.xml itself -->
-<target name="ant_unit_tests" depends="testnexthostprop" />
 
 <target name="pythonfser" description="run python fastserializer tests">
     <property name="build.dir.suffix" value="" /> <!-- Default -->
@@ -1625,6 +1485,8 @@ BENCHMARKS
         <arg value="NODATALOAD=${nodataload}" />
         <arg value="BLOCKING=${hstore.blocking}" />
         
+        <arg value="CATALOG=${catalog}" />
+        
         <!-- Actual TXN rate sent to cluster will be:
             TXNRATE * CLIENTCOUNT * PROCESSESPERCLIENT -->
         <arg value="TXNRATE=${txnrate}" />
@@ -1639,6 +1501,7 @@ BENCHMARKS
         <!-- Global Parameters -->
         <arg value="scalefactor=${hstore.scalefactor}" />
         <arg value="skewfactor=${hstore.skewfactor}" />
+        <arg value="temporalskew=${hstore.temporalskew}" />
         
         <!-- tpcc parameters -->
         <arg value="warehouses=${benchmark.warehouses}" />
@@ -2170,7 +2033,7 @@ H-STORE REMIX
 </target>
 
 <target name="hstore-site" description="H-Store Execution Node/Coordinator">
-    <java fork="yes" classname="edu.mit.hstore.HStoreCoordinatorNode">
+    <java fork="yes" classname="edu.mit.hstore.HStoreSite">
         <jvmarg value="-Xmx${volt.server.memory}m" />
         <jvmarg value="-Dlog4j.configuration=${basedir}/log4j.properties"/>
         <jvmarg value="-server" />
@@ -2218,7 +2081,9 @@ H-STORE REMIX
         
         <!-- FORMAT: <hostname>:<site#>:<partition#> -->
 <!--         <param name="hosts" value="${hstore.defaulthost}:0:0,${hstore.defaulthost}:1:1" /> -->
-        <param name="hosts" value="${hstore.defaulthost}:0:0,${hstore.defaulthost}:0:1,${hstore.defaulthost}:1:2,${hstore.defaulthost}:1:3" />
+        <param name="hosts" value="${hstore.defaulthost}:0:0,${hstore.defaulthost}:0:1" />
+<!--         <param name="hosts" value="${hstore.defaulthost}:0:0" /> -->
+<!--         <param name="hosts" value="${hstore.defaulthost}:0:0,${hstore.defaulthost}:0:1,${hstore.defaulthost}:1:2,${hstore.defaulthost}:1:3" /> -->
     </antcall>
 </target>
 
@@ -2237,13 +2102,13 @@ H-STORE REMIX
             <param name="thresholds" value="./files/thresholds/default.thresholds" />
             <param name="correlations" value="./files/correlations/${project}.correlations" />
         </antcall>
-        <antcall target="hstore-site">
+<!--        <antcall target="hstore-site">
             <param name="jar" value="${project}.jar" />
             <param name="node.site" value="1" />
             <param name="markov" value="./files/markovs/${project}.markovs" />
             <param name="thresholds" value="./files/thresholds/default.thresholds" />
             <param name="correlations" value="./files/correlations/${project}.correlations" />
-        </antcall>
+        </antcall>-->
         <sequential>
             <sleep seconds="18" />
             <exec executable="./scripts/runner.sh" failonerror="true">
