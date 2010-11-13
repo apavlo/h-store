@@ -149,6 +149,7 @@ public abstract class BaseTestCase extends TestCase {
                         assert(false) : "Invalid project type - " + type;
                 } // SWITCH
             }
+//            if (type == ProjectType.TPCC) ParametersUtil.populateCatalog(CatalogUtil.getDatabase(catalog), ParametersUtil.getParameterMapping(type));
             this.init(type, catalog);
         }
     }
