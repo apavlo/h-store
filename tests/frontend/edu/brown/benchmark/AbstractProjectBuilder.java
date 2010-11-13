@@ -122,15 +122,19 @@ public abstract class AbstractProjectBuilder extends VoltProjectBuilder {
             boolean status = compile(catalogJar);
             assert (status);
         } catch (Exception ex) {
-            throw new RuntimeException("Failed to " + project_name + " catalog [" + catalogJar + "]", ex);
+            throw new RuntimeException("Failed to create " + project_name + " catalog [" + catalogJar + "]", ex);
         }
 
-        // read in the catalog
-        String serializedCatalog = JarReader.readFileFromJarfile(catalogJar, CatalogUtil.CATALOG_FILENAME);
-
-        // create the catalog (that will be passed to the ClientInterface
         Catalog catalog = new Catalog();
-        catalog.execute(serializedCatalog);
+        try {
+            // read in the catalog
+            String serializedCatalog = JarReader.readFileFromJarfile(catalogJar, CatalogUtil.CATALOG_FILENAME);
+    
+            // create the catalog (that will be passed to the ClientInterface
+            catalog.execute(serializedCatalog);
+        } catch (Exception ex) {
+            throw new RuntimeException("Failed to load " + project_name + " catalog [" + catalogJar + "]", ex);
+        }
 
         return catalog;
     }
