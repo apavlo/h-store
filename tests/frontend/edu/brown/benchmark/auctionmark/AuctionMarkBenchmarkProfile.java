@@ -39,6 +39,7 @@ import org.apache.log4j.Logger;
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.json.JSONStringer;
+import org.voltdb.TheHashinator;
 import org.voltdb.catalog.Database;
 
 import edu.brown.rand.AbstractRandomGenerator;
@@ -145,28 +146,62 @@ public class AuctionMarkBenchmarkProfile implements JSONSerializable {
     // SKEWING METHODS
     // -----------------------------------------------------------------
     
-    private boolean enable_skew = false;
-    private Integer skew_size = null;
-    private Integer num_ticks = null;
-    private Integer num_partitions = null;
-    private Integer current_tick = null;
     
-    public void enableTemporalSkew(int skew_size, int num_ticks, int num_partitions) {
-        this.skew_size = skew_size;
-        this.enable_skew = true;
-        this.num_ticks = num_ticks;
-        this.num_partitions = num_partitions; 
+    private Integer current_tick = -1;
+    private Integer window_total = null;
+    private Integer window_size = null;
+    private final Histogram window_histogram = new Histogram();
+    private final Vector<Integer> window_partitions = new Vector<Integer>();
+    {
+        this.window_histogram.setKeepZeroEntries(true);
+    }
+
+    /**
+     * 
+     * @param window
+     * @param num_ticks
+     * @param total
+     */
+    public void enableTemporalSkew(int window, int total) {
+        this.window_size = window;
+        this.window_total = total;
+
+        for (int p = 0; p < this.window_total; p++)
+            this.window_histogram.put(p, 0);
+        
+        this.tick();
     }
     
-    
+    /**
+     * 
+     */
     public void tick() {
         this.current_tick++;
+        if (this.window_size != null) {
+            Integer last_partition = -1;
+            if (this.window_partitions.isEmpty() == false) last_partition = this.window_partitions.lastElement();
+            
+            this.window_partitions.clear();
+            for (int ctr = 0; ctr < this.window_size; ctr++) {
+                last_partition++;
+                if (last_partition > this.window_total) {
+                    last_partition = 0;
+                }
+                this.window_partitions.add(last_partition);
+            } // FOR
+            System.err.println("Tick #" + this.current_tick + " Window: " + this.window_partitions);
+            System.err.println(this.window_histogram);
+            this.window_histogram.clearValues();
+        }
+    }
+    
+    private int getPartition(Long seller_id) {
+        return (TheHashinator.hashToPartition(seller_id, this.window_total));
     }
 
     // -----------------------------------------------------------------
     // GENERAL METHODS
     // -----------------------------------------------------------------
-
     
     /**
      * Get the scale factor value for this benchmark profile
@@ -249,22 +284,38 @@ public class AuctionMarkBenchmarkProfile implements JSONSerializable {
     	}
     }
     
-    public synchronized Long[] getRandomAvailableItemIdSellerIdPair(AbstractRandomGenerator rng){
-    	synchronized(user_available_items){
-	    	FlatHistogram randomSeller = new FlatHistogram(rng, user_available_items_histogram);
-	    	Long sellerId = randomSeller.nextLong();
-	    	long numAvailableItems = user_available_items_histogram.get(sellerId);
-	    	Long itemId = user_available_items.get(sellerId).get(rng.number(0, (int)numAvailableItems - 1));
-	    	Long[] ret = {itemId, sellerId};
-			return ret;
-    	}
+    /**
+     * 
+     * @param rng
+     * @return
+     */
+    public Long[] getRandomAvailableItemIdSellerIdPair(AbstractRandomGenerator rng){
+        Long sellerId = null;
+        Long itemId = null;
+    	synchronized(user_available_items) {
+    	    FlatHistogram randomSeller = new FlatHistogram(rng, user_available_items_histogram);
+    	    Integer partition = null;
+    	    while (true) {
+    	        sellerId = randomSeller.nextLong();
+    	        // Uniform
+    	        if (this.window_size == null) break;
+    	        
+    	        // Temporal Skew
+    	        partition = this.getPartition(sellerId);
+    	        if (this.window_partitions.contains(partition)) break;
+    	    } // WHILE
+    	    if (this.window_size != null) this.window_histogram.put(partition);
+
+    	    long numAvailableItems = user_available_items_histogram.get(sellerId);
+	    	itemId = user_available_items.get(sellerId).get(rng.number(0, (int)numAvailableItems - 1));
+    	} // SYNCHRONIZED
+    	return new Long[] { itemId, sellerId };
     }
     
     /*
      * Complete item manipulators
      *  
      */
-    
     public void addCompleteItem(long sellerId, long itemId){
     	synchronized(user_complete_items){
 	    	List<Long> itemList = user_complete_items.get(sellerId);

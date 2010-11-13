@@ -319,7 +319,7 @@ public class Histogram implements JSONSerializable {
     /**
      * Reset the histogram's internal data
      */
-    public void clear() {
+    public synchronized void clear() {
         this.histogram.clear();
         this.num_samples = 0;
         this.min_count = 0;
@@ -329,6 +329,27 @@ public class Histogram implements JSONSerializable {
         this.max_count_value = null;
         this.max_value = null;
         assert(this.histogram.isEmpty());
+    }
+    
+    /**
+     * Clear all the values stored in the histogram. The keys are only kept if
+     * KeepZeroEntries is enabled, otherwise it does the same thing as clear()
+     */
+    public synchronized void clearValues() {
+        if (this.keep_zero_entries) {
+            for (Entry<Object, Long> e : this.histogram.entrySet()) {
+                this.histogram.put(e.getKey(), 0l);
+            } // FOR
+            this.num_samples = 0;
+            this.min_count = 0;
+            this.min_count_value = null;
+            this.min_value = null;
+            this.max_count = 0;
+            this.max_count_value = null;
+            this.max_value = null;
+        } else {
+            this.clear();
+        }
     }
     
     /**
@@ -463,9 +484,9 @@ public class Histogram implements JSONSerializable {
         return (count); //  == null ? 0 : count);
     }
     
-    public long get(Object value, long if_null) {
+    public long get(Object value, long value_if_null) {
         Long count = histogram.get(value);
-        return (count == null ? if_null : count);
+        return (count == null ? value_if_null : count);
     }
     
     /**
