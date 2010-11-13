@@ -118,8 +118,12 @@ public abstract class AbstractProjectBuilder extends VoltProjectBuilder {
         addPartitions();
 
         String catalogJar = this.getJarPath().getAbsolutePath();
-        boolean status = compile(catalogJar);
-        assert (status);
+        try {
+            boolean status = compile(catalogJar);
+            assert (status);
+        } catch (Exception ex) {
+            throw new RuntimeException("Failed to " + project_name + " catalog [" + catalogJar + "]", ex);
+        }
 
         // read in the catalog
         String serializedCatalog = JarReader.readFileFromJarfile(catalogJar, CatalogUtil.CATALOG_FILENAME);
