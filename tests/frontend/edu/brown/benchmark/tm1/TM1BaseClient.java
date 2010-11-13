@@ -31,7 +31,7 @@ public abstract class TM1BaseClient extends ClientMain {
                 continue;
             if (parts[1].startsWith("${"))
                 continue;
-            if (parts[0].equals("scalefactor")) {
+            if (parts[0].equalsIgnoreCase("scalefactor")) {
                 scaleFactor = Integer.parseInt(parts[1]);
                 subscriberSize = subscriberSize / scaleFactor;
             }

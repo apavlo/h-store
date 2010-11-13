@@ -82,7 +82,7 @@ public abstract class AbstractProjectBuilder extends VoltProjectBuilder {
     }
     
     public String getJarName() {
-        return (this.project_name + ".jar");
+        return (this.project_name + "-jni.jar");
     }
     public File getJarPath() {
         String testDir = BuildDirectoryUtils.getBuildDirectoryPath();

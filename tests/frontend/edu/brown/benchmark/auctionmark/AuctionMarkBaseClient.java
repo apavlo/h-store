@@ -100,22 +100,22 @@ public abstract class AuctionMarkBaseClient extends ClientMain {
             String value = m_extraParams.get(key);
 
             // Scale Factor
-            if (key.equals("SCALEFACTOR")) {
+            if (key.equalsIgnoreCase("SCALEFACTOR")) {
                 scale_factor = Integer.parseInt(value);
             // Benchmark Profile File
-            } else if (key.equals("BENCHMARKPROFILE")) {
+            } else if (key.equalsIgnoreCase("BENCHMARKPROFILE")) {
                 profile_file = value;
             // Random Generator Seed
-            } else if (key.equals("RANDOMSEED")) {
+            } else if (key.equalsIgnoreCase("RANDOMSEED")) {
                 seed = Integer.parseInt(value);
             // Random Generator Class
-            } else if (key.equals("RANDOMGENERATOR")) {
+            } else if (key.equalsIgnoreCase("RANDOMGENERATOR")) {
                 randGenClassName = value;
             // Random Generator Profile File
-            } else if (key.equals("RANDOMPROFILE")) {
+            } else if (key.equalsIgnoreCase("RANDOMPROFILE")) {
                 randGenProfilePath = value;
             // Data directory
-            } else if (key.equals("AUCTIONMARKDIR")) {
+            } else if (key.equalsIgnoreCase("AUCTIONMARKDIR")) {
                 dataDir = value;
             }
         } // FOR
@@ -209,12 +209,12 @@ public abstract class AuctionMarkBaseClient extends ClientMain {
      */
     protected Catalog getCatalog() throws Exception {
         // Read back the catalog and populate catalog object
-        return (new AuctionMarkProjectBuilder().getFullCatalog(true));
-//        
-//        String serializedCatalog = JarReader.readFileFromJarfile(new AuctionMarkProjectBuilder().getJarName(), CatalogUtil.CATALOG_FILENAME);
-//        Catalog catalog = new Catalog();
-//        catalog.execute(serializedCatalog);
-//        return catalog;
+        
+        AuctionMarkProjectBuilder projectBuilder = new AuctionMarkProjectBuilder();
+        if (projectBuilder.getJarPath().exists()) {
+            return (CatalogUtil.loadCatalogFromJar(projectBuilder.getJarPath().getAbsolutePath()));
+        }
+        return (projectBuilder.getFullCatalog(true));
     }
 
     /**
