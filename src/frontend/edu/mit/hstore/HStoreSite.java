@@ -827,6 +827,10 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         // Thankfully I had enough sense to have PartitionEstimator take in the local partition
         // as a parameter, so we can share a single instance across all ExecutionSites
         Site catalog_site = CatalogUtil.getSiteFromId(args.catalog_db, site_id);
+        if (catalog_site == null) {
+            LOG.fatal("Invalid site #" + site_id);
+            System.exit(1);
+        }
         PartitionEstimator p_estimator = new PartitionEstimator(args.catalog_db, args.hasher);
         Map<Integer, ExecutionSite> executors = new HashMap<Integer, ExecutionSite>();
 

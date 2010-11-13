@@ -201,21 +201,6 @@ public abstract class AuctionMarkBaseClient extends ClientMain {
             System.exit(1);
         }
     }
-    
-    /**
-     * Return the catalog used for this benchmark.
-     * @return
-     * @throws Exception
-     */
-    protected Catalog getCatalog() throws Exception {
-        // Read back the catalog and populate catalog object
-        
-        AuctionMarkProjectBuilder projectBuilder = new AuctionMarkProjectBuilder();
-        if (projectBuilder.getJarPath().exists()) {
-            return (CatalogUtil.loadCatalogFromJar(projectBuilder.getJarPath().getAbsolutePath()));
-        }
-        return (projectBuilder.getFullCatalog(true));
-    }
 
     /**
      * Returns the catalog object for a Table

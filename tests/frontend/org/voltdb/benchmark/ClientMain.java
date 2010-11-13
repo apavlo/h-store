@@ -24,6 +24,7 @@
 package org.voltdb.benchmark;
 
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.lang.reflect.Constructor;
@@ -41,6 +42,7 @@ import org.voltdb.PrivateVoltTableFactory;
 import org.voltdb.VoltTable;
 import org.voltdb.VoltType;
 import org.voltdb.benchmark.Verification.Expression;
+import org.voltdb.catalog.Catalog;
 import org.voltdb.client.Client;
 import org.voltdb.client.ClientFactory;
 import org.voltdb.client.ClientResponse;
@@ -53,6 +55,7 @@ import org.voltdb.utils.Pair;
 import org.voltdb.utils.VoltSampler;
 import org.voltdb.utils.DBBPool.BBContainer;
 
+import edu.brown.catalog.CatalogUtil;
 import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.StringUtil;
 
@@ -151,6 +154,12 @@ public abstract class ClientMain {
      */
     protected final int m_numPartitions;
 
+    /**
+     * Path to catalog jar
+     */
+    protected final File m_catalogPath;
+    protected Catalog m_catalog;
+    
     private final boolean m_exitOnCompletion;
 
     /**
@@ -450,6 +459,7 @@ public abstract class ClientMain {
         m_txnRate = -1;
         m_blocking = false;
         m_txnsPerMillisecond = 0;
+        m_catalogPath = null;
         m_id = 0;
         m_numClients = 1;
         m_numPartitions = 0;
@@ -491,6 +501,7 @@ public abstract class ClientMain {
         boolean checkTables = false;
         String statsDatabaseURL = null;
         int statsPollInterval = 10000;
+        File catalogPath = null;
 
         // scan the inputs once to read everything but host names
         for (final String arg : args) {
@@ -503,38 +514,42 @@ public abstract class ClientMain {
             else if (parts[1].startsWith("${")) {
                 continue;
             }
-            else if (parts[0].equals("USER")) {
+            else if (parts[0].equalsIgnoreCase("CATALOG")) {
+                catalogPath = new File(parts[1]);
+                assert(catalogPath.exists()) : "The catalog file '" + catalogPath.getAbsolutePath() + " does not exist";
+            }
+            else if (parts[0].equalsIgnoreCase("USER")) {
                 username = parts[1];
             }
-            else if (parts[0].equals("PASSWORD")) {
+            else if (parts[0].equalsIgnoreCase("PASSWORD")) {
                 password = parts[1];
             }
-            else if (parts[0].equals("EXITONCOMPLETION")) {
+            else if (parts[0].equalsIgnoreCase("EXITONCOMPLETION")) {
                 exitOnCompletion = Boolean.parseBoolean(parts[1]);
             }
-            else if (parts[0].equals("TXNRATE")) {
+            else if (parts[0].equalsIgnoreCase("TXNRATE")) {
                 transactionRate = Integer.parseInt(parts[1]);
             }
-            else if (parts[0].equals("BLOCKING")) {
+            else if (parts[0].equalsIgnoreCase("BLOCKING")) {
                 blocking = Boolean.parseBoolean(parts[1]);
             }
-            else if (parts[0].equals("ID")) {
+            else if (parts[0].equalsIgnoreCase("ID")) {
                 id = Integer.parseInt(parts[1]);
             }
-            else if (parts[0].equals("NUMCLIENTS")) {
+            else if (parts[0].equalsIgnoreCase("NUMCLIENTS")) {
                 num_clients = Integer.parseInt(parts[1]);
             }
-            else if (parts[0].equals("NUMPARTITIONS")) {
+            else if (parts[0].equalsIgnoreCase("NUMPARTITIONS")) {
                 num_partitions = Integer.parseInt(parts[1]);
             }
-            else if (parts[0].equals("CHECKTRANSACTION")) {
+            else if (parts[0].equalsIgnoreCase("CHECKTRANSACTION")) {
                 checkTransaction = Float.parseFloat(parts[1]);
             }
-            else if (parts[0].equals("CHECKTABLES")) {
+            else if (parts[0].equalsIgnoreCase("CHECKTABLES")) {
                 checkTables = Boolean.parseBoolean(parts[1]);
-            } else if (parts[0].equals("STATSDATABASEURL")) {
+            } else if (parts[0].equalsIgnoreCase("STATSDATABASEURL")) {
                 statsDatabaseURL = parts[1];
-            } else if (parts[0].equals("STATSPOLLINTERVAL")) {
+            } else if (parts[0].equalsIgnoreCase("STATSPOLLINTERVAL")) {
                 statsPollInterval = Integer.parseInt(parts[1]);
             } else {
                 m_extraParams.put(parts[0], parts[1]);
@@ -566,6 +581,7 @@ public abstract class ClientMain {
                 useHeavyweightClient(),
                 statsSettings);
 
+        m_catalogPath = catalogPath;
         m_id = id;
         m_numClients = num_clients;
         m_numPartitions = num_partitions;
@@ -672,6 +688,23 @@ public abstract class ClientMain {
         return (m_numClients);
     }
     
+    public File getCatalogPath() {
+        return (m_catalogPath);
+    }
+
+    /**
+     * Return the catalog used for this benchmark.
+     * @return
+     * @throws Exception
+     */
+    public Catalog getCatalog() throws Exception {
+        // Read back the catalog and populate catalog object
+        if (m_catalog == null) {
+            m_catalog =  CatalogUtil.loadCatalogFromJar(m_catalogPath.getAbsolutePath());
+        }
+        return (m_catalog);
+    }
+
     public void setState(final ControlState state, final String reason) {
         m_controlState = state;
         if (m_reason.equals("") == false)

@@ -245,19 +245,6 @@ public abstract class AirlineBaseClient extends ClientMain {
     }
     
     /**
-     * Return the catalog used for this benchmark.
-     * @return
-     * @throws Exception
-     */
-    protected Catalog getCatalog() throws Exception {
-        // Read back the catalog and populate catalog object
-        String serializedCatalog = JarReader.readFileFromJarfile(new AirlineProjectBuilder().getJarName(), CatalogUtil.CATALOG_FILENAME);
-        Catalog catalog = new Catalog();
-        catalog.execute(serializedCatalog);
-        return catalog;
-    }
-    
-    /**
      * Load all the histograms used in the benchmark
      */
     protected void loadHistograms() {
