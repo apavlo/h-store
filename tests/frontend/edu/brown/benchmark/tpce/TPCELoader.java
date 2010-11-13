@@ -152,20 +152,6 @@ public class TPCELoader extends ClientMain {
 	}
 	
 	/**
-	 * Return the catalog used for this benchmark.
-	 * @return
-	 * @throws Exception
-	 */
-	protected Catalog getCatalog() throws Exception {
-        // Read back the catalog and populate catalog object
-	    String catalog_jar = new TPCEProjectBuilder().getJarName();
-        String serializedCatalog = JarReader.readFileFromJarfile(catalog_jar, CatalogUtil.CATALOG_FILENAME);
-        Catalog catalog = new Catalog();
-        catalog.execute(serializedCatalog);
-        return catalog;
-	}
-	
-	/**
 	 * 
 	 * @param catalog_tbl
 	 */

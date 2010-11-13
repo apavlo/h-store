@@ -2014,10 +2014,10 @@ H-STORE REMIX
 
 <target name="hstore-prepare" description="Prepares a benchmark catalog">
     <!-- Creates voltbin -->
-    <antcall target="voltbin" />
+<!--     <antcall target="voltbin" /> -->
     
     <!-- Copies voltbin to home directory -->
-    <antcall target="voltbincopy" />
+<!--     <antcall target="voltbincopy" /> -->
 
     <!-- Compile + create benchmark project jar -->
     <antcall target="benchmark">

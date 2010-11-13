@@ -819,6 +819,7 @@ public class BenchmarkController {
         String remotePath = "voltbin/";
         String remoteUser = null; // null implies current local username
         String clientClassname = m_tpccClientClassName;
+        File catalogPath = null;
         boolean listenForDebugger = false;
         int serverHeapSize = 2048;
         int clientHeapSize = 1024;
@@ -974,11 +975,13 @@ public class BenchmarkController {
 
             /** PAVLO **/
             } else if (parts[0].equals("CATALOG")) {
+                catalogPath = new File(parts[1]);
+                
                 // HACK
-                Catalog catalog = CatalogUtil.loadCatalogFromJar(parts[1]);
+                Catalog catalog = CatalogUtil.loadCatalogFromJar(catalogPath.getAbsolutePath());
                 assert(catalog != null);
                 num_partitions = CatalogUtil.getNumberOfPartitions(catalog);
-                clientParams.put("NUMPARTITIONS", Integer.toString(num_partitions));
+                
             } else if (parts[0].equals("COMPILE")) {
                 /*
                  * Whether to compile the benchmark jar
@@ -1089,9 +1092,13 @@ public class BenchmarkController {
                 applicationName, subApplicationName,
                 compileBenchmark, compileOnly, useCatalogHosts, noDataLoad);
 
-        // Always pass the interval and duration parameters
+        // Always pass these parameters
         clientParams.put("INTERVAL", Long.toString(interval));
         clientParams.put("DURATION", Long.toString(duration));
+        if (catalogPath != null) {
+            clientParams.put("CATALOG", catalogPath.getAbsolutePath());
+            clientParams.put("NUMPARTITIONS", Integer.toString(num_partitions));
+        }
         
         // Set all of the client params to uppercase...
         for (Entry<String, String> e : clientParams.entrySet()) {

@@ -37,7 +37,7 @@ public abstract class TM1BaseClient extends ClientMain {
             }
         } // FOR
         
-        // Static variable hack
+        System.err.println("Catalog: " + this.getCatalogPath().getAbsolutePath());
         
     }
     
