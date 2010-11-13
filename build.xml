@@ -2084,8 +2084,8 @@ H-STORE REMIX
         
         <!-- FORMAT: <hostname>:<site#>:<partition#> -->
 <!--         <param name="hosts" value="${hstore.defaulthost}:0:0,${hstore.defaulthost}:1:1" /> -->
-        <param name="hosts" value="${hstore.defaulthost}:0:0,${hstore.defaulthost}:0:1,${hstore.defaulthost}:0:2,${hstore.defaulthost}:0:3,${hstore.defaulthost}:0:4" />
-<!--         <param name="hosts" value="${hstore.defaulthost}:0:0" /> -->
+<!--         <param name="hosts" value="${hstore.defaulthost}:0:0,${hstore.defaulthost}:0:1,${hstore.defaulthost}:0:2,${hstore.defaulthost}:0:3,${hstore.defaulthost}:0:4" /> -->
+        <param name="hosts" value="${hstore.defaulthost}:0:0,${hstore.defaulthost}:0:1" />
 <!--         <param name="hosts" value="${hstore.defaulthost}:0:0,${hstore.defaulthost}:0:1,${hstore.defaulthost}:1:2,${hstore.defaulthost}:1:3" /> -->
     </antcall>
 </target>

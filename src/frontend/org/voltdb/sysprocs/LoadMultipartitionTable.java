@@ -35,6 +35,7 @@ import org.voltdb.ExecutionSite.SystemProcedureExecutionContext;
 import org.voltdb.catalog.*;
 import org.voltdb.dtxn.DtxnConstants;
 
+import edu.brown.catalog.CatalogUtil;
 import edu.brown.utils.PartitionEstimator;
 
 @ProcInfo(singlePartition = false)
@@ -52,6 +53,7 @@ public class LoadMultipartitionTable extends VoltSystemProcedure {
     static final long DEP_aggregate = SysProcFragmentId.PF_aggregate;
     
     private Cluster m_cluster = null;
+    private Database m_database = null;
 
     @Override
     public void init(ExecutionSite site, Procedure catProc,
@@ -59,6 +61,7 @@ public class LoadMultipartitionTable extends VoltSystemProcedure {
             PartitionEstimator p_estimator, Integer local_partition) {
         super.init(site, catProc, eeType, hsql, cluster, p_estimator, local_partition);
         m_cluster = cluster;
+        m_database = CatalogUtil.getDatabase(m_cluster);
         site.registerPlanFragment(SysProcFragmentId.PF_distribute, this);
         site.registerPlanFragment(SysProcFragmentId.PF_aggregate, this);
     }
@@ -68,6 +71,8 @@ public class LoadMultipartitionTable extends VoltSystemProcedure {
             long txn_id,
             HashMap<Integer, List<VoltTable>> dependencies, int fragmentId,
             ParameterSet params, SystemProcedureExecutionContext context) {
+        final boolean trace = LOG.isTraceEnabled();
+        final boolean debug = LOG.isDebugEnabled();
         
         // need to return something ..
         VoltTable[] result = new VoltTable[1];
@@ -83,7 +88,7 @@ public class LoadMultipartitionTable extends VoltSystemProcedure {
             assert params.toArray()[1] != null;
             String table_name = (String) (params.toArray()[0]);
             
-            LOG.debug("Executing voltLoadTable() sysproc fragment for table '" + table_name + "' in txn #" + txn_id);
+            if (debug) LOG.debug("Executing voltLoadTable() sysproc fragment for table '" + table_name + "' in txn #" + txn_id);
             assert(this.isInitialized()) : " The sysproc " + this.getClass().getSimpleName() + " was not initialized properly";
             try {
                 // voltLoadTable is void. Assume success or exception.
@@ -93,10 +98,11 @@ public class LoadMultipartitionTable extends VoltSystemProcedure {
                 // must continue and reply with dependency.
                 e.printStackTrace();
             }
-            LOG.debug("Finished loading table. Things look good...");
+            if (debug) LOG.debug("Finished loading table. Things look good...");
             return new DependencySet(new int[] { (int)DEP_distribute }, result);
 
         } else if (fragmentId == SysProcFragmentId.PF_aggregate) {
+            if (debug) LOG.debug("Aggregating results from loading fragments in txn #" + txn_id);
             return new DependencySet(new int[] { (int)DEP_aggregate }, result);
         }
         // must handle every dependency id.
@@ -105,27 +111,28 @@ public class LoadMultipartitionTable extends VoltSystemProcedure {
     }
 
     public VoltTable[] run(String tableName, VoltTable table) throws VoltAbortException {
-        assert(table != null) : "VoltTable to be loaded into " + tableName + " is null in txn #" + this.getTransactionId();
+        final boolean trace = LOG.isTraceEnabled();
         final boolean debug = LOG.isDebugEnabled();
-        if (debug) LOG.debug("Executing multi-partition loader for " + tableName + " with " + table.getRowCount() + " tuples in txn #" + this.getTransactionId());
+        assert(table != null) : "VoltTable to be loaded into " + tableName + " is null in txn #" + this.getTransactionId();
+        
+        if (debug) LOG.debug("Executing multi-partition loader for " + tableName + " with " + table.getRowCount() + 
+                             " tuples in txn #" + this.getTransactionId() +
+                             " [bytes="  + table.getUnderlyingBufferSize() + "]");
         
         VoltTable[] results;
         SynthesizedPlanFragment pfs[];
         int numPartitions = m_cluster.getNum_partitions();
 
-        // if tableName is replicated, just send table everywhere.
-        // otherwise, create a VoltTable for each partition and
-        // split up the incoming table .. then send those partial
-        // tables to the appropriate sites.
-
-        // TODO: hard-codes database name.
-        Table catTable = m_cluster.getDatabases().get("database").getTables().getIgnoreCase(tableName);
+        Table catTable = m_database.getTables().getIgnoreCase(tableName);
         if (catTable == null) {
             throw new VoltAbortException("Table not present in catalog.");
         }
-        
+
+        // if tableName is replicated, just send table everywhere.
+        // otherwise, create a VoltTable for each partition and split up the incoming table
+        // then send those partial tables to the appropriate sites.
         if (catTable.getIsreplicated()) {
-            LOG.debug(catTable + " is replicated. Creating " + numPartitions + " fragments to send to all partitions");
+            if (debug) LOG.debug(catTable + " is replicated. Creating " + numPartitions + " fragments to send to all partitions");
             pfs = new SynthesizedPlanFragment[numPartitions + 1];
 
             ParameterSet params = new ParameterSet();
@@ -160,12 +167,13 @@ public class LoadMultipartitionTable extends VoltSystemProcedure {
             results = executeSysProcPlanFragments(pfs, (int)DEP_aggregate);
             return results;
         } else {
-            LOG.debug(catTable + " is not replicated. Splitting table data into separate pieces for partitions");
+            if (debug) LOG.debug(catTable + " is not replicated. Splitting table data into separate pieces for partitions");
             
             // create a table for each partition
             VoltTable partitionedTables[] = new VoltTable[numPartitions];
             for (int i = 0; i < partitionedTables.length; i++) {
                 partitionedTables[i] = table.clone(1024 * 1024);
+                if (trace) LOG.trace("Cloned VoltTable for Partition #" + i);
             }
 
             // map site id to partition (this assumes 1:1, sorry).
@@ -177,6 +185,7 @@ public class LoadMultipartitionTable extends VoltSystemProcedure {
 //            }
 
             // split the input table into per-partition units
+            if (debug) LOG.debug("Splitting original table of " + table.getRowCount() + " rows into " + partitionedTables.length + " tables");
             while (table.advanceRow()) {
                 int p = -1;
                 try {
@@ -188,9 +197,15 @@ public class LoadMultipartitionTable extends VoltSystemProcedure {
                 assert(p >= 0);
                 // this adds the active row from table
                 partitionedTables[p].add(table);
+                if (trace && table.getActiveRowIndex() > 0 && table.getActiveRowIndex() % 1000 == 0)
+                    LOG.trace(String.format("Processed %s tuples for " + catTable, table.getActiveRowIndex()));
             }
             
-            String debug_msg = "LoadMultipartition Info for " + tableName + ":";
+            StringBuilder sb = null;
+            if (trace) {
+                sb = new StringBuilder();
+                sb.append("LoadMultipartition Info for ").append(tableName).append(":");
+            }
 
             // generate a plan fragment for each site using the sub-tables
             pfs = new SynthesizedPlanFragment[numPartitions  + 1];
@@ -207,10 +222,10 @@ public class LoadMultipartitionTable extends VoltSystemProcedure {
                 pfs[i].siteId = partition; // partitionsToSites[i - 1];
                 pfs[i].parameters = params;
                 pfs[i].last_task = true;
-                
-                if (debug) debug_msg += "\n  Partition #" + partition + ": " + partitionedTables[partition].getRowCount() + " tuples";
-            }
-            if (debug) LOG.debug(debug_msg);
+                if (trace) sb.append("\n  Partition #").append(partition).append(": ")
+                             .append(partitionedTables[partition].getRowCount()).append(" tuples");
+            } // FOR
+            if (trace) LOG.trace(sb.toString());
 
             // a final plan fragment to aggregate the results
             pfs[0] = new SynthesizedPlanFragment();

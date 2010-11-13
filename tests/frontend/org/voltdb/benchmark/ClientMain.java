@@ -53,6 +53,7 @@ import org.voltdb.utils.Pair;
 import org.voltdb.utils.VoltSampler;
 import org.voltdb.utils.DBBPool.BBContainer;
 
+import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.StringUtil;
 
 /**
@@ -61,6 +62,11 @@ import edu.brown.utils.StringUtil;
  */
 public abstract class ClientMain {
     private static final Logger LOG = Logger.getLogger(ClientMain.class);
+    
+    static {
+        // log4j hack!
+        ArgumentsParser.setupLogging();
+    }
 
     /**
      * Client initialized here and made available for use in derived classes

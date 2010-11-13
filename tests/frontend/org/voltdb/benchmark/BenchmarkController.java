@@ -456,7 +456,7 @@ public class BenchmarkController {
 
             loaderCommand.append("java -XX:-ReduceInitialCardMarks -XX:+HeapDumpOnOutOfMemoryError " +
                     "-XX:HeapDumpPath=/tmp -Xmx" + loaderheap + "m " + debugString);
-            String classpath = "voltdbfat.jar" + ":" + m_jarFileName;
+            String classpath = ""; // Disable this so that we just pull from the build dir -> "hstore.jar" + ":" + m_jarFileName;
             if (System.getProperty("java.class.path") != null) {
                 classpath = classpath + ":" + System.getProperty("java.class.path");
             }

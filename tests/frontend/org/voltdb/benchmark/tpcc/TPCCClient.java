@@ -250,13 +250,13 @@ implements TPCCSimulation.ProcCaller {
             else if (parts[1].startsWith("${")) {
                 continue;
             }
-            else if (parts[0].equals("warehouses")) {
+            else if (parts[0].equalsIgnoreCase("warehouses")) {
                 warehouses = Integer.parseInt(parts[1]);
             }
-            else if (parts[0].equals("scalefactor")) {
+            else if (parts[0].equalsIgnoreCase("scalefactor")) {
                 scalefactor = Double.parseDouble(parts[1]);
             }
-            else if (parts[0].equals("skewfactor") && !parts[1].isEmpty()) {
+            else if (parts[0].equalsIgnoreCase("skewfactor") && !parts[1].isEmpty()) {
                 skewfactor = Double.parseDouble(parts[1]);
             }
         }

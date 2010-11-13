@@ -62,6 +62,7 @@ public class ArgumentsParser {
     /**
      * Hack to hook in log4j.properties
      */
+    private static String log4j_filename = "log4j.properties";
     private static File log4j_properties_file = null;
     private static Thread refresh_thread = null;
     private static long last_timestamp = 0;
@@ -70,10 +71,10 @@ public class ArgumentsParser {
         if (log4j_properties_file != null) return;
         // Hack for testing...
         String paths[] = new String[]{
-            System.getProperty("log4j.configuration", "./log4j.properties"),
-            "/home/pavlo/Documents/H-Store/SVN-Brown/trunk/log4j.properties",
-            "/host/work/hstore/src/log4j.properties",
-            "/research/hstore/sw47/trunk/log4j.properties",
+            System.getProperty("log4j.configuration", log4j_filename),
+            "/home/pavlo/Documents/H-Store/SVN-Brown/trunk/" + log4j_filename,
+            "/host/work/hstore/src/" + log4j_filename, 
+            "/research/hstore/sw47/trunk/" + log4j_filename,
         };
         for (String p : paths) {
             File file = new File(p);
@@ -104,7 +105,7 @@ public class ArgumentsParser {
                         if (log4j_properties_file != null && last_timestamp != log4j_properties_file.lastModified()) {
                             log4j_properties_file = null;
                             setupLogging();
-                            if (LOG.isDebugEnabled()) LOG.debug("Refreshed log4j configuration");
+                            Logger.getRootLogger().info("Refreshed log4j configuration [" + log4j_properties_file.getAbsolutePath() + "]");
                         }
                     }
                 }
