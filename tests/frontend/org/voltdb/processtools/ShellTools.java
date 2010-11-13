@@ -27,7 +27,12 @@ package org.voltdb.processtools;
 import java.io.BufferedInputStream;
 import java.io.IOException;
 
+import org.apache.log4j.Logger;
+
+import edu.brown.utils.StringUtil;
+
 public abstract class ShellTools {
+    private static final Logger LOG = Logger.getLogger(ShellTools.class);
 
     public static String cmd(String command) {
         String[] command2 = command.split(" ");
@@ -35,6 +40,7 @@ public abstract class ShellTools {
     }
 
     public static String cmd(String[] command) {
+        if (LOG.isDebugEnabled()) LOG.debug("Executing: " + StringUtil.join(" ", command));
         StringBuilder retval = new StringBuilder();
         ProcessBuilder pb = new ProcessBuilder(command);
         pb.redirectErrorStream(true);
@@ -65,6 +71,7 @@ public abstract class ShellTools {
     }
 
     public static boolean cmdToStdOut(String[] command) {
+        if (LOG.isDebugEnabled()) LOG.debug("Executing: " + StringUtil.join(" ", command));
         ProcessBuilder pb = new ProcessBuilder(command);
         pb.redirectErrorStream(true);
         Process p = null;

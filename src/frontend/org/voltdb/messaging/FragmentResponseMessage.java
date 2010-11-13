@@ -89,6 +89,20 @@ public class FragmentResponseMessage extends TransactionInfoBaseMessage {
     public byte getStatusCode() {
         return m_status;
     }
+    
+    public String getStatusCodeName() {
+        if (m_status == SUCCESS) {
+            return ("SUCCESS");
+        } else if (m_status == NULL) {
+            return ("NULL");
+        } else if (m_status == USER_ERROR) {
+            return ("USER_ERROR");
+        } else if (m_status == UNEXPECTED_ERROR) {
+            return ("UNEXPECTED_ERROR");
+        }
+        assert(false) : "Unknown FragmentResponseMessage status code '" + m_status + "'";
+        return (null);
+    }
 
     public boolean getDirtyFlag() {
         return m_dirty;

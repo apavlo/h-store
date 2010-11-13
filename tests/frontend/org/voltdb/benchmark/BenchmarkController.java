@@ -30,6 +30,8 @@ import java.io.IOException;
 import java.lang.reflect.Field;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -61,6 +63,9 @@ import org.voltdb.utils.VoltLoggerFactory;
 
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.utils.ArgumentsParser;
+import edu.brown.utils.CollectionUtil;
+import edu.brown.utils.ThreadUtil;
+import edu.mit.hstore.HStoreSite;
 
 public class BenchmarkController {
     
@@ -95,9 +100,9 @@ public class BenchmarkController {
     String m_jarFileName = null;
     ServerThread m_localserver = null;
     private ClusterMonitor m_clusterMonitor;
-    @SuppressWarnings("unused")
-    private static final Logger log = Logger.getLogger(BenchmarkController.class.getName(), VoltLoggerFactory.instance());
-    private static final Logger benchmarkLog = log; // Logger.getLogger("BENCHMARK", VoltLoggerFactory.instance());
+
+    private static final Logger LOG = Logger.getLogger(BenchmarkController.class); // .getName(), VoltLoggerFactory.instance());
+    private static final Logger benchmarkLog = LOG; // Logger.getLogger("BENCHMARK", VoltLoggerFactory.instance());
 
     public static interface BenchmarkInterest {
         public void benchmarkHasUpdated(BenchmarkResults currentResults);
@@ -158,7 +163,7 @@ public class BenchmarkController {
 //                        LogKeys logkey = LogKeys.benchmark_BenchmarkController_GotReadyMessage;
 //                        benchmarkLog.l7dlog( Level.INFO, logkey.name(),
 //                                new Object[] { line.processName }, null);
-                        benchmarkLog.info("Got ready message.");
+                        benchmarkLog.debug("Got ready message.");
                         m_clientsNotReady.decrementAndGet();
                     }
                     else if (status.equals("ERROR")) {
@@ -262,15 +267,15 @@ public class BenchmarkController {
                 m_config.k_factor,
                 m_config.hosts[0]);
         } else {
-            log.debug("Skipping benchmark project compilation");
+            LOG.debug("Skipping benchmark project compilation");
         }
         if (m_config.compileOnly) {
-            log.info("Compilation complete. Exiting.");
+            LOG.info("Compilation complete. Exiting.");
             System.exit(0);
         }
         
         // Load the catalog that we just made
-        log.debug("Loading catalog from '" + m_jarFileName + "'");
+        LOG.debug("Loading catalog from '" + m_jarFileName + "'");
         Catalog catalog = CatalogUtil.loadCatalogFromJar(m_jarFileName);
         assert(catalog != null);
         
@@ -290,10 +295,10 @@ public class BenchmarkController {
                 site_id++;
             } // FOR
         } else {
-            log.debug("Collecting host information from catalog");
+            LOG.debug("Collecting host information from catalog");
             launch_hosts = CatalogUtil.getExecutionSites(catalog);
             for (String[] triplet : launch_hosts) {
-                log.debug("Retrieved execution node info from catalog: " + triplet[0] + ":" + triplet[1] + " - ExecutionSite #" + triplet[2]);
+                LOG.debug("Retrieved execution node info from catalog: " + triplet[0] + ":" + triplet[1] + " - ExecutionSite #" + triplet[2]);
                 unique_hosts.add(triplet[0]);
             } // FOR
         }
@@ -305,51 +310,48 @@ public class BenchmarkController {
             m_config.hosts = new String[unique_hosts.size()];
             unique_hosts.toArray(m_config.hosts);
             
-            for (String host : unique_hosts) {
-                status = SSHTools.copyFromLocal(
-                        new File(m_jarFileName),
-                        m_config.remoteUser,
-                        host,
-                        m_config.remotePath);
-                assert(status) :
-                    "SSH copyFromLocal failed to copy "
-                    + m_jarFileName + " to "
-                    + m_config.remoteUser + "@" + host + ":" + m_config.remotePath;
+            HashSet<String> copyto_hosts = new HashSet<String>();
+            CollectionUtil.addAll(copyto_hosts, unique_hosts);
+            CollectionUtil.addAll(copyto_hosts, m_config.clients);
+            
+            List<Thread> threads = new ArrayList<Thread>();
+            final File jar_file = new File(m_jarFileName);
+            for (final String host : copyto_hosts) {
+                threads.add(new Thread() {
+                    public void run() {
+                        boolean status = SSHTools.copyFromLocal(jar_file, m_config.remoteUser, host, m_config.remotePath);
+                        assert(status) :
+                            "SSH copyFromLocal failed to copy " + m_jarFileName + " to " + m_config.remoteUser + "@" + host + ":" + m_config.remotePath;
+                    }
+                });
+            } // FOR
+            try {
+                ThreadUtil.run(threads);
+            } catch (Exception ex) {
+                throw new RuntimeException("Failed to copy " + jar_file, ex);
             }
-            for (String client : m_config.clients) {
-                status = SSHTools.copyFromLocal(
-                        new File(m_jarFileName),
-                        m_config.remoteUser,
-                        client,
-                        m_config.remotePath);
-                assert(status) :
-                    "SSH copyFromLocal failed to copy "
-                    + m_jarFileName + " to "
-                    + m_config.remoteUser + "@" + client + ":" + m_config.remotePath;
-            }
-
 
             // KILL ALL JAVA ORG.VOLTDB PROCESSES NOW
-            Set<Thread> threads = new HashSet<Thread>();
+//            Set<Thread> threads = new HashSet<Thread>();
 //            for (String host : unique_hosts) {
 //                Thread t = new KillStragglers(m_config.remoteUser, host, m_config.remotePath);
 //                t.start();
 //                threads.add(t);
 //            }
-            for (String host : m_config.clients) {
-                Thread t = new KillStragglers(m_config.remoteUser, host, m_config.remotePath);
-                t.start();
-                threads.add(t);
-            }
-            for (Thread t : threads)
-                try {
-                    t.join();
-                } catch (InterruptedException e) {
-                    LogKeys logkey = LogKeys.benchmark_BenchmarkController_UnableToRunRemoteKill;
-                    benchmarkLog.l7dlog(Level.FATAL, logkey.name(), e);
-                    benchmarkLog.fatal("Couldn't run remote kill operation.", e);
-                    System.exit(-1);
-                }
+//            for (String host : m_config.clients) {
+//                Thread t = new KillStragglers(m_config.remoteUser, host, m_config.remotePath);
+//                t.start();
+//                threads.add(t);
+//            }
+//            for (Thread t : threads)
+//                try {
+//                    t.join();
+//                } catch (InterruptedException e) {
+//                    LogKeys logkey = LogKeys.benchmark_BenchmarkController_UnableToRunRemoteKill;
+//                    benchmarkLog.l7dlog(Level.FATAL, logkey.name(), e);
+//                    benchmarkLog.fatal("Couldn't run remote kill operation.", e);
+//                    System.exit(-1);
+//                }
 
 
             // SETUP THE CLEANUP HOOKS
@@ -422,7 +424,7 @@ public class BenchmarkController {
 //            while(line.value.contains(VoltDB.NODE_READY_MSG) == false) {
 //                line = m_serverPSM.nextBlocking();
 //            }
-            log.info("All remote ExecutionSites are initialized");
+//            LOG.info("All remote ExecutionSites are initialized");
         }
         else {
             // START A SERVER LOCALLY IN-PROCESS
@@ -435,7 +437,7 @@ public class BenchmarkController {
 
         final int numClients = (m_config.clients.length * m_config.processesPerClient);
         if (m_loaderClass != null && !m_config.noDataLoad) {
-            log.debug("Starting loader: " + m_loaderClass);
+            LOG.debug("Starting loader: " + m_loaderClass);
             ArrayList<String> localArgs = new ArrayList<String>();
 
             // set loader max heap to MAX(1M,6M) based on thread count.
@@ -510,6 +512,7 @@ public class BenchmarkController {
         } else if (m_config.noDataLoad) {
             benchmarkLog.info("Skipping data loading phase");
         }
+        LOG.info("Completed loading phase");
 
         //Start the clients
         // java -cp voltdbfat.jar org.voltdb.benchmark.tpcc.TPCCClient warehouses=X etc...
@@ -518,7 +521,7 @@ public class BenchmarkController {
         if (m_config.listenForDebugger) {
             clArgs.add(""); //placeholder for agent lib
         }
-        clArgs.add("-XX:-ReduceInitialCardMarks -XX:+HeapDumpOnOutOfMemoryError " +
+        clArgs.add("-ea -XX:-ReduceInitialCardMarks -XX:+HeapDumpOnOutOfMemoryError " +
                     "-XX:HeapDumpPath=/tmp -Xmx" + String.valueOf(m_config.clientHeapSize) + "m");
 
         /*
@@ -528,7 +531,7 @@ public class BenchmarkController {
          */
         clArgs.add("-Djava.library.path=.");
 
-        String classpath = "voltdbfat.jar" + ":" + m_jarFileName;
+        String classpath = ""; // "voltdbfat.jar" + ":" + m_jarFileName;
         if (System.getProperty("java.class.path") != null) {
             classpath = classpath + ":" + System.getProperty("java.class.path");
         }
@@ -587,7 +590,7 @@ public class BenchmarkController {
 
 
         registerInterest(new ResultsPrinter());
-        registerInterest(uploader);
+        // registerInterest(uploader);
     }
 
     public void cleanUpBenchmark() {
@@ -597,16 +600,42 @@ public class BenchmarkController {
             if (m_config.hosts.length > 0) {
                 client.createConnection(m_config.hosts[0], Client.VOLTDB_SERVER_PORT, "", "");
                 NullCallback cb = new NullCallback();
-                client.callProcedure(cb, "@Shutdown");
+                client.callProcedure("@Shutdown");
+                // client.callProcedure(cb, "@Shutdown");
             }
         } catch (NoConnectionsException e) {
             e.printStackTrace();
         } catch (UnknownHostException e) {
             e.printStackTrace();
         } catch (IOException e) {
+            // e.printStackTrace();
+        } catch (Exception e) {
             e.printStackTrace();
         }
+
         m_serverPSM.killAll();
+        
+        // Kill the coordinator
+        LOG.info("Killing " + HStoreSite.DTXN_COORDINATOR + " on host " + m_config.coordinatorHost);
+        SSHTools.cmd(m_config.remoteUser, m_config.coordinatorHost, m_config.remotePath, 
+                     new String[] { "killall", HStoreSite.DTXN_COORDINATOR });
+        
+        // And all the engines
+        List<Thread> threads = new ArrayList<Thread>();
+        for (final String host : CollectionUtil.toStringSet(Arrays.asList(m_config.hosts))) {
+            threads.add(new Thread() {
+                public void run() {
+                    LOG.info("Killing " + HStoreSite.DTXN_ENGINE + " on host " + host);
+                    SSHTools.cmd(m_config.remoteUser, host, m_config.remotePath, 
+                                 new String[] { "killall", HStoreSite.DTXN_ENGINE }); 
+                };
+            });
+        } // FOR
+        try {
+            ThreadUtil.run(threads);
+        } catch (Exception ex) {
+            ex.printStackTrace();
+        }
     }
 
     public void runBenchmark() {
@@ -837,6 +866,7 @@ public class BenchmarkController {
         int snapshotRetain = -1;
         float checkTransaction = 0;
         boolean checkTables = false;
+        String coordinatorHost = null;
         String statsTag = null;
         String applicationName = null;
         String subApplicationName = null;
@@ -861,71 +891,71 @@ public class BenchmarkController {
                 continue;
             } else if (parts[1].startsWith("${")) {
                 continue;
-            } else if (parts[0].equals("CHECKTRANSACTION")) {
+            } else if (parts[0].equalsIgnoreCase("CHECKTRANSACTION")) {
                 /*
                  * Whether or not to check the result of each transaction.
                  */
                 checkTransaction = Float.parseFloat(parts[1]);
-            } else if (parts[0].equals("CHECKTABLES")) {
+            } else if (parts[0].equalsIgnoreCase("CHECKTABLES")) {
                 /*
                  * Whether or not to check all the tables at the end.
                  */
                 checkTables = Boolean.parseBoolean(parts[1]);
-            } else if (parts[0].equals("USEPROFILE")) {
+            } else if (parts[0].equalsIgnoreCase("USEPROFILE")) {
                 useProfile = parts[1];
-            } else if (parts[0].equals("LOCAL")) {
+            } else if (parts[0].equalsIgnoreCase("LOCAL")) {
                 /*
                  * The number of Volt servers to start.
                  * Can be less then the number of provided hosts
                  */
                 localmode = Boolean.parseBoolean(parts[1]);
-            } else if (parts[0].equals("HOSTCOUNT")) {
+            } else if (parts[0].equalsIgnoreCase("HOSTCOUNT")) {
                 /*
                  * The number of Volt servers to start.
                  * Can be less then the number of provided hosts
                  */
                 hostCount = Integer.parseInt(parts[1]);
-            } else if (parts[0].equals("SITESPERHOST")) {
+            } else if (parts[0].equalsIgnoreCase("SITESPERHOST")) {
                 /*
                  * The number of execution sites per host
                  */
                 sitesPerHost = Integer.parseInt(parts[1]);
-            } else if (parts[0].equals("KFACTOR")) {
+            } else if (parts[0].equalsIgnoreCase("KFACTOR")) {
                 /*
                  * The number of partition replicas (k-factor)
                  */
                 k_factor = Integer.parseInt(parts[1]);
-            } else if (parts[0].equals("CLIENTCOUNT")) {
+            } else if (parts[0].equalsIgnoreCase("CLIENTCOUNT")) {
                 /*
                  * The number of client hosts to place client processes on
                  */
                 clientCount = Integer.parseInt(parts[1]);
-            } else if (parts[0].equals("PROCESSESPERCLIENT")) {
+            } else if (parts[0].equalsIgnoreCase("PROCESSESPERCLIENT")) {
                 /*
                  * The number of client processes per client host
                  */
                 processesPerClient = Integer.parseInt(parts[1]);
-            } else if (parts[0].equals("CLIENTHEAP")) {
+            } else if (parts[0].equalsIgnoreCase("CLIENTHEAP")) {
                 /*
                  * The number of client processes per client host
                  */
                 clientHeapSize = Integer.parseInt(parts[1]);
-            } else if (parts[0].equals("SERVERHEAP")) {
+            } else if (parts[0].equalsIgnoreCase("SERVERHEAP")) {
                 /*
                  * The number of client processes per client host
                  */
                 serverHeapSize = Integer.parseInt(parts[1]);
-            } else if (parts[0].equals("INTERVAL")) {
+            } else if (parts[0].equalsIgnoreCase("INTERVAL")) {
                 /*
                  * The interval to poll for results in milliseconds
                  */
                 interval = Integer.parseInt(parts[1]);
-            } else if (parts[0].equals("DURATION")) {
+            } else if (parts[0].equalsIgnoreCase("DURATION")) {
                 /*
                  * Duration of the benchmark in milliseconds
                  */
                 duration = Integer.parseInt(parts[1]);
-            } else if (parts[0].equals("CLIENT")) {
+            } else if (parts[0].equalsIgnoreCase("CLIENT")) {
                 /*
                  * Name of the client class for this benchmark.
                  *
@@ -934,47 +964,50 @@ public class BenchmarkController {
                  * Loader that also extends ClientMain
                  */
                 clientClassname = parts[1];
-            } else if (parts[0].equals("REMOTEPATH")) {
+            } else if (parts[0].equalsIgnoreCase("REMOTEPATH")) {
                 /*
                  * Directory on the NFS host where the VoltDB files are stored
                  */
                 remotePath = parts[1];
-            } else if (parts[0].equals("REMOTEUSER")) {
+            } else if (parts[0].equalsIgnoreCase("REMOTEUSER")) {
                 /*
                  * User that runs volt on remote client and host machines
                  */
                 remoteUser =  parts[1];
-            } else if (parts[0].equals("HOST") || parts[0].equals("CLIENTHOST")) {
+            } else if (parts[0].equalsIgnoreCase("HOST") || parts[0].equalsIgnoreCase("CLIENTHOST")) {
                 //Do nothing, parsed later.
-            } else if (parts[0].equals("LISTENFORDEBUGGER")) {
+            } else if (parts[0].equalsIgnoreCase("LISTENFORDEBUGGER")) {
                 listenForDebugger = Boolean.parseBoolean(parts[1]);
-            } else if (parts[0].equals("BACKEND")) {
+            } else if (parts[0].equalsIgnoreCase("BACKEND")) {
                 backend = parts[1];
-            } else if (parts[0].equals("SNAPSHOTPATH")) {
+            } else if (parts[0].equalsIgnoreCase("SNAPSHOTPATH")) {
                 snapshotPath = parts[1];
-            } else if (parts[0].equals("SNAPSHOTFREQUENCY")) {
+            } else if (parts[0].equalsIgnoreCase("SNAPSHOTFREQUENCY")) {
                 snapshotFrequency = parts[1];
-            } else if (parts[0].equals("SNAPSHOTPREFIX")) {
+            } else if (parts[0].equalsIgnoreCase("SNAPSHOTPREFIX")) {
                 snapshotPrefix = parts[1];
-            } else if (parts[0].equals("SNAPSHOTRETAIN")) {
+            } else if (parts[0].equalsIgnoreCase("SNAPSHOTRETAIN")) {
                 snapshotRetain = Integer.parseInt(parts[1]);
-            } else if (parts[0].equals("TXNRATE")) {
+            } else if (parts[0].equalsIgnoreCase("TXNRATE")) {
                 clientParams.put(parts[0], parts[1]);
-            } else if (parts[0].equals("BLOCKING")) {
+            } else if (parts[0].equalsIgnoreCase("BLOCKING")) {
                 clientParams.put(parts[0], parts[1]);
-            } else if (parts[0].equals("NUMCONNECTIONS")) {
+            } else if (parts[0].equalsIgnoreCase("NUMCONNECTIONS")) {
                 clientParams.put(parts[0], parts[1]);
-            } else if (parts[0].equals("STATSDATABASEURL")) {
+            } else if (parts[0].equalsIgnoreCase("STATSDATABASEURL")) {
                 databaseURL[0] = parts[1];
-            } else if (parts[0].equals("STATSTAG")) {
+            } else if (parts[0].equalsIgnoreCase("STATSTAG")) {
                 statsTag = parts[1];
-            } else if (parts[0].equals("APPLICATIONNAME")) {
+            } else if (parts[0].equalsIgnoreCase("APPLICATIONNAME")) {
                 applicationName = parts[1];
-            } else if (parts[0].equals("SUBAPPLICATIONNAME")) {
+            } else if (parts[0].equalsIgnoreCase("SUBAPPLICATIONNAME")) {
                 subApplicationName = parts[1];
 
             /** PAVLO **/
-            } else if (parts[0].equals("CATALOG")) {
+            } else if (parts[0].equalsIgnoreCase("COORDINATORHOST")) {
+                coordinatorHost = parts[1];
+                
+            } else if (parts[0].equalsIgnoreCase("CATALOG")) {
                 catalogPath = new File(parts[1]);
                 
                 // HACK
@@ -982,22 +1015,22 @@ public class BenchmarkController {
                 assert(catalog != null);
                 num_partitions = CatalogUtil.getNumberOfPartitions(catalog);
                 
-            } else if (parts[0].equals("COMPILE")) {
+            } else if (parts[0].equalsIgnoreCase("COMPILE")) {
                 /*
                  * Whether to compile the benchmark jar
                  */
                 compileBenchmark = Boolean.parseBoolean(parts[1]);
-            } else if (parts[0].equals("COMPILEONLY")) {
+            } else if (parts[0].equalsIgnoreCase("COMPILEONLY")) {
                 /*
                  * Whether to compile only the benchmark jar and then quit
                  */
                 compileOnly = Boolean.parseBoolean(parts[1]);
-            } else if (parts[0].equals("CATALOGHOSTS")) {
+            } else if (parts[0].equalsIgnoreCase("CATALOGHOSTS")) {
                 /*
                  * Launch the ExecutionSites using the hosts that are in the catalog
                  */
                 useCatalogHosts = Boolean.parseBoolean(parts[1]);
-            } else if (parts[0].equals("NODATALOAD")) {
+            } else if (parts[0].equalsIgnoreCase("NODATALOAD")) {
                 /*
                  * Disable data loading
                  */
@@ -1008,6 +1041,7 @@ public class BenchmarkController {
                 clientParams.put(parts[0].toLowerCase(), parts[1]);
             }
         }
+        assert(coordinatorHost != null) : "Missing CoordinatorHost";
 
         if (duration < 1000) {
             System.err.println("Duration is specified in milliseconds");
@@ -1084,7 +1118,7 @@ public class BenchmarkController {
             clientNames[i] = clients.get(i);
 
         // create a config object, mostly for the results uploader at this point
-        BenchmarkConfig config = new BenchmarkConfig(clientClassname, backend, hostNames,
+        BenchmarkConfig config = new BenchmarkConfig(clientClassname, backend, coordinatorHost, hostNames,
                 sitesPerHost, k_factor, clientNames, processesPerClient, interval, duration,
                 remotePath, remoteUser, listenForDebugger, serverHeapSize, clientHeapSize,
                 localmode, useProfile, checkTransaction, checkTables, snapshotPath, snapshotPrefix,

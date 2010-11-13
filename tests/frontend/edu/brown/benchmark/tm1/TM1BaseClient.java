@@ -37,8 +37,6 @@ public abstract class TM1BaseClient extends ClientMain {
             }
         } // FOR
         
-        System.err.println("Catalog: " + this.getCatalogPath().getAbsolutePath());
-        
     }
     
     public long getSubscriberSize() {

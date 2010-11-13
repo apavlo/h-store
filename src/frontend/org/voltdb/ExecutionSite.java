@@ -24,6 +24,7 @@ import java.nio.ByteBuffer;
 import java.util.*;
 import java.util.Map.Entry;
 import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.voltdb.catalog.*;
 import org.voltdb.exceptions.*;
@@ -93,6 +94,7 @@ public class ExecutionSite implements Runnable {
     
     private volatile boolean debug = false;
     private volatile boolean trace = false;
+    private final AtomicInteger error_counter = new AtomicInteger(0);
 
     /**
      * Catalog objects
@@ -123,7 +125,7 @@ public class ExecutionSite implements Runnable {
     // H-Store Transaction Stuff
     // ----------------------------------------------------------------------------
 
-    protected HStoreSite hstore_coordinator;
+    protected HStoreSite hstore_site;
     protected HStoreMessenger hstore_messenger;
 
     // ----------------------------------------------------------------------------
@@ -205,31 +207,12 @@ public class ExecutionSite implements Runnable {
                 }
                 assert(response != null);
                 long txn_id = response.getTxnId();
-                if (trace) LOG.trace("FragmentResponseMessage [txn_id=" + txn_id + ", " +
-                                                              "size=" + serialized.size() + ", " +
-//                                                              "id=" + serialized.byteAt(VoltMessage.HEADER_SIZE) + ", " +
-                                                              "src_partition=" + response.getSourcePartitionId() + ", " +
-                                                              "deps=" + response.getTableCount() + "]");
                 
                 // Since there is no data for us to store, we will want to just let the TransactionState know
                 // that we got a response. This ensures that the txn isn't unblocked just because the data arrives
                 TransactionState ts = ExecutionSite.this.txn_states.get(txn_id);
                 assert(ts != null) : "No transaction state exists for txn #" + txn_id + " " + txn_states;
-                for (int ii = 0, num_tables = response.getTableCount(); ii < num_tables; ii++) {
-                    ts.addResponse(response.getSourcePartitionId(), response.getTableDependencyIdAtIndex(ii));
-                } // FOR
-                
-//                int num_tables = response.getTableCount();
-//                if (num_tables > 0) {
-//                    if (trace) LOG.trace("CoordinatorResponse contains data for txn #" + txn_id);
-//                    for (int ii = 0; ii < num_tables; ii++) {
-//                        int dependency_id = response.getTableDependencyIdAtIndex(ii);
-//                        int partition = (int)response.getExecutorSiteId();
-//                        VoltTable table = response.getTableAtIndex(ii);
-//                        if (trace) LOG.trace("[Response#" + i + " - Table#" + ii + "] Txn#=" + txn_id + ", Partition=" + partition + ", DependencyId=" + dependency_id + ", Table=" + table.getRowCount() + " tuples");
-//                        ts.addResult(partition, dependency_id, table);
-//                    } // FOR
-//                } // FOR
+                ExecutionSite.this.processFragmentResponseMessage(ts, response);
             } // FOR
         }
     }; // END CLASS
@@ -477,7 +460,7 @@ public class ExecutionSite implements Runnable {
     }
     
     public void setHStoreCoordinatorNode(HStoreSite hstore_coordinator) {
-        this.hstore_coordinator = hstore_coordinator;
+        this.hstore_site = hstore_coordinator;
     }
     
     public BackendTarget getBackendTarget() {
@@ -496,6 +479,10 @@ public class ExecutionSite implements Runnable {
     
     public Site getCatalogSite() {
         return site;
+    }
+    
+    public HStoreSite getHStoreSite() {
+        return hstore_site;
     }
     
     public int getHostId() {
@@ -540,7 +527,7 @@ public class ExecutionSite implements Runnable {
     }
 
     public String getThreadName() {
-        return (this.hstore_coordinator.getThreadName(String.format("%03d", this.getPartitionId())));
+        return (this.hstore_site.getThreadName(String.format("%03d", this.getPartitionId())));
     }
 
     /**
@@ -549,7 +536,7 @@ public class ExecutionSite implements Runnable {
      */
     @Override
     public void run() {
-        assert(this.hstore_coordinator != null);
+        assert(this.hstore_site != null);
         assert(this.hstore_messenger != null);
         Thread.currentThread().setName(this.getThreadName());
         
@@ -580,11 +567,16 @@ public class ExecutionSite implements Runnable {
             boolean stop = false;
             long ctr = 0;
             while (stop == false && this.shutdown == false) {
-                if (++ctr % 50 == 0) {
+                if (++ctr % 100 == 0) {
                     trace = LOG.isTraceEnabled();
                     debug = LOG.isDebugEnabled();
                     if (trace) LOG.trace("Polling work queue: " + this.work_queue + "");
                     ctr = 0;
+                    
+                    if (this.error_counter.get() > 0) {
+                        LOG.warn("There were " + error_counter.get() + " errors since the last time we checked. You might want to enable debugging");
+                        this.error_counter.set(0);
+                    }
                 }
                 
                 // Check if there is any work that we need to execute
@@ -631,28 +623,40 @@ public class ExecutionSite implements Runnable {
                     DependencySet result = null;
                     try {
                         result = this.processFragmentTaskMessage(ftask, ts.getLastUndoToken());
+                        fresponse.setStatus(FragmentResponseMessage.SUCCESS, null);
                     } catch (EEException ex) {
-                        LOG.error("Hit an EE Error for txn #" + txn_id, ex);
+                        if (debug) LOG.warn("Hit an EE Error for txn #" + txn_id, ex);
                         fresponse.setStatus(FragmentResponseMessage.UNEXPECTED_ERROR, ex);
                     } catch (SQLException ex) {
-                        LOG.error("Hit a SQL Error for txn #" + txn_id, ex);
+                        if (debug) LOG.warn("Hit a SQL Error for txn #" + txn_id, ex);
                         fresponse.setStatus(FragmentResponseMessage.UNEXPECTED_ERROR, ex);
                     } catch (Exception ex) {
-                        LOG.error("Something unexpected and bad happended for txn #" + txn_id, ex);
+                        if (debug) LOG.warn("Something unexpected and bad happended for txn #" + txn_id, ex);
                         fresponse.setStatus(FragmentResponseMessage.UNEXPECTED_ERROR, new SerializableException(ex));
+                    } finally {
+                        // Success, but without any results???
+                        if (result == null && fresponse.getStatusCode() == FragmentResponseMessage.SUCCESS) {
+                            Exception ex = new Exception("The Fragment executed successfully but result is null!");
+                            if (debug) LOG.warn(ex);
+                            fresponse.setStatus(FragmentResponseMessage.UNEXPECTED_ERROR, new SerializableException(ex));
+                        }
                     }
                     
-                    
-                    if (result == null && fresponse.getStatusCode() == FragmentResponseMessage.SUCCESS) {
-                        Exception ex = new Exception("The Fragment executed successfully but result is null!");
-                        LOG.error(ex);
-                        fresponse.setStatus(FragmentResponseMessage.UNEXPECTED_ERROR, new SerializableException(ex));
+                    // -------------------------------
+                    // ERROR
+                    // -------------------------------
+                    if (fresponse.getStatusCode() != FragmentResponseMessage.SUCCESS) {
+                        this.error_counter.getAndIncrement();
+                        if (is_local && is_dtxn == false) {
+                            this.processFragmentResponseMessage(ts, fresponse);
+                        } else {
+                            this.sendFragmentResponseMessage(ftask, fresponse);
+                        }
                         
-                    // If the txn is running locally, should we propagate something back to the
-                    // client here??
-                    } else if (result != null) {
-                        fresponse.setStatus(FragmentResponseMessage.SUCCESS, null);
-                        
+                    // -------------------------------
+                    // SUCCESS!
+                    // ------------------------------- 
+                    } else {
                         // XXX: For single-sited INSERT/UPDATE/DELETE queries, we don't directly
                         // execute the SendPlanNode in order to get back the number of tuples that
                         // were modified. So we have to rely on the output dependency ids set in the task
@@ -787,6 +791,42 @@ public class ExecutionSite implements Runnable {
         volt_proc.call(ts, init_work.getParameters());
     }
 
+    /**
+     * Process a FragmentResponseMessage and update the TransactionState accordingly
+     * @param ts
+     * @param fresponse
+     */
+    protected void processFragmentResponseMessage(TransactionState ts, FragmentResponseMessage fresponse) {
+        final long txn_id = ts.getTransactionId();
+        if (trace) 
+            LOG.trace(String.format("FragmentResponseMessage [txn_id=%d, srcPartition=%d, deps=%d]",
+                                    txn_id, fresponse.getSourcePartitionId(), fresponse.getTableCount()));
+        
+        // If the Fragment failed to execute, then we need to abort the Transaction
+        // Note that we have to do this before we add the responses to the TransactionState so that
+        // we can be sure that the VoltProcedure knows about the problem when it wakes the stored 
+        // procedure back up
+        if (fresponse.getStatusCode() != FragmentResponseMessage.SUCCESS) {
+            if (trace) LOG.trace("Received non-success response " + fresponse.getStatusCodeName() + " for txn #" + txn_id);
+            ts.setPendingError(fresponse.getException());
+        }
+        for (int ii = 0, num_tables = fresponse.getTableCount(); ii < num_tables; ii++) {
+            ts.addResponse(fresponse.getSourcePartitionId(), fresponse.getTableDependencyIdAtIndex(ii));
+        } // FOR
+        
+        //int num_tables = response.getTableCount();
+        //if (num_tables > 0) {
+        //if (trace) LOG.trace("CoordinatorResponse contains data for txn #" + txn_id);
+        //for (int ii = 0; ii < num_tables; ii++) {
+        //int dependency_id = response.getTableDependencyIdAtIndex(ii);
+        //int partition = (int)response.getExecutorSiteId();
+        //VoltTable table = response.getTableAtIndex(ii);
+        //if (trace) LOG.trace("[Response#" + i + " - Table#" + ii + "] Txn#=" + txn_id + ", Partition=" + partition + ", DependencyId=" + dependency_id + ", Table=" + table.getRowCount() + " tuples");
+        //ts.addResult(partition, dependency_id, table);
+        //} // FOR
+        //} // FOR
+    }
+    
     /**
      * Executes a FragmentTaskMessage on behalf of some remote site and returns the resulting DependencySet
      * @param ftask
@@ -1072,7 +1112,8 @@ public class ExecutionSite implements Runnable {
                 if (trace) LOG.trace("Marking txn #" + txn_id + " as user aborted. Are you sure Mr.Pavlo?");
             default:
                 if (cresponse.getStatus() != ClientResponseImpl.USER_ABORT) {
-                    LOG.warn("Server error! Throwing an abort! Rabble Rabble!");
+                    this.error_counter.incrementAndGet();
+                    if (debug) LOG.warn("Unexpected server error for txn #" + txn_id + ": " + cresponse.getStatusString());
                 }
                 builder.setStatus(Dtxn.FragmentResponse.Status.ABORT_USER);
                 if (is_local) this.abortWork(txn_id);
@@ -1187,7 +1228,7 @@ public class ExecutionSite implements Runnable {
         } // FOR (tasks)
 
         // Bombs away!
-        this.hstore_coordinator.getDtxnCoordinator().execute(new ProtoRpcController(),
+        this.hstore_site.getDtxnCoordinator().execute(new ProtoRpcController(),
                                                              requestBuilder.build(),
                                                              this.request_work_callback);
         if (debug) LOG.debug("Work request is sent for txn #" + txn_id + " " +
@@ -1245,6 +1286,16 @@ public class ExecutionSite implements Runnable {
             System.exit(1);
         }
 
+        // IMPORTANT: Check whether the fragments failed somewhere and we got a response with an error
+        // We will rethrow this so that it pops the stack all the way back to VoltProcedure.call() where we can
+        // generate 
+        if (ts.hasPendingError()) {
+            if (debug) LOG.warn("Txn #" + txn_id + " was hit with a " + ts.getPendingError().getClass().getSimpleName());
+            throw ts.getPendingError();
+        }
+        
+        // Important: Don't try to check whether we got back the right number of tables because the batch
+        // may have hit an error and we didn't execute all of them.
         if (trace) LOG.trace("Txn #" + txn_id + " is now running and looking for love in all the wrong places...");
         final VoltTable results[] = ts.getResults();
         ts.finishRound();
