@@ -499,21 +499,18 @@ public class AuctionMarkClient extends AuctionMarkBaseClient {
         if (LOG.isTraceEnabled()) LOG.trace("constructor : histogram size = " + this.clientProfile.user_available_items_histogram.getSampleCount());
                
         // Enable temporal skew
-        if (m_extraParams.containsKey("TEMPORALSKEW")) {
-            int skew_size = Integer.valueOf(m_extraParams.get("TEMPORALSKEW"));
-            if (skew_size > 0) {
-                try {
-                    long num_intervals = Long.valueOf(m_extraParams.get("INTERVAL"));
-                    long duration = Long.valueOf(m_extraParams.get("DURATION"));
-                    int num_ticks = Math.round(num_intervals / duration); 
-                    int num_partitions = m_numPartitions;
-                    this.clientProfile.enableTemporalSkew(skew_size, num_ticks, num_partitions);
-                    System.err.println(String.format("Enabling temporal skew [skew_size=%d, num_ticks=%d, num_partitions=%d]", skew_size, num_ticks, num_partitions));
-                } catch (Exception ex) {
-                    System.err.println(ex.getLocalizedMessage());
-                    ex.printStackTrace();
-                    System.exit(1);
+        if (m_extraParams.containsKey("TEMPORALWINDOW") && m_extraParams.containsKey("TEMPORALTOTAL")) {
+            try {
+                int temporal_window = Integer.valueOf(m_extraParams.get("TEMPORALWINDOW"));
+                int temporal_total = Integer.valueOf(m_extraParams.get("TEMPORALTOTAL"));
+                if (temporal_window > 0) {
+                    this.clientProfile.enableTemporalSkew(temporal_window, temporal_total);
+                    System.err.println(String.format("Enabling temporal skew [window=%d, total=%d]", temporal_window, temporal_total));
                 }
+            } catch (Exception ex) {
+                System.err.println(ex.getLocalizedMessage());
+                ex.printStackTrace();
+                System.exit(1);
             }
         }
         

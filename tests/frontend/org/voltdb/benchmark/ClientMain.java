@@ -24,13 +24,9 @@
 package org.voltdb.benchmark;
 
 import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.lang.reflect.Constructor;
-import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -239,7 +235,7 @@ public abstract class ClientMain {
                     
                     // Call tick on the client!
                     // if (LOG.isDebugEnabled()) LOG.debug("Got poll message! Calling tick()!");
-                    // ClientMain.this.tick();
+                    ClientMain.this.tick();
                 }
                 else if (command.equalsIgnoreCase("STOP")) {
                     if (m_controlState == ControlState.RUNNING) {
