@@ -173,13 +173,19 @@ public abstract class FixCatalog {
         Catalog new_catalog = args.catalog;
         String hosts_list = "";
         if (args.hasIntParam(ArgumentsParser.PARAM_SIMULATOR_NUM_HOSTS)) {
+            String host_format = args.getParam(ArgumentsParser.PARAM_SIMULATOR_HOST);
+            
             int num_hosts = args.getIntParam(ArgumentsParser.PARAM_SIMULATOR_NUM_HOSTS);
             int num_sites_per_host = (args.hasIntParam(ArgumentsParser.PARAM_SIMULATOR_SITES_PER_HOST) ?
                                       args.getIntParam(ArgumentsParser.PARAM_SIMULATOR_SITES_PER_HOST) : 2);
             int num_partitions_per_site = (args.hasIntParam(ArgumentsParser.PARAM_SIMULATOR_PARTITIONS_PER_SITE) ?
                                            args.getIntParam(ArgumentsParser.PARAM_SIMULATOR_PARTITIONS_PER_SITE) : 2);
 
-            new_catalog = FixCatalog.addHostInfo(new_catalog, num_hosts, num_sites_per_host, num_partitions_per_site);
+            if (host_format == null) {
+                new_catalog = FixCatalog.addHostInfo(new_catalog, num_hosts, num_sites_per_host, num_partitions_per_site);
+            } else {
+                new_catalog = FixCatalog.addHostInfo(new_catalog, host_format, num_hosts, num_sites_per_host, num_partitions_per_site);
+            }
 
         // Use host list
         } else {
