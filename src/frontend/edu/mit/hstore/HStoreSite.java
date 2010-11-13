@@ -19,6 +19,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.log4j.Logger;
 import org.voltdb.BackendTarget;
+import org.voltdb.ClientResponseImpl;
 import org.voltdb.ExecutionSite;
 import org.voltdb.ProcedureProfiler;
 import org.voltdb.StoredProcedureInvocation;
@@ -67,6 +68,9 @@ import edu.mit.hstore.callbacks.InitiateCallback;
  */
 public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureListener.Handler {
     private static final Logger LOG = Logger.getLogger(HStoreSite.class.getName());
+    
+    public static final String DTXN_COORDINATOR = "protodtxncoordinator";
+    public static final String DTXN_ENGINE = "protodtxnengine";
     
     /**
      * This is the thing that we will actually use to generate txn ids used by our H-Store specific code
@@ -284,6 +288,21 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
     }
 
     /**
+     * Non-blocking call to take down the cluster
+     */
+    public void shutdownCluster() {
+        Thread shutdownThread = new Thread() {
+            @Override
+            public void run() {
+                HStoreSite.this.messenger.shutdownCluster();
+            }
+        };
+        shutdownThread.setDaemon(true);
+        shutdownThread.start();
+        return;
+    }
+    
+    /**
      * Perform shutdown operations for this HStoreCoordinatorNode
      */
     public synchronized void shutdown() {
@@ -427,18 +446,21 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         if (catalog_proc == null) throw new RuntimeException("Unknown procedure '" + request.getProcName() + "'");
         if (debug) LOG.trace("Received new stored procedure invocation request for " + catalog_proc);
         
-        // HACK
-//        if (catalog_proc.getName().equals("@Shutdown")) {
-//            this.messenger.shutdownCluster();
-//            return;
-//        }
-        
         // First figure out where this sucker needs to go
         Integer dest_partition;
         // If it's a sysproc, then it doesn't need to go to a specific partition
         if (sysproc) {
             // Just pick the first one for now
             dest_partition = CollectionUtil.getFirst(this.executors.keySet());
+            
+            // HACK: Check if we should shutdown. This allows us to kill things even if the
+            // DTXN coordinator is stuck.
+            if (catalog_proc.getName().equals("@Shutdown")) {
+                this.shutdownCluster(); // Non-blocking...
+                done.run(new byte[0]);
+                return;
+            }
+            
         // Otherwise we use the PartitionEstimator to know where it is going
         } else {
             try {
@@ -841,7 +863,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
             if (path.exists()) {
                 markovs = MarkovUtil.load(args.catalog_db, path.getAbsolutePath(), CatalogUtil.getAllPartitionIds(args.catalog_db));
             } else {
-                LOG.warn("The Markov Graphs file '" + path + "' does not exist");
+                if (LOG.isDebugEnabled()) LOG.warn("The Markov Graphs file '" + path + "' does not exist");
             }
         }
 

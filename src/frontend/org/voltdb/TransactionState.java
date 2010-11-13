@@ -78,6 +78,7 @@ public class TransactionState {
     private Long last_undo_token;
     private RoundState round_state = RoundState.NULL;
     private int round_ctr = 0;
+    private RuntimeException pending_error;
 
     /**
      * Callback to the coordinator for txns that are running on this partition
@@ -294,6 +295,32 @@ public class TransactionState {
             "Missing Dtxn.Coordinator Txn Id for local Txn #" + this.txn_id; 
     }
     
+    public RuntimeException getPendingError() {
+        return (this.pending_error);
+    }
+    
+    /**
+     * 
+     * @param error
+     */
+    public synchronized void setPendingError(RuntimeException error) {
+        assert(error != null) : "Trying to set a null error for txn #" + this.txn_id;
+        if (this.pending_error == null) {
+            if (LOG.isDebugEnabled()) LOG.debug("Got error for txn #" + this.txn_id + ". Aborting...");
+            this.pending_error = error;
+            
+            // Spin through this so that the waiting thread wakes up and sees that
+            // they got an error
+            while (this.dependency_latch.getCount() > 0) {
+                this.dependency_latch.countDown();
+            } // WHILE
+        }
+    }
+    
+    public boolean hasPendingError() {
+        return (this.pending_error != null);
+    }
+    
     /**
      * Get this transaction's id
      * @return
@@ -447,6 +474,7 @@ public class TransactionState {
                 this.results_dependency_stmt_ctr.clear();
                 this.received_ctr = 0;
                 this.dependency_ctr = 0;
+                this.pending_error = null;
             }
             this.last_undo_token = undoToken;
             this.round_state = RoundState.INITIALIZED;

@@ -43,12 +43,9 @@ public abstract class CollectionUtil {
      */
     public static <T> List<T> toList(Iterator<T> it) {
         List<T> list = new ArrayList<T>();
-        while (it.hasNext()) {
-            list.add(it.next());
-        } // WHILE
+        CollectionUtil.addAll(list, it);
         return (list);
     }
-
     /**
      * Put all of the values of an Iterable into a new List
      * @param <T>
@@ -57,6 +54,27 @@ public abstract class CollectionUtil {
      */
     public static <T> List<T> toList(Iterable<T> it) {
         return (toList(it.iterator()));
+    }
+    
+    /**
+     * Put all the values of an Iterator into a Set
+     * @param <T>
+     * @param it
+     * @return
+     */
+    public static <T> Set<T> toSet(Iterator<T> it) {
+        Set<T> set = new HashSet<T>();
+        CollectionUtil.addAll(set, it);
+        return (set);
+    }
+    /**
+     * Put all of the values of an Iterable into a new Set
+     * @param <T>
+     * @param it
+     * @return
+     */
+    public static <T> Set<T> toSet(Iterable<T> it) {
+        return (toSet(it.iterator()));
     }
     
     /**
@@ -150,9 +168,19 @@ public abstract class CollectionUtil {
      * @param items
      */
     public static <T> Collection<T> addAll(Collection<T> data, Iterable<T> items) {
-        for (T t : items) {
-            data.add(t);
-        } // FOR
+        return (CollectionUtil.addAll(data, items.iterator()));
+    }
+    
+    /**
+     * Add all of the items from the Iterator into the given collection
+     * @param <T>
+     * @param data
+     * @param items
+     */
+    public static <T> Collection<T> addAll(Collection<T> data, Iterator<T> items) {
+        while (items.hasNext()) {
+            data.add(items.next());
+        } // WHILE
         return (data);
     }
     

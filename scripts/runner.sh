@@ -292,15 +292,15 @@ if [ -n "$ANT_TARGET" ]; then
         $EXTRA_ARGS \
         -Dcatalog=`realpath $BENCHMARK_JAR` \
         -Dproject=`echo $BENCHMARK | tr "[:upper:]" "[:lower:]"` \
-        -Dduration=$DURATION \
+        -Dhstore.duration=$DURATION \
         -Dvolt.server.memory=$HOST_MEMORY \
         -Dvolt.client.memory=$CLIENT_MEMORY \
-        -Dclient=$BENCHMARK_CLIENT \
-        -Dclientcount=$NUM_CLIENTS \
-        -Dprocessesperclient=$NUM_CLIENTPROCESSES \
-        -Dsf=$SCALE_FACTOR \
-        -Dtxnrate=$TXN_RATE \
-        -Dwarehouses=$NUM_WAREHOUSES \
+        -Dbenchmark.client=$BENCHMARK_CLIENT \
+        -Dhstore.clientcount=$NUM_CLIENTS \
+        -Dhstore.processesperclient=$NUM_CLIENTPROCESSES \
+        -Dbenchmark.sf=$SCALE_FACTOR \
+        -Dhstore.txnrate=$TXN_RATE \
+        -Dbenchmark.warehouses=$NUM_WAREHOUSES \
         -Dloadthreads=1 \
         -Dskew=$SKEW_FACTOR
 fi

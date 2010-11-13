@@ -115,7 +115,7 @@ public abstract class AuctionMarkBaseClient extends ClientMain {
             } else if (key.equalsIgnoreCase("RANDOMPROFILE")) {
                 randGenProfilePath = value;
             // Data directory
-            } else if (key.equalsIgnoreCase("AUCTIONMARKDIR")) {
+            } else if (key.equalsIgnoreCase("DATADIR")) {
                 dataDir = value;
             }
         } // FOR

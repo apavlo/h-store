@@ -181,7 +181,7 @@ public abstract class FixCatalog {
             int num_partitions_per_site = (args.hasIntParam(ArgumentsParser.PARAM_SIMULATOR_PARTITIONS_PER_SITE) ?
                                            args.getIntParam(ArgumentsParser.PARAM_SIMULATOR_PARTITIONS_PER_SITE) : 2);
 
-            if (true || host_format == null) {
+            if (host_format == null) {
                 new_catalog = FixCatalog.addHostInfo(new_catalog, num_hosts, num_sites_per_host, num_partitions_per_site);
             } else {
                 new_catalog = FixCatalog.addHostInfo(new_catalog, host_format, num_hosts, num_sites_per_host, num_partitions_per_site);

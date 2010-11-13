@@ -38,6 +38,7 @@ import org.apache.log4j.Logger;
 
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.utils.PartitionEstimator;
+import edu.brown.utils.ThreadUtil;
 
 /** A wholly improper shutdown. The only guarantee is that a transaction
  * is committed or not committed - never partially committed. However, no
@@ -51,6 +52,7 @@ import edu.brown.utils.PartitionEstimator;
 @ProcInfo(singlePartition = false)
 
 public class Shutdown extends VoltSystemProcedure {
+    private static final Logger LOG = Logger.getLogger(Shutdown.class);
 
     private List<Integer> all_partitions;
     static final long DEP_distribute = SysProcFragmentId.PF_distribute | DtxnConstants.MULTIPARTITION_DEPENDENCY;
@@ -82,45 +84,48 @@ public class Shutdown extends VoltSystemProcedure {
             Thread shutdownThread = new Thread() {
                 @Override
                 public void run() {
-                    try {
-                        VoltDB.instance().shutdown(this);
-                    } catch (InterruptedException e) {
-                        Logger.getLogger("HOST", VoltLoggerFactory.instance()).error(
-                                "Exception while attempting to shutdown VoltDB from shutdown sysproc",
-                                e);
-                    }
-                    System.exit(0);
+//                    try {
+                        m_site.getHStoreSite().shutdown();
+//                    } catch (InterruptedException e) {
+//                        Logger.getLogger("HOST", VoltLoggerFactory.instance()).error(
+//                                "Exception while attempting to shutdown VoltDB from shutdown sysproc",
+//                                e);
+//                    }
+//                    System.exit(0);
                 }
             };
             shutdownThread.start();
-            System.exit(0);
+            // System.exit(0);
         }
         return null;
     }
 
     public VoltTable[] run() {
-        SynthesizedPlanFragment pfs[] = new SynthesizedPlanFragment[this.all_partitions.size() + 1];
-        for (int i = 1; i < pfs.length; i++) {
-            pfs[i] = new SynthesizedPlanFragment();
-            pfs[i].siteId = this.all_partitions.get(i-1);
-            pfs[i].fragmentId = SysProcFragmentId.PF_shutdownCommand;
-            pfs[i].outputDependencyIds = new int[]{ (int)DEP_distribute };
-            pfs[i].inputDependencyIds = new int[]{};
-            pfs[i].multipartition = false;
-            pfs[i].nonExecSites = true;
-            pfs[i].parameters = new ParameterSet();
-        }
-        // a final plan fragment to aggregate the results
-        pfs[0] = new SynthesizedPlanFragment();
-        pfs[0].siteId = local_partition;
-        pfs[0].fragmentId = SysProcFragmentId.PF_aggregate;
-        pfs[0].inputDependencyIds = new int[] { (int)DEP_distribute };
-        pfs[0].outputDependencyIds = new int[] { (int)DEP_aggregate };
-        pfs[0].multipartition = false;
-        pfs[0].nonExecSites = false;
-        pfs[0].parameters = new ParameterSet();
-
-        executeSysProcPlanFragments(pfs, (int)SysProcFragmentId.PF_procedureDone);
+        LOG.info("Got shutdown request. Notifying HStoreSite and returning to client");
+        m_site.getHStoreSite().shutdownCluster();
+        
+//        SynthesizedPlanFragment pfs[] = new SynthesizedPlanFragment[this.all_partitions.size() + 1];
+//        for (int i = 1; i < pfs.length; i++) {
+//            pfs[i] = new SynthesizedPlanFragment();
+//            pfs[i].siteId = this.all_partitions.get(i-1);
+//            pfs[i].fragmentId = SysProcFragmentId.PF_shutdownCommand;
+//            pfs[i].outputDependencyIds = new int[]{ (int)DEP_distribute };
+//            pfs[i].inputDependencyIds = new int[]{};
+//            pfs[i].multipartition = false;
+//            pfs[i].nonExecSites = true;
+//            pfs[i].parameters = new ParameterSet();
+//        }
+//        // a final plan fragment to aggregate the results
+//        pfs[0] = new SynthesizedPlanFragment();
+//        pfs[0].siteId = local_partition;
+//        pfs[0].fragmentId = SysProcFragmentId.PF_aggregate;
+//        pfs[0].inputDependencyIds = new int[] { (int)DEP_distribute };
+//        pfs[0].outputDependencyIds = new int[] { (int)DEP_aggregate };
+//        pfs[0].multipartition = false;
+//        pfs[0].nonExecSites = false;
+//        pfs[0].parameters = new ParameterSet();
+//
+//        executeSysProcPlanFragments(pfs, (int)SysProcFragmentId.PF_procedureDone);
         return new VoltTable[0];
     }
 }

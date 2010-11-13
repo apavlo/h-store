@@ -82,6 +82,7 @@
     <not><isset property="project"/></not>
 </condition>
 <property file="${benchmark.dir}/${project}.properties" prefix="benchmark" />
+<property name="benchmark.jar" location="${project}.jar" />
 
 <!-- Default heap size for Volt server (MB)  -->
 <condition property="volt.server.memory" value="2048">
@@ -1431,7 +1432,7 @@ DTXN BINARIES + LIBRARIES
 </target>
 
 <target name="dtxn-coordinator" description="H-Store DTXN Coordinator">
-    <exec executable="${build.dtxn.dir}/protodtxn/protodtxncoordinator" failonerror="true">
+    <exec executable="${build.dtxn.dir}/protodtxn/protodtxncoordinator">
         <arg line="${port}"/>
         <arg line="${build.dtxn.dir}/hstore.conf"/>
     </exec>
@@ -1455,23 +1456,41 @@ BENCHMARKS
         <jvmarg value="-Djava.library.path=${build.dir}/nativelibs" />
         <jvmarg value="-Dlog4j.configuration=${basedir}/log4j.properties"/>
         <assertions><enable/></assertions>
-        
-        <arg value="CLIENT=${client}" />
+
+        <arg value="CLIENTHEAP=${volt.client.memory}" />
+        <arg value="SERVERHEAP=${volt.server.memory}" />
         <arg value="BACKEND=${backend}" />
         <arg value="HOSTCOUNT=${hostcount}" />
         <arg value="SITESPERHOST=${sitesperhost}"/>
         <arg value="KFACTOR=${kfactor}"/>
-        <arg value="CLIENTCOUNT=${clientcount}" />
-        <arg value="PROCESSESPERCLIENT=${processesperclient}" />
-        <arg value="INTERVAL=${interval}" />
-        <arg value="DURATION=${duration}" />
         <arg value="REMOTEPATH=${remotepath}" />
         <arg value="REMOTEUSER=${remoteuser}"/>
+        <arg value="CATALOG=${catalog}" />
+        <arg value="COORDINATORHOST=${hstore.coordinator.host}" />
+
+        <!-- Execution Options -->
+        <arg value="TXNRATE=${hstore.txnrate}" />
+        <arg value="CLIENTCOUNT=${hstore.clientcount}" />
+        <arg value="PROCESSESPERCLIENT=${hstore.processesperclient}" />
+        <arg value="INTERVAL=${hstore.interval}" />
+        <arg value="DURATION=${hstore.duration}" />
+        <arg value="BLOCKING=${hstore.blocking}" />
+
+        <!-- Global Parameters -->
+        <arg value="scalefactor=${hstore.scalefactor}" />
+        <arg value="skewfactor=${hstore.skewfactor}" />
+        <arg value="temporalwindow=${hstore.temporalwindow}" />
+        <arg value="temporaltotal=${hstore.temporaltotal}" />
+
+        <!-- Benchmark Parameters -->
+        <arg value="CLIENT=${benchmark.client}" />
+        <arg value="datadir=${benchmark.datadir}"/>
+
+        <!-- tpcc parameters -->
+        <arg value="warehouses=${benchmark.warehouses}" />
+        <arg value="loadthreads=${benchmark.loadthreads}" />
         
-        <arg value="CLIENTHEAP=${volt.client.memory}" />
-        <arg value="SERVERHEAP=${volt.server.memory}" />
-        
-        <!-- These are currently ignored... -->
+        <!-- These are currently ignored (I think...) -->
         <arg value="HOST=${manualhost1}" />
         <arg value="HOST=${host1}" />
         <arg value="CLIENTHOST=${clienthost1}" />
@@ -1485,13 +1504,7 @@ BENCHMARKS
         <arg value="COMPILEONLY=${compileonly}" />
         <arg value="CATALOGHOSTS=${cataloghosts}" />
         <arg value="NODATALOAD=${nodataload}" />
-        <arg value="BLOCKING=${hstore.blocking}" />
         
-        <arg value="CATALOG=${catalog}" />
-        
-        <!-- Actual TXN rate sent to cluster will be:
-            TXNRATE * CLIENTCOUNT * PROCESSESPERCLIENT -->
-        <arg value="TXNRATE=${txnrate}" />
         <!-- Actual number of connections opened to cluster will be:
             NUMCONNECTIONS * CLIENTCOUNT * PROCESSESPERCLIENT * HOSTCOUNT -->
         <arg value="NUMCONNECTIONS=${numconnections}" />
@@ -1500,21 +1513,8 @@ BENCHMARKS
         <arg value="APPLICATIONNAME=${applicationName}" />
         <arg value="SUBAPPLICATIONNAME=${subApplicationName}" />
 
-        <!-- Global Parameters -->
-        <arg value="scalefactor=${hstore.scalefactor}" />
-        <arg value="skewfactor=${hstore.skewfactor}" />
-        <arg value="temporalwindow=${hstore.temporalwindow}" />
-        <arg value="temporaltotal=${hstore.temporaltotal}" />
-        
-        <!-- tpcc parameters -->
-        <arg value="warehouses=${benchmark.warehouses}" />
-        <arg value="loadthreads=${benchmark.loadthreads}" />
-
         <!-- measureoverhead parameters -->
         <arg value="transaction=${transaction}"/>
-
-        <!-- auctionmark parameters -->
-        <arg value="auctionmarkdir=${benchmark.datadir}"/>
 
         <!-- miscellaneous reporting parameters -->
         <arg value="OS=${os}" />
@@ -2062,19 +2062,12 @@ H-STORE REMIX
     </java>
 </target>
 
-<target name='hstore-client' description="H-Store Simple Example Client">
-   <java fork="yes" classname="edu.mit.hstore.HStoreClientExample">
-      <jvmarg value="-Xmx${volt.client.memory}m" />
-      <jvmarg value="-Dlog4j.configuration=${basedir}/log4j.properties"/>
-<!--       <jvmarg value="-Dlog4j.debug=true"/> -->
-<!--       <jvmarg value="-Djava.library.path=${build.dir}/nativelibs" /> -->
-      <jvmarg value="-client" />
-      <jvmarg value="-Xcheck:jni" />
-<!--       <arg value="catalog.jar=${jar}" /> -->
-      <arg value="coordinator.host=${host}" />
-      <classpath refid='project.classpath' />
-      <assertions><enable /></assertions>
-   </java>
+<target name='hstore-client' description="H-Store Benchmark Client">
+    <antcall target="benchmark">
+        <param name="catalog" value="${benchmark.jar}" />
+        <param name="compile" value="false" />
+        <param name="clienthost1" value="${hstore.defaulthost}" />
+    </antcall>
 </target>
 
 <target name="hstore-jar" description="H-Store JAR Setup">
@@ -2085,8 +2078,8 @@ H-STORE REMIX
         <!-- FORMAT: <hostname>:<site#>:<partition#> -->
 <!--         <param name="hosts" value="${hstore.defaulthost}:0:0,${hstore.defaulthost}:1:1" /> -->
 <!--         <param name="hosts" value="${hstore.defaulthost}:0:0,${hstore.defaulthost}:0:1,${hstore.defaulthost}:0:2,${hstore.defaulthost}:0:3,${hstore.defaulthost}:0:4" /> -->
-        <param name="hosts" value="${hstore.defaulthost}:0:0,${hstore.defaulthost}:0:1" />
-<!--         <param name="hosts" value="${hstore.defaulthost}:0:0,${hstore.defaulthost}:0:1,${hstore.defaulthost}:1:2,${hstore.defaulthost}:1:3" /> -->
+<!--         <param name="hosts" value="${hstore.defaulthost}:0:0,${hstore.defaulthost}:0:1" /> -->
+        <param name="hosts" value="${hstore.defaulthost}:0:0,${hstore.defaulthost}:0:1,${hstore.defaulthost}:1:2,${hstore.defaulthost}:1:3" />
     </antcall>
 </target>
 
@@ -2105,27 +2098,16 @@ H-STORE REMIX
             <param name="thresholds" value="./files/thresholds/default.thresholds" />
             <param name="correlations" value="./files/correlations/${project}.correlations" />
         </antcall>
-<!--        <antcall target="hstore-site">
+        <antcall target="hstore-site">
             <param name="jar" value="${project}.jar" />
             <param name="node.site" value="1" />
             <param name="markov" value="./files/markovs/${project}.markovs" />
             <param name="thresholds" value="./files/thresholds/default.thresholds" />
             <param name="correlations" value="./files/correlations/${project}.correlations" />
-        </antcall>-->
+        </antcall>
         <sequential>
             <sleep seconds="18" />
-            <exec executable="./scripts/runner.sh" failonerror="true">
-                <arg line="${project}" />
-                <arg line="nocompile" />
-                <arg line="BUILD_JAVA=0" />
-                <arg line="BUILD_EE=0" />
-                <arg line="BUILD_VOLTBIN=0" />
-                <arg line="DELETE_BENCHMARK_JAR=0" />
-                <arg line="SKEW_FACTOR=${skew}" />
-                <arg line="cataloghosts" />
-                <arg line="killprotodtxn" />
-                <arg line="blocking" />
-            </exec>
+            <antcall target="hstore-client" />
         </sequential>
     </parallel>
 </target>

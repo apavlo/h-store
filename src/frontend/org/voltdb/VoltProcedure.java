@@ -52,6 +52,9 @@ import java.io.PrintWriter;
  */
 public abstract class VoltProcedure {
     private static final Logger LOG = Logger.getLogger(VoltProcedure.class);
+    private static volatile boolean trace = LOG.isTraceEnabled();
+    private static volatile boolean debug = LOG.isDebugEnabled();
+    
 
     // Used to get around the "abstract" for StmtProcedures.
     // Path of least resistance?
@@ -68,7 +71,7 @@ public abstract class VoltProcedure {
     // package scoped members used by VoltSystemProcedure
     Cluster m_cluster;
     //SiteProcedureConnection m_site;
-    ExecutionSite m_site;
+    protected ExecutionSite m_site;
      
     private boolean m_initialized;
 
@@ -93,8 +96,8 @@ public abstract class VoltProcedure {
 
     // data copied from EE proc wrapper
     private Long txn_id;
-    private  Long client_handle;
-    private  TransactionState m_currentTxnState;  // assigned in call()
+    private Long client_handle;
+    private TransactionState m_currentTxnState;  // assigned in call()
     private final SQLStmt batchQueryStmts[] = new SQLStmt[1000];
     private int batchQueryStmtIndex = 0;
     private final Object[] batchQueryArgs[] = new Object[1000][];
@@ -148,8 +151,8 @@ public abstract class VoltProcedure {
         
         @Override
         public void run() {
-            final boolean trace = LOG.isTraceEnabled();
-            final boolean debug = LOG.isDebugEnabled();
+            trace = LOG.isTraceEnabled();
+            debug = LOG.isDebugEnabled();
 
             synchronized (executor_lock) {
                 Thread.currentThread().setName(VoltProcedure.this.m_site.getThreadName() + "-" + VoltProcedure.this.procedure_name);
@@ -171,7 +174,7 @@ public abstract class VoltProcedure {
                     assert(response != null);
     
                     // Send the response back immediately!
-                    if (trace) LOG.trace("Sending ClientResponse back for txn #" + current_txn_id);
+                    if (trace) LOG.trace("Sending ClientResponse back for txn #" + current_txn_id + " [status=" + response.getStatusName() + "]");
                     VoltProcedure.this.m_site.sendClientResponse((ClientResponseImpl)response);
                     
                     // Notify anybody who cares that we're finished (used in testing)
@@ -508,11 +511,7 @@ public abstract class VoltProcedure {
      * @return
      */
     private final ClientResponse call() {
-        final boolean trace = LOG.isTraceEnabled();
-        final boolean debug = LOG.isDebugEnabled();
-        
-        // in case someone queues sql but never calls execute,
-        //  clear the queue here.
+        // in case someone queues sql but never calls execute, clear the queue here.
         batchQueryStmtIndex = 0;
         batchQueryArgsIndex = 0;
 
@@ -561,17 +560,16 @@ public abstract class VoltProcedure {
         }
 
         // Unblock the thread 
-            try {
-//            m_site.currentProc = this;
-            if (debug) {
-                LOG.debug("Invoking txn #" + this.txn_id + " [" +
+        try {
+            if (trace) {
+                LOG.trace("Invoking txn #" + this.txn_id + " [" +
                           "procMethod=" + procMethod.getName() + ", " +
                           "class=" + getClass().getSimpleName() + ", " +
                           "partition=" + this.local_partition + 
                           "]");
                 }
                 try {
-                Object rawResult = procMethod.invoke(this, this.procParams);
+                    Object rawResult = procMethod.invoke(this, this.procParams);
                     results = getResultsFromRawResults(rawResult);
                     if (results == null)
                         results = new VoltTable[0];
@@ -582,10 +580,10 @@ public abstract class VoltProcedure {
                     LOG.fatal(e);
                     System.exit(1);
                 }
-                LOG.debug(this.catProc + " is finished for txn #" + this.txn_id);
-            }
-            catch (InvocationTargetException itex) {
-                Throwable ex = itex.getCause();
+                if (debug) LOG.debug(this.catProc + " is finished for txn #" + this.txn_id);
+        }
+        catch (InvocationTargetException itex) {
+            Throwable ex = itex.getCause();
             //Pass the exception back to the client if it is serializable
             if (ex instanceof SerializableException) {
                 se = (SerializableException)ex;
@@ -606,8 +604,8 @@ public abstract class VoltProcedure {
             else if (ex.getClass() == org.voltdb.exceptions.ConstraintFailureException.class) {
                 status = ClientResponseImpl.UNEXPECTED_FAILURE;
                 extra = "CONSTRAINT FAILURE: " + ex.getMessage();
-                }
-                else {
+            }
+            else {
                 StringWriter sw = new StringWriter();
                 PrintWriter pw = new PrintWriter(sw);
                 ex.printStackTrace(pw);
@@ -672,7 +670,7 @@ public abstract class VoltProcedure {
     protected PartitionEstimator getPartitionEstimator() {
         return (this.p_estimator);
     }
-
+    
     /**
      * Given the results of a procedure, convert it into a sensible array of VoltTables.
      */
@@ -917,24 +915,7 @@ public abstract class VoltProcedure {
 
         if (ProcedureProfiler.profilingLevel == ProcedureProfiler.Level.INTRUSIVE) {
             retval = executeQueriesInIndividualBatches(batchQueryStmtIndex, batchQueryStmts, batchQueryArgs, isFinalSQL);
-        }
-//        else if (catProc.getSinglesited() == false) {
-//            // check for duplicate sql statements
-//            // if so, do them individually for now
-//            boolean duplicate = false;
-//
-//            for (int i = 0; i < batchQueryStmtIndex; i++) {
-//                for (int j = i + 1; i < batchQueryStmtIndex; i++) {
-//                    if (batchQueryStmts[i] == batchQueryStmts[j])
-//                        duplicate = true;
-//                }
-//            }
-//            if (duplicate)
-//                retval = executeQueriesInIndividualBatches(batchQueryStmtIndex, batchQueryStmts, batchQueryArgs, isFinalSQL);
-//            else
-//                retval = executeQueriesInABatch(batchQueryStmtIndex, batchQueryStmts, batchQueryArgs, isFinalSQL);
-//        }
-            else {
+        } else {
             retval = executeQueriesInABatch(batchQueryStmtIndex, batchQueryStmts, batchQueryArgs, isFinalSQL);
         }
 
@@ -1053,15 +1034,14 @@ public abstract class VoltProcedure {
      * @return
      */
     protected VoltTable[] executeBatch(BatchPlanner.BatchPlan plan) {
-
         // It is at this point that we just need to make a call into Evan's stuff (through the ExecutionSite)
         // I'm not sure how this is suppose to exactly work, but what the hell let's give it a shot!
         List<FragmentTaskMessage> tasks = plan.getFragmentTaskMessages(this.txn_id, this.client_handle);
-        LOG.debug("Got back a set of tasks for " + tasks.size() + " partitions for txn #" + this.txn_id);
+        if (trace) LOG.trace("Got back a set of tasks for " + tasks.size() + " partitions for txn #" + this.txn_id);
 
         // Block until we get all of our responses.
         // We can do this because our ExecutionSite is multi-threaded
-        VoltTable results[] = this.m_site.waitForResponses(this.txn_id, tasks);
+        final VoltTable results[] = this.m_site.waitForResponses(this.txn_id, tasks);
         assert(results != null);
 
         // important not to forget
