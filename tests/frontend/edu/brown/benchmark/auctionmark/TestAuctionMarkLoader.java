@@ -25,7 +25,8 @@ public class TestAuctionMarkLoader extends BaseTestCase {
 	protected static final int SCALE_FACTOR = 1000;
     protected static final String LOADER_ARGS[] = {
         "SCALEFACTOR=" + SCALE_FACTOR, 
-        "HOST=localhost"
+        "HOST=localhost",
+        "CATALOG=" + BaseTestCase.getCatalogJarPath(ProjectType.AUCTIONMARK).getAbsolutePath(),
     };
     
     /**
