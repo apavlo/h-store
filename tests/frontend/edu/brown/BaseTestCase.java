@@ -171,6 +171,34 @@ public abstract class BaseTestCase extends TestCase {
         assertNotNull(p_estimator);
         project_p_estimators.put(type, p_estimator);
     }
+
+    public static File getCatalogJarPath(ProjectType type) {
+        AbstractProjectBuilder projectBuilder = null;
+        switch (type) {
+            case TPCC:
+                projectBuilder = new TPCCProjectBuilder();
+                break;
+            case TPCE:
+                projectBuilder = new TPCEProjectBuilder();
+                break;
+            case TM1:
+                projectBuilder = new TM1ProjectBuilder();
+                break;
+            case AIRLINE:
+                projectBuilder = new AirlineProjectBuilder();
+                break;
+            case AUCTIONMARK:
+                projectBuilder = new AuctionMarkProjectBuilder();
+                break;
+            case MARKOV:
+                projectBuilder = new MarkovProjectBuilder();
+                break;
+            default:
+                assert(false) : "Invalid project type - " + type;
+        } // SWITCH
+        assert(projectBuilder != null);
+        return (projectBuilder.getJarPath());
+    }
     
     /**
      * Returns true if we have access to the Volt lib in our local system
