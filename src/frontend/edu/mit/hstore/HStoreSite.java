@@ -24,11 +24,14 @@ import org.voltdb.ExecutionSite;
 import org.voltdb.ProcedureProfiler;
 import org.voltdb.StoredProcedureInvocation;
 import org.voltdb.TransactionIdManager;
+import org.voltdb.VoltTable;
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Partition;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Site;
+import org.voltdb.client.ClientResponse;
 import org.voltdb.messaging.FastDeserializer;
+import org.voltdb.messaging.FastSerializer;
 import org.voltdb.messaging.InitiateTaskMessage;
 import org.voltdb.messaging.TransactionInfoBaseMessage;
 import org.voltdb.messaging.VoltMessage;
@@ -457,7 +460,14 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
             // DTXN coordinator is stuck.
             if (catalog_proc.getName().equals("@Shutdown")) {
                 this.shutdownCluster(); // Non-blocking...
-                done.run(new byte[0]);
+                ClientResponseImpl cresponse = new ClientResponseImpl(1, ClientResponse.SUCCESS, new VoltTable[0], "");
+                FastSerializer out = new FastSerializer();
+                try {
+                    out.writeObject(cresponse);
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+//                done.run(out.getBytes());
                 return;
             }
             
