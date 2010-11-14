@@ -94,6 +94,10 @@ public abstract class AbstractTreeWalker<E> {
      */
     private boolean stop = false;
     /**
+     * If set to true, then we're allowed to revisit the same node
+     */
+    private boolean allow_revisit = false;
+    /**
      * How many nodes we have visited
      */
     private int counter = 0;
@@ -102,7 +106,6 @@ public abstract class AbstractTreeWalker<E> {
      * types of traversal through the tree
      */
     private final Map<E, Children> attached_children = new HashMap<E, Children>();
-    
     
     /**
      * Return a Children singleton for a specific element
@@ -158,6 +161,13 @@ public abstract class AbstractTreeWalker<E> {
         return (Collections.unmodifiableList(this.visited));
     }
     /**
+     * Toggle whether the walker is allowed to revisit a vertex more than one
+     * @param flag
+     */
+    public void setAllowRevisit(boolean flag) {
+        this.allow_revisit = flag;
+    }
+    /**
      * Returns the first element that initiated the traversal
      * @return
      */
@@ -210,6 +220,13 @@ public abstract class AbstractTreeWalker<E> {
                               "Counter=" + this.counter + ", " +
                               "Visited=" + this.visited.size() + "]");
     
+        // Stackoverflow check
+        if (this.depth > 70) {
+            System.err.println(StringUtil.join("\n", Thread.currentThread().getStackTrace()));
+            System.err.println("!!!");
+            System.exit(1);
+        }
+        
         if (trace) LOG.trace("callback_before(" + element + ")");
         this.callback_before(element);
         
@@ -219,8 +236,10 @@ public abstract class AbstractTreeWalker<E> {
             this.populate_children(children, element);
             if (trace) LOG.trace("Populate Children: " + children);
             for (E child : children.before_list) {
-                if (trace) LOG.trace("Traversing child " + child + "' before " + element);
-                this.traverse(child);
+                if (this.allow_revisit || this.visited.contains(child) == false) {
+                    if (trace) LOG.trace("Traversing child " + child + "' before " + element);
+                    this.traverse(child);
+                }
             } // FOR
             
             // Why is this here and not up above when we update the stack?
@@ -230,8 +249,10 @@ public abstract class AbstractTreeWalker<E> {
             this.callback(element);
 
             for (E child : children.after_list) {
-                if (trace) LOG.trace("Traversing child " + child + " after " + element);
-                this.traverse(child);
+                if (this.allow_revisit || this.visited.contains(child) == false) {
+                    if (trace) LOG.trace("Traversing child " + child + " after " + element);
+                    this.traverse(child);
+                }
             } // FOR
 //        }
         

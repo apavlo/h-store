@@ -76,7 +76,23 @@ public class CheckWinningBids extends VoltProcedure {
         "LEFT OUTER JOIN " + AuctionMarkConstants.TABLENAME_ITEM_MAX_BID + " ON ib_id = imb_ib_id AND ib_u_id = imb_u_id " + 
         "WHERE i_start_date >= ? AND i_end_date <= ? AND i_u_id >= ? AND i_u_id < ?"
      */
-    
+
+    private final ColumnInfo[] columnInfo = {
+        new ColumnInfo("i_id", VoltType.BIGINT), 
+        new ColumnInfo("i_u_id", VoltType.BIGINT),  
+        new ColumnInfo("i_status", VoltType.BIGINT), 
+        new ColumnInfo("imb_ib_id", VoltType.BIGINT), 
+        new ColumnInfo("ib_buyer_id", VoltType.BIGINT),
+    };
+
+    /**
+     * 
+     * @param startTime
+     * @param endTime
+     * @param clientId
+     * @param clientMaxElements
+     * @return
+     */
     public VoltTable run(TimestampType startTime, TimestampType endTime, int clientId, long clientMaxElements) {
         final boolean debug = LOG.isDebugEnabled();
         
@@ -107,15 +123,7 @@ public class CheckWinningBids extends VoltProcedure {
         
         if (debug) LOG.debug("CheckWinningBids::: total due items = " + dueItemsTable[0].getRowCount());
         
-        ColumnInfo[] columnInfo = {
-        	new ColumnInfo("i_id", VoltType.BIGINT), 
-        	new ColumnInfo("i_u_id", VoltType.BIGINT),  
-        	new ColumnInfo("i_status", VoltType.BIGINT), 
-        	new ColumnInfo("imb_ib_id", VoltType.BIGINT), 
-        	new ColumnInfo("ib_buyer_id", VoltType.BIGINT),
-        };
-        
-        VoltTable ret = new VoltTable(columnInfo);
+        final VoltTable ret = new VoltTable(columnInfo);
         
         while(dueItemsTable[0].advanceRow()){
         	long itemId = dueItemsTable[0].getLong(0);
