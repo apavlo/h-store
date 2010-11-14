@@ -401,6 +401,9 @@ public abstract class DesignerUtil {
         // Walk through the tree and figure out how the tables are being referenced
         //
         new PlanNodeTreeWalker() {
+            {
+                this.setAllowRevisit(true);
+            }
             protected void populate_children(PlanNodeTreeWalker.Children children, AbstractPlanNode node) {
                 super.populate_children(children, node);
                 List<AbstractPlanNode> to_add = new ArrayList<AbstractPlanNode>();
@@ -528,6 +531,10 @@ public abstract class DesignerUtil {
     public static void extractExpressionColumnSet(final Statement catalog_stmt, final Database catalog_db, final ColumnSet cset, final AbstractExpression root_exp, final boolean convert_params, final Collection<Table> tables) throws Exception {
 //        LOG.info(catalog_stmt + "\n" + ExpressionUtil.debug(root_exp));
         new ExpressionTreeWalker() {
+            {
+                this.setAllowRevisit(true);
+            }
+            
             boolean on_leftside = true;
             ExpressionType compare_exp = null;
             final Set<CatalogType> left  = new HashSet<CatalogType>();
