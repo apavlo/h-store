@@ -625,13 +625,13 @@ public class ExecutionSite implements Runnable {
                         result = this.processFragmentTaskMessage(ftask, ts.getLastUndoToken());
                         fresponse.setStatus(FragmentResponseMessage.SUCCESS, null);
                     } catch (EEException ex) {
-                        if (debug) LOG.warn("Hit an EE Error for txn #" + txn_id, ex);
+                        if (true || debug) LOG.warn("Hit an EE Error for txn #" + txn_id, ex);
                         fresponse.setStatus(FragmentResponseMessage.UNEXPECTED_ERROR, ex);
                     } catch (SQLException ex) {
-                        if (debug) LOG.warn("Hit a SQL Error for txn #" + txn_id, ex);
+                        if (true || debug) LOG.warn("Hit a SQL Error for txn #" + txn_id, ex);
                         fresponse.setStatus(FragmentResponseMessage.UNEXPECTED_ERROR, ex);
                     } catch (Exception ex) {
-                        if (debug) LOG.warn("Something unexpected and bad happended for txn #" + txn_id, ex);
+                        if (true || debug) LOG.warn("Something unexpected and bad happended for txn #" + txn_id, ex);
                         fresponse.setStatus(FragmentResponseMessage.UNEXPECTED_ERROR, new SerializableException(ex));
                     } finally {
                         // Success, but without any results???
@@ -1088,7 +1088,7 @@ public class ExecutionSite implements Runnable {
         long client_handle = cresponse.getClientHandle();
         assert(client_handle != -1) : "The client handle for txn #" + txn_id + " was not set properly";
 
-        FastSerializer out = new FastSerializer(); // TODO: Should I be using this.buffer_pool ???
+        FastSerializer out = new FastSerializer(ExecutionSite.buffer_pool);
         try {
             out.writeObject(cresponse);
         } catch (IOException e) {
