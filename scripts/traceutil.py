@@ -29,8 +29,6 @@ if __name__ == '__main__':
     _options, args = getopt.gnu_getopt(sys.argv[1:], '', [
         ## Input trace file (default is stdin)
         "trace=",
-        ## The specific trace id to grab
-        "id=",
         ## Parameter mapping
         "param-map=",
         ## Transaction Offset
@@ -56,10 +54,16 @@ if __name__ == '__main__':
     args = map(string.strip, args)
     trace_file = options["trace"][0] if "trace" in options else "-"
     command = args.pop(0)
+    search_key = args.pop(0) if len(args) > 0 else None
+    if search_key.isdigit(): search_key = int(search_key)
     
     offset = int(options["offset"][0]) if "offset" in options else None
+    # You can't assume the search_key is the same as the offset, since we may reordered these
+    # if offset == None and type(search_key) == int: offset = search_key
+    offset_first = True
+    
     limit = int(options["limit"][0]) if "limit" in options else None
-    lookup_id = int(options["id"][0]) if "id" in options else None
+    
     txn_ctr = -1
     limit_ctr = 0
     count_data = { }
@@ -76,12 +80,18 @@ if __name__ == '__main__':
     #logging.debug("Trace: %s" % trace_file)
     logging.debug("Command:    %s" % command)
     logging.debug("Parameters: [%s]" % ",".join(args))
-    logging.debug("Options:    [offset=%s, limit=%s, lookup_id=%s]" % (str(offset), str(limit), str(lookup_id)))
+    logging.debug("Options:    [offset=%s, limit=%s, searchKey=%s]" % (str(offset), str(limit), str(search_key)))
     with open(trace_file, "r") if trace_file != "-" else sys.stdin as fd:
         for line in map(string.strip, fd):
             txn_ctr += 1
             if txn_ctr > 0 and txn_ctr % 10000 == 0: logging.info("Transaction #%05d" % txn_ctr)
+            
+            ## Offset
             if offset != None and txn_ctr < offset: continue
+            elif offset != None and offset_first:
+                offset_first = False
+                logging.info("Transaction #%05d [offset=%d]" % (txn_ctr, offset))
+                
             if limit != None and limit_ctr >= limit: break
             json_data = json.loads(line)
             catalog_name = json_data["CATALOG_NAME"]
@@ -91,7 +101,7 @@ if __name__ == '__main__':
             ## GET
             ## ----------------------------------------------
             if command == "get":
-                if catalog_name == args[0] and (lookup_id == None or lookup_id == trace_id):
+                if search_key in [ catalog_name, trace_id ]:
                     txn = TransactionTrace().fromJSON(json_data)
                     assert txn
                     
@@ -104,7 +114,7 @@ if __name__ == '__main__':
             ## ----------------------------------------------
             elif command == "fixparams":
                 assert param_mappings
-                if True or catalog_name == args[0] and (lookup_id == None or lookup_id == trace_id):
+                if True or search_key in [ catalog_name, trace_id ]:
                     txn = TransactionTrace().fromJSON(json_data)
                     assert txn
                     

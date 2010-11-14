@@ -29,7 +29,7 @@ public class NewPurchase extends VoltProcedure{
             	"ip_date" +     
             ") VALUES(?,?,?,?,?)"
         );
-
+    
     public final SQLStmt update_item_status = new SQLStmt(
             "UPDATE " + AuctionMarkConstants.TABLENAME_ITEM + " " +
             	"SET i_status = 2 " +   

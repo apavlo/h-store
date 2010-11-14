@@ -1066,18 +1066,20 @@ public class BenchmarkController {
             } else if (parts[1].startsWith("${")) {
                 continue;
             }
-            else if (parts[0].equals("HOST")) {
+            else if (parts[0].equalsIgnoreCase("HOST")) {
                 /*
                  * Name of a host to be used for Volt servers
                  */
                 String hostnport[] = parts[1].split("\\:",2);
                 hosts.add(hostnport[0]);
-            } else if (parts[0].equals("CLIENTHOST")) {
+            } else if (parts[0].equalsIgnoreCase("CLIENTHOST")) {
                 /*
                  * Name of a host to be used for Volt clients
                  */
-                String hostnport[] = parts[1].split("\\:",2);
-                clients.add(hostnport[0]);
+//                String hostnport[] = parts[1].split("\\:",2);
+                for (String host : parts[1].split(",")) {
+                    clients.add(host);
+                }
             }
         }
 
@@ -1087,7 +1089,7 @@ public class BenchmarkController {
         if (clients.size() == 0)
             clients.add("localhost");
 
-        if (clients.size() < clientCount) {
+        if (compileOnly == false && clients.size() < clientCount) {
             LogKeys logkey = LogKeys.benchmark_BenchmarkController_NotEnoughClients;
             benchmarkLog.l7dlog( Level.FATAL, logkey.name(),
                     new Object[] { clients.size(), clientCount }, null);
@@ -1114,8 +1116,10 @@ public class BenchmarkController {
             hostNames = new String[0];
         }
         String[] clientNames = new String[clientCount];
-        for (int i = 0; i < clientCount; i++)
-            clientNames[i] = clients.get(i);
+        if (compileOnly == false) {
+            for (int i = 0; i < clientCount; i++)
+                clientNames[i] = clients.get(i);
+        }
 
         // create a config object, mostly for the results uploader at this point
         BenchmarkConfig config = new BenchmarkConfig(clientClassname, backend, coordinatorHost, hostNames,

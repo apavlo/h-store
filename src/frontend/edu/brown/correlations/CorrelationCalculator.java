@@ -561,12 +561,11 @@ public class CorrelationCalculator {
             ParameterCorrelations pc = cc.getParameterCorrelations(threshold);
             String output_path = args.getParam(ArgumentsParser.PARAM_CORRELATIONS_OUTPUT);
             assert(!pc.isEmpty());
-            LOG.debug("DEBUG DUMP:\n" + pc.debug());
+            if (LOG.isDebugEnabled()) LOG.debug("DEBUG DUMP:\n" + pc.debug());
             pc.save(output_path);
             LOG.info("Wrote Correlations to " + output_path);
         } else {
             LOG.info("No output!");
         }
     }
-
 }

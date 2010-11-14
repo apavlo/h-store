@@ -87,14 +87,13 @@ public class MostPopularPartitioner extends AbstractPartitioner {
                 assert(forced_columns.size() == 1) : "Unexpected number of forced columns: " + forced_columns;
                 Column catalog_col = CollectionUtil.getFirst(forced_columns);
                 pentry = new PartitionEntry(PartitionMethodType.HASH, catalog_col);
-                if (debug) LOG.debug(String.format("FORCED PARTITION %-25s%s", catalog_tbl.getName(), catalog_col.getName()));
+                if (debug) LOG.debug("FORCED PARTITION: " + CatalogUtil.getDisplayName(catalog_col));
             
             // Select most popular
             } else {
-                // If there are no edges, then we'll just skip it
+                // If there are no edges, then we'll just randomly pick a column since it doesn't matter
                 final Collection<Edge> edges = agraph.getIncidentEdges(v);
                 if (edges.isEmpty()) {
-                    if (trace) LOG.trace("No edges for " + catalog_tbl);
                     continue;
                 }
                 if (trace) LOG.trace(catalog_tbl + " has " + edges.size() + " edges in AccessGraph");
@@ -164,6 +163,14 @@ public class MostPopularPartitioner extends AbstractPartitioner {
             pplan.table_entries.put(catalog_tbl, pentry);
         } // FOR
         assert(total_memory_used <= 100) : "Too much memory per partition: " + total_memory_used;
+        for (Table catalog_tbl : info.catalog_db.getTables()) {
+            if (pplan.getTableEntry(catalog_tbl) == null) {
+                Column catalog_col = CollectionUtil.getRandomValue(catalog_tbl.getColumns());
+                assert(catalog_col != null) : "Failed to randomly pick column for " + catalog_tbl;
+                pplan.table_entries.put(catalog_tbl, new PartitionEntry(PartitionMethodType.HASH, catalog_col));
+                if (debug) LOG.debug("RANDOM SELECTION: " + CatalogUtil.getDisplayName(catalog_col));
+            }
+        } // FOR
         
         if (hints.enable_procparameter_search) {
             if (debug) LOG.debug("Selecting partitioning ProcParameter for " + this.info.catalog_db.getProcedures().size() + " Procedures");
@@ -189,6 +196,7 @@ public class MostPopularPartitioner extends AbstractPartitioner {
             hints.enable_multi_partitioning = multiproc_orig;
         }
         this.setProcedureSinglePartitionFlags(pplan, hints);
+        
         return (pplan);
     }
 

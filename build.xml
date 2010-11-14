@@ -1493,7 +1493,7 @@ BENCHMARKS
         <!-- These are currently ignored (I think...) -->
         <arg value="HOST=${manualhost1}" />
         <arg value="HOST=${host1}" />
-        <arg value="CLIENTHOST=${clienthost1}" />
+        <arg value="CLIENTHOST=${clienthost}" />
         <arg value="LISTENFORDEBUGGER=${debug}" />
         <arg value="USEPROFILE=${hstore.useprofile}" />
         <arg value="CHECKTRANSACTION=${checktransaction}" />
@@ -1739,6 +1739,9 @@ DESIGNER
 </target>
 
 <target name='catalog-viewer' description="Catalog Viewer">
+    <condition property="jar" value="${benchmark.jar}">
+        <not><isset property="jar"/></not>
+    </condition>
     <java fork="yes" classname="edu.brown.gui.CatalogViewer">
         <jvmarg value="-Xmx512m" />
         <jvmarg value="-Dlog4j.configuration=${basedir}/log4j.properties"/>
@@ -1839,27 +1842,45 @@ DESIGNER
 
 <target name='designer-prepare'
         description="Prepare various files needed by designer components">
-    <echo>Creating stats file for ${project}...</echo>
-    <antcall target="stats">
-        <param name="jar" value="${project}.jar" />
-        <param name="workload" value="./files/workloads/${project}.trace.gz" />
-        <param name="stats" value="./files/workloads/${project}.table.stats" />
-        <param name="output" value="./files/workloads/${project}.stats" />
-    </antcall>
-    <gzip src="./files/workloads/${project}.stats" destfile="./files/workloads/${project}.stats.gz"/>
     
-    <echo>Creating correlations file for ${project}...</echo>
+    <condition property="target.workload" value="${project}">
+        <not><isset property="target.workload"/></not>
+    </condition>
+    <property name="benchmark.tablestats" location="/tmp/${project}.table.stats" />
+    
+    <echo>Creating table stats file for ${project}...</echo>
+    <java fork="yes" classname="edu.brown.statistics.AbstractTableStatisticsGenerator" failonerror='true'>
+        <jvmarg value="-Xmx${volt.client.memory}m" />
+        <jvmarg value="-Dlog4j.configuration=${basedir}/log4j.properties"/>
+        <arg value="catalog.jar=${benchmark.jar}" />
+        <arg value="stats.scalefactor=${hstore.scalefactor}" />
+        <arg value="stats.output=${benchmark.tablestats}" />
+        <classpath refid='project.classpath' />
+        <assertions><enable /></assertions>
+    </java>
+    
+    <echo>Creating stats file for ${target.workload}...</echo>
+    <antcall target="stats">
+        <param name="jar" value="${benchmark.jar}" />
+        <param name="workload" value="files/workloads/${target.workload}.trace.gz" />
+        <param name="stats" value="${benchmark.tablestats}" />
+        <param name="output" value="files/workloads/${target.workload}.stats" />
+    </antcall>
+    <gzip src="files/workloads/${target.workload}.stats" destfile="files/workloads/${target.workload}.stats.gz"/>
+    <delete file="${benchmark.tablestats}" />
+    
+    <echo>Creating correlations file for ${workload}...</echo>
     <antcall target="correlations">
-        <param name="jar" value="${project}.jar" />
-        <param name="workload" value="./files/workloads/${project}.trace.gz" />
-        <param name="output" value="./files/correlations/${project}.correlations" />
+        <param name="jar" value="${benchmark.jar}" />
+        <param name="workload" value="./files/workloads/${target.workload}.trace.gz" />
+        <param name="output" value="./files/correlations/${target.workload}.correlations" />
     </antcall>
 </target>
 
 
 <target name='designer-jar'
         description="Prepare a jar file for the designer!">
-    <copy tofile="${project}-designer-benchmark.jar" file="${project}.jar"/>
+    <copy tofile="${project}-designer-benchmark.jar" file="${benchmark.jar}"/>
     <antcall target="catalog-fix">
         <param name="jar" value="${project}-designer-benchmark.jar" />
         <param name="type" value="${project}" />
@@ -2024,14 +2045,14 @@ H-STORE REMIX
         <param name="compileonly"   value="true" />
         <param name="compile"       value="true" />
         <param name="host1"         value="${hstore.defaulthost}" />
-        <param name="clienthost1"   value="${hstore.defaulthost}" />
+        <param name="clienthost"    value="${hstore.defaulthost}" />
         <param name="loadthreads"   value="${hstore.loadthreads}" />
         <param name="client"        value="${benchmark.client}" />
     </antcall>
     
     <!-- Sets up host/site/partition information in system catalogs -->
     <antcall target="hstore-jar">
-        <param name="jar" value="${project}.jar" />
+        <param name="jar" value="${benchmark.jar}" />
     </antcall>
 </target>
 
@@ -2056,7 +2077,7 @@ H-STORE REMIX
         <arg value="partitionplan=${partitionplan}" />
         <arg value="partitionplan.apply=true" />
         <arg value="workload.output=${trace}" />
-        <arg value="workload.procexclude=${ignore}" />
+        <arg value="workload.procexclude=${benchmark.workload.ignore}" />
         <classpath refid='project.classpath' />
         <assertions><enable /></assertions>
     </java>
@@ -2066,13 +2087,13 @@ H-STORE REMIX
     <antcall target="benchmark">
         <param name="catalog" value="${benchmark.jar}" />
         <param name="compile" value="false" />
-        <param name="clienthost1" value="${hstore.defaulthost}" />
+        <param name="clienthost" value="${hstore.defaulthost}" />
     </antcall>
 </target>
 
 <target name="hstore-jar" description="H-Store JAR Setup">
     <antcall target="catalog-fix">
-        <param name="jar" value="${project}.jar" />
+        <param name="jar" value="${benchmark.jar}" />
         <param name="correlations" value="./files/correlations/${project}.correlations" />
         
         <!-- FORMAT: <hostname>:<site#>:<partition#> -->
@@ -2085,21 +2106,21 @@ H-STORE REMIX
 
 <target name="hstore-benchmark" description="H-Store Test Setup">
     <antcall target="hstore-conf">
-        <param name="jar" value="${project}.jar" />
+        <param name="jar" value="${benchmark.jar}" />
     </antcall>
     <parallel failonany="true">
         <antcall target="dtxn-coordinator">
             <param name="port" value="${hstore.coordinator.port}" />
         </antcall>
         <antcall target="hstore-site">
-            <param name="jar" value="${project}.jar" />
+            <param name="jar" value="${benchmark.jar}" />
             <param name="node.site" value="0" />
             <param name="markov" value="./files/markovs/${project}.markovs" />
             <param name="thresholds" value="./files/thresholds/default.thresholds" />
             <param name="correlations" value="./files/correlations/${project}.correlations" />
         </antcall>
         <antcall target="hstore-site">
-            <param name="jar" value="${project}.jar" />
+            <param name="jar" value="${benchmark.jar}" />
             <param name="node.site" value="1" />
             <param name="markov" value="./files/markovs/${project}.markovs" />
             <param name="thresholds" value="./files/thresholds/default.thresholds" />

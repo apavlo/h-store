@@ -20,6 +20,8 @@ import edu.brown.designer.MemoryEstimator;
 import edu.brown.designer.Vertex;
 import edu.brown.graphs.VertexTreeWalker;
 import edu.brown.graphs.VertexTreeWalker.TraverseOrder;
+import edu.brown.utils.ArgumentsParser;
+import edu.brown.utils.ClassUtil;
 import edu.brown.utils.ProjectType;
 import edu.brown.utils.StringUtil;
 import edu.uci.ics.jung.graph.util.EdgeType;
@@ -294,5 +296,29 @@ public abstract class AbstractTableStatisticsGenerator {
         
         return (stats);
     }
-
+    
+    public static void main(String[] vargs) throws Exception {
+        ArgumentsParser args = ArgumentsParser.load(vargs);
+        args.require(ArgumentsParser.PARAM_CATALOG_TYPE,
+                     ArgumentsParser.PARAM_STATS_SCALE_FACTOR,
+                     ArgumentsParser.PARAM_STATS_OUTPUT);
+        
+        double scale_factor = args.getDoubleParam(ArgumentsParser.PARAM_STATS_SCALE_FACTOR);
+        String output = args.getParam(ArgumentsParser.PARAM_STATS_OUTPUT);
+        
+        String generator_className = String.format("%s.%sTableStatisticsGenerator",
+                                                   args.catalog_type.getPackageName(),
+                                                   args.catalog_type.getBenchmarkPrefix()); 
+        final AbstractTableStatisticsGenerator generator = (AbstractTableStatisticsGenerator)
+                                                                ClassUtil.newInstance(generator_className,
+                                                                                      new Object[]{ args.catalog_db, scale_factor },
+                                                                                      new Class<?>[]{ Database.class, double.class });
+        assert(generator != null);
+        
+        Map<Table, TableStatistics> table_stats = generator.generate();
+        assert(table_stats != null);
+        WorkloadStatistics stats = new WorkloadStatistics(args.catalog_db);
+        stats.apply(table_stats);
+        stats.save(output);
+    }
 }

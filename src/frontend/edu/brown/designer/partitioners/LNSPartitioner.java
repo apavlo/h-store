@@ -231,6 +231,10 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
      */
     @Override
     public PartitionPlan generate(DesignerHints hints) throws Exception {
+        LOG.info(String.format("Starting Large-Neighborhood Search [partitions=%d, intervals=%d]",
+                               CatalogUtil.getNumberOfPartitions(info.catalog_db),
+                               info.getArgs().num_intervals));
+        
         // Initialize a bunch of stuff we need
         this.costmodel.applyDesignerHints(hints);
         this.init(hints);
@@ -318,7 +322,7 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
         if (hints.max_memory_per_partition > 0) {
             this.initial_memory = this.info.getMemoryEstimator().estimate(this.info.catalog_db, this.num_partitions) /
                                   (double)hints.max_memory_per_partition;
-            assert(this.initial_memory <= 1.0) : this.initial_memory; // Never should happen!
+            assert(this.initial_memory <= 1.0) : "Not enough memory: " + this.initial_memory; // Never should happen!
         } else {
             hints.max_memory_per_partition = 0;
         }
@@ -495,7 +499,12 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
         
         // GO GO LOCAL SEARCH!! 
         BranchAndBoundPartitioner local_search = new BranchAndBoundPartitioner(this.designer, this.info);
-        local_search.setUpperBounds(hints, this.best_solution, this.best_cost, Math.round(this.best_memory * hints.max_memory_per_partition));
+        if (LOG.isDebugEnabled()) {
+            LOG.debug("Best Solution Cost:   " + this.best_cost);
+            LOG.debug("Best Solution Memory: " + this.best_memory);
+        }
+        
+        local_search.setUpperBounds(hints, this.best_solution, this.best_cost, (long)(this.best_memory * hints.max_memory_per_partition));
         local_search.setTraversalAttributes(key_attributes, table_attributes.size());
         PartitionPlan result = local_search.generate(hints);
         this.last_exhausted_search = (local_search.wasHalted() != null && local_search.wasHalted() == false); 
@@ -519,7 +528,6 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
             }
         } // FOR
 
-        
         BranchAndBoundPartitioner.StateVertex state = local_search.getBestVertex();
         if (state.getCost() < this.best_cost) {
             LOG.info("New Best Solution Found from Local Search!");

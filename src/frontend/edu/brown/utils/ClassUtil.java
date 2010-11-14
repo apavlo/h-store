@@ -83,6 +83,7 @@ public abstract class ClassUtil {
      * @param element_class
      * @return
      */
+    @SuppressWarnings("unchecked")
     public static Set<Class<?>> getInterfaces(Class<?> element_class) {
         Set<Class<?>> ret = ClassUtil.CACHE_getInterfaceClasses.get(element_class);
         if (ret == null) {

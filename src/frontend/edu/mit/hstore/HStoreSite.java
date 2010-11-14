@@ -881,7 +881,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         if (args.hasParam(ArgumentsParser.PARAM_WORKLOAD_OUTPUT)) {
             ProcedureProfiler.profilingLevel = ProcedureProfiler.Level.INTRUSIVE;
             String traceClass = Workload.class.getName();
-            String tracePath = args.getParam(ArgumentsParser.PARAM_WORKLOAD_OUTPUT) + ".hstorenode-" + site_id;
+            String tracePath = args.getParam(ArgumentsParser.PARAM_WORKLOAD_OUTPUT) + "-" + site_id;
             String traceIgnore = args.getParam(ArgumentsParser.PARAM_WORKLOAD_PROC_EXCLUDE);
             ProcedureProfiler.initializeWorkloadTrace(args.catalog, traceClass, tracePath, traceIgnore);
             

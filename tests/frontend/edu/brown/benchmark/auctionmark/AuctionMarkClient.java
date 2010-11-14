@@ -355,14 +355,21 @@ public class AuctionMarkClient extends AuctionMarkBaseClient {
             @Override
             public Object[] generate(AbstractRandomGenerator rng, AuctionMarkClientBenchmarkProfile profile, VoltTable voltTable) {
             	voltTable.resetRowPosition();
-    			long[] i_ids = new long[voltTable.getRowCount()];
-    			long[] i_u_ids = new long[voltTable.getRowCount()];
-    			long[] ib_ids = new long[voltTable.getRowCount()];
+            	
+            	final int num_rows = voltTable.getRowCount();
+    			long[] i_ids = new long[num_rows];
+    			long[] seller_ids = new long[num_rows];
+    			long[] buyer_ids = new long[num_rows];
+    			long[] ib_ids = new long[num_rows];
     			
-    			for(int i=0; i<i_ids.length; i++){
+    			for(int i=0; i < i_ids.length; i++){
     				voltTable.advanceRow();
     				i_ids[i] = voltTable.getLong("i_id");
-    	    		i_u_ids[i] = voltTable.getLong("i_u_id");
+    	    		seller_ids[i] = voltTable.getLong("i_u_id");
+    	    		buyer_ids[i] = voltTable.getLong("ib_buyer_id");
+    	    		if(voltTable.wasNull()){
+    	    		    buyer_ids[i] = -1;
+    	    		}
     	    		ib_ids[i] = voltTable.getLong("imb_ib_id");
     	    		if(voltTable.wasNull()){
     	    			ib_ids[i] = -1;
@@ -370,7 +377,7 @@ public class AuctionMarkClient extends AuctionMarkBaseClient {
     			}
 
     			Object[] params = new Object[]{
-    					i_ids, i_u_ids, ib_ids
+    					i_ids, seller_ids, buyer_ids, ib_ids
     			};
 
                 return params;
@@ -406,10 +413,25 @@ public class AuctionMarkClient extends AuctionMarkBaseClient {
             @Override
             public Object[] generate(AbstractRandomGenerator rng, AuctionMarkClientBenchmarkProfile profile, VoltTable voltTable) {
             	long userId = profile.getRandomAvailableItemIdSellerIdPair(rng)[1];
-            	long get_items = (long)rng.number(0,1);
-            	long get_feedback = (long)rng.number(0,1);
-                return new Object[]{
-                	userId, get_items, get_feedback
+            	long get_seller_items = 0;
+            	long get_buyer_items = 0;
+            	long get_feedback = 0;
+            	
+                // 33% of the time they're going to ask for additional information
+            	if (rng.number(0, 100) <= 33) {
+            	    if (rng.number(0, 100) <= 75) {
+            	        get_seller_items = 1;
+            	    } else {
+            	        get_buyer_items = 1;
+            	    }
+            	}
+            	// 33% of the time we'll also get the feedback information
+            	if (rng.number(0, 100) <= 33) {
+            	    get_feedback = 1;
+            	}
+
+            	return new Object[]{
+                	userId, get_seller_items, get_buyer_items, get_feedback
                 };
             }
 
@@ -754,7 +776,8 @@ public class AuctionMarkClient extends AuctionMarkBaseClient {
         
         @Override
         public void clientCallback(ClientResponse clientResponse) {
-        	LOG.trace("clientCallback(cid = " + _clientId + "):: txn = " + txn.getDisplayName());
+            final boolean trace = LOG.isTraceEnabled(); 
+        	if (trace) LOG.trace("clientCallback(cid = " + _clientId + "):: txn = " + txn.getDisplayName());
         	
         	AuctionMarkClient.this.m_counts[this.txn.ordinal()].incrementAndGet();
         	VoltTable[] results = clientResponse.getResults();
@@ -824,11 +847,11 @@ public class AuctionMarkClient extends AuctionMarkBaseClient {
         			if(results.length > 0 && results[0].advanceRow()){
 	        			long itemId = results[0].getLong("ip_ib_i_id");
 	        			long sellerId = results[0].getLong("u_id");
-	        			LOG.trace("clientCallback:: NEW_PURCHASE itemId = " + itemId);
-	        			LOG.trace("clientCallback:: NEW_PURCHASE sellerId = " + sellerId);
+	        			if (trace) LOG.trace("clientCallback:: NEW_PURCHASE itemId = " + itemId);
+	        			if (trace) LOG.trace("clientCallback:: NEW_PURCHASE sellerId = " + sellerId);
 	        			profile.removeWaitForPurchaseItem(sellerId, itemId);
 	        			profile.addCompleteItem(sellerId, itemId);
-	        			LOG.trace("clientCallback:: NEW_PURCHASE END");
+	        			if (trace) LOG.trace("clientCallback:: NEW_PURCHASE END");
         			}
         			break;
         		}
@@ -842,7 +865,7 @@ public class AuctionMarkClient extends AuctionMarkBaseClient {
         			break;
         		}
         		case GET_USER_INFO: {
-        			LOG.trace("GOT USER INFO:::::");
+        		    if (trace) LOG.trace("GOT USER INFO:::::");
         			break;
         		}
         	} // SWITCH

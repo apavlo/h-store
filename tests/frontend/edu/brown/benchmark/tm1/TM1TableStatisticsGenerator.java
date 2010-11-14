@@ -1,14 +1,8 @@
 package edu.brown.benchmark.tm1;
 
-import java.util.Map;
-
 import org.voltdb.catalog.Database;
-import org.voltdb.catalog.Table;
 
 import edu.brown.statistics.AbstractTableStatisticsGenerator;
-import edu.brown.statistics.TableStatistics;
-import edu.brown.statistics.WorkloadStatistics;
-import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.ProjectType;
 
 /**
@@ -55,25 +49,4 @@ public class TM1TableStatisticsGenerator extends AbstractTableStatisticsGenerato
         p.addAdditionDependency(this.catalog_db, TM1Constants.TABLENAME_SPECIAL_FACILITY, 1.5);
         this.addTableProfile(p);
     }
-    
-    /**
-     * @param args
-     */
-    public static void main(String[] vargs) throws Exception {
-        ArgumentsParser args = ArgumentsParser.load(vargs);
-        args.require(
-            ArgumentsParser.PARAM_CATALOG,
-            ArgumentsParser.PARAM_STATS_OUTPUT,
-            ArgumentsParser.PARAM_STATS_SCALE_FACTOR
-        );
-        
-        double scale_factor = args.getDoubleParam(ArgumentsParser.PARAM_STATS_SCALE_FACTOR);
-        Map<Table, TableStatistics> table_stats = new TM1TableStatisticsGenerator(args.catalog_db, scale_factor).generate();
-        assert(table_stats != null);
-        
-        WorkloadStatistics stats = new WorkloadStatistics(args.catalog_db);
-        stats.apply(table_stats);
-        stats.save(args.getParam(ArgumentsParser.PARAM_STATS_OUTPUT));
-    }
-
 }

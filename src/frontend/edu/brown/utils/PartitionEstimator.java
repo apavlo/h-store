@@ -591,7 +591,8 @@ public class PartitionEstimator {
 //            if (debug) LOG.debug(catalog_proc + " is not marked as single-partitioned. Executing as multi-partition");
 //            return (null);
         }
-        assert(partition_param_idx >= 0);
+        assert(partition_param_idx >= 0) : "Invalid Partitioning ProcParameter #" + partition_param_idx;
+        assert(partition_param_idx < catalog_proc.getParameters().size()): "Invalid Partitioning ProcParameter #" + partition_param_idx + " [ProcParmaeters=" + catalog_proc.getParameters().size() + "]";
         ProcParameter catalog_param = catalog_proc.getParameters().get(partition_param_idx);
         int partition = -1;
         
@@ -601,9 +602,11 @@ public class PartitionEstimator {
             if (debug) LOG.debug(catalog_proc.getName() + " MultiProcParameter: " + mpp);
             int hashes[] = new int[mpp.size()];
             for (int i = 0; i < hashes.length; i++) {
-                int param_idx = mpp.get(i).getIndex();
-                hashes[i] = this.calculatePartition(catalog_proc, params[param_idx]);
-                if (debug) LOG.debug(mpp.get(i) + " value[" + params[param_idx] + "] => hash[" + hashes[i] + "]");
+                int mpp_param_idx = mpp.get(i).getIndex();
+                assert(mpp_param_idx >= 0) : "Invalid Partitioning MultiProcParameter #" + mpp_param_idx;
+                assert(mpp_param_idx < params.length) : CatalogUtil.getDisplayName(mpp) + " < " + params.length;
+                hashes[i] = this.calculatePartition(catalog_proc, params[mpp_param_idx]);
+                if (debug) LOG.debug(mpp.get(i) + " value[" + params[mpp_param_idx] + "] => hash[" + hashes[i] + "]");
             } // FOR
             partition = this.hasher.multiValueHash(hashes);
             if (debug) LOG.debug(Arrays.toString(hashes) + " => " + partition);
