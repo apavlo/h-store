@@ -79,6 +79,9 @@ public class TransactionState {
     private RoundState round_state = RoundState.NULL;
     private int round_ctr = 0;
     private RuntimeException pending_error;
+    
+    private boolean finished = false;
+    private long finished_timestamp;
 
     /**
      * Callback to the coordinator for txns that are running on this partition
@@ -315,6 +318,22 @@ public class TransactionState {
                 this.dependency_latch.countDown();
             } // WHILE
         }
+    }
+    
+    public void markAsFinished() {
+        if (this.finished == false) {
+            this.finished = true;
+            this.finished_timestamp = System.currentTimeMillis();
+        }
+    }
+    
+    public boolean isMarkedFinished() {
+        return (this.finished);
+    }
+    
+    public long getFinishedTimestamp() {
+        assert(this.finished);
+        return (this.finished_timestamp);
     }
     
     public boolean hasPendingError() {
@@ -779,7 +798,7 @@ public class TransactionState {
         final boolean trace = LOG.isTraceEnabled();
         
         // Always double check whether somebody beat us to the punch
-        if (this.blocked_tasks.isEmpty()) return;
+        if (this.blocked_tasks.isEmpty() || d.blocked_tasks_released) return;
         
         List<FragmentTaskMessage> to_execute = new ArrayList<FragmentTaskMessage>();
         Set<FragmentTaskMessage> tasks = d.getAndReleaseBlockedFragmentTaskMessages();
@@ -824,7 +843,8 @@ public class TransactionState {
             assert(d != null);
             int num_tables = d.results.size();
             assert(d.getPartitions().size() == num_tables) :
-                "Number of results retrieved for DependencyId is " + num_tables + " but we were expecting " + d.getPartitions().size();
+                "Number of results retrieved for DependencyId is " + num_tables + " but we were expecting " + d.getPartitions().size() + " in txn #" + this.txn_id +
+                " [" + this.executor.getRunningVoltProcedure(this.txn_id).getClass().getSimpleName() + "]";
             results.put(input_d_id, d.getResults());
         } // FOR
         return (results);

@@ -181,9 +181,6 @@ public abstract class VoltProcedure {
                     if (trace) LOG.trace("Notifying observers that txn #" + current_txn_id + " is finished");
                     VoltProcedure.this.observable.notifyObservers(response);
                     
-                    // Clear out our private data
-                    VoltProcedure.this.m_currentTxnState = null;
-                    
                 } catch (AssertionError ex) {
                     LOG.fatal("Unexpected error while executing txn #" + current_txn_id, ex);
                     VoltProcedure.this.m_site.crash();
@@ -192,12 +189,11 @@ public abstract class VoltProcedure {
                     VoltProcedure.this.m_site.crash();
                 } finally {
                     assert(VoltProcedure.this.txn_id == current_txn_id) : VoltProcedure.this.txn_id + " != " + current_txn_id;
+                    
+                    // Clear out our private data
                     if (trace) LOG.trace("Releasing lock for txn #" + current_txn_id);
-    
-                    // Tell the ExecutionSite to clean-up any info about this txn
+                    VoltProcedure.this.m_currentTxnState = null;
                     VoltProcedure.this.txn_id = null;
-                    if (trace) LOG.trace("Cleaning up txn #" + current_txn_id);
-                    VoltProcedure.this.m_site.cleanupTransaction(current_txn_id);
                 }
             }
         }

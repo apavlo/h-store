@@ -606,7 +606,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         RpcCallback<Dtxn.FragmentResponse> callback = null;
         if (msg instanceof InitiateTaskMessage) {
             // We need to send back a response before we actually start executing to avoid a race condition
-            if (trace) LOG.trace("Sending back FragmentResponse for InitiateTaskMessage message on txn #" + real_txn_id);
+            if (trace) LOG.trace("Sending back Dtx.FragmentResponse for InitiateTaskMessage message on txn #" + real_txn_id);
             Dtxn.FragmentResponse response = Dtxn.FragmentResponse.newBuilder()
                                                     .setStatus(Status.OK)
                                                     .setOutput(ByteString.EMPTY)
@@ -614,7 +614,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
             done.run(response);
             
             // Now wait until we know the Dtxn.Coordinator processed our request
-            if (trace) LOG.trace("Waiting for Dtxn.coordinator to process our initialization response because Evan eats babies!!");
+            if (trace) LOG.trace("Waiting for Dtxn.Coordinator to process our initialization response because Evan eats babies!!");
             CountDownLatch latch = this.init_latches.remove(real_txn_id);
             assert(latch != null) : "Missing initialization latch for txn #" + real_txn_id;
             try {
@@ -650,8 +650,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         }
         Long txn_id = HStoreSite.decodeTxnId(request.getPayload());
         assert(txn_id != null) : "Null txn id in Dtxn.FinishRequest payload";
-        if (debug) LOG.debug("Got " + request.getClass().getSimpleName() + " for txn #" + txn_id + " " +
-                             "[commit=" + request.getCommit() + "]");
+        if (debug) LOG.debug("Got Dtxn.FinishRequest for txn #" + txn_id + " [commit=" + request.getCommit() + "]");
         
         // Tell our node to either commit or abort the txn in the FinishRequest
         // FIXME: Dtxn.FinishRequest needs to tell us what partition to tell to commit/abort
@@ -666,7 +665,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         // Send back a FinishResponse to let them know we're cool with everything...
         Dtxn.FinishResponse.Builder builder = Dtxn.FinishResponse.newBuilder();
         done.run(builder.build());
-        if (trace) LOG.trace("Sent back FinishResponse for txn #" + txn_id);
+        if (trace) LOG.trace("Sent back Dtxn.FinishResponse for txn #" + txn_id);
     }
     
     /**
