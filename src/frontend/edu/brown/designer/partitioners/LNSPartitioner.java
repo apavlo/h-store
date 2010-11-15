@@ -471,7 +471,10 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
      * @throws Exception
      */
     protected void localSearch(final DesignerHints hints, Map<Table, Set<Column>> table_attributes, Map<Procedure, Set<ProcParameter>> proc_attributes) throws Exception {
+        
+        // -------------------------------
         // Convert to catalog keys and apply relaxation
+        // -------------------------------
         Map<String, List<String>> key_attributes = new ListOrderedMap<String, List<String>>();
         for (Entry<Table, Set<Column>> e : table_attributes.entrySet()) {
             List<String> column_keys = new ArrayList<String>(CatalogKey.createKeys(e.getValue()));
@@ -496,19 +499,18 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
                 orig_solution.put(catalog_proc, catalog_param);
             }
         }
-        
-        // GO GO LOCAL SEARCH!! 
-        BranchAndBoundPartitioner local_search = new BranchAndBoundPartitioner(this.designer, this.info);
-        if (LOG.isDebugEnabled()) {
-            LOG.debug("Best Solution Cost:   " + this.best_cost);
-            LOG.debug("Best Solution Memory: " + this.best_memory);
-        }
-        
-        local_search.setUpperBounds(hints, this.best_solution, this.best_cost, (long)(this.best_memory * hints.max_memory_per_partition));
-        local_search.setTraversalAttributes(key_attributes, table_attributes.size());
-        PartitionPlan result = local_search.generate(hints);
-        this.last_exhausted_search = (local_search.wasHalted() != null && local_search.wasHalted() == false); 
 
+        // -------------------------------
+        // GO GO LOCAL SEARCH!!
+        // -------------------------------
+        Pair<PartitionPlan, BranchAndBoundPartitioner.StateVertex> pair = this.executeLocalSearch(hints, table_attributes, key_attributes);
+        assert(pair != null);
+        PartitionPlan result = pair.getFirst();
+        BranchAndBoundPartitioner.StateVertex state = pair.getSecond();
+
+        // -------------------------------
+        // Validation
+        // -------------------------------
         for (Table catalog_tbl : info.catalog_db.getTables()) {
             if (orig_solution.containsKey(catalog_tbl)) {
                 assert(catalog_tbl.getPartitioncolumn().equals(orig_solution.get(catalog_tbl))) :
@@ -527,8 +529,10 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
                 }
             }
         } // FOR
-
-        BranchAndBoundPartitioner.StateVertex state = local_search.getBestVertex();
+        
+        // -------------------------------
+        // Comparison with current best solution
+        // -------------------------------
         if (state.getCost() < this.best_cost) {
             LOG.info("New Best Solution Found from Local Search!");
             this.best_solution = result;
@@ -540,6 +544,31 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
         }
         this.best_solution.apply(info.catalog_db);
         return;
+    }
+
+    /**
+     * 
+     * @param hints
+     * @param table_attributes
+     * @param key_attributes
+     * @return
+     * @throws Exception
+     */
+    protected Pair<PartitionPlan, BranchAndBoundPartitioner.StateVertex> executeLocalSearch(final DesignerHints hints,
+                                                                                            final Map<Table, Set<Column>> table_attributes,
+                                                                                            final Map<String, List<String>> key_attributes) throws Exception {
+        BranchAndBoundPartitioner local_search = new BranchAndBoundPartitioner(this.designer, this.info);
+        if (LOG.isDebugEnabled()) {
+            LOG.debug("Best Solution Cost:   " + this.best_cost);
+            LOG.debug("Best Solution Memory: " + this.best_memory);
+        }
+        
+        local_search.setUpperBounds(hints, this.best_solution, this.best_cost, (long)(this.best_memory * hints.max_memory_per_partition));
+        local_search.setTraversalAttributes(key_attributes, table_attributes.size());
+        PartitionPlan result = local_search.generate(hints);
+        this.last_exhausted_search = (local_search.wasHalted() != null && local_search.wasHalted() == false); 
+
+        return (Pair.of(result, local_search.getBestVertex()));
     }
     
     /**

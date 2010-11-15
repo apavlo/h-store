@@ -21,7 +21,6 @@ import edu.brown.costmodel.*;
 import edu.brown.designer.*;
 import edu.brown.utils.*;
 import edu.brown.workload.*;
-import edu.uci.ics.jung.graph.*;
 
 /**
  * @author pavlo
@@ -124,14 +123,6 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
             return (sb.toString());
         }
     } // END CLASS
-
-    /**
-     * Empty placeholder so that we can use JUNG graphs 
-     */
-    protected class StateEdge {
-        // Nothing...
-    } // END CLASS
-    
     
     protected StateVertex best_vertex = null;
     protected StateVertex upper_bounds_vertex = null;
@@ -335,7 +326,6 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
      */
     @Override
     public PartitionPlan generate(final DesignerHints hints) throws Exception {
-        final boolean trace = LOG.isTraceEnabled();
         final boolean debug = LOG.isDebugEnabled();
         
 //        hints.addTablePartitionCandidate(info.catalog_db, "CUSTOMER", "C_D_ID");
@@ -372,11 +362,15 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
         this.info.getCostModel().applyDesignerHints(hints);
         this.init(hints);
         
-        if (trace) {
-            LOG.trace("Number of partitions: " + CatalogUtil.getNumberOfPartitions(info.catalog_db));
-            LOG.trace("Memory per Partition: " + hints.max_memory_per_partition);
-            LOG.trace("Cost Model Weights:   [execution=" + info.getCostModel().getExecutionWeight() + ", entropy=" + info.getCostModel().getEntropyWeight() + "]"); 
-            LOG.trace("Procedure Histogram:\n" + info.workload.getProcedureHistogram());
+        if (debug) {
+            LOG.debug("Exhaustive Search:    " + hints.exhaustive_search);
+            LOG.debug("Greedy Search:        " + hints.greedy_search);
+            LOG.debug("Upper Bounds Cost:    " + this.upper_bounds_vertex.getCost());
+            LOG.debug("Upper Bounds Memory:  " + this.upper_bounds_vertex.getMemory());
+            LOG.debug("Number of partitions: " + CatalogUtil.getNumberOfPartitions(info.catalog_db));
+            LOG.debug("Memory per Partition: " + hints.max_memory_per_partition);
+            LOG.debug("Cost Model Weights:   [execution=" + info.getCostModel().getExecutionWeight() + ", entropy=" + info.getCostModel().getEntropyWeight() + "]"); 
+            LOG.debug("Procedure Histogram:\n" + info.workload.getProcedureHistogram());
         }
         
         this.thread = new TraverseThread(info, hints, this.best_vertex, this.base_traversal_attributes, this.num_tables);
@@ -453,7 +447,6 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
         
         private final DesignerInfo info;
         private final DesignerHints hints;
-        private final DelegateForest<StateVertex, StateEdge> graph = new DelegateForest<StateVertex, StateEdge>();
         private final ListOrderedMap<String, List<String>> traversal_attributes = new ListOrderedMap<String, List<String>>();
         private final int num_elements;
         private final int num_tables;
@@ -565,7 +558,6 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
                 LOG.debug("Remaining Search Time: " + (this.halt_time - System.currentTimeMillis()) / 1000d);  
                 
             try {
-                this.graph.addVertex(this.start);
                 this.traverse(start, 0);
             } catch (Exception ex) {
                 LOG.fatal(ex.getLocalizedMessage());
@@ -588,6 +580,7 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
             
             assert(idx < this.traversal_attributes.size());
             final String current_key = this.traversal_attributes.get(idx);
+            this.traverse_ctr++;
             final boolean is_table = (idx < this.num_tables);
             final boolean is_last_table = ((idx + 1) == this.num_tables);
             CatalogType current = null;
@@ -643,13 +636,18 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
             StateVertex local_best_vertex = null;
             
             // Iterate through the columns and find the one with the best cost
-            for (String attribute_key : this.traversal_attributes.get(current_key)) {
+            final List<String> current_attributes = this.traversal_attributes.get(current_key);
+            final int num_attributes = current_attributes.size();
+            int attribute_ctr = 0;
+            for (String attribute_key : current_attributes) {
                 assert(attribute_key != null) : "Null attribute key for " + current + ": " + this.traversal_attributes.get(current_key); 
                 if (trace) LOG.trace("Evaluating " + current.getName() + "." + CatalogKey.getNameFromKey(attribute_key));
-                this.traverse_ctr++;
                 boolean memory_exceeded = false;
                 Long memory = null;
                 CatalogType current_attribute = null;
+                
+                // Is this the last element we have to look at
+                boolean last_attribute = (++attribute_ctr == num_attributes);
                 
                 // Dynamic Debugging
                 this.cost_model.setDebuggingEnabled(this.hints.isDebuggingEnabled(attribute_key));
@@ -800,12 +798,18 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
                 // We now need to look to see whether we should continue down this path. Much like
                 // selecting a new best solution, the following criteria must be met in order for
                 // the partitioner to be allowed to continue down a search path:
+                //  (1) If this is last attribute at this level in the tree
+                //          AND we're looking at a TABLE
+                //          AND we're doing a greedy search
+                //      Then we'll always want to keep traversing here.
+                // Otherwise, the following the criteria must be met:
                 //  (1) It must not be a complete solution
                 //  (2) The current catalog item must be a table (no procedures!)
                 //  (3) The cost must be less than the current best solution cost
                 //  (4) The cost must be less than the upper bounds limit
                 // Or we can just say screw all that and keep going if the exhaustive flag is enabled
-                if (this.hints.exhaustive_search || (
+                if ((last_attribute && is_table && this.hints.greedy_search) ||
+                    this.hints.exhaustive_search || (
                     !complete_solution &&
                     is_table &&
                     cost < BranchAndBoundPartitioner.this.best_vertex.cost &&
@@ -828,12 +832,15 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
                     }
 
                     // We only traverse if this is a table. The ProcParameter selection is a simple greedy algorithm
-                    this.traverse(state, idx + 1);
+                    if (this.hints.greedy_search == false || (this.hints.greedy_search == true && last_attribute)) {
+                        this.traverse((this.hints.greedy_search ? local_best_vertex : state), idx + 1);
+                    }
                 }
                 
                 if (this.halt_search) break;
             } // FOR
 
+            
             // ProcParameter Traversal
             if (!is_table && !this.halt_search) {
                 assert(local_best_vertex != null) : "Missing local best vertex for " + current_key;
@@ -853,9 +860,10 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
                 
                 // If there are more Procedures to partition and we have gone past our best cost
                 // our upper bounds, then keep going... 
-                if (!complete_solution &&
-                    local_best_vertex.cost < best_vertex.cost &&
-                    local_best_vertex.cost < upper_bounds_vertex.cost) {
+                if (complete_solution == false &&
+                     (this.hints.greedy_search == true) || 
+                     (local_best_vertex.cost < best_vertex.cost &&
+                      local_best_vertex.cost < upper_bounds_vertex.cost)) {
                     this.traverse(local_best_vertex, idx + 1);
                 }
 
