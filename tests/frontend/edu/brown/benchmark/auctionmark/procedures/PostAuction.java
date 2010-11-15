@@ -79,6 +79,7 @@ public class PostAuction extends VoltProcedure {
                 this.voltQueueSQL(this.update_item_status, 1, i_id, i_u_id);
                 assert(buyer_id != -1);
                 this.voltQueueSQL(this.insert_useritem, buyer_id, i_id, i_u_id, timestamp);
+                if (debug) LOG.debug(String.format("Inserting USER_ITEM: (%d, %d, %d, %s)", buyer_id, i_id, i_u_id, timestamp.toString()));
                 waiting_ctr++;
             }
 

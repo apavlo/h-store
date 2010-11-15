@@ -78,6 +78,11 @@ public class ExecutionSite implements Runnable {
     private static final int NODE_THREAD_POOL_SIZE = 5;
 
     /**
+     * How many milliseconds will we keep around old transaction states
+     */
+    private static final int FINISHED_TRANSACTION_GARBAGE_COLLECTION = 2000;
+    
+    /**
      * Default number of VoltProcedure threads to keep around
      */
     private static final int NODE_VOLTPROCEDURE_POOL_SIZE = 5;
@@ -137,6 +142,11 @@ public class ExecutionSite implements Runnable {
      */
     protected final ConcurrentHashMap<Long, TransactionState> txn_states = new ConcurrentHashMap<Long, TransactionState>(); 
 
+    /**
+     * List of Transactions that have been marked as finished
+     */
+    protected final ConcurrentLinkedQueue<TransactionState> finished_txn_states = new ConcurrentLinkedQueue<TransactionState>();
+    
     /**
      * The time in ms since epoch of the last call to ExecutionEngine.tick(...)
      */
@@ -372,17 +382,17 @@ public class ExecutionSite implements Runnable {
                 eeTemp.loadCatalog(catalog.serialize());
                 lastTickTime = System.currentTimeMillis();
                 eeTemp.tick( lastTickTime, 0);
-                }
+            }
         }
         // just print error info an bail if we run into an error here
         catch (final Exception ex) {
-                LOG.fatal("Failed to initialize ExecutionSite", ex);
+            LOG.fatal("Failed to initialize ExecutionSite", ex);
             VoltDB.crashVoltDB();
         }
-            this.ee = eeTemp;
-            this.hsql = hsqlTemp;
-            assert(this.ee != null);
-            assert(!(this.ee == null && this.hsql == null)) : "Both execution engine objects are empty. This should never happen";
+        this.ee = eeTemp;
+        this.hsql = hsqlTemp;
+        assert(this.ee != null);
+        assert(!(this.ee == null && this.hsql == null)) : "Both execution engine objects are empty. This should never happen";
 //        } else {
 //            this.hsql = null;
 //            this.ee = null;
@@ -582,7 +592,7 @@ public class ExecutionSite implements Runnable {
                 // Check if there is any work that we need to execute
                 TransactionInfoBaseMessage work = null;
                 try {
-                    work = this.work_queue.poll(250, TimeUnit.MILLISECONDS);
+                    work = this.work_queue.poll(100, TimeUnit.MILLISECONDS);
                 } catch (InterruptedException ex) {
                     if (debug) LOG.debug("Interupted while polling work queue. Halting ExecutionSite...", ex);
                     stop = true;
@@ -720,18 +730,28 @@ public class ExecutionSite implements Runnable {
                     this.startTransaction(ts, volt_proc, init_work);
 
                 // -------------------------------
-                // Spare Cycles
-                // -------------------------------
-                } else if (work == null) {
-                    // Nothing to do right now, but we may want to take this opportunity to do
-                    // some utility work (e.g., recompute Markov model probabilities)
-                    // TODO(pavlo)
-                    
-                // -------------------------------
                 // BAD MOJO!
                 // -------------------------------
-                } else {
+                } else if (work != null) {
                     throw new RuntimeException("Unexpected work message in queue: " + work);
+                }
+
+                // -------------------------------
+                // Spare Cycles
+                // -------------------------------
+                // if (work == null) {
+                // Check if there are any finished transactions that we can clean up
+                if (this.finished_txn_states.isEmpty() == false) {
+                    long to_remove = System.currentTimeMillis() - FINISHED_TRANSACTION_GARBAGE_COLLECTION;
+                    int cleaned = 20;
+                    while (this.finished_txn_states.isEmpty() == false && cleaned > 0) {
+                        TransactionState ts = this.finished_txn_states.peek();
+                        if (ts.getFinishedTimestamp() < to_remove) {
+                            this.cleanupTransaction(ts);
+                            this.finished_txn_states.remove();
+                            cleaned--;
+                        } else break;
+                    } // WHILE
                 }
 
                 this.tick();
@@ -994,17 +1014,23 @@ public class ExecutionSite implements Runnable {
     /**
      * 
      */
-    public void cleanupTransaction(long txn_id) {
-        if (debug) LOG.debug("Cleaning up internal state information for Txn #" + txn_id);
-        VoltProcedure volt_proc = null;
-        synchronized (this.running_xacts) {
-            volt_proc = this.running_xacts.remove(txn_id);
+    private synchronized void cleanupTransaction(TransactionState ts) {
+        long txn_id = ts.getTransactionId();
+        if (trace) LOG.trace("Cleaning up internal state information for Txn #" + txn_id);
+        assert(ts.isMarkedFinished());
+        
+        if (ts.isExecLocal()) {
+            VoltProcedure volt_proc = null;
+            synchronized (this.running_xacts) {
+                volt_proc = this.running_xacts.remove(txn_id);
+            }
+            assert(volt_proc != null) :
+                "Trying to cleanup txn #" + txn_id + " more than once??";
+            assert(this.all_procs.get(volt_proc.getProcedureName()).contains(volt_proc)) :
+                "Trying to cleanup txn #" + txn_id + " more than once??";
+            this.proc_pool.get(volt_proc.getProcedureName()).add(volt_proc);
         }
-        assert(volt_proc != null) :
-            "Trying to cleanup txn #" + txn_id + " more than once??";
-        assert(this.all_procs.get(volt_proc.getProcedureName()).contains(volt_proc)) :
-            "Trying to cleanup txn #" + txn_id + " more than once??";
-        this.proc_pool.get(volt_proc.getProcedureName()).add(volt_proc);
+        this.txn_states.remove(txn_id);
     }
     
     public Long getLastCommittedTxnId() {
@@ -1100,7 +1126,9 @@ public class ExecutionSite implements Runnable {
             LOG.trace("RESULTS:\n" + Arrays.toString(cresponse.getResults()));
         }
 
-        // IMPORTANT: If we executed this locally, then we need to commit/abort right here 
+        // IMPORTANT: If we executed this locally, then we need to commit/abort right here
+        // 2010-11-14: The reason why we can do this is because we will just ignore the commit
+        // message when it shows from the Dtxn.Coordinator. We should probably double check with Evan on this...
         boolean is_local = ts.isSinglePartition() && ts.isExecLocal();
         switch (cresponse.getStatus()) {
             case ClientResponseImpl.SUCCESS:
@@ -1308,7 +1336,7 @@ public class ExecutionSite implements Runnable {
      * provided transaction id
      * @param txn_id
              */
-    public void commitWork(long txn_id) {
+    public synchronized void commitWork(long txn_id) {
         // Important: Unless this txn is running locally at ourselves, we always want to remove 
         // it from our txn map
         TransactionState ts = this.txn_states.get(txn_id);
@@ -1317,6 +1345,10 @@ public class ExecutionSite implements Runnable {
             if (trace) LOG.trace(msg + ". Ignoring for now...");
             return;
             // throw new RuntimeException(msg);
+        // This is ok because the Dtxn.Coordinator can't send us a single message for
+        // all of the partitions managed by our HStoreSite
+        } else if (ts.isMarkedFinished()) {
+            return;
         }
         
         Long undoToken = ts.getLastUndoToken();
@@ -1329,10 +1361,8 @@ public class ExecutionSite implements Runnable {
         }
 
         this.lastCommittedTxnId = txn_id;
-//        if (ts.isExecLocal() == false) {
-            if (trace) LOG.trace("Removing TransactionState for Txn #" + txn_id);
-            this.txn_states.remove(txn_id); 
-//        }
+        ts.markAsFinished();
+        this.finished_txn_states.add(ts);
     }
 
     /**
@@ -1340,14 +1370,19 @@ public class ExecutionSite implements Runnable {
      * provided transaction id
      * @param txn_id
      */
-    public void abortWork(long txn_id) {
+    public synchronized void abortWork(long txn_id) {
         TransactionState ts = this.txn_states.get(txn_id);
         if (ts == null) {
             String msg = "No transaction state for txn #" + txn_id;
             if (trace) LOG.trace(msg + ". Ignoring for now...");
             return;
             // throw new RuntimeException(msg);
+        // This is ok because the Dtxn.Coordinator can't send us a single message for
+        // all of the partitions managed by our HStoreSite
+        } else if (ts.isMarkedFinished()) {
+            return;
         }
+        
         Long undoToken = ts.getLastUndoToken();
         if (debug) LOG.debug("Aborting txn #" + txn_id + " [partition=" + this.getPartitionId() + ", lastCommittedTxnId=" + lastCommittedTxnId + ", undoToken=" + undoToken + "]");
 
@@ -1360,10 +1395,8 @@ public class ExecutionSite implements Runnable {
             if (trace) LOG.trace("Rolling back work for txn #" + txn_id + " starting at undoToken " + undoToken);
             this.ee.undoUndoToken(undoToken);
         }
-//        if (ts.isExecLocal() == false) {
-            if (trace) LOG.trace("Removing TransactionState for Txn #" + txn_id);
-            this.txn_states.remove(txn_id);
-//        }
+        ts.markAsFinished();
+        this.finished_txn_states.add(ts);
     }
     
     /**
