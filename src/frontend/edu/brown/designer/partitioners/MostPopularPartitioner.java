@@ -37,13 +37,19 @@ import edu.brown.utils.StringUtil;
  */
 public class MostPopularPartitioner extends AbstractPartitioner {
     protected static final Logger LOG = Logger.getLogger(MostPopularPartitioner.class);
-            
+    
+    private Long last_memory = null;
+    
     /**
      * @param designer
      * @param info
      */
     public MostPopularPartitioner(Designer designer, DesignerInfo info) {
         super(designer, info);
+    }
+    
+    public Long getLastMemory() {
+        return last_memory;
     }
 
     /* (non-Javadoc)
@@ -60,7 +66,8 @@ public class MostPopularPartitioner extends AbstractPartitioner {
         final AccessGraph agraph = this.generateAccessGraph();
         final boolean calculate_memory = (hints.force_replication_size_limit != null && hints.max_memory_per_partition != 0);
         
-        double total_memory_used = 0.0;
+        double total_memory_ratio = 0.0;
+        long total_memory_bytes = 0l;
         for (Vertex v : agraph.getVertices()) {
             Table catalog_tbl = v.getCatalogItem();
             String table_key = CatalogKey.createKey(catalog_tbl);
@@ -74,22 +81,31 @@ public class MostPopularPartitioner extends AbstractPartitioner {
             PartitionEntry pentry = null;
             if (trace) LOG.trace(String.format("MEMORY %-25s%.02f", catalog_tbl.getName() + ": ", size_ratio));
             
+            // -------------------------------
             // Replication
+            // -------------------------------
             if (hints.force_replication.contains(table_key) ||
                 (calculate_memory && ts.readonly && size_ratio <= hints.force_replication_size_limit)) {
-                total_memory_used += size_ratio;
+                total_memory_ratio += size_ratio;
+                total_memory_bytes += ts.tuple_size_total;
                 if (debug) LOG.debug(String.format("PARTITION %-25s%s", catalog_tbl.getName(), ReplicatedColumn.COLUMN_NAME));
                 pentry = new PartitionEntry(PartitionMethodType.REPLICATION);
-            // Forced partitioning
+            
+            // -------------------------------
+            // Forced Partitioning
+            // -------------------------------
             } else if (forced_columns.isEmpty() == false) {
-                
                 // Assume there is only one candidate
                 assert(forced_columns.size() == 1) : "Unexpected number of forced columns: " + forced_columns;
                 Column catalog_col = CollectionUtil.getFirst(forced_columns);
                 pentry = new PartitionEntry(PartitionMethodType.HASH, catalog_col);
                 if (debug) LOG.debug("FORCED PARTITION: " + CatalogUtil.getDisplayName(catalog_col));
-            
-            // Select most popular
+                total_memory_ratio += (size_ratio / (double)info.getNumPartitions());
+                total_memory_bytes += (ts.tuple_size_total / (double)info.getNumPartitions());
+
+            // -------------------------------
+            // Select Most Popular
+            // -------------------------------
             } else {
                 // If there are no edges, then we'll just randomly pick a column since it doesn't matter
                 final Collection<Edge> edges = agraph.getIncidentEdges(v);
@@ -155,14 +171,15 @@ public class MostPopularPartitioner extends AbstractPartitioner {
                 assert(!column_histogram.isEmpty()) : "Failed to find any ColumnSets for " + catalog_tbl;
                 if (trace) LOG.trace("Column Histogram:\n" + column_histogram);
                 
-                total_memory_used += (size_ratio / (double)info.getNumPartitions());
+                total_memory_ratio += (size_ratio / (double)info.getNumPartitions());
+                total_memory_bytes += (ts.tuple_size_total / (double)info.getNumPartitions());
                 Column most_popular = column_histogram.getMaxCountValue();
                 pentry = new PartitionEntry(PartitionMethodType.HASH, most_popular);
                 if (debug) LOG.debug(String.format("PARTITION %-25s%s", catalog_tbl.getName(), most_popular.getName()));
             }
             pplan.table_entries.put(catalog_tbl, pentry);
         } // FOR
-        assert(total_memory_used <= 100) : "Too much memory per partition: " + total_memory_used;
+        assert(total_memory_ratio <= 100) : "Too much memory per partition: " + total_memory_ratio;
         for (Table catalog_tbl : info.catalog_db.getTables()) {
             if (pplan.getTableEntry(catalog_tbl) == null) {
                 Column catalog_col = CollectionUtil.getRandomValue(catalog_tbl.getColumns());
@@ -196,6 +213,8 @@ public class MostPopularPartitioner extends AbstractPartitioner {
             hints.enable_multi_partitioning = multiproc_orig;
         }
         this.setProcedureSinglePartitionFlags(pplan, hints);
+        
+        this.last_memory = total_memory_bytes;
         
         return (pplan);
     }

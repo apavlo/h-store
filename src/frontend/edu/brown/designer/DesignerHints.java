@@ -26,6 +26,7 @@ public class DesignerHints implements Cloneable, JSONSerializable {
     public enum Members {
         START_RANDOM,
         EXHAUSTIVE_SEARCH,
+        GREEDY_SEARCH,
         LIMIT_TOTAL_TIME,
         LIMIT_LOCAL_TIME,
         LIMIT_BACK_TRACKS,
@@ -65,6 +66,11 @@ public class DesignerHints implements Cloneable, JSONSerializable {
      * Whether to exhaustively search all possible designs
      */
     public boolean exhaustive_search = false;
+
+    /**
+     * Whether to greedily search for a design
+     */
+    public boolean greedy_search = false;
     
     /**
      * Search time limits (seconds)
@@ -183,6 +189,15 @@ public class DesignerHints implements Cloneable, JSONSerializable {
         this.start_time = System.currentTimeMillis();
     }
     
+    /**
+     * Copy Constructor
+     * @param orig
+     */
+    private DesignerHints(DesignerHints orig) {
+        this.start_time = orig.start_time;
+        this.source_file = orig.source_file;
+    }
+    
     public String getSourceFile() {
         return (this.source_file);
     }
@@ -254,18 +269,17 @@ public class DesignerHints implements Cloneable, JSONSerializable {
         return (now + stop);
     }
     
-    
-    
+    /**
+     * Clone
+     */
     public DesignerHints clone() {
-        DesignerHints clone = new DesignerHints();
-        clone.proc_include.addAll(this.proc_include);
-        clone.proc_exclude.addAll(this.proc_exclude);
-        clone.enable_multi_partitioning = this.enable_multi_partitioning;
-        clone.allow_replication_readonly = this.allow_replication_readonly;
-        clone.readonly_tables.addAll(this.readonly_tables);
-        clone.readmostly_tables.addAll(this.readmostly_tables);
-        clone.force_replication.addAll(this.force_replication);
-        clone.force_dependency.putAll(this.force_dependency);
+        DesignerHints clone = new DesignerHints(this);
+        try {
+            clone.fromJSON(new JSONObject(this.toJSONString()), null);
+        } catch (Exception ex) {
+            LOG.fatal("Failed to clone DesignerHints", ex);
+            System.exit(1);
+        }
         return (clone);
     }
     
