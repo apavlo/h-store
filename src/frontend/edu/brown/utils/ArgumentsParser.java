@@ -81,6 +81,7 @@ public class ArgumentsParser {
     public static final String PARAM_WORKLOAD_REMOVE_DUPES  = PARAM_WORKLOAD + ".removedupes";
     public static final String PARAM_WORKLOAD_PROC_EXCLUDE  = PARAM_WORKLOAD + ".procexclude";
     public static final String PARAM_WORKLOAD_PROC_INCLUDE  = PARAM_WORKLOAD + ".procinclude";
+    public static final String PARAM_WORKLOAD_PROC_SAMPLE   = PARAM_WORKLOAD + ".procsample";
     public static final String PARAM_WORKLOAD_PROC_INCLUDE_MULTIPLIER  = PARAM_WORKLOAD_PROC_INCLUDE + ".multiplier";
     public static final String PARAM_WORKLOAD_OUTPUT        = PARAM_WORKLOAD + ".output";
     public static final String PARAM_WORKLOAD_CLASS         = PARAM_WORKLOAD + ".class";
@@ -502,12 +503,6 @@ public class ArgumentsParser {
             // Include/exclude procedures from the traces
             if (params.containsKey(PARAM_WORKLOAD_PROC_INCLUDE) || params.containsKey(PARAM_WORKLOAD_PROC_EXCLUDE)) {
                 ProcedureNameFilter filter = new ProcedureNameFilter();
-                if (this.workload_filter != null) {
-                    this.workload_filter.attach(filter);
-                } else {
-                    this.workload_filter = filter;
-                }
-                
                 String temp = params.get(PARAM_WORKLOAD_PROC_INCLUDE);
                 if (temp != null && !temp.equals(ProcedureNameFilter.INCLUDE_ALL)) {
                     
@@ -534,6 +529,9 @@ public class ArgumentsParser {
                         filter.exclude(proc_name);
                     } // FOR
                 }
+
+                // Attach our new filter to the chain (or make it the head if it's the first one)
+                this.workload_filter = (this.workload_filter != null ? this.workload_filter.attach(filter) : filter);
             }
             if (params.containsKey(PARAM_WORKLOAD_XACT_OFFSET)) {
                 this.workload_xact_offset = Long.parseLong(params.get(PARAM_WORKLOAD_XACT_OFFSET));
@@ -565,9 +563,17 @@ public class ArgumentsParser {
             }
             if (this.workload_filter != null) LOG.debug("Workload Filters: " + this.workload_filter);
             this.workload = new Workload(this.catalog);
-            ((Workload)this.workload).load(path, this.catalog_db, this.workload_filter);
+            this.workload.load(path, this.catalog_db, this.workload_filter);
             this.workload_path = new File(path).getAbsolutePath();
             if (this.workload_filter != null) this.workload_filter.reset();
+            
+            // Procedure Sampling.
+            // Yeah this kind of sucks that we have to read the whole thing in, but we're in a recession right now...
+            if (params.containsKey(PARAM_WORKLOAD_PROC_SAMPLE)) {
+                // Workload 
+            }
+            
+            
         }
         
         //

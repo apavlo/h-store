@@ -6,9 +6,9 @@ import java.io.File;
 import java.util.*;
 import javax.swing.*;
 import javax.swing.event.*;
-import com.sun.tools.javac.util.Pair;
 
 import org.voltdb.catalog.*;
+import org.voltdb.utils.Pair;
 
 import edu.brown.gui.stats.*;
 import edu.brown.statistics.*;
@@ -239,8 +239,8 @@ public class StatsViewer extends AbstractViewer {
                 case CATALOG_OPEN_FILE: {
                     Pair<Catalog, String> result = openCatalogFile();
                     if (result != null) {
-                        args.catalog = result.fst;
-                        args.catalog_path = new File(result.snd);
+                        args.catalog = result.getFirst();
+                        args.catalog_path = new File(result.getSecond());
                     }
                     break;
                 }
@@ -250,8 +250,8 @@ public class StatsViewer extends AbstractViewer {
                 case CATALOG_OPEN_JAR: {
                     Pair<Catalog, String> result = openCatalogJar();
                     if (result != null) {
-                        args.catalog = result.fst;
-                        args.catalog_path = new File(result.snd);
+                        args.catalog = result.getFirst();
+                        args.catalog_path = new File(result.getSecond());
                     }
                     break;
                 }
@@ -261,8 +261,8 @@ public class StatsViewer extends AbstractViewer {
                 case WORKLOAD_STATS_OPEN: {
                     Pair<WorkloadStatistics, String> result = openWorkloadStats();
                     if (result != null) {
-                        args.stats = result.fst;
-                        args.stats_path = result.snd;
+                        args.stats = result.getFirst();
+                        args.stats_path = result.getSecond();
                         update();
                     }
                     break;

@@ -5,7 +5,6 @@ import java.io.File;
 import edu.brown.BaseTestCase;
 import edu.brown.utils.ProjectType;
 import edu.brown.workload.Workload;
-import edu.brown.workload.Workload;
 
 public abstract class AbstractTestFilter extends BaseTestCase {
 

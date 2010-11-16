@@ -32,8 +32,7 @@ import java.io.File;
 import javax.swing.*;
 
 import org.voltdb.catalog.*;
-
-import com.sun.tools.javac.util.Pair;
+import org.voltdb.utils.Pair;
 
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.statistics.WorkloadStatistics;
