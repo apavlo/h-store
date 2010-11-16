@@ -606,7 +606,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         RpcCallback<Dtxn.FragmentResponse> callback = null;
         if (msg instanceof InitiateTaskMessage) {
             // We need to send back a response before we actually start executing to avoid a race condition
-            if (trace) LOG.trace("Sending back Dtx.FragmentResponse for InitiateTaskMessage message on txn #" + real_txn_id);
+            if (trace) LOG.trace("Sending back Dtxn.FragmentResponse for InitiateTaskMessage message on txn #" + real_txn_id);
             Dtxn.FragmentResponse response = Dtxn.FragmentResponse.newBuilder()
                                                     .setStatus(Status.OK)
                                                     .setOutput(ByteString.EMPTY)

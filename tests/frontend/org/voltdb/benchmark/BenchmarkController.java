@@ -31,7 +31,6 @@ import java.lang.reflect.Field;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -59,18 +58,17 @@ import org.voltdb.processtools.ProcessSetManager;
 import org.voltdb.processtools.SSHTools;
 import org.voltdb.processtools.ShellTools;
 import org.voltdb.utils.LogKeys;
-import org.voltdb.utils.VoltLoggerFactory;
 
 import edu.brown.catalog.CatalogUtil;
-import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.CollectionUtil;
+import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.ThreadUtil;
 import edu.mit.hstore.HStoreSite;
 
 public class BenchmarkController {
     
     static {
-        ArgumentsParser.setupLogging();
+        LoggerUtil.setupLogging();
     }
 
     ProcessSetManager m_clientPSM = new ProcessSetManager();

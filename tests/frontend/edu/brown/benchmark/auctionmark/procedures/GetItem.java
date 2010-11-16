@@ -19,8 +19,9 @@ import edu.brown.benchmark.auctionmark.AuctionMarkConstants;
 public class GetItem extends VoltProcedure {
 
     public final SQLStmt select_item = new SQLStmt(
-        "SELECT i_id, i_u_id, i_initial_price, i_current_price FROM " + AuctionMarkConstants.TABLENAME_ITEM + " " + 
-        "WHERE i_id = ? AND i_u_id = ?  AND i_status = 0"
+        "SELECT i_id, i_u_id, i_initial_price, i_current_price " +
+          "FROM " + AuctionMarkConstants.TABLENAME_ITEM + " " + 
+         "WHERE i_id = ? AND i_u_id = ? AND i_status = " + AuctionMarkConstants.STATUS_ITEM_OPEN
     );
     
     public final SQLStmt select_user = new SQLStmt(
@@ -30,16 +31,15 @@ public class GetItem extends VoltProcedure {
         " WHERE u_id = ? AND u_r_id = r_id"
     );
 
-     
-    //"WHERE i_id = ? AND i_u_id = ?  AND i_status = 0"
-    
+    /**
+     * 
+     * @param i_id
+     * @param i_u_id
+     * @return
+     */
     public VoltTable[] run(long i_id, long i_u_id) {
-    	// TODO: fix loader
-    	
         voltQueueSQL(select_item, i_id, i_u_id);
         voltQueueSQL(select_user, i_u_id);
-        
-    	//voltQueueSQL(select_item);
         return (voltExecuteSQL());
     }
     

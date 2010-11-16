@@ -21,7 +21,7 @@ import edu.brown.benchmark.auctionmark.AuctionMarkConstants;
     singlePartition = false
 )
 public class CheckWinningBids extends VoltProcedure {
-    protected static final Logger LOG = Logger.getLogger(CheckWinningBids.class);
+    private static final Logger LOG = Logger.getLogger(CheckWinningBids.class);
 	
 	/*
 	public final SQLStmt select_due_items = new SQLStmt(
@@ -32,10 +32,13 @@ public class CheckWinningBids extends VoltProcedure {
 	*/
 	
 	public final SQLStmt select_due_items = new SQLStmt(
-			"SELECT i_id, i_u_id, i_status " + 
-			"FROM " + AuctionMarkConstants.TABLENAME_ITEM + " " + 
-			"WHERE (i_start_date BETWEEN ? AND ?) AND i_u_id >= ? AND i_u_id < ? LIMIT 100 "
-		);
+		"SELECT i_id, i_u_id, i_status " + 
+		  "FROM " + AuctionMarkConstants.TABLENAME_ITEM + " " + 
+		 "WHERE (i_start_date BETWEEN ? AND ?) " +
+		   "AND i_u_id >= ? AND i_u_id < ? " +
+		   "AND i_status = " + AuctionMarkConstants.STATUS_ITEM_OPEN + " " +
+		 "LIMIT 100 "
+	);
 	
 	public final SQLStmt select_max_bid = new SQLStmt(
 			"SELECT imb_ib_id " + 

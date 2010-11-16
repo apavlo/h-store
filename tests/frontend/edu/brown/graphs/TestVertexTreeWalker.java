@@ -5,12 +5,11 @@ import java.util.Arrays;
 import java.util.List;
 
 import junit.framework.TestCase;
-import org.junit.Test;
 
+import org.junit.Test;
 import org.voltdb.catalog.CatalogType;
 
 import edu.brown.graphs.VertexTreeWalker.TraverseOrder;
-import edu.brown.utils.ArgumentsParser;
 
 /**
  * @author pavlo
@@ -57,8 +56,6 @@ public class TestVertexTreeWalker extends TestCase {
     
     @Override
     protected void setUp() throws Exception {
-        ArgumentsParser.setupLogging();
-        
         // Create a graph that looks like the following:
         //
         //              [0]

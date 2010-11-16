@@ -235,6 +235,10 @@ public class TransactionState {
             return (Collections.unmodifiableList(new ArrayList<VoltTable>(this.results.values())));
         }
         
+        protected List<Integer> getResponses() {
+            return (this.responses);
+        }
+        
         public VoltTable getResult() {
             assert(this.results.isEmpty() == false) : "There are no result available for " + this;
             assert(this.results.size() == 1) : "There are " + this.results.size() + " results for " + this + "\n-------\n" + this.getResults();
@@ -831,7 +835,7 @@ public class TransactionState {
      * @return
      */
     public synchronized HashMap<Integer, List<VoltTable>> removeInternalDependencies(FragmentTaskMessage ftask) {
-        if (LOG.isTraceEnabled()) LOG.trace("Retrieving " + this.internal_dependencies.size() + " internal dependencies for txn #" + this.txn_id);
+        if (LOG.isDebugEnabled()) LOG.debug("Retrieving " + this.internal_dependencies.size() + " internal dependencies for txn #" + this.txn_id);
         HashMap<Integer, List<VoltTable>> results = new HashMap<Integer, List<VoltTable>>();
         
         for (int i = 0, cnt = ftask.getFragmentCount(); i < cnt; i++) {
@@ -843,8 +847,11 @@ public class TransactionState {
             assert(d != null);
             int num_tables = d.results.size();
             assert(d.getPartitions().size() == num_tables) :
-                "Number of results retrieved for DependencyId is " + num_tables + " but we were expecting " + d.getPartitions().size() + " in txn #" + this.txn_id +
-                " [" + this.executor.getRunningVoltProcedure(this.txn_id).getClass().getSimpleName() + "]";
+                "Number of results retrieved for <Stmt #" + stmt_index + ", DependencyId #" + input_d_id + "> is " + num_tables +
+                " but we were expecting " + d.getPartitions().size() + " in txn #" + this.txn_id +
+                " [" + this.executor.getRunningVoltProcedure(this.txn_id).getClass().getSimpleName() + "]\n" + 
+                this.toString() + "\n" +
+                ftask.toString();
             results.put(input_d_id, d.getResults());
         } // FOR
         return (results);
@@ -907,10 +914,15 @@ public class TransactionState {
                     ret += "    [" + dependency_id + "] => [";
                     String add = "";
                     for (VoltTable vt : s_dependencies.get(dependency_id).getResults()) {
-                        ret += add + (vt == null ? vt : vt.getClass());
+                        ret += add + (vt == null ? vt : "{" + vt.getRowCount() + " tuples}");
                         add = ",";
                     }
                     ret += "]\n";
+                } // FOR
+                
+                ret += "  Dependency Responses:\n";
+                for (Integer dependency_id : dependency_ids) {
+                    ret += "    [" + dependency_id + "] => " + s_dependencies.get(dependency_id).getResponses() + "\n";
                 } // FOR
         
                 ret += "  Blocked FragmentTaskMessages:\n";

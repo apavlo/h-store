@@ -21,8 +21,8 @@ import edu.brown.catalog.FixCatalog;
 import edu.brown.catalog.ParametersUtil;
 import edu.brown.catalog.ClusterConfiguration;
 import edu.brown.correlations.ParameterCorrelations;
-import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.FileUtil;
+import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.PartitionEstimator;
 import edu.brown.utils.ProjectType;
 
@@ -36,7 +36,7 @@ public abstract class BaseTestCase extends TestCase {
     
     static {
         // log4j Hack
-        ArgumentsParser.setupLogging();
+        LoggerUtil.setupLogging();
         
         // Jar Caching!
         if (System.getenv("ENABLE_JAR_REUSE") != null) {

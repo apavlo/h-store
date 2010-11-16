@@ -32,7 +32,7 @@ public class NewPurchase extends VoltProcedure{
     
     public final SQLStmt update_item_status = new SQLStmt(
             "UPDATE " + AuctionMarkConstants.TABLENAME_ITEM + " " +
-            	"SET i_status = 2 " +   
+            	"SET i_status = " + AuctionMarkConstants.STATUS_ITEM_CLOSED + " " +   
             "WHERE i_id = ? AND i_u_id = ? "
         );    
     
