@@ -1699,6 +1699,7 @@ DESIGNER
         <jvmarg value="-Dlog4j.configuration=${basedir}/log4j.properties"/>
         <arg value="catalog.jar=${jar}" />
         <arg value="catalog.type=${type}" />
+        <arg value="catalog.cluster=${cluster}" />
         <arg value="catalog.output=/tmp/fixcatalog/catalog.txt" />
         <arg value="correlations=${correlations}" />
         <arg value="simulator.host=${hosts}" />

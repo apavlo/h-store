@@ -10,6 +10,7 @@ import org.voltdb.catalog.*;
 
 import edu.brown.correlations.ParameterCorrelations;
 import edu.brown.utils.ArgumentsParser;
+import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.FileUtil;
 import edu.brown.utils.ProjectType;
 
@@ -171,7 +172,6 @@ public abstract class FixCatalog {
 
         // Populate host information
         Catalog new_catalog = args.catalog;
-        String hosts_list = "";
         if (args.hasIntParam(ArgumentsParser.PARAM_SIMULATOR_NUM_HOSTS)) {
             String host_format = args.getParam(ArgumentsParser.PARAM_SIMULATOR_HOST);
             
@@ -189,10 +189,19 @@ public abstract class FixCatalog {
 
         // Use host list
         } else {
-            hosts_list = args.getParam(ArgumentsParser.PARAM_SIMULATOR_HOST);
+            List<String> host_triplets = new ArrayList<String>();
+            
+            if (args.hasParam(ArgumentsParser.PARAM_CATALOG_CLUSTER)) {
+                String contents = FileUtil.readFile(args.getParam(ArgumentsParser.PARAM_CATALOG_CLUSTER));
+                CollectionUtil.addAll(host_triplets, contents.split("\n"));
+            } else {
+                String hosts_list = args.getParam(ArgumentsParser.PARAM_SIMULATOR_HOST);
+                CollectionUtil.addAll(host_triplets, hosts_list.split(","));
+            }
+                
             ClusterConfiguration cc = new ClusterConfiguration();
             Set<Integer> partitions = new HashSet<Integer>();
-            for (String host_info : hosts_list.split(",")) {
+            for (String host_info : host_triplets) {
                 String data[] = host_info.split(":");
                 assert(data.length == 3) : "Invalid host information '" + host_info + "'";
                 
