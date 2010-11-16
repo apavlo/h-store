@@ -62,24 +62,24 @@ public class PostAuction extends VoltProcedure {
         for (int i = 0; i < i_ids.length; i++) {
             long ib_id = ib_ids[i];
             long i_id = i_ids[i];
-            long i_u_id = seller_ids[i];
+            long seller_id = seller_ids[i];
             long buyer_id = buyer_ids[i];
 
             // No bid on this item - set status to close (2)
             // System.out.println("PostAuction::: (" + i +
             // ") updating item status to 2 (" + i_id + "," + i_u_id + ")");
             if (-1 == ib_id) {
-                this.voltQueueSQL(this.update_item_status, 2, i_id, i_u_id);
+                this.voltQueueSQL(this.update_item_status, AuctionMarkConstants.STATUS_ITEM_CLOSED, i_id, seller_id);
                 closed_ctr++;
 
             // Has bid on this item - set status to wait for purchase (1)
             // System.out.println("PostAuction::: (" + i +
             // ") updating item status to 1 (" + i_id + "," + i_u_id + ")");
             } else {
-                this.voltQueueSQL(this.update_item_status, 1, i_id, i_u_id);
+                this.voltQueueSQL(this.update_item_status, AuctionMarkConstants.STATUS_ITEM_WAITING_FOR_PURCHASE, i_id, seller_id);
                 assert(buyer_id != -1);
-                this.voltQueueSQL(this.insert_useritem, buyer_id, i_id, i_u_id, timestamp);
-                if (debug) LOG.debug(String.format("Inserting USER_ITEM: (%d, %d, %d, %s)", buyer_id, i_id, i_u_id, timestamp.toString()));
+                this.voltQueueSQL(this.insert_useritem, buyer_id, i_id, seller_id, timestamp);
+                if (debug) LOG.debug(String.format("Inserting USER_ITEM: (%d, %d, %d, %s)", buyer_id, i_id, seller_id, timestamp.toString()));
                 waiting_ctr++;
             }
 

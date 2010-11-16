@@ -38,25 +38,18 @@ import java.util.Random;
 import java.util.concurrent.atomic.AtomicLong;
 
 import org.apache.log4j.Logger;
-import org.voltdb.PrivateVoltTableFactory;
 import org.voltdb.VoltTable;
-import org.voltdb.VoltType;
 import org.voltdb.benchmark.Verification.Expression;
 import org.voltdb.catalog.Catalog;
 import org.voltdb.client.Client;
 import org.voltdb.client.ClientFactory;
 import org.voltdb.client.ClientResponse;
-import org.voltdb.client.NoConnectionsException;
-import org.voltdb.client.ProcCallException;
 import org.voltdb.client.StatsUploaderSettings;
-import org.voltdb.processtools.SSHTools;
-//import org.voltdb.sysprocs.saverestore.TableSaveFile;
 import org.voltdb.utils.Pair;
 import org.voltdb.utils.VoltSampler;
-import org.voltdb.utils.DBBPool.BBContainer;
 
 import edu.brown.catalog.CatalogUtil;
-import edu.brown.utils.ArgumentsParser;
+import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.StringUtil;
 
 /**
@@ -68,7 +61,7 @@ public abstract class ClientMain {
     
     static {
         // log4j hack!
-        ArgumentsParser.setupLogging();
+        LoggerUtil.setupLogging();
     }
 
     /**
@@ -499,8 +492,8 @@ public abstract class ClientMain {
         boolean exitOnCompletion = true;
         float checkTransaction = 0;
         boolean checkTables = false;
-        String statsDatabaseURL = null;
-        int statsPollInterval = 10000;
+//        String statsDatabaseURL = null;
+//        int statsPollInterval = 10000;
         File catalogPath = null;
 
         // scan the inputs once to read everything but host names
@@ -547,10 +540,10 @@ public abstract class ClientMain {
             }
             else if (parts[0].equalsIgnoreCase("CHECKTABLES")) {
                 checkTables = Boolean.parseBoolean(parts[1]);
-            } else if (parts[0].equalsIgnoreCase("STATSDATABASEURL")) {
-                statsDatabaseURL = parts[1];
-            } else if (parts[0].equalsIgnoreCase("STATSPOLLINTERVAL")) {
-                statsPollInterval = Integer.parseInt(parts[1]);
+//            } else if (parts[0].equalsIgnoreCase("STATSDATABASEURL")) {
+//                statsDatabaseURL = parts[1];
+//            } else if (parts[0].equalsIgnoreCase("STATSPOLLINTERVAL")) {
+//                statsPollInterval = Integer.parseInt(parts[1]);
             } else {
                 m_extraParams.put(parts[0], parts[1]);
             }

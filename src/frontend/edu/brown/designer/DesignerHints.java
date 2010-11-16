@@ -16,9 +16,9 @@ import org.voltdb.catalog.*;
 import edu.brown.catalog.CatalogKey;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.catalog.special.ReplicatedColumn;
-import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.JSONSerializable;
 import edu.brown.utils.JSONUtil;
+import edu.brown.utils.LoggerUtil;
 
 public class DesignerHints implements Cloneable, JSONSerializable {
     private static final Logger LOG = Logger.getLogger(DesignerHints.class);
@@ -386,7 +386,7 @@ public class DesignerHints implements Cloneable, JSONSerializable {
      * @param args
      */
     public static void main(String[] vargs) throws Exception {
-        ArgumentsParser.setupLogging();
+        LoggerUtil.setupLogging();
         // Make an empty DesignerHints and print it out
         DesignerHints hints = new DesignerHints();
         System.out.println(JSONUtil.format(hints.toJSONString()));

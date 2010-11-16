@@ -39,6 +39,14 @@ public abstract class AuctionMarkConstants {
         AUCTION,
         BUYNOW
     } 
+
+    // ----------------------------------------------------------------
+    // DATA INFORMATION
+    // ----------------------------------------------------------------
+
+    public static final int STATUS_ITEM_OPEN                    = 0;
+    public static final int STATUS_ITEM_WAITING_FOR_PURCHASE    = 1;
+    public static final int STATUS_ITEM_CLOSED                  = 2;
     
     // ----------------------------------------------------------------
     // STORED PROCEDURE INFORMATION

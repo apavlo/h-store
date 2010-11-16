@@ -16,7 +16,7 @@ import org.voltdb.client.NoConnectionsException;
 import org.voltdb.client.ProcCallException;
 import org.voltdb.client.ProcedureCallback;
 
-import edu.brown.utils.ArgumentsParser;
+import edu.brown.utils.LoggerUtil;
 
 /**
  * @author pavlo
@@ -67,7 +67,7 @@ public class BlockingClient extends Semaphore implements Client {
     public BlockingClient(Client inner) {
         super(1);
         this.inner = inner;
-        ArgumentsParser.setupLogging();
+        LoggerUtil.setupLogging();
     }
 
     /* (non-Javadoc)
