@@ -46,6 +46,7 @@ import org.voltdb.types.*;
 import edu.brown.catalog.CatalogKey;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.statistics.*;
+import edu.brown.utils.ClassUtil;
 import edu.brown.workload.Workload.Filter.FilterResult;
 
 /**
@@ -155,6 +156,25 @@ public class Workload implements WorkloadTrace, Iterable<AbstractTraceElement<? 
         
         public Filter() {
             this(null);
+        }
+        
+        /**
+         * Returns an ordered list of the filters within the chain that are the same type as the
+         * given search class (inclusive).
+         * @param <T>
+         * @param search
+         * @return
+         */
+        public final <T extends Filter> List<T> getFilters(Class<? extends T> search) {
+            return (this.getFilters(search, new ArrayList<T>()));
+        }
+        
+        private final <T extends Filter> List<T> getFilters(Class<? extends T> search, List<T> found) {
+            if (ClassUtil.getSuperClasses(this.getClass()).contains(search)) {
+                found.add((T)this);
+            }
+            if (this.next != null) this.next.getFilters(search, found);
+            return (found);
         }
         
         public final Filter attach(Filter next) {

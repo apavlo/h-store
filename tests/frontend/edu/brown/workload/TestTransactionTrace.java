@@ -7,9 +7,8 @@ import org.voltdb.VoltType;
 import org.voltdb.catalog.*;
 import org.voltdb.types.TimestampType;
 import org.voltdb.utils.CatalogUtil;
+import org.voltdb.utils.Pair;
 import org.voltdb.utils.VoltTypeUtil;
-
-import com.sun.tools.javac.util.Pair;
 
 import edu.brown.BaseTestCase;
 import edu.brown.utils.ProjectType;
@@ -29,7 +28,7 @@ public class TestTransactionTrace extends BaseTestCase {
         
         List<ProcParameter> catalog_params = CatalogUtil.getSortedCatalogItems(catalog_proc.getParameters(), "index");
         Pair<Object[], boolean[]> param_pair = this.makeParams(catalog_params, "type");
-        params = param_pair.fst;
+        params = param_pair.getFirst();
         /*
         for (Object obj : params) {
             if (obj instanceof Object[]) {
@@ -45,7 +44,7 @@ public class TestTransactionTrace extends BaseTestCase {
             }
         }
         System.exit(1);*/
-        is_array = param_pair.snd;
+        is_array = param_pair.getSecond();
         xact = new TransactionTrace("XYZ", catalog_proc, params);
         assertNotNull(xact);
 //        System.out.println("CREATED: " + xact);

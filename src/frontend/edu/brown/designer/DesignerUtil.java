@@ -2,8 +2,6 @@ package edu.brown.designer;
 
 import java.util.*;
 
-import javax.management.ValueExp;
-
 import org.apache.commons.collections15.set.ListOrderedSet;
 import org.apache.log4j.Logger;
 
@@ -14,9 +12,8 @@ import org.voltdb.plannodes.*;
 import org.voltdb.types.ExpressionType;
 import org.voltdb.types.PlanNodeType;
 import org.voltdb.types.QueryType;
+import org.voltdb.utils.Pair;
 import org.voltdb.expressions.*;
-
-import com.sun.tools.javac.util.Pair;
 
 import edu.brown.catalog.CatalogKey;
 import edu.brown.catalog.CatalogUtil;

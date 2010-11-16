@@ -40,9 +40,8 @@ import org.voltdb.catalog.CatalogType.UnresolvedInfo;
 import org.voltdb.plannodes.AbstractPlanNode;
 import org.voltdb.types.*;
 import org.voltdb.utils.Encoder;
+import org.voltdb.utils.Pair;
 import org.voltdb.*;
-
-import com.sun.tools.javac.util.Pair;
 
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.catalog.QueryPlanUtil;
@@ -627,7 +626,7 @@ public class CatalogViewer extends AbstractViewer {
                 case CATALOG_OPEN_FILE: {
                     Pair<Catalog, String> result = openCatalogFile();
                     if (result != null) {
-                        generateCatalogTree(result.fst, result.snd);
+                        generateCatalogTree(result.getFirst(), result.getSecond());
                     }
                     break;
                 }
@@ -637,7 +636,7 @@ public class CatalogViewer extends AbstractViewer {
                 case CATALOG_OPEN_JAR: {
                     Pair<Catalog, String> result = openCatalogJar();
                     if (result != null) {
-                        generateCatalogTree(result.fst, result.snd);
+                        generateCatalogTree(result.getFirst(), result.getSecond());
                     }
                     break;
                 }

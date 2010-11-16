@@ -48,6 +48,10 @@ public class ProcedureNameFilter extends Workload.Filter {
         return (this);
     }
     
+    public Map<String, Integer> getProcIncludes() {
+        return (Collections.unmodifiableMap(this.whitelist_orig_ctr));
+    }
+    
     /**
      * Add the given catalog object names to this filter's blacklist
      * @param names
