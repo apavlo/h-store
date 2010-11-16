@@ -86,43 +86,56 @@ public class GetUserInfo extends VoltProcedure {
                 if (debug) LOG.debug("Grabbing Seller's Items: " + u_id);
                 this.voltQueueSQL(this.select_seller_items, u_id);
                 
-                // Also get the user's feedback (33% of the time)
-                if (get_feedback == 1) {
-                    if (debug) LOG.debug("Grabbing User Feedback Items: " + u_id);
-                    // 2010-11-15: The distributed query planner chokes on this one and makes a plan
-                    // that basically sends the entire user table to all nodes. So for now we'll just execute
-                    // the query to grab the buyer's feedback information
-                    // this.voltQueueSQL(this.select_seller_feedback, u_id);
-                    this.voltQueueSQL(this.select_buyer_feedback, u_id);
-                }
-                
             // And the remaining 25% of the time we'll get the buyer's purchased items
             } else if (get_buyer_items == 1) {
                 if (debug) LOG.debug("Grabbing Buyer's Items: " + u_id);
                 this.voltQueueSQL(this.select_buyer_items, u_id);
                 
-                // Also get the user's feedback (33% of the time)
-                if (get_feedback == 1) {
-                    if (debug) LOG.debug("Grabbing User Feedback Items: " + u_id);
-                    this.voltQueueSQL(this.select_buyer_feedback, u_id);
-                }
+//                // Also get the user's feedback (33% of the time)
+//                if (get_feedback == 1) {
+//                    if (debug) LOG.debug("Grabbing User Feedback Items: " + u_id);
+//                    this.voltQueueSQL(this.select_buyer_feedback, u_id);
+//                }
             }
         }
 
+        
         // Important: You have to make sure that none of the entries in the final
         // VoltTable results array that get passed back are null, otherwise
         // the ExecutionSite will throw an error!
         VoltTable results[] = null;
-        if (get_seller_items == 1 || get_buyer_items == 1 || get_feedback == 1) {
-            VoltTable extra_results[] = this.voltExecuteSQL();
-            assert(extra_results.length > 0);
-            if (debug) LOG.debug("# of Results: " + extra_results.length);
+        if (get_seller_items == 1 || get_buyer_items == 1) {
+            final VoltTable item_results[] = this.voltExecuteSQL();
+            assert(item_results.length > 0);
             
-            results = new VoltTable[extra_results.length + 1];
-            results[0] = user_results[0];
-            for (int i = 0; i < extra_results.length; i++) {
-                results[i+1] = extra_results[i];
+            // Also get the user's feedback (33% of the time)
+            // We had to move this into a separate queue+execute call because the BatchPlanner and
+            // TransactionState were not playing nicely!
+            VoltTable feedback_results[] = new VoltTable[0];
+            if (get_feedback == 1) {
+                if (debug) LOG.debug("Grabbing User Feedback Items: " + u_id);
+                // 2010-11-15: The distributed query planner chokes on this one and makes a plan
+                // that basically sends the entire user table to all nodes. So for now we'll just execute
+                // the query to grab the buyer's feedback information
+                // this.voltQueueSQL(this.select_seller_feedback, u_id);
+                this.voltQueueSQL(this.select_buyer_feedback, u_id);
+                feedback_results = this.voltExecuteSQL();
+                assert(feedback_results.length > 0);    
             }
+            
+            results = new VoltTable[item_results.length + feedback_results.length + 1];
+            
+            if (debug) LOG.debug("# of Results: " + results.length);
+            int results_idx = 0;
+            results[results_idx++] = user_results[0];
+            
+            for (VoltTable vt : item_results) {
+                results[results_idx++] = vt;
+            }
+            for (VoltTable vt : feedback_results) {
+                results[results_idx++] = vt;
+            }
+
         } else {
             results = new VoltTable[] { user_results[0] };
         }

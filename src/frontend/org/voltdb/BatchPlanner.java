@@ -504,11 +504,11 @@ public class BatchPlanner {
         if (debug) LOG.debug("Constructing a new BatchPlan for " + this.catalog_proc);
         BatchPlan plan = new BatchPlan(local_partition);
         
-        for (int i = 0; i < this.batchSize; ++i) {
-            final SQLStmt stmt = this.batchStmts[i];
-            assert(stmt != null) : "The SQLStmt object at index " + i + " is null for " + this.catalog_proc;
+        for (int stmt_index = 0; stmt_index < this.batchSize; ++stmt_index) {
+            final SQLStmt stmt = this.batchStmts[stmt_index];
+            assert(stmt != null) : "The SQLStmt object at index " + stmt_index + " is null for " + this.catalog_proc;
             final Statement catalog_stmt = stmt.catStmt;
-            final ParameterSet paramSet = batchArgs[i];
+            final ParameterSet paramSet = batchArgs[stmt_index];
             if (trace) LOG.trace("Constructing fragment plans for " + stmt.catStmt);
             
             plan.readonly = plan.readonly && catalog_stmt.getReadonly();
@@ -611,10 +611,10 @@ public class BatchPlanner {
             
             // Update the Statement->PartitionId array
             // This is needed by TransactionEstimator
-            plan.stmt_partition_ids[i] = new int[all_partitions.size()];
+            plan.stmt_partition_ids[stmt_index] = new int[all_partitions.size()];
             int idx = 0;
             for (int partition_id : all_partitions) {
-                plan.stmt_partition_ids[i][idx++] = partition_id;
+                plan.stmt_partition_ids[stmt_index][idx++] = partition_id;
             }
             
             // SPECIAL CASE: Local INSERT/UPDATE/DELETE queries don't have an output dependency id
@@ -646,13 +646,13 @@ public class BatchPlanner {
                         CollectionUtil.getFirst(frag_output_dependency_ids),
                         frag_params,
                         frag_partitions,
-                        i,
+                        stmt_index,
                         frag_local);
             } // FOR
                         
             if (trace) {
                 LOG.trace("BatchPlanner Output " + stmt.catStmt + "\n" +
-                          "Batch[" + i + "]: " + stmt.getText() + "\n" +
+                          "Batch[" + stmt_index + "]: " + stmt.getText() + "\n" +
                           "Initiator Id:     " + this.initiator_id + "\n" + 
                           "All Partitions:   " + all_partitions + "\n" +
                           "Local Partition:  " + local_partition + "\n" +

@@ -714,7 +714,8 @@ public class ExecutionSite implements Runnable {
                             
                         // Otherwise push dependencies back to the remote partition that needs it
                         } else {
-                            if (debug.get()) LOG.debug("Constructing FragmentResponseMessage with " + result.size() + " from Partition #" + this.getPartitionId() + " results to send back to initial site for txn #" + txn_id);
+                            if (debug.get()) LOG.debug("Constructing FragmentResponseMessage " + Arrays.toString(ftask.getFragmentIds()) + " with " + result.size() + " bytes from Partition #" + this.getPartitionId() + 
+                                                       " results to send back to initial site for txn #" + txn_id);
                             
                             // We need to include the DependencyIds in our response, but we will send the actual
                             // data through the HStoreMessenger
@@ -730,7 +731,7 @@ public class ExecutionSite implements Runnable {
                     
                     // Again, if we're not local, just clean up our TransactionState
                     if (is_local == false && is_dtxn == true) {
-                        if (debug.get()) LOG.debug("Executed non-local FragmentTask. Notifying TransactionState for txn #" + txn_id + " to finish round");
+                        if (debug.get()) LOG.debug("Executed non-local FragmentTask " + Arrays.toString(ftask.getFragmentIds()) + ". Notifying TransactionState for txn #" + txn_id + " to finish round");
                         ts.finishRound();
                     }
 
