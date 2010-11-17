@@ -308,7 +308,7 @@ CREATE TABLE USER_ITEM (
     ui_i_id             BIGINT NOT NULL,
     ui_i_u_id           BIGINT NOT NULL,
     ui_created          TIMESTAMP,
-    FOREIGN KEY (ui_i_id, ui_u_id) REFERENCES ITEM (i_id, i_u_id),
+    FOREIGN KEY (ui_i_id, ui_i_u_id) REFERENCES ITEM (i_id, i_u_id),
     PRIMARY KEY (ui_u_id, ui_i_id, ui_i_u_id)
 );
 

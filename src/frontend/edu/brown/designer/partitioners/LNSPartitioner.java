@@ -231,9 +231,11 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
      */
     @Override
     public PartitionPlan generate(DesignerHints hints) throws Exception {
-        LOG.info(String.format("Starting Large-Neighborhood Search [partitions=%d, intervals=%d]",
+        LOG.info(String.format("Starting Large-Neighborhood Search [partitions=%d, intervals=%d, total_bytes=%d]",
                                CatalogUtil.getNumberOfPartitions(info.catalog_db),
-                               info.getArgs().num_intervals));
+                               info.getArgs().num_intervals,
+                               info.getMemoryEstimator().estimateTotalSize(info.catalog_db)
+        ));
         
         // Initialize a bunch of stuff we need
         this.costmodel.applyDesignerHints(hints);

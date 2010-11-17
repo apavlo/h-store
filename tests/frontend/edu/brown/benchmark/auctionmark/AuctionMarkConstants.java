@@ -68,17 +68,18 @@ public abstract class AuctionMarkConstants {
     public static final int FREQUENCY_POST_AUCTION          = 0; // called after CHECK_WINNING_BIDS
     
     // Regular Txn Mix
+    
     public static final int FREQUENCY_GET_ITEM              = 40;
-    public static final int FREQUENCY_GET_USER_INFO         = 15;
-    public static final int FREQUENCY_GET_WATCHED_ITEMS     = 10;
-    public static final int FREQUENCY_NEW_BID               = 10;
+    public static final int FREQUENCY_GET_USER_INFO         = 10;
+    public static final int FREQUENCY_GET_WATCHED_ITEMS     = 5;
+    public static final int FREQUENCY_NEW_BID               = 18;
     public static final int FREQUENCY_NEW_COMMENT           = 2; // total FREQUENCY_GET_COMMENT = FREQUENCY_GET_COMMENT + FREQUENCY_NEW_COMMENT_RESPONSE because FREQUENCY_NEW_COMMENT_RESPONSE depend on FREQUENCY_GET_COMMENT 
     public static final int FREQUENCY_GET_COMMENT           = 2;
     public static final int FREQUENCY_NEW_COMMENT_RESPONSE  = 1;
     public static final int FREQUENCY_NEW_FEEDBACK          = 3;
-    public static final int FREQUENCY_NEW_ITEM              = 5;
+    public static final int FREQUENCY_NEW_ITEM              = 10;
     public static final int FREQUENCY_NEW_PURCHASE          = 2;
-    public static final int FREQUENCY_NEW_USER              = 8;
+    public static final int FREQUENCY_NEW_USER              = 5;
     public static final int FREQUENCY_UPDATE_ITEM           = 2;
     
 //    public static final int FREQUENCY_GET_ITEM              = 0;

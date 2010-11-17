@@ -414,6 +414,11 @@ public class AuctionMarkBenchmarkProfile implements JSONSerializable {
         }
     }
 
+    /**
+     * Returns a pair containing <ItemId, SellerId>
+     * @param rng
+     * @return
+     */
     public Long[] getRandomCompleteItemIdSellerIdPair(AbstractRandomGenerator rng) {
         synchronized (this.user_complete_items) {
             FlatHistogram randomSeller = new FlatHistogram(rng, this.user_complete_items_histogram);

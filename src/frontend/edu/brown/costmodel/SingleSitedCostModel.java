@@ -506,7 +506,7 @@ public class SingleSitedCostModel extends AbstractCostModel {
      * 
      */
     @Override
-    public double estimateCost(Database catalog_db, Workload workload, Workload.Filter filter, TransactionTrace xact) throws Exception {
+    public double estimateTransactionCost(Database catalog_db, Workload workload, Workload.Filter filter, TransactionTrace xact) throws Exception {
         // Sanity Check: If we don't have any TransactionCacheEntries, then the histograms should all be wiped out!
         if (this.txn_entries.size() == 0) {
             assert(this.histogram_txn_partitions.isEmpty()) : this.histogram_txn_partitions;

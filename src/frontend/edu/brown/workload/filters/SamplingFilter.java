@@ -2,7 +2,6 @@ package edu.brown.workload.filters;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Set;
 import java.util.Map.Entry;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -38,19 +37,36 @@ public class SamplingFilter extends Workload.Filter {
      * @param proc_histogram
      */
     public SamplingFilter(Map<String, Integer> proc_includes, Histogram proc_histogram) {
+        final boolean debug = LOG.isDebugEnabled();
+        
         this.proc_includes = proc_includes;
         this.proc_histogram = proc_histogram;
         
         // For each procedure, figure out their sampling rate
-        Set<Procedure> procs = proc_histogram.values();
-        for (Procedure catalog_proc : procs) {
-            String proc_name = catalog_proc.getName();
-            long needed = this.proc_includes.get(proc_name);
-            long total = this.proc_histogram.get(catalog_proc, 0);
-            int rate = Math.round(total / needed);
-            this.proc_counters.put(proc_name, new AtomicInteger(0));
-            this.proc_rates.put(proc_name, rate);
-            LOG.debug(String.format("%-20s: Every %d [total=%d]", proc_name, rate, total));
+        for (Object o : proc_histogram.values()) {
+            String proc_name = null;
+            if (o instanceof Procedure) {
+                proc_name = ((Procedure)o).getName();
+            } else {
+                proc_name = (String)o;
+            }
+            Integer needed = this.proc_includes.get(proc_name);
+            String debug_msg = "";
+            if (needed != null) {
+                long total = this.proc_histogram.get(o, 0);
+                int rate = (needed > 0 ? Math.round(total / needed) : 1);
+                if (needed == 0) rate = 0;
+                this.proc_counters.put(proc_name, new AtomicInteger(0));
+                this.proc_rates.put(proc_name, rate);
+                if (debug) {
+                    if (rate == 0) debug_msg = "NONE";
+                    else debug_msg = (rate == 1 ? "ALL" : "Every " + rate) + 
+                                     " [total=" + total + "]";
+                }
+            } else {
+                if (debug) debug_msg = "SKIPPED";
+            }
+            if (debug) LOG.debug(String.format("%-20s %s", proc_name+":", debug_msg));
         } // FOR
     }
 
@@ -63,9 +79,10 @@ public class SamplingFilter extends Workload.Filter {
         String add = "";
         for (Entry<String, AtomicInteger> e : this.proc_counters.entrySet()) {
             int proc_total = this.proc_includes.get(e.getKey());
-            sb.append(add).append(String.format("%s=(%d/%d)", e.getKey(), e.getValue().get(), proc_total));
+            sb.append(String.format("%s%s=%d/", add, e.getKey(), e.getValue().get()));
+            sb.append(proc_total >= 0 ? proc_total : "UNLIMITED"); 
             add = ", ";
-        }
+        } // FOR
         sb.append("]");
         return (sb.toString());
     }
@@ -84,7 +101,7 @@ public class SamplingFilter extends Workload.Filter {
             } else {
                 int proc_idx = proc_counter.getAndIncrement();
                 int proc_rate = this.proc_rates.get(proc_name);
-                result = (proc_idx % proc_rate == 0 ? FilterResult.ALLOW : FilterResult.SKIP);
+                result = (proc_rate != 0 && proc_idx % proc_rate == 0 ? FilterResult.ALLOW : FilterResult.SKIP);
             }
         }
         return (result);
