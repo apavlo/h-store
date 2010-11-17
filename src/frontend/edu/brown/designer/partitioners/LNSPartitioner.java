@@ -503,6 +503,21 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
         }
 
         // -------------------------------
+        // Calculate the number of backtracks and the local search time 
+        // we want to allow in this round. 
+        // -------------------------------
+        
+        Integer backtracks = hints.limit_back_tracks;
+        Integer local_time = hints.limit_local_time;
+        if (this.last_exhausted_search) {
+            
+        }
+        hints.limit_back_tracks = backtracks;
+        hints.limit_local_time = local_time;
+        
+        
+        
+        // -------------------------------
         // GO GO LOCAL SEARCH!!
         // -------------------------------
         Pair<PartitionPlan, BranchAndBoundPartitioner.StateVertex> pair = this.executeLocalSearch(hints, table_attributes, key_attributes);

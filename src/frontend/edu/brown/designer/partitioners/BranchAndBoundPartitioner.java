@@ -32,7 +32,7 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
     /**
      * Debug Output Spacers
      */
-    public static final Map<Integer, String> TRAVERSAL_SPACERS = new HashMap<Integer, String>();
+    private static final Map<Integer, String> TRAVERSAL_SPACERS = new HashMap<Integer, String>();
     static {
         // Debug Spacer
         String spacer = "";
@@ -41,6 +41,12 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
             TRAVERSAL_SPACERS.put(i, new String(spacer));
         } // FOR
     } // STATIC
+    
+    public enum HaltReason {
+        LOCAL_TIME_LIMIT,
+        GLOBAL_TIME_LIMIT,
+        BACKTRACK_LIMIT,
+    }
     
     /**
      * 
@@ -175,6 +181,15 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
         if (this.thread != null) {
             return (this.thread.halt_search);
         }
+        return (null);
+    }
+
+    /**
+     * Returns the last reason for why the TraverseThread halted its search
+     * @return
+     */
+    public HaltReason getLastHaltReason() {
+        if (this.thread != null) return (this.thread.halt_reason);
         return (null);
     }
     
@@ -458,9 +473,12 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
         private long traverse_ctr = 0;
         private long backtrack_ctr = 0;
         
-        private boolean halt_search = false;
-        private boolean completed_search = false;
         private Long halt_time;
+        private boolean halt_time_local;
+        private boolean halt_search = false;
+        private HaltReason halt_reason = null;
+        private boolean completed_search = false;
+        
         
         // These tables aren't in our attributes but we still need to use them for estimating size
         private final Set<Table> remaining_tables = new HashSet<Table>();
@@ -548,11 +566,19 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
                 stop_total = this.hints.getGlobalStopTime();
             }
             if (stop_local != null && stop_total != null) {
-                this.halt_time = Math.min(stop_local, stop_total);
+                if (stop_local < stop_total) {
+                    this.halt_time = stop_local;
+                    this.halt_time_local = true;
+                } else {
+                    this.halt_time = stop_total;
+                    this.halt_time_local = false;
+                }
             } else if (stop_local != null) {
                 this.halt_time = stop_local;
+                this.halt_time_local = true;
             } else if (stop_total != null) {
                 this.halt_time = stop_total;
+                this.halt_time_local = false;
             }
             if (debug && this.halt_time != null)
                 LOG.debug("Remaining Search Time: " + (this.halt_time - System.currentTimeMillis()) / 1000d);  
@@ -585,17 +611,18 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
             final boolean is_last_table = ((idx + 1) == this.num_tables);
             CatalogType current = null;
             
-            if (!this.halt_search) {
+            if (this.halt_search == false) {
+                assert(this.halt_reason == null);
                 if (hints.limit_back_tracks != null && hints.limit_back_tracks >= 0 && is_table && this.backtrack_ctr > hints.limit_back_tracks) {
                     if (debug) LOG.debug("Hit back track limit. Halting search [" + this.backtrack_ctr + "]");
                     this.halt_search = true;
+                    this.halt_reason = HaltReason.BACKTRACK_LIMIT;
                 } else if (this.halt_time != null && System.currentTimeMillis() >= this.halt_time) {
                     if (debug) LOG.debug("Hit time limit. Halting search [" + this.backtrack_ctr + "]");
                     this.halt_search = true;
+                    this.halt_reason = (this.halt_time_local ? HaltReason.LOCAL_TIME_LIMIT : HaltReason.GLOBAL_TIME_LIMIT);
                 }
-            } else {
-                return;
-            }
+            } else return;
             
             // Table -> Columns
             if (is_table) {
