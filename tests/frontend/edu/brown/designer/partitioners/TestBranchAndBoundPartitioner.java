@@ -146,6 +146,13 @@ public class TestBranchAndBoundPartitioner extends BasePartitionerTestCase {
     }
 
     /**
+     * testHaltReason
+     */
+    public void testHaltReason() throws Exception {
+        this.partitioner.init(this.hints);
+    }
+    
+    /**
      * testTraverse
      */
 //    @SuppressWarnings("unchecked")
