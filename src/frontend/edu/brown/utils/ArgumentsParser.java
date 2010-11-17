@@ -81,7 +81,7 @@ public class ArgumentsParser {
     public static final String PARAM_WORKLOAD_REMOVE_DUPES  = PARAM_WORKLOAD + ".removedupes";
     public static final String PARAM_WORKLOAD_PROC_EXCLUDE  = PARAM_WORKLOAD + ".procexclude";
     public static final String PARAM_WORKLOAD_PROC_INCLUDE  = PARAM_WORKLOAD + ".procinclude";
-    public static final String PARAM_WORKLOAD_PROC_SAMPLE   = PARAM_WORKLOAD + ".procsample";
+    public static final String PARAM_WORKLOAD_PROC_SAMPLE   = PARAM_WORKLOAD + ".sampling";
     public static final String PARAM_WORKLOAD_PROC_INCLUDE_MULTIPLIER  = PARAM_WORKLOAD_PROC_INCLUDE + ".multiplier";
     public static final String PARAM_WORKLOAD_OUTPUT        = PARAM_WORKLOAD + ".output";
     public static final String PARAM_WORKLOAD_CLASS         = PARAM_WORKLOAD + ".class";
@@ -379,8 +379,10 @@ public class ArgumentsParser {
      */
     @SuppressWarnings("unchecked")
     public void process(String[] args) throws Exception {
-        Pattern p = Pattern.compile("=");
+        final boolean debug = LOG.isDebugEnabled();
         
+        if (debug) LOG.debug("Processing " + args.length + " parameters...");
+        final Pattern p = Pattern.compile("=");
         for (String arg : args) {
             String[] parts = p.split(arg, 2);
             if (parts[0].startsWith("-")) parts[0] = parts[0].substring(1);
@@ -388,17 +390,18 @@ public class ArgumentsParser {
             
             if (parts.length == 1) {
                 if (!parts[0].startsWith("${")) this.opt_params.add(parts[0]);
-            } else if (parts[1].startsWith("${")) {
+            } else if (parts[1].startsWith("${") || parts[0].startsWith("#")) {
                 continue;
-            } else if (parts[0].startsWith(PARAM_DESIGNER_HINTS_PREFIX)) {
+            }
+            if (debug) LOG.debug(String.format("%-35s = %s", parts[0], parts[1]));
+            
+            if (parts[0].startsWith(PARAM_DESIGNER_HINTS_PREFIX)) {
                 String param = parts[0].replace(PARAM_DESIGNER_HINTS_PREFIX, "").toUpperCase();
                 DesignerHints.Members m = EnumUtil.get(DesignerHints.Members.values(), param);
                 if (m == null) throw new Exception("Unknown DesignerHints parameter: " + param);
                 this.hints_params.put(m.name(), parts[1]);
             } else if (PARAMS.contains(parts[0])) {
                 this.params.put(parts[0], parts[1]);
-            } else if (parts[0].startsWith("#")) {
-                // IGNORE!
             } else {
                 throw new Exception("Unknown parameter '" + parts[0] + "'");
             }
@@ -413,7 +416,7 @@ public class ArgumentsParser {
         //
         if (this.params.containsKey(PARAM_CATALOG)) {
             String path = this.params.get(PARAM_CATALOG);
-            LOG.debug("Loading catalog from file '" + path + "'");
+            if (debug) LOG.debug("Loading catalog from file '" + path + "'");
             this.catalog = CatalogUtil.loadCatalog(path);
             if (this.catalog == null) throw new Exception("Failed to load catalog object from file '" + path + "'");
             this.catalog_db = CatalogUtil.getDatabase(catalog);
@@ -427,7 +430,7 @@ public class ArgumentsParser {
             File jar_file = new File(path);
             this.catalog = CatalogUtil.loadCatalogFromJar(path);
             if (this.catalog == null) throw new Exception("Failed to load catalog object from jar file '" + path + "'");
-            LOG.debug("Loaded catalog from jar file '" + path + "'");
+            if (debug) LOG.debug("Loaded catalog from jar file '" + path + "'");
             this.catalog_db = CatalogUtil.getDatabase(catalog);
             this.catalog_path = jar_file;
             
@@ -437,27 +440,23 @@ public class ArgumentsParser {
                 if (jar_idx != -1) {
                     ProjectType type = ProjectType.get(jar_name.substring(0, jar_idx));
                     if (type != null) {
-                        LOG.debug("Set catalog type '" + type + "' from catalog jar file name");
+                        if (debug) LOG.debug("Set catalog type '" + type + "' from catalog jar file name");
                         this.catalog_type = type;
                         this.params.put(PARAM_CATALOG_TYPE, this.catalog_type.toString());
                     }
                 }
             }
-        //
         // Schema File
-        //
         } else if (this.params.containsKey(PARAM_CATALOG_SCHEMA)) {
             String path = this.params.get(PARAM_CATALOG_SCHEMA); 
             this.catalog = CompilerUtil.compileCatalog(path);
             if (this.catalog == null) throw new Exception("Failed to load schema from '" + path + "'");
-            LOG.debug("Loaded catalog from schema file '" + path + "'");
+            if (debug) LOG.debug("Loaded catalog from schema file '" + path + "'");
             this.catalog_db = CatalogUtil.getDatabase(catalog);
             this.catalog_path = new File(path);
         }
         
-        //
         // Catalog Type
-        //
         if (this.params.containsKey(PARAM_CATALOG_TYPE)) {
             String catalog_type = this.params.get(PARAM_CATALOG_TYPE);
             ProjectType type = ProjectType.get(catalog_type);
@@ -473,7 +472,7 @@ public class ArgumentsParser {
         if (this.params.containsKey(PARAM_PARTITION_PLAN)) {
             assert(this.catalog_db != null);
             File path = new File(this.params.get(PARAM_PARTITION_PLAN));
-            LOG.debug("Loading in partition plan from '" + path + "'");
+            if (debug) LOG.debug("Loading in partition plan from '" + path + "'");
             this.pplan = new PartitionPlan();
             this.pplan.load(path.getAbsolutePath(), this.catalog_db);
             
@@ -488,9 +487,7 @@ public class ArgumentsParser {
         // SAMPLE WORKLOAD TRACE
         // -------------------------------------------------------
         
-        //
         // Workload Trace
-        //
         if (this.params.containsKey(PARAM_WORKLOAD)) {
             assert(this.catalog_db != null);
             String path = new File(this.params.get(PARAM_WORKLOAD)).getAbsolutePath();
@@ -502,7 +499,7 @@ public class ArgumentsParser {
             
             // Include/exclude procedures from the traces
             if (params.containsKey(PARAM_WORKLOAD_PROC_INCLUDE) || params.containsKey(PARAM_WORKLOAD_PROC_EXCLUDE)) {
-                ProcedureNameFilter filter = new ProcedureNameFilter();
+                Workload.Filter filter = new ProcedureNameFilter();
                 String temp = params.get(PARAM_WORKLOAD_PROC_INCLUDE);
                 if (temp != null && !temp.equals(ProcedureNameFilter.INCLUDE_ALL)) {
                     
@@ -510,6 +507,7 @@ public class ArgumentsParser {
                     double multiplier = 1.0d;
                     if (this.hasDoubleParam(PARAM_WORKLOAD_PROC_INCLUDE_MULTIPLIER)) {
                         multiplier = this.getDoubleParam(PARAM_WORKLOAD_PROC_INCLUDE_MULTIPLIER);
+                        if (debug) LOG.debug("Workload Procedue Multiplier: " + multiplier);
                     }
                     
                     for (String proc_name : params.get(PARAM_WORKLOAD_PROC_INCLUDE).split(",")) {
@@ -520,14 +518,24 @@ public class ArgumentsParser {
                             proc_name = pieces[0];
                             limit = (int)Math.round(Integer.parseInt(pieces[1]) * multiplier);
                         }
-                        filter.include(proc_name, limit);
+                        ((ProcedureNameFilter)filter).include(proc_name, limit);
                     } // FOR
                 }
                 temp = params.get(PARAM_WORKLOAD_PROC_EXCLUDE);
                 if (temp != null) {
                     for (String proc_name : params.get(PARAM_WORKLOAD_PROC_EXCLUDE).split(",")) {
-                        filter.exclude(proc_name);
+                        ((ProcedureNameFilter)filter).exclude(proc_name);
                     } // FOR
+                }
+                
+                // Sampling!!
+                if (params.containsKey(PARAM_WORKLOAD_PROC_SAMPLE)) {
+                    if (debug) LOG.debug("Attaching sampling filter");
+                    Histogram proc_histogram = WorkloadUtil.getProcedureHistogram(new File(path));
+                    Map<String, Integer> proc_includes = ((ProcedureNameFilter)filter).getProcIncludes();
+                    SamplingFilter sampling_filter = new SamplingFilter(proc_includes, proc_histogram);
+                    filter = sampling_filter;
+                    if (debug) LOG.debug("Workload Procedure Histogram:\n" + proc_histogram);
                 }
 
                 // Attach our new filter to the chain (or make it the head if it's the first one)
@@ -561,29 +569,19 @@ public class ArgumentsParser {
                     this.workload_filter = filter;
                 }
             }
-            if (this.workload_filter != null) LOG.debug("Workload Filters: " + this.workload_filter);
+            if (this.workload_filter != null && debug) LOG.debug("Workload Filters: " + this.workload_filter);
             this.workload = new Workload(this.catalog);
             this.workload.load(path, this.catalog_db, this.workload_filter);
             this.workload_path = new File(path).getAbsolutePath();
             if (this.workload_filter != null) this.workload_filter.reset();
-            
-            // Procedure Sampling.
-            // Yeah this kind of sucks that we have to read the whole thing in, but we're in a recession right now...
-            if (params.containsKey(PARAM_WORKLOAD_PROC_SAMPLE)) {
-                // Workload 
-            }
-            
-            
         }
         
-        //
         // Workload Statistics
-        //
         if (this.catalog_db != null) {
             this.stats = new WorkloadStatistics(this.catalog_db);
             if (this.params.containsKey(PARAM_STATS)) {
                 String path = this.params.get(PARAM_STATS);
-                LOG.debug("Loading in workload statistics from '" + path + "'");
+                if (debug) LOG.debug("Loading in workload statistics from '" + path + "'");
                 this.stats.load(path, this.catalog_db);
                 this.stats_path = new File(path).getAbsolutePath();
             }
@@ -601,7 +599,7 @@ public class ArgumentsParser {
         }
         if (this.params.containsKey(PARAM_DESIGNER_HINTS)) {
             String path = this.params.get(PARAM_DESIGNER_HINTS);
-            LOG.debug("Loading in designer hints from '" + path + "'");
+            if (debug) LOG.debug("Loading in designer hints from '" + path + "'");
             this.designer_hints.load(path, catalog_db, this.hints_params);
         }
         if (this.params.containsKey(PARAM_DESIGNER_CHECKPOINT)) {
@@ -618,7 +616,7 @@ public class ArgumentsParser {
                 String target_name = this.params.get(key);
                 Class<?> target_class = loader.loadClass(target_name);
                 assert(target_class != null);
-                LOG.debug("Set " + key + " class to " + target_class.getName());
+                if (debug) LOG.debug("Set " + key + " class to " + target_class.getName());
                 
                 if (key.equals(PARAM_DESIGNER_PARTITIONER)) {
                     this.partitioner_class = (Class<? extends AbstractPartitioner>)target_class;

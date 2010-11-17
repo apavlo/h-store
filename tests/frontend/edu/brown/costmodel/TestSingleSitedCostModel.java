@@ -120,7 +120,7 @@ public class TestSingleSitedCostModel extends BaseTestCase {
         
         // Throw the TransactionTrace at the costmodel and make sure that there is a TransactionCacheEntry
         SingleSitedCostModel cost_model = new SingleSitedCostModel(clone_db);
-        cost_model.estimateCost(clone_db, xact_trace);
+        cost_model.estimateTransactionCost(clone_db, xact_trace);
         cost_model.setCachingEnabled(true);
         TransactionCacheEntry entry = cost_model.getTransactionCacheEntry(xact_trace);
         assertNotNull(entry);
@@ -180,7 +180,7 @@ public class TestSingleSitedCostModel extends BaseTestCase {
         assertEquals(1, mproc_h.getValueCount());
 
         // Now throw the same txn back at the costmodel. All of our histograms should come back the same
-        cost_model.estimateCost(clone_db, xact_trace);
+        cost_model.estimateTransactionCost(clone_db, xact_trace);
 
         Histogram new_txn_h = cost_model.getTxnPartitionAccessHistogram();
         assertNotNull(new_txn_h);
@@ -220,7 +220,7 @@ public class TestSingleSitedCostModel extends BaseTestCase {
         
         // System.err.println(xact_trace.debug(catalog_db));
         SingleSitedCostModel cost_model = new SingleSitedCostModel(catalog_db);
-        cost_model.estimateCost(catalog_db, xact_trace);
+        cost_model.estimateTransactionCost(catalog_db, xact_trace);
         TransactionCacheEntry entry = cost_model.getTransactionCacheEntry(xact_trace);
         assertNotNull(entry);
         
@@ -260,7 +260,7 @@ public class TestSingleSitedCostModel extends BaseTestCase {
         for (TransactionTrace xact_trace : workload.getTransactions()) {
             assertNotNull(xact_trace);
             if (xact_trace.getCatalogItemName().equals(TARGET_PROCEDURES[0])) {
-                cost_model.estimateCost(catalog_db, xact_trace);
+                cost_model.estimateTransactionCost(catalog_db, xact_trace);
                 xacts.add(xact_trace);
             }
         } // FOR
@@ -303,7 +303,7 @@ public class TestSingleSitedCostModel extends BaseTestCase {
         for (TransactionTrace xact_trace : workload.getTransactions()) {
             assertNotNull(xact_trace);
             if (xact_trace.getCatalogItemName().equals(catalog_proc.getName())) {
-                cost_model.estimateCost(catalog_db, xact_trace);
+                cost_model.estimateTransactionCost(catalog_db, xact_trace);
                 xacts.add(xact_trace);
             }
         } // FOR
@@ -379,7 +379,7 @@ public class TestSingleSitedCostModel extends BaseTestCase {
         SingleSitedCostModel cost_model = new SingleSitedCostModel(clone_db);
         catalog_proc.setPartitionparameter(NullProcParameter.PARAM_IDX);
         cost_model.setCachingEnabled(true);
-        cost_model.estimateCost(clone_db, target_txn);
+        cost_model.estimateTransactionCost(clone_db, target_txn);
         entry = cost_model.getTransactionCacheEntry(target_txn);
         assertNotNull(entry);
         assertNull(entry.getExecutionPartition());
@@ -388,7 +388,7 @@ public class TestSingleSitedCostModel extends BaseTestCase {
         // Make something else the ProcParameter
         cost_model.invalidateCache(catalog_proc);
         catalog_proc.setPartitionparameter(orig_partition_parameter + 1);
-        cost_model.estimateCost(clone_db, target_txn);
+        cost_model.estimateTransactionCost(clone_db, target_txn);
         entry = cost_model.getTransactionCacheEntry(target_txn);
         assertNotNull(entry);
         assertNotNull(entry.getExecutionPartition());
@@ -397,7 +397,7 @@ public class TestSingleSitedCostModel extends BaseTestCase {
         // Now let's put S_ID back in as the ProcParameter
         cost_model.invalidateCache(catalog_proc);
         catalog_proc.setPartitionparameter(orig_partition_parameter);
-        cost_model.estimateCost(clone_db, target_txn);
+        cost_model.estimateTransactionCost(clone_db, target_txn);
         entry = cost_model.getTransactionCacheEntry(target_txn);
         assertNotNull(entry);
         assertNotNull(entry.getExecutionPartition());
@@ -437,7 +437,7 @@ public class TestSingleSitedCostModel extends BaseTestCase {
 
         SingleSitedCostModel cost_model = new SingleSitedCostModel(clone_db);
         cost_model.setCachingEnabled(true);
-        cost_model.estimateCost(clone_db, target_txn);
+        cost_model.estimateTransactionCost(clone_db, target_txn);
         TransactionCacheEntry txn_entry = cost_model.getTransactionCacheEntry(target_txn);
         assertNotNull(txn_entry);
         assertNotNull(txn_entry.getExecutionPartition());

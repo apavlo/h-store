@@ -39,7 +39,8 @@ VALUES ($bidId, $itemId, $sellerId, $buyerId,  $qty, 0, $bid, $maxBid, '$now');
     public final SQLStmt updateItem = new SQLStmt(
         "UPDATE " + AuctionMarkConstants.TABLENAME_ITEM +
         "   SET i_num_bids = i_num_bids + 1 " +     
-        " WHERE i_id = ? AND i_u_id = ?"
+        " WHERE i_id = ? AND i_u_id = ?" +
+        "   AND i_status = " + AuctionMarkConstants.STATUS_ITEM_OPEN
     );
 
     public final SQLStmt getMaxBidId = new SQLStmt(
@@ -154,12 +155,19 @@ VALUES ($bidId, $itemId, $sellerId, $buyerId,  $qty, 0, $bid, $maxBid, '$now');
         Date currentTime = new Date();
         TimestampType currentTimestamp = new TimestampType();
         
+        // First check to make sure that we can even add a new bid to this item
+        // If we fail to update, the new know that the auction is closed
         voltQueueSQL(updateItem, i_id, u_id);
-        voltExecuteSQL();
+        VoltTable results[] = voltExecuteSQL();
+        assert(1 == results.length);
+        boolean advRow = results[0].advanceRow();
+        assert(advRow);
+        if (results[0].getLong(0) == 0) {
+            throw new VoltAbortException("Unable to bid on item: Auction has ended");
+        }
         
         voltQueueSQL(getMaxBidId, i_id, u_id);
-        VoltTable results[] = voltExecuteSQL();
-        
+        results = voltExecuteSQL();
         assert(1 == results.length);
         
         long ib_id;

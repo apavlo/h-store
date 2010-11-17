@@ -5,6 +5,7 @@ import java.util.Date;
 import java.util.List;
 import java.util.Random;
 
+import org.voltdb.benchmark.tpcc.procedures.neworder;
 import org.voltdb.catalog.*;
 
 import edu.brown.utils.*;
@@ -14,7 +15,7 @@ public class TestWorkload extends BaseTestCase {
 
     public static final Random rand = new Random();
     
-    public static final String TARGET_PROCEDURE = "neworder";
+    public static final String TARGET_PROCEDURE = neworder.class.getSimpleName();
     public static final int NUM_ORDER_ITEMS = 5;
     public static final int BASE_PARTITION = 1;
     public static final String CALLER = "XXX"; 
@@ -188,6 +189,4 @@ public class TestWorkload extends BaseTestCase {
         this.workload.stopTransaction(xact);
         assertNotNull(xact.getStopTimestamp());        
     }
-
-    
 }

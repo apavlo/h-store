@@ -57,7 +57,11 @@ public class ProcedureNameFilter extends Workload.Filter {
      * @param names
      */
     public ProcedureNameFilter exclude(String...names) {
-        Collections.addAll(this.blacklist, names);
+        for (String proc_name : names) {
+            this.blacklist.add(proc_name);
+            this.whitelist.remove(proc_name);
+            this.whitelist_orig_ctr.remove(proc_name);
+        } // FOR
         return (this);
     }
     

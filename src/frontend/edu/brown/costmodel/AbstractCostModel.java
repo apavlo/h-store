@@ -40,7 +40,6 @@ import org.voltdb.catalog.Procedure;
 import edu.brown.catalog.CatalogKey;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.designer.DesignerHints;
-import edu.brown.designer.partitioners.PartitionPlan;
 import edu.brown.statistics.Histogram;
 import edu.brown.utils.PartitionEstimator;
 import edu.brown.utils.StringUtil;
@@ -242,7 +241,7 @@ public abstract class AbstractCostModel implements Cloneable {
      * @param catalog_db
      */
     public final void prepare(final Database catalog_db) {
-        final boolean trace = LOG.isTraceEnabled();
+        // final boolean trace = LOG.isTraceEnabled();
         this.prepareImpl(catalog_db);
         
         // Construct a PartitionPlan for the current state of the catalog so that we 
@@ -278,7 +277,7 @@ public abstract class AbstractCostModel implements Cloneable {
      * @return
      * @throws Exception
      */
-    public abstract double estimateCost(Database catalog_db, Workload workload, Workload.Filter filter, TransactionTrace xact) throws Exception;
+    public abstract double estimateTransactionCost(Database catalog_db, Workload workload, Workload.Filter filter, TransactionTrace xact) throws Exception;
     
     /**
      * Invalidate cache entries for the given CatalogKey
@@ -312,7 +311,7 @@ public abstract class AbstractCostModel implements Cloneable {
     }
     
     public String getLastDebugMessages() {
-        return (this.LOG.toString());
+        return (LOG.toString());
     }
 
 
@@ -541,7 +540,7 @@ public abstract class AbstractCostModel implements Cloneable {
                 TransactionTrace xact = (TransactionTrace)element;
                 //System.out.println(xact.debug(this.catalog_db) + "\n");
                 try {
-                    cost += this.estimateCost(catalog_db, workload, filter, xact);
+                    cost += this.estimateTransactionCost(catalog_db, workload, filter, xact);
                 } catch (Exception ex) {
                     LOG.error("Failed to estimate cost for " + xact.getCatalogItemName());
                     CatalogUtil.saveCatalog(catalog_db.getCatalog(), "catalog.txt");
@@ -559,8 +558,8 @@ public abstract class AbstractCostModel implements Cloneable {
      * @return
      * @throws Exception
      */
-    public final double estimateCost(Database catalog_db, TransactionTrace xact) throws Exception {
-        return (this.estimateCost(catalog_db, null, null, xact));
+    public final double estimateTransactionCost(Database catalog_db, TransactionTrace xact) throws Exception {
+        return (this.estimateTransactionCost(catalog_db, null, null, xact));
     }
     
     /**

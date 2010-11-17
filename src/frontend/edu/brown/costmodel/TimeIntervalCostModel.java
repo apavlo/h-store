@@ -3,6 +3,7 @@
  */
 package edu.brown.costmodel;
 
+import java.io.File;
 import java.lang.reflect.Constructor;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -18,7 +19,9 @@ import edu.brown.catalog.CatalogKey;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.costmodel.SingleSitedCostModel.QueryCacheEntry;
 import edu.brown.costmodel.SingleSitedCostModel.TransactionCacheEntry;
+import edu.brown.designer.partitioners.PartitionPlan;
 import edu.brown.statistics.Histogram;
+import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.ClassUtil;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.MathUtil;
@@ -147,11 +150,11 @@ public class TimeIntervalCostModel<T extends AbstractCostModel> extends Abstract
      * @see edu.brown.costmodel.AbstractCostModel#estimateCost(org.voltdb.catalog.Database, edu.brown.workload.TransactionTrace, edu.brown.workload.AbstractWorkload.Filter)
      */
     @Override
-    public double estimateCost(Database catalog_db, Workload workload, Filter filter, TransactionTrace xact) throws Exception {
+    public double estimateTransactionCost(Database catalog_db, Workload workload, Filter filter, TransactionTrace xact) throws Exception {
         assert(workload != null) : "The workload handle is null";
         // First figure out the time interval of this 
         int interval = workload.getTimeInterval(xact, this.cost_models.length);
-        return (this.cost_models[interval].estimateCost(catalog_db, workload, filter, xact));
+        return (this.cost_models[interval].estimateTransactionCost(catalog_db, workload, filter, xact));
     }
     
     /**
@@ -240,7 +243,7 @@ public class TimeIntervalCostModel<T extends AbstractCostModel> extends Abstract
                     
                     // Terrible Hack: Assume that we are using the SingleSitedCostModel and that
                     // it will return fixed values based on whether the txn is single-partitioned or not
-                    this.cost_models[i].estimateCost(catalog_db, workload, filter, txn_trace);
+                    this.cost_models[i].estimateTransactionCost(catalog_db, workload, filter, txn_trace);
                     SingleSitedCostModel singlesited_cost_model = (SingleSitedCostModel)this.cost_models[i]; 
                     TransactionCacheEntry txn_entry = singlesited_cost_model.getTransactionCacheEntry(txn_trace);
                     assert(txn_entry != null) : "No txn entry for " + txn_trace;
@@ -577,5 +580,46 @@ public class TimeIntervalCostModel<T extends AbstractCostModel> extends Abstract
         for (T cm : this.cost_models) {
             cm.invalidateCache(catalog_key);
         } // FOR
+    }
+    
+    public static void main(String[] vargs) throws Exception {
+        ArgumentsParser args = ArgumentsParser.load(vargs);
+        args.require(
+                ArgumentsParser.PARAM_CATALOG,
+                ArgumentsParser.PARAM_WORKLOAD,
+                ArgumentsParser.PARAM_PARTITION_PLAN,
+                ArgumentsParser.PARAM_DESIGNER_INTERVALS,
+                ArgumentsParser.PARAM_DESIGNER_HINTS
+        );
+        assert(args.workload.getTransactionCount() > 0) : "No transactions were loaded from " + args.workload;
+        
+        // If given a PartitionPlan, then update the catalog
+        File pplan_path = new File(args.getParam(ArgumentsParser.PARAM_PARTITION_PLAN));
+        if (pplan_path.exists()) {
+            PartitionPlan pplan = new PartitionPlan();
+            pplan.load(pplan_path.getAbsolutePath(), args.catalog_db);
+            pplan.apply(args.catalog_db);
+            System.out.println("Applied PartitionPlan '" + pplan_path + "' to catalog\n" + pplan);
+            System.out.print(StringUtil.DOUBLE_LINE);
+        } else {
+            System.err.println("PartitionPlan file '" + pplan_path + "' does not exist. Ignoring...");
+        }
+        System.out.flush();
+        
+        int num_intervals = args.num_intervals; // getIntParam(ArgumentsParser.PARAM_DESIGNER_INTERVALS);
+        TimeIntervalCostModel<SingleSitedCostModel> costmodel = new TimeIntervalCostModel<SingleSitedCostModel>(args.catalog_db, SingleSitedCostModel.class, num_intervals);
+        costmodel.estimateCost(args.catalog_db, args.workload);
+        
+        for (int i = 0; i < num_intervals; i++) {
+            Histogram h = costmodel.getCostModel(i).histogram_txn_partitions;
+            h.setKeepZeroEntries(true);
+            for (Integer partition : CatalogUtil.getAllPartitionIds(args.catalog_db)) {
+                if (h.contains(partition) == false) h.put(partition, 0);
+            }
+            System.err.println(StringUtil.box("Interval #" + i, "+", 100) + "\n" + h);
+            System.err.println();
+        } // FOR
+        //System.err.println(h);
+        
     }
 }

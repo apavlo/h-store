@@ -40,6 +40,10 @@ public class MemoryEstimator {
         return (this.estimate(catalog_db, partitions, all_tables));
     }
     
+    public long estimateTotalSize(Database catalog_db) {
+        return (this.estimate(catalog_db, 1));
+    }
+    
     /**
      * Return the estimated size of a single partition in the database for the given tables
      * @param catalog_db
