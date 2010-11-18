@@ -423,6 +423,9 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
         assert(relaxed_tables.size() == relax_size) : relax_size + " => " + relaxed_tables;
         LOG.info("Relaxed Tables: " + relaxed_tables);
         
+        // Shuffle the list
+        Collections.shuffle(relaxed_tables, this.rng);
+        
         // Now estimate the size of a partition for the non-relaxed tables
         double nonrelaxed_memory = this.info.getMemoryEstimator().estimate(info.catalog_db, this.num_partitions, nonrelaxed_tables) /
                                    (double)hints.max_memory_per_partition;
