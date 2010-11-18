@@ -709,126 +709,124 @@ implements TPCCSimulation.ProcCaller {
 
     @Override
     public void callPaymentById(short w_id, byte d_id, double h_amount,
-            short c_w_id, byte c_d_id, int c_id, TimestampType now) throws IOException {
-       if (m_blockOnBackpressure) {
-           if (m_scaleParams.warehouses > 1) {
-               final VerifyBasicCallback cb = new VerifyBasicCallback();
-               while(!m_voltClient.callProcedure( cb,
-                      Constants.PAYMENT_BY_ID_W,
-                      w_id, d_id, h_amount, c_w_id, c_d_id, c_id, now)) {
-                   try {
-                    m_voltClient.backpressureBarrier();
-                } catch (InterruptedException e) {
-                    // TODO Auto-generated catch block
-                    e.printStackTrace();
-                }
-               }
-               final VerifyBasicCallback cb2 = new VerifyBasicCallback(TPCCSimulation.Transaction.PAYMENT,
-                       Constants.PAYMENT_BY_ID_C);
-               while (!m_voltClient.callProcedure( cb2,
-                      Constants.PAYMENT_BY_ID_C,
-                      w_id, d_id, h_amount, c_w_id, c_d_id, c_id, now)) {
-                   try {
-                    m_voltClient.backpressureBarrier();
-                } catch (InterruptedException e) {
-                    // TODO Auto-generated catch block
-                    e.printStackTrace();
-                }
-               }
-          }
-          else {
-              final VerifyBasicCallback cb = new VerifyBasicCallback(TPCCSimulation.Transaction.PAYMENT,
-                      Constants.PAYMENT_BY_ID);
-               while (!m_voltClient.callProcedure( cb,
-                      Constants.PAYMENT_BY_ID,
-                      w_id, d_id, h_amount, c_w_id, c_d_id, c_id, now)) {
-                   try {
-                    m_voltClient.backpressureBarrier();
-                } catch (InterruptedException e) {
-                    // TODO Auto-generated catch block
-                    e.printStackTrace();
-                }
-               }
-          }
-       } else {
-           if (m_scaleParams.warehouses > 1) {
-                m_voltClient.callProcedure(new VerifyBasicCallback(),
-                       Constants.PAYMENT_BY_ID_W,
-                       w_id, d_id, h_amount, c_w_id, c_d_id, c_id, now);
-                m_queuedMessage = m_voltClient.callProcedure(new VerifyBasicCallback(TPCCSimulation.Transaction.PAYMENT,
-                                                                                     Constants.PAYMENT_BY_ID_C),
-                       Constants.PAYMENT_BY_ID_C,
-                       w_id, d_id, h_amount, c_w_id, c_d_id, c_id, now);
-           }
-           else {
-                m_queuedMessage = m_voltClient.callProcedure(new VerifyBasicCallback(TPCCSimulation.Transaction.PAYMENT,
-                                                                                     Constants.PAYMENT_BY_ID),
-                       Constants.PAYMENT_BY_ID,
-                       w_id, d_id, h_amount, c_w_id, c_d_id, c_id, now);
-           }
-       }
+                                short c_w_id, byte c_d_id, int c_id, TimestampType now) throws IOException {
+        
+        m_queuedMessage = m_voltClient.callProcedure(new VerifyBasicCallback(TPCCSimulation.Transaction.PAYMENT, Constants.PAYMENT_BY_ID),
+                                                     Constants.PAYMENT_BY_ID,
+                                                     w_id, d_id, h_amount, c_w_id, c_d_id, c_id, now);
+//        
+//        if (m_blockOnBackpressure) {
+//            if (m_scaleParams.warehouses > 1) {
+//                final VerifyBasicCallback cb = new VerifyBasicCallback();
+//                while (!m_voltClient.callProcedure(cb, Constants.PAYMENT_BY_ID_W,
+//                                                   w_id, d_id, h_amount, c_w_id, c_d_id, c_id, now)) {
+//                    try {
+//                        m_voltClient.backpressureBarrier();
+//                    } catch (InterruptedException e) {
+//                        // TODO Auto-generated catch block
+//                        e.printStackTrace();
+//                    }
+//                }
+//                final VerifyBasicCallback cb2 = new VerifyBasicCallback(TPCCSimulation.Transaction.PAYMENT, Constants.PAYMENT_BY_ID_C);
+//                while (!m_voltClient.callProcedure(cb2, Constants.PAYMENT_BY_ID_C, 
+//                                                   w_id, d_id, h_amount, c_w_id, c_d_id, c_id, now)) {
+//                    try {
+//                        m_voltClient.backpressureBarrier();
+//                    } catch (InterruptedException e) {
+//                        // TODO Auto-generated catch block
+//                        e.printStackTrace();
+//                    }
+//                }
+//            } else {
+//                final VerifyBasicCallback cb = new VerifyBasicCallback(TPCCSimulation.Transaction.PAYMENT, Constants.PAYMENT_BY_ID);
+//                while (!m_voltClient.callProcedure(cb, Constants.PAYMENT_BY_ID,
+//                                                   w_id, d_id, h_amount, c_w_id, c_d_id, c_id, now)) {
+//                    try {
+//                        m_voltClient.backpressureBarrier();
+//                    } catch (InterruptedException e) {
+//                        // TODO Auto-generated catch block
+//                        e.printStackTrace();
+//                    }
+//                }
+//            }
+//        } else {
+//            if (m_scaleParams.warehouses > 1) {
+//                m_voltClient.callProcedure(new VerifyBasicCallback(), Constants.PAYMENT_BY_ID_W, w_id, d_id, h_amount, c_w_id, c_d_id, c_id, now);
+//                m_queuedMessage = m_voltClient.callProcedure(new VerifyBasicCallback(TPCCSimulation.Transaction.PAYMENT, Constants.PAYMENT_BY_ID_C), Constants.PAYMENT_BY_ID_C,
+//                                                                                     w_id, d_id, h_amount, c_w_id, c_d_id, c_id, now);
+//           } else {
+//               m_queuedMessage = m_voltClient.callProcedure(new VerifyBasicCallback(TPCCSimulation.Transaction.PAYMENT, Constants.PAYMENT_BY_ID), Constants.PAYMENT_BY_ID,
+//                                                                                    w_id, d_id, h_amount, c_w_id, c_d_id, c_id, now);
+//           }
+//        }
     }
 
     @Override
     public void callPaymentByName(short w_id, byte d_id, double h_amount,
             short c_w_id, byte c_d_id, String c_last, TimestampType now) throws IOException {
-        if (m_blockOnBackpressure) {
-            if ((m_scaleParams.warehouses > 1) || (c_last != null)) {
-                final VerifyBasicCallback cb = new VerifyBasicCallback();
-                while(!m_voltClient.callProcedure(cb,
-                        Constants.PAYMENT_BY_NAME_W, w_id, d_id, h_amount,
-                        c_w_id, c_d_id, c_last, now)) {
-                    try {
-                        m_voltClient.backpressureBarrier();
-                    } catch (InterruptedException e) {
-                        // TODO Auto-generated catch block
-                        e.printStackTrace();
-                    }
-                }
-                final VerifyBasicCallback cb2 = new VerifyBasicCallback(TPCCSimulation.Transaction.PAYMENT,
-                        Constants.PAYMENT_BY_NAME_C);
-                while(!m_voltClient.callProcedure( cb2,
-                        Constants.PAYMENT_BY_NAME_C, w_id, d_id, h_amount,
-                        c_w_id, c_d_id, c_last, now)) {
-                    try {
-                        m_voltClient.backpressureBarrier();
-                    } catch (InterruptedException e) {
-                        // TODO Auto-generated catch block
-                        e.printStackTrace();
-                    }
-                }
-            }
-            else {
-                final VerifyBasicCallback cb = new VerifyBasicCallback(TPCCSimulation.Transaction.PAYMENT,
-                        Constants.PAYMENT_BY_ID);
-                while(!m_voltClient.callProcedure( cb,
-                        Constants.PAYMENT_BY_ID, w_id,
-                        d_id, h_amount, c_w_id, c_d_id, c_last, now)) {
-                    try {
-                        m_voltClient.backpressureBarrier();
-                    } catch (InterruptedException e) {
-                        // TODO Auto-generated catch block
-                        e.printStackTrace();
-                    }
-                }
-            }
-        } else {
-            if ((m_scaleParams.warehouses > 1) || (c_last != null)) {
-                m_voltClient.callProcedure(new VerifyBasicCallback(),
-                        Constants.PAYMENT_BY_NAME_W, w_id, d_id, h_amount,
-                        c_w_id, c_d_id, c_last, now);
-                m_queuedMessage = m_voltClient.callProcedure(new VerifyBasicCallback(TPCCSimulation.Transaction.PAYMENT,
-                                                                                     Constants.PAYMENT_BY_NAME_C),
-                        Constants.PAYMENT_BY_NAME_C, w_id, d_id, h_amount,
-                        c_w_id, c_d_id, c_last, now);
-            }
-            else {
-                m_queuedMessage = m_voltClient.callProcedure(new VerifyBasicCallback(TPCCSimulation.Transaction.PAYMENT,
-                                                                                     Constants.PAYMENT_BY_ID),
-                        Constants.PAYMENT_BY_ID, w_id,
-                        d_id, h_amount, c_w_id, c_d_id, c_last, now);
-            }
-        }
+        
+        m_queuedMessage = m_voltClient.callProcedure(new VerifyBasicCallback(TPCCSimulation.Transaction.PAYMENT, Constants.PAYMENT_BY_NAME),
+                                                     Constants.PAYMENT_BY_NAME,
+                                                     w_id, d_id, h_amount, c_w_id, c_d_id, c_last, now);
+
+        
+//        if (m_blockOnBackpressure) {
+//            if ((m_scaleParams.warehouses > 1) || (c_last != null)) {
+//                final VerifyBasicCallback cb = new VerifyBasicCallback();
+//                while(!m_voltClient.callProcedure(cb,
+//                        Constants.PAYMENT_BY_NAME_W, w_id, d_id, h_amount,
+//                        c_w_id, c_d_id, c_last, now)) {
+//                    try {
+//                        m_voltClient.backpressureBarrier();
+//                    } catch (InterruptedException e) {
+//                        // TODO Auto-generated catch block
+//                        e.printStackTrace();
+//                    }
+//                }
+//                final VerifyBasicCallback cb2 = new VerifyBasicCallback(TPCCSimulation.Transaction.PAYMENT,
+//                        Constants.PAYMENT_BY_NAME_C);
+//                while(!m_voltClient.callProcedure( cb2,
+//                        Constants.PAYMENT_BY_NAME_C, w_id, d_id, h_amount,
+//                        c_w_id, c_d_id, c_last, now)) {
+//                    try {
+//                        m_voltClient.backpressureBarrier();
+//                    } catch (InterruptedException e) {
+//                        // TODO Auto-generated catch block
+//                        e.printStackTrace();
+//                    }
+//                }
+//            }
+//            else {
+//                final VerifyBasicCallback cb = new VerifyBasicCallback(TPCCSimulation.Transaction.PAYMENT,
+//                        Constants.PAYMENT_BY_ID);
+//                while(!m_voltClient.callProcedure( cb,
+//                        Constants.PAYMENT_BY_ID, w_id,
+//                        d_id, h_amount, c_w_id, c_d_id, c_last, now)) {
+//                    try {
+//                        m_voltClient.backpressureBarrier();
+//                    } catch (InterruptedException e) {
+//                        // TODO Auto-generated catch block
+//                        e.printStackTrace();
+//                    }
+//                }
+//            }
+//        } else {
+//            if ((m_scaleParams.warehouses > 1) || (c_last != null)) {
+//                m_voltClient.callProcedure(new VerifyBasicCallback(),
+//                        Constants.PAYMENT_BY_NAME_W, w_id, d_id, h_amount,
+//                        c_w_id, c_d_id, c_last, now);
+//                m_queuedMessage = m_voltClient.callProcedure(new VerifyBasicCallback(TPCCSimulation.Transaction.PAYMENT,
+//                                                                                     Constants.PAYMENT_BY_NAME_C),
+//                        Constants.PAYMENT_BY_NAME_C, w_id, d_id, h_amount,
+//                        c_w_id, c_d_id, c_last, now);
+//            }
+//            else {
+//                m_queuedMessage = m_voltClient.callProcedure(new VerifyBasicCallback(TPCCSimulation.Transaction.PAYMENT,
+//                                                                                     Constants.PAYMENT_BY_ID),
+//                        Constants.PAYMENT_BY_ID, w_id,
+//                        d_id, h_amount, c_w_id, c_d_id, c_last, now);
+//            }
+//        }
     }
 
 

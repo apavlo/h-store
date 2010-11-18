@@ -17,6 +17,7 @@ import edu.brown.BaseTestCase;
 import edu.brown.catalog.CatalogKey;
 import edu.brown.hashing.AbstractHasher;
 import edu.brown.hashing.DefaultHasher;
+import edu.brown.utils.TestJSONUtil.TestObject.TestEnum;
 
 public class TestJSONUtil extends BaseTestCase {
 
@@ -30,11 +31,13 @@ public class TestJSONUtil extends BaseTestCase {
             DATA_DOUBLE_OBJ,
             DATA_BOOLEAN,
             DATA_BOOLEAN_OBJ,
+            DATA_ENUM,
             LIST_INT,
             LIST_LONG,
             LIST_DOUBLE,
             LIST_BOOLEAN,
             LIST_CATALOG,
+            LIST_ENUM,
             SET_INT,
             SET_LONG,
             SET_DOUBLE,
@@ -78,7 +81,15 @@ public class TestJSONUtil extends BaseTestCase {
         // --------------------------------------------------------------------------------
         // Data Members
         // --------------------------------------------------------------------------------
-
+        
+        // Enum
+        public enum TestEnum {
+            CLUBS,
+            HEARTS,
+            DIAMONDS,
+            SPADES,
+        }
+        
         // Primitives
         public int data_int;
         public Integer data_int_obj;
@@ -88,6 +99,7 @@ public class TestJSONUtil extends BaseTestCase {
         public Double data_double_obj;
         public boolean data_boolean;
         public Boolean data_boolean_obj;
+        public TestEnum data_enum;
         
         // Lists
         public List<Integer> list_int = new ArrayList<Integer>();
@@ -95,11 +107,13 @@ public class TestJSONUtil extends BaseTestCase {
         public List<Double> list_double = new ArrayList<Double>();
         public List<Boolean> list_boolean = new ArrayList<Boolean>();
         public List<Table> list_catalog = new ArrayList<Table>();
+        public List<TestEnum> list_enum = new ArrayList<TestEnum>();
         public Set<Integer> set_int = new HashSet<Integer>();
         public Set<Long> set_long = new HashSet<Long>();
         public Set<Double> set_double = new HashSet<Double>();
         public Set<Boolean> set_boolean = new HashSet<Boolean>();
         public Set<Table> set_catalog = new HashSet<Table>();
+        public Set<TestEnum> set_enum = new HashSet<TestEnum>();
 
         // Maps
         public Map<Integer, String> map_int = new HashMap<Integer, String>();
@@ -107,6 +121,7 @@ public class TestJSONUtil extends BaseTestCase {
         public Map<Double, String> map_double = new HashMap<Double, String>();
         public Map<String, String> map_string = new HashMap<String, String>();
         public Map<Table, String> map_catalog = new HashMap<Table, String>();
+        public Map<TestEnum, String> map_enum = new HashMap<TestEnum, String>();
 
         // Specials
         public Class<? extends AbstractHasher> special_class;
@@ -177,6 +192,7 @@ public class TestJSONUtil extends BaseTestCase {
         this.obj.data_double_obj = new Double(rand.nextDouble());
         this.obj.data_boolean = rand.nextBoolean();
         this.obj.data_boolean_obj = new Boolean(rand.nextBoolean());
+        this.obj.data_enum = TestEnum.values()[rand.nextInt(TestEnum.values().length)];
         
         List<Table> tables = CollectionUtil.toList(catalog_db.getTables());
         for (int i = 0, cnt = rand.nextInt(20) + 1; i < cnt; i++) {
@@ -185,18 +201,21 @@ public class TestJSONUtil extends BaseTestCase {
             this.obj.list_double.add(rand.nextDouble());
             this.obj.list_boolean.add(rand.nextBoolean());
             this.obj.list_catalog.add(CollectionUtil.getRandomValue(tables));
+            this.obj.list_enum.add(TestEnum.values()[rand.nextInt(TestEnum.values().length)]);
          
             this.obj.set_int.add(rand.nextInt());
             this.obj.set_long.add(rand.nextLong());
             this.obj.set_double.add(rand.nextDouble());
             this.obj.set_boolean.add(rand.nextBoolean());
             this.obj.set_catalog.add(CollectionUtil.getRandomValue(tables));
+            this.obj.set_enum.add(TestEnum.values()[rand.nextInt(TestEnum.values().length)]);
             
             this.obj.map_int.put(rand.nextInt(), VoltTypeUtil.getRandomValue(VoltType.STRING).toString());
             this.obj.map_long.put(rand.nextLong(), VoltTypeUtil.getRandomValue(VoltType.STRING).toString());
             this.obj.map_double.put(rand.nextDouble(), VoltTypeUtil.getRandomValue(VoltType.STRING).toString());
             this.obj.map_string.put(VoltTypeUtil.getRandomValue(VoltType.STRING).toString(), VoltTypeUtil.getRandomValue(VoltType.STRING).toString());
             this.obj.map_catalog.put(CollectionUtil.getRandomValue(tables), VoltTypeUtil.getRandomValue(VoltType.STRING).toString());
+            this.obj.map_enum.put(TestEnum.values()[rand.nextInt(TestEnum.values().length)], VoltTypeUtil.getRandomValue(VoltType.STRING).toString());
         } // FOR
         
         this.obj.special_class = DefaultHasher.class;

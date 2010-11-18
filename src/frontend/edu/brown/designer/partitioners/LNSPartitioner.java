@@ -56,7 +56,7 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
         BEST_SOLUTION,
         BEST_COST,
         BEST_MEMORY,
-        LAST_EXHAUSTED_SEARCH,
+        LAST_HALT_REASON,
         LAST_RELAX_SIZE,
         RESTART_CTR,
         START_TIME,
@@ -84,8 +84,8 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
 
     public Long start_time = null;
     public Long last_checkpoint = null;
-    public boolean last_exhausted_search = false;
     public int last_relax_size = 0;
+    public HaltReason last_halt_reason = HaltReason.NULL;
     public Integer restart_ctr = null;
     
     // ----------------------------------------------------------------------------
@@ -125,7 +125,7 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
     protected void init(DesignerHints hints) throws Exception {
         final boolean trace = LOG.isTraceEnabled();
         final boolean debug = LOG.isDebugEnabled();
-        
+
         this.init_called = true;
         this.agraph = this.generateAccessGraph();
         
@@ -368,7 +368,7 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
         
         // If the last search was exhaustive and its relaxation size was the same as the total number of tables,
         // then we know that we're done! This won't happen too often...
-        if (this.last_relax_size == num_tables && this.last_exhausted_search) {
+        if (this.last_relax_size == num_tables && this.last_halt_reason == HaltReason.EXHAUSTED_SEARCH) {
             LOG.info("Exhaustively search solution space! Nothing more to do!");
             return (false);
         }
@@ -387,8 +387,13 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
 //        int relax_size = (int)Math.round(RELAXATION_FACTOR_MIN * num_tables) + (restart_ctr / 2);
         double elapsed_ratio = hints.getElapsedGlobalPercent();
         int relax_size = (int)Math.max(this.last_relax_size, (int)Math.round(((relax_max - relax_min) * elapsed_ratio) + relax_min));
-        if (relax_size > num_tables) relax_size = num_tables; 
-        // if (this.last_exhausted_search && relax_size < relax_max) relax_size = this.last_relax_size + 1;
+        
+        // If we exhausted our last search, then we want to make sure we increase our
+        // relaxation size... 
+//        if (this.last_halt_reason == HaltReason.EXHAUSTED_SEARCH && relax_size < relax_max) relax_size = this.last_relax_size + 1;
+
+        if (relax_size > num_tables) relax_size = num_tables;
+        
         assert(relax_size >= relax_min)  : "Invalid Relax Size: " + relax_size;
         assert(relax_size <= relax_max)  : "Invalid Relax Size: " + relax_size;
         assert(relax_size > 0)           : "Invalid Relax Size: " + relax_size;
@@ -397,9 +402,9 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
         if (LOG.isInfoEnabled()) {
             StringBuilder sb = new StringBuilder();
             sb.append(String.format("LNS RESTART #%03d  [relax_size=%d]\n", restart_ctr, relax_size))
-              .append(String.format(" - last_relax_size = %d\n", this.last_relax_size))
-              .append(String.format(" - last_exhausted  = %s\n", this.last_exhausted_search))
-              .append(String.format(" - elapsed_ratio   = %.02f\n", elapsed_ratio));
+              .append(String.format(" - last_relax_size  = %d\n", this.last_relax_size))
+              .append(String.format(" - last_halt_reason = %s\n", this.last_halt_reason))
+              .append(String.format(" - elapsed_ratio    = %.02f\n", elapsed_ratio));
             LOG.info("\n" + StringUtil.box(sb.toString(), "*", 80));
         }
 
@@ -460,7 +465,6 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
             proc_attributes.put(catalog_proc, params);
         }
         
-        this.last_exhausted_search = false;
         this.last_relax_size = relax_size;
         return (true);
     }
@@ -509,12 +513,13 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
         
         Integer backtracks = hints.limit_back_tracks;
         Integer local_time = hints.limit_local_time;
-        if (this.last_exhausted_search) {
+        if (this.last_halt_reason == HaltReason.BACKTRACK_LIMIT) {
+            
+        } else if (this.last_halt_reason == HaltReason.LOCAL_TIME_LIMIT) {
             
         }
         hints.limit_back_tracks = backtracks;
         hints.limit_local_time = local_time;
-        
         
         
         // -------------------------------
@@ -583,7 +588,7 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
         local_search.setUpperBounds(hints, this.best_solution, this.best_cost, (long)(this.best_memory * hints.max_memory_per_partition));
         local_search.setTraversalAttributes(key_attributes, table_attributes.size());
         PartitionPlan result = local_search.generate(hints);
-        this.last_exhausted_search = (local_search.wasHalted() != null && local_search.wasHalted() == false); 
+        this.last_halt_reason = local_search.halt_reason;
 
         return (Pair.of(result, local_search.getBestVertex()));
     }

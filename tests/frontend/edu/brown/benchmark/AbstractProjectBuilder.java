@@ -6,7 +6,9 @@ package edu.brown.benchmark;
 import java.io.File;
 import java.io.IOException;
 import java.net.URL;
+import java.util.HashMap;
 
+import org.voltdb.VoltProcedure;
 import org.voltdb.catalog.Catalog;
 import org.voltdb.compiler.VoltProjectBuilder;
 import org.voltdb.utils.BuildDirectoryUtils;
@@ -27,7 +29,24 @@ public abstract class AbstractProjectBuilder extends VoltProjectBuilder {
     
     protected final URL ddlURL;
     protected final URL ddlFkeysURL;
-
+    
+//    protected final TransactionFrequencies txn_frequencies = new TransactionFrequencies();
+//
+//    public static class TransactionFrequencies extends HashMap<VoltProcedure, Integer> {
+//        private static final long serialVersionUID = 1L;
+//        
+//        public int getTotal() {
+//            int total = 0;
+//            for (Integer freq : this.values()) {
+//                assert(freq >= 0);
+//                total += freq;
+//            } // FOR
+//            return (total);
+//        }
+//        
+//    }
+    
+    
     /**
      * Constructor
      * @param project_name
