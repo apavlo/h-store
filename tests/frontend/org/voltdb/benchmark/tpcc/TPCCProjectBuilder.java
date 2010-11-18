@@ -61,14 +61,26 @@ public class TPCCProjectBuilder extends AbstractProjectBuilder {
      * All procedures needed for TPC-C tests + benchmark
      */
     public static Class<?> PROCEDURES[] = new Class<?>[] {
-        delivery.class, neworder.class, ostatByCustomerId.class,
-        ostatByCustomerName.class, paymentByCustomerIdC.class,
-        paymentByCustomerNameC.class, paymentByCustomerIdW.class,
-        paymentByCustomerNameW.class, slev.class, SelectAll.class,
-        ResetWarehouse.class, LoadWarehouse.class,
+        delivery.class,
+        neworder.class,
+        ostatByCustomerId.class,
+        ostatByCustomerName.class,
+        paymentByCustomerName.class,
+        paymentByCustomerId.class,
+        slev.class,
+        
+        // Utility Procedures
+        SelectAll.class,
+        ResetWarehouse.class,
+        LoadWarehouse.class,
         LoadWarehouseReplicated.class,
-        paymentByCustomerName.class, paymentByCustomerId.class,
         GetTableCounts.class,
+
+        // We shouldn't be calling these, but they're here for now...
+        paymentByCustomerIdC.class,
+        paymentByCustomerNameC.class,
+        paymentByCustomerIdW.class,
+        paymentByCustomerNameW.class,
     };
 
     public static String partitioning[][] = new String[][] {

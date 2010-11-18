@@ -1101,19 +1101,26 @@ public class SingleSitedCostModel extends AbstractCostModel {
                 ArgumentsParser.PARAM_WORKLOAD,
                 ArgumentsParser.PARAM_PARTITION_PLAN
         );
-        assert(args.workload.getTransactionCount() > 0) : "No transactions were loaded from " + args.workload;
+        assert(args.workload.getTransactionCount() > 0) : "No transactions were loaded from " + args.workload_path;
+        
+        // Enable compact output
+        final boolean table_output = (args.getOptParams().contains("table"));
         
         // If given a PartitionPlan, then update the catalog
         File pplan_path = new File(args.getParam(ArgumentsParser.PARAM_PARTITION_PLAN));
-        if (pplan_path.exists()) {
+//        if (pplan_path.exists()) {
             PartitionPlan pplan = new PartitionPlan();
             pplan.load(pplan_path.getAbsolutePath(), args.catalog_db);
             pplan.apply(args.catalog_db);
+            
             System.out.println("Applied PartitionPlan '" + pplan_path + "' to catalog\n" + pplan);
             System.out.print(StringUtil.DOUBLE_LINE);
-        } else {
-            System.err.println("PartitionPlan file '" + pplan_path + "' does not exist. Ignoring...");
-        }
+//            if (!table_output) {
+//                
+//            }
+//        } else if (!table_output) {
+//            System.err.println("PartitionPlan file '" + pplan_path + "' does not exist. Ignoring...");
+//        }
         System.out.flush();
 
         long singlepartition = 0;
@@ -1143,41 +1150,44 @@ public class SingleSitedCostModel extends AbstractCostModel {
 //        long total_partitions_touched_txns = costmodel.getTxnPartitionAccessHistogram().getSampleCount();
 //        long total_partitions_touched_queries = costmodel.getQueryPartitionAccessHistogram().getSampleCount();
 
-        System.out.println("Workload Procedure Histogram:");
-        System.out.println(StringUtil.addSpacers(args.workload.getProcedureHistogram().toString()));
-        System.out.print(StringUtil.DOUBLE_LINE);
-
-        System.out.println("SinglePartition Procedure Histogram:");
-        System.out.println(StringUtil.addSpacers(hist.toString()));
-        System.out.print(StringUtil.DOUBLE_LINE);
-
-        System.out.println("Java Execution Histogram:");
-        Histogram h = costmodel.getJavaExecutionHistogram();
-        h.setKeepZeroEntries(true);
-        h.putValues(all_partitions, 0);
-        System.out.println(StringUtil.addSpacers(h.toString()));
-        System.out.print(StringUtil.DOUBLE_LINE);
-
-        System.out.println("Transaction Partition Histogram:");
-        h = costmodel.getTxnPartitionAccessHistogram();
-        h.setKeepZeroEntries(true);
-        h.putValues(all_partitions, 0);
-        System.out.println(StringUtil.addSpacers(h.toString()));
-        System.out.print(StringUtil.DOUBLE_LINE);
-
-        System.out.println("Query Partition Touch Histogram:");
-        h = costmodel.getQueryPartitionAccessHistogram();
-        h.setKeepZeroEntries(true);
-        h.putValues(all_partitions, 0);
-        System.out.println(StringUtil.addSpacers(h.toString()));
-        System.out.print(StringUtil.DOUBLE_LINE);
+        Histogram h = null;
+        if (!table_output) {
+            System.out.println("Workload Procedure Histogram:");
+            System.out.println(StringUtil.addSpacers(args.workload.getProcedureHistogram().toString()));
+            System.out.print(StringUtil.DOUBLE_LINE);
+    
+            System.out.println("SinglePartition Procedure Histogram:");
+            System.out.println(StringUtil.addSpacers(hist.toString()));
+            System.out.print(StringUtil.DOUBLE_LINE);
+    
+            System.out.println("Java Execution Histogram:");
+            h = costmodel.getJavaExecutionHistogram();
+            h.setKeepZeroEntries(true);
+            h.putValues(all_partitions, 0);
+            System.out.println(StringUtil.addSpacers(h.toString()));
+            System.out.print(StringUtil.DOUBLE_LINE);
+    
+            System.out.println("Transaction Partition Histogram:");
+            h = costmodel.getTxnPartitionAccessHistogram();
+            h.setKeepZeroEntries(true);
+            h.putValues(all_partitions, 0);
+            System.out.println(StringUtil.addSpacers(h.toString()));
+            System.out.print(StringUtil.DOUBLE_LINE);
+    
+            System.out.println("Query Partition Touch Histogram:");
+            h = costmodel.getQueryPartitionAccessHistogram();
+            h.setKeepZeroEntries(true);
+            h.putValues(all_partitions, 0);
+            System.out.println(StringUtil.addSpacers(h.toString()));
+            System.out.print(StringUtil.DOUBLE_LINE);
+        }
 
         ListOrderedMap<String, Object> m = new ListOrderedMap<String, Object>();
         
         // Execution Cost
         m.put("SINGLE-PARTITION", singlepartition);
         m.put("MULTI-PARTITION", multipartition);
-        m.put("TOTAL:", total + " [" + singlepartition / (double) total + "]");
+        m.put("TOTAL", total + " [" + singlepartition / (double) total + "]");
         m.put("XXX", null);
 
         // Utilization
@@ -1198,12 +1208,30 @@ public class SingleSitedCostModel extends AbstractCostModel {
 //        double entropy = timecostmodel.getLastEntropyCost()
         m.put("UTILIZATION",  (costmodel.getJavaExecutionHistogram().getValueCount() / (double)all_partitions.size()));
 
-        final String f = "%-25s%s";
-        for (Entry<String, Object> e : m.entrySet()) {
-            if (e.getKey().startsWith("XXX")) System.out.print(StringUtil.DOUBLE_LINE);
-            else {
-                System.out.println(String.format(f, e.getKey().toUpperCase()+":", e.getValue().toString()));
+        if (false && table_output) {
+            String columns[] = {
+                "IDLE PARTITIONS",
+                "JAVA SKEW",
+                "TRANSACTION SKEW",
+                "SINGLE-PARTITION",
+                "MULTI-PARTITION",
+            };
+            String add = "";
+            for (String col : columns) {
+                System.out.print(col + add + m.get(col));
+                add = "\t";
             }
-        } // FOR
+            System.out.println();
+            
+            
+        } else {
+            final String f = "%-25s%s";
+            for (Entry<String, Object> e : m.entrySet()) {
+                if (e.getKey().startsWith("XXX")) System.out.print(StringUtil.DOUBLE_LINE);
+                else {
+                    System.out.println(String.format(f, e.getKey().toUpperCase()+":", e.getValue().toString()));
+                }
+            } // FOR
+        }
     }
 }

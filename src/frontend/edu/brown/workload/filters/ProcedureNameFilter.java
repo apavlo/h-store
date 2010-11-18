@@ -83,7 +83,7 @@ public class ProcedureNameFilter extends Workload.Filter {
     public FilterResult filter(AbstractTraceElement<? extends CatalogType> element) {
         FilterResult result = FilterResult.ALLOW;
         if (element instanceof TransactionTrace) {
-            final boolean debug = LOG.isDebugEnabled();
+            final boolean trace = LOG.isTraceEnabled();
             final String name = element.getCatalogItemName();
             
             // BLACKLIST
@@ -92,7 +92,7 @@ public class ProcedureNameFilter extends Workload.Filter {
                 
             // WHITELIST
             } else if (!this.whitelist.isEmpty()) {
-                if (debug) LOG.debug("Checking whether " + name + " is in whitelist [total=" + this.whitelist.size() + ", finished=" + this.whitelist_finished.size() + "]");
+                if (trace) LOG.trace("Checking whether " + name + " is in whitelist [total=" + this.whitelist.size() + ", finished=" + this.whitelist_finished.size() + "]");
                 
                 // If the HALT countdown is zero, then we know that we have all of the procs that
                 // we want for this workload
@@ -109,8 +109,8 @@ public class ProcedureNameFilter extends Workload.Filter {
                         result = FilterResult.SKIP;
                         this.whitelist.get(name).set(0);
                         this.whitelist_finished.add(name);
-                        if (debug) LOG.debug("Transaction '" + name + "' has exhausted count. Skipping [count=" + count + "]");
-                    } else if (debug) {
+                        if (trace) LOG.debug("Transaction '" + name + "' has exhausted count. Skipping [count=" + count + "]");
+                    } else if (trace) {
                         LOG.debug("Transaction '" + name + "' is allowed [count=" + count + "]");
                     }
                 // Not allowed. Just skip...

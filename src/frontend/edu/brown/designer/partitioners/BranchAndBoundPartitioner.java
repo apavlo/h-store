@@ -42,12 +42,6 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
         } // FOR
     } // STATIC
     
-    public enum HaltReason {
-        LOCAL_TIME_LIMIT,
-        GLOBAL_TIME_LIMIT,
-        BACKTRACK_LIMIT,
-    }
-    
     /**
      * 
      */
@@ -341,6 +335,7 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
      */
     @Override
     public PartitionPlan generate(final DesignerHints hints) throws Exception {
+        final boolean trace = LOG.isTraceEnabled();
         final boolean debug = LOG.isDebugEnabled();
         
 //        hints.addTablePartitionCandidate(info.catalog_db, "CUSTOMER", "C_D_ID");
@@ -385,7 +380,7 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
             LOG.debug("Number of partitions: " + CatalogUtil.getNumberOfPartitions(info.catalog_db));
             LOG.debug("Memory per Partition: " + hints.max_memory_per_partition);
             LOG.debug("Cost Model Weights:   [execution=" + info.getCostModel().getExecutionWeight() + ", entropy=" + info.getCostModel().getEntropyWeight() + "]"); 
-            LOG.debug("Procedure Histogram:\n" + info.workload.getProcedureHistogram());
+            if (trace) LOG.trace("Procedure Histogram:\n" + info.workload.getProcedureHistogram());
         }
         
         this.thread = new TraverseThread(info, hints, this.best_vertex, this.base_traversal_attributes, this.num_tables);
@@ -591,7 +586,7 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
                 System.exit(1);
             }
             this.completed_search = true;
-            // System.gc();
+            BranchAndBoundPartitioner.this.halt_reason = (this.halt_reason != null ? this.halt_reason : HaltReason.EXHAUSTED_SEARCH);
         }
     
         /**
@@ -860,6 +855,8 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
 
                     // We only traverse if this is a table. The ProcParameter selection is a simple greedy algorithm
                     if (this.hints.greedy_search == false || (this.hints.greedy_search == true && last_attribute)) {
+                        if (debug && this.hints.greedy_search)
+                            LOG.debug(this.createLevelOutput(local_best_vertex, "GREEDY->" + local_best_vertex.catalog_key, spacer, false));
                         this.traverse((this.hints.greedy_search ? local_best_vertex : state), idx + 1);
                     }
                 }

@@ -28,8 +28,8 @@ public class DuplicateTraceFilter extends Workload.Filter {
         long trace_id = element.getId();
         if (this.trace_ids.contains(trace_id)) {
             this.skip_ctr++;
-            if (LOG.isDebugEnabled() && this.skip_ctr % 100 == 0) LOG.debug(this.debug());
-            if (LOG.isDebugEnabled()) LOG.debug("SKIP: " + element);
+            if (LOG.isTraceEnabled() && this.skip_ctr % 100 == 0) LOG.trace(this.debug());
+            if (LOG.isTraceEnabled()) LOG.trace("SKIP: " + element);
             return (FilterResult.SKIP);
         }
         this.trace_ids.add(trace_id);

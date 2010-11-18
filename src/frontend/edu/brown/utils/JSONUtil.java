@@ -104,6 +104,7 @@ public abstract class JSONUtil {
      * @param members
      * @throws JSONException
      */
+    @SuppressWarnings("unchecked")
     public static <E extends Enum<?>, T> void fieldsToJSON(JSONStringer stringer, T object, Class<? extends T> base_class, E members[]) throws JSONException {
         LOG.debug("Serializing out " + members.length + " elements for " + base_class.getSimpleName());
         for (E element : members) {
@@ -141,6 +142,7 @@ public abstract class JSONUtil {
      * @param field_value
      * @throws JSONException
      */
+    @SuppressWarnings("unchecked")
     public static void writeFieldValue(JSONStringer stringer, Class<?> field_class, Object field_value) throws JSONException {
         // Null
         if (field_value == null) {
@@ -471,6 +473,13 @@ public abstract class JSONUtil {
         } else if (field_class.equals(Class.class)) {
             value = ClassUtil.getClass(json_value);
             if (value == null) throw new JSONException("Failed to get class from '" + json_value + "'");
+        // Enum
+        } else if (field_class.isEnum()) {
+            for (Object o : field_class.getEnumConstants()) {
+                Enum<?> e = (Enum<?>)o;
+                if (json_value.equals(e.name())) return (e);
+            } // FOR
+            throw new JSONException("Invalid enum value '" + json_value + "': " + Arrays.toString(field_class.getEnumConstants()));
         // Boolean
         } else if (field_class.equals(Boolean.class) || field_class.equals(boolean.class)) {
             // We have to use field_class.equals() because the value may be null

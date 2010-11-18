@@ -56,10 +56,22 @@ import edu.brown.workload.TransactionTrace;
 public abstract class AbstractPartitioner {
     protected static final Logger LOG = Logger.getLogger(AbstractPartitioner.class);
 
+    /**
+     * Why the partitioner halted its last search
+     */
+    enum HaltReason {
+        NULL,
+        LOCAL_TIME_LIMIT,
+        GLOBAL_TIME_LIMIT,
+        BACKTRACK_LIMIT,
+        EXHAUSTED_SEARCH,
+    }
+    
     protected final Designer designer;
     protected final DesignerInfo info;
     protected final int num_partitions;
     protected final File checkpoint;
+    protected HaltReason halt_reason = HaltReason.NULL;
     
     public AbstractPartitioner(Designer designer, DesignerInfo info) {
         this.designer = designer;
@@ -75,6 +87,10 @@ public abstract class AbstractPartitioner {
      * @throws Exception
      */
     public abstract PartitionPlan generate(DesignerHints hints) throws Exception;
+    
+    public HaltReason getHaltReason() {
+        return (this.halt_reason);
+    }
     
     protected static boolean isPartitionable(Procedure catalog_proc) {
         assert(catalog_proc != null);

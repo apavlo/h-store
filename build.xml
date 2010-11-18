@@ -1896,7 +1896,6 @@ DESIGNER
     </antcall>
 </target>
 
-
 <target name='designer-benchmark'
         description="Creates a new database designer for a catalog jar file">
    <java fork="yes" failonerror="true" classname="edu.brown.designer.Designer">
@@ -1927,6 +1926,30 @@ DESIGNER
         <assertions><enable/></assertions>
     </java>
 </target>
+
+<target name='designer-estimate'
+        description="Estimate the cost of executing the workload for a given PartitionPlan">
+    <java fork="yes" failonerror="true" classname="edu.brown.costmodel.SingleSitedCostModel">
+        <jvmarg value="-client" />
+        <jvmarg value="-Xms256m" />
+        <jvmarg value="-Xmx${volt.client.memory}m" />
+        <jvmarg value="-Dlog4j.configuration=${basedir}/log4j.properties"/>
+        <arg value="catalog.jar=${jar}" />
+        <arg value="catalog.type=${type}" />
+        <arg value="workload=${workload}" />
+        <arg value="workload.removedupes=true" />
+        <arg value="workload.xactlimit=${limit}" />
+        <arg value="workload.xactoffset=${offset}" />
+        <arg value="workload.procexclude=${exclude}" />
+        <arg value="workload.procinclude=${include}" />
+        <arg value="workload.procinclude.multiplier=${multiplier}" />
+        <arg value="partitionplan=${partitionplan}" />
+        <arg line="${extraparams}" />
+        <classpath refid='project.classpath' />
+        <assertions><enable/></assertions>
+    </java>
+</target>
+
 
 <!--
 ***************************************

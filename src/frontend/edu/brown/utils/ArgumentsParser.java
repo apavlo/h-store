@@ -389,7 +389,10 @@ public class ArgumentsParser {
             parts[0] = parts[0].toLowerCase();
             
             if (parts.length == 1) {
-                if (!parts[0].startsWith("${")) this.opt_params.add(parts[0]);
+                if (!parts[0].startsWith("${")) {
+                    this.opt_params.add(parts[0]);
+                    continue;
+                }
             } else if (parts[1].startsWith("${") || parts[0].startsWith("#")) {
                 continue;
             }
@@ -507,7 +510,7 @@ public class ArgumentsParser {
                     double multiplier = 1.0d;
                     if (this.hasDoubleParam(PARAM_WORKLOAD_PROC_INCLUDE_MULTIPLIER)) {
                         multiplier = this.getDoubleParam(PARAM_WORKLOAD_PROC_INCLUDE_MULTIPLIER);
-                        if (debug) LOG.debug("Workload Procedue Multiplier: " + multiplier);
+                        if (debug) LOG.debug("Workload Procedure Multiplier: " + multiplier);
                     }
                     
                     for (String proc_name : params.get(PARAM_WORKLOAD_PROC_INCLUDE).split(",")) {
@@ -541,34 +544,29 @@ public class ArgumentsParser {
                 // Attach our new filter to the chain (or make it the head if it's the first one)
                 this.workload_filter = (this.workload_filter != null ? this.workload_filter.attach(filter) : filter);
             }
-            if (params.containsKey(PARAM_WORKLOAD_XACT_OFFSET)) {
-                this.workload_xact_offset = Long.parseLong(params.get(PARAM_WORKLOAD_XACT_OFFSET));
-            }
+            
+            //  TRANSACTION LIMIT
             if (params.containsKey(PARAM_WORKLOAD_XACT_LIMIT)) {
                 this.workload_xact_limit = Long.parseLong(params.get(PARAM_WORKLOAD_XACT_LIMIT));
-                ProcedureLimitFilter filter = new ProcedureLimitFilter(this.workload_xact_limit, this.workload_xact_offset);
-                if (this.workload_filter != null) {
-                    this.workload_filter.attach(filter);
-                } else {
-                    this.workload_filter = filter;
-                }
-            } else if (this.workload_xact_offset > 0) {
-                ProcedureLimitFilter filter = new ProcedureLimitFilter(-1l, this.workload_xact_offset);
-                if (this.workload_filter != null) {
-                    this.workload_filter.attach(filter);
-                } else {
-                    this.workload_filter = filter;
-                }
+                ProcedureLimitFilter filter = new ProcedureLimitFilter(this.workload_xact_limit);
+                this.workload_filter = (this.workload_filter != null ? this.workload_filter.attach(filter) : filter);
             }
+            
+            // QUERY LIMIT
             if (params.containsKey(PARAM_WORKLOAD_QUERY_LIMIT)) {
                 this.workload_query_limit = Long.parseLong(params.get(PARAM_WORKLOAD_QUERY_LIMIT));
                 QueryLimitFilter filter = new QueryLimitFilter(this.workload_query_limit);
-                if (this.workload_filter != null) {
-                    this.workload_filter.attach(filter);
-                } else {
-                    this.workload_filter = filter;
-                }
+                this.workload_filter = (this.workload_filter != null ? this.workload_filter.attach(filter) : filter);
             }
+
+            // TRANSACTION OFFSET
+            if (params.containsKey(PARAM_WORKLOAD_XACT_OFFSET)) {
+                this.workload_xact_offset = Long.parseLong(params.get(PARAM_WORKLOAD_XACT_OFFSET));
+                ProcedureLimitFilter filter = new ProcedureLimitFilter(-1l, this.workload_xact_offset);
+                // Important! The offset should go in the front!
+                this.workload_filter = (this.workload_filter != null ? filter.attach(this.workload_filter) : filter);
+            }
+            
             if (this.workload_filter != null && debug) LOG.debug("Workload Filters: " + this.workload_filter);
             this.workload = new Workload(this.catalog);
             this.workload.load(path, this.catalog_db, this.workload_filter);
