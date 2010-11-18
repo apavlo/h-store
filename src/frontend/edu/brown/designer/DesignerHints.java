@@ -51,6 +51,7 @@ public class DesignerHints implements Cloneable, JSONSerializable {
         // FIXME FORCE_TABLE_PARTITION,
         FORCE_DEBUGGING,
         FORCE_DEPENDENCY,
+        IGNORE_PROCEDURES,
         LOG_SOLUTIONS_COSTS,
     };
     
@@ -181,6 +182,11 @@ public class DesignerHints implements Cloneable, JSONSerializable {
      */
     public String log_solutions_costs = null;
     private transient FileWriter log_solutions_costs_writer = null;
+    
+    /**
+     * A list of procedure names we should ignore when doing any calculations
+     */
+    public final Set<String> ignore_procedures = new HashSet<String>();
     
     /**
      * Empty Constructor
@@ -333,6 +339,15 @@ public class DesignerHints implements Cloneable, JSONSerializable {
         return (this.isDebuggingEnabled(catalog_key));
     }
     
+    /**
+     * Returns true if this procedure should be ignored
+     * @param catalog_proc
+     * @return
+     */
+    public boolean shouldIgnoreProcedure(Procedure catalog_proc) {
+        return (this.ignore_procedures.contains(catalog_proc.getName()));
+    }
+    
     // ----------------------------------------------------------------------------
     // SERIALIZATION METHODS
     // ----------------------------------------------------------------------------
@@ -379,6 +394,23 @@ public class DesignerHints implements Cloneable, JSONSerializable {
     @Override
     public void fromJSON(JSONObject json_object, Database catalog_db) throws JSONException {
         JSONUtil.fieldsFromJSON(json_object, catalog_db, this, DesignerHints.class, true, DesignerHints.Members.values());
+        
+        // HACK: Process wildcards
+        if (this.ignore_procedures.size() > 0) {
+            Set<String> to_add = new HashSet<String>();
+            for (String proc_name : this.ignore_procedures) {
+                if (proc_name.endsWith("*")) {
+                    proc_name = proc_name.substring(0, proc_name.length()-1);
+                    for (Procedure catalog_proc : catalog_db.getProcedures()) {
+                        if (catalog_proc.getName().startsWith(proc_name)) to_add.add(catalog_proc.getName());
+                    } // FOR
+                } // FOR
+            } // FOR
+            if (to_add.size() > 0) {
+                if (LOG.isDebugEnabled()) LOG.debug("Added ignore procedures: " + to_add);
+                this.ignore_procedures.addAll(to_add);
+            }
+        }
     }
     
     /**

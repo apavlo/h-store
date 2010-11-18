@@ -91,6 +91,28 @@ public abstract class AbstractPartitioner {
     public HaltReason getHaltReason() {
         return (this.halt_reason);
     }
+
+    /**
+     * Returns true if a procedure should be ignored in any calculations or decision making
+     * @param hints
+     * @param catalog_proc
+     * @return
+     */
+    public boolean shouldIgnoreProcedure(final DesignerHints hints, final Procedure catalog_proc) {
+        assert(hints != null);
+        assert(catalog_proc != null);
+
+        // Ignore criteria:
+        //  (1) The procedure is a sysproc
+        //  (2) The procedure doesn't have any input parameters (meaning it just have to be randomly assigned)
+        //  (3) The procedure is set to be ignored in the given DesignerHints
+        return (
+            catalog_proc.getSystemproc() ||
+            catalog_proc.getParameters().size() == 0 ||
+            hints.shouldIgnoreProcedure(catalog_proc)
+        );
+    }
+    
     
     protected static boolean isPartitionable(Procedure catalog_proc) {
         assert(catalog_proc != null);

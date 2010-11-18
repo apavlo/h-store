@@ -1,6 +1,7 @@
 package edu.brown.utils;
 
 import java.util.*;
+import java.util.concurrent.ConcurrentLinkedQueue;
 
 import org.apache.log4j.Logger;
 
@@ -13,14 +14,14 @@ public abstract class AbstractTreeWalker<E> {
     
     public class Children {
         private final E parent;
-        private final List<E> before_list = new ArrayList<E>();
-        private final List<E> after_list = new ArrayList<E>();
+        private final Queue<E> before_list = new ConcurrentLinkedQueue<E>();
+        private final Queue<E> after_list = new ConcurrentLinkedQueue<E>();
         
         private Children(E parent) {
             this.parent = parent;
         }
 
-        public List<E> getBefore() {
+        public Queue<E> getBefore() {
             return (this.before_list);
         }
         public void addBefore(E child) {
@@ -42,7 +43,7 @@ public abstract class AbstractTreeWalker<E> {
             } // FOR
         }
         
-        public List<E> getAfter() {
+        public Queue<E> getAfter() {
             return (this.after_list);
         }
         public void addAfter(E child) {

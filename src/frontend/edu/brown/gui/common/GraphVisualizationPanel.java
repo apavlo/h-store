@@ -42,6 +42,7 @@ public class GraphVisualizationPanel<V, E> extends VisualizationViewer<V, E> {
      * @param observers
      * @return
      */
+    @SuppressWarnings("unchecked")
     public static <V, E> JFrame createFrame(Graph<V, E> graph, EventObserver...observers) {
         GraphVisualizationPanel<V, E> panel = factory(graph);
         for (EventObserver eo : observers) panel.EVENT_SELECT_VERTEX.addObserver(eo);
@@ -73,6 +74,7 @@ public class GraphVisualizationPanel<V, E> extends VisualizationViewer<V, E> {
         return (ret);
     }
     
+    @SuppressWarnings("unchecked")
     public static <V, E> GraphVisualizationPanel<V, E> factory(Graph<V, E> graph) {
         Layout<V, E> layout = null;
         if (graph instanceof AbstractDirectedTree) { 
@@ -102,6 +104,7 @@ public class GraphVisualizationPanel<V, E> extends VisualizationViewer<V, E> {
      * Map one of our graphs to 
      * @param agraph
      */
+    @SuppressWarnings("unchecked")
     private void init() {
         this.setBackground(Color.white);
         this.visualizer_mouse = new DefaultModalGraphMouse<V, E>();

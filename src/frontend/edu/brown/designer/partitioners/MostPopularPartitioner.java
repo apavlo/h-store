@@ -198,7 +198,8 @@ public class MostPopularPartitioner extends AbstractPartitioner {
             hints.enable_multi_partitioning = false;
             
             for (Procedure catalog_proc : this.info.catalog_db.getProcedures()) {
-                if (catalog_proc.getSystemproc() || catalog_proc.getParameters().size() == 0) continue;
+                if (this.shouldIgnoreProcedure(hints, catalog_proc)) continue;
+                
                 List<String> param_order = BranchAndBoundPartitioner.generateProcParameterOrder(info, info.catalog_db, catalog_proc, hints);
                 ProcParameter catalog_proc_param = CatalogKey.getFromKey(info.catalog_db, param_order.get(0), ProcParameter.class);
                 if (debug) LOG.debug(String.format("PARTITION %-25s%s", catalog_proc.getName(), CatalogUtil.getDisplayName(catalog_proc_param)));
