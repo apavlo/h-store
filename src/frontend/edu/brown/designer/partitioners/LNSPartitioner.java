@@ -149,7 +149,7 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
         
         // We also need to know some things about the Procedures and their ProcParameters
         for (Procedure catalog_proc : info.catalog_db.getProcedures()) {
-            if (catalog_proc.getSystemproc() || catalog_proc.getParameters().size() == 0) continue;
+            if (this.shouldIgnoreProcedure(hints, catalog_proc)) continue;
             
             Set<Column> columns = CatalogUtil.getReferencedColumns(catalog_proc);
             if (columns.isEmpty()) {
@@ -517,13 +517,14 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
         Integer backtracks = hints.limit_back_tracks;
         Integer local_time = hints.limit_local_time;
         if (this.last_halt_reason == HaltReason.BACKTRACK_LIMIT) {
-            
+            // Give them 20 more???
+            backtracks += 20;
         } else if (this.last_halt_reason == HaltReason.LOCAL_TIME_LIMIT) {
-            
+            // Give them two more minutes next time
+            local_time += 120;
         }
         hints.limit_back_tracks = backtracks;
         hints.limit_local_time = local_time;
-        
         
         // -------------------------------
         // GO GO LOCAL SEARCH!!

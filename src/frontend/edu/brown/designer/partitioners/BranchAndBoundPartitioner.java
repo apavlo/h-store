@@ -45,13 +45,16 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
     /**
      * 
      */
-    protected static class StateVertex extends ListOrderedMap<String, String> {
+    protected static class StateVertex {
         private static final long serialVersionUID = 1L;
         
         private static final String START_VERTEX_NAME = "*START*";
         private static final String UPPERBOUND_NAME = "*UPPERBOUND*";
         
+        private final int depth;
+        private final StateVertex parent;
         private final String catalog_key;
+        private final String partition_key;
         private final Double cost;
         private final Long memory;
         
@@ -65,13 +68,17 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
          * @param cost
          * @param memory
          */
-        public StateVertex(StateVertex parent, String catalog_key, String partition_key, Double cost, Long memory) {
+        private StateVertex(StateVertex parent, int depth, String catalog_key, String partition_key, Double cost, Long memory) {
+            this.parent = parent;
+            this.depth = depth;
             this.catalog_key = catalog_key;
+            this.partition_key = partition_key;
             this.cost = new Double(cost);
             this.memory = memory;
-            
-            if (parent != null) this.putAll(parent);
-            if (partition_key != null) this.put(catalog_key, partition_key);
+        }
+        
+        public StateVertex(StateVertex parent, String catalog_key, String partition_key, Double cost, Long memory) {
+            this(parent, parent.depth + 1, catalog_key, partition_key, cost, memory);
         }
 
         /**
@@ -79,7 +86,7 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
          * @return
          */
         public static StateVertex getStartVertex(Double cost, Long memory) {
-            return (new StateVertex(null, START_VERTEX_NAME, null, cost, memory));
+            return (new StateVertex(null, 0, START_VERTEX_NAME, null, cost, memory));
         }
         
         /**
@@ -89,9 +96,12 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
          * @return
          */
         public static StateVertex getUpperBoundVertex(Double cost, Long memory) {
-            return (new StateVertex(null, UPPERBOUND_NAME, null, cost, memory));
+            return (new StateVertex(null, 0, UPPERBOUND_NAME, null, cost, memory));
         }
         
+        public int getDepth() {
+            return (this.depth);
+        }
         public Double getCost() {
             return cost;
         }
@@ -111,14 +121,32 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
             return (this.catalog_key);
         }
         
+        public String getPartitionKey() {
+            return (this.partition_key);
+        }
+        
+        /**
+         * Construct the mapping from CatalogKey -> PartitionKey
+         * We do this so don't have to copy the map at every single level in the tree
+         * @return
+         */
+        public Map<String, String> getCatalogKeyMap() {
+            return (this.buildCatalogMap(new ListOrderedMap<String, String>()));
+        }
+        private Map<String, String> buildCatalogMap(Map<String, String> map) {
+            if (this.parent != null) this.parent.buildCatalogMap(map);
+            if (this.depth > 0) map.put(this.catalog_key, this.partition_key);
+            return (map);
+        }
+        
         @Override
         public String toString() {
             StringBuilder sb = new StringBuilder();
             sb.append("StateVertex[").append(this.catalog_key).append("]\n")
               .append("Cost=").append(this.cost).append("\n")
               .append("Memory=").append(this.memory).append("\n");
-            for (String table_key : this.keySet()) {
-                sb.append(String.format("%-25s%s\n", CatalogKey.getNameFromKey(table_key), CatalogKey.getNameFromKey(this.get(table_key))));
+            for (Entry<String, String> e : this.getCatalogKeyMap().entrySet()) {
+                sb.append(String.format("%-25s%s\n", CatalogKey.getNameFromKey(e.getKey()), CatalogKey.getNameFromKey(e.getValue())));
             }
             return (sb.toString());
         }
@@ -244,7 +272,7 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
         final Map<String, Set<String>> multiparams = new HashMap<String, Set<String>>();
         if (hints.enable_multi_partitioning) {
             for (Procedure catalog_proc : info.catalog_db.getProcedures()) {
-                if (catalog_proc.getSystemproc()) continue;
+                if (this.shouldIgnoreProcedure(hints, catalog_proc)) continue;
                 
                 // MultiProcParameters
                 String proc_key = CatalogKey.createKey(catalog_proc);
@@ -375,9 +403,11 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
         if (debug) {
             LOG.debug("Exhaustive Search:    " + hints.exhaustive_search);
             LOG.debug("Greedy Search:        " + hints.greedy_search);
+            LOG.debug("Local Search Time:    " + hints.limit_local_time);
+            LOG.debug("Back Track Limit:     " + hints.limit_back_tracks);
             LOG.debug("Upper Bounds Cost:    " + this.upper_bounds_vertex.getCost());
             LOG.debug("Upper Bounds Memory:  " + this.upper_bounds_vertex.getMemory());
-            LOG.debug("Number of partitions: " + CatalogUtil.getNumberOfPartitions(info.catalog_db));
+            LOG.debug("Number of Partitions: " + CatalogUtil.getNumberOfPartitions(info.catalog_db));
             LOG.debug("Memory per Partition: " + hints.max_memory_per_partition);
             LOG.debug("Cost Model Weights:   [execution=" + info.getCostModel().getExecutionWeight() + ", entropy=" + info.getCostModel().getEntropyWeight() + "]"); 
             if (trace) LOG.trace("Procedure Histogram:\n" + info.workload.getProcedureHistogram());
@@ -399,8 +429,9 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
             
         // Otherwise reconstruct the PartitionPlan from the StateVertex
         } else {
-            assert(this.best_vertex.size() == this.base_traversal_attributes.size()) :
-                "Best solution has " + this.best_vertex.size() + " vertices. " +
+            Map<String, String> best_catalogkey_map = this.best_vertex.getCatalogKeyMap();
+            assert(best_catalogkey_map.size() == this.base_traversal_attributes.size()) :
+                "Best solution has " + best_catalogkey_map.size() + " vertices. " +
                 "Should have " + this.base_traversal_attributes.size() + " vertices!";
             //System.out.println("MEMORY: " + this.best_vertex.memory);
             
@@ -409,7 +440,7 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
             // Apply the changes in the best catalog to the original
             for (Table catalog_tbl : info.catalog_db.getTables()) {
                 String table_key = CatalogKey.createKey(catalog_tbl);
-                String column_key = this.best_vertex.get(table_key);
+                String column_key = best_catalogkey_map.get(table_key);
                 if (column_key != null) {
                     Column catalog_col = CatalogKey.getFromKey(info.catalog_db, column_key, Column.class);
                     pplan_map.put(catalog_tbl, catalog_col);
@@ -420,8 +451,9 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
             
             if (hints.enable_procparameter_search) {
                 for (Procedure catalog_proc : info.catalog_db.getProcedures()) {
+                    if (this.shouldIgnoreProcedure(hints, catalog_proc)) continue;
                     String proc_key = CatalogKey.createKey(catalog_proc);
-                    String param_key = this.best_vertex.get(proc_key);
+                    String param_key = best_catalogkey_map.get(proc_key);
                     if (param_key != null) {
                         ProcParameter catalog_proc_param = CatalogKey.getFromKey(info.catalog_db, param_key, ProcParameter.class);
                         pplan_map.put(catalog_proc, catalog_proc_param);
@@ -856,7 +888,7 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
                     // We only traverse if this is a table. The ProcParameter selection is a simple greedy algorithm
                     if (this.hints.greedy_search == false || (this.hints.greedy_search == true && last_attribute)) {
                         if (debug && this.hints.greedy_search)
-                            LOG.debug(this.createLevelOutput(local_best_vertex, "GREEDY->" + local_best_vertex.catalog_key, spacer, false));
+                            LOG.debug(this.createLevelOutput(local_best_vertex, "GREEDY->" + local_best_vertex.getPartitionKey(), spacer, false));
                         this.traverse((this.hints.greedy_search ? local_best_vertex : state), idx + 1);
                     }
                 }
@@ -872,7 +904,7 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
                 // Set the partitioning ProcParameter in this Procedure to be the one that 
                 // had the lowest cost in our search up above.
                 Procedure current_proc = (Procedure)current;
-                String best_key = local_best_vertex.get(current_key);
+                String best_key = local_best_vertex.getPartitionKey();
                 ProcParameter current_param = CatalogKey.getFromKey(this.search_db, best_key, ProcParameter.class);
                 assert(current_param != null);
                 current_proc.setPartitionparameter(current_param.getIndex());
