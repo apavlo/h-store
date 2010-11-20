@@ -82,6 +82,17 @@ public class TPCCProjectBuilder extends AbstractProjectBuilder {
         paymentByCustomerIdW.class,
         paymentByCustomerNameW.class,
     };
+    
+    // Transaction Frequencies
+    {
+        addTransactionFrequency(delivery.class, 4);
+        addTransactionFrequency(neworder.class, 45);
+        addTransactionFrequency(ostatByCustomerId.class, 2);
+        addTransactionFrequency(ostatByCustomerName.class, 3);
+        addTransactionFrequency(paymentByCustomerId.class, 26);
+        addTransactionFrequency(paymentByCustomerName.class, 17);
+        addTransactionFrequency(slev.class, 4);
+    }
 
     public static String partitioning[][] = new String[][] {
         {"WAREHOUSE", "W_ID"},

@@ -59,6 +59,24 @@ public class AuctionMarkProjectBuilder extends AbstractProjectBuilder {
         UpdateItem.class,
     };
     
+    // Transaction Frequencies
+    {
+        addTransactionFrequency(CheckWinningBids.class, AuctionMarkConstants.FREQUENCY_CHECK_WINNING_BIDS);
+        addTransactionFrequency(GetComment.class, AuctionMarkConstants.FREQUENCY_GET_COMMENT);
+        addTransactionFrequency(GetItem.class, AuctionMarkConstants.FREQUENCY_GET_ITEM);
+        addTransactionFrequency(GetUserInfo.class, AuctionMarkConstants.FREQUENCY_GET_USER_INFO);
+        addTransactionFrequency(GetWatchedItems.class, AuctionMarkConstants.FREQUENCY_GET_WATCHED_ITEMS);
+        addTransactionFrequency(NewBid.class, AuctionMarkConstants.FREQUENCY_NEW_BID);
+        addTransactionFrequency(NewComment.class, AuctionMarkConstants.FREQUENCY_NEW_COMMENT);
+        addTransactionFrequency(NewCommentResponse.class, AuctionMarkConstants.FREQUENCY_NEW_COMMENT_RESPONSE);
+        addTransactionFrequency(NewFeedback.class, AuctionMarkConstants.FREQUENCY_NEW_FEEDBACK);
+        addTransactionFrequency(NewItem.class, AuctionMarkConstants.FREQUENCY_NEW_ITEM);
+        addTransactionFrequency(NewPurchase.class, AuctionMarkConstants.FREQUENCY_NEW_PURCHASE);
+        addTransactionFrequency(NewUser.class, AuctionMarkConstants.FREQUENCY_NEW_USER);
+        addTransactionFrequency(PostAuction.class, AuctionMarkConstants.FREQUENCY_POST_AUCTION);
+        addTransactionFrequency(UpdateItem.class, AuctionMarkConstants.FREQUENCY_UPDATE_ITEM);
+    }
+    
     public static final String PARTITIONING[][] = new String[][] {
         {AuctionMarkConstants.TABLENAME_USER, "U_ID"},
         {AuctionMarkConstants.TABLENAME_USER_ATTRIBUTES, "UA_U_ID"},

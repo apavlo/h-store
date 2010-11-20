@@ -7,13 +7,22 @@ import java.io.File;
 import java.io.IOException;
 import java.net.URL;
 import java.util.HashMap;
+import java.util.Map.Entry;
 
 import org.voltdb.VoltProcedure;
+import org.voltdb.benchmark.tpcc.TPCCProjectBuilder;
 import org.voltdb.catalog.Catalog;
 import org.voltdb.compiler.VoltProjectBuilder;
 import org.voltdb.utils.BuildDirectoryUtils;
 import org.voltdb.utils.CatalogUtil;
 import org.voltdb.utils.JarReader;
+
+import edu.brown.benchmark.airline.AirlineProjectBuilder;
+import edu.brown.benchmark.auctionmark.AuctionMarkProjectBuilder;
+import edu.brown.benchmark.markov.MarkovProjectBuilder;
+import edu.brown.benchmark.tm1.TM1ProjectBuilder;
+import edu.brown.benchmark.tpce.TPCEProjectBuilder;
+import edu.brown.utils.ProjectType;
 
 /**
  * @author pavlo
@@ -30,21 +39,20 @@ public abstract class AbstractProjectBuilder extends VoltProjectBuilder {
     protected final URL ddlURL;
     protected final URL ddlFkeysURL;
     
-//    protected final TransactionFrequencies txn_frequencies = new TransactionFrequencies();
-//
-//    public static class TransactionFrequencies extends HashMap<VoltProcedure, Integer> {
-//        private static final long serialVersionUID = 1L;
-//        
-//        public int getTotal() {
-//            int total = 0;
-//            for (Integer freq : this.values()) {
-//                assert(freq >= 0);
-//                total += freq;
-//            } // FOR
-//            return (total);
-//        }
-//        
-//    }
+    protected final TransactionFrequencies txn_frequencies = new TransactionFrequencies();
+
+    public static class TransactionFrequencies extends HashMap<Class<? extends VoltProcedure>, Integer> {
+        private static final long serialVersionUID = 1L;
+        
+        public int getTotal() {
+            int total = 0;
+            for (Integer freq : this.values()) {
+                assert(freq >= 0);
+                total += freq;
+            } // FOR
+            return (total);
+        }
+    }
     
     
     /**
@@ -95,6 +103,20 @@ public abstract class AbstractProjectBuilder extends VoltProjectBuilder {
         }
         
     }
+    
+    public void addTransactionFrequency(Class<? extends VoltProcedure> procClass, int frequency) {
+        this.txn_frequencies.put(procClass, frequency);
+    }
+    public String getTransactionFrequencyString() {
+        StringBuilder sb = new StringBuilder();
+        String add = "";
+        for (Entry<Class<? extends VoltProcedure>, Integer> e : txn_frequencies.entrySet()) {
+            sb.append(add).append(e.getKey().getSimpleName()).append(":").append(e.getValue());
+            add = ",";
+        }
+        return (sb.toString());
+    }
+    
     
     public String getDDLName(boolean fkeys) {
         return (this.project_name + "-ddl" + (fkeys ? "-fkeys" : "") + ".sql");
@@ -164,5 +186,33 @@ public abstract class AbstractProjectBuilder extends VoltProjectBuilder {
     
     public Catalog getSchemaCatalog(boolean fkeys) throws IOException {
         return (this.createCatalog(fkeys, false));
+    }
+    
+    public static AbstractProjectBuilder getProjectBuilder(ProjectType type) {
+        AbstractProjectBuilder projectBuilder = null;
+        switch (type) {
+            case TPCC:
+                projectBuilder = new TPCCProjectBuilder();
+                break;
+            case TPCE:
+                projectBuilder = new TPCEProjectBuilder();
+                break;
+            case TM1:
+                projectBuilder = new TM1ProjectBuilder();
+                break;
+            case AIRLINE:
+                projectBuilder = new AirlineProjectBuilder();
+                break;
+            case AUCTIONMARK:
+                projectBuilder = new AuctionMarkProjectBuilder();
+                break;
+            case MARKOV:
+                projectBuilder = new MarkovProjectBuilder();
+                break;
+            default:
+                assert(false) : "Invalid project type - " + type;
+        } // SWITCH
+        assert(projectBuilder != null);
+        return (projectBuilder);
     }
 }
