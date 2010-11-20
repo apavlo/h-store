@@ -46,12 +46,12 @@ public abstract class TPCEConstants {
     // STORED PROCEDURE EXECUTION FREQUENCIES (0-100)
     // ----------------------------------------------------------------
     public static final int FREQUENCY_BROKER_VOLUME         = 5;
-    public static final int FREQUENCY_DATA_MAINTENANCE      = 0;
+    public static final int FREQUENCY_DATA_MAINTENANCE      = -1;
     public static final int FREQUENCY_CUSTOMER_POSITION     = 13;
     public static final int FREQUENCY_MARKET_FEED           = 1;
     public static final int FREQUENCY_MARKET_WATCH          = 18;
     public static final int FREQUENCY_SECURITY_DETAIL       = 14;
-    public static final int FREQUENCY_TRADE_CLEANUP         = 0;
+    public static final int FREQUENCY_TRADE_CLEANUP         = -1;
     public static final int FREQUENCY_TRADE_LOOKUP          = 8;
     public static final int FREQUENCY_TRADE_ORDER           = 10;
     public static final int FREQUENCY_TRADE_RESULT          = 10;

@@ -95,31 +95,7 @@ public abstract class BaseTestCase extends TestCase {
         catalog_db = project_databases.get(type);
         p_estimator = project_p_estimators.get(type);
         if (catalog == null) {
-            AbstractProjectBuilder projectBuilder = null;
-            switch (type) {
-                case TPCC:
-                    projectBuilder = new TPCCProjectBuilder();
-                    break;
-                case TPCE:
-                    projectBuilder = new TPCEProjectBuilder();
-                    break;
-                case TM1:
-                    projectBuilder = new TM1ProjectBuilder();
-                    break;
-                case AIRLINE:
-                    projectBuilder = new AirlineProjectBuilder();
-                    break;
-                case AUCTIONMARK:
-                    projectBuilder = new AuctionMarkProjectBuilder();
-                    break;
-                case MARKOV:
-                    projectBuilder = new MarkovProjectBuilder();
-                    break;
-                default:
-                    assert(false) : "Invalid project type - " + type;
-            } // SWITCH
-            assert(projectBuilder != null);
-            
+            AbstractProjectBuilder projectBuilder = AbstractProjectBuilder.getProjectBuilder(type);
             if (ENABLE_JAR_REUSE) {
                 File jar_path = projectBuilder.getJarPath();
                 if (jar_path.exists()) {

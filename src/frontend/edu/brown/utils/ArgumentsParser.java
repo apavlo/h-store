@@ -36,6 +36,7 @@ import org.apache.log4j.Logger;
 
 import org.voltdb.catalog.*;
 
+import edu.brown.benchmark.AbstractProjectBuilder;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.correlations.ParameterCorrelations;
 import edu.brown.costmodel.AbstractCostModel;
@@ -511,7 +512,12 @@ public class ArgumentsParser {
                         if (debug) LOG.debug("Workload Procedure Multiplier: " + multiplier);
                     }
                     
-                    for (String proc_name : params.get(PARAM_WORKLOAD_PROC_INCLUDE).split(",")) {
+                    // Default Txn Frequencies
+                    String procinclude = params.get(PARAM_WORKLOAD_PROC_INCLUDE);
+                    if (procinclude.equalsIgnoreCase("default")) {
+                        procinclude = AbstractProjectBuilder.getProjectBuilder(catalog_type).getTransactionFrequencyString();
+                    }
+                    for (String proc_name : procinclude.split(",")) {
                         int limit = -1;
                         // Check if there is a limit for this procedure
                         if (proc_name.contains(":")) {

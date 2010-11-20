@@ -243,6 +243,12 @@ public class VoltProjectBuilder {
     public void addStmtProcedure(String name, String sql, String partitionInfo) {
         addProcedures(new ProcedureInfo(new String[0], new String[0], name, sql, partitionInfo));
     }
+    
+    public void addProcedure(final Class<?> procedure) {
+        final ArrayList<ProcedureInfo> procArray = new ArrayList<ProcedureInfo>();
+        procArray.add(new ProcedureInfo(new String[0], new String[0], procedure));
+        addProcedures(procArray);
+    }
 
     public void addProcedures(final Class<?>... procedures) {
         final ArrayList<ProcedureInfo> procArray = new ArrayList<ProcedureInfo>();
@@ -250,7 +256,7 @@ public class VoltProjectBuilder {
             procArray.add(new ProcedureInfo(new String[0], new String[0], procedure));
         addProcedures(procArray);
     }
-
+    
     /*
      * List of users and groups permitted to invoke the procedure
      */

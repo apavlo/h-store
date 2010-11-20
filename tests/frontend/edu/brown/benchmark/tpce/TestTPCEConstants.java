@@ -17,7 +17,7 @@ public class TestTPCEConstants extends TestCase {
             if (field_name.startsWith("FREQUENCY_")) {
                 Integer field_val = (Integer)field_handle.get(null);
                 assertNotNull("Null value for " + field_name, field_val);
-                total += field_val;
+                if (field_val >= 0) total += field_val;
             }
         } // FOR
         assertEquals(100, total);

@@ -54,6 +54,22 @@ public class TPCEProjectBuilder extends AbstractProjectBuilder {
         MarketWatch.class,
         LoadTable.class,
     };
+    
+    // Transaction Frequencies
+    {
+        addTransactionFrequency(BrokerVolume.class, TPCEConstants.FREQUENCY_BROKER_VOLUME);
+        addTransactionFrequency(CustomerPosition.class, TPCEConstants.FREQUENCY_CUSTOMER_POSITION);
+        addTransactionFrequency(MarketFeed.class, TPCEConstants.FREQUENCY_MARKET_FEED);
+        addTransactionFrequency(MarketWatch.class, TPCEConstants.FREQUENCY_MARKET_WATCH);
+        addTransactionFrequency(SecurityDetail.class, TPCEConstants.FREQUENCY_SECURITY_DETAIL);
+        addTransactionFrequency(TradeLookup.class, TPCEConstants.FREQUENCY_TRADE_LOOKUP);
+        addTransactionFrequency(TradeOrder.class, TPCEConstants.FREQUENCY_TRADE_ORDER);
+        addTransactionFrequency(TradeResult.class, TPCEConstants.FREQUENCY_TRADE_RESULT);
+        addTransactionFrequency(TradeStatus.class, TPCEConstants.FREQUENCY_TRADE_STATUS);
+        addTransactionFrequency(TradeUpdate.class, TPCEConstants.FREQUENCY_TRADE_UPDATE);
+        addTransactionFrequency(DataMaintenance.class, TPCEConstants.FREQUENCY_DATA_MAINTENANCE);
+        addTransactionFrequency(TradeCleanup.class, TPCEConstants.FREQUENCY_TRADE_CLEANUP);
+    }
 
     public static final Class<?> EXTRAS[] = {
         ProcedureUtil.class

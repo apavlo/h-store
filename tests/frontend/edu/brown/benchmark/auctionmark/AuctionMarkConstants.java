@@ -64,8 +64,8 @@ public abstract class AuctionMarkConstants {
     public static final boolean ENABLE_CHECK_WINNING_BIDS   = true;
     
     // Non-standard txns
-    public static final int FREQUENCY_CHECK_WINNING_BIDS    = 0; // called at regular intervals
-    public static final int FREQUENCY_POST_AUCTION          = 0; // called after CHECK_WINNING_BIDS
+    public static final int FREQUENCY_CHECK_WINNING_BIDS    = -1; // called at regular intervals
+    public static final int FREQUENCY_POST_AUCTION          = -1; // called after CHECK_WINNING_BIDS
     
     // Regular Txn Mix
     
