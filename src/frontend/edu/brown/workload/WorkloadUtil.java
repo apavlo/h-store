@@ -23,9 +23,9 @@ public abstract class WorkloadUtil {
      */
     public static Histogram getProcedureHistogram(File workload_path) throws Exception {
         final Histogram h = new Histogram();
-        final String regex = "^\\{.*?,\"" +
+        final String regex = "^\\{.*?,[\\s]*\"" +
                              AbstractTraceElement.Members.CATALOG_NAME.name() +
-                             "\":\"([\\w\\d]+)\",.*";
+                             "\":[\\s]*\"([\\w\\d]+)\"[\\s]*,[\\s]*.*";
         final Pattern p = Pattern.compile(regex);
 
         if (LOG.isDebugEnabled()) LOG.debug("Generating Procedure Histogram from Workload '" + workload_path.getAbsolutePath() + "'");
@@ -34,8 +34,8 @@ public abstract class WorkloadUtil {
         while (reader.ready()) {
             String line = reader.readLine();
             Matcher m = p.matcher(line);
-            assert(m != null) : "Invalid Line #" + line_ctr + " [" + workload_path + "]";
-            assert(m.matches()) : "Invalid Line #" + line_ctr + " [" + workload_path + "]";
+            assert(m != null) : "Invalid Line #" + line_ctr + " [" + workload_path + "]\n" + line;
+            assert(m.matches()) : "Invalid Line #" + line_ctr + " [" + workload_path + "]\n" + line;
             if (m.groupCount() > 0) {
                 h.put(m.group(1));
             } else {
