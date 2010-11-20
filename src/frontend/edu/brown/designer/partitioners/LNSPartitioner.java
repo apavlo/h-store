@@ -242,16 +242,17 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
         this.init(hints);
         
         // Reload the checkpoint file so that we can continue this dirty mess!
-        if (this.checkpoint != null && this.checkpoint.exists()) {
-            this.load(this.checkpoint.getAbsolutePath(), info.catalog_db);
-            LOG.info("Loaded checkpoint from '" + this.checkpoint.getName() + "'");
-        }
-        
-        if (this.start_time == null && this.last_checkpoint == null) {
-            this.start_time = hints.getStartTime();
-        } else {
-            LOG.info("Setting checkpoint offset times");
-            hints.offsetCheckpointTime(this.start_time, this.last_checkpoint);
+        if (hints.enable_checkpoints) {
+            if (this.checkpoint != null && this.checkpoint.exists()) {
+                this.load(this.checkpoint.getAbsolutePath(), info.catalog_db);
+                LOG.info("Loaded checkpoint from '" + this.checkpoint.getName() + "'");
+            }
+            if (this.start_time == null && this.last_checkpoint == null) {
+                this.start_time = hints.getStartTime();
+            } else {
+                LOG.info("Setting checkpoint offset times");
+                hints.offsetCheckpointTime(this.start_time, this.last_checkpoint);
+            }
         }
         
         // First we need to hit up the MostPopularPartitioner in order to get an initial solution
@@ -404,7 +405,10 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
             sb.append(String.format("LNS RESTART #%03d  [relax_size=%d]\n", restart_ctr, relax_size))
               .append(String.format(" - last_relax_size  = %d\n", this.last_relax_size))
               .append(String.format(" - last_halt_reason = %s\n", this.last_halt_reason))
-              .append(String.format(" - elapsed_ratio    = %.02f\n", elapsed_ratio));
+              .append(String.format(" - elapsed_ratio    = %.02f\n", elapsed_ratio))
+              .append(String.format(" - limit_local_time = %d\n", hints.limit_local_time))
+              .append(String.format(" - limit_back_track = %d\n", hints.limit_back_tracks))
+            ;
             LOG.info("\n" + StringUtil.box(sb.toString(), "*", 80));
         }
 
@@ -513,18 +517,19 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
         // Calculate the number of backtracks and the local search time 
         // we want to allow in this round. 
         // -------------------------------
-        
-        Integer backtracks = hints.limit_back_tracks;
-        Integer local_time = hints.limit_local_time;
-        if (this.last_halt_reason == HaltReason.BACKTRACK_LIMIT) {
-            // Give them 20 more???
-            backtracks += 20;
-        } else if (this.last_halt_reason == HaltReason.LOCAL_TIME_LIMIT) {
-            // Give them two more minutes next time
-            local_time += 120;
+        if (hints.enable_local_search_increase) {
+            Integer backtracks = hints.limit_back_tracks;
+            Integer local_time = hints.limit_local_time;
+            if (this.last_halt_reason == HaltReason.BACKTRACK_LIMIT) {
+                // Give them 10%
+                backtracks = (int)(backtracks * 1.10);
+            } else if (this.last_halt_reason == HaltReason.LOCAL_TIME_LIMIT) {
+                // Give them 10% more time
+                local_time = (int)(local_time * 1.10);
+            }
+            hints.limit_back_tracks = backtracks;
+            hints.limit_local_time = local_time;
         }
-        hints.limit_back_tracks = backtracks;
-        hints.limit_local_time = local_time;
         
         // -------------------------------
         // GO GO LOCAL SEARCH!!
