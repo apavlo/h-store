@@ -10,18 +10,13 @@ import java.util.HashMap;
 import java.util.Map.Entry;
 
 import org.voltdb.VoltProcedure;
-import org.voltdb.benchmark.tpcc.TPCCProjectBuilder;
 import org.voltdb.catalog.Catalog;
 import org.voltdb.compiler.VoltProjectBuilder;
 import org.voltdb.utils.BuildDirectoryUtils;
 import org.voltdb.utils.CatalogUtil;
 import org.voltdb.utils.JarReader;
 
-import edu.brown.benchmark.airline.AirlineProjectBuilder;
-import edu.brown.benchmark.auctionmark.AuctionMarkProjectBuilder;
-import edu.brown.benchmark.markov.MarkovProjectBuilder;
-import edu.brown.benchmark.tm1.TM1ProjectBuilder;
-import edu.brown.benchmark.tpce.TPCEProjectBuilder;
+import edu.brown.utils.ClassUtil;
 import edu.brown.utils.ProjectType;
 
 /**
@@ -189,30 +184,10 @@ public abstract class AbstractProjectBuilder extends VoltProjectBuilder {
     }
     
     public static AbstractProjectBuilder getProjectBuilder(ProjectType type) {
-        AbstractProjectBuilder projectBuilder = null;
-        switch (type) {
-            case TPCC:
-                projectBuilder = new TPCCProjectBuilder();
-                break;
-            case TPCE:
-                projectBuilder = new TPCEProjectBuilder();
-                break;
-            case TM1:
-                projectBuilder = new TM1ProjectBuilder();
-                break;
-            case AIRLINE:
-                projectBuilder = new AirlineProjectBuilder();
-                break;
-            case AUCTIONMARK:
-                projectBuilder = new AuctionMarkProjectBuilder();
-                break;
-            case MARKOV:
-                projectBuilder = new MarkovProjectBuilder();
-                break;
-            default:
-                assert(false) : "Invalid project type - " + type;
-        } // SWITCH
-        assert(projectBuilder != null);
-        return (projectBuilder);
+        String pb_className = String.format("%s.%sProjectBuilder", type.getPackageName(), type.getBenchmarkPrefix()); 
+        final AbstractProjectBuilder pb = (AbstractProjectBuilder)ClassUtil.newInstance(pb_className,
+                                                   new Object[]{  }, new Class<?>[]{  });
+        assert(pb != null) : "Invalid ProjectType " + type;
+        return (pb);
     }
 }
