@@ -68,6 +68,7 @@ public class LowerBoundsCalculator {
                 PartitionPlan pplan = new PartitionPlan();
                 pplan.load(pplan_path.getAbsolutePath(), args.catalog_db);
                 pplan.apply(args.catalog_db);
+                LOG.info("Applied PartitionPlan '" + pplan_path + "'");
             }
         }
         

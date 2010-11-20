@@ -1909,6 +1909,7 @@ DESIGNER
         <arg value="workload.removedupes=true" />
         <arg value="workload.xactlimit=${limit}" />
         <arg value="workload.xactoffset=${offset}" />
+        <arg value="workload.sampling=${sampling}" />
         <arg value="workload.procexclude=${exclude}" />
         <arg value="workload.procinclude=${include}" />
         <arg value="workload.procinclude.multiplier=${multiplier}" />
@@ -1940,9 +1941,40 @@ DESIGNER
         <arg value="workload.removedupes=true" />
         <arg value="workload.xactlimit=${limit}" />
         <arg value="workload.xactoffset=${offset}" />
+        <arg value="workload.sampling=${sampling}" />
         <arg value="workload.procexclude=${exclude}" />
         <arg value="workload.procinclude=${include}" />
         <arg value="workload.procinclude.multiplier=${multiplier}" />
+        <arg value="partitionplan=${partitionplan}" />
+        <arg line="${extraparams}" />
+        <classpath refid='project.classpath' />
+        <assertions><enable/></assertions>
+    </java>
+</target>
+
+<target name='designer-lowerbounds'
+        description="Calculate lower bounds">
+   <java fork="yes" failonerror="true" classname="edu.brown.designer.LowerBoundsCalculator">
+        <jvmarg value="-client" />
+        <jvmarg value="-Xms256m" />
+        <jvmarg value="-Xmx${volt.client.memory}m" />
+        <jvmarg value="-Dlog4j.configuration=${basedir}/log4j.properties"/>
+        <arg value="catalog.jar=${project}-designer-benchmark.jar" />
+        <arg value="catalog.type=${project}" />
+        <arg value="workload=${workload}" />
+        <arg value="workload.removedupes=true" />
+        <arg value="workload.xactlimit=${limit}" />
+        <arg value="workload.xactoffset=${offset}" />
+        <arg value="workload.sampling=${sampling}" />
+        <arg value="workload.procexclude=${exclude}" />
+        <arg value="workload.procinclude=${include}" />
+        <arg value="workload.procinclude.multiplier=${multiplier}" />
+        <arg value="correlations=${correlations}" />
+        <arg value="stats=${stats}" />
+        <arg value="designer.partitioner=${partitioner}" />
+        <arg value="designer.costmodel=${costmodel}" />
+        <arg value="designer.intervals=${intervals}" />
+        <arg value="designer.hints=${hints}" />
         <arg value="partitionplan=${partitionplan}" />
         <arg line="${extraparams}" />
         <classpath refid='project.classpath' />

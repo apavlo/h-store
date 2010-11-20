@@ -389,10 +389,8 @@ public class ArgumentsParser {
             parts[0] = parts[0].toLowerCase();
             
             if (parts.length == 1) {
-                if (!parts[0].startsWith("${")) {
-                    this.opt_params.add(parts[0]);
-                    continue;
-                }
+                if (parts[0].startsWith("${") == false) this.opt_params.add(parts[0]);
+                continue;
             } else if (parts[1].startsWith("${") || parts[0].startsWith("#")) {
                 continue;
             }

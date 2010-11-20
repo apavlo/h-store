@@ -42,6 +42,8 @@ public class DesignerHints implements Cloneable, JSONSerializable {
         ENABLE_COSTMODEL_JAVA_EXECUTION,
         ENABLE_COSTMODEL_MULTIPARTITION_PENALTY,
         ENABLE_PROCPARAMETER_SEARCH,
+        ENABLE_LOCAL_SEARCH_INCREASE,
+        ENABLE_CHECKPOINTS,
         WEIGHT_COSTMODEL_EXECUTION,
         WEIGHT_COSTMODEL_ENTROPY,
         WEIGHT_COSTMODEL_JAVA_EXECUTION,
@@ -143,6 +145,16 @@ public class DesignerHints implements Cloneable, JSONSerializable {
     public boolean enable_procparameter_search = true;
     
     /**
+     * Enable increasing local search parameters after a restart
+     */
+    public boolean enable_local_search_increase = true;
+    
+    /**
+     * Enable partitioner checkpoints
+     */
+    public boolean enable_checkpoints = true;
+    
+    /**
      * Force a table to be replicated
      * Set<TableKey>
      */
@@ -221,7 +233,8 @@ public class DesignerHints implements Cloneable, JSONSerializable {
         try {
             if (this.log_solutions_costs_writer == null) {
                 File file = new File(this.log_solutions_costs);
-                this.log_solutions_costs_writer = new FileWriter(file);
+                this.log_solutions_costs_writer = new FileWriter(file, true);
+                this.log_solutions_costs_writer.write("-- " + (new Date().toString()) + "\n");
                 LOG.info("Creating solution costs log file: " + file.getAbsolutePath());
             }
             long offset = System.currentTimeMillis() - this.start_time;
