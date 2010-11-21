@@ -52,6 +52,16 @@ public abstract class StringUtil {
     public static String box(String str) {
         return (StringUtil.box(str, "*", null));
     }
+
+    /**
+     * Make a box around some text using the given marker character.
+     * @param str
+     * @param mark
+     * @return
+     */
+    public static String box(String str, String mark) {
+        return (StringUtil.box(str, mark, null));
+    }
     
     /**
      * Create a box around some text
