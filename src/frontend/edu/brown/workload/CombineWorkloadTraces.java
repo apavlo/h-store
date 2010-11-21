@@ -72,6 +72,7 @@ public class CombineWorkloadTraces {
             for (QueryTrace query_trace : xact.getQueries()) {
                 query_trace.id = trace_id++;
                 query_trace.start_timestamp -= relative_starts[min_idx];
+                if (query_trace.stop_timestamp == null) query_trace.stop_timestamp = query_trace.start_timestamp;
                 query_trace.stop_timestamp -= relative_starts[min_idx];
             } // FOR
             Workload.writeTransactionToStream(catalog_db, xact, output);

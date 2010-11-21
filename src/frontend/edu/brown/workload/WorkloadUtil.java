@@ -8,6 +8,7 @@ import java.util.regex.Pattern;
 import org.apache.log4j.Logger;
 
 import edu.brown.statistics.Histogram;
+import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.FileUtil;
 
 public abstract class WorkloadUtil {
@@ -37,7 +38,12 @@ public abstract class WorkloadUtil {
             assert(m != null) : "Invalid Line #" + line_ctr + " [" + workload_path + "]\n" + line;
             assert(m.matches()) : "Invalid Line #" + line_ctr + " [" + workload_path + "]\n" + line;
             if (m.groupCount() > 0) {
-                h.put(m.group(1));
+                try {
+                    h.put(m.group(1));
+                } catch (IllegalStateException ex) {
+                    LOG.error("Invalud Workload Line: " + line, ex);
+                    System.exit(1);
+                }
             } else {
                 LOG.error("Invalid Workload Line: " + line);
                 assert(m.groupCount() == 0);
@@ -48,5 +54,11 @@ public abstract class WorkloadUtil {
         
         if (LOG.isDebugEnabled()) LOG.debug("Processed " + line_ctr + " workload trace records");
         return (h);
+    }
+    
+    public static void main(String[] vargs) throws Exception {
+        ArgumentsParser args = ArgumentsParser.load(vargs);
+        System.out.println(getProcedureHistogram(new File("/home/pavlo/Documents/H-Store/SVN-Brown/trunk/files/workloads/tpce.trace.gz")));
+        
     }
 }

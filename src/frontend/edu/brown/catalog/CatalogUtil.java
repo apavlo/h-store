@@ -1088,13 +1088,24 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
      * @return
      * @throws Exception
      */
-    public static Set<Table> getReferencedTables(Statement catalog_stmt)
-            throws Exception {
+    public static Set<Table> getReferencedTables(Statement catalog_stmt) throws Exception {
         Set<Table> ret = new HashSet<Table>();
         for (Column catalog_col : CatalogUtil.getReferencedColumns(catalog_stmt)) {
             ret.add((Table) catalog_col.getParent());
         }
         return (ret);
+    }
+    
+    /**
+     * Get all the tables referenced in this statement
+     * @param catalog_stmt
+     * @return
+     * @throws Exception
+     */
+    public static Set<Table> getAllTables(Statement catalog_stmt) throws Exception {
+        final Database catalog_db = (Database) catalog_stmt.getParent().getParent();
+        AbstractPlanNode node = QueryPlanUtil.deserializeStatement(catalog_stmt, true);
+        return (CatalogUtil.getReferencedTables(catalog_db, node));
     }
 
     /**
@@ -1185,8 +1196,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
      * @param root
      * @return
      */
-    public static Set<Table> getReferencedTables(final Database catalog_db,
-            final AbstractPlanNode root) {
+    public static Set<Table> getReferencedTables(final Database catalog_db, final AbstractPlanNode root) {
         final Set<Table> found = new HashSet<Table>();
         new PlanNodeTreeWalker() {
             @Override
@@ -1209,7 +1219,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
                     table_name = cast_node.getTargetTableName();
                     assert (table_name != null);
                     assert (!table_name.isEmpty());
-                    // AbstractOperationPlanNode
+                // AbstractOperationPlanNode
                 } else if (element instanceof AbstractOperationPlanNode) {
                     AbstractOperationPlanNode cast_node = (AbstractOperationPlanNode) element;
                     table_name = cast_node.getTargetTableName();

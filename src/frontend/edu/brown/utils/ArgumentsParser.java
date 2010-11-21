@@ -29,6 +29,7 @@ import java.io.*;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.util.*;
+import java.util.Map.Entry;
 import java.util.regex.Pattern;
 
 import org.apache.commons.collections15.map.ListOrderedMap;
@@ -499,6 +500,11 @@ public class ArgumentsParser {
                 this.workload_filter = new DuplicateTraceFilter();
             }
             
+            // Txn Limit
+            this.workload_xact_limit = this.getLongParam(PARAM_WORKLOAD_XACT_LIMIT);
+            
+            Histogram proc_histogram = null;
+            
             // Include/exclude procedures from the traces
             if (params.containsKey(PARAM_WORKLOAD_PROC_INCLUDE) || params.containsKey(PARAM_WORKLOAD_PROC_EXCLUDE)) {
                 Workload.Filter filter = new ProcedureNameFilter();
@@ -517,6 +523,11 @@ public class ArgumentsParser {
                     if (procinclude.equalsIgnoreCase("default")) {
                         procinclude = AbstractProjectBuilder.getProjectBuilder(catalog_type).getTransactionFrequencyString();
                     }
+                    
+                    
+                    Map<String, Integer> limits = new HashMap<String, Integer>();
+                    int total_unlimited = 0;
+                    int total = 0;
                     for (String proc_name : procinclude.split(",")) {
                         int limit = -1;
                         // Check if there is a limit for this procedure
@@ -525,8 +536,39 @@ public class ArgumentsParser {
                             proc_name = pieces[0];
                             limit = (int)Math.round(Integer.parseInt(pieces[1]) * multiplier);
                         }
-                        ((ProcedureNameFilter)filter).include(proc_name, limit);
+                        
+                        if (limit < 0) {
+                            if (proc_histogram == null) proc_histogram = WorkloadUtil.getProcedureHistogram(new File(path));
+                            limit = (int)proc_histogram.get(proc_name, 0);
+                            total_unlimited += limit;
+                        } else {
+                            total += limit;
+                        }
+                        limits.put(proc_name, limit);
                     } // FOR
+                    // If we have a workload limit and some txns that we want to get unlimited
+                    // records from, then we want to modify the other txns so that we fill in the "gap"
+                    if (this.workload_xact_limit != null && total_unlimited > 0) {
+                        int remaining = this.workload_xact_limit.intValue() - total - total_unlimited;  
+                        if (remaining > 0) {
+                            for (Entry<String, Integer> e : limits.entrySet()) {
+                                double ratio = e.getValue() / (double)total;
+                                e.setValue((int)Math.ceil(e.getValue() + (ratio * remaining)));
+                            } // FOR
+                        }
+                    }
+                    
+                    System.err.println(proc_histogram);
+                    System.err.println();
+                    
+                    total = 0;
+                    for (Entry<String, Integer> e : limits.entrySet()) {
+                        System.err.println(String.format("%-20s%d", e.getKey(), e.getValue()));
+                        ((ProcedureNameFilter)filter).include(e.getKey(), e.getValue());
+                        total += e.getValue();
+                    } // FOR
+                    System.err.println("TOTAL: " + total);
+                    System.exit(1);
                 }
                 temp = params.get(PARAM_WORKLOAD_PROC_EXCLUDE);
                 if (temp != null) {
@@ -536,9 +578,9 @@ public class ArgumentsParser {
                 }
                 
                 // Sampling!!
-                if (params.containsKey(PARAM_WORKLOAD_PROC_SAMPLE)) {
+                if (params.containsKey(PARAM_WORKLOAD_PROC_SAMPLE) && this.getBooleanParam(PARAM_WORKLOAD_PROC_SAMPLE)) {
                     if (debug) LOG.debug("Attaching sampling filter");
-                    Histogram proc_histogram = WorkloadUtil.getProcedureHistogram(new File(path));
+                    if (proc_histogram == null) proc_histogram = WorkloadUtil.getProcedureHistogram(new File(path));
                     Map<String, Integer> proc_includes = ((ProcedureNameFilter)filter).getProcIncludes();
                     SamplingFilter sampling_filter = new SamplingFilter(proc_includes, proc_histogram);
                     filter = sampling_filter;
@@ -547,11 +589,12 @@ public class ArgumentsParser {
 
                 // Attach our new filter to the chain (or make it the head if it's the first one)
                 this.workload_filter = (this.workload_filter != null ? this.workload_filter.attach(filter) : filter);
-            }
+                
             
-            //  TRANSACTION LIMIT
-            if (params.containsKey(PARAM_WORKLOAD_XACT_LIMIT)) {
-                this.workload_xact_limit = Long.parseLong(params.get(PARAM_WORKLOAD_XACT_LIMIT));
+            } 
+            
+            // TRANSACTION LIMIT
+            if (this.workload_xact_limit != null) {
                 ProcedureLimitFilter filter = new ProcedureLimitFilter(this.workload_xact_limit);
                 this.workload_filter = (this.workload_filter != null ? this.workload_filter.attach(filter) : filter);
             }
@@ -571,7 +614,7 @@ public class ArgumentsParser {
                 this.workload_filter = (this.workload_filter != null ? filter.attach(this.workload_filter) : filter);
             }
             
-            if (this.workload_filter != null && debug) LOG.debug("Workload Filters: " + this.workload_filter);
+            if (this.workload_filter != null && debug) LOG.debug("Workload Filters: " + this.workload_filter.toString());
             this.workload = new Workload(this.catalog);
             this.workload.load(path, this.catalog_db, this.workload_filter);
             this.workload_path = new File(path).getAbsolutePath();
