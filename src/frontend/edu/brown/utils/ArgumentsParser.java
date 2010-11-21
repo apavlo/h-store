@@ -558,17 +558,16 @@ public class ArgumentsParser {
                         }
                     }
                     
-                    System.err.println(proc_histogram);
-                    System.err.println();
+                    System.out.println(proc_histogram);
+                    System.out.println();
                     
                     total = 0;
                     for (Entry<String, Integer> e : limits.entrySet()) {
-                        System.err.println(String.format("%-20s%d", e.getKey(), e.getValue()));
+                        System.out.println(String.format("%-20s%d", e.getKey(), e.getValue()));
                         ((ProcedureNameFilter)filter).include(e.getKey(), e.getValue());
                         total += e.getValue();
                     } // FOR
-                    System.err.println("TOTAL: " + total);
-                    System.exit(1);
+                    System.out.println("TOTAL: " + total);
                 }
                 temp = params.get(PARAM_WORKLOAD_PROC_EXCLUDE);
                 if (temp != null) {
