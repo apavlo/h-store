@@ -91,14 +91,14 @@ public class Workload implements WorkloadTrace, Iterable<AbstractTraceElement<? 
     //
     // Mapping from element ids to actual objects
     //
-    protected final transient Map<Long, AbstractTraceElement<? extends CatalogType>> element_id_xref = new HashMap<Long, AbstractTraceElement<? extends CatalogType>>();
+    private final transient Map<Long, AbstractTraceElement<? extends CatalogType>> element_id_xref = new HashMap<Long, AbstractTraceElement<? extends CatalogType>>();
     
     //
     // The following data structures are specific to Transactions
     //
-    protected final transient ListOrderedSet<TransactionTrace> xact_trace = new ListOrderedSet<TransactionTrace>();
-    protected final transient Map<String, TransactionTrace> xact_trace_xref = new HashMap<String, TransactionTrace>();
-    protected final transient Map<TransactionTrace, Integer> trace_bach_id = new HashMap<TransactionTrace, Integer>();
+    private final transient ListOrderedSet<TransactionTrace> xact_trace = new ListOrderedSet<TransactionTrace>();
+    private final transient Map<String, TransactionTrace> xact_trace_xref = new HashMap<String, TransactionTrace>();
+    private final transient Map<TransactionTrace, Integer> trace_bach_id = new HashMap<TransactionTrace, Integer>();
     
     //
     // A mapping from a particular procedure to a list

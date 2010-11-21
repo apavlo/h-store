@@ -558,16 +558,18 @@ public class ArgumentsParser {
                         }
                     }
                     
-                    System.out.println(proc_histogram);
-                    System.out.println();
-                    
+                    Histogram proc_multiplier_histogram = null;
+                    if (debug) {
+                        LOG.debug("Full Workload Histogram:\n" + proc_histogram);
+                        proc_multiplier_histogram = new Histogram();
+                    }
                     total = 0;
                     for (Entry<String, Integer> e : limits.entrySet()) {
-                        System.out.println(String.format("%-20s%d", e.getKey(), e.getValue()));
+                        if (debug) proc_multiplier_histogram.put(e.getKey(), e.getValue());
                         ((ProcedureNameFilter)filter).include(e.getKey(), e.getValue());
                         total += e.getValue();
                     } // FOR
-                    System.out.println("TOTAL: " + total);
+                    if (debug) LOG.debug("Multiplier Histogram [total=" + total + "]:\n" + proc_multiplier_histogram);
                 }
                 temp = params.get(PARAM_WORKLOAD_PROC_EXCLUDE);
                 if (temp != null) {
@@ -588,8 +590,6 @@ public class ArgumentsParser {
 
                 // Attach our new filter to the chain (or make it the head if it's the first one)
                 this.workload_filter = (this.workload_filter != null ? this.workload_filter.attach(filter) : filter);
-                
-            
             } 
             
             // TRANSACTION LIMIT

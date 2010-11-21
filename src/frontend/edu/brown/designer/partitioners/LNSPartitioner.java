@@ -231,11 +231,26 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
      */
     @Override
     public PartitionPlan generate(DesignerHints hints) throws Exception {
-        LOG.info(String.format("Starting Large-Neighborhood Search [partitions=%d, intervals=%d, total_bytes=%d]",
-                               CatalogUtil.getNumberOfPartitions(info.catalog_db),
-                               info.getArgs().num_intervals,
-                               info.getMemoryEstimator().estimateTotalSize(info.catalog_db)
-        ));
+        
+        // DEBUG HEADER ---------------------------------------------------------
+        
+        StringBuilder sb = new StringBuilder();
+        sb.append("Starting Large-Neighborhood Search\n");
+        Map<String, Object> m = new ListOrderedMap<String, Object>();
+        m.put("partitions",     CatalogUtil.getNumberOfPartitions(info.catalog_db));
+        m.put("intervals",      info.getArgs().num_intervals);
+        m.put("total_bytes",    info.getMemoryEstimator().estimateTotalSize(info.catalog_db));
+        m.put("checkpoints",    hints.enable_checkpoints);
+        m.put("greedy",         hints.greedy_search);
+        m.put("total_txns",     info.workload.getTransactionCount());
+        for (Entry<String, Object> e : m.entrySet()) {
+            sb.append(String.format(" - %-15s = %s\n", e.getKey(), e.getValue()));
+        }
+        sb.append(StringUtil.repeat("-", 65)).append("\n");
+        sb.append(info.workload.getProcedureHistogram());
+        LOG.info("\n" + StringUtil.box(sb.toString(), "+"));
+
+        // DEBUG HEADER ---------------------------------------------------------
         
         // Initialize a bunch of stuff we need
         this.costmodel.applyDesignerHints(hints);
@@ -409,7 +424,7 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
               .append(String.format(" - limit_local_time = %d\n", hints.limit_local_time))
               .append(String.format(" - limit_back_track = %d\n", hints.limit_back_tracks))
             ;
-            LOG.info("\n" + StringUtil.box(sb.toString(), "*", 80));
+            LOG.info("\n" + StringUtil.box(sb.toString(), "+", 100));
         }
 
         // Select which tables we want to relax on this restart
