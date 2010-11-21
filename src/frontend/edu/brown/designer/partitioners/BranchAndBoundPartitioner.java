@@ -215,6 +215,11 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
         return (null);
     }
     
+    public Long getLastBackTrackCount() {
+        if (this.thread != null) return (this.thread.backtrack_ctr);
+        return (null);
+    }
+    
     /**
      * 
      * @param hints
