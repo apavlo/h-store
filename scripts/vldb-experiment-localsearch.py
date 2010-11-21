@@ -9,10 +9,64 @@ import commands
 import tempfile
 from pprint import pprint 
 
-project = "tpcc"
-project_jar = "%s-designer-benchmark.jar" % project
-workload = project + ".100w"
-procinclude = "delivery:4,neworder:45,slev:4,ostatByCustomerId:2,ostatByCustomerName:3,paymentByCustomerId:26,paymentByCustomerName:17"
+EXPERIMENTS = [
+    "LOCAL_TIME",
+    "BACK_TRACKS",
+]
+
+BENCHMARKS = [
+    "tm1",
+    "tpcc.100w",   
+    "tpcc.50w",
+    "auctionmark",
+    "auctionmark.temporal",
+    "tpce",
+]
+
+## ==============================================
+## main
+## ==============================================
+if __name__ == '__main__':
+    _options, args = getopt.gnu_getopt(sys.argv[1:], '', [
+        ## Resubmit missing jobs
+        "resubmit",
+        ## Always calculate costs
+        "force-calculation",
+        ## Search time to use for LNS/Greedy
+        "search-time=",
+        ## Calculate Lower Bounds
+        "lower-bounds",
+        ## Enable debug logging
+        "debug",
+    ])
+    ## ----------------------------------------------
+    ## COMMAND OPTIONS
+    ## ----------------------------------------------
+    options = { }
+    for key, value in _options:
+       if key.startswith("--"): key = key[2:]
+       if key in options:
+          options[key].append(value)
+       else:
+          options[key] = [ value ]
+    ## FOR
+    if "debug" in options: logging.getLogger().setLevel(logging.DEBUG)
+
+    ## Global Options
+    for key in options:
+        varname = "OPT_" + key.replace("-", "_").upper()
+        if varname in globals() and len(options[key]) == 1:
+            orig_type = type(globals()[varname])
+            globals()[varname] = orig_type(True if type(globals()[varname]) == bool else options[key][0])
+            
+    ## FOR
+    logging.debug("Completed processing input arguments")
+
+    ## Process each benchmark
+    for benchmark in BENCHMARKS:
+        benchmark_type = benchmark
+        if benchmark_type.find(".") != -1:
+            benchmark_type = benchmark_type.split(".")[0]
 
 lb_opts = {
     "jar":          project_jar,
