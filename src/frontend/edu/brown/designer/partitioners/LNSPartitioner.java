@@ -58,6 +58,7 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
         BEST_MEMORY,
         LAST_HALT_REASON,
         LAST_RELAX_SIZE,
+        LAST_ELAPSED_TIME,
         RESTART_CTR,
         START_TIME,
         LAST_CHECKPOINT,
@@ -85,6 +86,7 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
     public Long start_time = null;
     public Long last_checkpoint = null;
     public int last_relax_size = 0;
+    public int last_elapsed_time = 0;
     public HaltReason last_halt_reason = HaltReason.NULL;
     public Integer restart_ctr = null;
     
@@ -418,13 +420,14 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
         if (LOG.isInfoEnabled()) {
             StringBuilder sb = new StringBuilder();
             sb.append(String.format("LNS RESTART #%03d  [relax_size=%d]\n", restart_ctr, relax_size))
-              .append(String.format(" - last_relax_size  = %d\n", this.last_relax_size))
-              .append(String.format(" - last_halt_reason = %s\n", this.last_halt_reason))
-              .append(String.format(" - elapsed_ratio    = %.02f\n", elapsed_ratio))
-              .append(String.format(" - limit_local_time = %d\n", hints.limit_local_time))
-              .append(String.format(" - limit_back_track = %d\n", hints.limit_back_tracks))
+              .append(String.format(" - last_relax_size   = %d\n", this.last_relax_size))
+              .append(String.format(" - last_halt_reason  = %s\n", this.last_halt_reason))
+              .append(String.format(" - last_elapsed_time = %d\n", this.last_elapsed_time))
+              .append(String.format(" - elapsed_ratio     = %.02f\n", elapsed_ratio))
+              .append(String.format(" - limit_local_time  = %d\n", hints.limit_local_time))
+              .append(String.format(" - limit_back_track  = %d\n", hints.limit_back_tracks))
             ;
-            LOG.info("\n" + StringUtil.box(sb.toString(), "+", 100));
+            LOG.info("\n" + StringUtil.box(sb.toString(), "+", 125));
         }
 
         // Select which tables we want to relax on this restart
@@ -549,10 +552,12 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
         // -------------------------------
         // GO GO LOCAL SEARCH!!
         // -------------------------------
+        long start = System.currentTimeMillis();
         Pair<PartitionPlan, BranchAndBoundPartitioner.StateVertex> pair = this.executeLocalSearch(hints, table_attributes, key_attributes);
         assert(pair != null);
         PartitionPlan result = pair.getFirst();
         BranchAndBoundPartitioner.StateVertex state = pair.getSecond();
+        this.last_elapsed_time = Math.round((System.currentTimeMillis() - start) / 1000); 
 
         // -------------------------------
         // Validation
