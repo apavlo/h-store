@@ -1940,7 +1940,7 @@ DESIGNER
         <jvmarg value="-Xmx${volt.client.memory}m" />
         <jvmarg value="-Dlog4j.configuration=${basedir}/log4j.properties"/>
         <arg value="catalog.jar=${jar}" />
-        <arg value="catalog.type=${type}" />
+        <arg value="catalog.type=${project}" />
         <arg value="workload=${workload}" />
         <arg value="workload.removedupes=true" />
         <arg value="workload.xactlimit=${limit}" />
