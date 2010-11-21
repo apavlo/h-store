@@ -205,9 +205,9 @@ public class ProcedureStatistics extends AbstractStatistics<Procedure> {
         //
         // Get the tables used by this query
         //
-        Set<Table> catalog_tbls = CatalogUtil.getReferencedTables(catalog_stmt);
+        Set<Table> catalog_tbls = CatalogUtil.getAllTables(catalog_stmt);
         if (catalog_tbls.isEmpty()) {
-            LOG.fatal("Failed to get the target table for " + catalog_stmt);
+            LOG.fatal("Failed to get the target table for " + CatalogUtil.getDisplayName(catalog_stmt));
             System.exit(1);
         }
         for (Table catalog_tbl : catalog_tbls) {
@@ -221,11 +221,11 @@ public class ProcedureStatistics extends AbstractStatistics<Procedure> {
         //
         if (query_type != QueryType.INSERT) return;
         if (catalog_tbls.size() > 1) {
-            LOG.fatal("Found more than one table for " + catalog_stmt + ": " + catalog_tbls);
+            LOG.fatal("Found more than one table for " + CatalogUtil.getDisplayName(catalog_stmt) + ": " + catalog_tbls);
             System.exit(1);
         }
 
-        LOG.debug("Looking at " + catalog_stmt.getParent() + "." + catalog_stmt);
+        LOG.debug("Looking at " + CatalogUtil.getDisplayName(catalog_stmt));
         try {
             Table catalog_tbl = CollectionUtil.getFirst(catalog_tbls);
             String table_key = CatalogKey.createKey(catalog_tbl);

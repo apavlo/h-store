@@ -9,6 +9,7 @@ import logging
 import getopt
 import string
 import time
+import random
 from pprint import pprint
 
 from hstoretraces import *
@@ -21,6 +22,7 @@ logging.basicConfig(level = logging.INFO,
 ## ==============================================
 ## GLOBAL CONFIGURATION PARAMETERS
 ## ==============================================
+
 
 ## ==============================================
 ## main
@@ -35,6 +37,8 @@ if __name__ == '__main__':
         "offset=",
         ## Transaction Limit
         "limit=",
+        ## Don't format txns. Just write them out "raw"
+        "raw",
         ## Enable debug logging
         "debug",
     ])
@@ -54,8 +58,8 @@ if __name__ == '__main__':
     args = map(string.strip, args)
     trace_file = options["trace"][0] if "trace" in options else "-"
     command = args.pop(0)
-    search_key = args.pop(0) if len(args) > 0 else None
-    if search_key.isdigit(): search_key = int(search_key)
+    search_key = args[0] if len(args) > 0 else None
+    if search_key != None and search_key.isdigit(): search_key = int(search_key)
     
     offset = int(options["offset"][0]) if "offset" in options else None
     # You can't assume the search_key is the same as the offset, since we may reordered these
@@ -63,10 +67,12 @@ if __name__ == '__main__':
     offset_first = True
     
     limit = int(options["limit"][0]) if "limit" in options else None
+    write_raw = ("raw" in options)
     
     txn_ctr = -1
     limit_ctr = 0
     count_data = { }
+    current_txn = None
     
     ## Parameter Mapping
     param_mappings = None
@@ -101,14 +107,46 @@ if __name__ == '__main__':
             ## GET
             ## ----------------------------------------------
             if command == "get":
-                if search_key in [ catalog_name, trace_id ]:
+                if search_key == None or search_key in [ catalog_name, trace_id ]:
                     txn = TransactionTrace().fromJSON(json_data)
                     assert txn
                     
                     if len(args) > 1 and len(txn.getQueries(args[1])) == 0: continue
-                    print "[%05d] %s" % (txn_ctr, txn.catalog_name)
-                    print json.dumps(txn.toJSON(), indent=2)
-                    break
+                    if write_raw:
+                        print line
+                    else:
+                        print "[%05d] %s" % (txn_ctr, txn.catalog_name)
+                        print json.dumps(txn.toJSON(), indent=2)
+                    limit_ctr += 1
+            ## ----------------------------------------------
+            ## FIX TPC-E MarketFeed
+            ## ----------------------------------------------
+            elif command == "fixmarketfeed":
+                txn = TransactionTrace().fromJSON(json_data)
+                if current_txn == None:
+                    current_txn = txn
+                    current_txn_ctr = random.randint(10, 20) - 1
+                    continue
+
+                ## Copy parameters
+                for txn_param_idx in range(len(txn.params)):
+                    if type(txn.params[txn_param_idx]) == list: 
+                        for val in txn.params[txn_param_idx]:
+                            current_txn.params[txn_param_idx].append(val)
+                    ## IF
+                ## Copy queries
+                for query in txn.getQueries():
+                    current_txn.addQuery(query)
+                
+                current_txn_ctr -= 1
+                if current_txn_ctr == 0:
+                    if write_raw:
+                        print json.dumps(current_txn.toJSON())
+                    else:
+                        print json.dumps(current_txn.toJSON(), indent=2)
+                    current_txn = None
+                    limit_ctr += 1
+                
             ## ----------------------------------------------
             ## FIX
             ## ----------------------------------------------

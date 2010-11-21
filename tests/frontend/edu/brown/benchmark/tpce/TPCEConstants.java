@@ -44,6 +44,7 @@ public abstract class TPCEConstants {
 
     // ----------------------------------------------------------------
     // STORED PROCEDURE EXECUTION FREQUENCIES (0-100)
+    // TPC-E Specification 6.2.2.1
     // ----------------------------------------------------------------
     public static final int FREQUENCY_BROKER_VOLUME         = 5;
     public static final int FREQUENCY_DATA_MAINTENANCE      = -1;
