@@ -153,6 +153,7 @@ public abstract class CatalogKey {
         
         // It's ok for the parent to be missing, but it's *not* ok if the child is missing
         if (catalog_parent != null) {
+            if (debug) LOG.debug("Catalog Parent: " + CatalogUtil.getDisplayName(catalog_parent));
             // COLUMN
             if (superclasses.contains(Column.class)) {
                 // Special Case: Replicated Column
@@ -205,6 +206,9 @@ public abstract class CatalogKey {
             // TABLE
             } else if (superclasses.contains(Table.class)) {
                 catalog_child = (T)((Database)catalog_parent).getTables().get(child_key);
+                if (catalog_child == null) {
+                    LOG.debug("TABLES: " + CatalogUtil.debug(((Database)catalog_parent).getTables()));
+                }
             // PROCEDURE
             } else if (superclasses.contains(Procedure.class)) {
                 catalog_child = (T)((Database)catalog_parent).getProcedures().get(child_key);
@@ -217,7 +221,7 @@ public abstract class CatalogKey {
                 assert (false);
             }
             // if (catalog_child == null) LOG.warn("The child catalog item is null for '" + key + "'");
-            assert (catalog_child != null) : "The child catalog item is null for '" + key + "'";
+            assert (catalog_child != null) : "The child catalog item is null for '" + key + "'\n" + superclasses;
             cache.put(key, catalog_child);
             return (catalog_child);
         }
