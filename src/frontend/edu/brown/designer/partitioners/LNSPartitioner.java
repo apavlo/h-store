@@ -59,6 +59,7 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
         LAST_HALT_REASON,
         LAST_RELAX_SIZE,
         LAST_ELAPSED_TIME,
+        LAST_BACKTRACK_COUNT,
         RESTART_CTR,
         START_TIME,
         LAST_CHECKPOINT,
@@ -87,6 +88,7 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
     public Long last_checkpoint = null;
     public int last_relax_size = 0;
     public int last_elapsed_time = 0;
+    public Long last_backtrack_count = null;
     public HaltReason last_halt_reason = HaltReason.NULL;
     public Integer restart_ctr = null;
     
@@ -423,6 +425,7 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
               .append(String.format(" - last_relax_size   = %d\n", this.last_relax_size))
               .append(String.format(" - last_halt_reason  = %s\n", this.last_halt_reason))
               .append(String.format(" - last_elapsed_time = %d\n", this.last_elapsed_time))
+              .append(String.format(" - last_backtracks   = %d\n", this.last_backtrack_count))
               .append(String.format(" - elapsed_ratio     = %.02f\n", elapsed_ratio))
               .append(String.format(" - limit_local_time  = %d\n", hints.limit_local_time))
               .append(String.format(" - limit_back_track  = %d\n", hints.limit_back_tracks))
@@ -552,12 +555,10 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
         // -------------------------------
         // GO GO LOCAL SEARCH!!
         // -------------------------------
-        long start = System.currentTimeMillis();
         Pair<PartitionPlan, BranchAndBoundPartitioner.StateVertex> pair = this.executeLocalSearch(hints, table_attributes, key_attributes);
         assert(pair != null);
         PartitionPlan result = pair.getFirst();
         BranchAndBoundPartitioner.StateVertex state = pair.getSecond();
-        this.last_elapsed_time = Math.round((System.currentTimeMillis() - start) / 1000); 
 
         // -------------------------------
         // Validation
@@ -616,8 +617,12 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
         
         local_search.setUpperBounds(hints, this.best_solution, this.best_cost, (long)(this.best_memory * hints.max_memory_per_partition));
         local_search.setTraversalAttributes(key_attributes, table_attributes.size());
+
+        long start = System.currentTimeMillis();
         PartitionPlan result = local_search.generate(hints);
+        this.last_elapsed_time = Math.round((System.currentTimeMillis() - start) / 1000);
         this.last_halt_reason = local_search.halt_reason;
+        this.last_backtrack_count = local_search.getLastBackTrackCount();
 
         return (Pair.of(result, local_search.getBestVertex()));
     }
