@@ -246,6 +246,8 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
         m.put("total_bytes",    info.getMemoryEstimator().estimateTotalSize(info.catalog_db));
         m.put("checkpoints",    hints.enable_checkpoints);
         m.put("greedy",         hints.greedy_search);
+        m.put("backtrack_mp",   hints.back_tracks_multiplier);
+        m.put("localtime_mp",   hints.local_time_multiplier);
         m.put("total_txns",     info.workload.getTransactionCount());
         for (Entry<String, Object> e : m.entrySet()) {
             sb.append(String.format(" - %-15s = %s\n", e.getKey(), e.getValue()));
@@ -542,11 +544,11 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
             Integer backtracks = hints.limit_back_tracks;
             Integer local_time = hints.limit_local_time;
             if (this.last_halt_reason == HaltReason.BACKTRACK_LIMIT) {
-                // Give them 10%
-                backtracks = (int)(backtracks * 1.10);
+                // Give them 1% more backtracks
+                backtracks = (int)(backtracks * hints.back_tracks_multiplier);
             } else if (this.last_halt_reason == HaltReason.LOCAL_TIME_LIMIT) {
-                // Give them 10% more time
-                local_time = (int)(local_time * 1.10);
+                // Give them 1% more time
+                local_time = (int)(local_time * hints.local_time_multiplier);
             }
             hints.limit_back_tracks = backtracks;
             hints.limit_local_time = local_time;
