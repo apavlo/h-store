@@ -69,6 +69,7 @@ OPT_FORCE_CALCULATION = False
 OPT_SEARCH_TIME = 57600
 OPT_LOWER_BOUNDS = True
 OPT_PARAMETER_TUNING = True
+OPT_SHOW_COMMANDS = False
 
 VLDB_DIR = "files/designs/vldb-nov2010"
 CONDOR_DIR = "files/condor"
@@ -77,7 +78,7 @@ CONDOR_DIR = "files/condor"
 ## readCostsFile
 ## ==============================================
 def readCostsFile(file):
-    logging.info("Reading costs from '%s'" % file)
+    logging.debug("Reading costs from '%s'" % file)
     costs = [ ]
     with open(file, "r") as fd:
         ## Read costs until we find our date tag
@@ -110,6 +111,8 @@ if __name__ == '__main__':
         "lower-bounds",
         ## Enable parameter tuning experiments
         "parameter-tuning",
+        ## Show Condor/Ant commands
+        "show-commands",
         ## Enable debug logging
         "debug",
     ])
@@ -179,7 +182,7 @@ if __name__ == '__main__':
         for exp_type in EXPERIMENTS:
             ## Skip parameter tuning experiments if we don't need it
             tuning_exp = exp_type in PARAMETER_TUNING_EXPERIMENTS
-            logging.info("%s - %s [tuning=%s]" % (benchmark, exp_type, tuning_exp))
+            logging.debug("%s - %s [tuning=%s]" % (benchmark, exp_type, tuning_exp))
             if tuning_exp and not benchmark in PARAMETER_TUNING_BENCHMARKS:
                 continue
             
@@ -193,7 +196,7 @@ if __name__ == '__main__':
             ## Tuning Experiments
             if tuning_exp:
                 trials = PARAMETER_TUNING_EXPERIMENTS[exp_type]
-                logging.info("%s Number of Trials: %d" % (exp_type, len(trials)))
+                logging.debug("%s Number of Trials: %d" % (exp_type, len(trials)))
                 missing_trials = [ ]
                 for trial in trials:
                     pplan = base_file + ".%d.pplan" % trial
@@ -225,7 +228,7 @@ if __name__ == '__main__':
                    
                     logging.info("Resubmitting %d %s trials" % (len(missing_trials), exp_type))
                     cmd = condor_cmd % (" ".join([exp_file, fd_path]))
-                    logging.info(cmd)
+                    if OPT_SHOW_COMMANDS: logging.info(cmd)
                     (result, output) = commands.getstatusoutput(cmd)
                     assert result == 0, output
                     print output
@@ -234,7 +237,7 @@ if __name__ == '__main__':
                 
             ## Cost Experiments
             else:
-                if exp_param in ["greedy", "lns"]: base_file += "." + OPT_SEARCH_TIME
+                if exp_param in ["greedy", "lns"]: base_file += "." + str(OPT_SEARCH_TIME)
                 pplan = base_file + ".pplan"
                 error = base_file + ".err"
                 
@@ -246,6 +249,7 @@ if __name__ == '__main__':
                     if OPT_RESUBMIT and os.path.exists(error) and os.path.getsize(error) > 0:
                         exp_file = os.path.join(CONDOR_DIR, "jobs.%s.condor" % exp_param)
                         cmd = condor_cmd % exp_file
+                        if OPT_SHOW_COMMANDS: logging.info(cmd)
                         (result, output) = commands.getstatusoutput(cmd)
                         assert result == 0, output
                         print output
@@ -270,7 +274,7 @@ if __name__ == '__main__':
                 else:
                     pplan = completed[exp_type]
                     cmd = cost_cmd + " -Dpartitionplan=%s" % pplan
-                    #if exp_type == "LNS" and benchmark == "tpcc.50w": print cmd
+                    if OPT_SHOW_COMMANDS: logging.info(cmd)
                     (result, output) = commands.getstatusoutput(cmd)
                     assert result == 0, output
 
@@ -297,6 +301,7 @@ if __name__ == '__main__':
 
                         ## Calculate lower bounds
                         cmd = lb_cmd + " -Dpartitionplan=%s" % pplan
+                        if OPT_SHOW_COMMANDS: logging.info(cmd)
                         (result, output) = commands.getstatusoutput(cmd)
                         assert result == 0, cmd + "\n" + output
 
