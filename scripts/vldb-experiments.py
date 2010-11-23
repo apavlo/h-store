@@ -205,10 +205,10 @@ if __name__ == '__main__':
                     missing.append(pplan)
                     
                     ## Only resubmit if there is an error file and the size is not zero
-                    if not os.path.exists(pplan) and \
-                       (not os.path.exists(logfile) or
-                       (os.path.exists(error) and os.path.getsize(error) > 0)):
-                        missing_trials.append(trial)
+                    if not os.path.exists(pplan):
+                        if not os.path.exists(logfile) or
+                           (os.path.exists(error) and os.path.getsize(error) > 0):
+                            missing_trials.append(trial)
                     ## IF
                 ## FOR
                 logging.debug("%s Number of Missing Trials: %d" % (exp_type, len(missing_trials)))
@@ -259,7 +259,7 @@ if __name__ == '__main__':
         ## FOR
         
         ## Calculate the cost for our completed experiments
-        if OPT_FORCE_CALCULATION or len(missing) == 0:
+        if len(completed) > 0 and (OPT_FORCE_CALCULATION or len(missing) == 0):
             print "".join(map(lambda x: "%-20s" % x, [benchmark] + COST_PARAMS))
             for exp_type in EXPERIMENTS.keys():
                 if exp_type in PARAMETER_TUNING_EXPERIMENTS: continue

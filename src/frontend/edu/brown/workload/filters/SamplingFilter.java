@@ -54,7 +54,7 @@ public class SamplingFilter extends Workload.Filter {
             String debug_msg = "";
             if (needed != null) {
                 long total = this.proc_histogram.get(o, 0);
-                int rate = (needed > 0 ? Math.round(total / needed) : 1);
+                int rate = (needed > 0 && needed < total ? Math.round(total / needed) : 1);
                 if (needed == 0) rate = 0;
                 this.proc_counters.put(proc_name, new AtomicInteger(0));
                 this.proc_rates.put(proc_name, rate);

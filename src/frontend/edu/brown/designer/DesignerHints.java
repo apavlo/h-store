@@ -29,7 +29,9 @@ public class DesignerHints implements Cloneable, JSONSerializable {
         GREEDY_SEARCH,
         LIMIT_TOTAL_TIME,
         LIMIT_LOCAL_TIME,
+        LOCAL_TIME_MULTIPLIER,
         LIMIT_BACK_TRACKS,
+        BACK_TRACKS_MULTIPLIER,
         MAX_MEMORY_PER_PARTITION,
         PROC_INCLUDE,
         PROC_EXCLUDE,
@@ -80,11 +82,13 @@ public class DesignerHints implements Cloneable, JSONSerializable {
      */
     public Integer limit_total_time = null;
     public Integer limit_local_time = null;
+    public double local_time_multiplier = 1.01;
     
     /**
      * Limit the # of back tracks
      */
     public Integer limit_back_tracks = null;
+    public double back_tracks_multiplier = 1.01;
     
     /**
      * The amount of memory available to each partition
