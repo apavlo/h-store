@@ -288,13 +288,24 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
         assert(this.initial_solution != null);
         
         if (this.best_solution == null) {
+            LOG.info("Initializing current best solution to be initial solution");
             this.best_solution = new PartitionPlan(this.initial_solution);
             this.best_memory = this.initial_memory;
             this.best_cost = this.initial_cost;
+        } else {
+            LOG.info("Using previously calculated best solution");
+            
+            // Sanity Check!
+            this.best_solution.apply(info.catalog_db);
+            this.costmodel.clear(true);
+            double cost = this.costmodel.estimateCost(info.catalog_db, info.workload);
+            
+            boolean valid = MathUtil.equals(this.best_cost, cost, 2, 0.2);
+            assert(valid) : cost + " == " + this.best_cost + "\n" + PartitionPlan.createFromCatalog(info.catalog_db) + "\n" + this.costmodel.getLastDebugMessages();
         }
         assert(this.best_solution != null);
         
-        // Relax and begin the search!
+        // Relax and begin the new search!
         this.costmodel.clear(true);
         if (this.restart_ctr == null) this.restart_ctr = 0;
         
@@ -314,22 +325,26 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
             this.localSearch(hints, table_attributes, proc_attributes);
             
             // Sanity Check!
-            this.best_solution.apply(info.catalog_db);
-            this.costmodel.clear(true);
-            double cost2 = this.costmodel.estimateCost(info.catalog_db, info.workload);
-            assert(MathUtil.equals(this.best_cost, cost2, 2, 0.2)) : cost2 + " == " + this.best_cost + "\n" + PartitionPlan.createFromCatalog(info.catalog_db) + "\n" + this.costmodel.getLastDebugMessages();
-
-            // Time Limit
-            this.last_checkpoint = System.currentTimeMillis();
-            if (this.last_checkpoint > hints.getGlobalStopTime()) {
-                LOG.info("Time limit reached: " + hints.limit_total_time + " seconds");
-                break;
+            if (this.restart_ctr % 3 == 0) {
+                LOG.info("Running sanity check on best solution...");
+                this.costmodel.clear(true);
+                double cost2 = this.costmodel.estimateCost(info.catalog_db, info.workload);
+                LOG.info(String.format("Before[%.05f] <=> After[%.05f]", this.best_cost, cost2));
+                boolean valid = MathUtil.equals(this.best_cost, cost2, 2, 0.2);
+                assert(valid) : cost2 + " == " + this.best_cost + "\n" + PartitionPlan.createFromCatalog(info.catalog_db) + "\n" + this.costmodel.getLastDebugMessages();
             }
             
             // Save checkpoint
+            this.last_checkpoint = System.currentTimeMillis();
             if (this.checkpoint != null) {
                 this.save(this.checkpoint.getAbsolutePath());
-                LOG.info("Saved checkpoint to '" + this.checkpoint.getName() + "'");
+                LOG.info("Saved Round #" + this.restart_ctr + " checkpoint to '" + this.checkpoint.getName() + "'");
+            }
+            
+            // Time Limit
+            if (this.last_checkpoint > hints.getGlobalStopTime()) {
+                LOG.info("Time limit reached: " + hints.limit_total_time + " seconds");
+                break;
             }
         } // WHILE
         LOG.info("Final Solution Cost: " + String.format("%.03f", this.best_cost));
@@ -345,11 +360,15 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
      * @throws Exception
      */
     protected void calculateInitialSolution(final DesignerHints hints) throws Exception {
-        final boolean trace = LOG.isTraceEnabled();
+//        final boolean trace = LOG.isTraceEnabled();
         final boolean debug = LOG.isDebugEnabled();
         
+        LOG.info("Calculating Initial Solution using MostPopularPartitioner");
+
         this.initial_solution = new MostPopularPartitioner(this.designer, this.info).generate(hints);
         this.initial_solution.apply(this.info.catalog_db);
+        this.initial_cost = info.getCostModel().estimateCost(this.info.catalog_db, this.info.workload);
+        
         if (hints.max_memory_per_partition > 0) {
             this.initial_memory = this.info.getMemoryEstimator().estimate(this.info.catalog_db, this.num_partitions) /
                                   (double)hints.max_memory_per_partition;
@@ -362,19 +381,19 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
         // We need to examine whether the solution utilized all of the partitions. If it didn't, then
         // we need to increase the entropy weight in the costmodel. This will help steer us towards 
         // a solution that fully utilizes partitions
-        Set<Integer> untouched_partitions = this.costmodel.getUntouchedPartitions(this.num_partitions);
-        if (!untouched_partitions.isEmpty()) {
-            double entropy_weight = this.costmodel.getEntropyWeight();
-            entropy_weight *= this.num_partitions / (double)untouched_partitions.size();
-            
-            // Oh god this took forever to track down! If we want to re-adjust the weights, we have to make 
-            // sure that we do it to the hints so that it is picked up by everyone!
-            hints.weight_costmodel_entropy = entropy_weight;
-            
-            if (trace) LOG.trace("Initial Solution has " + untouched_partitions.size() + " unused partitions. New Entropy Weight: " + entropy_weight);
-            this.costmodel.applyDesignerHints(hints);
-            this.initial_cost = this.costmodel.estimateCost(this.info.catalog_db, this.info.workload);
-        }
+//        Set<Integer> untouched_partitions = this.costmodel.getUntouchedPartitions(this.num_partitions);
+//        if (!untouched_partitions.isEmpty()) {
+//            double entropy_weight = this.costmodel.getEntropyWeight();
+//            entropy_weight *= this.num_partitions / (double)untouched_partitions.size();
+//            
+//            // Oh god this took forever to track down! If we want to re-adjust the weights, we have to make 
+//            // sure that we do it to the hints so that it is picked up by everyone!
+//            hints.weight_costmodel_entropy = entropy_weight;
+//            
+//            if (trace) LOG.trace("Initial Solution has " + untouched_partitions.size() + " unused partitions. New Entropy Weight: " + entropy_weight);
+//            this.costmodel.applyDesignerHints(hints);
+//            this.initial_cost = this.costmodel.estimateCost(this.info.catalog_db, this.info.workload);
+//        }
         
         if (debug) {
             LOG.debug("Initial Solution Cost: " + String.format("%.03f", this.initial_cost));

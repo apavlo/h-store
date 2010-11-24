@@ -19,6 +19,7 @@ import edu.brown.catalog.CatalogKey;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.costmodel.SingleSitedCostModel.QueryCacheEntry;
 import edu.brown.costmodel.SingleSitedCostModel.TransactionCacheEntry;
+import edu.brown.designer.DesignerHints;
 import edu.brown.designer.partitioners.PartitionPlan;
 import edu.brown.statistics.Histogram;
 import edu.brown.utils.ArgumentsParser;
@@ -82,6 +83,14 @@ public class TimeIntervalCostModel<T extends AbstractCostModel> extends Abstract
     public AbstractCostModel clone(Database catalog_db) throws CloneNotSupportedException {
         TimeIntervalCostModel<T> clone = new TimeIntervalCostModel<T>(catalog_db, this.inner_class, this.cost_models.length);
         return (clone);
+    }
+    
+    @Override
+    public void applyDesignerHints(DesignerHints hints) {
+        super.applyDesignerHints(hints);
+        for (T cm : this.cost_models) {
+            cm.applyDesignerHints(hints);
+        } // FOR
     }
     
     public String getLastDebugMessages() {
@@ -608,17 +617,21 @@ public class TimeIntervalCostModel<T extends AbstractCostModel> extends Abstract
         
         int num_intervals = args.num_intervals; // getIntParam(ArgumentsParser.PARAM_DESIGNER_INTERVALS);
         TimeIntervalCostModel<SingleSitedCostModel> costmodel = new TimeIntervalCostModel<SingleSitedCostModel>(args.catalog_db, SingleSitedCostModel.class, num_intervals);
-        costmodel.estimateCost(args.catalog_db, args.workload);
+        costmodel.applyDesignerHints(args.designer_hints);
+        double cost = costmodel.estimateCost(args.catalog_db, args.workload);
+        System.out.println("PARTITIONS = " + CatalogUtil.getNumberOfPartitions(args.catalog_db));
+        System.out.println("INTERVALS  = " + args.num_intervals);
+        System.out.println("COST       = " + cost);
         
-        for (int i = 0; i < num_intervals; i++) {
-            Histogram h = costmodel.getCostModel(i).histogram_txn_partitions;
-            h.setKeepZeroEntries(true);
-            for (Integer partition : CatalogUtil.getAllPartitionIds(args.catalog_db)) {
-                if (h.contains(partition) == false) h.put(partition, 0);
-            }
-            System.err.println(StringUtil.box("Interval #" + i, "+", 100) + "\n" + h);
-            System.err.println();
-        } // FOR
+//        for (int i = 0; i < num_intervals; i++) {
+//            Histogram h = costmodel.getCostModel(i).histogram_txn_partitions;
+//            h.setKeepZeroEntries(true);
+//            for (Integer partition : CatalogUtil.getAllPartitionIds(args.catalog_db)) {
+//                if (h.contains(partition) == false) h.put(partition, 0);
+//            }
+//            System.out.println(StringUtil.box("Interval #" + i, "+", 100) + "\n" + h);
+//            System.out.println();
+//        } // FOR
         //System.err.println(h);
         
     }
