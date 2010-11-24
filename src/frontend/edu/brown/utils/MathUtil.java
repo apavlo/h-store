@@ -8,7 +8,8 @@ public abstract class MathUtil {
     public static final double GEOMETRIC_MEAN_ZERO = 0.001d;
 
     /**
-     * 
+     * Fudgey equals for doubles. Round both d0 and d1 to precision decimal points
+     * and return true if they are within the given fudge factor away from each other
      * @param d0
      * @param d1
      * @param percision

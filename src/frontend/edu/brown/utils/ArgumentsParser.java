@@ -524,7 +524,6 @@ public class ArgumentsParser {
                         procinclude = AbstractProjectBuilder.getProjectBuilder(catalog_type).getTransactionFrequencyString();
                     }
                     
-                    
                     Map<String, Integer> limits = new HashMap<String, Integer>();
                     int total_unlimited = 0;
                     int total = 0;
@@ -560,7 +559,7 @@ public class ArgumentsParser {
                     
                     Histogram proc_multiplier_histogram = null;
                     if (debug) {
-                        LOG.debug("Full Workload Histogram:\n" + proc_histogram);
+                        if (proc_histogram != null) LOG.debug("Full Workload Histogram:\n" + proc_histogram);
                         proc_multiplier_histogram = new Histogram();
                     }
                     total = 0;

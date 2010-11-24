@@ -1949,6 +1949,8 @@ DESIGNER
         <arg value="workload.procexclude=${exclude}" />
         <arg value="workload.procinclude=${include}" />
         <arg value="workload.procinclude.multiplier=${multiplier}" />
+        <arg value="designer.intervals=${intervals}" />
+        <arg value="designer.hints=${hints}" />
         <arg value="partitionplan=${partitionplan}" />
         <arg line="${extraparams}" />
         <classpath refid='project.classpath' />
