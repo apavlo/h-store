@@ -381,19 +381,20 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
         // We need to examine whether the solution utilized all of the partitions. If it didn't, then
         // we need to increase the entropy weight in the costmodel. This will help steer us towards 
         // a solution that fully utilizes partitions
-//        Set<Integer> untouched_partitions = this.costmodel.getUntouchedPartitions(this.num_partitions);
-//        if (!untouched_partitions.isEmpty()) {
-//            double entropy_weight = this.costmodel.getEntropyWeight();
-//            entropy_weight *= this.num_partitions / (double)untouched_partitions.size();
-//            
-//            // Oh god this took forever to track down! If we want to re-adjust the weights, we have to make 
-//            // sure that we do it to the hints so that it is picked up by everyone!
-//            hints.weight_costmodel_entropy = entropy_weight;
-//            
-//            if (trace) LOG.trace("Initial Solution has " + untouched_partitions.size() + " unused partitions. New Entropy Weight: " + entropy_weight);
-//            this.costmodel.applyDesignerHints(hints);
-//            this.initial_cost = this.costmodel.estimateCost(this.info.catalog_db, this.info.workload);
-//        }
+        Set<Integer> untouched_partitions = this.costmodel.getUntouchedPartitions(this.num_partitions);
+        if (!untouched_partitions.isEmpty()) {
+            double entropy_weight = this.costmodel.getEntropyWeight();
+            entropy_weight *= this.num_partitions / (double)untouched_partitions.size();
+            
+            // Oh god this took forever to track down! If we want to re-adjust the weights, we have to make 
+            // sure that we do it to the hints so that it is picked up by everyone!
+            hints.weight_costmodel_entropy = entropy_weight;
+            
+            LOG.info("Initial Solution has " + untouched_partitions.size() + " unused partitions. New Entropy Weight: " + entropy_weight);
+//            if (trace)
+            this.costmodel.applyDesignerHints(hints);
+            this.initial_cost = this.costmodel.estimateCost(this.info.catalog_db, this.info.workload);
+        }
         
         if (debug) {
             LOG.debug("Initial Solution Cost: " + String.format("%.03f", this.initial_cost));
@@ -457,6 +458,7 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
               .append(String.format(" - elapsed_ratio     = %.02f\n", elapsed_ratio))
               .append(String.format(" - limit_local_time  = %d\n", this.last_localtime_limit))
               .append(String.format(" - limit_back_track  = %d\n", this.last_backtrack_limit))
+              .append(String.format(" - best_cost         = %.03f\n", this.best_cost))
             ;
             LOG.info("\n" + StringUtil.box(sb.toString(), "+", 125));
         }
