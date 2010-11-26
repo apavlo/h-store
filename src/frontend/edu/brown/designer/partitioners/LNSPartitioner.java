@@ -274,6 +274,8 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
             if (this.checkpoint != null && this.checkpoint.exists()) {
                 this.load(this.checkpoint.getAbsolutePath(), info.catalog_db);
                 LOG.info("Loaded checkpoint from '" + this.checkpoint.getName() + "'");
+            } else {
+                LOG.info("Not loading non-existent checkpoint file: " + this.checkpoint);
             }
             if (this.start_time == null && this.last_checkpoint == null) {
                 this.start_time = hints.getStartTime();
@@ -281,6 +283,8 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
                 LOG.info("Setting checkpoint offset times");
                 hints.offsetCheckpointTime(this.start_time, this.last_checkpoint);
             }
+        } else {
+            LOG.info("Checkpoints disabled");
         }
         
         // First we need to hit up the MostPopularPartitioner in order to get an initial solution
