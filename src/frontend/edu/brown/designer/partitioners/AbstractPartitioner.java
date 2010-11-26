@@ -77,7 +77,8 @@ public abstract class AbstractPartitioner {
         this.designer = designer;
         this.info = info;
         this.num_partitions = CatalogUtil.getNumberOfPartitions(info.catalog_db);
-        this.checkpoint = info.getCheckpointFile(); 
+        this.checkpoint = info.getCheckpointFile();
+        if (this.checkpoint != null) LOG.info("Checkpoint File: " + this.checkpoint.getAbsolutePath());
     }
     
     /**
