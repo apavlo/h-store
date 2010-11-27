@@ -93,8 +93,8 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
     public int last_relax_size = 0;
     public int last_elapsed_time = 0;
     public Long last_backtrack_count = null;
-    public Integer last_backtrack_limit = null;
-    public Integer last_localtime_limit = null;
+    public Double last_backtrack_limit = null;
+    public Double last_localtime_limit = null;
     public HaltReason last_halt_reason = HaltReason.NULL;
     public Double last_entropy_weight = null;
     public Integer restart_ctr = null;
@@ -141,8 +141,8 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
         this.agraph = this.generateAccessGraph();
         
         // Set the limits initially from the hints file
-        this.last_backtrack_limit = hints.limit_back_tracks;
-        this.last_localtime_limit = hints.limit_local_time;
+        this.last_backtrack_limit = new Double(hints.limit_back_tracks);
+        this.last_localtime_limit = new Double(hints.limit_local_time);
         this.last_entropy_weight = hints.weight_costmodel_entropy;
         
         // HACK: Reload the correlations file so that we can get the proper catalog objects
@@ -478,8 +478,8 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
               .append(String.format(" - last_elapsed_time = %d\n", this.last_elapsed_time))
               .append(String.format(" - last_backtracks   = %d\n", this.last_backtrack_count))
               .append(String.format(" - elapsed_ratio     = %.02f\n", elapsed_ratio))
-              .append(String.format(" - limit_local_time  = %d\n", this.last_localtime_limit))
-              .append(String.format(" - limit_back_track  = %d\n", this.last_backtrack_limit))
+              .append(String.format(" - limit_local_time  = %.02f\n", this.last_localtime_limit))
+              .append(String.format(" - limit_back_track  = %.02f\n", this.last_backtrack_limit))
               .append(String.format(" - best_cost         = " + DEBUG_COST_FORMAT + "\n", this.best_cost))
               .append(String.format(" - best_memory       = %f\n", this.best_memory))
             ;
@@ -594,13 +594,15 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
         if (hints.enable_local_search_increase) {
             if (this.last_halt_reason == HaltReason.BACKTRACK_LIMIT) {
                 // Give them more backtracks
-                this.last_backtrack_limit = (int)(this.last_backtrack_limit * hints.back_tracks_multiplier);
+                this.last_backtrack_limit = this.last_backtrack_limit * hints.back_tracks_multiplier;
+                LOG.info(String.format("Increasing BackTrack limit from %d to %.02f", hints.limit_back_tracks, this.last_backtrack_limit));
             } else if (this.last_halt_reason == HaltReason.LOCAL_TIME_LIMIT) {
                 // Give them more time
-                this.last_localtime_limit = (int)(this.last_localtime_limit * hints.local_time_multiplier);
+                this.last_localtime_limit = this.last_localtime_limit * hints.local_time_multiplier;
+                LOG.info(String.format("Increasing LocalTime limit from %d to %.02f", hints.limit_local_time, this.last_localtime_limit));
             }
-            hints.limit_back_tracks = this.last_backtrack_limit;
-            hints.limit_local_time = this.last_localtime_limit;
+            hints.limit_back_tracks = (int)Math.round(this.last_backtrack_limit);
+            hints.limit_local_time = (int)Math.round(this.last_localtime_limit);
         }
         
         // -------------------------------
