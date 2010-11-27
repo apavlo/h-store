@@ -57,6 +57,9 @@ public class DesignerHints implements Cloneable, JSONSerializable {
         FORCE_DEPENDENCY,
         IGNORE_PROCEDURES,
         LOG_SOLUTIONS_COSTS,
+        RELAXATION_FACTOR_MIN,
+        RELAXATION_FACTOR_MAX,
+        RELAXATION_MIN_SIZE,
     };
     
     private transient String source_file;
@@ -203,6 +206,13 @@ public class DesignerHints implements Cloneable, JSONSerializable {
      * A list of procedure names we should ignore when doing any calculations
      */
     public final Set<String> ignore_procedures = new HashSet<String>();
+    
+    /**
+     * Relaxation Factors
+     */
+    public double relaxation_factor_min = 0.25;
+    public double relaxation_factor_max = 0.5;
+    public int relaxation_min_size = 5;
     
     /**
      * Empty Constructor
