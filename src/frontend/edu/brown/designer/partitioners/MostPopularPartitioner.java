@@ -198,17 +198,19 @@ public class MostPopularPartitioner extends AbstractPartitioner {
             hints.enable_multi_partitioning = false;
             
             for (Procedure catalog_proc : this.info.catalog_db.getProcedures()) {
-                if (this.shouldIgnoreProcedure(hints, catalog_proc)) continue;
+                if (AbstractPartitioner.shouldIgnoreProcedure(hints, catalog_proc)) continue;
                 
                 List<String> param_order = BranchAndBoundPartitioner.generateProcParameterOrder(info, info.catalog_db, catalog_proc, hints);
-                ProcParameter catalog_proc_param = CatalogKey.getFromKey(info.catalog_db, param_order.get(0), ProcParameter.class);
-                if (debug) LOG.debug(String.format("PARTITION %-25s%s", catalog_proc.getName(), CatalogUtil.getDisplayName(catalog_proc_param)));
-                
-                // Create a new PartitionEntry for this procedure and set it to be always single-partitioned
-                // We will check down below whether that's always true or not
-                PartitionEntry pentry = new PartitionEntry(PartitionMethodType.HASH, catalog_proc_param);
-                pentry.setSinglePartition(true);
-                pplan.getProcedureEntries().put(catalog_proc, pentry);
+                if (param_order.isEmpty() == false) {
+                    ProcParameter catalog_proc_param = CatalogKey.getFromKey(info.catalog_db, param_order.get(0), ProcParameter.class);
+                    if (debug) LOG.debug(String.format("PARTITION %-25s%s", catalog_proc.getName(), CatalogUtil.getDisplayName(catalog_proc_param)));
+                    
+                    // Create a new PartitionEntry for this procedure and set it to be always single-partitioned
+                    // We will check down below whether that's always true or not
+                    PartitionEntry pentry = new PartitionEntry(PartitionMethodType.HASH, catalog_proc_param);
+                    pentry.setSinglePartition(true);
+                    pplan.getProcedureEntries().put(catalog_proc, pentry);
+                }
             } // FOR
             
             hints.enable_multi_partitioning = multiproc_orig;
