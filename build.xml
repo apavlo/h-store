@@ -138,6 +138,10 @@ PRIMARY ENTRY POINTS
 ***************************************
 -->
 
+<target name="build"
+    depends="default"
+    description="Compile Java classes and C++ JNI library."
+/>
 <target name="default"
     depends="compile, ee"
     description="Compile Java classes and C++ JNI library."
