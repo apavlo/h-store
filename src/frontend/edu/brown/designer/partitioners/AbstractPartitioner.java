@@ -111,7 +111,7 @@ public abstract class AbstractPartitioner {
         //  (2) The procedure doesn't have any input parameters (meaning it just have to be randomly assigned)
         //  (3) The procedure is set to be ignored in the given DesignerHints
         boolean ignore = AbstractPartitioner.isPartitionable(catalog_proc) == false;
-        if (hints != null && ignore) {
+        if (hints != null && ignore == false) {
             ignore = hints.shouldIgnoreProcedure(catalog_proc);
         }
         return (ignore);
