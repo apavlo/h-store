@@ -645,12 +645,12 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
             
             if (this.halt_search == false) {
                 assert(this.halt_reason == null);
-                if (hints.limit_back_tracks != null && hints.limit_back_tracks >= 0 && is_table && this.backtrack_ctr > hints.limit_back_tracks) {
-                    if (debug) LOG.debug("Hit back track limit. Halting search [" + this.backtrack_ctr + "]");
+                if (hints.limit_back_tracks != null && hints.limit_back_tracks >= 0 && this.backtrack_ctr > hints.limit_back_tracks) {
+                    LOG.info("Hit back track limit. Halting search [" + this.backtrack_ctr + "]");
                     this.halt_search = true;
                     this.halt_reason = HaltReason.BACKTRACK_LIMIT;
                 } else if (this.halt_time != null && System.currentTimeMillis() >= this.halt_time) {
-                    if (debug) LOG.debug("Hit time limit. Halting search [" + this.backtrack_ctr + "]");
+                    LOG.info("Hit time limit. Halting search [" + this.backtrack_ctr + "]");
                     this.halt_search = true;
                     this.halt_reason = (this.halt_time_local ? HaltReason.LOCAL_TIME_LIMIT : HaltReason.GLOBAL_TIME_LIMIT);
                 }
@@ -940,7 +940,7 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
                     catalog_proc.setPartitionparameter(-1);
                 } // FOR
             }
-            this.backtrack_ctr++;
+            if (this.halt_search == false) this.backtrack_ctr++;
             return;
         }
         

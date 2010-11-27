@@ -47,10 +47,6 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
 
     private static final String DEBUG_COST_FORMAT = "%.04f";
     
-    protected static final double RELAXATION_FACTOR_MIN = 0.25; 
-    protected static final double RELAXATION_FACTOR_MAX = 0.50;
-    protected static final double RELAXATION_MIN_SIZE = 5;
-
     enum Members {
         INITIAL_SOLUTION,
         INITIAL_COST,
@@ -253,16 +249,19 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
         StringBuilder sb = new StringBuilder();
         sb.append("Starting Large-Neighborhood Search\n");
         Map<String, Object> m = new ListOrderedMap<String, Object>();
-        m.put("partitions",     CatalogUtil.getNumberOfPartitions(info.catalog_db));
-        m.put("intervals",      info.getArgs().num_intervals);
-        m.put("total_bytes",    info.getMemoryEstimator().estimateTotalSize(info.catalog_db));
-        m.put("checkpoints",    hints.enable_checkpoints);
-        m.put("greedy",         hints.greedy_search);
-        m.put("backtrack_mp",   hints.back_tracks_multiplier);
-        m.put("localtime_mp",   hints.local_time_multiplier);
-        m.put("total_txns",     info.workload.getTransactionCount());
+        m.put("partitions",       CatalogUtil.getNumberOfPartitions(info.catalog_db));
+        m.put("intervals",        info.getArgs().num_intervals);
+        m.put("total_bytes",      info.getMemoryEstimator().estimateTotalSize(info.catalog_db));
+        m.put("checkpoints",      hints.enable_checkpoints);
+        m.put("greedy",           hints.greedy_search);
+        m.put("relax_factor_min", hints.relaxation_factor_min);
+        m.put("relax_factor_max", hints.relaxation_factor_max);
+        m.put("relax_min",        hints.relaxation_factor_min);
+        m.put("backtrack_mp",     hints.back_tracks_multiplier);
+        m.put("localtime_mp",     hints.local_time_multiplier);
+        m.put("total_txns",       info.workload.getTransactionCount());
         for (Entry<String, Object> e : m.entrySet()) {
-            sb.append(String.format(" - %-15s = %s\n", e.getKey(), e.getValue()));
+            sb.append(String.format(" - %-20s = %s\n", e.getKey(), e.getValue()));
         }
         sb.append(StringUtil.repeat("-", 65)).append("\n");
         sb.append(info.workload.getProcedureHistogram());
@@ -452,8 +451,8 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
         //Map<Table, Double> relax_weights = new HashMap<Table, Double>();
         
         // Figure out what how far along we are in the search and use that to determine how many to relax
-        int relax_min = (int)Math.round(RELAXATION_FACTOR_MIN * num_tables);
-        int relax_max = (int)Math.max(RELAXATION_MIN_SIZE, (int)Math.round(RELAXATION_FACTOR_MIN * num_tables));
+        int relax_min = (int)Math.round(hints.relaxation_factor_min * num_tables);
+        int relax_max = (int)Math.max(hints.relaxation_min_size, (int)Math.round(hints.relaxation_factor_max * num_tables));
         
         // We should probably try to do something smart here, but for now we can just be random
 //        int relax_size = (int)Math.round(RELAXATION_FACTOR_MIN * num_tables) + (restart_ctr / 2);
