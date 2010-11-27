@@ -45,6 +45,8 @@ import edu.brown.utils.StringUtil;
 public class LNSPartitioner extends AbstractPartitioner implements JSONSerializable {
     protected static final Logger LOG = Logger.getLogger(LNSPartitioner.class);
 
+    private static final String DEBUG_COST_FORMAT = "%.04f";
+    
     protected static final double RELAXATION_FACTOR_MIN = 0.25; 
     protected static final double RELAXATION_FACTOR_MAX = 0.50;
     protected static final double RELAXATION_MIN_SIZE = 5;
@@ -62,6 +64,7 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
         LAST_BACKTRACK_COUNT,
         LAST_BACKTRACK_LIMIT,
         LAST_LOCALTIME_LIMIT,
+        LAST_ENTROPY_WEIGHT,
         RESTART_CTR,
         START_TIME,
         LAST_CHECKPOINT,
@@ -93,6 +96,7 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
     public Integer last_backtrack_limit = null;
     public Integer last_localtime_limit = null;
     public HaltReason last_halt_reason = HaltReason.NULL;
+    public Double last_entropy_weight = null;
     public Integer restart_ctr = null;
     
     // ----------------------------------------------------------------------------
@@ -139,6 +143,7 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
         // Set the limits initially from the hints file
         this.last_backtrack_limit = hints.limit_back_tracks;
         this.last_localtime_limit = hints.limit_local_time;
+        this.last_entropy_weight = hints.weight_costmodel_entropy;
         
         // HACK: Reload the correlations file so that we can get the proper catalog objects
         this.correlations.load(info.getCorrelationsFile(), info.catalog_db);
@@ -160,7 +165,7 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
         
         // We also need to know some things about the Procedures and their ProcParameters
         for (Procedure catalog_proc : info.catalog_db.getProcedures()) {
-            if (this.shouldIgnoreProcedure(hints, catalog_proc)) continue;
+            if (AbstractPartitioner.shouldIgnoreProcedure(hints, catalog_proc)) continue;
             
             Set<Column> columns = CatalogUtil.getReferencedColumns(catalog_proc);
             if (columns.isEmpty()) {
@@ -266,7 +271,6 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
         // DEBUG HEADER ---------------------------------------------------------
         
         // Initialize a bunch of stuff we need
-        this.costmodel.applyDesignerHints(hints);
         this.init(hints);
         
         // Reload the checkpoint file so that we can continue this dirty mess!
@@ -274,6 +278,11 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
             if (this.checkpoint != null && this.checkpoint.exists()) {
                 this.load(this.checkpoint.getAbsolutePath(), info.catalog_db);
                 LOG.info("Loaded checkpoint from '" + this.checkpoint.getName() + "'");
+                
+                // Important! We need to udpate the hints based on what's in the checkpoint
+                // We really need to link the hints and the checkpoints better...
+                hints.weight_costmodel_entropy = this.last_entropy_weight;
+                
             } else {
                 LOG.info("Not loading non-existent checkpoint file: " + this.checkpoint);
             }
@@ -287,6 +296,9 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
             LOG.info("Checkpoints disabled");
         }
         
+        // Tell the costmodel about the hints.
+        this.costmodel.applyDesignerHints(hints);
+        
         // First we need to hit up the MostPopularPartitioner in order to get an initial solution
         if (this.initial_solution == null) this.calculateInitialSolution(hints);
         assert(this.initial_solution != null);
@@ -297,7 +309,7 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
             this.best_memory = this.initial_memory;
             this.best_cost = this.initial_cost;
         } else {
-            LOG.info("Using previously calculated best solution");
+            LOG.info("Checking whether previously calculated best solution has the same cost");
             
             // Sanity Check!
             this.best_solution.apply(info.catalog_db);
@@ -305,7 +317,9 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
             double cost = this.costmodel.estimateCost(info.catalog_db, info.workload);
             
             boolean valid = MathUtil.equals(this.best_cost, cost, 2, 0.2);
-            assert(valid) : cost + " == " + this.best_cost + "\n" + PartitionPlan.createFromCatalog(info.catalog_db) + "\n" + this.costmodel.getLastDebugMessages();
+            LOG.info(String.format("Checkpoint Cost [" + DEBUG_COST_FORMAT + "] <-> Reloaded Cost [" + DEBUG_COST_FORMAT + "] ==> %s",
+                                   cost, this.best_cost, (valid ? "VALID" : "FAIL")));
+            assert(valid) : cost + " == " + this.best_cost + "\n" + PartitionPlan.createFromCatalog(info.catalog_db, hints) + "\n" + this.costmodel.getLastDebugMessages();
         }
         assert(this.best_solution != null);
         
@@ -333,7 +347,7 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
                 LOG.info("Running sanity check on best solution...");
                 this.costmodel.clear(true);
                 double cost2 = this.costmodel.estimateCost(info.catalog_db, info.workload);
-                LOG.info(String.format("Before[%.05f] <=> After[%.05f]", this.best_cost, cost2));
+                LOG.info(String.format("Before[" + DEBUG_COST_FORMAT + "] <=> After[" + DEBUG_COST_FORMAT + "]", this.best_cost, cost2));
                 boolean valid = MathUtil.equals(this.best_cost, cost2, 2, 0.2);
                 assert(valid) : cost2 + " == " + this.best_cost + "\n" + PartitionPlan.createFromCatalog(info.catalog_db) + "\n" + this.costmodel.getLastDebugMessages();
             }
@@ -351,8 +365,8 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
                 break;
             }
         } // WHILE
-        LOG.info("Final Solution Cost: " + String.format("%.03f", this.best_cost));
-        LOG.info("Final Solution Memory: " + String.format("%.03f", this.best_memory));
+        LOG.info("Final Solution Cost: " + String.format(DEBUG_COST_FORMAT, this.best_cost));
+        LOG.info("Final Solution Memory: " + String.format(DEBUG_COST_FORMAT, this.best_memory));
         assert(this.best_cost <= this.initial_cost);
         this.setProcedureSinglePartitionFlags(this.best_solution, hints);
         return (this.best_solution);
@@ -371,8 +385,8 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
 
         this.initial_solution = new MostPopularPartitioner(this.designer, this.info).generate(hints);
         this.initial_solution.apply(this.info.catalog_db);
-        this.initial_cost = info.getCostModel().estimateCost(this.info.catalog_db, this.info.workload);
-        
+
+        // Check whether we have enough memory for the initial solution
         if (hints.max_memory_per_partition > 0) {
             this.initial_memory = this.info.getMemoryEstimator().estimate(this.info.catalog_db, this.num_partitions) /
                                   (double)hints.max_memory_per_partition;
@@ -380,6 +394,8 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
         } else {
             hints.max_memory_per_partition = 0;
         }
+        
+        // Now calculate the cost. We do this after the memory estimation so that we don't waste our time if it won't fit
         this.initial_cost = this.costmodel.estimateCost(this.info.catalog_db, this.info.workload);
         
         // We need to examine whether the solution utilized all of the partitions. If it didn't, then
@@ -392,17 +408,19 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
             
             // Oh god this took forever to track down! If we want to re-adjust the weights, we have to make 
             // sure that we do it to the hints so that it is picked up by everyone!
-            hints.weight_costmodel_entropy = entropy_weight;
+            // 2010-11-27: Actually no! We want to make sure we put it in the local object so that it gets written
+            //             out when we checkpoint and then load the checkpoint back in
+            this.last_entropy_weight = entropy_weight;
+            hints.weight_costmodel_entropy = this.last_entropy_weight;
             
             LOG.info("Initial Solution has " + untouched_partitions.size() + " unused partitions. New Entropy Weight: " + entropy_weight);
-//            if (trace)
             this.costmodel.applyDesignerHints(hints);
             this.initial_cost = this.costmodel.estimateCost(this.info.catalog_db, this.info.workload);
         }
         
         if (debug) {
-            LOG.debug("Initial Solution Cost: " + String.format("%.03f", this.initial_cost));
-            LOG.debug("Initial Solution Memory: " + String.format("%.03f", this.initial_memory));
+            LOG.debug("Initial Solution Cost: " + String.format(DEBUG_COST_FORMAT, this.initial_cost));
+            LOG.debug("Initial Solution Memory: " + String.format(DEBUG_COST_FORMAT, this.initial_memory));
             LOG.debug("Initial Solution:\n" + this.initial_solution);
         }
         if (hints.shouldLogSolutionCosts()) hints.logSolutionCost(this.initial_cost);
@@ -462,7 +480,8 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
               .append(String.format(" - elapsed_ratio     = %.02f\n", elapsed_ratio))
               .append(String.format(" - limit_local_time  = %d\n", this.last_localtime_limit))
               .append(String.format(" - limit_back_track  = %d\n", this.last_backtrack_limit))
-              .append(String.format(" - best_cost         = %.03f\n", this.best_cost))
+              .append(String.format(" - best_cost         = " + DEBUG_COST_FORMAT + "\n", this.best_cost))
+              .append(String.format(" - best_memory       = %f\n", this.best_memory))
             ;
             LOG.info("\n" + StringUtil.box(sb.toString(), "+", 125));
         }
@@ -622,8 +641,8 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
             this.best_solution = result;
             this.best_cost = state.getCost();
             this.best_memory = state.getMemory() / (double)hints.max_memory_per_partition;
-            LOG.info("Best Solution Cost: " + String.format("%.03f", this.best_cost));
-            LOG.info("Best Solution Memory: " + String.format("%.03f", this.best_memory));
+            LOG.info("Best Solution Cost: " + String.format(DEBUG_COST_FORMAT, this.best_cost));
+            LOG.info("Best Solution Memory: " + String.format(DEBUG_COST_FORMAT, this.best_memory));
             LOG.info("Best Solution:\n" + this.best_solution);
         }
         this.best_solution.apply(info.catalog_db);
@@ -642,11 +661,6 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
                                                                                             final Map<Table, Set<Column>> table_attributes,
                                                                                             final Map<String, List<String>> key_attributes) throws Exception {
         BranchAndBoundPartitioner local_search = new BranchAndBoundPartitioner(this.designer, this.info);
-        if (LOG.isDebugEnabled()) {
-            LOG.debug("Best Solution Cost:   " + this.best_cost);
-            LOG.debug("Best Solution Memory: " + this.best_memory);
-        }
-        
         local_search.setUpperBounds(hints, this.best_solution, this.best_cost, (long)(this.best_memory * hints.max_memory_per_partition));
         local_search.setTraversalAttributes(key_attributes, table_attributes.size());
 

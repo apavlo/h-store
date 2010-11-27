@@ -14,7 +14,6 @@ import edu.brown.catalog.CatalogUtil;
 import edu.brown.catalog.special.NullProcParameter;
 import edu.brown.catalog.special.ReplicatedColumn;
 import edu.brown.designer.*;
-import edu.brown.designer.generators.PartitionPlanTreeGenerator;
 import edu.brown.utils.*;
 
 /**
@@ -167,7 +166,7 @@ public class PartitionPlan implements JSONSerializable {
         } // FOR
         
         // Descendants & Roots
-        Table last_tbl = null;
+//        Table last_tbl = null;
         for (Table catalog_tbl : this.table_ancestors.keySet()) {
             for (Table ancestor_tbl : this.table_ancestors.get(catalog_tbl)) {
                 if (!this.table_descendants.containsKey(ancestor_tbl)) {
@@ -179,7 +178,7 @@ public class PartitionPlan implements JSONSerializable {
             Table root = (this.table_ancestors.get(catalog_tbl).isEmpty() ? catalog_tbl : this.table_ancestors.get(catalog_tbl).lastElement());
             this.table_roots.put(catalog_tbl, root);
             
-            last_tbl = catalog_tbl;
+//            last_tbl = catalog_tbl;
         } // FOR
         
 //        if (this.ptree == null && last_tbl != null) {
@@ -558,11 +557,13 @@ public class PartitionPlan implements JSONSerializable {
                 pentry.setParentAttribute(parent_col);
             }
         } // FOR
+        assert(catalog_db != null);
 
         // Construct a partition tree from ourselves and then populate the dependency relationships
 //        PartitionTree ptree = PartitionPlanTreeGenerator.generate(catalog_db, pplan);
 //        pplan.setPartitionTree(ptree);
         pplan.initializeDependencies();
+        
         return (pplan);
         
     }
@@ -573,6 +574,11 @@ public class PartitionPlan implements JSONSerializable {
      * @return
      */
     public static PartitionPlan createFromCatalog(Database catalog_db) {
+        return (createFromCatalog(catalog_db, null));
+    }
+        
+        
+    public static PartitionPlan createFromCatalog(Database catalog_db, DesignerHints hints) {
         final Map<CatalogType, CatalogType> pplan_map = new HashMap<CatalogType, CatalogType>();
 
         // Table Partitioning
@@ -586,7 +592,7 @@ public class PartitionPlan implements JSONSerializable {
         } // FOR
         // Procedure Partitioning
         for (Procedure catalog_proc : catalog_db.getProcedures()) {
-            if (catalog_proc.getSystemproc() || catalog_proc.getParameters().size() == 0) {
+            if (hints != null && AbstractPartitioner.shouldIgnoreProcedure(hints, catalog_proc)) {
                 continue;
             } else if (catalog_proc.getPartitionparameter() == NullProcParameter.PARAM_IDX) {
                 pplan_map.put(catalog_proc, NullProcParameter.getNullProcParameter(catalog_proc));

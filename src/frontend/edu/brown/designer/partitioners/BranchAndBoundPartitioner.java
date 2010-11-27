@@ -277,7 +277,7 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
         final Map<String, Set<String>> multiparams = new HashMap<String, Set<String>>();
         if (hints.enable_multi_partitioning) {
             for (Procedure catalog_proc : info.catalog_db.getProcedures()) {
-                if (this.shouldIgnoreProcedure(hints, catalog_proc)) continue;
+                if (AbstractPartitioner.shouldIgnoreProcedure(hints, catalog_proc)) continue;
                 
                 // MultiProcParameters
                 String proc_key = CatalogKey.createKey(catalog_proc);
@@ -456,7 +456,7 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
             
             if (hints.enable_procparameter_search) {
                 for (Procedure catalog_proc : info.catalog_db.getProcedures()) {
-                    if (this.shouldIgnoreProcedure(hints, catalog_proc)) continue;
+                    if (AbstractPartitioner.shouldIgnoreProcedure(hints, catalog_proc)) continue;
                     String proc_key = CatalogKey.createKey(catalog_proc);
                     String param_key = best_catalogkey_map.get(proc_key);
                     if (param_key != null) {

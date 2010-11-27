@@ -143,7 +143,7 @@ PRIMARY ENTRY POINTS
     description="Compile Java classes and C++ JNI library."
 />
 <target name="default"
-    depends="compile, ee"
+    depends="protobuf, protorpc, dtxn, tpceloader, compile, ee"
     description="Compile Java classes and C++ JNI library."
 />
 <target name="check"
@@ -416,7 +416,7 @@ JAVA COMPILATION
 ***************************************
 -->
 
-<target name="compile" depends="protobuf, protorpc, dtxn, tpceloader"> 
+<target name="compile"> 
     <!-- Delete additional class files from third_party jars before we build -->
     <delete dir="${build.prod.dir}/org/apache/" />
     <delete dir="${build.prod.dir}/edu/uci/" />
@@ -1938,7 +1938,8 @@ DESIGNER
 
 <target name='designer-estimate'
         description="Estimate the cost of executing the workload for a given PartitionPlan">
-    <java fork="yes" failonerror="true" classname="edu.brown.costmodel.SingleSitedCostModel">
+<!--     <java fork="yes" failonerror="true" classname="edu.brown.costmodel.SingleSitedCostModel"> -->
+    <java fork="yes" failonerror="true" classname="edu.brown.costmodel.TimeIntervalCostModel">
         <jvmarg value="-client" />
         <jvmarg value="-Xms256m" />
         <jvmarg value="-Xmx${volt.client.memory}m" />

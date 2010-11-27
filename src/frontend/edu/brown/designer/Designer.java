@@ -200,13 +200,13 @@ public class Designer {
         //
         if (this.pplan == null) {
             if (this.hints.start_random) {
-                LOG.info("Randomizing the catalog partitioning attributes");
+                LOG.debug("Randomizing the catalog partitioning attributes");
                 PartitionPlan random_pplan = new RandomPartitioner(this, this.info, false).generate(this.hints);
                 random_pplan.apply(this.info.catalog_db);
                 LOG.debug("Randomized Catalog:\n" + random_pplan);
             }
             
-            LOG.info("Creating table partition trees using " + this.partitioner.getClass().getSimpleName());
+            LOG.debug("Creating partition plan using " + this.partitioner.getClass().getSimpleName());
             this.pplan = this.partitioner.generate(this.hints);
             if (this.args.hasParam(ArgumentsParser.PARAM_PARTITION_PLAN_OUTPUT)) {
                 File path = new File(this.args.getParam(ArgumentsParser.PARAM_PARTITION_PLAN_OUTPUT));
