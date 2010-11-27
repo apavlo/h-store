@@ -279,7 +279,7 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
                 this.load(this.checkpoint.getAbsolutePath(), info.catalog_db);
                 LOG.info("Loaded checkpoint from '" + this.checkpoint.getName() + "'");
                 
-                // Important! We need to udpate the hints based on what's in the checkpoint
+                // Important! We need to update the hints based on what's in the checkpoint
                 // We really need to link the hints and the checkpoints better...
                 hints.weight_costmodel_entropy = this.last_entropy_weight;
                 
@@ -316,10 +316,11 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
             this.costmodel.clear(true);
             double cost = this.costmodel.estimateCost(info.catalog_db, info.workload);
             
-            boolean valid = MathUtil.equals(this.best_cost, cost, 2, 0.2);
+            boolean valid = MathUtil.equals(this.best_cost, cost, 2, 0.5);
             LOG.info(String.format("Checkpoint Cost [" + DEBUG_COST_FORMAT + "] <-> Reloaded Cost [" + DEBUG_COST_FORMAT + "] ==> %s",
                                    cost, this.best_cost, (valid ? "VALID" : "FAIL")));
             assert(valid) : cost + " == " + this.best_cost + "\n" + PartitionPlan.createFromCatalog(info.catalog_db, hints) + "\n" + this.costmodel.getLastDebugMessages();
+            this.best_cost = cost;
         }
         assert(this.best_solution != null);
         
