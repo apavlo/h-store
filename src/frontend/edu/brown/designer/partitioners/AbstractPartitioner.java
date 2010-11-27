@@ -78,7 +78,7 @@ public abstract class AbstractPartitioner {
         this.info = info;
         this.num_partitions = CatalogUtil.getNumberOfPartitions(info.catalog_db);
         this.checkpoint = info.getCheckpointFile();
-        if (this.checkpoint != null) LOG.info("Checkpoint File: " + this.checkpoint.getAbsolutePath());
+        if (this.checkpoint != null) LOG.debug("Checkpoint File: " + this.checkpoint.getAbsolutePath());
     }
     
     /**
@@ -89,6 +89,10 @@ public abstract class AbstractPartitioner {
      */
     public abstract PartitionPlan generate(DesignerHints hints) throws Exception;
     
+    /**
+     * Get the HaltReason for the last call to generate() 
+     * @return
+     */
     public HaltReason getHaltReason() {
         return (this.halt_reason);
     }
@@ -99,7 +103,7 @@ public abstract class AbstractPartitioner {
      * @param catalog_proc
      * @return
      */
-    public boolean shouldIgnoreProcedure(final DesignerHints hints, final Procedure catalog_proc) {
+    public static boolean shouldIgnoreProcedure(final DesignerHints hints, final Procedure catalog_proc) {
         assert(hints != null);
         assert(catalog_proc != null);
 
@@ -114,7 +118,11 @@ public abstract class AbstractPartitioner {
         );
     }
     
-    
+    /**
+     * Returns true if this Proce
+     * @param catalog_proc
+     * @return
+     */
     protected static boolean isPartitionable(Procedure catalog_proc) {
         assert(catalog_proc != null);
         return (!catalog_proc.getSystemproc() && catalog_proc.getParameters().size() > 0);

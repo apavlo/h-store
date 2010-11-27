@@ -597,8 +597,8 @@ public class TimeIntervalCostModel<T extends AbstractCostModel> extends Abstract
                 ArgumentsParser.PARAM_CATALOG,
                 ArgumentsParser.PARAM_WORKLOAD,
                 ArgumentsParser.PARAM_PARTITION_PLAN,
-                ArgumentsParser.PARAM_DESIGNER_INTERVALS,
-                ArgumentsParser.PARAM_DESIGNER_HINTS
+                ArgumentsParser.PARAM_DESIGNER_INTERVALS
+//                ArgumentsParser.PARAM_DESIGNER_HINTS
         );
         assert(args.workload.getTransactionCount() > 0) : "No transactions were loaded from " + args.workload;
         
@@ -617,7 +617,7 @@ public class TimeIntervalCostModel<T extends AbstractCostModel> extends Abstract
         
         int num_intervals = args.num_intervals; // getIntParam(ArgumentsParser.PARAM_DESIGNER_INTERVALS);
         TimeIntervalCostModel<SingleSitedCostModel> costmodel = new TimeIntervalCostModel<SingleSitedCostModel>(args.catalog_db, SingleSitedCostModel.class, num_intervals);
-        costmodel.applyDesignerHints(args.designer_hints);
+        if (args.hasParam(ArgumentsParser.PARAM_DESIGNER_HINTS)) costmodel.applyDesignerHints(args.designer_hints);
         double cost = costmodel.estimateCost(args.catalog_db, args.workload);
         System.out.println("PARTITIONS = " + CatalogUtil.getNumberOfPartitions(args.catalog_db));
         System.out.println("INTERVALS  = " + args.num_intervals);
