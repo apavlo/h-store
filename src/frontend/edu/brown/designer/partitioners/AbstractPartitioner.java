@@ -299,6 +299,7 @@ public abstract class AbstractPartitioner {
      * @throws Exception
      */
     protected static LinkedList<String> generateTableOrder(final DesignerInfo info, final AccessGraph agraph, final DesignerHints hints) throws Exception {
+        final boolean trace = LOG.isTraceEnabled();
         final boolean debug = LOG.isDebugEnabled();
         
         final LinkedList<String> table_visit_order = new LinkedList<String>();
@@ -380,8 +381,7 @@ public abstract class AbstractPartitioner {
         // This can occur if there are tables that do not appear in the AccessGraph for whatever reason
         // Note that we have to traverse the graph so that we don't try to plan a parent before a child
         for (Vertex root : info.dgraph.getRoots()) {
-            // if (trace)
-            LOG.info("Creating table visit order starting from root " + root);
+            if (trace) LOG.trace("Creating table visit order starting from root " + root);
             
             new VertexTreeWalker<Vertex>(info.dgraph, VertexTreeWalker.TraverseOrder.BREADTH) {
                 protected void callback(Vertex element) {
