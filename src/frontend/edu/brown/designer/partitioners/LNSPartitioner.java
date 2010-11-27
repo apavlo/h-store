@@ -318,7 +318,7 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
             boolean valid = MathUtil.equals(this.best_cost, cost, 2, 0.5);
             LOG.info(String.format("Checkpoint Cost [" + DEBUG_COST_FORMAT + "] <-> Reloaded Cost [" + DEBUG_COST_FORMAT + "] ==> %s",
                                    cost, this.best_cost, (valid ? "VALID" : "FAIL")));
-            assert(valid) : cost + " == " + this.best_cost + "\n" + PartitionPlan.createFromCatalog(info.catalog_db, hints) + "\n" + this.costmodel.getLastDebugMessages();
+//            assert(valid) : cost + " == " + this.best_cost + "\n" + PartitionPlan.createFromCatalog(info.catalog_db, hints) + "\n" + this.costmodel.getLastDebugMessages();
             this.best_cost = cost;
         }
         assert(this.best_solution != null);
