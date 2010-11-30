@@ -66,11 +66,6 @@
 <!-- emma build instrumentation location -->
 <property name='build.instr.dir'             location='${build.dir}/instr' />
 
-<!-- Default hostname -->
-<condition property="hstore.defaulthost" value="localhost">
-    <not><isset property="hstore.defaulthost"/></not>
-</condition>
-
 <!-- Default H-Store Properties File  -->
 <condition property="hstore.properties" value="${properties.dir}/default.properties">
     <not><isset property="hstore.properties"/></not>
@@ -83,6 +78,11 @@
 </condition>
 <property file="${benchmark.dir}/${project}.properties" prefix="benchmark" />
 <property name="benchmark.jar" location="${project}.jar" />
+
+<!-- Default hostname -->
+<condition property="hstore.defaulthost" value="localhost">
+    <not><isset property="hstore.defaulthost"/></not>
+</condition>
 
 <!-- Default heap size for Volt server (MB)  -->
 <condition property="volt.server.memory" value="2048">
