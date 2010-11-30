@@ -1436,6 +1436,9 @@ DTXN BINARIES + LIBRARIES
 </target>
 
 <target name="dtxn-coordinator" description="H-Store DTXN Coordinator">
+    <condition property="port" value="${hstore.coordinator.port}">
+        <not><isset property="port"/></not>
+    </condition>
     <exec executable="${build.dtxn.dir}/protodtxn/protodtxncoordinator">
         <arg line="${port}"/>
         <arg line="${build.dtxn.dir}/hstore.conf"/>
