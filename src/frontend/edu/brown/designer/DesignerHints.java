@@ -43,6 +43,7 @@ public class DesignerHints implements Cloneable, JSONSerializable {
         ENABLE_COSTMODEL_EXECUTION,
         ENABLE_COSTMODEL_JAVA_EXECUTION,
         ENABLE_COSTMODEL_MULTIPARTITION_PENALTY,
+        ENABLE_COSTMODEL_IDLEPARTITION_PENALTY,
         ENABLE_PROCPARAMETER_SEARCH,
         ENABLE_LOCAL_SEARCH_INCREASE,
         ENABLE_CHECKPOINTS,
@@ -145,6 +146,11 @@ public class DesignerHints implements Cloneable, JSONSerializable {
      * Enable Multipartition Penalty factoring
      */
     public boolean enable_costmodel_multipartition_penalty = true;
+    
+    /**
+     * Enable Idle Partition Penalty factoring
+     */
+    public boolean enable_costmodel_idlepartition_penalty = true;
     
     /**
      * Enable searching for the partitioning ProcParameter
