@@ -367,7 +367,8 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
         } // WHILE
         LOG.info("Final Solution Cost: " + String.format(DEBUG_COST_FORMAT, this.best_cost));
         LOG.info("Final Solution Memory: " + String.format(DEBUG_COST_FORMAT, this.best_memory));
-        assert(this.best_cost <= this.initial_cost);
+        if (this.initial_cost > this.best_cost) LOG.warn("BAD MOJO! Initial Cost = " + this.initial_cost + " > " + this.best_cost);
+        // assert(this.best_cost <= this.initial_cost);
         this.setProcedureSinglePartitionFlags(this.best_solution, hints);
         return (this.best_solution);
     }
@@ -401,21 +402,24 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
         // We need to examine whether the solution utilized all of the partitions. If it didn't, then
         // we need to increase the entropy weight in the costmodel. This will help steer us towards 
         // a solution that fully utilizes partitions
-        Set<Integer> untouched_partitions = this.costmodel.getUntouchedPartitions(this.num_partitions);
-        if (!untouched_partitions.isEmpty()) {
-            double entropy_weight = this.costmodel.getEntropyWeight();
-            entropy_weight *= this.num_partitions / (double)untouched_partitions.size();
-            
-            // Oh god this took forever to track down! If we want to re-adjust the weights, we have to make 
-            // sure that we do it to the hints so that it is picked up by everyone!
-            // 2010-11-27: Actually no! We want to make sure we put it in the local object so that it gets written
-            //             out when we checkpoint and then load the checkpoint back in
-            this.last_entropy_weight = entropy_weight;
-            hints.weight_costmodel_entropy = this.last_entropy_weight;
-            
-            LOG.info("Initial Solution has " + untouched_partitions.size() + " unused partitions. New Entropy Weight: " + entropy_weight);
-            this.costmodel.applyDesignerHints(hints);
-            this.initial_cost = this.costmodel.estimateCost(this.info.catalog_db, this.info.workload);
+        if (hints.enable_costmodel_idlepartition_penalty) {
+            Set<Integer> untouched_partitions = this.costmodel.getUntouchedPartitions(this.num_partitions);
+            LOG.info("Number of Idle Partitions: " + untouched_partitions.size());
+            if (!untouched_partitions.isEmpty() ) {
+                double entropy_weight = this.costmodel.getEntropyWeight();
+                entropy_weight *= this.num_partitions / (double)untouched_partitions.size();
+                
+                // Oh god this took forever to track down! If we want to re-adjust the weights, we have to make 
+                // sure that we do it to the hints so that it is picked up by everyone!
+                // 2010-11-27: Actually no! We want to make sure we put it in the local object so that it gets written
+                //             out when we checkpoint and then load the checkpoint back in
+                this.last_entropy_weight = entropy_weight;
+                hints.weight_costmodel_entropy = this.last_entropy_weight;
+                
+                LOG.info("Initial Solution has " + untouched_partitions.size() + " unused partitions. New Entropy Weight: " + entropy_weight);
+                this.costmodel.applyDesignerHints(hints);
+                this.initial_cost = this.costmodel.estimateCost(this.info.catalog_db, this.info.workload);
+            }
         }
         
         if (debug) {
@@ -423,7 +427,11 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
             LOG.debug("Initial Solution Memory: " + String.format(DEBUG_COST_FORMAT, this.initial_memory));
             LOG.debug("Initial Solution:\n" + this.initial_solution);
         }
-        if (hints.shouldLogSolutionCosts()) hints.logSolutionCost(this.initial_cost);
+        if (hints.shouldLogSolutionCosts()) {
+            hints.logSolutionCost(this.initial_cost);
+        } else {
+            assert(false) : "This should not be happening!!";
+        }
     }
     
     /**
@@ -464,6 +472,7 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
 //        if (this.last_halt_reason == HaltReason.EXHAUSTED_SEARCH && relax_size < relax_max) relax_size = this.last_relax_size + 1;
 
         if (relax_size > num_tables) relax_size = num_tables;
+        if (relax_size > relax_max) relax_size = relax_max;
         
         assert(relax_size >= relax_min)  : "Invalid Relax Size: " + relax_size;
         assert(relax_size <= relax_max)  : "Invalid Relax Size: " + relax_size;
