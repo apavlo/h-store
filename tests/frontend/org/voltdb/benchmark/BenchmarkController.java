@@ -28,6 +28,7 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
 import java.lang.reflect.Field;
+import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -48,6 +49,9 @@ import org.voltdb.ServerThread;
 import org.voltdb.VoltDB;
 import org.voltdb.benchmark.BenchmarkResults.Result;
 import org.voltdb.catalog.Catalog;
+import org.voltdb.catalog.Cluster;
+import org.voltdb.catalog.Host;
+import org.voltdb.catalog.Site;
 import org.voltdb.client.Client;
 import org.voltdb.client.ClientFactory;
 import org.voltdb.client.NoConnectionsException;
@@ -59,11 +63,22 @@ import org.voltdb.processtools.SSHTools;
 import org.voltdb.processtools.ShellTools;
 import org.voltdb.utils.LogKeys;
 
+import ca.evanjones.protorpc.NIOEventLoop;
+import ca.evanjones.protorpc.ProtoRpcChannel;
+import ca.evanjones.protorpc.ProtoRpcController;
+
+import com.google.protobuf.ByteString;
+
 import edu.brown.catalog.CatalogUtil;
+import edu.brown.hstore.Hstore;
+import edu.brown.hstore.Hstore.HStoreService;
+import edu.brown.hstore.Hstore.MessageType;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.ThreadUtil;
+import edu.mit.hstore.HStoreMessenger;
 import edu.mit.hstore.HStoreSite;
+import edu.mit.hstore.callbacks.BlockingCallback;
 
 public class BenchmarkController {
     
@@ -253,6 +268,28 @@ public class BenchmarkController {
         }
     }
 
+    /**
+     * Blocking call that waits until the cluster says it is ready to execute stuff
+     */
+    public void blockUntilClusterReady(Catalog catalog) {
+        // Randomly pick a host to send our request to
+        Cluster cluster = CatalogUtil.getCluster(catalog);
+        Site catalog_site = CollectionUtil.getRandomValue(cluster.getSites());
+        assert(catalog_site != null);
+        
+        HStoreService channel = HStoreMessenger.getHStoreService(catalog_site);
+        assert(channel != null);
+        
+        Hstore.MessageRequest mr = Hstore.MessageRequest.newBuilder()
+                                         .setSenderId(-1)
+                                         .setDestId(catalog_site.getId())
+                                         .setType(MessageType.READY)
+                                         .build();
+        BlockingCallback<Hstore.MessageAcknowledgement> done = new BlockingCallback<Hstore.MessageAcknowledgement>();
+        channel.sendMessage(new ProtoRpcController(), mr, done);
+        done.block();
+    }
+    
     public void setupBenchmark() {
         // actually compile and write the catalog to disk
         if (m_config.compileBenchmark) {
@@ -433,6 +470,9 @@ public class BenchmarkController {
             m_localserver.waitForInitialization();
         }
 
+        // Block ourselves until we know that the cluster is ready
+        // TODO(sw47) this.blockUntilClusterReady(catalog);
+        
         final int numClients = (m_config.clients.length * m_config.processesPerClient);
         if (m_loaderClass != null && !m_config.noDataLoad) {
             LOG.debug("Starting loader: " + m_loaderClass);

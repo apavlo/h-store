@@ -10,6 +10,8 @@ enum MessageType {
     STATUS = 0;
     SHUTDOWN = 1;
     FORWARD_TXN = 2;
+    READY = 3;
+    READY_INTERNAL = 4;
 }
 
 message MessageRequest {

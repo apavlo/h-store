@@ -88,6 +88,8 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
     private Dtxn.Coordinator coordinator;
     private final NIOEventLoop coordinatorEventLoop = new NIOEventLoop();
 
+    private boolean ready = false;
+    private final EventObservable ready_observable = new EventObservable();
     private boolean shutdown = false;
     private final EventObservable shutdown_observable = new EventObservable();
     
@@ -289,6 +291,31 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         // Add in our shutdown hook
         Runtime.getRuntime().addShutdownHook(new Thread(new ShutdownThread()));
     }
+    
+    /**
+     * Mark this HStoreSite as ready for action!
+     */
+    private void ready() {
+        this.ready = true;
+        this.ready_observable.notifyObservers();
+    }
+    
+    /**
+     * Returns true if this HStoreSite is ready
+     * @return
+     */
+    public boolean isReady() {
+        return (this.ready);
+    }
+    
+    /**
+     * Get the Observable handle for this HStoreSite that can alert others when the party is
+     * getting started
+     * @return
+     */
+    public EventObservable getReadyObservable() {
+        return (this.ready_observable);
+    }
 
     /**
      * Non-blocking call to take down the cluster
@@ -332,8 +359,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
     }
     
     /**
-     * Get the Oberservable handle for this HStoreCoordinator that can alert
-     * others when the party is ending
+     * Get the Oberservable handle for this HStoreSite that can alert others when the party is ending
      * @return
      */
     public EventObservable getShutdownObservable() {
@@ -793,6 +819,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
                                        hstore_site.getSiteId(),
                                        catalog_site.getProc_port(),
                                        hstore_site.getExecutorCount()));
+                hstore_site.ready();
                 
                 boolean shutdown = false;
                 Exception error = null;
