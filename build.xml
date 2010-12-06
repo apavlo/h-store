@@ -1809,6 +1809,9 @@ DESIGNER
 
 
 <target name='graphviz' description="GraphViz Schema Export">
+    <condition property="jar" value="${benchmark.jar}">
+        <not><isset property="jar"/></not>
+    </condition>
     <java fork="yes" classname="edu.brown.graphs.GraphvizExport">
         <jvmarg value="-Xmx512m" />
         <arg value="catalog.jar=${jar}" />

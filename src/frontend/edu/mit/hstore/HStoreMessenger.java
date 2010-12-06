@@ -355,6 +355,27 @@ public class HStoreMessenger {
                     break;
                 }
                 // -----------------------------------------------------------------
+                // CLIENT WANTS TO KNOW WHEN THE ENTIRE CLUSTER IS READY
+                // -----------------------------------------------------------------
+                case READY: {
+                    // TODO: Send READY_INTERNAL messages to all other sites using a 
+                    //       callback that waits for the READY_INTERNAL responses and
+                    //       sends the final callback to the client
+                    
+                    
+                    break;
+                }
+                // -----------------------------------------------------------------
+                // ONE SITE WANTS TO KNOW IF THIS SITE IS READY
+                // -----------------------------------------------------------------
+                case READY_INTERNAL: {
+                    // TODO: First check whether HStoreSite.isReady() is true. If not, then create an
+                    //       EventObserver that attaches to HStoreSite.getReadyObservable() that will
+                    //       execute the callback when the HStoreSite is up and running
+                    
+                    break;
+                }
+                // -----------------------------------------------------------------
                 // UNKNOWN
                 // -----------------------------------------------------------------
                 default:
@@ -592,5 +613,26 @@ public class HStoreMessenger {
                                         .build();
         this.channels.get(dest_site_id).sendMessage(new ProtoRpcController(), mr, done);
         if (trace) LOG.debug("Sent " + MessageType.FORWARD_TXN.name() + " to Site #" + dest_site_id);
+    }
+
+    /**
+     * Returns an HStoreService handle that is connected to the given site
+     * @param catalog_site
+     * @return
+     */
+    public static HStoreService getHStoreService(Site catalog_site) {
+        NIOEventLoop eventLoop = new NIOEventLoop();
+        InetSocketAddress addresses[] = new InetSocketAddress[] {
+            new InetSocketAddress(catalog_site.getHost().getIpaddr(), catalog_site.getMessenger_port()) 
+        };
+        ProtoRpcChannel[] channels = null;
+        try {
+            channels = ProtoRpcChannel.connectParallel(eventLoop, addresses);
+        } catch (Exception ex) {
+            
+        }
+        
+        HStoreService channel = HStoreService.newStub(channels[0]);
+        return (channel);
     }
 }
