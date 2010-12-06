@@ -429,8 +429,6 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
         }
         if (hints.shouldLogSolutionCosts()) {
             hints.logSolutionCost(this.initial_cost);
-        } else {
-            assert(false) : "This should not be happening!!";
         }
     }
     
