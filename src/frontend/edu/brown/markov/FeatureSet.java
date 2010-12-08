@@ -11,13 +11,18 @@ import java.util.Vector;
 import java.util.Map.Entry;
 
 import org.apache.commons.collections15.map.ListOrderedMap;
-import org.voltdb.catalog.Procedure;
+import org.apache.log4j.Logger;
+
+import weka.core.Attribute;
+import weka.core.FastVector;
+import weka.core.Instance;
+import weka.core.Instances;
 
 import edu.brown.utils.ClassUtil;
-import edu.brown.utils.StringUtil;
 import edu.brown.workload.TransactionTrace;
 
 public class FeatureSet {
+    private static final Logger LOG = Logger.getLogger(FeatureSet.class);
     
     protected enum Type {
         NUMERIC,
@@ -25,12 +30,25 @@ public class FeatureSet {
         RANGE,
         BOOLEAN,
     }
-    
-    
+
+    /**
+     * The row values for each txn record
+     */
     protected final HashMap<String, Vector<Object>> txn_values = new HashMap<String, Vector<Object>>();
+    
+    /**
+     * The list of attributes that each txn should have
+     */
     protected final ListOrderedMap<String, Type> attributes = new ListOrderedMap<String, Type>();
+    
+    /**
+     * For RANGE types, the list of values that it could have 
+     */
     protected final Map<String, Set<String>> attribute_ranges = new HashMap<String, Set<String>>();
     
+    /**
+     * Constructor
+     */
     public FeatureSet() {
         // Nothing for now...
     }
@@ -47,7 +65,13 @@ public class FeatureSet {
         this.addFeature(txn, key, val, null);
     }
 
-    
+    /**
+     * 
+     * @param txn
+     * @param key
+     * @param val
+     * @param type
+     */
     public void addFeature(TransactionTrace txn, String key, Object val, Type type) {
         String txn_id = txn.getTransactionId();
         
@@ -66,12 +90,19 @@ public class FeatureSet {
                     type = Type.RANGE;
                 }
             }
+            LOG.debug("Adding new attribute " + key + " [" + type + "]");
             this.attributes.put(key, type);
         }
         
         // Store ranges if needed
-        if (type == Type.RANGE) {
-            if (!this.attribute_ranges.containsKey(key)) this.attribute_ranges.put(key, new HashSet<String>());
+        if (type == Type.RANGE || type == Type.BOOLEAN) {
+            if (!this.attribute_ranges.containsKey(key)) {
+                this.attribute_ranges.put(key, new HashSet<String>());
+                if (type == Type.BOOLEAN) {
+                    this.attribute_ranges.get(key).add(Boolean.toString(true));
+                    this.attribute_ranges.get(key).add(Boolean.toString(false));
+                }
+            }
             this.attribute_ranges.get(key).add(val.toString());
         }
         
@@ -83,6 +114,14 @@ public class FeatureSet {
         this.txn_values.get(txn_id).set(idx, val);
     }
     
+    protected List<Object> getFeatures(String txn_id) {
+        return (this.txn_values.get(txn_id));
+    }
+
+    protected List<Object> getFeatures(TransactionTrace txn_trace) {
+        return (this.getFeatures(txn_trace.getTransactionId()));
+    }
+
     
     public void load(String path) {
         
@@ -95,30 +134,58 @@ public class FeatureSet {
      * @throws IOException
      */
     public void save(String path, String name) throws IOException {
-        FileWriter out = new FileWriter(path);
-        out.write(String.format("@relation %s\n", name));
+        LOG.debug("Writing FeatureSet contents to '" + path + "'");
         
         // Attributes
+        FastVector attrs = new FastVector();
         for (Entry<String, Type> e : this.attributes.entrySet()) {
-            String include = "";
+            Attribute a = null;
+            
             if (e.getValue() == Type.RANGE) {
-                String add = " {";
+                FastVector range_values = new FastVector();
                 for (String v : this.attribute_ranges.get(e.getKey())) {
-                    include += add + v;
-                    add = ", ";
+                    range_values.addElement(v);
                 } // FOR
-                include += "}";
+                a = new Attribute(e.getKey(), range_values);
+            } else {
+                a = new Attribute(e.getKey());    
             }
-            out.write(String.format("@attribute %s%s\n", e.getKey(), include));
+            attrs.addElement(a);
         } // FOR
+
+        Instances data = new Instances(name, attrs, 0);
         
         // Values
-        out.write("@data\n");
         for (Vector<Object> values : this.txn_values.values()) {
-            out.write(StringUtil.join(",", values) + "\n");
+            double vals[] = new double[data.numAttributes()];
+            for (int i = 0; i < vals.length; i++) {
+                Object value = values.get(i);
+                Type type = this.attributes.getValue(i);
+                
+                if (value == null) {
+                    vals[i] = Instance.missingValue();
+                } else {
+                    switch (type) {
+                        case NUMERIC:
+                            vals[i] = ((Number)value).doubleValue();
+                            break;
+                        case STRING:
+                            vals[i] = data.attribute(i).addStringValue(value.toString());
+                            break;
+                        case BOOLEAN:
+                            vals[i] = data.attribute(i).indexOfValue(Boolean.toString((Boolean)value));
+                            break;
+                        case RANGE:
+                            vals[i] = data.attribute(i).indexOfValue(value.toString());
+                            break;
+                        default:
+                            assert(false) : "Unexpected attribute type " + type;
+                    } // SWITCH
+                }
+                
+            }
         } // FOR
-        out.close();
-        
+        FileWriter out = new FileWriter(path);
     }
-
+    
 }

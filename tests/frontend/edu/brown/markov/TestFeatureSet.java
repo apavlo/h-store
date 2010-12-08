@@ -96,8 +96,16 @@ public class TestFeatureSet extends BaseTestCase {
      */
     @Test
     public void testAddBooleanFeature() {
-        this.fset.addFeature(this.txn_trace, "KEY1", true);
-        assertEquals(FeatureSet.Type.BOOLEAN, this.fset.getFeatureType("KEY1"));
+        Object values[] = { true, false, new Boolean(true) };
+        for (int i = 0; i < values.length; i++) {
+            String key = "KEY" + i;
+            this.fset.addFeature(this.txn_trace, key, values[i]);    
+        } // FOR
+        
+        for (int i = 0; i < values.length; i++) {
+            String key = "KEY" + i;
+            assertEquals(FeatureSet.Type.BOOLEAN, this.fset.getFeatureType(key));
+        }
     }
     
     /**
@@ -113,11 +121,8 @@ public class TestFeatureSet extends BaseTestCase {
         
         for (int i = 0; i < values.length; i++) {
             String key = "KEY" + i;
-            assertEquals(FeatureSet.Type.NUMERIC, this.fset.getFeatureType(key))
+            assertEquals(FeatureSet.Type.NUMERIC, this.fset.getFeatureType(key));
         }
-        
-        
-        assertEquals(FeatureSet.Type.BOOLEAN, this.fset.getFeatureType("KEY1"));
     }
 
     
