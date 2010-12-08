@@ -3,6 +3,7 @@ package edu.brown.markov.features;
 import org.voltdb.catalog.ProcParameter;
 import org.voltdb.catalog.Procedure;
 
+import edu.brown.markov.FeatureSet;
 import edu.brown.utils.PartitionEstimator;
 import edu.brown.workload.TransactionTrace;
 
