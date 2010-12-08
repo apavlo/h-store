@@ -1,19 +1,16 @@
-package edu.brown.markov.features;
+package edu.brown.markov;
 
 import java.io.FileWriter;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.TreeMap;
 import java.util.Vector;
 import java.util.Map.Entry;
 
 import org.apache.commons.collections15.map.ListOrderedMap;
-import org.apache.commons.collections15.set.ListOrderedSet;
 import org.voltdb.catalog.Procedure;
 
 import edu.brown.utils.ClassUtil;
@@ -22,7 +19,7 @@ import edu.brown.workload.TransactionTrace;
 
 public class FeatureSet {
     
-    enum Type {
+    protected enum Type {
         NUMERIC,
         STRING,
         RANGE,
@@ -30,13 +27,20 @@ public class FeatureSet {
     }
     
     
-    protected final Procedure catalog_proc;
     protected final HashMap<String, Vector<Object>> txn_values = new HashMap<String, Vector<Object>>();
     protected final ListOrderedMap<String, Type> attributes = new ListOrderedMap<String, Type>();
     protected final Map<String, Set<String>> attribute_ranges = new HashMap<String, Set<String>>();
     
-    public FeatureSet(Procedure catalog_proc) {
-        this.catalog_proc = catalog_proc;
+    public FeatureSet() {
+        // Nothing for now...
+    }
+    
+    public List<String> getFeatures() {
+        return (this.attributes.asList());
+    }
+    
+    public Type getFeatureType(String key) {
+        return (this.attributes.get(key));
     }
 
     public void addFeature(TransactionTrace txn, String key, Object val) {
@@ -90,9 +94,9 @@ public class FeatureSet {
      * @param path
      * @throws IOException
      */
-    public void save(String path) throws IOException {
+    public void save(String path, String name) throws IOException {
         FileWriter out = new FileWriter(path);
-        out.write(String.format("@relation %s\n", this.catalog_proc.getName()));
+        out.write(String.format("@relation %s\n", name));
         
         // Attributes
         for (Entry<String, Type> e : this.attributes.entrySet()) {

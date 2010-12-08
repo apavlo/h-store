@@ -62,7 +62,7 @@ public class TestMarkovGraph extends BaseTestCase {
             filter.attach(new BasePartitionTxnFilter(p_estimator, BASE_PARTITION))
             // .attach(new MultiPartitionTxnFilter(p_estimator))
                     .attach(new ProcedureLimitFilter(WORKLOAD_XACT_LIMIT));
-            ((Workload) workload).load(file.getAbsolutePath(), catalog_db, filter);
+            workload.load(file.getAbsolutePath(), catalog_db, filter);
             // assertEquals(WORKLOAD_XACT_LIMIT, workload.getTransactionCount());
 
             // for (TransactionTrace xact : workload.getTransactions()) {
