@@ -15,7 +15,7 @@ import edu.brown.workload.TransactionTrace;
 public class HashEqualsBasePartitionFeature extends AbstractFeature {
 
     public HashEqualsBasePartitionFeature(PartitionEstimator p_estimator, Procedure catalog_proc) {
-        super(p_estimator, catalog_proc, "attributeequals");
+        super(p_estimator, catalog_proc, "equalsbasepartition");
     }
     
     @Override

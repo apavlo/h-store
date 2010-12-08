@@ -172,7 +172,7 @@ public abstract class StringUtil {
      
         StringBuilder sb = new StringBuilder();
         for (Object x : items)
-            sb.append(x.toString()).append(delimiter);
+            sb.append(x != null ? x.toString() : x).append(delimiter);
         sb.delete(sb.length() - delimiter.length(), sb.length());
      
         return sb.toString();

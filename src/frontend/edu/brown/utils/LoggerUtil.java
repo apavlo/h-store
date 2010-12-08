@@ -43,6 +43,7 @@ public abstract class LoggerUtil {
         String paths[] = new String[]{
             System.getProperty("log4j.configuration", log4j_filename),
             "/home/pavlo/Documents/H-Store/SVN-Brown/trunk/" + log4j_filename,
+            "/home/pavlo/Documents/H-Store/SVN-Brown/branches/markov-branch/" + log4j_filename,
             "/host/work/hstore/src/" + log4j_filename, 
             "/research/hstore/sw47/trunk/" + log4j_filename,
         };
