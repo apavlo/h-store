@@ -9,12 +9,13 @@ import java.util.Map.Entry;
 import org.apache.log4j.Logger;
 import org.voltdb.catalog.*;
 
+import weka.core.Instances;
+
 import edu.brown.markov.features.*;
 import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.ClassUtil;
 import edu.brown.utils.FileUtil;
 import edu.brown.utils.PartitionEstimator;
-import edu.brown.utils.StringUtil;
 import edu.brown.workload.TransactionTrace;
 import edu.brown.workload.Workload;
 
@@ -26,10 +27,10 @@ public class TransactionFeatureExtractor {
     private final Map<Procedure, List<AbstractFeature>> proc_features = new HashMap<Procedure, List<AbstractFeature>>();
     
     private static final Class<?> FEATURE_CLASSES[] = new Class<?>[] {
-        TransactionIdFeature.class,
+//        TransactionIdFeature.class,
         BasePartitionFeature.class,
         ArrayLengthFeature.class,
-        HashEqualsBasePartitionFeature.class
+        ParameterHashEqualsBasePartitionFeature.class
     };
     
     /**
@@ -96,11 +97,11 @@ public class TransactionFeatureExtractor {
         TransactionFeatureExtractor extractor = new TransactionFeatureExtractor(args.catalog_db);
         Map<Procedure, FeatureSet> fsets = extractor.calculate(args.workload);
         
-        String path = "/tmp/featureset.tmp";
         for (Entry<Procedure, FeatureSet> e : fsets.entrySet()) {
-            e.getValue().save(path, e.getKey().getName());
-            System.err.println(FileUtil.readFile(path));
-            System.err.println(StringUtil.repeat("-", 100));
+            String proc_name = e.getKey().getName();
+            String path = "/tmp/" + proc_name + ".arff";
+            Instances data = e.getValue().export(proc_name);
+            FileUtil.writeStringToFile(path, data.toString());
         }
         
     }

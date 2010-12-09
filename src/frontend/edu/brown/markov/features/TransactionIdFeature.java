@@ -9,7 +9,7 @@ import edu.brown.workload.TransactionTrace;
 public class TransactionIdFeature extends AbstractFeature {
 
     public TransactionIdFeature(PartitionEstimator p_estimator, Procedure catalog_proc) {
-        super(p_estimator, catalog_proc, "txnid");
+        super(p_estimator, catalog_proc, "TxnId");
     }
 
     

@@ -50,7 +50,6 @@
 <property name='build.protorpc.dir'          location='${build.dir}/protorpc' />
 <property name='vendor.lib.dir'              location='third_party/java/jars' />
 <property name='vendor.src.dir'              location='third_party/java/src'  />
-<property name='vendor.obj.dir'              location='third_party/java/obj'  />
 <property name='m1catalog'                   location='${src.test.dir}/org/voltdb/catalog/catalog.txt' />
 <property name='depcache'                    value='.depcache' />
 
@@ -102,7 +101,6 @@
     <pathelement location='${build.instr.dir}' />
     <pathelement location='${build.prod.dir}' />
     <pathelement location='${build.test.dir}' />
-    <pathelement location='${vendor.obj.dir}' />
     <fileset dir='${vendor.lib.dir}'>
         <include name='*.jar' />
         <exclude name='ant.jar' />
@@ -390,9 +388,6 @@ JAR BUILDING
             <include name="org/voltdb/**" />
             <include name="edu/brown/**" />
             <include name="edu/mit/**" />
-        </fileset>
-        <fileset dir="${vendor.obj.dir}" defaultexcludes="yes" >
-            <include name="**" />
         </fileset>
         <fileset dir="."><include name="buildstring.txt"/></fileset>
         <manifest>
@@ -1815,6 +1810,14 @@ DESIGNER
     <java fork="yes" classname="edu.brown.graphs.GraphvizExport">
         <jvmarg value="-Xmx512m" />
         <arg value="catalog.jar=${jar}" />
+        <classpath refid='project.classpath' />
+        <assertions><enable /></assertions>
+    </java>
+</target>
+
+<target name='weka' description="Launch Weka GUI">
+    <java fork="yes" classname="weka.gui.GUIChooser">
+<!--         <jvmarg value="-Xmx5m" /> -->
         <classpath refid='project.classpath' />
         <assertions><enable /></assertions>
     </java>

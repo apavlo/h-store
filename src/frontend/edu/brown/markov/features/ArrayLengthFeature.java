@@ -19,7 +19,7 @@ public class ArrayLengthFeature extends AbstractFeature {
     private final List<ProcParameter> array_params;
     
     public ArrayLengthFeature(PartitionEstimator p_estimator, Procedure catalog_proc) {
-        super(p_estimator, catalog_proc, "arraylen");
+        super(p_estimator, catalog_proc, "ArrayLen");
         
         // Get the list of ProcParameters that should be arrays
         this.array_params = CatalogUtil.getArrayProcParameters(this.catalog_proc);

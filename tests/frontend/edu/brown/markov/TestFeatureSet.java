@@ -10,6 +10,8 @@ import org.voltdb.VoltProcedure;
 import org.voltdb.benchmark.tpcc.procedures.neworder;
 import org.voltdb.catalog.Procedure;
 
+import weka.core.Instances;
+
 import edu.brown.BaseTestCase;
 import edu.brown.utils.FileUtil;
 import edu.brown.utils.ProjectType;
@@ -67,10 +69,10 @@ public class TestFeatureSet extends BaseTestCase {
     }
     
     /**
-     * testSave
+     * testExport
      */
     @Test
-    public void testSave() throws Exception {
+    public void testExport() throws Exception {
         List<String> orig_keys = new ArrayList<String>();
         orig_keys.add("KEY1");
         orig_keys.add("KEY2");
@@ -79,10 +81,10 @@ public class TestFeatureSet extends BaseTestCase {
             Integer val = rand.nextInt();
             this.fset.addFeature(this.txn_trace, k, val);
         } // FOR
-        
-        String path = "/tmp/fset.txt";
-        this.fset.save(path, TARGET_PROCEDURE.getSimpleName());
-        String contents = FileUtil.readFile(path);
+
+        Instances data = this.fset.export(TARGET_PROCEDURE.getSimpleName());
+        assertNotNull(data);
+        String contents = data.toString();
         assertNotNull(contents);
         assertFalse(contents.isEmpty());
 
