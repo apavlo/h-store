@@ -6,10 +6,14 @@ import edu.brown.markov.FeatureSet;
 import edu.brown.utils.PartitionEstimator;
 import edu.brown.workload.TransactionTrace;
 
+/**
+ * 
+ * @author pavlo
+ */
 public class TransactionIdFeature extends AbstractFeature {
 
     public TransactionIdFeature(PartitionEstimator p_estimator, Procedure catalog_proc) {
-        super(p_estimator, catalog_proc, "TxnId");
+        super(p_estimator, catalog_proc, TransactionIdFeature.class);
     }
 
     

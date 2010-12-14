@@ -250,7 +250,7 @@ public abstract class MarkovUtil {
                 assert(xact != null);
                 Integer base_partition = null;
                 try {
-                    base_partition = p_estimator.getPartition(catalog_proc, xact.getParams(), true);
+                    base_partition = p_estimator.getBasePartition(catalog_proc, xact.getParams(), true);
                 } catch (Exception ex) {
                     LOG.fatal("Failed to calculate base partition for " + xact, ex);
                     System.exit(1);

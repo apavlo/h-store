@@ -12,15 +12,15 @@ import edu.brown.workload.TransactionTrace;
  * @author pavlo
  *
  */
-public class ParameterHashEqualsBasePartitionFeature extends AbstractFeature {
+public class ParamHashEqualsBasePartitionFeature extends AbstractFeature {
 
-    public ParameterHashEqualsBasePartitionFeature(PartitionEstimator p_estimator, Procedure catalog_proc) {
-        super(p_estimator, catalog_proc, "ParamHashEqualsBasePartition");
+    public ParamHashEqualsBasePartitionFeature(PartitionEstimator p_estimator, Procedure catalog_proc) {
+        super(p_estimator, catalog_proc, ParamHashEqualsBasePartitionFeature.class);
     }
     
     @Override
     public void calculate(FeatureSet fset, TransactionTrace txn_trace) throws Exception {
-        Integer base_partition = this.p_estimator.getPartition(this.catalog_proc, txn_trace.getParams());
+        Integer base_partition = this.p_estimator.getBasePartition(this.catalog_proc, txn_trace.getParams());
         for (ProcParameter catalog_param : this.catalog_proc.getParameters()) {
             Object param = txn_trace.getParam(catalog_param.getIndex());
             if (catalog_param.getIsarray()) {

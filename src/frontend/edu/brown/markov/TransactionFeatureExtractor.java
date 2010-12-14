@@ -1,5 +1,6 @@
 package edu.brown.markov;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -19,6 +20,10 @@ import edu.brown.utils.PartitionEstimator;
 import edu.brown.workload.TransactionTrace;
 import edu.brown.workload.Workload;
 
+/**
+ * 
+ * @author pavlo
+ */
 public class TransactionFeatureExtractor {
     private static final Logger LOG = Logger.getLogger(TransactionFeatureExtractor.class);
 
@@ -26,34 +31,61 @@ public class TransactionFeatureExtractor {
     private final PartitionEstimator p_estimator;
     private final Map<Procedure, List<AbstractFeature>> proc_features = new HashMap<Procedure, List<AbstractFeature>>();
     
-    private static final Class<?> FEATURE_CLASSES[] = new Class<?>[] {
+    private static final Class<?> DEFAULT_FEATURE_CLASSES[] = new Class<?>[] {
 //        TransactionIdFeature.class,
         BasePartitionFeature.class,
-        ArrayLengthFeature.class,
-        ParameterHashEqualsBasePartitionFeature.class
+        ParamNumericValuesFeature.class,
+        ParamArrayAllSameHashFeature.class,
+        ParamHashPartitionFeature.class,
+        ParamArrayLengthFeature.class,
+        ParamHashEqualsBasePartitionFeature.class
     };
+
+    /**
+     * Full Constructor
+     * @param catalog_db
+     * @param feature_classes
+     */
+    public TransactionFeatureExtractor(Database catalog_db, PartitionEstimator p_estimator, Class<? extends AbstractFeature>...feature_classes) {
+        this.catalog_db = catalog_db;
+        this.p_estimator = p_estimator;
+        for (Class<? extends AbstractFeature> fclass : feature_classes) {
+            this.addFeatureClass(fclass);
+        } // FOR
+    }
+    
+    public TransactionFeatureExtractor(Database catalog_db, Class<? extends AbstractFeature>...feature_classes) {
+        this(catalog_db, new PartitionEstimator(catalog_db), feature_classes);
+    }
     
     /**
      * Constructor
      * @param catalog_db
      */
+    @SuppressWarnings("unchecked")
     public TransactionFeatureExtractor(Database catalog_db) {
-        this.catalog_db = catalog_db;
-        this.p_estimator = new PartitionEstimator(catalog_db);
-        
+        this(catalog_db, (Class<? extends AbstractFeature>[])DEFAULT_FEATURE_CLASSES);
+    }
+    
+    /**
+     * Add a feature class to this extractor
+     * @param feature_class
+     */
+    public void addFeatureClass(Class<? extends AbstractFeature> feature_class) {
+        assert(feature_class != null);
+        if (LOG.isDebugEnabled()) LOG.debug("Adding " + feature_class.getSimpleName());
+
         for (Procedure catalog_proc : catalog_db.getProcedures()) {
             if (catalog_proc.getSystemproc()) continue;
-
-            // Instantiate new AbstractFeature objects for each procedure
-            List<AbstractFeature> features = new ArrayList<AbstractFeature>();
-            for (Class<?> featureClass: FEATURE_CLASSES) {
-                AbstractFeature f = (AbstractFeature)ClassUtil.newInstance(featureClass,
-                                                                           new Object[]{ this.p_estimator, catalog_proc },
-                                                                           new Class[] { PartitionEstimator.class, Procedure.class });
-                features.add(f);
-            } // FOR
-            this.proc_features.put(catalog_proc, features);
-        } // FOR
+            if (!this.proc_features.containsKey(catalog_proc)) {
+                this.proc_features.put(catalog_proc, new ArrayList<AbstractFeature>());
+            }
+            AbstractFeature f = (AbstractFeature)ClassUtil.newInstance(
+                                    feature_class,
+                                    new Object[]{ this.p_estimator, catalog_proc },
+                                    new Class[] { PartitionEstimator.class, Procedure.class });
+            this.proc_features.get(catalog_proc).add(f);
+        } // fOR
     }
     
     /**
@@ -65,7 +97,8 @@ public class TransactionFeatureExtractor {
         Map<Procedure, FeatureSet> fsets = new HashMap<Procedure, FeatureSet>();
         
         for (TransactionTrace txn_trace : workload.getTransactions()) {
-            LOG.debug("Processing " + txn_trace);
+            final boolean trace = LOG.isTraceEnabled();
+            if (trace) LOG.trace("Processing " + txn_trace);
             
             Procedure catalog_proc = txn_trace.getCatalogItem(this.catalog_db);
             assert(catalog_proc != null) : "Invalid procedure: " + txn_trace.getCatalogItemName();
@@ -80,9 +113,7 @@ public class TransactionFeatureExtractor {
                 f.calculate(fset, txn_trace);
             }
             
-            if (LOG.isDebugEnabled()) {
-                LOG.debug(txn_trace + ": " + fset.getFeatures(txn_trace));
-            }
+            if (trace) LOG.trace(txn_trace + ": " + fset.getFeatures(txn_trace));
         } // FOR
         return (fsets);
     }
@@ -99,9 +130,10 @@ public class TransactionFeatureExtractor {
         
         for (Entry<Procedure, FeatureSet> e : fsets.entrySet()) {
             String proc_name = e.getKey().getName();
-            String path = "/tmp/" + proc_name + ".arff";
-            Instances data = e.getValue().export(proc_name);
+            File path = new File(proc_name + ".arff");
+            Instances data = e.getValue().export(proc_name, false);
             FileUtil.writeStringToFile(path, data.toString());
+            LOG.info(String.format("Wrote FeatureSet with %d instances to '%s'", data.numInstances(), path.getAbsolutePath()));
         }
         
     }

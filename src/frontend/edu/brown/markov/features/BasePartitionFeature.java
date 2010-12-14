@@ -8,18 +8,18 @@ import edu.brown.utils.PartitionEstimator;
 import edu.brown.workload.TransactionTrace;
 
 /**
- * Generate features for the length of the array parameters
+ * Extract the base partition for the txn
  * @author pavlo
  */
 public class BasePartitionFeature extends AbstractFeature {
     
     public BasePartitionFeature(PartitionEstimator p_estimator, Procedure catalog_proc) {
-        super(p_estimator, catalog_proc, "BasePartition");
+        super(p_estimator, catalog_proc, BasePartitionFeature.class);
     }
 
     @Override
     public void calculate(FeatureSet fset, TransactionTrace txn_trace) throws Exception {
-        Integer base_partition = this.p_estimator.getPartition(this.catalog_proc, txn_trace.getParams());
+        Integer base_partition = this.p_estimator.getBasePartition(this.catalog_proc, txn_trace.getParams());
         fset.addFeature(txn_trace, this.getFeatureKey(), base_partition, Type.RANGE);
     }
 

@@ -14,6 +14,7 @@ import org.voltdb.utils.VoltTypeUtil;
 
 import edu.brown.utils.JSONSerializable;
 import edu.brown.utils.JSONUtil;
+import edu.brown.utils.MathUtil;
 
 /**
  * This class provides a way to visualize the variation in use of a variable.
@@ -537,6 +538,42 @@ public class Histogram implements JSONSerializable {
         }
         return (sum / (double)this.histogram.values().size());
     }
+
+    /**
+     * Return a map where the values of the Histogram are mapped to 
+     * doubles in the range [-1.0, 1.0] 
+     * @return
+     */
+    @SuppressWarnings("unchecked")
+    public <T> SortedMap<T, Double> normalize() {
+        final boolean trace = LOG.isTraceEnabled();
+        
+        double delta = 2.0d / (double)(this.getValueCount() - 1);
+        if (trace) {
+            LOG.trace("# of Values = " + this.getValueCount());
+            LOG.trace("Delta Step  = " + delta);
+        }
+
+        // We only want to round the values that we put into the map. If you round
+        // the current counter than we will always be off at the end
+        SortedMap<T, Double> normalized = new TreeMap<T, Double>();
+        int precision = 10;
+        double current = -1.0d;
+        for (T k : (Set<T>)this.histogram.keySet()) {
+            normalized.put(k, MathUtil.roundToDecimals(current, precision));
+            if (trace) LOG.trace(k + " => " + current + " / " + normalized.get(k));
+            current += delta;
+        } // FOR
+        assert(this.histogram.size() == normalized.size());
+        
+        return (normalized);
+    }
+    
+    
+    // ----------------------------------------------------------------------------
+    // DEBUG METHODS
+    // ----------------------------------------------------------------------------
+    
     /**
      * @return Uses the following template for the visualization of a histogram:
      * 4 *

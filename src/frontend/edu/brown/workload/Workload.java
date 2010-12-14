@@ -169,6 +169,7 @@ public class Workload implements WorkloadTrace, Iterable<AbstractTraceElement<? 
             return (this.getFilters(search, new ArrayList<T>()));
         }
         
+        @SuppressWarnings("unchecked")
         private final <T extends Filter> List<T> getFilters(Class<? extends T> search, List<T> found) {
             if (ClassUtil.getSuperClasses(this.getClass()).contains(search)) {
                 found.add((T)this);
@@ -412,16 +413,17 @@ public class Workload implements WorkloadTrace, Iterable<AbstractTraceElement<? 
         final boolean debug = LOG.isDebugEnabled();
         
         if (debug) LOG.debug("Reading workload trace from file '" + input_path + "'");
-        File file = new File(input_path);
+        this.input_path = new File(input_path);
+         
 
         // Check whether it's gzipped. Yeah that's right, we support that!
         BufferedReader in = null;
-        if (file.getPath().endsWith(".gz")) {
-            FileInputStream fin = new FileInputStream(file);
+        if (this.input_path.getPath().endsWith(".gz")) {
+            FileInputStream fin = new FileInputStream(this.input_path);
             GZIPInputStream gzis = new GZIPInputStream(fin);
             in = new BufferedReader(new InputStreamReader(gzis));
         } else {
-            in = new BufferedReader(new FileReader(file));   
+            in = new BufferedReader(new FileReader(this.input_path));   
         }
         
         long xact_ctr = 0;
@@ -443,7 +445,7 @@ public class Workload implements WorkloadTrace, Iterable<AbstractTraceElement<? 
             try {
                 jsonObject = new JSONObject(line);
             } catch (Exception ex) {
-                throw new Exception("Error on line " + (line_ctr+1) + " of workload trace file '" + file.getName() + "'", ex);
+                throw new Exception("Error on line " + (line_ctr+1) + " of workload trace file '" + this.input_path.getName() + "'", ex);
             }
             
             //
@@ -493,8 +495,7 @@ public class Workload implements WorkloadTrace, Iterable<AbstractTraceElement<? 
         } // WHILE
         in.close();
         this.validate();
-        LOG.info("Loaded in " + this.xact_trace.size() + " transactions with a total of " + query_ctr + " queries from workload trace '" + file.getName() + "'");
-        this.input_path = new File(input_path);
+        LOG.info("Loaded in " + this.xact_trace.size() + " transactions with a total of " + query_ctr + " queries from workload trace '" + this.input_path.getName() + "'");
         return;
     }
     
@@ -575,6 +576,20 @@ public class Workload implements WorkloadTrace, Iterable<AbstractTraceElement<? 
      */
     public int getTransactionCount() {
         return (this.xact_trace.size());
+    }
+    
+    /**
+     * Get the set of procedures that were invoked in this workload
+     * @param catalog_db
+     * @return
+     */
+    public Set<Procedure> getProcedures(final Database catalog_db) {
+        Set<String> proc_keys = this.proc_histogram.values();
+        Set<Procedure> procedures = new HashSet<Procedure>();
+        for (String proc_key : proc_keys) {
+            procedures.add(CatalogKey.getFromKey(catalog_db, proc_key, Procedure.class));
+        } // FOR
+        return (procedures);
     }
     
     /**
@@ -693,7 +708,7 @@ public class Workload implements WorkloadTrace, Iterable<AbstractTraceElement<? 
      * @param catalog_proc
      * @param xact
      */
-    protected void addTransaction(Procedure catalog_proc, TransactionTrace xact) {
+    public void addTransaction(Procedure catalog_proc, TransactionTrace xact) {
         this.addTransaction(catalog_proc, xact, false);
     }
     
@@ -703,7 +718,7 @@ public class Workload implements WorkloadTrace, Iterable<AbstractTraceElement<? 
         
         // Check whether we need to add the element id of the txn and all of its queries.
         // This happens when if we are trying to insert the txn from another one
-        // It's kind of a hack, but what times are tough..
+        // It's kind of a hack, but what are you going to do when times are tough..
         if (force_index_update || this.element_ids.contains(xact.getId()) == false) {
             this.element_ids.add(xact.getId());
             this.element_id_xref.put(xact.getId(), xact);

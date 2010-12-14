@@ -329,7 +329,7 @@ public class MarkovPathEstimator extends VertexTreeWalker<Vertex> {
             
             int partition = -1;
             try {
-                partition = p_estimator.getPartition(catalog_proc, xact.getParams(), true);
+                partition = p_estimator.getBasePartition(catalog_proc, xact.getParams(), true);
             } catch (Exception ex) {
                 ex.printStackTrace();
                 assert(false);

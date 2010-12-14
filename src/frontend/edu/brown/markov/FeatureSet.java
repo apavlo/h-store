@@ -1,13 +1,6 @@
 package edu.brown.markov;
 
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.TreeSet;
-import java.util.Vector;
-import java.util.Map.Entry;
+import java.util.*;
 
 import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.log4j.Logger;
@@ -16,6 +9,7 @@ import weka.core.Attribute;
 import weka.core.FastVector;
 import weka.core.Instance;
 import weka.core.Instances;
+import edu.brown.statistics.Histogram;
 import edu.brown.utils.ClassUtil;
 import edu.brown.workload.TransactionTrace;
 
@@ -41,9 +35,9 @@ public class FeatureSet {
     protected int last_num_attributes = 0;
     
     /**
-     * For RANGE types, the list of values that it could have 
+     * Attribute Value Histograms
      */
-    protected final Map<String, Set<String>> attribute_ranges = new HashMap<String, Set<String>>();
+    protected final Map<String, Histogram> attribute_histograms = new HashMap<String, Histogram>();
     
     /**
      * Constructor
@@ -102,20 +96,19 @@ public class FeatureSet {
             }
             if (debug) LOG.debug("Adding new attribute " + key + " [" + type + "]");
             this.attributes.put(key, type);
+            this.attribute_histograms.put(key, new Histogram());
         }
         
-        // Store ranges if needed
-        if (type == Type.RANGE || type == Type.BOOLEAN) {
-            if (!this.attribute_ranges.containsKey(key)) {
-                this.attribute_ranges.put(key, new TreeSet<String>());
-                if (type == Type.BOOLEAN) {
-                    this.attribute_ranges.get(key).add(Boolean.toString(true));
-                    this.attribute_ranges.get(key).add(Boolean.toString(false));
-                }
-            }
-            this.attribute_ranges.get(key).add(val.toString());
+        // Always store the values in a histogram so we can normalize them later on
+        try {
+            this.attribute_histograms.get(key).put(val);
+        } catch (Exception ex) {
+            LOG.error("\n" + this.attribute_histograms.get(key));
+            LOG.error("Invalid value '" + val + "' for attribute '" + key + "'", ex);
+            System.exit(1);
         }
-        
+
+        // Now add the values into this txn's feature vector
         int idx = this.attributes.indexOf(key);
         int num_attributes = this.attributes.size();
         Vector<Object> values = this.txn_values.get(txn_id); 
@@ -131,7 +124,7 @@ public class FeatureSet {
                 v.setSize(num_attributes);
             } // FOR
             this.last_num_attributes = num_attributes;
-            if (debug) LOG.debug("Increased FeatureSet size to " + this.last_num_attributes + " attributes");
+            if (trace) LOG.trace("Increased FeatureSet size to " + this.last_num_attributes + " attributes");
         }
         this.txn_values.get(txn_id).set(idx, val);
         if (trace) LOG.trace(txn_id + ": " + key + " => " + val);
@@ -143,41 +136,91 @@ public class FeatureSet {
      * @return
      */
     public Instances export(String name) {
-        // Attributes
-        FastVector attrs = new FastVector();
-        for (Entry<String, Type> e : this.attributes.entrySet()) {
-            Attribute a = null;
-            
-            switch (e.getValue()) {
-                case RANGE:
-                case BOOLEAN: {
-                    FastVector range_values = new FastVector();
-                    for (String v : this.attribute_ranges.get(e.getKey())) {
-                        range_values.addElement(v);
-                    } // FOR
-                    a = new Attribute(e.getKey(), range_values);
+        return (this.export(name, false, this.attributes.keySet()));
+    }
+
+    public Instances export(String name, boolean normalize) {
+        return (this.export(name, normalize, this.attributes.keySet()));
+    }
+    
+    public Instances export(String name, boolean normalize, Collection<String> prefix_include) {
+        final boolean debug = LOG.isDebugEnabled();
+        
+        // Figure out what attributes we want to export
+        SortedSet<String> export_attrs = new TreeSet<String>();
+        for (String key : this.attributes.keySet()) {
+            boolean include = false;
+            for (String prefix : prefix_include) {
+                if (key.startsWith(prefix)) {
+                    include = true;
                     break;
                 }
-                case STRING:
-                    a = new Attribute(e.getKey(), (FastVector)null);
-                    break;
-                default:
-                    a = new Attribute(e.getKey());       
-            } // SWITCH
+            } // FOR
+            if (include) export_attrs.add(key);
+        } // FOR
+        if (debug) LOG.debug("# of Attributes to Export: " + export_attrs.size());
+        
+        List<SortedMap<Object, Double>> normalized_values = null;
+        if (normalize) {
+            if (debug) LOG.debug("Normalizing values!");
+            normalized_values = new ArrayList<SortedMap<Object,Double>>();
+            for (String key : export_attrs) {
+                normalized_values.add(this.attribute_histograms.get(key).normalize()); 
+            } // FOR
+        }
+        
+        // Attributes
+        FastVector attrs = new FastVector();
+        for (String key : export_attrs) {
+            Type type = this.attributes.get(key);
+            Attribute a = null;
+
+            // Normalized values will always just be numeric
+            if (normalize) {
+                a = new Attribute(key);
+                
+            // Otherwise we can play games with ranges and strings
+            } else {
+                switch (type) {
+                    case RANGE:
+                    case BOOLEAN: {
+                        FastVector range_values = new FastVector();
+                        for (Object v : this.attribute_histograms.get(key).values()) {
+                            range_values.addElement(v.toString());
+                        } // FOR
+                        a = new Attribute(key, range_values);
+                        break;
+                    }
+                    case STRING:
+                        a = new Attribute(key, (FastVector)null);
+                        break;
+                    default:
+                        a = new Attribute(key);
+                } // SWITCH
+            }
             attrs.addElement(a);
         } // FOR
+        assert(attrs.size() == export_attrs.size());
 
         Instances data = new Instances(name, attrs, 0);
         
         // Instance Values
         for (Vector<Object> values : this.txn_values.values()) {
             double instance[] = new double[data.numAttributes()];
-            for (int i = 0; i < instance.length; i++) {
-                Object value = values.get(i);
-                Type type = this.attributes.getValue(i);
-                
+            int i = 0;
+            for (String key : export_attrs) {
+                int attr_idx = this.attributes.indexOf(key);
+                Object value = values.get(attr_idx);
+                Type type = this.attributes.getValue(attr_idx);
+
+                // Null => Missing Value Placeholder
                 if (value == null) {
                     instance[i] = Instance.missingValue();
+                // Normalized
+                } else if (normalize) {
+                    assert(normalized_values != null);
+                    instance[i] = normalized_values.get(i).get(value);
+                // Actual Values
                 } else {
                     switch (type) {
                         case NUMERIC:
@@ -196,6 +239,7 @@ public class FeatureSet {
                             assert(false) : "Unexpected attribute type " + type;
                     } // SWITCH
                 }
+                i += 1;
             } // FOR
             data.add(new Instance(1.0, instance));
         } // FOR
