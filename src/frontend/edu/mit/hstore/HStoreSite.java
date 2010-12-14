@@ -500,7 +500,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         // Otherwise we use the PartitionEstimator to know where it is going
         } else {
             try {
-                dest_partition = this.p_estimator.getPartition(catalog_proc, args);
+                dest_partition = this.p_estimator.getBasePartition(catalog_proc, args);
             } catch (Exception ex) {
                 throw new RuntimeException(ex);
             }

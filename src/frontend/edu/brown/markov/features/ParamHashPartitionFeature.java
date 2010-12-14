@@ -12,10 +12,10 @@ import edu.brown.workload.TransactionTrace;
  * @author pavlo
  *
  */
-public class ParameterHashPartitionFeature extends AbstractFeature {
+public class ParamHashPartitionFeature extends AbstractFeature {
 
-    public ParameterHashPartitionFeature(PartitionEstimator p_estimator, Procedure catalog_proc) {
-        super(p_estimator, catalog_proc, "ParamPartition");
+    public ParamHashPartitionFeature(PartitionEstimator p_estimator, Procedure catalog_proc) {
+        super(p_estimator, catalog_proc, ParamHashPartitionFeature.class);
     }
     
     @Override

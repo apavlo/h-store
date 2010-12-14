@@ -77,7 +77,7 @@ public class TestPartitionEstimator extends BaseTestCase {
             new Long(NUM_PARTITIONS-1), // W_ID
             new Long(BASE_PARTITION),   // D_ID
         };
-        Integer proc_partition = p_estimator.getPartition(catalog_proc, proc_params, true);
+        Integer proc_partition = p_estimator.getBasePartition(catalog_proc, proc_params, true);
         assertNotNull(proc_partition);
         assert(proc_partition >= 0);
         assert(proc_partition < NUM_PARTITIONS);
@@ -119,7 +119,7 @@ public class TestPartitionEstimator extends BaseTestCase {
             new Long(NUM_PARTITIONS-1), // W_ID
             new Long(BASE_PARTITION),   // D_ID
         };
-        Integer partition0 = p_estimator.getPartition(catalog_proc, params, true);
+        Integer partition0 = p_estimator.getBasePartition(catalog_proc, params, true);
         assertNotNull(partition0);
         assert(partition0 >= 0);
 //        System.err.println("partition0=" + partition0);
@@ -130,7 +130,7 @@ public class TestPartitionEstimator extends BaseTestCase {
             new Long(NUM_PARTITIONS-1), // W_ID
             null,                       // D_ID
         };
-        Integer partition1 = p_estimator.getPartition(catalog_proc, params, true);
+        Integer partition1 = p_estimator.getBasePartition(catalog_proc, params, true);
         assertNotNull(partition1);
         assert(partition1 >= 0);
         assert(partition1 < NUM_PARTITIONS);
@@ -142,7 +142,7 @@ public class TestPartitionEstimator extends BaseTestCase {
             null,                       // W_ID
             new Long(BASE_PARTITION),   // D_ID
         };
-        Integer partition2 = p_estimator.getPartition(catalog_proc, params, true);
+        Integer partition2 = p_estimator.getBasePartition(catalog_proc, params, true);
         assertNotNull(partition2);
         assert(partition2 >= 0);
         assert(partition2 < NUM_PARTITIONS);

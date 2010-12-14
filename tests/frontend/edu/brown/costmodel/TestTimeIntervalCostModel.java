@@ -136,7 +136,7 @@ public class TestTimeIntervalCostModel extends BaseTestCase {
                 if (element instanceof TransactionTrace) {
                     TransactionTrace xact = (TransactionTrace)element;
                     try {
-                        Integer partition = p_estimator.getPartition(xact.getCatalogItem(catalog_db), xact.getParams());
+                        Integer partition = p_estimator.getBasePartition(xact.getCatalogItem(catalog_db), xact.getParams());
                         if (partition == null) System.err.println(xact.debug(catalog_db));
                         assertNotNull(partition);
                         
@@ -200,7 +200,7 @@ public class TestTimeIntervalCostModel extends BaseTestCase {
                 if (element instanceof TransactionTrace) {
                     TransactionTrace xact = (TransactionTrace)element;
                     try {
-                        Integer partition = p_estimator.getPartition(xact.getCatalogItem(catalog_db), xact.getParams());
+                        Integer partition = p_estimator.getBasePartition(xact.getCatalogItem(catalog_db), xact.getParams());
                         if (partition == null) System.err.println(xact.debug(catalog_db));
                         assertNotNull(partition);
                         

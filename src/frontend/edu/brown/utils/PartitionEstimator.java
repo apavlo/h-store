@@ -560,9 +560,9 @@ public class PartitionEstimator {
      * @return
      * @throws Exception
      */
-    public int getPartition(StoredProcedureInvocation invocation) throws Exception {
+    public int getBasePartition(StoredProcedureInvocation invocation) throws Exception {
         Procedure catalog_proc = this.catalog_db.getProcedures().get(invocation.getProcName());
-        return (this.getPartition(catalog_proc, invocation.getParams().toArray()));
+        return (this.getBasePartition(catalog_proc, invocation.getParams().toArray()));
     }
     
     /**
@@ -572,11 +572,21 @@ public class PartitionEstimator {
      * @return
      * @throws Exception
      */
-    public Integer getPartition(final Procedure catalog_proc, Object params[]) throws Exception {
-        return (this.getPartition(catalog_proc, params, false));
+    public Integer getBasePartition(final Procedure catalog_proc, Object params[]) throws Exception {
+        return (this.getBasePartition(catalog_proc, params, false));
     }
     
-    public Integer getPartition(final Procedure catalog_proc, Object params[], boolean force) throws Exception {
+    /**
+     * 
+     * @param txn_trace
+     * @return
+     * @throws Exception
+     */
+    public Integer getBasePartition(final TransactionTrace txn_trace) throws Exception {
+        return (this.getBasePartition(txn_trace.getCatalogItem(this.catalog_db), txn_trace.getParams(), true));
+    }
+    
+    public Integer getBasePartition(final Procedure catalog_proc, Object params[], boolean force) throws Exception {
         assert(catalog_proc != null);
         final int partition_param_idx = catalog_proc.getPartitionparameter();
         final boolean debug = LOG.isDebugEnabled();
@@ -625,7 +635,7 @@ public class PartitionEstimator {
      */
     public Set<Integer> getAllPartitions(final TransactionTrace xact) throws Exception {
         Set<Integer> partitions = new HashSet<Integer>();
-        int base_partition = this.getPartition(xact.getCatalogItem(this.catalog_db), xact.getParams(), true);
+        int base_partition = this.getBasePartition(xact.getCatalogItem(this.catalog_db), xact.getParams(), true);
         partitions.add(base_partition);
         
         for (QueryTrace query : xact.getQueries()) {

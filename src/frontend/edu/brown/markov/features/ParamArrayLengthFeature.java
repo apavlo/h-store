@@ -14,12 +14,12 @@ import edu.brown.workload.TransactionTrace;
  * Generate features for the length of the array parameters
  * @author pavlo
  */
-public class ArrayLengthFeature extends AbstractFeature {
+public class ParamArrayLengthFeature extends AbstractFeature {
     
     private final List<ProcParameter> array_params;
     
-    public ArrayLengthFeature(PartitionEstimator p_estimator, Procedure catalog_proc) {
-        super(p_estimator, catalog_proc, "ArrayLen");
+    public ParamArrayLengthFeature(PartitionEstimator p_estimator, Procedure catalog_proc) {
+        super(p_estimator, catalog_proc, ParamArrayLengthFeature.class);
         
         // Get the list of ProcParameters that should be arrays
         this.array_params = CatalogUtil.getArrayProcParameters(this.catalog_proc);

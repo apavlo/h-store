@@ -34,7 +34,7 @@ public class BasePartitionTxnFilter extends Workload.Filter {
             Procedure catalog_proc = xact.getCatalogItem(this.catalog_db);
             int partition = -1;
             try {
-                partition = this.p_estimator.getPartition(catalog_proc, xact.getParams(), true);
+                partition = this.p_estimator.getBasePartition(catalog_proc, xact.getParams(), true);
             } catch (Exception ex) {
                 ex.printStackTrace();
                 assert(false);

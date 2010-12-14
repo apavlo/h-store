@@ -11,15 +11,16 @@ import edu.brown.utils.PartitionEstimator;
 import edu.brown.workload.TransactionTrace;
 
 /**
- * Generate features for the length of the array parameters
+ * For each ProcParameter that is an array, check whether all of the array
+ * elements have the exact same value
  * @author pavlo
  */
-public class ParameterArraySameHashFeature extends AbstractFeature {
+public class ParamArrayAllSameValueFeature extends AbstractFeature {
     
     private final List<ProcParameter> array_params;
     
-    public ParameterArraySameHashFeature(PartitionEstimator p_estimator, Procedure catalog_proc) {
-        super(p_estimator, catalog_proc, "ParamArrayHash");
+    public ParamArrayAllSameValueFeature(PartitionEstimator p_estimator, Procedure catalog_proc) {
+        super(p_estimator, catalog_proc, ParamArrayAllSameValueFeature.class);
         
         // Get the list of ProcParameters that should be arrays
         this.array_params = CatalogUtil.getArrayProcParameters(this.catalog_proc);
@@ -31,15 +32,15 @@ public class ParameterArraySameHashFeature extends AbstractFeature {
             Object params[] = (Object[])txn_trace.getParam(catalog_param.getIndex());
             boolean all_same = true;
             boolean first = true;
-            Integer hash = null;
+            Object value = null;
             
             if (params.length > 0) {
                 for (Object v : params) {
-                    Integer param_hash = this.p_estimator.getHasher().hash(v);
                     if (first) {
-                        hash = param_hash;
+                        value = v;
                         first = false;
-                    } else if (param_hash.equals(hash) == false) {
+                    } else if ((value == null && v != null) ||
+                               (value != null && value.equals(v) == false)) {
                         all_same = false;
                         break;
                     }
