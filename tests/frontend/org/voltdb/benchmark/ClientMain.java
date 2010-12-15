@@ -621,7 +621,7 @@ public abstract class ClientMain {
         }
         if (!atLeastOneConnection) {
             setState(ControlState.ERROR, "No HOSTS specified on command line.");
-            LOG.fatal("NO HOSTS WERE PROVIDED!");
+            LOG.warn("NO HOSTS WERE PROVIDED!");
         }
         m_checkTransaction = checkTransaction;
         m_checkTables = checkTables;
