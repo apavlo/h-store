@@ -58,7 +58,7 @@ public abstract class AbstractProjectBuilder extends VoltProjectBuilder {
      * @param partitioning
      */
     public AbstractProjectBuilder(String project_name, Class<? extends AbstractProjectBuilder> base_class, Class<?> procedures[], String partitioning[][]) {
-        this(project_name, base_class, procedures, partitioning, new Class<?>[0], false);
+        this(project_name, base_class, procedures, partitioning, new Class<?>[0], true);
     }
     
     /**

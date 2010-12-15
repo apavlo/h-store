@@ -119,6 +119,7 @@ public abstract class BaseTestCase extends TestCase {
                     case AIRLINE:
                     case AUCTIONMARK:
                     case MARKOV:
+                    case LOCALITY:
                         catalog = projectBuilder.getFullCatalog(fkeys);
                         break;
                     default:

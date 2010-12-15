@@ -13,6 +13,7 @@ public enum ProjectType {
     MARKOV      ("Markov",      "edu.brown.benchmark.markov"),
     BINGO       ("Bingo",       null),
     AUCTIONMARK ("AuctionMark", "edu.brown.benchmark.auctionmark"),
+    LOCALITY    ("Locality",    "edu.brown.benchmark.locality"),
     ;
     
     private final String package_name;
