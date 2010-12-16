@@ -2,6 +2,7 @@ package edu.brown.markov;
 
 import java.util.*;
 
+import org.apache.commons.collections15.set.ListOrderedSet;
 import org.apache.log4j.Logger;
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Procedure;
@@ -26,6 +27,34 @@ public class TransactionClusterer {
     private final PartitionEstimator p_estimator;
     private final Random rand = new Random();
        
+    private class AttributeSet extends ListOrderedSet<Attribute> implements Comparable<AttributeSet> {
+        private static final long serialVersionUID = 1L;
+        private Double cost;
+        
+        public Double getCost() {
+            return (this.cost);
+        }
+        public void setCost(Double cost) {
+            this.cost = cost;
+        }
+        @Override
+        public int compareTo(AttributeSet o) {
+            if (this.cost != o.cost) {
+                return (this.cost != null ? this.cost.compareTo(o.cost) : o.cost.compareTo(this.cost));
+            } else if (this.size() != o.size()) {
+                return (this.size() - o.size());
+            } else if (this.containsAll(o)) {
+                return (0);
+            }
+            for (int i = 0, cnt = this.size(); i < cnt; i++) {
+                int idx0 = this.get(i).index();
+                int idx1 = o.get(i).index();
+                if (idx0 != idx1) return (idx0 - idx1);
+            } // FOR
+            return (0);
+        }
+    }
+    
     public TransactionClusterer(Database catalog_db) {
         this.catalog_db = catalog_db;
         this.p_estimator = new PartitionEstimator(catalog_db);
@@ -53,13 +82,26 @@ public class TransactionClusterer {
     }
     
     protected void cluster(Instances data) throws Exception {
-        Set<Attribute> best_attribute_set = new TreeSet<Attribute>();
+        SortedSet<AttributeSet> attr_sets = new TreeSet<AttributeSet>();
+        int round = 0;
+
+        // Create the initial set of single-element AttributeSets and calculate
+        // how well the Markov models perform when using them
+//        for (Attribute attr : data.enumerateAttributes())
         
         
         EM clusterer = new EM();
         clusterer.setSeed(this.rand.nextInt());
         clusterer.buildClusterer(data);
     }
+    
+    private void cluster(Instances data, SortedSet<AttributeSet> attr_sets, int round) throws Exception {
+        
+        EM clusterer = new EM();
+        clusterer.setSeed(this.rand.nextInt());
+        clusterer.buildClusterer(data);
+    }
+
     
     public void calculate(Procedure catalog_proc, FeatureSet fset) throws Exception {
         Instances data = fset.export(catalog_proc.getName());
