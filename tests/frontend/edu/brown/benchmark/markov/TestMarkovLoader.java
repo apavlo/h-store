@@ -133,7 +133,7 @@ public class TestMarkovLoader extends BaseTestCase {
      */
     public void testGenerateTABLEA() throws Exception {
         this.setCurrentTable(MarkovConstants.TABLENAME_TABLEA);
-//        this.loader.generateTableData(MarkovConstants.TABLENAME_TABLEA);
+        this.loader.generateTableData(MarkovConstants.TABLENAME_TABLEA);
     }
 
     /**
@@ -141,7 +141,7 @@ public class TestMarkovLoader extends BaseTestCase {
      */
     public void testGenerateTABLEB() throws Exception {
         this.setCurrentTable(MarkovConstants.TABLENAME_TABLEB);
-//        this.loader.generateTableData(MarkovConstants.TABLENAME_TABLEB);
+        this.loader.generateTableData(MarkovConstants.TABLENAME_TABLEB);
     }
 
     /**
@@ -149,7 +149,7 @@ public class TestMarkovLoader extends BaseTestCase {
      */
     public void testGenerateTABLEC() throws Exception {
         this.setCurrentTable(MarkovConstants.TABLENAME_TABLEC);
-//        this.loader.generateTableData(MarkovConstants.TABLENAME_TABLEC);
+        this.loader.generateTableData(MarkovConstants.TABLENAME_TABLEC);
     }
 
     /**
@@ -157,6 +157,6 @@ public class TestMarkovLoader extends BaseTestCase {
      */
     public void testGenerateTABLED() throws Exception {
         this.setCurrentTable(MarkovConstants.TABLENAME_TABLED);
-//        this.loader.generateTableData(MarkovConstants.TABLENAME_TABLED);
+        this.loader.generateTableData(MarkovConstants.TABLENAME_TABLED);
     }
 }

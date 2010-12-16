@@ -9,6 +9,7 @@ import java.net.URL;
 import java.util.HashMap;
 import java.util.Map.Entry;
 
+import org.apache.log4j.Logger;
 import org.voltdb.VoltProcedure;
 import org.voltdb.catalog.Catalog;
 import org.voltdb.compiler.VoltProjectBuilder;
@@ -24,6 +25,7 @@ import edu.brown.utils.ProjectType;
  *
  */
 public abstract class AbstractProjectBuilder extends VoltProjectBuilder {
+    private static final Logger LOG = Logger.getLogger(AbstractProjectBuilder.class);
 
     protected final Class<? extends AbstractProjectBuilder> base_class;
     protected final String project_name;
@@ -184,7 +186,8 @@ public abstract class AbstractProjectBuilder extends VoltProjectBuilder {
     }
     
     public static AbstractProjectBuilder getProjectBuilder(ProjectType type) {
-        String pb_className = String.format("%s.%sProjectBuilder", type.getPackageName(), type.getBenchmarkPrefix()); 
+        String pb_className = String.format("%s.%sProjectBuilder", type.getPackageName(), type.getBenchmarkPrefix());
+        LOG.debug("Dynamically creating project builder for " + type + ": " + pb_className);
         final AbstractProjectBuilder pb = (AbstractProjectBuilder)ClassUtil.newInstance(pb_className,
                                                    new Object[]{  }, new Class<?>[]{  });
         assert(pb != null) : "Invalid ProjectType " + type;
