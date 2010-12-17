@@ -4,13 +4,17 @@ import org.voltdb.SQLStmt;
 import org.voltdb.VoltProcedure;
 import org.voltdb.VoltTable;
 
+/**
+ * 
+ * @author sw47
+ */
 public class SetRemote extends VoltProcedure {
 
-    public final SQLStmt writeA = new SQLStmt(
-	"UPDATE TABLEA SET A_VALUE = ? WHERE A_ID = ?");
+    public final SQLStmt WriteA = new SQLStmt(
+        "UPDATE TABLEA SET A_VALUE = ? WHERE A_ID = ?");
 
-    public final SQLStmt writeB = new SQLStmt(
-    "UPDATE TABLEB SET B_ID = ?, B_VALUE = ? WHERE B_A_ID in ?");
+    public final SQLStmt WriteB = new SQLStmt(
+        "UPDATE TABLEB SET B_VALUE = ? WHERE B_ID = ? AND B_A_ID = ?");
     
     /**
      * 
@@ -22,20 +26,9 @@ public class SetRemote extends VoltProcedure {
      * @return
      */
     public VoltTable[] run(long local_a_id, long a_id, String a_value, long b_id, String b_value) {
-        voltQueueSQL(writeA, a_value, a_id);
-        // the relation is multiply a_id by 1000
-        voltQueueSQL(writeB, a_id * 1000 + b_id, b_value, a_id);
-        VoltTable[] result = voltExecuteSQL();
-        if (result[0].fetchRow(0).getLong(0) == 1 && result[1].fetchRow(0).getLong(0) == 1)
-        {
-            // query executed properly
-            return voltExecuteSQL();      	
-        }
-        else
-        {
-        	// one of the queries failed to run
-        	return null;
-        }
+        voltQueueSQL(WriteA, a_value, a_id);
+        voltQueueSQL(WriteB, b_value, b_id, a_id);
+        return (voltExecuteSQL());
     }
     
 }
