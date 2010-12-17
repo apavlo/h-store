@@ -36,7 +36,7 @@ public abstract class LocalityConstants {
     public static final long    BATCHSIZE_TABLEA = 50l;
     
     public static final String  TABLENAME_TABLEB = "TABLEB";
-    public static final long    TABLESIZE_TABLEB = Math.round(LocalityConstants.TABLESIZE_TABLEA * 100.0);
+    public static final long    TABLESIZE_TABLEB = Math.round(LocalityConstants.TABLESIZE_TABLEA * 1000.0);
     public static final long    BATCHSIZE_TABLEB = 50l;
 
     public static final String[] TABLENAMES = {
@@ -52,5 +52,8 @@ public abstract class LocalityConstants {
     public static final int FREQUENCY_SET_LOCAL     = 20;
     public static final int FREQUENCY_GET_REMOTE    = 0;
     public static final int FREQUENCY_SET_REMOTE    = 0;
+    
+    // The number of TABLEB records to return per GetLocal/GetRemote invocation
+    public static final int GET_TABLEB_LIMIT        = 10;
 
 }
