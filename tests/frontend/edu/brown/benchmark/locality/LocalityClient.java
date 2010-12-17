@@ -73,8 +73,10 @@ public class LocalityClient extends ClientMain {
             new LocalityParamGenerator() {
                 @Override
                 public Object[] generate(AbstractRandomGenerator rng, Map<String, Long> tableSizes) {
-                    // TODO
-                    return (null);
+                	Object params[] = new Object[] {
+                		rng.nextInt(tableSizes.get(LocalityConstants.TABLENAME_TABLEA).intValue())	
+                	};
+                    return (params);
                 }
         }),
         SetLocal(LocalityConstants.FREQUENCY_SET_LOCAL,
@@ -220,11 +222,8 @@ public class LocalityClient extends ClientMain {
     public void runLoop() {
         try {
             while (true) {
-                LocalityClient.Transaction txn_type = XACT_WEIGHTS[m_rng.number(0, 99)];
-                assert(txn_type != null);
-                Object params[] = txn_type.params(m_rng, this.table_sizes);
-                m_voltClient.callProcedure(new LocalityCallback(txn_type), txn_type.name(), params);
-                m_voltClient.backpressureBarrier();
+            	runOnce();
+            	m_voltClient.backpressureBarrier();
             } // WHILE
         } catch (NoConnectionsException e) {
             /*
@@ -240,6 +239,15 @@ public class LocalityClient extends ClientMain {
              * get spammed, but will miss lost connections at runtime
              */
         }
+    }
+    
+    @Override
+    protected boolean runOnce() throws IOException {
+        LocalityClient.Transaction txn_type = XACT_WEIGHTS[m_rng.number(0, 99)];
+        assert(txn_type != null);
+        Object params[] = txn_type.params(m_rng, this.table_sizes);
+        boolean ret = m_voltClient.callProcedure(new LocalityCallback(txn_type), txn_type.name(), params);
+        return (ret);
     }
     
     /**
