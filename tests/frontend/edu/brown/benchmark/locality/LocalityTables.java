@@ -25,7 +25,6 @@
  ***************************************************************************/
 package edu.brown.benchmark.locality;
 
-import java.text.DecimalFormat;
 import java.util.ArrayList;
 
 import org.voltdb.VoltTable;
@@ -33,31 +32,12 @@ import org.voltdb.VoltType;
 
 public abstract class LocalityTables {
     
-    private static final DecimalFormat f = new DecimalFormat("00");
-    
-    public static void addIntegerColumns(ArrayList<VoltTable.ColumnInfo> columns, int count, String prefix) {
-        for (int ctr = 0; ctr < count; ctr++) {
-            String name = prefix + "_IATTR" + f.format(ctr);
-            columns.add(new VoltTable.ColumnInfo(name, VoltType.INTEGER));
-        }
-        return;
-    }
-    
-    public static void addStringColumns(ArrayList<VoltTable.ColumnInfo> columns, int count, String prefix) {
-        for (int ctr = 0; ctr < count; ctr++) {
-            String name = prefix + "_SATTR" + f.format(ctr);
-            columns.add(new VoltTable.ColumnInfo(name, VoltType.STRING));
-        } // FOR
-        return;
-    }
-    
     public static VoltTable initializeTableA() {
         ArrayList<VoltTable.ColumnInfo> columns = new ArrayList<VoltTable.ColumnInfo>();
         String prefix = "A";
          
         columns.add(new VoltTable.ColumnInfo(prefix + "_ID", VoltType.BIGINT));
-        addStringColumns(columns, 20, prefix);
-        addIntegerColumns(columns, 20, prefix);
+        columns.add(new VoltTable.ColumnInfo(prefix + "_VALUE", VoltType.STRING));
         
         VoltTable.ColumnInfo cols[] = new VoltTable.ColumnInfo[columns.size()];
         return (new VoltTable(columns.toArray(cols)));
@@ -69,38 +49,9 @@ public abstract class LocalityTables {
         
         columns.add(new VoltTable.ColumnInfo(prefix + "_ID", VoltType.BIGINT));
         columns.add(new VoltTable.ColumnInfo(prefix + "_A_ID", VoltType.BIGINT));
-        addStringColumns(columns, 16, prefix);
-        addIntegerColumns(columns, 16, prefix);
+        columns.add(new VoltTable.ColumnInfo(prefix + "_VALUE", VoltType.STRING));
         
         VoltTable.ColumnInfo cols[] = new VoltTable.ColumnInfo[columns.size()];
         return (new VoltTable(columns.toArray(cols)));
-    }
-    
-     public static VoltTable initializeTableC() {
-        ArrayList<VoltTable.ColumnInfo> columns = new ArrayList<VoltTable.ColumnInfo>();
-        String prefix = "C";
-        
-        columns.add(new VoltTable.ColumnInfo(prefix + "_ID", VoltType.BIGINT));
-        columns.add(new VoltTable.ColumnInfo(prefix + "_A_ID", VoltType.BIGINT));
-        addStringColumns(columns, 16, prefix);
-        addIntegerColumns(columns, 16, prefix);
-        
-        VoltTable.ColumnInfo cols[] = new VoltTable.ColumnInfo[columns.size()];
-        return (new VoltTable(columns.toArray(cols)));
-    }
-    
-    public static VoltTable initializeTableD() {
-        ArrayList<VoltTable.ColumnInfo> columns = new ArrayList<VoltTable.ColumnInfo>();
-        String prefix = "D";
-        
-        columns.add(new VoltTable.ColumnInfo(prefix + "_ID", VoltType.BIGINT));
-        columns.add(new VoltTable.ColumnInfo(prefix + "_B_ID", VoltType.BIGINT));
-        columns.add(new VoltTable.ColumnInfo(prefix + "_B_A_ID", VoltType.BIGINT));
-        columns.add(new VoltTable.ColumnInfo(prefix + "_C_ID", VoltType.BIGINT));
-        columns.add(new VoltTable.ColumnInfo(prefix + "_C_A_ID", VoltType.BIGINT));
-        addStringColumns(columns, 16, prefix);
-        addIntegerColumns(columns, 16, prefix);
-        VoltTable.ColumnInfo cols[] = new VoltTable.ColumnInfo[columns.size()];
-        return (new VoltTable(columns.toArray(cols)));
-    }
+    }  
 }

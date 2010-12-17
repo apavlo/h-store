@@ -36,7 +36,8 @@ public abstract class LocalityConstants {
     public static final long    BATCHSIZE_TABLEA = 50l;
     
     public static final String  TABLENAME_TABLEB = "TABLEB";
-    public static final long    TABLESIZE_TABLEB = Math.round(LocalityConstants.TABLESIZE_TABLEA * 1000.0);
+    public static final double	TABLESIZE_TABLEB_MULTIPLIER = 1000.0d;
+    public static final long    TABLESIZE_TABLEB = Math.round(LocalityConstants.TABLESIZE_TABLEA * TABLESIZE_TABLEB_MULTIPLIER);
     public static final long    BATCHSIZE_TABLEB = 50l;
 
     public static final String[] TABLENAMES = {
@@ -48,8 +49,8 @@ public abstract class LocalityConstants {
     // STORED PROCEDURE INFORMATION
     // ----------------------------------------------------------------
     
-    public static final int FREQUENCY_GET_LOCAL     = 80;
-    public static final int FREQUENCY_SET_LOCAL     = 20;
+    public static final int FREQUENCY_GET_LOCAL     = 100;
+    public static final int FREQUENCY_SET_LOCAL     = 0;
     public static final int FREQUENCY_GET_REMOTE    = 0;
     public static final int FREQUENCY_SET_REMOTE    = 0;
     

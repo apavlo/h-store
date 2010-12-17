@@ -153,13 +153,14 @@ public class LocalityLoader extends ClientMain {
             if (table.getRowCount() >= batchSize) {
                 System.err.println(String.format(tableName + ": loading %d rows (id %d of %d)", table.getRowCount(), generator.getCount(), tableSize));
                 loadTable(tableName, table);
+                this.table_sizes.get(tableName).addAndGet(table.getRowCount());
                 table.clearRowData();
             }
-            this.table_sizes.get(tableName).incrementAndGet();
         } // WHILE
         if (table.getRowCount() > 0) {
             System.err.println(tableName + ": loading final " + table.getRowCount() + " rows.");
             loadTable(tableName, table);
+            this.table_sizes.get(tableName).addAndGet(table.getRowCount());
             table.clearRowData();
         }
         System.out.println(tableName + ": Inserted " + this.table_sizes.get(tableName) + " tuples");
@@ -254,6 +255,10 @@ public class LocalityLoader extends ClientMain {
             return this.count;
         }
         
+        /**
+         * Invoked by generateTableData() to create a new row in our temporary
+         * table. We don't need to worry about batches, counts, or anything else. Just makin' tuples
+         */
         public void addRow() {
             this.populateRow();
             this.count++;
@@ -274,7 +279,15 @@ public class LocalityLoader extends ClientMain {
         
         @Override
         protected void populateRow() {
-            // TODO
+            int col = 0;
+            
+            // A_ID
+            row[col++] = new Integer((int)this.count);
+            
+            // A_VALUE
+            row[col++] = "ABC123"; // FIXME
+
+            assert (col == this.table.getColumnCount());
         }
     } // END CLASS
 
@@ -282,13 +295,32 @@ public class LocalityLoader extends ClientMain {
      * TABLEB Generator
      */
     protected class TABLEBGenerator extends AbstractTableGenerator {
+    	private long current_a_id = 0;
+    	private long current_b_id = 0;
+    	
         public TABLEBGenerator() {
             super(LocalityConstants.TABLENAME_TABLEB, LocalityTables.initializeTableB());
         }
         
         @Override
         protected void populateRow() {
-            // TODO
+        	int col = 0;
+        	
+            // B_ID
+            row[col++] = new Integer((int)this.current_b_id);
+        	
+            // B_A_ID
+            row[col++] = new Integer((int)this.current_a_id);
+
+            // B_VALUE
+            row[col++] = "DEF456"; // FIXME
+            
+        	assert (col == this.table.getColumnCount());
+        	
+        	if (++this.current_b_id > LocalityConstants.TABLESIZE_TABLEB_MULTIPLIER) {
+        		this.current_b_id = 0;
+        		this.current_a_id++;
+        	}
         }
     } // END CLASS
         
@@ -300,6 +332,9 @@ public class LocalityLoader extends ClientMain {
     protected void loadTable(String tablename, VoltTable table) {
         // System.out.println("Loading " + table.getRowCount() + " tuples for table " + tablename + " [bytes=" + table.getUnderlyingBufferSize() + "]");
     
+//    	System.err.println(table);
+//    	System.exit(1);
+    	
         // Load up this dirty mess...
         try {
             m_voltClient.callProcedure("@LoadMultipartitionTable", tablename, table);
