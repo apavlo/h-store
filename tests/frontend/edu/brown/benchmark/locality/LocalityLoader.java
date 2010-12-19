@@ -71,20 +71,15 @@ public class LocalityLoader extends ClientMain {
     public LocalityLoader(String[] args) {
         super(args);
         
-        for (String arg : args) {
-            String[] parts = arg.split("=",2);
-            if (parts.length == 1)
-                continue;
-            
-            if (parts[1].startsWith("${"))
-                continue;
-            
-            if (parts[0].equals("scalefactor")) {
-                m_scalefactor = Integer.parseInt(parts[1]);
-            } else if (parts[0].equals("debug")) {
-                this.debug = Boolean.getBoolean(parts[1]);
+        for (String key : m_extraParams.keySet()) {
+            String value = m_extraParams.get(key);
+
+            // Scale Factor
+            if (key.equalsIgnoreCase("SCALEFACTOR")) {
+                m_scalefactor = Integer.parseInt(value);
             }
         } // FOR
+//        System.err.println("m_scalefactor = " + m_scalefactor);
         
         // Histograms + Table Sizes + Generators
         for (String tableName : LocalityConstants.TABLENAMES) {
