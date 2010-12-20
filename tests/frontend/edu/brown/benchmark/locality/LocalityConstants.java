@@ -27,6 +27,14 @@ package edu.brown.benchmark.locality;
 
 public abstract class LocalityConstants {
     
+    public enum ExecutionType {
+        SAME_PARTITION,
+        SAME_SITE,
+        SAME_HOST,
+        REMOTE_HOST,
+        RANDOM;
+    }
+    
     // ----------------------------------------------------------------
     // TABLE INFORMATION
     // ----------------------------------------------------------------

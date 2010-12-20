@@ -33,8 +33,7 @@ import org.voltdb.client.*;
 import org.voltdb.compiler.VoltProjectBuilder;
 import org.voltdb.benchmark.*;
 
-import com.sun.org.apache.xml.internal.resolver.Catalog;
-
+import edu.brown.benchmark.locality.LocalityConstants.ExecutionType;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.rand.AbstractRandomGenerator;
 
@@ -54,6 +53,7 @@ public class LocalityClient extends ClientMain {
     // --------------------------------------------------------------------
 
     private int m_scalefactor = 1;
+    private final ExecutionType m_type = LocalityConstants.ExecutionType.SAME_SITE;
     private final AbstractRandomGenerator m_rng;
     
     /**
@@ -167,6 +167,42 @@ public class LocalityClient extends ClientMain {
         assert (100 == sum);
     }
 
+    /**
+     * For a given a_id, return a new a_id that follows the given scheme of the
+     * current ExecutionType for the client.
+     * @param a_id
+     * @return
+     */
+    protected long getDataId(long a_id, ExecutionType type) {
+        long a_id2 = -1;
+        switch (type) {
+            case SAME_PARTITION: {
+                // TODO(sw47)
+                break;
+            }
+            case SAME_SITE: {
+                // TODO(sw47)
+                break;
+            }
+            case SAME_HOST: {
+                // TODO(sw47)
+                break;
+            }
+            case REMOTE_HOST: {
+                // TODO(sw47)
+                break;
+            }
+            case RANDOM: {
+                a_id2 = m_rng.nextInt(this.table_sizes.get(LocalityConstants.TABLENAME_TABLEA).intValue());
+                break;
+            }
+            default:
+                assert(false) : "Unexpected ExecutionType " + type;
+        } // SWITCH
+        assert(a_id2 != -1);
+        return (a_id2);
+    }
+    
     public static void main(String args[]) {
         org.voltdb.benchmark.ClientMain.main(LocalityClient.class, args, false);
     }
