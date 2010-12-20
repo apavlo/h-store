@@ -53,7 +53,7 @@ public class LocalityClient extends ClientMain {
     // --------------------------------------------------------------------
 
     private int m_scalefactor = 1;
-    private final ExecutionType m_type = LocalityConstants.ExecutionType.SAME_SITE;
+    private ExecutionType m_type = LocalityConstants.ExecutionType.SAME_SITE;
     private final AbstractRandomGenerator m_rng;
     
     /**
@@ -221,22 +221,15 @@ public class LocalityClient extends ClientMain {
         String randGenClassName = RandomGenerator.class.getName();
         String randGenProfilePath = null;
 
-        for (String arg : args) {
-            String[] parts = arg.split("=", 2);
-            if (parts.length == 1)
-                continue;
+        for (String key : m_extraParams.keySet()) {
+            String value = m_extraParams.get(key);
 
-            if (parts[1].startsWith("${"))
-                continue;
-
-            if (parts[0].equals("scalefactor")) {
-                m_scalefactor = Integer.parseInt(parts[1]);
-            } else if (parts[0].equals("randomseed")) {
-                seed = Integer.parseInt(parts[1]);
-            } else if (parts[0].equals("randomgenerator")) {
-                randGenClassName = parts[1];
-            } else if (parts[0].equals("randomprofile")) {
-                randGenProfilePath = parts[1];
+            // Scale Factor
+            if (key.equalsIgnoreCase("SCALEFACTOR")) {
+                m_scalefactor = Integer.parseInt(value);
+            // Execution Type
+            } else if (key.equalsIgnoreCase("TYPE")) {
+                m_type = ExecutionType.valueOf(value);
             }
         } // FOR
         
