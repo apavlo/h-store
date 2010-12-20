@@ -697,6 +697,10 @@ public abstract class ClientMain {
         }
         return (m_catalog);
     }
+    
+    public void setCatalog(Catalog catalog) {
+    	m_catalog = catalog;
+    }
 
     public void setState(final ControlState state, final String reason) {
         m_controlState = state;

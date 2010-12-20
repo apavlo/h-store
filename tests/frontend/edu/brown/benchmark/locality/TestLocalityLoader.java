@@ -1,13 +1,16 @@
 package edu.brown.benchmark.locality;
 
 import java.lang.reflect.Field;
+import java.util.List;
 
 import org.apache.log4j.Logger;
+import org.voltdb.TheHashinator;
 import org.voltdb.VoltTable;
 import org.voltdb.VoltType;
 import org.voltdb.catalog.*;
 
 import edu.brown.BaseTestCase;
+import edu.brown.catalog.CatalogUtil;
 import edu.brown.utils.ProjectType;
 
 public class TestLocalityLoader extends BaseTestCase {
@@ -23,6 +26,13 @@ public class TestLocalityLoader extends BaseTestCase {
     @Override
     protected void setUp() throws Exception {
         super.setUp(ProjectType.LOCALITY);
+        
+//        Cluster catalog_clus = CatalogUtil.getCluster(catalog);
+//        Host catalog_host = catalog_clus.getHosts().get("XYZ");
+//        List<Site> catalog_sites = CatalogUtil.getSitesForHost(catalog_host);
+//        catalog_sites.get(0).getPartitions();
+//        int a_id = 20;
+//        TheHashinator.hashToPartition(a_id, catalog_clus.getNum_partitions());
         
         String args[] = {
             "scalefactor=" + SCALE_FACTOR,
@@ -90,6 +100,7 @@ public class TestLocalityLoader extends BaseTestCase {
                 
             }
         };
+        this.loader.setCatalog(catalog);
     }
     
     @Override
@@ -118,7 +129,7 @@ public class TestLocalityLoader extends BaseTestCase {
      */
     public void testGenerateTABLEA() throws Exception {
         this.setCurrentTable(LocalityConstants.TABLENAME_TABLEA);
-//        this.loader.generateTableData(LocalityConstants.TABLENAME_TABLEA);
+        this.loader.generateTableData(LocalityConstants.TABLENAME_TABLEA);
     }
 
     /**
