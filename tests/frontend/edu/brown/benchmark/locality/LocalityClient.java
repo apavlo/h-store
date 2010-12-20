@@ -28,10 +28,14 @@ package edu.brown.benchmark.locality;
 import java.io.*;
 import java.util.*;
 
+import org.voltdb.catalog.CatalogType;
 import org.voltdb.client.*;
 import org.voltdb.compiler.VoltProjectBuilder;
 import org.voltdb.benchmark.*;
 
+import com.sun.org.apache.xml.internal.resolver.Catalog;
+
+import edu.brown.catalog.CatalogUtil;
 import edu.brown.rand.AbstractRandomGenerator;
 
 public class LocalityClient extends ClientMain {
@@ -83,16 +87,25 @@ public class LocalityClient extends ClientMain {
             new LocalityParamGenerator() {
                 @Override
                 public Object[] generate(AbstractRandomGenerator rng, Map<String, Long> tableSizes) {
-                    // TODO
-                    return (null);
-                }
+                	Object params[] = new Object[] {
+                    		rng.nextInt(tableSizes.get(LocalityConstants.TABLENAME_TABLEA).intValue()),
+                    		"teststringvalueaaa",
+                    		rng.nextInt(tableSizes.get(LocalityConstants.TABLENAME_TABLEB).intValue()),                    		
+                    		"teststringvaluebbb"
+                    	};
+                        return (params);
+                    }
         }),
         GetRemote(LocalityConstants.FREQUENCY_GET_REMOTE,
             new LocalityParamGenerator() {
                 @Override
                 public Object[] generate(AbstractRandomGenerator rng, Map<String, Long> tableSizes) {
-                    // TODO
-                    return (null);
+                	// pass the same local aid as the aid
+                	Integer aid = rng.nextInt(tableSizes.get(LocalityConstants.TABLENAME_TABLEA).intValue());
+                	Object params[] = new Object[] {
+                		aid, aid
+                	};
+                    return (params);
                 }
         }),
         SetRemote(LocalityConstants.FREQUENCY_SET_REMOTE,
