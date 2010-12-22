@@ -584,6 +584,16 @@ public abstract class ClientMain {
         m_txnRate = transactionRate;
         m_txnsPerMillisecond = transactionRate / 1000.0;
         m_blocking = blocking;
+        
+        if (m_catalogPath != null) {
+            try {
+                // HACK: This will instantiate m_catalog for us...
+                this.getCatalog();
+            } catch (Exception ex) {
+                LOG.fatal("Failed to load catalog", ex);
+                System.exit(1);
+            }
+        }
 
         if (m_blocking) {
             LOG.debug("Using BlockingClient!");
