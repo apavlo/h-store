@@ -1,5 +1,6 @@
 package edu.brown.benchmark.locality.procedures;
 
+import org.voltdb.ProcInfo;
 import org.voltdb.SQLStmt;
 import org.voltdb.VoltProcedure;
 import org.voltdb.VoltTable;
@@ -10,6 +11,10 @@ import edu.brown.benchmark.locality.LocalityConstants;
  * 
  * @author sw47
  */
+@ProcInfo(
+    partitionInfo = "TABLEA.A_ID: 0",
+    singlePartition = false
+)
 public class GetRemote extends VoltProcedure {
 
     public final SQLStmt GetA = new SQLStmt(

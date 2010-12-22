@@ -1,5 +1,6 @@
 package edu.brown.benchmark.locality.procedures;
 
+import org.voltdb.ProcInfo;
 import org.voltdb.SQLStmt;
 import org.voltdb.VoltProcedure;
 import org.voltdb.VoltTable;
@@ -8,6 +9,10 @@ import org.voltdb.VoltTable;
  * 
  * @author sw47
  */
+@ProcInfo(
+    partitionInfo = "TABLEA.A_ID: 0",
+    singlePartition = true
+)
 public class SetLocal extends VoltProcedure {
 
     public final SQLStmt WriteA = new SQLStmt(
