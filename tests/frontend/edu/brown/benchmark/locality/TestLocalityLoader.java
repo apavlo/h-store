@@ -1,13 +1,13 @@
 package edu.brown.benchmark.locality;
 
 import java.lang.reflect.Field;
-import java.util.List;
 
 import org.apache.log4j.Logger;
-import org.voltdb.TheHashinator;
 import org.voltdb.VoltTable;
 import org.voltdb.VoltType;
-import org.voltdb.catalog.*;
+import org.voltdb.catalog.Cluster;
+import org.voltdb.catalog.Column;
+import org.voltdb.catalog.Table;
 
 import edu.brown.BaseTestCase;
 import edu.brown.catalog.CatalogUtil;
@@ -76,7 +76,13 @@ public class TestLocalityLoader extends BaseTestCase {
                                 break;
                             }
                             case STRING: {
-                                int length = catalog_col.getSize();
+                                Cluster catalog_clus = CatalogUtil.getCluster(catalog);
+//                              Host catalog_host = catalog_clus.getHosts().get("XYZ");
+//                              List<Site> catalog_sites = CatalogUtil.getSitesForHost(catalog_host);
+//                              catalog_sites.get(0).getPartitions();
+//                              int a_id = 20;
+//                              TheHashinator.hashToPartition(a_id, catalog_clus.getNum_partitions());
+    int length = catalog_col.getSize();
                                 String value = table.getString(index);
                                 assertNotNull("The value in " + catalog_col + " at row " + row + " is null", value);
                                 assertTrue("The value in " + catalog_col + " at row " + row + " is " + value.length() + ". Max is " + length,

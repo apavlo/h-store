@@ -40,7 +40,7 @@ public abstract class LocalityConstants {
     // ----------------------------------------------------------------
     
 	public static final String TABLENAME_TABLEA = "TABLEA";
-	public static final long TABLESIZE_TABLEA = 1000000l;
+	public static final long TABLESIZE_TABLEA = 1000l;
 	public static final long BATCHSIZE_TABLEA = 50l;
 
 	public static final String TABLENAME_TABLEB = "TABLEB";
