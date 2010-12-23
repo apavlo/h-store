@@ -58,7 +58,7 @@ public class TestPlanOptimizations extends BaseTestCase {
      */
     public void testAggregatePushdown() throws Exception {
         Procedure catalog_proc = this.getProcedure(slev.class);
-        Statement catalog_stmt = this.getStatement(catalog_proc, "getStockCount");
+        Statement catalog_stmt = this.getStatement(catalog_proc, "GetStockCount");
 
         // Grab the root node of the multi-partition query plan tree for this Statement 
         AbstractPlanNode root = QueryPlanUtil.deserializeStatement(catalog_stmt, false);
