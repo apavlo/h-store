@@ -115,7 +115,7 @@ public class LocalityClient extends ClientMain {
                 	// pass the same local aid as the aid
                 	Integer aid = rng.nextInt(table_sizes.get(LocalityConstants.TABLENAME_TABLEA).intValue());
                 	Object params[] = new Object[] {
-                		aid, aid
+                		aid, getDataId(Long.valueOf(String.valueOf(aid)), rng, mtype, catalog)
                 	};
                     return (params);
                 }
@@ -124,8 +124,18 @@ public class LocalityClient extends ClientMain {
             new LocalityParamGenerator() {
                 @Override
                 public Object[] generate(AbstractRandomGenerator rng, ExecutionType mtype, Catalog catalog) {
-                    // TODO
-                    return (null);
+                	/**
+                	 * long local_a_id, long a_id, String a_value, long b_id, String b_value
+                	 */
+                	Integer aid = rng.nextInt(table_sizes.get(LocalityConstants.TABLENAME_TABLEA).intValue());
+                	Object params[] = new Object[] {
+                		aid, 
+                		getDataId(Long.valueOf(String.valueOf(aid)), rng, mtype, catalog),
+                		rng.astring(5, 50),
+                		rng.nextInt((int)LocalityConstants.TABLESIZE_TABLEB_MULTIPLIER),                    		
+                		rng.astring(5, 50)                		
+                	};
+                    return (params);
                 }
         })
         ;
@@ -282,7 +292,7 @@ public class LocalityClient extends ClientMain {
      */
     public LocalityClient(String[] args) {
         super(args);
-        
+        assert(m_catalog != null);
         // Sanity check
         assert(LocalityClient.TOTAL_WEIGHT == 100);
 
