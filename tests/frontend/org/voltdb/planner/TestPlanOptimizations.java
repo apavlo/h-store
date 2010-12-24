@@ -8,7 +8,9 @@ import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Statement;
 import org.voltdb.plannodes.AbstractPlanNode;
 import org.voltdb.plannodes.AbstractScanPlanNode;
+import org.voltdb.plannodes.AggregatePlanNode;
 import org.voltdb.plannodes.ProjectionPlanNode;
+import org.voltdb.types.ExpressionType;
 import org.voltdb.types.PlanNodeType;
 
 import edu.brown.BaseTestCase;
@@ -64,7 +66,23 @@ public class TestPlanOptimizations extends BaseTestCase {
         AbstractPlanNode root = QueryPlanUtil.deserializeStatement(catalog_stmt, false);
         assertNotNull(root);
         
-        // TODO(pavlo)
+        // Check that our single scan node has a COUNT AggregatePlanNode above it.
+        Set<AbstractScanPlanNode> scan_nodes = PlanNodeUtil.getPlanNodes(root, AbstractScanPlanNode.class);
+        assertEquals(1, scan_nodes.size());
+        AbstractScanPlanNode scan_node = CollectionUtil.getFirst(scan_nodes);
+        assertNotNull(scan_node);
+        assertEquals(1, scan_node.getParentCount());
+        // FIXME assertEquals(PlanNodeType.AGGREGATE, scan_node.getParent(0).getPlanNodeType());
+        // FIXME AggregatePlanNode count_node = (AggregatePlanNode)scan_node.getParent(0);
+        // FIXME assertNotNull(count_node);
+        // FIXME assert(count_node.getAggregateTypes().contains(ExpressionType.AGGREGATE_COUNT));
+        
+        // Now check that we have a SUM AggregatePlanNode right before the root
+        // This will sum up the counts from the different partitions and give us the total count
+        assertEquals(1, root.getChildCount());
+        // FIXME assertEquals(PlanNodeType.AGGREGATE, root.getChild(0).getPlanNodeType());
+        // FIXME AggregatePlanNode sum_node= (AggregatePlanNode)root.getChild(0);
+        // FIXME assert(sum_node.getAggregateTypes().contains(ExpressionType.AGGREGATE_SUM));
     }
     
 }
