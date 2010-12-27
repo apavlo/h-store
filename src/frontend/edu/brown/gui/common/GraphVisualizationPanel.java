@@ -69,15 +69,15 @@ public class GraphVisualizationPanel<V, E> extends VisualizationViewer<V, E> {
     
     public static <V, E> GraphVisualizationPanel<V, E> factory(Graph<V, E> graph, EventObserver v_observer, EventObserver e_observer) {
         GraphVisualizationPanel<V, E> ret = GraphVisualizationPanel.factory(graph);
-        ret.EVENT_SELECT_VERTEX.addObserver(v_observer);
-        ret.EVENT_SELECT_EDGE.addObserver(e_observer);
+        if (v_observer != null) ret.EVENT_SELECT_VERTEX.addObserver(v_observer);
+        if (e_observer != null) ret.EVENT_SELECT_EDGE.addObserver(e_observer);
         return (ret);
     }
     
     @SuppressWarnings("unchecked")
     public static <V, E> GraphVisualizationPanel<V, E> factory(Graph<V, E> graph) {
         Layout<V, E> layout = null;
-        if (graph instanceof AbstractDirectedTree) { 
+        if (graph instanceof DelegateForest) { 
             layout = new TreeLayout<V, E>((Forest<V, E>) graph);
         } else if (graph instanceof MarkovGraph){
             layout = new FRLayout<V,E>( graph);

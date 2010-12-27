@@ -70,6 +70,8 @@ public class CatalogViewer extends AbstractViewer {
 	protected Catalog catalog;
 	protected String catalog_path;
 	
+	protected boolean text_mode = true;
+	
 	// ----------------------------------------------
 	// GUI ELEMENTS
 	// ----------------------------------------------
@@ -78,6 +80,8 @@ public class CatalogViewer extends AbstractViewer {
 	protected JTextField searchField;
 	protected JTextArea textInfoTextArea;
 	protected JScrollPane textInfoScroller;
+	protected JPanel textInfoPanel;
+	protected JPanel mainPanel;
 
 	// ----------------------------------------------
     // MENU OPTIONS
@@ -204,20 +208,39 @@ public class CatalogViewer extends AbstractViewer {
 
 				Object user_obj = node.getUserObject();
 				String new_text = ""; // <html>";
+				boolean text_mode = true;
 				if (user_obj instanceof WrapperNode) {
 					CatalogType catalog_obj  = ((WrapperNode)user_obj).getCatalogType();
-					new_text += CatalogViewer.this.getAttributesText(catalog_obj);	
-				} else if (user_obj instanceof AttributesNode) {
-				    AttributesNode wrapper = (AttributesNode)user_obj;
-				    new_text += wrapper.getAttributes();
-				} else {
-				    new_text += CatalogViewer.this.getSummaryText();
+				    new_text += CatalogViewer.this.getAttributesText(catalog_obj);
+                } else if (user_obj instanceof AttributesNode) {
+                    AttributesNode wrapper = (AttributesNode)user_obj;
+                    new_text += wrapper.getAttributes();
+					
+				} else if (user_obj instanceof PlanTreeCatalogNode) {
+				    PlanTreeCatalogNode wrapper = (PlanTreeCatalogNode)user_obj;
+				    text_mode = false;
+				    
+                    CatalogViewer.this.mainPanel.remove(0);
+                    CatalogViewer.this.mainPanel.add(wrapper.getPanel(), BorderLayout.CENTER);
+                    CatalogViewer.this.mainPanel.repaint();
+                    
+                } else {
+                    new_text += CatalogViewer.this.getSummaryText();
 				}
-				// new_text += "</html>";
-				CatalogViewer.this.textInfoTextArea.setText(new_text);
+
+				// Text Mode
+				if (text_mode) {
+				    if (CatalogViewer.this.text_mode == false) {
+				        CatalogViewer.this.mainPanel.remove(0);
+				        CatalogViewer.this.mainPanel.add(CatalogViewer.this.textInfoPanel);
+				    }
+    				CatalogViewer.this.textInfoTextArea.setText(new_text);
+    				
+    				// Scroll to top
+    				CatalogViewer.this.textInfoTextArea.grabFocus();
+				}
 				
-				// Scroll to top
-				CatalogViewer.this.textInfoTextArea.grabFocus();
+				CatalogViewer.this.text_mode = text_mode;
 			}
 		});
 		this.generateCatalogTree(this.catalog, this.catalog_path);
@@ -225,8 +248,8 @@ public class CatalogViewer extends AbstractViewer {
 		//
 		// Text Information Panel
 		//
-		JPanel textInfoPanel = new JPanel();
-		textInfoPanel.setLayout(new BorderLayout());
+		this.textInfoPanel = new JPanel();
+		this.textInfoPanel.setLayout(new BorderLayout());
 		this.textInfoTextArea = new JTextArea();
 		this.textInfoTextArea.setEditable(false);
 		this.textInfoTextArea.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 12));
@@ -243,7 +266,9 @@ public class CatalogViewer extends AbstractViewer {
             }
         });
 		this.textInfoScroller = new JScrollPane(this.textInfoTextArea);
-		textInfoPanel.add(this.textInfoScroller, BorderLayout.CENTER);
+		this.textInfoPanel.add(this.textInfoScroller, BorderLayout.CENTER);
+		this.mainPanel = new JPanel(new BorderLayout());
+		this.mainPanel.add(textInfoPanel, BorderLayout.CENTER);
 		
 		//
 		// Search Toolbar
@@ -287,7 +312,7 @@ public class CatalogViewer extends AbstractViewer {
 		topPanel.add(searchPanel, BorderLayout.NORTH);
 		topPanel.add(scrollPane, BorderLayout.CENTER);
 		
-		JSplitPane splitPane = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, topPanel, textInfoPanel);
+		JSplitPane splitPane = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, topPanel, this.mainPanel);
 		splitPane.setDividerLocation(400);
 
 		this.add(splitPane, BorderLayout.CENTER);
@@ -327,7 +352,10 @@ public class CatalogViewer extends AbstractViewer {
         //
         // Display found matches
         //
-        if (!found.isEmpty()) this.highlight(found);
+        if (!found.isEmpty()) {
+            this.highlight(found);
+            this.searchField.requestFocus();
+        }
 	}
 	
 	protected void highlight(Collection<DefaultMutableTreeNode> nodes) {
