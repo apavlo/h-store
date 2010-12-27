@@ -194,6 +194,22 @@ public abstract class PlanNodeUtil {
     }
     
     private static String debug(AbstractPlanNode node, String spacer) {
+        String ret = debugNode(node, spacer);
+        
+        // Print out all of our children
+        spacer += "  ";
+        for (int ctr = 0, cnt = node.getChildCount(); ctr < cnt; ctr++) {
+            ret += PlanNodeUtil.debug(node.getChild(ctr), spacer);
+        } 
+
+        return (ret);
+    }
+        
+    public static String debugNode(AbstractPlanNode node) {
+        return (debugNode(node, ""));
+    }
+    
+    public static String debugNode(AbstractPlanNode node, String spacer) {
         String ret = spacer + "* " + node + "\n";
         String info_spacer = spacer + "  |";
         
@@ -304,13 +320,6 @@ public abstract class PlanNodeUtil {
                 ret += PlanNodeUtil.debug(inline_node, internal_spacer);
             } 
         }
-        //
-        // Print out all of our children
-        //
-        spacer += "  ";
-        for (int ctr = 0, cnt = node.getChildCount(); ctr < cnt; ctr++) {
-            ret += PlanNodeUtil.debug(node.getChild(ctr), spacer);
-        } 
         return (ret);
     }
 }

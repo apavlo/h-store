@@ -175,6 +175,7 @@ public class CatalogTreeModel extends DefaultTreeModel {
                         parameters_node.add(param_node);
                         buildSearchIndex(param_cat, param_node);
                     } // FOR (parameters)
+                    
                     // Statements
                     DefaultMutableTreeNode statementRootNode = new CatalogMapTreeNode("Statements", procedure_cat.getStatements());
                     procedure_node.add(statementRootNode);                  
@@ -190,9 +191,10 @@ public class CatalogTreeModel extends DefaultTreeModel {
 
                             String label = (is_singlesited ? "Single" : "Multi") + "-Sited Plan Fragments";
                             String attributes = "";
+                            AbstractPlanNode node = null;
                             
                             try {
-                                AbstractPlanNode node = QueryPlanUtil.deserializeStatement(statement_cat, is_singlesited);
+                                node = QueryPlanUtil.deserializeStatement(statement_cat, is_singlesited);
                                 attributes = PlanNodeUtil.debug(node);
                             } catch (Exception e) {
                                 String msg = e.getMessage();
@@ -202,7 +204,7 @@ public class CatalogTreeModel extends DefaultTreeModel {
                                     LOG.warn(msg);
                                 }
                             }
-                            DefaultMutableTreeNode planNode = new DefaultMutableTreeNode(new AttributesNode(label, attributes));
+                            DefaultMutableTreeNode planNode = new DefaultMutableTreeNode(new PlanTreeCatalogNode(label, statement_cat, node));
                             statement_node.add(planNode);
                             
                             // Plan Fragments
