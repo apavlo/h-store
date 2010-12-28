@@ -55,6 +55,7 @@ import org.w3c.dom.Text;
 public class VoltProjectBuilder {
 
     final LinkedHashSet<String> m_schemas = new LinkedHashSet<String>();
+    protected final String project_name;
 
     public static final class ProcedureInfo {
         private final String users[];
@@ -188,9 +189,14 @@ public class VoltProjectBuilder {
     private String m_snapshotPrefix = null;
     private String m_snapshotFrequency = null;
 
+    public VoltProjectBuilder(String project_name) {
+        this.project_name = project_name;
+    }
 
-
-
+    public String getProjectName() {
+        return project_name;
+    }
+    
     public void addAllDefaults() {
         // does nothing in the base class
     }

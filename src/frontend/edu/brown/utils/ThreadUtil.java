@@ -88,7 +88,7 @@ public abstract class ThreadUtil {
      * @param threads
      * @throws Exception
      */
-    public static void run(final List<? extends Thread> threads) throws Exception {
+    public static void run(final Collection<? extends Thread> threads) throws Exception {
         ThreadUtil.run(threads, null);
     }
     
@@ -99,7 +99,7 @@ public abstract class ThreadUtil {
      * @param max_concurrent
      * @throws Exception
      */
-    public static void run(final List<? extends Thread> threads, Integer max_concurrent) throws Exception {
+    public static void run(final Collection<? extends Thread> threads, Integer max_concurrent) throws Exception {
         final boolean debug = LOG.isDebugEnabled();
         
         // Make a new list of threads so that we can modify its contents without affecting

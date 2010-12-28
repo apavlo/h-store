@@ -510,7 +510,7 @@ public class TestIndexesSuite extends RegressionSuite {
         MultiConfigSuiteBuilder builder =
             new MultiConfigSuiteBuilder(TestIndexesSuite.class);
 
-        VoltProjectBuilder project = new VoltProjectBuilder();
+        VoltProjectBuilder project = new VoltProjectBuilder("indexes");
         project.addSchema(Insert.class.getResource("indexes-ddl.sql"));
         project.addPartitionInfo("P1", "ID");
         project.addPartitionInfo("P2", "ID");

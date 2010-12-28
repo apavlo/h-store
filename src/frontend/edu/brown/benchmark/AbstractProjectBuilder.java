@@ -28,7 +28,6 @@ public abstract class AbstractProjectBuilder extends VoltProjectBuilder {
     private static final Logger LOG = Logger.getLogger(AbstractProjectBuilder.class);
 
     protected final Class<? extends AbstractProjectBuilder> base_class;
-    protected final String project_name;
     protected final Class<?> procedures[];
     protected final Class<?> supplementals[];
     protected final String partitioning[][];
@@ -85,8 +84,7 @@ public abstract class AbstractProjectBuilder extends VoltProjectBuilder {
      * @param fkeys
      */
     public AbstractProjectBuilder(String project_name, Class<? extends AbstractProjectBuilder> base_class, Class<?> procedures[], String partitioning[][], Class<?> supplementals[], boolean fkeys) {
-        super();
-        this.project_name = project_name;
+        super(project_name);
         this.base_class = base_class;
         this.procedures = procedures;
         this.partitioning = partitioning;

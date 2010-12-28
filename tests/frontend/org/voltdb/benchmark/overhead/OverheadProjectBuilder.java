@@ -34,6 +34,10 @@ public class OverheadProjectBuilder extends VoltProjectBuilder {
     private static final URL ddlURL =
         OverheadProjectBuilder.class.getResource("measureoverhead-ddl.sql");
 
+    public OverheadProjectBuilder() {
+        super("overhead");
+    }
+    
     @Override
     public void addAllDefaults() {
         addProcedures(measureOverhead.class, measureOverhead42Longs.class,

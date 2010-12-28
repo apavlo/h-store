@@ -138,7 +138,7 @@ public class ProcessSetManager {
             synchronized(createdProcesses) {
                 createdProcesses.add(pd.process);
             }
-            assert(m_processes.containsKey(processName) == false);
+            assert(m_processes.containsKey(processName) == false) : processName + "\n" + m_processes;
             m_processes.put(processName, pd);
         } catch (IOException e) {
             // TODO Auto-generated catch block

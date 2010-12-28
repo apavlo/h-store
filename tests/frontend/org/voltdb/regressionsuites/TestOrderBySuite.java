@@ -457,7 +457,7 @@ public class TestOrderBySuite extends RegressionSuite {
         VoltServerConfig config = null;
         MultiConfigSuiteBuilder builder = new MultiConfigSuiteBuilder(
                 TestOrderBySuite.class);
-        VoltProjectBuilder project = new VoltProjectBuilder();
+        VoltProjectBuilder project = new VoltProjectBuilder("testorderby");
 
         project.addSchema(TestOrderBySuite.class.getResource("testorderby-ddl.sql"));
         project.addPartitionInfo("O1", "PKEY");
