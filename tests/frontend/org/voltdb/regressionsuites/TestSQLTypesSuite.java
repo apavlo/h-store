@@ -1062,7 +1062,7 @@ public class TestSQLTypesSuite extends RegressionSuite {
         VoltServerConfig config = null;
         final MultiConfigSuiteBuilder builder = new MultiConfigSuiteBuilder(TestSQLTypesSuite.class);
 
-        final VoltProjectBuilder project = new VoltProjectBuilder();
+        final VoltProjectBuilder project = new VoltProjectBuilder("sqltypessuite");
         project.addSchema(TestSQLTypesSuite.class.getResource("sqltypessuite-ddl.sql"));
         project.addPartitionInfo("NO_NULLS", "PKEY");
         project.addPartitionInfo("ALLOW_NULLS", "PKEY");

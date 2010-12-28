@@ -48,6 +48,10 @@ public class MultisiteProjectBuilder extends VoltProjectBuilder {
     public static final URL ddlURL =
         MultisiteProjectBuilder.class.getResource("multisite-ddl.sql");
 
+    public MultisiteProjectBuilder() {
+        super("multi");
+    }
+    
     @Override
     public void addAllDefaults() {
         addProcedures(

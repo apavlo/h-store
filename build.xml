@@ -1471,7 +1471,7 @@ BENCHMARKS
         <arg value="HOSTCOUNT=${hostcount}" />
         <arg value="SITESPERHOST=${sitesperhost}"/>
         <arg value="KFACTOR=${kfactor}"/>
-        <arg value="REMOTEPATH=${remotepath}" />
+        <arg value="REMOTEPATH=${basedir}" />
         <arg value="REMOTEUSER=${remoteuser}"/>
         <arg value="CATALOG=${catalog}" />
         <arg value="COORDINATORHOST=${hstore.coordinator.host}" />
@@ -1728,6 +1728,9 @@ DESIGNER
 
 <target name='catalog-info'
         description="Print catalog host/partition information">
+    <condition property="jar" value="${benchmark.jar}">
+        <not><isset property="jar"/></not>
+    </condition>
     <java fork="yes" failonerror="true" classname="edu.brown.catalog.CatalogInfo">
         <jvmarg value="-Dlog4j.configuration=${basedir}/log4j.properties"/>
         <arg value="catalog.jar=${jar}" />
@@ -2137,7 +2140,7 @@ H-STORE REMIX
         <jvmarg value="-server" />
         <jvmarg value="-Djava.library.path=${build.dir}/nativelibs" />
         <jvmarg value="-Xcheck:jni" />
-        <arg value="catalog.jar=${jar}" />
+        <arg value="catalog.jar=${benchmark.jar}" />
         <arg value="node.site=${node.site}" />
         <arg value="coordinator.host=${hstore.coordinator.host}" />
         <arg value="coordinator.port=${hstore.coordinator.port}" />
@@ -2162,6 +2165,7 @@ H-STORE REMIX
         <param name="catalog" value="${benchmark.jar}" />
         <param name="compile" value="false" />
         <param name="clienthost" value="${hstore.defaulthost}" />
+        <param name="cataloghosts" value="true" />
     </antcall>
 </target>
 
@@ -2187,14 +2191,14 @@ H-STORE REMIX
             <param name="port" value="${hstore.coordinator.port}" />
         </antcall>
         <antcall target="hstore-site">
-            <param name="jar" value="${benchmark.jar}" />
+            <param name="benchmark.jar" value="${benchmark.jar}" />
             <param name="node.site" value="0" />
             <param name="markov" value="./files/markovs/${project}.markovs" />
             <param name="thresholds" value="./files/thresholds/default.thresholds" />
             <param name="correlations" value="./files/correlations/${project}.correlations" />
         </antcall>
         <antcall target="hstore-site">
-            <param name="jar" value="${benchmark.jar}" />
+            <param name="benchmark.jar" value="${benchmark.jar}" />
             <param name="node.site" value="1" />
             <param name="markov" value="./files/markovs/${project}.markovs" />
             <param name="thresholds" value="./files/thresholds/default.thresholds" />

@@ -46,6 +46,10 @@ public class ProjectBuilderX extends VoltProjectBuilder {
 
     public static final URL m_ddlURL = ProjectBuilderX.class.getResource("ddl.sql");
 
+    public ProjectBuilderX() {
+        super("dedupe");
+    }
+    
     public static String m_partitioning[][] = new String[][] {
         {"archived", "column1"},
         {"unarchived", "column1"},

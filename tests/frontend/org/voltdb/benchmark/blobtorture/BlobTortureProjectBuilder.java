@@ -34,6 +34,11 @@ public class BlobTortureProjectBuilder extends VoltProjectBuilder {
     private static final URL ddlURL =
         BlobTortureProjectBuilder.class.getResource("blobtorture-ddl.sql");
 
+    
+    public BlobTortureProjectBuilder() {
+        super("blob");
+    }
+    
     @Override
     public void addAllDefaults() {
         addProcedures(InsertBlob.class, SelectBlob.class);

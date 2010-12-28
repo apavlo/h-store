@@ -75,6 +75,7 @@ import edu.brown.hstore.Hstore.HStoreService;
 import edu.brown.hstore.Hstore.MessageType;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.LoggerUtil;
+import edu.brown.utils.StringUtil;
 import edu.brown.utils.ThreadUtil;
 import edu.mit.hstore.HStoreMessenger;
 import edu.mit.hstore.HStoreSite;
@@ -86,8 +87,9 @@ public class BenchmarkController {
         LoggerUtil.setupLogging();
     }
 
-    ProcessSetManager m_clientPSM = new ProcessSetManager();
-    ProcessSetManager m_serverPSM = new ProcessSetManager();
+    final ProcessSetManager m_coordPSM = new ProcessSetManager();
+    final ProcessSetManager m_clientPSM = new ProcessSetManager();
+    final ProcessSetManager m_serverPSM = new ProcessSetManager();
     BenchmarkResults m_currentResults = null;
     Set<String> m_clients = new HashSet<String>();
     ClientStatusThread m_statusThread = null;
@@ -317,7 +319,8 @@ public class BenchmarkController {
         // Now figure out which hosts we really want to launch this mofo on
         List<String[]> launch_hosts = null;
         Set<String> unique_hosts = new HashSet<String>();
-        if (!m_config.useCatalogHosts) {
+        if (m_config.useCatalogHosts == false) {
+            LOG.debug("Creating host information from BenchmarkConfig");
             launch_hosts = new ArrayList<String[]>();
             Integer site_id = VoltDB.FIRST_SITE_ID;
             for (String host : m_config.hosts) {
@@ -349,117 +352,98 @@ public class BenchmarkController {
             CollectionUtil.addAll(copyto_hosts, unique_hosts);
             CollectionUtil.addAll(copyto_hosts, m_config.clients);
             
-            List<Thread> threads = new ArrayList<Thread>();
-            final File jar_file = new File(m_jarFileName);
-            for (final String host : copyto_hosts) {
-                threads.add(new Thread() {
-                    public void run() {
-                        boolean status = SSHTools.copyFromLocal(jar_file, m_config.remoteUser, host, m_config.remotePath);
-                        assert(status) :
-                            "SSH copyFromLocal failed to copy " + m_jarFileName + " to " + m_config.remoteUser + "@" + host + ":" + m_config.remotePath;
-                    }
-                });
+            Set<Thread> threads = new HashSet<Thread>();
+            
+            // Dtxn.Coordinator
+            {
+                KillStragglers ks = new KillStragglers(m_config.remoteUser, m_config.coordinatorHost, m_config.remotePath)
+                                            .enableKillCoordinator();
+                threads.add(new Thread(ks));
+                Runtime.getRuntime().addShutdownHook(new Thread(ks));
+            }
+            // HStoreSite
+            for (String host : unique_hosts) {
+                KillStragglers ks = new KillStragglers(m_config.remoteUser, host, m_config.remotePath)
+                                            .enableKillSite()
+                                            .enableKillEngine();
+                threads.add(new Thread(ks));
+                Runtime.getRuntime().addShutdownHook(new Thread(ks));
             } // FOR
+            // Client
+            for (String host : m_config.clients) {
+                KillStragglers ks = new KillStragglers(m_config.remoteUser, host, m_config.remotePath)
+                                            .enableKillClient();
+                threads.add(new Thread(ks));
+                Runtime.getRuntime().addShutdownHook(new Thread(ks));
+            } // FOR
+
+            
             try {
                 ThreadUtil.run(threads);
-            } catch (Exception ex) {
-                throw new RuntimeException("Failed to copy " + jar_file, ex);
+            } catch (Exception e) {
+                LogKeys logkey = LogKeys.benchmark_BenchmarkController_UnableToRunRemoteKill;
+                benchmarkLog.l7dlog(Level.FATAL, logkey.name(), e);
+                benchmarkLog.fatal("Couldn't run remote kill operation.", e);
+                System.exit(-1);
             }
 
-            // KILL ALL JAVA ORG.VOLTDB PROCESSES NOW
-//            Set<Thread> threads = new HashSet<Thread>();
-//            for (String host : unique_hosts) {
-//                Thread t = new KillStragglers(m_config.remoteUser, host, m_config.remotePath);
-//                t.start();
-//                threads.add(t);
-//            }
-//            for (String host : m_config.clients) {
-//                Thread t = new KillStragglers(m_config.remoteUser, host, m_config.remotePath);
-//                t.start();
-//                threads.add(t);
-//            }
-//            for (Thread t : threads)
-//                try {
-//                    t.join();
-//                } catch (InterruptedException e) {
-//                    LogKeys logkey = LogKeys.benchmark_BenchmarkController_UnableToRunRemoteKill;
-//                    benchmarkLog.l7dlog(Level.FATAL, logkey.name(), e);
-//                    benchmarkLog.fatal("Couldn't run remote kill operation.", e);
-//                    System.exit(-1);
-//                }
+            // START: Dtxn.Coordinator
+            {
+                String host = m_config.coordinatorHost;
+                String[] command = {
+                    "ant",
+                    "dtxn-coordinator",
+                    "-Dproject=" + m_projectBuilder.getProjectName(),
+                };
 
-
-            // SETUP THE CLEANUP HOOKS
-//            for (String host : unique_hosts) {
-//                Runtime.getRuntime().addShutdownHook(
-//                        new KillStragglers(m_config.remoteUser, host, m_config.remotePath));
-//            }
-            for (String client : m_config.clients) {
-                Runtime.getRuntime().addShutdownHook(
-                        new KillStragglers(m_config.remoteUser, client, m_config.remotePath));
+                command = SSHTools.convert(m_config.remoteUser, host, m_config.remotePath, command);
+                String fullCommand = StringUtil.join(" ", command);
+                benchmarkLog.debug(fullCommand);
+                m_coordPSM.startProcess(host, command);
             }
-
+            
             // START THE SERVERS
-//            m_serverPSM = new ProcessSetManager();
-//            for (String[] triplet : launch_hosts) {
-//                String host = triplet[0];
-//                String port = triplet[1];
-//                String site_id = triplet[2];
-//                
-//                log.info("Starting ExecutionSite on " + host + ":" + port + " with site id #" + site_id);
-//
+            LOG.debug("Number of hosts to start: " + launch_hosts.size());
+            for (String[] triplet : launch_hosts) {
+                String host = triplet[0];
+                String port = triplet[1];
+                String site_id = triplet[2];
+                String host_id = String.format("%s:%s", host, port);
+                
+                LOG.info("Starting ExecutionSite on " + host_id + " with site id #" + site_id);
+
 //                String debugString = "";
 //                if (m_config.listenForDebugger) {
 //                    debugString =
 //                        " -agentlib:jdwp=transport=dt_socket,address=8001,server=y,suspend=n ";
 //                }
-//                // -agentlib:hprof=cpu=samples,
-//                // depth=32,interval=10,lineno=y,monitor=y,thread=y,force=y,
-//                // file=" + host + "_hprof_tpcc.txt"
-//                String[] command = {
-//                        "java",
-//                        "-Djava.library.path=.",
-//                        "-Dlog4j.configuration=log.xml",
-//                        debugString,
-//                        /*
-//                         * The vast majority of Volt heap usage is young generation. When running the benchmark
-//                         * there isn't a single full GC performed. They are all young gen GCs and there isn't 
-//                         * anywhere near enough data to fill the tenured gen.
-//                         */
-//                        "-Xmn" + String.valueOf((m_config.serverHeapSize / 4) * 3) + "m",
-//                        /*
-//                         * Start the heap off at the max size
-//                         */
-//                        "-Xms" + String.valueOf(m_config.serverHeapSize) + "m",
-//                        "-Xmx" + String.valueOf(m_config.serverHeapSize) + "m",
-//                        "-server",
-//                        "-cp", "\"voltdbfat.jar:" + m_jarFileName + "\"",
-//                        "org.voltdb.VoltDB",
-//                        "catalog", m_jarFileName,
-//                        "siteid", site_id,
-//                        "port", port,
-//                        m_config.useProfile,
-//                        m_config.backend};
-//
-//                command = SSHTools.convert(m_config.remoteUser, host, m_config.remotePath, command);
-//
-//                StringBuilder fullCommand = new StringBuilder();
-//                for (String s : command)
-//                    fullCommand.append(s).append(" ");
-//                uploader.setCommandLineForHost(host, fullCommand.toString());
-//
-//                benchmarkLog.debug(fullCommand.toString());
-//
-//                m_serverPSM.startProcess(host, command);
-//            }
+                // -agentlib:hprof=cpu=samples,
+                // depth=32,interval=10,lineno=y,monitor=y,thread=y,force=y,
+                // file=" + host + "_hprof_tpcc.txt"
+                String[] command = {
+                        "ant",
+                        "hstore-site",
+                        "-Dproject=" + m_projectBuilder.getProjectName(),
+                        "-Dnode.site=" + site_id,
+                };
+
+                command = SSHTools.convert(m_config.remoteUser, host, m_config.remotePath, command);
+                String fullCommand = StringUtil.join(" ", command);
+                uploader.setCommandLineForHost(host, fullCommand);
+                benchmarkLog.debug(fullCommand);
+                m_serverPSM.startProcess(host_id, command);
+            } // FOR
 
             // WAIT FOR SERVERS TO BE READY
-//            log.info("Waiting for ExecutionSites to finish initialization");
-//            ProcessSetManager.OutputLine line = m_serverPSM.nextBlocking();
-//            while(line.value.contains(VoltDB.NODE_READY_MSG) == false) {
-//                line = m_serverPSM.nextBlocking();
-//            }
-//            LOG.info("All remote ExecutionSites are initialized");
+            int waiting = launch_hosts.size();
+            LOG.info("Waiting for " + waiting + " HStoreSites to finish initialization");
+            do {
+                ProcessSetManager.OutputLine line = m_serverPSM.nextBlocking();
+                if (line.value.contains(HStoreSite.SITE_READY_MSG)) {
+                    waiting--;
+                }
+            } while (waiting > 0);
+            LOG.info("All remote HStoreSites are initialized");
         }
         else {
             // START A SERVER LOCALLY IN-PROCESS
@@ -1160,13 +1144,39 @@ public class BenchmarkController {
         }
 
         // create a config object, mostly for the results uploader at this point
-        BenchmarkConfig config = new BenchmarkConfig(clientClassname, backend, coordinatorHost, hostNames,
-                sitesPerHost, k_factor, clientNames, processesPerClient, interval, duration,
-                remotePath, remoteUser, listenForDebugger, serverHeapSize, clientHeapSize,
-                localmode, useProfile, checkTransaction, checkTables, snapshotPath, snapshotPrefix,
-                snapshotFrequency, snapshotRetain, databaseURL[0], databaseURL[1], statsTag,
-                applicationName, subApplicationName,
-                compileBenchmark, compileOnly, useCatalogHosts, noDataLoad);
+        BenchmarkConfig config = new BenchmarkConfig(
+                clientClassname,
+                backend, 
+                coordinatorHost, 
+                hostNames,
+                sitesPerHost, 
+                k_factor, 
+                clientNames, 
+                processesPerClient, 
+                interval, 
+                duration,
+                remotePath, 
+                remoteUser, 
+                listenForDebugger, 
+                serverHeapSize, 
+                clientHeapSize,
+                localmode, 
+                useProfile, 
+                checkTransaction, 
+                checkTables, 
+                snapshotPath, 
+                snapshotPrefix,
+                snapshotFrequency, 
+                snapshotRetain, 
+                databaseURL[0], 
+                databaseURL[1], 
+                statsTag,
+                applicationName, 
+                subApplicationName,
+                compileBenchmark, 
+                compileOnly, 
+                useCatalogHosts,
+                noDataLoad);
 
         // Always pass these parameters
         clientParams.put("INTERVAL", Long.toString(interval));

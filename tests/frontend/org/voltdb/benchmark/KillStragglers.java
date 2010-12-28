@@ -23,36 +23,69 @@
 
 package org.voltdb.benchmark;
 
+import java.util.Arrays;
+
+import org.apache.log4j.Logger;
 import org.voltdb.processtools.SSHTools;
 import org.voltdb.processtools.ShellTools;
 
-public class KillStragglers extends Thread {
+public class KillStragglers implements Runnable {
+    private static final Logger LOG = Logger.getLogger(KillStragglers.class);
 
     final String m_username;
     final String m_hostname;
     final String m_remotePath;
-
+    
+    // Options
+    Integer m_siteid = null;
+    boolean m_killSite = false;
+    boolean m_killCoordinator = false;
+    boolean m_killEngine = false;
+    boolean m_killClient = false;
+    
+    
     public KillStragglers(String username, String hostname, String remotePath) {
         m_username = username;
         m_hostname = hostname;
         m_remotePath = remotePath;
     }
-
-    public KillStragglers() {
-        m_username = null;
-        m_hostname = "localhost";
-        m_remotePath = null;
+    
+    public void setSiteId(int siteid) {
+         m_siteid = siteid;
+    }
+    public KillStragglers enableKillSite() {
+        m_killSite = true;
+        return (this);
+    }
+    public KillStragglers enableKillCoordinator() {
+        m_killCoordinator = true;
+        return (this);
+    }
+    public KillStragglers enableKillEngine() {
+        m_killEngine = true;
+        return (this);
+    }
+    public KillStragglers enableKillClient() {
+        m_killClient = true;
+        return (this);
     }
 
     @Override
     public void run() {
-        if (m_remotePath != null) {
-            ShellTools.cmdToStdOut(SSHTools.convert(m_username, m_hostname, m_remotePath,
-                    "/bin/bash killstragglers.sh"));
+        assert(m_killSite || m_killCoordinator || m_killEngine || m_killClient) : "No kill option selected";
+        
+        // Kill Command
+        String kill_cmd = "tools/killstragglers.py";
+        if (m_killSite) {
+            kill_cmd += " --hstoresite";
+            if (m_siteid != null) kill_cmd += " --siteid=" + m_siteid;
         }
-        else {
-            String[] cmd = { "/bin/bash", "test/killstragglers.sh" };
-            ShellTools.cmdToStdOut(cmd);
-        }
+        if (m_killCoordinator) kill_cmd += " --protocoord";
+        if (m_killEngine) kill_cmd += " --protoengine";
+        if (m_killClient) kill_cmd += " --client";
+        
+        String cmd[] = SSHTools.convert(m_username, m_hostname, m_remotePath, kill_cmd); 
+        LOG.debug("KILL PUSSY CAT KILL: " + Arrays.toString(cmd));
+        ShellTools.cmdToStdOut(cmd);
     }
 }

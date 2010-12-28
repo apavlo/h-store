@@ -46,6 +46,10 @@ public class ProjectBuilderX extends VoltProjectBuilder {
         {"TABLE2", "MAINID"},
         {"TABLE3", "MAINID"},
     };
+    
+    public ProjectBuilderX() {
+        super("twenty");
+    }
 
     @Override
     public void addAllDefaults() {

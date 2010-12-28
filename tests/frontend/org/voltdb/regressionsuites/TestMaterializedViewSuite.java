@@ -316,7 +316,7 @@ public class TestMaterializedViewSuite extends RegressionSuite {
         VoltServerConfig config = new LocalSingleProcessServer("matview-onesite.jar", 1, BackendTarget.NATIVE_EE_JNI);
 
         // build up a project builder for the workload
-        VoltProjectBuilder project = new VoltProjectBuilder();
+        VoltProjectBuilder project = new VoltProjectBuilder("matview");
         //project.setBackendTarget(BackendTarget.NATIVE_EE_IPC);
         project.addSchema(schemaPath);
         project.addPartitionInfo("PEOPLE", "PARTITION");

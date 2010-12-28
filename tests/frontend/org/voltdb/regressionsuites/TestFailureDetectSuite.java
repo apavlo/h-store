@@ -85,7 +85,7 @@ public class TestFailureDetectSuite extends RegressionSuite
         MultiConfigSuiteBuilder builder =
             new MultiConfigSuiteBuilder(TestFailureDetectSuite.class);
 
-        VoltProjectBuilder project = new VoltProjectBuilder();
+        VoltProjectBuilder project = new VoltProjectBuilder("replication");
         project.addSchema(SelectEmptyTable.class.getResource("replication-ddl.sql"));
         project.addPartitionInfo("P1", "ID");
         project.addStmtProcedure("InsertSinglePart",

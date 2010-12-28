@@ -412,7 +412,7 @@ public class TestFailuresSuite extends RegressionSuite {
         VoltServerConfig config = new LocalSingleProcessServer("failures-onesite.jar", 1, BackendTarget.NATIVE_EE_JNI);
 
         // build up a project builder for the workload
-        VoltProjectBuilder project = new VoltProjectBuilder();
+        VoltProjectBuilder project = new VoltProjectBuilder("failures");
         project.addSchema(DivideByZero.class.getResource("failures-ddl.sql"));
         project.addPartitionInfo("NEW_ORDER", "NO_W_ID");
         project.addPartitionInfo("FIVEK_STRING", "P");

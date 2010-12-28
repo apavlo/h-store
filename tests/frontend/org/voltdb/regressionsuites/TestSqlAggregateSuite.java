@@ -351,7 +351,7 @@ public class TestSqlAggregateSuite extends RegressionSuite {
         MultiConfigSuiteBuilder builder =
             new MultiConfigSuiteBuilder(TestSqlAggregateSuite.class);
 
-        VoltProjectBuilder project = new VoltProjectBuilder();
+        VoltProjectBuilder project = new VoltProjectBuilder("aggregate");
         project.addSchema(Insert.class.getResource("aggregate-sql-ddl.sql"));
         project.addPartitionInfo("P1", "ID");
         project.addProcedures(PROCEDURES);
