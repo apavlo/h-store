@@ -423,6 +423,7 @@ public class BenchmarkController {
                 String[] command = {
                         "ant",
                         "hstore-site",
+                        "-Dhstore.coordinator.host=" + m_config.coordinatorHost,
                         "-Dproject=" + m_projectBuilder.getProjectName(),
                         "-Dnode.site=" + site_id,
                 };
