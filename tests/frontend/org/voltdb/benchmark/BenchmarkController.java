@@ -399,7 +399,7 @@ public class BenchmarkController {
                 command = SSHTools.convert(m_config.remoteUser, host, m_config.remotePath, command);
                 String fullCommand = StringUtil.join(" ", command);
                 benchmarkLog.debug(fullCommand);
-                m_coordPSM.startProcess(host, command);
+                m_coordPSM.startProcess("dtxn-" + host, command);
                 LOG.info("Started Dtxn.Coordinator on " + host);
             }
             
@@ -409,9 +409,9 @@ public class BenchmarkController {
                 String host = triplet[0];
                 String port = triplet[1];
                 String site_id = triplet[2];
-                String host_id = String.format("%s:%s", host, port);
+                String host_id = String.format("site-%s-%s", host, site_id);
                 
-                LOG.info("Starting ExecutionSite on " + host_id + " with site id #" + site_id);
+                LOG.info(String.format("Starting HStoreSite on %s:%s with site id #%s", host, port, site_id));
 
 //                String debugString = "";
 //                if (m_config.listenForDebugger) {
@@ -581,6 +581,8 @@ public class BenchmarkController {
         int clientIndex = 0;
         for (String client : m_config.clients) {
             for (int j = 0; j < m_config.processesPerClient; j++) {
+                String host_id = String.format("client-%d", clientIndex);
+                
                 if (m_config.listenForDebugger) {
                     clArgs.remove(1);
                     String arg = "-agentlib:jdwp=transport=dt_socket,address="
@@ -593,16 +595,11 @@ public class BenchmarkController {
                 String[] args = tempCLArgs.toArray(new String[0]);
 
                 args = SSHTools.convert(m_config.remoteUser, client, m_config.remotePath, args);
+                String fullCommand = StringUtil.join(" ", args);
 
-                StringBuilder fullCommand = new StringBuilder();
-                for (String s : args)
-                    fullCommand.append(s).append(" ");
-
-                uploader.setCommandLineForClient(
-                        client + ":" + String.valueOf(j),
-                        fullCommand.toString());
-                benchmarkLog.debug("Client Commnand: " + fullCommand.toString());
-                m_clientPSM.startProcess(client + ":" + String.valueOf(j), args);
+                uploader.setCommandLineForClient(host_id, fullCommand);
+                benchmarkLog.debug("Client Commnand: " + fullCommand);
+                m_clientPSM.startProcess(host_id, args);
             }
         }
 

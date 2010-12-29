@@ -24,6 +24,7 @@
 package org.voltdb.processtools;
 
 import java.io.BufferedReader;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
@@ -84,12 +85,22 @@ public class ProcessSetManager {
         final String m_processName;
         final Stream m_stream;
         final AtomicBoolean m_expectDeath = new AtomicBoolean(false);
+        final FileWriter m_writer;
 
         StreamWatcher(BufferedReader reader, String processName, Stream stream) {
             assert(reader != null);
             m_reader = reader;
             m_processName = processName;
             m_stream = stream;
+            
+            FileWriter fw = null;
+            try {
+                fw = new FileWriter("/tmp/hstore-" + m_processName);
+            } catch (Exception ex) {
+                ex.printStackTrace();
+                System.exit(1);
+            }
+            m_writer = fw;
         }
 
         void setExpectDeath(boolean expectDeath) {
@@ -98,26 +109,33 @@ public class ProcessSetManager {
 
         @Override
         public void run() {
-            while (true) {
-                String line = null;
-                try {
-                    line = m_reader.readLine();
-                } catch (IOException e) {
-                    if (!m_expectDeath.get()) {
-                        e.printStackTrace();
-                        System.err.print("Err Stream monitoring thread exiting.");
-                        System.err.flush();
+            try {
+                while (true) {
+                    String line = null;
+                    try {
+                        line = m_reader.readLine();
+                    } catch (IOException e) {
+                        if (!m_expectDeath.get()) {
+                            e.printStackTrace();
+                            System.err.print("Err Stream monitoring thread exiting.");
+                            System.err.flush();
+                        }
+                        return;
                     }
-                    return;
+                    if (line != null) {
+                        OutputLine ol = new OutputLine(m_processName, m_stream, line);
+                        m_output.add(ol);
+                        final long now = (System.currentTimeMillis() / 1000) - 1256158053;
+                        m_writer.write(String.format("(%d) %s: %s\n", now, m_processName, line));
+                    }
+                    else {
+                        Thread.yield();
+                        m_writer.flush();
+                    }
                 }
-                if (line != null) {
-                    OutputLine ol = new OutputLine(m_processName, m_stream, line);
-                    final long now = (System.currentTimeMillis() / 1000) - 1256158053;
-                    System.out.println("(" + now + ")" + m_processName + ": " + line);
-                    m_output.add(ol);
-                }
-                else
-                    Thread.yield();
+            } catch (Exception ex) {
+                ex.printStackTrace();
+                System.exit(1);
             }
         }
     }
