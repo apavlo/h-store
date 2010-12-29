@@ -112,6 +112,7 @@ ProtoDtxnCoordinator::ProtoDtxnCoordinator(dtxn::DtxnManager* dtxn_manager, int 
         num_partitions_(num_partitions) {
     CHECK(dtxn_manager_ != NULL);
     CHECK(num_partitions_ > 0);
+    LOG_INFO("Evan's magic has started");
 }
 
 ProtoDtxnCoordinator::~ProtoDtxnCoordinator() {

@@ -2131,6 +2131,10 @@ H-STORE REMIX
     <antcall target="hstore-jar">
         <param name="jar" value="${benchmark.jar}" />
     </antcall>
+    
+    <antcall target="hstore-conf">
+        <param name="jar" value="${benchmark.jar}" />
+    </antcall>
 </target>
 
 <target name="hstore-site" description="H-Store Execution Node/Coordinator">
@@ -2183,9 +2187,6 @@ H-STORE REMIX
 </target>
 
 <target name="hstore-benchmark" description="H-Store Test Setup">
-    <antcall target="hstore-conf">
-        <param name="jar" value="${benchmark.jar}" />
-    </antcall>
     <parallel failonany="true">
         <antcall target="dtxn-coordinator">
             <param name="port" value="${hstore.coordinator.port}" />

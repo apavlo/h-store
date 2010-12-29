@@ -112,8 +112,8 @@ public class ProcessSetManager {
                 }
                 if (line != null) {
                     OutputLine ol = new OutputLine(m_processName, m_stream, line);
-                    // final long now = (System.currentTimeMillis() / 1000) - 1256158053;
-                    // System.out.println("(" + now + ")" + m_processName + ": " + line);
+                    final long now = (System.currentTimeMillis() / 1000) - 1256158053;
+                    System.out.println("(" + now + ")" + m_processName + ": " + line);
                     m_output.add(ol);
                 }
                 else

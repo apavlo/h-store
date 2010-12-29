@@ -400,6 +400,7 @@ public class BenchmarkController {
                 String fullCommand = StringUtil.join(" ", command);
                 benchmarkLog.debug(fullCommand);
                 m_coordPSM.startProcess(host, command);
+                LOG.info("Started Dtxn.Coordinator on " + host);
             }
             
             // START THE SERVERS
@@ -421,11 +422,11 @@ public class BenchmarkController {
                 // depth=32,interval=10,lineno=y,monitor=y,thread=y,force=y,
                 // file=" + host + "_hprof_tpcc.txt"
                 String[] command = {
-                        "ant",
-                        "hstore-site",
-                        "-Dhstore.coordinator.host=" + m_config.coordinatorHost,
-                        "-Dproject=" + m_projectBuilder.getProjectName(),
-                        "-Dnode.site=" + site_id,
+                    "ant",
+                    "hstore-site",
+                    "-Dhstore.coordinator.host=" + m_config.coordinatorHost,
+                    "-Dproject=" + m_projectBuilder.getProjectName(),
+                    "-Dnode.site=" + site_id,
                 };
 
                 command = SSHTools.convert(m_config.remoteUser, host, m_config.remotePath, command);
