@@ -2099,6 +2099,9 @@ H-STORE REMIX
 </target>
 
 <target name="hstore-conf" description="Converts catalog contents to hstore.conf file">
+    <condition property="jar" value="${benchmark.jar}">
+        <not><isset property="jar"/></not>
+    </condition>
    <java fork="yes" classname="edu.brown.catalog.HStoreConf">
       <jvmarg value="-Dlog4j.configuration=log4j.properties"/>
       <jvmarg value="-client" />
