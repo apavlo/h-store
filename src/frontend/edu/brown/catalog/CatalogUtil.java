@@ -1147,6 +1147,83 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
     }
 
     /**
+     * Return all of the columns referenced in the given AbstractPlanNode
+     * Non-recursive.
+     * @param catalog_db
+     * @param node
+     * @return
+     * @throws Exception
+     */
+    public static Set<Column> getReferencedColumns(final Database catalog_db, final AbstractPlanNode node) throws Exception {
+        Set<Column> ret = new HashSet<Column>();
+        CatalogUtil.getReferencedColumns(catalog_db, node, ret);
+        return (ret);
+    }
+    
+    /**
+     * Returns all the columns access/modified in the given Statement's query
+     * 
+     * @param catalog_stmt
+     * @return
+     * @throws Exception
+     */
+    private static void getReferencedColumns(final Database catalog_db, final AbstractPlanNode node, final Set<Column> columns) throws Exception {
+        switch (node.getPlanNodeType()) {
+            // SCANS
+            case INDEXSCAN: {
+                IndexScanPlanNode idx_node = (IndexScanPlanNode) node;
+                if (idx_node.getEndExpression() != null)
+                    columns.addAll(CatalogUtil.getReferencedColumns(catalog_db, idx_node.getEndExpression()));
+                for (AbstractExpression exp : idx_node.getSearchKeyExpressions()) {
+                    if (exp != null)
+                        columns.addAll(CatalogUtil.getReferencedColumns(catalog_db, exp));
+                } // FOR
+
+                // Fall through down into SEQSCAN....
+            }
+            case SEQSCAN: {
+                AbstractScanPlanNode scan_node = (AbstractScanPlanNode) node;
+                if (scan_node.getPredicate() != null)
+                    columns.addAll(CatalogUtil.getReferencedColumns(catalog_db, scan_node.getPredicate()));
+                break;
+            }
+                // JOINS
+            case NESTLOOP:
+            case NESTLOOPINDEX: {
+                AbstractJoinPlanNode cast_node = (AbstractJoinPlanNode) node;
+                if (cast_node.getPredicate() != null)
+                    columns.addAll(CatalogUtil.getReferencedColumns(catalog_db, cast_node.getPredicate()));
+                break;
+            }
+            // INSERT
+            case INSERT: {
+                // All columns are accessed whenever we insert a new record
+                InsertPlanNode ins_node = (InsertPlanNode) node;
+                Table catalog_tbl = catalog_db.getTables().get(ins_node.getTargetTableName());
+                assert (catalog_tbl != null) : "Missing table " + ins_node.getTargetTableName();
+                CollectionUtil.addAll(columns, catalog_tbl.getColumns());
+                break;
+            }
+            // UPDATE
+            case UPDATE: {
+                // Need to make sure we get both the WHERE clause and the fields that are updated
+                // We need to get the list of columns from the ScanPlanNode below us
+                UpdatePlanNode up_node = (UpdatePlanNode) node;
+                AbstractScanPlanNode scan_node = CollectionUtil.getFirst(PlanNodeUtil.getPlanNodes(up_node, AbstractScanPlanNode.class));
+                assert (scan_node != null) : "Failed to find underlying scan node for " + up_node;
+                columns.addAll(PlanNodeUtil.getOutputColumns(catalog_db, scan_node));
+                break;
+            }
+            case DELETE:
+                // I don't think we need anything here because all the
+                // columns will get get picked up by the scans that feed into the DELETE
+                break;
+            default:
+                // Do nothing...
+        } // SWITCH
+    }
+
+    /**
      * Returns all the tables access/modified in the Expression tree
      * 
      * @param catalog_db
@@ -1169,10 +1246,8 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
                         return;
                     }
 
-                    String column_name = ((TupleValueExpression) element)
-                            .getColumnName();
-                    Column catalog_col = catalog_tbl.getColumns().get(
-                            column_name);
+                    String column_name = ((TupleValueExpression) element).getColumnName();
+                    Column catalog_col = catalog_tbl.getColumns().get(column_name);
                     if (catalog_col == null) {
                         LOG.fatal("Unknown column '" + table_name + "."
                                 + column_name
@@ -1273,75 +1348,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
             @Override
             protected void callback(final AbstractPlanNode node) {
                 try {
-                    switch (node.getPlanNodeType()) {
-                    // SCANS
-                    case INDEXSCAN: {
-                        IndexScanPlanNode idx_node = (IndexScanPlanNode) node;
-                        if (idx_node.getEndExpression() != null)
-                            columns.addAll(CatalogUtil.getReferencedColumns(
-                                    catalog_db, idx_node.getEndExpression()));
-                        for (AbstractExpression exp : idx_node
-                                .getSearchKeyExpressions()) {
-                            if (exp != null)
-                                columns.addAll(CatalogUtil
-                                        .getReferencedColumns(catalog_db, exp));
-                        } // FOR
-
-                        // Fall through down into SEQSCAN....
-                    }
-                    case SEQSCAN: {
-                        AbstractScanPlanNode scan_node = (AbstractScanPlanNode) node;
-                        if (scan_node.getPredicate() != null)
-                            columns.addAll(CatalogUtil.getReferencedColumns(
-                                    catalog_db, scan_node.getPredicate()));
-                        break;
-                    }
-                        // JOINS
-                    case NESTLOOP:
-                    case NESTLOOPINDEX: {
-                        AbstractJoinPlanNode cast_node = (AbstractJoinPlanNode) node;
-                        if (cast_node.getPredicate() != null)
-                            columns.addAll(CatalogUtil.getReferencedColumns(
-                                    catalog_db, cast_node.getPredicate()));
-                        break;
-                    }
-                        // INSERT
-                    case INSERT: {
-                        // All columns are accessed whenever we insert a new
-                        // record
-                        InsertPlanNode ins_node = (InsertPlanNode) node;
-                        Table catalog_tbl = catalog_db.getTables().get(
-                                ins_node.getTargetTableName());
-                        assert (catalog_tbl != null) : "Missing table "
-                                + ins_node.getTargetTableName();
-                        CollectionUtil
-                                .addAll(columns, catalog_tbl.getColumns());
-                        break;
-                    }
-                        // UPDATE
-                    case UPDATE: {
-                        // Need to make sure we get both the WHERE clause and
-                        // the fields that are updated
-                        // We need to get the list of columns from the
-                        // ScanPlanNode below us
-                        UpdatePlanNode up_node = (UpdatePlanNode) node;
-                        AbstractScanPlanNode scan_node = CollectionUtil
-                                .getFirst(PlanNodeUtil.getPlanNodes(up_node,
-                                        AbstractScanPlanNode.class));
-                        assert (scan_node != null) : "Failed to find underlying scan node for "
-                                + up_node;
-                        columns.addAll(PlanNodeUtil.getOutputColumns(
-                                catalog_db, scan_node));
-                        break;
-                    }
-                    case DELETE:
-                        // I don't think we need anything here because all the
-                        // columns will get get picked
-                        // up by the scans that feed into the DELETE
-                        break;
-                    default:
-                        // Do nothing...
-                    } // SWITCH
+                    CatalogUtil.getReferencedColumns(catalog_db, node, columns);
                 } catch (Exception ex) {
                     LOG.fatal("Failed to extract columns from " + node, ex);
                     System.exit(1);
@@ -1391,8 +1398,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
      * @param catalog_tbl
      * @return
      */
-    public static Long estimateTupleSize(Table catalog_tbl,
-            Statement catalog_stmt, Object params[]) throws Exception {
+    public static Long estimateTupleSize(Table catalog_tbl, Statement catalog_stmt, Object params[]) throws Exception {
         long bytes = 0;
 
         //
@@ -1584,13 +1590,26 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
         } // FOR
         return (buffer.toString());
     }
-
+    
     public static String debug(CatalogMap<? extends CatalogType> map) {
         String ret = "[ ";
         String add = "";
         for (CatalogType item : map) {
             ret += add + item;
             add = ", ";
+        } // FOR
+        ret += " ]";
+        return (ret);
+    }
+
+    public static String debug(Collection<? extends CatalogType> items) {
+        String ret = "[ ";
+        String add = "";
+        for (CatalogType item : items) {
+            if (item != null) {
+                ret += add + CatalogUtil.getDisplayName(item);
+                add = ", ";
+            }
         } // FOR
         ret += " ]";
         return (ret);

@@ -8,6 +8,8 @@ import java.util.*;
 
 import org.voltdb.VoltProcedure;
 import org.voltdb.catalog.*;
+import org.voltdb.compiler.VoltProjectBuilder;
+import org.voltdb.utils.JarReader;
 import org.voltdb.benchmark.tpcc.TPCCProjectBuilder;
 
 import edu.brown.benchmark.AbstractProjectBuilder;
@@ -78,6 +80,37 @@ public abstract class BaseTestCase extends TestCase {
      */
     protected void setUp(ProjectType type, boolean fkeys) throws Exception {
         this.setUp(type, fkeys, true);
+    }
+    
+    protected void setUp(VoltProjectBuilder projectBuilder) throws Exception {
+        super.setUp();
+        this.last_type = ProjectType.TEST;
+        catalog = project_catalogs.get(this.last_type);
+        catalog_db = project_databases.get(this.last_type);
+        p_estimator = project_p_estimators.get(this.last_type);
+        
+        
+        if (catalog == null) {
+            String catalogJar = new File(projectBuilder.getProjectName() + ".jar").getAbsolutePath();
+            try {
+                boolean status = projectBuilder.compile(catalogJar);
+                assert (status);
+            } catch (Exception ex) {
+                throw new RuntimeException("Failed to create " + projectBuilder.getProjectName() + " catalog [" + catalogJar + "]", ex);
+            }
+    
+            catalog = new Catalog();
+            try {
+                // read in the catalog
+                String serializedCatalog = JarReader.readFileFromJarfile(catalogJar, CatalogUtil.CATALOG_FILENAME);
+                // create the catalog (that will be passed to the ClientInterface
+                catalog.execute(serializedCatalog);
+            } catch (Exception ex) {
+                throw new RuntimeException("Failed to load " + projectBuilder.getProjectName() + " catalog [" + catalogJar + "]", ex);
+            }
+            
+            this.init(this.last_type, catalog);
+        }
     }
     
     /**
