@@ -50,7 +50,6 @@ public abstract class AbstractProjectBuilder extends VoltProjectBuilder {
         }
     }
     
-    
     /**
      * Constructor
      * @param project_name

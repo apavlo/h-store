@@ -14,6 +14,7 @@ public enum ProjectType {
     BINGO       ("Bingo",       null),
     AUCTIONMARK ("AuctionMark", "edu.brown.benchmark.auctionmark"),
     LOCALITY    ("Locality",    "edu.brown.benchmark.locality"),
+    TEST        ("Test",        null),
     ;
     
     private final String package_name;

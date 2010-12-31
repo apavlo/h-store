@@ -26,7 +26,7 @@ int main(int argc, const char* argv[]) {
 
     io::LibEventLoop event_loop;
 
-    fprintf(stderr, "LET'S DO THIS\n");
+    fprintf(stderr, "Preparing to launch Dtxn.Coordinator...\n");
     
     // Connect to the backends
     vector<TCPConnection*> tcp_connections = net::createConnectionsWithRetry(
@@ -36,7 +36,7 @@ int main(int argc, const char* argv[]) {
         return 1;
     }
     
-    fprintf(stderr, "OK I'M READY\n");
+    fprintf(stderr, "All connections established. Ready to work with our lovers\n");
     
     ASSERT(tcp_connections.size() == partitions.size());
     vector<MessageConnection*> msg_connections(tcp_connections.size());

@@ -71,11 +71,7 @@ public abstract class PlanNodeUtil {
      * @param node
      * @return
      */
-    public static Set<Column> getOutputColumns(final Database catalog_db, AbstractScanPlanNode node) {
-        String table_name = node.getTargetTableName();
-        Table catalog_tbl = catalog_db.getTables().get(table_name);
-        assert(catalog_tbl != null) : "Invalid table '" + table_name + "'";
-        
+    public static Set<Column> getOutputColumns(final Database catalog_db, AbstractPlanNode node) {
         Set<Column> columns = new ListOrderedSet<Column>();
         for (int ctr = 0, cnt = node.m_outputColumns.size(); ctr < cnt; ctr++) {
             int column_guid = node.m_outputColumns.get(ctr);
@@ -83,9 +79,15 @@ public abstract class PlanNodeUtil {
             assert(column != null);
             
             String column_name = column.displayName();
+            String table_name = column.originTableName();
             if (column_name.equals("tuple_address")) continue;
+            
+            Table catalog_tbl = catalog_db.getTables().get(table_name);
+            assert(catalog_tbl != null) : "Invalid table '" + table_name + "'";
+            
             Column catalog_col = catalog_tbl.getColumns().get(column_name);
             assert(catalog_col != null) : "Invalid column '" + table_name + "." + column_name;
+
             columns.add(catalog_col);
         } // FOR
         return (columns);
@@ -186,7 +188,7 @@ public abstract class PlanNodeUtil {
             ret += "size=" + column.width() + " : ";
             ret += "type=" + column.type() + " : ";
             ret += "guid=" + column.guid() + "\n";
-            if (node instanceof ProjectionPlanNode && column.getExpression() != null) {
+            if (column.getExpression() != null && (true || node instanceof ProjectionPlanNode)) {
                 ret += ExpressionUtil.debug(column.getExpression(), spacer + "   ");
             }
         } // FOR
