@@ -199,14 +199,19 @@ public abstract class PlanNodeUtil {
         ret += spacer + label + "[" + node.m_outputColumns.size() + "]:\n";
         for (int ctr = 0, cnt = node.m_outputColumns.size(); ctr < cnt; ctr++) {
             int column_guid = node.m_outputColumns.get(ctr);
+            String name = "???";
+            String inner = "";
             PlanColumn column = PlannerContext.singleton().get(column_guid);
-            if (column == null) continue;
-            assert(column != null);
-            ret += spacer + "   [" + ctr + "] " + column.displayName() + " : ";
-            ret += "size=" + column.width() + " : ";
-            ret += "type=" + column.type() + " : ";
-            ret += "guid=" + column.guid() + "\n";
-            if (column.getExpression() != null && (true || node instanceof ProjectionPlanNode)) {
+            if (column != null) {
+                assert(column_guid == column.guid());
+                name = column.displayName();
+                inner = " : size=" + column.width() +
+                        " : type=" + column.type();
+            }
+            inner += " : guid=" + column_guid;
+            ret += String.format("%s   [%d] %s%s\n", spacer, ctr, name, inner);
+            
+            if (column != null && column.getExpression() != null && (true || node instanceof ProjectionPlanNode)) {
                 ret += ExpressionUtil.debug(column.getExpression(), spacer + "   ");
             }
         } // FOR
@@ -249,11 +254,9 @@ public abstract class PlanNodeUtil {
             ret += spacer + "TargetTableId[" + cast_node.getTargetTableName() + "]\n";
             
             // Pull from inline Projection
-            if (cast_node.m_outputColumns.isEmpty()) {
-                if (cast_node.getInlinePlanNode(PlanNodeType.PROJECTION) != null) {
-                    ret += PlanNodeUtil.debugOutputColumns("OutputColumns", cast_node.getInlinePlanNode(PlanNodeType.PROJECTION), spacer);
-                }
-            } else {
+            if (cast_node.getInlinePlanNode(PlanNodeType.PROJECTION) != null) {
+                ret += PlanNodeUtil.debugOutputColumns("OutputColumns (Inline Projection)", cast_node.getInlinePlanNode(PlanNodeType.PROJECTION), spacer);
+            } else if (cast_node.m_outputColumns.isEmpty()) {
                 ret += PlanNodeUtil.debugOutputColumns("OutputColumns", cast_node, spacer);
             }
         }
