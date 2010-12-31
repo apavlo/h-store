@@ -13,6 +13,7 @@ import org.voltdb.types.ExpressionType;
 import org.voltdb.types.PlanNodeType;
 import org.voltdb.catalog.*;
 
+import edu.brown.catalog.CatalogUtil;
 import edu.brown.expressions.ExpressionUtil;
 import edu.brown.utils.ClassUtil;
 
@@ -80,9 +81,17 @@ public abstract class PlanNodeUtil {
             
             String column_name = column.displayName();
             String table_name = column.originTableName();
-            if (column_name.equals("tuple_address")) continue;
+            if (column_name.equals("tuple_address") || table_name == null) continue;
             
-            Table catalog_tbl = catalog_db.getTables().get(table_name);
+            Table catalog_tbl = null; 
+            try {
+                catalog_tbl = catalog_db.getTables().get(table_name);
+            } catch (Exception ex) {
+                ex.printStackTrace();
+                System.err.println("table_name: " + table_name);
+                System.err.println(CatalogUtil.debug(catalog_db.getTables()));
+                System.exit(1);
+            }
             assert(catalog_tbl != null) : "Invalid table '" + table_name + "'";
             
             Column catalog_col = catalog_tbl.getColumns().get(column_name);
