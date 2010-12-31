@@ -79,17 +79,26 @@ public abstract class PlanNodeUtil {
             PlanColumn column = PlannerContext.singleton().get(column_guid);
             assert(column != null);
             
-            String column_name = column.displayName();
+            final String column_name = column.displayName();
             String table_name = column.originTableName();
-            if (column_name.equals("tuple_address") || table_name == null) continue;
+            
+            // If there is no table name, then check whether this is a scan node.
+            // If it is, then we can try to get the table name from the node's target
+            if (table_name == null && node instanceof AbstractScanPlanNode) {
+                table_name = ((AbstractScanPlanNode)node).getTargetTableName();
+            }
+            
+            // If this is a TupleAddressExpression or there is no target table name, then we have
+            // to skip this output column
+            if (column_name.equalsIgnoreCase("tuple_address") || table_name == null) continue;
             
             Table catalog_tbl = null; 
             try {
                 catalog_tbl = catalog_db.getTables().get(table_name);
             } catch (Exception ex) {
                 ex.printStackTrace();
-                System.err.println("table_name: " + table_name);
-                System.err.println(CatalogUtil.debug(catalog_db.getTables()));
+                LOG.fatal("table_name: " + table_name);
+                LOG.fatal(CatalogUtil.debug(catalog_db.getTables()));
                 System.exit(1);
             }
             assert(catalog_tbl != null) : "Invalid table '" + table_name + "'";
