@@ -20,8 +20,10 @@ package org.voltdb.planner;
 import java.io.PrintStream;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Set;
 import java.util.Map.Entry;
 
+import org.apache.log4j.Logger;
 import org.hsqldb.HSQLInterface;
 import org.hsqldb.HSQLInterface.HSQLParseException;
 import org.json.JSONException;
@@ -41,6 +43,8 @@ import org.voltdb.utils.BuildDirectoryUtils;
  *
  */
 public class QueryPlanner {
+    private static final Logger LOG = Logger.getLogger(QueryPlanner.class);
+    
     PlanAssembler m_assembler;
     HSQLInterface m_HSQL;
     DatabaseEstimates m_estimates;
@@ -263,15 +267,12 @@ public class QueryPlanner {
                     if (cost < minCost) {
                         minCost = cost;
                         // free the PlanColumns held by the previous best plan
-                        if (bestPlan != null)
-                        {
-                            bestPlan.freePlan(m_context);
+                        if (bestPlan != null) {
+                            bestPlan.freePlan(m_context, plan.getColumnGuids());
                         }
                         bestPlan = plan;
-                    }
-                    else
-                    {
-                        plan.freePlan(m_context);
+                    } else {
+                        plan.freePlan(m_context, bestPlan.getColumnGuids());
                     }
 
                     // output a description of the parsed stmt
@@ -292,6 +293,14 @@ public class QueryPlanner {
             m_recentErrorMsg = "Unable to plan for statement. Error unknown.";
             return null;
         }
+        
+        // Validate that everything is there
+        Set<Integer> bestPlan_columns = bestPlan.getColumnGuids(); 
+        for (Integer column_guid : bestPlan_columns) {
+            assert(m_context.hasColumn(column_guid)) : "Missing column guid " + column_guid;
+        } // FOR
+        LOG.debug("All columns are there: " + bestPlan_columns);
+        
 
         // reset all the plan node ids for a given plan
         bestPlan.resetPlanNodeIds();

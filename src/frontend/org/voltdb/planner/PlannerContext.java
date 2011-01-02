@@ -18,31 +18,33 @@
 package org.voltdb.planner;
 
 import java.util.TreeMap;
+import java.util.Map.Entry;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import org.apache.log4j.Logger;
 import org.voltdb.expressions.AbstractExpression;
 import org.voltdb.planner.PlanColumn.SortOrder;
 import org.voltdb.planner.PlanColumn.Storage;
 
 public class PlannerContext {
+    private static final Logger LOG = Logger.getLogger(PlannerContext.class);
 
     /**
      * Generator for PlanColumn.m_guid
      */
-    private AtomicInteger s_nextId = new AtomicInteger();
+    private final AtomicInteger s_nextId = new AtomicInteger();
 
     /**
      * Global hash of PlanColumn guid to PlanColumn reference
      */
-    private TreeMap<Integer, PlanColumn>
-        s_columnPool = new TreeMap<Integer, PlanColumn>();
+    private final TreeMap<Integer, PlanColumn> s_columnPool = new TreeMap<Integer, PlanColumn>();
 
     public PlanColumn getPlanColumn(AbstractExpression expression, String columnName) {
         return getPlanColumn(expression, columnName, SortOrder.kUnsorted, Storage.kTemporary);
     }
 
     /** Provide the common defaults */
-    public PlanColumn getPlanColumn(AbstractExpression expression,
+    public synchronized PlanColumn getPlanColumn(AbstractExpression expression,
             String columnName,
             SortOrder sortOrder,
             Storage storage) {
@@ -64,7 +66,7 @@ public class PlannerContext {
         return (clone);
     }
     
-    public void add(int guid, PlanColumn col) {
+    public synchronized void add(int guid, PlanColumn col) {
         assert(!this.s_columnPool.containsKey(guid)) :
             "PlannerContext already contains entry for guid #" + guid + ": " + this.s_columnPool.get(guid);
         this.s_columnPool.put(guid, col);
@@ -80,13 +82,25 @@ public class PlannerContext {
     }
 
     public synchronized void freeColumn(int guid) {
-//        System.err.println("REMOVED: " + guid);
-        s_columnPool.remove(guid);
+        // PlanColumn pc = s_columnPool.remove(guid);
+        // LOG.info("REMOVED[" + guid + "]: " + pc);
+    }
+    
+    public synchronized boolean hasColumn(int guid) {
+        return (s_columnPool.containsKey(guid));
     }
     
     @Override
     public String toString() {
         return this.s_columnPool.toString();
+    }
+    
+    public String debug() {
+        StringBuilder sb = new StringBuilder();
+        for (Entry<Integer, PlanColumn> e : this.s_columnPool.entrySet()) {
+            sb.append(String.format("[%02d] %s\n", e.getKey(), e.getValue().toString()));
+        }
+        return (sb.toString());
     }
     
     // PAVLO: Global singleton for us to use to get back the PlanColumns we need

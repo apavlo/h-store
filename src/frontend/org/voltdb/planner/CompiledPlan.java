@@ -18,9 +18,15 @@
 package org.voltdb.planner;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
+
+import org.apache.log4j.Logger;
 import org.voltdb.expressions.AbstractExpression;
 import org.voltdb.plannodes.AbstractPlanNode;
+
+import edu.brown.plannodes.PlanNodeUtil;
 
 /**
  * A triple-tuple to hold a complete plan graph along with its
@@ -30,6 +36,7 @@ import org.voltdb.plannodes.AbstractPlanNode;
  *
  */
 public class CompiledPlan {
+    private static final Logger LOG = Logger.getLogger(CompiledPlan.class);
 
     public static class Fragment implements Comparable<Fragment> {
         /** A complete plan graph */
@@ -90,16 +97,27 @@ public class CompiledPlan {
      */
     public AbstractPlanNode fullWinnerPlan = null;
 
-    public void freePlan(PlannerContext context)
-    {
-        for (Integer guid : columns)
-        {
-            context.freeColumn(guid);
-        }
-        for (Fragment frag : fragments)
-        {
-            frag.planGraph.freeColumns();
-        }
+    public Set<Integer> getColumnGuids() {
+        Set<Integer> ret = new HashSet<Integer>();
+        
+        // Output Columns
+        ret.addAll(columns);
+
+        for (Fragment frag : fragments) {
+            ret.addAll(PlanNodeUtil.getAllPlanColumnGuids(frag.planGraph));
+        } // FOR
+        
+        return (ret);
+    }
+    
+    public void freePlan(PlannerContext context, Set<Integer> skip) {
+        LOG.debug("Columns to Skip: " + skip);
+        for (Integer guid : columns) {
+            if (skip.contains(guid) == false) context.freeColumn(guid);
+        } // FOR
+        for (Fragment frag : fragments) {
+            if (skip.contains(frag) == false) frag.planGraph.freeColumns(skip);
+        } // FOR
     }
 
     void resetPlanNodeIds() {
