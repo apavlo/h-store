@@ -61,6 +61,7 @@ import org.voltdb.types.PlanNodeType;
 import org.voltdb.types.SortDirectionType;
 import org.voltdb.utils.CatalogUtil;
 
+import edu.brown.plannodes.PlanNodeTreeWalker;
 import edu.brown.plannodes.PlanNodeUtil;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.StringUtil;
@@ -911,7 +912,7 @@ public class PlanAssembler {
         // The rootNode must have a correct output column set.
         rootNode.updateOutputColumns(m_catalogDb);
 
-        ProjectionPlanNode projectionNode =
+        final ProjectionPlanNode projectionNode =
             new ProjectionPlanNode(m_context, PlanAssembler.getNextPlanNodeId());
 
         // The input to this projection MUST include all the columns needed
@@ -933,15 +934,30 @@ public class PlanAssembler {
                 throw new PlanningErrorException(ex.getMessage());
             }
         }
-
-        // if the projection can be done inline...
-        if (rootNode instanceof AbstractScanPlanNode) {
-            rootNode.addInlinePlanNode(projectionNode);
-            return rootNode;
-        } else {
-            projectionNode.addAndLinkChild(rootNode);
-            return projectionNode;
-        }
+        
+        new PlanNodeTreeWalker() {
+            @Override
+            protected void callback(AbstractPlanNode element) {
+                if (element instanceof AbstractScanPlanNode) {
+//                    System.out.println("Projection Output: " + projectionNode.m_outputColumns);
+//                    System.out.println(PlannerContext.singleton().debug());
+//                    System.out.println("++++++++++++++++++++++++++++++++");
+                    element.addInlinePlanNode(projectionNode);
+                    this.stop();
+                }
+            }
+        }.traverse(rootNode);
+        
+        return (rootNode);
+//
+//        // if the projection can be done inline...
+//        if (rootNode instanceof AbstractScanPlanNode) {
+//            rootNode.addInlinePlanNode(projectionNode);
+//            return rootNode;
+//        } else {
+//            projectionNode.addAndLinkChild(rootNode);
+//            return projectionNode;
+//        }
     }
 
     /**

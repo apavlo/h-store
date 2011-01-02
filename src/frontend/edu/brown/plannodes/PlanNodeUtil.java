@@ -18,8 +18,7 @@ import edu.brown.expressions.ExpressionUtil;
 import edu.brown.utils.ClassUtil;
 
 public abstract class PlanNodeUtil {
-    /** java.util.logging logger. */
-    private static final Logger LOG = Logger.getLogger(PlanNodeUtil.class.getName());
+    private static final Logger LOG = Logger.getLogger(PlanNodeUtil.class);
     
     /**
      * Return all the ExpressionTypes used for scan predicates in the given PlanNode
@@ -189,6 +188,22 @@ public abstract class PlanNodeUtil {
         return (found);
     }
 
+    /**
+     * Return all of the PlanColumn guids used in this query plan tree (including inline nodes)
+     * @param root
+     * @return
+     */
+    public static Set<Integer> getAllPlanColumnGuids(AbstractPlanNode root) {
+        final Set<Integer> guids = new HashSet<Integer>();
+        new PlanNodeTreeWalker(true) {
+            @Override
+            protected void callback(AbstractPlanNode element) {
+                guids.addAll(element.m_outputColumns);
+            }
+        };
+        return (guids);
+    }
+    
     public static String debug(AbstractPlanNode node) {
         return (PlanNodeUtil.debug(node, ""));
     }
