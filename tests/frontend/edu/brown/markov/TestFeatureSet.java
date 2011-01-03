@@ -4,16 +4,24 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
+import java.util.Vector;
+import java.util.Map.Entry;
 
+import org.json.JSONObject;
 import org.junit.Test;
 import org.voltdb.VoltProcedure;
 import org.voltdb.benchmark.tpcc.procedures.neworder;
 import org.voltdb.catalog.Procedure;
 
 import weka.core.Instances;
-
 import edu.brown.BaseTestCase;
-import edu.brown.utils.FileUtil;
+import edu.brown.markov.FeatureSet.Type;
+import edu.brown.markov.features.AbstractFeature;
+import edu.brown.markov.features.BasePartitionFeature;
+import edu.brown.markov.features.ParamArrayLengthFeature;
+import edu.brown.markov.features.ParamHashEqualsBasePartitionFeature;
+import edu.brown.statistics.Histogram;
+import edu.brown.utils.JSONUtil;
 import edu.brown.utils.ProjectType;
 import edu.brown.workload.TransactionTrace;
 import edu.brown.workload.Workload;
@@ -124,8 +132,63 @@ public class TestFeatureSet extends BaseTestCase {
         for (int i = 0; i < values.length; i++) {
             String key = "KEY" + i;
             assertEquals(FeatureSet.Type.NUMERIC, this.fset.getFeatureType(key));
-        }
+        } // FOR
     }
 
+    /**
+     * testSerialization
+     */
+    @Test
+    public void testSerialization() throws Exception {
+        AbstractFeature features[] = new AbstractFeature[] {
+            new BasePartitionFeature(p_estimator, catalog_proc),
+            new ParamArrayLengthFeature(p_estimator, catalog_proc),
+            new ParamHashEqualsBasePartitionFeature(p_estimator, catalog_proc),
+        };
+        for (TransactionTrace txn_trace : workload.getTransactions()) {
+            for (AbstractFeature f : features) {
+                f.extract(this.fset, txn_trace);
+            } // FOR
+        } // FOR
+
+        String json = this.fset.toJSONString();
+        assertNotNull(json);
+        assertFalse(json.isEmpty());
+        System.err.println(JSONUtil.format(json));
+        
+        FeatureSet clone = new FeatureSet();
+        clone.fromJSON(new JSONObject(json), catalog_db);
+        
+        for (Entry<String, Type> e : this.fset.attributes.entrySet()) {
+            assertEquals(e.getKey(), e.getValue(), clone.attributes.get(e.getKey()));
+        } // FOR
+        for (Entry<String, Histogram> e : this.fset.attribute_histograms.entrySet()) {
+            Histogram clone_h = clone.attribute_histograms.get(e.getKey());
+//            System.err.println(e.getValue());
+//            System.err.println();
+//            System.err.println(clone_h.isEmpty() ? "<EMPTY>" : clone_h.toString());
+//            
+//            System.err.println("\nEQUALS = " + e.getValue().equals(clone_h));
+//            System.err.println("-------------------------------------------\n");
+//            
+//            for (Object o : e.getValue().values()) {
+//                System.err.println("ORIG " + o + ": " + o.getClass());
+//            }
+//            for (Object o : clone_h.values()) {
+//                System.err.println("CLONE " + o + ": " + o.getClass());
+//            }
+            
+            assertEquals(e.getKey(), e.getValue(), clone_h);
+        } // FOR
+        for (Entry<String, Vector<Object>> e : this.fset.txn_values.entrySet()) {
+            Vector<Object> clone_v = clone.txn_values.get(e.getKey());
+            assertNotNull(e.getKey(), clone_v);
+            assertEquals(e.getValue().size(), clone_v.size());
+//            System.err.println("ORIG:  " + e.getValue());
+//            System.err.println("CLONE: " + clone_v);
+            assert(e.getValue().containsAll(clone_v));
+        } // FOR
+        assertEquals(this.fset.last_num_attributes, clone.last_num_attributes);
+    }
     
 }

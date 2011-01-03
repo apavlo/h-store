@@ -38,16 +38,19 @@ public class TestJSONUtil extends BaseTestCase {
             LIST_BOOLEAN,
             LIST_CATALOG,
             LIST_ENUM,
+            LIST_NULL,
             SET_INT,
             SET_LONG,
             SET_DOUBLE,
             SET_BOOLEAN,
             SET_CATALOG,
+            SET_NULL,
             MAP_INT,
             MAP_LONG,
             MAP_DOUBLE,
             MAP_STRING,
             MAP_CATALOG,
+            MAP_NULL,
             SPECIAL_CLASS,
             SPECIAL_CATALOG,
         }
@@ -108,12 +111,14 @@ public class TestJSONUtil extends BaseTestCase {
         public List<Boolean> list_boolean = new ArrayList<Boolean>();
         public List<Table> list_catalog = new ArrayList<Table>();
         public List<TestEnum> list_enum = new ArrayList<TestEnum>();
+        public List<String> list_null = new ArrayList<String>();
         public Set<Integer> set_int = new HashSet<Integer>();
         public Set<Long> set_long = new HashSet<Long>();
         public Set<Double> set_double = new HashSet<Double>();
         public Set<Boolean> set_boolean = new HashSet<Boolean>();
         public Set<Table> set_catalog = new HashSet<Table>();
         public Set<TestEnum> set_enum = new HashSet<TestEnum>();
+        public Set<String> set_null = new HashSet<String>();
 
         // Maps
         public Map<Integer, String> map_int = new HashMap<Integer, String>();
@@ -122,6 +127,7 @@ public class TestJSONUtil extends BaseTestCase {
         public Map<String, String> map_string = new HashMap<String, String>();
         public Map<Table, String> map_catalog = new HashMap<Table, String>();
         public Map<TestEnum, String> map_enum = new HashMap<TestEnum, String>();
+        public Map<String, String> map_null = new HashMap<String, String>();
 
         // Specials
         public Class<? extends AbstractHasher> special_class;
@@ -202,6 +208,7 @@ public class TestJSONUtil extends BaseTestCase {
             this.obj.list_boolean.add(rand.nextBoolean());
             this.obj.list_catalog.add(CollectionUtil.getRandomValue(tables));
             this.obj.list_enum.add(TestEnum.values()[rand.nextInt(TestEnum.values().length)]);
+            this.obj.list_null.add(i % 2 == 0 ? VoltTypeUtil.getRandomValue(VoltType.STRING).toString() : null);
          
             this.obj.set_int.add(rand.nextInt());
             this.obj.set_long.add(rand.nextLong());
@@ -209,6 +216,7 @@ public class TestJSONUtil extends BaseTestCase {
             this.obj.set_boolean.add(rand.nextBoolean());
             this.obj.set_catalog.add(CollectionUtil.getRandomValue(tables));
             this.obj.set_enum.add(TestEnum.values()[rand.nextInt(TestEnum.values().length)]);
+            this.obj.set_null.add(i % 2 == 0 ? VoltTypeUtil.getRandomValue(VoltType.STRING).toString() : null);
             
             this.obj.map_int.put(rand.nextInt(), VoltTypeUtil.getRandomValue(VoltType.STRING).toString());
             this.obj.map_long.put(rand.nextLong(), VoltTypeUtil.getRandomValue(VoltType.STRING).toString());
@@ -216,6 +224,8 @@ public class TestJSONUtil extends BaseTestCase {
             this.obj.map_string.put(VoltTypeUtil.getRandomValue(VoltType.STRING).toString(), VoltTypeUtil.getRandomValue(VoltType.STRING).toString());
             this.obj.map_catalog.put(CollectionUtil.getRandomValue(tables), VoltTypeUtil.getRandomValue(VoltType.STRING).toString());
             this.obj.map_enum.put(TestEnum.values()[rand.nextInt(TestEnum.values().length)], VoltTypeUtil.getRandomValue(VoltType.STRING).toString());
+            this.obj.map_null.put(VoltTypeUtil.getRandomValue(VoltType.STRING).toString(),
+                                  i % 2 == 0 ? VoltTypeUtil.getRandomValue(VoltType.STRING).toString() : null);
         } // FOR
         
         this.obj.special_class = DefaultHasher.class;
@@ -292,7 +302,7 @@ public class TestJSONUtil extends BaseTestCase {
                 if (o instanceof CatalogType) {
                     collection_strings.add(CatalogKey.createKey((CatalogType)o));
                 } else {
-                    collection_strings.add(o.toString());    
+                    collection_strings.add(o != null ? o.toString() : "null");
                 }
             } // FOR
             
@@ -321,7 +331,6 @@ public class TestJSONUtil extends BaseTestCase {
             Collection collection1 = (Collection)field.get(clone);
             assertEquals(collection0.size(), collection1.size());
             assert(collection0.containsAll(collection1));
-            assert(collection1.containsAll(collection0));
         } // FOR
     }
     
@@ -345,9 +354,9 @@ public class TestJSONUtil extends BaseTestCase {
                 if (key instanceof CatalogType) {
                     key_strings.add(CatalogKey.createKey((CatalogType)key));
                 } else {
-                    key_strings.add(key.toString());    
+                    key_strings.add(key != null ? key.toString() : "null");    
                 }
-                val_strings.add(val.toString());
+                val_strings.add(val != null ? val.toString() : "null");
             } // FOR
             assertEquals(map.size(), key_strings.size());
             assertEquals(map.size(), val_strings.size());
@@ -383,9 +392,19 @@ public class TestJSONUtil extends BaseTestCase {
             assert(m0.keySet().containsAll(m1.keySet()));
             assert(m1.keySet().containsAll(m0.keySet()));
             for (Object key : m0.keySet()) {
-                Object val0 = m0.get(key);
-                Object val1 = m1.get(key);
-                assertEquals(val0.toString(), val1.toString());
+                Object v0 = m0.get(key);
+                Object v1 = m1.get(key);
+                final String debug = String.format("%s-%s: %s (%s) <=> %s (%s)", json_key, 
+                                                   (key != null ? key.toString() : key),
+                                                   (v0 != null ? v0.toString() : v0), (v0 != null ? v0.getClass().getSimpleName() : null),
+                                                   (v1 != null ? v1.toString() : v1), (v1 != null ? v1.getClass().getSimpleName() : null));
+                try {
+                    assertEquals(debug, v0, v1);
+                } catch (AssertionError ex) {
+                    System.err.println(JSONUtil.format(obj));
+                    throw ex;
+                }
+
             } // FOR
         } // FOR
     }

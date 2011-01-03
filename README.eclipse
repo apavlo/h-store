@@ -32,7 +32,20 @@ $HSTORE/third_party/java/src                        ->  third_party
 $HSTORE/obj/release/protorpc                        ->  protorpc_generated
 
 7) Click "Libraries" and click "Add External Jars". Navigate to
-$HSTORE/third_party/java/jars and select all.
+$HSTORE/third_party/java/jars and select the following jars:
+
+ant.jar
+ant-junit.jar
+collections-generic-4.01.jar
+japex.jar
+jung-algorithms-2.0.jar
+jung-api-2.0.jar
+jung-graph-impl-2.0.jar
+jung-visualization-2.0.jar
+junit-4.4.jar
+log4j-1.2.15.jar
+tools.jar
+weka-3.6.3.jar
 
 8) Click finish. It should now build without any errors.
 
@@ -42,3 +55,21 @@ $HSTORE/third_party/java/jars and select all.
 
 11) Switch to "Navigator" view. Click on white arrow at the top of the left-panel and
     select "Filters". Check the boxes for ".*" and "*.class"
+
+12) To improve Eclipse's content assist feature (i.e., autocomplete), click on 
+    "Window -> Java -> Editor -> Content Assist" and under "Sorting and Filtering"
+    click on the "type filters" link. In this panel you can add in the following filters:
+    
+com.google.*
+com.sun.*
+com.vladium.*
+java.rmi.*
+net.sf.*
+net.sourceforge.*
+org.apache.velocity.*
+org.doxygn.*
+org.jcp.*
+org.jfree.*
+org.kohsuke.*
+org.omg.*
+org.w3c.*

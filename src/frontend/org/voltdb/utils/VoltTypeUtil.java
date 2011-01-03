@@ -301,10 +301,23 @@ public abstract class VoltTypeUtil {
                 break;
             }
             // --------------------------------
+            // BOOLEAN
+            // --------------------------------
+            case BOOLEAN:
+                ret = Boolean.parseBoolean(value);
+                break;
+
+            // --------------------------------
+            // NULL
+            // --------------------------------
+            case NULL:
+                ret = null;
+                break;
+            // --------------------------------
             // INVALID
             // --------------------------------
             default: {
-                String msg = "ERROR: Unable to generate random value for invalid ValueType '" + type + "'";
+                String msg = "Unable to get object for value with invalid ValueType '" + type + "'";
                 throw new ParseException(msg, 0);
                 // LOG.severe(msg);
             }

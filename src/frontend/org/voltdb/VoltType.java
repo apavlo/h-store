@@ -113,7 +113,12 @@ public enum VoltType {
     /**
      * Fixed precision=38, scale=12 string representation of a decimal
      */
-    DECIMAL_STRING  ((byte)23, 9, "decimal", new Class[] {});
+    DECIMAL_STRING  ((byte)23, 9, "decimal", new Class[] {}),
+    
+    /**
+     * Boolean hack...
+     */
+    BOOLEAN  ((byte)24, 1, "boolean", new Class[] {boolean.class, Boolean.class});
 
     /**
      * Size in bytes of the maximum length for a VoltDB field value, presumably a string or blob
