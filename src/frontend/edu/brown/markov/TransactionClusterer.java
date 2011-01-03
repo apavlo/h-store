@@ -8,15 +8,21 @@ import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Procedure;
 
 import weka.clusterers.EM;
+import weka.clusterers.SimpleKMeans;
 import weka.core.Attribute;
+import weka.core.Instance;
 import weka.core.Instances;
 import weka.filters.Filter;
+import weka.filters.unsupervised.attribute.Remove;
 import weka.filters.unsupervised.instance.RemoveWithValues;
 
 import edu.brown.catalog.CatalogUtil;
-import edu.brown.markov.features.AbstractFeature;
 import edu.brown.markov.features.BasePartitionFeature;
+import edu.brown.markov.features.FeatureUtil;
+import edu.brown.statistics.Histogram;
+import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.PartitionEstimator;
+import edu.brown.utils.StringUtil;
 import edu.brown.workload.TransactionTrace;
 import edu.brown.workload.Workload;
 
@@ -27,9 +33,41 @@ public class TransactionClusterer {
     private final PartitionEstimator p_estimator;
     private final Random rand = new Random();
        
+    /**
+     * A set of attributes and their cost
+     */
     private class AttributeSet extends ListOrderedSet<Attribute> implements Comparable<AttributeSet> {
         private static final long serialVersionUID = 1L;
         private Double cost;
+
+        public Instances copyData(Instances data) throws Exception {
+            Set<Integer> indexes = new HashSet<Integer>();
+            for (int i = 0, cnt = this.size(); i < cnt; i++) {
+                indexes.add(this.get(i).index());
+            } // FOR
+            
+            SortedSet<Integer> to_remove = new TreeSet<Integer>(); 
+            for (int i = 0, cnt = data.numAttributes(); i < cnt; i++) {
+                if (indexes.contains(i) == false) {
+                    to_remove.add(i+1);
+                }
+            } // FOR
+            
+            Remove filter = new Remove();
+            filter.setInputFormat(data);
+            filter.setAttributeIndices(StringUtil.join(",", to_remove));
+            for (int i = 0, cnt = data.numInstances(); i < cnt; i++) {
+                filter.input(data.instance(i));
+            } // FOR
+            filter.batchFinished();
+            
+            Instances newData = filter.getOutputFormat();
+            Instance processed;
+            while ((processed = filter.output()) != null) {
+                newData.add(processed);
+            } // WHILE
+            return (newData);
+        }
         
         public Double getCost() {
             return (this.cost);
@@ -55,6 +93,10 @@ public class TransactionClusterer {
         }
     }
     
+    /**
+     * Constructor
+     * @param catalog_db
+     */
     public TransactionClusterer(Database catalog_db) {
         this.catalog_db = catalog_db;
         this.p_estimator = new PartitionEstimator(catalog_db);
@@ -81,25 +123,58 @@ public class TransactionClusterer {
         return (ret);
     }
     
-    protected void cluster(Instances data) throws Exception {
+    protected void findBestAttributeSet(Instances data) throws Exception {
         SortedSet<AttributeSet> attr_sets = new TreeSet<AttributeSet>();
         int round = 0;
 
         // Create the initial set of single-element AttributeSets and calculate
         // how well the Markov models perform when using them
-//        for (Attribute attr : data.enumerateAttributes())
-        
-        
-        EM clusterer = new EM();
-        clusterer.setSeed(this.rand.nextInt());
-        clusterer.buildClusterer(data);
+        List<Attribute> attributes = new ArrayList<Attribute>();
+        Enumeration e = data.enumerateAttributes();
+        while (e.hasMoreElements()) {
+            Attribute attr = (Attribute)e.nextElement();
+            attributes.add(attr);
+            
+            AttributeSet attr_set = new AttributeSet();
+            attr_set.add(attr);
+            
+            Instances new_data = attr_set.copyData(data);
+            this.doCluster(new_data, round);
+            System.exit(1);
+            
+        } // WHILE
     }
     
-    private void cluster(Instances data, SortedSet<AttributeSet> attr_sets, int round) throws Exception {
+    protected void generateMarkovModels(AttributeSet attr_set) throws Exception {
         
-        EM clusterer = new EM();
+        
+    }
+    
+    /**
+     * 
+     * @param data
+     * @param round
+     * @throws Exception
+     */
+    private void doCluster(Instances data, int round) throws Exception {
+        LOG.info(String.format("Clustering %d instances with %d attributes", data.numInstances(), data.numAttributes()));
+        
+        int num_partitions = CatalogUtil.getNumberOfPartitions(catalog_db);
+        SimpleKMeans clusterer = new SimpleKMeans();
+        clusterer.setNumClusters(num_partitions);
         clusterer.setSeed(this.rand.nextInt());
         clusterer.buildClusterer(data);
+        
+        
+        Instances copy = new Instances(data);
+        Histogram h = new Histogram();
+        for (int i = 0, cnt = copy.numInstances(); i < cnt; i++) {
+            Instance inst = copy.instance(i);
+            int c = (int)clusterer.clusterInstance(inst);
+            h.put(c);
+            // System.err.println(String.format("[%02d] %s => %d", i, inst, c));
+        } // FOR
+        LOG.info("Total Number of Clusters: " + h.getValueCount() + "\n" + h);
     }
 
     
@@ -107,45 +182,31 @@ public class TransactionClusterer {
         Instances data = fset.export(catalog_proc.getName());
         List<Integer> all_partitions = CatalogUtil.getAllPartitionIds(this.catalog_db);
         
-        String prefix_key = AbstractFeature.getFeatureKeyPrefix(BasePartitionFeature.class);
-        Attribute base_partition_attr = data.attribute(prefix_key);
+        this.findBestAttributeSet(data);
         
-        
-        for (Integer base_partition : all_partitions) {
-            
-            // Include all values < (base_partition+1)
-            RemoveWithValues filter0 = new RemoveWithValues();
-            filter0.setAttributeIndex(Integer.toString(base_partition_attr.index()));
-            filter0.setSplitPoint(base_partition + 1.0);
-            
-            // Include all values >= base_partition
-            RemoveWithValues filter1 = new RemoveWithValues();
-            filter1.setAttributeIndex(filter0.getAttributeIndex());
-            filter1.setSplitPoint(base_partition);
-            filter1.setInvertSelection(true);
-            
-            Instances filtered_data = Filter.useFilter(Filter.useFilter(data, filter0), filter1);
-            if (filtered_data.numInstances() == 0) {
-                LOG.warn("No instances found for " + catalog_proc + " at base partition #" + base_partition);
-                continue;
-            }
-        } // FOR
-            
+//        String prefix_key = FeatureUtil.getFeatureKeyPrefix(BasePartitionFeature.class);
+//        Attribute base_partition_attr = data.attribute(prefix_key);
+//        
+//        
+//        for (Integer base_partition : all_partitions) {
 //            
+//            // Include all values < (base_partition+1)
+//            RemoveWithValues filter0 = new RemoveWithValues();
+//            filter0.setAttributeIndex(Integer.toString(base_partition_attr.index()));
+//            filter0.setSplitPoint(base_partition + 1.0);
 //            
-//            Workload proc_workload = new Workload(workload, new ProcedureNameFilter().include(catalog_proc.getName()));
-//            Map<Integer, Workload> base_workloads = this.splitWorkload(proc_workload);
-//            Map<Integer, FeatureSet> p_fsets = new TreeMap<Integer, FeatureSet>();
+//            // Include all values >= base_partition
+//            RemoveWithValues filter1 = new RemoveWithValues();
+//            filter1.setAttributeIndex(filter0.getAttributeIndex());
+//            filter1.setSplitPoint(base_partition);
+//            filter1.setInvertSelection(true);
 //            
-//            for (Entry<Integer, Workload> e : base_workloads.entrySet()) {
-//                TransactionFeatureExtractor extractor = new TransactionFeatureExtractor(this.catalog_db, this.p_estimator);
-//                FeatureSet fset = extractor.calculate(e.getValue()).get(catalog_proc);
-//                assert(fset != null) : "Failed to calculate " + catalog_proc + " FeatureSet for partition #" + e.getKey(); 
-//                p_fsets.put(e.getKey(), fset);
-//            } // FOR
-//            
-//        }
-        
+//            Instances filtered_data = Filter.useFilter(Filter.useFilter(data, filter0), filter1);
+//            if (filtered_data.numInstances() == 0) {
+//                LOG.warn("No instances found for " + catalog_proc + " at base partition #" + base_partition);
+//                continue;
+//            }
+//        } // FOR
         
     }
     

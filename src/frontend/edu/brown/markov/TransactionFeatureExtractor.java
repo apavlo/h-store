@@ -110,10 +110,10 @@ public class TransactionFeatureExtractor {
             
             for (AbstractFeature f : this.proc_features.get(catalog_proc)) {
                 LOG.trace(txn_trace + " - " + f.getClass().getSimpleName());
-                f.calculate(fset, txn_trace);
+                f.extract(fset, txn_trace);
             }
             
-            if (trace) LOG.trace(txn_trace + ": " + fset.getFeatures(txn_trace));
+            if (trace) LOG.trace(txn_trace + ": " + fset.getFeatureValues(txn_trace));
         } // FOR
         return (fsets);
     }
@@ -131,9 +131,12 @@ public class TransactionFeatureExtractor {
         for (Entry<Procedure, FeatureSet> e : fsets.entrySet()) {
             String proc_name = e.getKey().getName();
             File path = new File(proc_name + ".arff");
-            Instances data = e.getValue().export(proc_name, false);
+            Instances data = e.getValue().export(proc_name, true);
             FileUtil.writeStringToFile(path, data.toString());
             LOG.info(String.format("Wrote FeatureSet with %d instances to '%s'", data.numInstances(), path.getAbsolutePath()));
+            
+            TransactionClusterer txn_c = new TransactionClusterer(args.catalog_db);
+            txn_c.calculate(e.getKey(), e.getValue());
         }
         
     }

@@ -17,14 +17,18 @@
 
 package org.voltdb.planner;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.TreeMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import org.apache.log4j.Logger;
 import org.voltdb.expressions.AbstractExpression;
 import org.voltdb.planner.PlanColumn.SortOrder;
 import org.voltdb.planner.PlanColumn.Storage;
 
 public class PlannerContext {
+    private static final Logger LOG = Logger.getLogger(PlannerContext.class);
 
     /**
      * Generator for PlanColumn.m_guid
@@ -34,15 +38,16 @@ public class PlannerContext {
     /**
      * Global hash of PlanColumn guid to PlanColumn reference
      */
-    private TreeMap<Integer, PlanColumn>
-        s_columnPool = new TreeMap<Integer, PlanColumn>();
+    private TreeMap<Integer, PlanColumn> s_columnPool = new TreeMap<Integer, PlanColumn>();
+    
+    private Map<Integer, AtomicInteger> s_columnCounters = new HashMap<Integer, AtomicInteger>();
 
     public PlanColumn getPlanColumn(AbstractExpression expression, String columnName) {
         return getPlanColumn(expression, columnName, SortOrder.kUnsorted, Storage.kTemporary);
     }
 
     /** Provide the common defaults */
-    public PlanColumn getPlanColumn(AbstractExpression expression,
+    public synchronized PlanColumn getPlanColumn(AbstractExpression expression,
             String columnName,
             SortOrder sortOrder,
             Storage storage) {
@@ -52,6 +57,7 @@ public class PlannerContext {
         // in to the pool...
         assert(s_columnPool.get(guid) == null);
         s_columnPool.put(guid, retval);
+        s_columnCounters.put(guid, new AtomicInteger(1));
 
         return retval;
     }
@@ -64,7 +70,7 @@ public class PlannerContext {
         return (clone);
     }
     
-    public void add(int guid, PlanColumn col) {
+    public synchronized void add(int guid, PlanColumn col) {
         assert(!this.s_columnPool.containsKey(guid)) :
             "PlannerContext already contains entry for guid #" + guid + ": " + this.s_columnPool.get(guid);
         this.s_columnPool.put(guid, col);
@@ -80,8 +86,8 @@ public class PlannerContext {
     }
 
     public synchronized void freeColumn(int guid) {
-//        System.err.println("REMOVED: " + guid);
-        s_columnPool.remove(guid);
+        PlanColumn pc = s_columnPool.remove(guid);
+        LOG.info("REMOVED: " + pc);
     }
     
     @Override

@@ -25,29 +25,42 @@ public class ParamArrayAllSameValueFeature extends AbstractFeature {
         // Get the list of ProcParameters that should be arrays
         this.array_params = CatalogUtil.getArrayProcParameters(this.catalog_proc);
     }
+    
+    private Boolean calculate(Object params[]) {
+        Boolean all_same = null;
+        if (params.length > 0) {
+            all_same = true;
+            Object value = null;
+            boolean first = true;
+            
+            for (Object v : params) {
+                if (first) {
+                    value = v;
+                    first = false;
+                } else if ((value == null && v != null) ||
+                           (value != null && value.equals(v) == false)) {
+                    all_same = false;
+                    break;
+                }
+            } // FOR
+        }
+        return (all_same);
+    }
 
     @Override
-    public void calculate(FeatureSet fset, TransactionTrace txn_trace) throws Exception {
+    public void extract(FeatureSet fset, TransactionTrace txn_trace) throws Exception {
         for (ProcParameter catalog_param : this.array_params) {
             Object params[] = (Object[])txn_trace.getParam(catalog_param.getIndex());
-            boolean all_same = true;
-            boolean first = true;
-            Object value = null;
-            
-            if (params.length > 0) {
-                for (Object v : params) {
-                    if (first) {
-                        value = v;
-                        first = false;
-                    } else if ((value == null && v != null) ||
-                               (value != null && value.equals(v) == false)) {
-                        all_same = false;
-                        break;
-                    }
-                } // FOR
-                fset.addFeature(txn_trace, this.getFeatureKey(catalog_param), all_same);
-            }
+            Boolean all_same = this.calculate(params);
+            if (all_same != null) fset.addFeature(txn_trace, this.getFeatureKey(catalog_param), all_same);
         } // FOR
+    }
+    
+    @Override
+    public Object calculate(String key, TransactionTrace txn_trace) throws Exception {
+        ProcParameter catalog_param = this.getProcParameter(key);
+        Object params[] = (Object[])txn_trace.getParam(catalog_param.getIndex());
+        return (this.calculate(params));
     }
 
 }

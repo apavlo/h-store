@@ -6,6 +6,7 @@ import java.util.List;
 import org.voltdb.VoltType;
 import org.voltdb.catalog.ProcParameter;
 import org.voltdb.catalog.Procedure;
+import org.voltdb.utils.Pair;
 
 import edu.brown.markov.FeatureSet;
 import edu.brown.utils.PartitionEstimator;
@@ -39,7 +40,7 @@ public class ParamNumericValuesFeature extends AbstractFeature {
     }
     
     @Override
-    public void calculate(FeatureSet fset, TransactionTrace txn_trace) throws Exception {
+    public void extract(FeatureSet fset, TransactionTrace txn_trace) throws Exception {
         for (ProcParameter catalog_param : this.numeric_params) {
             Object param = txn_trace.getParam(catalog_param.getIndex());
             if (catalog_param.getIsarray()) {
@@ -51,7 +52,16 @@ public class ParamNumericValuesFeature extends AbstractFeature {
                 fset.addFeature(txn_trace, this.getFeatureKey(catalog_param), param, FeatureSet.Type.NUMERIC);
             }
         } // FOR
-
     }
 
+    @Override
+    public Object calculate(String key, TransactionTrace txn_trace) throws Exception {
+        Pair<ProcParameter, Integer> p = this.getProcParameterWithIndex(key);
+        Object param = txn_trace.getParam(p.getFirst().getIndex());
+        if (p.getSecond() != null) {
+            assert(p.getFirst().getIsarray()) : "Invalid: " + key;
+            param = ((Object[])param)[p.getSecond()];
+        }
+        return (param);
+    }
 }

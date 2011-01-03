@@ -18,9 +18,13 @@ public class TransactionIdFeature extends AbstractFeature {
 
     
     @Override
-    public void calculate(FeatureSet fset, TransactionTrace txnTrace) throws Exception {
+    public void extract(FeatureSet fset, TransactionTrace txnTrace) throws Exception {
         fset.addFeature(txnTrace, this.getFeatureKey(), txnTrace.getTransactionId());
-
+    }
+    
+    @Override
+    public Object calculate(String key, TransactionTrace txnTrace) throws Exception {
+        return (txnTrace.getTransactionId());
     }
 
 }

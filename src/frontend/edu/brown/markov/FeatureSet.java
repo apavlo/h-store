@@ -57,14 +57,32 @@ public class FeatureSet {
     public void addFeature(TransactionTrace txn, String key, Object val) {
         this.addFeature(txn, key, val, null);
     }
+    
+    /**
+     * Returns true if the given key has been included in the set of attributes
+     * @param key
+     * @return
+     */
+    public boolean hasFeature(String key) {
+        return (this.attributes.containsKey(key));
+    }
 
     
-    protected List<Object> getFeatures(String txn_id) {
+    public List<Object> getFeatureValues(String txn_id) {
         return (this.txn_values.get(txn_id));
     }
 
-    protected List<Object> getFeatures(TransactionTrace txn_trace) {
-        return (this.getFeatures(txn_trace.getTransactionId()));
+    public List<Object> getFeatureValues(TransactionTrace txn_trace) {
+        return (this.getFeatureValues(txn_trace.getTransactionId()));
+    }
+
+    public Object getFeatureValue(String txn_id, String key) {
+        int idx = this.attributes.indexOf(key);
+        return (this.txn_values.get(txn_id).get(idx));
+    }
+    
+    public Object getFeatureValue(TransactionTrace txn_trace, String key) {
+        return (this.getFeatureValue(txn_trace.getTransactionId(), key));
     }
     
     /**
