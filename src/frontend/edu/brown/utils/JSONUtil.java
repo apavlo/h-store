@@ -35,6 +35,20 @@ public abstract class JSONUtil {
     }
     
     /**
+     * JSON Pretty Print
+     * @param <T>
+     * @param object
+     * @return
+     */
+    public static <T extends JSONSerializable> String format(T object) throws JSONException {
+        JSONStringer stringer = new JSONStringer();
+        stringer.object();
+        object.toJSON(stringer);
+        stringer.endObject();
+        return (JSONUtil.format(stringer.toString()));
+    }
+    
+    /**
      * 
      * @param <T>
      * @param object
@@ -154,7 +168,11 @@ public abstract class JSONUtil {
             LOG.debug("writeCollectionFieldValue(" + field_class + ", " + field_value + ")");
             stringer.array();
             for (Object value : (Collection<?>)field_value) {
-                writeFieldValue(stringer, value.getClass(), value);
+                if (value == null) {
+                    stringer.value(null);
+                } else {
+                    writeFieldValue(stringer, value.getClass(), value);
+                }
             } // FOR
             stringer.endArray();
             
@@ -163,14 +181,24 @@ public abstract class JSONUtil {
             LOG.debug("writeMapFieldValue(" + field_class + ", " + field_value + ")");
             stringer.object();
             for (Entry<?, ?> e : ((Map<?, ?>)field_value).entrySet()) {
-                // The key can't be a raw CatalogType because CatalogKey won't know how to 
-                // deserialize it on the other side
-                Class<?> key_class = e.getKey().getClass();
-                if (key_class.equals(CatalogType.class))
-                    throw new JSONException("CatalogType is not allowed to be the map key");
+                // We can handle null keys
+                String key_value = null;
+                if (e.getKey() != null) {
+                    // The key can't be a raw CatalogType because CatalogKey won't know how to 
+                    // deserialize it on the other side
+                    Class<?> key_class = e.getKey().getClass();
+                    if (key_class.equals(CatalogType.class))
+                        throw new JSONException("CatalogType is not allowed to be the map key");
+                    key_value = makePrimitiveValue(key_class, e.getKey()).toString();
+                }
+                stringer.key(key_value);
                 
-                stringer.key(makePrimitiveValue(key_class, e.getKey()).toString());
-                writeFieldValue(stringer, e.getValue().getClass(), e.getValue());
+                // We can also handle null values. Where is your god now???
+                if (e.getValue() == null) {
+                    stringer.value(null);
+                } else {
+                    writeFieldValue(stringer, e.getValue().getClass(), e.getValue());
+                }
             } // FOR
             stringer.endObject();
             
@@ -209,7 +237,9 @@ public abstract class JSONUtil {
             
             // VALUE
             Object object = null;
-            if (val_interfaces.contains(List.class)) {
+            if (json_object.isNull(json_key)) {
+                // Nothing...
+            } else if (val_interfaces.contains(List.class)) {
                 object = new ArrayList();
                 readCollectionField(json_object.getJSONArray(json_key), catalog_db, (Collection)object, next_inner_classes);
             } else if (val_interfaces.contains(Set.class)) {
@@ -252,17 +282,24 @@ public abstract class JSONUtil {
             final Stack<Class> next_inner_classes = new Stack<Class>();
             next_inner_classes.addAll(inner_classes);
             assert(next_inner_classes.equals(inner_classes));
-            
             Object value = null;
-            if (inner_interfaces.contains(List.class)) {
+            
+            // Null
+            if (json_array.isNull(i)) {
+                value = null;
+            // Lists
+            } else if (inner_interfaces.contains(List.class)) {
                 value = new ArrayList();
                 readCollectionField(json_array.getJSONArray(i), catalog_db, (Collection)value, next_inner_classes);
+            // Sets
             } else if (inner_interfaces.contains(Set.class)) {
                 value = new HashSet();
                 readCollectionField(json_array.getJSONArray(i), catalog_db, (Collection)value, next_inner_classes);
+            // Maps
             } else if (inner_interfaces.contains(Map.class)) {
                 value = new HashMap();
                 readMapField(json_array.getJSONObject(i), catalog_db, (Map)value, next_inner_classes);
+            // Values
             } else {
                 String json_string = json_array.getString(i);
                 value = JSONUtil.getPrimitiveValue(json_string, inner_class, catalog_db);
@@ -475,6 +512,9 @@ public abstract class JSONUtil {
             if (value == null) throw new JSONException("Failed to get class from '" + json_value + "'");
         // Enum
         } else if (field_class.isEnum()) {
+            if (field_class.equals(VoltType.class)) {
+                json_value = json_value.replace("VoltType.", "");
+            }
             for (Object o : field_class.getEnumConstants()) {
                 Enum<?> e = (Enum<?>)o;
                 if (json_value.equals(e.name())) return (e);

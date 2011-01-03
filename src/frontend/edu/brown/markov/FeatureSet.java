@@ -1,9 +1,17 @@
 package edu.brown.markov;
 
+import java.io.IOException;
 import java.util.*;
 
 import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.log4j.Logger;
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
+import org.json.JSONStringer;
+import org.voltdb.VoltType;
+import org.voltdb.catalog.Database;
+import org.voltdb.utils.VoltTypeUtil;
 
 import weka.core.Attribute;
 import weka.core.FastVector;
@@ -11,10 +19,21 @@ import weka.core.Instance;
 import weka.core.Instances;
 import edu.brown.statistics.Histogram;
 import edu.brown.utils.ClassUtil;
+import edu.brown.utils.CollectionUtil;
+import edu.brown.utils.JSONSerializable;
+import edu.brown.utils.JSONUtil;
 import edu.brown.workload.TransactionTrace;
 
-public class FeatureSet {
+public class FeatureSet implements JSONSerializable {
     private static final Logger LOG = Logger.getLogger(FeatureSet.class);
+    
+    public enum Members {
+        TXN_VALUES,
+        ATTRIBUTES,
+        LAST_NUM_ATTRIBUTES,
+        ATTRIBUTE_HISTOGRAMS,
+        ATTRIBUTE_TYPES,
+    }
     
     public enum Type {
         NUMERIC,
@@ -26,18 +45,23 @@ public class FeatureSet {
     /**
      * The row values for each txn record
      */
-    protected final HashMap<String, Vector<Object>> txn_values = new HashMap<String, Vector<Object>>();
+    public final HashMap<String, Vector<Object>> txn_values = new HashMap<String, Vector<Object>>();
     
     /**
      * The list of attributes that each txn should have
      */
-    protected final ListOrderedMap<String, Type> attributes = new ListOrderedMap<String, Type>();
-    protected int last_num_attributes = 0;
+    public final ListOrderedMap<String, Type> attributes = new ListOrderedMap<String, Type>();
+    public int last_num_attributes = 0;
     
     /**
      * Attribute Value Histograms
      */
-    protected final Map<String, Histogram> attribute_histograms = new HashMap<String, Histogram>();
+    public final Map<String, Histogram> attribute_histograms = new HashMap<String, Histogram>();
+    
+    /**
+     * 
+     */
+    public final Map<String, VoltType> attribute_types = new HashMap<String, VoltType>();
     
     /**
      * Constructor
@@ -115,6 +139,11 @@ public class FeatureSet {
             if (debug) LOG.debug("Adding new attribute " + key + " [" + type + "]");
             this.attributes.put(key, type);
             this.attribute_histograms.put(key, new Histogram());
+            this.attribute_types.put(key, VoltType.NULL);
+        }
+        // HACK
+        if (val != null && (val.getClass().equals(int.class) || val.getClass().equals(Integer.class))) {
+            val = new Long((Integer)val);
         }
         
         // Always store the values in a histogram so we can normalize them later on
@@ -145,6 +174,11 @@ public class FeatureSet {
             if (trace) LOG.trace("Increased FeatureSet size to " + this.last_num_attributes + " attributes");
         }
         this.txn_values.get(txn_id).set(idx, val);
+        
+        if (val != null && this.attribute_types.get(key) == VoltType.NULL) {
+            this.attribute_types.put(key, VoltType.typeFromClass(val.getClass()));
+        }
+        
         if (trace) LOG.trace(txn_id + ": " + key + " => " + val);
     }
 
@@ -263,5 +297,85 @@ public class FeatureSet {
         } // FOR
         
         return (data);
+    }
+    
+    // -----------------------------------------------------------------
+    // SERIALIZATION
+    // -----------------------------------------------------------------
+
+    @Override
+    public void load(String input_path, Database catalog_db) throws IOException {
+        JSONUtil.load(this, catalog_db, input_path);
+    }
+
+    @Override
+    public void save(String output_path) throws IOException {
+        JSONUtil.save(this, output_path);
+    }
+
+    @Override
+    public String toJSONString() {
+        return (JSONUtil.toJSONString(this));
+    }
+
+    @Override
+    public void toJSON(JSONStringer stringer) throws JSONException {
+        JSONUtil.fieldsToJSON(stringer, this, FeatureSet.class, FeatureSet.Members.values());
+    }
+
+    @Override
+    public void fromJSON(JSONObject json_object, Database catalog_db) throws JSONException {
+        // First deserialize all of the fields except for TXN_VALUES
+        Set<Members> fields = CollectionUtil.getAllExcluding(FeatureSet.Members.values(), FeatureSet.Members.TXN_VALUES);
+        JSONUtil.fieldsFromJSON(json_object, catalog_db, this, FeatureSet.class, fields.toArray(new Members[0]));
+        
+        // Then we have reconstruct this mofo ourselves because the object types are implicit
+        JSONObject inner_obj = json_object.getJSONObject(Members.TXN_VALUES.name());
+        assert(inner_obj != null);
+        Iterator<String> it = inner_obj.keys();
+        while (it.hasNext()) {
+            String inner_key = it.next();
+            this.txn_values.put(inner_key, new Vector<Object>());
+            
+            JSONArray inner_arr = inner_obj.getJSONArray(inner_key);
+            for (int i = 0, cnt = inner_arr.length(); i < cnt; i++) {
+                Object val = null;
+                if (inner_arr.isNull(i) == false) {
+                    String json_val = inner_arr.getString(i);
+                    String attr_key = this.attributes.get(i);
+                    Type attr_type = this.attributes.getValue(i);
+                    try {
+                        switch (attr_type) {
+                            case NUMERIC:
+                                val = VoltTypeUtil.getObjectFromString(this.attribute_types.get(attr_key), json_val);
+                                break;
+                            case BOOLEAN:
+                                val = Boolean.valueOf(json_val);
+                                break;
+                            case RANGE: {
+                                // Get the value type from the histogram
+                                Histogram h = this.attribute_histograms.get(attr_key);
+                                assert(h != null);
+                                VoltType volt_type = h.getEstimatedType();
+                                assert(volt_type != VoltType.INVALID);
+                                val = VoltTypeUtil.getObjectFromString(volt_type, json_val);
+                                break;
+                            }
+                            case STRING:
+                                val = json_val;
+                                break;
+                            default:
+                                assert(false) : "Unexpected Type: " + attr_type;
+                        } // SWITCH
+                    } catch (Exception ex) {
+                        LOG.fatal("Failed to deserialize TXN_VALUES-" + inner_key + "-" + i);
+                        throw new JSONException(ex);
+                    }
+                }
+                this.txn_values.get(inner_key).add(val);
+            } // FOR
+            
+        } // WHILE
+        
     }
 }

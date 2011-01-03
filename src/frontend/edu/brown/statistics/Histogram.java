@@ -275,6 +275,15 @@ public class Histogram implements JSONSerializable {
     public <T> T getMaxCountValue() {
         return ((T)this.max_count_value);
     }
+    
+    /**
+     * Return the internal variable for what we "think" the type is for this Histogram
+     * Use this at your own risk
+     * @return
+     */
+    public VoltType getEstimatedType() {
+        return (this.value_type);
+    }
 
     /**
      * Return all the values stored in the histogram
@@ -597,11 +606,11 @@ public class Histogram implements JSONSerializable {
             if (!first) s.append("\n");
             String str = null;
             if (has_labels) str = this.debug_names.get(value);
-            if (str == null) str = value.toString();
+            if (str == null) str = (value != null ? value.toString() : "null");
             int value_str_len = str.length();
             if (value_str_len > max_length) str = str.substring(0, max_length - 3) + "...";
             
-            long cnt = this.histogram.get(value);
+            long cnt = (value != null ? this.histogram.get(value) : 0);
             int chars = (int)((cnt / (double)this.max_count) * max_chars);
             s.append(String.format(f, str, cnt));
             for (int i = 0; i < chars; i++) s.append(MARKER);
