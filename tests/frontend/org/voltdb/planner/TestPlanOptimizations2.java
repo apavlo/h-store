@@ -127,12 +127,16 @@ public class TestPlanOptimizations2 extends BaseTestCase {
         
         // Now find the join and get all of the columns from the first scanned table in the join operation
         Set<AbstractJoinPlanNode> join_nodes = PlanNodeUtil.getPlanNodes(root, AbstractJoinPlanNode.class);
+        assertNotNull(join_nodes);
         assertEquals(1, join_nodes.size());
         AbstractJoinPlanNode join_node = CollectionUtil.getFirst(join_nodes);
         assertNotNull(join_node);
         
         // Remove the columns from the second table
         Set<Column> join_columns = CatalogUtil.getReferencedColumns(catalog_db, join_node);
+        assertNotNull(join_columns);
+        assertFalse(join_columns.isEmpty());
+//        System.err.println(CatalogUtil.debug(join_columns));
         Iterator<Column> it = join_columns.iterator();
         while (it.hasNext()) {
             Column catalog_col = it.next();

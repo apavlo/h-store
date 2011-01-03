@@ -1155,7 +1155,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
      * @throws Exception
      */
     public static Set<Column> getReferencedColumns(final Database catalog_db, final AbstractPlanNode node) throws Exception {
-        Set<Column> ret = new HashSet<Column>();
+        final Set<Column> ret = new HashSet<Column>();
         CatalogUtil.getReferencedColumns(catalog_db, node, ret);
         return (ret);
     }
@@ -1187,12 +1187,17 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
                     columns.addAll(CatalogUtil.getReferencedColumns(catalog_db, scan_node.getPredicate()));
                 break;
             }
-                // JOINS
+            // JOINS
             case NESTLOOP:
             case NESTLOOPINDEX: {
                 AbstractJoinPlanNode cast_node = (AbstractJoinPlanNode) node;
                 if (cast_node.getPredicate() != null)
                     columns.addAll(CatalogUtil.getReferencedColumns(catalog_db, cast_node.getPredicate()));
+
+                // We always need to look at the inline scan nodes for joins 
+                for (AbstractPlanNode inline_node : cast_node.getInlinePlanNodes().values()) {
+                    if (inline_node instanceof AbstractScanPlanNode) CatalogUtil.getReferencedColumns(catalog_db, inline_node, columns);
+                }
                 break;
             }
             // INSERT
