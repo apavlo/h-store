@@ -24,13 +24,21 @@ public class ParamArrayLengthFeature extends AbstractFeature {
         // Get the list of ProcParameters that should be arrays
         this.array_params = CatalogUtil.getArrayProcParameters(this.catalog_proc);
     }
-
+    
     @Override
-    public void calculate(FeatureSet fset, TransactionTrace txn_trace) throws Exception {
+    public void extract(FeatureSet fset, TransactionTrace txn_trace) throws Exception {
         for (ProcParameter catalog_param : this.array_params) {
             Object params[] = (Object[])txn_trace.getParam(catalog_param.getIndex());
             fset.addFeature(txn_trace, this.getFeatureKey(catalog_param), params.length);
         } // FOR
+    }
+    
+    @Override
+    public Object calculate(String key, TransactionTrace txn_trace) throws Exception {
+        ProcParameter catalog_param = this.getProcParameter(key);
+        assert(catalog_param.getIsarray()) : "Invalid: " + catalog_param;
+        Object params[] = (Object[])txn_trace.getParam(catalog_param.getIndex());
+        return (params.length);
     }
 
 }

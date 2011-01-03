@@ -18,9 +18,15 @@ public class BasePartitionFeature extends AbstractFeature {
     }
 
     @Override
-    public void calculate(FeatureSet fset, TransactionTrace txn_trace) throws Exception {
-        Integer base_partition = this.p_estimator.getBasePartition(this.catalog_proc, txn_trace.getParams());
-        fset.addFeature(txn_trace, this.getFeatureKey(), base_partition, Type.RANGE);
+    public void extract(FeatureSet fset, TransactionTrace txn_trace) throws Exception {
+        String key = this.getFeatureKey();
+        Object val = this.calculate(key, txn_trace);
+        fset.addFeature(txn_trace, key, val, Type.RANGE);
+    }
+    
+    @Override
+    public Object calculate(String key, TransactionTrace txn_trace) throws Exception {
+        return (this.p_estimator.getBasePartition(this.catalog_proc, txn_trace.getParams()));
     }
 
 }

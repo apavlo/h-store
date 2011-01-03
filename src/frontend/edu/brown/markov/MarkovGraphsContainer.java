@@ -4,6 +4,11 @@ import java.util.*;
 
 import org.voltdb.catalog.Procedure;
 
+/**
+ * Convenience wrapper for a collection of Procedure-based MarkovGraphs that split by their base partitions 
+ * <BasePartitionId> -> <Procedure> -> <MarkovGraph> 
+ * @author pavlo
+ */
 public class MarkovGraphsContainer extends HashMap<Integer, Map<Procedure, MarkovGraph>> {
     private static final long serialVersionUID = 1L;
 
