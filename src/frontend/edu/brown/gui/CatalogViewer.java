@@ -217,12 +217,23 @@ public class CatalogViewer extends AbstractViewer {
                     new_text += wrapper.getAttributes();
 					
 				} else if (user_obj instanceof PlanTreeCatalogNode) {
-				    PlanTreeCatalogNode wrapper = (PlanTreeCatalogNode)user_obj;
+				    final PlanTreeCatalogNode wrapper = (PlanTreeCatalogNode)user_obj;
 				    text_mode = false;
 				    
                     CatalogViewer.this.mainPanel.remove(0);
                     CatalogViewer.this.mainPanel.add(wrapper.getPanel(), BorderLayout.CENTER);
+                    CatalogViewer.this.mainPanel.validate();
                     CatalogViewer.this.mainPanel.repaint();
+                    
+                    if (SwingUtilities.isEventDispatchThread() == false) {
+                        SwingUtilities.invokeLater(new Runnable() {
+                            public void run() {
+                                wrapper.centerOnRoot();
+                            }
+                        });
+                    } else {
+                        wrapper.centerOnRoot();
+                    }
                     
                 } else {
                     new_text += CatalogViewer.this.getSummaryText();
