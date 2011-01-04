@@ -20,6 +20,7 @@ package org.voltdb.planner;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.Stack;
 import java.util.Map.Entry;
@@ -40,6 +41,8 @@ import org.voltdb.expressions.AggregateExpression;
 import org.voltdb.expressions.ConstantValueExpression;
 import org.voltdb.expressions.TupleAddressExpression;
 import org.voltdb.expressions.TupleValueExpression;
+import org.voltdb.planner.ParsedSelectStmt.ParsedColInfo;
+import org.voltdb.plannodes.AbstractJoinPlanNode;
 import org.voltdb.plannodes.AbstractPlanNode;
 import org.voltdb.plannodes.AbstractScanPlanNode;
 import org.voltdb.plannodes.AggregatePlanNode;
@@ -61,6 +64,9 @@ import org.voltdb.types.PlanNodeType;
 import org.voltdb.types.SortDirectionType;
 import org.voltdb.utils.CatalogUtil;
 
+import edu.brown.BaseTestCase;
+import edu.brown.catalog.QueryPlanUtil;
+import edu.brown.plannodes.PlanNodeTreeWalker;
 import edu.brown.plannodes.PlanNodeUtil;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.StringUtil;
@@ -111,6 +117,9 @@ public class PlanAssembler {
     /** parsed statement for an select */
     ParsedSelectStmt m_parsedSelect = null;
 
+    /** DWU hack - arraylist stores unique columns generated so far */
+    ArrayList<String> columns;
+    
     /** does the statement touch more than one partition? */
     boolean m_singlePartition;
 
@@ -231,7 +240,16 @@ public class PlanAssembler {
      */
     void setupForNewPlans(AbstractParsedStmt parsedStmt, boolean singlePartition)
     {
+    	/**DWU hack - instantiate map*/
+    	columns = new ArrayList<String>();
+    	
         m_singlePartition = singlePartition;
+
+        System.out.println("Tables referenced count: " + parsedStmt.tableList.size() + " filtered table cnt: " + parsedStmt.tableFilterList.size());
+        for (Table t : parsedStmt.tableFilterList.keySet())
+        {
+        	System.out.println("Name: " + t.getName());
+        }
 
         if (parsedStmt instanceof ParsedSelectStmt) {
             if (tableListIncludesExportOnly(parsedStmt.tableList)) {
@@ -384,7 +402,7 @@ public class PlanAssembler {
         for (ParsedSelectStmt.ParsedColInfo col : stmt.displayColumns) {
             PlanColumn outcol = m_context.getPlanColumn(col.expression, col.alias);
             plan.columns.add(outcol.guid());
-            index++;
+            index++;        		
         }
     }
 
@@ -427,7 +445,7 @@ public class PlanAssembler {
 //        if (PlanNodeUtil.getPlanNodes(root, ReceivePlanNode.class).isEmpty() == false) {
 //            LOG.debug("PAVLO OPTIMIZATION:\n" + PlanNodeUtil.debug(root));
 //        }
-         root.updateOutputColumns(m_catalogDb);
+         //root.updateOutputColumns(m_catalogDb);
 
         if ((subSelectRoot.getPlanNodeType() != PlanNodeType.INDEXSCAN ||
             ((IndexScanPlanNode) subSelectRoot).getSortDirection() == SortDirectionType.INVALID) &&
@@ -908,13 +926,64 @@ public class PlanAssembler {
         assert (m_parsedSelect != null);
         assert (m_parsedSelect.displayColumns != null);
         PlanColumn colInfo = null;
+        
 
         // The rootNode must have a correct output column set.
         rootNode.updateOutputColumns(m_catalogDb);
 
-        ProjectionPlanNode projectionNode =
+        final ProjectionPlanNode projectionNode =
             new ProjectionPlanNode(m_context, PlanAssembler.getNextPlanNodeId());
 
+    	final ArrayList<ParsedColInfo> alInfo = new ArrayList<ParsedColInfo>();
+    	// walk the tree for additional columns that need to be projected and add them to the list of Guids
+        new PlanNodeTreeWalker() {
+            @Override
+            protected void callback(AbstractPlanNode element) {
+            	//System.out.println("Callback plannode id: " + element.getPlanNodeId() + " " + element.toString());
+            	if (element instanceof IndexScanPlanNode)
+            	{
+                	for (Integer guid : element.m_outputColumns)
+                	{
+                        PlanColumn plancol = m_context.get(guid);
+                    	try {
+        					for (Column col : edu.brown.catalog.CatalogUtil.getReferencedColumns(m_catalogDb, element))
+        					{
+        						if (plancol.displayName().equals(col.getName()))
+        						{
+        							// referenced column - add to source columns
+        							ParsedColInfo info = new ParsedColInfo();
+        							info.alias = col.getName();
+        							info.columnName = col.getName();
+        							info.tableName = plancol.originTableName();
+        							info.expression = plancol.getExpression();
+        							if (!alInfo.contains(info))
+        							{
+            							alInfo.add(info);    								
+        							}
+        						}
+        					}
+        				} catch (Exception e) {
+        					// TODO Auto-generated catch block
+        					e.printStackTrace();
+        				}
+                	}            		
+            	}
+            	//this.stop();
+            }
+        }.traverse(rootNode);
+    	// iterate through Guids and add them to sourceColumns if they don't exist
+        for (ParsedColInfo pci : alInfo)
+        {
+        	if (!columns.contains(pci.columnName))
+        	{
+        		m_parsedSelect.displayColumns.add(pci);
+        		columns.add(pci.columnName);
+        	}
+        }
+
+        //System.out.println("projectionNode id: " + projectionNode.getPlanNodeId());
+        //System.out.println("Current rootnode type: " + rootNode.getPlanNodeType().name());
+        
         // The input to this projection MUST include all the columns needed
         // to satisfy any TupleValueExpression in the parsed select statement's
         // output expressions.
@@ -923,26 +992,40 @@ public class PlanAssembler {
         // cloning the expression. Walk the clone and configure each TVE with
         // the offset into the input column array.
         for (ParsedSelectStmt.ParsedColInfo outputCol : m_parsedSelect.displayColumns) {
+        	//System.out.println("Display Column: " + outputCol.alias);
             assert(outputCol.expression != null);
             try {
                 AbstractExpression expressionWithRealOffsets =
                     generateProjectionColumnExpression(outputCol,
-                                                     rootNode.m_outputColumns);
+                                                     rootNode.m_outputColumns, rootNode);
+                //System.out.println("Expression Type: " + expressionWithRealOffsets.getExpressionType());
                 colInfo = m_context.getPlanColumn(expressionWithRealOffsets, outputCol.alias);
+                //System.out.println("Column Name: " + colInfo.m_displayName);
                 projectionNode.appendOutputColumn(colInfo);
             } catch (CloneNotSupportedException ex) {
                 throw new PlanningErrorException(ex.getMessage());
             }
         }
-
+        //System.out.println("Projection Node # output columns: " + projectionNode.m_outputColumns.size() + " Node Name: " + m_context.get(projectionNode.m_outputColumns.get(0).intValue()).displayName());
+        new PlanNodeTreeWalker() {
+            @Override
+            protected void callback(AbstractPlanNode element) {
+            	//System.out.println("Callback plannode id: " + element.getPlanNodeId() + " " + element.toString());
+                if (element instanceof AbstractScanPlanNode) {
+                    element.addInlinePlanNode(projectionNode);
+                    this.stop();
+                }
+            }
+        }.traverse(rootNode);
+        return rootNode;
         // if the projection can be done inline...
-        if (rootNode instanceof AbstractScanPlanNode) {
-            rootNode.addInlinePlanNode(projectionNode);
-            return rootNode;
-        } else {
-            projectionNode.addAndLinkChild(rootNode);
-            return projectionNode;
-        }
+//        if (rootNode instanceof AbstractScanPlanNode) {
+//            rootNode.addInlinePlanNode(projectionNode);
+//            return rootNode;
+//        } else {
+//            projectionNode.addAndLinkChild(rootNode);
+//            return projectionNode;
+//        }
     }
 
     /**
@@ -959,9 +1042,9 @@ public class PlanAssembler {
      */
     private AbstractExpression generateProjectionColumnExpression(
             ParsedSelectStmt.ParsedColInfo outputCol,
-            ArrayList<Integer> sourceColumns) throws CloneNotSupportedException
+            ArrayList<Integer> sourceColumns, AbstractPlanNode rootNode) throws CloneNotSupportedException
     {
-        Stack<AbstractExpression> stack = new Stack<AbstractExpression>();
+    	Stack<AbstractExpression> stack = new Stack<AbstractExpression>();
         AbstractExpression expression = (AbstractExpression) outputCol.expression.clone();
         AbstractExpression currExp = expression;
         while (currExp != null) {
@@ -1010,6 +1093,7 @@ public class PlanAssembler {
                     /* System.out.printf("Expression: %s/%s. Candidate column: %s/%s\n",
                             tve.getColumnAlias(), tve.getTableName(),
                             plancol.originColumnName(), plancol.originTableName()); */
+                    //System.out.println("output Column name: " + outputCol.alias + " Source Column number " + offset + " name is: " + plancol.displayName());
                     if (tve.getColumnName().equals(plancol.originColumnName()) &&
                         tve.getTableName().equals(plancol.originTableName()))
                     {
