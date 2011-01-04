@@ -2,6 +2,7 @@ package org.voltdb.planner;
 
 import java.io.File;
 import java.util.Iterator;
+import java.util.Map;
 import java.util.Set;
 
 import org.junit.Test;
@@ -19,9 +20,10 @@ import org.voltdb.types.PlanNodeType;
 import edu.brown.BaseTestCase;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.catalog.QueryPlanUtil;
+import edu.brown.plannodes.PlanNodeTreeWalker;
 import edu.brown.plannodes.PlanNodeUtil;
 import edu.brown.utils.CollectionUtil;
-
+	
 /**
  * 
  * @author pavlo
@@ -99,6 +101,30 @@ public class TestPlanOptimizations2 extends BaseTestCase {
         assertNotNull(root);
         // System.err.println(PlanNodeUtil.debug(root));
         
+        // print the tree starting at the root
+//        new PlanNodeTreeWalker() {
+//            @Override
+//            protected void callback(AbstractPlanNode element) {
+//            	System.out.println(element.getPlanNodeType().name() + " " + element.getPlanNodeId());
+//            	if (element.getInlinePlanNodes().size() > 0)
+//            	{
+//            	    Iterator it = element.getInlinePlanNodes().entrySet().iterator();
+//            	    while (it.hasNext()) {
+//            	        Map.Entry pairs = (Map.Entry)it.next();
+//            	        System.out.println(pairs.getKey() + " : # of output columns " + ((AbstractPlanNode)pairs.getValue()).m_outputColumns.size());
+//            	        for (Integer col :((AbstractPlanNode)pairs.getValue()).m_outputColumns)
+//            	        {
+//            	        	System.out.print("Col: " + col + " ");
+//            	        }
+//            	    }
+//            	}
+//            	System.out.println();
+//            	System.out.println();
+//            }
+//        }.traverse(root);
+
+        System.out.println(PlanNodeUtil.debug(root));
+
         // At the very bottom of our tree should be a scan. Grab that and then check to see that 
         // it has an inline ProjectionPlanNode. We will then look to see whether all of the columns
         // we need to join are included. Note that we don't care which table is scanned first, as we can
@@ -109,21 +135,22 @@ public class TestPlanOptimizations2 extends BaseTestCase {
         assertNotNull(scan_node);
         Table catalog_tbl = this.getTable(scan_node.getTargetTableName()); 
         
-        // FIXME assertEquals(1, scan_node.getInlinePlanNodes().size());
+        assertEquals(1, scan_node.getInlinePlanNodes().size());
         ProjectionPlanNode inline_proj = (ProjectionPlanNode)scan_node.getInlinePlanNodes().get(PlanNodeType.PROJECTION); 
-        // FIXME assertNotNull(inline_proj);
+        assertNotNull(inline_proj);
         
         // Validate output columns
-        /* FIXME
         for (int column_guid : inline_proj.m_outputColumns) {
             PlanColumn column = PlannerContext.singleton().get(column_guid);
             assertNotNull("Missing PlanColumn [guid=" + column_guid + "]", column);
             assertEquals(column_guid, column.guid());
         } // FOR
-        */
         
-        Set<Column> proj_columns = null; // FIXME PlanNodeUtil.getOutputColumns(catalog_db, inline_proj);
-        // FIXME assertFalse(proj_columns.isEmpty());
+        System.out.println("Inline Projection Node: " + inline_proj.getPlanNodeId() + " output columns: " + inline_proj.m_outputColumns.size());
+        Set<Column> proj_columns = null; 
+        proj_columns = PlanNodeUtil.getOutputColumns(catalog_db, inline_proj);
+        
+        assertFalse(proj_columns.isEmpty());
         
         // Now find the join and get all of the columns from the first scanned table in the join operation
         Set<AbstractJoinPlanNode> join_nodes = PlanNodeUtil.getPlanNodes(root, AbstractJoinPlanNode.class);
@@ -144,22 +171,55 @@ public class TestPlanOptimizations2 extends BaseTestCase {
                 it.remove();
             }
         } // WHILE
-        // FIXME assertFalse(join_columns.isEmpty());
-        // System.err.println("COLUMNS: " + CatalogUtil.debug(join_columns));
+        assertFalse(join_columns.isEmpty());
+        System.err.println("COLUMNS: " + CatalogUtil.debug(join_columns));
         
+        System.err.println("Project COLUMNS: " + CatalogUtil.debug(proj_columns));
         // Ok so now we have the list of columns that are filtered out in the inline projection and the list of
         // columns that are used in the join from the first table. So we need to make sure that
         // every table that is in the join is in the projection
         for (Column catalog_col : join_columns) {
-            // FIXME assert(proj_columns.contains(catalog_col)) : "Missing: " + CatalogUtil.getDisplayName(catalog_col);
+        	// dwu assert doesn't work, use assertTrue
+            assertTrue(proj_columns.contains(catalog_col));
         } // FOR
         
         // Lastly, we need to look at the root SEND node and get its output columns, and make sure that they 
         // are also included in the bottom projection
         Set<Column> send_columns = PlanNodeUtil.getOutputColumns(catalog_db, root);
-        // FIXME assertFalse(send_columns.isEmpty());
+    	System.out.println("Send columns count: " + send_columns.size());
+        assertFalse(send_columns.isEmpty());
         for (Column catalog_col : send_columns) {
-            // FIXME assert(proj_columns.contains(catalog_col)) : "Missing: " + CatalogUtil.getDisplayName(catalog_col);
+            assert(proj_columns.contains(catalog_col)) : "Missing: " + CatalogUtil.getDisplayName(catalog_col);
         } // FOR
     }    
+//    /**
+//     * testAggregatePushdown
+//     */
+//    public void testAggregatePushdown() throws Exception {
+//        Procedure catalog_proc = this.getProcedure(slev.class);
+//        Statement catalog_stmt = this.getStatement(catalog_proc, "GetStockCount");
+//
+//        // Grab the root node of the multi-partition query plan tree for this Statement 
+//        AbstractPlanNode root = QueryPlanUtil.deserializeStatement(catalog_stmt, false);
+//        assertNotNull(root);
+//        
+//        // Check that our single scan node has a COUNT AggregatePlanNode above it.
+//        Set<AbstractScanPlanNode> scan_nodes = PlanNodeUtil.getPlanNodes(root, AbstractScanPlanNode.class);
+//        assertEquals(1, scan_nodes.size());
+//        AbstractScanPlanNode scan_node = CollectionUtil.getFirst(scan_nodes);
+//        assertNotNull(scan_node);
+//        assertEquals(1, scan_node.getParentCount());
+//        // FIXME assertEquals(PlanNodeType.AGGREGATE, scan_node.getParent(0).getPlanNodeType());
+//        // FIXME AggregatePlanNode count_node = (AggregatePlanNode)scan_node.getParent(0);
+//        // FIXME assertNotNull(count_node);
+//        // FIXME assert(count_node.getAggregateTypes().contains(ExpressionType.AGGREGATE_COUNT));
+//        
+//        // Now check that we have a SUM AggregatePlanNode right before the root
+//        // This will sum up the counts from the different partitions and give us the total count
+//        assertEquals(1, root.getChildCount());
+//        // FIXME assertEquals(PlanNodeType.AGGREGATE, root.getChild(0).getPlanNodeType());
+//        // FIXME AggregatePlanNode sum_node= (AggregatePlanNode)root.getChild(0);
+//        // FIXME assert(sum_node.getAggregateTypes().contains(ExpressionType.AGGREGATE_SUM));
+//    }
+    
 }
