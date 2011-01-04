@@ -1,6 +1,7 @@
 package edu.brown.plannodes;
 
 import java.util.*;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.commons.collections15.set.ListOrderedSet;
 import org.apache.log4j.Logger;
@@ -146,6 +147,23 @@ public abstract class PlanNodeUtil {
     }
     
     /**
+     * Get the total depth of the tree
+     * @param root
+     * @return
+     */
+    public static int getDepth(AbstractPlanNode root) {
+        final AtomicInteger depth = new AtomicInteger(0);
+        new PlanNodeTreeWalker(false) {
+            @Override
+            protected void callback(AbstractPlanNode element) {
+                int current_depth = this.getDepth();
+                if (current_depth > depth.intValue()) depth.set(current_depth);
+            }
+        }.traverse(root);
+        return (depth.intValue());
+    }
+    
+    /**
      * Return all the nodes in an tree that reference a particular table
      * This can be either scan nodes or operation nodes
      * @param root
@@ -250,7 +268,7 @@ public abstract class PlanNodeUtil {
     }
     
     public static String debugNode(AbstractPlanNode node, String spacer) {
-        String ret = spacer + "* " + node + "\n";
+        String ret = spacer + "* " + node.toString() + "\n";
         String info_spacer = spacer + "  |";
         
         //
@@ -326,7 +344,7 @@ public abstract class PlanNodeUtil {
             if (node instanceof MaterializePlanNode) {
                 ret += spacer + "Batched[" + ((MaterializePlanNode)node).isBatched() + "]\n";
             }
-            ret += PlanNodeUtil.debugOutputColumns("ProjectionOutput", cast_node, spacer);
+            ret += PlanNodeUtil.debugOutputColumns("OutputColumns", cast_node, spacer);
             
         } else if (node instanceof ReceivePlanNode) {
             ReceivePlanNode cast_node = (ReceivePlanNode)node;
@@ -334,7 +352,7 @@ public abstract class PlanNodeUtil {
             
         } else if (node instanceof SendPlanNode) {
             ret += spacer + "Fake[" + ((SendPlanNode)node).getFake() + "]\n";
-            ret += PlanNodeUtil.debugOutputColumns("InputColumns", node, spacer);
+            ret += PlanNodeUtil.debugOutputColumns("ColumnsColumns", node, spacer);
             
         } else if (node instanceof SeqScanPlanNode) {
             ret += spacer + "Scan Expression: " + (((SeqScanPlanNode)node).getPredicate() != null ? "\n" + ExpressionUtil.debug(((SeqScanPlanNode)node).getPredicate(), spacer) : null + "\n");

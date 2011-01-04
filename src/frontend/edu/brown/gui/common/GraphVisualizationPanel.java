@@ -2,10 +2,13 @@ package edu.brown.gui.common;
 
 import java.awt.*;
 import java.awt.event.*;
+import java.awt.geom.Line2D;
 import java.awt.geom.Point2D;
 import java.lang.reflect.Method;
 
 import javax.swing.JFrame;
+
+import org.apache.commons.collections15.Transformer;
 
 import edu.brown.designer.PartitionTree;
 import edu.brown.graphs.*;
@@ -16,6 +19,8 @@ import edu.brown.utils.EventObserver;
 
 import edu.uci.ics.jung.algorithms.layout.*;
 import edu.uci.ics.jung.graph.*;
+import edu.uci.ics.jung.graph.util.Context;
+import edu.uci.ics.jung.graph.util.Pair;
 import edu.uci.ics.jung.visualization.Layer;
 import edu.uci.ics.jung.visualization.VisualizationViewer;
 import edu.uci.ics.jung.visualization.control.*;
@@ -34,6 +39,65 @@ public class GraphVisualizationPanel<V, E> extends VisualizationViewer<V, E> {
     MouseListener<E> edge_listener;
     MouseListener<V> vertex_listener;
 
+    
+    /**
+     * VertexFontTransformer
+     * Copied from http://jung.sourceforge.net/site/jung-samples/
+     * @param <V>
+     */
+    public final static class VertexFontTransformer<V> implements Transformer<V, Font> {
+        protected boolean bold;
+        Font f = new Font("Helvetica", Font.PLAIN, 12);
+        Font b = new Font("Helvetica", Font.BOLD, 12);
+
+        public VertexFontTransformer(boolean bold) {
+            this.bold = bold;
+        }
+        public VertexFontTransformer() {
+            this(false);
+        }
+        
+        public void setBold(boolean bold) {
+            this.bold = bold;
+        }
+        
+        public Font transform(V v) {
+            if (bold)
+                return b;
+            else
+                return f;
+        }
+    }
+
+    /**
+     * EdgeFontTransformer
+     * Copied from http://jung.sourceforge.net/site/jung-samples/
+     * @param <E>
+     */
+    public final static class EdgeFontTransformer<E> implements Transformer<E, Font> {
+        protected boolean bold;
+        Font f = new Font("Helvetica", Font.PLAIN, 12);
+        Font b = new Font("Helvetica", Font.BOLD, 12);
+
+        public EdgeFontTransformer(boolean bold) {
+            this.bold = bold;
+        }
+        public EdgeFontTransformer() {
+            this(false);
+        }
+        
+        public void setBold(boolean bold) {
+            this.bold = bold;
+        }
+
+        public Font transform(E e) {
+            if (bold)
+                return b;
+            else
+                return f;
+        }
+    }
+    
     /**
      * Convenience method for creating a JFrame that displays the graph
      * @param <V>
@@ -167,12 +231,14 @@ public class GraphVisualizationPanel<V, E> extends VisualizationViewer<V, E> {
         //this.visualizer.setBorder(BorderFactory.createLineBorder(Color.blue));
         this.repaint();
         
+        
         //
         // Zoom in a little bit
         //
-        new ViewScalingControl().scale(this, 0.85f, this.getCenter());
+        this.zoom(0.85);
         //new LayoutScalingControl().scale();
     }
+
     
     @Override
     public void setVisible(boolean arg0) {
@@ -183,6 +249,46 @@ public class GraphVisualizationPanel<V, E> extends VisualizationViewer<V, E> {
             // Ignore...
         }
     }
+
+    /**
+     * 
+     * @param scale
+     */
+    public void zoom(Double scale) {
+        new ViewScalingControl().scale(this, scale.floatValue(), this.getCenter());
+    }
+    
+    /**
+     * Center the visualization panel on the given vertex
+     * @param vertex
+     */
+    public void centerVisualization(V vertex) {
+        this.centerVisualization(vertex, false);
+    }
+    
+    public void centerVisualization(V vertex, final boolean immediate) {
+        if (vertex != null) {
+            Layout<V,E> layout = this.getGraphLayout();
+            Point2D q = layout.transform(vertex);
+            Point2D lvc = this.getRenderContext().getMultiLayerTransformer().inverseTransform(this.getCenter());
+            final int steps = (immediate ? 1 : 10);
+            final double dx = (lvc.getX() - q.getX()) / steps;
+            final double dy = (lvc.getY() - q.getY()) / steps;
+    
+            new Thread() {
+                public void run() {
+                    for (int i = 0; i < steps; i++) {
+                        GraphVisualizationPanel.this.getRenderContext().getMultiLayerTransformer().getTransformer(Layer.LAYOUT).translate(dx, dy);
+                        try {
+                            Thread.sleep(100);
+                        } catch (InterruptedException ex) {
+                        }
+                    }
+                }
+            }.start();
+        }
+    }
+
     
     public void selectVertex(V vertex) {
         this.vertex_listener.graphClicked(vertex, null);

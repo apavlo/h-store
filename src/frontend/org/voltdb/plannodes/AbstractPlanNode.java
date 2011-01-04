@@ -208,7 +208,7 @@ public abstract class AbstractPlanNode implements JSONString, Comparable<Abstrac
 
     @Override
     public final String toString() {
-        return getPlanNodeType() + "[" + m_id + "]";
+        return String.format("%s[#%02d]", getPlanNodeType().toString(), m_id);
     }
 
     public boolean computeEstimatesRecursively(PlanStatistics stats, Cluster cluster, Database db, DatabaseEstimates estimates, ScalarValueHints[] paramHints) {
