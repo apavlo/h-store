@@ -41,6 +41,8 @@ public class PlanTreeCatalogNode {
     private final PlanNodeGraph graph;
     private final GraphVisualizationPanel<AbstractPlanNode, PlanNodeGraph.Edge> visualizationPanel;
     
+    private boolean zoomed = false;
+    
     private EventObserver vertex_observer = new EventObserver() {
         @Override
         public void update(Observable o, Object arg) {
@@ -96,7 +98,10 @@ public class PlanTreeCatalogNode {
      * 
      */
     public void centerOnRoot() {
-        this.visualizationPanel.zoom(1.2);
+        if (this.zoomed == false) {
+            this.visualizationPanel.zoom(1.2);
+            this.zoomed = true;
+        }
         
         final int depth = PlanNodeUtil.getDepth(this.root) / 2;
         new PlanNodeTreeWalker(false) {
