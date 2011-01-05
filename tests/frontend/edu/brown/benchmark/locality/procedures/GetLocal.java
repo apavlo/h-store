@@ -23,18 +23,14 @@ public class GetLocal extends VoltProcedure {
     public final SQLStmt GetB = new SQLStmt(
 		"SELECT * FROM TABLEB WHERE B_A_ID = ? LIMIT " + LocalityConstants.GET_TABLEB_LIMIT);
 
-    public final SQLStmt testLocal = new SQLStmt(
-    		"SELECT TABLEA.A_VALUE FROM TABLEA, TABLEB WHERE TABLEA.A_ID = TABLEB.B_A_ID");
-
     /**
      * 
      * @param a_id
      * @return
      */
     public VoltTable[] run(long a_id) {
-//        voltQueueSQL(GetA, a_id);
-//        voltQueueSQL(GetB, a_id);
-    	voltQueueSQL(testLocal);
+        voltQueueSQL(GetA, a_id);
+        voltQueueSQL(GetB, a_id);
         return (voltExecuteSQL());
     }
     
