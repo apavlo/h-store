@@ -80,54 +80,54 @@ public class neworder extends VoltProcedure {
             new VoltTable.ColumnInfo("total", VoltType.FLOAT)
     );
 
-//    public final SQLStmt getWarehouseTaxRate =
-//        new SQLStmt("SELECT W_TAX FROM WAREHOUSE WHERE W_ID = ?;"); //w_id
-//
-//    public final SQLStmt getDistrict =
-//        new SQLStmt("SELECT D_TAX, D_NEXT_O_ID FROM DISTRICT WHERE D_ID = ? AND D_W_ID = ?;"); //d_id, w_id
-//
-//    public final SQLStmt incrementNextOrderId =
-//        new SQLStmt("UPDATE DISTRICT SET D_NEXT_O_ID = ? WHERE D_ID = ? AND D_W_ID = ?;"); //d_next_o_id, d_id, w_id
+    public final SQLStmt getWarehouseTaxRate =
+        new SQLStmt("SELECT W_TAX FROM WAREHOUSE WHERE W_ID = ?;"); //w_id
+
+    public final SQLStmt getDistrict =
+        new SQLStmt("SELECT D_TAX, D_NEXT_O_ID FROM DISTRICT WHERE D_ID = ? AND D_W_ID = ?;"); //d_id, w_id
+
+    public final SQLStmt incrementNextOrderId =
+        new SQLStmt("UPDATE DISTRICT SET D_NEXT_O_ID = ? WHERE D_ID = ? AND D_W_ID = ?;"); //d_next_o_id, d_id, w_id
 
     public final SQLStmt getCustomer =
         new SQLStmt("SELECT C_DISCOUNT, C_LAST, C_CREDIT FROM CUSTOMER WHERE C_W_ID = ? AND C_D_ID = ? AND C_ID = ?;"); //w_id, d_id, c_id
-//
-//    public final SQLStmt createOrder =
-//        new SQLStmt("INSERT INTO ORDERS (O_ID, O_D_ID, O_W_ID, O_C_ID, O_ENTRY_D, O_CARRIER_ID, O_OL_CNT, O_ALL_LOCAL) VALUES (?, ?, ?, ?, ?, ?, ?, ?);"); //d_next_o_id, d_id, w_id, c_id, timestamp, o_carrier_id, o_ol_cnt, o_all_local
-//
-//    public final SQLStmt createNewOrder =
-//        new SQLStmt("INSERT INTO NEW_ORDER (NO_O_ID, NO_D_ID, NO_W_ID) VALUES (?, ?, ?);"); //o_id, d_id, w_id
-//
-//    public final SQLStmt getItemInfo =
-//        new SQLStmt("SELECT I_PRICE, I_NAME, I_DATA FROM ITEM WHERE I_ID = ?;"); //ol_i_id
-//
-//    public final SQLStmt getStockInfo01 = new SQLStmt("SELECT S_QUANTITY, S_DATA, S_YTD, S_ORDER_CNT, S_REMOTE_CNT, S_DIST_01 FROM STOCK WHERE S_I_ID = ? AND S_W_ID = ?;"); //ol_i_id, ol_supply_w_id
-//    public final SQLStmt getStockInfo02 = new SQLStmt("SELECT S_QUANTITY, S_DATA, S_YTD, S_ORDER_CNT, S_REMOTE_CNT, S_DIST_02 FROM STOCK WHERE S_I_ID = ? AND S_W_ID = ?;"); //ol_i_id, ol_supply_w_id
-//    public final SQLStmt getStockInfo03 = new SQLStmt("SELECT S_QUANTITY, S_DATA, S_YTD, S_ORDER_CNT, S_REMOTE_CNT, S_DIST_03 FROM STOCK WHERE S_I_ID = ? AND S_W_ID = ?;"); //ol_i_id, ol_supply_w_id
-//    public final SQLStmt getStockInfo04 = new SQLStmt("SELECT S_QUANTITY, S_DATA, S_YTD, S_ORDER_CNT, S_REMOTE_CNT, S_DIST_04 FROM STOCK WHERE S_I_ID = ? AND S_W_ID = ?;"); //ol_i_id, ol_supply_w_id
-//    public final SQLStmt getStockInfo05 = new SQLStmt("SELECT S_QUANTITY, S_DATA, S_YTD, S_ORDER_CNT, S_REMOTE_CNT, S_DIST_05 FROM STOCK WHERE S_I_ID = ? AND S_W_ID = ?;"); //ol_i_id, ol_supply_w_id
-//    public final SQLStmt getStockInfo06 = new SQLStmt("SELECT S_QUANTITY, S_DATA, S_YTD, S_ORDER_CNT, S_REMOTE_CNT, S_DIST_06 FROM STOCK WHERE S_I_ID = ? AND S_W_ID = ?;"); //ol_i_id, ol_supply_w_id
-//    public final SQLStmt getStockInfo07 = new SQLStmt("SELECT S_QUANTITY, S_DATA, S_YTD, S_ORDER_CNT, S_REMOTE_CNT, S_DIST_07 FROM STOCK WHERE S_I_ID = ? AND S_W_ID = ?;"); //ol_i_id, ol_supply_w_id
-//    public final SQLStmt getStockInfo08 = new SQLStmt("SELECT S_QUANTITY, S_DATA, S_YTD, S_ORDER_CNT, S_REMOTE_CNT, S_DIST_08 FROM STOCK WHERE S_I_ID = ? AND S_W_ID = ?;"); //ol_i_id, ol_supply_w_id
-//    public final SQLStmt getStockInfo09 = new SQLStmt("SELECT S_QUANTITY, S_DATA, S_YTD, S_ORDER_CNT, S_REMOTE_CNT, S_DIST_09 FROM STOCK WHERE S_I_ID = ? AND S_W_ID = ?;"); //ol_i_id, ol_supply_w_id
-//    public final SQLStmt getStockInfo10 = new SQLStmt("SELECT S_QUANTITY, S_DATA, S_YTD, S_ORDER_CNT, S_REMOTE_CNT, S_DIST_10 FROM STOCK WHERE S_I_ID = ? AND S_W_ID = ?;"); //ol_i_id, ol_supply_w_id
-//
-//    public final SQLStmt[] getStockInfo = {
-//            getStockInfo01,
-//            getStockInfo02,
-//            getStockInfo03,
-//            getStockInfo04,
-//            getStockInfo05,
-//            getStockInfo06,
-//            getStockInfo07,
-//            getStockInfo08,
-//            getStockInfo09,
-//            getStockInfo10,
-//    };
-//
-//    public final SQLStmt updateStock = new SQLStmt("UPDATE STOCK SET S_QUANTITY = ?, S_YTD = ?, S_ORDER_CNT = ?, S_REMOTE_CNT = ? WHERE S_I_ID = ? AND S_W_ID = ?;"); //s_quantity, s_order_cnt, s_remote_cnt, ol_i_id, ol_supply_w_id
-//
-//    public final SQLStmt createOrderLine = new SQLStmt("INSERT INTO ORDER_LINE (OL_O_ID, OL_D_ID, OL_W_ID, OL_NUMBER, OL_I_ID, OL_SUPPLY_W_ID, OL_DELIVERY_D, OL_QUANTITY, OL_AMOUNT, OL_DIST_INFO) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);"); //o_id, d_id, w_id, ol_number, ol_i_id, ol_supply_w_id, ol_quantity, ol_amount, ol_dist_info
+
+    public final SQLStmt createOrder =
+        new SQLStmt("INSERT INTO ORDERS (O_ID, O_D_ID, O_W_ID, O_C_ID, O_ENTRY_D, O_CARRIER_ID, O_OL_CNT, O_ALL_LOCAL) VALUES (?, ?, ?, ?, ?, ?, ?, ?);"); //d_next_o_id, d_id, w_id, c_id, timestamp, o_carrier_id, o_ol_cnt, o_all_local
+
+    public final SQLStmt createNewOrder =
+        new SQLStmt("INSERT INTO NEW_ORDER (NO_O_ID, NO_D_ID, NO_W_ID) VALUES (?, ?, ?);"); //o_id, d_id, w_id
+
+    public final SQLStmt getItemInfo =
+        new SQLStmt("SELECT I_PRICE, I_NAME, I_DATA FROM ITEM WHERE I_ID = ?;"); //ol_i_id
+
+    public final SQLStmt getStockInfo01 = new SQLStmt("SELECT S_QUANTITY, S_DATA, S_YTD, S_ORDER_CNT, S_REMOTE_CNT, S_DIST_01 FROM STOCK WHERE S_I_ID = ? AND S_W_ID = ?;"); //ol_i_id, ol_supply_w_id
+    public final SQLStmt getStockInfo02 = new SQLStmt("SELECT S_QUANTITY, S_DATA, S_YTD, S_ORDER_CNT, S_REMOTE_CNT, S_DIST_02 FROM STOCK WHERE S_I_ID = ? AND S_W_ID = ?;"); //ol_i_id, ol_supply_w_id
+    public final SQLStmt getStockInfo03 = new SQLStmt("SELECT S_QUANTITY, S_DATA, S_YTD, S_ORDER_CNT, S_REMOTE_CNT, S_DIST_03 FROM STOCK WHERE S_I_ID = ? AND S_W_ID = ?;"); //ol_i_id, ol_supply_w_id
+    public final SQLStmt getStockInfo04 = new SQLStmt("SELECT S_QUANTITY, S_DATA, S_YTD, S_ORDER_CNT, S_REMOTE_CNT, S_DIST_04 FROM STOCK WHERE S_I_ID = ? AND S_W_ID = ?;"); //ol_i_id, ol_supply_w_id
+    public final SQLStmt getStockInfo05 = new SQLStmt("SELECT S_QUANTITY, S_DATA, S_YTD, S_ORDER_CNT, S_REMOTE_CNT, S_DIST_05 FROM STOCK WHERE S_I_ID = ? AND S_W_ID = ?;"); //ol_i_id, ol_supply_w_id
+    public final SQLStmt getStockInfo06 = new SQLStmt("SELECT S_QUANTITY, S_DATA, S_YTD, S_ORDER_CNT, S_REMOTE_CNT, S_DIST_06 FROM STOCK WHERE S_I_ID = ? AND S_W_ID = ?;"); //ol_i_id, ol_supply_w_id
+    public final SQLStmt getStockInfo07 = new SQLStmt("SELECT S_QUANTITY, S_DATA, S_YTD, S_ORDER_CNT, S_REMOTE_CNT, S_DIST_07 FROM STOCK WHERE S_I_ID = ? AND S_W_ID = ?;"); //ol_i_id, ol_supply_w_id
+    public final SQLStmt getStockInfo08 = new SQLStmt("SELECT S_QUANTITY, S_DATA, S_YTD, S_ORDER_CNT, S_REMOTE_CNT, S_DIST_08 FROM STOCK WHERE S_I_ID = ? AND S_W_ID = ?;"); //ol_i_id, ol_supply_w_id
+    public final SQLStmt getStockInfo09 = new SQLStmt("SELECT S_QUANTITY, S_DATA, S_YTD, S_ORDER_CNT, S_REMOTE_CNT, S_DIST_09 FROM STOCK WHERE S_I_ID = ? AND S_W_ID = ?;"); //ol_i_id, ol_supply_w_id
+    public final SQLStmt getStockInfo10 = new SQLStmt("SELECT S_QUANTITY, S_DATA, S_YTD, S_ORDER_CNT, S_REMOTE_CNT, S_DIST_10 FROM STOCK WHERE S_I_ID = ? AND S_W_ID = ?;"); //ol_i_id, ol_supply_w_id
+
+    public final SQLStmt[] getStockInfo = {
+            getStockInfo01,
+            getStockInfo02,
+            getStockInfo03,
+            getStockInfo04,
+            getStockInfo05,
+            getStockInfo06,
+            getStockInfo07,
+            getStockInfo08,
+            getStockInfo09,
+            getStockInfo10,
+    };
+
+    public final SQLStmt updateStock = new SQLStmt("UPDATE STOCK SET S_QUANTITY = ?, S_YTD = ?, S_ORDER_CNT = ?, S_REMOTE_CNT = ? WHERE S_I_ID = ? AND S_W_ID = ?;"); //s_quantity, s_order_cnt, s_remote_cnt, ol_i_id, ol_supply_w_id
+
+    public final SQLStmt createOrderLine = new SQLStmt("INSERT INTO ORDER_LINE (OL_O_ID, OL_D_ID, OL_W_ID, OL_NUMBER, OL_I_ID, OL_SUPPLY_W_ID, OL_DELIVERY_D, OL_QUANTITY, OL_AMOUNT, OL_DIST_INFO) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);"); //o_id, d_id, w_id, ol_number, ol_i_id, ol_supply_w_id, ol_quantity, ol_amount, ol_dist_info
 
     private int indexOf(byte[] array, byte[] subarray) {
         for (int i = 0; i <= array.length - subarray.length; ++i) {
@@ -155,10 +155,10 @@ public class neworder extends VoltProcedure {
         boolean isAllLocal = true;
         for (int i = 0; i < item_id.length; ++i) {
             isAllLocal = isAllLocal && supware[i] == w_id;
-            //voltQueueSQL(getItemInfo, item_id[i]);
+            voltQueueSQL(getItemInfo, item_id[i]);
         }
-        //voltQueueSQL(getWarehouseTaxRate, w_id);
-        //voltQueueSQL(getDistrict, d_id, w_id);
+        voltQueueSQL(getWarehouseTaxRate, w_id);
+        voltQueueSQL(getDistrict, d_id, w_id);
         voltQueueSQL(getCustomer, w_id, d_id, c_id);
 
         final VoltTable[] itemresults = voltExecuteSQL();
@@ -186,10 +186,10 @@ public class neworder extends VoltProcedure {
         final long ol_cnt = item_id.length;
         final long all_local = isAllLocal ? 1 : 0;
 
-        //voltQueueSQL(incrementNextOrderId, d_next_o_id + 1, d_id, w_id);
-        //voltQueueSQL(createOrder, d_next_o_id, d_id, w_id, c_id, timestamp,
-        //        Constants.NULL_CARRIER_ID, ol_cnt, all_local);
-        //voltQueueSQL(createNewOrder, d_next_o_id, d_id, w_id);
+        voltQueueSQL(incrementNextOrderId, d_next_o_id + 1, d_id, w_id);
+        voltQueueSQL(createOrder, d_next_o_id, d_id, w_id, c_id, timestamp,
+                Constants.NULL_CARRIER_ID, ol_cnt, all_local);
+        voltQueueSQL(createNewOrder, d_next_o_id, d_id, w_id);
         voltExecuteSQL();
 
         // values the client is missing: i_name, s_quantity, brand_generic, i_price, ol_amount
@@ -201,7 +201,7 @@ public class neworder extends VoltProcedure {
             final long ol_i_id = item_id[i];
 
             // One getStockInfo SQL statement for each district
-            //voltQueueSQL(getStockInfo[d_id-1], ol_i_id, ol_supply_w_id);
+            voltQueueSQL(getStockInfo[d_id-1], ol_i_id, ol_supply_w_id);
         }
         final VoltTable[] stockresults = voltExecuteSQL();
         assert stockresults.length == item_id.length;
@@ -241,7 +241,7 @@ public class neworder extends VoltProcedure {
             if (ol_supply_w_id != w_id) s_remote_cnt++;
             // TODO(evanj): Faster to do s_ytd and s_order_cnt increment in SQL?
             // Saves fetching those columns the first time
-            //voltQueueSQL(updateStock, s_quantity, s_ytd, s_order_cnt, s_remote_cnt, ol_i_id, ol_supply_w_id );
+            voltQueueSQL(updateStock, s_quantity, s_ytd, s_order_cnt, s_remote_cnt, ol_i_id, ol_supply_w_id );
 
             byte[] brand_generic;
             if (indexOf(i_data, Constants.ORIGINAL_BYTES) != -1
@@ -255,7 +255,7 @@ public class neworder extends VoltProcedure {
             final double ol_amount = ol_quantity * i_price;
             total += ol_amount;
 
-            //voltQueueSQL(createOrderLine, d_next_o_id, d_id, w_id, ol_number, ol_i_id, ol_supply_w_id, timestamp, ol_quantity, ol_amount, s_dist_xx);
+            voltQueueSQL(createOrderLine, d_next_o_id, d_id, w_id, ol_number, ol_i_id, ol_supply_w_id, timestamp, ol_quantity, ol_amount, s_dist_xx);
 
             // Add the info to be returned
             item_data.addRow(i_name, s_quantity, brand_generic, i_price, ol_amount);

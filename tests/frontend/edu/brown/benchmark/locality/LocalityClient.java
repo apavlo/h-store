@@ -30,6 +30,8 @@ import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.Map;
 
+import javax.lang.model.type.ExecutableType;
+
 import org.voltdb.TheHashinator;
 import org.voltdb.benchmark.ClientMain;
 import org.voltdb.catalog.Catalog;
@@ -63,7 +65,7 @@ public class LocalityClient extends ClientMain {
     // --------------------------------------------------------------------
 
     private int m_scalefactor = 1;
-    private ExecutionType m_type = LocalityConstants.ExecutionType.REMOTE_HOST;
+    private ExecutionType m_type = LocalityConstants.ExecutionType.SAME_SITE;
     protected final AbstractRandomGenerator m_rng;
 
     /**

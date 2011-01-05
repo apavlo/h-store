@@ -113,10 +113,8 @@ public abstract class AbstractPlanNode implements JSONString, Comparable<Abstrac
     public abstract PlanNodeType getPlanNodeType();
 
     public boolean updateOutputColumns(Database db) {
-    	//System.out.println("Currently updating output cols for node type: " + this.getPlanNodeType());
         ArrayList<Integer> childCols = new ArrayList<Integer>();
         for (AbstractPlanNode child : m_children) {
-        	//System.out.println("child column type: " + child.getPlanNodeType());
             boolean result = child.updateOutputColumns(db);
             assert(result);
             childCols.addAll(child.m_outputColumns);
@@ -125,7 +123,6 @@ public abstract class AbstractPlanNode implements JSONString, Comparable<Abstrac
         ArrayList<Integer> new_output_cols = new ArrayList<Integer>();
         new_output_cols = createOutputColumns(db, childCols);
         for (AbstractPlanNode child : m_inlineNodes.values()) {
-//        	System.out.println("inline node type: " + child.getPlanNodeType());
             if (child instanceof IndexScanPlanNode)
                 continue;
             new_output_cols = child.createOutputColumns(db, new_output_cols);
@@ -141,15 +138,6 @@ public abstract class AbstractPlanNode implements JSONString, Comparable<Abstrac
             }
         }
 
-//        if (this instanceof SendPlanNode)
-//        {
-//            System.out.println("Current Node Type: " + this.getPlanNodeType());
-//            for (Integer col :  m_outputColumns)
-//            {
-//                System.out.println("Col: " + col.intValue());        	
-//            }        	
-//        }
-        
         m_outputColumns = new_output_cols;
 
         return true;
