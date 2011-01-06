@@ -94,39 +94,39 @@ public class TestQueryPlanUtil extends BaseTestCase {
     /**
      * testDeserializeMultiSiteStatement
      */
-    public void testDeserializeMultiSiteStatement() throws Exception {
-        Procedure catalog_proc = catalog_db.getProcedures().get("SelectAll");
-        assertNotNull(catalog_proc);
-        Statement catalog_stmt = catalog_proc.getStatements().get("history");
-        assertNotNull(catalog_stmt);
-        
-        // Pass the Statement off to get deserialized
-        // We will inspect it to make sure that it has at least one scan node and a result
-        AbstractPlanNode root_node = QueryPlanUtil.deserializeStatement(catalog_stmt, false);
-        assertNotNull(root_node);
-        List<Class<? extends AbstractPlanNode>> expected = new ArrayList<Class<? extends AbstractPlanNode>>();
-        expected.add(SendPlanNode.class);
-        expected.add(ProjectionPlanNode.class);
-        expected.add(ReceivePlanNode.class);
-        expected.add(SendPlanNode.class);
-        expected.add(SeqScanPlanNode.class);
-        final List<Class<? extends AbstractPlanNode>> found = new ArrayList<Class<? extends AbstractPlanNode>>(); 
-        
-        // System.out.println(PlanNodeUtil.debug(root_node));
-        new PlanNodeTreeWalker() {
-            @Override
-            protected void callback(AbstractPlanNode element) {
-                // Nothing...
-            }
-            @Override
-            protected void callback_before(AbstractPlanNode element) {
-                found.add(element.getClass());
-            }
-        }.traverse(root_node);
-        assertFalse(found.isEmpty());
-        assertEquals(expected.size(), found.size());
-        assertTrue(found.containsAll(expected));
-    }
+//    public void testDeserializeMultiSiteStatement() throws Exception {
+//        Procedure catalog_proc = catalog_db.getProcedures().get("SelectAll");
+//        assertNotNull(catalog_proc);
+//        Statement catalog_stmt = catalog_proc.getStatements().get("history");
+//        assertNotNull(catalog_stmt);
+//        
+//        // Pass the Statement off to get deserialized
+//        // We will inspect it to make sure that it has at least one scan node and a result
+//        AbstractPlanNode root_node = QueryPlanUtil.deserializeStatement(catalog_stmt, false);
+//        assertNotNull(root_node);
+//        List<Class<? extends AbstractPlanNode>> expected = new ArrayList<Class<? extends AbstractPlanNode>>();
+//        expected.add(SendPlanNode.class);
+//        expected.add(ProjectionPlanNode.class);
+//        expected.add(ReceivePlanNode.class);
+//        expected.add(SendPlanNode.class);
+//        expected.add(SeqScanPlanNode.class);
+//        final List<Class<? extends AbstractPlanNode>> found = new ArrayList<Class<? extends AbstractPlanNode>>(); 
+//        
+//        // System.out.println(PlanNodeUtil.debug(root_node));
+//        new PlanNodeTreeWalker() {
+//            @Override
+//            protected void callback(AbstractPlanNode element) {
+//                // Nothing...
+//            }
+//            @Override
+//            protected void callback_before(AbstractPlanNode element) {
+//                found.add(element.getClass());
+//            }
+//        }.traverse(root_node);
+//        assertFalse(found.isEmpty());
+//        assertEquals(expected.size(), found.size());
+//        assertTrue(found.containsAll(expected));
+//    }
     
     /**
      * testDeserializeSingleSiteStatement
