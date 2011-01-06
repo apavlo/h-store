@@ -100,7 +100,7 @@ if __name__ == '__main__':
                 
             if limit != None and limit_ctr >= limit: break
             json_data = json.loads(line)
-            catalog_name = json_data["CATALOG_NAME"]
+            catalog_name = json_data["NAME"]
             trace_id = int(json_data["ID"])
             
             ## ----------------------------------------------
@@ -115,8 +115,9 @@ if __name__ == '__main__':
                     if write_raw:
                         print line
                     else:
-                        print "[%05d] %s" % (txn_ctr, txn.catalog_name)
-                        print json.dumps(txn.toJSON(), indent=2)
+                        print "[%05d] %s" % (txn_ctr, txn.name)
+                        pprint(txn.toJSON());
+                        #print json.dumps(txn.toJSON(), indent=2)
                     limit_ctr += 1
             ## ----------------------------------------------
             ## FIX TPC-E MarketFeed
@@ -146,7 +147,26 @@ if __name__ == '__main__':
                         print json.dumps(current_txn.toJSON(), indent=2)
                     current_txn = None
                     limit_ctr += 1
-                
+            ## ----------------------------------------------
+            ## FIX TXN IDS
+            ## ----------------------------------------------
+            elif command == "fixtxnids":
+                txn = TransactionTrace().fromJSON(json_data)
+                if type(txn.txn_id) in (str, unicode) and \
+                   not txn.txn_id.isdigit():
+                    txn.txn_id = TransactionTrace.NEXT_TXN_ID - 1
+                    #print "FIX:", txn.txn_id
+                #else:
+                    #print "txn_id:", txn.txn_id
+                    #print "type:", type(txn.txn_id)
+                    #print "digit:", txn.txn_id.isdigit()
+                    
+                ## IF
+                if write_raw:
+                    print json.dumps(txn.toJSON())
+                else:
+                    print json.dumps(txn.toJSON(), indent=2)
+                limit_ctr += 1
             ## ----------------------------------------------
             ## FIX
             ## ----------------------------------------------
@@ -180,7 +200,7 @@ if __name__ == '__main__':
                         writeJSON(txn.toJSON(), sys.stdout)
                         if not catalog_name in count_data: count_data[catalog_name] = 0
                         count_data[catalog_name] += 1
-                        #print "[%05d] %s" % (txn_ctr, txn.catalog_name)
+                        #print "[%05d] %s" % (txn_ctr, txn.name)
                         #print json.dumps(txn.toJSON(), indent=2)
                     else:
                         print line
