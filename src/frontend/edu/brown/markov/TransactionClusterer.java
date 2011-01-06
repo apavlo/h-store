@@ -19,6 +19,7 @@ import weka.filters.unsupervised.instance.RemoveWithValues;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.markov.features.BasePartitionFeature;
 import edu.brown.markov.features.FeatureUtil;
+import edu.brown.markov.features.TransactionIdFeature;
 import edu.brown.statistics.Histogram;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.PartitionEstimator;
@@ -30,6 +31,7 @@ public class TransactionClusterer {
     private static final Logger LOG = Logger.getLogger(TransactionClusterer.class);
 
     private final Database catalog_db;
+    private final Workload workload;
     private final PartitionEstimator p_estimator;
     private final Random rand = new Random();
        
@@ -97,8 +99,9 @@ public class TransactionClusterer {
      * Constructor
      * @param catalog_db
      */
-    public TransactionClusterer(Database catalog_db) {
+    public TransactionClusterer(Database catalog_db, Workload workload) {
         this.catalog_db = catalog_db;
+        this.workload = workload;
         this.p_estimator = new PartitionEstimator(catalog_db);
     }
     
@@ -123,7 +126,7 @@ public class TransactionClusterer {
         return (ret);
     }
     
-    protected void findBestAttributeSet(Instances data) throws Exception {
+    protected void findBestAttributeSet(FeatureSet fset, Instances data, Procedure catalog_proc) throws Exception {
         SortedSet<AttributeSet> attr_sets = new TreeSet<AttributeSet>();
         int round = 0;
 
@@ -139,7 +142,7 @@ public class TransactionClusterer {
             attr_set.add(attr);
             
             Instances new_data = attr_set.copyData(data);
-            this.doCluster(new_data, round);
+            this.doCluster(fset, new_data, catalog_proc, round);
             System.exit(1);
             
         } // WHILE
@@ -152,37 +155,63 @@ public class TransactionClusterer {
     
     /**
      * 
-     * @param data
+     * @param training_data
      * @param round
      * @throws Exception
      */
-    private void doCluster(Instances data, int round) throws Exception {
-        LOG.info(String.format("Clustering %d instances with %d attributes", data.numInstances(), data.numAttributes()));
+    private void doCluster(FeatureSet fset, Instances training_data, Procedure catalog_proc, int round) throws Exception {
+        LOG.info(String.format("Clustering %d %s instances with %d attributes", training_data.numInstances(), CatalogUtil.getDisplayName(catalog_proc), training_data.numAttributes()));
         
+        // Using our training set to build the clusterer
+        // FIXME: Need to split input into different sets
         int num_partitions = CatalogUtil.getNumberOfPartitions(catalog_db);
         SimpleKMeans clusterer = new SimpleKMeans();
         clusterer.setNumClusters(num_partitions);
         clusterer.setSeed(this.rand.nextInt());
-        clusterer.buildClusterer(data);
+        clusterer.buildClusterer(training_data);
         
+        MarkovGraphsContainer markovs = new MarkovGraphsContainer();
         
-        Instances copy = new Instances(data);
+        // Now iterate over validation set and construct Markov models
+        // We have to know which field is our txn_id so that we can quickly access it
+        Integer txn_attr_idx = null;
+        Instances copy = new Instances(training_data);
         Histogram h = new Histogram();
         for (int i = 0, cnt = copy.numInstances(); i < cnt; i++) {
+            // The original data set is going to have the txn id that we need to grab 
+            // the proper TransactionTrace record from the workload
+            Instance orig = training_data.instance(i);
             Instance inst = copy.instance(i);
             int c = (int)clusterer.clusterInstance(inst);
             h.put(c);
-            // System.err.println(String.format("[%02d] %s => %d", i, inst, c));
+            
+            if (txn_attr_idx == null) {
+                txn_attr_idx = fset.getFeatureIndex(FeatureUtil.getFeatureKeyPrefix(TransactionIdFeature.class));
+            }
+            assert(txn_attr_idx != null);
+            long txn_id = (long)orig.value(txn_attr_idx);
+            TransactionTrace txn_trace = this.workload.getTransaction(txn_id);
+            assert(txn_trace != null) : "Invalid TxnId #" + txn_id + "\n" + orig;
+            
+            MarkovGraph markov = markovs.get(c, catalog_proc);
+            if (markov == null) {
+                // XXX: Assume for now that all the instances in the same cluster are at the same base partition
+                Integer base_partition = this.p_estimator.getBasePartition(txn_trace);
+                assert(base_partition != null);
+                markov = new MarkovGraph(catalog_proc, base_partition);
+                markovs.put(c, markov.initialize());
+            }
+            markov.processTransaction(txn_trace, this.p_estimator);
         } // FOR
         LOG.info("Total Number of Clusters: " + h.getValueCount() + "\n" + h);
     }
 
     
-    public void calculate(Procedure catalog_proc, FeatureSet fset) throws Exception {
+    public void calculate(FeatureSet fset, Procedure catalog_proc) throws Exception {
         Instances data = fset.export(catalog_proc.getName());
         List<Integer> all_partitions = CatalogUtil.getAllPartitionIds(this.catalog_db);
         
-        this.findBestAttributeSet(data);
+        this.findBestAttributeSet(fset, data, catalog_proc);
         
 //        String prefix_key = FeatureUtil.getFeatureKeyPrefix(BasePartitionFeature.class);
 //        Attribute base_partition_attr = data.attribute(prefix_key);

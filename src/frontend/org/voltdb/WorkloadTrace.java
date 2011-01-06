@@ -46,6 +46,11 @@ public interface WorkloadTrace {
      */
     public void stopTransaction(Object xact_handle);
     
+    /**
+     * For the given transaction trace handle, mark this transaction as aborted.
+     * This will cause any uncompleted queries to be marked as aborted as well.
+     * @param xact_handle
+     */
     public void abortTransaction(Object xact_handle);
 
     /**

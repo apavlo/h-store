@@ -43,15 +43,15 @@ public class QueryTrace extends AbstractTraceElement<Statement> {
         PROC_NAME,
     };
     
-    protected int batch_id;
-    protected String proc_name;
+    private int batch_id;
+    private String proc_name;
     
     public QueryTrace() {
         super();
     }
     
-    public QueryTrace(String xact_id, Statement catalog_statement, Object params[], int batch_id) {
-        super(xact_id, catalog_statement, params);
+    public QueryTrace(Statement catalog_statement, Object params[], int batch_id) {
+        super(catalog_statement, params);
         this.batch_id = batch_id;
         this.proc_name = ((Procedure)catalog_statement.getParent()).getName();
     }
@@ -107,6 +107,8 @@ public class QueryTrace extends AbstractTraceElement<Statement> {
             add = ", ";
         } // FOR
         ret += "]";
+        
+        if (this.aborted) ret += " *ABORTED*";
         
         return (ret);
     }

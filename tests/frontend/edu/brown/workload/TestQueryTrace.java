@@ -30,7 +30,7 @@ public class TestQueryTrace extends TestTransactionTrace {
             List<StmtParameter> catalog_params = CatalogUtil.getSortedCatalogItems(catalog_stmt.getParameters(), "index");
             Pair<Object[], boolean[]> param_pair = this.makeParams(catalog_params, "javatype");
             this.query_params.add(param_pair.getFirst());
-            this.query_traces.add(new QueryTrace(xact.xact_id, catalog_stmt, query_params.get(i), 0));
+            this.query_traces.add(new QueryTrace(catalog_stmt, query_params.get(i), 0));
             this.xact.getQueries().add(this.query_traces.get(i));
         } // FOR
     }

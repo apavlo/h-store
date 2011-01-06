@@ -45,7 +45,7 @@ public class TestTransactionTrace extends BaseTestCase {
         }
         System.exit(1);*/
         is_array = param_pair.getSecond();
-        xact = new TransactionTrace("XYZ", catalog_proc, params);
+        xact = new TransactionTrace(12345, catalog_proc, params);
         assertNotNull(xact);
 //        System.out.println("CREATED: " + xact);
     }
@@ -103,7 +103,7 @@ public class TestTransactionTrace extends BaseTestCase {
         
         assertEquals(xact.catalog_item_name, copy.catalog_item_name);
         assertEquals(xact.id, copy.id);
-        assertEquals(xact.xact_id, copy.xact_id);
+        assertEquals(xact.getTransactionId(), copy.getTransactionId());
         assertEquals(xact.start_timestamp, copy.start_timestamp);
         
         assertEquals(xact.params.length, copy.params.length);

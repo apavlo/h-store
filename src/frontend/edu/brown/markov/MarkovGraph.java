@@ -71,7 +71,7 @@ public class MarkovGraph extends AbstractDirectedGraph<Vertex, Edge> implements 
     /**
      * Add the START, COMMIT, and ABORT vertices to the current graph
      */
-    public void initialize() {
+    public MarkovGraph initialize() {
         for (Vertex.Type type : Vertex.Type.values()) {
             switch (type) {
                 case START:
@@ -85,6 +85,7 @@ public class MarkovGraph extends AbstractDirectedGraph<Vertex, Edge> implements 
                     // IGNORE
             } // SWITCH
         }
+        return (this);
     }
     
     @Override

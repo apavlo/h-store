@@ -50,7 +50,7 @@ public class TestFeatures extends BaseTestCase {
         } // FOR
         
         this.catalog_proc = this.getProcedure(TARGET_PROCEDURE);
-        this.txn_trace = new TransactionTrace("1234", this.catalog_proc, this.params);
+        this.txn_trace = new TransactionTrace(1234, this.catalog_proc, this.params);
         this.fset = new FeatureSet(); 
         
     }

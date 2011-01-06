@@ -32,7 +32,7 @@ public class TransactionFeatureExtractor {
     private final Map<Procedure, List<AbstractFeature>> proc_features = new HashMap<Procedure, List<AbstractFeature>>();
     
     private static final Class<?> DEFAULT_FEATURE_CLASSES[] = new Class<?>[] {
-//        TransactionIdFeature.class,
+        TransactionIdFeature.class,
         BasePartitionFeature.class,
         ParamNumericValuesFeature.class,
         ParamArrayAllSameHashFeature.class,
@@ -135,8 +135,8 @@ public class TransactionFeatureExtractor {
             FileUtil.writeStringToFile(path, data.toString());
             LOG.info(String.format("Wrote FeatureSet with %d instances to '%s'", data.numInstances(), path.getAbsolutePath()));
             
-            TransactionClusterer txn_c = new TransactionClusterer(args.catalog_db);
-            txn_c.calculate(e.getKey(), e.getValue());
+            TransactionClusterer txn_c = new TransactionClusterer(args.catalog_db, args.workload);
+            txn_c.calculate(e.getValue(), e.getKey());
         }
         
     }

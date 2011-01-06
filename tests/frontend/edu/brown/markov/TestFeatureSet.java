@@ -154,7 +154,7 @@ public class TestFeatureSet extends BaseTestCase {
         String json = this.fset.toJSONString();
         assertNotNull(json);
         assertFalse(json.isEmpty());
-        System.err.println(JSONUtil.format(json));
+//        System.err.println(JSONUtil.format(json));
         
         FeatureSet clone = new FeatureSet();
         clone.fromJSON(new JSONObject(json), catalog_db);
@@ -180,9 +180,9 @@ public class TestFeatureSet extends BaseTestCase {
             
             assertEquals(e.getKey(), e.getValue(), clone_h);
         } // FOR
-        for (Entry<String, Vector<Object>> e : this.fset.txn_values.entrySet()) {
+        for (Entry<Long, Vector<Object>> e : this.fset.txn_values.entrySet()) {
             Vector<Object> clone_v = clone.txn_values.get(e.getKey());
-            assertNotNull(e.getKey(), clone_v);
+            assertNotNull(e.getKey().toString(), clone_v);
             assertEquals(e.getValue().size(), clone_v.size());
 //            System.err.println("ORIG:  " + e.getValue());
 //            System.err.println("CLONE: " + clone_v);

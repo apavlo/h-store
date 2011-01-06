@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.util.*;
 
 import org.apache.commons.collections15.map.ListOrderedMap;
+import org.apache.commons.collections15.set.ListOrderedSet;
 import org.apache.log4j.Logger;
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -45,7 +46,7 @@ public class FeatureSet implements JSONSerializable {
     /**
      * The row values for each txn record
      */
-    public final HashMap<String, Vector<Object>> txn_values = new HashMap<String, Vector<Object>>();
+    public final HashMap<Long, Vector<Object>> txn_values = new HashMap<Long, Vector<Object>>();
     
     /**
      * The list of attributes that each txn should have
@@ -91,8 +92,16 @@ public class FeatureSet implements JSONSerializable {
         return (this.attributes.containsKey(key));
     }
 
+    /**
+     * Return the index in the list of attributes for the given key
+     * @param key
+     * @return
+     */
+    public int getFeatureIndex(String key) {
+        return (this.attributes.indexOf(key));
+    }
     
-    public List<Object> getFeatureValues(String txn_id) {
+    public List<Object> getFeatureValues(Long txn_id) {
         return (this.txn_values.get(txn_id));
     }
 
@@ -100,7 +109,7 @@ public class FeatureSet implements JSONSerializable {
         return (this.getFeatureValues(txn_trace.getTransactionId()));
     }
 
-    public Object getFeatureValue(String txn_id, String key) {
+    public Object getFeatureValue(Long txn_id, String key) {
         int idx = this.attributes.indexOf(key);
         return (this.txn_values.get(txn_id).get(idx));
     }
@@ -119,7 +128,7 @@ public class FeatureSet implements JSONSerializable {
     public synchronized void addFeature(TransactionTrace txn, String key, Object val, Type type) {
         final boolean trace = LOG.isTraceEnabled();
         final boolean debug = LOG.isDebugEnabled();
-        String txn_id = txn.getTransactionId();
+        long txn_id = txn.getTransactionId();
         
         // Add the attribute if it's new
         if (!this.attributes.containsKey(key)) {
@@ -199,7 +208,7 @@ public class FeatureSet implements JSONSerializable {
         final boolean debug = LOG.isDebugEnabled();
         
         // Figure out what attributes we want to export
-        SortedSet<String> export_attrs = new TreeSet<String>();
+        Set<String> export_attrs = new ListOrderedSet<String>();
         for (String key : this.attributes.keySet()) {
             boolean include = false;
             for (String prefix : prefix_include) {
@@ -335,7 +344,8 @@ public class FeatureSet implements JSONSerializable {
         Iterator<String> it = inner_obj.keys();
         while (it.hasNext()) {
             String inner_key = it.next();
-            this.txn_values.put(inner_key, new Vector<Object>());
+            long txn_id = Long.valueOf(inner_key);
+            this.txn_values.put(txn_id, new Vector<Object>());
             
             JSONArray inner_arr = inner_obj.getJSONArray(inner_key);
             for (int i = 0, cnt = inner_arr.length(); i < cnt; i++) {
@@ -372,7 +382,7 @@ public class FeatureSet implements JSONSerializable {
                         throw new JSONException(ex);
                     }
                 }
-                this.txn_values.get(inner_key).add(val);
+                this.txn_values.get(txn_id).add(val);
             } // FOR
             
         } // WHILE

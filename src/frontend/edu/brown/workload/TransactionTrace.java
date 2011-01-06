@@ -44,10 +44,11 @@ import edu.brown.utils.StringUtil;
  */
 public class TransactionTrace extends AbstractTraceElement<Procedure> {
     public enum Members {
-        XACT_ID,
+        TXN_ID,
         QUERIES
     };
     
+    private long txn_id;
     private List<QueryTrace> queries = new ArrayList<QueryTrace>(); 
     private transient LinkedMap<Integer, List<QueryTrace>> query_batches = new LinkedMap<Integer, List<QueryTrace>>();
     
@@ -55,8 +56,17 @@ public class TransactionTrace extends AbstractTraceElement<Procedure> {
         super();
     }
     
-    public TransactionTrace(String xact_id, Procedure catalog_proc, Object params[]) {
-        super(xact_id, catalog_proc, params);
+    public TransactionTrace(long xact_id, Procedure catalog_proc, Object params[]) {
+        super(catalog_proc, params);
+        this.txn_id = xact_id;
+    }
+
+    /**
+     * Return the TransactionId for this TransactionTrace
+     * @return the xact_id
+     */
+    public long getTransactionId() {
+        return this.txn_id;
     }
     
     @Override
@@ -82,10 +92,11 @@ public class TransactionTrace extends AbstractTraceElement<Procedure> {
         // Header Info
         StringBuilder sb = new StringBuilder();
         sb.append(thick_line)
-          .append(catalog_proc.getName().toUpperCase() + " - Txn#" + this.xact_id + " - Trace#" + this.id + "\n")
-          .append("Start Time: " + this.start_timestamp + "\n")
-          .append("Stop Time: " + this.stop_timestamp + "\n")
-          .append("Run Time: " + (this.stop_timestamp - this.start_timestamp) + "\n")
+          .append(catalog_proc.getName().toUpperCase() + " - Txn#" + this.txn_id + " - Trace#" + this.id + "\n")
+          .append("Start Time:   " + this.start_timestamp + "\n")
+          .append("Stop Time:    " + this.stop_timestamp + "\n")
+          .append("Run Time:     " + (this.stop_timestamp - this.start_timestamp) + "\n")
+          .append("Txn Aborted:  " + this.aborted + "\n")
           .append("# of Queries: " + this.queries.size() + "\n")
           .append("# of Batches: " + this.query_batches.size() + "\n");
         
@@ -168,7 +179,7 @@ public class TransactionTrace extends AbstractTraceElement<Procedure> {
     
     public void toJSONString(JSONStringer stringer, Database catalog_db) throws JSONException {
         super.toJSONString(stringer, catalog_db);
-        stringer.key(Members.XACT_ID.name()).value(this.xact_id);
+        stringer.key(Members.TXN_ID.name()).value(this.txn_id);
 
         stringer.key(Members.QUERIES.name()).array();
         for (QueryTrace query : this.queries) {
@@ -182,7 +193,7 @@ public class TransactionTrace extends AbstractTraceElement<Procedure> {
     @Override
     protected void fromJSONObject(JSONObject object, Database db) throws JSONException {
         super.fromJSONObject(object, db);
-        this.xact_id = object.getString(Members.XACT_ID.name());
+        this.txn_id = object.getLong(Members.TXN_ID.name());
         Procedure catalog_proc = (Procedure)db.getProcedures().get(this.catalog_item_name);
         try {
             super.paramsFromJSONObject(object, catalog_proc.getParameters(), "type");
@@ -193,7 +204,7 @@ public class TransactionTrace extends AbstractTraceElement<Procedure> {
         JSONArray jsonQueries = object.getJSONArray(Members.QUERIES.name());
         for (int i = 0; i < jsonQueries.length(); i++) {
             JSONObject jsonQuery = jsonQueries.getJSONObject(i);
-            if (jsonQuery.isNull(AbstractTraceElement.Members.CATALOG_NAME.name())) {
+            if (jsonQuery.isNull(AbstractTraceElement.Members.NAME.name())) {
                 LOG.warn("The catalog name is null for Query #" + i + " in " + this + ". Ignoring...");
                 continue;
             }
