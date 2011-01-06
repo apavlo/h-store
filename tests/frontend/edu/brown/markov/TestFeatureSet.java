@@ -21,7 +21,6 @@ import edu.brown.markov.features.BasePartitionFeature;
 import edu.brown.markov.features.ParamArrayLengthFeature;
 import edu.brown.markov.features.ParamHashEqualsBasePartitionFeature;
 import edu.brown.statistics.Histogram;
-import edu.brown.utils.JSONUtil;
 import edu.brown.utils.ProjectType;
 import edu.brown.workload.TransactionTrace;
 import edu.brown.workload.Workload;
