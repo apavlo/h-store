@@ -8,6 +8,7 @@ import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Procedure;
 
 import weka.clusterers.EM;
+import weka.clusterers.FilteredClusterer;
 import weka.clusterers.SimpleKMeans;
 import weka.core.Attribute;
 import weka.core.Instance;
@@ -42,7 +43,7 @@ public class TransactionClusterer {
         private static final long serialVersionUID = 1L;
         private Double cost;
 
-        public Instances copyData(Instances data) throws Exception {
+        public Filter createFilter(Instances data) throws Exception {
             Set<Integer> indexes = new HashSet<Integer>();
             for (int i = 0, cnt = this.size(); i < cnt; i++) {
                 indexes.add(this.get(i).index());
@@ -58,18 +59,37 @@ public class TransactionClusterer {
             Remove filter = new Remove();
             filter.setInputFormat(data);
             filter.setAttributeIndices(StringUtil.join(",", to_remove));
-            for (int i = 0, cnt = data.numInstances(); i < cnt; i++) {
-                filter.input(data.instance(i));
-            } // FOR
-            filter.batchFinished();
-            
-            Instances newData = filter.getOutputFormat();
-            Instance processed;
-            while ((processed = filter.output()) != null) {
-                newData.add(processed);
-            } // WHILE
-            return (newData);
+            return (filter);
         }
+//        
+//        public Instances copyData(Instances data) throws Exception {
+//            Set<Integer> indexes = new HashSet<Integer>();
+//            for (int i = 0, cnt = this.size(); i < cnt; i++) {
+//                indexes.add(this.get(i).index());
+//            } // FOR
+//            
+//            SortedSet<Integer> to_remove = new TreeSet<Integer>(); 
+//            for (int i = 0, cnt = data.numAttributes(); i < cnt; i++) {
+//                if (indexes.contains(i) == false) {
+//                    to_remove.add(i+1);
+//                }
+//            } // FOR
+//            
+//            Remove filter = new Remove();
+//            filter.setInputFormat(data);
+//            filter.setAttributeIndices(StringUtil.join(",", to_remove));
+//            for (int i = 0, cnt = data.numInstances(); i < cnt; i++) {
+//                filter.input(data.instance(i));
+//            } // FOR
+//            filter.batchFinished();
+//            
+//            Instances newData = filter.getOutputFormat();
+//            Instance processed;
+//            while ((processed = filter.output()) != null) {
+//                newData.add(processed);
+//            } // WHILE
+//            return (newData);
+//        }
         
         public Double getCost() {
             return (this.cost);
@@ -141,57 +161,52 @@ public class TransactionClusterer {
             AttributeSet attr_set = new AttributeSet();
             attr_set.add(attr);
             
-            Instances new_data = attr_set.copyData(data);
-            this.doCluster(fset, new_data, catalog_proc, round);
+            MarkovGraphsContainer markovs = this.doCluster(data, attr_set, catalog_proc);
             System.exit(1);
             
         } // WHILE
     }
     
-    protected void generateMarkovModels(AttributeSet attr_set) throws Exception {
-        
-        
-    }
-    
     /**
      * 
-     * @param training_data
+     * @param data
      * @param round
      * @throws Exception
      */
-    private void doCluster(FeatureSet fset, Instances training_data, Procedure catalog_proc, int round) throws Exception {
-        LOG.info(String.format("Clustering %d %s instances with %d attributes", training_data.numInstances(), CatalogUtil.getDisplayName(catalog_proc), training_data.numAttributes()));
+    private MarkovGraphsContainer doCluster(Instances data, AttributeSet attrset, Procedure catalog_proc) throws Exception {
+        LOG.info(String.format("Clustering %d %s instances with %d attributes", data.numInstances(), CatalogUtil.getDisplayName(catalog_proc), data.numAttributes()));
+        
+        // Create the filter we need so that we only include the attributes in the given AttributeSet
+        Filter filter = attrset.createFilter(data);
         
         // Using our training set to build the clusterer
         // FIXME: Need to split input into different sets
         int num_partitions = CatalogUtil.getNumberOfPartitions(catalog_db);
-        SimpleKMeans clusterer = new SimpleKMeans();
-        clusterer.setNumClusters(num_partitions);
-        clusterer.setSeed(this.rand.nextInt());
-        clusterer.buildClusterer(training_data);
+        SimpleKMeans kmeans_clusterer = new SimpleKMeans();
+        kmeans_clusterer.setNumClusters(num_partitions);
+        kmeans_clusterer.setSeed(this.rand.nextInt());
+        
+        FilteredClusterer clusterer = new FilteredClusterer();
+        clusterer.setFilter(filter);
+        clusterer.setClusterer(kmeans_clusterer);
+        clusterer.buildClusterer(data);
         
         MarkovGraphsContainer markovs = new MarkovGraphsContainer();
         
         // Now iterate over validation set and construct Markov models
         // We have to know which field is our txn_id so that we can quickly access it
-        Integer txn_attr_idx = null;
-        Instances copy = new Instances(training_data);
+        int txn_attr_idx = 0; // Assume that the txn_id is always the first attribute!
         Histogram h = new Histogram();
-        for (int i = 0, cnt = copy.numInstances(); i < cnt; i++) {
+        for (int i = 0, cnt = data.numInstances(); i < cnt; i++) {
             // The original data set is going to have the txn id that we need to grab 
             // the proper TransactionTrace record from the workload
-            Instance orig = training_data.instance(i);
-            Instance inst = copy.instance(i);
+            Instance inst = data.instance(i);
             int c = (int)clusterer.clusterInstance(inst);
             h.put(c);
             
-            if (txn_attr_idx == null) {
-                txn_attr_idx = fset.getFeatureIndex(FeatureUtil.getFeatureKeyPrefix(TransactionIdFeature.class));
-            }
-            assert(txn_attr_idx != null);
-            long txn_id = (long)orig.value(txn_attr_idx);
+            long txn_id = (long)inst.value(txn_attr_idx);
             TransactionTrace txn_trace = this.workload.getTransaction(txn_id);
-            assert(txn_trace != null) : "Invalid TxnId #" + txn_id + "\n" + orig;
+            assert(txn_trace != null) : "Invalid TxnId #" + txn_id + "\n" + inst;
             
             MarkovGraph markov = markovs.get(c, catalog_proc);
             if (markov == null) {
@@ -204,6 +219,7 @@ public class TransactionClusterer {
             markov.processTransaction(txn_trace, this.p_estimator);
         } // FOR
         LOG.info("Total Number of Clusters: " + h.getValueCount() + "\n" + h);
+        return (markovs);
     }
 
     

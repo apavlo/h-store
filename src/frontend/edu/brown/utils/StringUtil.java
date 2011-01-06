@@ -2,6 +2,8 @@ package edu.brown.utils;
 
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Map;
+import java.util.Map.Entry;
 import java.util.regex.Pattern;
 
 import org.voltdb.client.Client;
@@ -20,6 +22,40 @@ public abstract class StringUtil {
     private static String CACHE_REPEAT_RESULT = null;
     
     private static Pattern LINE_SPLIT = Pattern.compile("\n");
+    
+    /**
+     * 
+     * @param delimiter
+     * @param m
+     * @return
+     */
+    public static String format(String delimiter, Map<?, ?>...maps) {
+        StringBuilder sb = new StringBuilder();
+        
+        int max_key_size = 0;
+        for (Map<?, ?> m : maps) {
+            for (Object k : m.keySet()) {
+                max_key_size = Math.max(max_key_size, k.toString().length());
+            }
+        }
+        
+        boolean equalsDelimiter = delimiter.equals("=");
+        final String f = "%-" + (max_key_size + 2) + "s" +
+                         (equalsDelimiter ? "= " : "") +
+                         "%s\n";
+        boolean first = true;
+        for (Map<?, ?> m : maps) {
+            if (first == false) sb.append(repeat("-", max_key_size + 10));
+            for (Entry<?, ?> e : m.entrySet()) {
+                String k = e.getKey().toString();
+                String v = (e.getValue() != null ? e.getValue().toString() : "null");
+                if (equalsDelimiter == false) k += ":";
+                sb.append(String.format(f, k, v));
+            }
+            first = false;
+        } // FOR
+        return (sb.toString());
+    }
     
     /**
      * Returns the given string repeated the given # of times
