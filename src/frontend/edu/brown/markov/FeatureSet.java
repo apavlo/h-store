@@ -109,13 +109,15 @@ public class FeatureSet implements JSONSerializable {
         return (this.getFeatureValues(txn_trace.getTransactionId()));
     }
 
-    public Object getFeatureValue(Long txn_id, String key) {
+    @SuppressWarnings("unchecked")
+    public <T> T getFeatureValue(Long txn_id, String key) {
         int idx = this.attributes.indexOf(key);
-        return (this.txn_values.get(txn_id).get(idx));
+        return ((T)this.txn_values.get(txn_id).get(idx));
     }
     
-    public Object getFeatureValue(TransactionTrace txn_trace, String key) {
-        return (this.getFeatureValue(txn_trace.getTransactionId(), key));
+    @SuppressWarnings("unchecked")
+    public <T> T getFeatureValue(TransactionTrace txn_trace, String key) {
+        return ((T)this.getFeatureValue(txn_trace.getTransactionId(), key));
     }
     
     /**
