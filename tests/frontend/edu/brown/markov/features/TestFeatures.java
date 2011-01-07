@@ -66,7 +66,7 @@ public class TestFeatures extends BaseTestCase {
             
             // Check to make sure that if we call calculate that we get the same value back
             Object calculated = f.calculate(key, txn);
-            assertEquals(key, val, calculated);
+            assertEquals(key, val.toString(), calculated.toString());
         } // FOR
     }
 
@@ -84,7 +84,7 @@ public class TestFeatures extends BaseTestCase {
             String key = f.getFeatureKey(catalog_param);
             if (catalog_param.getIsarray()) {
                 assert(fset.hasFeature(key)) : key;
-                Integer val = (Integer)fset.getFeatureValue(this.txn_trace, key);
+                Long val = fset.getFeatureValue(this.txn_trace, key);
                 assertEquals(key, ((Long[])params[catalog_param.getIndex()]).length, val.intValue());
             } else {
                 assertFalse(key,fset.hasFeature(key));
