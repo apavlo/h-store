@@ -1,6 +1,7 @@
 package edu.brown.markov;
 
 import java.util.*;
+import java.util.Map.Entry;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.log4j.Logger;
@@ -11,6 +12,8 @@ import edu.brown.catalog.CatalogKey;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.correlations.*;
 import edu.brown.utils.*;
+import edu.brown.workload.QueryTrace;
+import edu.brown.workload.TransactionTrace;
 
 /**
  * 
@@ -39,12 +42,12 @@ public class TransactionEstimator {
     /**
      * The current state of a transaction
      */
-    protected final class State {
+    public final class State {
         private final long start_time;
         private final MarkovGraph markov;
-        private final List<Vertex> initial_path;
-        private final double initial_path_confidence;
-        private final List<Vertex> taken_path = new ArrayList<Vertex>();
+        private final List<Vertex> estimated_path;
+        private final double estimated_path_confidence;
+        private final List<Vertex> actual_path = new ArrayList<Vertex>();
         private final Set<Integer> touched_partitions = new HashSet<Integer>();
         private final Map<Statement, Integer> query_instance_cnts = new HashMap<Statement, Integer>();
         
@@ -54,14 +57,14 @@ public class TransactionEstimator {
         /**
          * Constructor
          * @param markov - the graph that this txn is using
-         * @param initial_path - the initial path estimation from MarkovPathEstimator
+         * @param estimated_path - the initial path estimation from MarkovPathEstimator
          */
-        public State(MarkovGraph markov, List<Vertex> initial_path, double confidence) {
+        public State(MarkovGraph markov, List<Vertex> estimated_path, double confidence) {
             this.markov = markov;
             this.start_time = System.currentTimeMillis();
-            this.initial_path = initial_path;
-            this.initial_path_confidence = confidence;
-            this.current = markov.getStartVertex();
+            this.estimated_path = estimated_path;
+            this.estimated_path_confidence = confidence;
+            this.setCurrent(markov.getStartVertex());
         }
         
         public MarkovGraph getMarkovGraph() {
@@ -90,22 +93,28 @@ public class TransactionEstimator {
             this.touched_partitions.addAll(partitions);
         }
 
-        public List<Vertex> getInitialPath() {
-            return (this.initial_path);
+        public List<Vertex> getEstimatedPath() {
+            return (this.estimated_path);
         }
-        public double getInitialPathConfidence() {
-            return (this.initial_path_confidence);
+        public double getEstimatedPathConfidence() {
+            return (this.estimated_path_confidence);
         }
 
-        public List<Vertex> getTakenPath() {
-            return (this.taken_path);
+        public List<Vertex> getActualPath() {
+            return (this.actual_path);
         }
 
         public Vertex getCurrent() {
             return (this.current);
         }
 
+        /**
+         * Set the current vertex for this transaction and update the actual path
+         * @param current
+         */
         public void setCurrent(Vertex current) {
+            if (this.current != null) assert(this.current.equals(current) == false);
+            this.actual_path.add(current);
             this.current = current;
         }
 
@@ -189,7 +198,7 @@ public class TransactionEstimator {
         public long getExecutionTime() {
             return time;
         }
-
+        
         private Set<Integer> getPartitions(double values[], double limit, boolean inverse) {
             Set<Integer> ret = new HashSet<Integer>();
             for (int i = 0; i < values.length; i++) {
@@ -305,6 +314,17 @@ public class TransactionEstimator {
     }
     
     /**
+     * Return the internal State object for the given transaction id
+     * @param txn_id
+     * @return
+     */
+    public State getState(long txn_id) {
+        State s = this.xact_states.get(txn_id);
+        assert(s != null) : "Unexpected Transaction #" + txn_id;
+        return (s);
+    }
+    
+    /**
      * Return the initial path estimation for the given transaction id
      * @param txn_id
      * @return
@@ -312,12 +332,12 @@ public class TransactionEstimator {
     protected List<Vertex> getInitialPath(long txn_id) {
         State s = this.xact_states.get(txn_id);
         assert(s != null) : "Unexpected Transaction #" + txn_id;
-        return (s.getInitialPath());
+        return (s.getEstimatedPath());
     }
     protected double getConfidence(long txn_id) {
         State s = this.xact_states.get(txn_id);
         assert(s != null) : "Unexpected Transaction #" + txn_id;
-        return (s.getInitialPathConfidence());
+        return (s.getEstimatedPathConfidence());
     }
 
     // ----------------------------------------------------------------------------
@@ -383,13 +403,12 @@ public class TransactionEstimator {
     /**
      * Takes a series of queries and executes them in order given the partition
      * information. Provides an estimate of where the transaction might go next.
-     * 
      * @param xact_id
      * @param catalog_stmts
      * @param partitions
      * @return
      */
-    public Estimate executeQueries(long xact_id, Statement catalog_stmts[], int partitions[][]) {
+    public Estimate executeQueries(long xact_id, Statement catalog_stmts[], Integer partitions[][]) {
         assert (catalog_stmts.length == partitions.length);       
         State state = this.xact_states.get(xact_id);
         if (state == null) {
@@ -404,7 +423,6 @@ public class TransactionEstimator {
         for (int i = 0; i < catalog_stmts.length; i++) {
             List<Integer> stmt_partitions = new ArrayList<Integer>();
             for (int p : partitions[i]) stmt_partitions.add(p);
-            
             this.consume(xact_id, state, catalog_stmts[i], stmt_partitions);
         } // FOR
         
@@ -426,12 +444,12 @@ public class TransactionEstimator {
      * @param xact_id
      *            finished transaction
      */
-    public void commit(long xact_id) {
+    public State commit(long xact_id) {
         State s = this.xact_states.remove(xact_id);
         if (s == null) {
             String msg = "No state information exists for txn #" + xact_id;
             LOG.debug(msg);
-            return;
+            return (null);
             // throw new RuntimeException(msg);
         }
         
@@ -451,6 +469,7 @@ public class TransactionEstimator {
         next_v.incrementInstancehits();
         next_v.addInstanceTime(xact_id, s.getExecutionTimeOffset());
         next_e.incrementInstancehits();
+        return (s);
     }
 
     /**
@@ -458,12 +477,12 @@ public class TransactionEstimator {
      * 
      * @param xact_id
      */
-    public void abort(long xact_id) {
+    public State abort(long xact_id) {
         State s = this.xact_states.remove(xact_id);
         if (s == null) {
             String msg = "No state information exists for txn #" + xact_id;
             LOG.debug(msg);
-            return;
+            return (null);
             // throw new RuntimeException(msg);
         }
         
@@ -483,8 +502,13 @@ public class TransactionEstimator {
         next_v.incrementInstancehits();
         next_v.addInstanceTime(xact_id, s.getExecutionTimeOffset());
         abort_e.incrementInstancehits();
+        return (s);
     }
 
+    public void removeTransaction(long txn_id) {
+        this.xact_states.remove(txn_id);
+    }
+    
     // ----------------------------------------------------------------------------
     // INTERNAL ESTIMATION METHODS
     // ----------------------------------------------------------------------------
@@ -585,6 +609,35 @@ public class TransactionEstimator {
         if (trace) LOG.trace("Updated State Information for Txn #" + xact_id + ": " + state);
     }
 
+    // ----------------------------------------------------------------------------
+    // HELPER METHODS
+    // ----------------------------------------------------------------------------
+    
+    public State processTransactionTrace(TransactionTrace txn_trace) throws Exception {
+        long txn_id = txn_trace.getTransactionId();
+        Estimate last_est = this.startTransaction(txn_id, txn_trace.getCatalogItem(this.catalog_db), txn_trace.getParams());
+        for (Entry<Integer, List<QueryTrace>> e : txn_trace.getQueryBatches().entrySet()) {
+            int batch_size = e.getValue().size();
+            
+            // Generate the data structures we will need to give to the TransactionEstimator
+            Statement catalog_stmts[] = new Statement[batch_size];
+            Integer partitions[][] = new Integer[batch_size][];
+            for (int i = 0; i < batch_size; i++) {
+                QueryTrace query_trace = e.getValue().get(i);
+                assert(query_trace != null);
+                catalog_stmts[i] = query_trace.getCatalogItem(catalog_db);
+                
+                Set<Integer> stmt_partitions = this.p_estimator.getPartitions(query_trace, this.getBasePartition());
+                assert(stmt_partitions.isEmpty() == false);
+                partitions[i] = stmt_partitions.toArray(new Integer[stmt_partitions.size()]);
+            } // FOR
+            
+            last_est = this.executeQueries(txn_id, catalog_stmts, partitions);
+        } // FOR (batches)
+        return (txn_trace.isAborted() ? this.abort(txn_id) : this.commit(txn_id));
+    }
+    
+    
     // ----------------------------------------------------------------------------
     // YE OLDE MAIN METHOD
     // ----------------------------------------------------------------------------

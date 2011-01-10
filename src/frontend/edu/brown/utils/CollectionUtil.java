@@ -2,9 +2,10 @@ package edu.brown.utils;
 
 import java.util.*;
 
-import org.apache.commons.collections15.CollectionUtils;
-import org.apache.commons.collections15.set.ListOrderedSet;
-
+/**
+ * 
+ * @author pavlo
+ */
 public abstract class CollectionUtil {
     
     private static final Random rand = new Random();

@@ -52,7 +52,7 @@ public class MarkovPathEstimator extends VertexTreeWalker<Vertex> {
     }
     
     /**
-     * 
+     * Return the confidence factor that of our estimated path
      * @return
      */
     public double getConfidence() {
@@ -128,6 +128,7 @@ public class MarkovPathEstimator extends VertexTreeWalker<Vertex> {
             SortedMap<StmtParameter, SortedSet<Correlation>> param_correlations = this.t_estimator.getCorrelations().get(catalog_stmt, catalog_stmt_index);
             if (param_correlations == null) {
                 if (trace) LOG.trace("No parameter correlations for " + pair);
+                System.err.println(this.t_estimator.getCorrelations().debug(catalog_stmt));
                 continue;
             }
             

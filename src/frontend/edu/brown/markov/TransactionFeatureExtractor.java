@@ -27,6 +27,9 @@ import edu.brown.workload.Workload;
 public class TransactionFeatureExtractor {
     private static final Logger LOG = Logger.getLogger(TransactionFeatureExtractor.class);
 
+    // HACK: What position is the TransactionId in all of our FeatureSets 
+    public static final int TXNID_ATTRIBUTE_IDX = 0;
+    
     private final Database catalog_db;
     private final PartitionEstimator p_estimator;
     private final Map<Procedure, List<AbstractFeature>> proc_features = new HashMap<Procedure, List<AbstractFeature>>();
@@ -122,7 +125,8 @@ public class TransactionFeatureExtractor {
         ArgumentsParser args = ArgumentsParser.load(vargs);
         args.require(
             ArgumentsParser.PARAM_CATALOG,
-            ArgumentsParser.PARAM_WORKLOAD
+            ArgumentsParser.PARAM_WORKLOAD,
+            ArgumentsParser.PARAM_CORRELATIONS
         );
         
         TransactionFeatureExtractor extractor = new TransactionFeatureExtractor(args.catalog_db);
@@ -135,7 +139,7 @@ public class TransactionFeatureExtractor {
             FileUtil.writeStringToFile(path, data.toString());
             LOG.info(String.format("Wrote FeatureSet with %d instances to '%s'", data.numInstances(), path.getAbsolutePath()));
             
-            TransactionClusterer txn_c = new TransactionClusterer(args.catalog_db, args.workload);
+            TransactionClusterer txn_c = new TransactionClusterer(args.catalog_db, args.workload, args.param_correlations);
             txn_c.calculate(e.getValue(), e.getKey());
         }
         

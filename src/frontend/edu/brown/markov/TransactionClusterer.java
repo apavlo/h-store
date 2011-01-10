@@ -22,6 +22,8 @@ import weka.filters.unsupervised.attribute.Remove;
 import weka.filters.unsupervised.instance.RemoveWithValues;
 
 import edu.brown.catalog.CatalogUtil;
+import edu.brown.correlations.ParameterCorrelations;
+import edu.brown.costmodel.MarkovCostModel;
 import edu.brown.markov.TransactionEstimator.Estimate;
 import edu.brown.markov.features.BasePartitionFeature;
 import edu.brown.markov.features.FeatureUtil;
@@ -40,10 +42,9 @@ public class TransactionClusterer {
     // What percentage of the input data should be used for training versus calculating the cost?
     private static final double TRAINING_SET_PERCENTAGE = 0.60;
     
-    private static final int txn_attr_idx = 0;
-    
     private final Database catalog_db;
     private final Workload workload;
+    private final ParameterCorrelations correlations;
     private final PartitionEstimator p_estimator;
     private final Random rand = new Random();
        
@@ -134,9 +135,10 @@ public class TransactionClusterer {
      * Constructor
      * @param catalog_db
      */
-    public TransactionClusterer(Database catalog_db, Workload workload) {
+    public TransactionClusterer(Database catalog_db, Workload workload, ParameterCorrelations correlations) {
         this.catalog_db = catalog_db;
         this.workload = workload;
+        this.correlations = correlations;
         this.p_estimator = new PartitionEstimator(catalog_db);
     }
     
@@ -181,19 +183,20 @@ public class TransactionClusterer {
                 // We have to know which field is our txn_id so that we can quickly access it
                 MarkovGraphsContainer markovs = new MarkovGraphsContainer();
                 Map<Integer, Integer> cluster_partition_xref = new HashMap<Integer, Integer>();
-                int txn_attr_idx = 0; // Assume that the txn_id is always the first attribute!
                 Histogram h = new Histogram();
                 for (int i = 0, cnt = trainingData.numInstances(); i < cnt; i++) {
+                    // Grab the Instance and throw it at the the clusterer to get the target cluster
                     // The original data set is going to have the txn id that we need to grab 
                     // the proper TransactionTrace record from the workload
                     Instance inst = trainingData.instance(i);
                     int c = (int)clusterer.clusterInstance(inst);
                     h.put(c);
                     
-                    long txn_id = (long)inst.value(txn_attr_idx);
+                    long txn_id = (long)inst.value(TransactionFeatureExtractor.TXNID_ATTRIBUTE_IDX);
                     TransactionTrace txn_trace = this.workload.getTransaction(txn_id);
                     assert(txn_trace != null) : "Invalid TxnId #" + txn_id + "\n" + inst;
                     
+                    // Build up the MarkovGraph for this cluster
                     MarkovGraph markov = markovs.get(c, catalog_proc);
                     if (markov == null) {
                         // XXX: Assume for now that all the instances in the same cluster are at the same base partition
@@ -209,17 +212,29 @@ public class TransactionClusterer {
                 
                 // Now use the validation data set to figure out how well we are able to predict transaction
                 // execution paths using the trained Markov graphs
-                Map<Integer, TransactionEstimator> t_estimators = new HashMap<Integer, TransactionEstimator>();
+                // We first need to construct a new costmodel and populate it with TransactionEstimators
+                MarkovCostModel costmodel = new MarkovCostModel(this.catalog_db, this.p_estimator);
+                costmodel.setTransactionClusterMapping(true);
                 for (Entry<Integer, Map<Procedure, MarkovGraph>> e : markovs.entrySet()) {
                     int base_partition = cluster_partition_xref.get(e.getKey());
-                    TransactionEstimator t_estimator = new TransactionEstimator(base_partition, this.p_estimator);
+                    TransactionEstimator t_estimator = new TransactionEstimator(base_partition, this.p_estimator, this.correlations);
                     t_estimator.addMarkovGraphs(e.getValue());
-                    t_estimators.put(e.getKey(), t_estimator);
+                    costmodel.addTransactionEstimator(e.getKey(), t_estimator);
+                } // FOR
+                
+                // Now we need a mapping from TransactionIds -> ClusterIds
+                Map<Long, Integer> txnid_cluster_xref = new HashMap<Long, Integer>();
+                for (int i = 0, cnt = validationData.numInstances(); i < cnt; i++) {
+                    Instance inst = validationData.instance(i);
+                    long txn_id = (long)inst.value(TransactionFeatureExtractor.TXNID_ATTRIBUTE_IDX);
+                    int c = (int)clusterer.clusterInstance(inst);
+                    txnid_cluster_xref.put(txn_id, c);
                 } // FOR
                 
                 
-            }
-        } // WHILE
+                
+            } // WHILE (AttributeSet)
+        } // WHILE (round)
         
 //        // Create the initial set of single-element AttributeSets and calculate
 //        // how well the Markov models perform when using them
@@ -244,7 +259,7 @@ public class TransactionClusterer {
             TransactionEstimator t_estimator = t_estimators.get(c);
             assert(t_estimator != null) : "Cluster #" + c;
             
-            long txn_id = (long)inst.value(txn_attr_idx);
+            long txn_id = (long)inst.value(TransactionFeatureExtractor.TXNID_ATTRIBUTE_IDX);
             TransactionTrace txn_trace = this.workload.getTransaction(txn_id);
             assert(txn_trace != null) : "Invalid TxnId #" + txn_id + "\n" + inst;
             

@@ -413,8 +413,8 @@ JAVA COMPILATION
 
 <target name="compile"> 
     <!-- Delete additional class files from third_party jars before we build -->
-    <delete dir="${build.prod.dir}/org/apache/" />
-    <delete dir="${build.prod.dir}/edu/uci/" />
+<!--     <delete dir="${build.prod.dir}/org/apache/" /> -->
+<!--     <delete dir="${build.prod.dir}/edu/uci/" /> -->
 
     <mkdir dir='${build.prod.dir}' />
     <mkdir dir='${build.test.dir}' />
@@ -519,10 +519,10 @@ JAVA COMPILATION
     </javac>
     
     <!-- Unzip Apache Commons & JUNG so that it gets included in volt jars -->
-    <unzip src="${vendor.lib.dir}/collections-generic-4.01.jar" dest="${build.prod.dir}"/>
+<!--    <unzip src="${vendor.lib.dir}/collections-generic-4.01.jar" dest="${build.prod.dir}"/>
     <unzip src="${vendor.lib.dir}/jung-algorithms-2.0.jar" dest="${build.prod.dir}"/>
     <unzip src="${vendor.lib.dir}/jung-api-2.0.jar" dest="${build.prod.dir}"/>
-    <unzip src="${vendor.lib.dir}/jung-graph-impl-2.0.jar" dest="${build.prod.dir}"/>
+    <unzip src="${vendor.lib.dir}/jung-graph-impl-2.0.jar" dest="${build.prod.dir}"/>-->
     <delete dir="${build.prod.dir}/META-INF/"/>
     
     <antcall target="log4j_properties" />
