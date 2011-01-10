@@ -131,11 +131,11 @@ public class TestTransactionEstimator extends BaseTestCase {
         System.err.println("Confidence:    " + String.format("%.4f", t_estimator.getConfidence(txn_id)));
         System.err.println("INITIAL PATH:\n" + StringUtil.join("\n", initial_path));
         
-        GraphvizExport<Vertex, Edge> gv = MarkovUtil.exportGraphviz(markov, false, null);
-        gv.highlightPath(markov.getPath(initial_path), "blue");
-        gv.writeToTempFile(this.catalog_proc, 0);
-
-        MarkovUtil.exportGraphviz(markov, false, markov.getPath(multip_path)).writeToTempFile(this.catalog_proc, 1);
+//        GraphvizExport<Vertex, Edge> gv = MarkovUtil.exportGraphviz(markov, false, null);
+//        gv.highlightPath(markov.getPath(initial_path), "blue");
+//        gv.writeToTempFile(this.catalog_proc, 0);
+//
+//        MarkovUtil.exportGraphviz(markov, false, markov.getPath(multip_path)).writeToTempFile(this.catalog_proc, 1);
         
 // FIXME        assert(est.isSinglePartition(this.thresholds));
 // FIXME        assertFalse(est.isUserAbort(this.thresholds));

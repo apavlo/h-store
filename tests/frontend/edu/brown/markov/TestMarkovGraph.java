@@ -1,27 +1,28 @@
 package edu.brown.markov;
 
 import java.io.File;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
 import java.util.Map.Entry;
 
 import org.json.JSONObject;
 import org.junit.Before;
 import org.junit.Test;
 import org.voltdb.VoltProcedure;
-import org.voltdb.benchmark.tpcc.procedures.*;
-import org.voltdb.catalog.*;
+import org.voltdb.benchmark.tpcc.procedures.neworder;
+import org.voltdb.catalog.Procedure;
+import org.voltdb.catalog.Statement;
 
 import edu.brown.BaseTestCase;
 import edu.brown.correlations.ParameterCorrelations;
-import edu.brown.graphs.GraphvizExport;
 import edu.brown.markov.Vertex.Type;
 import edu.brown.utils.CollectionUtil;
-import edu.brown.utils.FileUtil;
 import edu.brown.utils.ProjectType;
 import edu.brown.workload.Workload;
-import edu.brown.workload.Workload;
 import edu.brown.workload.filters.BasePartitionTxnFilter;
-//import edu.brown.workload.filters.MultiPartitionTxnFilter;
 import edu.brown.workload.filters.ProcedureLimitFilter;
 import edu.brown.workload.filters.ProcedureNameFilter;
 
@@ -155,7 +156,7 @@ public class TestMarkovGraph extends BaseTestCase {
         // System.err.println("Single-Sited: " + start.getSingleSitedProbability());
         // System.err.println("Abort:        " + start.getAbortProbability());
 
-        MarkovUtil.exportGraphviz(markov, true, null).writeToTempFile(catalog_proc);
+//        MarkovUtil.exportGraphviz(markov, true, null).writeToTempFile(catalog_proc);
 
         for (Vertex v : markov.getVertices()) {
             validateProbabilities(v);

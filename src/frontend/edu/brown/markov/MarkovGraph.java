@@ -347,7 +347,7 @@ public class MarkovGraph extends AbstractDirectedGraph<Vertex, Edge> implements 
      * 
      * @return whether graph contains sane data
      */
-    protected boolean isSane() {
+    public boolean isSane() {
         double EPSILON = 0.00001;
         for (Vertex v : getVertices()) {
             double sum = 0.0;

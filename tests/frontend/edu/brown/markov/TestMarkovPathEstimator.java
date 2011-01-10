@@ -147,8 +147,8 @@ public class TestMarkovPathEstimator extends BaseTestCase {
         } // FOR
         MarkovPathEstimator.LOG.setLevel(Level.INFO);
         
-        GraphvizExport<Vertex, Edge> gv = MarkovUtil.exportGraphviz(this.graph, true, this.graph.getPath(path));
-        FileUtil.writeStringToFile("/tmp/dump.dot", gv.export(this.graph.getProcedure().getName()));
+//        GraphvizExport<Vertex, Edge> gv = MarkovUtil.exportGraphviz(this.graph, true, this.graph.getPath(path));
+//        FileUtil.writeStringToFile("/tmp/dump.dot", gv.export(this.graph.getProcedure().getName()));
     }
     
     /**
