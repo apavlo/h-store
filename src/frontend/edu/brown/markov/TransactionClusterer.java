@@ -1,12 +1,16 @@
 package edu.brown.markov;
 
 import java.util.*;
+import java.util.Map.Entry;
 
 import org.apache.commons.collections15.set.ListOrderedSet;
 import org.apache.log4j.Logger;
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Procedure;
+import org.voltdb.utils.Pair;
 
+import weka.clusterers.AbstractClusterer;
+import weka.clusterers.Clusterer;
 import weka.clusterers.EM;
 import weka.clusterers.FilteredClusterer;
 import weka.clusterers.SimpleKMeans;
@@ -18,6 +22,7 @@ import weka.filters.unsupervised.attribute.Remove;
 import weka.filters.unsupervised.instance.RemoveWithValues;
 
 import edu.brown.catalog.CatalogUtil;
+import edu.brown.markov.TransactionEstimator.Estimate;
 import edu.brown.markov.features.BasePartitionFeature;
 import edu.brown.markov.features.FeatureUtil;
 import edu.brown.markov.features.TransactionIdFeature;
@@ -25,12 +30,18 @@ import edu.brown.statistics.Histogram;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.PartitionEstimator;
 import edu.brown.utils.StringUtil;
+import edu.brown.utils.UniqueCombinationIterator;
 import edu.brown.workload.TransactionTrace;
 import edu.brown.workload.Workload;
 
 public class TransactionClusterer {
     private static final Logger LOG = Logger.getLogger(TransactionClusterer.class);
 
+    // What percentage of the input data should be used for training versus calculating the cost?
+    private static final double TRAINING_SET_PERCENTAGE = 0.60;
+    
+    private static final int txn_attr_idx = 0;
+    
     private final Database catalog_db;
     private final Workload workload;
     private final PartitionEstimator p_estimator;
@@ -43,6 +54,10 @@ public class TransactionClusterer {
         private static final long serialVersionUID = 1L;
         private Double cost;
 
+        public AttributeSet(Set<Attribute> items) {
+            super(items);
+        }
+        
         public Filter createFilter(Instances data) throws Exception {
             Set<Integer> indexes = new HashSet<Integer>();
             for (int i = 0, cnt = this.size(); i < cnt; i++) {
@@ -148,23 +163,97 @@ public class TransactionClusterer {
     
     protected void findBestAttributeSet(FeatureSet fset, Instances data, Procedure catalog_proc) throws Exception {
         SortedSet<AttributeSet> attr_sets = new TreeSet<AttributeSet>();
-        int round = 0;
+        int round = 1;
+        List<Attribute> all_attributes = (List<Attribute>)CollectionUtil.addAll(new ArrayList<Attribute>(), data.enumerateAttributes());
 
-        // Create the initial set of single-element AttributeSets and calculate
-        // how well the Markov models perform when using them
-        List<Attribute> attributes = new ArrayList<Attribute>();
-        Enumeration e = data.enumerateAttributes();
-        while (e.hasMoreElements()) {
-            Attribute attr = (Attribute)e.nextElement();
-            attributes.add(attr);
-            
-            AttributeSet attr_set = new AttributeSet();
-            attr_set.add(attr);
-            
-            MarkovGraphsContainer markovs = this.doCluster(data, attr_set, catalog_proc);
-            System.exit(1);
-            
+        // FIXME: Need to split the input data set into separate data sets
+        Instances trainingData = new Instances(data);
+        Instances validationData = new Instances(data);
+        
+        while (round < 10) {
+            for (Set<Attribute> s : UniqueCombinationIterator.factory(all_attributes, round)) {
+                AttributeSet attr_set = new AttributeSet(s);
+                
+                // Build our clusterer
+                AbstractClusterer clusterer = this.doCluster(trainingData, attr_set, catalog_proc);
+                
+                // Now iterate over validation set and construct Markov models
+                // We have to know which field is our txn_id so that we can quickly access it
+                MarkovGraphsContainer markovs = new MarkovGraphsContainer();
+                Map<Integer, Integer> cluster_partition_xref = new HashMap<Integer, Integer>();
+                int txn_attr_idx = 0; // Assume that the txn_id is always the first attribute!
+                Histogram h = new Histogram();
+                for (int i = 0, cnt = trainingData.numInstances(); i < cnt; i++) {
+                    // The original data set is going to have the txn id that we need to grab 
+                    // the proper TransactionTrace record from the workload
+                    Instance inst = trainingData.instance(i);
+                    int c = (int)clusterer.clusterInstance(inst);
+                    h.put(c);
+                    
+                    long txn_id = (long)inst.value(txn_attr_idx);
+                    TransactionTrace txn_trace = this.workload.getTransaction(txn_id);
+                    assert(txn_trace != null) : "Invalid TxnId #" + txn_id + "\n" + inst;
+                    
+                    MarkovGraph markov = markovs.get(c, catalog_proc);
+                    if (markov == null) {
+                        // XXX: Assume for now that all the instances in the same cluster are at the same base partition
+                        Integer base_partition = this.p_estimator.getBasePartition(txn_trace);
+                        assert(base_partition != null);
+                        markov = new MarkovGraph(catalog_proc, base_partition);
+                        markovs.put(c, markov.initialize());
+                        cluster_partition_xref.put(c, base_partition);
+                    }
+                    markov.processTransaction(txn_trace, this.p_estimator);
+                } // FOR
+                LOG.info("Total Number of Clusters: " + h.getValueCount() + "\n" + h);
+                
+                // Now use the validation data set to figure out how well we are able to predict transaction
+                // execution paths using the trained Markov graphs
+                Map<Integer, TransactionEstimator> t_estimators = new HashMap<Integer, TransactionEstimator>();
+                for (Entry<Integer, Map<Procedure, MarkovGraph>> e : markovs.entrySet()) {
+                    int base_partition = cluster_partition_xref.get(e.getKey());
+                    TransactionEstimator t_estimator = new TransactionEstimator(base_partition, this.p_estimator);
+                    t_estimator.addMarkovGraphs(e.getValue());
+                    t_estimators.put(e.getKey(), t_estimator);
+                } // FOR
+                
+                
+            }
         } // WHILE
+        
+//        // Create the initial set of single-element AttributeSets and calculate
+//        // how well the Markov models perform when using them
+//        List<Attribute> attributes = new ArrayList<Attribute>();
+//        Enumeration e = data.enumerateAttributes();
+//        while (e.hasMoreElements()) {
+//            Attribute attr = (Attribute)e.nextElement();
+//            attributes.add(attr);
+//            
+//            
+//            attr_set.add(attr);
+//            
+//            System.exit(1);
+//            
+//        } // WHILE
+    }
+    
+    private void estimateCost(Map<Integer, TransactionEstimator> t_estimators, Instances data, AbstractClusterer clusterer) throws Exception {
+        for (int i = 0, cnt = data.numInstances(); i < cnt; i++) {
+            Instance inst = data.instance(i);
+            int c = (int)clusterer.clusterInstance(inst);
+            TransactionEstimator t_estimator = t_estimators.get(c);
+            assert(t_estimator != null) : "Cluster #" + c;
+            
+            long txn_id = (long)inst.value(txn_attr_idx);
+            TransactionTrace txn_trace = this.workload.getTransaction(txn_id);
+            assert(txn_trace != null) : "Invalid TxnId #" + txn_id + "\n" + inst;
+            
+            Estimate est = t_estimator.startTransaction(txn_trace.getTransactionId(), txn_trace.getCatalogItem(this.catalog_db), txn_trace.getParams());
+            assert(est != null);
+            
+        }
+
+        
     }
     
     /**
@@ -173,7 +262,7 @@ public class TransactionClusterer {
      * @param round
      * @throws Exception
      */
-    private MarkovGraphsContainer doCluster(Instances data, AttributeSet attrset, Procedure catalog_proc) throws Exception {
+    private AbstractClusterer doCluster(Instances data, AttributeSet attrset, Procedure catalog_proc) throws Exception {
         LOG.info(String.format("Clustering %d %s instances with %d attributes", data.numInstances(), CatalogUtil.getDisplayName(catalog_proc), data.numAttributes()));
         
         // Create the filter we need so that we only include the attributes in the given AttributeSet
@@ -191,35 +280,7 @@ public class TransactionClusterer {
         clusterer.setClusterer(kmeans_clusterer);
         clusterer.buildClusterer(data);
         
-        MarkovGraphsContainer markovs = new MarkovGraphsContainer();
-        
-        // Now iterate over validation set and construct Markov models
-        // We have to know which field is our txn_id so that we can quickly access it
-        int txn_attr_idx = 0; // Assume that the txn_id is always the first attribute!
-        Histogram h = new Histogram();
-        for (int i = 0, cnt = data.numInstances(); i < cnt; i++) {
-            // The original data set is going to have the txn id that we need to grab 
-            // the proper TransactionTrace record from the workload
-            Instance inst = data.instance(i);
-            int c = (int)clusterer.clusterInstance(inst);
-            h.put(c);
-            
-            long txn_id = (long)inst.value(txn_attr_idx);
-            TransactionTrace txn_trace = this.workload.getTransaction(txn_id);
-            assert(txn_trace != null) : "Invalid TxnId #" + txn_id + "\n" + inst;
-            
-            MarkovGraph markov = markovs.get(c, catalog_proc);
-            if (markov == null) {
-                // XXX: Assume for now that all the instances in the same cluster are at the same base partition
-                Integer base_partition = this.p_estimator.getBasePartition(txn_trace);
-                assert(base_partition != null);
-                markov = new MarkovGraph(catalog_proc, base_partition);
-                markovs.put(c, markov.initialize());
-            }
-            markov.processTransaction(txn_trace, this.p_estimator);
-        } // FOR
-        LOG.info("Total Number of Clusters: " + h.getValueCount() + "\n" + h);
-        return (markovs);
+        return (clusterer);
     }
 
     

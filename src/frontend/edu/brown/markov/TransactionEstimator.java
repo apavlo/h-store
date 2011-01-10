@@ -39,7 +39,7 @@ public class TransactionEstimator {
     /**
      * The current state of a transaction
      */
-    private final class State {
+    protected final class State {
         private final long start_time;
         private final MarkovGraph markov;
         private final List<Vertex> initial_path;
