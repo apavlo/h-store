@@ -153,6 +153,17 @@ public class UniqueCombinationIterator<E> implements Iterator<Set<E>> {
         assert(false);
     }
     
+    /**
+     * Helper method that returns this iterator wrapped in an Iterable
+     * @param <E>
+     * @param data
+     * @param combo_size
+     * @return
+     */
+    public static <E> Iterable<Set<E>> factory(Collection<E> data, int combo_size) {
+        return (CollectionUtil.wrapIterator(new UniqueCombinationIterator<E>(data, combo_size)));
+    }
+    
     @Override
     public String toString() {
         Map<String, Object> m = new ListOrderedMap<String, Object>();

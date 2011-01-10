@@ -1,6 +1,7 @@
 package edu.brown.utils;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.SortedMap;
@@ -16,11 +17,12 @@ import org.junit.Test;
  */
 public class TestUniqueCombinationIterator extends TestCase {
 
-    private static final int BASE_COMBO_SIZE = 2; 
+    private static final int BASE_COMBO_SIZE = 1; 
     private static final SortedMap<Integer, Integer> EXPECTED_NUM_COMBOS = new TreeMap<Integer, Integer>();
     static {
         // These values were calculated using the Python script found here:
         // http://code.activestate.com/recipes/190465/
+        EXPECTED_NUM_COMBOS.put(1, 10);
         EXPECTED_NUM_COMBOS.put(2, 45);
         EXPECTED_NUM_COMBOS.put(3, 120);
         EXPECTED_NUM_COMBOS.put(4, 210);
@@ -50,7 +52,7 @@ public class TestUniqueCombinationIterator extends TestCase {
             boolean debug = false; // combo_size == 4;
             
             int i = 0;
-            Set<String> last = null;
+            Set<Set<String>> seen = new HashSet<Set<String>>();
             while (it.hasNext()) {
                 Set<String> s = it.next();
                 // System.err.println(it);
@@ -60,8 +62,8 @@ public class TestUniqueCombinationIterator extends TestCase {
                 
                 assertNotNull(s);
                 assertEquals(combo_size, s.size());
-                if (last != null) assertFalse(last.equals(s));
-                last = s;
+                assertFalse("Duplicate: " + s, seen.contains(s));
+                seen.add(s);
             } // WHILE
             assert(i > 0);
             assertEquals("ComboSize="+combo_size, EXPECTED_NUM_COMBOS.get(combo_size).intValue(), i);
