@@ -174,6 +174,6 @@ public class UniqueCombinationIterator<E> implements Iterator<Set<E>> {
         m.put("LAST", this.last);
         m.put("NEXT", this.next);
         
-        return StringUtil.box(StringUtil.format("=", m));
+        return StringUtil.box(StringUtil.formatMaps("=", m));
     }
 }

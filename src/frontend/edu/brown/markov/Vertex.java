@@ -206,11 +206,26 @@ public class Vertex extends AbstractVertex {
     }
     
     /**
+     * Copy Constructor
+     * Only really used for testing
+     * @param v
+     */
+    public Vertex(Vertex v) {
+        super(v.getCatalogItem());
+        this.type = v.type;
+        this.partitions.addAll(v.partitions);
+        this.past_partitions.addAll(v.past_partitions);
+        this.query_instance_index = v.query_instance_index;
+        this.probabilities.putAll(v.probabilities);
+    }
+    
+    /**
      * Initialize the probability tables
      */
     private void init() {
         for (Vertex.Probability ptype : Vertex.Probability.values()) {
-            this.probabilities.put(ptype, new TreeMap<Integer, Double>());
+            if (this.probabilities.containsKey(ptype) == false)
+                this.probabilities.put(ptype, new TreeMap<Integer, Double>());
         } // FOR
     }
 

@@ -10,6 +10,8 @@ import edu.brown.utils.PartitionEstimator;
 public abstract class FeatureUtil {
     
     protected final static String DELIMITER = "-";
+    protected final static String SUFFIX = "Feature";
+    protected final static int SUFFIX_LENGTH = SUFFIX.length();
     protected final static Pattern PREFIX_SPLITTER = Pattern.compile(DELIMITER);
     protected final static String PREFIX_FORMAT = "%s" + DELIMITER + "%02d";
 
@@ -41,7 +43,7 @@ public abstract class FeatureUtil {
      */
     public static final String getFeatureKeyPrefix(Class<? extends AbstractFeature> feature_class) {
         String prefix = feature_class.getSimpleName(); 
-        return (prefix.substring(0, prefix.length() - "Feature".length()));
+        return (prefix.substring(0, prefix.length() - SUFFIX_LENGTH));
     }
 
     /**

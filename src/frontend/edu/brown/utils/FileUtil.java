@@ -37,7 +37,7 @@ import java.util.zip.GZIPInputStream;
  * @author pavlo
  */
 public abstract class FileUtil {
-    private static final Logger LOG = Logger.getLogger(FileUtil.class.getName());
+    private static final Logger LOG = Logger.getLogger(FileUtil.class);
 
     public static String basename(String path) {
         return (new File(path)).getName();
@@ -141,14 +141,25 @@ public abstract class FileUtil {
      * @throws IOException
      */
     public static File findDirectory(String dirName) throws IOException {
-        return (FileUtil.findDirectory(dirName, new File(".").getCanonicalFile()).getCanonicalFile());
+        return (FileUtil.find(dirName, new File(".").getCanonicalFile(), true).getCanonicalFile());
     }
     
-    private static final File findDirectory(String dirName, File current) throws IOException {
-        LOG.debug("FindDirectory Current Location = " + current);
+    /**
+     * Find the path to a directory below our current location in the source tree
+     * Throws a RuntimeException if we go beyond our repository checkout
+     * @param dirName
+     * @return
+     * @throws IOException
+     */
+    public static File findFile(String fileName) throws IOException {
+        return (FileUtil.find(fileName, new File(".").getCanonicalFile(), false).getCanonicalFile());
+    }
+    
+    private static final File find(String name, File current, boolean isdir) throws IOException {
+        LOG.debug("Find Current Location = " + current);
         boolean has_svn = false;
         for (File file : current.listFiles()) {
-            if (file.getCanonicalPath().endsWith(File.separator + dirName)) {
+            if (file.getCanonicalPath().endsWith(File.separator + name) && file.isDirectory() == isdir) {
                 return (file);
             // Make sure that we don't go to far down...
             } else if (file.getCanonicalPath().endsWith(File.separator + ".svn")) {
@@ -157,9 +168,9 @@ public abstract class FileUtil {
         } // FOR
         // If we didn't see an .svn directory, then we went too far down
         if (!has_svn)
-            throw new RuntimeException("Unable to find directory '" + dirName + "' [last_dir=" + current.getAbsolutePath() + "]");  
+            throw new RuntimeException("Unable to find directory '" + name + "' [last_dir=" + current.getAbsolutePath() + "]");  
         File next = new File(current.getCanonicalPath() + File.separator + "..");
-        return (FileUtil.findDirectory(dirName, next));
+        return (FileUtil.find(name, next, isdir));
     }
     
     /**

@@ -8,14 +8,12 @@ import java.util.Map;
 import java.util.Map.Entry;
 
 import org.apache.log4j.Logger;
-import org.voltdb.catalog.*;
-
-import weka.core.Instances;
+import org.voltdb.catalog.Database;
+import org.voltdb.catalog.Procedure;
 
 import edu.brown.markov.features.*;
 import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.ClassUtil;
-import edu.brown.utils.FileUtil;
 import edu.brown.utils.PartitionEstimator;
 import edu.brown.workload.TransactionTrace;
 import edu.brown.workload.Workload;
@@ -24,8 +22,8 @@ import edu.brown.workload.Workload;
  * 
  * @author pavlo
  */
-public class TransactionFeatureExtractor {
-    private static final Logger LOG = Logger.getLogger(TransactionFeatureExtractor.class);
+public class FeatureExtractor {
+    private static final Logger LOG = Logger.getLogger(FeatureExtractor.class);
 
     // HACK: What position is the TransactionId in all of our FeatureSets 
     public static final int TXNID_ATTRIBUTE_IDX = 0;
@@ -49,7 +47,7 @@ public class TransactionFeatureExtractor {
      * @param catalog_db
      * @param feature_classes
      */
-    public TransactionFeatureExtractor(Database catalog_db, PartitionEstimator p_estimator, Class<? extends AbstractFeature>...feature_classes) {
+    public FeatureExtractor(Database catalog_db, PartitionEstimator p_estimator, Class<? extends AbstractFeature>...feature_classes) {
         this.catalog_db = catalog_db;
         this.p_estimator = p_estimator;
         for (Class<? extends AbstractFeature> fclass : feature_classes) {
@@ -57,8 +55,13 @@ public class TransactionFeatureExtractor {
         } // FOR
     }
     
-    public TransactionFeatureExtractor(Database catalog_db, Class<? extends AbstractFeature>...feature_classes) {
+    public FeatureExtractor(Database catalog_db, Class<? extends AbstractFeature>...feature_classes) {
         this(catalog_db, new PartitionEstimator(catalog_db), feature_classes);
+    }
+    
+    @SuppressWarnings("unchecked")
+    public FeatureExtractor(Database catalog_db, PartitionEstimator p_estimator) {
+        this(catalog_db, p_estimator, (Class<? extends AbstractFeature>[])DEFAULT_FEATURE_CLASSES);
     }
     
     /**
@@ -66,7 +69,7 @@ public class TransactionFeatureExtractor {
      * @param catalog_db
      */
     @SuppressWarnings("unchecked")
-    public TransactionFeatureExtractor(Database catalog_db) {
+    public FeatureExtractor(Database catalog_db) {
         this(catalog_db, (Class<? extends AbstractFeature>[])DEFAULT_FEATURE_CLASSES);
     }
     
@@ -129,18 +132,21 @@ public class TransactionFeatureExtractor {
             ArgumentsParser.PARAM_CORRELATIONS
         );
         
-        TransactionFeatureExtractor extractor = new TransactionFeatureExtractor(args.catalog_db);
+        FeatureExtractor extractor = new FeatureExtractor(args.catalog_db);
         Map<Procedure, FeatureSet> fsets = extractor.calculate(args.workload);
         
         for (Entry<Procedure, FeatureSet> e : fsets.entrySet()) {
             String proc_name = e.getKey().getName();
-            File path = new File(proc_name + ".arff");
-            Instances data = e.getValue().export(proc_name, true);
-            FileUtil.writeStringToFile(path, data.toString());
-            LOG.info(String.format("Wrote FeatureSet with %d instances to '%s'", data.numInstances(), path.getAbsolutePath()));
+            File path = new File(proc_name + ".fset");
+            e.getValue().save(path.getAbsolutePath());
+            LOG.info(String.format("Wrote FeatureSet with %d instances to '%s'", e.getValue().getTransactionCount(), path.getAbsolutePath()));
             
-            TransactionClusterer txn_c = new TransactionClusterer(args.catalog_db, args.workload, args.param_correlations);
-            txn_c.calculate(e.getValue(), e.getKey());
+//            Instances data = e.getValue().export(proc_name, true);
+//            FileUtil.writeStringToFile(path, data.toString());
+//            LOG.info(String.format("Wrote FeatureSet with %d instances to '%s'", data.numInstances(), path.getAbsolutePath()));
+//            
+//            FeatureClusterer txn_c = new FeatureClusterer(args.catalog_db, args.workload, args.param_correlations);
+//            txn_c.calculate(e.getValue(), e.getKey());
         }
         
     }

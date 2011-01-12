@@ -121,6 +121,12 @@ public class MarkovCostModel extends AbstractCostModel {
         return this.comparePaths(estimated_path, actual_path);
     }
        
+    /**
+     * Calculate relative cost difference the estimated and actual execution paths 
+     * @param estimated
+     * @param actual
+     * @return
+     */
     protected double comparePaths(List<Vertex> estimated, List<Vertex> actual) {
         final boolean trace = LOG.isTraceEnabled();
         final boolean debug = LOG.isDebugEnabled();
@@ -141,7 +147,7 @@ public class MarkovCostModel extends AbstractCostModel {
             Vertex e = null;
             try {
                 e = estimated.get(e_i);
-            } catch (ArrayIndexOutOfBoundsException ex) {
+            } catch (IndexOutOfBoundsException ex) {
                 // IGNORE
             }
         
@@ -185,8 +191,24 @@ public class MarkovCostModel extends AbstractCostModel {
                 
                 e_i++;
                 if (trace) LOG.trace("");
+                
+            // If our estimated path is too short, then yeah that's going to cost ya'!
+            } else {
+                cost += 1.0d;
             }
         } // FOR
+        
+        // Penalize them for invalid partitions
+        // One point for every missing one and one point for every one too many
+        int p_missing = 0;
+        int p_incorrect = 0;
+        for (Integer p : a_all_partitions) {
+            if (e_all_partitions.contains(p) == false) p_missing++;
+        }
+        for (Integer p : e_all_partitions) {
+            if (a_all_partitions.contains(p) == false) p_incorrect++;
+        }
+        cost += p_missing + p_incorrect;
         
         // Look at the last vertices to check the COMMIT/ABORT status
         Vertex e_last = estimated.get(e_cnt-1);
@@ -196,7 +218,9 @@ public class MarkovCostModel extends AbstractCostModel {
         Type a_last_type = a_last.getType();
         assert(a_last_type != Type.START);
         
-        if (e_last_type != a_last_type) {
+        // Basically we want to bang them hard if the estimation is wrong
+        if (e_last_type != Type.QUERY && e_last_type != a_last_type) {
+            assert(e_last_type != Type.START);
             if (trace) LOG.debug("COMMIT/ABORT MISMATCH: " + e_last_type + " != " + a_last_type);
         }
         

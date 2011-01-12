@@ -18,6 +18,8 @@ import weka.core.Attribute;
 import weka.core.FastVector;
 import weka.core.Instance;
 import weka.core.Instances;
+import edu.brown.markov.features.AbstractFeature;
+import edu.brown.markov.features.FeatureUtil;
 import edu.brown.statistics.Histogram;
 import edu.brown.utils.ClassUtil;
 import edu.brown.utils.CollectionUtil;
@@ -70,6 +72,20 @@ public class FeatureSet implements JSONSerializable {
     public FeatureSet() {
         // Nothing for now...
     }
+
+    /**
+     * Total number of attributes stored in this FeatureSet
+     */
+    public int getAttributeCount() {
+        return (this.attributes.size());
+    }
+    
+    /**
+     * Total number of transactions that we have extracted features for
+     */
+    public int getTransactionCount() {
+        return (this.txn_values.size());
+    }
     
     public List<String> getFeatures() {
         return (this.attributes.asList());
@@ -97,8 +113,24 @@ public class FeatureSet implements JSONSerializable {
      * @param key
      * @return
      */
-    public int getFeatureIndex(String key) {
-        return (this.attributes.indexOf(key));
+    public Integer getFeatureIndex(String key) {
+        int idx = this.attributes.indexOf(key); 
+        return (idx != -1 ? idx : null);
+    }
+
+    /**
+     * Return the indexes of all the features for the given prefix
+     * @param feature_class
+     * @return
+     */
+    public Set<Integer> getFeatureIndexes(Class<? extends AbstractFeature> feature_class) {
+        Set<Integer> ret = new HashSet<Integer>();
+        String prefix = FeatureUtil.getFeatureKeyPrefix(feature_class);
+        for (int i = 0, cnt = this.attributes.size(); i < cnt; i++) {
+            String key = this.attributes.get(i);
+            if (key.startsWith(prefix)) ret.add(i); 
+        } // FOR
+        return (ret);
     }
     
     public List<Object> getFeatureValues(Long txn_id) {
@@ -386,8 +418,6 @@ public class FeatureSet implements JSONSerializable {
                 }
                 this.txn_values.get(txn_id).add(val);
             } // FOR
-            
         } // WHILE
-        
     }
 }

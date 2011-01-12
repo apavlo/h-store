@@ -1,6 +1,8 @@
 package edu.brown.utils;
 
 import java.io.File;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Observable;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -39,25 +41,42 @@ public abstract class LoggerUtil {
     
     public static void setupLogging() {
         if (log4j_properties_file != null) return;
+        
         // Hack for testing...
-        String paths[] = new String[]{
-            System.getProperty("log4j.configuration", log4j_filename),
-            "/home/pavlo/Documents/H-Store/SVN-Brown/trunk/" + log4j_filename,
-            "/home/pavlo/Documents/H-Store/SVN-Brown/branches/markov-branch/" + log4j_filename,
-            "/host/work/hstore/src/" + log4j_filename, 
-            "/research/hstore/sw47/trunk/" + log4j_filename,
-        };
+        List<String> paths = new ArrayList<String>();
+        paths.add(System.getProperty("log4j.configuration", log4j_filename));
+        
+        // These probably aren't needed anymore
+        paths.add("/home/pavlo/Documents/H-Store/SVN-Brown/trunk/" + log4j_filename);
+        paths.add("/home/pavlo/Documents/H-Store/SVN-Brown/branches/markov-branch/" + log4j_filename);
+        paths.add("/host/work/hstore/src/" + log4j_filename);
+        paths.add("/research/hstore/sw47/trunk/" + log4j_filename);
+        
+        
         for (String p : paths) {
             File file = new File(p);
             if (file.exists()) {
-                org.apache.log4j.PropertyConfigurator.configure(file.getAbsolutePath());
-                Logger.getRootLogger().debug("Loaded log4j configuration file '" + file.getAbsolutePath() + "'");
-                log4j_properties_file = file;
-                last_timestamp = file.lastModified();
+                loadConfiguration(file);
                 break;
             }
         } // FOR
+        // Hack! Load in the root directory one. This is just hack to remove the
+        // warning message from FileUtil
+        try {
+            File findFile = FileUtil.findFile(log4j_filename);
+            if (findFile != null && findFile.exists()) loadConfiguration(findFile);
+        } catch (Exception ex) {
+            ex.printStackTrace();
+        }
+
         LoggerUtil.refreshLogging(10000); // 180000l); // 3 min
+    }
+    
+    protected static void loadConfiguration(File file) {
+        org.apache.log4j.PropertyConfigurator.configure(file.getAbsolutePath());
+        Logger.getRootLogger().debug("Loaded log4j configuration file '" + file.getAbsolutePath() + "'");
+        log4j_properties_file = file;
+        last_timestamp = file.lastModified();
     }
     
     public static void refreshLogging(final long interval) {
@@ -76,8 +95,7 @@ public abstract class LoggerUtil {
                         }
                         // Refresh our configuration if the file has changed
                         if (log4j_properties_file != null && last_timestamp != log4j_properties_file.lastModified()) {
-                            log4j_properties_file = null;
-                            setupLogging();
+                            loadConfiguration(log4j_properties_file);
                             Logger.getRootLogger().info("Refreshed log4j configuration [" + log4j_properties_file.getAbsolutePath() + "]");
                             LoggerUtil.observable.notifyObservers();
                         }
