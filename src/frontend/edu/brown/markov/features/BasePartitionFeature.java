@@ -21,7 +21,7 @@ public class BasePartitionFeature extends AbstractFeature {
     public void extract(FeatureSet fset, TransactionTrace txn_trace) throws Exception {
         String key = this.getFeatureKey();
         Object val = this.calculate(key, txn_trace);
-        fset.addFeature(txn_trace, key, val, Type.RANGE);
+        fset.addFeature(txn_trace, key, val, Type.NUMERIC);
     }
     
     @Override

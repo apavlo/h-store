@@ -1,8 +1,10 @@
 package edu.brown.costmodel;
 
 import java.io.File;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 import java.util.Map.Entry;
 
 import org.junit.Before;
@@ -42,16 +44,22 @@ public class TestMarkovCostModel extends BaseTestCase {
     private static MarkovGraphsContainer markovs;
     private static ParameterCorrelations correlations;
     private static MarkovCostModel costmodel;
+    private static Procedure catalog_proc;
+    private final Random rand = new Random();
     
-    private Procedure catalog_proc;
+    private TransactionTrace txn_trace;
+    private State txn_state;
+    private List<Vertex> estimated_path;
+    private List<Vertex> actual_path;
     
     @Before
     public void setUp() throws Exception {
         super.setUp(ProjectType.TPCC);
         this.addPartitions(NUM_PARTITIONS);
-        this.catalog_proc = this.getProcedure(TARGET_PROCEDURE);
 
         if (markovs == null) {
+            catalog_proc = this.getProcedure(TARGET_PROCEDURE);
+            
             File file = this.getCorrelationsFile(ProjectType.TPCC);
             correlations = new ParameterCorrelations();
             correlations.load(file.getAbsolutePath(), catalog_db);
@@ -93,33 +101,62 @@ public class TestMarkovCostModel extends BaseTestCase {
                 costmodel.addTransactionEstimator(e.getKey(), t_estimator);
             } // FOR
         }
-    }
-
-    /**
-     * testComparePaths
-     */
-    @Test
-    public void testComparePaths() throws Exception {
-        TransactionTrace txn_trace = workload.getTransactions().get(0);
-        assertNotNull(txn_trace);
+        
+        // Take a TransactionTrace and throw it at the estimator to get our path info
+        this.txn_trace = workload.getTransactions().get(0);
+        assertNotNull(this.txn_trace);
         int base_partition = p_estimator.getBasePartition(txn_trace);
         
         TransactionEstimator t_estimator = costmodel.getTransactionEstimator(base_partition);
         assertNotNull(t_estimator);
-        State s = t_estimator.processTransactionTrace(txn_trace);
-        assertNotNull(s);
+        this.txn_state = t_estimator.processTransactionTrace(txn_trace);
+        assertNotNull(this.txn_state);
         
-        List<Vertex> estimated = s.getEstimatedPath();
-        assertNotNull(estimated);
-        assert(estimated.isEmpty() == false);
-        List<Vertex> actual = s.getActualPath();
-        assertNotNull(actual);
-        assert(actual.isEmpty() == false);
-        
-//        System.err.println("ESTIMATED: " + estimated);
-//        System.err.println("ACTUAL:    " + actual);
-        
-        double cost = costmodel.comparePaths(estimated, actual);
+        this.estimated_path = this.txn_state.getEstimatedPath();
+        assertNotNull(this.estimated_path);
+        assert(this.estimated_path.isEmpty() == false);
+        this.actual_path = this.txn_state.getActualPath();
+        assertNotNull(this.actual_path);
+        assert(this.actual_path.isEmpty() == false);
+    }
 
+    /**
+     * testCompareSamePaths
+     */
+    @Test
+    public void testCompareSamePaths() throws Exception {
+        // We should always get a zero cost if we throw the same path at the cost model
+        double cost = costmodel.comparePaths(this.actual_path, this.actual_path);
+        assertEquals(0.0d, cost);
+    }
+    
+    /**
+     * testCompareDifferentPartitions
+     */
+    @Test
+    public void testCompareDifferentPartitions() throws Exception {
+        // Now let's add some random partitions into a new path
+        List<Vertex> tester = new ArrayList<Vertex>(this.actual_path);
+        for (int i = 0, cnt = tester.size(); i < cnt; i++) {
+            if (rand.nextBoolean()) {
+                Vertex v = new Vertex(tester.get(i));
+                v.partitions.add(rand.nextInt(NUM_PARTITIONS));
+                tester.set(i, v);
+            }
+        } // FOR
+        double cost = costmodel.comparePaths(tester, this.actual_path);
+        assert(cost > 0);
+    }
+    
+    /**
+     * testCompareIncompletePath
+     */
+    @Test
+    public void testCompareIncompletePath() throws Exception {
+        // Then make sure that our cost model can handle paths where the estimated path isn't complete
+        List<Vertex> tester = new ArrayList<Vertex>(this.actual_path);
+        tester.removeAll(this.actual_path.subList(this.actual_path.size() - 5, this.actual_path.size()));
+        double cost = costmodel.comparePaths(tester, this.actual_path);
+        assert(cost > 0);
      }
 }

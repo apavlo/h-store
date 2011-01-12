@@ -24,14 +24,47 @@ public abstract class StringUtil {
     private static Pattern LINE_SPLIT = Pattern.compile("\n");
     
     /**
-     * 
-     * @param delimiter
-     * @param m
+     * Return key/value maps into a nicely formatted table
+     * Delimiter ":", No UpperCase Keys, No Boxing
+     * @param maps
      * @return
      */
-    public static String format(String delimiter, Map<?, ?>...maps) {
+    public static String formatMaps(Map<?, ?>...maps) {
+        return (formatMaps(":", false, false, maps));
+    }
+
+    /**
+     * Return key/value maps into a nicely formatted table using the given delimiter
+     * No Uppercase Keys, No Boxing
+     * @param delimiter
+     * @param maps
+     * @return
+     */
+    public static String formatMaps(String delimiter, Map<?, ?>...maps) {
+        return (formatMaps(delimiter, false, false, maps));
+    }
+
+    /**
+     * Return key/value maps into a nicely formatted table
+     * The maps are displayed in order from first to last, and there will be a spacer
+     * created between each map. The format for each record is:
+     * 
+     * <KEY><DELIMITER><SPACING><VALUE>
+     * 
+     * If the delimiter is an equal sign, then the format is:
+     * 
+     *  <KEY><SPACING><DELIMITER><VALUE>
+     * 
+     * @param delimiter
+     * @param upper Upper-case all keys
+     * @param box Box results
+     * @param maps
+     * @return
+     */
+    public static String formatMaps(String delimiter, boolean upper, boolean box, Map<?, ?>...maps) {
         StringBuilder sb = new StringBuilder();
         
+        // Figure out the largest key size so we can get spacing right
         int max_key_size = 0;
         for (Map<?, ?> m : maps) {
             for (Object k : m.keySet()) {
@@ -49,12 +82,18 @@ public abstract class StringUtil {
             for (Entry<?, ?> e : m.entrySet()) {
                 String k = e.getKey().toString();
                 String v = (e.getValue() != null ? e.getValue().toString() : "null");
+                if (upper) k = k.toUpperCase();
                 if (equalsDelimiter == false) k += ":";
-                sb.append(String.format(f, k, v));
+                
+                // If the value is multiple lines, format them nicely!
+                String lines[] = LINE_SPLIT.split(v);
+                for (int i = 0; i < lines.length; i++) {
+                    sb.append(String.format(f, (i == 0 ? k : ""), lines[i]));    
+                } // FOR
             }
             first = false;
         } // FOR
-        return (sb.toString());
+        return (box ? StringUtil.box(sb.toString()) : sb.toString());
     }
     
     /**

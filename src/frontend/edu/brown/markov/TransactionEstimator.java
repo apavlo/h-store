@@ -465,6 +465,8 @@ public class TransactionEstimator {
         }
         assert(next_e != null);
 
+        s.setCurrent(next_v);
+        
         // Update counters
         next_v.incrementInstancehits();
         next_v.addInstanceTime(xact_id, s.getExecutionTimeOffset());
@@ -498,6 +500,8 @@ public class TransactionEstimator {
         }
         assert(abort_e != null);
 
+        s.setCurrent(next_v);
+        
         // Update counters
         next_v.incrementInstancehits();
         next_v.addInstanceTime(xact_id, s.getExecutionTimeOffset());

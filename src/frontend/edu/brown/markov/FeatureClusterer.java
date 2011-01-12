@@ -3,6 +3,7 @@ package edu.brown.markov;
 import java.util.*;
 import java.util.Map.Entry;
 
+import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.commons.collections15.set.ListOrderedSet;
 import org.apache.log4j.Logger;
 import org.voltdb.catalog.Database;
@@ -36,8 +37,8 @@ import edu.brown.utils.UniqueCombinationIterator;
 import edu.brown.workload.TransactionTrace;
 import edu.brown.workload.Workload;
 
-public class TransactionClusterer {
-    private static final Logger LOG = Logger.getLogger(TransactionClusterer.class);
+public class FeatureClusterer {
+    private static final Logger LOG = Logger.getLogger(FeatureClusterer.class);
 
     // What percentage of the input data should be used for training versus calculating the cost?
     private static final double TRAINING_SET_PERCENTAGE = 0.60;
@@ -46,17 +47,27 @@ public class TransactionClusterer {
     private final Workload workload;
     private final ParameterCorrelations correlations;
     private final PartitionEstimator p_estimator;
-    private final Random rand = new Random();
+    private final Random rand = new Random(0);
        
     /**
      * A set of attributes and their cost
      */
-    private class AttributeSet extends ListOrderedSet<Attribute> implements Comparable<AttributeSet> {
+    protected static class AttributeSet extends ListOrderedSet<Attribute> implements Comparable<AttributeSet> {
         private static final long serialVersionUID = 1L;
         private Double cost;
 
         public AttributeSet(Set<Attribute> items) {
             super(items);
+        }
+        
+        public AttributeSet(Attribute...items) {
+            super((Set<Attribute>)CollectionUtil.addAll(new HashSet<Attribute>(), items));
+        }
+        
+        protected AttributeSet(Instances data, Collection<Integer> idxs) {
+            for (Integer i : idxs) {
+                this.add(data.attribute(i));
+            } // FOR
         }
         
         public Filter createFilter(Instances data) throws Exception {
@@ -74,7 +85,8 @@ public class TransactionClusterer {
             
             Remove filter = new Remove();
             filter.setInputFormat(data);
-            filter.setAttributeIndices(StringUtil.join(",", to_remove));
+            String options[] = { "-R", StringUtil.join(",", to_remove) };
+            filter.setOptions(options);
             return (filter);
         }
 //        
@@ -135,7 +147,7 @@ public class TransactionClusterer {
      * Constructor
      * @param catalog_db
      */
-    public TransactionClusterer(Database catalog_db, Workload workload, ParameterCorrelations correlations) {
+    public FeatureClusterer(Database catalog_db, Workload workload, ParameterCorrelations correlations) {
         this.catalog_db = catalog_db;
         this.workload = workload;
         this.correlations = correlations;
@@ -164,35 +176,59 @@ public class TransactionClusterer {
     }
     
     protected void findBestAttributeSet(FeatureSet fset, Instances data, Procedure catalog_proc) throws Exception {
-        SortedSet<AttributeSet> attr_sets = new TreeSet<AttributeSet>();
+        AttributeSet best_set = null;
+        
         int round = 1;
         List<Attribute> all_attributes = (List<Attribute>)CollectionUtil.addAll(new ArrayList<Attribute>(), data.enumerateAttributes());
 
         // FIXME: Need to split the input data set into separate data sets
         Instances trainingData = new Instances(data);
+        int trainingCnt = trainingData.numInstances();
+        
         Instances validationData = new Instances(data);
+        int validationCnt = trainingData.numInstances();
         
         while (round < 10) {
+            final boolean trace = LOG.isTraceEnabled();
+            final boolean debug = LOG.isDebugEnabled();
+            
+            if (debug) {
+                if (round == 1) {
+                    LOG.debug("# of Training Instances:  " + trainingCnt);
+                    LOG.debug("# of Validation Instances:  " + validationCnt);
+                }
+                
+                Map<String, Object> m = new ListOrderedMap<String, Object>();
+                m.put("Round #", String.format("%02d", round));
+                m.put("Best Set", best_set);
+                m.put("Best Cost", (best_set != null ? best_set.getCost() : null));
+                LOG.debug("\n" + StringUtil.formatMaps(":", true, true, m));
+            }
+
+            // The AttributeSets created in this round
+            SortedSet<AttributeSet> attr_sets = new TreeSet<AttributeSet>();
+            
             for (Set<Attribute> s : UniqueCombinationIterator.factory(all_attributes, round)) {
                 AttributeSet attr_set = new AttributeSet(s);
                 
                 // Build our clusterer
-                AbstractClusterer clusterer = this.doCluster(trainingData, attr_set, catalog_proc);
+                AbstractClusterer clusterer = this.createClusterer(trainingData, attr_set, catalog_proc);
+                if (trace) LOG.trace(String.format("Constructing Clusterer using %d Attributes: %s", attr_set.size(), attr_set)); 
                 
                 // Now iterate over validation set and construct Markov models
                 // We have to know which field is our txn_id so that we can quickly access it
                 MarkovGraphsContainer markovs = new MarkovGraphsContainer();
                 Map<Integer, Integer> cluster_partition_xref = new HashMap<Integer, Integer>();
-                Histogram h = new Histogram();
-                for (int i = 0, cnt = trainingData.numInstances(); i < cnt; i++) {
+                Histogram cluster_h = new Histogram();
+                for (int i = 0; i < trainingCnt; i++) {
                     // Grab the Instance and throw it at the the clusterer to get the target cluster
                     // The original data set is going to have the txn id that we need to grab 
                     // the proper TransactionTrace record from the workload
                     Instance inst = trainingData.instance(i);
                     int c = (int)clusterer.clusterInstance(inst);
-                    h.put(c);
+                    cluster_h.put(c);
                     
-                    long txn_id = (long)inst.value(TransactionFeatureExtractor.TXNID_ATTRIBUTE_IDX);
+                    long txn_id = (long)inst.value(FeatureExtractor.TXNID_ATTRIBUTE_IDX);
                     TransactionTrace txn_trace = this.workload.getTransaction(txn_id);
                     assert(txn_trace != null) : "Invalid TxnId #" + txn_id + "\n" + inst;
                     
@@ -208,7 +244,7 @@ public class TransactionClusterer {
                     }
                     markov.processTransaction(txn_trace, this.p_estimator);
                 } // FOR
-                LOG.info("Total Number of Clusters: " + h.getValueCount() + "\n" + h);
+                if (trace) LOG.trace("Total Number of Clusters: " + cluster_h.getValueCount() + "\n" + cluster_h);
                 
                 // Now use the validation data set to figure out how well we are able to predict transaction
                 // execution paths using the trained Markov graphs
@@ -223,51 +259,32 @@ public class TransactionClusterer {
                 } // FOR
                 
                 // Now we need a mapping from TransactionIds -> ClusterIds
-                Map<Long, Integer> txnid_cluster_xref = new HashMap<Long, Integer>();
-                for (int i = 0, cnt = validationData.numInstances(); i < cnt; i++) {
+                // And then calculate the cost of using our cluster configuration to predict txn paths
+                double total_cost = 0.0d;
+                for (int i = 0; i < validationCnt; i++) {
                     Instance inst = validationData.instance(i);
-                    long txn_id = (long)inst.value(TransactionFeatureExtractor.TXNID_ATTRIBUTE_IDX);
+                    long txn_id = (long)inst.value(FeatureExtractor.TXNID_ATTRIBUTE_IDX);
                     int c = (int)clusterer.clusterInstance(inst);
-                    txnid_cluster_xref.put(txn_id, c);
+                    costmodel.addTransactionClusterXref(txn_id, c);
+                    
+                    // Check that this is a cluster that we've seen before
+                    if (cluster_h.contains(c) == false) {
+                        if (debug) LOG.warn(String.format("Txn #%d was mapped to never before seen Cluster #%d", txn_id, c));
+                    }
+                    
+                    TransactionTrace txn_trace = workload.getTransaction(txn_id);
+                    assert(txn_trace != null);
+                    total_cost += costmodel.estimateTransactionCost(catalog_db, txn_trace);
                 } // FOR
-                
-                
-                
+                if (trace) LOG.trace(String.format("Total Estimated Cost: %.03d", total_cost));
+                attr_set.setCost(total_cost);
+                attr_sets.add(attr_set);
             } // WHILE (AttributeSet)
+            
+            // Now figure out what the top-k AttributeSets from this round
+            
+            break;
         } // WHILE (round)
-        
-//        // Create the initial set of single-element AttributeSets and calculate
-//        // how well the Markov models perform when using them
-//        List<Attribute> attributes = new ArrayList<Attribute>();
-//        Enumeration e = data.enumerateAttributes();
-//        while (e.hasMoreElements()) {
-//            Attribute attr = (Attribute)e.nextElement();
-//            attributes.add(attr);
-//            
-//            
-//            attr_set.add(attr);
-//            
-//            System.exit(1);
-//            
-//        } // WHILE
-    }
-    
-    private void estimateCost(Map<Integer, TransactionEstimator> t_estimators, Instances data, AbstractClusterer clusterer) throws Exception {
-        for (int i = 0, cnt = data.numInstances(); i < cnt; i++) {
-            Instance inst = data.instance(i);
-            int c = (int)clusterer.clusterInstance(inst);
-            TransactionEstimator t_estimator = t_estimators.get(c);
-            assert(t_estimator != null) : "Cluster #" + c;
-            
-            long txn_id = (long)inst.value(TransactionFeatureExtractor.TXNID_ATTRIBUTE_IDX);
-            TransactionTrace txn_trace = this.workload.getTransaction(txn_id);
-            assert(txn_trace != null) : "Invalid TxnId #" + txn_id + "\n" + inst;
-            
-            Estimate est = t_estimator.startTransaction(txn_trace.getTransactionId(), txn_trace.getCatalogItem(this.catalog_db), txn_trace.getParams());
-            assert(est != null);
-            
-        }
-
         
     }
     
@@ -277,22 +294,24 @@ public class TransactionClusterer {
      * @param round
      * @throws Exception
      */
-    private AbstractClusterer doCluster(Instances data, AttributeSet attrset, Procedure catalog_proc) throws Exception {
+    protected AbstractClusterer createClusterer(Instances data, AttributeSet attrset, Procedure catalog_proc) throws Exception {
         LOG.info(String.format("Clustering %d %s instances with %d attributes", data.numInstances(), CatalogUtil.getDisplayName(catalog_proc), data.numAttributes()));
         
         // Create the filter we need so that we only include the attributes in the given AttributeSet
         Filter filter = attrset.createFilter(data);
         
         // Using our training set to build the clusterer
-        // FIXME: Need to split input into different sets
         int num_partitions = CatalogUtil.getNumberOfPartitions(catalog_db);
         SimpleKMeans kmeans_clusterer = new SimpleKMeans();
         kmeans_clusterer.setNumClusters(num_partitions);
         kmeans_clusterer.setSeed(this.rand.nextInt());
         
-        FilteredClusterer clusterer = new FilteredClusterer();
-        clusterer.setFilter(filter);
-        clusterer.setClusterer(kmeans_clusterer);
+        FilteredClusterer filtered_clusterer = new FilteredClusterer();
+        filtered_clusterer.setFilter(filter);
+        filtered_clusterer.setClusterer(kmeans_clusterer);
+        
+        AbstractClusterer clusterer = filtered_clusterer; // kmeans_clusterer;
+//        clusterer.buildClusterer(Filter.useFilter(data, filter));
         clusterer.buildClusterer(data);
         
         return (clusterer);
