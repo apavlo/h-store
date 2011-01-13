@@ -192,9 +192,9 @@ public class Vertex extends AbstractVertex {
      * Constructor used to create the actual graphs
      * @param catalog_stmt - query this vertex is associated with
      * @param type - QUERY, ABORT, START, or STOP
+     * @param query_instance_index - the number of times we've executed this query before
      * @param partitions - the partitions this procedure touches
-     * @param id - the query trace index of this particular vertex, helps to identify
-     * @param i - the number of transactions in this workload. used to figure out whether we should recompute
+     * @param past_partitions - the partitions that we've touched in the past
      */
     public Vertex(Statement catalog_stmt, Vertex.Type type, int query_instance_index, Collection<Integer> partitions, Collection<Integer> past_partitions) {
         super(catalog_stmt);
@@ -241,6 +241,20 @@ public class Vertex extends AbstractVertex {
         return this.type;
     }
 
+    public boolean isQueryVertex() {
+        return (this.type == Type.QUERY);
+    }
+    public boolean isStartVertex() {
+        return (this.type == Type.QUERY);
+    }
+    public boolean isCommitVertex() {
+        return (this.type == Type.COMMIT);
+    }
+    public boolean isAbortVertex() {
+        return (this.type == Type.ABORT);
+    }
+    
+    
     public int getQueryInstanceIndex() {
         return (int)this.query_instance_index;
     }
@@ -315,12 +329,14 @@ public class Vertex extends AbstractVertex {
     
     @Override
     public String toString() {
-        return ("{" + 
-               this.catalog_item.getName() + "," +
-               "Indx:" + this.query_instance_index + "," +
-               "Prtns:" + this.partitions + ", " +
-               "Past:" + this.past_partitions +
-               "}");
+        StringBuilder sb = new StringBuilder();
+        sb.append(this.catalog_item.getName());
+        if (this.type == Type.QUERY) {
+            sb.append(String.format("Indx:%d,Prtns:%s,Past:%s", this.query_instance_index,
+                                                                this.partitions,
+                                                                this.past_partitions));
+        }
+        return ("{" + sb.toString() + "}"); 
     }
     
     /**

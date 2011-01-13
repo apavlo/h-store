@@ -7,12 +7,15 @@ import java.util.Map;
 import java.util.Set;
 import java.util.Map.Entry;
 
+import org.apache.commons.collections15.set.ListOrderedSet;
 import org.junit.Test;
 import org.voltdb.VoltProcedure;
 import org.voltdb.benchmark.tpcc.procedures.neworder;
 import org.voltdb.catalog.Procedure;
+import org.voltdb.utils.Pair;
 
 import weka.clusterers.AbstractClusterer;
+import weka.core.Attribute;
 import weka.core.Instance;
 import weka.core.Instances;
 import weka.filters.Filter;
@@ -23,11 +26,11 @@ import edu.brown.markov.FeatureClusterer.AttributeSet;
 import edu.brown.markov.features.BasePartitionFeature;
 import edu.brown.markov.features.FeatureUtil;
 import edu.brown.markov.features.ParamArrayLengthFeature;
+import edu.brown.markov.features.ParamNumericValuesFeature;
 import edu.brown.markov.features.TransactionIdFeature;
 import edu.brown.statistics.Histogram;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.ProjectType;
-import edu.brown.utils.StringUtil;
 import edu.brown.workload.TransactionTrace;
 import edu.brown.workload.Workload;
 import edu.brown.workload.filters.ProcedureLimitFilter;
@@ -37,7 +40,7 @@ public class TestFeatureClusterer extends BaseTestCase {
 
     private static final Class<? extends VoltProcedure> TARGET_PROCEDURE = neworder.class;
     private static final int WORKLOAD_XACT_LIMIT = 1000;
-    private static final int BASE_PARTITION = 1;
+//    private static final int BASE_PARTITION = 1;
     private static final int NUM_PARTITIONS = 100;
 
     private static Procedure catalog_proc;
@@ -161,5 +164,44 @@ public class TestFeatureClusterer extends BaseTestCase {
             assertFalse(c_p_xref.contains(CollectionUtil.getFirst(clusters)));
             c_p_xref.addAll(clusters);
         } // FOR
+    }
+
+    /**
+     * 
+     * @throws Exception
+     */
+    @Test
+    public void testCreateAttributeSet() throws Exception {
+        Set<Attribute> attributes = prefix2attributes(
+            FeatureUtil.getFeatureKeyPrefix(ParamNumericValuesFeature.class, this.getProcParameter(catalog_proc, 1)),
+            FeatureUtil.getFeatureKeyPrefix(BasePartitionFeature.class)
+        );
+        
+        Pair<Instances, Instances> p = fclusterer.splitWorkload(data);
+        assertNotNull(p);
+        System.err.println("Attributes: " + attributes);
+        AttributeSet aset = fclusterer.createAttributeSet(catalog_proc, attributes, p.getFirst(), p.getSecond());
+        System.err.println("Cost: " + aset.getCost());
+        
+        attributes = prefix2attributes(
+            FeatureUtil.getFeatureKeyPrefix(BasePartitionFeature.class),
+            FeatureUtil.getFeatureKeyPrefix(ParamNumericValuesFeature.class, this.getProcParameter(catalog_proc, 1))
+        );
+        System.err.println("Attributes: " + attributes);
+        aset = fclusterer.createAttributeSet(catalog_proc, attributes, p.getFirst(), p.getSecond());
+        System.err.println("Cost: " + aset.getCost());
+
+    }
+    
+    public Set<Attribute> prefix2attributes(String...prefixes) {
+        Set<Attribute> attributes = new ListOrderedSet<Attribute>();
+        for (String key : prefixes) {
+            Integer idx = fset.getFeatureIndex(key);
+            assertNotNull(key, idx);
+            Attribute attribute = data.attribute(idx);
+            assertNotNull(key + "=>" + idx, attribute);
+            attributes.add(attribute);
+        } // FOR
+        return (attributes);
     }
 }
