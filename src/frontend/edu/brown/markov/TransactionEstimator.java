@@ -33,12 +33,13 @@ public class TransactionEstimator {
     private transient int num_partitions;
     private transient PartitionEstimator p_estimator;
     private transient ParameterCorrelations correlations;
+    private transient boolean enable_recomputes = false;
     
     private final int base_partition;
     private final HashMap<Procedure, MarkovGraph> procedure_graphs = new HashMap<Procedure, MarkovGraph>();
     private final transient Map<Long, State> xact_states = new HashMap<Long, State>();
     private final AtomicInteger xact_count = new AtomicInteger(0); 
-
+    
     /**
      * The current state of a transaction
      */
@@ -279,6 +280,10 @@ public class TransactionEstimator {
     // DATA MEMBER METHODS
     // ----------------------------------------------------------------------------
 
+    public void enableGraphRecomputes() {
+       this.enable_recomputes = true;
+    }
+    
     public ParameterCorrelations getCorrelations() {
         return this.correlations;
     }
@@ -432,7 +437,7 @@ public class TransactionEstimator {
         
         // Once the workload shifts we detect it and trigger this method. Recomputes
         // the graph with the data we collected with the current workload method.
-        if (state.getMarkovGraph().shouldRecompute(this.xact_count.get(), RECOMPUTE_TOLERANCE)) {
+        if (this.enable_recomputes && state.getMarkovGraph().shouldRecompute(this.xact_count.get(), RECOMPUTE_TOLERANCE)) {
             state.getMarkovGraph().recomputeGraph();
         }
         return (estimate);

@@ -441,7 +441,7 @@ public class MarkovGraph extends AbstractDirectedGraph<Vertex, Edge> implements 
         // The past partitions is all of the partitions that this txn has touched,
         // included the base partition where the java executes
         Set<Integer> past_partitions = new HashSet<Integer>();
-        past_partitions.add(this.getBasePartition());
+        // XXX past_partitions.add(this.getBasePartition());
         
         // -----------QUERY TRACE-VERTEX CREATION--------------
         for (QueryTrace query_trace : xact_trace.getQueries()) {

@@ -2,6 +2,7 @@ package edu.brown.markov.features;
 
 import java.util.regex.Pattern;
 
+import org.voltdb.catalog.ProcParameter;
 import org.voltdb.catalog.Procedure;
 
 import edu.brown.utils.ClassUtil;
@@ -47,6 +48,25 @@ public abstract class FeatureUtil {
     }
 
     /**
+     * Return the feature key that includes the given ProcParameter index number
+     * @param catalog_param
+     * @return
+     */
+    public static String getFeatureKeyPrefix(Class<? extends AbstractFeature> feature_class, ProcParameter catalog_param) {
+        return (String.format(FeatureUtil.PREFIX_FORMAT, FeatureUtil.getFeatureKeyPrefix(feature_class), catalog_param.getIndex()));
+    }
+
+    /**
+     * Return the feature key that includes the given ProcParameter index number and the array offset
+     * @param catalog_param
+     * @param idx
+     * @return
+     */
+    public static String getFeatureKey(Class<? extends AbstractFeature> feature_class, ProcParameter catalog_param, int idx) {
+        return (String.format(FeatureUtil.PREFIX_FORMAT, FeatureUtil.getFeatureKeyPrefix(feature_class, catalog_param), idx));
+    }
+    
+    /**
      * 
      * @param feature_key
      * @return
@@ -54,6 +74,7 @@ public abstract class FeatureUtil {
     public static final String getFeatureKeyPrefix(String feature_key) {
         return (PREFIX_SPLITTER.split(feature_key, 1)[0]);
     }
+    
     
     
 }

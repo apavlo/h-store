@@ -118,6 +118,13 @@ public class MarkovCostModel extends AbstractCostModel {
         List<Vertex> estimated_path = s.getEstimatedPath();
         List<Vertex> actual_path = s.getActualPath();
         
+        Vertex actual_last = actual_path.get(actual_path.size() - 1);
+        if (txn_trace.isAborted()) {
+            assert(actual_last.isAbortVertex());
+        } else {
+            assert(actual_last.isCommitVertex());
+        }
+        
         return this.comparePaths(estimated_path, actual_path);
     }
        
@@ -133,9 +140,11 @@ public class MarkovCostModel extends AbstractCostModel {
         
         double cost = 0.0d;
         
-        if (debug) LOG.debug("Estimating Estimated vs. Actual Cost:\n" +
-                             " => Estimated: " + estimated + "\n" +
-                             " => Actual:    " + actual);
+        if (trace) LOG.trace(String.format("Estimating Cost Different: Estimated [size=%d] vs. Actual Cost [size=%d]", estimated.size(), actual.size()));
+//        if (trace) {
+//            LOG.trace("Estimated: " + estimated);
+//            LOG.trace("Actual:    " + actual);
+//        }
         
         Set<Integer> e_all_partitions = new HashSet<Integer>();
         Set<Integer> a_all_partitions = new HashSet<Integer>();
