@@ -39,7 +39,7 @@ import edu.brown.workload.filters.ProcedureNameFilter;
 public class TestFeatureClusterer extends BaseTestCase {
 
     private static final Class<? extends VoltProcedure> TARGET_PROCEDURE = neworder.class;
-    private static final int WORKLOAD_XACT_LIMIT = 1000;
+    private static final int WORKLOAD_XACT_LIMIT = -1;
 //    private static final int BASE_PARTITION = 1;
     private static final int NUM_PARTITIONS = 100;
 
@@ -93,106 +93,6 @@ public class TestFeatureClusterer extends BaseTestCase {
         fclusterer = new FeatureClusterer(catalog_db, workload, correlations);
     }
     
-    /**
-     * testCreateAttributeSetFilter
-     */
-    @Test
-    public void testCreateAttributeSetFilter() throws Exception {
-        // Test that we can create a filter from an AttributeSet
-        Set<Integer> idxs = fset.getFeatureIndexes(ParamArrayLengthFeature.class);
-        assertEquals(CatalogUtil.getArrayProcParameters(catalog_proc).size(), idxs.size());
-        AttributeSet aset = new AttributeSet(data, idxs);
-        assertEquals(idxs.size(), aset.size());
-        
-        Filter filter = aset.createFilter(data);
-        Instances newData = Filter.useFilter(data, filter);
-        for (int i = 0, cnt = newData.numInstances(); i < cnt; i++) {
-            Instance processed = newData.instance(i);
-//            System.err.println(processed);
-            assertEquals(aset.size(), processed.numAttributes());
-        } // WHILE
-        assertEquals(data.numInstances(), newData.numInstances());
-//        System.err.println("AttributeSet: " + aset);
-        
-    }
-    
-    /**
-     * testCreateClusterer
-     */
-    @Test
-    public void testCreateClusterer() throws Exception {
-        // Construct a simple AttributeSet that only contains the BasePartitionFeature
-        Integer txn_id_idx = fset.getFeatureIndex(FeatureUtil.getFeatureKeyPrefix(TransactionIdFeature.class));
-        assertNotNull(txn_id_idx);
-        Integer base_partition_idx = fset.getFeatureIndex(FeatureUtil.getFeatureKeyPrefix(BasePartitionFeature.class));
-        assertNotNull(base_partition_idx);
-        AttributeSet aset = new AttributeSet(data.attribute(base_partition_idx));
-        
-        AbstractClusterer clusterer = this.fclusterer.createClusterer(data, aset, catalog_proc);
-        assertNotNull(clusterer);
-        
-        // Make sure that each Txn gets mapped to the same cluster as its base partition
-        Map<Integer, Histogram> p_c_xref = new HashMap<Integer, Histogram>();
-        for (int i = 0, cnt = data.numInstances(); i < cnt; i++) {
-            Instance inst = data.instance(i);
-            assertNotNull(inst);
-            long txn_id = (long)inst.value(txn_id_idx);
-
-            TransactionTrace txn_trace = workload.getTransaction(txn_id);
-            assertNotNull(txn_trace);
-            Integer base_partition = p_estimator.getBasePartition(txn_trace);
-            assertNotNull(base_partition);
-            assertEquals(base_partition.intValue(), (int)inst.value(base_partition_idx));
-
-            int c = clusterer.clusterInstance(inst);
-            if (p_c_xref.containsKey(base_partition) == false) {
-                p_c_xref.put(base_partition, new Histogram());
-            }
-            p_c_xref.get(base_partition).put(c);
-        } // FOR
-        
-        
-//        System.err.println(StringUtil.formatMaps(p_c_xref));
-        Set<Integer> c_p_xref = new HashSet<Integer>();
-        for (Entry<Integer, Histogram> e : p_c_xref.entrySet()) {
-            Set<Integer> clusters = e.getValue().values();
-            
-            // Make sure that each base partition is only mapped to one cluster
-            assertEquals(e.getKey().toString(), 1, clusters.size());
-            
-            // Make sure that two different base partitions are not mapped to the same cluster
-            assertFalse(c_p_xref.contains(CollectionUtil.getFirst(clusters)));
-            c_p_xref.addAll(clusters);
-        } // FOR
-    }
-
-    /**
-     * 
-     * @throws Exception
-     */
-    @Test
-    public void testCreateAttributeSet() throws Exception {
-        Set<Attribute> attributes = prefix2attributes(
-            FeatureUtil.getFeatureKeyPrefix(ParamNumericValuesFeature.class, this.getProcParameter(catalog_proc, 1)),
-            FeatureUtil.getFeatureKeyPrefix(BasePartitionFeature.class)
-        );
-        
-        Pair<Instances, Instances> p = fclusterer.splitWorkload(data);
-        assertNotNull(p);
-        System.err.println("Attributes: " + attributes);
-        AttributeSet aset = fclusterer.createAttributeSet(catalog_proc, attributes, p.getFirst(), p.getSecond());
-        System.err.println("Cost: " + aset.getCost());
-        
-        attributes = prefix2attributes(
-            FeatureUtil.getFeatureKeyPrefix(BasePartitionFeature.class),
-            FeatureUtil.getFeatureKeyPrefix(ParamNumericValuesFeature.class, this.getProcParameter(catalog_proc, 1))
-        );
-        System.err.println("Attributes: " + attributes);
-        aset = fclusterer.createAttributeSet(catalog_proc, attributes, p.getFirst(), p.getSecond());
-        System.err.println("Cost: " + aset.getCost());
-
-    }
-    
     public Set<Attribute> prefix2attributes(String...prefixes) {
         Set<Attribute> attributes = new ListOrderedSet<Attribute>();
         for (String key : prefixes) {
@@ -204,4 +104,110 @@ public class TestFeatureClusterer extends BaseTestCase {
         } // FOR
         return (attributes);
     }
+    
+    /**
+     * testCreateAttributeSetFilter
+     */
+//    @Test
+//    public void testCreateAttributeSetFilter() throws Exception {
+//        // Test that we can create a filter from an AttributeSet
+//        Set<Integer> idxs = fset.getFeatureIndexes(ParamArrayLengthFeature.class);
+//        assertEquals(CatalogUtil.getArrayProcParameters(catalog_proc).size(), idxs.size());
+//        AttributeSet aset = new AttributeSet(data, idxs);
+//        assertEquals(idxs.size(), aset.size());
+//        
+//        Filter filter = aset.createFilter(data);
+//        Instances newData = Filter.useFilter(data, filter);
+//        for (int i = 0, cnt = newData.numInstances(); i < cnt; i++) {
+//            Instance processed = newData.instance(i);
+////            System.err.println(processed);
+//            assertEquals(aset.size(), processed.numAttributes());
+//        } // WHILE
+//        assertEquals(data.numInstances(), newData.numInstances());
+////        System.err.println("AttributeSet: " + aset);
+//        
+//    }
+//    
+//    /**
+//     * testCreateClusterer
+//     */
+//    @Test
+//    public void testCreateClusterer() throws Exception {
+//        // Construct a simple AttributeSet that only contains the BasePartitionFeature
+//        Integer txn_id_idx = fset.getFeatureIndex(FeatureUtil.getFeatureKeyPrefix(TransactionIdFeature.class));
+//        assertNotNull(txn_id_idx);
+//        Integer base_partition_idx = fset.getFeatureIndex(FeatureUtil.getFeatureKeyPrefix(BasePartitionFeature.class));
+//        assertNotNull(base_partition_idx);
+//        AttributeSet aset = new AttributeSet(data.attribute(base_partition_idx));
+//        
+//        AbstractClusterer clusterer = this.fclusterer.createClusterer(data, aset, catalog_proc);
+//        assertNotNull(clusterer);
+//        
+//        // Make sure that each Txn gets mapped to the same cluster as its base partition
+//        Map<Integer, Histogram> p_c_xref = new HashMap<Integer, Histogram>();
+//        for (int i = 0, cnt = data.numInstances(); i < cnt; i++) {
+//            Instance inst = data.instance(i);
+//            assertNotNull(inst);
+//            long txn_id = (long)inst.value(txn_id_idx);
+//
+//            TransactionTrace txn_trace = workload.getTransaction(txn_id);
+//            assertNotNull(txn_trace);
+//            Integer base_partition = p_estimator.getBasePartition(txn_trace);
+//            assertNotNull(base_partition);
+//            assertEquals(base_partition.intValue(), (int)inst.value(base_partition_idx));
+//
+//            int c = clusterer.clusterInstance(inst);
+//            if (p_c_xref.containsKey(base_partition) == false) {
+//                p_c_xref.put(base_partition, new Histogram());
+//            }
+//            p_c_xref.get(base_partition).put(c);
+//        } // FOR
+//        
+//        
+////        System.err.println(StringUtil.formatMaps(p_c_xref));
+//        Set<Integer> c_p_xref = new HashSet<Integer>();
+//        for (Entry<Integer, Histogram> e : p_c_xref.entrySet()) {
+//            Set<Integer> clusters = e.getValue().values();
+//            
+//            // Make sure that each base partition is only mapped to one cluster
+//            assertEquals(e.getKey().toString(), 1, clusters.size());
+//            
+//            // Make sure that two different base partitions are not mapped to the same cluster
+//            assertFalse(c_p_xref.contains(CollectionUtil.getFirst(clusters)));
+//            c_p_xref.addAll(clusters);
+//        } // FOR
+//    }
+
+    /**
+     * 
+     * @throws Exception
+     */
+    @Test
+    public void testCreateAttributeSet() throws Exception {
+        Set<Attribute> attributes = prefix2attributes(
+            FeatureUtil.getFeatureKeyPrefix(ParamNumericValuesFeature.class, this.getProcParameter(catalog_proc, 1)),
+            FeatureUtil.getFeatureKeyPrefix(BasePartitionFeature.class)
+        );
+        System.err.println("Attributes: " + attributes);
+        
+        Pair<Instances, Instances> p = fclusterer.splitWorkload(data);
+        assertNotNull(p);
+        
+        for (int i = 0; i < 4; i++) {
+            AttributeSet aset = fclusterer.createAttributeSet(catalog_proc, attributes, p.getFirst(), p.getSecond());
+            System.err.println("[" + i + "] Cost: " + aset.getCost());
+        }
+        System.err.println();
+        
+//        attributes = prefix2attributes(
+//            FeatureUtil.getFeatureKeyPrefix(BasePartitionFeature.class),
+//            FeatureUtil.getFeatureKeyPrefix(ParamNumericValuesFeature.class, this.getProcParameter(catalog_proc, 1))
+//        );
+//        System.err.println("Attributes: " + attributes);
+//        for (int i = 0; i < 4; i++) {
+//            AttributeSet aset = fclusterer.createAttributeSet(catalog_proc, attributes, p.getFirst(), p.getSecond());
+//            System.err.println("[" + i + "] Cost: " + aset.getCost());
+//        }
+    }
+
 }
