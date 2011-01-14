@@ -310,7 +310,7 @@ public class FeatureClusterer {
             }
             markov.processTransaction(txn_trace, this.p_estimator);
         } // FOR
-        if (trace) LOG.trace("Total Number of Clusters: " + cluster_h.getValueCount() + "\n" + cluster_h);
+        if (debug) LOG.debug("Total Number of Clusters: " + cluster_h.getValueCount() + "\n" + cluster_h);
         
         // Now use the validation data set to figure out how well we are able to predict transaction
         // execution paths using the trained Markov graphs
@@ -323,6 +323,9 @@ public class FeatureClusterer {
             t_estimator.addMarkovGraphs(e.getValue());
             costmodel.addTransactionEstimator(e.getKey(), t_estimator);
         } // FOR
+        
+        // DEBUG
+        MarkovUtil.save(markovs, "/tmp/" + catalog_proc.getName() + ".markovs");
         
         // Now we need a mapping from TransactionIds -> ClusterIds
         // And then calculate the cost of using our cluster configuration to predict txn paths
@@ -341,7 +344,16 @@ public class FeatureClusterer {
             TransactionTrace txn_trace = workload.getTransaction(txn_id);
             assert(txn_trace != null);
             double cost = costmodel.estimateTransactionCost(catalog_db, txn_trace);
-            // if (cost != 0.0d) System.exit(1);
+            if (cost != 0.0d) {
+                MarkovGraph markov = markovs.get(c, catalog_proc);
+                String actual = MarkovUtil.exportGraphviz(markov, false, markov.getPath(costmodel.getLastActualPath())).writeToTempFile(catalog_proc, 1);
+                String estimated = MarkovUtil.exportGraphviz(markov, false, markov.getPath(costmodel.getLastEstimatedPath())).writeToTempFile(catalog_proc, 2);
+                
+                System.err.println("ACTUAL FILE:    " + actual);
+                System.err.println("ESTIMATED FILE: " + estimated);
+                
+                System.exit(1);
+            }
             total_cost += cost;
         } // FOR
         if (trace) LOG.trace(String.format("Total Estimated Cost: %.03f", total_cost));
@@ -364,13 +376,20 @@ public class FeatureClusterer {
         
         // Using our training set to build the clusterer
         int num_partitions = CatalogUtil.getNumberOfPartitions(catalog_db);
-        SimpleKMeans kmeans_clusterer = new SimpleKMeans();
-        kmeans_clusterer.setNumClusters(num_partitions);
-        kmeans_clusterer.setSeed(this.rand.nextInt());
+        int seed = 1981; // this.rand.nextInt(); 
+        SimpleKMeans inner_clusterer = new SimpleKMeans();
+//        EM inner_clusterer = new EM();
+        String options[] = {
+            "-N", Integer.toString(num_partitions),
+            "-S", Integer.toString(seed),
+        };
+        inner_clusterer.setOptions(options);
+//        kmeans_clusterer.setNumClusters(num_partitions);
+//        kmeans_clusterer.setSeed(seed);
         
         FilteredClusterer filtered_clusterer = new FilteredClusterer();
         filtered_clusterer.setFilter(filter);
-        filtered_clusterer.setClusterer(kmeans_clusterer);
+        filtered_clusterer.setClusterer(inner_clusterer);
         
         AbstractClusterer clusterer = filtered_clusterer; // kmeans_clusterer;
 //        clusterer.buildClusterer(Filter.useFilter(data, filter));

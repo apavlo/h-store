@@ -41,6 +41,9 @@ public class MarkovCostModel extends AbstractCostModel {
     // Hackish cross-reference table to go from the TransactionId to Cluster#
     private final Map<Long, Integer> txnid_cluster_xref = new HashMap<Long, Integer>();
     
+    private transient List<Vertex> last_actual;
+    private transient List<Vertex> last_estimated;
+    
     /**
      * Constructor
      * @param catalog_db
@@ -82,6 +85,14 @@ public class MarkovCostModel extends AbstractCostModel {
         // TODO Auto-generated method stub
         return null;
     }
+    
+    public List<Vertex> getLastActualPath() {
+        return (this.last_actual);
+    }
+    
+    public List<Vertex> getLastEstimatedPath() {
+        return (this.last_estimated);
+    }
 
     @Override
     public double estimateTransactionCost(Database catalog_db, Workload workload, Filter filter, TransactionTrace txn_trace) throws Exception {
@@ -115,17 +126,17 @@ public class MarkovCostModel extends AbstractCostModel {
         State s = t_estimator.processTransactionTrace(txn_trace);
         assert(s != null);
         
-        List<Vertex> estimated_path = s.getEstimatedPath();
-        List<Vertex> actual_path = s.getActualPath();
+        this.last_estimated = s.getEstimatedPath();
+        this.last_actual = s.getActualPath();
         
-        Vertex actual_last = actual_path.get(actual_path.size() - 1);
+        Vertex actual_last = this.last_actual.get(this.last_actual.size() - 1);
         if (txn_trace.isAborted()) {
             assert(actual_last.isAbortVertex());
         } else {
             assert(actual_last.isCommitVertex());
         }
         
-        return this.comparePaths(estimated_path, actual_path);
+        return this.comparePaths(this.last_estimated, this.last_actual);
     }
        
     /**
