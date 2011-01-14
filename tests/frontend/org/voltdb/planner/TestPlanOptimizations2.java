@@ -6,6 +6,7 @@ import java.util.Set;
 
 import org.junit.Test;
 import org.voltdb.catalog.Column;
+import org.voltdb.catalog.PlanFragment;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Statement;
 import org.voltdb.catalog.Table;
@@ -51,41 +52,39 @@ public class TestPlanOptimizations2 extends BaseTestCase {
     /**
      * testSingleProjectionPushdown
      */
-//    @Test
-//    public void testSingleProjectionPushdown() throws Exception {
-//        Procedure catalog_proc = this.getProcedure("SingleProjection");
-//        Statement catalog_stmt = this.getStatement(catalog_proc, "sql");
-//        
-//        // Grab the root node of the multi-partition query plan tree for this Statement 
-//        AbstractPlanNode root = QueryPlanUtil.deserializeStatement(catalog_stmt, false);
-//        assertNotNull(root);
-//        //System.err.println(PlanNodeUtil.debug(root));
-//
-//        // First check that our single scan node has an inline Projection
-//        Set<AbstractScanPlanNode> scan_nodes = PlanNodeUtil.getPlanNodes(root, AbstractScanPlanNode.class);
-//        assertEquals(1, scan_nodes.size());
-//        AbstractScanPlanNode scan_node = CollectionUtil.getFirst(scan_nodes);
-//        assertNotNull(scan_node);
-//        // FIXME assertEquals(1, scan_node.getInlinePlanNodes().size());
-//        
-//        // Get the Projection and make sure it has valid output columns
-//        ProjectionPlanNode inline_proj = (ProjectionPlanNode)scan_node.getInlinePlanNodes().get(PlanNodeType.PROJECTION);
-//        /* FIXME
-//        assertNotNull(inline_proj);
-//        for (int column_guid : inline_proj.m_outputColumns) {
-//            PlanColumn column = PlannerContext.singleton().get(column_guid);
-////            System.err.println(String.format("[%02d] %s", column_guid, column));
-////            System.err.println("==================");
-////            System.err.println(PlannerContext.singleton().debug());
-//            assertNotNull("Invalid PlanColumn [guid=" + column_guid + "]", column);
-//            assertEquals(column_guid, column.guid());
-//        } // FOR
-//        */
-//        
-//        // Now check to make sure there are no other Projections in the tree
-//        Set<ProjectionPlanNode> proj_nodes = PlanNodeUtil.getPlanNodes(root, ProjectionPlanNode.class);
-//        // FIXME assertEquals(0, proj_nodes.size());
-//    }
+    @Test
+    public void testSingleProjectionPushdown() throws Exception {
+        Procedure catalog_proc = this.getProcedure("SingleProjection");
+        Statement catalog_stmt = this.getStatement(catalog_proc, "sql");
+        
+        // Grab the root node of the multi-partition query plan tree for this Statement 
+        AbstractPlanNode root = QueryPlanUtil.deserializeStatement(catalog_stmt, false);
+        assertNotNull(root);
+        System.err.println(PlanNodeUtil.debug(root));
+
+        // First check that our single scan node has an inline Projection
+        Set<AbstractScanPlanNode> scan_nodes = PlanNodeUtil.getPlanNodes(root, AbstractScanPlanNode.class);
+        assertEquals(1, scan_nodes.size());
+        AbstractScanPlanNode scan_node = CollectionUtil.getFirst(scan_nodes);
+        assertNotNull(scan_node);
+        assertEquals(1, scan_node.getInlinePlanNodes().size());
+        
+        // Get the Projection and make sure it has valid output columns
+        ProjectionPlanNode inline_proj = (ProjectionPlanNode)scan_node.getInlinePlanNodes().get(PlanNodeType.PROJECTION);
+        assertNotNull(inline_proj);
+        for (int column_guid : inline_proj.m_outputColumns) {
+            PlanColumn column = PlannerContext.singleton().get(column_guid);
+//            System.err.println(String.format("[%02d] %s", column_guid, column));
+//            System.err.println("==================");
+//            System.err.println(PlannerContext.singleton().debug());
+            assertNotNull("Invalid PlanColumn [guid=" + column_guid + "]", column);
+            assertEquals(column_guid, column.guid());
+        } // FOR
+        
+        // Now check to make sure there are no other Projections in the tree
+        Set<ProjectionPlanNode> proj_nodes = PlanNodeUtil.getPlanNodes(root, ProjectionPlanNode.class);
+        // FIXME assertEquals(0, proj_nodes.size());
+    }
     
     /**
      * testJoinProjectionPushdown
@@ -98,7 +97,17 @@ public class TestPlanOptimizations2 extends BaseTestCase {
         // Grab the root node of the multi-partition query plan tree for this Statement 
         AbstractPlanNode root = QueryPlanUtil.deserializeStatement(catalog_stmt, false);
         assertNotNull(root);
-        System.err.println(PlanNodeUtil.debug(root));
+        
+//        System.err.println("+++++++++++++++++++++++++++++++++++++++++++++++++++");
+        
+//        System.err.println(PlanNodeUtil.debug(root));
+//        System.err.println("+++++++++++++++++++++++++++++++++++++++++++++++++++");
+//        
+//        System.err.println("# of Fragments: " + catalog_stmt.getMs_fragments().size());
+//        for (PlanFragment pf : catalog_stmt.getMs_fragments()) {
+//            System.err.println(pf.getName() + "\n" + PlanNodeUtil.debug(QueryPlanUtil.deserializePlanFragment(pf)));    
+//        }
+        
         
         // At the very bottom of our tree should be a scan. Grab that and then check to see that 
         // it has an inline ProjectionPlanNode. We will then look to see whether all of the columns
@@ -167,7 +176,7 @@ public class TestPlanOptimizations2 extends BaseTestCase {
         Set<Column> send_columns = PlanNodeUtil.getOutputColumns(catalog_db, root);
         assertFalse(send_columns.isEmpty());
         for (Column catalog_col : send_columns) {
-            // FIXME assert(proj_columns.contains(catalog_col)) : "Missing: " + CatalogUtil.getDisplayName(catalog_col);
+             assert(proj_columns.contains(catalog_col)) : "Missing: " + CatalogUtil.getDisplayName(catalog_col);
         } // FOR
     }    
 }

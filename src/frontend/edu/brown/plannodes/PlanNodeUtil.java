@@ -20,6 +20,14 @@ import edu.brown.utils.ClassUtil;
 
 public abstract class PlanNodeUtil {
     private static final Logger LOG = Logger.getLogger(PlanNodeUtil.class);
+
+    private static final String INLINE_SPACER_PREFIX = "│";
+    private static final String INLINE_INNER_PREFIX = "├";
+    private static final String INLINE_LAST_PREFIX = "└";
+    
+    private static final String SPACER_PREFIX = "┃";
+    private static final String INNER_PREFIX = "┣";    
+    private static final String LAST_PREFIX = "┗";
     
     /**
      * Get all the AbstractExpression roots used in the given AbstractPlanNode
@@ -264,7 +272,7 @@ public abstract class PlanNodeUtil {
     private static String debugOutputColumns(String label, AbstractPlanNode node, String spacer) {
         String ret = "";
         
-        ret += spacer + label + "[" + node.m_outputColumns.size() + "]:\n";
+        ret += label + "[" + node.m_outputColumns.size() + "]:\n";
         for (int ctr = 0, cnt = node.m_outputColumns.size(); ctr < cnt; ctr++) {
             int column_guid = node.m_outputColumns.get(ctr);
             String name = "???";
@@ -280,7 +288,7 @@ public abstract class PlanNodeUtil {
             ret += String.format("%s   [%d] %s%s\n", spacer, ctr, name, inner);
             
             if (column != null && column.getExpression() != null && (true || node instanceof ProjectionPlanNode)) {
-                ret += ExpressionUtil.debug(column.getExpression(), spacer + "   ");
+                ret += ExpressionUtil.debug(column.getExpression(), spacer + "    ");
             }
         } // FOR
         return (ret);
@@ -302,69 +310,65 @@ public abstract class PlanNodeUtil {
         return (debugNode(node, ""));
     }
     
-    public static String debugNode(AbstractPlanNode node, String spacer) {
-        String ret = spacer + "* " + node.toString() + "\n";
-        String info_spacer = spacer + "  |";
+    public static String debugNode(AbstractPlanNode node, final String orig_spacer) {
+        StringBuilder sb = new StringBuilder();
         
-        //
-        // Abstract PlanNode Types
-        //
+        final String inner_prefix = (node.isInline() ? INLINE_INNER_PREFIX : INNER_PREFIX) + " ";
+        final String spacer_prefix = (node.isInline() ? INLINE_SPACER_PREFIX : SPACER_PREFIX) + " ";
+        final String last_prefix = (node.isInline() ? INLINE_LAST_PREFIX : LAST_PREFIX);
+
+        String spacer = orig_spacer + "  ";
+        String inner_spacer = spacer + inner_prefix;
+        String line_spacer = spacer + spacer_prefix;
+        
+        // General Information
+        if (node.isInline() == false) sb.append(orig_spacer).append("▶ " + node.toString() + "\n");
+        sb.append(inner_spacer).append("Inline[" + node.isInline() + "]\n");
+        
+        // AbstractJoinPlanNode
         if (node instanceof AbstractJoinPlanNode) {
             AbstractJoinPlanNode cast_node = (AbstractJoinPlanNode)node;
-            ret += spacer + "JoinType[" + cast_node.getJoinType() + "]\n";
-            ret += spacer + "Join Expression: " + (cast_node.getPredicate() != null ? "\n" + ExpressionUtil.debug(cast_node.getPredicate(), spacer) : null + "\n");
+            sb.append(inner_spacer).append("JoinType[" + cast_node.getJoinType() + "]\n");
+            sb.append(inner_spacer).append("Join Expression: " + (cast_node.getPredicate() != null ? "\n" + ExpressionUtil.debug(cast_node.getPredicate(), spacer) : null + "\n"));
+        // AbstractOperationPlanNode
         } else if (node instanceof AbstractOperationPlanNode) {
-            ret += spacer + "TargetTableId[" + ((AbstractOperationPlanNode)node).getTargetTableName() + "]\n";
+            sb.append(inner_spacer).append("TargetTableId[" + ((AbstractOperationPlanNode)node).getTargetTableName() + "]\n");
+        // AbstractScanPlanNode
         } else if (node instanceof AbstractScanPlanNode) {
             AbstractScanPlanNode cast_node = (AbstractScanPlanNode)node;
-            ret += spacer + "TargetTableName[" + cast_node.getTargetTableName() + "]\n";
-            ret += spacer + "TargetTableAlias[" + cast_node.getTargetTableAlias() + "]\n";
-            ret += spacer + "TargetTableId[" + cast_node.getTargetTableName() + "]\n";
-            
-            }
-        
-        // Pull from inline Projection
-        if (node.getInlinePlanNode(PlanNodeType.PROJECTION) != null) {
-            ret += PlanNodeUtil.debugOutputColumns("OutputColumns (Inline Projection)", node.getInlinePlanNode(PlanNodeType.PROJECTION), spacer);
-        } else {
-//        } else if (node.m_outputColumns.isEmpty() == false) {
-//        } else if (node.isInline() == false) { // if (node.m_outputColumns.isEmpty()) {
-            ret += PlanNodeUtil.debugOutputColumns("OutputColumns", node, spacer);
+            sb.append(inner_spacer).append("TargetTableName[" + cast_node.getTargetTableName() + "]\n");
+            sb.append(inner_spacer).append("TargetTableAlias[" + cast_node.getTargetTableAlias() + "]\n");
+            sb.append(inner_spacer).append("TargetTableId[" + cast_node.getTargetTableName() + "]\n");
         }
         
-        
-        //
         // PlanNodeTypes
-        //
         if (node instanceof AggregatePlanNode) {
             AggregatePlanNode cast_node = (AggregatePlanNode)node;
-            ret += spacer + "AggregateTypes[" + cast_node.getAggregateTypes() + "]\n";
-            ret += spacer + "AggregateColumns[" + cast_node.getAggregateOutputColumns() + "]\n";
-            ret += spacer + "GroupByColumns" + cast_node.getGroupByColumns() + "\n";
-            //ret += PlanNodeUtil.debugOutputColumns("OutputColumns", cast_node, spacer);
+            sb.append(inner_spacer).append("AggregateTypes[" + cast_node.getAggregateTypes() + "]\n");
+            sb.append(inner_spacer).append("AggregateColumns[" + cast_node.getAggregateOutputColumns() + "]\n");
+            sb.append(inner_spacer).append("GroupByColumns" + cast_node.getGroupByColumns() + "\n");
         } else if (node instanceof DeletePlanNode) {
-            ret += spacer + "Truncate[" + ((DeletePlanNode)node).isTruncate() + "\n";
+            sb.append(inner_spacer).append("Truncate[" + ((DeletePlanNode)node).isTruncate() + "\n");
         } else if (node instanceof DistinctPlanNode) {
-            ret += spacer + "DistinctColumn[" + ((DistinctPlanNode)node).getDistinctColumnName() + "]\n";
+            sb.append(inner_spacer).append("DistinctColumn[" + ((DistinctPlanNode)node).getDistinctColumnName() + "]\n");
         } else if (node instanceof IndexScanPlanNode) {
             IndexScanPlanNode cast_node = (IndexScanPlanNode)node;
-        	//System.out.println("Debug node type: " + " targetindexname: " + cast_node.getTargetIndexName()+ node.getPlanNodeType() + " Inline children count: " + node.getInlinePlanNodes().size());
-            ret += spacer + "TargetIndexName[" + cast_node.getTargetIndexName() + "]\n";
-            ret += spacer + "EnableKeyIteration[" + cast_node.getKeyIterate() + "]\n";
-            ret += spacer + "IndexLookupType[" + cast_node.getLookupType() + "]\n";
-            ret += spacer + "SearchKey Expressions:\n";
+            sb.append(inner_spacer).append("TargetIndexName[" + cast_node.getTargetIndexName() + "]\n");
+            sb.append(inner_spacer).append("EnableKeyIteration[" + cast_node.getKeyIterate() + "]\n");
+            sb.append(inner_spacer).append("IndexLookupType[" + cast_node.getLookupType() + "]\n");
+            sb.append(inner_spacer).append("SearchKey Expressions:\n");
             for (AbstractExpression search_key : cast_node.getSearchKeyExpressions()) {
-                ret += ExpressionUtil.debug(search_key, spacer);
+                sb.append(ExpressionUtil.debug(search_key, line_spacer));
             } 
-            ret += spacer + "End Expression: " + (cast_node.getEndExpression() != null ? "\n" + ExpressionUtil.debug(cast_node.getEndExpression(), spacer) : null + "\n");
-            ret += spacer + "Post-Scan Expression: " + (cast_node.getPredicate() != null ? "\n" + ExpressionUtil.debug(cast_node.getPredicate(), spacer) : null + "\n");
+            sb.append(inner_spacer).append("End Expression: " + (cast_node.getEndExpression() != null ? "\n" + ExpressionUtil.debug(cast_node.getEndExpression(), line_spacer) : null + "\n"));
+            sb.append(inner_spacer).append("Post-Scan Expression: " + (cast_node.getPredicate() != null ? "\n" + ExpressionUtil.debug(cast_node.getPredicate(), line_spacer) : null + "\n"));
             
         } else if (node instanceof InsertPlanNode) {
-            ret += spacer + "MultiPartition[" + ((InsertPlanNode)node).getMultiPartition() + "]\n";
+            sb.append(inner_spacer).append("MultiPartition[" + ((InsertPlanNode)node).getMultiPartition() + "]\n");
             
         } else if (node instanceof LimitPlanNode) {
-            ret += spacer + "Limit[" + ((LimitPlanNode)node).getLimit() + "]\n";
-            ret += spacer + "Offset[" + ((LimitPlanNode)node).getOffset() + "]\n";
+            sb.append(inner_spacer).append("Limit[" + ((LimitPlanNode)node).getLimit() + "]\n");
+            sb.append(inner_spacer).append("Offset[" + ((LimitPlanNode)node).getOffset() + "]\n");
             
         } else if (node instanceof NestLoopIndexPlanNode) {
             // Nothing
@@ -374,28 +378,25 @@ public abstract class PlanNodeUtil {
             
         } else if (node instanceof OrderByPlanNode) {
             OrderByPlanNode cast_node = (OrderByPlanNode)node;
-            ret += spacer + "SortColumns[" + cast_node.getSortColumns().size() + "]:\n";
+            sb.append(inner_spacer).append("SortColumns[" + cast_node.getSortColumns().size() + "]:\n");
             for (int ctr = 0, cnt = cast_node.getSortColumns().size(); ctr < cnt; ctr++) {
-                ret += spacer + "  [" + ctr + "] " + cast_node.getSortColumnNames().get(ctr) + "::" + cast_node.getSortColumns().get(ctr) + "::" + cast_node.getSortDirections().get(ctr) + "\n";
+                sb.append(line_spacer).append("  [" + ctr + "] " + cast_node.getSortColumnNames().get(ctr) + "::" + cast_node.getSortColumns().get(ctr) + "::" + cast_node.getSortDirections().get(ctr) + "\n");
             }
             
         } else if (node instanceof ProjectionPlanNode) {
             ProjectionPlanNode cast_node = (ProjectionPlanNode)node;
             if (node instanceof MaterializePlanNode) {
-                ret += spacer + "Batched[" + ((MaterializePlanNode)node).isBatched() + "]\n";
+                sb.append(line_spacer).append("Batched[" + ((MaterializePlanNode)node).isBatched() + "]\n");
             }
-            //ret += PlanNodeUtil.debugOutputColumns("OutputColumns", cast_node, spacer);
             
         } else if (node instanceof ReceivePlanNode) {
-            ReceivePlanNode cast_node = (ReceivePlanNode)node;
-            //ret += PlanNodeUtil.debugOutputColumns("OutputColumns", cast_node, spacer);
+            // Nothing
             
         } else if (node instanceof SendPlanNode) {
-            ret += spacer + "Fake[" + ((SendPlanNode)node).getFake() + "]\n";
-            //ret += PlanNodeUtil.debugOutputColumns("ColumnsColumns", node, spacer);
+            sb.append(inner_spacer).append("Fake[" + ((SendPlanNode)node).getFake() + "]\n");
             
         } else if (node instanceof SeqScanPlanNode) {
-            ret += spacer + "Scan Expression: " + (((SeqScanPlanNode)node).getPredicate() != null ? "\n" + ExpressionUtil.debug(((SeqScanPlanNode)node).getPredicate(), spacer) : null + "\n");
+            sb.append(inner_spacer).append("Scan Expression: " + (((SeqScanPlanNode)node).getPredicate() != null ? "\n" + ExpressionUtil.debug(((SeqScanPlanNode)node).getPredicate(), line_spacer) : null + "\n"));
             
         } else if (node instanceof UnionPlanNode) {
             // Nothing
@@ -406,16 +407,20 @@ public abstract class PlanNodeUtil {
             System.exit(1);
         }
         
-        //
+        // Output Columns
+//        if (false && node.getInlinePlanNode(PlanNodeType.PROJECTION) != null) {
+//            sb.append(inner_spacer).append(PlanNodeUtil.debugOutputColumns("OutputColumns (Inline Projection)", node.getInlinePlanNode(PlanNodeType.PROJECTION), line_spacer));
+//        } else {
+            sb.append(inner_spacer).append(PlanNodeUtil.debugOutputColumns("OutputColumns", node, line_spacer));
+//        }
+        
         // Inline PlanNodes
-        //
         if (!node.getInlinePlanNodes().isEmpty()) {
-            String internal_spacer = info_spacer + "  ";
             for (AbstractPlanNode inline_node : node.getInlinePlanNodes().values()) {
-                ret += info_spacer + "Inline " + inline_node + ":\n";
-                ret += PlanNodeUtil.debug(inline_node, internal_spacer);
+                sb.append(inner_spacer).append("Inline " + inline_node + ":\n");
+                sb.append(PlanNodeUtil.debug(inline_node, line_spacer));
             } 
         }
-        return (ret);
+        return (sb.toString());
     }
 }

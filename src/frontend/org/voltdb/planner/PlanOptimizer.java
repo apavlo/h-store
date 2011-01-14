@@ -21,6 +21,7 @@ import org.voltdb.plannodes.AbstractJoinPlanNode;
 import org.voltdb.plannodes.AbstractPlanNode;
 import org.voltdb.plannodes.AbstractScanPlanNode;
 import org.voltdb.plannodes.IndexScanPlanNode;
+import org.voltdb.plannodes.NestLoopIndexPlanNode;
 import org.voltdb.plannodes.NestLoopPlanNode;
 import org.voltdb.plannodes.ProjectionPlanNode;
 import org.voltdb.plannodes.ReceivePlanNode;
@@ -34,6 +35,10 @@ import edu.brown.plannodes.PlanNodeTreeWalker;
 import edu.brown.plannodes.PlanNodeUtil;
 import edu.brown.utils.CollectionUtil;
 
+/**
+ * @author pavlo
+ * @author sw47
+ */
 public class PlanOptimizer {
     private static final Logger LOG = Logger.getLogger(PlanOptimizer.class);
     
@@ -206,7 +211,7 @@ public class PlanOptimizer {
         
         // walk the tree a second time to add inline projection to the
         // bottom most scan node and propagate that
-        new PlanNodeTreeWalker(true) {
+        new PlanNodeTreeWalker(false) {
             @Override
             protected void callback(AbstractPlanNode element) {
                 if (trace) {
@@ -250,6 +255,7 @@ public class PlanOptimizer {
 
                     // Add projection inline to scan node  
                     element.addInlinePlanNode(proj_node);
+                    assert(proj_node.isInline());
                     
                     // Then make sure that we update it's output columns to match the inline output
                     scan_node.m_outputColumns.clear();
@@ -271,6 +277,7 @@ public class PlanOptimizer {
                     AbstractPlanNode outer_node = element.getChild(0);
                     assert(outer_node != null);
                     List<Integer> outer_new_input_guids = outer_node.m_outputColumns;
+                    if (debug) LOG.debug("Calculating OUTER offsets from child node: " + outer_node);
                     
                     // List of PlanColumn GUIDs for the new output list
                     List<Integer> new_output_guids = new ArrayList<Integer>();
@@ -290,7 +297,7 @@ public class PlanOptimizer {
                             assert(offset_xref.containsKey(orig_idx) == false) : orig_idx + " ==> " + offset_xref; 
                             offset_xref.put(orig_idx, new_idx);
                             new_output_guids.add(col_guid);
-                        } else {
+                        } else if (debug) {
                             PlanColumn pc = m_context.get(col_guid);
                             LOG.warn("Failed to find new offset for OUTER " + pc);
                         }
@@ -306,11 +313,17 @@ public class PlanOptimizer {
                     // Whether we are in a NestLoop join or not
                     boolean is_nestloop = false;
                     
-                    // If the inner table is also being passed in, then do the same thing
-                    AbstractPlanNode inner_node = element.getChild(1);
-                    if (inner_node != null) {
+                    AbstractPlanNode inner_node = null;
+                    
+                    // --------------------------------------------
+                    // NEST LOOP
+                    // --------------------------------------------
+                    if (element.getChildCount() > 1) {
                         assert(element instanceof NestLoopPlanNode);
                         is_nestloop = true;
+                        
+                        inner_node = element.getChild(1);
+                        if (debug) LOG.debug("Calculating INNER offsets from child node: " + inner_node);
                         
                         List<Integer> inner_orig_input_guids = PlanOptimizer.this.orig_node_output.get(inner_node);
                         assert(inner_orig_input_guids != null);
@@ -336,11 +349,16 @@ public class PlanOptimizer {
                         if (trace) LOG.trace("Original Inner Input GUIDs: " + inner_orig_input_guids);
                         if (trace) LOG.trace("New Inner Input GUIDs:      " + inner_new_input_guids);
                         
-                    // Otherwise, just grab all of the columns for the target table in the inline scan
+                    
+                    // --------------------------------------------
+                    // NEST LOOP INDEX
+                    // --------------------------------------------
                     } else {
-                        assert(element instanceof IndexScanPlanNode);
+                        // Otherwise, just grab all of the columns for the target table in the inline scan
+                        assert(element instanceof NestLoopIndexPlanNode);
                         IndexScanPlanNode idx_node = element.getInlinePlanNode(PlanNodeType.INDEXSCAN);
                         assert(idx_node != null);
+                        inner_node = idx_node;
                         
                         Table catalog_tbl = null;
                         try {
@@ -350,6 +368,7 @@ public class PlanOptimizer {
                             System.exit(1);
                         }
                         assert(catalog_tbl != null);
+                        if (debug) LOG.debug("Calculating INNER offsets from INLINE Scan: " + catalog_tbl);
                         
                         for (Column catalog_col : CatalogUtil.getSortedCatalogItems(catalog_tbl.getColumns(), "index")) {
                             int i = catalog_col.getIndex();
@@ -393,7 +412,6 @@ public class PlanOptimizer {
                             }
                         }.traverse(exp);
                     }
-
                     
                     // Then update the output columns to reflect the change
                     element.m_outputColumns.clear();
@@ -425,13 +443,21 @@ public class PlanOptimizer {
                             assert(new_pc != null);
                             element.m_outputColumns.set(new_idx, new_pc.guid());
                         }
+                        if (debug) LOG.debug(String.format("OUTPUT[%d] => %s", new_idx, m_context.get(element.m_outputColumns.get(new_idx))));
                     } // FOR
+                    
+                    // If the inner_node is inline (meaning it was a NestLoopIndex), then we need to also update
+                    // its output columns to match our new ones
+//                    if (inner_node.isInline()) {
+//                        assert(inner_node instanceof IndexScanPlanNode);
+//                        inner_node.setOutputColumns(element.m_outputColumns);
+//                        if (trace) LOG.trace("Updated INNER inline " + inner_node + " output columns");
+//                    }
 
-                    if (debug) LOG.debug("PlanNodeTree:\n" + PlanNodeUtil.debug(rootNode));
+//                    if (debug) LOG.debug("PlanNodeTree:\n" + PlanNodeUtil.debug(rootNode));
 //                    LOG.debug(PlanNodeUtil.debugNode(element));
-                    System.exit(1);
                     
-                    
+                    dirtyPlanNodes.add(element);
                     
                 // ---------------------------------------------------
                 // SEND/RECEIVE
@@ -452,6 +478,7 @@ public class PlanOptimizer {
             }
         }.traverse(rootNode);
         if (trace) LOG.trace("Finished propagateProjections");
+//        if (debug) LOG.debug("Optimized PlanNodeTree:\n" + PlanNodeUtil.debug(rootNode));
     }
 
 }
