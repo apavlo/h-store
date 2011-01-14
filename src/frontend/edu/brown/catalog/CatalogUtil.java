@@ -1147,6 +1147,20 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
     }
 
     /**
+     * Return all of the tables referenced in the given AbstractPlanNode
+     * Non-recursive.
+     * @param catalog_db
+     * @param node
+     * @return
+     * @throws Exception
+     */
+    public static Set<Table> getReferencedTablesNonRecursive(final Database catalog_db, final AbstractPlanNode node) throws Exception {
+        final Set<Table> ret = new HashSet<Table>();
+        CatalogUtil.getReferencedTables(catalog_db, node, ret);
+        return (ret);
+    }
+    
+    /**
      * Return all of the columns referenced in the given AbstractPlanNode
      * Non-recursive.
      * @param catalog_db
@@ -1278,45 +1292,38 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
      */
     public static Set<Table> getReferencedTables(final Database catalog_db, final AbstractPlanNode root) {
         final Set<Table> found = new HashSet<Table>();
-        new PlanNodeTreeWalker() {
-            @Override
-            protected void populate_children(PlanNodeTreeWalker.Children children, AbstractPlanNode node) {
-                super.populate_children(children, node);
-                // Visit the inline nodes after the parent
-                for (AbstractPlanNode inline_node : node.getInlinePlanNodes()
-                        .values()) {
-                    children.addAfter(inline_node);
-                }
-                return;
-            }
-
+        new PlanNodeTreeWalker(true) {
             @Override
             protected void callback(AbstractPlanNode element) {
-                String table_name = null;
-                // AbstractScanNode
-                if (element instanceof AbstractScanPlanNode) {
-                    AbstractScanPlanNode cast_node = (AbstractScanPlanNode) element;
-                    table_name = cast_node.getTargetTableName();
-                    assert (table_name != null);
-                    assert (!table_name.isEmpty());
-                // AbstractOperationPlanNode
-                } else if (element instanceof AbstractOperationPlanNode) {
-                    AbstractOperationPlanNode cast_node = (AbstractOperationPlanNode) element;
-                    table_name = cast_node.getTargetTableName();
-                    assert (table_name != null);
-                    assert (!table_name.isEmpty());
-                }
-
-                if (table_name != null) {
-                    Table catalog_tbl = catalog_db.getTables().get(table_name);
-                    assert (catalog_tbl != null) : "Invalid table '"
-                            + table_name + "' extracted from " + element;
-                    found.add(catalog_tbl);
-                }
+                CatalogUtil.getReferencedTables(catalog_db, element, found);
                 return;
             }
         }.traverse(root);
         return (found);
+    }
+    
+    public static void getReferencedTables(final Database catalog_db, final AbstractPlanNode node, final Set<Table> found) {
+        String table_name = null;
+        // AbstractScanNode
+        if (node instanceof AbstractScanPlanNode) {
+            AbstractScanPlanNode cast_node = (AbstractScanPlanNode) node;
+            table_name = cast_node.getTargetTableName();
+            assert (table_name != null);
+            assert (!table_name.isEmpty());
+        // AbstractOperationPlanNode
+        } else if (node instanceof AbstractOperationPlanNode) {
+            AbstractOperationPlanNode cast_node = (AbstractOperationPlanNode) node;
+            table_name = cast_node.getTargetTableName();
+            assert (table_name != null);
+            assert (!table_name.isEmpty());
+        }
+
+        if (table_name != null) {
+            Table catalog_tbl = catalog_db.getTables().get(table_name);
+            assert (catalog_tbl != null) : "Invalid table '"
+                    + table_name + "' extracted from " + node;
+            found.add(catalog_tbl);
+        }
     }
 
     /**

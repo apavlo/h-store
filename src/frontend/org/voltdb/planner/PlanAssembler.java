@@ -463,9 +463,12 @@ public class PlanAssembler {
             root = limit;
         }
 
-        SendPlanNode sendNode = new SendPlanNode(m_context, getNextPlanNodeId());
-
+        System.err.println(m_parsedSelect.sql);
+        PlanOptimizer po = new PlanOptimizer(m_context, m_catalogDb);
+        po.optimize(root);
+        
         // connect the nodes to build the graph
+        SendPlanNode sendNode = new SendPlanNode(m_context, getNextPlanNodeId());
         sendNode.addAndLinkChild(root);
 
         return sendNode;

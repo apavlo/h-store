@@ -81,6 +81,7 @@ public abstract class AbstractPlanNode implements JSONString, Comparable<Abstrac
      */
     protected AbstractPlanNode(PlannerContext context, Integer id) {
         assert(context != null);
+        assert(id != 0);
         m_context = context;
         m_id = id;
     }
@@ -113,10 +114,19 @@ public abstract class AbstractPlanNode implements JSONString, Comparable<Abstrac
     public abstract PlanNodeType getPlanNodeType();
 
     public boolean updateOutputColumns(Database db) {
-        ArrayList<Integer> childCols = new ArrayList<Integer>();
+    	//System.out.println("updateOutputColumns Node type: " + this.getPlanNodeType() + " # of inline nodes: " + this.getInlinePlanNodes().size());
+
+    	ArrayList<Integer> childCols = new ArrayList<Integer>();
         for (AbstractPlanNode child : m_children) {
             boolean result = child.updateOutputColumns(db);
             assert(result);
+            
+            // print child inline columns
+//            for (Integer out : child.m_outputColumns)
+//            {
+//            	System.out.println(m_context.get(out).displayName());
+//            }
+            
             childCols.addAll(child.m_outputColumns);
         }
 
@@ -149,6 +159,14 @@ public abstract class AbstractPlanNode implements JSONString, Comparable<Abstrac
         return (ArrayList<Integer>)input.clone();
     }
 
+    /**
+     * Get number of output columns for this node
+     * @return
+     */
+    public int getOutputColumnCount() {
+        return (this.m_outputColumns.size());
+    }
+    
     public PlanColumn findMatchingOutputColumn(String tableName,
                                                String columnName,
                                                String columnAlias)
@@ -356,8 +374,8 @@ public abstract class AbstractPlanNode implements JSONString, Comparable<Abstrac
      * @param type
      * @return An inlined node of the given type or null if none.
      */
-    public AbstractPlanNode getInlinePlanNode(PlanNodeType type) {
-        return m_inlineNodes.get(type);
+    public <T extends AbstractPlanNode> T getInlinePlanNode(PlanNodeType type) {
+        return (T)m_inlineNodes.get(type);
     }
 
     /**
