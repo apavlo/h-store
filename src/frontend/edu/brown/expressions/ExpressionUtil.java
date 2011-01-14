@@ -99,6 +99,7 @@ public abstract class ExpressionUtil {
         } else if (exp instanceof TupleAddressExpression) {
             // Nothing
         } else if (exp instanceof TupleValueExpression) {
+        	//System.out.println((((TupleValueExpression)exp).getColumnName() + " column index: " + (((TupleValueExpression)exp).getColumnIndex())));
             sb.append(spacer).append("Column Reference: ")
               .append("[").append(((TupleValueExpression)exp).getColumnIndex()).append("] ")
               .append(((TupleValueExpression)exp).getTableName()).append(".")
