@@ -35,6 +35,7 @@ import org.voltdb.planner.ParameterInfo;
 import org.voltdb.planner.PlanColumn;
 import org.voltdb.planner.QueryPlanner;
 import org.voltdb.planner.TrivialCostModel;
+import org.voltdb.planner.CompiledPlan.Fragment;
 import org.voltdb.plannodes.AbstractPlanNode;
 import org.voltdb.plannodes.AbstractScanPlanNode;
 import org.voltdb.plannodes.DeletePlanNode;
@@ -44,6 +45,8 @@ import org.voltdb.plannodes.UpdatePlanNode;
 import org.voltdb.types.QueryType;
 import org.voltdb.utils.BuildDirectoryUtils;
 import org.voltdb.utils.Encoder;
+
+import edu.brown.plannodes.PlanNodeUtil;
 
 /**
  * Compiles individual SQL statements and updates the given catalog.
@@ -108,7 +111,7 @@ public abstract class StatementCompiler {
         QueryPlanner planner = new QueryPlanner(catalog.getClusters().get("cluster"), db, hsql, estimates, true, false);
 
         Exception first_exception = null;
-        for (boolean _singleSited : new Boolean[] { true, false }) {
+        for (boolean _singleSited : new Boolean[] { false }) {
             QueryType stmt_type = QueryType.get(catalogStmt.getQuerytype());
             compiler.addInfo("Creating " + stmt_type.name() + " query plan for " + catalogStmt.getName() + ": singleSited=" + _singleSited);
             // System.err.println("Creating " + stmt_type.name() + " query plan for " + catalogStmt.getName() + ": singleSited=" + _singleSited);
@@ -131,6 +134,7 @@ public abstract class StatementCompiler {
                 e.printStackTrace();
                 throw compiler.new VoltCompilerException("Failed to plan for stmt: " + catalogStmt.getName());
             }
+
             if (plan == null) {
                 String msg = "Failed to plan for stmt: " + catalogStmt.getName();
                 String plannerMsg = planner.getErrorMessage();

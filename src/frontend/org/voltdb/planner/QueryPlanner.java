@@ -32,10 +32,13 @@ import org.voltdb.catalog.Cluster;
 import org.voltdb.catalog.Database;
 import org.voltdb.compiler.DatabaseEstimates;
 import org.voltdb.compiler.ScalarValueHints;
+import org.voltdb.planner.CompiledPlan.Fragment;
 import org.voltdb.planner.microoptimizations.MicroOptimizationRunner;
 import org.voltdb.plannodes.AbstractPlanNode;
 import org.voltdb.plannodes.PlanNodeList;
 import org.voltdb.utils.BuildDirectoryUtils;
+
+import edu.brown.plannodes.PlanNodeUtil;
 
 /**
  * The query planner accepts catalog data, SQL statements from the catalog, then

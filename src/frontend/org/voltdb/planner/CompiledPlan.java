@@ -129,7 +129,7 @@ public class CompiledPlan {
     private int resetPlanNodeIds(AbstractPlanNode node, int nextId) {
         node.overrideId(nextId++);
         for (AbstractPlanNode inNode : node.getInlinePlanNodes().values()) {
-            inNode.overrideId(0);
+            inNode.overrideId(nextId++);
         }
 
         for (int i = 0; i < node.getChildCount(); i++) {
@@ -137,7 +137,6 @@ public class CompiledPlan {
             assert(child != null);
             nextId = resetPlanNodeIds(child, nextId);
         }
-
         return nextId;
     }
 }

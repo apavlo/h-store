@@ -10,7 +10,7 @@ import org.apache.log4j.Logger;
  * @param <E> element type
  */
 public abstract class AbstractTreeWalker<E> {
-    protected static final Logger LOG = Logger.getLogger(AbstractTreeWalker.class);
+    private static final Logger LOG = Logger.getLogger(AbstractTreeWalker.class);
     
     public class Children {
         private final E parent;
