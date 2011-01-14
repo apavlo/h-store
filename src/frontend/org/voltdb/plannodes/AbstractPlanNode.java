@@ -29,7 +29,6 @@ import org.voltdb.catalog.Cluster;
 import org.voltdb.catalog.Database;
 import org.voltdb.compiler.DatabaseEstimates;
 import org.voltdb.compiler.ScalarValueHints;
-import org.voltdb.planner.CompiledPlan;
 import org.voltdb.planner.PlanColumn;
 import org.voltdb.planner.PlanStatistics;
 import org.voltdb.planner.PlannerContext;
@@ -47,7 +46,8 @@ public abstract class AbstractPlanNode implements JSONString, Comparable<Abstrac
         INLINE_NODES,
         CHILDREN_IDS,
         PARENT_IDS,
-        OUTPUT_COLUMNS;
+        OUTPUT_COLUMNS,
+        IS_INLINE,
     }
 
     protected int m_id = -1;
@@ -113,6 +113,11 @@ public abstract class AbstractPlanNode implements JSONString, Comparable<Abstrac
 
     public abstract PlanNodeType getPlanNodeType();
 
+    public void setOutputColumns(Collection<Integer> col_guids) {
+        this.m_outputColumns.clear();
+        this.m_outputColumns.addAll(col_guids);
+    }
+    
     public boolean updateOutputColumns(Database db) {
     	//System.out.println("updateOutputColumns Node type: " + this.getPlanNodeType() + " # of inline nodes: " + this.getInlinePlanNodes().size());
 
@@ -374,6 +379,7 @@ public abstract class AbstractPlanNode implements JSONString, Comparable<Abstrac
      * @param type
      * @return An inlined node of the given type or null if none.
      */
+    @SuppressWarnings("unchecked")
     public <T extends AbstractPlanNode> T getInlinePlanNode(PlanNodeType type) {
         return (T)m_inlineNodes.get(type);
     }
@@ -554,9 +560,9 @@ public abstract class AbstractPlanNode implements JSONString, Comparable<Abstrac
     public void toJSONString(JSONStringer stringer) throws JSONException {
         stringer.key(Members.ID.name()).value(m_id);
         stringer.key(Members.PLAN_NODE_TYPE.name()).value(getPlanNodeType().toString());
+
+        stringer.key(Members.IS_INLINE.name()).value(m_isInline);
         stringer.key(Members.INLINE_NODES.name()).array();
-
-
         PlanNodeType types[] = new PlanNodeType[m_inlineNodes.size()];
         int i = 0;
         for (PlanNodeType type : m_inlineNodes.keySet()) {
@@ -608,6 +614,7 @@ public abstract class AbstractPlanNode implements JSONString, Comparable<Abstrac
             return null;
         }
         node.m_id = obj.getInt(Members.ID.name());
+        node.m_isInline = obj.getBoolean(Members.IS_INLINE.name());
         
         JSONArray inlineNodes = obj.getJSONArray(Members.INLINE_NODES.name());
         for (int ii = 0; ii < inlineNodes.length(); ii++) {
@@ -632,6 +639,7 @@ public abstract class AbstractPlanNode implements JSONString, Comparable<Abstrac
             PlanColumn column = PlanColumn.fromJSONObject(jsonObject, db);
             assert(column != null);
             node.m_outputColumns.add(column.guid());
+//            System.err.println(String.format("[%02d] %s => %s", ii, node, column));
         }
         
         node.loadFromJSONObject(obj, db);

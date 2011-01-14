@@ -470,6 +470,7 @@ public class PlanAssembler {
         // connect the nodes to build the graph
         SendPlanNode sendNode = new SendPlanNode(m_context, getNextPlanNodeId());
         sendNode.addAndLinkChild(root);
+        sendNode.setOutputColumns(root.m_outputColumns);
 
         return sendNode;
     }

@@ -63,6 +63,9 @@ public class CompiledPlan {
     public List<Fragment> fragments = new ArrayList<Fragment>();
 
     public String sql = null;
+    
+    /** PAVLO: Full Plan JSON before Fragemtizer Gets to it! **/
+    public String fullplan_json = null;
 
     /** A list of parameter names, indexes and types */
     public List<ParameterInfo> parameters = new ArrayList<ParameterInfo>();

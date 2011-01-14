@@ -147,7 +147,7 @@ public class PlanNodeTree implements JSONString {
         }
         
         for (AbstractPlanNode node : m_planNodes) {
-            node.updateOutputColumns(db);
+            // MOTHER FUCKER!!! node.updateOutputColumns(db);
         }
     }
     
