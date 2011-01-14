@@ -213,7 +213,7 @@ public class MarkovGraph extends AbstractDirectedGraph<Vertex, Edge> implements 
         final boolean trace = (getProcedure().getName().equals("neworder") && base_partition == 1);
 //        final boolean trace = LOG.isTraceEnabled(); 
         if (trace) {
-            LOG.setLevel(Level.TRACE);
+//            LOG.setLevel(Level.TRACE);
             LOG.trace("Calculating Vertex probabilities for " + this);
         }
         final Set<Edge> visited_edges = new HashSet<Edge>();

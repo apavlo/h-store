@@ -26,6 +26,7 @@ import weka.filters.unsupervised.instance.RemoveWithValues;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.correlations.ParameterCorrelations;
 import edu.brown.costmodel.MarkovCostModel;
+import edu.brown.graphs.GraphvizExport;
 import edu.brown.markov.TransactionEstimator.Estimate;
 import edu.brown.markov.features.BasePartitionFeature;
 import edu.brown.markov.features.FeatureUtil;
@@ -46,7 +47,7 @@ public class FeatureClusterer {
     private static final double TRAINING_SET_PERCENTAGE = 0.60;
     
     // For each search round, we will only propagate the attributes found this these top-k AttibuteSets 
-    private static final double ATTRIBUTESET_TOP_K = 0.25;
+    private static final double ATTRIBUTESET_TOP_K = 0.10;
     
     private final Database catalog_db;
     private final Workload workload;
@@ -318,6 +319,11 @@ public class FeatureClusterer {
         MarkovCostModel costmodel = new MarkovCostModel(this.catalog_db, this.p_estimator);
         costmodel.setTransactionClusterMapping(true);
         for (Entry<Integer, Map<Procedure, MarkovGraph>> e : markovs.entrySet()) {
+            // Calculate the probabilities for each graph
+            for (MarkovGraph markov : e.getValue().values()) {
+                markov.calculateProbabilities();
+            } // FOR
+            
             int base_partition = cluster_partition_xref.get(e.getKey());
             TransactionEstimator t_estimator = new TransactionEstimator(base_partition, this.p_estimator, this.correlations);
             t_estimator.addMarkovGraphs(e.getValue());
@@ -325,11 +331,13 @@ public class FeatureClusterer {
         } // FOR
         
         // DEBUG
-        MarkovUtil.save(markovs, "/tmp/" + catalog_proc.getName() + ".markovs");
+        // MarkovUtil.save(markovs, "/tmp/" + catalog_proc.getName() + ".markovs");
         
         // Now we need a mapping from TransactionIds -> ClusterIds
         // And then calculate the cost of using our cluster configuration to predict txn paths
         double total_cost = 0.0d;
+        int mismatch_ctr = 0;
+        boolean wrote_gv = false;
         for (int i = 0; i < validationCnt; i++) {
             Instance inst = validationData.instance(i);
             long txn_id = (long)inst.value(FeatureExtractor.TXNID_ATTRIBUTE_IDX);
@@ -344,18 +352,39 @@ public class FeatureClusterer {
             TransactionTrace txn_trace = workload.getTransaction(txn_id);
             assert(txn_trace != null);
             double cost = costmodel.estimateTransactionCost(catalog_db, txn_trace);
-            if (cost != 0.0d) {
+            if (cost > 0 && wrote_gv == false) {
+                mismatch_ctr++; 
                 MarkovGraph markov = markovs.get(c, catalog_proc);
-                String actual = MarkovUtil.exportGraphviz(markov, false, markov.getPath(costmodel.getLastActualPath())).writeToTempFile(catalog_proc, 1);
-                String estimated = MarkovUtil.exportGraphviz(markov, false, markov.getPath(costmodel.getLastEstimatedPath())).writeToTempFile(catalog_proc, 2);
+           
+                LOG.debug("Writing out mispredicated MarkovGraph paths [cost=" + cost + "]");
+                GraphvizExport<Vertex, Edge> gv = MarkovUtil.exportGraphviz(markov, false, markov.getPath(costmodel.getLastEstimatedPath()));
+                gv.highlightPath(markov.getPath(costmodel.getLastActualPath()), "blue");
+                System.err.println();
+                System.err.println("GRAPHVIZ: " + gv.writeToTempFile(catalog_proc, 1));
                 
-                System.err.println("ACTUAL FILE:    " + actual);
-                System.err.println("ESTIMATED FILE: " + estimated);
+                List<Vertex> e_path = costmodel.getLastEstimatedPath();
+                List<Vertex> a_path = costmodel.getLastActualPath();
+                for (int ii = 0, cnt = Math.max(e_path.size(), a_path.size()); ii < cnt; ii++) {
+                    Vertex e = (ii < e_path.size() ? e_path.get(ii) : null);
+                    Vertex a = (ii < a_path.size() ? a_path.get(ii) : null);
+                    System.err.println(String.format("%-60s%s", e, a));
+                } // FOR
                 
-                System.exit(1);
+//                LOG.debug("Estimated: " + costmodel.getLastEstimatedPath());
+//                LOG.debug("Actual:    " + costmodel.getLastActualPath());
+                wrote_gv = true;
+                
+//                String actual = MarkovUtil.exportGraphviz(markov, false, markov.getPath(costmodel.getLastActualPath())).writeToTempFile(catalog_proc, 1);
+//                String estimated = MarkovUtil.exportGraphviz(markov, false, markov.getPath(costmodel.getLastEstimatedPath())).writeToTempFile(catalog_proc, 2);
+                
+//                System.err.println("ACTUAL FILE:    " + actual);
+//                System.err.println("ESTIMATED FILE: " + estimated);
+                
+//                System.exit(1);
             }
             total_cost += cost;
         } // FOR
+        LOG.debug(String.format("PREDICTION RESULT: %d/%d", mismatch_ctr, validationCnt));
         if (trace) LOG.trace(String.format("Total Estimated Cost: %.03f", total_cost));
         aset.setCost(total_cost);
         return (aset);
@@ -377,10 +406,10 @@ public class FeatureClusterer {
         // Using our training set to build the clusterer
         int num_partitions = CatalogUtil.getNumberOfPartitions(catalog_db);
         int seed = 1981; // this.rand.nextInt(); 
-        SimpleKMeans inner_clusterer = new SimpleKMeans();
-//        EM inner_clusterer = new EM();
+//        SimpleKMeans inner_clusterer = new SimpleKMeans();
+        EM inner_clusterer = new EM();
         String options[] = {
-            "-N", Integer.toString(num_partitions),
+            "-N", Integer.toString(num_partitions*3),
             "-S", Integer.toString(seed),
         };
         inner_clusterer.setOptions(options);
