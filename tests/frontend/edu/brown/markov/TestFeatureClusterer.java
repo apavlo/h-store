@@ -39,7 +39,7 @@ import edu.brown.workload.filters.ProcedureNameFilter;
 public class TestFeatureClusterer extends BaseTestCase {
 
     private static final Class<? extends VoltProcedure> TARGET_PROCEDURE = neworder.class;
-    private static final int WORKLOAD_XACT_LIMIT = -1;
+    private static final int WORKLOAD_XACT_LIMIT = 1000;
 //    private static final int BASE_PARTITION = 1;
     private static final int NUM_PARTITIONS = 100;
 
@@ -185,8 +185,9 @@ public class TestFeatureClusterer extends BaseTestCase {
     @Test
     public void testCreateAttributeSet() throws Exception {
         Set<Attribute> attributes = prefix2attributes(
-            FeatureUtil.getFeatureKeyPrefix(ParamNumericValuesFeature.class, this.getProcParameter(catalog_proc, 1)),
-            FeatureUtil.getFeatureKeyPrefix(BasePartitionFeature.class)
+            FeatureUtil.getFeatureKeyPrefix(BasePartitionFeature.class),
+            FeatureUtil.getFeatureKeyPrefix(ParamArrayLengthFeature.class, this.getProcParameter(catalog_proc, 4)),
+            FeatureUtil.getFeatureKeyPrefix(ParamNumericValuesFeature.class, this.getProcParameter(catalog_proc, 1))
         );
         System.err.println("Attributes: " + attributes);
         
