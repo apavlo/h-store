@@ -21,6 +21,36 @@ import edu.brown.utils.ClassUtil;
 public abstract class PlanNodeUtil {
     private static final Logger LOG = Logger.getLogger(PlanNodeUtil.class);
     
+    public static Set<AbstractExpression> getExpressions(AbstractPlanNode node) {
+        final Set<AbstractExpression> exps = new HashSet<AbstractExpression>();
+
+        // ---------------------------------------------------
+        // SCAN NODES
+        // ---------------------------------------------------
+        if (node instanceof AbstractScanPlanNode) {
+            AbstractScanPlanNode scan_node = (AbstractScanPlanNode)node;
+            // Get all the AbstractExpressions used in the predicates for this scan
+            if (scan_node.getPredicate() != null) exps.add(scan_node.getPredicate());
+            if (scan_node instanceof IndexScanPlanNode) {
+                IndexScanPlanNode idx_node = (IndexScanPlanNode)scan_node;
+                if (idx_node.getEndExpression() != null) exps.add(idx_node.getEndExpression());
+                for (AbstractExpression exp : idx_node.getSearchKeyExpressions()) {
+                    exps.add(exp);
+                }
+            }
+
+        // ---------------------------------------------------
+        // JOINS
+        // ---------------------------------------------------
+        } else if (node instanceof AbstractJoinPlanNode) {
+            AbstractJoinPlanNode join_node = (AbstractJoinPlanNode)node;
+            
+            // Get all the AbstractExpressions used in the predicates for this join
+            if (join_node.getPredicate() != null) exps.add(join_node.getPredicate());
+        }
+        return (exps);
+    }
+    
     /**
      * Return all the ExpressionTypes used for scan predicates in the given PlanNode
      * @param catalog_db
@@ -218,7 +248,7 @@ public abstract class PlanNodeUtil {
             protected void callback(AbstractPlanNode element) {
                 guids.addAll(element.m_outputColumns);
             }
-        };
+        }.traverse(root);
         return (guids);
     }
     
@@ -255,7 +285,7 @@ public abstract class PlanNodeUtil {
         String ret = debugNode(node, spacer);
         
         // Print out all of our children
-        spacer += "  ";
+        spacer += "   ";
         for (int ctr = 0, cnt = node.getChildCount(); ctr < cnt; ctr++) {
             ret += PlanNodeUtil.debug(node.getChild(ctr), spacer);
         } 
@@ -268,8 +298,9 @@ public abstract class PlanNodeUtil {
     }
     
     public static String debugNode(AbstractPlanNode node, String spacer) {
+    	
         String ret = spacer + "* " + node.toString() + "\n";
-        String info_spacer = spacer + "  |";
+        String info_spacer = spacer + "   |";
         
         //
         // Abstract PlanNode Types
@@ -286,13 +317,17 @@ public abstract class PlanNodeUtil {
             ret += spacer + "TargetTableAlias[" + cast_node.getTargetTableAlias() + "]\n";
             ret += spacer + "TargetTableId[" + cast_node.getTargetTableName() + "]\n";
             
-            // Pull from inline Projection
-            if (cast_node.getInlinePlanNode(PlanNodeType.PROJECTION) != null) {
-                ret += PlanNodeUtil.debugOutputColumns("OutputColumns (Inline Projection)", cast_node.getInlinePlanNode(PlanNodeType.PROJECTION), spacer);
-            } else if (cast_node.m_outputColumns.isEmpty()) {
-                ret += PlanNodeUtil.debugOutputColumns("OutputColumns", cast_node, spacer);
-            }
         }
+        
+        // Pull from inline Projection
+        if (node.getInlinePlanNode(PlanNodeType.PROJECTION) != null) {
+            ret += PlanNodeUtil.debugOutputColumns("OutputColumns (Inline Projection)", node.getInlinePlanNode(PlanNodeType.PROJECTION), spacer);
+        } else {
+//        } else if (node.m_outputColumns.isEmpty() == false) {
+//        } else if (node.isInline() == false) { // if (node.m_outputColumns.isEmpty()) {
+            ret += PlanNodeUtil.debugOutputColumns("OutputColumns", node, spacer);
+        }
+
         
         //
         // PlanNodeTypes
@@ -302,13 +337,14 @@ public abstract class PlanNodeUtil {
             ret += spacer + "AggregateTypes[" + cast_node.getAggregateTypes() + "]\n";
             ret += spacer + "AggregateColumns[" + cast_node.getAggregateOutputColumns() + "]\n";
             ret += spacer + "GroupByColumns" + cast_node.getGroupByColumns() + "\n";
-            ret += PlanNodeUtil.debugOutputColumns("OutputColumns", cast_node, spacer);
+            //ret += PlanNodeUtil.debugOutputColumns("OutputColumns", cast_node, spacer);
         } else if (node instanceof DeletePlanNode) {
             ret += spacer + "Truncate[" + ((DeletePlanNode)node).isTruncate() + "\n";
         } else if (node instanceof DistinctPlanNode) {
             ret += spacer + "DistinctColumn[" + ((DistinctPlanNode)node).getDistinctColumnName() + "]\n";
         } else if (node instanceof IndexScanPlanNode) {
             IndexScanPlanNode cast_node = (IndexScanPlanNode)node;
+        	//System.out.println("Debug node type: " + " targetindexname: " + cast_node.getTargetIndexName()+ node.getPlanNodeType() + " Inline children count: " + node.getInlinePlanNodes().size());
             ret += spacer + "TargetIndexName[" + cast_node.getTargetIndexName() + "]\n";
             ret += spacer + "EnableKeyIteration[" + cast_node.getKeyIterate() + "]\n";
             ret += spacer + "IndexLookupType[" + cast_node.getLookupType() + "]\n";
@@ -344,15 +380,15 @@ public abstract class PlanNodeUtil {
             if (node instanceof MaterializePlanNode) {
                 ret += spacer + "Batched[" + ((MaterializePlanNode)node).isBatched() + "]\n";
             }
-            ret += PlanNodeUtil.debugOutputColumns("OutputColumns", cast_node, spacer);
+            //ret += PlanNodeUtil.debugOutputColumns("OutputColumns", cast_node, spacer);
             
         } else if (node instanceof ReceivePlanNode) {
             ReceivePlanNode cast_node = (ReceivePlanNode)node;
-            ret += PlanNodeUtil.debugOutputColumns("OutputColumns", cast_node, spacer);
+            //ret += PlanNodeUtil.debugOutputColumns("OutputColumns", cast_node, spacer);
             
         } else if (node instanceof SendPlanNode) {
             ret += spacer + "Fake[" + ((SendPlanNode)node).getFake() + "]\n";
-            ret += PlanNodeUtil.debugOutputColumns("ColumnsColumns", node, spacer);
+            //ret += PlanNodeUtil.debugOutputColumns("ColumnsColumns", node, spacer);
             
         } else if (node instanceof SeqScanPlanNode) {
             ret += spacer + "Scan Expression: " + (((SeqScanPlanNode)node).getPredicate() != null ? "\n" + ExpressionUtil.debug(((SeqScanPlanNode)node).getPredicate(), spacer) : null + "\n");
