@@ -21,6 +21,11 @@ import edu.brown.utils.ClassUtil;
 public abstract class PlanNodeUtil {
     private static final Logger LOG = Logger.getLogger(PlanNodeUtil.class);
     
+    /**
+     * Get all the AbstractExpression roots used in the given AbstractPlanNode
+     * @param node
+     * @return
+     */
     public static Set<AbstractExpression> getExpressions(AbstractPlanNode node) {
         final Set<AbstractExpression> exps = new HashSet<AbstractExpression>();
 
@@ -285,7 +290,7 @@ public abstract class PlanNodeUtil {
         String ret = debugNode(node, spacer);
         
         // Print out all of our children
-        spacer += "   ";
+        spacer += "  ";
         for (int ctr = 0, cnt = node.getChildCount(); ctr < cnt; ctr++) {
             ret += PlanNodeUtil.debug(node.getChild(ctr), spacer);
         } 
@@ -298,9 +303,8 @@ public abstract class PlanNodeUtil {
     }
     
     public static String debugNode(AbstractPlanNode node, String spacer) {
-    	
         String ret = spacer + "* " + node.toString() + "\n";
-        String info_spacer = spacer + "   |";
+        String info_spacer = spacer + "  |";
         
         //
         // Abstract PlanNode Types
@@ -317,7 +321,7 @@ public abstract class PlanNodeUtil {
             ret += spacer + "TargetTableAlias[" + cast_node.getTargetTableAlias() + "]\n";
             ret += spacer + "TargetTableId[" + cast_node.getTargetTableName() + "]\n";
             
-        }
+            }
         
         // Pull from inline Projection
         if (node.getInlinePlanNode(PlanNodeType.PROJECTION) != null) {
@@ -327,7 +331,7 @@ public abstract class PlanNodeUtil {
 //        } else if (node.isInline() == false) { // if (node.m_outputColumns.isEmpty()) {
             ret += PlanNodeUtil.debugOutputColumns("OutputColumns", node, spacer);
         }
-
+        
         
         //
         // PlanNodeTypes

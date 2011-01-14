@@ -29,6 +29,8 @@ import org.voltdb.catalog.Database;
 import org.voltdb.expressions.AbstractExpression;
 import org.voltdb.expressions.TupleValueExpression;
 
+import edu.brown.expressions.ExpressionUtil;
+
 /**
  * A PlanColumn organizes all of the schema and meta-data about a column that is
  * required by the planner. Each plan node has an output column list of
@@ -133,6 +135,65 @@ public class PlanColumn
      */
     final String m_displayName;
 
+    final int m_hashCode;
+    
+    //
+    // Constructors
+    //
+    PlanColumn(
+            int guid,
+            AbstractExpression expression,
+            String columnName,
+            SortOrder sortOrder,
+            Storage storage)
+    {
+        // all members are final and immutable (by implementation)
+        m_guid = guid;
+        m_expression = expression;
+        m_displayName = columnName;
+        m_sortOrder = sortOrder;
+        m_storage = storage;
+        m_hashCode = computeHashCode(m_expression, m_displayName, m_sortOrder, m_storage);
+
+        PlannerContext.singleton().registerPlanColumn(this);
+        
+        /* Breaks for adhoc deser code..
+        if (expression instanceof TupleValueExpression) {
+            assert(((TupleValueExpression)expression).getColumnAlias() != null);
+            assert(((TupleValueExpression)expression).getColumnName() != null);
+        } */
+    }
+    
+    protected static int computeHashCode(AbstractExpression expression, String columnName, SortOrder sortOrder, Storage storage) {
+        StringBuilder sb = new StringBuilder()
+          .append(columnName).append("|")
+          .append(sortOrder).append("|")
+          .append(storage).append("|")
+          .append(expression);
+        return (sb.toString().hashCode());
+    }
+    
+    @Override
+    public int hashCode() {
+        return (this.m_hashCode);
+    }
+    
+    @Override
+    public boolean equals(Object obj) {
+        if (obj instanceof PlanColumn) {
+            PlanColumn other = (PlanColumn)obj;
+            if (this.m_guid != other.m_guid) return (false);
+            if (!this.m_displayName.equals(other.m_displayName)) return (false); 
+            if (!this.m_sortOrder.equals(other.m_sortOrder)) return (false);
+            if (!this.m_storage.equals(other.m_storage)) return (false);
+            if (!ExpressionUtil.equals(this.m_expression, other.m_expression)) return (false);
+            return (true);
+        }
+        return (false);
+    }
+
+
+    
     //
     // Accessors: all return copies or immutable values
     //
@@ -187,8 +248,7 @@ public class PlanColumn
     }
     
 
-    public AbstractExpression getExpression()
-    {
+    public AbstractExpression getExpression() {
         return m_expression;
     }
     
@@ -267,30 +327,5 @@ public class PlanColumn
         } // SYCHRONIZED
         return (column);
     }
-
-    //
-    // Constructors
-    //
-
-    PlanColumn(
-            int guid,
-            AbstractExpression expression,
-            String columnName,
-            SortOrder sortOrder,
-            Storage storage)
-    {
-        // all members are final and immutable (by implementation)
-        m_guid = guid;
-        m_expression = expression;
-        m_displayName = columnName;
-        m_sortOrder = sortOrder;
-        m_storage = storage;
-
-        /* Breaks for adhoc deser code..
-        if (expression instanceof TupleValueExpression) {
-            assert(((TupleValueExpression)expression).getColumnAlias() != null);
-            assert(((TupleValueExpression)expression).getColumnName() != null);
-        } */
-    }
-
+    
 }

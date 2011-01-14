@@ -17,6 +17,8 @@
 
 package org.voltdb.planner;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.TreeMap;
 import java.util.Map.Entry;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -38,25 +40,39 @@ public class PlannerContext {
      * Global hash of PlanColumn guid to PlanColumn reference
      */
     private final TreeMap<Integer, PlanColumn> s_columnPool = new TreeMap<Integer, PlanColumn>();
+    
+    private transient final Map<Integer, PlanColumn> hashcode_col_xref = new HashMap<Integer, PlanColumn>();
 
     public PlanColumn getPlanColumn(AbstractExpression expression, String columnName) {
         return getPlanColumn(expression, columnName, SortOrder.kUnsorted, Storage.kTemporary);
     }
-
+    
     /** Provide the common defaults */
-    public synchronized PlanColumn getPlanColumn(AbstractExpression expression,
-            String columnName,
-            SortOrder sortOrder,
-            Storage storage) {
-
-        int guid = s_nextId.incrementAndGet();
-        PlanColumn retval = new PlanColumn(guid, expression, columnName, sortOrder, storage);
-        // in to the pool...
-        assert(s_columnPool.get(guid) == null);
-        s_columnPool.put(guid, retval);
+    public synchronized PlanColumn getPlanColumn(AbstractExpression expression, String columnName, SortOrder sortOrder, Storage storage) {
+        // Check if one already exists
+        int hashCode = PlanColumn.computeHashCode(expression, columnName, sortOrder, storage);
+        PlanColumn retval = hashcode_col_xref.get(hashCode);
+        
+        // We've never seen this one before, so we have to make a new one...
+        if (retval == null) {
+            int guid = s_nextId.incrementAndGet();
+            retval = new PlanColumn(guid, expression, columnName, sortOrder, storage);
+            assert(s_columnPool.get(guid) == null);
+            s_columnPool.put(guid, retval);
+        }
 
         return retval;
     }
+
+    /**
+     * Internal Registration
+     * HashCode -> PlanColumn
+     */
+    protected synchronized void registerPlanColumn(PlanColumn col) {
+        int hashCode = col.hashCode();
+        this.hashcode_col_xref.put(hashCode, col);
+    }
+
     
     public PlanColumn clonePlanColumn(PlanColumn orig) {
         PlanColumn clone = this.getPlanColumn(orig.m_expression,
@@ -70,6 +86,7 @@ public class PlannerContext {
         assert(!this.s_columnPool.containsKey(guid)) :
             "PlannerContext already contains entry for guid #" + guid + ": " + this.s_columnPool.get(guid);
         this.s_columnPool.put(guid, col);
+        this.registerPlanColumn(col);
     }
     
     /**
