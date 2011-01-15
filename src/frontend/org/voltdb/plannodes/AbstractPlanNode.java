@@ -294,6 +294,14 @@ public abstract class AbstractPlanNode implements JSONString, Comparable<Abstrac
     public AbstractPlanNode getChild(int index) {
         return m_children.get(index);
     }
+    
+    /**
+     * Gets all of the children of this node
+     * @return
+     */
+    public List<AbstractPlanNode> getChildren() {
+        return (Collections.unmodifiableList(m_children));
+    }
 
     public void clearChildren() {
         m_children.clear();
@@ -304,7 +312,7 @@ public abstract class AbstractPlanNode implements JSONString, Comparable<Abstrac
     }
 
     /**
-     * Gets the parents.
+     * Gets the number of parents.
      * @return the parents
      */
     public int getParentCount() {
@@ -313,6 +321,14 @@ public abstract class AbstractPlanNode implements JSONString, Comparable<Abstrac
 
     public AbstractPlanNode getParent(int index) {
         return m_parents.get(index);
+    }
+    
+    /**
+     * Gets all of the parents of this node
+     * @return
+     */
+    public List<AbstractPlanNode> getParents() {
+        return (Collections.unmodifiableList(m_parents));
     }
 
     public void clearParents() {

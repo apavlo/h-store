@@ -63,7 +63,6 @@ import org.voltdb.utils.CatalogUtil;
 
 import edu.brown.plannodes.PlanNodeUtil;
 import edu.brown.utils.CollectionUtil;
-import edu.brown.utils.StringUtil;
 
 /**
  * The query planner accepts catalog data, SQL statements from the catalog, then
@@ -460,12 +459,13 @@ public class PlanAssembler {
                 limit.setLimitParameterIndex(parameterInfo.index);
             }
             limit.addAndLinkChild(root);
+            limit.setOutputColumns(root.m_outputColumns);
             root = limit;
         }
 
-        System.err.println(m_parsedSelect.sql);
+//        System.err.println(m_parsedSelect.sql);
         PlanOptimizer po = new PlanOptimizer(m_context, m_catalogDb);
-        po.optimize(root);
+        po.optimize(m_parsedSelect.sql, root);
         
         // connect the nodes to build the graph
         SendPlanNode sendNode = new SendPlanNode(m_context, getNextPlanNodeId());
@@ -529,6 +529,7 @@ public class PlanAssembler {
                 SendPlanNode sendNode = new SendPlanNode(m_context, getNextPlanNodeId());
                 sendNode.setFake(true);
                 sendNode.addAndLinkChild(deleteNode);
+                sendNode.setOutputColumns(deleteNode.m_outputColumns);
                 return sendNode;
             } else {
                 return deleteNode;
@@ -639,9 +640,10 @@ public class PlanAssembler {
                 SendPlanNode sendNode = new SendPlanNode(m_context, getNextPlanNodeId());
                 sendNode.setFake(true);
                 sendNode.addAndLinkChild(updateNode);
+                sendNode.setOutputColumns(updateNode.m_outputColumns);
                 return sendNode;
             } else {
-            return updateNode;
+                return updateNode;
             }
             
         } else {
@@ -805,6 +807,7 @@ public class PlanAssembler {
             SendPlanNode sendNode = new SendPlanNode(m_context, getNextPlanNodeId());
             sendNode.setFake(true);
             sendNode.addAndLinkChild(insertNode);
+            sendNode.setOutputColumns(insertNode.m_outputColumns);
             rootNode = sendNode;
         }
 
