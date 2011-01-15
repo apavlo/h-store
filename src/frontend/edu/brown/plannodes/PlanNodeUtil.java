@@ -311,7 +311,7 @@ public abstract class PlanNodeUtil {
                         " : type=" + column.type();
             }
             inner += " : guid=" + column_guid;
-            ret += String.format("%s   [%d] %s%s\n", spacer, ctr, name, inner);
+            ret += String.format("%s   [%02d] %s%s\n", spacer, ctr, name, inner);
             
             if (column != null && column.getExpression() != null && (true || node instanceof ProjectionPlanNode)) {
                 ret += ExpressionUtil.debug(column.getExpression(), spacer + "    ");
@@ -355,10 +355,12 @@ public abstract class PlanNodeUtil {
         if (node instanceof AbstractJoinPlanNode) {
             AbstractJoinPlanNode cast_node = (AbstractJoinPlanNode)node;
             sb.append(inner_spacer).append("JoinType[" + cast_node.getJoinType() + "]\n");
-            sb.append(inner_spacer).append("Join Expression: " + (cast_node.getPredicate() != null ? "\n" + ExpressionUtil.debug(cast_node.getPredicate(), spacer) : null + "\n"));
+            sb.append(inner_spacer).append("Join Expression: " + (cast_node.getPredicate() != null ? "\n" + ExpressionUtil.debug(cast_node.getPredicate(), line_spacer) : null + "\n"));
+        
         // AbstractOperationPlanNode
         } else if (node instanceof AbstractOperationPlanNode) {
             sb.append(inner_spacer).append("TargetTableId[" + ((AbstractOperationPlanNode)node).getTargetTableName() + "]\n");
+        
         // AbstractScanPlanNode
         } else if (node instanceof AbstractScanPlanNode) {
             AbstractScanPlanNode cast_node = (AbstractScanPlanNode)node;
@@ -367,16 +369,22 @@ public abstract class PlanNodeUtil {
             sb.append(inner_spacer).append("TargetTableId[" + cast_node.getTargetTableName() + "]\n");
         }
         
-        // PlanNodeTypes
+        // AggregatePlanNode
         if (node instanceof AggregatePlanNode) {
             AggregatePlanNode cast_node = (AggregatePlanNode)node;
             sb.append(inner_spacer).append("AggregateTypes[" + cast_node.getAggregateTypes() + "]\n");
             sb.append(inner_spacer).append("AggregateColumns[" + cast_node.getAggregateOutputColumns() + "]\n");
             sb.append(inner_spacer).append("GroupByColumns" + cast_node.getGroupByColumns() + "\n");
+            
+        // DeletePlanNode
         } else if (node instanceof DeletePlanNode) {
             sb.append(inner_spacer).append("Truncate[" + ((DeletePlanNode)node).isTruncate() + "\n");
+            
+        // DistinctPlanNode
         } else if (node instanceof DistinctPlanNode) {
             sb.append(inner_spacer).append("DistinctColumn[" + ((DistinctPlanNode)node).getDistinctColumnName() + "]\n");
+            
+        // IndexScanPlanNode
         } else if (node instanceof IndexScanPlanNode) {
             IndexScanPlanNode cast_node = (IndexScanPlanNode)node;
             sb.append(inner_spacer).append("TargetIndexName[" + cast_node.getTargetIndexName() + "]\n");
@@ -389,16 +397,20 @@ public abstract class PlanNodeUtil {
             sb.append(inner_spacer).append("End Expression: " + (cast_node.getEndExpression() != null ? "\n" + ExpressionUtil.debug(cast_node.getEndExpression(), line_spacer) : null + "\n"));
             sb.append(inner_spacer).append("Post-Scan Expression: " + (cast_node.getPredicate() != null ? "\n" + ExpressionUtil.debug(cast_node.getPredicate(), line_spacer) : null + "\n"));
             
+        // InsertPlanNode
         } else if (node instanceof InsertPlanNode) {
             sb.append(inner_spacer).append("MultiPartition[" + ((InsertPlanNode)node).getMultiPartition() + "]\n");
             
+        // LimitPlanNode
         } else if (node instanceof LimitPlanNode) {
             sb.append(inner_spacer).append("Limit[" + ((LimitPlanNode)node).getLimit() + "]\n");
             sb.append(inner_spacer).append("Offset[" + ((LimitPlanNode)node).getOffset() + "]\n");
             
+        // NestLoopIndexPlanNode
         } else if (node instanceof NestLoopIndexPlanNode) {
             // Nothing
             
+        // NestLoopPlanNode
         } else if (node instanceof NestLoopPlanNode) {
             // Nothing
             

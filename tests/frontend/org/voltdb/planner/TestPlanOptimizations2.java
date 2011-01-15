@@ -6,7 +6,6 @@ import java.util.Set;
 
 import org.junit.Test;
 import org.voltdb.catalog.Column;
-import org.voltdb.catalog.PlanFragment;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Statement;
 import org.voltdb.catalog.Table;
@@ -37,9 +36,14 @@ public class TestPlanOptimizations2 extends BaseTestCase {
             
             this.addPartitionInfo("TABLEA", "A_ID");
             this.addPartitionInfo("TABLEB", "B_A_ID");
+            this.addPartitionInfo("TABLEC", "C_A_ID");
             
             this.addStmtProcedure("SingleProjection", "SELECT TABLEA.A_VALUE0 FROM TABLEA WHERE TABLEA.A_ID = ?");
+            this.addStmtProcedure("Limit", "SELECT * FROM TABLEA WHERE TABLEA.A_ID > ? AND TABLEA.A_ID <= ? AND TABLEA.A_VALUE0 != ? LIMIT 15");
             this.addStmtProcedure("JoinProjection", "SELECT TABLEA.A_VALUE0 FROM TABLEA, TABLEB WHERE TABLEA.A_ID = ? AND TABLEA.A_ID = TABLEB.B_A_ID");
+            // NESTLOOP this.addStmtProcedure("ThreeWayJoin", "SELECT TABLEA.A_VALUE0, TABLEB.B_VALUE0, (TABLEC.C_VALUE0 + TABLEC.C_VALUE1) AS blah FROM TABLEA, TABLEB, TABLEC WHERE TABLEA.A_ID = TABLEB.B_ID AND TABLEA.A_ID = TABLEC.C_A_ID AND TABLEC.C_A_ID = ? AND TABLEC.C_VALUE0 != ?");
+            this.addStmtProcedure("ThreeWayJoin", "SELECT TABLEA.A_VALUE0, TABLEB.B_VALUE0, (TABLEC.C_VALUE0 + TABLEC.C_VALUE1) AS blah FROM TABLEA, TABLEB, TABLEC WHERE TABLEA.A_ID = TABLEB.B_A_ID AND TABLEA.A_ID = TABLEC.C_A_ID AND TABLEC.C_A_ID = ? AND TABLEC.C_VALUE0 != ?");
+            this.addStmtProcedure("Aggregate", "SELECT COUNT(TABLEB.B_A_ID) AS cnt FROM TABLEB WHERE TABLEB.B_ID = ?");
         }
     };
     
@@ -47,6 +51,49 @@ public class TestPlanOptimizations2 extends BaseTestCase {
     @Override
     protected void setUp() throws Exception {
         super.setUp(pb);
+    }
+
+    /**
+     * testLimit
+     */
+    @Test
+    public void testLimit() throws Exception {
+        Procedure catalog_proc = this.getProcedure("Limit");
+        Statement catalog_stmt = this.getStatement(catalog_proc, "sql");
+        
+        // Grab the root node of the multi-partition query plan tree for this Statement 
+        AbstractPlanNode root = QueryPlanUtil.deserializeStatement(catalog_stmt, false);
+        assertNotNull(root);
+//        System.err.println(PlanNodeUtil.debug(root));
+    }
+
+    /**
+     * testThreeWayJoin
+     */
+    @Test
+    public void testThreeWayJoin() throws Exception {
+        Procedure catalog_proc = this.getProcedure("ThreeWayJoin");
+        Statement catalog_stmt = this.getStatement(catalog_proc, "sql");
+        
+        // Grab the root node of the multi-partition query plan tree for this Statement 
+        AbstractPlanNode root = QueryPlanUtil.deserializeStatement(catalog_stmt, false);
+        assertNotNull(root);
+        System.err.println(PlanNodeUtil.debug(root));
+    }
+
+    
+    /**
+     * testAggregate
+     */
+    @Test
+    public void testAggregate() throws Exception {
+        Procedure catalog_proc = this.getProcedure("Aggregate");
+        Statement catalog_stmt = this.getStatement(catalog_proc, "sql");
+        
+        // Grab the root node of the multi-partition query plan tree for this Statement 
+        AbstractPlanNode root = QueryPlanUtil.deserializeStatement(catalog_stmt, true);
+        assertNotNull(root);
+//        System.err.println(PlanNodeUtil.debug(root));
     }
     
     /**
@@ -60,7 +107,7 @@ public class TestPlanOptimizations2 extends BaseTestCase {
         // Grab the root node of the multi-partition query plan tree for this Statement 
         AbstractPlanNode root = QueryPlanUtil.deserializeStatement(catalog_stmt, false);
         assertNotNull(root);
-        System.err.println(PlanNodeUtil.debug(root));
+//        System.err.println(PlanNodeUtil.debug(root));
 
         // First check that our single scan node has an inline Projection
         Set<AbstractScanPlanNode> scan_nodes = PlanNodeUtil.getPlanNodes(root, AbstractScanPlanNode.class);
