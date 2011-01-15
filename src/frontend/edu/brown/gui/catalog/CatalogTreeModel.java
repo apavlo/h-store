@@ -1,6 +1,7 @@
 package edu.brown.gui.catalog;
 
 import java.util.*;
+
 import org.apache.log4j.Logger;
 
 import javax.swing.tree.*;
@@ -72,11 +73,22 @@ public class CatalogTreeModel extends DefaultTreeModel {
     protected void buildSearchIndex(CatalogType catalog_obj, DefaultMutableTreeNode node) {
         //this.guid_node_xref.put(catalog_obj.getGuid(), node);
         
-        String name = catalog_obj.getName().toLowerCase();
-        if (!this.name_node_xref.containsKey(name)) {
-            this.name_node_xref.put(name, new HashSet<DefaultMutableTreeNode>());
+        List<String> keys = new ArrayList<String>();
+        keys.add(catalog_obj.getName());
+        
+        // Add the SQL statements
+        if (catalog_obj instanceof Statement) {
+            Statement catalog_stmt = (Statement)catalog_obj;
+            keys.add(catalog_stmt.getSqltext());
         }
-        this.name_node_xref.get(name).add(node);
+        
+        for (String k : keys) {
+            k = k.toLowerCase();
+            if (!this.name_node_xref.containsKey(k)) {
+                this.name_node_xref.put(k, new HashSet<DefaultMutableTreeNode>());
+            }
+            this.name_node_xref.get(k).add(node);
+        } // FOR
     }
     
     private static class CatalogMapTreeNode extends DefaultMutableTreeNode {
