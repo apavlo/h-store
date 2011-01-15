@@ -1251,28 +1251,30 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
      * @throws Exception
      */
     public static Set<Column> getReferencedColumns(final Database catalog_db, AbstractExpression exp) throws Exception {
+        final boolean debug = LOG.isDebugEnabled();
         final Set<Column> found_columns = new HashSet<Column>();
         new ExpressionTreeWalker() {
             @Override
             protected void callback(AbstractExpression element) {
                 if (element instanceof TupleValueExpression) {
-                    String table_name = ((TupleValueExpression) element)
-                            .getTableName();
+                    String table_name = ((TupleValueExpression)element).getTableName();
                     Table catalog_tbl = catalog_db.getTables().get(table_name);
                     if (catalog_tbl == null) {
-                        LOG.fatal("Unknown table '" + table_name + "' referenced in Expression node " + element);
-                        this.stop();
+                        // If it's a temp then we just ignore it. Otherwise throw an error!
+                        if (table_name.contains("VOLT_AGGREGATE_NODE_TEMP_TABLE") == false) {
+                            this.stop();
+                            throw new RuntimeException(String.format("Unknown table '%s' referenced in Expression node %s", table_name, element));
+                        } else if (debug) {
+                            LOG.debug("Ignoring temporary table '" + table_name + "'");
+                        }
                         return;
                     }
 
                     String column_name = ((TupleValueExpression) element).getColumnName();
                     Column catalog_col = catalog_tbl.getColumns().get(column_name);
                     if (catalog_col == null) {
-                        LOG.fatal("Unknown column '" + table_name + "."
-                                + column_name
-                                + "' referenced in Expression node " + element);
                         this.stop();
-                        return;
+                        throw new RuntimeException(String.format("Unknown column '%s.%s' referenced in Expression node %s", table_name, column_name, element));
                     }
                     found_columns.add(catalog_col);
                 }

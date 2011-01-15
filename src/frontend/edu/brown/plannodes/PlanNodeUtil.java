@@ -28,6 +28,32 @@ public abstract class PlanNodeUtil {
     private static final String SPACER_PREFIX = "┃";
     private static final String INNER_PREFIX = "┣";    
     private static final String LAST_PREFIX = "┗";
+
+    /**
+     * Returns the root node in the tree for the given node
+     * @param node
+     * @return
+     */
+    public static AbstractPlanNode getRoot(AbstractPlanNode node) {
+        return (node.getParentCount() > 0 ? getRoot(node.getParent(0)) : node);
+    }
+    
+    /**
+     * Return a set of all the PlanNodeTypes in the tree
+     * @param node
+     * @return
+     */
+    public static Set<PlanNodeType> getPlanNodeTypes(AbstractPlanNode node) {
+        final Set<PlanNodeType> types = new HashSet<PlanNodeType>();
+        new PlanNodeTreeWalker(true) {
+            @Override
+            protected void callback(AbstractPlanNode element) {
+                types.add(element.getPlanNodeType());
+            }
+        }.traverse(node);
+        assert(types.size() > 0);
+        return (types);
+    }
     
     /**
      * Get all the AbstractExpression roots used in the given AbstractPlanNode
@@ -401,7 +427,7 @@ public abstract class PlanNodeUtil {
         } else if (node instanceof UnionPlanNode) {
             // Nothing
         } else if (node instanceof UpdatePlanNode) {
-            // Nothing
+            sb.append(inner_spacer).append("UpdateIndexes[" + ((UpdatePlanNode)node).doesUpdateIndexes() + "]\n");
         } else {
             LOG.fatal("Unsupported PlanNode type: " + node.getClass().getSimpleName());
             System.exit(1);

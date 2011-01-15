@@ -111,7 +111,7 @@ public abstract class StatementCompiler {
         QueryPlanner planner = new QueryPlanner(catalog.getClusters().get("cluster"), db, hsql, estimates, true, false);
 
         Exception first_exception = null;
-        for (boolean _singleSited : new Boolean[] { false }) {
+        for (boolean _singleSited : new Boolean[] { true, false }) {
             QueryType stmt_type = QueryType.get(catalogStmt.getQuerytype());
             compiler.addInfo("Creating " + stmt_type.name() + " query plan for " + catalogStmt.getName() + ": singleSited=" + _singleSited);
             // System.err.println("Creating " + stmt_type.name() + " query plan for " + catalogStmt.getName() + ": singleSited=" + _singleSited);

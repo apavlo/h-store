@@ -25,7 +25,10 @@ import org.json.JSONString;
 import org.json.JSONStringer;
 import org.json.JSONException;
 import org.voltdb.catalog.Database;
+import org.voltdb.types.PlanNodeType;
 import org.voltdb.utils.Pair;
+
+import edu.brown.plannodes.PlanNodeUtil;
 
 /**
  *
@@ -146,8 +149,14 @@ public class PlanNodeTree implements JSONString {
             this.m_parameters.add(new Pair<Integer, VoltType>(index, type));
         }
         
-        for (AbstractPlanNode node : m_planNodes) {
-            // MOTHER FUCKER!!! node.updateOutputColumns(db);
+        Set<PlanNodeType> types = PlanNodeUtil.getPlanNodeTypes(m_planNodes.get(0));
+        if (types.contains(PlanNodeType.INSERT) ||
+            types.contains(PlanNodeType.UPDATE) ||
+            types.contains(PlanNodeType.DELETE)) {
+            for (AbstractPlanNode node : m_planNodes) {
+                // MOTHER FUCKER!!!
+                node.updateOutputColumns(db);
+            }
         }
     }
     
