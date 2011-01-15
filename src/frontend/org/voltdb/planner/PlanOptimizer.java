@@ -273,15 +273,12 @@ public class PlanOptimizer {
         // Stop if there is no column information.
         // XXX: Is this a bad thing?
         if (output_columns == null) {
-//            if (trace) 
-                LOG.warn("No column information for " + catalog_tbl);
+            if (trace) LOG.warn("No column information for " + catalog_tbl);
             return (false);
         // Only create the projection if the number of columns we need to output is less
         // then the total number of columns for the table
         } else if (output_columns.size() == catalog_tbl.getColumns().size()) {
-//            if (trace) 
-                LOG.warn("All columns needed in query. No need for inline projection on " + catalog_tbl);
-                LOG.warn(sql);
+            if (trace) LOG.warn("All columns needed in query. No need for inline projection on " + catalog_tbl);
             return (false);
         }
         
