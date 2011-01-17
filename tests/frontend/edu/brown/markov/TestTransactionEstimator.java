@@ -78,7 +78,7 @@ public class TestTransactionEstimator extends BaseTestCase {
             assert(workload.getTransactionCount() > 0);
             
             // Generate MarkovGraphs
-            markovs = MarkovUtil.createGraphs(catalog_db, workload, p_estimator);
+            markovs = MarkovUtil.createBasePartitionGraphs(catalog_db, workload, p_estimator);
             assertNotNull(markovs);
             
             // Find a single-partition and multi-partition trace
@@ -108,7 +108,7 @@ public class TestTransactionEstimator extends BaseTestCase {
 //        assertNotNull(singlep_trace);
         
         // Setup
-        this.t_estimator = new TransactionEstimator(BASE_PARTITION, p_estimator, correlations);
+        this.t_estimator = new TransactionEstimator(p_estimator, correlations);
         this.t_estimator.addMarkovGraphs(markovs.get(BASE_PARTITION));
         this.thresholds = new EstimationThresholds();
     }

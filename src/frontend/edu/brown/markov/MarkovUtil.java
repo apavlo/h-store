@@ -164,7 +164,7 @@ public abstract class MarkovUtil {
         HashMap<Integer, MarkovGraph> graphs = new HashMap<Integer, MarkovGraph>();
         Database catalog_db = CatalogUtil.getDatabase(catalog_proc);
         for (int i : CatalogUtil.getAllPartitionIds(catalog_db)) {
-            MarkovGraph g = new MarkovGraph(catalog_proc, i);
+            MarkovGraph g = new MarkovGraph(catalog_proc);
             g.addVertex(MarkovUtil.getStartVertex(catalog_db));
             g.addVertex(MarkovUtil.getAbortVertex(catalog_db));
             g.addVertex(MarkovUtil.getCommitVertex(catalog_db));
@@ -189,14 +189,13 @@ public abstract class MarkovUtil {
     }
 
     /**
-     * Construct all of the Markov graphs for a workload+catalog
+     * Construct all of the Markov graphs for a workload+catalog split by the txn's base partition
      * @param catalog_db
      * @param workload
      * @param p_estimator
      * @return
      */
-    public static MarkovGraphsContainer createGraphs(
-            Database catalog_db, Workload workload, PartitionEstimator p_estimator) {
+    public static MarkovGraphsContainer createBasePartitionGraphs(Database catalog_db, Workload workload, PartitionEstimator p_estimator) {
         assert(workload != null);
         assert(p_estimator != null);
         
@@ -206,7 +205,7 @@ public abstract class MarkovUtil {
         for (Procedure catalog_proc : catalog_db.getProcedures()) {
             if (catalog_proc.getSystemproc()) continue;
             LOG.debug("Creating MarkovGraphs for " + catalog_proc);
-            Map<Integer, MarkovGraph> gs = MarkovUtil.createGraphsForProcedure(catalog_proc, workload, p_estimator);
+            Map<Integer, MarkovGraph> gs = MarkovUtil.createBasePartitionGraphsForProcedure(catalog_proc, workload, p_estimator);
             for (int partition : gs.keySet()) {
                 assert(partitions.contains(partition));
                 MarkovGraph markov = gs.get(partition);
@@ -229,8 +228,7 @@ public abstract class MarkovUtil {
      *            workload to trace through
      * @return
      */
-    public static Map<Integer, MarkovGraph> createGraphsForProcedure(
-            Procedure catalog_proc, Workload workload, PartitionEstimator p_estimator) {
+    public static Map<Integer, MarkovGraph> createBasePartitionGraphsForProcedure(Procedure catalog_proc, Workload workload, PartitionEstimator p_estimator) {
         final boolean trace = LOG.isTraceEnabled();
         assert(catalog_proc != null);
         assert(workload != null);
@@ -261,7 +259,12 @@ public abstract class MarkovUtil {
                 
                 MarkovGraph g = partitiongraphs.get(base_partition);
                 assert(g != null) : "No MarkovGraph exists for base partition #" + base_partition;
-                g.processTransaction(xact, p_estimator);
+                try {
+                    g.processTransaction(xact, p_estimator);
+                } catch (Exception ex) {
+                    LOG.fatal("Failed to process " + xact, ex);
+                    System.exit(1);
+                }
             }
         } // WHILE
         // After we created all of the graphs for each partition, invoke the calculateProbabilities()
@@ -272,56 +275,63 @@ public abstract class MarkovUtil {
         return partitiongraphs;
     }
 
+    /**
+     * Load all of the MarkovGraphs at the given path
+     * @param catalog_db
+     * @param input_path
+     * @return
+     * @throws Exception
+     */
     public static MarkovGraphsContainer load(Database catalog_db, String input_path) throws Exception {
         return (MarkovUtil.load(catalog_db, input_path, CatalogUtil.getAllPartitionIds(catalog_db)));
     }
     
     /**
-     * Load a list of Markov objects from a serialized for a particular base partition
+     * Load a list of Markov objects from a serialized for a particular id
      * @param catalog_db
      * @param input_path
-     * @param base_partition
+     * @param id
      * @return
      * @throws Exception
      */
-    public static Map<Procedure, MarkovGraph> load(Database catalog_db, String input_path, int base_partition) throws Exception {
-        Map<Integer, Map<Procedure, MarkovGraph>> markovs = MarkovUtil.load(catalog_db, input_path,
-                                                                            new ArrayList<Integer>(Arrays.asList(new Integer[] { base_partition })));
+    public static Map<Procedure, MarkovGraph> load(Database catalog_db, String input_path, int id) throws Exception {
+        Set<Integer> idset = new HashSet<Integer>();
+        idset.add(id);
+        MarkovGraphsContainer markovs = MarkovUtil.load(catalog_db, input_path, idset);
         assert(markovs.size() == 1);
-        assert(markovs.containsKey(base_partition));
-        return (markovs.get(base_partition));
+        assert(markovs.containsKey(id));
+        return (markovs.get(id));
     }
     
     /**
      * 
      * @param catalog_db
      * @param input_path
-     * @param partitions
+     * @param ids
      * @return
      * @throws Exception
      */
-    public static MarkovGraphsContainer load(Database catalog_db, String input_path, Collection<Integer> partitions) throws Exception {
-        MarkovGraphsContainer ret = new MarkovGraphsContainer(); // HashMap<Integer, Map<Procedure,MarkovGraph>>();
+    public static MarkovGraphsContainer load(Database catalog_db, String input_path, Collection<Integer> ids) throws Exception {
+        MarkovGraphsContainer ret = new MarkovGraphsContainer();
         final String className = MarkovGraph.class.getSimpleName();
-        LOG.info("Loading in serialized " + className + " from '" + input_path + "' [partitions=" + partitions + "]");
+        LOG.info("Loading in serialized " + className + " from '" + input_path + "' [ids=" + ids + "]");
         String contents = FileUtil.readFile(input_path);
         if (contents.isEmpty()) {
             throw new IOException("The " + className + " file '" + input_path + "' is empty");
         }
         
-        // File Format: One Partition per line, each with a mapping from Procedure to MarkovGraph
-        HashSet<Integer> remaining = new HashSet<Integer>();
-        remaining.addAll(partitions);
+        Set<Integer> remaining = (Set<Integer>)CollectionUtil.addAll(new HashSet<Integer>(), ids);
         try {
+            // File Format: One Id per line, each with a mapping from Procedure to MarkovGraph
             BufferedReader in = FileUtil.getReader(input_path);
             while (in.ready()) {
                 JSONObject json_object = new JSONObject(in.readLine());
-                String partition_key = CollectionUtil.getFirst(json_object.keys());
-                Integer partition = Integer.valueOf(partition_key);
-                if (!remaining.contains(partition)) continue;
+                String id_key = CollectionUtil.getFirst(json_object.keys());
+                Integer id = Integer.valueOf(id_key);
+                if (!remaining.contains(id)) continue;
                 
                 Map<Procedure, MarkovGraph> markovs = new HashMap<Procedure, MarkovGraph>();
-                JSONObject json_procs = json_object.getJSONObject(partition_key);
+                JSONObject json_procs = json_object.getJSONObject(id_key);
                 Iterator<String> proc_keys = json_procs.keys();
                 while (proc_keys.hasNext()) {
                     String proc_key = proc_keys.next();
@@ -329,12 +339,12 @@ public abstract class MarkovUtil {
                     assert(catalog_proc != null);
                     
                     JSONObject json_graph = json_procs.getJSONObject(proc_key);
-                    MarkovGraph markov = new MarkovGraph(catalog_proc, partition);
+                    MarkovGraph markov = new MarkovGraph(catalog_proc);
                     markov.fromJSON(json_graph, catalog_db);
                     markovs.put(catalog_proc, markov);
                 } // WHILE
-                ret.put(partition, markovs);
-                remaining.remove(partition);
+                ret.put(id, markovs);
+                remaining.remove(id);
                 if (remaining.isEmpty()) break;
             } // WHILE
         } catch (Exception ex) {
@@ -346,7 +356,7 @@ public abstract class MarkovUtil {
     }
     
     /**
-     * For the given list of MarkovGraph objects, serialize them out to a file
+     * For the given MarkovGraphContainer, serialize them out to a file
      * @param markovs
      * @param output_path
      * @throws Exception
@@ -358,11 +368,11 @@ public abstract class MarkovUtil {
         File file = new File(output_path);
         try {
             FileOutputStream out = new FileOutputStream(file);
-            for (Integer partition : markovs.keySet()) {
-                LOG.debug("Serializing " + markovs.get(partition).size() + " graphs for partition " + partition);
+            for (Integer id : markovs.keySet()) {
+                LOG.debug("Serializing " + markovs.get(id).size() + " graphs for id " + id);
                 JSONStringer stringer = new JSONStringer();
-                stringer.object().key(partition.toString()).object();
-                for (Entry<Procedure, MarkovGraph> e : markovs.get(partition).entrySet()) {
+                stringer.object().key(id.toString()).object();
+                for (Entry<Procedure, MarkovGraph> e : markovs.get(id).entrySet()) {
                     stringer.key(CatalogKey.createKey(e.getKey())).object();
                     e.getValue().toJSON(stringer);
                     stringer.endObject();

@@ -41,7 +41,7 @@ public class TestFeatureClusterer extends BaseTestCase {
     private static final Class<? extends VoltProcedure> TARGET_PROCEDURE = neworder.class;
     private static final int WORKLOAD_XACT_LIMIT = 1000;
 //    private static final int BASE_PARTITION = 1;
-    private static final int NUM_PARTITIONS = 100;
+    private static final int NUM_PARTITIONS = 5;
 
     private static Procedure catalog_proc;
     private static Workload workload;
@@ -185,7 +185,7 @@ public class TestFeatureClusterer extends BaseTestCase {
     @Test
     public void testCreateAttributeSet() throws Exception {
         Set<Attribute> attributes = prefix2attributes(
-            FeatureUtil.getFeatureKeyPrefix(BasePartitionFeature.class),
+//            FeatureUtil.getFeatureKeyPrefix(BasePartitionFeature.class),
             FeatureUtil.getFeatureKeyPrefix(ParamArrayLengthFeature.class, this.getProcParameter(catalog_proc, 4)),
             FeatureUtil.getFeatureKeyPrefix(ParamNumericValuesFeature.class, this.getProcParameter(catalog_proc, 1))
         );
@@ -194,11 +194,11 @@ public class TestFeatureClusterer extends BaseTestCase {
         Pair<Instances, Instances> p = fclusterer.splitWorkload(data);
         assertNotNull(p);
         
-        for (int i = 0; i < 4; i++) {
+        for (int i = 0; i < 1; i++) {
             AttributeSet aset = fclusterer.createAttributeSet(catalog_proc, attributes, p.getFirst(), p.getSecond());
-            System.err.println("[" + i + "] Cost: " + aset.getCost());
+//            System.err.println("[" + i + "] Cost: " + aset.getCost());
         }
-        System.err.println();
+//        System.err.println();
         
 //        attributes = prefix2attributes(
 //            FeatureUtil.getFeatureKeyPrefix(BasePartitionFeature.class),

@@ -74,7 +74,7 @@ public class TestVertex extends BaseTestCase {
                                           Arrays.asList(this.partitions[i]), new HashSet<Integer>());
         } // FOR
         
-        graph = new MarkovGraph(catalog_proc, 0);
+        graph = new MarkovGraph(catalog_proc);
         graph.initialize();
         start = graph.getStartVertex();
         commit = graph.getCommitVertex();

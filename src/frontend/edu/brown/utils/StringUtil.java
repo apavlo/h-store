@@ -2,6 +2,7 @@ package edu.brown.utils;
 
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.regex.Pattern;
@@ -66,32 +67,41 @@ public abstract class StringUtil {
         
         // Figure out the largest key size so we can get spacing right
         int max_key_size = 0;
-        for (Map<?, ?> m : maps) {
+        final Map<?, ?> map_keys[] = new Map<?, ?>[maps.length];
+        for (int i = 0; i < maps.length; i++) {
+            Map<?, ?> m = maps[i];
+            Map<Object, String> keys = new HashMap<Object, String>();
             for (Object k : m.keySet()) {
-                max_key_size = Math.max(max_key_size, k.toString().length());
-            }
-        }
+                String k_str = k.toString();
+                keys.put(k, k_str);
+                max_key_size = Math.max(max_key_size, k_str.length());
+            } // FOR
+            map_keys[i] = keys;
+        } // FOR
         
         boolean equalsDelimiter = delimiter.equals("=");
         final String f = "%-" + (max_key_size + 2) + "s" +
                          (equalsDelimiter ? "= " : "") +
                          "%s\n";
-        boolean first = true;
-        for (Map<?, ?> m : maps) {
-            if (first == false) sb.append(repeat("-", max_key_size + 10));
+        int max_value_size = 0;
+        for (int i = 0; i < maps.length; i++) {
+            Map<?, ?> m = maps[i];
+            Map<?, ?> keys = map_keys[i];
+            
+            if (i != 0) sb.append(repeat("-", max_key_size + max_value_size + 2)).append("\n");
             for (Entry<?, ?> e : m.entrySet()) {
-                String k = e.getKey().toString();
+                String k = keys.get(e.getKey()).toString();
                 String v = (e.getValue() != null ? e.getValue().toString() : "null");
                 if (upper) k = k.toUpperCase();
                 if (equalsDelimiter == false) k += ":";
                 
                 // If the value is multiple lines, format them nicely!
                 String lines[] = LINE_SPLIT.split(v);
-                for (int i = 0; i < lines.length; i++) {
-                    sb.append(String.format(f, (i == 0 ? k : ""), lines[i]));    
+                for (int line_i = 0; line_i < lines.length; line_i++) {
+                    sb.append(String.format(f, (line_i == 0 ? k : ""), lines[line_i]));
+                    if (i == 0 && maps.length > 1) max_value_size = Math.max(max_value_size, lines[line_i].length());
                 } // FOR
             }
-            first = false;
         } // FOR
         return (box ? StringUtil.box(sb.toString()) : sb.toString());
     }

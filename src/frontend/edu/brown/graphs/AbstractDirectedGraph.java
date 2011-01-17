@@ -21,7 +21,7 @@ import org.json.*;
  *
  */
 public abstract class AbstractDirectedGraph<V extends AbstractVertex, E extends AbstractEdge> extends DirectedSparseMultigraph<V, E> implements IGraph<V, E> {
-    protected static final Logger LOG = Logger.getLogger(AbstractDirectedGraph.class.getName());
+    protected static final Logger LOG = Logger.getLogger(AbstractDirectedGraph.class);
     private static final long serialVersionUID = 5267919528011628037L;
 
     /**

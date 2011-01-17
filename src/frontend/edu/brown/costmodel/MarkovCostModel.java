@@ -265,7 +265,7 @@ public class MarkovCostModel extends AbstractCostModel {
      * @param path
      * @return
      */
-    private Pair<Integer, Integer> getReadWritePartitions(List<Vertex> path) {
+    public Pair<Integer, Integer> getReadWritePartitions(List<Vertex> path) {
         Set<Integer> read_p = new HashSet<Integer>();
         Set<Integer> write_p = new HashSet<Integer>();
         
