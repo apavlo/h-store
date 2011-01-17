@@ -1,6 +1,7 @@
 package edu.brown.gui.catalog;
 
 import java.util.*;
+
 import org.apache.log4j.Logger;
 
 import javax.swing.tree.*;
@@ -33,6 +34,7 @@ public class CatalogTreeModel extends DefaultTreeModel {
     // ----------------------------------------------
     protected final Map<Integer, DefaultMutableTreeNode> guid_node_xref = new HashMap<Integer, DefaultMutableTreeNode>();
     protected final Map<String, Set<DefaultMutableTreeNode>> name_node_xref = new HashMap<String, Set<DefaultMutableTreeNode>>();
+    protected final Map<Integer, Set<DefaultMutableTreeNode>> plannode_node_xref = new HashMap<Integer, Set<DefaultMutableTreeNode>>();
     
     public CatalogTreeModel(Catalog catalog, String catalog_path) {
         super(new DefaultMutableTreeNode(catalog.getName() + " [" + catalog_path + "]"));
@@ -43,11 +45,12 @@ public class CatalogTreeModel extends DefaultTreeModel {
     public Map<Integer, DefaultMutableTreeNode> getGuidNodeXref() {
         return this.guid_node_xref;
     }
-    
+    public Map<Integer, Set<DefaultMutableTreeNode>> getPlanNodeGuidNodeXref() {
+        return this.plannode_node_xref;
+    }
     public Map<String, Set<DefaultMutableTreeNode>> getNameNodeXref() {
         return this.name_node_xref;
     }
-    
     
     
     /**
@@ -77,6 +80,22 @@ public class CatalogTreeModel extends DefaultTreeModel {
             this.name_node_xref.put(name, new HashSet<DefaultMutableTreeNode>());
         }
         this.name_node_xref.get(name).add(node);
+        
+        if (catalog_obj instanceof Statement) {
+            Statement catalog_stmt = (Statement)catalog_obj;
+            try {
+                AbstractPlanNode root = QueryPlanUtil.deserializeStatement(catalog_stmt, false);
+                for (Integer guid : PlanNodeUtil.getAllPlanColumnGuids(root)) {
+                    if (this.plannode_node_xref.containsKey(guid) == false) {
+                        this.plannode_node_xref.put(guid, new HashSet<DefaultMutableTreeNode>());
+                    }
+                    this.plannode_node_xref.get(guid).add(node);
+                } // FOR
+            } catch (Exception ex) {
+                ex.printStackTrace();
+                System.exit(1);
+            }
+        }
     }
     
     private static class CatalogMapTreeNode extends DefaultMutableTreeNode {

@@ -168,7 +168,7 @@ public abstract class QueryPlanUtil {
         } else if (!singlesited && !catalog_stmt.getHas_multisited()) {
             String msg = "No multi-sited plan is available for " + catalog_stmt + ". ";
             if (catalog_stmt.getHas_singlesited()) {
-                LOG.warn(msg + "Going to try to use single-site plan");
+                if (LOG.isDebugEnabled()) LOG.warn(msg + "Going to try to use single-site plan");
                 return (deserializeStatement(catalog_stmt, true));
             } else {
                 LOG.fatal(msg + "No other plan is available");

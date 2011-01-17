@@ -20,6 +20,8 @@ import org.voltdb.planner.PlanColumn.Storage;
 import org.voltdb.plannodes.AbstractJoinPlanNode;
 import org.voltdb.plannodes.AbstractPlanNode;
 import org.voltdb.plannodes.AbstractScanPlanNode;
+import org.voltdb.plannodes.AggregatePlanNode;
+import org.voltdb.plannodes.DistinctPlanNode;
 import org.voltdb.plannodes.IndexScanPlanNode;
 import org.voltdb.plannodes.NestLoopIndexPlanNode;
 import org.voltdb.plannodes.NestLoopPlanNode;
@@ -319,6 +321,87 @@ public class PlanOptimizer {
         if (trace) LOG.trace(String.format("Added inline %s with %d columns to leaf node %s", proj_node, proj_node.getOutputColumnCount(), scan_node));
         return (true);
     }
+    
+    protected boolean updateDistinctColumns(DistinctPlanNode dist_node) {
+        final boolean trace = LOG.isTraceEnabled();
+        
+        // We really have one child here
+        assert(dist_node.getChildCount() == 1) : dist_node;
+        AbstractPlanNode child_node = dist_node.getChild(0);
+        assert(child_node != null);
+
+        // Find the offset of our distinct column in our output. That will
+        // tell us where to get the guid in the input table information
+        int orig_guid = dist_node.getDistinctColumnGuid();
+        PlanColumn orig_pc = m_context.get(orig_guid);
+        assert(orig_pc != null);
+
+        dist_node.setOutputColumns(child_node.m_outputColumns);
+        
+        PlanColumn new_pc = null;
+        int new_idx = 0;
+        for (Integer guid : dist_node.m_outputColumns) {
+            PlanColumn pc = m_context.get(guid);
+            assert(pc != null);
+            if (pc.equals(orig_pc, true, true)) {
+                if (trace) LOG.trace(String.format("[%02d] Found non-expression PlanColumn match:\nORIG: %s\nNEW:  %s", new_idx, orig_pc, pc));
+                new_pc = pc;
+                break;
+            }
+            new_idx++;
+        } // FOR
+        assert(new_pc != null);
+        
+        // Now we can update output columns and set the distinct column to be the guid
+        dist_node.setDistinctColumnGuid(new_pc.guid());
+        
+        markDirty(dist_node);
+        if (LOG.isDebugEnabled()) LOG.debug(String.format("Updated %s with proper distinct column guid: ORIG[%d] => NEW[%d]", dist_node, orig_guid, new_pc.guid()));
+        
+        return (true);
+    }
+    
+    
+    protected boolean updateAggregateColumns(AggregatePlanNode agg_node) {
+        final boolean trace = LOG.isTraceEnabled();
+        
+        // We really have one child here
+        assert(agg_node.getChildCount() == 1) : agg_node;
+        AbstractPlanNode child_node = agg_node.getChild(0);
+        assert(child_node != null);
+
+        agg_node.setOutputColumns(child_node.m_outputColumns);
+        
+        for (int i = 0, cnt = agg_node.getAggregateColumnGuids().size(); i < cnt; i++) {
+            Integer orig_guid = agg_node.getAggregateColumnGuids().get(i);
+            PlanColumn orig_pc = m_context.get(orig_guid);
+            assert(orig_pc != null);
+    
+            PlanColumn new_pc = null;
+            int new_idx = 0;
+            for (Integer guid : agg_node.m_outputColumns) {
+                PlanColumn pc = m_context.get(guid);
+                assert(pc != null);
+                if (pc.equals(orig_pc, true, true)) {
+                    if (trace) LOG.trace(String.format("[%02d] Found non-expression PlanColumn match:\nORIG: %s\nNEW:  %s", new_idx, orig_pc, pc));
+                    new_pc = pc;
+                    break;
+                }
+                new_idx++;
+            } // FOR
+            assert(new_pc != null);
+            agg_node.getAggregateColumnGuids().set(i, new_pc.guid());
+        } // FOR
+        
+//        // Now we can update output columns and set the distinct column to be the guid
+//        dist_node.setDistinctColumnGuid(new_pc.guid());
+//        
+//        markDirty(dist_node);
+//        if (LOG.isDebugEnabled()) LOG.debug(String.format("Updated %s with proper distinct column guid: ORIG[%d] => NEW[%d]", dist_node, orig_guid, new_pc.guid()));
+        
+        return (true);
+    }
+    
 
     /**
      * 
@@ -644,9 +727,20 @@ public class PlanOptimizer {
                         LOG.fatal("Failed to update join columns in " + element, ex);
                         System.exit(1);
                     }
+
+                // ---------------------------------------------------
+                // DISTINCT
+                // ---------------------------------------------------
+                } else if (element instanceof DistinctPlanNode) {
+                    DistinctPlanNode dst_node = (DistinctPlanNode)element;
+                    
+                    if (areChildrenDirty(dst_node) && updateDistinctColumns(dst_node) == false) {
+                        this.stop();
+                        return;
+                    }
                     
                 // ---------------------------------------------------
-                // SEND/RECEIVE
+                // SEND/RECEIVE/LIMIT
                 // ---------------------------------------------------
                 } else if (element instanceof SendPlanNode || element instanceof ReceivePlanNode) {
                     // We really have one child here
