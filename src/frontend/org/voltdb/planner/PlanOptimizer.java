@@ -522,6 +522,9 @@ public class PlanOptimizer {
         
         AbstractPlanNode inner_node = null;
         
+        // These are the set of expressions for the join clause that we need to fix their offsets for
+        final Set<AbstractExpression> expressions_to_fix = PlanNodeUtil.getExpressions(join_node);
+        
         // --------------------------------------------
         // NEST LOOP
         // --------------------------------------------
@@ -597,13 +600,16 @@ public class PlanOptimizer {
                 assert(new_col != null);
                 new_output_guids.add(new_col.guid());
             } // FOR
+            
+            // We also need to fix all of the search key expressions used in the inline scan
+            expressions_to_fix.addAll(PlanNodeUtil.getExpressions(idx_node));
         }
         if (trace) LOG.trace("Output Xref Offsets:      " + offset_xref);
         if (trace) LOG.trace("New Output Columns GUIDS: " + new_output_guids);
        
         // Get all of the AbstractExpression roots for this node
         // Now fix the offsets for everyone
-        for (AbstractExpression exp : PlanNodeUtil.getExpressions(join_node)) {
+        for (AbstractExpression exp : expressions_to_fix) {
             new ExpressionTreeWalker() {
                 @Override
                 protected void callback(AbstractExpression exp_element) {
