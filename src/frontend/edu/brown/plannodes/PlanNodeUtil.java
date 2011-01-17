@@ -17,6 +17,7 @@ import org.voltdb.catalog.*;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.expressions.ExpressionUtil;
 import edu.brown.utils.ClassUtil;
+import edu.brown.utils.JSONUtil;
 
 public abstract class PlanNodeUtil {
     private static final Logger LOG = Logger.getLogger(PlanNodeUtil.class);
@@ -295,12 +296,12 @@ public abstract class PlanNodeUtil {
         return (PlanNodeUtil.debug(node, ""));
     }
     
-    private static String debugOutputColumns(String label, AbstractPlanNode node, String spacer) {
+    private static String debugOutputColumns(String label, List<Integer> guids, String spacer) {
         String ret = "";
         
-        ret += label + "[" + node.m_outputColumns.size() + "]:\n";
-        for (int ctr = 0, cnt = node.m_outputColumns.size(); ctr < cnt; ctr++) {
-            int column_guid = node.m_outputColumns.get(ctr);
+        ret += label + "[" + guids.size() + "]:\n";
+        for (int ctr = 0, cnt = guids.size(); ctr < cnt; ctr++) {
+            int column_guid = guids.get(ctr);
             String name = "???";
             String inner = "";
             PlanColumn column = PlannerContext.singleton().get(column_guid);
@@ -313,7 +314,7 @@ public abstract class PlanNodeUtil {
             inner += " : guid=" + column_guid;
             ret += String.format("%s   [%02d] %s%s\n", spacer, ctr, name, inner);
             
-            if (column != null && column.getExpression() != null && (true || node instanceof ProjectionPlanNode)) {
+            if (column != null && column.getExpression() != null) { //  && (true || node instanceof ProjectionPlanNode)) {
                 ret += ExpressionUtil.debug(column.getExpression(), spacer + "    ");
             }
         } // FOR
@@ -373,8 +374,11 @@ public abstract class PlanNodeUtil {
         if (node instanceof AggregatePlanNode) {
             AggregatePlanNode cast_node = (AggregatePlanNode)node;
             sb.append(inner_spacer).append("AggregateTypes[" + cast_node.getAggregateTypes() + "]\n");
-            sb.append(inner_spacer).append("AggregateColumns[" + cast_node.getAggregateOutputColumns() + "]\n");
+            sb.append(inner_spacer).append("AggregateColumns" + cast_node.getAggregateOutputColumns() + "\n");
             sb.append(inner_spacer).append("GroupByColumns" + cast_node.getGroupByColumns() + "\n");
+//            sb.append(inner_spacer).append(PlanNodeUtil.debugOutputColumns("AggregateColumns", cast_node.getAggregateColumnGuids(), line_spacer));
+//            sb.append(inner_spacer).append(PlanNodeUtil.debugOutputColumns("GroupByColumns", cast_node.getGroupByColumnIds(), line_spacer));
+
             
         // DeletePlanNode
         } else if (node instanceof DeletePlanNode) {
@@ -449,7 +453,7 @@ public abstract class PlanNodeUtil {
 //        if (false && node.getInlinePlanNode(PlanNodeType.PROJECTION) != null) {
 //            sb.append(inner_spacer).append(PlanNodeUtil.debugOutputColumns("OutputColumns (Inline Projection)", node.getInlinePlanNode(PlanNodeType.PROJECTION), line_spacer));
 //        } else {
-            sb.append(inner_spacer).append(PlanNodeUtil.debugOutputColumns("OutputColumns", node, line_spacer));
+            sb.append(inner_spacer).append(PlanNodeUtil.debugOutputColumns("OutputColumns", node.m_outputColumns, line_spacer));
 //        }
         
         // Inline PlanNodes
