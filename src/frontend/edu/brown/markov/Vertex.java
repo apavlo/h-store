@@ -415,12 +415,14 @@ public class Vertex extends AbstractVertex {
     /**
      * Returns true if the query for this vertex only touches one partition and that
      * partition is the as the base_partition (i.e., where the procedure's Java code is executing)
-     * @param base_partition
      * @return
      */
-    public boolean isLocalPartitionOnly(int base_partition) {
-        return ((this.type != Type.QUERY) || 
-                (this.partitions.size() == 1 && CollectionUtil.getFirst(this.partitions) == base_partition));
+    public boolean isLocalPartitionOnly() {
+        if (this.type == Type.QUERY) {
+            return (this.partitions.size() == 1 && this.past_partitions.size() == 1 &&
+                    this.partitions.containsAll(this.past_partitions));
+        }
+        return (true);
     }
     
     public boolean isSingleSited() {

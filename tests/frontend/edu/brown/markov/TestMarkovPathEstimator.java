@@ -82,7 +82,7 @@ public class TestMarkovPathEstimator extends BaseTestCase {
 //             }
             
             // Generate MarkovGraphs
-            markovs = MarkovUtil.createGraphs(catalog_db, workload, p_estimator);
+            markovs = MarkovUtil.createBasePartitionGraphs(catalog_db, workload, p_estimator);
             assertNotNull(markovs);
             
             // Find a single-partition and multi-partition trace
@@ -114,7 +114,7 @@ public class TestMarkovPathEstimator extends BaseTestCase {
         // Setup
         this.graph = markovs.get(BASE_PARTITION, this.catalog_proc);
         assertNotNull("No graph exists for " + this.catalog_proc + " on Partition #" + BASE_PARTITION, this.graph);
-        this.t_estimator = new TransactionEstimator(BASE_PARTITION, p_estimator, correlations);
+        this.t_estimator = new TransactionEstimator(p_estimator, correlations);
         this.t_estimator.addMarkovGraphs(markovs.get(BASE_PARTITION));
     }
     
@@ -127,7 +127,7 @@ public class TestMarkovPathEstimator extends BaseTestCase {
         Vertex abort = this.graph.getAbortVertex();
         
         MarkovPathEstimator.LOG.setLevel(Level.DEBUG);
-        MarkovPathEstimator estimator = new MarkovPathEstimator(this.graph, this.t_estimator, singlep_trace.getParams());
+        MarkovPathEstimator estimator = new MarkovPathEstimator(this.graph, this.t_estimator, BASE_PARTITION, singlep_trace.getParams());
         estimator.traverse(this.graph.getStartVertex());
         Vector<Vertex> path = new Vector<Vertex>(estimator.getVisitPath());
         double confidence = estimator.getConfidence();
@@ -161,7 +161,7 @@ public class TestMarkovPathEstimator extends BaseTestCase {
         Vertex commit = this.graph.getCommitVertex();
         Vertex abort = this.graph.getAbortVertex();
         
-        MarkovPathEstimator estimator = new MarkovPathEstimator(this.graph, this.t_estimator, multip_trace.getParams());
+        MarkovPathEstimator estimator = new MarkovPathEstimator(this.graph, this.t_estimator, BASE_PARTITION, multip_trace.getParams());
         estimator.traverse(this.graph.getStartVertex());
         Vector<Vertex> path = new Vector<Vertex>(estimator.getVisitPath());
         

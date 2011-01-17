@@ -187,8 +187,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
         return (CACHE_ALL_PARTITIONS.get(id));
     }
 
-    public static Collection<Partition> getAllPartitions(
-            CatalogType catalog_item) {
+    public static Collection<Partition> getAllPartitions(CatalogType catalog_item) {
         Cluster catalog_clus = CatalogUtil.getCluster(catalog_item);
 
         if (CACHE_ALL_PARTITIONS.isEmpty()) {
@@ -199,8 +198,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
                 } // FOR
             } // FOR
         }
-        return (Collections.unmodifiableCollection(CACHE_ALL_PARTITIONS
-                .values()));
+        return (Collections.unmodifiableCollection(CACHE_ALL_PARTITIONS.values()));
     }
 
     private static final ListOrderedMap<Integer, Partition> CACHE_ALL_PARTITIONS = new ListOrderedMap<Integer, Partition>();

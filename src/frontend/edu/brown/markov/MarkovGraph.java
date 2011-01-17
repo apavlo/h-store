@@ -1,12 +1,19 @@
 package edu.brown.markov;
 
 import java.lang.reflect.InvocationTargetException;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
-import org.voltdb.catalog.*;
+import org.voltdb.catalog.Database;
+import org.voltdb.catalog.Procedure;
+import org.voltdb.catalog.Statement;
 
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.graphs.AbstractDirectedGraph;
@@ -16,7 +23,8 @@ import edu.brown.graphs.VertexTreeWalker.TraverseOrder;
 import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.PartitionEstimator;
 import edu.brown.utils.StringUtil;
-import edu.brown.workload.*;
+import edu.brown.workload.QueryTrace;
+import edu.brown.workload.TransactionTrace;
 
 /**
  * Markov Model Graph
@@ -32,10 +40,9 @@ public class MarkovGraph extends AbstractDirectedGraph<Vertex, Edge> implements 
      * past partitions set at each vertex. If this is parameter is false, then all of the calculations
      * to determine the uniqueness of vertices will not include past partitions. 
      */
-    public static final boolean USE_PAST_PARTITIONS = false;
+    public static final boolean USE_PAST_PARTITIONS = true;
     
     protected final Procedure catalog_proc;
-    protected final int base_partition;
 
     /**
      * Cached references to the special marker vertices
@@ -56,16 +63,14 @@ public class MarkovGraph extends AbstractDirectedGraph<Vertex, Edge> implements 
      * @param catalog_proc
      * @param basePartition
      */
-    public MarkovGraph(Procedure catalog_proc, int basePartition, int xact_count) {
+//    public MarkovGraph(Procedure catalog_proc, int xact_count) {
+//        super((Database) catalog_proc.getParent());
+//        this.catalog_proc = catalog_proc;
+//        this.xact_count = xact_count;
+//    }
+    public MarkovGraph(Procedure catalog_proc){
         super((Database) catalog_proc.getParent());
         this.catalog_proc = catalog_proc;
-        this.base_partition = basePartition;
-        this.xact_count = xact_count;
-    }
-    public MarkovGraph(Procedure catalog_proc, int basePartition){
-        super((Database) catalog_proc.getParent());
-        this.catalog_proc = catalog_proc;
-        this.base_partition = basePartition;
     }
     
     /**
@@ -90,7 +95,8 @@ public class MarkovGraph extends AbstractDirectedGraph<Vertex, Edge> implements 
     
     @Override
     public String toString() {
-        return (this.getClass().getSimpleName() + "<" + this.getProcedure().getName() + ", " + this.getBasePartition() + ">");
+//        return (this.getClass().getSimpleName() + "<" + this.getProcedure().getName() + ", " + this.getBasePartition() + ">");
+        return (this.getClass().getSimpleName() + "<" + this.getProcedure().getName() + ">");
     }
     
     @Override
@@ -111,13 +117,13 @@ public class MarkovGraph extends AbstractDirectedGraph<Vertex, Edge> implements 
         return catalog_proc;
     }
     
-    /**
-     * Return the base partition id that this Markov graph represents
-     * @return
-     */
-    public int getBasePartition() {
-        return this.base_partition;
-    }
+//    /**
+//     * Return the base partition id that this Markov graph represents
+//     * @return
+//     */
+//    public int getBasePartition() {
+//        return this.base_partition;
+//    }
     
     /**
      * 
@@ -210,12 +216,10 @@ public class MarkovGraph extends AbstractDirectedGraph<Vertex, Edge> implements 
      * Calculate vertex probabilities
      */
     protected void calculateVertexProbabilities() {
-        final boolean trace = (getProcedure().getName().equals("neworder") && base_partition == 1);
-//        final boolean trace = LOG.isTraceEnabled(); 
-        if (trace) {
-//            LOG.setLevel(Level.TRACE);
-            LOG.trace("Calculating Vertex probabilities for " + this);
-        }
+//        final boolean trace = (getProcedure().getName().equals("neworder") && base_partition == 1);
+        final boolean trace = LOG.isTraceEnabled(); 
+        if (trace) LOG.trace("Calculating Vertex probabilities for " + this);
+        
         final Set<Edge> visited_edges = new HashSet<Edge>();
         final List<Integer> all_partitions = this.getAllPartitions();
         
@@ -254,7 +258,7 @@ public class MarkovGraph extends AbstractDirectedGraph<Vertex, Edge> implements 
                         // that is the same partition as the base/local partition. So even if the query accesses
                         // only one partition, if that partition is not the same as where the java is executing,
                         // then we're going to say that it is multi-partitioned
-                        boolean element_islocalonly = element.isLocalPartitionOnly(getBasePartition()); 
+                        boolean element_islocalonly = element.isLocalPartitionOnly(); 
                         if (element_islocalonly == false) {
                             if (trace) LOG.trace(element + " NOT is single-partitioned!");
                             element.setSingleSitedProbability(0.0);
@@ -347,7 +351,7 @@ public class MarkovGraph extends AbstractDirectedGraph<Vertex, Edge> implements 
      * 
      * @return whether graph contains sane data
      */
-    public boolean isSane() {
+    public boolean isValid() {
         double EPSILON = 0.00001;
         for (Vertex v : getVertices()) {
             double sum = 0.0;
@@ -422,13 +426,13 @@ public class MarkovGraph extends AbstractDirectedGraph<Vertex, Edge> implements 
      * For a given TransactionTrace object, process its contents and update our
      * graph
      * 
-     * @param xact_trace - The TransactionTrace to process and update the graph with
+     * @param txn_trace - The TransactionTrace to process and update the graph with
      * @param pest - The PartitionEstimator to use for estimating where things go
      */
-    public List<Vertex> processTransaction(TransactionTrace xact_trace, PartitionEstimator pest) {
-        Procedure catalog_proc = xact_trace.getCatalogItem(this.getDatabase());
+    public List<Vertex> processTransaction(TransactionTrace txn_trace, PartitionEstimator pest) throws Exception {
+        Procedure catalog_proc = txn_trace.getCatalogItem(this.getDatabase());
         Vertex previous = this.getStartVertex();
-        previous.addExecutionTime(xact_trace.getStopTimestamp() - xact_trace.getStartTimestamp());
+        previous.addExecutionTime(txn_trace.getStopTimestamp() - txn_trace.getStartTimestamp());
 
         final List<Vertex> path = new ArrayList<Vertex>();
         path.add(previous);
@@ -438,19 +442,16 @@ public class MarkovGraph extends AbstractDirectedGraph<Vertex, Edge> implements 
             query_instance_counters.put(catalog_stmt, new AtomicInteger(0));
         } // FOR
         
+        final int base_partition = pest.getBasePartition(txn_trace);
+        
         // The past partitions is all of the partitions that this txn has touched,
         // included the base partition where the java executes
         Set<Integer> past_partitions = new HashSet<Integer>();
         // XXX past_partitions.add(this.getBasePartition());
         
         // -----------QUERY TRACE-VERTEX CREATION--------------
-        for (QueryTrace query_trace : xact_trace.getQueries()) {
-            Set<Integer> partitions = null;
-            try {
-                partitions = pest.getPartitions(query_trace, base_partition);
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
+        for (QueryTrace query_trace : txn_trace.getQueries()) {
+            Set<Integer> partitions = pest.getPartitions(query_trace, base_partition);
             assert(partitions != null);
             assert(!partitions.isEmpty());
             Statement catalog_stmnt = query_trace.getCatalogItem(this.getDatabase());
@@ -470,7 +471,7 @@ public class MarkovGraph extends AbstractDirectedGraph<Vertex, Edge> implements 
                 this.addToEdge(v, this.getAbortVertex());
             }
             // Annotate the vertex with remaining execution time
-            v.addExecutionTime(xact_trace.getStopTimestamp() - query_trace.getStartTimestamp());
+            v.addExecutionTime(txn_trace.getStopTimestamp() - query_trace.getStartTimestamp());
             previous = v;
             path.add(v);
             past_partitions.addAll(partitions);
@@ -582,7 +583,7 @@ public class MarkovGraph extends AbstractDirectedGraph<Vertex, Edge> implements 
         ArgumentsParser args = ArgumentsParser.load(vargs);
         args.require(ArgumentsParser.PARAM_CATALOG, ArgumentsParser.PARAM_WORKLOAD);
         final PartitionEstimator p_estimator = new PartitionEstimator(args.catalog_db, args.hasher);
-        MarkovGraphsContainer graphs_per_partition = MarkovUtil.createGraphs(args.catalog_db, args.workload, p_estimator);
+        MarkovGraphsContainer graphs_per_partition = MarkovUtil.createBasePartitionGraphs(args.catalog_db, args.workload, p_estimator);
         
 //
 //        Map<Procedure, Pair<Integer, Integer>> counts = new HashMap<Procedure, Pair<Integer, Integer>>();

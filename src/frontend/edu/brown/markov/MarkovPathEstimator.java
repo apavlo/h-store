@@ -33,12 +33,12 @@ public class MarkovPathEstimator extends VertexTreeWalker<Vertex> {
      */
     private double confidence = 1.00;
     
-    public MarkovPathEstimator(MarkovGraph markov, TransactionEstimator t_estimator, Object args[]) {
+    public MarkovPathEstimator(MarkovGraph markov, TransactionEstimator t_estimator, int base_partition, Object args[]) {
         super(markov);
         this.t_estimator = t_estimator;
         this.args = args;
         this.p_estimator = this.t_estimator.getPartitionEstimator();
-        this.base_partition = this.t_estimator.getBasePartition();
+        this.base_partition = base_partition;
         
         assert(this.t_estimator.getCorrelations() != null);
         assert(this.base_partition >= 0);
@@ -67,7 +67,16 @@ public class MarkovPathEstimator extends VertexTreeWalker<Vertex> {
      * @return
      */
     public static List<Vertex> predictPath(MarkovGraph markov, TransactionEstimator t_estimator, Object args[]) {
-        MarkovPathEstimator estimator = new MarkovPathEstimator(markov, t_estimator, args);
+        Integer base_partition = null; 
+        try {
+            base_partition = t_estimator.getPartitionEstimator().getBasePartition(markov.getProcedure(), args);
+        } catch (Exception ex) {
+            LOG.fatal(String.format("Failed to calculate base partition for <%s, %s>", markov.getProcedure().getName(), Arrays.toString(args)), ex);
+            System.exit(1);
+        }
+        assert(base_partition != null);
+        
+        MarkovPathEstimator estimator = new MarkovPathEstimator(markov, t_estimator, base_partition, args);
         estimator.traverse(markov.getStartVertex());
         return (new Vector<Vertex>(estimator.getVisitPath()));
     }
@@ -299,13 +308,13 @@ public class MarkovPathEstimator extends VertexTreeWalker<Vertex> {
         if (args.hasParam(ArgumentsParser.PARAM_MARKOV)) {
             markovs = MarkovUtil.load(args.catalog_db, args.getParam(ArgumentsParser.PARAM_MARKOV));
         } else {
-            markovs = MarkovUtil.createGraphs(args.catalog_db, args.workload, p_estimator);
+            markovs = MarkovUtil.createBasePartitionGraphs(args.catalog_db, args.workload, p_estimator);
         }
         
         // Blah blah blah...
         Map<Integer, TransactionEstimator> t_estimators = new HashMap<Integer, TransactionEstimator>();
         for (Integer partition : CatalogUtil.getAllPartitionIds(args.catalog_db)) {
-            t_estimators.put(partition, new TransactionEstimator(partition, p_estimator, args.param_correlations));
+            t_estimators.put(partition, new TransactionEstimator(p_estimator, args.param_correlations));
         } // FOR
         
         final Set<String> skip = new HashSet<String>();

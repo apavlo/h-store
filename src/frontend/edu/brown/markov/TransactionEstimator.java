@@ -35,7 +35,7 @@ public class TransactionEstimator {
     private transient ParameterCorrelations correlations;
     private transient boolean enable_recomputes = false;
     
-    private final int base_partition;
+//    private final int base_partition;
     private final HashMap<Procedure, MarkovGraph> procedure_graphs = new HashMap<Procedure, MarkovGraph>();
     private final transient Map<Long, State> xact_states = new HashMap<Long, State>();
     private final AtomicInteger xact_count = new AtomicInteger(0); 
@@ -44,6 +44,7 @@ public class TransactionEstimator {
      * The current state of a transaction
      */
     public final class State {
+        private final int base_partition;
         private final long start_time;
         private final MarkovGraph markov;
         private final List<Vertex> estimated_path;
@@ -60,7 +61,8 @@ public class TransactionEstimator {
          * @param markov - the graph that this txn is using
          * @param estimated_path - the initial path estimation from MarkovPathEstimator
          */
-        public State(MarkovGraph markov, List<Vertex> estimated_path, double confidence) {
+        public State(int base_partition, MarkovGraph markov, List<Vertex> estimated_path, double confidence) {
+            this.base_partition = base_partition;
             this.markov = markov;
             this.start_time = System.currentTimeMillis();
             this.estimated_path = estimated_path;
@@ -70,6 +72,10 @@ public class TransactionEstimator {
         
         public MarkovGraph getMarkovGraph() {
             return (this.markov);
+        }
+        
+        public int getBasePartition() {
+            return (this.base_partition);
         }
         
         /**
@@ -254,13 +260,11 @@ public class TransactionEstimator {
 
     /**
      * Constructor
-     * 
-     * @param base_partition
      * @param p_estimator
      * @param correlations
      */
-    public TransactionEstimator(int base_partition, PartitionEstimator p_estimator, ParameterCorrelations correlations) {
-        this.base_partition = base_partition;
+    public TransactionEstimator(PartitionEstimator p_estimator, ParameterCorrelations correlations) {
+//        this.base_partition = base_partition;
         this.p_estimator = p_estimator;
         this.catalog_db = this.p_estimator.getDatabase();
         this.num_partitions = CatalogUtil.getNumberOfPartitions(this.catalog_db);
@@ -273,7 +277,7 @@ public class TransactionEstimator {
      * @param catalog_db
      */
     public TransactionEstimator(int base_partition, PartitionEstimator p_estimator) {
-        this(base_partition, p_estimator, null);
+        this(p_estimator, null);
     }
 
     // ----------------------------------------------------------------------------
@@ -288,9 +292,9 @@ public class TransactionEstimator {
         return this.correlations;
     }
 
-    public int getBasePartition() {
-        return this.base_partition;
-    }
+//    public int getBasePartition() {
+//        return this.base_partition;
+//    }
 
     public PartitionEstimator getPartitionEstimator() {
         return this.p_estimator;
@@ -323,7 +327,7 @@ public class TransactionEstimator {
      * @param txn_id
      * @return
      */
-    public State getState(long txn_id) {
+    protected State getState(long txn_id) {
         State s = this.xact_states.get(txn_id);
         assert(s != null) : "Unexpected Transaction #" + txn_id;
         return (s);
@@ -375,7 +379,7 @@ public class TransactionEstimator {
         // If we don't have a graph for this procedure, we should probably just return null
         // This will be the case for all sysprocs
         if (!procedure_graphs.containsKey(catalog_proc)) {
-            LOG.debug("No MarkovGraph exists for '" + catalog_proc + "' on partition #" + this.base_partition);
+            LOG.debug("No MarkovGraph exists for '" + catalog_proc + "'"); //  on partition #" + this.base_partition);
             return (null);
             // fillIn(estimate,xact_states.get(xact_id));
             // return estimate;
@@ -388,16 +392,25 @@ public class TransactionEstimator {
         Vertex start = graph.getStartVertex();
         start.addInstanceTime(xact_id, System.currentTimeMillis());
         
+        Integer base_partition = null; 
+        try {
+            base_partition = this.p_estimator.getBasePartition(catalog_proc, args);
+        } catch (Exception ex) {
+            LOG.fatal(String.format("Failed to calculate base partition for <%s, %s>", catalog_proc.getName(), Arrays.toString(args)), ex);
+            System.exit(1);
+        }
+        assert(base_partition != null);
+        
         // Calculate initial path estimate
         MarkovPathEstimator path_estimate = null;
         try {
-            path_estimate = this.estimatePath(graph, args);
+            path_estimate = this.estimatePath(graph, base_partition, args);
         } catch (Exception e) {
             e.printStackTrace();
         }
         assert(path_estimate != null);
         
-        State state = new State(graph, path_estimate.getVisitPath(), path_estimate.getConfidence());
+        State state = new State(base_partition, graph, path_estimate.getVisitPath(), path_estimate.getConfidence());
         this.xact_states.put(xact_id, state);
         Estimate estimate = this.generateEstimate(state);
         
@@ -553,8 +566,8 @@ public class TransactionEstimator {
      * @param args
      * @throws Exception
      */
-    protected MarkovPathEstimator estimatePath(final MarkovGraph markov, final Object args[]) throws Exception {
-        MarkovPathEstimator estimator = new MarkovPathEstimator(markov, this, args);
+    protected MarkovPathEstimator estimatePath(final MarkovGraph markov, final int base_partition, final Object args[]) throws Exception {
+        MarkovPathEstimator estimator = new MarkovPathEstimator(markov, this, base_partition, args);
         estimator.traverse(markov.getStartVertex());
         return (estimator);
     }
@@ -625,6 +638,8 @@ public class TransactionEstimator {
     public State processTransactionTrace(TransactionTrace txn_trace) throws Exception {
         long txn_id = txn_trace.getTransactionId();
         Estimate last_est = this.startTransaction(txn_id, txn_trace.getCatalogItem(this.catalog_db), txn_trace.getParams());
+        State s = this.getState(txn_id);
+        assert(s != null);
         for (Entry<Integer, List<QueryTrace>> e : txn_trace.getQueryBatches().entrySet()) {
             int batch_size = e.getValue().size();
             
@@ -636,7 +651,7 @@ public class TransactionEstimator {
                 assert(query_trace != null);
                 catalog_stmts[i] = query_trace.getCatalogItem(catalog_db);
                 
-                Set<Integer> stmt_partitions = this.p_estimator.getPartitions(query_trace, this.getBasePartition());
+                Set<Integer> stmt_partitions = this.p_estimator.getPartitions(query_trace, s.getBasePartition());
                 assert(stmt_partitions.isEmpty() == false);
                 partitions[i] = stmt_partitions.toArray(new Integer[stmt_partitions.size()]);
             } // FOR
@@ -664,7 +679,7 @@ public class TransactionEstimator {
         
         // First construct all of the MarkovGraphs
         final PartitionEstimator p_estimator = new PartitionEstimator(args.catalog_db, args.hasher);
-        MarkovGraphsContainer graphs_per_partition = MarkovUtil.createGraphs(args.catalog_db, args.workload, p_estimator);
+        MarkovGraphsContainer graphs_per_partition = MarkovUtil.createBasePartitionGraphs(args.catalog_db, args.workload, p_estimator);
         assert(graphs_per_partition != null);
         
         // Then construct a TransactionEstimator per partition/procedure

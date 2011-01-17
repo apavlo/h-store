@@ -90,13 +90,13 @@ public class TestMarkovCostModel extends BaseTestCase {
             // Generate MarkovGraphs per base partition
 //            file = this.getMarkovFile(ProjectType.TPCC);
 //            markovs = MarkovUtil.load(catalog_db, file.getAbsolutePath());
-            markovs = MarkovUtil.createGraphs(catalog_db, workload, p_estimator);
+            markovs = MarkovUtil.createBasePartitionGraphs(catalog_db, workload, p_estimator);
             assertNotNull(markovs);
             
             // And then populate the MarkovCostModel
             costmodel = new MarkovCostModel(catalog_db, p_estimator);
             for (Entry<Integer, Map<Procedure, MarkovGraph>> e : markovs.entrySet()) {
-                TransactionEstimator t_estimator = new TransactionEstimator(e.getKey(), p_estimator, correlations);
+                TransactionEstimator t_estimator = new TransactionEstimator(p_estimator, correlations);
                 t_estimator.addMarkovGraphs(e.getValue());
                 costmodel.addTransactionEstimator(e.getKey(), t_estimator);
             } // FOR

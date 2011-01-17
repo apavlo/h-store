@@ -14,7 +14,8 @@ import edu.uci.ics.jung.algorithms.shortestpath.UnweightedShortestPath;
 import edu.uci.ics.jung.graph.util.EdgeType;
 
 public class InnerGraphInformation<V extends AbstractVertex, E extends AbstractEdge> {
-
+//    private static final Logger LOG = Logger.getLogger(InnerGraphInformation.class);
+    
     private final Database catalog_db;
     private final IGraph<V, E> graph;
     private final Map<String, V> catalog_vertex_xref = new HashMap<String, V>();
@@ -62,6 +63,7 @@ public class InnerGraphInformation<V extends AbstractVertex, E extends AbstractE
         for (V v : path) {
             if (last != null) {
                 E e = this.graph.findEdge(last, v);
+//                if (e == null) return (ret);
                 assert(e != null) : "No edge exists between " + v + " and " + last;
                 ret.add(e);
             }

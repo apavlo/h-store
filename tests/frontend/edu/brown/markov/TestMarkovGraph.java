@@ -71,7 +71,7 @@ public class TestMarkovGraph extends BaseTestCase {
             // }
 
             // Generate MarkovGraphs
-            markovs = MarkovUtil.createGraphs(catalog_db, workload, p_estimator);
+            markovs = MarkovUtil.createBasePartitionGraphs(catalog_db, workload, p_estimator);
             assertNotNull(markovs);
         }
     }
@@ -191,7 +191,7 @@ public class TestMarkovGraph extends BaseTestCase {
      */
     @Test
     public void testAddToEdge() {
-        MarkovGraph testGraph = new MarkovGraph(this.catalog_proc, 0);
+        MarkovGraph testGraph = new MarkovGraph(this.catalog_proc);
         testGraph.initialize();
         Vertex start = testGraph.getStartVertex();
         Vertex stop = testGraph.getCommitVertex();
@@ -207,7 +207,7 @@ public class TestMarkovGraph extends BaseTestCase {
             assertTrue(startcount + 1 == start.getTotalHits());
             assertTrue(current.getTotalHits() == 1);
         }
-        assertTrue(testGraph.isSane());
+        assertTrue(testGraph.isValid());
     }
 
         
@@ -217,7 +217,7 @@ public class TestMarkovGraph extends BaseTestCase {
      public void testGraphSerialization() throws Exception {
          Statement catalog_stmt = this.getStatement(catalog_proc, "getWarehouseTaxRate");
                 
-         MarkovGraph graph = new MarkovGraph(catalog_proc, BASE_PARTITION);
+         MarkovGraph graph = new MarkovGraph(catalog_proc);
          graph.initialize();
                 
          Vertex v0 = graph.getStartVertex();
@@ -240,10 +240,10 @@ public class TestMarkovGraph extends BaseTestCase {
          assertNotNull(json_object);
          // System.err.println(json_object.toString(1));
                 
-         MarkovGraph clone = new MarkovGraph(catalog_proc, BASE_PARTITION);
+         MarkovGraph clone = new MarkovGraph(catalog_proc);
          clone.fromJSON(json_object, catalog_db);
                 
-         assertEquals(graph.getBasePartition(), clone.getBasePartition());
+//         assertEquals(graph.getBasePartition(), clone.getBasePartition());
          assertEquals(graph.getEdgeCount(), clone.getEdgeCount());
          assertEquals(graph.getVertexCount(), clone.getVertexCount());
         

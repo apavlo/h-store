@@ -931,7 +931,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
             // Load in all the partition-specific TransactionEstimators and ExecutionSites in order to 
             // stick them into the HStoreCoordinator
             LOG.debug("Creating Estimator for Site #" + site_id);
-            TransactionEstimator t_estimator = new TransactionEstimator(local_partition, p_estimator, args.param_correlations);
+            TransactionEstimator t_estimator = new TransactionEstimator(p_estimator, args.param_correlations);
             if (markovs != null) {
                 t_estimator.addMarkovGraphs(markovs.get(local_partition));
             }
