@@ -17,18 +17,21 @@ import org.voltdb.catalog.*;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.expressions.ExpressionUtil;
 import edu.brown.utils.ClassUtil;
-import edu.brown.utils.JSONUtil;
 
+/**
+ * Utility methods for extracting information from AbstractPlanNode trees/nodes
+ * @author pavlo
+ */
 public abstract class PlanNodeUtil {
     private static final Logger LOG = Logger.getLogger(PlanNodeUtil.class);
 
     private static final String INLINE_SPACER_PREFIX = "│";
     private static final String INLINE_INNER_PREFIX = "├";
-    private static final String INLINE_LAST_PREFIX = "└";
+//    private static final String INLINE_LAST_PREFIX = "└";
     
     private static final String SPACER_PREFIX = "┃";
     private static final String INNER_PREFIX = "┣";    
-    private static final String LAST_PREFIX = "┗";
+//    private static final String LAST_PREFIX = "┗";
 
     /**
      * Returns the root node in the tree for the given node
@@ -57,7 +60,7 @@ public abstract class PlanNodeUtil {
     }
     
     /**
-     * Get all the AbstractExpression roots used in the given AbstractPlanNode
+     * Get all the AbstractExpression roots used in the given AbstractPlanNode. Non-recursive
      * @param node
      * @return
      */
@@ -69,14 +72,18 @@ public abstract class PlanNodeUtil {
         // ---------------------------------------------------
         if (node instanceof AbstractScanPlanNode) {
             AbstractScanPlanNode scan_node = (AbstractScanPlanNode)node;
-            // Get all the AbstractExpressions used in the predicates for this scan
+            
+            // Main Predicate Expression
             if (scan_node.getPredicate() != null) exps.add(scan_node.getPredicate());
+            
             if (scan_node instanceof IndexScanPlanNode) {
                 IndexScanPlanNode idx_node = (IndexScanPlanNode)scan_node;
+                
+                // End Expression
                 if (idx_node.getEndExpression() != null) exps.add(idx_node.getEndExpression());
-                for (AbstractExpression exp : idx_node.getSearchKeyExpressions()) {
-                    exps.add(exp);
-                }
+                
+                // Search Key Expressions
+                if (idx_node.getSearchKeyExpressions().isEmpty() == false) exps.addAll(idx_node.getSearchKeyExpressions());
             }
 
         // ---------------------------------------------------
@@ -342,7 +349,7 @@ public abstract class PlanNodeUtil {
         
         final String inner_prefix = (node.isInline() ? INLINE_INNER_PREFIX : INNER_PREFIX) + " ";
         final String spacer_prefix = (node.isInline() ? INLINE_SPACER_PREFIX : SPACER_PREFIX) + " ";
-        final String last_prefix = (node.isInline() ? INLINE_LAST_PREFIX : LAST_PREFIX);
+//        final String last_prefix = (node.isInline() ? INLINE_LAST_PREFIX : LAST_PREFIX);
 
         String spacer = orig_spacer + "  ";
         String inner_spacer = spacer + inner_prefix;
@@ -426,7 +433,7 @@ public abstract class PlanNodeUtil {
             }
             
         } else if (node instanceof ProjectionPlanNode) {
-            ProjectionPlanNode cast_node = (ProjectionPlanNode)node;
+//            ProjectionPlanNode cast_node = (ProjectionPlanNode)node;
             if (node instanceof MaterializePlanNode) {
                 sb.append(line_spacer).append("Batched[" + ((MaterializePlanNode)node).isBatched() + "]\n");
             }
