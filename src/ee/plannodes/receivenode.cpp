@@ -155,7 +155,7 @@ ReceivePlanNode::loadFromJSONObject(json_spirit::Object& obj,
     if (outputColumnsValue == json_spirit::Value::null)
     {
         throw SerializableEEException(VOLT_EE_EXCEPTION_TYPE_EEEXCEPTION,
-                                      "AggregatePlanNode::loadFromJSONObject:"
+                                      "ReceivePlanNode::loadFromJSONObject:"
                                       " Can't find OUTPUT_COLUMNS value");
     }
     json_spirit::Array outputColumnsArray = outputColumnsValue.get_array();
@@ -169,6 +169,7 @@ ReceivePlanNode::loadFromJSONObject(json_spirit::Object& obj,
         m_outputColumnTypes.push_back(outputColumn.getType());
         m_outputColumnSizes.push_back(outputColumn.getSize());
     }
+//     fprintf(stderr, "%s\n--------------------------------\n", this->debug(true).c_str());
 }
 
 int

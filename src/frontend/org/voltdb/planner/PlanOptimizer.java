@@ -23,6 +23,7 @@ import org.voltdb.plannodes.AbstractScanPlanNode;
 import org.voltdb.plannodes.AggregatePlanNode;
 import org.voltdb.plannodes.DistinctPlanNode;
 import org.voltdb.plannodes.IndexScanPlanNode;
+import org.voltdb.plannodes.LimitPlanNode;
 import org.voltdb.plannodes.NestLoopIndexPlanNode;
 import org.voltdb.plannodes.NestLoopPlanNode;
 import org.voltdb.plannodes.OrderByPlanNode;
@@ -319,21 +320,27 @@ public class PlanOptimizer {
         if (debug) LOG.debug(String.format("Adding inline Projection for %s with %d columns. Original table has %d columns", catalog_tbl.getName(), output_columns.size(), catalog_tbl.getColumns().size()));
         int idx = 0;
         for (Column catalog_col : output_columns) {
-            Set<Integer> guids = column_guid_xref.get(catalog_col);
-            assert(guids != null && guids.isEmpty() == false) : "No PlanColumn GUID for " + CatalogUtil.getDisplayName(catalog_col);
-            Integer col_guid = CollectionUtil.getFirst(guids);
-            PlanColumn orig_col = m_context.get(col_guid);
+            // Get the old GUID from the original output columns
+            int orig_idx = catalog_col.getIndex();
+            int orig_guid = scan_node.getOutputColumnGUID(orig_idx);
+            PlanColumn orig_col = m_context.get(orig_guid);
             assert(orig_col != null);
-
-            // Always try make a new PlanColumn and update the TupleValueExpresion index
-            // This ensures that we always get the ordering correct
-            TupleValueExpression clone_exp = (TupleValueExpression)orig_col.getExpression().clone();
-            clone_exp.setColumnIndex(idx);
-            Storage storage = (catalog_tbl.getIsreplicated() ? Storage.kReplicated : Storage.kPartitioned);
-            PlanColumn new_col = m_context.getPlanColumn(clone_exp, orig_col.displayName(), orig_col.getSortOrder(), storage);
-            assert(new_col != null);
-            proj_node.appendOutputColumn(new_col);
-            this.addColumnMapping(catalog_col, new_col.guid());
+            proj_node.appendOutputColumn(orig_col);
+            
+//            Set<Integer> guids = column_guid_xref.get(catalog_col);
+//            assert(guids != null && guids.isEmpty() == false) : "No PlanColumn GUID for " + CatalogUtil.getDisplayName(catalog_col);
+//            Integer col_guid = CollectionUtil.getFirst(guids);
+//            
+//
+//            // Always try make a new PlanColumn and update the TupleValueExpresion index
+//            // This ensures that we always get the ordering correct
+//            TupleValueExpression clone_exp = (TupleValueExpression)orig_col.getExpression().clone();
+//            clone_exp.setColumnIndex(idx);
+//            Storage storage = (catalog_tbl.getIsreplicated() ? Storage.kReplicated : Storage.kPartitioned);
+//            PlanColumn new_col = m_context.getPlanColumn(clone_exp, orig_col.displayName(), orig_col.getSortOrder(), storage);
+//            assert(new_col != null);
+//            proj_node.appendOutputColumn(new_col);
+            this.addColumnMapping(catalog_col, orig_col.guid());
             idx++;
         } // FOR
         if (trace) LOG.trace("New Projection Output Columns:\n" + PlanNodeUtil.debugNode(proj_node));
@@ -354,28 +361,28 @@ public class PlanOptimizer {
     
     /**
      * 
-     * @param dist_node
+     * @param node
      * @return
      */
-    protected boolean updateDistinctColumns(DistinctPlanNode dist_node) {
+    protected boolean updateDistinctColumns(DistinctPlanNode node) {
         final boolean trace = LOG.isTraceEnabled();
         
         // We really have one child here
-        assert(dist_node.getChildCount() == 1) : dist_node;
-        AbstractPlanNode child_node = dist_node.getChild(0);
+        assert(node.getChildCount() == 1) : node;
+        AbstractPlanNode child_node = node.getChild(0);
         assert(child_node != null);
 
         // Find the offset of our distinct column in our output. That will
         // tell us where to get the guid in the input table information
-        int orig_guid = dist_node.getDistinctColumnGuid();
+        int orig_guid = node.getDistinctColumnGuid();
         PlanColumn orig_pc = m_context.get(orig_guid);
         assert(orig_pc != null);
 
-        dist_node.setOutputColumns(child_node.m_outputColumns);
+        node.setOutputColumns(child_node.m_outputColumns);
         
         PlanColumn new_pc = null;
         int new_idx = 0;
-        for (Integer guid : dist_node.m_outputColumns) {
+        for (Integer guid : node.m_outputColumns) {
             PlanColumn pc = m_context.get(guid);
             assert(pc != null);
             if (pc.equals(orig_pc, true, true)) {
@@ -388,37 +395,38 @@ public class PlanOptimizer {
         assert(new_pc != null);
         
         // Now we can update output columns and set the distinct column to be the guid
-        dist_node.setDistinctColumnGuid(new_pc.guid());
+        node.setDistinctColumnGuid(new_pc.guid());
         
-        markDirty(dist_node);
-        if (LOG.isDebugEnabled()) LOG.debug(String.format("Updated %s with proper distinct column guid: ORIG[%d] => NEW[%d]", dist_node, orig_guid, new_pc.guid()));
+        markDirty(node);
+        if (LOG.isDebugEnabled()) LOG.debug(String.format("Updated %s with proper distinct column guid: ORIG[%d] => NEW[%d]", node, orig_guid, new_pc.guid()));
         
         return (true);
     }
     
     /**
      * Update OrderBy columns
-     * @param orby_node
+     * @param node
      * @return
      */
-    protected boolean updateOrderByColumns(OrderByPlanNode orby_node) {
+    protected boolean updateOrderByColumns(OrderByPlanNode node) {
         final boolean trace = LOG.isTraceEnabled();
         
         // We really have one child here
-        assert(orby_node.getChildCount() == 1) : orby_node;
-        AbstractPlanNode child_node = orby_node.getChild(0);
+        assert(node.getChildCount() == 1) : node;
+        AbstractPlanNode child_node = node.getChild(0);
         assert(child_node != null);
 
-        orby_node.setOutputColumns(child_node.m_outputColumns);
+        node.setOutputColumns(child_node.m_outputColumns);
+        updateOutputOffsets(node);
         
-        for (int i = 0, cnt = orby_node.getSortColumnGuids().size(); i < cnt; i++) {
-            int orig_guid = orby_node.getSortColumnGuids().get(i);
+        for (int i = 0, cnt = node.getSortColumnGuids().size(); i < cnt; i++) {
+            int orig_guid = node.getSortColumnGuids().get(i);
             PlanColumn orig_pc = m_context.get(orig_guid);
             assert(orig_pc != null);
     
             PlanColumn new_pc = null;
             int new_idx = 0;
-            for (Integer guid : orby_node.m_outputColumns) {
+            for (Integer guid : node.m_outputColumns) {
                 PlanColumn pc = m_context.get(guid);
                 assert(pc != null);
                 if (pc.equals(orig_pc, true, true)) {
@@ -433,35 +441,30 @@ public class PlanOptimizer {
                 System.err.println(String.format("[%02d] Failed to find %s", i, orig_pc));
             }
             assert(new_pc != null);
-            orby_node.getSortColumnGuids().set(i, new_pc.guid());
+            node.getSortColumnGuids().set(i, new_pc.guid());
         } // FOR
         
-        this.markDirty(orby_node);
-        if (LOG.isDebugEnabled()) LOG.debug(String.format("Updated %s with proper orderby column guid", orby_node));
+        this.markDirty(node);
+        if (LOG.isDebugEnabled()) LOG.debug(String.format("Updated %s with proper orderby column guid", node));
         
         return (true);
     }
     
     /**
      * Update AggregatePlanNode columns
-     * @param agg_node
+     * @param node
      * @return
      */
-    protected boolean updateAggregateColumns(AggregatePlanNode agg_node) {
+    protected boolean updateAggregateColumns(AggregatePlanNode node) {
         final boolean trace = LOG.isTraceEnabled();
         
         // We really have one child here
-        assert(agg_node.getChildCount() == 1) : agg_node;
-        AbstractPlanNode child_node = agg_node.getChild(0);
+        assert(node.getChildCount() == 1) : node;
+        AbstractPlanNode child_node = node.getChild(0);
         assert(child_node != null);
 
-//        agg_node.setOutputColumns(child_node.m_outputColumns);
-
-//        List<Integer> orig_child_output = this.orig_node_output.get(child_node);
-        
-        
-        for (int i = 0, cnt = agg_node.getAggregateColumnGuids().size(); i < cnt; i++) {
-            Integer orig_guid = agg_node.getAggregateColumnGuids().get(i);
+        for (int i = 0, cnt = node.getAggregateColumnGuids().size(); i < cnt; i++) {
+            Integer orig_guid = node.getAggregateColumnGuids().get(i);
             PlanColumn orig_pc = m_context.get(orig_guid);
             assert(orig_pc != null);
             
@@ -479,15 +482,15 @@ public class PlanOptimizer {
             } // FOR
             if (new_pc == null) {
                 LOG.error(String.format("Couldn't find %d => %s\n", new_idx, new_pc)); 
-                LOG.error(PlanNodeUtil.debug(PlanNodeUtil.getRoot(agg_node)));
+                LOG.error(PlanNodeUtil.debug(PlanNodeUtil.getRoot(node)));
             }
             assert(new_pc != null);
-            agg_node.getAggregateColumnGuids().set(i, new_pc.guid());
+            node.getAggregateColumnGuids().set(i, new_pc.guid());
         } // FOR
         
         // Need to update output column guids for GROUP BYs...
-        for (int i = 0, cnt = agg_node.getGroupByColumnIds().size(); i < cnt; i++) {
-            Integer orig_guid = agg_node.getGroupByColumnIds().get(i);
+        for (int i = 0, cnt = node.getGroupByColumnIds().size(); i < cnt; i++) {
+            Integer orig_guid = node.getGroupByColumnIds().get(i);
             PlanColumn orig_pc = m_context.get(orig_guid);
             assert(orig_pc != null);
             
@@ -504,7 +507,7 @@ public class PlanOptimizer {
                 new_idx++;
             } // FOR
             assert(new_pc != null);
-            agg_node.getGroupByColumnIds().set(i, new_pc.guid());
+            node.getGroupByColumnIds().set(i, new_pc.guid());
         } // FOR
 
 //        System.err.println(this.sql);
@@ -516,18 +519,123 @@ public class PlanOptimizer {
 //        System.err.println("NEW_CHILD_OUTPUT: " + child_node.m_outputColumns);
 //        System.err.println(PlanNodeUtil.debug(PlanNodeUtil.getRoot(agg_node)));
 
-        markDirty(agg_node);
-        if (LOG.isDebugEnabled()) LOG.debug(String.format("Updated %s with %d proper aggregate column guids", agg_node, agg_node.getAggregateColumnGuids().size()));
+        markDirty(node);
+        if (LOG.isDebugEnabled()) LOG.debug(String.format("Updated %s with %d proper aggregate column guids", node, node.getAggregateColumnGuids().size()));
+        return (true);
+    }
+
+    /**
+     * 
+     * @param node
+     * @return
+     * @throws Exception
+     */
+    protected boolean updateProjectionColumns(ProjectionPlanNode node) {
+        final boolean debug = LOG.isDebugEnabled();
+
+        assert(node.getChildCount() == 1) : node;
+        final AbstractPlanNode child_node = node.getChild(0);
+        assert(child_node != null);
+        final List<Integer> orig_child_guids = this.orig_node_output.get(child_node);
+        
+        for (int i = 0, cnt = node.getOutputColumnCount(); i < cnt; i++) {
+            // Check to make sure that the offset in the tuple value expression matches
+            int orig_guid = node.getOutputColumnGUID(i);
+            PlanColumn orig_pc = m_context.get(orig_guid);
+            assert(orig_pc != null);
+            
+            // Fix all of the offsets in the ExpressionTree
+            // We have to clone it so that we don't mess up anybody else that may be referencing the same PlanColumn
+            AbstractExpression new_exp = null;
+            try {
+                new_exp = (AbstractExpression)orig_pc.getExpression().clone();
+            } catch (Exception ex) {
+                LOG.fatal("Unable to clone " + orig_pc, ex);
+                System.exit(1);
+            }
+            
+            new ExpressionTreeWalker() {
+                @Override
+                protected void callback(AbstractExpression exp_element) {
+                    if (exp_element instanceof TupleValueExpression) {
+                        TupleValueExpression tv_exp = (TupleValueExpression)exp_element;
+                        int orig_idx = tv_exp.getColumnIndex();
+                        PlanColumn orig_child_pc = m_context.get(orig_child_guids.get(orig_idx));
+                        assert(orig_child_pc != null);
+                        
+                        PlanColumn new_child_pc = null;
+                        int new_idx = 0;
+                        for (Integer orig_child_guid : child_node.m_outputColumns) {
+                            new_child_pc = m_context.get(orig_child_guid);
+                            if (orig_child_pc.equals(new_child_pc, true, true)) {
+                                break;
+                            }
+                            new_child_pc = null;
+                            new_idx++;
+                        } // FOR
+                        assert(new_child_pc != null);
+                        tv_exp.setColumnIndex(new_idx);
+                    }
+                }
+            }.traverse(new_exp);
+            
+            // Always try make a new PlanColumn and update the TupleValueExpresion index
+            // This ensures that we always get the ordering correct
+            PlanColumn new_col = m_context.getPlanColumn(new_exp, orig_pc.displayName(), orig_pc.getSortOrder(), orig_pc.getStorage());
+            assert(new_col != null);
+            node.m_outputColumns.set(i, new_col.guid());
+        } // FOR
+        this.markDirty(node);
+        if (debug) LOG.debug(String.format("Updated %s with %d output columns offsets", node, node.getOutputColumnCount()));
+        return (true);
+    }
+    
+    /**
+     * 
+     * @param node
+     * @return
+     * @throws Exception
+     */
+    protected boolean updateOutputOffsets(AbstractPlanNode node) {
+        final boolean debug = LOG.isDebugEnabled();
+
+        for (int i = 0, cnt = node.getOutputColumnCount(); i < cnt; i++) {
+            // Check to make sure that the offset in the tuple value expression matches
+            int orig_guid = node.getOutputColumnGUID(i);
+            PlanColumn orig_pc = m_context.get(orig_guid);
+            assert(orig_pc != null);
+            
+            // Always try make a new PlanColumn and update the TupleValueExpresion index
+            // This ensures that we always get the ordering correct
+            TupleValueExpression orig_exp = (TupleValueExpression)orig_pc.getExpression();
+            int orig_idx = orig_exp.getColumnIndex();
+            
+            if (orig_idx != i) {
+                TupleValueExpression clone_exp = null;
+                try {
+                    clone_exp = (TupleValueExpression)orig_pc.getExpression().clone();
+                } catch (Exception ex) {
+                    LOG.fatal("Unable to clone " + orig_pc, ex);
+                    System.exit(1);
+                }
+                clone_exp.setColumnIndex(i);
+                PlanColumn new_col = m_context.getPlanColumn(clone_exp, orig_pc.displayName(), orig_pc.getSortOrder(), orig_pc.getStorage());
+                assert(new_col != null);
+                node.m_outputColumns.set(i, new_col.guid());
+            }
+        } // FOR
+        this.markDirty(node);
+        if (debug) LOG.debug(String.format("Updated %s with %d output columns offsets", node, node.getOutputColumnCount()));
         return (true);
     }
     
 
     /**
      * 
-     * @param join_node
+     * @param node
      * @return
      */
-    protected boolean updateJoinsColumns(AbstractJoinPlanNode join_node) throws Exception {
+    protected boolean updateJoinsColumns(AbstractJoinPlanNode node) throws Exception {
         final boolean trace = LOG.isTraceEnabled();
         final boolean debug = LOG.isDebugEnabled();
         
@@ -535,7 +643,7 @@ public class PlanOptimizer {
         // from a child node, while the second may come from a child node *or* directly from
         // a table being scanned. Therefore, we need to first figure out the original size
         // of the first input table and then use that to adjust the offsets of the new tables
-        AbstractPlanNode outer_node = join_node.getChild(0);
+        AbstractPlanNode outer_node = node.getChild(0);
         assert(outer_node != null);
         List<Integer> outer_new_input_guids = outer_node.m_outputColumns;
         if (debug) LOG.debug("Calculating OUTER offsets from child node: " + outer_node);
@@ -628,7 +736,7 @@ public class PlanOptimizer {
             
             LOG.info("Output Xref Offsets:      " + offset_xref);
 //            LOG.info("Trace Information:\n" + sb);
-            LOG.error("Unexpected Query Plan\n" + sql + "\n" + PlanNodeUtil.debug(PlanNodeUtil.getRoot(join_node)));
+            LOG.error("Unexpected Query Plan\n" + sql + "\n" + PlanNodeUtil.debug(PlanNodeUtil.getRoot(node)));
         }
         assert(outer_new_input_guids.size() == offset_xref.size()) : sql;
 
@@ -642,16 +750,16 @@ public class PlanOptimizer {
         AbstractPlanNode inner_node = null;
         
         // These are the set of expressions for the join clause that we need to fix their offsets for
-        final Set<AbstractExpression> expressions_to_fix = PlanNodeUtil.getExpressions(join_node);
+        final Set<AbstractExpression> expressions_to_fix = PlanNodeUtil.getExpressions(node);
         
         // --------------------------------------------
         // NEST LOOP
         // --------------------------------------------
-        if (join_node.getChildCount() > 1) {
-            assert(join_node instanceof NestLoopPlanNode);
+        if (node.getChildCount() > 1) {
+            assert(node instanceof NestLoopPlanNode);
             is_nestloop = true;
             
-            inner_node = join_node.getChild(1);
+            inner_node = node.getChild(1);
             if (debug) LOG.debug("Calculating INNER offsets from child node: " + inner_node);
             
             List<Integer> inner_orig_input_guids = PlanOptimizer.this.orig_node_output.get(inner_node);
@@ -683,8 +791,8 @@ public class PlanOptimizer {
         // ---------------------------------------------------
         } else {
             // Otherwise, just grab all of the columns for the target table in the inline scan
-            assert(join_node instanceof NestLoopIndexPlanNode);
-            IndexScanPlanNode idx_node = join_node.getInlinePlanNode(PlanNodeType.INDEXSCAN);
+            assert(node instanceof NestLoopIndexPlanNode);
+            IndexScanPlanNode idx_node = node.getInlinePlanNode(PlanNodeType.INDEXSCAN);
             assert(idx_node != null);
             inner_node = idx_node;
             
@@ -770,9 +878,9 @@ public class PlanOptimizer {
         }
         
         // Then update the output columns to reflect the change
-        join_node.setOutputColumns(new_output_guids);
-        for (int new_idx = 0, cnt = join_node.m_outputColumns.size(); new_idx < cnt; new_idx++) {
-            Integer col_guid = join_node.m_outputColumns.get(new_idx);
+        node.setOutputColumns(new_output_guids);
+        for (int new_idx = 0, cnt = node.m_outputColumns.size(); new_idx < cnt; new_idx++) {
+            Integer col_guid = node.m_outputColumns.get(new_idx);
             PlanColumn pc = m_context.get(col_guid);
             
             // Look at what our offset used versus what it is needs to be
@@ -796,9 +904,9 @@ public class PlanOptimizer {
                 clone_exp.setColumnIndex(new_idx);
                 PlanColumn new_pc = m_context.getPlanColumn(clone_exp, pc.displayName(), pc.getSortOrder(), pc.getStorage());
                 assert(new_pc != null);
-                join_node.m_outputColumns.set(new_idx, new_pc.guid());
+                node.m_outputColumns.set(new_idx, new_pc.guid());
             }
-            if (trace) LOG.trace(String.format("OUTPUT[%d] => %s", new_idx, m_context.get(join_node.m_outputColumns.get(new_idx))));
+            if (trace) LOG.trace(String.format("OUTPUT[%d] => %s", new_idx, m_context.get(node.m_outputColumns.get(new_idx))));
         } // FOR
         
         // IMPORTANT: If the inner_node is inline (meaning it was a NestLoopIndex), then we need to also update
@@ -806,14 +914,14 @@ public class PlanOptimizer {
         // generate its output table from the inline node and not the actual output columns
         if (inner_node.isInline()) {
             assert(inner_node instanceof IndexScanPlanNode);
-            inner_node.setOutputColumns(join_node.m_outputColumns);
+            inner_node.setOutputColumns(node.m_outputColumns);
             if (trace) LOG.trace("Updated INNER inline " + inner_node + " output columns");
         }
 
 //        if (debug) LOG.debug("PlanNodeTree:\n" + PlanNodeUtil.debug(rootNode));
 //        LOG.debug(PlanNodeUtil.debugNode(element));
         
-        this.markDirty(join_node);
+        this.markDirty(node);
 
         return (true);
     }
@@ -895,19 +1003,29 @@ public class PlanOptimizer {
                         this.stop();
                         return;
                     }
+                    
+                // ---------------------------------------------------
+                // PROJECTION
+                // ---------------------------------------------------
+                } else if (element instanceof ProjectionPlanNode) {
+                    if (areChildrenDirty(element) && updateProjectionColumns((ProjectionPlanNode)element) == false) {
+                        this.stop();
+                        return;
+                    }
+                    
                 // ---------------------------------------------------
                 // SEND/RECEIVE/LIMIT
                 // ---------------------------------------------------
-                } else if (element instanceof SendPlanNode || element instanceof ReceivePlanNode) {
-                    // We really have one child here
-                    assert(element.getChildCount() == 1) : element;
-                    AbstractPlanNode child_node = element.getChild(0);
-                    assert(child_node != null);
-                    
-                    if (dirtyPlanNodes.contains(child_node)) {
+                } else if (element instanceof SendPlanNode || element instanceof ReceivePlanNode || element instanceof LimitPlanNode) {
+                    // I think we should always call this to ensure that our offsets are ok
+                    // This might be because we don't call whatever that bastardized
+                    // AbstractPlanNode.updateOutputColumns() that messes everything up for us
+                    if (element instanceof LimitPlanNode || areChildrenDirty(element)) {
+                        assert(element.getChildCount() == 1) : element;
+                        AbstractPlanNode child_node = element.getChild(0);
+                        assert(child_node != null);
                         element.setOutputColumns(child_node.m_outputColumns);
-                        markDirty(element);
-                        if (debug) LOG.debug(String.format("Updated %s with %d output columns to match child node %s output", element, element.getOutputColumnCount(), child_node));
+                        updateOutputOffsets(element);
                     }
                 }
                 return;
