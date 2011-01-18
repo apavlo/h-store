@@ -302,7 +302,14 @@ public abstract class PlanNodeUtil {
     public static String debug(AbstractPlanNode node) {
         return (PlanNodeUtil.debug(node, ""));
     }
-    
+
+    /**
+     * 
+     * @param label
+     * @param guids
+     * @param spacer
+     * @return
+     */
     private static String debugOutputColumns(String label, List<Integer> guids, String spacer) {
         String ret = "";
         
@@ -315,8 +322,10 @@ public abstract class PlanNodeUtil {
             if (column != null) {
                 assert(column_guid == column.guid());
                 name = column.displayName();
-                inner = " : size=" + column.width() +
-                        " : type=" + column.type();
+                inner = " : type=" + column.type() +
+                        " : size=" + column.width() +
+                        " : sort=" + column.getSortOrder() +
+                        " : storage=" + column.getStorage();
             }
             inner += " : guid=" + column_guid;
             ret += String.format("%s   [%02d] %s%s\n", spacer, ctr, name, inner);
@@ -381,10 +390,10 @@ public abstract class PlanNodeUtil {
         if (node instanceof AggregatePlanNode) {
             AggregatePlanNode cast_node = (AggregatePlanNode)node;
             sb.append(inner_spacer).append("AggregateTypes[" + cast_node.getAggregateTypes() + "]\n");
-            sb.append(inner_spacer).append("AggregateColumns" + cast_node.getAggregateOutputColumns() + "\n");
-            sb.append(inner_spacer).append("GroupByColumns" + cast_node.getGroupByColumns() + "\n");
-//            sb.append(inner_spacer).append(PlanNodeUtil.debugOutputColumns("AggregateColumns", cast_node.getAggregateColumnGuids(), line_spacer));
-//            sb.append(inner_spacer).append(PlanNodeUtil.debugOutputColumns("GroupByColumns", cast_node.getGroupByColumnIds(), line_spacer));
+//            sb.append(inner_spacer).append("AggregateColumns" + cast_node.getAggregateOutputColumns() + "\n");
+            sb.append(inner_spacer).append(PlanNodeUtil.debugOutputColumns("AggregateColumns", cast_node.getAggregateColumnGuids(), line_spacer));
+//            sb.append(inner_spacer).append("GroupByColumns" + cast_node.getGroupByColumns() + "\n");
+            sb.append(inner_spacer).append(PlanNodeUtil.debugOutputColumns("GroupByColumns", cast_node.getGroupByColumnIds(), line_spacer));
 
             
         // DeletePlanNode
@@ -393,7 +402,9 @@ public abstract class PlanNodeUtil {
             
         // DistinctPlanNode
         } else if (node instanceof DistinctPlanNode) {
-            sb.append(inner_spacer).append("DistinctColumn[" + ((DistinctPlanNode)node).getDistinctColumnName() + "]\n");
+            DistinctPlanNode dist_node = (DistinctPlanNode)node;
+            PlanColumn col = PlannerContext.singleton().get(dist_node.getDistinctColumnGuid());
+            sb.append(inner_spacer).append("DistinctColumn[" + col + "]\n");
             
         // IndexScanPlanNode
         } else if (node instanceof IndexScanPlanNode) {
@@ -427,10 +438,7 @@ public abstract class PlanNodeUtil {
             
         } else if (node instanceof OrderByPlanNode) {
             OrderByPlanNode cast_node = (OrderByPlanNode)node;
-            sb.append(inner_spacer).append("SortColumns[" + cast_node.getSortColumns().size() + "]:\n");
-            for (int ctr = 0, cnt = cast_node.getSortColumns().size(); ctr < cnt; ctr++) {
-                sb.append(line_spacer).append("  [" + ctr + "] " + cast_node.getSortColumnNames().get(ctr) + "::" + cast_node.getSortColumns().get(ctr) + "::" + cast_node.getSortDirections().get(ctr) + "\n");
-            }
+            sb.append(inner_spacer).append(PlanNodeUtil.debugOutputColumns("SortColumns", cast_node.getSortColumnGuids(), line_spacer));
             
         } else if (node instanceof ProjectionPlanNode) {
 //            ProjectionPlanNode cast_node = (ProjectionPlanNode)node;

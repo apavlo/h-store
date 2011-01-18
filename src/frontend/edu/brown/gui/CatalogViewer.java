@@ -134,11 +134,11 @@ public class CatalogViewer extends AbstractViewer {
         final ArgumentsParser args = ArgumentsParser.load(vargs);
         args.require(ArgumentsParser.PARAM_CATALOG);
         
-        Procedure catalog_proc = args.catalog_db.getProcedures().get("slev");
-        Statement catalog_stmt = catalog_proc.getStatements().get("GetStockCount");
-        String jsonString = Encoder.hexDecodeToString(catalog_stmt.getMs_fullplan());
-        JSONObject jsonObject = new JSONObject(jsonString);
-        System.err.println(jsonObject.toString(2));
+//        Procedure catalog_proc = args.catalog_db.getProcedures().get("slev");
+//        Statement catalog_stmt = catalog_proc.getStatements().get("GetStockCount");
+//        String jsonString = Encoder.hexDecodeToString(catalog_stmt.getMs_fullplan());
+//        JSONObject jsonObject = new JSONObject(jsonString);
+//        System.err.println(jsonObject.toString(2));
         
         javax.swing.SwingUtilities.invokeLater(new Runnable() {
             public void run() {
@@ -428,7 +428,10 @@ public class CatalogViewer extends AbstractViewer {
 	protected String getSummaryText() {
 	    StringBuilder buffer = new StringBuilder();
 
-	    buffer.append("Catalog Summary\n").append(StringUtil.repeat("=", 50)).append("\n");
+	    buffer.append("Catalog Summary\n")
+	          .append(StringUtil.repeat("=", 50)).append("\n")
+	          .append(FileUtil.realpath(this.catalog_path)).append("\n")
+	          .append(StringUtil.repeat("=", 50)).append("\n");
 	    
         int cols = 0;
         int fkeys = 0;
