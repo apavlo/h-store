@@ -39,6 +39,7 @@ import org.voltdb.plannodes.PlanNodeList;
 import org.voltdb.utils.BuildDirectoryUtils;
 
 import edu.brown.plannodes.PlanNodeUtil;
+import edu.brown.utils.StringUtil;
 
 /**
  * The query planner accepts catalog data, SQL statements from the catalog, then
@@ -238,8 +239,7 @@ public class QueryPlanner {
                     boolean result = planGraph.computeEstimatesRecursively(stats, m_cluster, m_db, m_estimates, paramHints);
                     assert(result);
 
-                    // GENERATE JSON DEBUGGING OUTPUT BEFORE WE CLEAN UP THE
-                    // PlanColumns
+                    // GENERATE JSON DEBUGGING OUTPUT BEFORE WE CLEAN UP THE PlanColumns
                     // convert a tree into an execution list
                     PlanNodeList nodeList = new PlanNodeList(planGraph);
 
@@ -344,8 +344,9 @@ public class QueryPlanner {
             plansOut.close();
         }
 
-        // Get the full plan json
+        // PAVLO: Get the full plan json
         AbstractPlanNode root = bestPlan.fragments.get(0).planGraph;
+//        String orig_debug = PlanNodeUtil.debug(root);
         assert(root != null);
         String json = null;
         try {
@@ -360,6 +361,21 @@ public class QueryPlanner {
         // split up the plan everywhere we see send/recieve into multiple plan fragments
         bestPlan = Fragmentizer.fragmentize(bestPlan, m_db);
         bestPlan.fullplan_json = json;
+        
+        // PAVLO:
+//        if (singlePartition == false && procName.equalsIgnoreCase("slev") && stmtName.equalsIgnoreCase("GetStockCount")) {
+//            System.err.println(sql + "\n+++++++++++++++++++++++++++++++++");
+//            
+//            System.err.println("ORIGINAL:\n" + orig_debug + StringUtil.SINGLE_LINE);
+//            System.err.println("NEW:");
+//            
+//            for (int ii = 0; ii < bestPlan.fragments.size(); ii++) {
+//                Fragment f = bestPlan.fragments.get(ii);
+//                System.err.println(String.format("Fragment #%02d\n%s\n", ii, PlanNodeUtil.debug(f.planGraph)));
+//            }
+//            System.err.println(StringUtil.DOUBLE_LINE);
+////            System.exit(1);
+//        }
 
         // DTXN/EE can't handle plans that have more than 2 fragments yet.
 //        if (bestPlan.fragments.size() > 2) {

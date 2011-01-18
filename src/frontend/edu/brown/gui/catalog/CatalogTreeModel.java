@@ -135,7 +135,7 @@ public class CatalogTreeModel extends DefaultTreeModel {
                     // Columns
                     DefaultMutableTreeNode columns_node = new CatalogMapTreeNode("Columns", table_cat.getColumns());
                     table_node.add(columns_node);
-                    for (Column column_cat : table_cat.getColumns()) {
+                    for (Column column_cat : CatalogUtil.getSortedCatalogItems(table_cat.getColumns(), "index")) {
                         DefaultMutableTreeNode column_node = new DefaultMutableTreeNode(new WrapperNode(column_cat) {
                             @Override
                             public String toString() {

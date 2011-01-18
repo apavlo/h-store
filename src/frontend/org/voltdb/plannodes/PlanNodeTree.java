@@ -149,15 +149,15 @@ public class PlanNodeTree implements JSONString {
             this.m_parameters.add(new Pair<Integer, VoltType>(index, type));
         }
         
-        Set<PlanNodeType> types = PlanNodeUtil.getPlanNodeTypes(m_planNodes.get(0));
-        if (types.contains(PlanNodeType.INSERT) ||
-            types.contains(PlanNodeType.UPDATE) ||
-            types.contains(PlanNodeType.DELETE)) {
-            for (AbstractPlanNode node : m_planNodes) {
-                // MOTHER FUCKER!!!
-                node.updateOutputColumns(db);
-            }
-        }
+//        Set<PlanNodeType> types = PlanNodeUtil.getPlanNodeTypes(m_planNodes.get(0));
+//        if (types.contains(PlanNodeType.INSERT) ||
+//            types.contains(PlanNodeType.UPDATE) ||
+//            types.contains(PlanNodeType.DELETE)) {
+//            for (AbstractPlanNode node : m_planNodes) {
+//                // MOTHER FUCKER!!!
+//                node.updateOutputColumns(db);
+//            }
+//        }
     }
     
     public static PlanNodeTree fromJSONObject(JSONObject obj, Database db) throws JSONException {

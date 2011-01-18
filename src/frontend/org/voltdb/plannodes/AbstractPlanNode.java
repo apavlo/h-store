@@ -172,6 +172,15 @@ public abstract class AbstractPlanNode implements JSONString, Comparable<Abstrac
         return (this.m_outputColumns.size());
     }
     
+    /**
+     * Return the PlanColumn GUID at the given offset
+     * @param idx
+     * @return
+     */
+    public int getOutputColumnGUID(int idx) {
+        return (this.m_outputColumns.get(idx));
+    }
+    
     public PlanColumn findMatchingOutputColumn(String tableName,
                                                String columnName,
                                                String columnAlias)

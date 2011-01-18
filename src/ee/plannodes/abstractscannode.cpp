@@ -117,6 +117,14 @@ AbstractScanPlanNode::debugInfo(const string &spacer) const
 {
     ostringstream buffer;
     buffer << spacer << "TargetTable[" << m_targetTableName << "]\n";
+    buffer << spacer << "OutputColumns[" << m_outputColumnGuids.size()
+           << "]:\n";
+    for (int ctr = 0, cnt = (int) m_outputColumnGuids.size();
+         ctr < cnt; ctr++)
+    {
+        buffer << spacer << "   [" << ctr << "] "
+               << m_outputColumnGuids[ctr] << "\n";
+    }
     return buffer.str();
 }
 
