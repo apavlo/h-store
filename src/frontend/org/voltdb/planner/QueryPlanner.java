@@ -363,7 +363,7 @@ public class QueryPlanner {
         bestPlan.fullplan_json = json;
         
         // PAVLO:
-//        if (singlePartition == false && procName.equalsIgnoreCase("slev") && stmtName.equalsIgnoreCase("GetStockCount")) {
+//        if (singlePartition == false && procName.equalsIgnoreCase("GetTableCounts") && stmtName.equalsIgnoreCase("HistoryCount")) {
 //            System.err.println(sql + "\n+++++++++++++++++++++++++++++++++");
 //            
 //            System.err.println("ORIGINAL:\n" + orig_debug + StringUtil.SINGLE_LINE);
@@ -374,7 +374,7 @@ public class QueryPlanner {
 //                System.err.println(String.format("Fragment #%02d\n%s\n", ii, PlanNodeUtil.debug(f.planGraph)));
 //            }
 //            System.err.println(StringUtil.DOUBLE_LINE);
-////            System.exit(1);
+//            System.exit(1);
 //        }
 
         // DTXN/EE can't handle plans that have more than 2 fragments yet.
