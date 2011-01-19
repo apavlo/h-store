@@ -9,6 +9,8 @@ import org.apache.log4j.Logger;
 import org.json.*;
 
 import org.voltdb.*;
+import org.voltdb.planner.PlanColumn;
+import org.voltdb.planner.PlannerContext;
 import org.voltdb.plannodes.*;
 import org.voltdb.types.*;
 import org.voltdb.utils.*;
@@ -1228,9 +1230,29 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
                 // Need to make sure we get both the WHERE clause and the fields that are updated
                 // We need to get the list of columns from the ScanPlanNode below us
                 UpdatePlanNode up_node = (UpdatePlanNode) node;
+                Table catalog_tbl = catalog_db.getTables().get(up_node.getTargetTableName());
+                assert (catalog_tbl != null) : "Missing table " + up_node.getTargetTableName();
+                
                 AbstractScanPlanNode scan_node = CollectionUtil.getFirst(PlanNodeUtil.getPlanNodes(up_node, AbstractScanPlanNode.class));
                 assert (scan_node != null) : "Failed to find underlying scan node for " + up_node;
                 columns.addAll(PlanNodeUtil.getOutputColumns(catalog_db, scan_node));
+                if (scan_node.getInlinePlanNodeCount() > 0) {
+                    ProjectionPlanNode proj_node = scan_node.getInlinePlanNode(PlanNodeType.PROJECTION);
+                    assert(proj_node != null);
+                    
+                    // This is a bit tricky. We have to go by the names of the output columns to find what
+                    // column is meant to be updated
+                    PlannerContext pcontext = PlannerContext.singleton();
+                    for (Integer col_guid : proj_node.getOutputColumnGUIDs()) {
+                        PlanColumn pc = pcontext.get(col_guid);
+                        assert(pc != null);
+                        if (pc.getExpression() instanceof TupleAddressExpression) continue;
+                        
+                        Column catalog_col = catalog_tbl.getColumns().get(pc.displayName());
+                        assert(catalog_col != null) : String.format("Missing %s.%s", catalog_tbl.getName(), pc.displayName());
+                        columns.add(catalog_col);
+                    } // FOR
+                }
                 break;
             }
             case DELETE:
@@ -1341,24 +1363,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
      */
     public static Set<Column> getPartitionableColumnReferences(final Database catalog_db, AbstractPlanNode node) throws Exception {
         final Set<Column> columns = new TreeSet<Column>();
-        new PlanNodeTreeWalker() {
-            @Override
-            protected void populate_children(
-                    PlanNodeTreeWalker.Children children, AbstractPlanNode node) {
-                super.populate_children(children, node);
-                List<AbstractPlanNode> to_add = new ArrayList<AbstractPlanNode>();
-                for (AbstractPlanNode child : children.getBefore()) {
-                    to_add.addAll(child.getInlinePlanNodes().values());
-                } // FOR
-                children.addBefore(to_add);
-
-                to_add.clear();
-                for (AbstractPlanNode child : children.getAfter()) {
-                    to_add.addAll(child.getInlinePlanNodes().values());
-                } // FOR
-                children.addAfter(to_add);
-            };
-
+        new PlanNodeTreeWalker(true) {
             @Override
             protected void callback(final AbstractPlanNode node) {
                 try {

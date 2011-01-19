@@ -70,14 +70,14 @@ public class TestPlanNodeUtil extends BaseTestCase {
             this.getColumn(catalog_tbl, "VLR_LOCATION")
         };
         
-        AbstractPlanNode root = QueryPlanUtil.deserializeStatement(catalog_stmt, true);
+        AbstractPlanNode root = QueryPlanUtil.deserializeStatement(catalog_stmt, false);
         assertNotNull(root);
         IndexScanPlanNode idx_node = CollectionUtil.getFirst(PlanNodeUtil.getPlanNodes(root, IndexScanPlanNode.class));
         assertNotNull(idx_node);
         
         Set<Column> columns = PlanNodeUtil.getOutputColumns(catalog_db, idx_node);
         assertNotNull(columns);
-        System.err.println(PlanNodeUtil.debug(root));
+//        System.err.println(PlanNodeUtil.debug(root));
         assertEquals(PlanNodeUtil.debugNode(idx_node), expected.length, columns.size());
         for (int i = 0; i < expected.length; i++) {
             assert(columns.contains(expected[i])) : "Missing column " + CatalogUtil.getDisplayName(expected[i]);
