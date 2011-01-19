@@ -18,6 +18,7 @@ import org.voltdb.utils.Pair;
 import weka.core.Instances;
 
 import edu.brown.markov.MarkovGraphsContainer;
+import edu.brown.markov.MarkovUtil;
 import edu.brown.markov.TransactionEstimator;
 import edu.brown.markov.Vertex;
 import edu.brown.markov.TransactionEstimator.Estimate;
@@ -159,11 +160,21 @@ public class MarkovCostModel extends AbstractCostModel {
         
         if (trace) LOG.trace(String.format("Estimating Cost Different: Estimated [size=%d] vs. Actual Cost [size=%d]", estimated.size(), actual.size()));
         
+        // There's two things we care about here:
+        //  (1) That the partitions that we predicted that the txn would read/write are the same
+        //  (2) That the predicted execution path was complete
         
-        Pair<Integer, Integer> e_partition_cnts = this.getReadWritePartitions(estimated);
-        Pair<Integer, Integer> a_partition_cnts = this.getReadWritePartitions(actual);
         
-        return (e_partition_cnts.compareTo(a_partition_cnts) != 0 ? 1 : 0);
+        Pair<Set<Integer>, Set<Integer>> e_partitions = MarkovUtil.getReadWritePartitions(estimated);
+        Pair<Set<Integer>, Set<Integer>> a_partitions = MarkovUtil.getReadWritePartitions(actual);
+        
+        if (e_partitions.getFirst().equals(a_partitions.getFirst()) == false ||
+            e_partitions.getSecond().equals(a_partitions.getSecond()) == false) {
+            cost += 1.0d;
+        }
+        
+        
+        return (cost);
         
 //        if (trace) {
 //            LOG.trace("Estimated: " + estimated);
@@ -260,41 +271,11 @@ public class MarkovCostModel extends AbstractCostModel {
 //        return (cost);
     }
     
-    /**
-     * Get the read/write partition counts for the given path
-     * @param path
-     * @return
-     */
-    public Pair<Integer, Integer> getReadWritePartitions(List<Vertex> path) {
-        Set<Integer> read_p = new HashSet<Integer>();
-        Set<Integer> write_p = new HashSet<Integer>();
-        
-        for (Vertex v : path) {
-            if (v.isQueryVertex() == false) continue;
-            
-            Statement catalog_stmt = v.getCatalogItem();
-            QueryType qtype = QueryType.get(catalog_stmt.getQuerytype());
-            switch (qtype) {
-                case SELECT:
-                    read_p.addAll(v.getPartitions());
-                    break;
-                case INSERT:
-                case UPDATE:
-                case DELETE:
-                    write_p.addAll(v.getPartitions());
-                    break;
-                default:
-                    assert(false) : "Invalid QueryType: " + qtype;
-            } // SWITCH
-        } // FOR
-        
-        return (Pair.of(read_p.size(), write_p.size()));
-    }
+
     
     @Override
     public void invalidateCache(String catalogKey) {
-        // TODO Auto-generated method stub
-
+        // Nothing...
     }
 
     @Override

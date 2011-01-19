@@ -841,19 +841,33 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
     public static String getDisplayName(CatalogType item, boolean include_class) {
         if (item != null) {
             StringBuilder sb = new StringBuilder();
+            
+            // Column/Statement
+            // Format: <Parent>.<Item>
             if (item instanceof Column || item instanceof Statement) {
                 sb.append(item.getParent().getName()).append(".").append(item.getName());
-            } else if (item instanceof ProcParameter
-                    || item instanceof StmtParameter) {
+                
+            // ProcParameter/StmtParameter
+            // Format: <Parent>.<Item>
+            } else if (item instanceof ProcParameter || item instanceof StmtParameter) {
                 sb.append(item.getParent().getName()).append(".").append(include_class ? item : item.getName());
+                
+            // PlanFragment
+            // Format: <Procedure>.<Statement>.[Fragment #XYZ]
             } else if (item instanceof PlanFragment) {
                 sb.append(item.getParent().getParent().getName())
                   .append(".")
                   .append(item.getParent().getName())
                   .append("[Fragment #").append(item.getName()).append("]");
+            
+            // ConstantValue
+            // Format: ConstantValue{XYZ}
             } else if (item instanceof ConstantValue) {
                 sb.append(item.getClass().getSimpleName())
                   .append("{").append(((ConstantValue) item).getValue()).append("}");
+                
+            // Everything Else
+            // Format: <OptionalClassName>.<Item>
             } else {
                 sb.append(include_class ? item.getClass().getSimpleName() + ":" : "")
                   .append(item.getName());

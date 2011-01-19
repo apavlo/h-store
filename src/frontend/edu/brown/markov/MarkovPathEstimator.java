@@ -29,6 +29,13 @@ public class MarkovPathEstimator extends VertexTreeWalker<Vertex> {
     private final Object args[];
     
     /**
+     * If this flag is set to true, then we will always try to go to the end
+     * This means that if we don't have an edge to the vertex that we're pretty sure we want to take, we'll 
+     * just pick the edge from the one that is available that has the highest probability
+     */
+    private boolean force_traversal = false;
+    
+    /**
      * This is how confident we are 
      */
     private double confidence = 1.00;
@@ -49,6 +56,14 @@ public class MarkovPathEstimator extends VertexTreeWalker<Vertex> {
             LOG.trace("# of Partitions: " + CatalogUtil.getNumberOfPartitions(this.p_estimator.getDatabase()));
 //            LOG.trace("Arguments:       " + Arrays.toString(args));
         }
+    }
+    
+    /**
+     * 
+     * @param flag
+     */
+    public void enableForceTraversal(boolean flag) {
+        this.force_traversal = flag;
     }
     
     /**
@@ -244,10 +259,19 @@ public class MarkovPathEstimator extends VertexTreeWalker<Vertex> {
             } // IF
         } // FOR
         
+        // If we don't have any candidate edges and the FORCE TRAVERSAL flag is set, then we'll just
+        // grab all of the edges from our currect vertex
+        int num_candidates = candidates.size();
+        if (num_candidates == 0 && this.force_traversal) {
+            if (trace) LOG.trace("No candidate edges were found. Force travesal flag is set, so taking all");
+            candidates.addAll(markov.getOutEdges(element));
+            num_candidates = candidates.size();
+        }
+        
         // So now we have our list of candidate edges. We can pick the first one
         // since they will be sorted by their probability
         if (trace) LOG.trace("Candidate Edges: " + candidates);
-        if (!candidates.isEmpty()) {
+        if (num_candidates > 0) {
             Edge next_edge = CollectionUtil.getFirst(candidates);
             Vertex next_vertex = markov.getOpposite(element, next_edge);
             children.addAfter(next_vertex);
