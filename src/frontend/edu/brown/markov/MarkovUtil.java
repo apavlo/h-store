@@ -11,6 +11,8 @@ import org.apache.log4j.Logger;
 import org.json.JSONObject;
 import org.json.JSONStringer;
 import org.voltdb.catalog.*;
+import org.voltdb.types.QueryType;
+import org.voltdb.utils.Pair;
 
 import edu.brown.catalog.CatalogKey;
 import edu.brown.catalog.CatalogUtil;
@@ -431,11 +433,47 @@ public abstract class MarkovUtil {
         return (graphviz);
     }
     
+    /**
+     * Get the set of all partitions touched (either read or write) by the list of vertices
+     * @param path
+     * @return
+     */
     public static Set<Integer> getTouchedPartitions(List<Vertex> path) {
         Set<Integer> partitions = new HashSet<Integer>();
         for (Vertex v : path) {
             partitions.addAll(v.getPartitions());
         } // FOR
         return (partitions);
+    }
+    
+    /**
+     * Get the read/write partition counts for the given path
+     * @param path
+     * @return Set<ReadPartitions>, Set<WritePartitions>
+     */
+    public static Pair<Set<Integer>, Set<Integer>> getReadWritePartitions(List<Vertex> path) {
+        Set<Integer> read_p = new HashSet<Integer>();
+        Set<Integer> write_p = new HashSet<Integer>();
+        
+        for (Vertex v : path) {
+            if (v.isQueryVertex() == false) continue;
+            
+            Statement catalog_stmt = v.getCatalogItem();
+            QueryType qtype = QueryType.get(catalog_stmt.getQuerytype());
+            switch (qtype) {
+                case SELECT:
+                    read_p.addAll(v.getPartitions());
+                    break;
+                case INSERT:
+                case UPDATE:
+                case DELETE:
+                    write_p.addAll(v.getPartitions());
+                    break;
+                default:
+                    assert(false) : "Invalid QueryType: " + qtype;
+            } // SWITCH
+        } // FOR
+        
+        return (Pair.of(read_p, write_p));
     }
 }

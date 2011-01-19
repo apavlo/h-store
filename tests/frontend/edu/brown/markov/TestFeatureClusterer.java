@@ -41,7 +41,7 @@ public class TestFeatureClusterer extends BaseTestCase {
     private static final Class<? extends VoltProcedure> TARGET_PROCEDURE = neworder.class;
     private static final int WORKLOAD_XACT_LIMIT = 1000;
 //    private static final int BASE_PARTITION = 1;
-    private static final int NUM_PARTITIONS = 5;
+    private static final int NUM_PARTITIONS = 20;
 
     private static Procedure catalog_proc;
     private static Workload workload;

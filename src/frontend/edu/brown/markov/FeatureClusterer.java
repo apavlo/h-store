@@ -184,8 +184,8 @@ public class FeatureClusterer {
         int all_cnt = data.numInstances();
         int training_cnt = (int)Math.round(all_cnt * TRAINING_SET_PERCENTAGE);
         Instances trainingData = new Instances(data, 0, training_cnt);
-//        Instances validationData = new Instances(data, training_cnt, all_cnt - training_cnt);
-        Instances validationData = new Instances(data); // , training_cnt, all_cnt - training_cnt);
+        Instances validationData = new Instances(data, training_cnt, all_cnt - training_cnt);
+//        Instances validationData = new Instances(data);
         return (Pair.of(trainingData, validationData));
     }
 
@@ -310,7 +310,7 @@ public class FeatureClusterer {
         final int validationCnt = validationData.numInstances();
         
         // Build our clusterer
-        if (debug) LOG.debug(String.format("Constructing Clusterer using %d Attributes: %s", aset.size(), aset));
+        if (debug) LOG.debug(String.format("Constructing Clusterer using %d Attributes with %d Partitions: %s", aset.size(), this.all_partitions.size(), aset));
         AbstractClusterer clusterer = this.createClusterer(trainingData, aset, catalog_proc);
         
         // We want to always split the MarkovGraphContainers by base partition, since we already know

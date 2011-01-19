@@ -25,6 +25,8 @@ import java.util.LinkedHashMap;
 import java.util.Set;
 import java.util.Map.Entry;
 
+import edu.brown.catalog.CatalogUtil;
+
 /**
  * The base class for all objects in the Catalog. CatalogType instances all
  * have a name and a path (from the root). They have fields and children.
@@ -50,6 +52,9 @@ public abstract class CatalogType implements Comparable<CatalogType> {
 
     int m_subTreeVersion;
     int m_nodeVersion;
+    
+    private transient String m_fullName = null;
+    private transient String m_toString = null;
     
     /**
      * Get the parent of this CatalogType instance
@@ -378,9 +383,23 @@ public abstract class CatalogType implements Comparable<CatalogType> {
      */
     @Override
     public String toString() {
-        return (this.getClass().getSimpleName() + "{" + this.getTypeName() + "}");
+        if (m_toString == null) {
+            m_toString = this.getClass().getSimpleName() + "{" + this.getTypeName() + "}"; 
+        }
+        return (m_toString);
     }
 
+    /**
+     * Return the full name of this CatalogType
+     * @return
+     */
+    public String fullName() {
+        if (m_fullName == null) {
+            m_fullName = CatalogUtil.getDisplayName(this, false);
+        }
+        return (m_fullName);
+    }
+    
     @Override
     public boolean equals(Object obj) {
         // this isn't really the convention for null handling
