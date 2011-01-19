@@ -18,8 +18,10 @@ import org.voltdb.expressions.TupleValueExpression;
 import org.voltdb.plannodes.AbstractJoinPlanNode;
 import org.voltdb.plannodes.AbstractPlanNode;
 import org.voltdb.plannodes.AbstractScanPlanNode;
+import org.voltdb.plannodes.AggregatePlanNode;
 import org.voltdb.plannodes.LimitPlanNode;
 import org.voltdb.plannodes.NestLoopIndexPlanNode;
+import org.voltdb.plannodes.OrderByPlanNode;
 import org.voltdb.plannodes.ProjectionPlanNode;
 import org.voltdb.types.ExpressionType;
 import org.voltdb.types.PlanNodeType;
@@ -28,7 +30,6 @@ import edu.brown.BaseTestCase;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.catalog.QueryPlanUtil;
 import edu.brown.expressions.ExpressionTreeWalker;
-import edu.brown.expressions.ExpressionUtil;
 import edu.brown.plannodes.PlanNodeTreeWalker;
 import edu.brown.plannodes.PlanNodeUtil;
 import edu.brown.utils.CollectionUtil;
@@ -50,7 +51,7 @@ public class TestPlanOptimizations2 extends BaseTestCase {
 
             this.addStmtProcedure("SingleProjection", "SELECT TABLEA.A_VALUE0 FROM TABLEA WHERE TABLEA.A_ID = ?");
             this.addStmtProcedure("Limit", "SELECT * FROM TABLEA WHERE TABLEA.A_ID > ? AND TABLEA.A_ID <= ? AND TABLEA.A_VALUE0 != ? LIMIT 15");
-            this.addStmtProcedure("JoinProjection", "SELECT TABLEA.A_VALUE0 FROM TABLEA, TABLEB WHERE TABLEA.A_ID = ? AND TABLEA.A_ID = TABLEB.B_A_ID");
+            this.addStmtProcedure("JoinProjection", "SELECT TABLEA.A_ID, TABLEA.A_VALUE0, TABLEA.A_VALUE1, TABLEA.A_VALUE2, TABLEA.A_VALUE3, TABLEA.A_VALUE4 FROM TABLEA,TABLEB WHERE TABLEA.A_ID = ? AND TABLEA.A_ID = TABLEB.B_A_ID");
             // NESTLOOP this.addStmtProcedure("ThreeWayJoin",
             // "SELECT TABLEA.A_VALUE0, TABLEB.B_VALUE0, (TABLEC.C_VALUE0 + TABLEC.C_VALUE1) AS blah FROM TABLEA, TABLEB, TABLEC WHERE TABLEA.A_ID = TABLEB.B_ID AND TABLEA.A_ID = TABLEC.C_A_ID AND TABLEC.C_A_ID = ? AND TABLEC.C_VALUE0 != ?");
             this
@@ -58,6 +59,9 @@ public class TestPlanOptimizations2 extends BaseTestCase {
                             "ThreeWayJoin",
                             "SELECT TABLEA.A_VALUE0, TABLEB.B_VALUE0, (TABLEC.C_VALUE0 + TABLEC.C_VALUE1) AS blah FROM TABLEA, TABLEB, TABLEC WHERE TABLEA.A_ID = TABLEB.B_A_ID AND TABLEA.A_ID = TABLEC.C_A_ID AND TABLEC.C_A_ID = ? AND TABLEC.C_VALUE0 != ?");
             this.addStmtProcedure("Aggregate", "SELECT COUNT(TABLEB.B_A_ID) AS cnt FROM TABLEB WHERE TABLEB.B_ID = ?");
+            this.addStmtProcedure("AggregateColumnAddition", "SELECT AVG(TABLEC.C_VALUE0), C_A_ID FROM TABLEC WHERE TABLEC.C_ID = ? GROUP BY C_A_ID");
+            this.addStmtProcedure("OrderBy", "SELECT TABLEC.C_A_ID FROM TABLEC ORDER BY TABLEC.C_A_ID, TABLEC.C_VALUE0");
+            this.addStmtProcedure("GroupBy", "SELECT MAX(TABLEC.C_ID) FROM TABLEC GROUP BY TABLEC.C_A_ID, TABLEC.C_VALUE0");
         }
     };
 
@@ -110,17 +114,64 @@ public class TestPlanOptimizations2 extends BaseTestCase {
             }.traverse(exp);
         }        
     }
-
-    protected void checkTableOffsets(AbstractPlanNode node,  final Map<String, Integer> tbl_map) {
-        // check the offsets of the output column
-        System.out.println("Table map: " + tbl_map + " node type: " + node.getPlanNodeType());
+    
+    protected void updateIntermediateTable(AbstractPlanNode node, final Map<String, Integer> intermediate_tbl) {
+        int offset_cnt = 0;
+        intermediate_tbl.clear();
         for (Integer col_guid : node.m_outputColumns) {
             PlanColumn plan_col = PlannerContext.singleton().get(col_guid);
-            assert (plan_col.getExpression().getExpressionType().equals(ExpressionType.VALUE_TUPLE)) : "plan column expression type is: " + plan_col.getExpression().getExpressionType() + " NOT TupleValueExpression";
-            TupleValueExpression tv_exp = (TupleValueExpression)plan_col.getExpression();
-            System.out.println("out Column Name: " + tv_exp.getColumnName() + " Column index: " + tv_exp.getColumnIndex());
-            checkColumnIndex(tv_exp, tbl_map);
-        }        
+            //TupleValueExpression tv_expr = (TupleValueExpression)plan_col.getExpression();
+            intermediate_tbl.put(plan_col.displayName(), offset_cnt);
+            offset_cnt++;
+        }
+    }
+
+    protected void checkTableOffsets(AbstractPlanNode node,  final Map<String, Integer> tbl_map) {
+        /** Aggregates **/
+        if (node instanceof AggregatePlanNode) {
+            /** check aggregate column offsets **/
+            for (Integer col_guid : ((AggregatePlanNode)node).getAggregateColumnGuids()) {
+                PlanColumn plan_col = PlannerContext.singleton().get(col_guid);
+                assert (plan_col.getExpression().getExpressionType().equals(ExpressionType.VALUE_TUPLE)) : " plan column expression type is: " + plan_col.getExpression().getExpressionType() + " NOT TupleValueExpression";
+                TupleValueExpression tv_exp = (TupleValueExpression)plan_col.getExpression();
+                checkColumnIndex(tv_exp, tbl_map);
+            }                                
+            /** check output column offsets **/
+            for (Integer col_guid : ((AggregatePlanNode)node).getAggregateOutputColumns()) {
+                PlanColumn plan_col = PlannerContext.singleton().get(col_guid);
+                assert (plan_col.getExpression().getExpressionType().equals(ExpressionType.VALUE_TUPLE)) : " plan column expression type is: " + plan_col.getExpression().getExpressionType() + " NOT TupleValueExpression";
+                TupleValueExpression tv_exp = (TupleValueExpression)plan_col.getExpression();
+                checkColumnIndex(tv_exp, tbl_map);
+            }                                
+            /** check group by column offsets **/
+            for (Integer col_guid : ((AggregatePlanNode)node).getGroupByColumns()) {
+                PlanColumn plan_col = PlannerContext.singleton().get(col_guid);
+                assert (plan_col.getExpression().getExpressionType().equals(ExpressionType.VALUE_TUPLE)) : " plan column expression type is: " + plan_col.getExpression().getExpressionType() + " NOT TupleValueExpression";
+                TupleValueExpression tv_exp = (TupleValueExpression)plan_col.getExpression();
+                checkColumnIndex(tv_exp, tbl_map);
+            }                                
+        /** Order By's **/
+        } else if (node instanceof OrderByPlanNode) {
+            
+        } else {
+            // check the offsets of the output column
+            //Set<TupleValueExpression> ExpressionUtil.getExpressions(node, TupleValueExpression.class);
+            for (Integer col_guid : node.m_outputColumns) {
+                PlanColumn plan_col = PlannerContext.singleton().get(col_guid);
+                new ExpressionTreeWalker() {
+                    @SuppressWarnings("unchecked")
+                    @Override
+                    protected void callback(AbstractExpression element) {
+                        if (element.getClass().equals(TupleValueExpression.class)) {
+                            assert (element.getExpressionType().equals(ExpressionType.VALUE_TUPLE)) : "plan column expression type is: " + element.getExpressionType() + " NOT TupleValueExpression";
+                            TupleValueExpression tv_exp = (TupleValueExpression)element;
+                            checkColumnIndex(tv_exp, tbl_map);
+                        }
+                        return;
+                    }
+                }.traverse(plan_col.getExpression());
+            }                    
+        }
     }
     
     /** make sure the output columns of a node exactly match its inline columns (guid for guid) **/
@@ -140,74 +191,67 @@ public class TestPlanOptimizations2 extends BaseTestCase {
         new PlanNodeTreeWalker() {
             @Override
             protected void callback(AbstractPlanNode element) {
-
-                /** Bottom Scan Node **/
-                if (this.getDepth() == total_depth && element instanceof AbstractScanPlanNode) {
-                    // if its bottom most node (scan node), check offsets against
-                    // the table being scanned
-                    Map<String, Integer> target_tbl_map = buildTableMap((AbstractScanPlanNode)element);
-                    checkExpressionOffsets(element, target_tbl_map);
-                    checkTableOffsets(element, target_tbl_map);
-                    // if inline nodes exist, check offsets of output columns match inline projection output columns
-                    if (element.getInlinePlanNodes().size() > 0) {
-                        // only 1 inline plan node - must be projection
-                        assert (element.getInlinePlanNodes().size() == 1) : "More than 1 Inline Nodes in leaf Scan Node";
-                        assert (element.getInlinePlanNode(PlanNodeType.PROJECTION) != null) : "Leaf scan node's inline node is not a projection";
-                        // TO D0: compare inline projection columns with output columns of scan - should be identical
-                        checkMatchInline(element, element.getInlinePlanNode(PlanNodeType.PROJECTION));
+                // skip the column offset checking for the root send - the EE doesn't care
+                if (this.getDepth() != 0) {
+                    /** Bottom Scan Node **/
+                    if (this.getDepth() == total_depth && element instanceof AbstractScanPlanNode) {
+                        // if its bottom most node (scan node), check offsets against
+                        // the table being scanned
+                        Map<String, Integer> target_tbl_map = buildTableMap((AbstractScanPlanNode)element);
+                        checkExpressionOffsets(element, target_tbl_map);
+                        checkTableOffsets(element, target_tbl_map);
+                        // if inline nodes exist, check offsets of output columns match inline projection output columns
+                        if (element.getInlinePlanNodes().size() > 0) {
+                            // only 1 inline plan node - must be projection
+                            assert (element.getInlinePlanNodes().size() == 1) : "More than 1 Inline Nodes in leaf Scan Node";
+                            assert (element.getInlinePlanNode(PlanNodeType.PROJECTION) != null) : "Leaf scan node's inline node is not a projection";
+                            // TO D0: compare inline projection columns with output columns of scan - should be identical
+                            checkMatchInline(element, element.getInlinePlanNode(PlanNodeType.PROJECTION));
+                        }
+                        // update the intermediate table - with output columns from the scan
+                        updateIntermediateTable(element, intermediate_tbl);
                     }
-                    // update the intermediate table - with output columns from the scan
-                    for (Column col : PlanNodeUtil.getOutputColumns(catalog_db, element)) {
-                        intermediate_tbl.put(col.getName(), col.getIndex());
+                    /** NestLoopIndex Node **/
+                    else if (element instanceof NestLoopIndexPlanNode) {
+                        // The only type of join we're currently handling. The join mashes the Receive node
+                        // intermediate table with the inline index scan
+                        // check the inline scan node's column offsets are based on the "mashing" of the intermediate table
+                        // and the target scan table
+                        assert (element.getInlinePlanNodes().size() == 1) : "More than 1 Inline Nodes in NestLoopIndex";
+                        assert (element.getInlinePlanNode(PlanNodeType.INDEXSCAN) != null || element.getInlinePlanNode(PlanNodeType.SEQSCAN) != null) : "No scan nodes exist in inline plan nodes";
+                        AbstractScanPlanNode scan_node = (AbstractScanPlanNode)CollectionUtil.getFirst(element.getInlinePlanNodes().values());
+                        // get all columns of the "target table" being scanned and append them to the current intermediate table
+                        Map<String, Integer> scan_node_map = buildTableMap(scan_node);
+                        Integer intermediate_tbl_offset = intermediate_tbl.size();
+                        for (Map.Entry<String, Integer> col : scan_node_map.entrySet()) {
+                            intermediate_tbl.put(col.getKey(), intermediate_tbl_offset + col.getValue());
+                        }
+                        // check that the expression column offsets match up with the "intermediate" table
+                        checkExpressionOffsets(scan_node, intermediate_tbl);
+                        // check that output column offsets match up with the original target table
+                        checkTableOffsets(scan_node, intermediate_tbl);
+                        checkMatchInline(element, scan_node);
+                    }
+                    /** Projection Node **/
+                    else if (element instanceof ProjectionPlanNode) {
+                        // check the output columns of the projection against the "last pushed" intermediate table data structure
+                        checkExpressionOffsets(element, intermediate_tbl);
+                        checkTableOffsets(element, intermediate_tbl);
+                        // update intermediate table
+                        updateIntermediateTable(element, intermediate_tbl);
+                    }
+                    else if (element instanceof AggregatePlanNode || element instanceof OrderByPlanNode) {
+                        // only want to check the expression here because the output will be different for aggregates
+                        checkExpressionOffsets(element, intermediate_tbl);
+                        // update intermediate table to reflect output of aggregates
+                        updateIntermediateTable(element, intermediate_tbl);
+                    }
+                    /** Any other types of AbstractPlanNode (Send, Recieve, Limit, etc.) **/
+                    else {
+                        checkExpressionOffsets(element, intermediate_tbl);
+                        checkTableOffsets(element, intermediate_tbl);
                     }                    
                 }
-                /** NestLoopIndex Node **/
-                else if (element instanceof NestLoopIndexPlanNode) {
-                    // The only type of join we're currently handling. The join mashes the Receive node
-                    // intermediate table with the inline index scan
-                    System.out.println("First nestedloopindex, intermediate tables are: " + intermediate_tbl);
-                    
-                    // check the inline scan node's column offsets are based on the "mashing" of the intermediate table
-                    // and the target scan table
-                    assert (element.getInlinePlanNodes().size() == 1) : "More than 1 Inline Nodes in NestLoopIndex";
-                    assert (element.getInlinePlanNode(PlanNodeType.INDEXSCAN) != null || element.getInlinePlanNode(PlanNodeType.SEQSCAN) != null) : "No scan nodes exist in inline plan nodes";
-                    AbstractScanPlanNode scan_node = (AbstractScanPlanNode)CollectionUtil.getFirst(element.getInlinePlanNodes().values());
-                    // get all columns of the "target table" being scanned and append them to the current intermediate table
-                    Map<String, Integer> scan_node_map = buildTableMap(scan_node);
-                    Integer intermediate_tbl_offset = intermediate_tbl.size();
-                    for (Map.Entry<String, Integer> col : scan_node_map.entrySet()) {
-                        intermediate_tbl.put(col.getKey(), intermediate_tbl_offset + col.getValue());
-                    }
-                    // check that the expression column offsets match up with the "intermediate" table
-                    checkExpressionOffsets(scan_node, intermediate_tbl);
-                    // check that output column offsets match up with the original target table
-                    checkTableOffsets(scan_node, intermediate_tbl);
-                    checkMatchInline(element, scan_node);
-                    System.out.println("finished checking first nest loop!!!");
-                }
-                /** Projection Node **/
-                else if (element instanceof ProjectionPlanNode) {
-                    // check the output columns of the projection against the "last pushed" intermediate table data structure
-                    checkExpressionOffsets(element, intermediate_tbl);
-                    checkTableOffsets(element, intermediate_tbl);
-                    // update intermediate table
-                    int offset_cnt = 0;
-                    intermediate_tbl.clear();
-                    for (Integer col_guid : element.m_outputColumns) {
-                        PlanColumn plan_col = PlannerContext.singleton().get(col_guid);
-                        TupleValueExpression tv_expr = (TupleValueExpression)plan_col.getExpression();
-                        System.out.println("tuple value expr: " + tv_expr);
-                        intermediate_tbl.put(tv_expr.getColumnName(), offset_cnt);
-                        offset_cnt++;
-                    }
-                }
-                
-                /** Any other types of AbstractPlanNode (Send, Recieve, Limit, etc.) **/
-                else {
-                    checkExpressionOffsets(element, intermediate_tbl);
-                    checkTableOffsets(element, intermediate_tbl);
-                }
-
             }
         }.traverse(node);
     }
@@ -258,7 +302,7 @@ public class TestPlanOptimizations2 extends BaseTestCase {
         // Grab the root node of the multi-partition query plan tree for this
         // Statement
         AbstractPlanNode root = QueryPlanUtil.deserializeStatement(catalog_stmt, false);
-        // FIXME: validateNodeColumnOffsets(root);
+        validateNodeColumnOffsets(root);
         //System.err.println(PlanNodeUtil.debug(root));
         assertNotNull(root);
     }
@@ -277,10 +321,52 @@ public class TestPlanOptimizations2 extends BaseTestCase {
      AbstractPlanNode root = QueryPlanUtil.deserializeStatement(catalog_stmt,
      true);
      assertNotNull(root);
-     //validateNodeColumnOffsets(root);
+     validateNodeColumnOffsets(root);
      //System.err.println(PlanNodeUtil.debug(root));
      }
-        
+     
+     @Test
+     public void testAggregateColumnAddition() throws Exception {
+         Procedure catalog_proc = this.getProcedure("AggregateColumnAddition");
+         Statement catalog_stmt = this.getStatement(catalog_proc, "sql");
+                
+         // Grab the root node of the multi-partition query plan tree for this
+         //Statement
+         AbstractPlanNode root = QueryPlanUtil.deserializeStatement(catalog_stmt,
+         true);
+         assertNotNull(root);
+         validateNodeColumnOffsets(root);
+         //System.err.println(PlanNodeUtil.debug(root));         
+     }
+ 
+     @Test
+     public void testAggregateOrderBy() throws Exception {
+         Procedure catalog_proc = this.getProcedure("OrderBy");
+         Statement catalog_stmt = this.getStatement(catalog_proc, "sql");
+                
+         // Grab the root node of the multi-partition query plan tree for this
+         //Statement
+         AbstractPlanNode root = QueryPlanUtil.deserializeStatement(catalog_stmt,
+         true);
+         assertNotNull(root);
+         validateNodeColumnOffsets(root);
+         //System.err.println(PlanNodeUtil.debug(root));         
+     }
+      
+     @Test
+     public void testAggregateGroupBy() throws Exception {
+         Procedure catalog_proc = this.getProcedure("GroupBy");
+         Statement catalog_stmt = this.getStatement(catalog_proc, "sql");
+                
+         // Grab the root node of the multi-partition query plan tree for this
+         //Statement
+         AbstractPlanNode root = QueryPlanUtil.deserializeStatement(catalog_stmt,
+         true);
+         assertNotNull(root);
+         validateNodeColumnOffsets(root);
+         //System.err.println(PlanNodeUtil.debug(root));         
+     }
+
      /**
      * testSingleProjectionPushdown
      */
@@ -294,7 +380,7 @@ public class TestPlanOptimizations2 extends BaseTestCase {
      AbstractPlanNode root = QueryPlanUtil.deserializeStatement(catalog_stmt,
      false);
      assertNotNull(root);
-     // FIXME: validateNodeColumnOffsets(root);
+     validateNodeColumnOffsets(root);
      //System.err.println(PlanNodeUtil.debug(root));    
      // First check that our single scan node has an inline Projection
      Set<AbstractScanPlanNode> scan_nodes = PlanNodeUtil.getPlanNodes(root,
@@ -335,7 +421,7 @@ public class TestPlanOptimizations2 extends BaseTestCase {
      AbstractPlanNode root = QueryPlanUtil.deserializeStatement(catalog_stmt,
      false);
      assertNotNull(root);
-     // FIXME: validateNodeColumnOffsets(root);
+     //validateNodeColumnOffsets(root);
             
      new PlanNodeTreeWalker() {
 
@@ -347,7 +433,7 @@ public class TestPlanOptimizations2 extends BaseTestCase {
      //
      //System.err.println("+++++++++++++++++++++++++++++++++++++++++++++++++++");
 //            
-      //System.err.println(PlanNodeUtil.debug(root));
+//      System.err.println(PlanNodeUtil.debug(root));
 //     //
 //     System.err.println("+++++++++++++++++++++++++++++++++++++++++++++++++++");
 //     //
