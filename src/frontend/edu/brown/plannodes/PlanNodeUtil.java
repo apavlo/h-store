@@ -95,6 +95,34 @@ public abstract class PlanNodeUtil {
             // Get all the AbstractExpressions used in the predicates for this join
             if (join_node.getPredicate() != null) exps.add(join_node.getPredicate());
         }
+
+        // ---------------------------------------------------
+        // AGGREGATE
+        // ---------------------------------------------------
+        else if (node instanceof AggregatePlanNode) {
+            AggregatePlanNode agg_node = (AggregatePlanNode)node;
+            for (Integer col_guid: agg_node.getAggregateColumnGuids()) {
+                PlanColumn col = PlannerContext.singleton().get(col_guid);
+                assert(col != null) : "Invalid PlanColumn #" + col_guid;
+                if (col.getExpression() != null) exps.add(col.getExpression());
+            } // FOR
+            for (Integer col_guid : agg_node.getGroupByColumnIds()) {
+                PlanColumn col = PlannerContext.singleton().get(col_guid);
+                assert(col != null) : "Invalid PlanColumn #" + col_guid;
+                if (col.getExpression() != null) exps.add(col.getExpression());
+            } // FOR
+        // ---------------------------------------------------
+        // ORDER BY
+        // ---------------------------------------------------
+        } else if (node instanceof OrderByPlanNode) {
+            OrderByPlanNode orby_node = (OrderByPlanNode)node;
+            for (Integer col_guid : orby_node.getSortColumnGuids()) {
+                PlanColumn col = PlannerContext.singleton().get(col_guid);
+                assert(col != null) : "Invalid PlanColumn #" + col_guid;
+                if (col.getExpression() != null) exps.add(col.getExpression());
+            } // FOR
+        }
+        
         return (exps);
     }
     
