@@ -1,6 +1,7 @@
 package edu.brown.gui.catalog;
 
 import java.util.*;
+
 import org.apache.log4j.Logger;
 
 import javax.swing.tree.*;
@@ -72,11 +73,22 @@ public class CatalogTreeModel extends DefaultTreeModel {
     protected void buildSearchIndex(CatalogType catalog_obj, DefaultMutableTreeNode node) {
         //this.guid_node_xref.put(catalog_obj.getGuid(), node);
         
-        String name = catalog_obj.getName().toLowerCase();
-        if (!this.name_node_xref.containsKey(name)) {
-            this.name_node_xref.put(name, new HashSet<DefaultMutableTreeNode>());
+        List<String> keys = new ArrayList<String>();
+        keys.add(catalog_obj.getName());
+        
+        // Add the SQL statements
+        if (catalog_obj instanceof Statement) {
+            Statement catalog_stmt = (Statement)catalog_obj;
+            keys.add(catalog_stmt.getSqltext());
         }
-        this.name_node_xref.get(name).add(node);
+        
+        for (String k : keys) {
+            k = k.toLowerCase();
+            if (!this.name_node_xref.containsKey(k)) {
+                this.name_node_xref.put(k, new HashSet<DefaultMutableTreeNode>());
+            }
+            this.name_node_xref.get(k).add(node);
+        } // FOR
     }
     
     private static class CatalogMapTreeNode extends DefaultMutableTreeNode {
@@ -175,6 +187,7 @@ public class CatalogTreeModel extends DefaultTreeModel {
                         parameters_node.add(param_node);
                         buildSearchIndex(param_cat, param_node);
                     } // FOR (parameters)
+                    
                     // Statements
                     DefaultMutableTreeNode statementRootNode = new CatalogMapTreeNode("Statements", procedure_cat.getStatements());
                     procedure_node.add(statementRootNode);                  
@@ -190,9 +203,10 @@ public class CatalogTreeModel extends DefaultTreeModel {
 
                             String label = (is_singlesited ? "Single" : "Multi") + "-Sited Plan Fragments";
                             String attributes = "";
+                            AbstractPlanNode node = null;
                             
                             try {
-                                AbstractPlanNode node = QueryPlanUtil.deserializeStatement(statement_cat, is_singlesited);
+                                node = QueryPlanUtil.deserializeStatement(statement_cat, is_singlesited);
                                 attributes = PlanNodeUtil.debug(node);
                             } catch (Exception e) {
                                 String msg = e.getMessage();
@@ -202,7 +216,7 @@ public class CatalogTreeModel extends DefaultTreeModel {
                                     LOG.warn(msg);
                                 }
                             }
-                            DefaultMutableTreeNode planNode = new DefaultMutableTreeNode(new AttributesNode(label, attributes));
+                            DefaultMutableTreeNode planNode = new DefaultMutableTreeNode(new PlanTreeCatalogNode(label, statement_cat, node));
                             statement_node.add(planNode);
                             
                             // Plan Fragments

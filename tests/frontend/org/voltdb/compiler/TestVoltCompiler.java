@@ -55,7 +55,7 @@ public class TestVoltCompiler extends TestCase {
             System.exit(-1);
         }
 
-        VoltProjectBuilder builder = new VoltProjectBuilder();
+        VoltProjectBuilder builder = new VoltProjectBuilder("testvoltcompiler");
 
         builder.addProcedures(org.voltdb.compiler.procedures.TPCCTestProc.class);
         builder.setSnapshotSettings("32m", 5, "/tmp", "woobar");
@@ -82,7 +82,7 @@ public class TestVoltCompiler extends TestCase {
     // TestELTSuite tests most of these options end-to-end; however need to test
     // that a disabled connector is really disabled and that auth data is correct.
     public void testELTSetting() throws IOException {
-        final VoltProjectBuilder project = new VoltProjectBuilder();
+        final VoltProjectBuilder project = new VoltProjectBuilder("sqltypessuite");
         project.addSchema(TestSQLTypesSuite.class.getResource("sqltypessuite-ddl.sql"));
         project.addProcedures(org.voltdb.regressionsuites.sqltypesprocs.Insert.class);
         project.addPartitionInfo("NO_NULLS", "PKEY");

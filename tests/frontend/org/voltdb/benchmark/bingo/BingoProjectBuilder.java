@@ -34,6 +34,10 @@ public class BingoProjectBuilder extends VoltProjectBuilder {
     private static final URL ddlURL =
         BingoClient.class.getResource("bingo-ddl.sql");
 
+    public BingoProjectBuilder() {
+        super("bingo");
+    }
+    
     @Override
     public void addAllDefaults() {
         addProcedures(

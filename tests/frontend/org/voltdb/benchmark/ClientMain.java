@@ -584,6 +584,16 @@ public abstract class ClientMain {
         m_txnRate = transactionRate;
         m_txnsPerMillisecond = transactionRate / 1000.0;
         m_blocking = blocking;
+        
+        if (m_catalogPath != null) {
+            try {
+                // HACK: This will instantiate m_catalog for us...
+                this.getCatalog();
+            } catch (Exception ex) {
+                LOG.fatal("Failed to load catalog", ex);
+                System.exit(1);
+            }
+        }
 
         if (m_blocking) {
             LOG.debug("Using BlockingClient!");
@@ -621,7 +631,7 @@ public abstract class ClientMain {
         }
         if (!atLeastOneConnection) {
             setState(ControlState.ERROR, "No HOSTS specified on command line.");
-            LOG.fatal("NO HOSTS WERE PROVIDED!");
+            LOG.warn("NO HOSTS WERE PROVIDED!");
         }
         m_checkTransaction = checkTransaction;
         m_checkTables = checkTables;
@@ -696,6 +706,10 @@ public abstract class ClientMain {
             m_catalog =  CatalogUtil.loadCatalogFromJar(m_catalogPath.getAbsolutePath());
         }
         return (m_catalog);
+    }
+    
+    public void setCatalog(Catalog catalog) {
+    	m_catalog = catalog;
     }
 
     public void setState(final ControlState state, final String reason) {

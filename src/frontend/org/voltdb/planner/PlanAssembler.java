@@ -76,6 +76,7 @@ import edu.brown.utils.StringUtil;
 public class PlanAssembler {
     private static final Logger LOG = Logger.getLogger(PlanAssembler.class);
 
+    // TODO: DOCUMENT WHAT THIS MEANS!!
     private static final boolean INCLUDE_SEND_FOR_ALL = true;
     
     private static final int MAX_LOCAL_ID = 1000000;

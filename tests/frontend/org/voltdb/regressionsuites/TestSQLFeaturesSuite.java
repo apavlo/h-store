@@ -267,7 +267,7 @@ public class TestSQLFeaturesSuite extends RegressionSuite {
         MultiConfigSuiteBuilder builder = new MultiConfigSuiteBuilder(TestSQLFeaturesSuite.class);
 
         // build up a project builder for the workload
-        VoltProjectBuilder project = new VoltProjectBuilder();
+        VoltProjectBuilder project = new VoltProjectBuilder("sqlfeatures");
         project.addSchema(BatchedMultiPartitionTest.class.getResource("sqlfeatures-ddl.sql"));
         project.addPartitionInfo("NEW_ORDER", "NO_W_ID");
         project.addPartitionInfo("ORDER_LINE", "OL_W_ID");

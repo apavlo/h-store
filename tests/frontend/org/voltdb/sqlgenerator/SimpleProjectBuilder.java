@@ -34,6 +34,7 @@ public class SimpleProjectBuilder extends VoltProjectBuilder {
     private String m_filename = null;
 
     public SimpleProjectBuilder(String filename) {
+        super("simple");
         m_filename = filename;
     }
 
