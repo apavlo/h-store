@@ -65,6 +65,11 @@
 <!-- emma build instrumentation location -->
 <property name='build.instr.dir'             location='${build.dir}/instr' />
 
+<!-- Default hostname -->
+<condition property="hstore.defaulthost" value="localhost">
+    <not><isset property="hstore.defaulthost"/></not>
+</condition>
+
 <!-- Default H-Store Properties File  -->
 <condition property="hstore.properties" value="${properties.dir}/default.properties">
     <not><isset property="hstore.properties"/></not>
@@ -77,11 +82,6 @@
 </condition>
 <property file="${benchmark.dir}/${project}.properties" prefix="benchmark" />
 <property name="benchmark.jar" location="${project}.jar" />
-
-<!-- Default hostname -->
-<condition property="hstore.defaulthost" value="localhost">
-    <not><isset property="hstore.defaulthost"/></not>
-</condition>
 
 <!-- Default heap size for Volt server (MB)  -->
 <condition property="volt.server.memory" value="2048">
@@ -1449,6 +1449,7 @@ BENCHMARKS
 
 <target name='benchmark'
     description="Compile VoltDB and run a benchmark">
+	
     <java fork="true" failonerror="true"
         classname="org.voltdb.benchmark.BenchmarkController">
         <classpath refid='project.classpath' />
@@ -1465,7 +1466,7 @@ BENCHMARKS
         <arg value="HOSTCOUNT=${hostcount}" />
         <arg value="SITESPERHOST=${sitesperhost}"/>
         <arg value="KFACTOR=${kfactor}"/>
-        <arg value="REMOTEPATH=${remotepath}" />
+        <arg value="REMOTEPATH=${basedir}" />
         <arg value="REMOTEUSER=${remoteuser}"/>
         <arg value="CATALOG=${catalog}" />
         <arg value="COORDINATORHOST=${hstore.coordinator.host}" />
@@ -1477,6 +1478,7 @@ BENCHMARKS
         <arg value="INTERVAL=${hstore.interval}" />
         <arg value="DURATION=${hstore.duration}" />
         <arg value="BLOCKING=${hstore.blocking}" />
+        <arg value="TRACE=${trace}" />
 
         <!-- Global Parameters -->
         <arg value="scalefactor=${hstore.scalefactor}" />
@@ -1722,6 +1724,9 @@ DESIGNER
 
 <target name='catalog-info'
         description="Print catalog host/partition information">
+    <condition property="jar" value="${benchmark.jar}">
+        <not><isset property="jar"/></not>
+    </condition>
     <java fork="yes" failonerror="true" classname="edu.brown.catalog.CatalogInfo">
         <jvmarg value="-Dlog4j.configuration=${basedir}/log4j.properties"/>
         <arg value="catalog.jar=${jar}" />
@@ -2098,6 +2103,9 @@ H-STORE REMIX
 </target>
 
 <target name="hstore-conf" description="Converts catalog contents to hstore.conf file">
+    <condition property="jar" value="${benchmark.jar}">
+        <not><isset property="jar"/></not>
+    </condition>
    <java fork="yes" classname="edu.brown.catalog.HStoreConf">
       <jvmarg value="-Dlog4j.configuration=log4j.properties"/>
       <jvmarg value="-client" />
@@ -2130,6 +2138,10 @@ H-STORE REMIX
     <antcall target="hstore-jar">
         <param name="jar" value="${benchmark.jar}" />
     </antcall>
+    
+    <antcall target="hstore-conf">
+        <param name="jar" value="${benchmark.jar}" />
+    </antcall>
 </target>
 
 <target name="hstore-site" description="H-Store Execution Node/Coordinator">
@@ -2139,7 +2151,7 @@ H-STORE REMIX
         <jvmarg value="-server" />
         <jvmarg value="-Djava.library.path=${build.dir}/nativelibs" />
         <jvmarg value="-Xcheck:jni" />
-        <arg value="catalog.jar=${jar}" />
+        <arg value="catalog.jar=${benchmark.jar}" />
         <arg value="node.site=${node.site}" />
         <arg value="coordinator.host=${hstore.coordinator.host}" />
         <arg value="coordinator.port=${hstore.coordinator.port}" />
@@ -2159,11 +2171,12 @@ H-STORE REMIX
     </java>
 </target>
 
-<target name='hstore-client' description="H-Store Benchmark Client">
+<target name='hstore-benchmark' description="H-Store Benchmark">
     <antcall target="benchmark">
         <param name="catalog" value="${benchmark.jar}" />
         <param name="compile" value="false" />
         <param name="clienthost" value="${hstore.defaulthost}" />
+        <param name="cataloghosts" value="true" />
     </antcall>
 </target>
 
@@ -2180,23 +2193,20 @@ H-STORE REMIX
     </antcall>
 </target>
 
-<target name="hstore-benchmark" description="H-Store Test Setup">
-    <antcall target="hstore-conf">
-        <param name="jar" value="${benchmark.jar}" />
-    </antcall>
+<!--<target name="hstore-benchmark" description="H-Store Test Setup">
     <parallel failonany="true">
         <antcall target="dtxn-coordinator">
             <param name="port" value="${hstore.coordinator.port}" />
         </antcall>
         <antcall target="hstore-site">
-            <param name="jar" value="${benchmark.jar}" />
+            <param name="benchmark.jar" value="${benchmark.jar}" />
             <param name="node.site" value="0" />
             <param name="markov" value="./files/markovs/${project}.markovs" />
             <param name="thresholds" value="./files/thresholds/default.thresholds" />
             <param name="correlations" value="./files/correlations/${project}.correlations" />
         </antcall>
         <antcall target="hstore-site">
-            <param name="jar" value="${benchmark.jar}" />
+            <param name="benchmark.jar" value="${benchmark.jar}" />
             <param name="node.site" value="1" />
             <param name="markov" value="./files/markovs/${project}.markovs" />
             <param name="thresholds" value="./files/thresholds/default.thresholds" />
@@ -2207,7 +2217,7 @@ H-STORE REMIX
             <antcall target="hstore-client" />
         </sequential>
     </parallel>
-</target>
+</target>-->
 
 
 <!-- END PROJECT -->

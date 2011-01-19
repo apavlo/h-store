@@ -44,7 +44,7 @@ import edu.brown.utils.*;
  */
 public abstract class AbstractViewer extends JFrame {
     private static final long serialVersionUID = 1L;
-    protected static final Logger LOG = Logger.getLogger(AbstractViewer.class.getName());
+    protected static final Logger LOG = Logger.getLogger(AbstractViewer.class);
 
     // ----------------------------------------------
     // WINDOW OPTIONS

@@ -85,7 +85,7 @@ public class ScaleParameters {
 
         int items = (int) (Constants.NUM_ITEMS/scaleFactor);
         if (items <= 0) items = 1;
-        int districts = (int) (Constants.DISTRICTS_PER_WAREHOUSE/scaleFactor);
+        int districts = Constants.DISTRICTS_PER_WAREHOUSE; // (int) (Constants.DISTRICTS_PER_WAREHOUSE/scaleFactor);
         if (districts <= 0) districts = 1;
         int customers = (int) (Constants.CUSTOMERS_PER_DISTRICT/scaleFactor);
         if (customers <= 0) customers = 1;

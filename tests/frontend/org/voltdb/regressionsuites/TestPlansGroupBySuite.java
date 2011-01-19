@@ -612,7 +612,7 @@ public class TestPlansGroupBySuite extends RegressionSuite {
         VoltServerConfig config = null;
         MultiConfigSuiteBuilder builder = new MultiConfigSuiteBuilder(
                 TestPlansGroupBySuite.class);
-        VoltProjectBuilder project = new VoltProjectBuilder();
+        VoltProjectBuilder project = new VoltProjectBuilder("testplans");
 
         project.addSchema(TestPlansGroupBy.class
                 .getResource("testplans-groupby-ddl.sql"));

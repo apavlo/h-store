@@ -74,6 +74,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
     
     public static final String DTXN_COORDINATOR = "protodtxncoordinator";
     public static final String DTXN_ENGINE = "protodtxnengine";
+    public static final String SITE_READY_MSG = "Site is ready for action";
     
     /**
      * This is the thing that we will actually use to generate txn ids used by our H-Store specific code
@@ -815,7 +816,8 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
                 hstore_site.setDtxnCoordinator(stub);
                 VoltProcedureListener voltListener = new VoltProcedureListener(hstore_site.coordinatorEventLoop, hstore_site);
                 voltListener.bind(catalog_site.getProc_port());
-                LOG.info(String.format("Site is ready for action [site=%d, port=%d, num_partitions=%d]",
+                LOG.info(String.format("%s [site=%d, port=%d, num_partitions=%d]",
+                                       HStoreSite.SITE_READY_MSG,
                                        hstore_site.getSiteId(),
                                        catalog_site.getProc_port(),
                                        hstore_site.getExecutorCount()));

@@ -136,6 +136,7 @@ public class BenchmarkConfig {
         this.compileOnly = compileOnly;
         this.useCatalogHosts = useCatalogHosts;
         this.noDataLoad = noDataLoad;
+        
     }
 
     @Override

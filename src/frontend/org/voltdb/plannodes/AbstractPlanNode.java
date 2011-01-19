@@ -29,12 +29,14 @@ import org.voltdb.catalog.Cluster;
 import org.voltdb.catalog.Database;
 import org.voltdb.compiler.DatabaseEstimates;
 import org.voltdb.compiler.ScalarValueHints;
+import org.voltdb.planner.CompiledPlan;
 import org.voltdb.planner.PlanColumn;
 import org.voltdb.planner.PlanStatistics;
 import org.voltdb.planner.PlannerContext;
 import org.voltdb.planner.StatsField;
 import org.voltdb.types.*;
 
+import edu.brown.plannodes.PlanNodeUtil;
 import edu.brown.utils.ClassUtil;
 
 public abstract class AbstractPlanNode implements JSONString, Comparable<AbstractPlanNode> {
@@ -206,7 +208,7 @@ public abstract class AbstractPlanNode implements JSONString, Comparable<Abstrac
 
     @Override
     public final String toString() {
-        return getPlanNodeType() + "[" + m_id + "]";
+        return String.format("%s[#%02d]", getPlanNodeType().toString(), m_id);
     }
 
     public boolean computeEstimatesRecursively(PlanStatistics stats, Cluster cluster, Database db, DatabaseEstimates estimates, ScalarValueHints[] paramHints) {
@@ -441,20 +443,12 @@ public abstract class AbstractPlanNode implements JSONString, Comparable<Abstrac
             n.findAllNodesOfType_recurse(type, collected, visited);
     }
 
-    public void freeColumns()
-    {
-        for (Integer guid : m_outputColumns)
-        {
+    public void freeColumns(Set<Integer> skip) {
+        Set<Integer> guids = PlanNodeUtil.getAllPlanColumnGuids(this);
+        guids.removeAll(skip);
+        for (Integer guid : guids) {
             m_context.freeColumn(guid);
-        }
-        for (AbstractPlanNode n : m_children)
-        {
-            n.freeColumns();
-        }
-        for (PlanNodeType t : m_inlineNodes.keySet())
-        {
-            m_inlineNodes.get(t).freeColumns();
-        }
+        } // FOR
     }
 
     @Override

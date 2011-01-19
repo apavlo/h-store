@@ -111,7 +111,7 @@ public class TestReplicationSuite extends RegressionSuite
         MultiConfigSuiteBuilder builder =
             new MultiConfigSuiteBuilder(TestReplicationSuite.class);
 
-        VoltProjectBuilder project = new VoltProjectBuilder();
+        VoltProjectBuilder project = new VoltProjectBuilder("replication");
         project.addSchema(SelectEmptyTable.class.getResource("replication-ddl.sql"));
         project.addPartitionInfo("P1", "ID");
         project.addStmtProcedure("InsertSinglePart",

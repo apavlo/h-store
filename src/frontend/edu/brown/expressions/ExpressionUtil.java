@@ -26,6 +26,23 @@ public abstract class ExpressionUtil {
     }
 
     /**
+     * Recursively check whether the trees rooted at the given AbstractExpressions are equal
+     * @param exp0
+     * @param exp1
+     * @return
+     */
+    public static boolean equals(AbstractExpression exp0, AbstractExpression exp1) {
+        if (exp0 == null) {
+            return (exp1 == null); 
+        } else if (exp1 == null) {
+            return (false);
+        }
+        return (exp0.equals(exp1) ? ExpressionUtil.equals(exp0.getLeft(), exp1.getLeft()) &&
+                                    ExpressionUtil.equals(exp0.getRight(), exp1.getRight()) : false);
+    }
+    
+    
+    /**
      * Get all of the ExpressionTypes used in the tree below the given root
      * @param root
      * @return

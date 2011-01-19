@@ -45,6 +45,10 @@ public class SaveRestoreTestProjectBuilder extends VoltProjectBuilder
         SaveRestoreTestProjectBuilder.class.getResource("saverestore-ddl.sql");
     public static final String jarFilename = "saverestore.jar";
 
+    public SaveRestoreTestProjectBuilder() {
+        super("saverestore");
+    }
+    
     public void addDefaultProcedures()
     {
         addProcedures(PROCEDURES);

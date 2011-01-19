@@ -9,6 +9,7 @@
 #include "dtxn/ordered/ordereddtxnmanager.h"
 #include "protodtxn/protodtxncoordinator.h"
 #include "protorpc/protoserver.h"
+#include "base/debuglog.h"
 
 using std::vector;
 
@@ -25,6 +26,8 @@ int main(int argc, const char* argv[]) {
 
     io::LibEventLoop event_loop;
 
+    fprintf(stderr, "Preparing to launch Dtxn.Coordinator...\n");
+    
     // Connect to the backends
     vector<TCPConnection*> tcp_connections = net::createConnectionsWithRetry(
             &event_loop, primaryAddresses(partitions));
@@ -32,6 +35,9 @@ int main(int argc, const char* argv[]) {
         fprintf(stderr, "some connections failed\n");
         return 1;
     }
+    
+    fprintf(stderr, "All connections established. Ready to work with our lovers\n");
+    
     ASSERT(tcp_connections.size() == partitions.size());
     vector<MessageConnection*> msg_connections(tcp_connections.size());
     for (int i = 0; i < msg_connections.size(); ++i) {

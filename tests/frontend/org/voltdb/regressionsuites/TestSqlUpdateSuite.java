@@ -201,7 +201,7 @@ public class TestSqlUpdateSuite extends RegressionSuite {
         MultiConfigSuiteBuilder builder =
             new MultiConfigSuiteBuilder(TestSqlUpdateSuite.class);
 
-        VoltProjectBuilder project = new VoltProjectBuilder();
+        VoltProjectBuilder project = new VoltProjectBuilder("fixed");
         project.addSchema(Insert.class.getResource("fixed-sql-ddl.sql"));
         project.addPartitionInfo("P1", "ID");
         project.addProcedures(PROCEDURES);
