@@ -181,6 +181,14 @@ public abstract class AbstractPlanNode implements JSONString, Comparable<Abstrac
         return (this.m_outputColumns.get(idx));
     }
     
+    /**
+     * Get an unmodifiable list of the Output PlanColumn GUIDs
+     * @return
+     */
+    public List<Integer> getOutputColumnGUIDs() {
+        return (Collections.unmodifiableList(this.m_outputColumns));
+    }
+    
     public PlanColumn findMatchingOutputColumn(String tableName,
                                                String columnName,
                                                String columnAlias)
@@ -377,6 +385,10 @@ public abstract class AbstractPlanNode implements JSONString, Comparable<Abstrac
      */
     public Map<PlanNodeType, AbstractPlanNode> getInlinePlanNodes() {
         return m_inlineNodes;
+    }
+    
+    public int getInlinePlanNodeCount() {
+        return (m_inlineNodes.size());
     }
 
     /**
