@@ -60,6 +60,11 @@ public class TransactionTrace extends AbstractTraceElement<Procedure> {
         super(catalog_proc, params);
         this.txn_id = xact_id;
     }
+    
+    @Override
+    public String toString() {
+        return (this.getClass().getSimpleName() + "[" + this.catalog_item_name + ":#" + this.txn_id + "]");
+    }
 
     /**
      * Return the TransactionId for this TransactionTrace

@@ -19,7 +19,9 @@ public class TransactionIdFeature extends AbstractFeature {
     
     @Override
     public void extract(FeatureSet fset, TransactionTrace txnTrace) throws Exception {
-        fset.addFeature(txnTrace, this.getFeatureKey(), txnTrace.getTransactionId());
+        // Important! We have to store the txn id as a string because there are rounding issues
+        // when we try to extract it back out!
+        fset.addFeature(txnTrace, this.getFeatureKey(), Long.toString(txnTrace.getTransactionId()));
     }
     
     @Override

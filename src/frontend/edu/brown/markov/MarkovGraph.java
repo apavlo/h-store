@@ -8,6 +8,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.log4j.Logger;
@@ -21,6 +22,7 @@ import edu.brown.graphs.VertexTreeWalker;
 import edu.brown.graphs.VertexTreeWalker.Direction;
 import edu.brown.graphs.VertexTreeWalker.TraverseOrder;
 import edu.brown.utils.ArgumentsParser;
+import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.PartitionEstimator;
 import edu.brown.utils.StringUtil;
 import edu.brown.workload.QueryTrace;
@@ -32,8 +34,13 @@ import edu.brown.workload.TransactionTrace;
  * @author pavlo
  */
 public class MarkovGraph extends AbstractDirectedGraph<Vertex, Edge> implements Comparable<MarkovGraph> {
-    private static final Logger LOG = Logger.getLogger(MarkovGraph.class);
     private static final long serialVersionUID = 3548405718926801012L;
+    private static final Logger LOG = Logger.getLogger(MarkovGraph.class);
+    private final static AtomicBoolean debug = new AtomicBoolean(LOG.isDebugEnabled());
+    private final static AtomicBoolean trace = new AtomicBoolean(LOG.isTraceEnabled());
+    static {
+        LoggerUtil.attachObserver(LOG, debug, trace);
+    }
 
     /**
      * If this global parameter is set to true, then all of the MarkovGraphs will evaluate the 
@@ -216,9 +223,7 @@ public class MarkovGraph extends AbstractDirectedGraph<Vertex, Edge> implements 
      * Calculate vertex probabilities
      */
     protected void calculateVertexProbabilities() {
-//        final boolean trace = (getProcedure().getName().equals("neworder") && base_partition == 1);
-        final boolean trace = LOG.isTraceEnabled(); 
-        if (trace) LOG.trace("Calculating Vertex probabilities for " + this);
+        if (trace.get()) LOG.trace("Calculating Vertex probabilities for " + this);
         
         final Set<Edge> visited_edges = new HashSet<Edge>();
         final List<Integer> all_partitions = this.getAllPartitions();
@@ -227,12 +232,12 @@ public class MarkovGraph extends AbstractDirectedGraph<Vertex, Edge> implements 
             new VertexTreeWalker<Vertex>(this, TraverseOrder.LONGEST_PATH, Direction.REVERSE) {
                 @Override
                 protected void callback(Vertex element) {
-                    if (trace) LOG.trace("BEFORE: " + element + " => " + element.getSingleSitedProbability());
+                    if (trace.get()) LOG.trace("BEFORE: " + element + " => " + element.getSingleSitedProbability());
 //                    if (element.isSingleSitedProbablitySet() == false) element.setSingleSitedProbability(0.0);
                     
                     // COMMIT/ABORT is always single-partitioned!
                     if (element.getType() == Vertex.Type.COMMIT || element.getType() == Vertex.Type.ABORT) {
-                        if (trace) LOG.trace(element + " is single-partitioned!");
+                        if (trace.get()) LOG.trace(element + " is single-partitioned!");
                         element.setSingleSitedProbability(1.0);
                         
                         // And DONE at all partitions!
@@ -260,7 +265,7 @@ public class MarkovGraph extends AbstractDirectedGraph<Vertex, Edge> implements 
                         // then we're going to say that it is multi-partitioned
                         boolean element_islocalonly = element.isLocalPartitionOnly(); 
                         if (element_islocalonly == false) {
-                            if (trace) LOG.trace(element + " NOT is single-partitioned!");
+                            if (trace.get()) LOG.trace(element + " NOT is single-partitioned!");
                             element.setSingleSitedProbability(0.0);
                         }
 
@@ -280,7 +285,7 @@ public class MarkovGraph extends AbstractDirectedGraph<Vertex, Edge> implements 
                             if (element_islocalonly) {
                                 double prob = (e.getProbability() * successor.getSingleSitedProbability());
                                 element.addSingleSitedProbability(prob);
-                                if (trace) LOG.trace(element + " --" + e + "--> " + successor + String.format(" [%f * %f = %f]", e.getProbability(), successor.getSingleSitedProbability(), prob) + "\nprob = " + prob);
+                                if (trace.get()) LOG.trace(element + " --" + e + "--> " + successor + String.format(" [%f * %f = %f]", e.getProbability(), successor.getSingleSitedProbability(), prob) + "\nprob = " + prob);
                             }
                             
                             // Abort Probability
@@ -315,8 +320,8 @@ public class MarkovGraph extends AbstractDirectedGraph<Vertex, Edge> implements 
                             } // FOR (PartitionId)
                         } // FOR (Edge)
                     }
-                    if (trace) LOG.trace("AFTER: " + element + " => " + element.getSingleSitedProbability());
-                    if (trace) LOG.trace(StringUtil.repeat("-", 40));
+                    if (trace.get()) LOG.trace("AFTER: " + element + " => " + element.getSingleSitedProbability());
+                    if (trace.get()) LOG.trace(StringUtil.repeat("-", 40));
                 }
             }.traverse(v);
         } // FOR (COMMIT, ABORT)

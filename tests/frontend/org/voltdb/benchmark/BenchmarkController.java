@@ -421,19 +421,23 @@ public class BenchmarkController {
                 // -agentlib:hprof=cpu=samples,
                 // depth=32,interval=10,lineno=y,monitor=y,thread=y,force=y,
                 // file=" + host + "_hprof_tpcc.txt"
-                String[] command = {
-                    "ant",
-                    "hstore-site",
-                    "-Dhstore.coordinator.host=" + m_config.coordinatorHost,
-                    "-Dproject=" + m_projectBuilder.getProjectName(),
-                    "-Dnode.site=" + site_id,
-                };
+                List<String> command = new ArrayList<String>();
+                command.add("ant");
+                command.add("hstore-site");
+                command.add("-Dhstore.coordinator.host=" + m_config.coordinatorHost);
+                command.add("-Dproject=" + m_projectBuilder.getProjectName());
+                command.add("-Dnode.site=" + site_id);
+                
+                // Enable workload trace outputs
+                if (m_config.workloadTrace != null) {
+                    command.add("-Dworkload.output=" + m_config.workloadTrace);
+                }
 
-                command = SSHTools.convert(m_config.remoteUser, host, m_config.remotePath, command);
-                String fullCommand = StringUtil.join(" ", command);
+                String exec_command[] = SSHTools.convert(m_config.remoteUser, host, m_config.remotePath, command.toArray(new String[]{}));
+                String fullCommand = StringUtil.join(" ", exec_command);
                 uploader.setCommandLineForHost(host, fullCommand);
                 benchmarkLog.debug(fullCommand);
-                m_serverPSM.startProcess(host_id, command);
+                m_serverPSM.startProcess(host_id, exec_command);
             } // FOR
 
             // WAIT FOR SERVERS TO BE READY
@@ -657,9 +661,12 @@ public class BenchmarkController {
         } catch (Exception ex) {
             ex.printStackTrace();
         }
+        LOG.info("All DTXN processes are killed. Exiting...");
     }
 
     public void runBenchmark() {
+        LOG.info(String.format("Starting execution phase [# of clients=%d]", m_clients.size()));
+        
         m_currentResults =
             new BenchmarkResults(m_config.interval, m_config.duration, m_clients.size());
         m_statusThread = new ClientStatusThread();
@@ -1057,6 +1064,11 @@ public class BenchmarkController {
                  * Disable data loading
                  */
                 noDataLoad = Boolean.parseBoolean(parts[1]);
+            } else if (parts[0].equalsIgnoreCase("TRACE")) {
+                /*
+                 * Workload Trace Output
+                 */
+                workloadTrace = parts[1];
             /** PAVLO **/
                 
             } else {
@@ -1176,7 +1188,8 @@ public class BenchmarkController {
                 compileBenchmark, 
                 compileOnly, 
                 useCatalogHosts,
-                noDataLoad);
+                noDataLoad,
+                workloadTrace);
 
         // Always pass these parameters
         clientParams.put("INTERVAL", Long.toString(interval));

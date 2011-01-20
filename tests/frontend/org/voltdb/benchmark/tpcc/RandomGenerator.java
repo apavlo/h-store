@@ -215,7 +215,8 @@ public abstract class RandomGenerator {
         /** Seeds the random number generator using the default Random() constructor. */
         public Implementation() { rng = new Random(); }
         /** Seeds the random number generator with seed. */
-        public Implementation(long seed) { rng = new Random(seed); }
+        // public Implementation(long seed) { rng = new Random(seed); }
+        public Implementation(long seed) { rng = new Random(); }
 
         public int number(int minimum, int maximum) {
             assert minimum <= maximum;

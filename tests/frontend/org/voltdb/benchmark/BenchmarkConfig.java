@@ -61,6 +61,7 @@ public class BenchmarkConfig {
     public final boolean compileOnly;
     public final boolean useCatalogHosts;
     public final boolean noDataLoad;
+    public final String workloadTrace;
 
     public final Map<String, String> parameters = new HashMap<String, String>();
 
@@ -96,7 +97,8 @@ public class BenchmarkConfig {
             boolean compileBenchmark,
             boolean compileOnly,
             boolean useCatalogHosts,
-            boolean noDataLoad
+            boolean noDataLoad,
+            String workloadTrace
         ) {
 
         this.benchmarkClient = benchmarkClient;
@@ -136,6 +138,7 @@ public class BenchmarkConfig {
         this.compileOnly = compileOnly;
         this.useCatalogHosts = useCatalogHosts;
         this.noDataLoad = noDataLoad;
+        this.workloadTrace = workloadTrace;
         
     }
 

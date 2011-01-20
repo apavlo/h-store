@@ -11,9 +11,12 @@ import org.apache.log4j.Logger;
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Procedure;
 
+import weka.core.Instances;
+
 import edu.brown.markov.features.*;
 import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.ClassUtil;
+import edu.brown.utils.FileUtil;
 import edu.brown.utils.PartitionEstimator;
 import edu.brown.workload.TransactionTrace;
 import edu.brown.workload.Workload;
@@ -137,16 +140,14 @@ public class FeatureExtractor {
         
         for (Entry<Procedure, FeatureSet> e : fsets.entrySet()) {
             String proc_name = e.getKey().getName();
-            File path = new File(proc_name + ".fset");
-            e.getValue().save(path.getAbsolutePath());
-            LOG.info(String.format("Wrote FeatureSet with %d instances to '%s'", e.getValue().getTransactionCount(), path.getAbsolutePath()));
-            
-//            Instances data = e.getValue().export(proc_name, true);
-//            FileUtil.writeStringToFile(path, data.toString());
-//            LOG.info(String.format("Wrote FeatureSet with %d instances to '%s'", data.numInstances(), path.getAbsolutePath()));
-//            
-//            FeatureClusterer txn_c = new FeatureClusterer(args.catalog_db, args.workload, args.param_correlations);
-//            txn_c.calculate(e.getValue(), e.getKey());
+//            File path = new File(proc_name + ".fset");
+//            e.getValue().save(path.getAbsolutePath());
+//            LOG.info(String.format("Wrote FeatureSet with %d instances to '%s'", e.getValue().getTransactionCount(), path.getAbsolutePath()));
+
+            File path = new File(proc_name + ".arff");
+            Instances data = e.getValue().export(proc_name, true);
+            FileUtil.writeStringToFile(path, data.toString());
+            LOG.info(String.format("Wrote FeatureSet with %d instances to '%s'", data.numInstances(), path.getAbsolutePath()));
         }
         
     }

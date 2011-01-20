@@ -77,10 +77,10 @@ public class TPCCProjectBuilder extends AbstractProjectBuilder {
         GetTableCounts.class,
 
         // We shouldn't be calling these, but they're here for now...
-        paymentByCustomerIdC.class,
-        paymentByCustomerNameC.class,
-        paymentByCustomerIdW.class,
-        paymentByCustomerNameW.class,
+//        paymentByCustomerIdC.class,
+//        paymentByCustomerNameC.class,
+//        paymentByCustomerIdW.class,
+//        paymentByCustomerNameW.class,
     };
     
     // Transaction Frequencies

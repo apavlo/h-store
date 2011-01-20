@@ -45,6 +45,8 @@ import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.Iterator;
+
+import org.apache.log4j.Logger;
 import org.voltdb.VoltTable;
 import org.voltdb.VoltType;
 import org.voltdb.types.TimestampType;
@@ -67,6 +69,7 @@ import org.voltdb.utils.Pair;
  * o_d_id, o_w_id).
  */
 public class MultiLoader extends ClientMain {
+    private static final Logger LOG = Logger.getLogger(MultiLoader.class);
 
     /**
      * Number of threads to create to do the loading.
@@ -112,7 +115,7 @@ public class MultiLoader extends ClientMain {
             ScaleParameters parameters = ScaleParameters.makeWithScaleFactor(warehouses, scaleFactor);
             assert parameters != null;
 
-            RandomGenerator generator = new RandomGenerator.Implementation(0);
+            RandomGenerator generator = new RandomGenerator.Implementation();
             TimestampType generationDateTime = new TimestampType();
             // TODO(evanj): The client needs these values to set its own values
             // correctly
@@ -204,7 +207,7 @@ public class MultiLoader extends ClientMain {
         public void run() {
             Integer warehouseId = null;
             while ((warehouseId = availableWarehouseIds.poll()) != null) {
-                System.err.println("Loading warehouse " + warehouseId);
+                LOG.info(String.format("Loading warehouse %d / %d", (m_warehouses - availableWarehouseIds.size()), m_warehouses));
                 makeStock(warehouseId); // STOCK is made separately to reduce
                                         // memory consumption
                 createDataTables();
@@ -535,10 +538,8 @@ public class MultiLoader extends ClientMain {
         }
 
         // TODO(evanj): The C++ version has tests for this code that could be
-        // ported over, but it would
-        // need a fair bit of hacking in the unit test to make them work, since
-        // it requires storing all
-        // the inserted tuples.
+        // ported over, but it would need a fair bit of hacking in the unit test
+        // to make them work, since it requires storing all the inserted tuples.
         public void makeWarehouse(long w_id) {
             generateWarehouse(w_id);
 
@@ -630,8 +631,7 @@ public class MultiLoader extends ClientMain {
                         final double percentCompleted = invocationsCompleted / (double) totalInvocations;
                         if (percentCompleted > lastPercentCompleted + .1) {
                             lastPercentCompleted = percentCompleted;
-                            System.err.println("Finished " + invocationsCompleted + "/" + totalInvocations
-                                    + " replicated load work");
+                            LOG.info(String.format("Finished %d/%d replicated load work", invocationsCompleted, totalInvocations));
                         }
                         maxOutstandingInvocations.release();
                     }
@@ -647,7 +647,7 @@ public class MultiLoader extends ClientMain {
                     totalLoadWorkGenerated += customerNamesTables.size();
                 }
                 Collections.shuffle(replicatedLoadWork);
-                System.err.println("Total load work generated is " + totalLoadWorkGenerated);
+                LOG.info("Total load work generated is " + (totalLoadWorkGenerated-1));
 
                 /*
                  * Only supply item table the first time.
@@ -655,6 +655,7 @@ public class MultiLoader extends ClientMain {
                 
                 // Items! Sail yo ho!
                 try {
+                    LOG.info(String.format("Loading replicated ITEM table [tuples=%d]", items.getRowCount()));
                     m_voltClient.callProcedure("@LoadMultipartitionTable", "ITEM", items);
                 } catch (Exception e) {
                     e.printStackTrace();
@@ -662,7 +663,9 @@ public class MultiLoader extends ClientMain {
                 }
                 
                 // Customer Name! Booyah! Shaq Attaq!
-                for (VoltTable t : customerNamesTables) {
+                for (int i = 0, cnt = customerNamesTables.size(); i < cnt; i++) {
+                    VoltTable t = customerNamesTables.get(i);
+                    LOG.info(String.format("Loading replicated CUSTOMER_NAME table %02d / %02d [tuples=%d]", (i+1), cnt, t.getRowCount()));
                     try {
                         m_voltClient.callProcedure("@LoadMultipartitionTable", "CUSTOMER_NAME", t);
 
@@ -678,37 +681,37 @@ public class MultiLoader extends ClientMain {
                     }
                 }
 
-                while (!replicatedLoadWork.isEmpty()) {
-                    Iterator<Pair<Integer, LinkedList<VoltTable>>> iter = replicatedLoadWork.iterator();
-                    while (iter.hasNext()) {
-                        Pair<Integer, LinkedList<VoltTable>> p = iter.next();
-                        if (p.getSecond().peek() == null) {
-                            iter.remove();
-                            continue;
-                        }
-                        try {
-                            maxOutstandingInvocations.acquire();
-                            VoltTable table = p.getSecond().pop();
-                            boolean queued = false;
-                            while (!queued) {
-                                queued = m_voltClient.callProcedure(callback, Constants.LOAD_WAREHOUSE_REPLICATED,
-                                        (short) p.getFirst().intValue(), null, table);
-                                m_voltClient.backpressureBarrier();
-                            }
-                        } catch (Exception e) {
-                            e.printStackTrace();
-                            System.exit(-1);
-                        }
-                    }
-                }
-
-                try {
-                    maxOutstandingInvocations.acquire(numPermits);
-                    System.err.println("Finished all replicated load work");
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
-                    System.exit(-1);
-                }
+//                while (!replicatedLoadWork.isEmpty()) {
+//                    Iterator<Pair<Integer, LinkedList<VoltTable>>> iter = replicatedLoadWork.iterator();
+//                    while (iter.hasNext()) {
+//                        Pair<Integer, LinkedList<VoltTable>> p = iter.next();
+//                        if (p.getSecond().peek() == null) {
+//                            iter.remove();
+//                            continue;
+//                        }
+//                        try {
+//                            maxOutstandingInvocations.acquire();
+//                            VoltTable table = p.getSecond().pop();
+//                            boolean queued = false;
+//                            while (!queued) {
+//                                queued = m_voltClient.callProcedure(callback, Constants.LOAD_WAREHOUSE_REPLICATED,
+//                                        (short) p.getFirst().intValue(), null, table);
+//                                m_voltClient.backpressureBarrier();
+//                            }
+//                        } catch (Exception e) {
+//                            e.printStackTrace();
+//                            System.exit(-1);
+//                        }
+//                    }
+//                }
+//
+//                try {
+//                    maxOutstandingInvocations.acquire(numPermits);
+//                    LOG.info("Finished all replicated load work");
+//                } catch (InterruptedException e) {
+//                    e.printStackTrace();
+//                    System.exit(-1);
+//                }
             }
 
             items = null;
@@ -849,6 +852,7 @@ public class MultiLoader extends ClientMain {
         Collections.shuffle(warehouseIds);
         availableWarehouseIds.addAll(warehouseIds);
 
+        LOG.info(String.format("Loading %d warehouses using %d load threads", warehouseIds.size(), m_loadThreads.length));
         boolean doMakeReplicated = true;
         for (LoadThread loadThread : m_loadThreads) {
             loadThread.start(doMakeReplicated);
@@ -863,6 +867,7 @@ public class MultiLoader extends ClientMain {
                 System.exit(-1);
             }
         }
+        LOG.info("Finished loading all warehouses");
         m_voltClient.drain();
     }
 

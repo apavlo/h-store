@@ -39,13 +39,13 @@ import edu.brown.workload.filters.ProcedureNameFilter;
 public class TestFeatureClusterer extends BaseTestCase {
 
     private static final Class<? extends VoltProcedure> TARGET_PROCEDURE = neworder.class;
-    private static final int WORKLOAD_XACT_LIMIT = 1000;
+    private static final int WORKLOAD_XACT_LIMIT = 10000;
 //    private static final int BASE_PARTITION = 1;
-    private static final int NUM_PARTITIONS = 20;
+    private static final int NUM_PARTITIONS = 50;
 
     private static Procedure catalog_proc;
     private static Workload workload;
-    private static FeatureSet fset;
+//    private static FeatureSet fset;
     private static Instances data;
     private static ParameterCorrelations correlations;
     
@@ -84,10 +84,10 @@ public class TestFeatureClusterer extends BaseTestCase {
             
             // Now extract the FeatureSet that we will use in our tests
             Map<Procedure, FeatureSet> fsets = new FeatureExtractor(catalog_db, p_estimator).calculate(workload);
-            fset = fsets.get(catalog_proc);
+            FeatureSet fset = fsets.get(catalog_proc);
+            assertNotNull(fset);
             data = fset.export(catalog_proc.getName());
         }
-        assertNotNull(fset);
         assertNotNull(data);
         
         fclusterer = new FeatureClusterer(catalog_db, workload, correlations);
@@ -96,10 +96,10 @@ public class TestFeatureClusterer extends BaseTestCase {
     public Set<Attribute> prefix2attributes(String...prefixes) {
         Set<Attribute> attributes = new ListOrderedSet<Attribute>();
         for (String key : prefixes) {
-            Integer idx = fset.getFeatureIndex(key);
-            assertNotNull(key, idx);
-            Attribute attribute = data.attribute(idx);
-            assertNotNull(key + "=>" + idx, attribute);
+//            Integer idx = fset.getFeatureIndex(key);
+//            assertNotNull(key, idx);
+            Attribute attribute = data.attribute(key);
+            assertNotNull(key, attribute);
             attributes.add(attribute);
         } // FOR
         return (attributes);

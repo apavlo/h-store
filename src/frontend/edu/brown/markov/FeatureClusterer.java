@@ -1,16 +1,18 @@
 package edu.brown.markov;
 
+import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileReader;
 import java.util.*;
 import java.util.Map.Entry;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.commons.collections15.set.ListOrderedSet;
-import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Procedure;
@@ -34,15 +36,25 @@ import edu.brown.markov.features.FeatureUtil;
 import edu.brown.statistics.Histogram;
 import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.CollectionUtil;
+import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.PartitionEstimator;
 import edu.brown.utils.StringUtil;
 import edu.brown.utils.UniqueCombinationIterator;
 import edu.brown.workload.TransactionTrace;
 import edu.brown.workload.Workload;
 
+/**
+ * 
+ * @author pavlo
+ */
 public class FeatureClusterer {
     private static final Logger LOG = Logger.getLogger(FeatureClusterer.class);
-
+    private final static AtomicBoolean debug = new AtomicBoolean(LOG.isDebugEnabled());
+    private final static AtomicBoolean trace = new AtomicBoolean(LOG.isTraceEnabled());
+    static {
+        LoggerUtil.attachObserver(LOG, debug, trace);
+    }
+    
     // What percentage of the input data should be used for training versus calculating the cost?
     private static final double TRAINING_SET_PERCENTAGE = 0.75;
     
@@ -196,7 +208,7 @@ public class FeatureClusterer {
      * @param catalog_proc
      * @throws Exception
      */
-    protected void findBestAttributeSet(final FeatureSet fset, final Instances data, final Procedure catalog_proc) throws Exception {
+    protected void findBestAttributeSet(final Instances data, final Procedure catalog_proc) throws Exception {
         AttributeSet best_set = null;
         
         // Get the list of all the attributes that we are going to want to try to cluster on
@@ -215,7 +227,7 @@ public class FeatureClusterer {
         // List of all AttributeSets ever created
         SortedSet<AttributeSet> all_asets = new TreeSet<AttributeSet>();
 
-        Integer base_partition_idx = fset.getFeatureIndex(FeatureUtil.getFeatureKeyPrefix(BasePartitionFeature.class));
+        Integer base_partition_idx = data.attribute(FeatureUtil.getFeatureKeyPrefix(BasePartitionFeature.class)).index();
         assert(base_partition_idx != null);
         Attribute base_partition_attr = trainingData.attribute(base_partition_idx);
         assert(base_partition_attr != null);
@@ -224,10 +236,7 @@ public class FeatureClusterer {
         
         int round = 0;
         while (round++ < 10) {
-            final boolean trace = LOG.isTraceEnabled();
-            final boolean debug = LOG.isDebugEnabled();
-            
-            if (debug) {
+            if (debug.get()) {
                 if (round == 1) {
                     LOG.debug("# of Training Instances:    " + trainingCnt);
                     LOG.debug("# of Validation Instances:  " + validationCnt);
@@ -257,17 +266,17 @@ public class FeatureClusterer {
                             System.exit(1);
                         }
                         int ctr = aset_ctr.getAndIncrement(); 
-                        if (debug) LOG.debug(String.format("[%03d] Attributes%s => %.03f", ctr, aset.toString(), aset.getCost()));
+                        if (debug.get()) LOG.debug(String.format("[%03d] Attributes%s => %.03f", ctr, aset.toString(), aset.getCost()));
                         round_asets.add(aset);        
                     }
                 };
                 executor.execute(r);
                 thread_ctr++;
             } // WHILE (AttributeSet)
-            if (debug) LOG.debug(String.format("Waiting for %d threads to complete execution", thread_ctr));
+            if (debug.get()) LOG.debug(String.format("Waiting for %d threads to complete execution", thread_ctr));
             executor.awaitTermination(Long.MAX_VALUE, TimeUnit.SECONDS);
             assert(thread_ctr == aset_ctr.get());
-            if (debug) LOG.debug(String.format("Successfully executed %d threads!", thread_ctr));
+            if (debug.get()) LOG.debug(String.format("Successfully executed %d threads!", thread_ctr));
             
             all_asets.addAll(round_asets);
             
@@ -302,15 +311,12 @@ public class FeatureClusterer {
      * @throws Exception
      */
     protected AttributeSet createAttributeSet(Procedure catalog_proc, Set<Attribute> attributes, Instances trainingData, Instances validationData) throws Exception {
-        final boolean trace = LOG.isTraceEnabled();
-        final boolean debug = LOG.isDebugEnabled();
-        
         final AttributeSet aset = new AttributeSet(attributes);
         final int trainingCnt = trainingData.numInstances();
         final int validationCnt = validationData.numInstances();
         
         // Build our clusterer
-        if (debug) LOG.debug(String.format("Constructing Clusterer using %d Attributes with %d Partitions: %s", aset.size(), this.all_partitions.size(), aset));
+        if (debug.get()) LOG.debug(String.format("Constructing Clusterer using %d Attributes with %d Partitions: %s", aset.size(), this.all_partitions.size(), aset));
         AbstractClusterer clusterer = this.createClusterer(trainingData, aset, catalog_proc);
         
         // We want to always split the MarkovGraphContainers by base partition, since we already know
@@ -343,7 +349,7 @@ public class FeatureClusterer {
             int c = (int)clusterer.clusterInstance(inst);
             cluster_h.put(c);
             
-            long txn_id = (long)inst.value(FeatureExtractor.TXNID_ATTRIBUTE_IDX);
+            long txn_id = Long.valueOf(inst.stringValue(FeatureExtractor.TXNID_ATTRIBUTE_IDX));
             TransactionTrace txn_trace = this.workload.getTransaction(txn_id);
             assert(txn_trace != null) : "Invalid TxnId #" + txn_id + "\n" + inst;
 
@@ -363,15 +369,15 @@ public class FeatureClusterer {
             global_markov.get(base_partition, catalog_proc).processTransaction(txn_trace, this.p_estimator);
             clusters_per_partition.get(base_partition).put(c);
         } // FOR
-//        if (debug) LOG.debug("Total Number of Clusters: " + cluster_h.getValueCount());
-//        if (trace) LOG.trace("Cluster Histogram:\n" + cluster_h);
-//        if (debug) LOG.debug("Partition Histogram:\n" + partition_h);
-        if (trace) LOG.trace("Clusters per Partition:\n" + StringUtil.formatMaps(clusters_per_partition));
+//        if (debug.get()) LOG.debug("Total Number of Clusters: " + cluster_h.getValueCount());
+//        if (trace.get()) LOG.trace("Cluster Histogram:\n" + cluster_h);
+//        if (debug.get()) LOG.debug("Partition Histogram:\n" + partition_h);
+        if (trace.get()) LOG.trace("Clusters per Partition:\n" + StringUtil.formatMaps(clusters_per_partition));
         
         // Now use the validation data set to figure out how well we are able to predict transaction
         // execution paths using the trained Markov graphs
         // We first need to construct a new costmodel and populate it with TransactionEstimators
-        if (debug) LOG.debug("Constructing clusterer MarkovCostModel");
+        if (debug.get()) LOG.debug("Constructing clusterer MarkovCostModel");
         
         for (Integer partition : markovs_per_partition.keySet()) {
             MarkovGraphsContainer markovs = markovs_per_partition.get(partition);
@@ -388,7 +394,7 @@ public class FeatureClusterer {
             } // FOR
         } // FOR
         
-        if (debug) LOG.debug("Constructing global MarkovCostModel");
+        if (debug.get()) LOG.debug("Constructing global MarkovCostModel");
         MarkovCostModel global_costmodel = new MarkovCostModel(this.catalog_db, this.p_estimator);
         global_costmodel.setTransactionClusterMapping(true);
         for (Integer partition : global_markov.keySet()) {
@@ -425,7 +431,7 @@ public class FeatureClusterer {
         Map<Pair<Long, Integer>, Histogram> key_to_cluster = new TreeMap<Pair<Long, Integer>, Histogram>(); 
         Map<Integer, Histogram> cluster_to_key = new TreeMap<Integer, Histogram>();
         
-        if (debug) LOG.debug(String.format("Estimating prediction rates of clusterer with %d transactions...", validationCnt));
+        if (debug.get()) LOG.debug(String.format("Estimating prediction rates of clusterer with %d transactions...", validationCnt));
         for (int i = 0; i < validationCnt; i++) {
             Instance inst = validationData.instance(i);
             long txn_id = (long)inst.value(FeatureExtractor.TXNID_ATTRIBUTE_IDX);
@@ -439,7 +445,7 @@ public class FeatureClusterer {
             if (cluster_to_key.containsKey(c) == false) cluster_to_key.put(c, new Histogram());
             cluster_to_key.get(c).put(key);
             
-//            if (debug) LOG.debug(String.format("[%s, %s] => %d", , c));
+//            if (debug.get()) LOG.debug(String.format("[%s, %s] => %d", , c));
             
             int base_partition = this.p_estimator.getBasePartition(txn_trace);
             Set<Integer> all_partitions = this.p_estimator.getAllPartitions(txn_trace);
@@ -464,7 +470,7 @@ public class FeatureClusterer {
 
             // Check that this is a cluster that we've seen before at this partition
             if (markov == null) {
-                if (trace) LOG.warn(String.format("Txn #%d was mapped to never before seen Cluster #%d at partition %d", txn_id, c, base_partition));
+                if (trace.get()) LOG.warn(String.format("Txn #%d was mapped to never before seen Cluster #%d at partition %d", txn_id, c, base_partition));
                 markov = markovs.create(c, catalog_proc).initialize();
                 
                 TransactionEstimator t_estimator = new TransactionEstimator(this.p_estimator, this.correlations);
@@ -520,7 +526,7 @@ public class FeatureClusterer {
             }
         } // FOR
         
-        if (debug) {
+        if (debug.get()) {
 //            LOG.debug("Keys to Clusters:\n" + StringUtil.formatMaps(key_to_cluster));
 //            LOG.debug("Clusters to Keys:\n" + StringUtil.formatMaps(cluster_to_key));
             
@@ -575,8 +581,7 @@ public class FeatureClusterer {
      * @throws Exception
      */
     protected AbstractClusterer createClusterer(Instances data, AttributeSet aset, Procedure catalog_proc) throws Exception {
-        final boolean trace = LOG.isTraceEnabled();
-        if (trace) LOG.trace(String.format("Clustering %d %s instances with %d attributes", data.numInstances(), CatalogUtil.getDisplayName(catalog_proc), aset.size()));
+        if (trace.get()) LOG.trace(String.format("Clustering %d %s instances with %d attributes", data.numInstances(), CatalogUtil.getDisplayName(catalog_proc), aset.size()));
         
         // Create the filter we need so that we only include the attributes in the given AttributeSet
         Filter filter = aset.createFilter(data);
@@ -606,10 +611,8 @@ public class FeatureClusterer {
     }
 
     
-    public void calculate(FeatureSet fset, Procedure catalog_proc) throws Exception {
-        Instances data = fset.export(catalog_proc.getName());
-        
-        this.findBestAttributeSet(fset, data, catalog_proc);
+    public void calculate(Instances data, Procedure catalog_proc) throws Exception {
+        this.findBestAttributeSet(data, catalog_proc);
     }
 
     public static void main(String[] vargs) throws Exception {
@@ -624,14 +627,14 @@ public class FeatureClusterer {
         Procedure catalog_proc = args.catalog_db.getProcedures().getIgnoreCase(proc_name);
         assert(catalog_proc != null) : proc_name;
         
-        File fset_path = new File(args.getOptParam(1));
-        assert(fset_path.exists()) : fset_path.getAbsolutePath();
-        
-        FeatureSet fset = new FeatureSet();
-        fset.load(fset_path.getAbsolutePath(), args.catalog_db);
+        File arff_path = new File(args.getOptParam(1));
+        assert(arff_path.exists()) : arff_path.getAbsolutePath();
+        BufferedReader reader = new BufferedReader(new FileReader(arff_path));
+        Instances data = new Instances(reader);
+        reader.close();
         
         FeatureClusterer fclusterer = new FeatureClusterer(args.catalog_db, args.workload, args.param_correlations);
-        fclusterer.calculate(fset, catalog_proc);
+        fclusterer.calculate(data, catalog_proc);
     }
     
 }

@@ -614,7 +614,7 @@ public class ExecutionSite implements Runnable {
                             cleaned++;
                         } else break;
                     } // WHILE
-                    if (cleaned > 0 && debug.get()) LOG.debug("Cleaned " + cleaned + " transaction states");
+                    if (cleaned > 0 && trace.get()) LOG.trace("Cleaned " + cleaned + " transaction states");
                 // Otherwise poll the work queue until we actually get something to do
                 } else {
                     try {
