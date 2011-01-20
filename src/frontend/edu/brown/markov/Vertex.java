@@ -52,15 +52,17 @@ public class Vertex extends AbstractVertex {
     };
 
     public enum Probability {
-        SINGLE_SITED    (true),
-        ABORT           (true),
-        READ_ONLY       (false),
-        WRITE           (false),
-        DONE            (false);
+        SINGLE_SITED    (true,  0),
+        ABORT           (true,  0),
+        READ_ONLY       (false, 0),
+        WRITE           (false, 0),
+        DONE            (false, 1.0);
         
         final boolean single_value;
-        Probability(boolean single_value) {
+        final double default_value;
+        Probability(boolean single_value, double default_value) {
             this.single_value = single_value;
+            this.default_value = default_value;
         }
         
         protected static final Map<Integer, Probability> idx_lookup = new HashMap<Integer, Probability>();
@@ -141,7 +143,7 @@ public class Vertex extends AbstractVertex {
     /**
      * Mapping from Probability type to another map from partition id
      */
-    public Map<Vertex.Probability, SortedMap<Integer, Double>> probabilities = new HashMap<Probability, SortedMap<Integer, Double>>();
+    public Map<Vertex.Probability, SortedMap<Integer, Float>> probabilities = new HashMap<Probability, SortedMap<Integer, Float>>();
     
     // ----------------------------------------------------------------------------
     // TRANSIENT DATA MEMBERS
@@ -232,7 +234,25 @@ public class Vertex extends AbstractVertex {
     private void init() {
         for (Vertex.Probability ptype : Vertex.Probability.values()) {
             if (this.probabilities.containsKey(ptype) == false)
-                this.probabilities.put(ptype, new TreeMap<Integer, Double>());
+                this.probabilities.put(ptype, new TreeMap<Integer, Float>());
+        } // FOR
+    }
+    
+    protected void trimProbabilities() {
+        for (Vertex.Probability ptype : Vertex.Probability.values()) {
+            Set<Integer> to_delete = new HashSet<Integer>();
+            for (Entry<Integer, Float> e : this.probabilities.get(ptype).entrySet()) {
+                if (e.getValue() == null || e.getValue().equals(ptype.default_value)) {
+                    to_delete.add(e.getKey());
+                }
+            } // FOR
+            if (to_delete.isEmpty() == false) {
+                for (Integer p : to_delete) {
+                    this.probabilities.get(ptype).remove(p);
+                }
+                System.err.println("REMOVED: " + to_delete);
+//                System.exit(1);
+            }
         } // FOR
     }
 
@@ -359,7 +379,7 @@ public class Vertex extends AbstractVertex {
         Set<Integer> partitions = new HashSet<Integer>();
         Set<Probability> single_ptypes = new HashSet<Probability>();
         for (Vertex.Probability type : Vertex.Probability.values()) {
-            Map<Integer, Double> probs = this.probabilities.get(type);
+            Map<Integer, Float> probs = this.probabilities.get(type);
             partitions.addAll(probs.keySet());
 
             if (probs.size() == 1) {
@@ -379,7 +399,7 @@ public class Vertex extends AbstractVertex {
             
             for (Vertex.Probability type : Vertex.Probability.values()) {
                 if (single_ptypes.contains(type)) continue;
-                Double prob = this.probabilities.get(type).get(partition);
+                Float prob = this.probabilities.get(type).get(partition);
                 
                 bot.append("\t");
                 if (prob == null) {
@@ -446,13 +466,13 @@ public class Vertex extends AbstractVertex {
      * @param default_value
      * @return
      */
-    private Double getSpecificProbability(Vertex.Probability ptype, int partition, Double default_value) {
-        SortedMap<Integer, Double> probs = this.probabilities.get(ptype);
+    private Double getSpecificProbability(Vertex.Probability ptype, int partition, Float default_value) {
+        SortedMap<Integer, Float> probs = this.probabilities.get(ptype);
         assert(probs != null);
         
-        Double prob = probs.get(partition);
+        Float prob = probs.get(partition);
         if (prob == null) {
-            probs.put(partition, default_value);
+            // probs.put(partition, default_value);
             prob = default_value;
         }
         // Handle funky rounding error that I think is due to casting
@@ -466,12 +486,9 @@ public class Vertex extends AbstractVertex {
      * @param name
      * @param probability
      */
-    private void addToProbability(Vertex.Probability type, int partition, double probability) {
-        SortedMap<Integer, Double> prob = this.probabilities.get(type);
-        assert(prob != null);
-        Double previous = prob.get(partition);
-        if (previous == null) previous = 0.0;
-        this.setProbability(type, partition, (previous+probability));
+    private void addToProbability(Vertex.Probability ptype, int partition, double probability, double init_value) {
+        Double previous = this.getSpecificProbability(ptype, partition, (float)init_value);
+        this.setProbability(ptype, partition, (previous+probability));
     }
 
     /**
@@ -482,7 +499,7 @@ public class Vertex extends AbstractVertex {
      */
     private void setProbability(Vertex.Probability ptype, int partition, double probability) {
         if (trace.get()) LOG.trace("(" + ptype + ", " + partition + ") => " + probability);
-        this.probabilities.get(ptype).put(partition, probability);
+        this.probabilities.get(ptype).put(partition, (float)probability);
     }
 
     /**
@@ -493,9 +510,10 @@ public class Vertex extends AbstractVertex {
             if (ptype.single_value) {
                 this.probabilities.get(ptype).put(DEFAULT_PARTITION_ID, null);
             } else {
-                for (Entry<Integer, Double> e : this.probabilities.get(ptype).entrySet()) {
-                    this.probabilities.get(ptype).put(e.getKey(), null);
-                } // FOR
+                this.probabilities.get(ptype).clear();
+//                for (Entry<Integer, Float> e : this.probabilities.get(ptype).entrySet()) {
+//                    this.probabilities.get(ptype).put(e.getKey(), null);
+//                } // FOR
             }
         } // FOR
     }
@@ -505,13 +523,13 @@ public class Vertex extends AbstractVertex {
     // ----------------------------------------------------------------------------
     
     public void addSingleSitedProbability(double probability) {
-        this.addToProbability(Probability.SINGLE_SITED, DEFAULT_PARTITION_ID, probability);
+        this.addToProbability(Probability.SINGLE_SITED, DEFAULT_PARTITION_ID, probability, Probability.SINGLE_SITED.default_value);
     }
     public void setSingleSitedProbability(double probability) {
         this.setProbability(Probability.SINGLE_SITED, DEFAULT_PARTITION_ID, probability);
     }
     public Double getSingleSitedProbability() {
-        return (this.getSpecificProbability(Probability.SINGLE_SITED, DEFAULT_PARTITION_ID, 0.0d));
+        return (this.getSpecificProbability(Probability.SINGLE_SITED, DEFAULT_PARTITION_ID, (float)Probability.SINGLE_SITED.default_value));
     }
     public boolean isSingleSitedProbabilitySet() {
         return (this.getSpecificProbability(Probability.SINGLE_SITED, DEFAULT_PARTITION_ID, null) != null);
@@ -522,13 +540,13 @@ public class Vertex extends AbstractVertex {
     // ----------------------------------------------------------------------------
     
     public void addReadOnlyProbability(int partition, double probability) {
-        this.addToProbability(Probability.READ_ONLY, partition, probability);
+        this.addToProbability(Probability.READ_ONLY, partition, probability, Probability.READ_ONLY.default_value);
     }
     public void setReadOnlyProbability(int partition, double probability) {
         this.setProbability(Probability.READ_ONLY, partition, probability);
     }
     public Double getReadOnlyProbability(int partition) {
-        return (this.getSpecificProbability(Probability.READ_ONLY, partition, 0.0d));
+        return (this.getSpecificProbability(Probability.READ_ONLY, partition, (float)Probability.READ_ONLY.default_value));
     }
     public boolean isReadOnlyProbabilitySet(int partition) {
         return (this.getSpecificProbability(Probability.READ_ONLY, partition, null) != null);
@@ -539,13 +557,13 @@ public class Vertex extends AbstractVertex {
     // ----------------------------------------------------------------------------
     
     public void addWriteProbability(int partition, double probability) {
-        this.addToProbability(Probability.WRITE, partition, probability);
+        this.addToProbability(Probability.WRITE, partition, probability, Probability.WRITE.default_value);
     }
     public void setWriteProbability(int partition, double probability) {
         this.setProbability(Probability.WRITE, partition, probability);
     }
     public Double getWriteProbability(int partition) {
-        return (this.getSpecificProbability(Probability.WRITE, partition, 0.0d));
+        return (this.getSpecificProbability(Probability.WRITE, partition, (float)Probability.WRITE.default_value));
     }
     public boolean isWriteProbabilitySet(int partition) {
         return (this.getSpecificProbability(Probability.WRITE, partition, null) != null);
@@ -556,13 +574,13 @@ public class Vertex extends AbstractVertex {
     // ----------------------------------------------------------------------------
     
     public void addDoneProbability(int partition, double probability) {
-        this.addToProbability(Probability.DONE, partition, probability);
+        this.addToProbability(Probability.DONE, partition, probability, Probability.DONE.default_value);
     }
     public void setDoneProbability(int partition, double probability) {
         this.setProbability(Probability.DONE, partition, probability);
     }
     public Double getDoneProbability(int partition) {
-        return (this.getSpecificProbability(Probability.DONE, partition, 1.0d));
+        return (this.getSpecificProbability(Probability.DONE, partition, (float)Probability.DONE.default_value));
     }
     public boolean isDoneProbabilitySet(int partition) {
         return (this.getSpecificProbability(Probability.DONE, partition, null) != null);
@@ -573,13 +591,13 @@ public class Vertex extends AbstractVertex {
     // ----------------------------------------------------------------------------
 
     public void addAbortProbability(double probability) {
-        this.addToProbability(Probability.ABORT, DEFAULT_PARTITION_ID, probability);
+        this.addToProbability(Probability.ABORT, DEFAULT_PARTITION_ID, probability, Probability.ABORT.default_value);
     }
     public void setAbortProbability(double probability) {
         this.setProbability(Probability.ABORT, DEFAULT_PARTITION_ID, probability);
     }
     public Double getAbortProbability() {
-        return (this.getSpecificProbability(Probability.ABORT, DEFAULT_PARTITION_ID, 0.0d));
+        return (this.getSpecificProbability(Probability.ABORT, DEFAULT_PARTITION_ID, (float)Probability.ABORT.default_value));
     }
     public boolean isAbortProbabilitySet() {
         return (this.getSpecificProbability(Probability.DONE, DEFAULT_PARTITION_ID, null) != null);
@@ -704,7 +722,7 @@ public class Vertex extends AbstractVertex {
         //
         stringer.key(Members.PROBABILITIES.name()).object();
         for (Probability type : Probability.values()) {
-            SortedMap<Integer, Double> probs = this.probabilities.get(type);
+            SortedMap<Integer, Float> probs = this.probabilities.get(type);
 
             stringer.key(type.name()).object();
             for (Integer partition : probs.keySet()) {
@@ -747,7 +765,7 @@ public class Vertex extends AbstractVertex {
                     LOG.error("Failed to get " + type + " probability at Partition #" + partition);
                     throw ex;
                 }
-                this.probabilities.get(type).put(partition, probability);
+                if (probability != null) this.probabilities.get(type).put(partition, probability.floatValue());
             } // WHILE
         } // WHILE
         
