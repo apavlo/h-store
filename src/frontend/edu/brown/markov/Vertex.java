@@ -2,14 +2,19 @@ package edu.brown.markov;
 
 import java.text.DecimalFormat;
 import java.util.*;
-import java.util.Map.Entry;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.log4j.Logger;
-import org.json.*;
-import org.voltdb.catalog.*;
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
+import org.json.JSONStringer;
+import org.voltdb.catalog.CatalogType;
+import org.voltdb.catalog.Database;
+import org.voltdb.catalog.Statement;
 
 import edu.brown.catalog.CatalogKey;
+import edu.brown.catalog.CatalogUtil;
 import edu.brown.graphs.AbstractVertex;
 import edu.brown.utils.ClassUtil;
 import edu.brown.utils.CollectionUtil;
@@ -52,15 +57,15 @@ public class Vertex extends AbstractVertex {
     };
 
     public enum Probability {
-        SINGLE_SITED    (true,  0),
-        ABORT           (true,  0),
-        READ_ONLY       (false, 0),
-        WRITE           (false, 0),
-        DONE            (false, 1.0);
+        SINGLE_SITED    (true,  0.0f),
+        ABORT           (true,  0.0f),
+        READ_ONLY       (false, 0.0f),
+        WRITE           (false, 0.0f),
+        DONE            (false, 1.0f);
         
         final boolean single_value;
-        final double default_value;
-        Probability(boolean single_value, double default_value) {
+        final float default_value;
+        Probability(boolean single_value, float default_value) {
             this.single_value = single_value;
             this.default_value = default_value;
         }
@@ -88,18 +93,20 @@ public class Vertex extends AbstractVertex {
     // GLOBAL CONFIGURATION
     // ----------------------------------------------------------------------------
 
+    private static final float NULL_MARKER = -1.0f;
+    
     /**
      * This is the partition id that is used for probabilities that are not partition specific
      * For example, the ABORT probability is global to all partitions, so we only need to store one
      * value for it
      */
-    private static final int DEFAULT_PARTITION_ID = -1; // Integer.MAX_VALUE;
+    private static final int DEFAULT_PARTITION_ID = 0; // Integer.MAX_VALUE;
     
     /**
      * I'm getting back some funky results so we'll just round everything to this
      * number of decimal places.
      */
-    private static final int PROBABILITY_PRECISION = 7;
+    private static final int PROBABILITY_PRECISION = 4;
 
     // ----------------------------------------------------------------------------
     // EXECUTION STATE DATA MEMBERS
@@ -114,7 +121,7 @@ public class Vertex extends AbstractVertex {
     /**
      * The number of times this Vertex has been traversed
      */
-    public long totalhits = 0;
+    public int totalhits = 0;
     
     /**
      * The type of this vertex: Abort/Stop/Query/Start
@@ -143,7 +150,8 @@ public class Vertex extends AbstractVertex {
     /**
      * Mapping from Probability type to another map from partition id
      */
-    public Map<Vertex.Probability, SortedMap<Integer, Float>> probabilities = new HashMap<Probability, SortedMap<Integer, Float>>();
+    public float probabilities[][];
+//    public Map<Vertex.Probability, Map<Integer, Float>> probabilities = new HashMap<Probability, Map<Integer, Float>>();
     
     // ----------------------------------------------------------------------------
     // TRANSIENT DATA MEMBERS
@@ -158,7 +166,7 @@ public class Vertex extends AbstractVertex {
      * The execution times of the transactions in the on-line run
      * A map of the xact_id to the time it took to get to this vertex
      */
-    private transient Map<Long, Long> instancetimes = new HashMap<Long,Long>();
+    private transient Map<Long, Long> instancetimes = new HashMap<Long, Long>();
     
     /**
      * The count, used to figure out the average execution time above
@@ -175,7 +183,7 @@ public class Vertex extends AbstractVertex {
     public Vertex() {
         // This is needed for serialization
         super();
-        this.init();
+        this.probabilities = new float[Vertex.Probability.values().length][];
     }
     
     /**
@@ -211,6 +219,7 @@ public class Vertex extends AbstractVertex {
         this.partitions.addAll(partitions);
         this.past_partitions.addAll(past_partitions);
         this.query_instance_index = query_instance_index;
+        this.probabilities = new float[Vertex.Probability.values().length][];
         this.init();
     }
     
@@ -225,43 +234,36 @@ public class Vertex extends AbstractVertex {
         this.partitions.addAll(v.partitions);
         this.past_partitions.addAll(v.past_partitions);
         this.query_instance_index = v.query_instance_index;
-        this.probabilities.putAll(v.probabilities);
+        this.probabilities = new float[Vertex.Probability.values().length][];
+        this.init();
+        
+        for (int i = 0; i < v.probabilities.length; i++) {
+            for (int j = 0; j < v.probabilities[i].length; j++) {
+                this.probabilities[i][j] = v.probabilities[i][j];
+            } // FOR
+        } // FOR
     }
     
     /**
      * Initialize the probability tables
      */
     private void init() {
-        for (Vertex.Probability ptype : Vertex.Probability.values()) {
-            if (this.probabilities.containsKey(ptype) == false)
-                this.probabilities.put(ptype, new TreeMap<Integer, Float>());
+        int num_partitions = CatalogUtil.getNumberOfPartitions(this.catalog_item); 
+        Vertex.Probability ptypes[] = Vertex.Probability.values();
+        for (Vertex.Probability ptype : ptypes) {
+            int inner_len = (ptype.single_value ? 1 : num_partitions);
+            this.probabilities[ptype.ordinal()] = new float[inner_len];
         } // FOR
+        this.resetAllProbabilities();
     }
-    
-    protected void trimProbabilities() {
-        for (Vertex.Probability ptype : Vertex.Probability.values()) {
-            Set<Integer> to_delete = new HashSet<Integer>();
-            for (Entry<Integer, Float> e : this.probabilities.get(ptype).entrySet()) {
-                if (e.getValue() == null || e.getValue().equals(ptype.default_value)) {
-                    to_delete.add(e.getKey());
-                }
-            } // FOR
-            if (to_delete.isEmpty() == false) {
-                for (Integer p : to_delete) {
-                    this.probabilities.get(ptype).remove(p);
-                }
-                System.err.println("REMOVED: " + to_delete);
-//                System.exit(1);
-            }
-        } // FOR
-    }
+   
 
     // ----------------------------------------------------------------------------
     // DATA MEMBER METHODS
     // ----------------------------------------------------------------------------
     
     /**
-     * 
+     * Return the vertex type
      * @return
      */
     public Type getType() {
@@ -272,7 +274,7 @@ public class Vertex extends AbstractVertex {
         return (this.type == Type.QUERY);
     }
     public boolean isStartVertex() {
-        return (this.type == Type.QUERY);
+        return (this.type == Type.START);
     }
     public boolean isCommitVertex() {
         return (this.type == Type.COMMIT);
@@ -359,7 +361,7 @@ public class Vertex extends AbstractVertex {
         StringBuilder sb = new StringBuilder();
         sb.append(this.catalog_item.getName());
         if (this.type == Type.QUERY) {
-            sb.append(String.format("Indx:%d,Prtns:%s,Past:%s", this.query_instance_index,
+            sb.append(String.format(" Indx:%d,Prtns:%s,Past:%s", this.query_instance_index,
                                                                 this.partitions,
                                                                 this.past_partitions));
         }
@@ -372,61 +374,36 @@ public class Vertex extends AbstractVertex {
     public String debug() {
         StringBuilder top = new StringBuilder();
         StringBuilder bot = new StringBuilder();
+        bot.append("     ");
+        
+        final String f = "%-8s";
         
         final DecimalFormat formatter = new DecimalFormat("0.000");
         
         // First get the list of all the partitions that we know about
-        Set<Integer> partitions = new HashSet<Integer>();
-        Set<Probability> single_ptypes = new HashSet<Probability>();
         for (Vertex.Probability type : Vertex.Probability.values()) {
-            Map<Integer, Float> probs = this.probabilities.get(type);
-            partitions.addAll(probs.keySet());
-
-            if (probs.size() == 1) {
-                top.append(String.format("+%-12s %s\n", type.toString() + ":", formatter.format(probs.get(DEFAULT_PARTITION_ID))));
-                single_ptypes.add(type);
+            int i = type.ordinal();
+            
+            if (type.single_value) {
+                top.append(String.format("+%-14s %s\n", type.toString() + ":", formatter.format(this.probabilities[i][DEFAULT_PARTITION_ID])));
             } else {
-                bot.append("\t" + StringUtil.abbrv(type.name(), 6, false));
+                bot.append(String.format(f, StringUtil.abbrv(type.name(), 6, false)));    
             }
         } // FOR
-        partitions.remove(DEFAULT_PARTITION_ID); 
         bot.append("\n");
 
-
-        // Now construct the debug output table
-        for (int partition : partitions) {
-            bot.append(String.format("[%02d]", partition));
-            
-            for (Vertex.Probability type : Vertex.Probability.values()) {
-                if (single_ptypes.contains(type)) continue;
-                Float prob = this.probabilities.get(type).get(partition);
-                
-                bot.append("\t");
-                if (prob == null) {
-                    bot.append("<NONE>");
-                } else {
-                    bot.append(formatter.format(prob)); 
-                }
+        Vertex.Probability ptypes[] = Vertex.Probability.values(); 
+        int num_partitions = this.probabilities[Vertex.Probability.WRITE.ordinal()].length;
+        for (int j = 0, cnt = num_partitions; j < cnt; j++) {
+            bot.append(String.format("[%02d] ", j));
+            for (int i = 0; i < ptypes.length; i++) {
+                if (ptypes[i].single_value) continue;
+                float val = this.probabilities[i][j];
+                bot.append(String.format(f, (val != NULL_MARKER ? formatter.format(val) : "<NONE>")));
             } // FOR
             bot.append("\n");
         } // FOR
-//        
-//        
-//        for (Vertex.Probability type : Vertex.Probability.values()) {
-//            SortedMap<Integer, Double> prob = this.probabilities.get(type);
-//            if (prob.size() == 1) {
-//                top += String.format("+%-12s %.3g\n", type.toString() + ":", prob.get(DEFAULT_PARTITION_ID));
-//            } else {
-//                bot += "+" + type.toString() + ": " + prob.keySet() + "\n";
-//                if (prob.isEmpty()) {
-//                    bot += "   <NONE>\n";
-//                } else {
-//                    for (int partition : prob.keySet()) {
-//                        bot += String.format("   [%02d] %.3g\n", partition, prob.get(partition));  
-//                    } // FOR
-//                }
-//            }
-//        }
+
         String ret = this.toString() + // "Vertex[" + this.getCatalogItem().getName() + "]"
                      " :: " +
                      "ExecutionTime " + this.getExecutiontime() + "\n" +
@@ -466,19 +443,14 @@ public class Vertex extends AbstractVertex {
      * @param default_value
      * @return
      */
-    private Double getSpecificProbability(Vertex.Probability ptype, int partition, Float default_value) {
-        SortedMap<Integer, Float> probs = this.probabilities.get(ptype);
-        assert(probs != null);
+    private float getSpecificProbability(Vertex.Probability ptype, int partition) {
+        float value = this.probabilities[ptype.ordinal()][partition];
+        if (value == NULL_MARKER) value = ptype.default_value;
         
-        Float prob = probs.get(partition);
-        if (prob == null) {
-            // probs.put(partition, default_value);
-            prob = default_value;
-        }
         // Handle funky rounding error that I think is due to casting
         // Note that we only round when we hand out the number. If we try to round it before we 
         // stick it in then it still comes out wrong sometimes...
-        return (prob != null ? MathUtil.roundToDecimals(prob, PROBABILITY_PRECISION) : null); 
+        return (MathUtil.roundToDecimals(value, PROBABILITY_PRECISION)); 
     }
     
     /**
@@ -486,9 +458,12 @@ public class Vertex extends AbstractVertex {
      * @param name
      * @param probability
      */
-    private void addToProbability(Vertex.Probability ptype, int partition, double probability, double init_value) {
-        Double previous = this.getSpecificProbability(ptype, partition, (float)init_value);
-        this.setProbability(ptype, partition, (previous+probability));
+    private void addToProbability(Vertex.Probability ptype, int partition, float probability) {
+        // Important: If the probability is unset, then we need to set its initial value
+        // to zero and to the default value
+        float previous = this.probabilities[ptype.ordinal()][partition];
+        if (previous == NULL_MARKER) previous = 0.0f;
+        this.setProbability(ptype, partition, previous + probability);
     }
 
     /**
@@ -497,24 +472,23 @@ public class Vertex extends AbstractVertex {
      * @param partition
      * @param probability
      */
-    private void setProbability(Vertex.Probability ptype, int partition, double probability) {
+    private void setProbability(Vertex.Probability ptype, int partition, float probability) {
         if (trace.get()) LOG.trace("(" + ptype + ", " + partition + ") => " + probability);
-        this.probabilities.get(ptype).put(partition, (float)probability);
+//        assert(probability >= 0.0) : String.format("%s - Invalid %s probability at partition #%d: %f", this, ptype, partition, probability);
+//        assert(probability <= 1.0) : String.format("%s - Invalid %s probability at partition #%d: %f", this, ptype, partition, probability);
+        this.probabilities[ptype.ordinal()][partition] = probability;
     }
 
     /**
      * Reset all probabilities. Keeps partitions in maps
      */
     public void resetAllProbabilities() {
-        for (Vertex.Probability ptype : this.probabilities.keySet()) {
-            if (ptype.single_value) {
-                this.probabilities.get(ptype).put(DEFAULT_PARTITION_ID, null);
-            } else {
-                this.probabilities.get(ptype).clear();
-//                for (Entry<Integer, Float> e : this.probabilities.get(ptype).entrySet()) {
-//                    this.probabilities.get(ptype).put(e.getKey(), null);
-//                } // FOR
-            }
+        for (Vertex.Probability ptype : Vertex.Probability.values()) {
+            int i = ptype.ordinal();
+            if (this.probabilities[i] == null) continue;
+            for (int j = 0; j < this.probabilities[i].length; j++) {
+                this.probabilities[i][j] = NULL_MARKER;
+            } // FOR
         } // FOR
     }
     
@@ -522,85 +496,85 @@ public class Vertex extends AbstractVertex {
     // SINGLE-SITED PROBABILITY
     // ----------------------------------------------------------------------------
     
-    public void addSingleSitedProbability(double probability) {
-        this.addToProbability(Probability.SINGLE_SITED, DEFAULT_PARTITION_ID, probability, Probability.SINGLE_SITED.default_value);
+    public void addSingleSitedProbability(float probability) {
+        this.addToProbability(Probability.SINGLE_SITED, DEFAULT_PARTITION_ID, probability);
     }
-    public void setSingleSitedProbability(double probability) {
+    public void setSingleSitedProbability(float probability) {
         this.setProbability(Probability.SINGLE_SITED, DEFAULT_PARTITION_ID, probability);
     }
-    public Double getSingleSitedProbability() {
-        return (this.getSpecificProbability(Probability.SINGLE_SITED, DEFAULT_PARTITION_ID, (float)Probability.SINGLE_SITED.default_value));
+    public float getSingleSitedProbability() {
+        return (this.getSpecificProbability(Probability.SINGLE_SITED, DEFAULT_PARTITION_ID));
     }
     public boolean isSingleSitedProbabilitySet() {
-        return (this.getSpecificProbability(Probability.SINGLE_SITED, DEFAULT_PARTITION_ID, null) != null);
+        return (this.getSpecificProbability(Probability.SINGLE_SITED, DEFAULT_PARTITION_ID) != NULL_MARKER);
     }
 
     // ----------------------------------------------------------------------------
     // READ-ONLY PROBABILITY
     // ----------------------------------------------------------------------------
     
-    public void addReadOnlyProbability(int partition, double probability) {
-        this.addToProbability(Probability.READ_ONLY, partition, probability, Probability.READ_ONLY.default_value);
+    public void addReadOnlyProbability(int partition, float probability) {
+        this.addToProbability(Probability.READ_ONLY, partition, probability);
     }
-    public void setReadOnlyProbability(int partition, double probability) {
+    public void setReadOnlyProbability(int partition, float probability) {
         this.setProbability(Probability.READ_ONLY, partition, probability);
     }
-    public Double getReadOnlyProbability(int partition) {
-        return (this.getSpecificProbability(Probability.READ_ONLY, partition, (float)Probability.READ_ONLY.default_value));
+    public float getReadOnlyProbability(int partition) {
+        return (this.getSpecificProbability(Probability.READ_ONLY, partition));
     }
     public boolean isReadOnlyProbabilitySet(int partition) {
-        return (this.getSpecificProbability(Probability.READ_ONLY, partition, null) != null);
+        return (this.getSpecificProbability(Probability.READ_ONLY, partition) != NULL_MARKER);
     }
     
     // ----------------------------------------------------------------------------
     // WRITE PROBABILITY
     // ----------------------------------------------------------------------------
     
-    public void addWriteProbability(int partition, double probability) {
-        this.addToProbability(Probability.WRITE, partition, probability, Probability.WRITE.default_value);
+    public void addWriteProbability(int partition, float probability) {
+        this.addToProbability(Probability.WRITE, partition, probability);
     }
-    public void setWriteProbability(int partition, double probability) {
+    public void setWriteProbability(int partition, float probability) {
         this.setProbability(Probability.WRITE, partition, probability);
     }
-    public Double getWriteProbability(int partition) {
-        return (this.getSpecificProbability(Probability.WRITE, partition, (float)Probability.WRITE.default_value));
+    public float getWriteProbability(int partition) {
+        return (this.getSpecificProbability(Probability.WRITE, partition));
     }
     public boolean isWriteProbabilitySet(int partition) {
-        return (this.getSpecificProbability(Probability.WRITE, partition, null) != null);
+        return (this.getSpecificProbability(Probability.WRITE, partition) != NULL_MARKER);
     }
     
     // ----------------------------------------------------------------------------
     // DONE PROBABILITY
     // ----------------------------------------------------------------------------
     
-    public void addDoneProbability(int partition, double probability) {
-        this.addToProbability(Probability.DONE, partition, probability, Probability.DONE.default_value);
+    public void addDoneProbability(int partition, float probability) {
+        this.addToProbability(Probability.DONE, partition, probability);
     }
-    public void setDoneProbability(int partition, double probability) {
+    public void setDoneProbability(int partition, float probability) {
         this.setProbability(Probability.DONE, partition, probability);
     }
-    public Double getDoneProbability(int partition) {
-        return (this.getSpecificProbability(Probability.DONE, partition, (float)Probability.DONE.default_value));
+    public float getDoneProbability(int partition) {
+        return (this.getSpecificProbability(Probability.DONE, partition));
     }
     public boolean isDoneProbabilitySet(int partition) {
-        return (this.getSpecificProbability(Probability.DONE, partition, null) != null);
+        return (this.getSpecificProbability(Probability.DONE, partition) != NULL_MARKER);
     }
 
     // ----------------------------------------------------------------------------
     // ABORT PROBABILITY
     // ----------------------------------------------------------------------------
 
-    public void addAbortProbability(double probability) {
-        this.addToProbability(Probability.ABORT, DEFAULT_PARTITION_ID, probability, Probability.ABORT.default_value);
+    public void addAbortProbability(float probability) {
+        this.addToProbability(Probability.ABORT, DEFAULT_PARTITION_ID, probability);
     }
-    public void setAbortProbability(double probability) {
+    public void setAbortProbability(float probability) {
         this.setProbability(Probability.ABORT, DEFAULT_PARTITION_ID, probability);
     }
-    public Double getAbortProbability() {
-        return (this.getSpecificProbability(Probability.ABORT, DEFAULT_PARTITION_ID, (float)Probability.ABORT.default_value));
+    public float getAbortProbability() {
+        return (this.getSpecificProbability(Probability.ABORT, DEFAULT_PARTITION_ID));
     }
     public boolean isAbortProbabilitySet() {
-        return (this.getSpecificProbability(Probability.DONE, DEFAULT_PARTITION_ID, null) != null);
+        return (this.getSpecificProbability(Probability.DONE, DEFAULT_PARTITION_ID) != NULL_MARKER);
     }
 
     /**
@@ -717,18 +691,15 @@ public class Vertex extends AbstractVertex {
         members_set.toArray(members);
         super.fieldsToJSONString(stringer, Vertex.class, members);
         
-        //
         // Probabilities Map
-        //
         stringer.key(Members.PROBABILITIES.name()).object();
         for (Probability type : Probability.values()) {
-            SortedMap<Integer, Float> probs = this.probabilities.get(type);
-
-            stringer.key(type.name()).object();
-            for (Integer partition : probs.keySet()) {
-                stringer.key(partition.toString()).value(probs.get(partition));
+            stringer.key(type.name()).array();
+            int i = type.ordinal();
+            for (int j = 0, cnt = this.probabilities[i].length; j < cnt; j++) {
+                stringer.value(this.probabilities[i][j]);
             } // FOR
-            stringer.endObject();
+            stringer.endArray();
         } // FOR
         stringer.endObject();
     }
@@ -741,32 +712,20 @@ public class Vertex extends AbstractVertex {
         members_set.toArray(members);
         super.fieldsFromJSONObject(object, catalog_db, Vertex.class, members);
 
-        //
         // Probabilities Map
-        //
         JSONObject json_probabilities = object.getJSONObject(Members.PROBABILITIES.name());
         Iterator<String> keys = json_probabilities.keys();
         while (keys.hasNext()) {
             String key = keys.next();
             Probability type = Probability.get(key);
             assert(type != null) : "Invalid name '" + key + "'";
-            this.probabilities.get(type).clear();
+            int i = type.ordinal();
             
-            JSONObject json_map = json_probabilities.getJSONObject(key);
-            Iterator<String> keys_partitions = json_map.keys();
-            while (keys_partitions.hasNext()) {
-                String partition_key = keys_partitions.next();
-                Integer partition = Integer.valueOf(partition_key);
-                assert(partition != null);
-                Double probability = null;
-                try {
-                    if (!json_map.isNull(partition_key)) probability = json_map.getDouble(partition_key);    
-                } catch (JSONException ex) {
-                    LOG.error("Failed to get " + type + " probability at Partition #" + partition);
-                    throw ex;
-                }
-                if (probability != null) this.probabilities.get(type).put(partition, probability.floatValue());
-            } // WHILE
+            JSONArray json_arr = json_probabilities.getJSONArray(key);
+            this.probabilities[i] = new float[json_arr.length()];
+            for (int j = 0, cnt = this.probabilities[i].length; j < cnt; j++) {
+                this.probabilities[i][j] = (float)json_arr.getDouble(j);
+            } // FOR
         } // WHILE
         
         // I'm lazy...
@@ -789,7 +748,7 @@ public class Vertex extends AbstractVertex {
             case START:
             case COMMIT:
             case ABORT:
-                this.catalog_item = MarkovUtil.getSpecialStatement(this.type);
+                this.catalog_item = MarkovUtil.getSpecialStatement(catalog_db, this.type);
                 break;
             default:
                 this.catalog_item = CatalogKey.getFromKey(catalog_db, this.catalog_key, this.catalog_class);

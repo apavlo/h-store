@@ -527,6 +527,9 @@ public abstract class JSONUtil {
         // Integer
         } else if (field_class.equals(Integer.class) || field_class.equals(int.class)) {
             value = Integer.parseInt(json_value);
+        // Float
+        } else if (field_class.equals(Float.class) || field_class.equals(float.class)) {
+            value = Float.parseFloat(json_value);
         // JSONSerializable
         } else if (ClassUtil.getInterfaces(field_class).contains(JSONSerializable.class)) {
             value = ClassUtil.newInstance(field_class, null, null);

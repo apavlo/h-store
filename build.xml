@@ -1866,6 +1866,13 @@ DESIGNER
 <target name='markov-cluster' description="Generate Markov Cluster-based File">
     <java fork="yes" classname="edu.brown.markov.FeatureClusterer" failonerror='true'>
         <jvmarg value="-Xmx${volt.client.memory}m" />
+        <jvmarg value="-server" />
+<!--         <jvmarg value="-verbose:gc" /> -->
+        <jvmarg value="-XX:+UseParNewGC" />
+        <jvmarg value="-XX:+UseConcMarkSweepGC" />
+<!--         <jvmarg value="-XX:+PrintGCDetails" /> -->
+<!--         <jvmarg value="-XX:+PrintGCTimeStamps" /> -->
+<!--         <jvmarg value="-Xloggc:gc.log" /> -->
         <arg value="catalog.jar=${jar}" />
         <arg value="workload=${workload}" />
         <arg value="workload.xactlimit=${limit}" />
@@ -1874,6 +1881,10 @@ DESIGNER
         <arg value="workload.procinclude=${include}" />
         <arg value="workload.procinclude.multiplier=${multiplier}" />
         <arg value="correlations=./files/correlations/${project}.correlations" />
+        <arg value="markov.split=${split}" />
+        <arg value="markov.rounds=${rounds}" />
+        <arg value="markov.partitions=${partitions}" />
+        <arg value="markov.topk=${topk}" />
         <arg value="${procedure}" />
         <arg value="${procedure}.arff" />
         <classpath refid='project.classpath' />

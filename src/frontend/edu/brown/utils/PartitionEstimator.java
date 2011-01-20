@@ -232,7 +232,7 @@ public class PartitionEstimator {
      * @throws Exception
      */
     @SuppressWarnings("unchecked")
-    private void generateCache(final Statement catalog_stmt) throws Exception {
+    private synchronized void generateCache(final Statement catalog_stmt) throws Exception {
         final boolean debug = LOG.isDebugEnabled(); // catalog_stmt.getName().equalsIgnoreCase("GetNewDestination");
         final boolean trace = LOG.isTraceEnabled();
         
