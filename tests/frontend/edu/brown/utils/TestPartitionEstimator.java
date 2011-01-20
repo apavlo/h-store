@@ -9,6 +9,7 @@ import org.voltdb.VoltTableRow;
 import org.voltdb.VoltType;
 import org.voltdb.VoltTable.ColumnInfo;
 import org.voltdb.benchmark.tpcc.procedures.neworder;
+import org.voltdb.benchmark.tpcc.procedures.paymentByCustomerId;
 import org.voltdb.benchmark.tpcc.procedures.paymentByCustomerIdW;
 import org.voltdb.catalog.*;
 import org.voltdb.utils.VoltTypeUtil;
@@ -50,7 +51,7 @@ public class TestPartitionEstimator extends BaseTestCase {
         PartitionEstimator p_estimator = new PartitionEstimator(clone_db);
 
         // Procedure
-        Procedure catalog_proc = this.getProcedure(clone_db, paymentByCustomerIdW.class);
+        Procedure catalog_proc = this.getProcedure(clone_db, paymentByCustomerId.class);
         ProcParameter catalog_params[] = new ProcParameter[] {
             this.getProcParameter(clone_db, catalog_proc, 1),   // D_ID
             this.getProcParameter(clone_db, catalog_proc, 0),   // W_ID
