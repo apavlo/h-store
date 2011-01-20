@@ -42,6 +42,7 @@ import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.PartitionEstimator;
 import edu.brown.utils.StringUtil;
+import edu.brown.utils.ThreadUtil;
 import edu.brown.utils.UniqueCombinationIterator;
 import edu.brown.workload.TransactionTrace;
 import edu.brown.workload.Workload;
@@ -382,12 +383,13 @@ public class FeatureClusterer {
         // We first need to construct a new costmodel and populate it with TransactionEstimators
         if (debug.get()) LOG.debug("Constructing CLUSTER-BASED MarkovCostModels");
         
-        final CountDownLatch latch = new CountDownLatch(this.all_partitions.size()); 
+        final CountDownLatch latch = new CountDownLatch(this.all_partitions.size());
+        final List<Thread> threads = new ArrayList<Thread>();
         for (final Integer partition : markovs_per_partition.keySet()) {
             final MarkovGraphsContainer markovs = markovs_per_partition.get(partition);
             final MarkovCostModel costmodel = clusterer_costmodels.get(partition);
-            Runnable r = new Runnable() {   
-//            Thread t = new Thread() {
+//            Runnable r = new Runnable() {   
+            Thread t = new Thread() {
                 @Override
                 public void run() {
                     if (debug.get()) LOG.debug("Calculating probabilities for Partition #" + partition);
@@ -406,16 +408,18 @@ public class FeatureClusterer {
                     latch.countDown();
                 }
             };
+            threads.add(t);
 //            t.start();
-             this.executor.execute(r);
+//             this.executor.execute(r);
         } // FOR
-        try {
-            latch.await();
-        } catch (Exception ex) {
-            LOG.fatal(ex);
-            System.exit(1);
+//        try {
+            ThreadUtil.run(threads, NUM_THREADS);
+//            latch.await();
+//        } catch (Exception ex) {
+//            LOG.fatal(ex);
+//            System.exit(1);
             
-        }
+//        }
 //        this.executor.awaitTermination(Long.MAX_VALUE, TimeUnit.SECONDS);
         
         if (debug.get()) LOG.debug("Constructing GLOBAL MarkovCostModel");

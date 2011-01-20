@@ -505,7 +505,7 @@ public class Vertex extends AbstractVertex {
     /**
      * Reset all probabilities. Keeps partitions in maps
      */
-    public synchronized void resetAllProbabilities() {
+    public void resetAllProbabilities() {
         for (Vertex.Probability ptype : this.probabilities.keySet()) {
             if (ptype.single_value) {
                 this.probabilities.get(ptype).put(DEFAULT_PARTITION_ID, null);
