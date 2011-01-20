@@ -42,23 +42,33 @@ public abstract class MarkovUtil {
      * Wrapper class for our special "marker" vertices
      */
     public static class StatementWrapper extends Statement {
+        private final Catalog catalog;
         private final Vertex.Type type;
         private String id;
         private final Procedure parent = new Procedure() {
             public String getName() {
                 return ("markov");
             };
+            public Catalog getCatalog() {
+                return (StatementWrapper.this.catalog);
+            };
         };
 
-        public StatementWrapper(Vertex.Type type) {
+        public StatementWrapper(Catalog catalog, Vertex.Type type) {
+            this.catalog = catalog;
             this.type = type;
             this.id="";
             this.setReadonly(true);
         }
-        public StatementWrapper(Vertex.Type type, boolean readonly, String id) {
+        public StatementWrapper(Catalog catalog, Vertex.Type type, boolean readonly, String id) {
+            this.catalog = catalog;
             this.type = type;
             this.id = id;
             this.setReadonly(readonly);
+        }
+        @Override
+        public Catalog getCatalog() {
+            return (this.catalog);
         }
         public String getName() {
             return ("--" + this.type.toString() + id +"--");
@@ -69,32 +79,28 @@ public abstract class MarkovUtil {
             return (this.parent);
         }
     } // END CLASS
-    private final static StatementWrapper start_stmt = new StatementWrapper(Vertex.Type.START);
-    private final static StatementWrapper stop_stmt = new StatementWrapper(Vertex.Type.COMMIT);
-    private final static StatementWrapper abort_stmt = new StatementWrapper(Vertex.Type.ABORT);
 
     /**
      * Return the Statement object representing the special Vertex type
+     * @param catalog_db TODO
      * @param type
      * @return
      */
-    public static Statement getSpecialStatement(Vertex.Type type) {
-        Statement ret = null;
-        switch (type) {
-            case START:
-                ret = MarkovUtil.start_stmt;
-                break;
-            case COMMIT:
-                ret = MarkovUtil.stop_stmt;
-                break;
-            case ABORT:
-                ret = MarkovUtil.abort_stmt;
-                break;
-            default:
-                assert(false) : "Unexpected Vertex type '" + type + "'";
-        } // SWITCH
-        return (ret);
+    public static Statement getSpecialStatement(Database catalog_db, Vertex.Type type) {
+        Map<Vertex.Type, Statement> cache = CACHE_specialStatements.get(catalog_db);
+        if (cache == null) {
+            cache = new HashMap<Vertex.Type, Statement>();
+            CACHE_specialStatements.put(catalog_db, cache);
+        }
+        
+        Statement catalog_stmt = cache.get(type);
+        if (catalog_stmt == null) {
+            catalog_stmt = new StatementWrapper(catalog_db.getCatalog(), type);
+            cache.put(type, catalog_stmt);
+        }
+        return (catalog_stmt);
     }
+    private final static Map<Database, Map<Vertex.Type, Statement>> CACHE_specialStatements = new HashMap<Database, Map<Vertex.Type, Statement>>();
     
     /**
      * For the given Vertex type, return a unique Vertex instance
@@ -102,24 +108,17 @@ public abstract class MarkovUtil {
      * @return
      */
     public static Vertex getSpecialVertex(Database catalog_db, Vertex.Type type) {
-        Vertex v = null;
-        switch (type) {
-            case START:
-                v = new Vertex(MarkovUtil.start_stmt, Vertex.Type.START);
-                break;
-            case COMMIT:
-                v = new Vertex(MarkovUtil.stop_stmt, Vertex.Type.COMMIT);
-                break;
-            case ABORT:
-                v = new Vertex(MarkovUtil.abort_stmt, Vertex.Type.ABORT);
-                v.addAbortProbability((float) 1.0);
-                break;
-            default:
-                assert(false) : "Unexpected Vertex type '" + type + "'";
-        } // SWITCH
+        Statement catalog_stmt = MarkovUtil.getSpecialStatement(catalog_db, type);
+        assert(catalog_stmt != null);
+
+        Vertex v = new Vertex(catalog_stmt, type);
+        
+        if (type == Vertex.Type.ABORT) {
+            v.setAbortProbability(1.0f);
+        }
         if (type != Vertex.Type.START) {
             for (int i : CatalogUtil.getAllPartitionIds(catalog_db)) {
-                v.addDoneProbability(i, 1.0f);
+                v.setDoneProbability(i, 1.0f);
             } // FOR
         }
         assert(v != null);
@@ -148,13 +147,6 @@ public abstract class MarkovUtil {
         return (MarkovUtil.getSpecialVertex(catalog_db, Vertex.Type.ABORT));
     }
     
-    /**
-     * To allow for any strange sort of partitioning proposition:
-     * Say only partitions 1,3,7 exist in this guy or the numbering scheme 
-     * starts somewhere strange, we just modify this instead of all the for loops everywhere.
-     * @return a List of partitions
-     */
-
     /**
      * Give a blank graph to fill in for each partition for the given procedure. Called by 
      * anyone who wants to create MarkovGraphs

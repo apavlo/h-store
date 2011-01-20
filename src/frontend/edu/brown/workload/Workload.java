@@ -486,7 +486,7 @@ public class Workload implements WorkloadTrace, Iterable<AbstractTraceElement<? 
         } // WHILE
         in.close();
         this.validate();
-        LOG.info("Loaded in " + this.xact_trace.size() + " transactions with a total of " + query_ctr + " queries from workload trace '" + this.input_path.getName() + "'");
+        LOG.info("Loaded in " + this.xact_trace.size() + " txns with " + query_ctr + " queries from '" + this.input_path.getName() + "'");
         return;
     }
     

@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.Map.Entry;
+import java.util.concurrent.ConcurrentHashMap;
 
 import org.apache.log4j.Logger;
 import org.voltdb.catalog.Database;
@@ -34,7 +35,7 @@ import edu.brown.workload.Workload.Filter;
 public class MarkovCostModel extends AbstractCostModel {
     private static final Logger LOG = Logger.getLogger(MarkovCostModel.class);
     
-    private final Map<Integer, TransactionEstimator> t_estimators = new HashMap<Integer, TransactionEstimator>();
+    private final Map<Integer, TransactionEstimator> t_estimators = new ConcurrentHashMap<Integer, TransactionEstimator>();
 
     // If this is set to true, then we will use the txnid_cluster_xref to figure out
     // what cluster each TransactionTrace belongs to
@@ -65,7 +66,7 @@ public class MarkovCostModel extends AbstractCostModel {
      * @param cluster_id
      * @param t_estimator
      */
-    public synchronized void addTransactionEstimator(int cluster_id, TransactionEstimator t_estimator) {
+    public void addTransactionEstimator(int cluster_id, TransactionEstimator t_estimator) {
         this.t_estimators.put(cluster_id, t_estimator);
     }
     

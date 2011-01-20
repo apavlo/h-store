@@ -21,6 +21,7 @@ import edu.brown.graphs.AbstractDirectedGraph;
 import edu.brown.graphs.VertexTreeWalker;
 import edu.brown.graphs.VertexTreeWalker.Direction;
 import edu.brown.graphs.VertexTreeWalker.TraverseOrder;
+import edu.brown.markov.Vertex.Type;
 import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.PartitionEstimator;
@@ -54,7 +55,7 @@ public class MarkovGraph extends AbstractDirectedGraph<Vertex, Edge> implements 
     /**
      * Cached references to the special marker vertices
      */
-    private final transient HashMap<Vertex.Type, Vertex> vertex_cache = new HashMap<Vertex.Type, Vertex>();
+    private final transient Map<Vertex.Type, Vertex> vertex_cache = new HashMap<Vertex.Type, Vertex>();
 
     /**
      * 
@@ -207,9 +208,9 @@ public class MarkovGraph extends AbstractDirectedGraph<Vertex, Edge> implements 
      */
     public void calculateProbabilities() {
         // Reset all probabilities
-        for (Vertex v : this.getVertices()) {
-            v.resetAllProbabilities();
-        } // FOR
+//        for (Vertex v : this.getVertices()) {
+//            v.resetAllProbabilities();
+//        } // FOR
         
         // We first need to calculate the edge probabilities because the probabilities
         // at each vertex are going to be derived from these
@@ -234,25 +235,26 @@ public class MarkovGraph extends AbstractDirectedGraph<Vertex, Edge> implements 
                 protected void callback(Vertex element) {
                     if (trace.get()) LOG.trace("BEFORE: " + element + " => " + element.getSingleSitedProbability());
 //                    if (element.isSingleSitedProbablitySet() == false) element.setSingleSitedProbability(0.0);
+                    Type vtype = element.getType(); 
                     
                     // COMMIT/ABORT is always single-partitioned!
-                    if (element.getType() == Vertex.Type.COMMIT || element.getType() == Vertex.Type.ABORT) {
+                    if (vtype == Vertex.Type.COMMIT || vtype == Vertex.Type.ABORT) {
                         if (trace.get()) LOG.trace(element + " is single-partitioned!");
-                        element.setSingleSitedProbability(1.0);
+                        element.setSingleSitedProbability(1.0f);
                         
                         // And DONE at all partitions!
                         // And will not Read/Write Probability
                         for (Integer partition : all_partitions) {
-                            element.setDoneProbability(partition, 1.0);
-                            element.setReadOnlyProbability(partition, 0.0);
-                            element.setWriteProbability(partition, 0.0);
+                            element.setDoneProbability(partition, 1.0f);
+                            element.setReadOnlyProbability(partition, 0.0f);
+                            element.setWriteProbability(partition, 0.0f);
                         } // FOR
                         
                         // Abort Probability
-                        if (element.getType() == Vertex.Type.ABORT) {
-                            element.setAbortProbability(1.0);
+                        if (vtype == Vertex.Type.ABORT) {
+                            element.setAbortProbability(1.0f);
                         } else {
-                            element.setAbortProbability(0.0);
+                            element.setAbortProbability(0.0f);
                         }
     
                     } else {
@@ -266,7 +268,7 @@ public class MarkovGraph extends AbstractDirectedGraph<Vertex, Edge> implements 
                         boolean element_islocalonly = element.isLocalPartitionOnly(); 
                         if (element_islocalonly == false) {
                             if (trace.get()) LOG.trace(element + " NOT is single-partitioned!");
-                            element.setSingleSitedProbability(0.0);
+                            element.setSingleSitedProbability(0.0f);
                         }
 
                         Statement catalog_stmt = element.getCatalogItem();
@@ -283,39 +285,39 @@ public class MarkovGraph extends AbstractDirectedGraph<Vertex, Edge> implements 
                             // single-partition probability as the sum of the the edge weights times our
                             // successors' single-partition probability
                             if (element_islocalonly) {
-                                double prob = (e.getProbability() * successor.getSingleSitedProbability());
+                                float prob = (float)(e.getProbability() * successor.getSingleSitedProbability());
                                 element.addSingleSitedProbability(prob);
                                 if (trace.get()) LOG.trace(element + " --" + e + "--> " + successor + String.format(" [%f * %f = %f]", e.getProbability(), successor.getSingleSitedProbability(), prob) + "\nprob = " + prob);
                             }
                             
                             // Abort Probability
-                            element.addAbortProbability(e.getProbability() * successor.getAbortProbability());
+                            element.addAbortProbability((float)(e.getProbability() * successor.getAbortProbability()));
                             
                             // Done/Read/Write At Partition Probability
                             for (Integer partition : all_partitions) {
-                                assert(successor.getDoneProbability(partition) != null) : "Setting " + element + " BEFORE " + successor;
-                                assert(successor.getReadOnlyProbability(partition) != null) : "Setting " + element + " BEFORE " + successor;
-                                assert(successor.getWriteProbability(partition) != null) : "Setting " + element + " BEFORE " + successor;
+                                assert(successor.isDoneProbabilitySet(partition)) : "Setting " + element + " BEFORE " + successor;
+                                assert(successor.isReadOnlyProbabilitySet(partition)) : "Setting " + element + " BEFORE " + successor;
+                                assert(successor.isWriteProbabilitySet(partition)) : "Setting " + element + " BEFORE " + successor;
                                 
                                 // This vertex accesses this partition
                                 if (element.getPartitions().contains(partition)) {
-                                    element.setDoneProbability(partition, 0.0);
+                                    element.setDoneProbability(partition, 0.0f);
                                     
                                     // Figure out whether it is a read or a write
                                     if (catalog_stmt.getReadonly()) {
-                                        element.addWriteProbability(partition, (e.getProbability() * successor.getWriteProbability(partition)));
-                                        element.addReadOnlyProbability(partition, (e.getProbability() * successor.getReadOnlyProbability(partition)));
+                                        element.addWriteProbability(partition, (float)(e.getProbability() * successor.getWriteProbability(partition)));
+                                        element.addReadOnlyProbability(partition, (float)(e.getProbability() * successor.getReadOnlyProbability(partition)));
                                     } else {
-                                        element.setWriteProbability(partition, 1.0);
-                                        element.setReadOnlyProbability(partition, 0.0);
+                                        element.setWriteProbability(partition, 1.0f);
+                                        element.setReadOnlyProbability(partition, 0.0f);
                                     }
                                     
                                 // This vertex doesn't access the partition, but successor vertices might so
                                 // the probability is based on the edge probabilities 
                                 } else {
-                                    element.addDoneProbability(partition, (e.getProbability() * successor.getDoneProbability(partition)));
-                                    element.addWriteProbability(partition, (e.getProbability() * successor.getWriteProbability(partition)));
-                                    element.addReadOnlyProbability(partition, (e.getProbability() * successor.getReadOnlyProbability(partition)));
+                                    element.addDoneProbability(partition, (float)(e.getProbability() * successor.getDoneProbability(partition)));
+                                    element.addWriteProbability(partition, (float)(e.getProbability() * successor.getWriteProbability(partition)));
+                                    element.addReadOnlyProbability(partition, (float)(e.getProbability() * successor.getReadOnlyProbability(partition)));
                                 }
                             } // FOR (PartitionId)
                         } // FOR (Edge)
@@ -325,9 +327,6 @@ public class MarkovGraph extends AbstractDirectedGraph<Vertex, Edge> implements 
                 }
             }.traverse(v);
         } // FOR (COMMIT, ABORT)
-        for (Vertex v : this.getVertices()) {
-            v.trimProbabilities();
-        } // FOR
     }
 
     /**

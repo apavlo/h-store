@@ -88,11 +88,11 @@ public class TestMarkovGraph extends BaseTestCase {
         assert (v.getAbortProbability() <= 1.0) : "Invalid Abort for " + v + ": " + v.getAbortProbability();
 
         for (int partition = 0; partition < NUM_PARTITIONS; partition++) {
-            final Double done = v.getDoneProbability(partition);
-            final Double write = v.getWriteProbability(partition);
-            final Double read_only = v.getReadOnlyProbability(partition);
+            final float done = v.getDoneProbability(partition);
+            final float write = v.getWriteProbability(partition);
+            final float read_only = v.getReadOnlyProbability(partition);
 
-            Map<Vertex.Probability, Double> probabilities = new HashMap<Vertex.Probability, Double>() {
+            Map<Vertex.Probability, Float> probabilities = new HashMap<Vertex.Probability, Float>() {
                 private static final long serialVersionUID = 1L;
                 {
                     this.put(Vertex.Probability.DONE, done);
@@ -100,28 +100,29 @@ public class TestMarkovGraph extends BaseTestCase {
                     this.put(Vertex.Probability.READ_ONLY, read_only);
                 }
             };
-            for (Entry<Vertex.Probability, Double> e : probabilities.entrySet()) {
+            for (Entry<Vertex.Probability, Float> e : probabilities.entrySet()) {
                 assertNotNull("Null " + e.getKey() + " => " + v.toString() + " Partition #" + partition, e.getValue());
-                assert (e.getValue() >= 0.0) : "Invalid " + e.getKey() + " for " + v + " at Partition #" + partition
-                        + ": " + e.getValue();
-                assert (e.getValue() <= 1.0) : "Invalid " + e.getKey() + " for " + v + " at Partition #" + partition
-                        + ": " + e.getValue();
+                assert (e.getValue() >= 0.0) : "Invalid " + e.getKey() + " for " + v + " at Partition #" + partition + ": " + e.getValue();
+                if (e.getValue() > 1) {
+                    System.err.println(v.debug());
+                }
+                assert (e.getValue() <= 1.0) : "Invalid " + e.getKey() + " for " + v + " at Partition #" + partition + ": " + e.getValue();
             } // FOR
 
             // If the DONE probability is 1.0, then the probability that we read/write at
             // a partition must be zero
-            if (done.equals(1.0d)) {
-                assertEquals(v + " Partition #" + partition, 0.0d, write);
-                assertEquals(v + " Partition #" + partition, 0.0d, read_only);
+            if (done == 1.0) {
+                assertEquals(v + " Partition #" + partition, 0.0f, write);
+                assertEquals(v + " Partition #" + partition, 0.0f, read_only);
 
             // Otherwise, we should at least be reading or writing at this partition with some probability
             } else {
                 double sum = write + read_only;
                 if (sum == 0) {
-                    System.err.println("DONE at Partition #" + partition + " => " + done);
+                    System.err.println("DONE at Partition #" + partition + " => " + done + " -- " + v.probabilities[Vertex.Probability.DONE.ordinal()][partition]);
                     System.err.println(v.debug());
                 }
-                assert (sum > 0.0d) : v + " Partition #" + partition + " [" + sum + "]";
+                assert (sum > 0) : v + " Partition #" + partition + " [" + sum + "]";
             }
         } // FOR
         
@@ -129,7 +130,7 @@ public class TestMarkovGraph extends BaseTestCase {
         // SINGLE_SITED probability should be zero!
         if (v.getType() == Type.QUERY &&
             (v.getPartitions().size() > 1 || v.getPartitions().contains(BASE_PARTITION) == false)) {
-            assertEquals(v.toString(), 0.0d, v.getSingleSitedProbability());
+            assertEquals(v.toString(), 0.0f, v.getSingleSitedProbability());
         }
 
     }
@@ -171,15 +172,15 @@ public class TestMarkovGraph extends BaseTestCase {
             
             // MULTI-PARTITION
             if (partitions.size() > 1) {
-                assertEquals(v.toString(), 0.0d, v.getSingleSitedProbability());
+                assertEquals(v.toString(), 0.0f, v.getSingleSitedProbability());
             }
             
             for (int i = 0; i < NUM_PARTITIONS; i++) {
                 if (partitions.contains(i)) {
-                    assertEquals(v.toString(), 0.0d, v.getDoneProbability(i));
+                    assertEquals(v.toString(), 0.0f, v.getDoneProbability(i));
                 // We can only do this check if the vertex does not have edges to another vertex
                 } else if (markov.getSuccessorCount(v) == 1) {
-                    assertEquals(v.toString(), 1.0d, v.getDoneProbability(i));
+                    assertEquals(v.toString(), 1.0f, v.getDoneProbability(i));
                 }
             } // FOR
         } // FOR
