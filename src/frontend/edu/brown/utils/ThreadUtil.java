@@ -109,7 +109,7 @@ public abstract class ThreadUtil {
         if (max_concurrent == null) max_concurrent = -1;
         
         if (debug) LOG.debug("Executing " + available.size() + " threads [max_concurrent=" + max_concurrent + "]");
-        long max_sleep = 16000;
+        long max_sleep = 2000;
         while (!available.isEmpty() || !running.isEmpty()) {
             while ((max_concurrent < 0 || running.size() < max_concurrent) && !available.isEmpty()) {
                 Thread thread = available.remove(0);
@@ -121,7 +121,7 @@ public abstract class ThreadUtil {
                 }
             } // WHILE
             int num_running = running.size();
-            long sleep = 1000;
+            long sleep = 10;
             while (num_running > 0) {
                 for (int i = 0; i < num_running; i++) {
                     Thread thread = running.get(i);
