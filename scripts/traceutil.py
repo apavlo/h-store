@@ -104,12 +104,13 @@ if __name__ == '__main__':
             json_data = json.loads(line)
             catalog_name = json_data["NAME"]
             trace_id = int(json_data["ID"])
+            txn_id = int(json_data["TXN_ID"])
             
             ## ----------------------------------------------
             ## GET
             ## ----------------------------------------------
             if command == "get":
-                if search_key == None or search_key in [ catalog_name, trace_id ]:
+                if search_key == None or search_key in [ catalog_name, trace_id, txn_id ]:
                     txn = TransactionTrace().fromJSON(json_data)
                     assert txn
                     
