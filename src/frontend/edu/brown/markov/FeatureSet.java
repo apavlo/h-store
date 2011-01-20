@@ -2,6 +2,7 @@ package edu.brown.markov;
 
 import java.io.IOException;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.commons.collections15.set.ListOrderedSet;
@@ -25,10 +26,16 @@ import edu.brown.utils.ClassUtil;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.JSONSerializable;
 import edu.brown.utils.JSONUtil;
+import edu.brown.utils.LoggerUtil;
 import edu.brown.workload.TransactionTrace;
 
 public class FeatureSet implements JSONSerializable {
     private static final Logger LOG = Logger.getLogger(FeatureSet.class);
+    private final static AtomicBoolean debug = new AtomicBoolean(LOG.isDebugEnabled());
+    private final static AtomicBoolean trace = new AtomicBoolean(LOG.isTraceEnabled());
+    static {
+        LoggerUtil.attachObserver(LOG, debug, trace);
+    }
     
     public enum Members {
         TXN_VALUES,
@@ -48,7 +55,7 @@ public class FeatureSet implements JSONSerializable {
     /**
      * The row values for each txn record
      */
-    public final HashMap<Long, Vector<Object>> txn_values = new HashMap<Long, Vector<Object>>();
+    public final Map<Long, Vector<Object>> txn_values = new ListOrderedMap<Long, Vector<Object>>();
     
     /**
      * The list of attributes that each txn should have
@@ -160,8 +167,6 @@ public class FeatureSet implements JSONSerializable {
      * @param type
      */
     public synchronized void addFeature(TransactionTrace txn, String key, Object val, Type type) {
-        final boolean trace = LOG.isTraceEnabled();
-        final boolean debug = LOG.isDebugEnabled();
         long txn_id = txn.getTransactionId();
         
         // Add the attribute if it's new
@@ -179,7 +184,7 @@ public class FeatureSet implements JSONSerializable {
                     type = Type.RANGE;
                 }
             }
-            if (debug) LOG.debug("Adding new attribute " + key + " [" + type + "]");
+            if (debug.get()) LOG.debug("Adding new attribute " + key + " [" + type + "]");
             this.attributes.put(key, type);
             this.attribute_histograms.put(key, new Histogram());
             this.attribute_types.put(key, VoltType.NULL);
@@ -203,7 +208,7 @@ public class FeatureSet implements JSONSerializable {
         int num_attributes = this.attributes.size();
         Vector<Object> values = this.txn_values.get(txn_id); 
         if (values == null) {
-            if (trace) LOG.trace("Creating new feature vector for " + txn_id);
+            if (trace.get()) LOG.trace("Creating new feature vector for " + txn_id);
             values = new Vector<Object>(num_attributes);
             values.setSize(num_attributes);
             this.txn_values.put(txn_id, values);
@@ -214,7 +219,7 @@ public class FeatureSet implements JSONSerializable {
                 v.setSize(num_attributes);
             } // FOR
             this.last_num_attributes = num_attributes;
-            if (trace) LOG.trace("Increased FeatureSet size to " + this.last_num_attributes + " attributes");
+            if (trace.get()) LOG.trace("Increased FeatureSet size to " + this.last_num_attributes + " attributes");
         }
         this.txn_values.get(txn_id).set(idx, val);
         
@@ -222,7 +227,7 @@ public class FeatureSet implements JSONSerializable {
             this.attribute_types.put(key, VoltType.typeFromClass(val.getClass()));
         }
         
-        if (trace) LOG.trace(txn_id + ": " + key + " => " + val);
+        if (trace.get()) LOG.trace(txn_id + ": " + key + " => " + val);
     }
 
     /**
@@ -239,8 +244,6 @@ public class FeatureSet implements JSONSerializable {
     }
     
     public Instances export(String name, boolean normalize, Collection<String> prefix_include) {
-        final boolean debug = LOG.isDebugEnabled();
-        
         // Figure out what attributes we want to export
         Set<String> export_attrs = new ListOrderedSet<String>();
         for (String key : this.attributes.keySet()) {
@@ -253,11 +256,11 @@ public class FeatureSet implements JSONSerializable {
             } // FOR
             if (include) export_attrs.add(key);
         } // FOR
-        if (debug) LOG.debug("# of Attributes to Export: " + export_attrs.size());
+        if (debug.get()) LOG.debug("# of Attributes to Export: " + export_attrs.size());
         
         List<SortedMap<Object, Double>> normalized_values = null;
         if (normalize) {
-            if (debug) LOG.debug("Normalizing values!");
+            if (debug.get()) LOG.debug("Normalizing values!");
             normalized_values = new ArrayList<SortedMap<Object,Double>>();
             for (String key : export_attrs) {
                 normalized_values.add(this.attribute_histograms.get(key).normalize()); 

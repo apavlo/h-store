@@ -1778,7 +1778,7 @@ DESIGNER
     </condition>
 
     <java fork="yes" failonerror="true" classname="edu.brown.workload.CombineWorkloadTraces">
-        <jvmarg value="-Xmx${volt.client.memory}m" />
+        <jvmarg value="-Xmx${volt.server.memory}m" />
         <jvmarg value="-Dlog4j.configuration=${basedir}/log4j.properties"/>
         <arg value="catalog.jar=${jar}" />
         <arg value="workload.output=${output}" />
@@ -2164,7 +2164,7 @@ H-STORE REMIX
         <arg value="correlations=${correlations}" />
         <arg value="partitionplan=${partitionplan}" />
         <arg value="partitionplan.apply=true" />
-        <arg value="workload.output=${trace}" />
+        <arg value="workload.output=${workload.output}" />
         <arg value="workload.procexclude=${benchmark.workload.ignore}" />
         <classpath refid='project.classpath' />
         <assertions><enable /></assertions>

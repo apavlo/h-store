@@ -3,6 +3,7 @@ package edu.brown.markov;
 import java.text.DecimalFormat;
 import java.util.*;
 import java.util.Map.Entry;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.log4j.Logger;
 import org.json.*;
@@ -12,6 +13,7 @@ import edu.brown.catalog.CatalogKey;
 import edu.brown.graphs.AbstractVertex;
 import edu.brown.utils.ClassUtil;
 import edu.brown.utils.CollectionUtil;
+import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.MathUtil;
 import edu.brown.utils.StringUtil;
 
@@ -22,6 +24,11 @@ import edu.brown.utils.StringUtil;
  */
 public class Vertex extends AbstractVertex {
     private static final Logger LOG = Logger.getLogger(Vertex.class);
+    private final static AtomicBoolean debug = new AtomicBoolean(LOG.isDebugEnabled());
+    private final static AtomicBoolean trace = new AtomicBoolean(LOG.isTraceEnabled());
+    static {
+        LoggerUtil.attachObserver(LOG, debug, trace);
+    }
     
     // ----------------------------------------------------------------------------
     // INTERNAL DATA ENUMS
@@ -474,7 +481,7 @@ public class Vertex extends AbstractVertex {
      * @param probability
      */
     private void setProbability(Vertex.Probability ptype, int partition, double probability) {
-        LOG.trace("(" + ptype + ", " + partition + ") => " + probability);
+        if (trace.get()) LOG.trace("(" + ptype + ", " + partition + ") => " + probability);
         this.probabilities.get(ptype).put(partition, probability);
     }
 

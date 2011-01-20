@@ -60,6 +60,13 @@ public interface ClientResponse {
      */
     public long getClientHandle();
     public void setClientHandle(long handle); // HACK
+
+    /**
+     * Returns true if this transaction executed as a single-partition txn
+     * @return
+     */
+    public boolean isSinglePartition();
+    public void setSinglePartition(boolean val);
     
     /**
      * Get the transaction id for this response
