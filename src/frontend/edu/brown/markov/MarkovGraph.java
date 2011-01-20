@@ -325,6 +325,9 @@ public class MarkovGraph extends AbstractDirectedGraph<Vertex, Edge> implements 
                 }
             }.traverse(v);
         } // FOR (COMMIT, ABORT)
+        for (Vertex v : this.getVertices()) {
+            v.trimProbabilities();
+        } // FOR
     }
 
     /**
