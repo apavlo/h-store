@@ -82,6 +82,9 @@
 </condition>
 <property file="${benchmark.dir}/${project}.properties" prefix="benchmark" />
 <property name="benchmark.jar" location="${project}.jar" />
+<condition property="jar" value="${benchmark.jar}">
+    <not><isset property="jar"/></not>
+</condition>
 
 <!-- Default heap size for Volt server (MB)  -->
 <condition property="volt.server.memory" value="2048">
@@ -1839,6 +1842,40 @@ DESIGNER
         <arg value="workload.procinclude=${include}" />
         <arg value="workload.procinclude.multiplier=${multiplier}" />
         <arg value="markov.output=${output}" />
+        <classpath refid='project.classpath' />
+        <assertions><enable /></assertions>
+    </java>
+</target>
+
+<target name='markov-extractor' description="Generate Weka Feature Files">
+    <java fork="yes" classname="edu.brown.markov.FeatureExtractor" failonerror='true'>
+        <jvmarg value="-Xmx${volt.client.memory}m" />
+        <arg value="catalog.jar=${jar}" />
+        <arg value="workload=${workload}" />
+        <arg value="workload.xactlimit=${limit}" />
+        <arg value="workload.xactoffset=${offset}" />
+        <arg value="workload.procexclude=${exclude}" />
+        <arg value="workload.procinclude=${include}" />
+        <arg value="workload.procinclude.multiplier=${multiplier}" />
+        <arg value="correlations=./files/correlations/${project}.correlations" />
+        <classpath refid='project.classpath' />
+        <assertions><enable /></assertions>
+    </java>
+</target>
+
+<target name='markov-cluster' description="Generate Markov Cluster-based File">
+    <java fork="yes" classname="edu.brown.markov.FeatureClusterer" failonerror='true'>
+        <jvmarg value="-Xmx${volt.client.memory}m" />
+        <arg value="catalog.jar=${jar}" />
+        <arg value="workload=${workload}" />
+        <arg value="workload.xactlimit=${limit}" />
+        <arg value="workload.xactoffset=${offset}" />
+        <arg value="workload.procexclude=${exclude}" />
+        <arg value="workload.procinclude=${include}" />
+        <arg value="workload.procinclude.multiplier=${multiplier}" />
+        <arg value="correlations=./files/correlations/${project}.correlations" />
+        <arg value="${procedure}" />
+        <arg value="${procedure}.arff" />
         <classpath refid='project.classpath' />
         <assertions><enable /></assertions>
     </java>
