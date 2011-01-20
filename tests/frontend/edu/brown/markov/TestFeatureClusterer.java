@@ -39,7 +39,7 @@ import edu.brown.workload.filters.ProcedureNameFilter;
 public class TestFeatureClusterer extends BaseTestCase {
 
     private static final Class<? extends VoltProcedure> TARGET_PROCEDURE = neworder.class;
-    private static final int WORKLOAD_XACT_LIMIT = 10000;
+    private static final int WORKLOAD_XACT_LIMIT = 1000;
 //    private static final int BASE_PARTITION = 1;
     private static final int NUM_PARTITIONS = 50;
 
@@ -63,7 +63,7 @@ public class TestFeatureClusterer extends BaseTestCase {
             correlations = new ParameterCorrelations();
             correlations.load(file.getAbsolutePath(), catalog_db);
 
-            file = this.getWorkloadFile(ProjectType.TPCC);
+            file = this.getWorkloadFile(ProjectType.TPCC, "100w.large");
             workload = new Workload(catalog);
 
             // Check out this beauty:
@@ -91,18 +91,6 @@ public class TestFeatureClusterer extends BaseTestCase {
         assertNotNull(data);
         
         fclusterer = new FeatureClusterer(catalog_db, workload, correlations);
-    }
-    
-    public Set<Attribute> prefix2attributes(String...prefixes) {
-        Set<Attribute> attributes = new ListOrderedSet<Attribute>();
-        for (String key : prefixes) {
-//            Integer idx = fset.getFeatureIndex(key);
-//            assertNotNull(key, idx);
-            Attribute attribute = data.attribute(key);
-            assertNotNull(key, attribute);
-            attributes.add(attribute);
-        } // FOR
-        return (attributes);
     }
     
     /**
@@ -184,7 +172,7 @@ public class TestFeatureClusterer extends BaseTestCase {
      */
     @Test
     public void testCreateAttributeSet() throws Exception {
-        Set<Attribute> attributes = prefix2attributes(
+        Set<Attribute> attributes = FeatureClusterer.prefix2attributes(data,
 //            FeatureUtil.getFeatureKeyPrefix(BasePartitionFeature.class),
             FeatureUtil.getFeatureKeyPrefix(ParamArrayLengthFeature.class, this.getProcParameter(catalog_proc, 4)),
             FeatureUtil.getFeatureKeyPrefix(ParamNumericValuesFeature.class, this.getProcParameter(catalog_proc, 1))

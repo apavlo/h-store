@@ -33,6 +33,8 @@ import edu.brown.costmodel.MarkovCostModel;
 import edu.brown.graphs.GraphvizExport;
 import edu.brown.markov.features.BasePartitionFeature;
 import edu.brown.markov.features.FeatureUtil;
+import edu.brown.markov.features.ParamArrayLengthFeature;
+import edu.brown.markov.features.ParamNumericValuesFeature;
 import edu.brown.statistics.Histogram;
 import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.CollectionUtil;
@@ -316,7 +318,7 @@ public class FeatureClusterer {
         final int validationCnt = validationData.numInstances();
         
         // Build our clusterer
-        if (debug.get()) LOG.debug(String.format("Constructing Clusterer using %d Attributes with %d Partitions: %s", aset.size(), this.all_partitions.size(), aset));
+        if (debug.get()) LOG.debug(String.format("Training Clusterer [attributes=%d, training=%d, validation=%d, partitions=%d]", aset.size(), trainingCnt, validationCnt, this.all_partitions.size()));
         AbstractClusterer clusterer = this.createClusterer(trainingData, aset, catalog_proc);
         
         // We want to always split the MarkovGraphContainers by base partition, since we already know
@@ -434,7 +436,7 @@ public class FeatureClusterer {
         if (debug.get()) LOG.debug(String.format("Estimating prediction rates of clusterer with %d transactions...", validationCnt));
         for (int i = 0; i < validationCnt; i++) {
             Instance inst = validationData.instance(i);
-            long txn_id = (long)inst.value(FeatureExtractor.TXNID_ATTRIBUTE_IDX);
+            long txn_id = Long.valueOf(inst.stringValue(FeatureExtractor.TXNID_ATTRIBUTE_IDX));
             int c = (int)clusterer.clusterInstance(inst);
 
             TransactionTrace txn_trace = this.workload.getTransaction(txn_id);
@@ -527,8 +529,8 @@ public class FeatureClusterer {
         } // FOR
         
         if (debug.get()) {
-//            LOG.debug("Keys to Clusters:\n" + StringUtil.formatMaps(key_to_cluster));
-//            LOG.debug("Clusters to Keys:\n" + StringUtil.formatMaps(cluster_to_key));
+            LOG.debug("Keys to Clusters:\n" + StringUtil.formatMaps(key_to_cluster));
+            LOG.debug("Clusters to Keys:\n" + StringUtil.formatMaps(cluster_to_key));
             
             AtomicInteger values[][] = new AtomicInteger[][]{
                 c_counters,
@@ -614,7 +616,28 @@ public class FeatureClusterer {
     public void calculate(Instances data, Procedure catalog_proc) throws Exception {
         this.findBestAttributeSet(data, catalog_proc);
     }
+    
+    /**
+     * Helper method to convet Feature keys to Attributes
+     * @param data
+     * @param prefixes
+     * @return
+     */
+    public static Set<Attribute> prefix2attributes(Instances data, String...prefixes) {
+        Set<Attribute> attributes = new ListOrderedSet<Attribute>();
+        for (String key : prefixes) {
+            Attribute attribute = data.attribute(key);
+            assert(attribute != null) : "Invalid Attribute key '" + key + "'";
+            attributes.add(attribute);
+        } // FOR
+        return (attributes);
+    }
 
+    /**
+     * Main!
+     * @param vargs
+     * @throws Exception
+     */
     public static void main(String[] vargs) throws Exception {
         ArgumentsParser args = ArgumentsParser.load(vargs);
         args.require(
@@ -632,9 +655,19 @@ public class FeatureClusterer {
         BufferedReader reader = new BufferedReader(new FileReader(arff_path));
         Instances data = new Instances(reader);
         reader.close();
+        data = new Instances(data, 0, args.workload.getTransactionCount());
+        assert(args.workload.getTransactionCount() == data.numInstances());
         
         FeatureClusterer fclusterer = new FeatureClusterer(args.catalog_db, args.workload, args.param_correlations);
-        fclusterer.calculate(data, catalog_proc);
+        
+        Set<Attribute> attributes = prefix2attributes(data,
+            FeatureUtil.getFeatureKeyPrefix(ParamArrayLengthFeature.class, catalog_proc.getParameters().get(4)),
+            FeatureUtil.getFeatureKeyPrefix(ParamNumericValuesFeature.class, catalog_proc.getParameters().get(1))
+        );
+        System.err.println("Attributes: " + attributes);
+        Pair<Instances, Instances> p = fclusterer.splitWorkload(data);
+        AttributeSet aset = fclusterer.createAttributeSet(catalog_proc, attributes, p.getFirst(), p.getSecond());
+        System.err.println(aset + "\nCost: " + aset.getCost());
     }
     
 }

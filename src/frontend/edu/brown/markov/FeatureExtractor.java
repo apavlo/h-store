@@ -145,7 +145,7 @@ public class FeatureExtractor {
 //            LOG.info(String.format("Wrote FeatureSet with %d instances to '%s'", e.getValue().getTransactionCount(), path.getAbsolutePath()));
 
             File path = new File(proc_name + ".arff");
-            Instances data = e.getValue().export(proc_name, true);
+            Instances data = e.getValue().export(proc_name, false);
             FileUtil.writeStringToFile(path, data.toString());
             LOG.info(String.format("Wrote FeatureSet with %d instances to '%s'", data.numInstances(), path.getAbsolutePath()));
         }
