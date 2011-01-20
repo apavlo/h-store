@@ -65,7 +65,7 @@ public class MarkovCostModel extends AbstractCostModel {
      * @param cluster_id
      * @param t_estimator
      */
-    public void addTransactionEstimator(int cluster_id, TransactionEstimator t_estimator) {
+    public synchronized void addTransactionEstimator(int cluster_id, TransactionEstimator t_estimator) {
         this.t_estimators.put(cluster_id, t_estimator);
     }
     

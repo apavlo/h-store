@@ -65,7 +65,7 @@ public class FeatureClusterer {
     // For each search round, we will only propagate the attributes found this these top-k AttibuteSets 
     private static final double ATTRIBUTESET_TOP_K = 0.10;
     
-    private static final int NUM_THREADS = 5;
+    private static final int NUM_THREADS = 8;
     
     private final Database catalog_db;
     private final Workload workload;
@@ -392,8 +392,10 @@ public class FeatureClusterer {
             Thread t = new Thread() {
                 @Override
                 public void run() {
-                    if (debug.get()) LOG.debug("Calculating probabilities for Partition #" + partition);
+                    if (debug.get()) LOG.debug(String.format("Calculating probabilities for Partition #%d [clusters=%d]", partition, markovs.size()));
+                    int i = 0;
                     for (Entry<Integer, Map<Procedure, MarkovGraph>> e : markovs.entrySet()) {
+                        if (debug.get()) LOG.debug(String.format("Partition %d - Cluster %d", partition, i++));
                         
                         // Calculate the probabilities for each graph
                         for (MarkovGraph markov : e.getValue().values()) {

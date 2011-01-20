@@ -32,14 +32,14 @@ public class Edge extends AbstractEdge implements Comparable<Edge> {
     /**
      * This is the total number of times that we have traversed over this edge
      */
-    public long hits;
+    public int hits;
 
     /**
      * This is the temporary number of times that we have traversed over this edge in the current "period" of the
      * MarkovGraph. This will eventually get folded into the global hits count, but we need to keep it separate so that
      * we can determine whether the current workload is deviating from the training set
      */
-    private transient long instancehits = 0;
+    private transient int instancehits = 0;
 
     /**
      * Constructor

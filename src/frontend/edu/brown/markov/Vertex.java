@@ -152,7 +152,7 @@ public class Vertex extends AbstractVertex {
     /**
      * The number of times this vertex has been touched in the current on-line run
      */
-    private transient long instancehits = 0;
+    private transient int instancehits = 0;
     
     /**
      * The execution times of the transactions in the on-line run
@@ -651,7 +651,7 @@ public class Vertex extends AbstractVertex {
     /**
      * Set the number of instance hits, useful for testing
      */
-    public void setInstancehits(long instancehits) {
+    public void setInstancehits(int instancehits) {
         this.instancehits = instancehits;
     }
 
