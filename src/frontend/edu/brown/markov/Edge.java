@@ -27,7 +27,7 @@ public class Edge extends AbstractEdge implements Comparable<Edge> {
     /**
      * This is the probability that the source of the edge will transition to the destination vertex
      */
-    public double probability;
+    public float probability;
 
     /**
      * This is the total number of times that we have traversed over this edge
@@ -55,7 +55,7 @@ public class Edge extends AbstractEdge implements Comparable<Edge> {
     public Edge(IGraph<Vertex, Edge> graph, int hits, double probability) {
         super(graph);
         this.hits = hits;
-        this.probability = probability;
+        this.probability = (float)probability;
     }
 
     @Override

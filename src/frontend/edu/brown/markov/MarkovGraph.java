@@ -205,7 +205,7 @@ public class MarkovGraph extends AbstractDirectedGraph<Vertex, Edge> implements 
      * Calculate the probabilities for this graph This invokes the static
      * methods in Vertex to calculate each probability
      */
-    public synchronized void calculateProbabilities() {
+    public void calculateProbabilities() {
         // Reset all probabilities
         for (Vertex v : this.getVertices()) {
             v.resetAllProbabilities();
