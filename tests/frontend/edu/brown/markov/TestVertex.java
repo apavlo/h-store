@@ -229,12 +229,12 @@ public class TestVertex extends BaseTestCase {
         
         v.resetAllProbabilities();
         
-        assertEquals(0.0d, v.getAbortProbability());
-        assertEquals(0.0d, v.getSingleSitedProbability());
+        assertEquals(0.0f, v.getAbortProbability());
+        assertEquals(0.0f, v.getSingleSitedProbability());
         for (int i = 0; i < NUM_PARTITIONS; i++) {
-            assertEquals(1.0d, v.getDoneProbability(i));
-            assertEquals(0.0d, v.getWriteProbability(i));
-            assertEquals(0.0d, v.getReadOnlyProbability(i));
+            assertEquals(1.0f, v.getDoneProbability(i));
+            assertEquals(0.0f, v.getWriteProbability(i));
+            assertEquals(0.0f, v.getReadOnlyProbability(i));
         } // FOR
     }
 
