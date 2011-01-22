@@ -29,6 +29,7 @@ import java.nio.ByteBuffer;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
 import java.util.Hashtable;
+import java.util.Map;
 
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
@@ -61,9 +62,9 @@ public class SocketJoiner extends Thread {
     static final int PING = 333;
     InetAddress m_coordIp;
     int m_localHostId;
-    Hashtable<Integer, SocketChannel> m_sockets = new Hashtable<Integer, SocketChannel>();
-    Hashtable<Integer, DataInputStream> m_inputs = new Hashtable<Integer, DataInputStream>();
-    Hashtable<Integer, DataOutputStream> m_outputs = new Hashtable<Integer, DataOutputStream>();
+    Map<Integer, SocketChannel> m_sockets = new Hashtable<Integer, SocketChannel>();
+    Map<Integer, DataInputStream> m_inputs = new Hashtable<Integer, DataInputStream>();
+    Map<Integer, DataOutputStream> m_outputs = new Hashtable<Integer, DataOutputStream>();
     ServerSocketChannel m_listenerSocket = null;
     int m_expectedHosts;
     Logger m_hostLog;
@@ -439,15 +440,15 @@ public class SocketJoiner extends Thread {
         return m_localHostId;
     }
 
-    Hashtable<Integer, SocketChannel> getHostsAndSockets() {
+    Map<Integer, SocketChannel> getHostsAndSockets() {
         return m_sockets;
     }
 
-    Hashtable<Integer, DataOutputStream> getHostsAndOutputs() {
+    Map<Integer, DataOutputStream> getHostsAndOutputs() {
         return m_outputs;
     }
 
-    Hashtable<Integer, DataInputStream> getHostsAndInputs() {
+    Map<Integer, DataInputStream> getHostsAndInputs() {
         return m_inputs;
     }
 }

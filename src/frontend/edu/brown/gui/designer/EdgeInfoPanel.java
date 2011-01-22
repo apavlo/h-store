@@ -117,7 +117,7 @@ public class EdgeInfoPanel extends AbstractInfoPanel<Edge> {
         Set<String> attributes = edge.getAttributes();
         if (attributes != null) {
             for (String attr : attributes) {
-                if (attr == AccessGraph.EdgeAttributes.COLUMNSET.name()) continue;
+                if (attr.equals(AccessGraph.EdgeAttributes.COLUMNSET.name())) continue;
     
                 c.gridx = 0;
                 c.gridy++;

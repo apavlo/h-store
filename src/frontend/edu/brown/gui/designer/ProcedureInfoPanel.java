@@ -43,7 +43,7 @@ public class ProcedureInfoPanel extends AbstractInfoPanel<Procedure> {
         c.insets = AbstractViewer.insets;
         
         c.gridx = 0;
-        c.gridy = c.gridy++;
+        c.gridy++;
         c.gridwidth = 2;
         c.anchor = GridBagConstraints.LINE_START;
         

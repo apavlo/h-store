@@ -228,7 +228,7 @@ public abstract class AbstractRandomGenerator extends Random {
         }
         AbstractRandomGenerator rng = null;
         try {
-            rng = factoryCache.get(className).newInstance(new Object[]{ new Integer(seed) });
+            rng = factoryCache.get(className).newInstance(new Object[]{ Integer.valueOf(seed) });
         } catch (Exception ex) {
             System.err.println("Failed to instantiate object for " + className);
             ex.printStackTrace();
