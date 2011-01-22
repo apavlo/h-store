@@ -62,25 +62,26 @@ public class IndexPlan extends HashMap<Table, Set<IndexPlan.Entry>> {
         
         @Override
         public String toString() {
-            String ret = catalog_tbl.getName() + " (";
+        	StringBuilder sb = new StringBuilder();
+        	sb.append(catalog_tbl.getName() + " (");
             String add = "";
             
             //
             // Super Lame...
             //
-            Vector<Column> sorted = new Vector<Column>();
-            sorted.setSize(this.catalog_tbl.getColumns().size());
+            ArrayList<Column> sorted = new ArrayList<Column>(this.catalog_tbl.getColumns().size());
+
             for (Column catalog_col : this.columns) {
                 sorted.set(catalog_col.getIndex(), catalog_col);
             } // FOR
             for (Column catalog_col : sorted) {
                 if (catalog_col != null) {
-                    ret += add + catalog_col.getName();
+                    sb.append(add + catalog_col.getName());
                     add = ", ";
                 }
             } // FOR
-            ret += ")";
-            return (ret);
+            sb.append(")");
+            return sb.toString();
         }
     }
     
@@ -96,8 +97,8 @@ public class IndexPlan extends HashMap<Table, Set<IndexPlan.Entry>> {
      */
     public Set<Entry> getIndexes() {
         Set<Entry> ret = new HashSet<Entry>();
-        for (Table catalog_tbl : this.keySet()) {
-            ret.addAll(this.get(catalog_tbl));
+        for ( Set<Entry> entries : this.values()){
+        	ret.addAll(entries);
         } // FOR
         return (ret);
     }

@@ -2,6 +2,7 @@ package edu.brown.workload;
 
 import java.io.FileOutputStream;
 import java.util.*;
+import java.util.Map.Entry;
 
 import org.apache.commons.collections15.set.ListOrderedSet;
 import org.apache.log4j.Logger;
@@ -280,9 +281,10 @@ public abstract class FixWorkload {
         
         buffer = new StringBuilder();
         buffer.append("Partition Histograms:\n");
-        for (Integer partition_id : histograms.keySet()) {
+        for ( Entry<Integer, Histogram> entry : histograms.entrySet()) {
+        	Integer partition_id = entry.getKey();
             buffer.append("Partition: " + partition_id + " [" + distributions.get(partition_id).getMin() + "]\n");
-            buffer.append(histograms.get(partition_id)).append("\n");
+            buffer.append(entry.getValue()).append("\n");
         } // FOR
         LOG.info(buffer.toString());
         return;

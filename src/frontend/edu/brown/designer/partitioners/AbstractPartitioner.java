@@ -463,8 +463,9 @@ public abstract class AbstractPartitioner {
         // Increase the weight of the columns based on the number foreign key descendants they have
         DependencyUtil dependencies = DependencyUtil.singleton(CatalogUtil.getDatabase(catalog_tbl));
         if (debug) LOG.debug("Calculating descendants for columns");
-        for (Column catalog_col : column_weights.keySet()) {
-            Double weight = column_weights.get(catalog_col);
+        for ( Entry<Column, Double> entry : column_weights.entrySet()) {
+        	Column catalog_col = entry.getKey();
+            Double weight = entry.getValue();
             int descendants = dependencies.getDescendants(catalog_col).size();
             column_weights.put(catalog_col, weight * (descendants + 1));
             if (descendants > 0) LOG.debug("  " + catalog_col + ": " + descendants);

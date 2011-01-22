@@ -85,6 +85,8 @@ public class BatchPlanner {
         
         @Override
         public boolean equals(Object obj) {
+        	if (this == obj) return true;
+        		
             if (!(obj instanceof PlanVertex)) return (false);
             PlanVertex other = (PlanVertex)obj;
             if (!this.getCatalogItem().equals(other.getCatalogItem()) ||
