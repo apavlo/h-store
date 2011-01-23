@@ -59,7 +59,7 @@ if __name__ == '__main__':
 
     args = map(string.strip, args)
     trace_file = options["trace"][0] if "trace" in options else "-"
-    command = args.pop(0)
+    command = args.pop(0).lower()
     search_key = args[0] if len(args) > 0 else None
     if search_key != None and search_key.isdigit(): search_key = int(search_key)
     
@@ -234,6 +234,12 @@ if __name__ == '__main__':
                     count_data[catalog_name] += 1
                     limit_ctr += 1
                 ## IF
+            ## ----------------------------------------------
+            ## INVALID!
+            ## ----------------------------------------------
+            else:
+                logging.fatal("Invalid command '%s'" % command.upper())
+                sys.exit(1)
             ## IF
         ## FOR
     ## WITH

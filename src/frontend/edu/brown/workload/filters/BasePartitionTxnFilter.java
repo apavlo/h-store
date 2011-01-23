@@ -1,5 +1,9 @@
 package edu.brown.workload.filters;
 
+import java.util.Collection;
+import java.util.HashSet;
+import java.util.Set;
+
 import org.voltdb.catalog.CatalogType;
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Procedure;
@@ -13,13 +17,20 @@ public class BasePartitionTxnFilter extends Workload.Filter {
     
     private final PartitionEstimator p_estimator;
     private final Database catalog_db;
-    private final int base_partition;
+    private final Set<Integer> base_partitions = new HashSet<Integer>();
     
-    public BasePartitionTxnFilter(PartitionEstimator p_estimator, int base_partition) {
+    public BasePartitionTxnFilter(PartitionEstimator p_estimator, int...base_partitions) {
         super();
         this.p_estimator = p_estimator;
-        this.base_partition = base_partition;
         this.catalog_db = p_estimator.getDatabase();
+        
+        for (int p : base_partitions) {
+            this.base_partitions.add(p);
+        }
+    }
+    
+    public void addPartitions(Collection<Integer> p) {
+        this.base_partitions.addAll(p);
     }
     
     @Override
@@ -40,7 +51,7 @@ public class BasePartitionTxnFilter extends Workload.Filter {
                 assert(false);
             }
             assert(partition >= 0);
-            return (partition == base_partition ? FilterResult.ALLOW : FilterResult.SKIP);
+            return (this.base_partitions .contains(partition) ? FilterResult.ALLOW : FilterResult.SKIP);
         }
         return FilterResult.ALLOW;
     }

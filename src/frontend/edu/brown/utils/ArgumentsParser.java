@@ -85,6 +85,7 @@ public class ArgumentsParser {
     public static final String PARAM_WORKLOAD_PROC_INCLUDE  = PARAM_WORKLOAD + ".procinclude";
     public static final String PARAM_WORKLOAD_PROC_SAMPLE   = PARAM_WORKLOAD + ".sampling";
     public static final String PARAM_WORKLOAD_PROC_INCLUDE_MULTIPLIER  = PARAM_WORKLOAD_PROC_INCLUDE + ".multiplier";
+    public static final String PARAM_WORKLOAD_RANDOM_PARTITIONS = PARAM_WORKLOAD + ".randombase";
     public static final String PARAM_WORKLOAD_OUTPUT        = PARAM_WORKLOAD + ".output";
     public static final String PARAM_WORKLOAD_CLASS         = PARAM_WORKLOAD + ".class";
     
@@ -503,12 +504,30 @@ public class ArgumentsParser {
             if (params.containsKey(PARAM_WORKLOAD_REMOVE_DUPES)) {
                 this.workload_filter = new DuplicateTraceFilter();
             }
+
+            // TRANSACTION OFFSET
+            if (params.containsKey(PARAM_WORKLOAD_XACT_OFFSET)) {
+                this.workload_xact_offset = Long.parseLong(params.get(PARAM_WORKLOAD_XACT_OFFSET));
+                ProcedureLimitFilter filter = new ProcedureLimitFilter(-1l, this.workload_xact_offset);
+                // Important! The offset should go in the front!
+                this.workload_filter = (this.workload_filter != null ? filter.attach(this.workload_filter) : filter);
+            }
+            
+            // RANDOM BASE PARTITIONS
+            if (params.containsKey(PARAM_WORKLOAD_RANDOM_PARTITIONS)) {
+                BasePartitionTxnFilter filter = new BasePartitionTxnFilter(new PartitionEstimator(catalog_db));
+                
+                double factor = this.getDoubleParam(PARAM_WORKLOAD_RANDOM_PARTITIONS);
+                List<Integer> partitions = new ArrayList<Integer>(CatalogUtil.getAllPartitionIds(catalog_db)); 
+                Collections.shuffle(partitions, new Random());
+                filter.addPartitions(partitions.subList(0, (int)(partitions.size() * factor)));
+                this.workload_filter = (this.workload_filter != null ? this.workload_filter.attach(filter) : filter);
+            }
+
             
             // Txn Limit
             this.workload_xact_limit = this.getLongParam(PARAM_WORKLOAD_XACT_LIMIT);
-            
             Histogram proc_histogram = null;
-            
             // Include/exclude procedures from the traces
             if (params.containsKey(PARAM_WORKLOAD_PROC_INCLUDE) || params.containsKey(PARAM_WORKLOAD_PROC_EXCLUDE)) {
                 Workload.Filter filter = new ProcedureNameFilter();
@@ -606,14 +625,6 @@ public class ArgumentsParser {
                 this.workload_query_limit = Long.parseLong(params.get(PARAM_WORKLOAD_QUERY_LIMIT));
                 QueryLimitFilter filter = new QueryLimitFilter(this.workload_query_limit);
                 this.workload_filter = (this.workload_filter != null ? this.workload_filter.attach(filter) : filter);
-            }
-
-            // TRANSACTION OFFSET
-            if (params.containsKey(PARAM_WORKLOAD_XACT_OFFSET)) {
-                this.workload_xact_offset = Long.parseLong(params.get(PARAM_WORKLOAD_XACT_OFFSET));
-                ProcedureLimitFilter filter = new ProcedureLimitFilter(-1l, this.workload_xact_offset);
-                // Important! The offset should go in the front!
-                this.workload_filter = (this.workload_filter != null ? filter.attach(this.workload_filter) : filter);
             }
             
             if (this.workload_filter != null && debug) LOG.debug("Workload Filters: " + this.workload_filter.toString());

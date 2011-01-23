@@ -126,11 +126,26 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
     private final AtomicInteger completed_txns = new AtomicInteger(0);
 
     /**
-     * 
+     * TransactionId to final RpcCallback to the client
      */
-    private final ConcurrentHashMap<Long, RpcCallback<byte[]>> client_callbacks = new ConcurrentHashMap<Long, RpcCallback<byte[]>>();
+    private final Map<Long, RpcCallback<byte[]>> client_callbacks = new ConcurrentHashMap<Long, RpcCallback<byte[]>>();
     
-    private final ConcurrentHashMap<Long, CountDownLatch> init_latches = new ConcurrentHashMap<Long, CountDownLatch>();
+    /**
+     * TransactionId to Initialization barriers
+     * This ensures that a transaction does not start until the Dtxn.Coordinator has returned the acknowledgement
+     * that from our call from procedureInvocation()->execute()
+     * This probably should be pushed further into the ExecutionSite so that we can actually invoke the procedure
+     * but just not send any data requests.
+     */
+    private final Map<Long, CountDownLatch> init_latches = new ConcurrentHashMap<Long, CountDownLatch>();
+    
+    /**
+     * This is a mapping for the transactions that were restarted because of a misprediction from the second
+     * transaction id back to the second transaction id.
+     * Restart Txn# -> Original Txn#
+     */
+    private final Map<Long, Long> restarted_txns = new ConcurrentHashMap<Long, Long>();
+    
     
     /**
      * Simple Status Printer
@@ -389,19 +404,23 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         return (this.executors.size());
     }
     
-    public void setDtxnCoordinator(Dtxn.Coordinator coordinator) {
+    protected void setDtxnCoordinator(Dtxn.Coordinator coordinator) {
         this.coordinator = coordinator;
-    }
-    
-    public Dtxn.Coordinator getDtxnCoordinator() {
-        return (this.coordinator);
     }
     
     public HStoreMessenger getMessenger() {
         return messenger;
     }
+
+    /**
+     * Return the estimation thresholds used for this HStoreSite 
+     * @return
+     */
+    public EstimationThresholds getThresholds() {
+        return thresholds;
+    }
     
-    private void setEstimationThresholds(EstimationThresholds thresholds) {
+    private void setThresholds(EstimationThresholds thresholds) {
          this.thresholds = thresholds;
     }
     
@@ -637,18 +656,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
                                                     .setOutput(ByteString.EMPTY)
                                                     .build();
             done.run(response);
-            
-            // Now wait until we know the Dtxn.Coordinator processed our request
-            if (trace.get()) LOG.trace("Waiting for Dtxn.Coordinator to process our initialization response because Evan eats babies!!");
-            CountDownLatch latch = this.init_latches.remove(real_txn_id);
-            assert(latch != null) : "Missing initialization latch for txn #" + real_txn_id;
-            try {
-                latch.await();
-            } catch (Exception ex) {
-                LOG.fatal("Unexpected error when waiting for latch on txn #" + real_txn_id, ex);
-                this.shutdown();
-            }
-            if (trace.get()) LOG.trace("Got the all clear message for txn #" + real_txn_id);
+            assert(this.init_latches.containsKey(real_txn_id)) : "Missing initialization latch for txn #" + real_txn_id;
             
             RpcCallback<byte[]> client_callback = this.client_callbacks.get(real_txn_id);
             assert(client_callback != null) : "Missing original RpcCallback for txn #" + real_txn_id;
@@ -660,6 +668,48 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         executor.doWork(msg, dtxn_txn_id, callback);
     }
 
+    /**
+     * This will block until the the initialization latch is released by the InitiateCallback
+     * @param txn_id
+     */
+    private void initializationBlock(long txn_id) {
+        CountDownLatch latch = this.init_latches.remove(txn_id);
+        if (latch != null) {
+            // Now wait until we know the Dtxn.Coordinator processed our request
+            if (trace.get()) LOG.trace("Waiting for Dtxn.Coordinator to process our initialization response because Evan eats babies!!");
+            try {
+                latch.await();
+            } catch (Exception ex) {
+                LOG.fatal("Unexpected error when waiting for latch on txn #" + txn_id, ex);
+                this.shutdown();
+            }
+            if (trace.get()) LOG.trace("Got the all clear message for txn #" + txn_id);
+        }
+        return;
+    }
+
+    /**
+     * Request some work to be executed on partitions through the Dtxn.Coordinator
+     * @param txn_id
+     * @param fragment
+     * @param callback
+     */
+    public void requestWork(long txn_id, Dtxn.CoordinatorFragment fragment, RpcCallback<Dtxn.CoordinatorResponse> callback) {
+        this.initializationBlock(txn_id);
+        this.coordinator.execute(new ProtoRpcController(), fragment, callback);
+    }
+
+    /**
+     * Request that the Dtxn.Coordinator finish out transaction
+     * @param txn_id
+     * @param request
+     * @param callback
+     */
+    public void requestFinish(long txn_id, Dtxn.FinishRequest request, RpcCallback<Dtxn.FinishResponse> callback) {
+        this.initializationBlock(txn_id);
+        this.coordinator.finish(new ProtoRpcController(), request, callback);
+    }
+    
     /**
      * 
      */
@@ -946,7 +996,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         // Now we need to create an HStoreMessenger and pass it to all of our ExecutionSites
             
         HStoreSite site = new HStoreSite(catalog_site, executors, p_estimator);
-        site.setEstimationThresholds(args.thresholds); // may be null...
+        site.setThresholds(args.thresholds); // may be null...
         
         // Status Monitor
         if (args.hasParam(ArgumentsParser.PARAM_COORDINATOR_STATUS_INTERVAL)) {

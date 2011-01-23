@@ -327,7 +327,7 @@ public class TransactionEstimator {
      * @param txn_id
      * @return
      */
-    protected State getState(long txn_id) {
+    public State getState(long txn_id) {
         State s = this.xact_states.get(txn_id);
         assert(s != null) : "Unexpected Transaction #" + txn_id;
         return (s);

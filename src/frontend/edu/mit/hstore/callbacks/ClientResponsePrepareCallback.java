@@ -55,8 +55,7 @@ public final class ClientResponsePrepareCallback extends AbstractTxnCallback imp
                                             .build();
         ClientResponseFinalCallback callback = new ClientResponseFinalCallback(this.hstore_coordinator, this.txn_id, output, commit, this.done);
         if (trace) LOG.debug("Calling Dtxn.Coordinator.finish() for txn #" + this.txn_id + " [payload=" + request.hasPayload() + "]");
-        
-        this.hstore_coordinator.getDtxnCoordinator().finish(new ProtoRpcController(), request, callback);
+        this.hstore_coordinator.requestFinish(this.txn_id, request, callback); 
         
         // Then clean-up any extra information that we may have for the txn
         if (this.t_estimator != null) {
