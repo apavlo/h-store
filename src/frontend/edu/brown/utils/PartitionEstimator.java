@@ -24,8 +24,10 @@ import edu.brown.designer.DesignerUtil;
 import edu.brown.hashing.AbstractHasher;
 import edu.brown.hashing.DefaultHasher;
 import edu.brown.plannodes.PlanNodeUtil;
+import edu.brown.statistics.Histogram;
 import edu.brown.workload.QueryTrace;
 import edu.brown.workload.TransactionTrace;
+import edu.brown.workload.Workload;
 
 /**
  * 
@@ -993,5 +995,20 @@ public class PartitionEstimator {
             new_size += cols.size();
         }
         if (new_size != orig_size) populateColumnJoins(column_joins);
+    }
+    
+    /**
+     * Generate a histogram of the base partitions used for all of the transactions in the workload
+     * @param workload
+     * @return
+     * @throws Exception
+     */
+    public Histogram buildBasePartitionHistogram(Workload workload) throws Exception {
+        final Histogram h = new Histogram();
+        for (TransactionTrace txn_trace : workload.getTransactions()) {
+            int base_partition = this.getBasePartition(txn_trace);
+            h.put(base_partition);
+        } // FOR
+        return (h);
     }
 }

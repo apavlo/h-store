@@ -73,6 +73,7 @@ public class TransactionState {
     private final int origin_partition;
     private final Set<Integer> touched_partitions = new HashSet<Integer>();
     private final boolean exec_local;
+    private final boolean single_partitioned;
     private CountDownLatch dependency_latch;
     private Long start_undo_token;
     private Long last_undo_token;
@@ -290,13 +291,14 @@ public class TransactionState {
      * @param client_handle
      * @param callback
      */
-    public TransactionState(ExecutionSite executor, long txn_id, Long dtxn_txn_id, int origin_partition, long client_handle, boolean exec_local) {
+    public TransactionState(ExecutionSite executor, long txn_id, Long dtxn_txn_id, int origin_partition, long client_handle, boolean exec_local, boolean single_partitioned) {
         this.executor = executor;
         this.origin_partition = origin_partition;
         this.txn_id = txn_id;
         this.dtxn_txn_id = dtxn_txn_id;
         this.client_handle = client_handle;
         this.exec_local = exec_local;
+        this.single_partitioned = single_partitioned;
         
         assert(this.exec_local == false || (this.exec_local == true && this.dtxn_txn_id != null)) :
             "Missing Dtxn.Coordinator Txn Id for local Txn #" + this.txn_id; 
@@ -389,10 +391,18 @@ public class TransactionState {
     }
     
     /**
-     * Returns true if this Transaction only touched a single-partition
+     * Returns true if this Transaction was originally predicted to be single-partitioned
      * @return
      */
-    public boolean isSinglePartition() {
+    public boolean isPredictSinglePartition() {
+        return (this.single_partitioned);
+    }
+    
+    /**
+     * Returns true if this Transaction has executed only on a single-partition
+     * @return
+     */
+    public boolean isExecSinglePartition() {
         return (this.touched_partitions.size() == 1);
     }
 

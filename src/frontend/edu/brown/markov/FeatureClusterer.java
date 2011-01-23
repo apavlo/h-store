@@ -200,17 +200,28 @@ public class FeatureClusterer {
     }
     
     /**
-     * Constructor
+     * 
      * @param catalog_db
+     * @param workload
+     * @param correlations
+     * @param all_partitions
      */
-    public FeatureClusterer(Database catalog_db, Workload workload, ParameterCorrelations correlations) {
+    public FeatureClusterer(Database catalog_db, Workload workload, ParameterCorrelations correlations, List<Integer> all_partitions) {
         this.catalog_db = catalog_db;
         this.workload = workload;
         this.correlations = correlations;
         this.p_estimator = new PartitionEstimator(catalog_db);
-        this.all_partitions = CatalogUtil.getAllPartitionIds(catalog_db);
+        this.all_partitions = all_partitions;
         this.findBest_threadpool = Executors.newFixedThreadPool(NUM_THREADS_PER_POOL);
         this.createAttribute_threadpool = Executors.newFixedThreadPool(NUM_THREADS_PER_POOL);
+    }
+    
+    /**
+     * Constructor
+     * @param catalog_db
+     */
+    public FeatureClusterer(Database catalog_db, Workload workload, ParameterCorrelations correlations) {
+        this(catalog_db, workload, correlations, CatalogUtil.getAllPartitionIds(catalog_db));
     }
     
     protected final void cleanup() {
@@ -227,8 +238,8 @@ public class FeatureClusterer {
         int all_cnt = data.numInstances();
         int training_cnt = (int)Math.round(all_cnt * TRAINING_SET_PERCENTAGE);
         Instances trainingData = new Instances(data, 0, training_cnt);
-        Instances validationData = new Instances(data, training_cnt, all_cnt - training_cnt);
-//        Instances validationData = new Instances(data);
+//                Instances validationData = new Instances(data, training_cnt, all_cnt - training_cnt);
+        Instances validationData = new Instances(data);
         return (Pair.of(trainingData, validationData));
     }
 
@@ -412,9 +423,10 @@ public class FeatureClusterer {
         // IMPORTANT: We run out of memory if we try to build the MarkovGraphs for all of the 
         // partitions+clusters. So instead we are going to randomly select some of the partitions to be used in the 
         // cost model estimation.
-        List<Integer> temp = new ArrayList<Integer>(this.all_partitions);
-        Collections.shuffle(temp, this.rand);
-        final List<Integer> partitions = temp.subList(0, (int)(temp.size() * PARTITION_EVALUATION_FACTOR));
+//        List<Integer> temp = new ArrayList<Integer>(this.all_partitions);
+//        Collections.shuffle(temp, this.rand);
+//        final List<Integer> partitions = temp.subList(0, (int)(temp.size() * PARTITION_EVALUATION_FACTOR));
+        final List<Integer> partitions = new ArrayList<Integer>(this.all_partitions);
         if (debug.get()) LOG.debug(String.format("Generating MarkovGraphs for %d out of %d partitions", partitions.size(), this.all_partitions.size()));
         
         final CountDownLatch costmodel_latch = new CountDownLatch(partitions.size() + 1);
@@ -738,15 +750,34 @@ public class FeatureClusterer {
         assert(catalog_proc != null) : proc_name;
         
         // And our Weka data file
-        File arff_path = new File(args.getOptParam(1));
-        assert(arff_path.exists()) : arff_path.getAbsolutePath();
-        BufferedReader reader = new BufferedReader(new FileReader(arff_path));
-        Instances data = new Instances(reader);
-        reader.close();
-        data = new Instances(data, 0, args.workload.getTransactionCount());
+//        File arff_path = new File(args.getOptParam(1));
+//        assert(arff_path.exists()) : arff_path.getAbsolutePath();
+//        BufferedReader reader = new BufferedReader(new FileReader(arff_path));
+//        Instances data = new Instances(reader);
+//        reader.close();
+//        data = new Instances(data, 0, args.workload.getTransactionCount());
+        
+        FeatureExtractor fextractor = new FeatureExtractor(args.catalog_db);
+        Instances data = fextractor.calculate(args.workload).get(catalog_proc).export(catalog_proc.getName());
+        
         assert(args.workload.getTransactionCount() == data.numInstances());
         
-        FeatureClusterer fclusterer = new FeatureClusterer(args.catalog_db, args.workload, args.param_correlations);
+        FeatureClusterer fclusterer = null;
+        if (args.hasParam(ArgumentsParser.PARAM_WORKLOAD_RANDOM_PARTITIONS)) {
+            Histogram h = new PartitionEstimator(args.catalog_db).buildBasePartitionHistogram(args.workload);
+//            System.err.println("# OF PARTITIONS: " + h.getValueCount());
+//            h.setKeepZeroEntries(true);
+//            for (Integer p : CatalogUtil.getAllPartitionIds(args.catalog_db)) {
+//                if (h.contains(p) == false) h.put(p, 0);
+//            }
+//            System.err.println(h);
+//            System.exit(1);
+//            
+            Set<Integer> partitions = h.values();
+            fclusterer = new FeatureClusterer(args.catalog_db, args.workload, args.param_correlations, new ArrayList<Integer>(partitions));
+        } else {
+            fclusterer = new FeatureClusterer(args.catalog_db, args.workload, args.param_correlations);    
+        }
         
         Set<Attribute> attributes = prefix2attributes(data,
             FeatureUtil.getFeatureKeyPrefix(ParamArrayLengthFeature.class, catalog_proc.getParameters().get(4)),

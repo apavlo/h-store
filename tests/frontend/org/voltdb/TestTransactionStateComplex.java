@@ -23,6 +23,7 @@ public class TestTransactionStateComplex extends BaseTestCase {
     private static final Long TXN_ID = 1000l;
     private static final long CLIENT_HANDLE = 99999l;
     private static final boolean EXEC_LOCAL = true;
+    private static final boolean SINGLE_PARTITIONED = true;
     private static final long UNDO_TOKEN = 10l;
     
     private static final String TARGET_PROCEDURE = GetWatchedItems.class.getSimpleName();
@@ -81,7 +82,7 @@ public class TestTransactionStateComplex extends BaseTestCase {
             ftasks = plan.getFragmentTaskMessages(TXN_ID, CLIENT_HANDLE);
             assertFalse(ftasks.isEmpty());
         }
-        this.ts = new TransactionState(executor, TXN_ID, TXN_ID, LOCAL_PARTITION, CLIENT_HANDLE, EXEC_LOCAL);
+        this.ts = new TransactionState(executor, TXN_ID, TXN_ID, LOCAL_PARTITION, CLIENT_HANDLE, EXEC_LOCAL, SINGLE_PARTITIONED);
         assertNotNull(this.ts);
     }
 

@@ -24,6 +24,7 @@ import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.util.*;
 import java.util.concurrent.LinkedBlockingDeque;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.voltdb.catalog.*;
 import org.voltdb.client.ClientResponse;
@@ -36,6 +37,7 @@ import edu.brown.catalog.CatalogUtil;
 import edu.brown.hashing.AbstractHasher;
 import edu.brown.utils.EventObservable;
 import edu.brown.utils.EventObserver;
+import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.PartitionEstimator;
 
 import java.io.StringWriter;
@@ -52,8 +54,11 @@ import java.io.PrintWriter;
  */
 public abstract class VoltProcedure {
     private static final Logger LOG = Logger.getLogger(VoltProcedure.class);
-    private static volatile boolean trace = LOG.isTraceEnabled();
-    private static volatile boolean debug = LOG.isDebugEnabled();
+    private final static AtomicBoolean debug = new AtomicBoolean(LOG.isDebugEnabled());
+    private final static AtomicBoolean trace = new AtomicBoolean(LOG.isTraceEnabled());
+    static {
+        LoggerUtil.attachObserver(LOG, debug, trace);
+    }
     
 
     // Used to get around the "abstract" for StmtProcedures.
@@ -151,9 +156,6 @@ public abstract class VoltProcedure {
         
         @Override
         public void run() {
-            trace = LOG.isTraceEnabled();
-            debug = LOG.isDebugEnabled();
-
             synchronized (executor_lock) {
                 Thread.currentThread().setName(VoltProcedure.this.m_site.getThreadName() + "-" + VoltProcedure.this.procedure_name);
     
@@ -165,20 +167,20 @@ public abstract class VoltProcedure {
                 VoltProcedure.this.client_handle = client_handle;
                 VoltProcedure.this.procParams = paramList;
                 
-                if (debug) LOG.debug("Starting execution of txn #" + current_txn_id);
+                if (debug.get()) LOG.debug("Starting execution of txn #" + current_txn_id);
                 
                 try {
                     // Execute the txn (this blocks until we return)
-                    if (trace) LOG.trace("Invoking VoltProcedure.call for txn #" + current_txn_id);
+                    if (trace.get()) LOG.trace("Invoking VoltProcedure.call for txn #" + current_txn_id);
                     ClientResponse response = VoltProcedure.this.call();
                     assert(response != null);
     
                     // Send the response back immediately!
-                    if (trace) LOG.trace("Sending ClientResponse back for txn #" + current_txn_id + " [status=" + response.getStatusName() + "]");
+                    if (trace.get()) LOG.trace("Sending ClientResponse back for txn #" + current_txn_id + " [status=" + response.getStatusName() + "]");
                     VoltProcedure.this.m_site.sendClientResponse((ClientResponseImpl)response);
                     
                     // Notify anybody who cares that we're finished (used in testing)
-                    if (trace) LOG.trace("Notifying observers that txn #" + current_txn_id + " is finished");
+                    if (trace.get()) LOG.trace("Notifying observers that txn #" + current_txn_id + " is finished");
                     VoltProcedure.this.observable.notifyObservers(response);
                     
                 } catch (AssertionError ex) {
@@ -191,7 +193,7 @@ public abstract class VoltProcedure {
                     assert(VoltProcedure.this.txn_id == current_txn_id) : VoltProcedure.this.txn_id + " != " + current_txn_id;
                     
                     // Clear out our private data
-                    if (trace) LOG.trace("Releasing lock for txn #" + current_txn_id);
+                    if (trace.get()) LOG.trace("Releasing lock for txn #" + current_txn_id);
                     VoltProcedure.this.m_currentTxnState = null;
                     VoltProcedure.this.txn_id = null;
                 }
@@ -486,7 +488,6 @@ public abstract class VoltProcedure {
      * @return
      */
     public final void call(TransactionState txnState, Object... paramList) {
-        final boolean trace = LOG.isTraceEnabled(); 
 //        LOG.debug("started");
 //        if (ProcedureProfiler.profilingLevel != ProcedureProfiler.Level.DISABLED)
 //            profiler.startCounter(catProc);
@@ -495,7 +496,7 @@ public abstract class VoltProcedure {
         // Wait to make sure that the other transaction is finished before we plow through
 //        if (trace && this.txn_id != null) LOG.trace("Txn #" + txnState.getTransactionId() + " is going to wait for txn #" + this.txn_id);
         
-        if (trace) LOG.trace("Setting up internal state for txn #" + txnState.getTransactionId());
+        if (trace.get()) LOG.trace("Setting up internal state for txn #" + txnState.getTransactionId());
 //        assert(this.txn_id == null) : "Conflict with txn #" + this.txn_id; // This should never happen!
         
         // Bombs away!
@@ -557,7 +558,7 @@ public abstract class VoltProcedure {
 
         // Unblock the thread 
         try {
-            if (trace) {
+            if (trace.get()) {
                 LOG.trace("Invoking txn #" + this.txn_id + " [" +
                           "procMethod=" + procMethod.getName() + ", " +
                           "class=" + getClass().getSimpleName() + ", " +
@@ -576,32 +577,51 @@ public abstract class VoltProcedure {
                     LOG.fatal(e);
                     System.exit(1);
                 }
-                if (debug) LOG.debug(this.catProc + " is finished for txn #" + this.txn_id);
-        }
-        catch (InvocationTargetException itex) {
+                if (debug.get()) LOG.debug(this.catProc + " is finished for txn #" + this.txn_id);
+            
+        // -------------------------------
+        // Exceptions that we can process+handle
+        // -------------------------------
+        } catch (InvocationTargetException itex) {
             Throwable ex = itex.getCause();
-            //Pass the exception back to the client if it is serializable
+            Class<?> ex_class = ex.getClass();
+            
+            // Pass the exception back to the client if it is serializable
             if (ex instanceof SerializableException) {
                 se = (SerializableException)ex;
             } else if (ex instanceof AssertionError) {
                 throw (AssertionError)ex;
             }
-            if (ex.getClass() == VoltAbortException.class) {
+            
+            // -------------------------------
+            // VoltAbortException
+            // -------------------------------
+            if (ex_class.equals(VoltAbortException.class)) {
                 //LOG.fatal("PROCEDURE "+ catProc.getName() + " USER ABORTED", ex);
                 status = ClientResponseImpl.USER_ABORT;
                 extra = "USER ABORT: " + ex.getMessage();
                 
                 if ((ProcedureProfiler.profilingLevel == ProcedureProfiler.Level.INTRUSIVE) &&
-                        (ProcedureProfiler.workloadTrace != null && m_workloadXactHandle != null)) {
+                    (ProcedureProfiler.workloadTrace != null && m_workloadXactHandle != null)) {
                     ProcedureProfiler.workloadTrace.abortTransaction(m_workloadXactHandle);
                 }
-                
-            }
-            else if (ex.getClass() == org.voltdb.exceptions.ConstraintFailureException.class) {
+            // -------------------------------
+            // MispredictionException
+            // -------------------------------
+            } else if (ex_class.equals(org.voltdb.exceptions.MispredictionException.class)) {
+               status = ClientResponse.MISPREDICTION; 
+
+            // -------------------------------
+            // ConstraintFailureException
+            // -------------------------------
+            } else if (ex_class.equals(org.voltdb.exceptions.ConstraintFailureException.class)) {
                 status = ClientResponseImpl.UNEXPECTED_FAILURE;
                 extra = "CONSTRAINT FAILURE: " + ex.getMessage();
-            }
-            else {
+                
+            // -------------------------------
+            // Everthing Else
+            // -------------------------------
+            } else {
                 StringWriter sw = new StringWriter();
                 PrintWriter pw = new PrintWriter(sw);
                 ex.printStackTrace(pw);
@@ -611,6 +631,9 @@ public abstract class VoltProcedure {
                 status = ClientResponseImpl.UNEXPECTED_FAILURE;
                 extra = "UNEXPECTED ABORT: " + msg;
             }
+        // -------------------------------
+        // Something really bad happened. Just bomb out!
+        // -------------------------------
         } catch (AssertionError e) {
             LOG.fatal(e);
             System.exit(1);
@@ -622,7 +645,7 @@ public abstract class VoltProcedure {
 
         // Workload Trace - Stop the transaction trace record.
         if ((ProcedureProfiler.profilingLevel == ProcedureProfiler.Level.INTRUSIVE) &&
-                (ProcedureProfiler.workloadTrace != null && m_workloadXactHandle != null)) {
+            (ProcedureProfiler.workloadTrace != null && m_workloadXactHandle != null)) {
             ProcedureProfiler.workloadTrace.stopTransaction(m_workloadXactHandle);
         }
         
@@ -1033,7 +1056,7 @@ public abstract class VoltProcedure {
         // It is at this point that we just need to make a call into Evan's stuff (through the ExecutionSite)
         // I'm not sure how this is suppose to exactly work, but what the hell let's give it a shot!
         List<FragmentTaskMessage> tasks = plan.getFragmentTaskMessages(this.txn_id, this.client_handle);
-        if (trace) LOG.trace("Got back a set of tasks for " + tasks.size() + " partitions for txn #" + this.txn_id);
+        if (trace.get()) LOG.trace("Got back a set of tasks for " + tasks.size() + " partitions for txn #" + this.txn_id);
 
         // Block until we get all of our responses.
         // We can do this because our ExecutionSite is multi-threaded

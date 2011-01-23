@@ -283,6 +283,9 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
             case ClientResponseImpl.UNEXPECTED_FAILURE:
                 ret = "UNEXPECTED_FAILURE";
                 break;
+            case ClientResponseImpl.MISPREDICTION:
+                ret = "MISPREDICTION";
+                break;
             default:
                 assert(false) : "Unknown ClientResponse status '" + this.status + "'";
         } // SWITCH

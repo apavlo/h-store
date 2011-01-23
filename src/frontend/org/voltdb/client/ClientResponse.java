@@ -53,6 +53,11 @@ public interface ClientResponse {
      * committed before a response could be returned or the invocation may never have been sent.
      */
     public static final byte CONNECTION_LOST = -4;
+    
+    /**
+     * Internal status code indicating that the the transaction was mispredicted as single-partitioned
+     */
+    public static final byte MISPREDICTION = -5;
 
     /**
      * Client Handle

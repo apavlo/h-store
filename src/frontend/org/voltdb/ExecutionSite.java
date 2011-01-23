@@ -105,7 +105,16 @@ public class ExecutionSite implements Runnable {
     // ----------------------------------------------------------------------------
 
     protected int siteId;
+    
+    /**
+     * The unique Partition Id of this ExecutionSite
+     * No other ExecutionSite will have this id in the cluster
+     */
     protected int partitionId;
+
+    /**
+     * If this flag is enabled, then we need to shut ourselves down and stop running txns
+     */
     private boolean shutdown = false;
     private CountDownLatch shutdown_latch;
     
@@ -1079,9 +1088,18 @@ public class ExecutionSite implements Runnable {
         
         TransactionState ts = this.txn_states.get(txn_id);
         if (ts == null) {
-            ts = new TransactionState(this, txn_id, dtxn_txn_id, task.getSourcePartitionId(), client_handle, start_txn);
+            // XXX
+//            TransactionEstimator.State s = this.t_estimator.getState(txn_id);
+//            assert(s != null) : "Missing TransactionEstimator.State for txn #" + txn_id;
+//            TransactionEstimator.Estimate est = s.getLastEstimate(); 
+//            assert(est != null) : "Missing last TransactionEstimator.Estimate for txn #" + txn_id;
+//            boolean is_singlepartitioned = est.isSinglePartition(this.hstore_site.getThresholds());
+            
+            boolean is_singlepartitioned = true;
+            
+            ts = new TransactionState(this, txn_id, dtxn_txn_id, task.getSourcePartitionId(), client_handle, start_txn, is_singlepartitioned);
             this.txn_states.put(txn_id, ts);
-            if (trace.get()) LOG.trace("Creating transaction state for txn #" + txn_id + " [partition=" + this.getPartitionId() + ", dtxn_txn_id=" + dtxn_txn_id + "]");
+            if (trace.get()) LOG.trace(String.format("Creating transaction state for txn #%d [partition=%d, dtxn_txn_id=%d, singlpartitioned=%s]", txn_id, this.getPartitionId(), dtxn_txn_id, is_singlepartitioned));
         }
         
         // Again, we could be getting an InitiateTaskMessage or some other stuff
@@ -1139,13 +1157,20 @@ public class ExecutionSite implements Runnable {
         // IMPORTANT: If we executed this locally, then we need to commit/abort right here
         // 2010-11-14: The reason why we can do this is because we will just ignore the commit
         // message when it shows from the Dtxn.Coordinator. We should probably double check with Evan on this...
-        boolean is_local = ts.isSinglePartition() && ts.isExecLocal();
+        boolean is_local = ts.isExecSinglePartition() && ts.isExecLocal();
         switch (cresponse.getStatus()) {
             case ClientResponseImpl.SUCCESS:
                 if (trace.get()) LOG.trace("Marking txn #" + txn_id + " as success. If only Evan was still alive to see this!");
                 builder.setStatus(Dtxn.FragmentResponse.Status.OK);
                 if (is_local) this.commitWork(txn_id);
                 break;
+            case ClientResponseImpl.MISPREDICTION:
+                if (trace.get()) LOG.trace("Txn #" + txn_id + " was mispredicted! Aborting work and restarting!");
+                
+                
+                if (is_local) this.abortWork(txn_id);
+                break;
+                
             case ClientResponseImpl.USER_ABORT:
                 if (trace.get()) LOG.trace("Marking txn #" + txn_id + " as user aborted. Are you sure Mr.Pavlo?");
             default:
@@ -1229,6 +1254,11 @@ public class ExecutionSite implements Runnable {
                                                                 .newBuilder()
                                                                 .setTransactionId(ts.getDtxnTransactionId());
         
+        // If our transaction was originally designated as a single-partitioned, then we need to make
+        // sure that we don't touch any partition other than our local one. If we do, then we need abort
+        // it and restart it as multi-partitioned
+        boolean need_restart = false;
+        
         for (FragmentTaskMessage ftask : tasks) {
             assert(!ts.isBlocked(ftask));
             
@@ -1243,6 +1273,12 @@ public class ExecutionSite implements Runnable {
                 LOG.warn("Trying to send a FragmentTask request with 0 fragments for txn #" + ts.getTransactionId());
                 continue;
             }
+
+            // Make sure things are still legit for our single-partition transaction
+//            if (ts.isPredictSinglePartition() && target_partition != this.partitionId) {
+//                need_restart = true;
+//                break;
+//            }
 
             // Since we know that we have to send these messages everywhere, then any internal dependencies
             // that we have stored locally here need to go out with them
@@ -1265,12 +1301,14 @@ public class ExecutionSite implements Runnable {
             // requestBuilder.setLastFragment(false); // Why doesn't this work right? ftask.isFinalTask());
         } // FOR (tasks)
 
+        // Bad mojo! We need to 
+        if (need_restart) {
+            // TODO
+        }
+        
         // Bombs away!
-        this.hstore_site.getDtxnCoordinator().execute(new ProtoRpcController(),
-                                                             requestBuilder.build(),
-                                                             this.request_work_callback);
-        if (debug.get()) LOG.debug("Work request is sent for txn #" + txn_id + " " +
-                             "[#fragments=" + tasks.size() + ", dtxn_txn_id=" + ts.getDtxnTransactionId() + "]");
+        this.hstore_site.requestWork(txn_id, requestBuilder.build(), this.request_work_callback);
+        if (debug.get()) LOG.debug(String.format("Work request is sent for txn #%d [#fragments=%d, dtxn_txn_id=%d]", txn_id, tasks.size(), ts.getDtxnTransactionId()));
     }
 
     /**
