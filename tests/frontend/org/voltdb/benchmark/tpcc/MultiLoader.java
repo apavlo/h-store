@@ -47,11 +47,13 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.Iterator;
 
 import org.apache.log4j.Logger;
+import org.voltdb.VoltDB;
 import org.voltdb.VoltTable;
 import org.voltdb.VoltType;
 import org.voltdb.types.TimestampType;
 import org.voltdb.benchmark.ClientMain;
 import org.voltdb.benchmark.tpcc.procedures.GetTableCounts;
+import org.voltdb.benchmark.tpcc.procedures.neworder;
 import org.voltdb.client.ClientResponse;
 import org.voltdb.client.ProcCallException;
 import org.voltdb.client.SyncCallback;
@@ -59,6 +61,7 @@ import org.voltdb.client.NoConnectionsException;
 import org.voltdb.client.ProcedureCallback;
 import java.util.concurrent.Semaphore;
 import org.voltdb.utils.Pair;
+import org.voltdb.utils.VoltTypeUtil;
 
 /**
  * TPC-C database loader. Note: The methods order id parameters from "top level"
@@ -594,9 +597,10 @@ public class MultiLoader extends ClientMain {
         public void makeReplicated() {
             // create ITEMS here to reduce memory consumption
             VoltTable items = new VoltTable(new VoltTable.ColumnInfo("I_ID", VoltType.INTEGER),
-                    new VoltTable.ColumnInfo("I_IM_ID", VoltType.INTEGER), new VoltTable.ColumnInfo("I_NAME",
-                            VoltType.STRING), new VoltTable.ColumnInfo("I_PRICE", VoltType.FLOAT),
-                    new VoltTable.ColumnInfo("I_DATA", VoltType.STRING));
+                                            new VoltTable.ColumnInfo("I_IM_ID", VoltType.INTEGER),
+                                            new VoltTable.ColumnInfo("I_NAME", VoltType.STRING),
+                                            new VoltTable.ColumnInfo("I_PRICE", VoltType.FLOAT),
+                                            new VoltTable.ColumnInfo("I_DATA", VoltType.STRING));
             // items.ensureRowCapacity(parameters.items);
             // items.ensureStringCapacity(parameters.items * 96);
             // Select 10% of the rows to be marked "original"
@@ -609,72 +613,88 @@ public class MultiLoader extends ClientMain {
 
                 boolean original = originalRows.contains(i);
                 generateItem(items, i, original);
-            }
-
-            if (m_voltClient != null) {
-                // XXX
-                final int numPermits = 48;
-                final Semaphore maxOutstandingInvocations = new Semaphore(numPermits);
-                final int totalInvocations = customerNamesTables.size() * m_parameters.warehouses;
-                final ProcedureCallback callback = new ProcedureCallback() {
-                    private int invocationsCompleted = 0;
-
-                    private double lastPercentCompleted = 0.0;
-
-                    @Override
-                    public synchronized void clientCallback(ClientResponse clientResponse) {
-                        if (clientResponse.getStatus() != ClientResponse.SUCCESS) {
-                            System.err.println(clientResponse.getStatusString());
-                            System.exit(-1);
-                        }
-                        invocationsCompleted++;
-                        final double percentCompleted = invocationsCompleted / (double) totalInvocations;
-                        if (percentCompleted > lastPercentCompleted + .1) {
-                            lastPercentCompleted = percentCompleted;
-                            LOG.info(String.format("Finished %d/%d replicated load work", invocationsCompleted, totalInvocations));
-                        }
-                        maxOutstandingInvocations.release();
-                    }
-
-                };
-
-                LinkedList<Pair<Integer, LinkedList<VoltTable>>> replicatedLoadWork = new LinkedList<Pair<Integer, LinkedList<VoltTable>>>();
-
-                int totalLoadWorkGenerated = 0;
-                for (int w_id = m_parameters.starting_warehouse; w_id <= (m_parameters.warehouses + m_parameters.starting_warehouse); ++w_id) {
-                    replicatedLoadWork.add(new Pair<Integer, LinkedList<VoltTable>>(w_id, new LinkedList<VoltTable>(
-                            customerNamesTables), false));
-                    totalLoadWorkGenerated += customerNamesTables.size();
-                }
-                Collections.shuffle(replicatedLoadWork);
-                LOG.debug("Total load work generated is " + (totalLoadWorkGenerated-1));
-
-                /*
-                 * Only supply item table the first time.
-                 */
                 
                 // Items! Sail yo ho!
+                if (items.getRowCount() == 100) {
+                    try {
+                        LOG.info(String.format("Loading replicated ITEM table [tuples=%d/%d]", i, m_parameters.items));
+                        m_voltClient.callProcedure("@LoadMultipartitionTable", "ITEM", items);
+                        items.clearRowData();
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                        System.exit(1);
+                    }
+                }
+            } // FOR
+            if (items.getRowCount() > 0) {
                 try {
-                    LOG.info(String.format("Loading replicated ITEM table [tuples=%d]", items.getRowCount()));
+                    LOG.info(String.format("Loading replicated ITEM table [tuples=%d/%d]", m_parameters.items-items.getRowCount(), m_parameters.items));
                     m_voltClient.callProcedure("@LoadMultipartitionTable", "ITEM", items);
                 } catch (Exception e) {
                     e.printStackTrace();
                     System.exit(1);
                 }
+            }
+
+            if (m_voltClient != null) {
+//                // XXX
+//                final int numPermits = 48;
+//                final Semaphore maxOutstandingInvocations = new Semaphore(numPermits);
+//                final int totalInvocations = customerNamesTables.size() * m_parameters.warehouses;
+//                final ProcedureCallback callback = new ProcedureCallback() {
+//                    private int invocationsCompleted = 0;
+//
+//                    private double lastPercentCompleted = 0.0;
+//
+//                    @Override
+//                    public synchronized void clientCallback(ClientResponse clientResponse) {
+//                        if (clientResponse.getStatus() != ClientResponse.SUCCESS) {
+//                            System.err.println(clientResponse.getStatusString());
+//                            System.exit(-1);
+//                        }
+//                        invocationsCompleted++;
+//                        final double percentCompleted = invocationsCompleted / (double) totalInvocations;
+//                        if (percentCompleted > lastPercentCompleted + .1) {
+//                            lastPercentCompleted = percentCompleted;
+//                            LOG.info(String.format("Finished %d/%d replicated load work", invocationsCompleted, totalInvocations));
+//                        }
+//                        maxOutstandingInvocations.release();
+//                    }
+//
+//                };
+//
+//                LinkedList<Pair<Integer, LinkedList<VoltTable>>> replicatedLoadWork = new LinkedList<Pair<Integer, LinkedList<VoltTable>>>();
+//
+//                int totalLoadWorkGenerated = 0;
+//                for (int w_id = m_parameters.starting_warehouse; w_id <= (m_parameters.warehouses + m_parameters.starting_warehouse); ++w_id) {
+//                    replicatedLoadWork.add(new Pair<Integer, LinkedList<VoltTable>>(w_id, new LinkedList<VoltTable>(
+//                            customerNamesTables), false));
+//                    totalLoadWorkGenerated += customerNamesTables.size();
+//                }
+//                Collections.shuffle(replicatedLoadWork);
+//                LOG.debug("Total load work generated is " + (totalLoadWorkGenerated-1));
+
+                /*
+                 * Only supply item table the first time.
+                 */
                 
                 // Customer Name! Booyah! Shaq Attaq!
                 for (int i = 0, cnt = customerNamesTables.size(); i < cnt; i++) {
-                    VoltTable t = customerNamesTables.get(i);
-                    LOG.info(String.format("Loading replicated CUSTOMER_NAME table %02d / %02d [tuples=%d]", (i+1), cnt, t.getRowCount()));
+                    VoltTable table = customerNamesTables.get(i);
+                    VoltTable batch = new VoltTable(table);
+                    LOG.info(String.format("Loading replicated CUSTOMER_NAME table %02d / %02d [tuples=%d]", (i+1), cnt, table.getRowCount()));
                     try {
-                        m_voltClient.callProcedure("@LoadMultipartitionTable", "CUSTOMER_NAME", t);
-
-//                        boolean queued = false;
-//                        while (!queued) {
-//                            queued = m_voltClient.callProcedure(callback, Constants.LOAD_WAREHOUSE_REPLICATED,
-//                                    (short) p.getFirst().intValue(), items, table);
-//                            m_voltClient.backpressureBarrier();
-//                        }
+                        for (int i2 = 0, cnt2 = table.getRowCount(); i2 < cnt2; i2++) {
+                            batch.add(table.fetchRow(i2));
+                            if (batch.getRowCount() == 100) {
+                                LOG.info(String.format("Loading replicated CUSTOMER_NAME table [tuples=%d/%d]", i2, cnt2));
+                                m_voltClient.callProcedure("@LoadMultipartitionTable", "CUSTOMER_NAME", batch);
+                                batch.clearRowData();
+                            }
+                        } // FOR
+                        if (batch.getRowCount() > 0) {
+                            m_voltClient.callProcedure("@LoadMultipartitionTable", "CUSTOMER_NAME", batch);
+                        }
                     } catch (Exception e) {
                         e.printStackTrace();
                         System.exit(-1);
