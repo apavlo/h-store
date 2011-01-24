@@ -301,7 +301,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
      * Initializes all the pieces that we need to start this HStore site up
      */
     public void start() {
-        if (debug.get()) LOG.debug("Initializing HStoreCoordinatorNode...");
+        if (debug.get()) LOG.debug("Initializing HStoreSite...");
 
         // First we need to tell the HStoreMessenger to start-up and initialize its connections
         if (debug.get()) LOG.debug("Starting HStoreMessenger for Site #" + this.site_id);

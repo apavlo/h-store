@@ -25,6 +25,7 @@ package org.voltdb.benchmark;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 
 public class BenchmarkConfig {
 
@@ -62,6 +63,7 @@ public class BenchmarkConfig {
     public final boolean useCatalogHosts;
     public final boolean noDataLoad;
     public final String workloadTrace;
+    public final Set<Integer> profileSiteIds;
 
     public final Map<String, String> parameters = new HashMap<String, String>();
 
@@ -98,7 +100,8 @@ public class BenchmarkConfig {
             boolean compileOnly,
             boolean useCatalogHosts,
             boolean noDataLoad,
-            String workloadTrace
+            String workloadTrace,
+            Set<Integer> profileSiteIds
         ) {
 
         this.benchmarkClient = benchmarkClient;
@@ -139,7 +142,7 @@ public class BenchmarkConfig {
         this.useCatalogHosts = useCatalogHosts;
         this.noDataLoad = noDataLoad;
         this.workloadTrace = workloadTrace;
-        
+        this.profileSiteIds = profileSiteIds;
     }
 
     @Override
