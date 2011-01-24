@@ -125,8 +125,9 @@ public class ProcessSetManager {
                     if (line != null) {
                         OutputLine ol = new OutputLine(m_processName, m_stream, line);
                         m_output.add(ol);
-                        final long now = (System.currentTimeMillis() / 1000) - 1256158053;
-                        m_writer.write(String.format("(%d) %s: %s\n", now, m_processName, line));
+                        // final long now = (System.currentTimeMillis() / 1000) - 1256158053;
+                        // m_writer.write(String.format("(%d) %s: %s\n", now, m_processName, line));
+                        m_writer.write(String.format("%s\n", line));
                     }
                     else {
                         Thread.yield();

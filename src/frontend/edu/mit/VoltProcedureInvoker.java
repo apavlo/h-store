@@ -43,7 +43,7 @@ public class VoltProcedureInvoker {
 
         procedure = executor.getProcedure("InsertProcedure");
         for (long i = 0; i < 10; i++) {
-            TransactionState txnState = new TransactionState(null, i, null, 0, i, true, true);
+            TransactionState txnState = new TransactionState(null, i, null, 0, i, true);
             result = procedure.callAndBlock(txnState, 100L);
             System.out.println("[" + i + "] Insert status = " + result.getStatus());
             System.out.println("[" + i + "] Insert result (rows affected) = " + result.getResults()[0].asScalarLong());

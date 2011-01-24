@@ -2,6 +2,7 @@ package edu.brown.markov;
 
 import java.util.*;
 import java.util.Map.Entry;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.log4j.Logger;
@@ -35,9 +36,8 @@ public class TransactionEstimator {
     private transient ParameterCorrelations correlations;
     private transient boolean enable_recomputes = false;
     
-//    private final int base_partition;
     private final HashMap<Procedure, MarkovGraph> procedure_graphs = new HashMap<Procedure, MarkovGraph>();
-    private final transient Map<Long, State> xact_states = new HashMap<Long, State>();
+    private final transient Map<Long, State> xact_states = new ConcurrentHashMap<Long, State>();
     private final AtomicInteger xact_count = new AtomicInteger(0); 
     
     /**
@@ -458,72 +458,64 @@ public class TransactionEstimator {
 
     /**
      * The transaction with provided xact_id is finished
-     * 
-     * @param xact_id
-     *            finished transaction
+     * @param xact_id finished transaction
      */
     public State commit(long xact_id) {
+        return (this.completeTransaction(xact_id, Vertex.Type.COMMIT));
+    }
+
+    /**
+     * The transaction with provided xact_id has aborted
+     * @param xact_id
+     */
+    public State abort(long xact_id) {
+        return (this.completeTransaction(xact_id, Vertex.Type.ABORT));
+    }
+
+    /**
+     * The transaction for the given xact_id is in limbo, so we just want to remove it
+     * @param xact_id
+     * @return
+     */
+    public State ignore(long xact_id) {
+        // We can just remove its state and pass it back
+        // We don't care if it's valid or not
+        return (this.xact_states.remove(xact_id));
+    }
+    
+    /**
+     * 
+     * @param xact_id
+     * @param vtype
+     * @return
+     */
+    private State completeTransaction(long xact_id, Vertex.Type vtype) {
         State s = this.xact_states.remove(xact_id);
         if (s == null) {
             String msg = "No state information exists for txn #" + xact_id;
             LOG.debug(msg);
             return (null);
-            // throw new RuntimeException(msg);
         }
         
         // We need to update the counter information in our MarkovGraph so that we know
         // that the procedure may transition to the ABORT vertex from where ever it was before 
         MarkovGraph g = s.getMarkovGraph();
-        Vertex next_v = g.getCommitVertex();
+        Vertex next_v = g.getSpecialVertex(vtype);
+        assert(next_v != null) : "Missing " + vtype;
+        s.setCurrent(next_v);
         
-        // If no edge exists to the ABORT vertex, then we need to create one
+        // If no edge exists to the next vertex, then we need to create one
         Edge next_e = g.findEdge(s.getCurrent(), next_v);
         if (next_e == null) {
             next_e = g.addToEdge(s.getCurrent(), next_v);
         }
         assert(next_e != null);
-
-        s.setCurrent(next_v);
         
         // Update counters
         next_v.incrementInstancehits();
         next_v.addInstanceTime(xact_id, s.getExecutionTimeOffset());
         next_e.incrementInstancehits();
-        return (s);
-    }
 
-    /**
-     * The transaction with provided xact_id has aborted
-     * 
-     * @param xact_id
-     */
-    public State abort(long xact_id) {
-        State s = this.xact_states.remove(xact_id);
-        if (s == null) {
-            String msg = "No state information exists for txn #" + xact_id;
-            LOG.debug(msg);
-            return (null);
-            // throw new RuntimeException(msg);
-        }
-        
-        // We need to update the counter information in our MarkovGraph so that we know
-        // that the procedure may transition to the ABORT vertex from where ever it was before 
-        MarkovGraph g = s.getMarkovGraph();
-        Vertex next_v = g.getAbortVertex();
-        
-        // If no edge exists to the ABORT vertex, then we need to create one
-        Edge abort_e = g.findEdge(s.getCurrent(), next_v);
-        if (abort_e == null) {
-            abort_e = g.addToEdge(s.getCurrent(), next_v);
-        }
-        assert(abort_e != null);
-
-        s.setCurrent(next_v);
-        
-        // Update counters
-        next_v.incrementInstancehits();
-        next_v.addInstanceTime(xact_id, s.getExecutionTimeOffset());
-        abort_e.incrementInstancehits();
         return (s);
     }
 
@@ -638,6 +630,7 @@ public class TransactionEstimator {
     public State processTransactionTrace(TransactionTrace txn_trace) throws Exception {
         long txn_id = txn_trace.getTransactionId();
         Estimate last_est = this.startTransaction(txn_id, txn_trace.getCatalogItem(this.catalog_db), txn_trace.getParams());
+        assert(last_est != null);
         State s = this.getState(txn_id);
         assert(s != null);
         for (Entry<Integer, List<QueryTrace>> e : txn_trace.getQueryBatches().entrySet()) {

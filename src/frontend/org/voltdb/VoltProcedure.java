@@ -28,6 +28,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.voltdb.catalog.*;
 import org.voltdb.client.ClientResponse;
+import org.voltdb.exceptions.MispredictionException;
 import org.voltdb.exceptions.SerializableException;
 import org.voltdb.exceptions.EEException;
 import org.voltdb.messaging.FragmentTaskMessage;
@@ -185,10 +186,10 @@ public abstract class VoltProcedure {
                     
                 } catch (AssertionError ex) {
                     LOG.fatal("Unexpected error while executing txn #" + current_txn_id, ex);
-                    VoltProcedure.this.m_site.crash();
+                    VoltProcedure.this.m_site.crash(ex.getCause());
                 } catch (Exception ex) {
                     LOG.fatal("Unexpected error while executing txn #" + current_txn_id, ex);
-                    VoltProcedure.this.m_site.crash();
+                    VoltProcedure.this.m_site.crash(ex);
                 } finally {
                     assert(VoltProcedure.this.txn_id == current_txn_id) : VoltProcedure.this.txn_id + " != " + current_txn_id;
                     
@@ -558,26 +559,24 @@ public abstract class VoltProcedure {
 
         // Unblock the thread 
         try {
-            if (trace.get()) {
-                LOG.trace("Invoking txn #" + this.txn_id + " [" +
-                          "procMethod=" + procMethod.getName() + ", " +
-                          "class=" + getClass().getSimpleName() + ", " +
-                          "partition=" + this.local_partition + 
-                          "]");
-                }
-                try {
-                    Object rawResult = procMethod.invoke(this, this.procParams);
-                    results = getResultsFromRawResults(rawResult);
-                    if (results == null)
-                        results = new VoltTable[0];
-                } catch (IllegalAccessException e) {
-                    // If reflection fails, invoke the same error handling that other exceptions do
-                    throw new InvocationTargetException(e);
-                } catch (AssertionError e) {
-                    LOG.fatal(e);
-                    System.exit(1);
-                }
-                if (debug.get()) LOG.debug(this.catProc + " is finished for txn #" + this.txn_id);
+            if (trace.get()) LOG.trace("Invoking txn #" + this.txn_id + " [" +
+                                       "procMethod=" + procMethod.getName() + ", " +
+                                       "class=" + getClass().getSimpleName() + ", " +
+                                       "partition=" + this.local_partition + 
+                                       "]");
+            try {
+                Object rawResult = procMethod.invoke(this, this.procParams);
+                results = getResultsFromRawResults(rawResult);
+                if (results == null)
+                    results = new VoltTable[0];
+            } catch (IllegalAccessException e) {
+                // If reflection fails, invoke the same error handling that other exceptions do
+                throw new InvocationTargetException(e);
+            } catch (AssertionError e) {
+                LOG.fatal(e);
+                System.exit(1);
+            }
+            if (debug.get()) LOG.debug(this.catProc + " is finished for txn #" + this.txn_id);
             
         // -------------------------------
         // Exceptions that we can process+handle
@@ -608,8 +607,9 @@ public abstract class VoltProcedure {
             // -------------------------------
             // MispredictionException
             // -------------------------------
-            } else if (ex_class.equals(org.voltdb.exceptions.MispredictionException.class)) {
-               status = ClientResponse.MISPREDICTION; 
+            } else if (ex_class.equals(MispredictionException.class)) {
+                if (debug.get()) LOG.warn("Caught MispredictionException for txn #" + ((MispredictionException)ex).getTransactionId());
+                status = ClientResponse.MISPREDICTION;
 
             // -------------------------------
             // ConstraintFailureException
@@ -644,8 +644,8 @@ public abstract class VoltProcedure {
 //        statsCollector.endProcedure();
 
         // Workload Trace - Stop the transaction trace record.
-        if ((ProcedureProfiler.profilingLevel == ProcedureProfiler.Level.INTRUSIVE) &&
-            (ProcedureProfiler.workloadTrace != null && m_workloadXactHandle != null)) {
+        if (status == ClientResponseImpl.SUCCESS && 
+            ProcedureProfiler.profilingLevel == ProcedureProfiler.Level.INTRUSIVE && (ProcedureProfiler.workloadTrace != null && m_workloadXactHandle != null)) {
             ProcedureProfiler.workloadTrace.stopTransaction(m_workloadXactHandle);
         }
         
