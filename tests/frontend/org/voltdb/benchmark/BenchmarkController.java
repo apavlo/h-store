@@ -87,9 +87,16 @@ public class BenchmarkController {
         LoggerUtil.setupLogging();
     }
 
+    // Dtxn.Coordinator
     final ProcessSetManager m_coordPSM = new ProcessSetManager();
+    
+    // Clients
     final ProcessSetManager m_clientPSM = new ProcessSetManager();
+    
+    // Server Sites
     final ProcessSetManager m_serverPSM = new ProcessSetManager();
+    
+    
     BenchmarkResults m_currentResults = null;
     Set<String> m_clients = new HashSet<String>();
     ClientStatusThread m_statusThread = null;
@@ -639,37 +646,38 @@ public class BenchmarkController {
         }
 
         m_serverPSM.killAll();
+        m_coordPSM.killAll();
         
-        // Kill the coordinator
-        LOG.info("Killing " + HStoreSite.DTXN_COORDINATOR + " on host " + m_config.coordinatorHost);
-        SSHTools.cmd(m_config.remoteUser, m_config.coordinatorHost, m_config.remotePath, 
-                     new String[] { "killall", HStoreSite.DTXN_COORDINATOR });
-        
-        // And all the engines
-        List<Thread> threads = new ArrayList<Thread>();
-        for (final String host : CollectionUtil.toStringSet(Arrays.asList(m_config.hosts))) {
-            threads.add(new Thread() {
-                public void run() {
-                    LOG.info("Killing " + HStoreSite.DTXN_ENGINE + " on host " + host);
-                    SSHTools.cmd(m_config.remoteUser, host, m_config.remotePath, 
-                                 new String[] { "killall", HStoreSite.DTXN_ENGINE }); 
-                };
-            });
-        } // FOR
-        try {
-            ThreadUtil.run(threads);
-        } catch (Exception ex) {
-            ex.printStackTrace();
-        }
-        LOG.info("All DTXN processes are killed. Exiting...");
+//        // Kill the coordinator
+//        LOG.info("Killing " + HStoreSite.DTXN_COORDINATOR + " on host " + m_config.coordinatorHost);
+//        SSHTools.cmd(m_config.remoteUser, m_config.coordinatorHost, m_config.remotePath, 
+//                     new String[] { "killall", HStoreSite.DTXN_COORDINATOR });
+//        
+//        // And all the engines
+//        List<Thread> threads = new ArrayList<Thread>();
+//        for (final String host : CollectionUtil.toStringSet(Arrays.asList(m_config.hosts))) {
+//            threads.add(new Thread() {
+//                public void run() {
+//                    LOG.info("Killing " + HStoreSite.DTXN_ENGINE + " on host " + host);
+//                    SSHTools.cmd(m_config.remoteUser, host, m_config.remotePath, 
+//                                 new String[] { "killall", HStoreSite.DTXN_ENGINE }); 
+//                };
+//            });
+//        } // FOR
+//        try {
+//            ThreadUtil.run(threads);
+//        } catch (Exception ex) {
+//            ex.printStackTrace();
+//        }
+//        LOG.info("All DTXN processes are killed. Exiting...");
     }
 
     public void runBenchmark() {
-        LOG.info(String.format("Starting execution phase [# of clients=%d]", m_clients.size()));
+        LOG.info(String.format("Starting execution phase with %d clients [hosts=%d, clientsperhost=%d]", m_clients.size(), m_config.clients.length, m_config.processesPerClient));
         
-        m_currentResults =
-            new BenchmarkResults(m_config.interval, m_config.duration, m_clients.size());
+        m_currentResults = new BenchmarkResults(m_config.interval, m_config.duration, m_clients.size());
         m_statusThread = new ClientStatusThread();
+        m_statusThread.setDaemon(true);
         m_pollCount = m_config.duration / m_config.interval;
         m_statusThread.start();
 

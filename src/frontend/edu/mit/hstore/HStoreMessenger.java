@@ -544,7 +544,7 @@ public class HStoreMessenger {
      * exit with a non-zero status.
      * @param ex
      */
-    public synchronized void shutdownCluster(Exception ex) {
+    public synchronized void shutdownCluster(Throwable ex) {
         final boolean trace = LOG.isTraceEnabled();
         final boolean debug = LOG.isDebugEnabled();
         

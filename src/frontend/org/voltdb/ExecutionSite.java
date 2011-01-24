@@ -82,7 +82,7 @@ public class ExecutionSite implements Runnable {
      */
     public static final int NULL_DEPENDENCY_ID = -1;
 
-    private static final int NODE_THREAD_POOL_SIZE = 5;
+    private static final int NODE_THREAD_POOL_SIZE = 1;
 
     /**
      * How many milliseconds will we keep around old transaction states
@@ -750,10 +750,11 @@ public class ExecutionSite implements Runnable {
                 } else if (work instanceof InitiateTaskMessage) {
                     InitiateTaskMessage init_work = (InitiateTaskMessage)work;
                     VoltProcedure volt_proc = null;
+                    String proc_name = init_work.getStoredProcedureName(); 
                     assert(!this.txn_states.contains(init_work.getTxnId())) : "Duplicate InitiateTaskMessage message for txn #" + init_work.getTxnId();
 
                     try {
-                        volt_proc = this.getProcedure(init_work.getStoredProcedureName());
+                        volt_proc = this.getProcedure(proc_name);
                     } catch (AssertionError ex) {
                         LOG.error("Unrecoverable error for txn #" + init_work.getTxnId());
                         LOG.error("InitiateTaskMessage= " + init_work.getDumpContents().toString());
@@ -762,7 +763,7 @@ public class ExecutionSite implements Runnable {
                     long txn_id = init_work.getTxnId();
                     TransactionState ts = this.txn_states.get(txn_id);
                     assert(ts != null) : "The TransactionState is somehow null for txn #" + txn_id;
-                    if (trace.get()) LOG.trace("Initiating new " + init_work.getStoredProcedureName() + " invocation for txn #" + txn_id);
+                    if (trace.get()) LOG.trace(String.format("Starting execution of txn #%d [proc=%s, single_partitioned=%s]", txn_id, proc_name, ts.isPredictSinglePartition()));
                     
                     this.startTransaction(ts, volt_proc, init_work);
 
@@ -965,6 +966,7 @@ public class ExecutionSite implements Runnable {
 //                assert(dependencies.size() == input_depIds.length) : "Expected " + input_depIds.length + " dependencies but we have " + dependencies.size();
                 ee.stashWorkUnitDependencies(dependencies);
             }
+            ts.setSubmittedEE();
             result = this.ee.executeQueryPlanFragmentsAndGetDependencySet(
                         fragmentIds,
                         fragmentIdIndex,
@@ -998,15 +1000,17 @@ public class ExecutionSite implements Runnable {
         ts.addResult(sender_partition_id, dependency_id, data);
     }
     
-    public void loadTable(
-            long txnId,
-            String clusterName,
-            String databaseName,
-            String tableName,
-            VoltTable data,
-            int allowELT)
-    throws VoltAbortException
-    {
+    /**
+     * 
+     * @param txn_id
+     * @param clusterName
+     * @param databaseName
+     * @param tableName
+     * @param data
+     * @param allowELT
+     * @throws VoltAbortException
+     */
+    public void loadTable(long txn_id, String clusterName, String databaseName, String tableName, VoltTable data, int allowELT) throws VoltAbortException {
         if (cluster == null) {
             throw new VoltProcedure.VoltAbortException("cluster '" + clusterName + "' does not exist");
         }
@@ -1019,8 +1023,16 @@ public class ExecutionSite implements Runnable {
             throw new VoltAbortException("table '" + tableName + "' does not exist in database " + clusterName + "." + databaseName);
         }
 
+        TransactionState ts = this.txn_states.get(txn_id);
+        if (ts == null) {
+            String msg = "No transaction state for txn #" + txn_id;
+            LOG.error(msg);
+            throw new RuntimeException(msg);
+        }
+        
+        ts.setSubmittedEE();
         ee.loadTable(table.getRelativeIndex(), data,
-                     txnId,
+                     txn_id,
                      lastCommittedTxnId,
                      getNextUndoToken(),
                      allowELT != 0);
@@ -1072,7 +1084,7 @@ public class ExecutionSite implements Runnable {
      * @param task
      */
     protected void doWork(TransactionInfoBaseMessage task) {
-        this.doWork(task, null, null);
+        this.doWork(task, null, null, null);
     }
 
     /**
@@ -1081,7 +1093,7 @@ public class ExecutionSite implements Runnable {
      * @param task
      * @param callback the RPC handle to send the response to
      */
-    public void doWork(TransactionInfoBaseMessage task, Long dtxn_txn_id, RpcCallback<Dtxn.FragmentResponse> callback) {
+    public void doWork(TransactionInfoBaseMessage task, Long dtxn_txn_id, RpcCallback<Dtxn.FragmentResponse> callback, Boolean single_partitioned) {
         long txn_id = task.getTxnId();
         long client_handle = task.getClientHandle();
         boolean start_txn = (task instanceof InitiateTaskMessage);
@@ -1095,18 +1107,17 @@ public class ExecutionSite implements Runnable {
 //            assert(est != null) : "Missing last TransactionEstimator.Estimate for txn #" + txn_id;
 //            boolean is_singlepartitioned = est.isSinglePartition(this.hstore_site.getThresholds());
             
-            boolean is_singlepartitioned = true;
-            
-            ts = new TransactionState(this, txn_id, dtxn_txn_id, task.getSourcePartitionId(), client_handle, start_txn, is_singlepartitioned);
+            ts = new TransactionState(this, txn_id, dtxn_txn_id, task.getSourcePartitionId(), client_handle, start_txn);
             this.txn_states.put(txn_id, ts);
-            if (trace.get()) LOG.trace(String.format("Creating transaction state for txn #%d [partition=%d, dtxn_txn_id=%d, singlpartitioned=%s]", txn_id, this.getPartitionId(), dtxn_txn_id, is_singlepartitioned));
+            if (trace.get()) LOG.trace(String.format("Creating transaction state for txn #%d [partition=%d, dtxn_txn_id=%d]", txn_id, this.getPartitionId(), dtxn_txn_id));
         }
         
         // Again, we could be getting an InitiateTaskMessage or some other stuff
         if (start_txn) {
-            if (trace.get()) LOG.trace("Starting new VoltProcedure invocation for txn #" + txn_id);
+            if (debug.get()) LOG.debug(String.format("Starting new VoltProcedure invocation for txn #%d [singlepartitioned=%s]", txn_id, single_partitioned));
             if (start_txn) assert(callback != null) : "Missing callback for txn #" + txn_id;
             ts.setCoordinatorCallback(callback);
+            ts.setPredictSinglePartitioned(single_partitioned);
         } else {
             FragmentTaskMessage ftask = (FragmentTaskMessage)task;
             if (callback != null) {
@@ -1158,7 +1169,8 @@ public class ExecutionSite implements Runnable {
         // 2010-11-14: The reason why we can do this is because we will just ignore the commit
         // message when it shows from the Dtxn.Coordinator. We should probably double check with Evan on this...
         boolean is_local = ts.isExecSinglePartition() && ts.isExecLocal();
-        switch (cresponse.getStatus()) {
+        byte status = cresponse.getStatus();
+        switch (status) {
             case ClientResponseImpl.SUCCESS:
                 if (trace.get()) LOG.trace("Marking txn #" + txn_id + " as success. If only Evan was still alive to see this!");
                 builder.setStatus(Dtxn.FragmentResponse.Status.OK);
@@ -1166,15 +1178,13 @@ public class ExecutionSite implements Runnable {
                 break;
             case ClientResponseImpl.MISPREDICTION:
                 if (trace.get()) LOG.trace("Txn #" + txn_id + " was mispredicted! Aborting work and restarting!");
-                
-                
+                builder.setStatus(Dtxn.FragmentResponse.Status.ABORT_MISPREDICT);
                 if (is_local) this.abortWork(txn_id);
                 break;
-                
             case ClientResponseImpl.USER_ABORT:
                 if (trace.get()) LOG.trace("Marking txn #" + txn_id + " as user aborted. Are you sure Mr.Pavlo?");
             default:
-                if (cresponse.getStatus() != ClientResponseImpl.USER_ABORT) {
+                if (status != ClientResponseImpl.USER_ABORT) {
                     this.error_counter.incrementAndGet();
                     if (debug.get()) LOG.warn("Unexpected server error for txn #" + txn_id + ": " + cresponse.getStatusString());
                 }
@@ -1267,18 +1277,19 @@ public class ExecutionSite implements Runnable {
             ftask.setUsingDtxnCoordinator(true);
             
             int target_partition = ftask.getDestinationPartitionId();
+            // Make sure things are still legit for our single-partition transaction
+            if (ts.isPredictSinglePartition() && target_partition != this.partitionId) {
+                if (debug.get()) LOG.debug(String.format("Txn #%d on partition %d is suppose to be single-partitioned, but it wants to execute a fragment on partition %d", txn_id, this.partitionId, target_partition));
+                need_restart = true;
+                break;
+            }
+            
             int dependency_ids[] = ftask.getOutputDependencyIds();
-            if (debug.get()) LOG.debug("Preparing to request fragments " + Arrays.toString(ftask.getFragmentIds()) + " on partition " + target_partition + " to generate " + dependency_ids.length + " output dependencies for txn #" + txn_id);
+            if (trace.get()) LOG.trace("Preparing to request fragments " + Arrays.toString(ftask.getFragmentIds()) + " on partition " + target_partition + " to generate " + dependency_ids.length + " output dependencies for txn #" + txn_id);
             if (ftask.getFragmentCount() == 0) {
                 LOG.warn("Trying to send a FragmentTask request with 0 fragments for txn #" + ts.getTransactionId());
                 continue;
             }
-
-            // Make sure things are still legit for our single-partition transaction
-//            if (ts.isPredictSinglePartition() && target_partition != this.partitionId) {
-//                need_restart = true;
-//                break;
-//            }
 
             // Since we know that we have to send these messages everywhere, then any internal dependencies
             // that we have stored locally here need to go out with them
@@ -1292,7 +1303,7 @@ public class ExecutionSite implements Runnable {
             
             // Nasty...
             ByteString bs = null;
-            synchronized (this) {
+            synchronized (this) { // Is this necessary??
                 bs = ByteString.copyFrom(ftask.getBufferForMessaging(buffer_pool).b.array());
             }
             requestBuilder.addFragment(Dtxn.CoordinatorFragment.PartitionFragment.newBuilder()
@@ -1301,9 +1312,11 @@ public class ExecutionSite implements Runnable {
             // requestBuilder.setLastFragment(false); // Why doesn't this work right? ftask.isFinalTask());
         } // FOR (tasks)
 
-        // Bad mojo! We need to 
+        // Bad mojo! We need to throw a MispredictionException so that the VoltProcedure
+        // will catch it and we can propagate the error message all the way back to the HStoreSite
         if (need_restart) {
-            // TODO
+            if (trace.get()) LOG.trace(String.format("Aborting txn #%d because it was mispredicted", txn_id));
+            throw new MispredictionException(txn_id);
         }
         
         // Bombs away!
@@ -1400,10 +1413,10 @@ public class ExecutionSite implements Runnable {
         }
         
         Long undoToken = ts.getLastUndoToken();
-        if (debug.get()) LOG.debug("Committing txn #" + txn_id + " [partition=" + this.getPartitionId() + ", lastCommittedTxnId=" + lastCommittedTxnId + ", undoToken=" + undoToken + "]");
+        if (debug.get()) LOG.debug(String.format("Committing txn #%d [partition=%d, lastCommittedTxnId=%d, undoToken=%d, submittedEE=%s]", txn_id, this.partitionId, this.lastCommittedTxnId, undoToken, ts.hasSubmittedEE()));
 
         // Blah blah blah...
-        if (this.ee != null && undoToken != null) {
+        if (this.ee != null && undoToken != null && ts.hasSubmittedEE()) {
             if (trace.get()) LOG.trace("Releasing undoToken '" + undoToken + "' for txn #" + txn_id);
             this.ee.releaseUndoToken(undoToken); 
         }
@@ -1432,14 +1445,14 @@ public class ExecutionSite implements Runnable {
         }
         
         Long undoToken = ts.getLastUndoToken();
-        if (debug.get()) LOG.debug("Aborting txn #" + txn_id + " [partition=" + this.getPartitionId() + ", lastCommittedTxnId=" + lastCommittedTxnId + ", undoToken=" + undoToken + "]");
+        if (debug.get()) LOG.debug(String.format("Aborting txn #%d [partition=%d, lastCommittedTxnId=%d, undoToken=%d, submittedEE=%s]", txn_id, this.partitionId, this.lastCommittedTxnId, undoToken, ts.hasSubmittedEE()));
 
         // Evan says that txns will be aborted LIFO. This means the first txn that
         // we get in abortWork() will have a the greatest undoToken, which means that 
         // it will automagically rollback all other outstanding txns.
         // I'm lazy/tired, so for now I'll just rollback everything I get, but in theory
         // we should be able to check whether our undoToken has already been rolled back
-        if (this.ee != null && undoToken != null) {
+        if (this.ee != null && undoToken != null && ts.hasSubmittedEE()) {
             if (trace.get()) LOG.trace("Rolling back work for txn #" + txn_id + " starting at undoToken " + undoToken);
             this.ee.undoUndoToken(undoToken);
         }
@@ -1450,9 +1463,9 @@ public class ExecutionSite implements Runnable {
     /**
      * Cause this ExecutionSite to make the entire HStore cluster shutdown
      */
-    public synchronized void crash() {
+    public synchronized void crash(Throwable ex) {
         assert(this.hstore_messenger != null);
-        this.hstore_messenger.shutdownCluster(); // This won't return
+        this.hstore_messenger.shutdownCluster(ex); // This won't return
     }
     
     /**
@@ -1468,6 +1481,7 @@ public class ExecutionSite implements Runnable {
                 LOG.fatal("Unexpected error while shutting down", ex);
             }
         }
-        // Anything else to do?
+        // Make sure we shutdown our threadpool
+        this.pool.shutdownNow();
     }
 }

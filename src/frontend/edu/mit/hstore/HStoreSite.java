@@ -146,6 +146,12 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
      */
     private final Map<Long, Long> restarted_txns = new ConcurrentHashMap<Long, Long>();
     
+    private final Map<Long, Boolean> is_singlepartitioned = new ConcurrentHashMap<Long, Boolean>();
+
+    /**
+     * 
+     */
+    private final Map<Long, StoredProcedureInvocation> invocations = new ConcurrentHashMap<Long, StoredProcedureInvocation>();
     
     /**
      * Simple Status Printer
@@ -173,6 +179,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         public void run() {
             Thread self = Thread.currentThread();
             self.setName(HStoreSite.this.getThreadName("mon"));
+            self.setDaemon(true);
             
             LOG.debug("Starting HStoreCoordinator status monitor thread [interval=" + interval + " secs]");
             while (!self.isInterrupted()) {
@@ -304,6 +311,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         if (debug.get()) LOG.debug("Starting ExecutionSite threads for " + this.executors.size() + " partitions on Site #" + this.site_id);
         for (Entry<Integer, ExecutionSite> e : this.executors.entrySet()) {
             Thread t = new Thread(e.getValue());
+            t.setDaemon(true);
             e.getValue().setHStoreCoordinatorNode(this);
             e.getValue().setHStoreMessenger(this.messenger);
             this.executor_threads.put(e.getKey(), t);
@@ -452,9 +460,10 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
      * @param txn_id
      */
     public synchronized void completeTransaction(long txn_id) {
-        if (LOG.isTraceEnabled()) LOG.trace("Cleaning up internal info for Txn #" + txn_id);
+        if (trace.get()) LOG.trace("Cleaning up internal info for Txn #" + txn_id);
         this.inflight_txns.remove(txn_id);
         this.completed_txns.incrementAndGet();
+        this.invocations.remove(txn_id);
         
         assert(!this.inflight_txns.containsKey(txn_id)) :
             "Failed to remove InFlight entry for txn #" + txn_id + "\n" + inflight_txns;
@@ -485,9 +494,8 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         }
 
         // Extract the stuff we need to figure out whether this guy belongs at our site
-        long client_handle = request.getClientHandle();
         request.buildParameterSet();
-        assert(request.getParams() != null) : "The parameters object is null for new txn from client #" + client_handle;
+        assert(request.getParams() != null) : "The parameters object is null for new txn from client #" + request.getClientHandle();
         Object args[] = request.getParams().toArray(); 
         // LOG.info("Parameter Size = " + request.getParameters())
         
@@ -528,11 +536,11 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         }
         // assert(dest_partition >= 0);
         if (trace.get()) {
-            LOG.trace("Client Handle = " + client_handle);
+            LOG.trace("Client Handle = " + request.getClientHandle());
             LOG.trace("Destination Partition = " + dest_partition);
         }
         
-        // TODO: If the dest_partition isn't local, then we need to ship it off to the right location
+        // If the dest_partition isn't local, then we need to ship it off to the right location
         if (this.executors.containsKey(dest_partition) == false) {
             if (debug.get()) LOG.debug("StoredProcedureInvocation request for " +  catalog_proc + " needs to be forwarded to Partition #" + dest_partition);
             
@@ -546,8 +554,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         // IMPORTANT: We have two txn ids here. We have the real one that we're going to use internally
         // and the fake one that we pass to Evan. We don't care about the fake one and will always ignore the
         // txn ids found in any Dtxn.Coordinator messages. 
-        long real_txn_id = this.txnid_manager.getNextUniqueTransactionId();
-        long dtxn_txn_id = real_txn_id; // this.dtxn_txn_id_counter.getAndIncrement();
+        long txn_id = this.txnid_manager.getNextUniqueTransactionId();
                 
         // Grab the TransactionEstimator for the destination partition and figure out whether
         // this mofo is likely to be single-partition or not. Anything that we can't estimate
@@ -561,49 +568,64 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         } else if (!t_estimator.canEstimate(catalog_proc)) {
             single_partition = false;
         } else {
-            if (trace.get()) LOG.trace("Using TransactionEstimator to check whether txn #" + real_txn_id + " is single-partition");
-            TransactionEstimator.Estimate estimate = t_estimator.startTransaction(real_txn_id, catalog_proc, args);
+            if (trace.get()) LOG.trace("Using TransactionEstimator to check whether txn #" + txn_id + " is single-partition");
+            TransactionEstimator.Estimate estimate = t_estimator.startTransaction(txn_id, catalog_proc, args);
             single_partition = estimate.isSinglePartition(this.thresholds);
         }
         assert (single_partition != null);
-        //LOG.debug("Single-Partition = " + single_partition);
-        InitiateTaskMessage wrapper = new InitiateTaskMessage(real_txn_id, dest_partition, dest_partition, client_handle, request);
-        
         if (single_partition) this.singlepart_ctr.incrementAndGet();
         else this.multipart_ctr.incrementAndGet();
-        this.inflight_txns.put(real_txn_id, dest_partition);
-        if (debug.get()) LOG.debug("Passing " + catalog_proc.getName() + " to Coordinator as " + (single_partition ? "single" : "multi") + "-partition txn #" + real_txn_id + " for partition " + dest_partition);
+
+        this.initializeInvocation(txn_id, dest_partition, single_partition, request, done);
+        //LOG.debug("Single-Partition = " + single_partition);
+    }
+    
+    /**
+     * 
+     * @param txn_id
+     * @param dtxn_txn_id
+     * @param dest_partition
+     * @param single_partition
+     * @param client_handle
+     * @param request
+     * @param done
+     */
+    private void initializeInvocation(long txn_id, int dest_partition, boolean single_partition, StoredProcedureInvocation request, RpcCallback<byte[]> done) {
+        if (debug.get()) LOG.debug(String.format("Passing %s to Dtxn.Coordinator as %s-partition txn #%d for partition %d",
+                                                 request.getProcName(), (single_partition ? "single" : "multi"), txn_id, dest_partition));
+        
+        InitiateTaskMessage wrapper = new InitiateTaskMessage(txn_id, dest_partition, dest_partition, request);
+        this.inflight_txns.put(txn_id, dest_partition);
+        this.invocations.put(txn_id, request);
+        this.is_singlepartitioned.put(txn_id, single_partition);
 
         // Construct the message for the Dtxn.Coordinator
         ProtoRpcController rpc = new ProtoRpcController();
         Dtxn.CoordinatorFragment.Builder requestBuilder = Dtxn.CoordinatorFragment.newBuilder();
         
         // Note that we pass the fake txn id to the Dtxn.Coordinator. 
-        requestBuilder.setTransactionId(dtxn_txn_id);
+        requestBuilder.setTransactionId(txn_id);
         
-        // FIXME: Need to use TransactionEstimator to determine this
-        requestBuilder.setLastFragment(true);
+        // Whether this transaction is single-partitioned or not
+        requestBuilder.setLastFragment(single_partition);
         
         // NOTE: Evan betrayed our love so we can't use his txn ids because they are meaningless to us
         // So we're going to pack in our txn id in the payload. Any message they we get from Evan
         // will have this payload so that we can figure out what the hell is going on...
-        requestBuilder.setPayload(HStoreSite.encodeTxnId(real_txn_id));
+        requestBuilder.setPayload(HStoreSite.encodeTxnId(txn_id));
 
         // Pack the StoredProcedureInvocation into a Dtxn.PartitionFragment
         requestBuilder.addFragment(Dtxn.CoordinatorFragment.PartitionFragment.newBuilder()
                 .setPartitionId(dest_partition)
                 // TODO: Use copyFrom(ByteBuffer) in the newer version of protobuf
-                .setWork(ByteString.copyFrom(wrapper.getBufferForMessaging(this.buffer_pool).b.array())))
-                .setLastFragment(single_partition);
+                .setWork(ByteString.copyFrom(wrapper.getBufferForMessaging(this.buffer_pool).b.array())));
         
         // Create a latch so that we don't start executing until we know the coordinator confirmed are initialization request
         CountDownLatch latch = new CountDownLatch(1);
-        InitiateCallback callback = new InitiateCallback(this, real_txn_id, latch);
-        this.client_callbacks.put(real_txn_id, done);
-        this.init_latches.put(real_txn_id, latch);
+        InitiateCallback callback = new InitiateCallback(this, txn_id, latch);
+        this.client_callbacks.put(txn_id, done);
+        this.init_latches.put(txn_id, latch);
         
-        if (trace.get()) LOG.trace("Passing " + catalog_proc.getName() + " through Dtxn.Coordinator using " + callback.getClass().getSimpleName() + " " +
-                             "[real_txn_id=" + real_txn_id + ", dtxn_txn_id=" + dtxn_txn_id + "]");
 //        assert(requestBuilder.getTransactionId() != callback.getTransactionId());
         this.coordinator.execute(rpc, requestBuilder.build(), callback);
     }
@@ -621,19 +643,17 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
             throw new RuntimeException(e);
         }
 
-        long real_txn_id = msg.getTxnId();
+        long txn_id = msg.getTxnId();
         int partition = msg.getDestinationPartitionId();
-        Long dtxn_txn_id = real_txn_id; // TODO: This is not needed anymore
+        Boolean single_partitioned = null;
         
-        if (debug.get()) LOG.debug("Got " + msg.getClass().getSimpleName() + " message for txn #" + real_txn_id + " " +
-                             "[partition=" + partition + ", dtxn_txn_id=" + dtxn_txn_id + "]");
+        if (debug.get()) LOG.debug(String.format("Got %s message for txn #%d [partition=%d]", msg.getClass().getSimpleName(), txn_id, partition));
         if (trace.get()) LOG.trace("CONTENTS:\n" + msg);
         
         ExecutionSite executor = this.executors.get(partition);
         if (executor == null) {
             throw new RuntimeException("No ExecutionSite exists for Partition #" + partition + " at this site???");
         }
-        TransactionEstimator t_estimator = executor.getTransactionEstimator();
         
         // Two things can now happen based on what type of message we were given:
         //
@@ -650,24 +670,46 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         RpcCallback<Dtxn.FragmentResponse> callback = null;
         if (msg instanceof InitiateTaskMessage) {
             // We need to send back a response before we actually start executing to avoid a race condition
-            if (trace.get()) LOG.trace("Sending back Dtxn.FragmentResponse for InitiateTaskMessage message on txn #" + real_txn_id);
+            if (trace.get()) LOG.trace("Sending back Dtxn.FragmentResponse for InitiateTaskMessage message on txn #" + txn_id);
             Dtxn.FragmentResponse response = Dtxn.FragmentResponse.newBuilder()
                                                     .setStatus(Status.OK)
                                                     .setOutput(ByteString.EMPTY)
                                                     .build();
             done.run(response);
-            assert(this.init_latches.containsKey(real_txn_id)) : "Missing initialization latch for txn #" + real_txn_id;
+            assert(this.init_latches.containsKey(txn_id)) : "Missing initialization latch for txn #" + txn_id;
+            assert(this.is_singlepartitioned.containsKey(txn_id)) : "Missing is_singlepartitioned for txn #" + txn_id;
+            single_partitioned = this.is_singlepartitioned.remove(txn_id);
             
-            RpcCallback<byte[]> client_callback = this.client_callbacks.get(real_txn_id);
-            assert(client_callback != null) : "Missing original RpcCallback for txn #" + real_txn_id;
-            callback = new ClientResponsePrepareCallback(this, real_txn_id, dtxn_txn_id, t_estimator, client_callback);
+            RpcCallback<byte[]> client_callback = this.client_callbacks.remove(txn_id);
+            assert(client_callback != null) : "Missing original RpcCallback for txn #" + txn_id;
+            callback = new ClientResponsePrepareCallback(this, txn_id, partition, executor.getTransactionEstimator(), client_callback);
         } else {
             callback = done;
         }
             
-        executor.doWork(msg, dtxn_txn_id, callback);
+        executor.doWork(msg, txn_id, callback, single_partitioned);
     }
 
+    /**
+     * 
+     * @param txn_id
+     */
+    public void misprediction(long txn_id, ClientResponsePrepareCallback orig_callback) {
+        int dest_partition = orig_callback.getOriginalPartitionId();
+        RpcCallback<byte[]> done = orig_callback.getOriginalRpcCallback();
+        
+        long new_txn_id = this.txnid_manager.getNextUniqueTransactionId();
+        this.restarted_txns.put(new_txn_id, txn_id);
+        
+        StoredProcedureInvocation spi = this.invocations.get(txn_id);
+        assert(spi != null) : "Missing StoredProcedureInvocation for txn #" + txn_id;
+        this.invocations.put(new_txn_id, spi);
+        
+         if (debug.get()) LOG.debug(String.format("Re-executing mispredicted txn #%d as new txn #%d", txn_id, new_txn_id));
+         this.initializeInvocation(new_txn_id, dest_partition, false, spi, done);
+    }
+    
+    
     /**
      * This will block until the the initialization latch is released by the InitiateCallback
      * @param txn_id
@@ -777,6 +819,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         threads.add(new Thread() {
             {
                 this.setName(hstore_site.getThreadName("proto"));
+                this.setDaemon(true);
             }
             public void run() {
                 ProtoServer execServer = new ProtoServer(execEventLoop);
@@ -810,6 +853,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
             threads.add(new Thread() {
                 {
                     this.setName(hstore_site.getThreadName("init"));
+                    this.setDaemon(true);
                 }
                 public void run() {
                     int partition = catalog_part.getId();
@@ -846,6 +890,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         threads.add(new Thread() {
             {
                 this.setName(hstore_site.getThreadName("coord"));
+                this.setDaemon(true);
             }
             public void run() {
                 if (debug.get()) LOG.debug("Creating connection to coordinator at " + coordinatorHost + ":" + coordinatorPort + " [site=" + hstore_site.getSiteId() + "]");
@@ -891,9 +936,9 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         });
         
         // Set them all to be daemon threads
-        for (Thread t : threads) {
-            t.setDaemon(true);
-        }
+//        for (Thread t : threads) {
+//            t.setDaemon(true);
+//        }
 
         // Blocks!
         ThreadUtil.run(threads);

@@ -154,6 +154,30 @@ public class MarkovGraph extends AbstractDirectedGraph<Vertex, Edge> implements 
         }
         return (ret);
     }
+
+    /**
+     * Return the specific vertex for the state type
+     * @param vtype
+     * @return
+     */
+    protected Vertex getSpecialVertex(Vertex.Type vtype) {
+        assert(vtype != Vertex.Type.QUERY);
+        Vertex v = null;
+        switch (vtype) {
+            case START:
+                v = this.getStartVertex();
+                break;
+            case COMMIT:
+                v = this.getCommitVertex();
+                break;
+            case ABORT:
+                v = this.getAbortVertex();
+                break;
+            default:
+                // Ignore others
+        } // SWITCH
+        return (v);
+    }
     
     /**
      * Get the vertex based on it's unique identifier. This is a combination of

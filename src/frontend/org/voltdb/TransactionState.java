@@ -73,7 +73,7 @@ public class TransactionState {
     private final int origin_partition;
     private final Set<Integer> touched_partitions = new HashSet<Integer>();
     private final boolean exec_local;
-    private final boolean single_partitioned;
+    private boolean single_partitioned;
     private CountDownLatch dependency_latch;
     private Long start_undo_token;
     private Long last_undo_token;
@@ -137,6 +137,11 @@ public class TransactionState {
      */
     private int received_ctr = 0;
 
+    /**
+     * Whether this Transaction has submitted work to the EE that needs to be rolled back
+     */
+    private boolean submitted_to_ee = false;
+    
     /**
      * PartitionDependencyKey
      */
@@ -291,14 +296,13 @@ public class TransactionState {
      * @param client_handle
      * @param callback
      */
-    public TransactionState(ExecutionSite executor, long txn_id, Long dtxn_txn_id, int origin_partition, long client_handle, boolean exec_local, boolean single_partitioned) {
+    public TransactionState(ExecutionSite executor, long txn_id, Long dtxn_txn_id, int origin_partition, long client_handle, boolean exec_local) {
         this.executor = executor;
         this.origin_partition = origin_partition;
         this.txn_id = txn_id;
         this.dtxn_txn_id = dtxn_txn_id;
         this.client_handle = client_handle;
         this.exec_local = exec_local;
-        this.single_partitioned = single_partitioned;
         
         assert(this.exec_local == false || (this.exec_local == true && this.dtxn_txn_id != null)) :
             "Missing Dtxn.Coordinator Txn Id for local Txn #" + this.txn_id; 
@@ -324,6 +328,21 @@ public class TransactionState {
                 this.dependency_latch.countDown();
             } // WHILE
         }
+    }
+    
+    /**
+     * Should be called whenever the txn submits work to the EE 
+     */
+    public void setSubmittedEE() {
+        this.submitted_to_ee = true;
+    }
+
+    /**
+     * Returns true if this txn has submitted work to the EE that needs to be rolled back
+     * @return
+     */
+    public boolean hasSubmittedEE() {
+        return (this.submitted_to_ee);
     }
     
     public void markAsFinished() {
@@ -366,13 +385,6 @@ public class TransactionState {
      * 
      * @return
      */
-    public Long getStartUndoToken() {
-        return this.start_undo_token;
-    }
-    /**
-     * 
-     * @return
-     */
     public Long getLastUndoToken() {
         return this.last_undo_token;
     }
@@ -388,6 +400,10 @@ public class TransactionState {
      */
     public boolean isExecLocal() {
         return this.exec_local;
+    }
+
+    protected void setPredictSinglePartitioned(boolean singlePartitioned) {
+        this.single_partitioned = singlePartitioned;
     }
     
     /**
@@ -496,10 +512,8 @@ public class TransactionState {
         assert(this.queued_results.isEmpty()) : "Trying to initialize round for txn #" + this.txn_id + " but there are " + this.queued_results.size() + " queued results";
         
         synchronized (this.lock) {
-            if (this.start_undo_token == null) {
-                this.start_undo_token = undoToken;
             // Reset these guys here so that we don't waste time in the last round
-            } else {
+            if (this.last_undo_token != null) {
                 this.internal_dependencies.clear();
                 this.output_order.clear();
                 this.blocked_tasks.clear();

@@ -34,7 +34,7 @@ public class TestExecutionSite extends BaseTestCase {
 
     private static final int NUM_PARTITONS = 10;
     private static final int PARTITION_ID = 1;
-    private static final long CLIENT_HANDLE = 1001;
+    private static final int CLIENT_HANDLE = 1001;
     private static final long LAST_SAFE_TXN = -1;
     private static final BackendTarget BACKEND_TARGET = BackendTarget.HSQLDB_BACKEND;
 
@@ -171,11 +171,11 @@ public class TestExecutionSite extends BaseTestCase {
         StoredProcedureInvocation invocation = new StoredProcedureInvocation();
         invocation.setProcName(TARGET_PROCEDURE);
         invocation.setParams(TARGET_PARAMS);
-        invocation.setClientHandle(10001);
+        invocation.setClientHandle(CLIENT_HANDLE);
         
         Long txn_id = new Long(rand.nextInt());
-        InitiateTaskMessage init_task = new InitiateTaskMessage(PARTITION_ID, PARTITION_ID, txn_id, CLIENT_HANDLE, true, true, invocation, LAST_SAFE_TXN); 
-        site.doWork(init_task, txn_id, new MockCallback());
+        InitiateTaskMessage init_task = new InitiateTaskMessage(PARTITION_ID, PARTITION_ID, txn_id, true, true, invocation, LAST_SAFE_TXN); 
+        site.doWork(init_task, txn_id, new MockCallback(), true);
         
         int tries = 1000;
         boolean found = false;

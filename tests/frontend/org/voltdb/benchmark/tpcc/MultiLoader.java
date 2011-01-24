@@ -647,7 +647,7 @@ public class MultiLoader extends ClientMain {
                     totalLoadWorkGenerated += customerNamesTables.size();
                 }
                 Collections.shuffle(replicatedLoadWork);
-                LOG.info("Total load work generated is " + (totalLoadWorkGenerated-1));
+                LOG.debug("Total load work generated is " + (totalLoadWorkGenerated-1));
 
                 /*
                  * Only supply item table the first time.

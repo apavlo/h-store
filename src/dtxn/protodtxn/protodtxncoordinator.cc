@@ -178,7 +178,7 @@ void ProtoDtxnCoordinator::Finish(RpcController* controller,
         LOG_DEBUG("Telling our DtxnManager that we want to finish");
         dtxn_manager_->finish(state->transaction(), request->commit(), request->payload(), state->finish_callback());
     } else {
-        CHECK(request->commit() == (state->transaction()->status() == DistributedTransaction::OK));
+        // HACK CHECK(request->commit() == (state->transaction()->status() == DistributedTransaction::OK));
         // This is a single partition transaction, or it aborted: just delete the state
         internalDeleteTransaction(request->transaction_id());
         done->Run();
