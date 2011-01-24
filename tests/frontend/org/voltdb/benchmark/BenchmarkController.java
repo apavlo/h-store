@@ -412,13 +412,20 @@ public class BenchmarkController {
             
             // START THE SERVERS
             LOG.debug("Number of hosts to start: " + launch_hosts.size());
+            int hosts_started = 0;
             for (String[] triplet : launch_hosts) {
                 String host = triplet[0];
                 String port = triplet[1];
-                String site_id = triplet[2];
-                String host_id = String.format("site-%s-%s", host, site_id);
+                int site_id = Integer.valueOf(triplet[2]);
+                String host_id = String.format("site-%s-%d", host, site_id);
                 
-                LOG.info(String.format("Starting HStoreSite on %s:%s with site id #%s", host, port, site_id));
+                // Check whether this one of the sites that will be started externally
+                if (m_config.profileSiteIds.contains(site_id)) {
+                    LOG.info(String.format("Skipping HStoreSite #%d because it will be started by profiler", site_id));
+                    continue;
+                }
+                
+                LOG.info(String.format("Starting HStoreSite on %s:%s with site id #%d", host, port, site_id));
 
 //                String debugString = "";
 //                if (m_config.listenForDebugger) {
@@ -442,13 +449,15 @@ public class BenchmarkController {
 
                 String exec_command[] = SSHTools.convert(m_config.remoteUser, host, m_config.remotePath, command.toArray(new String[]{}));
                 String fullCommand = StringUtil.join(" ", exec_command);
+                System.err.println(fullCommand);
                 uploader.setCommandLineForHost(host, fullCommand);
                 benchmarkLog.debug(fullCommand);
                 m_serverPSM.startProcess(host_id, exec_command);
+                hosts_started++;
             } // FOR
 
             // WAIT FOR SERVERS TO BE READY
-            int waiting = launch_hosts.size();
+            int waiting = hosts_started;
             LOG.info("Waiting for " + waiting + " HStoreSites to finish initialization");
             do {
                 ProcessSetManager.OutputLine line = m_serverPSM.nextBlocking();
@@ -907,6 +916,9 @@ public class BenchmarkController {
         String statsTag = null;
         String applicationName = null;
         String subApplicationName = null;
+        
+        // List of SiteIds that we won't start because they'll be started by the profiler
+        Set<Integer> profileSiteIds = new HashSet<Integer>();
 
         // try to read connection string for reporting database
         // from a "mysqlp" file
@@ -1077,6 +1089,13 @@ public class BenchmarkController {
                  * Workload Trace Output
                  */
                 workloadTrace = parts[1];
+            } else if (parts[0].equalsIgnoreCase("PROFILESITES")) {
+                /*
+                 * Profile SiteIds
+                 */
+                for (String s : parts[1].split(",")) {
+                    profileSiteIds.add(Integer.valueOf(s));
+                } // FOR
             /** PAVLO **/
                 
             } else {
@@ -1197,7 +1216,8 @@ public class BenchmarkController {
                 compileOnly, 
                 useCatalogHosts,
                 noDataLoad,
-                workloadTrace);
+                workloadTrace,
+                profileSiteIds);
 
         // Always pass these parameters
         clientParams.put("INTERVAL", Long.toString(interval));
