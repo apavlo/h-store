@@ -59,21 +59,21 @@ public abstract class ThreadUtil {
             });
         }
         
-        BufferedInputStream in = new BufferedInputStream(p.getInputStream());
-        StringBuilder buffer = new StringBuilder();
-        int c;
-        try {
-            while((c = in.read()) != -1) {
-                buffer.append((char)c);
-                if (((char)c) == '\n') {
-                    System.out.print(prefix + buffer.toString());
-                    buffer = new StringBuilder();
-                }
-            }
-        } catch (Exception e) {
-            p.destroy();
-        }
-        if (buffer.length() > 0) System.out.println(prefix + buffer);
+//        BufferedInputStream in = new BufferedInputStream(p.getInputStream());
+//        StringBuilder buffer = new StringBuilder();
+//        int c;
+//        try {
+//            while((c = in.read()) != -1) {
+//                buffer.append((char)c);
+//                if (((char)c) == '\n') {
+//                    System.out.print(prefix + buffer.toString());
+//                    buffer = new StringBuilder();
+//                }
+//            }
+//        } catch (Exception e) {
+//            p.destroy();
+//        }
+//        if (buffer.length() > 0) System.out.println(prefix + buffer);
         
         try {
             p.waitFor();

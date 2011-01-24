@@ -58,6 +58,7 @@ public class BenchmarkConfig {
     public final String subApplicationName;
     
     public final String coordinatorHost;
+    public final boolean noCoordinator;
     public final boolean compileBenchmark;
     public final boolean compileOnly;
     public final boolean useCatalogHosts;
@@ -71,6 +72,7 @@ public class BenchmarkConfig {
             String benchmarkClient,
             String backend,
             String coordinatorHost,
+            boolean noCoordinator,
             String[] hosts,
             int sitesPerHost,
             int kFactor,
@@ -107,6 +109,7 @@ public class BenchmarkConfig {
         this.benchmarkClient = benchmarkClient;
         this.backend = backend;
         this.coordinatorHost = coordinatorHost;
+        this.noCoordinator = noCoordinator;
         this.hosts = new String[hosts.length];
         for (int i = 0; i < hosts.length; i++)
             this.hosts[i] = hosts[i];
