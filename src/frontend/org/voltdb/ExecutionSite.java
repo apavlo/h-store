@@ -564,7 +564,8 @@ public class ExecutionSite implements Runnable {
     public void run() {
         assert(this.hstore_site != null);
         assert(this.hstore_messenger != null);
-        Thread.currentThread().setName(this.getThreadName());
+        Thread self = Thread.currentThread();
+        self.setName(this.getThreadName());
 
         /*
         NDC.push("ExecutionSite - " + siteId + " index " + siteIndex);
@@ -589,7 +590,7 @@ public class ExecutionSite implements Runnable {
         this.shutdown_latch = new CountDownLatch(1);
 
         try {
-            if (LOG.isDebugEnabled()) LOG.debug("Starting ExecutionSite run loop...");
+            if (debug.get()) LOG.debug("Starting ExecutionSite run loop...");
             boolean stop = false;
             long poll_ctr = 0;
             TransactionInfoBaseMessage work = null;
@@ -610,29 +611,29 @@ public class ExecutionSite implements Runnable {
                 
                 // If there is nothing we need to immediately work on, then we can check if there are
                 // any finished transactions that we can clean up
-                if (this.work_queue.isEmpty() && this.finished_txn_states.isEmpty() == false) {
-                    long to_remove = System.currentTimeMillis() - FINISHED_TRANSACTION_GARBAGE_COLLECTION;
-                    int cleaned = 0;
-                    while (this.work_queue.isEmpty() &&
-                           this.finished_txn_states.isEmpty() == false &&
-                           cleaned < MAX_TRANSACTION_GARBAGE_COLLECTION) {
-                        TransactionState ts = this.finished_txn_states.peek();
-                        if (ts.getFinishedTimestamp() < to_remove) {
-                            this.cleanupTransaction(ts);
-                            this.finished_txn_states.remove();
-                            cleaned++;
-                        } else break;
-                    } // WHILE
-                    if (cleaned > 0 && trace.get()) LOG.trace("Cleaned " + cleaned + " transaction states");
-                // Otherwise poll the work queue until we actually get something to do
-                } else {
+//                if (this.work_queue.isEmpty() && this.finished_txn_states.isEmpty() == false) {
+//                    long to_remove = System.currentTimeMillis() - FINISHED_TRANSACTION_GARBAGE_COLLECTION;
+//                    int cleaned = 0;
+//                    while (this.work_queue.isEmpty() &&
+//                           this.finished_txn_states.isEmpty() == false &&
+//                           cleaned < MAX_TRANSACTION_GARBAGE_COLLECTION) {
+//                        TransactionState ts = this.finished_txn_states.peek();
+//                        if (ts.getFinishedTimestamp() < to_remove) {
+//                            this.cleanupTransaction(ts);
+//                            this.finished_txn_states.remove();
+//                            cleaned++;
+//                        } else break;
+//                    } // WHILE
+//                    if (cleaned > 0 && trace.get()) LOG.trace("Cleaned " + cleaned + " transaction states");
+//                // Otherwise poll the work queue until we actually get something to do
+//                } else {
                     try {
-                        work = this.work_queue.poll(200, TimeUnit.MILLISECONDS);
+                        work = this.work_queue.poll(500, TimeUnit.MILLISECONDS);
                     } catch (InterruptedException ex) {
                         if (debug.get()) LOG.debug("Interupted while polling work queue. Halting ExecutionSite...", ex);
                         stop = true;
                     }
-                }
+//                }
 
                 // -------------------------------
                 // Execute Query Plan Fragments
@@ -767,6 +768,9 @@ public class ExecutionSite implements Runnable {
                     
                     this.startTransaction(ts, volt_proc, init_work);
 
+                    // Only call tick here!
+                    this.tick();
+                    
                 // -------------------------------
                 // BAD MOJO!
                 // -------------------------------
@@ -774,8 +778,7 @@ public class ExecutionSite implements Runnable {
                     throw new RuntimeException("Unexpected work message in queue: " + work);
                 }
 
-                this.tick();
-                stop = stop || Thread.currentThread().isInterrupted();
+                // stop = stop || self.isInterrupted();
             } // WHILE
         } catch (final RuntimeException e) {
             LOG.fatal(e);

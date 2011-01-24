@@ -1482,6 +1482,8 @@ BENCHMARKS
         <arg value="DURATION=${hstore.duration}" />
         <arg value="BLOCKING=${hstore.blocking}" />
         <arg value="TRACE=${trace}" />
+        <arg value="PROFILESITES=${profilesites}" />
+        <arg value="NOCOORDINATOR=${nocoordinator}" />
 
         <!-- Global Parameters -->
         <arg value="scalefactor=${hstore.scalefactor}" />

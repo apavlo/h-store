@@ -362,20 +362,23 @@ public class BenchmarkController {
             Set<Thread> threads = new HashSet<Thread>();
             
             // Dtxn.Coordinator
-            {
+            if (m_config.noCoordinator == false) {
                 KillStragglers ks = new KillStragglers(m_config.remoteUser, m_config.coordinatorHost, m_config.remotePath)
                                             .enableKillCoordinator();
                 threads.add(new Thread(ks));
                 Runtime.getRuntime().addShutdownHook(new Thread(ks));
             }
             // HStoreSite
-            for (String host : unique_hosts) {
-                KillStragglers ks = new KillStragglers(m_config.remoteUser, host, m_config.remotePath)
-                                            .enableKillSite()
-                                            .enableKillEngine();
-                threads.add(new Thread(ks));
-                Runtime.getRuntime().addShutdownHook(new Thread(ks));
-            } // FOR
+            // IMPORTANT: Don't try to kill things if we're going to profile... for obvious reasons... duh!
+            if (m_config.profileSiteIds.isEmpty()) {
+                for (String host : unique_hosts) {
+                    KillStragglers ks = new KillStragglers(m_config.remoteUser, host, m_config.remotePath)
+                                                .enableKillSite()
+                                                .enableKillEngine();
+                    threads.add(new Thread(ks));
+                    Runtime.getRuntime().addShutdownHook(new Thread(ks));
+                } // FOR
+            }
             // Client
             for (String host : m_config.clients) {
                 KillStragglers ks = new KillStragglers(m_config.remoteUser, host, m_config.remotePath)
@@ -395,7 +398,7 @@ public class BenchmarkController {
             }
 
             // START: Dtxn.Coordinator
-            {
+            if (m_config.noCoordinator == false) {
                 String host = m_config.coordinatorHost;
                 String[] command = {
                     "ant",
@@ -449,7 +452,6 @@ public class BenchmarkController {
 
                 String exec_command[] = SSHTools.convert(m_config.remoteUser, host, m_config.remotePath, command.toArray(new String[]{}));
                 String fullCommand = StringUtil.join(" ", exec_command);
-                System.err.println(fullCommand);
                 uploader.setCommandLineForHost(host, fullCommand);
                 benchmarkLog.debug(fullCommand);
                 m_serverPSM.startProcess(host_id, exec_command);
@@ -458,13 +460,16 @@ public class BenchmarkController {
 
             // WAIT FOR SERVERS TO BE READY
             int waiting = hosts_started;
-            LOG.info("Waiting for " + waiting + " HStoreSites to finish initialization");
-            do {
-                ProcessSetManager.OutputLine line = m_serverPSM.nextBlocking();
-                if (line.value.contains(HStoreSite.SITE_READY_MSG)) {
-                    waiting--;
-                }
-            } while (waiting > 0);
+            if (waiting > 0) {
+                LOG.info("Waiting for " + waiting + " HStoreSites to finish initialization");
+                
+                do {
+                    ProcessSetManager.OutputLine line = m_serverPSM.nextBlocking();
+                    if (line.value.contains(HStoreSite.SITE_READY_MSG)) {
+                        waiting--;
+                    }
+                } while (waiting > 0);
+            }
             LOG.info("All remote HStoreSites are initialized");
         }
         else {
@@ -655,7 +660,7 @@ public class BenchmarkController {
         }
 
         m_serverPSM.killAll();
-        m_coordPSM.killAll();
+        if (m_config.noCoordinator == false) m_coordPSM.killAll();
         
 //        // Kill the coordinator
 //        LOG.info("Killing " + HStoreSite.DTXN_COORDINATOR + " on host " + m_config.coordinatorHost);
@@ -913,6 +918,7 @@ public class BenchmarkController {
         float checkTransaction = 0;
         boolean checkTables = false;
         String coordinatorHost = null;
+        boolean noCoordinator = false;
         String statsTag = null;
         String applicationName = null;
         String subApplicationName = null;
@@ -1055,6 +1061,8 @@ public class BenchmarkController {
             /** PAVLO **/
             } else if (parts[0].equalsIgnoreCase("COORDINATORHOST")) {
                 coordinatorHost = parts[1];
+            } else if (parts[0].equalsIgnoreCase("NOCOORDINATOR")) {
+                noCoordinator = Boolean.valueOf(parts[1]);
                 
             } else if (parts[0].equalsIgnoreCase("CATALOG")) {
                 catalogPath = new File(parts[1]);
@@ -1186,7 +1194,8 @@ public class BenchmarkController {
         BenchmarkConfig config = new BenchmarkConfig(
                 clientClassname,
                 backend, 
-                coordinatorHost, 
+                coordinatorHost,
+                noCoordinator,
                 hostNames,
                 sitesPerHost, 
                 k_factor, 
