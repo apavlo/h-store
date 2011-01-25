@@ -449,11 +449,11 @@ public abstract class VoltProcedure {
 
     public void registerCallback(EventObserver observer) {
         this.observable.addObserver(observer);
-        }
+    }
 
     public void unregisterCallback(EventObserver observer) {
         this.observable.deleteObserver(observer);
-        }
+    }
     
     /**
      * Convenience method to call and block a VoltProcedure
@@ -1020,12 +1020,10 @@ public abstract class VoltProcedure {
             params[i] = getCleanParams(batchStmts[i], batchArgs[i]);
         } // FOR
 
-        //
         // TODO: At this point we have to calculate exactly what we need to do on each partition
         //       for this batch. So somehow right now we need to fire this off to either our
         //       local executor or to Evan's magical distributed transaction manager
-        //
-        BatchPlanner.BatchPlan plan = planner.plan(params, this.local_partition);
+        BatchPlanner.BatchPlan plan = planner.plan(params, this.local_partition, this.m_currentTxnState.isPredictSinglePartition());
         
         // Tell the TransactionEstimator that we're about to execute these mofos
         // TODO(pavlo+evanj): We need to do something with the estimate

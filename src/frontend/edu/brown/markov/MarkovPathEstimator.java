@@ -224,7 +224,7 @@ public class MarkovPathEstimator extends VertexTreeWalker<Vertex> {
                 if (trace) LOG.trace("Mapped StmtParameters: " + Arrays.toString(stmt_args));
                 Set<Integer> partitions = null;
                 try {
-                    partitions = this.p_estimator.getPartitions(catalog_stmt, stmt_args, this.base_partition);
+                    partitions = this.p_estimator.getAllPartitions(catalog_stmt, stmt_args, this.base_partition);
                 } catch (Exception ex) {
                     String msg = "Failed to calculate partitions for " + catalog_stmt + " using parameters " + Arrays.toString(stmt_args);
                     LOG.error(msg, ex);

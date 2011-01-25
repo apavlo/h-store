@@ -2,6 +2,7 @@ package edu.brown.catalog;
 
 import java.io.*;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.log4j.Logger;
@@ -25,12 +26,18 @@ import edu.brown.plannodes.PlanNodeUtil;
 import edu.brown.utils.AbstractTreeWalker;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.FileUtil;
+import edu.brown.utils.LoggerUtil;
 
 /**
  * @author pavlo
  */
 public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
     static final Logger LOG = Logger.getLogger(CatalogUtil.class);
+    private final static AtomicBoolean debug = new AtomicBoolean(LOG.isDebugEnabled());
+    private final static AtomicBoolean trace = new AtomicBoolean(LOG.isTraceEnabled());
+    static {
+        LoggerUtil.attachObserver(LOG, debug, trace);
+    }
 
     public static final String DEFAULT_CLUSTER_NAME = "cluster";
     public static final String DEFAULT_DATABASE_NAME = "database";
@@ -43,16 +50,74 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
     // CACHES
     // ------------------------------------------------------------
 
+    private static class Cache {
+        
+        /**
+         * Statement -> Set<Column>
+         */
+        public final Map<Statement, Set<Column>> STATEMENT_COLUMNS = new HashMap<Statement, Set<Column>>();
+
+        /**
+         * Statement -> Set<Table>
+         */
+        private final Map<Statement, Set<Table>> STATEMENT_TABLES = new HashMap<Statement, Set<Table>>();
+        
+        /**
+         * Procedure -> Set<Column>
+         */
+        private final Map<Procedure, Set<Column>> PROCEDURE_COLUMNS = new HashMap<Procedure, Set<Column>>();
+        
+        /**
+         * Procedure -> Set<Table>
+         */
+        private final Map<Procedure, Set<Table>> PROCEDURE_TABLES = new HashMap<Procedure, Set<Table>>();
+        
+        /**
+         * Table -> Tuple Size (bytes)
+         */
+        public final Map<Table, Long> TABLE_TUPLE_SIZE = new HashMap<Table, Long>();
+        
+        /**
+         * PartitionId -> Partition
+         */
+        public final ListOrderedMap<Integer, Partition> PARTITION_XREF = new ListOrderedMap<Integer, Partition>();
+        
+        /**
+         * Host -> Set<Site>
+         */
+        public final Map<Host, Set<Site>> HOST_SITES = new HashMap<Host, Set<Site>>();
+        
+        /**
+         * Column -> Foreign Key Parent Column
+         */
+        public final Map<Column, Column> FOREIGNKEY_PARENT = new HashMap<Column, Column>();
+    }
+    
+    private static final Map<Database, CatalogUtil.Cache> CACHE = new HashMap<Database, CatalogUtil.Cache>();
+    
     /**
-     * StatementKey -> Set<ColumnKey>
+     * Get the Cache handle for the Database catalog object
+     * If one doesn't exist yet, it will be created 
+     * @param catalog_item
+     * @return
      */
-    public static final Map<String, Set<String>> CACHE_STATEMENT_COLUMNS_KEYS = new HashMap<String, Set<String>>();
+    private static CatalogUtil.Cache getCache(CatalogType catalog_item) {
+        final Database catalog_db = (catalog_item instanceof Database ? (Database)catalog_item : CatalogUtil.getDatabase(catalog_item));
+        CatalogUtil.Cache ret = CACHE.get(catalog_db);
+        if (ret == null) {
+            ret = new CatalogUtil.Cache();
+            CACHE.put(catalog_db, ret);
+        }
+        assert(ret != null) : "Failed to cache for " + catalog_item.fullName();
+        return (ret);
+    }
+    
 
     /**
-     * Table -> Long
+     * 
+     * @param items
+     * @return
      */
-    public static final Map<String, Long> CACHE_TABLE_TUPLE_SIZE = new HashMap<String, Long>();
-
     public static Map<Object, String> getHistogramLabels(Set<Object> items) {
         Map<Object, String> labels = new HashMap<Object, String>();
         for (Object o : items) {
@@ -75,6 +140,11 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
         return (ret);
     }
 
+    /**
+     * Return the real Constraint objects for the ConstraintRefs
+     * @param map
+     * @return
+     */
     public static Set<Constraint> getConstraints(Iterable<ConstraintRef> map) {
         Set<Constraint> ret = new HashSet<Constraint>();
         if (map != null) {
@@ -87,15 +157,18 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
         return (ret);
     }
 
+    /**
+     * Return the partitioning parameter used by this Procedure
+     * @param catalog_proc
+     * @return
+     */
     public static ProcParameter getProcParameter(Procedure catalog_proc) {
         assert (catalog_proc != null);
         ProcParameter catalog_param = null;
-        if (catalog_proc.getParameters().size() > 0
-                && !catalog_proc.getSystemproc()) {
+        if (catalog_proc.getParameters().size() > 0 && !catalog_proc.getSystemproc()) {
             int idx = catalog_proc.getPartitionparameter();
             if (idx == NullProcParameter.PARAM_IDX) {
-                catalog_param = NullProcParameter
-                        .getNullProcParameter(catalog_proc);
+                catalog_param = NullProcParameter.getNullProcParameter(catalog_proc);
             } else {
                 catalog_param = catalog_proc.getParameters().get(idx);
                 assert (catalog_param != null) : "Unexpected Null ProcParameter for "
@@ -107,7 +180,6 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
 
     /**
      * Return the unique Site catalog object for the given id
-     * 
      * @param catalog_item
      * @return
      */
@@ -158,7 +230,6 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
     
     /**
      * Return the number of partitions for a catalog for any catalog item
-     * 
      * @param catalog_item
      * @return
      */
@@ -171,7 +242,6 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
 
     /**
      * Return a random partition id for all of the partitions available
-     * 
      * @param catalog_item
      * @return
      */
@@ -179,56 +249,65 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
         return (rand.nextInt(CatalogUtil.getNumberOfPartitions(catalog_item)));
     }
 
-    public static Partition getPartitionById(CatalogType catalog_item,
-            Integer id) {
-        if (CACHE_ALL_PARTITIONS.isEmpty()) {
-            CatalogUtil.getAllPartitions(catalog_item);
-        }
-        return (CACHE_ALL_PARTITIONS.get(id));
+    /**
+     * Return the Partition catalog object for the given PartitionId
+     * @param catalog_item
+     * @param id
+     * @return
+     */
+    public static Partition getPartitionById(CatalogType catalog_item, Integer id) {
+        final CatalogUtil.Cache cache = CatalogUtil.getCache(catalog_item);
+        if (cache.PARTITION_XREF.isEmpty()) CatalogUtil.buildPartitionCache(cache, catalog_item);
+        Partition catalog_part = cache.PARTITION_XREF.get(id);
+        return (catalog_part);
     }
-
+    
+    /**
+     * Return a Collection of all the Partition catalog objects
+     * @param catalog_item
+     * @return
+     */
     public static Collection<Partition> getAllPartitions(CatalogType catalog_item) {
-        Cluster catalog_clus = CatalogUtil.getCluster(catalog_item);
-
-        if (CACHE_ALL_PARTITIONS.isEmpty()) {
-            for (Site catalog_site : catalog_clus.getSites()) {
-                for (Partition catalog_part : catalog_site.getPartitions()) {
-                    CACHE_ALL_PARTITIONS
-                            .put(catalog_part.getId(), catalog_part);
-                } // FOR
-            } // FOR
-        }
-        return (Collections.unmodifiableCollection(CACHE_ALL_PARTITIONS.values()));
+        final CatalogUtil.Cache cache = CatalogUtil.getCache(catalog_item);
+        if (cache.PARTITION_XREF.isEmpty()) CatalogUtil.buildPartitionCache(cache, catalog_item);
+        return (Collections.unmodifiableCollection(cache.PARTITION_XREF.values()));
     }
-
-    private static final ListOrderedMap<Integer, Partition> CACHE_ALL_PARTITIONS = new ListOrderedMap<Integer, Partition>();
 
     /**
      * Get a new list of all the partition ids in this catalog
-     * 
      * @return
      */
     public static List<Integer> getAllPartitionIds(CatalogType catalog_item) {
-        if (CACHE_ALL_PARTITIONS.isEmpty()) {
-            CatalogUtil.getAllPartitions(catalog_item);
-        }
-        return (Collections.unmodifiableList(CACHE_ALL_PARTITIONS.asList()));
+        final CatalogUtil.Cache cache = CatalogUtil.getCache(catalog_item);
+        if (cache.PARTITION_XREF.isEmpty()) CatalogUtil.buildPartitionCache(cache, catalog_item);
+        return (cache.PARTITION_XREF.asList());
+    }
+    
+    /**
+     * Construct the internal PARTITION_XREF cache map
+     * @param cache
+     * @param catalog_item
+     */
+    private static void buildPartitionCache(CatalogUtil.Cache cache, CatalogType catalog_item) {
+        Cluster catalog_clus = CatalogUtil.getCluster(catalog_item);    
+        for (Site catalog_site : catalog_clus.getSites()) {
+            for (Partition catalog_part : catalog_site.getPartitions()) {
+                cache.PARTITION_XREF.put(catalog_part.getId(), catalog_part);
+            } // FOR
+        } // FOR
     }
 
     /**
      * Get a mapping of partitions for each host. We have to return the Site
      * objects in order to get the Partition handle that we want
-     * 
      * @return
      */
     public static Map<Host, Set<Site>> getSitesPerHost(CatalogType catalog_item) {
-        final Catalog catalog = catalog_item.getCatalog();
-        Map<Host, Set<Site>> ret = CACHE_HOST_SITES.get(catalog);
-
-        if (ret == null) {
-            Cluster catalog_clus = CatalogUtil.getCluster(catalog_item);
-            ret = new HashMap<Host, Set<Site>>();
-
+        final CatalogUtil.Cache cache = CatalogUtil.getCache(catalog_item);
+        final Map<Host, Set<Site>> sites = cache.HOST_SITES;
+        
+        if (sites.isEmpty()) {
+            // Sort them by site ids
             final Comparator<Site> comparator = new Comparator<Site>() {
                 @Override
                 public int compare(Site o1, Site o2) {
@@ -236,28 +315,59 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
                 }
             };
 
+            Cluster catalog_clus = CatalogUtil.getCluster(catalog_item);
             for (Site catalog_site : catalog_clus.getSites()) {
                 Host catalog_host = catalog_site.getHost();
-                if (!ret.containsKey(catalog_host)) {
-                    ret.put(catalog_host, new TreeSet<Site>(comparator));
+                if (!sites.containsKey(catalog_host)) {
+                    sites.put(catalog_host, new TreeSet<Site>(comparator));
                 }
-                ret.get(catalog_host).add(catalog_site);
-                LOG.debug(catalog_host + " => " + catalog_site);
+                sites.get(catalog_host).add(catalog_site);
+                if (debug.get()) LOG.debug(catalog_host + " => " + catalog_site);
             } // FOR
-            assert (ret.size() == catalog_clus.getHosts().size());
-            ret = Collections.unmodifiableMap(ret);
-            CACHE_HOST_SITES.put(catalog, ret);
-            LOG.debug("HOST SITES: " + ret);
+            assert(sites.size() == catalog_clus.getHosts().size());
+            if (debug.get()) LOG.debug("HOST SITES: " + sites);
         }
-        return (ret);
+        return (sites);
+    }
+    
+    /**
+     * Return the list of Sites for a particular host
+     * @param catalog_host
+     * @return
+     */
+    public static List<Site> getSitesForHost(Host catalog_host) {
+        List<Site> sites = new ArrayList<Site>();
+        Cluster cluster = (Cluster) catalog_host.getParent();
+        for (Site catalog_site : cluster.getSites()) {
+            if (catalog_site.getHost().getName().equals(catalog_host.getName()))
+                sites.add(catalog_site);
+        } // FOR
+        return (sites);
     }
 
-    private static final Map<Catalog, Map<Host, Set<Site>>> CACHE_HOST_SITES = new HashMap<Catalog, Map<Host, Set<Site>>>();
+    /**
+     * Return a list of the triplets [Host IP Address, Port #, Site ID]
+     * @param catalog_item
+     * @return
+     */
+    public static List<String[]> getExecutionSites(CatalogType catalog_item) {
+        Cluster catalog_clus = CatalogUtil.getCluster(catalog_item);
+        ArrayList<String[]> ret = new ArrayList<String[]>();
+        for (Host catalog_host : catalog_clus.getHosts()) {
+            assert (catalog_host != null);
+            for (Site catalog_site : CatalogUtil.getSitesForHost(catalog_host)) {
+                ret.add(new String[] {
+                        catalog_host.getIpaddr(),
+                        Integer.toString(catalog_site.getProc_port()),
+                        catalog_site.getName() });
+            } // FOR
+        } // FOR
+        return (ret);
+    }
 
     /**
      * For a given VoltTable object, return the matching Table catalog object
      * based on the column names.
-     * 
      * @param catalog_db
      * @param voltTable
      * @return
@@ -283,31 +393,9 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
         } // FOR
         return (null);
     }
-
-    /**
-     * Return a list of the triplets [Host IP Address, Port #, Site ID]
-     * 
-     * @param catalog_item
-     * @return
-     */
-    public static List<String[]> getExecutionSites(CatalogType catalog_item) {
-        Cluster catalog_clus = CatalogUtil.getCluster(catalog_item);
-        ArrayList<String[]> ret = new ArrayList<String[]>();
-        for (Host catalog_host : catalog_clus.getHosts()) {
-            assert (catalog_host != null);
-            for (Site catalog_site : CatalogUtil.getSitesForHost(catalog_host)) {
-                ret.add(new String[] {
-                        catalog_host.getIpaddr(),
-                        Integer.toString(catalog_site.getProc_port()),
-                        catalog_site.getName() });
-            } // FOR
-        } // FOR
-        return (ret);
-    }
-
+    
     /**
      * Clone and return the given catalog
-     * 
      * @param catalog_db
      * @return
      * @throws Exception
@@ -373,9 +461,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
     }
 
     /**
-     * Clones the base components of a catalog. All underlying objects are
-     * recreated
-     * 
+     * Clones the base components of a catalog. All underlying objects are recreated 
      * @param catalog
      * @return
      */
@@ -397,48 +483,33 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
      * @param skip_types
      * @return
      */
-    public static Catalog cloneBaseCatalog(Catalog catalog,
-            final Collection<Class<? extends CatalogType>> skip_types) {
+    public static Catalog cloneBaseCatalog(Catalog catalog, final Collection<Class<? extends CatalogType>> skip_types) {
         final Catalog new_catalog = new Catalog();
 
         new AbstractTreeWalker<CatalogType>() {
-            protected void populate_children(
-                    AbstractTreeWalker<CatalogType>.Children children,
-                    CatalogType element) {
+            protected void populate_children(AbstractTreeWalker<CatalogType>.Children children, CatalogType element) {
                 if (element instanceof Catalog) {
-                    children.addAfter(((Catalog) element).getClusters()
-                            .values());
+                    children.addAfter(((Catalog) element).getClusters().values());
                 } else if (element instanceof Cluster) {
-                    children.addAfter(((Cluster) element).getDatabases()
-                            .values());
+                    children.addAfter(((Cluster) element).getDatabases().values());
                     children.addAfter(((Cluster) element).getHosts().values());
                     // children.addAfter(((Cluster)element).getPartitions().values());
                     children.addAfter(((Cluster) element).getSites().values());
                     // children.addAfter(((Cluster)element).getElhosts().values());
                 } else if (element instanceof Database) {
-                    children.addAfter(((Database) element).getProcedures()
-                            .values());
-                    children.addAfter(((Database) element).getPrograms()
-                            .values());
-                    children
-                            .addAfter(((Database) element).getTables().values());
+                    children.addAfter(((Database) element).getProcedures().values());
+                    children.addAfter(((Database) element).getPrograms().values());
+                    children.addAfter(((Database) element).getTables().values());
                 } else if (element instanceof Procedure) {
-                    for (ProcParameter param : ((Procedure) element)
-                            .getParameters().values()) {
-                        if (!(param instanceof MultiProcParameter))
-                            children.addAfter(param);
+                    for (ProcParameter param : ((Procedure) element).getParameters().values()) {
+                        if (!(param instanceof MultiProcParameter)) children.addAfter(param);
                     } // FOR
-                    children.addAfter(((Procedure) element).getStatements()
-                            .values());
+                    children.addAfter(((Procedure) element).getStatements().values());
                 } else if (element instanceof Statement) {
-                    children.addAfter(((Statement) element).getParameters()
-                            .values());
-                    children.addAfter(((Statement) element).getFragments()
-                            .values());
-                    children.addAfter(((Statement) element).getMs_fragments()
-                            .values());
-                    children.addAfter(((Statement) element).getOutput_columns()
-                            .values());
+                    children.addAfter(((Statement) element).getParameters().values());
+                    children.addAfter(((Statement) element).getFragments().values());
+                    children.addAfter(((Statement) element).getMs_fragments().values());
+                    children.addAfter(((Statement) element).getOutput_columns().values());
                 } else if (element instanceof PlanFragment) {
                     // children.addAfter(((PlanFragment)element).getDependencyids().values());
                     // children.addAfter(((PlanFragment)element).getOutputdependencyids().values());
@@ -453,11 +524,10 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
         }.traverse(catalog);
 
         // Clone constraints if they were not skipped
-        if (!(skip_types.contains(Table.class)
-                || skip_types.contains(Column.class) || skip_types
-                .contains(Constraint.class))) {
-            CatalogUtil.cloneConstraints(CatalogUtil.getDatabase(catalog),
-                    CatalogUtil.getDatabase(new_catalog));
+        if (!(skip_types.contains(Table.class) ||
+              skip_types.contains(Column.class) ||
+              skip_types.contains(Constraint.class))) {
+            CatalogUtil.cloneConstraints(CatalogUtil.getDatabase(catalog), CatalogUtil.getDatabase(new_catalog));
         }
         return (new_catalog);
     }
@@ -474,8 +544,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
      * @return
      */
     @SuppressWarnings("unchecked")
-    public static <T extends CatalogType> T clone(T src_item,
-            Catalog dest_catalog) {
+    public static <T extends CatalogType> T clone(T src_item, Catalog dest_catalog) {
         StringBuilder buffer = new StringBuilder();
         if (src_item instanceof MultiProcParameter) {
             System.err.println(src_item + ": ??????????");
@@ -517,23 +586,21 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
                     MultiColumn mc = (MultiColumn) src_part_col;
                     Column dest_cols[] = new Column[mc.size()];
                     for (int i = 0; i < dest_cols.length; i++) {
-                        dest_cols[i] = dest_tbl.getColumns().get(
-                                mc.get(i).getName());
+                        dest_cols[i] = dest_tbl.getColumns().get(mc.get(i).getName());
                     } // FOR
                     dest_part_col = MultiColumn.get(dest_cols);
 
                 } else {
-                    dest_part_col = dest_tbl.getColumns().get(
-                            src_part_col.getName());
+                    dest_part_col = dest_tbl.getColumns().get(src_part_col.getName());
                 }
                 assert (dest_part_col != null) : "Missing partitioning column "
                         + CatalogUtil.getDisplayName(src_part_col);
                 dest_tbl.setPartitioncolumn(dest_part_col);
             }
 
-            //
-            // Index
-            //
+        //
+        // Index
+        //
         } else if (src_item instanceof Index) {
             // ColumnRefs
             Index src_idx = (Index) src_item;
@@ -542,15 +609,13 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
                 CatalogUtil.clone(src_colref, dest_catalog);
 
                 // Correct what it's pointing to
-                ColumnRef dest_colref = dest_idx.getColumns().get(
-                        src_colref.getName());
+                ColumnRef dest_colref = dest_idx.getColumns().get(src_colref.getName());
                 Table dest_tbl = (Table) dest_idx.getParent();
-                dest_colref.setColumn(dest_tbl.getColumns().get(
-                        src_colref.getColumn().getName()));
+                dest_colref.setColumn(dest_tbl.getColumns().get(src_colref.getColumn().getName()));
             } // FOR
-            //
-            // Constraint
-            //
+        //
+        // Constraint
+        //
         } else if (src_item instanceof Constraint) {
             // ColumnRefs
             Constraint src_cons = (Constraint) src_item;
@@ -559,20 +624,16 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
             Table src_fkey_tbl = src_cons.getForeignkeytable();
             if (src_fkey_tbl != null) {
                 Database dest_db = (Database) dest_cons.getParent().getParent();
-                Table dest_fkey_tbl = dest_db.getTables().get(
-                        src_fkey_tbl.getName());
+                Table dest_fkey_tbl = dest_db.getTables().get(src_fkey_tbl.getName());
                 if (dest_fkey_tbl != null) {
                     dest_cons.setForeignkeytable(dest_fkey_tbl);
-                    for (ColumnRef src_cref : ((Constraint) src_item)
-                            .getForeignkeycols()) {
+                    for (ColumnRef src_cref : ((Constraint) src_item).getForeignkeycols()) {
                         CatalogUtil.clone(src_cref, dest_catalog);
 
                         // Correct what it's pointing to
-                        ColumnRef dest_colref = dest_cons.getForeignkeycols()
-                                .get(src_cref.getName());
+                        ColumnRef dest_colref = dest_cons.getForeignkeycols().get(src_cref.getName());
                         assert (dest_colref != null);
-                        dest_colref.setColumn(dest_fkey_tbl.getColumns().get(
-                                src_cref.getColumn().getName()));
+                        dest_colref.setColumn(dest_fkey_tbl.getColumns().get(src_cref.getColumn().getName()));
                     } // FOR
                 }
             }
@@ -590,8 +651,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
                     CatalogUtil.clone(src_conref, dest_catalog);
 
                     // Correct what it's pointing to
-                    ConstraintRef dest_conref = dest_col.getConstraints().get(
-                            src_conref.getName());
+                    ConstraintRef dest_conref = dest_col.getConstraints().get(src_conref.getName());
                     assert (dest_conref != null);
                     // System.out.println("dest_tbl: " + dest_tbl);
                     // System.out.println("dest_tbl.getConstraints(): " +
@@ -599,33 +659,28 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
                     // System.out.println("src_confref: " + src_conref);
                     // System.out.println("src_confref.getConstraint(): " +
                     // src_conref.getConstraint());
-                    dest_conref.setConstraint(dest_tbl.getConstraints().get(
-                            src_conref.getConstraint().getName()));
+                    dest_conref.setConstraint(dest_tbl.getConstraints().get(src_conref.getConstraint().getName()));
                 } // FOR
             } // FOR
 
             Index src_index = src_cons.getIndex();
             if (src_index != null) {
-                Index dest_index = dest_tbl.getIndexes().get(
-                        src_index.getName());
+                Index dest_index = dest_tbl.getIndexes().get(src_index.getName());
                 dest_cons.setIndex(dest_index);
             }
 
-            //
-            // StmtParameter
-            //
+        //
+        // StmtParameter
+        //
         } else if (src_item instanceof StmtParameter) {
             // We need to fix the reference to the ProcParameter (if one exists)
             StmtParameter src_stmt_param = (StmtParameter) src_item;
             StmtParameter dest_stmt_param = (StmtParameter) clone;
 
             if (src_stmt_param.getProcparameter() != null) {
-                Procedure dest_proc = (Procedure) dest_stmt_param.getParent()
-                        .getParent();
-                ProcParameter src_proc_param = src_stmt_param
-                        .getProcparameter();
-                ProcParameter dest_proc_param = dest_proc.getParameters().get(
-                        src_proc_param.getName());
+                Procedure dest_proc = (Procedure) dest_stmt_param.getParent().getParent();
+                ProcParameter src_proc_param = src_stmt_param.getProcparameter();
+                ProcParameter dest_proc_param = dest_proc.getParameters().get(src_proc_param.getName());
                 if (dest_proc_param == null) {
                     System.out.println("dest_proc:      " + dest_proc);
                     System.out.println("dest_stmt:      "
@@ -656,15 +711,11 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
                 for (Constraint src_cons : src_tbl.getConstraints()) {
                     // Only clone a FKEY constraint if the other table is in the
                     // catalog
-                    ConstraintType cons_type = ConstraintType.get(src_cons
-                            .getType());
-                    if (cons_type != ConstraintType.FOREIGN_KEY
-                            || (cons_type == ConstraintType.FOREIGN_KEY && dest_db
-                                    .getTables().get(
-                                            src_cons.getForeignkeytable()
-                                                    .getName()) != null)) {
-                        Constraint dest_cons = CatalogUtil.clone(src_cons,
-                                dest_catalog);
+                    ConstraintType cons_type = ConstraintType.get(src_cons.getType());
+                    if (cons_type != ConstraintType.FOREIGN_KEY ||
+                        (cons_type == ConstraintType.FOREIGN_KEY &&
+                         dest_db.getTables().get(src_cons.getForeignkeytable().getName()) != null)) {
+                        Constraint dest_cons = CatalogUtil.clone(src_cons, dest_catalog);
                         assert (dest_cons != null);
                     }
                 } // FOR
@@ -679,49 +730,31 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
      */
     public static Column getForeignKeyParent(Column from_column) {
         assert (from_column != null);
-        Column to_column = null;
+        final CatalogUtil.Cache cache = CatalogUtil.getCache(from_column);
+        Column to_column = cache.FOREIGNKEY_PARENT.get(from_column);
 
-        for (Constraint catalog_const : CatalogUtil.getConstraints(from_column
-                .getConstraints())) {
-            if (catalog_const.getType() == ConstraintType.FOREIGN_KEY
-                    .getValue()) {
-                assert (!catalog_const.getForeignkeycols().isEmpty());
-                for (ColumnRef catalog_col_ref : catalog_const
-                        .getForeignkeycols()) {
-                    if (catalog_col_ref.getName().equals(from_column.getName())) {
-                        assert (to_column == null);
-                        to_column = catalog_col_ref.getColumn();
-                        break;
-                    }
-                } // FOR
-                if (to_column != null)
-                    break;
-            }
-        } // FOR
-
+        if (to_column == null) {
+            for (Constraint catalog_const : CatalogUtil.getConstraints(from_column.getConstraints())) {
+                if (catalog_const.getType() == ConstraintType.FOREIGN_KEY.getValue()) {
+                    assert (!catalog_const.getForeignkeycols().isEmpty());
+                    for (ColumnRef catalog_col_ref : catalog_const.getForeignkeycols()) {
+                        if (catalog_col_ref.getName().equals(from_column.getName())) {
+                            assert (to_column == null);
+                            to_column = catalog_col_ref.getColumn();
+                            break;
+                        }
+                    } // FOR
+                    if (to_column != null) break;
+                }
+            } // FOR
+            cache.FOREIGNKEY_PARENT.put(from_column, to_column);
+        }
         return (to_column);
-    }
-
-    /**
-     * Return the list of Sites for a particular host
-     * 
-     * @param catalog_host
-     * @return
-     */
-    public static List<Site> getSitesForHost(Host catalog_host) {
-        List<Site> sites = new ArrayList<Site>();
-        Cluster cluster = (Cluster) catalog_host.getParent();
-        for (Site catalog_site : cluster.getSites()) {
-            if (catalog_site.getHost().getName().equals(catalog_host.getName()))
-                sites.add(catalog_site);
-        } // FOR
-        return (sites);
     }
 
     /**
      * Returns all the columns for this table that have a foreign key dependency
      * on another table
-     * 
      * @param catalog_tbl
      * @return
      */
@@ -733,9 +766,9 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
                 // System.out.println(catalog_col + ": " +
                 // CatalogUtil.getConstraints(catalog_col.getConstraints()));
                 if (!CatalogUtil.findAll(
-                        CatalogUtil
-                                .getConstraints(catalog_col.getConstraints()),
-                        "type", ConstraintType.FOREIGN_KEY.getValue())
+                        CatalogUtil.getConstraints(catalog_col.getConstraints()),
+                        "type",
+                        ConstraintType.FOREIGN_KEY.getValue())
                         .isEmpty()) {
                     found.add(catalog_col);
                 }
@@ -746,13 +779,11 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
 
     /**
      * Returns all the StmtParameters that are linked to the ProcParameter
-     * 
      * @param catalog_stmt
      * @param catalog_proc_param
      * @return
      */
-    public static Set<StmtParameter> getStmtParameters(Statement catalog_stmt,
-            ProcParameter catalog_proc_param) {
+    public static Set<StmtParameter> getStmtParameters(Statement catalog_stmt, ProcParameter catalog_proc_param) {
         Set<StmtParameter> found = new HashSet<StmtParameter>();
         for (StmtParameter param : catalog_stmt.getParameters()) {
             if (param.getProcparameter() != null
@@ -771,8 +802,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
      * @param value
      * @return
      */
-    public static <T extends CatalogType, U> Set<T> findAll(Iterable<T> items,
-            String field, U value) {
+    public static <T extends CatalogType, U> Set<T> findAll(Iterable<T> items, String field, U value) {
         Set<T> found = new HashSet<T>();
         for (T catalog_item : items) {
             assert (catalog_item != null);
@@ -781,10 +811,8 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
                 if (field_value.equals(value))
                     found.add(catalog_item);
             } catch (NullPointerException ex) {
-                System.err.println(catalog_item + ": "
-                        + catalog_item.getFields());
-                LOG.fatal(catalog_item + " does not have a field '" + field
-                        + "'");
+                LOG.fatal(catalog_item + ": " + catalog_item.getFields());
+                LOG.fatal(catalog_item + " does not have a field '" + field + "'");
                 throw ex;
             }
         } // FOR
@@ -800,10 +828,8 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
      * @param value
      * @return
      */
-    public static <T extends CatalogType, U> T findOne(Iterable<T> items,
-            String field, U value) {
-        return (CollectionUtil.getFirst(CatalogUtil
-                .findAll(items, field, value)));
+    public static <T extends CatalogType, U> T findOne(Iterable<T> items, String field, U value) {
+        return (CollectionUtil.getFirst(CatalogUtil.findAll(items, field, value)));
     }
 
     /**
@@ -812,8 +838,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
      * @param item1
      * @return
      */
-    public static Pair<CatalogType, CatalogType> pair(CatalogType item0,
-            CatalogType item1) {
+    public static Pair<CatalogType, CatalogType> pair(CatalogType item0, CatalogType item1) {
         Pair<CatalogType, CatalogType> pair = null;
         if (item0.compareTo(item1) < 0) {
             pair = Pair.of(item0, item1);
@@ -885,12 +910,10 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
      * @return
      */
     public static Catalog loadCatalogFromJar(String jar_path) {
-        final boolean debug = LOG.isDebugEnabled();
-            
         Catalog catalog = null;
         String serializedCatalog = null;
         File file_path = new File(jar_path);
-        if (debug) LOG.debug("Loading catalog from jar file at '" + file_path.getAbsolutePath() + "'");
+        if (debug.get()) LOG.debug("Loading catalog from jar file at '" + file_path.getAbsolutePath() + "'");
         if (!file_path.exists()) {
             LOG.error("The catalog jar file '" + jar_path + "' does not exist");
             return (null);
@@ -909,7 +932,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
                     + "' in jar file '" + jar_path + "' is empty");
         } else {
             catalog = new Catalog();
-            if (debug) LOG.debug("Extracted file '" + CatalogUtil.CATALOG_FILENAME
+            if (debug.get()) LOG.debug("Extracted file '" + CatalogUtil.CATALOG_FILENAME
                                  + "' from jar file '" + jar_path + "'");
             catalog.execute(serializedCatalog);
         }
@@ -946,6 +969,11 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
         return (catalog);
     }
 
+    /**
+     * 
+     * @param catalog
+     * @param file_path
+     */
     public static void saveCatalog(Catalog catalog, String file_path) {
         File file = new File(file_path);
         try {
@@ -991,8 +1019,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
      * @param column_name
      * @return
      */
-    public static Column getColumn(Database catalog_db, String table_name,
-            String column_name) {
+    public static Column getColumn(Database catalog_db, String table_name, String column_name) {
         Column catalog_col = null;
         Table catalog_table = catalog_db.getTables().get(table_name);
         if (catalog_table != null)
@@ -1008,47 +1035,52 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
      * @return
      * @throws Exception
      */
-    public static Set<Table> getReferencedTables(Procedure catalog_proc)
-            throws Exception {
-        Set<Table> ret = new HashSet<Table>();
-        for (Statement catalog_stmt : catalog_proc.getStatements()) {
-            ret.addAll(CatalogUtil.getReferencedTables(catalog_stmt));
-        } // FOR
+    public static Set<Table> getReferencedTables(Procedure catalog_proc) throws Exception {
+        final CatalogUtil.Cache cache = CatalogUtil.getCache(catalog_proc);
+        Set<Table> ret = cache.PROCEDURE_TABLES.get(catalog_proc);
+        if (ret == null) {
+            Set<Table> tables = new HashSet<Table>();
+            for (Statement catalog_stmt : catalog_proc.getStatements()) {
+                tables.addAll(CatalogUtil.getReferencedTables(catalog_stmt));
+            } // FOR
+            ret = Collections.unmodifiableSet(tables);
+            cache.PROCEDURE_TABLES.put(catalog_proc, ret);
+        }
         return (ret);
     }
 
     /**
-     * Returns all the columns access/modified in all the Statements for this
-     * Procedure
-     * 
+     * Returns all the columns access/modified in all the Statements for this Procedure
      * @param catalog_proc
      * @return
      * @throws Exception
      */
     public static Set<Column> getReferencedColumns(Procedure catalog_proc) throws Exception {
-        Set<Column> ret = new HashSet<Column>();
-        for (Statement catalog_stmt : catalog_proc.getStatements()) {
-            ret.addAll(CatalogUtil.getReferencedColumns(catalog_stmt));
-        } // FOR
+        final CatalogUtil.Cache cache = CatalogUtil.getCache(catalog_proc);
+        Set<Column> ret = cache.PROCEDURE_COLUMNS.get(catalog_proc);
+        if (ret == null) {
+            Set<Column> columns = new HashSet<Column>();
+            for (Statement catalog_stmt : catalog_proc.getStatements()) {
+                columns.addAll(CatalogUtil.getReferencedColumns(catalog_stmt));
+            } // FOR
+            ret = Collections.unmodifiableSet(columns);
+            cache.PROCEDURE_COLUMNS.put(catalog_proc, ret);
+        }
         return (ret);
     }
 
     /**
      * Returns all of the procedures that access/modify the given table
-     * 
      * @param catalog_tbl
      * @return
      * @throws Exception
      */
-    public static Set<Procedure> getReferencingProcedures(Table catalog_tbl)
-            throws Exception {
+    public static Set<Procedure> getReferencingProcedures(Table catalog_tbl) throws Exception {
         Set<Procedure> ret = new HashSet<Procedure>();
         Database catalog_db = CatalogUtil.getDatabase(catalog_tbl);
         for (Procedure catalog_proc : catalog_db.getProcedures()) {
-            if (catalog_proc.getSystemproc())
-                continue;
-            if (CatalogUtil.getReferencedTables(catalog_proc).contains(
-                    catalog_tbl)) {
+            if (catalog_proc.getSystemproc()) continue;
+            if (CatalogUtil.getReferencedTables(catalog_proc).contains(catalog_tbl)) {
                 ret.add(catalog_proc);
             }
         } // FOR
@@ -1057,13 +1089,11 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
 
     /**
      * Returns all of the procedures that access/modify the given Column
-     * 
      * @param catalog_col
      * @return
      * @throws Exception
      */
-    public static Set<Procedure> getReferencingProcedures(Column catalog_col)
-            throws Exception {
+    public static Set<Procedure> getReferencingProcedures(Column catalog_col) throws Exception {
         Set<Procedure> ret = new HashSet<Procedure>();
         Database catalog_db = CatalogUtil.getDatabase(catalog_col.getParent());
 
@@ -1072,20 +1102,16 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
             Table catalog_tbl = catalog_col.getParent();
             for (Column col : catalog_tbl.getColumns()) {
                 for (Procedure catalog_proc : catalog_db.getProcedures()) {
-                    if (catalog_proc.getSystemproc())
-                        continue;
-                    if (CatalogUtil.getReferencedColumns(catalog_proc)
-                            .contains(col)) {
+                    if (catalog_proc.getSystemproc()) continue;
+                    if (CatalogUtil.getReferencedColumns(catalog_proc).contains(col)) {
                         ret.add(catalog_proc);
                     }
                 } // FOR
             } // FOR
         } else {
             for (Procedure catalog_proc : catalog_db.getProcedures()) {
-                if (catalog_proc.getSystemproc())
-                    continue;
-                if (CatalogUtil.getReferencedColumns(catalog_proc).contains(
-                        catalog_col)) {
+                if (catalog_proc.getSystemproc()) continue;
+                if (CatalogUtil.getReferencedColumns(catalog_proc).contains(catalog_col)) {
                     ret.add(catalog_proc);
                 }
             } // FOR
@@ -1095,15 +1121,20 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
 
     /**
      * Returns all the tables access/modified in the given Statement's query
-     * 
      * @param catalog_stmt
      * @return
      * @throws Exception
      */
     public static Set<Table> getReferencedTables(Statement catalog_stmt) throws Exception {
-        Set<Table> ret = new HashSet<Table>();
-        for (Column catalog_col : CatalogUtil.getReferencedColumns(catalog_stmt)) {
-            ret.add((Table) catalog_col.getParent());
+        final CatalogUtil.Cache cache = CatalogUtil.getCache(catalog_stmt);
+        Set<Table> ret = cache.STATEMENT_TABLES.get(catalog_stmt);
+        if (ret == null) {
+            Set<Table> tables = new HashSet<Table>();
+            for (Column catalog_col : CatalogUtil.getReferencedColumns(catalog_stmt)) {
+                tables.add((Table)catalog_col.getParent());
+            } // FOR
+            ret = Collections.unmodifiableSet(tables);
+            cache.STATEMENT_TABLES.put(catalog_stmt, ret);
         }
         return (ret);
     }
@@ -1128,33 +1159,22 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
      * @throws Exception
      */
     public static Set<Column> getReferencedColumns(Statement catalog_stmt) throws Exception {
-        final boolean debug = LOG.isDebugEnabled();
-
-        if (debug) LOG.debug("Extracting table set from statement " + CatalogUtil.getDisplayName(catalog_stmt));
-        final String catalog_key = CatalogKey.createKey(catalog_stmt);
-        if (!CatalogUtil.CACHE_STATEMENT_COLUMNS_KEYS.containsKey(catalog_key)) {
-            final Database catalog_db = (Database) catalog_stmt.getParent().getParent();
+        if (debug.get()) LOG.debug("Extracting table set from statement " + CatalogUtil.getDisplayName(catalog_stmt));
+        
+        final CatalogUtil.Cache cache = CatalogUtil.getCache(catalog_stmt);
+        Set<Column> ret = cache.STATEMENT_COLUMNS.get(catalog_stmt);
+        if (ret == null) {
+            final Database catalog_db = CatalogUtil.getDatabase(catalog_stmt);
 
             // 2010-07-14: Always use the AbstractPlanNodes from the PlanFragments to figure out
             // what columns the query touches. It's more accurate because we will pick apart plan nodes
             // and expression trees to figure things out
             AbstractPlanNode node = QueryPlanUtil.deserializeStatement(catalog_stmt, true);
             Set<Column> columns = CatalogUtil.getPartitionableColumnReferences(catalog_db, node);
-            assert (columns != null) : "Failed to get catalog tables for " + CatalogUtil.getDisplayName(catalog_stmt);
-
-            // Convert to ColumnKeys
-            Set<String> column_keys = new HashSet<String>();
-            for (Column catalog_col : columns) {
-                column_keys.add(CatalogKey.createKey(catalog_col));
-            } // FOR
-            CatalogUtil.CACHE_STATEMENT_COLUMNS_KEYS.put(catalog_key, Collections.unmodifiableSet(column_keys));
+            assert (columns != null) : "Failed to get catalog tables for " + catalog_stmt.fullName();
+            ret = Collections.unmodifiableSet(columns);
+            cache.STATEMENT_COLUMNS.put(catalog_stmt, ret);
         }
-        Set<Column> ret = new HashSet<Column>();
-        Database catalog_db = (Database) catalog_stmt.getParent().getParent();
-        for (String column_key : CatalogUtil.CACHE_STATEMENT_COLUMNS_KEYS.get(catalog_key)) {
-            Column catalog_col = CatalogKey.getFromKey(catalog_db, column_key, Column.class);
-            if (catalog_col != null) ret.add(catalog_col);
-        } // FOR
         return (ret);
     }
 
@@ -1418,51 +1438,36 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
     public static Long estimateTupleSize(Table catalog_tbl, Statement catalog_stmt, Object params[]) throws Exception {
         long bytes = 0;
 
-        //
+        Cache c = CatalogUtil.getCache(catalog_tbl);
+        
         // If the table contains nothing but numeral values, then we don't need
-        // to loop
-        // through and calculate the estimated tuple size each time around,
-        // since it's always
-        // going to be the same
-        //
-        if (CatalogUtil.CACHE_TABLE_TUPLE_SIZE.containsKey(catalog_tbl
-                .getName())) {
-            return (CatalogUtil.CACHE_TABLE_TUPLE_SIZE.get(catalog_tbl
-                    .getName()));
+        // to loop through and calculate the estimated tuple size each time around,
+        // since it's always going to be the same
+        if (c.TABLE_TUPLE_SIZE.containsKey(catalog_tbl)) {
+            return (c.TABLE_TUPLE_SIZE.get(catalog_tbl));
         }
 
-        //
         // Otherwise, we have to calculate things.
-        // Then pluck out all the MaterializePlanNodes so that we inspect the
-        // tuples
-        //
-        AbstractPlanNode node = QueryPlanUtil.deserializeStatement(
-                catalog_stmt, true);
-        Set<MaterializePlanNode> matched_nodes = PlanNodeUtil.getPlanNodes(
-                node, MaterializePlanNode.class);
+        // Then pluck out all the MaterializePlanNodes so that we inspect the tuples
+        AbstractPlanNode node = QueryPlanUtil.deserializeStatement(catalog_stmt, true);
+        Set<MaterializePlanNode> matched_nodes = PlanNodeUtil.getPlanNodes(node, MaterializePlanNode.class);
         if (matched_nodes.isEmpty()) {
-            LOG.fatal("Failed to retrieve any MaterializePlanNodes from "
-                    + catalog_stmt);
+            LOG.fatal("Failed to retrieve any MaterializePlanNodes from " + catalog_stmt);
             return 0l;
         } else if (matched_nodes.size() > 1) {
-            LOG
-                    .fatal("Unexpectadly found more than one MaterializePlanNode in "
-                            + catalog_stmt);
+            LOG.fatal("Unexpectadly found more than one MaterializePlanNode in " + catalog_stmt);
             return 0l;
         }
         // MaterializePlanNode mat_node =
         // (MaterializePlanNode)CollectionUtil.getFirst(matched_nodes);
 
-        //
         // This obviously isn't going to be exact because they may be inserting
         // from a SELECT statement or the columns might complex
         // AbstractExpressions
         // That's ok really, because all we really need to do is look at size of
         // the strings
-        //
         boolean numerals_only = true;
-        for (Column catalog_col : CatalogUtil.getSortedCatalogItems(catalog_tbl
-                .getColumns(), "index")) {
+        for (Column catalog_col : CatalogUtil.getSortedCatalogItems(catalog_tbl.getColumns(), "index")) {
             VoltType type = VoltType.get((byte) catalog_col.getType());
             switch (type) {
             case TINYINT:
@@ -1482,8 +1487,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
             case STRING: {
                 numerals_only = false;
                 if (params[catalog_col.getIndex()] != null) {
-                    bytes += 8 * ((String) params[catalog_col.getIndex()])
-                            .length();
+                    bytes += 8 * ((String) params[catalog_col.getIndex()]).length();
                 }
                 /*
                  * AbstractExpression root_exp =
@@ -1500,12 +1504,8 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
                 LOG.warn("Unsupported VoltType: " + type);
             } // SWITCH
         } // FOR
-        //
         // If the table only has numerals, then we can store it in our cache
-        //
-        if (numerals_only)
-            CatalogUtil.CACHE_TABLE_TUPLE_SIZE
-                    .put(catalog_tbl.getName(), bytes);
+        if (numerals_only) c.TABLE_TUPLE_SIZE.put(catalog_tbl, bytes);
 
         return (bytes);
     }

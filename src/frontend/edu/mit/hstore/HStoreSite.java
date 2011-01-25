@@ -279,7 +279,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
             // Dump out our status
             int num_inflight = inflight_txns.size();
             if (num_inflight > 0) {
-                System.err.println("FAIL: InFlight Txns Ids => " + inflight_txns.keySet());
+                System.err.println("Shutdown [" + num_inflight + " txns inflight]");
             }
         }
     } // END CLASS
@@ -317,28 +317,34 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         this.messenger.start();
 
         // Preparation Thread
-        Thread t = new Thread() {
-            public void run() {
+        new Thread() {
+            {
                 this.setName(HStoreSite.this.getThreadName("prep"));
+                this.setDaemon(true);
+            }
+            public void run() {
                 try {
+                    // Load up everything the QueryPlanUtil
                     QueryPlanUtil.preload(HStoreSite.this.catalog_db);
+                    
+                    // Then load up everything in the PartitionEstimator
+                    HStoreSite.this.p_estimator.preload();
+                    
                 } catch (Exception ex) {
                     LOG.fatal("Failed to prepare HStoreSite", ex);
                     System.exit(1);
                 }
                 
-                // Fire off the ExecutionSiteHelper
+                // Schedule the ExecutionSiteHelper
                 ExecutionSiteHelper esh = new ExecutionSiteHelper(HStoreSite.this.executors.values());
                 HStoreSite.this.helper_pool.scheduleAtFixedRate(esh, 250, 1000, TimeUnit.MILLISECONDS);
             };
-        };
-        t.setDaemon(true);
-        t.start();
+        }.start();
         
         // Then we need to start all of the ExecutionSites in threads
         if (debug.get()) LOG.debug("Starting ExecutionSite threads for " + this.executors.size() + " partitions on Site #" + this.site_id);
         for (Entry<Integer, ExecutionSite> e : this.executors.entrySet()) {
-            t = new Thread(e.getValue());
+            Thread t = new Thread(e.getValue());
             t.setDaemon(true);
             e.getValue().setHStoreCoordinatorNode(this);
             e.getValue().setHStoreMessenger(this.messenger);

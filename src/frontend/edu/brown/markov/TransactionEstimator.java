@@ -644,7 +644,7 @@ public class TransactionEstimator {
                 assert(query_trace != null);
                 catalog_stmts[i] = query_trace.getCatalogItem(catalog_db);
                 
-                Set<Integer> stmt_partitions = this.p_estimator.getPartitions(query_trace, s.getBasePartition());
+                Set<Integer> stmt_partitions = this.p_estimator.getAllPartitions(query_trace, s.getBasePartition());
                 assert(stmt_partitions.isEmpty() == false);
                 partitions[i] = stmt_partitions.toArray(new Integer[stmt_partitions.size()]);
             } // FOR

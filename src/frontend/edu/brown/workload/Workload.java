@@ -868,9 +868,10 @@ public class Workload implements WorkloadTrace, Iterable<AbstractTraceElement<? 
                     this.stats_load_stmts.put(table_key, catalog_stmt);
 
                     // TERRIBLE HACK!
-                    String stmt_key = CatalogKey.createKey(catalog_stmt);
-                    CatalogUtil.CACHE_STATEMENT_COLUMNS_KEYS.put(stmt_key, new java.util.HashSet<String>());
-                    CatalogUtil.CACHE_STATEMENT_COLUMNS_KEYS.get(stmt_key).add(table_key);
+                    // 2011-01-25 :: Why do I need to do this??
+//                    String stmt_key = CatalogKey.createKey(catalog_stmt);
+//                    CatalogUtil.CACHE_STATEMENT_COLUMNS_KEYS.put(stmt_key, new java.util.HashSet<String>());
+//                    CatalogUtil.CACHE_STATEMENT_COLUMNS_KEYS.get(stmt_key).add(table_key);
                 }
                 QueryTrace loader_query = new QueryTrace(catalog_stmt, new Object[0], 0);
                 loader_xact.addQuery(loader_query);

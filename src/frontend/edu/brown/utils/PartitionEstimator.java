@@ -4,6 +4,9 @@ import java.lang.reflect.Array;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import org.apache.commons.pool.BasePoolableObjectFactory;
+import org.apache.commons.pool.ObjectPool;
+import org.apache.commons.pool.impl.StackObjectPool;
 import org.apache.log4j.Logger;
 
 import org.voltdb.StoredProcedureInvocation;
@@ -43,12 +46,13 @@ public class PartitionEstimator {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
     
-    // ----------------------------------------------------
+    // ----------------------------------------------------------------------------
     // DATA MEMBERS
-    // ----------------------------------------------------
+    // ----------------------------------------------------------------------------
     private Database catalog_db;
     private final AbstractHasher hasher;
     private final Set<Integer> all_partitions = new HashSet<Integer>();
+    private int num_partitions;
     
     // PlanFragment Key -> CacheEntry(Column Key -> StmtParameter Indexes)
     private final Map<String, CacheEntry> frag_cache_entries = new HashMap<String, CacheEntry>();
@@ -166,10 +170,44 @@ public class PartitionEstimator {
             return (sb.toString());
         }
     }; // END CLASS
-
-    // ----------------------------------------------------
+    
+    /**
+     * Set<Integer> pool used by calculatePartitionsForCache 
+     */
+    private final ObjectPool partitionSetPool = new StackObjectPool(new BasePoolableObjectFactory() {
+        @Override
+        public Object makeObject() throws Exception {
+            return (new HashSet<Integer>());
+        }
+        @Override
+        public void activateObject(Object arg0) throws Exception {
+            @SuppressWarnings("unchecked")
+            Set<Integer> set = (Set<Integer>)arg0;
+            set.clear();
+        }
+    });
+    
+    /**
+     * Set<Integer>[2] pool used by calculatePartitionsForCache 
+     */
+    private final ObjectPool mcPartitionSetPool = new StackObjectPool(new BasePoolableObjectFactory() {
+        @Override
+        public Object makeObject() throws Exception {
+            return (new HashSet[]{ new HashSet<Integer>(), new HashSet<Integer>() });
+        }
+        @Override
+        public void activateObject(Object arg0) throws Exception {
+            @SuppressWarnings("unchecked")
+            HashSet<Integer> sets[] = (HashSet<Integer>[])arg0;
+            for (HashSet<Integer> s : sets) {
+                s.clear();
+            } // FOR
+        }
+    });
+    
+    // ----------------------------------------------------------------------------
     // CONSTRUCTORS
-    // ----------------------------------------------------
+    // ----------------------------------------------------------------------------
 
     /**
      * Convenience constructor that uses DefaultHasher 
@@ -186,6 +224,22 @@ public class PartitionEstimator {
         this.catalog_db = catalog_db;
         this.hasher = hasher;
         this.initCatalog(catalog_db);
+    }
+    
+    // ----------------------------------------------------------------------------
+    // BASE DATA MEMBERS METHODS
+    // ----------------------------------------------------------------------------
+    
+    public Database getDatabase() {
+        return catalog_db;
+    }
+    
+    /**
+     * Return the hasher used in this estimator instance
+     * @return
+     */
+    public AbstractHasher getHasher() {
+        return (this.hasher);
     }
     
     /**
@@ -228,10 +282,15 @@ public class PartitionEstimator {
             for (int i = 0, cnt = this.hasher.getNumPartitions(); i < cnt; i++) {
                 this.all_partitions.add(i);
             } // FOR
+            this.num_partitions = this.all_partitions.size();
             LOG.debug("Initialized PartitionEstimator with " + this.hasher.getNumPartitions() + " partitions " +
                       "using the " + this.hasher.getClass().getSimpleName() + " hasher");
         }
     }
+    
+    // ----------------------------------------------------------------------------
+    // INTERNAL CACHE METHODS
+    // ----------------------------------------------------------------------------
     
     /**
      * This is the method that actually picks the Statement apart and figures out
@@ -506,17 +565,9 @@ public class PartitionEstimator {
         } // FOR
     }
     
-    public Database getDatabase() {
-        return catalog_db;
-    }
-    
-    /**
-     * Return the hasher used in this estimator instance
-     * @return
-     */
-    public AbstractHasher getHasher() {
-        return (this.hasher);
-    }
+    // ----------------------------------------------------------------------------
+    // TABLE ROW METHODS
+    // ----------------------------------------------------------------------------
     
     /**
      * Return the partition for the given VoltTableRow
@@ -525,7 +576,7 @@ public class PartitionEstimator {
      * @return
      * @throws Exception
      */
-    public int getPartition(final Table catalog_tbl, final VoltTableRow row) throws Exception {
+    public int getTableRowPartition(final Table catalog_tbl, final VoltTableRow row) throws Exception {
         assert(!catalog_tbl.getIsreplicated()) : "Trying to partition replicated table: " + catalog_tbl;
         if (debug.get()) LOG.debug("Calculating partition for VoltTableRow from " + catalog_tbl);
         
@@ -558,6 +609,10 @@ public class PartitionEstimator {
         return (partition);
     }
     
+    // ----------------------------------------------------------------------------
+    // BASE PARTITION METHODS
+    // ----------------------------------------------------------------------------
+    
     /**
      * Returns the target partition for a StoredProcedureInvocation instance
      * @param invocation
@@ -570,7 +625,7 @@ public class PartitionEstimator {
     }
     
     /**
-     * Returns the target partition for a stored procedure invocation
+     * Returns the target partition for a stored procedure + parameters
      * @param catalog_proc
      * @param params
      * @return
@@ -581,7 +636,7 @@ public class PartitionEstimator {
     }
     
     /**
-     * 
+     * Return the target partition for a TransactionTrace
      * @param txn_trace
      * @return
      * @throws Exception
@@ -590,15 +645,23 @@ public class PartitionEstimator {
         return (this.getBasePartition(txn_trace.getCatalogItem(this.catalog_db), txn_trace.getParams(), true));
     }
     
+    /**
+     * Main method for calculating the base partition for a stored procedure
+     * @param catalog_proc
+     * @param params
+     * @param force
+     * @return
+     * @throws Exception
+     */
     public Integer getBasePartition(final Procedure catalog_proc, Object params[], boolean force) throws Exception {
         assert(catalog_proc != null);
         final int partition_param_idx = catalog_proc.getPartitionparameter();
         
         if (catalog_proc.getParameters().isEmpty()) {
-            if (debug.get()) LOG.debug(catalog_proc + " has no parameters. Executing as multi-partition");
+            if (debug.get()) LOG.debug(catalog_proc + " has no parameters. No base partition!");
             return (null);
         } else if (!force && partition_param_idx == NullProcParameter.PARAM_IDX) {
-            if (debug.get()) LOG.debug(catalog_proc + " does not have a pre-defined partition parameter. Executing as multi-partition");
+            if (debug.get()) LOG.debug(catalog_proc + " does not have a pre-defined partition parameter. No base partition!");
             return (null);
 //        } else if (!force && !catalog_proc.getSinglepartition()) {
 //            if (debug.get()) LOG.debug(catalog_proc + " is not marked as single-partitioned. Executing as multi-partition");
@@ -629,6 +692,10 @@ public class PartitionEstimator {
         }
         return (partition);
     }
+    
+    // ----------------------------------------------------------------------------
+    // DETAILED PARTITON METHODS
+    // ----------------------------------------------------------------------------
 
     /**
      * 
@@ -642,7 +709,7 @@ public class PartitionEstimator {
         partitions.add(base_partition);
         
         for (QueryTrace query : xact.getQueries()) {
-            partitions.addAll(this.getPartitions(query, base_partition));
+            partitions.addAll(this.getAllPartitions(query, base_partition));
         } // FOR
         
         return (partitions);
@@ -653,8 +720,8 @@ public class PartitionEstimator {
      * @param query
      * @return
      */
-    public Set<Integer> getPartitions(final QueryTrace query, Integer base_partition) throws Exception {
-        return (this.getPartitions(query.getCatalogItem(this.catalog_db), query.getParams(), base_partition));
+    public Set<Integer> getAllPartitions(final QueryTrace query, Integer base_partition) throws Exception {
+        return (this.getAllPartitions(query.getCatalogItem(this.catalog_db), query.getParams(), base_partition));
     }
     
     /**
@@ -674,25 +741,30 @@ public class PartitionEstimator {
      * @param params
      * @return
      */
-    public Set<Integer> getPartitions(final Statement catalog_stmt, Object params[], Integer base_partition) throws Exception {
-        // Loop through this Statement's plan fragments and get the partitions
-        // Note that we will use the single-sited fragments (if available) since they will be
-        // faster for us to figure out what partitions has the data that this statement needs 
-        Set<Integer> partitions = new HashSet<Integer>();
-        this.getPartitions(partitions, catalog_stmt, params, base_partition);
+    public Set<Integer> getAllPartitions(final Statement catalog_stmt, Object params[], int base_partition) throws Exception {
+        return (this.getAllPartitions(new HashSet<Integer>(), catalog_stmt, params, base_partition));
+    }
+
+    /**
+     * 
+     * @param partitions
+     * @param catalog_stmt
+     * @param params
+     * @param base_partition
+     * @throws Exception
+     */
+    public Set<Integer> getAllPartitions(final Set<Integer> partitions, final Statement catalog_stmt, final Object params[], final int base_partition) throws Exception {
+        Map<PlanFragment, Set<Integer>> fragment_partitions = new HashMap<PlanFragment, Set<Integer>>();
+        for (Set<Integer> s : this.getAllFragmentPartitions(fragment_partitions, catalog_stmt, params, base_partition).values()) {
+            partitions.addAll(s);
+        } // FOR
         return (partitions);
     }
     
-    public void getPartitions(final Set<Integer> partitions, final Statement catalog_stmt, Object params[], Integer base_partition) throws Exception {
-        // Loop through this Statement's plan fragments and get the partitions
-        // Note that we will use the single-sited fragments (if available) since they will be
-        // faster for us to figure out what partitions has the data that this statement needs 
-        CatalogMap<PlanFragment> fragments = (catalog_stmt.getHas_singlesited() ? catalog_stmt.getFragments() : catalog_stmt.getMs_fragments());
-        for (PlanFragment catalog_frag : fragments) {
-            partitions.addAll(this.getPartitions(catalog_frag, params, base_partition));
-        } // FOR
-    }
-
+    // ----------------------------------------------------------------------------
+    // STATEMENT PARTITION METHODS
+    // ----------------------------------------------------------------------------
+    
     /**
      * Return all of the partitions per table for the given Statement object
      * @param catalog_stmt
@@ -706,7 +778,8 @@ public class PartitionEstimator {
         CatalogMap<PlanFragment> fragments = (catalog_stmt.getHas_singlesited() ? catalog_stmt.getFragments() : catalog_stmt.getMs_fragments());
         for (PlanFragment catalog_frag : fragments) {
             try {
-                Map<String, Set<Integer>> frag_partitions = this.getTablePartitions(catalog_frag, params, base_partition);
+                Map<String, Set<Integer>> frag_partitions = new HashMap<String, Set<Integer>>(); 
+                this.calculatePartitionsForFragment(frag_partitions, null, catalog_frag, params, base_partition);
                 for (String table_key : frag_partitions.keySet()) {
                     if (!all_partitions.containsKey(table_key)) {
                         all_partitions.put(table_key, frag_partitions.get(table_key));
@@ -722,6 +795,55 @@ public class PartitionEstimator {
         return (all_partitions);
     }
     
+    // ----------------------------------------------------------------------------
+    // FRAGMENT PARTITON METHODS
+    // ----------------------------------------------------------------------------
+    
+    /**
+     * Return a mapping from PlanFragments to PartitionIds sets
+     * @param frag_partitions
+     * @param catalog_stmt
+     * @param params
+     * @param base_partition
+     * @return
+     * @throws Exception
+     */
+    public Map<PlanFragment, Set<Integer>> getAllFragmentPartitions(final Map<PlanFragment, Set<Integer>> frag_partitions, final Statement catalog_stmt, final Object params[], final Integer base_partition) throws Exception {
+        // Note that we will use the single-sited fragments (if available) since they will be
+        // faster for us to figure out what partitions has the data that this statement needs
+        CatalogMap<PlanFragment> fragments = (catalog_stmt.getHas_singlesited() ? catalog_stmt.getFragments() : catalog_stmt.getMs_fragments());
+        return (this.getAllFragmentPartitions(frag_partitions, fragments, params, base_partition));
+    }
+
+    /**
+     * Return a mapping from PlanFragments to sets of PartitionIds
+     * NOTE: This is the one to use at runtime in the BatchPlanner because it doesn't allocate any new Collections!
+     * @param frag_partitions
+     * @param fragments
+     * @param params
+     * @param base_partition
+     * @return
+     * @throws Exception
+     */
+    public Map<PlanFragment, Set<Integer>> getAllFragmentPartitions(final Map<PlanFragment, Set<Integer>> frag_partitions, final Iterable<PlanFragment> fragments, final Object params[], final Integer base_partition) throws Exception {
+        assert(frag_partitions != null);
+        
+        // Loop through this Statement's plan fragments and get the partitions
+        for (PlanFragment catalog_frag : fragments) {
+            Set<Integer> p = frag_partitions.get(catalog_frag);
+            if (p == null) {
+                p = new HashSet<Integer>();
+                frag_partitions.put(catalog_frag, p);
+            } else {
+                p.clear();
+            }
+            this.calculatePartitionsForFragment(null,
+                                                p,
+                                                catalog_frag, params, base_partition);
+        } // FOR
+        return (frag_partitions);
+    }
+
     /**
      * Return the list partitions that this fragment needs to be sent to based on the parameters
      * @param catalog_frag
@@ -731,16 +853,23 @@ public class PartitionEstimator {
      * @throws Exception
      */
     public Set<Integer> getPartitions(final PlanFragment catalog_frag, Object params[], Integer base_partition) throws Exception {
-        Map<String, Set<Integer>> partitions = this.getTablePartitions(catalog_frag, params, base_partition);
-        Set<Integer> ret = new HashSet<Integer>();
-        int max_partitions = this.all_partitions.size();
-        for (Set<Integer> table_partitions : partitions.values()) {
-            ret.addAll(table_partitions);
-            if (ret.size() == max_partitions) break;
-        }
-        return (ret);
-    }    
+        return (this.getPartitions(new HashSet<Integer>(), catalog_frag, params, base_partition));
+    }
+    
         
+        
+    public Set<Integer> getPartitions(final Set<Integer> partitions, final PlanFragment catalog_frag, Object params[], Integer base_partition) throws Exception {
+        this.calculatePartitionsForFragment(null,
+                                            partitions,
+                                            catalog_frag, params, base_partition);
+        return (partitions);
+    }    
+
+    
+    // ----------------------------------------------------------------------------
+    // INTERNAL CALCULATION METHODS
+    // ----------------------------------------------------------------------------
+    
     /**
      * 
      * @param catalog_frag
@@ -749,10 +878,11 @@ public class PartitionEstimator {
      * @return
      * @throws Exception
      */
-    public Map<String, Set<Integer>> getTablePartitions(final PlanFragment catalog_frag, Object params[], Integer base_partition) throws Exception {
-        if (trace.get()) LOG.trace("Estimating partitions for PlanFragment #" + catalog_frag.getName());
+    private void calculatePartitionsForFragment(final Map<String, Set<Integer>> entry_partitions,
+                                                final Set<Integer> all_partitions,
+                                                PlanFragment catalog_frag, Object params[], Integer base_partition) throws Exception {
+        if (trace.get()) LOG.trace("Estimating partitions for PlanFragment #" + catalog_frag.fullName());
         String frag_key = CatalogKey.createKey(catalog_frag);
-        Statement catalog_stmt = (Statement)catalog_frag.getParent();
         
         // Check whether we have generate the cache entries for this Statement
         // The CacheEntry object just tells us what input parameter to use for hashing
@@ -761,16 +891,22 @@ public class PartitionEstimator {
         synchronized (this) {
             cache_entry = this.frag_cache_entries.get(frag_key);
             if (cache_entry == null) {
+                Statement catalog_stmt = (Statement)catalog_frag.getParent();
                 this.generateCache(catalog_stmt);
                 cache_entry = this.frag_cache_entries.get(frag_key);
             }
         }
         assert(cache_entry != null);
         
-        if (trace.get()) LOG.trace("Getting for PlanFragment #" + catalog_frag.getName());
-        Map<String, Set<Integer>> partitions = this.getTablePartitions(cache_entry, params, base_partition);
-        if (debug.get()) LOG.debug("PlanFragment #" + catalog_frag.getName() + ": " + partitions);
-        return (partitions);
+        if (trace.get()) LOG.trace("Getting for Partitions PlanFragment #" + catalog_frag.fullName());
+        this.calculatePartitionsForCache(entry_partitions,
+                                         all_partitions,
+                                         cache_entry, params, base_partition);
+        if (debug.get()) {
+            if (entry_partitions != null) LOG.debug(String.format("%s Table Partitions: %s", catalog_frag.fullName(), entry_partitions));
+            if (all_partitions != null) LOG.debug(String.format("%s All Partitions: %s", catalog_frag.fullName(), all_partitions));
+        }
+        return;
     }
     
     /**
@@ -780,10 +916,10 @@ public class PartitionEstimator {
      * @param base_partition
      * @return
      */
-    protected Map<String, Set<Integer>> getTablePartitions(PartitionEstimator.CacheEntry cache_entry, Object params[], Integer base_partition) {
+    private void calculatePartitionsForCache(final Map<String, Set<Integer>> entry_table_partitions,
+                                             final Set<Integer> entry_all_partitions,
+                                             PartitionEstimator.CacheEntry cache_entry, Object params[], Integer base_partition) throws Exception {
         // Hash the input parameters to determine what partitions we're headed to
-        Map<String, Set<Integer>> partitions = new HashMap<String, Set<Integer>>();
-        final int max_partitions = this.all_partitions.size();
         QueryType stmt_type = cache_entry.query_type;
 
         // Go through each table referenced in this CacheEntry and look-up the parameters that the partitioning
@@ -792,8 +928,9 @@ public class PartitionEstimator {
         //            from other PlanFragments), then won't return anything because it is up to whoever 
         //            to figure out where to send this PlanFragment (it may be at the coordinator)
         for (Table catalog_tbl : cache_entry.getTables()) {
-            String table_key = CatalogKey.createKey(catalog_tbl);
-            Set<Integer> table_partitions = new HashSet<Integer>();
+            @SuppressWarnings("unchecked")
+            Set<Integer> table_partitions = (Set<Integer>)this.partitionSetPool.borrowObject();
+            assert(table_partitions != null);
 
             // Easy Case: If this table is replicated and this query is a scan, then
             // we're in the clear and there's nothing else we need to do here for the
@@ -828,7 +965,7 @@ public class PartitionEstimator {
                     } else {
                         MultiColumn mc = (MultiColumn)catalog_col;
                         @SuppressWarnings("unchecked")
-                        HashSet<Integer> mc_partitions[] = new HashSet[]{ new HashSet<Integer>(), new HashSet<Integer>() };
+                        HashSet<Integer> mc_partitions[] = (HashSet<Integer>[])this.mcPartitionSetPool.borrowObject();
                         
                         if (trace.get()) LOG.trace("Calculating columns for multi-partition colunmn: " + mc);
                         boolean is_valid = true;
@@ -861,6 +998,7 @@ public class PartitionEstimator {
                                 } // FOR
                             } // FOR
                         }
+                        this.mcPartitionSetPool.returnObject(mc_partitions);
                     }
                 } else {
                     Set<Integer> param_idxs = cache_entry.get(column_key);
@@ -879,10 +1017,25 @@ public class PartitionEstimator {
                     }
                 }
             } // ELSE
-            assert(table_partitions.size() <= max_partitions);
-            partitions.put(table_key, table_partitions);
+            assert(table_partitions.size() <= this.num_partitions);
+            
+            if (entry_table_partitions != null) {
+                String table_key = CatalogKey.createKey(catalog_tbl);
+                Set<Integer> t = entry_table_partitions.get(table_key);
+                if (t == null) {
+                    entry_table_partitions.put(table_key, new HashSet<Integer>(table_partitions));    
+                } else {
+                    t.clear();
+                    t.addAll(table_partitions);
+                }
+            }
+            if (entry_all_partitions != null) {
+                entry_all_partitions.addAll(table_partitions);
+            }
+            this.partitionSetPool.returnObject(table_partitions);
+            if (entry_table_partitions == null && entry_all_partitions.size() == this.num_partitions) break;
         } // FOR
-        return (partitions);
+        return;
     }
     
     /**
@@ -892,7 +1045,8 @@ public class PartitionEstimator {
      * @param param_idxs
      * @param catalog_col
      */
-    private void calculatePartitions(Set<Integer> partitions, Object params[], Set<Integer> param_idxs, Column catalog_col) {
+    private Set<Integer> calculatePartitions(final Set<Integer> partitions,
+                                             Object params[], Set<Integer> param_idxs, Column catalog_col) {
         // Note that we have to go through all of the mappings from the partitioning column
         // to parameters. This can occur when the partitioning column is referenced multiple times
         for (Integer param_idx : param_idxs) {
@@ -914,6 +1068,7 @@ public class PartitionEstimator {
                 partitions.add(partition_id);                
             }
         } // FOR
+        return (partitions);
     }
     
     /**
@@ -929,7 +1084,7 @@ public class PartitionEstimator {
             int num_elements = Array.getLength(partition_param_val);
             if (num_elements == 0) {
                 if (debug.get()) LOG.debug("Empty partitioning parameter array for " + catalog_proc);
-                partition_param_val = rand.nextInt();
+                partition_param_val = rand.nextInt(); // Why??
             } else {
                 partition_param_val = Array.get(partition_param_val, 0);
             }
@@ -940,6 +1095,10 @@ public class PartitionEstimator {
         return (this.hasher.hash(partition_param_val, catalog_proc));
     }
 
+    // ----------------------------------------------------------------------------
+    // UTILITY METHODS
+    // ----------------------------------------------------------------------------
+    
     /**
      * Debug output
      */
@@ -1010,5 +1169,23 @@ public class PartitionEstimator {
             h.put(base_partition);
         } // FOR
         return (h);
+    }
+    
+    /**
+     * Pre-load the cache entries for all Statements 
+     * @param catalog_db
+     */
+    public void preload() {
+        assert(this.catalog_db != null);
+        for (Procedure catalog_proc : this.catalog_db.getProcedures()) {
+            for (Statement catalog_stmt : catalog_proc.getStatements()) {
+                try {
+                    this.generateCache(catalog_stmt);
+                } catch (Exception ex) {
+                    LOG.fatal("Failed to generate cache for " + catalog_stmt.fullName(), ex);
+                    System.exit(1);
+                }
+            } // FOR
+        } // FOR
     }
 }

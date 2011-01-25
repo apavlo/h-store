@@ -189,7 +189,7 @@ public class LoadMultipartitionTable extends VoltSystemProcedure {
             while (table.advanceRow()) {
                 int p = -1;
                 try {
-                    p = this.p_estimator.getPartition(catTable, table.fetchRow(table.getActiveRowIndex()));
+                    p = this.p_estimator.getTableRowPartition(catTable, table.fetchRow(table.getActiveRowIndex()));
                 } catch (Exception e) {
                     LOG.fatal("Failed to split input table into partitions", e);
                     throw new RuntimeException(e.getMessage());

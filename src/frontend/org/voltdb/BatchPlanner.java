@@ -530,8 +530,9 @@ public class BatchPlanner {
     /**
      * 
      * @param batchArgs
+     * @param predict_singlepartitioned TODO
      */
-    public BatchPlan plan(ParameterSet[] batchArgs, int local_partition) {
+    public BatchPlan plan(ParameterSet[] batchArgs, int local_partition, boolean predict_singlepartitioned) {
         if (debug.get()) LOG.debug("Constructing a new BatchPlan for " + this.catalog_proc);
         BatchPlan plan = new BatchPlan(local_partition);
 
@@ -565,7 +566,7 @@ public class BatchPlanner {
 
             // We will just use the PartitionEstimator to figure out what partitions this thing needs to touch
             try {
-                this.p_estimator.getPartitions(this.all_partitions[stmt_index], catalog_stmt, params, local_partition);
+                this.p_estimator.getAllPartitions(this.all_partitions[stmt_index], catalog_stmt, params, local_partition);
             } catch (Exception ex) {
                 
             }
