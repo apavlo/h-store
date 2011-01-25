@@ -101,92 +101,92 @@ public class TestBatchPlanner extends BaseTestCase {
 //        } // FOR
 //    }
 //    
-//    /**
-//     * testSingleSitedLocalPlan
-//     */
-//    public void testSingleSitedLocalPlan() throws Exception {
-//        this.init(SINGLESITE_PROCEDURE, SINGLESITE_STATEMENT, SINGLESITE_PROCEDURE_ARGS);
-//        BatchPlanner batchPlan = new BatchPlanner(batch, this.catalog_proc, p_estimator, INITIATOR_ID);
-//        BatchPlanner.BatchPlan plan = batchPlan.plan(this.args, LOCAL_PARTITION);
-//        int local_frags = plan.getLocalFragmentCount();
-//        int remote_frags = plan.getRemoteFragmentCount();
-//        
-//        assertTrue(plan.isLocal());
-//        assertTrue(plan.isSingleSited());
-//        assertEquals(1, local_frags);
-//        assertEquals(0, remote_frags);
-//    }
-//    
-//    /**
-//     * testSingleSitedLocalPlan2
-//     */
-//    public void testSingleSitedLocalPlan2() throws Exception {
-//        Object params[] = new Object[] {
-//            new Long(LOCAL_PARTITION),  // S_ID
-//            new Long(0),                // SF_TYPE
-//            new Long(0),                // START_TIME
-//            new Long(0),                // END_TIME
-//        };
-//        
-//        this.init("GetNewDestination", "GetData", params);
-//        BatchPlanner batchPlan = new BatchPlanner(batch, this.catalog_proc, p_estimator, INITIATOR_ID);
-//        BatchPlanner.BatchPlan plan = batchPlan.plan(this.args, LOCAL_PARTITION);
-//        int local_frags = plan.getLocalFragmentCount();
-//        int remote_frags = plan.getRemoteFragmentCount();
-//        
-//        assertTrue(plan.isLocal());
-//        assertTrue(plan.isSingleSited());
-//        assertEquals(1, local_frags);
-//        assertEquals(0, remote_frags);
-//    }
-//    
-//    /**
-//     * testSingleSitedRemotePlan
-//     */
-//    public void testSingleSitedRemotePlan() throws Exception {
-//        this.init(SINGLESITE_PROCEDURE, SINGLESITE_STATEMENT, SINGLESITE_PROCEDURE_ARGS);
-//        BatchPlanner batchPlan = new BatchPlanner(batch, this.catalog_proc, p_estimator, INITIATOR_ID);
-//        BatchPlanner.BatchPlan plan = batchPlan.plan(this.args, REMOTE_PARTITION);
-//        int local_frags = plan.getLocalFragmentCount();
-//        int remote_frags = plan.getRemoteFragmentCount();
-//        
-//        assertFalse(plan.isLocal());
-//        assertTrue(plan.isSingleSited());
-//        assertEquals(0, local_frags);
-//        assertEquals(1, remote_frags);
-//    }
-//    
-//    /**
-//     * testMultiSitedLocalPlan
-//     */
-//    public void testMultiSitedLocalPlan() throws Exception {
-//        this.init(MULTISITE_PROCEDURE, MULTISITE_STATEMENT, MULTISITE_PROCEDURE_ARGS);
-//        BatchPlanner batchPlan = new BatchPlanner(batch, this.catalog_proc, p_estimator, INITIATOR_ID);
-//        BatchPlanner.BatchPlan plan = batchPlan.plan(this.args, LOCAL_PARTITION);
-//        int local_frags = plan.getLocalFragmentCount();
-//        int remote_frags = plan.getRemoteFragmentCount();
-//        
-//        assertFalse(plan.isLocal());
-//        assertFalse(plan.isSingleSited());
-//        assertEquals(1, local_frags);
-//        assertEquals(NUM_PARTITIONS, remote_frags);
-//    }
-//    
-//    /**
-//     * testMultiSitedRemotePlan
-//     */
-//    public void testMultiSitedRemotePlan() throws Exception {
-//        this.init(MULTISITE_PROCEDURE, MULTISITE_STATEMENT, MULTISITE_PROCEDURE_ARGS);
-//        BatchPlanner batchPlan = new BatchPlanner(batch, this.catalog_proc, p_estimator, INITIATOR_ID);
-//        BatchPlanner.BatchPlan plan = batchPlan.plan(this.args, REMOTE_PARTITION);
-//        int local_frags = plan.getLocalFragmentCount();
-//        int remote_frags = plan.getRemoteFragmentCount();
-//         
-//        assertFalse(plan.isLocal());
-//        assertFalse(plan.isSingleSited());
-//        assertEquals(1, local_frags);
-//        assertEquals(NUM_PARTITIONS, remote_frags);
-//    }
+    /**
+     * testSingleSitedLocalPlan
+     */
+    public void testSingleSitedLocalPlan() throws Exception {
+        this.init(SINGLESITE_PROCEDURE, SINGLESITE_STATEMENT, SINGLESITE_PROCEDURE_ARGS);
+        BatchPlanner batchPlan = new BatchPlanner(batch, this.catalog_proc, p_estimator, INITIATOR_ID);
+        BatchPlanner.BatchPlan plan = batchPlan.plan(this.args, LOCAL_PARTITION);
+        int local_frags = plan.getLocalFragmentCount();
+        int remote_frags = plan.getRemoteFragmentCount();
+        
+        assertTrue(plan.isLocal());
+        assertTrue(plan.isSingleSited());
+        assertEquals(1, local_frags);
+        assertEquals(0, remote_frags);
+    }
+    
+    /**
+     * testSingleSitedLocalPlan2
+     */
+    public void testSingleSitedLocalPlan2() throws Exception {
+        Object params[] = new Object[] {
+            new Long(LOCAL_PARTITION),  // S_ID
+            new Long(0),                // SF_TYPE
+            new Long(0),                // START_TIME
+            new Long(0),                // END_TIME
+        };
+        
+        this.init("GetNewDestination", "GetData", params);
+        BatchPlanner batchPlan = new BatchPlanner(batch, this.catalog_proc, p_estimator, INITIATOR_ID);
+        BatchPlanner.BatchPlan plan = batchPlan.plan(this.args, LOCAL_PARTITION);
+        int local_frags = plan.getLocalFragmentCount();
+        int remote_frags = plan.getRemoteFragmentCount();
+        
+        assertTrue(plan.isLocal());
+        assertTrue(plan.isSingleSited());
+        assertEquals(1, local_frags);
+        assertEquals(0, remote_frags);
+    }
+    
+    /**
+     * testSingleSitedRemotePlan
+     */
+    public void testSingleSitedRemotePlan() throws Exception {
+        this.init(SINGLESITE_PROCEDURE, SINGLESITE_STATEMENT, SINGLESITE_PROCEDURE_ARGS);
+        BatchPlanner batchPlan = new BatchPlanner(batch, this.catalog_proc, p_estimator, INITIATOR_ID);
+        BatchPlanner.BatchPlan plan = batchPlan.plan(this.args, REMOTE_PARTITION);
+        int local_frags = plan.getLocalFragmentCount();
+        int remote_frags = plan.getRemoteFragmentCount();
+        
+        assertFalse(plan.isLocal());
+        assertTrue(plan.isSingleSited());
+        assertEquals(0, local_frags);
+        assertEquals(1, remote_frags);
+    }
+    
+    /**
+     * testMultiSitedLocalPlan
+     */
+    public void testMultiSitedLocalPlan() throws Exception {
+        this.init(MULTISITE_PROCEDURE, MULTISITE_STATEMENT, MULTISITE_PROCEDURE_ARGS);
+        BatchPlanner batchPlan = new BatchPlanner(batch, this.catalog_proc, p_estimator, INITIATOR_ID);
+        BatchPlanner.BatchPlan plan = batchPlan.plan(this.args, LOCAL_PARTITION);
+        int local_frags = plan.getLocalFragmentCount();
+        int remote_frags = plan.getRemoteFragmentCount();
+        
+        assertFalse(plan.isLocal());
+        assertFalse(plan.isSingleSited());
+        assertEquals(1, local_frags);
+        assertEquals(NUM_PARTITIONS, remote_frags);
+    }
+    
+    /**
+     * testMultiSitedRemotePlan
+     */
+    public void testMultiSitedRemotePlan() throws Exception {
+        this.init(MULTISITE_PROCEDURE, MULTISITE_STATEMENT, MULTISITE_PROCEDURE_ARGS);
+        BatchPlanner batchPlan = new BatchPlanner(batch, this.catalog_proc, p_estimator, INITIATOR_ID);
+        BatchPlanner.BatchPlan plan = batchPlan.plan(this.args, REMOTE_PARTITION);
+        int local_frags = plan.getLocalFragmentCount();
+        int remote_frags = plan.getRemoteFragmentCount();
+         
+        assertFalse(plan.isLocal());
+        assertFalse(plan.isSingleSited());
+        assertEquals(1, local_frags);
+        assertEquals(NUM_PARTITIONS, remote_frags);
+    }
 
     /**
      * testGetFragmentTaskMessages

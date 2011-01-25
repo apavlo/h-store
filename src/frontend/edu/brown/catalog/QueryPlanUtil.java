@@ -86,10 +86,9 @@ public abstract class QueryPlanUtil {
      * @return
      * @throws Exception
      */
-    public static List<PlanFragment> getSortedPlanFragments(Collection<PlanFragment> catalog_frags) {
-        final ArrayList<PlanFragment> sorted_frags = new ArrayList<PlanFragment>(catalog_frags);
-        Collections.sort(sorted_frags, PLANFRAGMENT_EXECUTION_ORDER);
-        return (sorted_frags);
+    public static List<PlanFragment> getSortedPlanFragments(List<PlanFragment> catalog_frags) {
+        Collections.sort(catalog_frags, PLANFRAGMENT_EXECUTION_ORDER);
+        return (catalog_frags);
     }
     
     /**
@@ -226,6 +225,7 @@ public abstract class QueryPlanUtil {
             //System.exit(1);
         }
         
+        cache.put(cache_key, ret);
         return (ret);
     }
     
@@ -258,6 +258,8 @@ public abstract class QueryPlanUtil {
         for (Procedure catalog_proc : catalog_db.getProcedures()) {
             if (catalog_proc.getSystemproc() || catalog_proc.getHasjava() == false) continue; 
             for (Statement catalog_stmt : catalog_proc.getStatements()) {
+                if (catalog_stmt.getHas_singlesited()) QueryPlanUtil.deserializeStatement(catalog_stmt, true);
+                if (catalog_stmt.getHas_multisited()) QueryPlanUtil.deserializeStatement(catalog_stmt, false);
                 for (PlanFragment catalog_frag : catalog_stmt.getFragments()) {
                     QueryPlanUtil.deserializePlanFragment(catalog_frag);
                 } // FOR
