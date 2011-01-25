@@ -15,6 +15,9 @@ import java.util.TreeSet;
 import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -22,6 +25,7 @@ import org.apache.log4j.Logger;
 import org.voltdb.BackendTarget;
 import org.voltdb.ClientResponseImpl;
 import org.voltdb.ExecutionSite;
+import org.voltdb.ExecutionSiteHelper;
 import org.voltdb.ProcedureProfiler;
 import org.voltdb.StoredProcedureInvocation;
 import org.voltdb.TransactionIdManager;
@@ -48,6 +52,7 @@ import com.google.protobuf.RpcCallback;
 import com.google.protobuf.RpcController;
 
 import edu.brown.catalog.CatalogUtil;
+import edu.brown.catalog.QueryPlanUtil;
 import edu.brown.markov.EstimationThresholds;
 import edu.brown.markov.MarkovGraph;
 import edu.brown.markov.MarkovUtil;
@@ -148,6 +153,8 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
     
     private final Map<Long, Boolean> is_singlepartitioned = new ConcurrentHashMap<Long, Boolean>();
 
+    private final ScheduledExecutorService helper_pool;
+    
     /**
      * 
      */
@@ -293,6 +300,8 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         this.messenger = new HStoreMessenger(this);
         this.txnid_manager = new TransactionIdManager(this.site_id);
         
+        this.helper_pool = Executors.newScheduledThreadPool(1);
+        
         assert(this.catalog_db != null);
         assert(this.p_estimator != null);
     }
@@ -306,11 +315,30 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         // First we need to tell the HStoreMessenger to start-up and initialize its connections
         if (debug.get()) LOG.debug("Starting HStoreMessenger for Site #" + this.site_id);
         this.messenger.start();
+
+        // Preparation Thread
+        Thread t = new Thread() {
+            public void run() {
+                this.setName(HStoreSite.this.getThreadName("prep"));
+                try {
+                    QueryPlanUtil.preload(HStoreSite.this.catalog_db);
+                } catch (Exception ex) {
+                    LOG.fatal("Failed to prepare HStoreSite", ex);
+                    System.exit(1);
+                }
+                
+                // Fire off the ExecutionSiteHelper
+                ExecutionSiteHelper esh = new ExecutionSiteHelper(HStoreSite.this.executors.values());
+                HStoreSite.this.helper_pool.scheduleAtFixedRate(esh, 250, 1000, TimeUnit.MILLISECONDS);
+            };
+        };
+        t.setDaemon(true);
+        t.start();
         
         // Then we need to start all of the ExecutionSites in threads
         if (debug.get()) LOG.debug("Starting ExecutionSite threads for " + this.executors.size() + " partitions on Site #" + this.site_id);
         for (Entry<Integer, ExecutionSite> e : this.executors.entrySet()) {
-            Thread t = new Thread(e.getValue());
+            t = new Thread(e.getValue());
             t.setDaemon(true);
             e.getValue().setHStoreCoordinatorNode(this);
             e.getValue().setHStoreMessenger(this.messenger);

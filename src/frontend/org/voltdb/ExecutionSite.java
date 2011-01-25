@@ -85,16 +85,6 @@ public class ExecutionSite implements Runnable {
     private static final int NODE_THREAD_POOL_SIZE = 1;
 
     /**
-     * How many milliseconds will we keep around old transaction states
-     */
-    private static final int FINISHED_TRANSACTION_GARBAGE_COLLECTION = 2000;
-    
-    /**
-     * The maximum number of transactions to clean up per poll round
-     */
-    private static final int MAX_TRANSACTION_GARBAGE_COLLECTION = 10;
-    
-    /**
      * Default number of VoltProcedure threads to keep around
      */
     private static final int NODE_VOLTPROCEDURE_POOL_SIZE = 5;
@@ -245,7 +235,6 @@ public class ExecutionSite implements Runnable {
             } // FOR
         }
     }; // END CLASS
-
     
     // ----------------------------------------------------------------------------
     // SYSPROC STUFF
@@ -608,32 +597,12 @@ public class ExecutionSite implements Runnable {
                 // -------------------------------
                 // Poll Work Queue
                 // -------------------------------
-                
-                // If there is nothing we need to immediately work on, then we can check if there are
-                // any finished transactions that we can clean up
-//                if (this.work_queue.isEmpty() && this.finished_txn_states.isEmpty() == false) {
-//                    long to_remove = System.currentTimeMillis() - FINISHED_TRANSACTION_GARBAGE_COLLECTION;
-//                    int cleaned = 0;
-//                    while (this.work_queue.isEmpty() &&
-//                           this.finished_txn_states.isEmpty() == false &&
-//                           cleaned < MAX_TRANSACTION_GARBAGE_COLLECTION) {
-//                        TransactionState ts = this.finished_txn_states.peek();
-//                        if (ts.getFinishedTimestamp() < to_remove) {
-//                            this.cleanupTransaction(ts);
-//                            this.finished_txn_states.remove();
-//                            cleaned++;
-//                        } else break;
-//                    } // WHILE
-//                    if (cleaned > 0 && trace.get()) LOG.trace("Cleaned " + cleaned + " transaction states");
-//                // Otherwise poll the work queue until we actually get something to do
-//                } else {
-                    try {
-                        work = this.work_queue.poll(500, TimeUnit.MILLISECONDS);
-                    } catch (InterruptedException ex) {
-                        if (debug.get()) LOG.debug("Interupted while polling work queue. Halting ExecutionSite...", ex);
-                        stop = true;
-                    }
-//                }
+                try {
+                    work = this.work_queue.poll(500, TimeUnit.MILLISECONDS);
+                } catch (InterruptedException ex) {
+                    if (debug.get()) LOG.debug("Interupted while polling work queue. Halting ExecutionSite...", ex);
+                    stop = true;
+                }
 
                 // -------------------------------
                 // Execute Query Plan Fragments
@@ -767,9 +736,6 @@ public class ExecutionSite implements Runnable {
                     if (trace.get()) LOG.trace(String.format("Starting execution of txn #%d [proc=%s, single_partitioned=%s]", txn_id, proc_name, ts.isPredictSinglePartition()));
                     
                     this.startTransaction(ts, volt_proc, init_work);
-
-                    // Only call tick here!
-                    this.tick();
                     
                 // -------------------------------
                 // BAD MOJO!
@@ -1048,16 +1014,13 @@ public class ExecutionSite implements Runnable {
     /**
      * 
      */
-    private synchronized void cleanupTransaction(TransactionState ts) {
+    protected synchronized void cleanupTransaction(TransactionState ts) {
         long txn_id = ts.getTransactionId();
         if (trace.get()) LOG.trace("Cleaning up internal state information for Txn #" + txn_id);
         assert(ts.isMarkedFinished());
         
         if (ts.isExecLocal()) {
-            VoltProcedure volt_proc = null;
-            synchronized (this.running_xacts) {
-                volt_proc = this.running_xacts.remove(txn_id);
-            }
+            VoltProcedure volt_proc = this.running_xacts.remove(txn_id);
             assert(volt_proc != null) :
                 "Trying to cleanup txn #" + txn_id + " more than once??";
             assert(this.all_procs.get(volt_proc.getProcedureName()).contains(volt_proc)) :

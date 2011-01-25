@@ -18,9 +18,9 @@ public abstract class QueryPlanUtil {
     private static final Logger LOG = Logger.getLogger(QueryPlanUtil.class.getName());
     
     /**
-     * PlanFragment -> AbstractPlanNode
+     * PlanFragmentId -> AbstractPlanNode
      */
-    private static final Map<PlanFragment, AbstractPlanNode> CACHE_DESERIALIZE_FRAGMENT = new HashMap<PlanFragment, AbstractPlanNode>();
+    private static final Map<String, AbstractPlanNode> CACHE_DESERIALIZE_FRAGMENT = new HashMap<String, AbstractPlanNode>();
 
     /**
      * Procedure.Statement -> AbstractPlanNode
@@ -236,14 +236,35 @@ public abstract class QueryPlanUtil {
      * @throws Exception
      */
     public static AbstractPlanNode deserializePlanFragment(PlanFragment catalog_frgmt) throws Exception {
-        AbstractPlanNode ret = QueryPlanUtil.CACHE_DESERIALIZE_FRAGMENT.get(catalog_frgmt);
+        String id = catalog_frgmt.getName();
+        AbstractPlanNode ret = QueryPlanUtil.CACHE_DESERIALIZE_FRAGMENT.get(id);
         if (ret == null) {
+            if (LOG.isDebugEnabled()) LOG.warn("No cached object for " + catalog_frgmt.fullName());
             Database catalog_db = CatalogUtil.getDatabase(catalog_frgmt);
             String jsonString = Encoder.hexDecodeToString(catalog_frgmt.getPlannodetree());
             PlanNodeList list = (PlanNodeList)PlanNodeTree.fromJSONObject(new JSONObject(jsonString), catalog_db);
             ret = list.getRootPlanNode();
-            QueryPlanUtil.CACHE_DESERIALIZE_FRAGMENT.put(catalog_frgmt, ret);
+            QueryPlanUtil.CACHE_DESERIALIZE_FRAGMENT.put(id, ret);
         }
         return (ret);
+    }
+    
+    /**
+     * Pre-load the cache for all of the PlanFragments
+     * @param catalog_db
+     * @throws Exception
+     */
+    public static void preload(Database catalog_db) throws Exception {
+        for (Procedure catalog_proc : catalog_db.getProcedures()) {
+            if (catalog_proc.getSystemproc() || catalog_proc.getHasjava() == false) continue; 
+            for (Statement catalog_stmt : catalog_proc.getStatements()) {
+                for (PlanFragment catalog_frag : catalog_stmt.getFragments()) {
+                    QueryPlanUtil.deserializePlanFragment(catalog_frag);
+                } // FOR
+                for (PlanFragment catalog_frag : catalog_stmt.getMs_fragments()) {
+                    QueryPlanUtil.deserializePlanFragment(catalog_frag);
+                } // FOR
+            } // FOR
+        } // FOR
     }
 }
