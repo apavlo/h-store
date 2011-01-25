@@ -52,7 +52,7 @@ public class MultiPartitionTxnFilter extends Workload.Filter {
                 partitions.add(base_partition);
                 
                 for (QueryTrace query : xact.getQueries()) {
-                    partitions.addAll(this.p_estimator.getPartitions(query, base_partition));
+                    partitions.addAll(this.p_estimator.getAllPartitions(query, base_partition));
                 } // FOR
                 
             } catch (Exception ex) {

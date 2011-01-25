@@ -58,7 +58,7 @@ public class TestPartitionEstimatorMultiSite extends BaseTestCase {
         assertNotNull(catalog_stmt);
         
         Object params[] = new Object[] { new String("Doesn't Matter") };
-        Collection<Integer> partitions = p_estimator.getPartitions(catalog_stmt, params, base_partition);
+        Collection<Integer> partitions = p_estimator.getAllPartitions(catalog_stmt, params, base_partition);
         // System.out.println(catalog_stmt.getName() + " Partitions: " + partitions);
         assertEquals(num_partitions, partitions.size());
     }
@@ -83,6 +83,39 @@ public class TestPartitionEstimatorMultiSite extends BaseTestCase {
         boolean internal_flag = false;
         for (PlanFragment catalog_frag : catalog_stmt.getMs_fragments()) {
             Collection<Integer> partitions = p_estimator.getPartitions(catalog_frag, params, base_partition);
+            if (partitions.isEmpty()) {
+                assertFalse(internal_flag);
+                internal_flag = true;
+            }
+        } // FOR
+        assertTrue(internal_flag);
+    }
+    
+    /**
+     * testGetAllFragmentPartitions
+     */
+    public void testGetAllFragmentPartitions() throws Exception {
+        Procedure catalog_proc = this.getProcedure(GetNewDestination.class);
+        Statement catalog_stmt = catalog_proc.getStatements().get("GetData");
+        assertNotNull(catalog_stmt);
+        
+        // System.out.println("Num Partitions: " + CatalogUtil.getNumberOfPartitions(catalog_db));
+        Object params[] = new Object[] {
+            new Long(54),   // S_ID
+            new Long(3),    // SF_TYPE
+            new Long(0),    // START_TIME
+            new Long(22),   // END_TIME
+        };
+
+        Map<PlanFragment, Set<Integer>> all_partitions = new HashMap<PlanFragment, Set<Integer>>();
+        CatalogMap<PlanFragment> fragments = catalog_stmt.getMs_fragments();
+        p_estimator.getAllFragmentPartitions(all_partitions, fragments, params, base_partition);
+        
+        // We should see one PlanFragment with no partitions and then all others need something
+        boolean internal_flag = false;
+        for (PlanFragment catalog_frag : fragments) {
+            Collection<Integer> partitions = all_partitions.get(catalog_frag);
+            assertNotNull(catalog_frag.fullName(), partitions);
             if (partitions.isEmpty()) {
                 assertFalse(internal_flag);
                 internal_flag = true;

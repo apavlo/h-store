@@ -82,7 +82,7 @@ public class TestTransactionState extends BaseTestCase {
             } // FOR
             
             BatchPlanner batchPlan = new BatchPlanner(batch, catalog_proc, p_estimator, LOCAL_PARTITION);
-            plan = batchPlan.plan(args, LOCAL_PARTITION);
+            plan = batchPlan.plan(args, LOCAL_PARTITION, null);
             assertNotNull(plan);
             ftasks = plan.getFragmentTaskMessages(TXN_ID, CLIENT_HANDLE);
             assertFalse(ftasks.isEmpty());

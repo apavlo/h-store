@@ -1,26 +1,31 @@
 package org.voltdb;
 
-import java.util.*;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 
-import org.voltdb.catalog.*;
+import org.voltdb.catalog.CatalogMap;
+import org.voltdb.catalog.PlanFragment;
+import org.voltdb.catalog.Procedure;
+import org.voltdb.catalog.Statement;
 import org.voltdb.messaging.FragmentTaskMessage;
-import org.voltdb.plannodes.AbstractPlanNode;
-import org.voltdb.plannodes.ReceivePlanNode;
-import org.voltdb.plannodes.SendPlanNode;
+import org.voltdb.types.QueryType;
 
 import edu.brown.BaseTestCase;
-import edu.brown.catalog.QueryPlanUtil;
+import edu.brown.benchmark.tm1.procedures.GetAccessData;
+import edu.brown.benchmark.tm1.procedures.GetNewDestination;
+import edu.brown.benchmark.tm1.procedures.InsertCallForwarding;
+import edu.brown.benchmark.tm1.procedures.UpdateLocation;
 import edu.brown.hashing.DefaultHasher;
-import edu.brown.plannodes.PlanNodeUtil;
 import edu.brown.utils.PartitionEstimator;
 import edu.brown.utils.ProjectType;
 
 public class TestBatchPlanner extends BaseTestCase {
 
-    private static final String SINGLESITE_PROCEDURE = "GetAccessData";
+    private static final Class<? extends VoltProcedure> SINGLESITE_PROCEDURE = GetAccessData.class;
     private static final String SINGLESITE_STATEMENT = "GetData";
     
-    private static final String MULTISITE_PROCEDURE = "UpdateLocation";
+    private static final Class<? extends VoltProcedure> MULTISITE_PROCEDURE = UpdateLocation.class;
     private static final String MULTISITE_STATEMENT = "update";
     
     private static final Object SINGLESITE_PROCEDURE_ARGS[] = {
@@ -48,15 +53,22 @@ public class TestBatchPlanner extends BaseTestCase {
         p_estimator = new PartitionEstimator(catalog_db, new DefaultHasher(catalog_db, NUM_PARTITIONS));
     }
     
-    private void init(String proc_name, String stmt_name, Object raw_args[]) {
-        this.catalog_proc = catalog_db.getProcedures().get(proc_name);
+    private void init(Class<? extends VoltProcedure> volt_proc, String stmt_name, Object raw_args[]) {
+        this.catalog_proc = this.getProcedure(volt_proc);
         assertNotNull(this.catalog_proc);
         this.catalog_stmt = this.catalog_proc.getStatements().get(stmt_name);
         assertNotNull(this.catalog_stmt);
-        assert(this.catalog_stmt.getHas_multisited());
+        
+        CatalogMap<PlanFragment> fragments = null;
+        if (this.catalog_stmt.getQuerytype() == QueryType.INSERT.getValue()) {
+            fragments = this.catalog_stmt.getFragments();
+        } else {
+            assert(this.catalog_stmt.getHas_multisited());
+            fragments = this.catalog_stmt.getMs_fragments();
+        }
 
         // Create a SQLStmt batch
-        this.batch = new SQLStmt[] { new SQLStmt(this.catalog_stmt, this.catalog_stmt.getMs_fragments()) };
+        this.batch = new SQLStmt[] { new SQLStmt(this.catalog_stmt, fragments) };
         this.args = new ParameterSet[] { VoltProcedure.getCleanParams(this.batch[0], raw_args) };
     }
     
@@ -107,7 +119,7 @@ public class TestBatchPlanner extends BaseTestCase {
     public void testSingleSitedLocalPlan() throws Exception {
         this.init(SINGLESITE_PROCEDURE, SINGLESITE_STATEMENT, SINGLESITE_PROCEDURE_ARGS);
         BatchPlanner batchPlan = new BatchPlanner(batch, this.catalog_proc, p_estimator, INITIATOR_ID);
-        BatchPlanner.BatchPlan plan = batchPlan.plan(this.args, LOCAL_PARTITION);
+        BatchPlanner.BatchPlan plan = batchPlan.plan(this.args, LOCAL_PARTITION, null);
         int local_frags = plan.getLocalFragmentCount();
         int remote_frags = plan.getRemoteFragmentCount();
         
@@ -128,9 +140,33 @@ public class TestBatchPlanner extends BaseTestCase {
             new Long(0),                // END_TIME
         };
         
-        this.init("GetNewDestination", "GetData", params);
+        this.init(GetNewDestination.class, "GetData", params);
         BatchPlanner batchPlan = new BatchPlanner(batch, this.catalog_proc, p_estimator, INITIATOR_ID);
-        BatchPlanner.BatchPlan plan = batchPlan.plan(this.args, LOCAL_PARTITION);
+        BatchPlanner.BatchPlan plan = batchPlan.plan(this.args, LOCAL_PARTITION, null);
+        int local_frags = plan.getLocalFragmentCount();
+        int remote_frags = plan.getRemoteFragmentCount();
+        
+        assertTrue(plan.isLocal());
+        assertTrue(plan.isSingleSited());
+        assertEquals(1, local_frags);
+        assertEquals(0, remote_frags);
+    }
+    
+    /**
+     * testSingleSitedLocalPlanInsert
+     */
+    public void testSingleSitedLocalPlanInsert() throws Exception {
+        Object params[] = new Object[] {
+            new Long(LOCAL_PARTITION),  // S_ID
+            new Long(0),                // SF_TYPE
+            new Long(0),                // START_TIME
+            new Long(0),                // END_TIME
+            "XYZ",                      // NUMBERX
+        };
+        
+        this.init(InsertCallForwarding.class, "update", params);
+        BatchPlanner batchPlan = new BatchPlanner(batch, this.catalog_proc, p_estimator, INITIATOR_ID);
+        BatchPlanner.BatchPlan plan = batchPlan.plan(this.args, LOCAL_PARTITION, null);
         int local_frags = plan.getLocalFragmentCount();
         int remote_frags = plan.getRemoteFragmentCount();
         
@@ -146,7 +182,7 @@ public class TestBatchPlanner extends BaseTestCase {
     public void testSingleSitedRemotePlan() throws Exception {
         this.init(SINGLESITE_PROCEDURE, SINGLESITE_STATEMENT, SINGLESITE_PROCEDURE_ARGS);
         BatchPlanner batchPlan = new BatchPlanner(batch, this.catalog_proc, p_estimator, INITIATOR_ID);
-        BatchPlanner.BatchPlan plan = batchPlan.plan(this.args, REMOTE_PARTITION);
+        BatchPlanner.BatchPlan plan = batchPlan.plan(this.args, REMOTE_PARTITION, null);
         int local_frags = plan.getLocalFragmentCount();
         int remote_frags = plan.getRemoteFragmentCount();
         
@@ -162,7 +198,7 @@ public class TestBatchPlanner extends BaseTestCase {
     public void testMultiSitedLocalPlan() throws Exception {
         this.init(MULTISITE_PROCEDURE, MULTISITE_STATEMENT, MULTISITE_PROCEDURE_ARGS);
         BatchPlanner batchPlan = new BatchPlanner(batch, this.catalog_proc, p_estimator, INITIATOR_ID);
-        BatchPlanner.BatchPlan plan = batchPlan.plan(this.args, LOCAL_PARTITION);
+        BatchPlanner.BatchPlan plan = batchPlan.plan(this.args, LOCAL_PARTITION, null);
         int local_frags = plan.getLocalFragmentCount();
         int remote_frags = plan.getRemoteFragmentCount();
         
@@ -178,7 +214,7 @@ public class TestBatchPlanner extends BaseTestCase {
     public void testMultiSitedRemotePlan() throws Exception {
         this.init(MULTISITE_PROCEDURE, MULTISITE_STATEMENT, MULTISITE_PROCEDURE_ARGS);
         BatchPlanner batchPlan = new BatchPlanner(batch, this.catalog_proc, p_estimator, INITIATOR_ID);
-        BatchPlanner.BatchPlan plan = batchPlan.plan(this.args, REMOTE_PARTITION);
+        BatchPlanner.BatchPlan plan = batchPlan.plan(this.args, REMOTE_PARTITION, null);
         int local_frags = plan.getLocalFragmentCount();
         int remote_frags = plan.getRemoteFragmentCount();
          
@@ -194,7 +230,7 @@ public class TestBatchPlanner extends BaseTestCase {
     public void testGetFragmentTaskMessages() throws Exception {
         this.init(MULTISITE_PROCEDURE, MULTISITE_STATEMENT, MULTISITE_PROCEDURE_ARGS);
         BatchPlanner batchPlan = new BatchPlanner(batch, this.catalog_proc, p_estimator, INITIATOR_ID);
-        BatchPlanner.BatchPlan plan = batchPlan.plan(this.args, LOCAL_PARTITION);
+        BatchPlanner.BatchPlan plan = batchPlan.plan(this.args, LOCAL_PARTITION, null);
         
         List<FragmentTaskMessage> ftasks = plan.getFragmentTaskMessages(0, -1);
 //        System.err.println("TASKS:\n" + ftasks);
@@ -202,6 +238,7 @@ public class TestBatchPlanner extends BaseTestCase {
         Set<Integer> output_dependencies = new HashSet<Integer>();
         FragmentTaskMessage local_ftask = null;
         for (FragmentTaskMessage ftask : ftasks) {
+            ftask.toString(); // Why does this prevent the test from failing????
             assertEquals(FragmentTaskMessage.USER_PROC, ftask.getFragmentTaskType());
             
             // All tasks for the multi-partition query should have exactly one output with no inputs
