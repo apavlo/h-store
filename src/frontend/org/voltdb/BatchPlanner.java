@@ -87,12 +87,13 @@ public class BatchPlanner {
         public boolean equals(Object obj) {
             if (!(obj instanceof PlanVertex)) return (false);
             PlanVertex other = (PlanVertex)obj;
-            if (!this.getCatalogItem().equals(other.getCatalogItem()) ||
-                this.input_dependency_id != other.input_dependency_id ||
+            if (this.input_dependency_id != other.input_dependency_id ||
                 this.output_dependency_id != other.output_dependency_id ||
-                !this.params.equals(other.params) ||
-                !this.partition.equals(other.partition) ||
-                this.stmt_index != other.stmt_index) return (false);
+                this.params.equals(other.params) != true ||
+                this.partition.equals(other.partition) != true ||
+                this.stmt_index != other.stmt_index ||
+                this.getCatalogItem().equals(other.getCatalogItem()) != true    
+            ) return (false);
             return (true);
         }
         
