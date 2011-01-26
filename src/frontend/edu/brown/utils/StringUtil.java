@@ -33,7 +33,7 @@ public abstract class StringUtil {
     public static String formatMaps(Map<?, ?>...maps) {
         return (formatMaps(":", false, false, maps));
     }
-
+    
     /**
      * Return key/value maps into a nicely formatted table using the given delimiter
      * No Uppercase Keys, No Boxing
@@ -105,7 +105,16 @@ public abstract class StringUtil {
         } // FOR
         return (box ? StringUtil.box(sb.toString()) : sb.toString());
     }
-    
+
+    /**
+     * 
+     * @param maps
+     * @return
+     */
+    public static String formatMapsBoxed(Map<?, ?>...maps) {
+        return (formatMaps(":", false, true, maps));
+    }
+
     /**
      * Returns the given string repeated the given # of times
      * @param str

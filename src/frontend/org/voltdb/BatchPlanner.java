@@ -10,6 +10,7 @@ import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.commons.collections15.set.ListOrderedSet;
 import org.apache.log4j.Logger;
 import org.voltdb.catalog.*;
+import org.voltdb.exceptions.MispredictionException;
 import org.voltdb.messaging.*;
 import org.voltdb.plannodes.AbstractPlanNode;
 
@@ -58,6 +59,9 @@ public class BatchPlanner {
     protected final int batchSize;
     protected final PartitionEstimator p_estimator;
     protected final int initiator_id;
+    
+    private final int num_partitions;
+    
 
     private class PlanVertex extends AbstractVertex {
         final Integer frag_id;
@@ -184,6 +188,7 @@ public class BatchPlanner {
         
         // Statement Target Partition Ids
         protected final int[][] stmt_partition_ids = new int[BatchPlanner.this.batchSize][];
+        protected final int[] stmt_partition_ids_length = new int[BatchPlanner.this.batchSize];
         
         /**
          * Constructor
@@ -484,6 +489,8 @@ public class BatchPlanner {
     private final int stmt_output_dependencies_size[];
     private final Set<Integer> all_partitions[];
     
+    private final Map<PlanFragment, Set<Integer>> frag_partitions[];
+    
     /**
      * Constructor
      * @param batchStmts
@@ -502,6 +509,7 @@ public class BatchPlanner {
         this.catalog = catalog_proc.getCatalog();
         this.p_estimator = p_estimator;
         this.initiator_id = initiator_id;
+        this.num_partitions = CatalogUtil.getNumberOfPartitions(catalog_proc);
         
         this.catalog_stmts = new Statement[this.batchSize];
         
@@ -513,6 +521,7 @@ public class BatchPlanner {
         this.stmt_output_dependencies = (List<Set<Integer>>[])new List<?>[this.batchSize];
         this.stmt_output_dependencies_size = new int[this.batchSize];
         this.all_partitions = (Set<Integer>[])new Set<?>[this.batchSize];
+        this.frag_partitions = (Map<PlanFragment, Set<Integer>>[])new HashMap<?, ?>[this.batchSize];
         
         for (int i = 0; i < this.batchSize; i++) {
             this.catalog_stmts[i] = this.batchStmts[i].catStmt;
@@ -524,6 +533,7 @@ public class BatchPlanner {
             this.stmt_input_dependencies[i] = new ArrayList<Set<Integer>>();
             this.stmt_output_dependencies[i] = new ArrayList<Set<Integer>>();
             this.all_partitions[i] = new HashSet<Integer>();
+            this.frag_partitions[i] = new HashMap<PlanFragment, Set<Integer>>();
         } // FOR
     }
    
@@ -532,22 +542,20 @@ public class BatchPlanner {
      * @param batchArgs
      * @param predict_singlepartitioned TODO
      */
-    public BatchPlan plan(ParameterSet[] batchArgs, int local_partition, boolean predict_singlepartitioned) {
+    public BatchPlan plan(ParameterSet[] batchArgs, int base_partition, boolean predict_singlepartitioned) {
         if (debug.get()) LOG.debug("Constructing a new BatchPlan for " + this.catalog_proc);
-        BatchPlan plan = new BatchPlan(local_partition);
+        BatchPlan plan = new BatchPlan(base_partition);
 
         // ----------------------
         // DEBUG DUMP
         // ----------------------
-        StringBuilder buffer = null;
-
         if (trace.get()) {
             Map<String, Object> m = new ListOrderedMap<String, Object>();
             m.put("Batch Size", this.batchSize);
             for (int i = 0; i < this.batchSize; i++) {
                 m.put(String.format("[%02d] %s", i, this.batchStmts[i].catStmt.getName()), Arrays.toString(batchArgs[i].toArray()));
             }
-            LOG.trace("\n" + StringUtil.formatMaps(m));
+            LOG.trace("\n" + StringUtil.formatMapsBoxed(m));
         }
         
         
@@ -559,106 +567,114 @@ public class BatchPlanner {
             final Object params[] = paramSet.toArray();
             if (trace.get()) LOG.trace(String.format("[%02d] Constructing fragment plans for %s", stmt_index, stmt.catStmt.fullName()));
             
-            this.all_partitions[stmt_index].clear();
             this.stmt_frags[stmt_index].clear();
             this.stmt_params[stmt_index].clear();
             this.stmt_partitions[stmt_index].clear();
-
-            // We will just use the PartitionEstimator to figure out what partitions this thing needs to touch
-            try {
-                this.p_estimator.getAllPartitions(this.all_partitions[stmt_index], catalog_stmt, params, local_partition);
-            } catch (Exception ex) {
-                
+            for (Set<Integer> p : this.frag_partitions[stmt_index].values()) {
+                p.clear();
             }
-            if (trace.get()) LOG.trace("All Partitions: " + this.all_partitions[stmt_index]);
 
-            boolean has_singlesited_plan = catalog_stmt.getHas_singlesited();
+            boolean has_singlepartition_plan = catalog_stmt.getHas_singlesited();
             boolean stmt_localFragsAreNonTransactional = plan.localFragsAreNonTransactional;
-            boolean is_singlesited = (this.all_partitions[stmt_index].size() == 1);
-            boolean is_local = (is_singlesited && this.all_partitions[stmt_index].contains(local_partition));
+            boolean mispredict = false;
+            boolean is_singlepartition = has_singlepartition_plan;
+            CatalogMap<PlanFragment> fragments = null;
             
-            CatalogMap<PlanFragment> fragments = (has_singlesited_plan && is_singlesited ? catalog_stmt.getFragments() : catalog_stmt.getMs_fragments());
-            if (debug.get()) buffer = new StringBuilder();
-            if (trace.get()) LOG.trace("Planning using " + (has_singlesited_plan ? "single" : "multi") + "-partition fragments [#fragments=" + fragments.size() + "]");
+            try {
+                // Optimization: If we were told that the transaction is suppose to be single-partitioned, then we will
+                // throw the single-partitioned PlanFragments at the PartitionEstimator to get back what partitions
+                // each PlanFragment will need to go to. If we get multiple partitions, then we know that we mispredicted and
+                // we should throw a MispredictionException
+                // If we originally didn't predict that it was single-partitioned, then we actually still need to check
+                // whether the query should be single-partitioned or not. This is because a query may actually just want
+                // to execute on just one partition (note that it could be a local partition or the remote partition).
+                // We'll assume that it's single-partition <<--- Can we cache that??
+                while (true) {
+                    this.all_partitions[stmt_index].clear();
+                    fragments = (is_singlepartition ? catalog_stmt.getFragments() : catalog_stmt.getMs_fragments());
+                    this.p_estimator.getAllFragmentPartitions(this.frag_partitions[stmt_index],
+                                                              this.all_partitions[stmt_index],
+                                                              fragments, params, base_partition);
 
-            // This is where we will figure out whether this Statement needs to be executed on
-            // the local partition or blasted out to multiple partitions
-            // We will loop through once and look at the single-partition plan
-            // If that fails, then we will loop back around and grab the multi-partition plan
-            // Estimate what partition each fragment needs to be sent to
-            int ii = 0;
-            for (PlanFragment catalog_frag : fragments) {
-                Set<Integer> frag_partitions = null;
-                try {
-                    frag_partitions = this.p_estimator.getPartitions(catalog_frag, params, local_partition);
-                } catch (Exception ex) {
-                    ex.printStackTrace();
-                    System.exit(1);
-                }
-                // If we didn't get back any partitions, then we know that it has to be executed locally
-                // In the future we could do some tricks like sending this Fragment over to somebody
-                // that has the most partitions on the same machine to minimize network traffic.
-                if (frag_partitions.isEmpty()) frag_partitions.add(local_partition);
-                
-                this.stmt_frags[stmt_index].add(catalog_frag);
-                this.stmt_params[stmt_index].add(paramSet);
-                this.stmt_partitions[stmt_index].add(frag_partitions);
-                
-                // If any frag is transactional, update this check
-                if (catalog_frag.getNontransactional() == false) {
-                    stmt_localFragsAreNonTransactional = true;
-                }
-                                    
-                // ----------------------
-                // DEBUG DUMP
-                // ----------------------
-                if (debug.get()) {
-                    if (ii > 0) buffer.append("\n");
-                    boolean frag_local = (frag_partitions.size() == 1 && frag_partitions.contains(local_partition));
-                    buffer.append("   Fragment[" + ii + "]:   " + catalog_frag.getName() + "\n");
-                    buffer.append("   Partitions[" + ii + "]: " + frag_partitions + "\n");
-                    buffer.append("   IsLocal[" + ii + "]:    " + frag_local + "\n");
-                    
-                    try {
-                        AbstractPlanNode root = QueryPlanUtil.deserializePlanFragment(catalog_frag);
-                        buffer.append("   Plan[" + ii + "]:\n").append(PlanNodeUtil.debug(root));
-                    } catch (Exception ex) {
-                        LOG.fatal("Failed to deserialize PlanNode for " + catalog_stmt, ex);
-                        System.exit(1);
+                    if (is_singlepartition && this.all_partitions[stmt_index].size() > 1) {
+                        // If this was suppose to be multi-partitioned, then we want to stop right here!!
+                        if (predict_singlepartitioned) {
+                            mispredict = true;
+                            break;
+                        }
+                        // Otherwise we can let it wrap back around and construct the fragment mapping for the
+                        // multi-partition PlanFragments
+                        is_singlepartition = false;
+                        continue;
                     }
-                }
-                ii++;
-            } // FOR
-            if (trace.get()) {
-                LOG.trace("BatchPlanner Output " + stmt.catStmt + "\n" +
-                          "Batch[" + stmt_index + "]: " + stmt.getText() + "\n" +
-                          "Initiator Id:     " + this.initiator_id + "\n" + 
-                          "All Partitions:   " + this.all_partitions[stmt_index] + "\n" +
-                          "Local Partition:  " + local_partition + "\n" +
-                          "IsSingledSited:   " + is_singlesited + "\n" +
-                          "IsStmtLocal:      " + is_local + "\n" +
-                          "IsBatchLocal:     " + plan.all_local + "\n" +
-                          "Fragments:        " + this.stmt_frags[stmt_index].size() + "\n" +
-                          buffer + "\n" +
-                          "--------------------------------\n");
+                    // Score! We have a plan that works!
+                    break;
+                } // WHILE
+            } catch (Exception ex) {
+                LOG.fatal("Unexpected error when planning " + catalog_stmt.fullName(), ex);
+                throw new RuntimeException(ex);
             }
-       
+            
+            // Misprediction!!
+            if (mispredict) {
+                throw new MispredictionException(123l); // FIXME
+            }
+            
+            boolean is_local = (this.all_partitions[stmt_index].size() == 1 && this.all_partitions[stmt_index].contains(base_partition));
             plan.readonly = plan.readonly && catalog_stmt.getReadonly();
             plan.localFragsAreNonTransactional = plan.localFragsAreNonTransactional || stmt_localFragsAreNonTransactional;
             
-            plan.all_singlesited = plan.all_singlesited && is_singlesited;
+            plan.all_singlesited = plan.all_singlesited && is_singlepartition;
             plan.all_local = plan.all_local && is_local;
+            
+            // ----------------------
+            // DEBUG DUMP
+            // ----------------------
+            if (debug.get()) {
+                int ii = 0;
+                Map<String, Object> m = new ListOrderedMap<String, Object>();
+                for (PlanFragment catalog_frag : fragments) {
+                    Set<Integer> p = this.frag_partitions[stmt_index].get(catalog_frag);
+                    boolean frag_local = (p.size() == 1 && p.contains(base_partition));
+                    m.put(String.format("[%02d] Fragment", ii), catalog_frag.fullName());
+                    m.put(String.format("     Partitions"), p);
+                    m.put(String.format("     IsLocal"), frag_local);
+                    
+//                    try {
+//                        AbstractPlanNode root = QueryPlanUtil.deserializePlanFragment(catalog_frag);
+//                        buffer.append("   Plan[" + ii + "]:\n").append(PlanNodeUtil.debug(root));
+//                    } catch (Exception ex) {
+//                        LOG.fatal("Failed to deserialize PlanNode for " + catalog_stmt, ex);
+//                        System.exit(1);
+//                    }
+                } // FOR
+
+                Map<String, Object> header = new ListOrderedMap<String, Object>();
+                header.put("BATCH", stmt_index);
+                header.put("BatchPlanner Output", stmt.catStmt.fullName());
+                header.put("Statement SQL", stmt.getText());
+                header.put("Initiator Id", this.initiator_id); 
+                header.put("All Partitions", this.all_partitions[stmt_index]);
+                header.put("Local Partition", base_partition);
+                header.put("IsSingledSited", is_singlepartition);
+                header.put("IsStmtLocal", is_local);
+                header.put("IsBatchLocal", plan.all_local);
+                header.put("Fragments", this.stmt_frags[stmt_index].size());
+
+                LOG.debug("\n" + StringUtil.formatMapsBoxed(header, m));
+            }
            
             // Generate the synthetic DependencyIds for the query
             this.generateDependencyIds(stmt_index);
             
             // Update the Statement->PartitionId array
             // This is needed by TransactionEstimator
-            plan.stmt_partition_ids[stmt_index] = new int[this.all_partitions[stmt_index].size()];
+            plan.stmt_partition_ids_length[stmt_index] = this.all_partitions[stmt_index].size();
+            assert(plan.stmt_partition_ids_length[stmt_index] <= this.num_partitions);
             int idx = 0;
             for (int partition_id : this.all_partitions[stmt_index]) {
                 plan.stmt_partition_ids[stmt_index][idx++] = partition_id;
-            }
+            } // FOR
             
             // SPECIAL CASE: Local INSERT/UPDATE/DELETE queries don't have an output dependency id
             // but we still need to block the VoltProcedure so that it waits until the operations
@@ -682,7 +698,7 @@ public class BatchPlanner {
                 Set<Integer> frag_output_dependency_ids = this.stmt_output_dependencies[stmt_index].get(i);
                 assert(frag_output_dependency_ids.size() <= 1) : frag_output_dependency_ids; 
                 
-                boolean frag_local = (frag_partitions.size() == 1 && frag_partitions.contains(local_partition));
+                boolean frag_local = (frag_partitions.size() == 1 && frag_partitions.contains(base_partition));
                 plan.addFragment(
                         this.stmt_frags[stmt_index].get(i), 
                         CollectionUtil.getFirst(frag_input_dependency_ids), // Why do we only need the first here?
