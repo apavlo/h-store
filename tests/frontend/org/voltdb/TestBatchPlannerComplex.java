@@ -61,7 +61,7 @@ public class TestBatchPlannerComplex extends BaseTestCase {
         // Convert the first QueryTrace batch into a SQLStmt+ParameterSet batch
         TransactionTrace txn_trace = workload.getTransactions().get(0);
         assertNotNull(txn_trace);
-        List<QueryTrace> query_batch = txn_trace.getQueryBatch(3);
+        List<QueryTrace> query_batch = txn_trace.getQueryBatch(1);
         this.batch = new SQLStmt[query_batch.size()];
         this.args = new ParameterSet[query_batch.size()];
         for (int i = 0; i < this.batch.length; i++) {
@@ -78,7 +78,7 @@ public class TestBatchPlannerComplex extends BaseTestCase {
      */
     public void testPlanMultiPartition() throws Exception {
         BatchPlanner batchPlan = new BatchPlanner(batch, catalog_proc, p_estimator, BASE_PARTITION);
-        BatchPlanner.BatchPlan plan = batchPlan.plan(this.args, TXN_ID, CLIENT_HANDLE, false);
+        BatchPlanner.BatchPlan plan = batchPlan.plan(TXN_ID, CLIENT_HANDLE, this.args, false);
         
 //        GraphUtil.visualizeGraph(plan.getPlanGraph());
     }

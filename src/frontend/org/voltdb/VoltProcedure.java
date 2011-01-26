@@ -1023,7 +1023,7 @@ public abstract class VoltProcedure {
         // TODO: At this point we have to calculate exactly what we need to do on each partition
         //       for this batch. So somehow right now we need to fire this off to either our
         //       local executor or to Evan's magical distributed transaction manager
-        BatchPlanner.BatchPlan plan = planner.plan(params, this.local_partition, this.client_handle, this.m_currentTxnState.isPredictSinglePartition());
+        BatchPlanner.BatchPlan plan = planner.plan(this.local_partition, this.client_handle, params, this.m_currentTxnState.isPredictSinglePartition());
         
         // Tell the TransactionEstimator that we're about to execute these mofos
         // TODO(pavlo+evanj): We need to do something with the estimate
