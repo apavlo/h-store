@@ -94,7 +94,8 @@ public class TestNewVoltProcedure extends BaseTestCase {
      * testExecuteLocalBatch
      */
     public void testExecuteLocalBatch() throws Exception {
-        volt_proc.setTransactionId(rand.nextLong());
+        long txn_id = NEXT_TXN_ID.incrementAndGet();
+        volt_proc.setTransactionId(txn_id);
         
         //
         // We have to slap some queries into a BatchPlan
@@ -112,13 +113,11 @@ public class TestNewVoltProcedure extends BaseTestCase {
         } // FOR
         
         BatchPlanner planner = new BatchPlanner(batchStmts, catalog_proc, p_estimator, PARTITION_ID);
-        BatchPlanner.BatchPlan plan = planner.plan(args, PARTITION_ID, true);
+        BatchPlanner.BatchPlan plan = planner.plan(args, txn_id, CLIENT_HANDLE, true);
         assertNotNull(plan);
         
-        //
         // Only try to execute a BatchPlan if we have the real EE
         // The HSQL Backend doesn't take plan fragments
-        //
         if (BACKEND_TARGET == BackendTarget.NATIVE_EE_JNI) {
 //            VoltTable results[] = volt_proc.executeLocalBatch(plan);
 //            assertNotNull(results);

@@ -186,7 +186,7 @@ public class ExecutionSite implements Runnable {
     /**
      * Thread Pool 
      */
-    protected final ExecutorService pool;
+    protected final ExecutorService thread_pool;
     
     /**
      * VoltProcedure pool
@@ -303,7 +303,7 @@ public class ExecutionSite implements Runnable {
         this.site = null;
         this.database = null;
         this.backend_target = BackendTarget.HSQLDB_BACKEND;
-        this.pool = null;
+        this.thread_pool = null;
         this.siteId = 0;
         this.partitionId = 0;
     }
@@ -332,7 +332,7 @@ public class ExecutionSite implements Runnable {
 
         // Setup Thread Pool
         int pool_size = NODE_THREAD_POOL_SIZE;
-        this.pool = Executors.newFixedThreadPool(pool_size);
+        this.thread_pool = Executors.newFixedThreadPool(pool_size);
         if (debug.get()) LOG.debug("Created ExecutionSite thread pool with " + pool_size + " threads");
         
         // The PartitionEstimator is what we use to figure our where our transactions are going to go
@@ -1448,6 +1448,6 @@ public class ExecutionSite implements Runnable {
             }
         }
         // Make sure we shutdown our threadpool
-        this.pool.shutdownNow();
+        this.thread_pool.shutdownNow();
     }
 }

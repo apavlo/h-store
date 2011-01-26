@@ -501,7 +501,7 @@ public abstract class VoltProcedure {
 //        assert(this.txn_id == null) : "Conflict with txn #" + this.txn_id; // This should never happen!
         
         // Bombs away!
-         this.m_site.pool.execute(new VoltProcedureExecutor(txnState, paramList));
+         this.m_site.thread_pool.execute(new VoltProcedureExecutor(txnState, paramList));
     }
 
     /**
@@ -1023,7 +1023,7 @@ public abstract class VoltProcedure {
         // TODO: At this point we have to calculate exactly what we need to do on each partition
         //       for this batch. So somehow right now we need to fire this off to either our
         //       local executor or to Evan's magical distributed transaction manager
-        BatchPlanner.BatchPlan plan = planner.plan(params, this.local_partition, this.m_currentTxnState.isPredictSinglePartition());
+        BatchPlanner.BatchPlan plan = planner.plan(params, this.local_partition, this.client_handle, this.m_currentTxnState.isPredictSinglePartition());
         
         // Tell the TransactionEstimator that we're about to execute these mofos
         // TODO(pavlo+evanj): We need to do something with the estimate
@@ -1037,12 +1037,6 @@ public abstract class VoltProcedure {
         // to maintain state information in TransactionState. We can probably add in the code
         // to update this txn's state object later on. For now this is just easier.
         return (this.executeBatch(plan));
-        
-//        if (plan.isLocal() && plan.isSingleSited() && !this.m_site.isCoordinator()) {
-//            return (this.executeLocalBatch(plan));
-//        } else {
-//            return (this.executeBatch(plan));
-//        }
     }
 
     /**
@@ -1053,7 +1047,7 @@ public abstract class VoltProcedure {
     protected VoltTable[] executeBatch(BatchPlanner.BatchPlan plan) {
         // It is at this point that we just need to make a call into Evan's stuff (through the ExecutionSite)
         // I'm not sure how this is suppose to exactly work, but what the hell let's give it a shot!
-        List<FragmentTaskMessage> tasks = plan.getFragmentTaskMessages(this.txn_id, this.client_handle);
+        List<FragmentTaskMessage> tasks = plan.getFragmentTaskMessages();
         if (trace.get()) LOG.trace("Got back a set of tasks for " + tasks.size() + " partitions for txn #" + this.txn_id);
 
         // Block until we get all of our responses.
@@ -1064,6 +1058,9 @@ public abstract class VoltProcedure {
         // important not to forget
         ProcedureProfiler.stopStatementCounter();
 
+        // We always have to call finished() on the BatchPlan!
+        plan.finished();
+        
         return results;
     }
     

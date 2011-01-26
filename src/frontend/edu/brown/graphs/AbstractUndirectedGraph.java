@@ -41,6 +41,10 @@ public abstract class AbstractUndirectedGraph<V extends AbstractVertex, E extend
     // ----------------------------------------------------------------------------
     
     @Override
+    public void enableDirtyChecks() {
+        this.inner.enableDirtyChecks();
+    }
+    @Override
     public List<E> getPath(V source, V target) {
         return (this.inner.getPath(source, target));
     }

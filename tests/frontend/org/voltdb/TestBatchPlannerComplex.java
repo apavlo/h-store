@@ -22,7 +22,9 @@ public class TestBatchPlannerComplex extends BaseTestCase {
     private static final Class<? extends VoltProcedure> TARGET_PROCEDURE = neworder.class;
     private static final int WORKLOAD_XACT_LIMIT = 1;
     private static final int NUM_PARTITIONS = 50;
-    private static final int INITIATOR_ID = -1;
+    private static final int BASE_PARTITION = 0;
+    private static final long TXN_ID = 123l;
+    private static final long CLIENT_HANDLE = Long.MAX_VALUE;
 
     private static Procedure catalog_proc;
     private static Workload workload;
@@ -75,8 +77,8 @@ public class TestBatchPlannerComplex extends BaseTestCase {
      * @throws Exception
      */
     public void testPlanMultiPartition() throws Exception {
-        BatchPlanner batchPlan = new BatchPlanner(batch, this.catalog_proc, p_estimator, INITIATOR_ID);
-        BatchPlanner.BatchPlan plan = batchPlan.plan(this.args, 0, false);
+        BatchPlanner batchPlan = new BatchPlanner(batch, catalog_proc, p_estimator, BASE_PARTITION);
+        BatchPlanner.BatchPlan plan = batchPlan.plan(this.args, TXN_ID, CLIENT_HANDLE, false);
         
 //        GraphUtil.visualizeGraph(plan.getPlanGraph());
     }

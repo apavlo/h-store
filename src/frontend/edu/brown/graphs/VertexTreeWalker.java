@@ -23,6 +23,10 @@ public abstract class VertexTreeWalker<V extends AbstractVertex> extends Abstrac
     public enum TraverseOrder {
         BREADTH,
         DEPTH,
+        /**
+         * Traverse the graph such that the first callback is for the first element that
+         * is furthest away from the given root
+         */
         LONGEST_PATH,
     };
     public enum Direction {

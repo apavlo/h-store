@@ -41,12 +41,38 @@ public class BatchPlanner {
     static {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
-    
+
     // ----------------------------------------------------------------------------
-    // DATA MEMBERS
+    // STATIC DATA MEMBERS
     // ----------------------------------------------------------------------------
     
     protected static final AtomicInteger NEXT_DEPENDENCY_ID = new AtomicInteger(1000);
+
+    protected static final int MAX_BATCH_SIZE = 128;
+    
+    protected static final int MAX_ROUND_SIZE = 10;
+    
+    
+    /**
+     * BatchPlan Object Pool
+     */
+    private static final ObjectPool PLAN_POOL = new StackObjectPool(new BasePoolableObjectFactory() {
+        @Override
+        public Object makeObject() throws Exception {
+            return (new BatchPlanner.BatchPlan());
+        }
+        @Override
+        public void activateObject(Object arg0) throws Exception {
+            @SuppressWarnings("unchecked")
+            BatchPlanner.BatchPlan plan = (BatchPlanner.BatchPlan)arg0;
+            plan.txn_id = null;
+            plan.frag_list.clear();
+        }
+    });
+    
+    // ----------------------------------------------------------------------------
+    // GLOBAL DATA MEMBERS
+    // ----------------------------------------------------------------------------
     
     // Used for turning ParameterSets into ByteBuffers
     protected final FastSerializer fs = new FastSerializer();
@@ -63,83 +89,62 @@ public class BatchPlanner {
     protected final PartitionEstimator p_estimator;
     protected final int initiator_id;
     protected final int base_partition;
-
-    private final List<Set<Integer>> stmt_partitions[];
-    private final Map<PlanFragment, Integer> stmt_input_dependencies[];
-    private final Map<PlanFragment, Integer> stmt_output_dependencies[];
-    private final Set<Integer> all_partitions[];
-    
-    private final Map<PlanFragment, Set<Integer>> frag_partitions[];
-
-    
     private final int num_partitions;
 
+    private final Map<boolean[], PlanGraph> plan_graphs = new HashMap<boolean[], PlanGraph>(); 
     
-    private static final ObjectPool PLANFRAGMENTLIST_POOL = new StackObjectPool(new BasePoolableObjectFactory() {
-        @Override
-        public Object makeObject() throws Exception {
-            return (new ArrayList<PlanFragment>());
-        }
-        @Override
-        public void activateObject(Object arg0) throws Exception {
-            @SuppressWarnings("unchecked")
-            List<PlanFragment> list = (List<PlanFragment>)arg0;
-            list.clear();
-        }
-    });
+    // ----------------------------------------------------------------------------
+    // INVOCATION DATA MEMBERS
+    // ----------------------------------------------------------------------------
+    
+    private final Map<PlanFragment, Integer> current_stmt_inputs[];
+    private final Map<PlanFragment, Integer> current_stmt_outputs[];
+    private final Set<Integer> current_stmt_partitions[];
+    private final Map<PlanFragment, Set<Integer>> current_frag_partitions[];
+    private final boolean current_singlepartition_bitmap[];
 
-    
+    // ----------------------------------------------------------------------------
+    // INTERNAL PLAN DATA STRUCTURES
+    // ----------------------------------------------------------------------------
 
     private class PlanVertex extends AbstractVertex {
-        final Integer frag_id;
+        final int frag_id;
+        final int round;
         final Integer input_dependency_id;
         final Integer output_dependency_id;
-        final ParameterSet params;
-        final Integer partition;
         final int stmt_index;
-        final int hash; 
 
         public PlanVertex(PlanFragment catalog_frag,
-                          Integer frag_id,
+                          int frag_id,
+                          int round,
                           Integer input_dependency_id,
                           Integer output_dependency_id,
-                          ParameterSet params,
-                          Integer partition,
                           int stmt_index,
                           boolean is_local) {
             super(catalog_frag);
             this.frag_id = frag_id;
+            this.round = round;
             this.input_dependency_id = input_dependency_id;
             this.output_dependency_id = output_dependency_id;
-            this.params = params;
-            this.partition = partition;
             this.stmt_index = stmt_index;
-            
-            this.hash = (catalog_frag.hashCode() * 31) +  this.partition.hashCode();
-        }
-        
-        @Override
-        public int hashCode() {
-            return (this.hash);
         }
         
         @Override
         public boolean equals(Object obj) {
             if (!(obj instanceof PlanVertex)) return (false);
             PlanVertex other = (PlanVertex)obj;
-            if (this.input_dependency_id != other.input_dependency_id ||
-                this.output_dependency_id != other.output_dependency_id ||
-                this.params.equals(other.params) != true ||
-                this.partition.equals(other.partition) != true ||
+            if (this.frag_id != other.frag_id ||
+                this.round != other.round ||
                 this.stmt_index != other.stmt_index ||
-                this.getCatalogItem().equals(other.getCatalogItem()) != true    
+                this.input_dependency_id != other.input_dependency_id ||
+                this.output_dependency_id != other.output_dependency_id
             ) return (false);
             return (true);
         }
         
         @Override
         public String toString() {
-            return String.format("<%s [Partition#%02d]>", this.getCatalogItem().getName(), this.partition);
+            return String.format("<%s [StmtIndex=%02d, Round=%02d]>", this.getCatalogItem().getName(), this.stmt_index, this.round);
         }
     }
     
@@ -160,6 +165,8 @@ public class BatchPlanner {
         private static final long serialVersionUID = 1L;
         
         private final Map<Integer, Set<PlanVertex>> output_dependency_xref = new HashMap<Integer, Set<PlanVertex>>();
+        
+        private int max_rounds;
         
         public PlanGraph(Database catalog_db) {
             super(catalog_db);
@@ -188,284 +195,124 @@ public class BatchPlanner {
     /**
      * BatchPlan
      */
-    public class BatchPlan {
-        private final long txn_id;
-
-        private final PlanGraph plan_graph;
-        private boolean plan_graph_ready = false;
-
-        private final Set<PlanVertex> local_fragments = new HashSet<PlanVertex>();
-        private final Set<PlanVertex> remote_fragments = new HashSet<PlanVertex>();
+    public static class BatchPlan {
+        // ----------------------------------------------------------------------------
+        // INVOCATION DATA MEMBERS
+        // ----------------------------------------------------------------------------
         
+        private Long txn_id;
+        private long client_handle;
+        private int batchSize;
+        private int base_partition;
         
-        // Whether the fragments of this batch plan consist of read-only operations
+
+        private final ByteBuffer param_buffers[] = new ByteBuffer[MAX_BATCH_SIZE];
+        
+        /**
+         * Temporary buffer space for sorting the PlanFragments per Statement
+         */
+        private final List<PlanFragment> frag_list = new ArrayList<PlanFragment>();
+        
+        /**
+         * We need to generate a list of FragmentTaskMessages that we will ship off to either
+         * remote execution sites or be executed locally. Note that we have to separate
+         * any tasks that have a input dependency from those that don't,  because
+         * we can only block at the FragmentTaskMessage level (as opposed to blocking by PlanFragment)
+         */
+        private final List<FragmentTaskMessage> ftasks = new ArrayList<FragmentTaskMessage>();
+        
+        /** Round# -> Map{PartitionId, Set{PlanFragments}} **/
+        private final Set<PlanVertex> rounds[][];
+        private int rounds_length;
+
+        /** Statement Target Partition Ids **/
+        private final int[][] stmt_partition_ids = new int[MAX_BATCH_SIZE][];
+        private final int[] stmt_partition_ids_length = new int[MAX_BATCH_SIZE];
+
+
+        // ----------------------------------------------------------------------------
+        // DO WE STILL NEED THESE???
+        // ----------------------------------------------------------------------------
+        
+        /** Whether the fragments of this batch plan consist of read-only operations **/
         protected boolean readonly = true;
         
-        // Whether the batch plan can all be executed locally
+        /** Whether the batch plan can all be executed locally **/
         protected boolean all_local = true;
         
-        // Whether the fragments in the batch plan can be executed on a single site
+        /** Whether the fragments in the batch plan can be executed on a single site **/
         protected boolean all_singlesited = true;    
 
-        // check if all local fragment work is non-transactional
+        /** check if all local fragment work is non-transactional **/
         protected boolean localFragsAreNonTransactional = true;
         
-        // Partition -> FragmentIdx
-        protected Map<Integer, ListOrderedSet<Integer>> partition_frag_xref = new HashMap<Integer, ListOrderedSet<Integer>>(); 
-        
-        // Statement Target Partition Ids
-        protected final int[][] stmt_partition_ids = new int[BatchPlanner.this.batchSize][];
-        protected final int[] stmt_partition_ids_length = new int[BatchPlanner.this.batchSize];
-        
         /**
-         * Constructor
+         * Default Constructor
+         * Must call init() before this BatchPlan can be used
          */
-        public BatchPlan(long txn_id) {
-            this.plan_graph = new PlanGraph(CatalogUtil.getDatabase(catalog));
+        @SuppressWarnings("unchecked")
+        public BatchPlan() {
+            this.rounds = (Set<PlanVertex>[][])new Map<?, ?>[MAX_ROUND_SIZE][];
         }
-        
-        /**
-         * Construct a map from PartitionId->FragmentTaskMessage
-         * Note that a FragmentTaskMessage may contain multiple fragments that need to be executed
-         * @param txn_id
-         * @return
-         */
-        public List<FragmentTaskMessage> getFragmentTaskMessages(long txn_id, long clientHandle) {
-            assert(this.plan_graph_ready);
-            if (debug.get()) LOG.debug("Constructing list of FragmentTaskMessages to execute [txn_id=#" + txn_id + ", local_partition=" + local_partition + "]");
-//            try {
-//                GraphVisualizationPanel.createFrame(this.plan_graph).setVisible(true);
-//                Thread.sleep(100000000);
-//            } catch (Exception ex) {
-//                ex.printStackTrace();
-//                System.exit(1);
-//            }
-            
-            // FIXME Map<Integer, ByteBuffer> buffer_params = new HashMap<Integer, ByteBuffer>(this.allFragIds.size());
 
-            
-            // We need to generate a list of FragmentTaskMessages that we will ship off to either
-            // remote execution sites or be executed locally. Note that we have to separate
-            // any tasks that have a input dependency from those that don't,  because
-            // we can only block at the FragmentTaskMessage level (as opposed to blocking by PlanFragment)
-            final List<FragmentTaskMessage> ftasks = new ArrayList<FragmentTaskMessage>();
-            
-            // Round# -> Map<PartitionId, Set<PlanFragments>>
-            final TreeMap<Integer, Map<Integer, Set<PlanVertex>>> rounds = new TreeMap<Integer, Map<Integer, Set<PlanVertex>>>();
-            assert(!this.plan_graph.getRoots().isEmpty()) : this.plan_graph.getRoots();
-            final List<PlanVertex> roots = new ArrayList<PlanVertex>(this.plan_graph.getRoots());
-            for (PlanVertex root : roots) {
-                new VertexTreeWalker<PlanVertex>(this.plan_graph, TraverseOrder.LONGEST_PATH) {
-                    @Override
-                    protected void callback(PlanVertex element) {
-                        Integer round = null;
-                        // If the current element is one of the roots, then we want to put it in a separate
-                        // round so that it can be executed without needing all of the other input to come back first
-                        // 2010-07-26: NO! For now because we always have to dispatch multi-partition fragments from the coordinator,
-                        // then we can't combine the fragments for the local partition together. They always need
-                        // to be sent our serially. Yes, I know it's lame but go complain Evan and get off my case!
-                        //if (roots.contains(element)) {
-                        //    round = -1 - roots.indexOf(element);
-                        //} else {
-                            round = this.getDepth();
-                        //}
-                        
-                        Integer partition = element.partition;
-                        if (!rounds.containsKey(round)) {
-                            rounds.put(round, new HashMap<Integer, Set<PlanVertex>>());
-                        }
-                        if (!rounds.get(round).containsKey(partition)) {
-                            rounds.get(round).put(partition, new HashSet<PlanVertex>());
-                        }
-                        rounds.get(round).get(partition).add(element);
-                    }
-                }.traverse(root);
-            } // FOR
-            
-            if (trace.get()) LOG.trace("Generated " + rounds.size() + " rounds of tasks for txn #"+ txn_id);
-            for (Entry<Integer, Map<Integer, Set<PlanVertex>>> e : rounds.entrySet()) {
-                if (trace.get()) LOG.trace("Txn #" + txn_id + " - Round " + e.getKey() + ": " + e.getValue().size() + " partitions");
-                for (Integer partition : e.getValue().keySet()) {
-                    Set<PlanVertex> vertices = e.getValue().get(partition);
-                
-                    int num_frags = vertices.size();
-                    long frag_ids[] = new long[num_frags];
-                    int input_ids[] = new int[num_frags];
-                    int output_ids[] = new int[num_frags];
-                    int stmt_indexes[] = new int[num_frags];
-                    ByteBuffer params[] = new ByteBuffer[num_frags];
-            
-                    int i = 0;
-                    for (PlanVertex v : vertices) {
-                        assert(v.partition.equals(partition));
-                        
-                        // Fragment Id
-                        frag_ids[i] = v.frag_id;
-                        
-                        // Not all fragments will have an input dependency
-                        input_ids[i] = (v.input_dependency_id == null ? ExecutionSite.NULL_DEPENDENCY_ID : v.input_dependency_id);
-                        
-                        // All fragments will produce some output
-                        output_ids[i] = v.output_dependency_id;
-                        
-                        // SQLStmt Index
-                        stmt_indexes[i] = v.stmt_index;
-                        
-                        // Parameters
-                        params[i] = null; // FIXME buffer_params.get(v);
-                        if (params[i] == null) {
-                            try {
-                                FastSerializer fs = new FastSerializer();
-                                v.params.writeExternal(fs);
-                                params[i] = fs.getBuffer();
-                            } catch (Exception ex) {
-                                LOG.fatal("Failed to serialize parameters for FragmentId #" + frag_ids[i], ex);
-                                System.exit(1);
-                            }
-                            if (trace.get()) LOG.trace("Stored ByteBuffer for " + v);
-                            // FIXME buffer_params.put(frag_idx, params[i]);
-                        }
-                        assert(params[i] != null) : "Parameter ByteBuffer is null for partition #" + v.partition + " fragment index #" + i + "\n"; //  + buffer_params;
-                        
-                        if (trace.get())
-                            LOG.trace("Fragment Grouping " + i + " => [" +
-                                       "txn_id=#" + txn_id + ", " +
-                                       "frag_id=" + frag_ids[i] + ", " +
-                                       "input=" + input_ids[i] + ", " +
-                                       "output=" + output_ids[i] + ", " +
-                                       "stmt_indexes=" + stmt_indexes[i] + "]");
-                        
-                        i += 1;
-                    } // FOR (frag_idx)
-                
-                    if (i == 0) {
-                        if (trace.get()) {
-                            LOG.warn("For some reason we thought it would be a good idea to construct a FragmentTaskMessage with no fragments! [txn_id=#" + txn_id + "]");
-                            LOG.warn("In case you were wondering, this is a terrible idea, which is why we didn't do it!");
-                        }
-                        continue;
-                    }
-                
-                    FragmentTaskMessage task = new FragmentTaskMessage(
-                            BatchPlanner.this.initiator_id,
-                            partition,
-                            txn_id,
-                            clientHandle,
-                            false, // IGNORE
-                            frag_ids,
-                            input_ids,
-                            output_ids,
-                            params,
-                            stmt_indexes,
-                            false); // FIXME(pavlo) Final task?
-                    task.setFragmentTaskType(BatchPlanner.this.catalog_proc.getSystemproc() ? FragmentTaskMessage.SYS_PROC_PER_PARTITION : FragmentTaskMessage.USER_PROC);
-                    if (debug.get()) LOG.debug("New FragmentTaskMessage to run at partition #" + partition + " with " + num_frags + " fragments for txn #" + txn_id + " " + 
-                                         "[ids=" + Arrays.toString(frag_ids) + ", inputs=" + Arrays.toString(input_ids) + ", outputs=" + Arrays.toString(output_ids) + "]");
-                    if (trace.get()) LOG.trace("Fragment Contents: [txn_id=#" + txn_id + "]\n" + task.toString());
-                    ftasks.add(task);
-                    
-                } // PARTITION
-            } // ROUND            
-            assert(ftasks.size() > 0) : "Failed to generate any FragmentTaskMessages in this BatchPlan for txn #" + txn_id;
-            if (debug.get()) LOG.debug("Created " + ftasks.size() + " FragmentTaskMessage(s) for txn #" + txn_id);
-            return (ftasks);
-        }
-        
-        protected void buildPlanGraph() {
-            assert(this.plan_graph.getVertexCount() > 0);
-            
-            for (PlanVertex v0 : this.plan_graph.getVertices()) {
-                Integer input_id = v0.input_dependency_id;
-                if (input_id == null) continue;
-                for (PlanVertex v1 : this.plan_graph.getOutputDependencies(input_id)) {
-                    assert(!v0.equals(v1)) : v0;
-                    if (!this.plan_graph.findEdgeSet(v0, v1).isEmpty()) continue;
-                    PlanEdge e = new PlanEdge(this.plan_graph, input_id);
-                    this.plan_graph.addEdge(e, v0, v1);
-                } // FOR
-            } // FOR
-            this.plan_graph_ready = true;
-        }
-        
         /**
          * 
-         * @return
+         * @param txn_id
+         * @param client_handle
+         * @param base_partition
+         * @param batchSize
+         * @param num_partitions
          */
-        public PlanGraph getPlanGraph() {
-            return plan_graph;
+        private void init(long txn_id, long client_handle, int base_partition, int batchSize, int num_partitions) {
+            this.txn_id = txn_id;
+            this.client_handle = client_handle;
+            this.base_partition = base_partition;
+            this.batchSize = batchSize;
+            
+            // Need to initialize some internal data strucutres the first time we are called
+            // This is because we can't pass in the number of partitions when we create the object from the pool
+            if (this.stmt_partition_ids[0] == null) {
+                // the stmt_partitions array the first time we're called
+                for (int i = 0; i < this.stmt_partition_ids.length; i++) {
+                    this.stmt_partition_ids[i] = new int[num_partitions];
+                } // FOR
+                
+                for (int i = 0; i < this.rounds.length; i++) {
+                    this.rounds[i] = (Set<PlanVertex>[])new Set<?>[num_partitions];
+                    for (int ii = 0; ii < num_partitions; ii++) {
+                        this.rounds[i][ii] = new HashSet<PlanVertex>();
+                    } // FOR
+                } // FOR
+            }
         }
         
         /**
-         * Adds a new FragmentId that needs to be executed on some number of partitions
-         * @param frag_id
-         * @param output_dependency_id
-         * @param params
-         * @param partitions
-         * @param is_local
+         * Return the list of FragmentTaskMessages that need to be executed for this BatchPlan
+         * @return
          */
-        public void addFragment(PlanFragment catalog_frag,
-                                Integer input_dependency_id,
-                                Integer output_dependency_id,
-                                ParameterSet params,
-                                Set<Integer> partitions,
-                                int stmt_index,
-                                boolean is_local) {
-            this.plan_graph_ready = false;
-            int frag_id = Integer.parseInt(catalog_frag.getName());
-            if (trace.get())
-                LOG.trace("New Fragment: [" +
-                            "frag_id=" + frag_id + ", " +
-                            "output_dep_id=" + output_dependency_id + ", " +
-                            "input_dep_id=" + input_dependency_id + ", " +
-                            "params=" + params + ", " +
-                            "partitons=" + partitions + ", " +
-                            "stmt_index=" + stmt_index + ", " +
-                            "is_local=" + is_local + "]");
-                           
-            for (Integer partition : partitions) {
-                PlanVertex v = new PlanVertex(catalog_frag,
-                                              frag_id,
-                                              input_dependency_id,
-                                              output_dependency_id,
-                                              params,
-                                              partition,
-                                              stmt_index,
-                                              is_local);
-                this.plan_graph.addVertex(v);
-                if (is_local) {
-                    this.local_fragments.add(v);
-                } else {
-                    this.remote_fragments.add(v);
-                }
+        public List<FragmentTaskMessage> getFragmentTaskMessages() {
+            return (this.ftasks);
+        }
+        
+        /**
+         * Marks this BatchPlan as completed (i.e., all of the PlanFragments have
+         * been executed the and the results have been returned. This must be called before
+         * returning back to the user-level VoltProcedure
+         */
+        public void finished() {
+            try {
+                BatchPlanner.PLAN_POOL.returnObject(this);
+            } catch (Exception ex) {
+                throw new RuntimeException(ex);
             }
         }
         
         public int getBatchSize() {
-            return (BatchPlanner.this.batchSize);
-        }
-        
-        public Statement[] getStatements() {
-            return (BatchPlanner.this.catalog_stmts);
+            return (this.batchSize);
         }
         
         public int[][] getStatementPartitions() {
             return (this.stmt_partition_ids);
-        }
-        
-        /**
-         * 
-         * @return
-         */
-        public int getRemoteFragmentCount() {
-            return (this.remote_fragments.size());
-        }
-        
-        /**
-         * 
-         * @return
-         */
-        public int getLocalFragmentCount() {
-            return (this.local_fragments.size());
         }
         
         public boolean isReadOnly() {
@@ -486,7 +333,7 @@ public class BatchPlanner {
             b.append("Read Only:        ").append(this.readonly).append("\n")
              .append("All Local:        ").append(this.all_local).append("\n")
              .append("All Single-Sited: ").append(this.all_singlesited).append("\n")
-             .append("# of Fragments:   ").append(this.plan_graph.getVertexCount()).append("\n")
+//             .append("# of Fragments:   ").append(this.plan_graph.getVertexCount()).append("\n")
              .append("------------------------------\n");
 
             /*
@@ -509,8 +356,8 @@ public class BatchPlanner {
     /**
      * Constructor
      */
-    protected BatchPlanner(SQLStmt[] batchStmts, Procedure catalog_proc, PartitionEstimator p_estimator, int initiator_id, int base_partition) {
-        this(batchStmts, batchStmts.length, catalog_proc, p_estimator, initiator_id, base_partition);
+    protected BatchPlanner(SQLStmt[] batchStmts, Procedure catalog_proc, PartitionEstimator p_estimator, int base_partition) {
+        this(batchStmts, batchStmts.length, catalog_proc, p_estimator, base_partition);
         
     }
 
@@ -523,7 +370,8 @@ public class BatchPlanner {
      * @param p_estimator
      * @param local_partition
      */
-    public BatchPlanner(SQLStmt[] batchStmts, int batchSize, Procedure catalog_proc, PartitionEstimator p_estimator, int initiator_id, int base_partition) {
+    @SuppressWarnings("unchecked")
+    public BatchPlanner(SQLStmt[] batchStmts, int batchSize, Procedure catalog_proc, PartitionEstimator p_estimator, int base_partition) {
         assert(catalog_proc != null);
         assert(p_estimator != null);
 
@@ -532,28 +380,34 @@ public class BatchPlanner {
         this.catalog_proc = catalog_proc;
         this.catalog = catalog_proc.getCatalog();
         this.p_estimator = p_estimator;
-        this.initiator_id = initiator_id;
+        this.initiator_id = base_partition;
         this.base_partition = base_partition;
         this.num_partitions = CatalogUtil.getNumberOfPartitions(catalog_proc);
         
         this.catalog_stmts = new Statement[this.batchSize];
         
-        this.stmt_partitions = (List<Set<Integer>>[])new List<?>[this.batchSize];
-        this.stmt_input_dependencies = (Map<PlanFragment, Integer>[])new Map<?, ?>[this.batchSize];
-        this.stmt_output_dependencies = (Map<PlanFragment, Integer>[])new Map<?, ?>[this.batchSize];
-        this.all_partitions = (Set<Integer>[])new Set<?>[this.batchSize];
-        this.frag_partitions = (Map<PlanFragment, Set<Integer>>[])new HashMap<?, ?>[this.batchSize];
+        this.current_stmt_inputs = (Map<PlanFragment, Integer>[])new Map<?, ?>[this.batchSize];
+        this.current_stmt_outputs = (Map<PlanFragment, Integer>[])new Map<?, ?>[this.batchSize];
+        this.current_stmt_partitions = (Set<Integer>[])new Set<?>[this.batchSize];
+        this.current_frag_partitions = (Map<PlanFragment, Set<Integer>>[])new HashMap<?, ?>[this.batchSize];
+        this.current_singlepartition_bitmap = new boolean[this.batchSize];
         
         for (int i = 0; i < this.batchSize; i++) {
             this.catalog_stmts[i] = this.batchStmts[i].catStmt;
             assert(this.catalog_stmts[i] != null);
 
-            this.stmt_partitions[i] = new ArrayList<Set<Integer>>();
-            this.stmt_input_dependencies[i] = new HashMap<PlanFragment, Integer>();
-            this.stmt_output_dependencies[i] = new HashMap<PlanFragment, Integer>();
-            this.all_partitions[i] = new HashSet<Integer>();
-            this.frag_partitions[i] = new HashMap<PlanFragment, Set<Integer>>();
+            this.current_stmt_inputs[i] = new HashMap<PlanFragment, Integer>();
+            this.current_stmt_outputs[i] = new HashMap<PlanFragment, Integer>();
+            this.current_stmt_partitions[i] = new HashSet<Integer>();
+            this.current_frag_partitions[i] = new HashMap<PlanFragment, Set<Integer>>();
         } // FOR
+        
+        // Optimization: We will construct a cache based on whether the queries are single-partitioned or not
+        //               That way after we figure out what partitions the batch will touch (based on the parameters)
+        //               we can grab a PlanGraph that has the same structure and we can just create new FragmentTaskMessages
+        //               with the proper dependency ids and order. This is so that we can make sure that we execute stuff
+        
+        
     }
    
     /**
@@ -561,9 +415,16 @@ public class BatchPlanner {
      * @param batchArgs
      * @param predict_singlepartitioned TODO
      */
-    public BatchPlan plan(ParameterSet[] batchArgs, long txn_id, boolean predict_singlepartitioned) {
+    public BatchPlan plan(ParameterSet[] batchArgs, long txn_id, long client_handle, boolean predict_singlepartitioned) {
         if (debug.get()) LOG.debug("Constructing a new BatchPlan for " + this.catalog_proc);
-        BatchPlan plan = new BatchPlan(base_partition);
+        
+        BatchPlan plan = null;
+        try {
+            plan = (BatchPlan)BatchPlanner.PLAN_POOL.borrowObject();
+        } catch (Exception ex) {
+            throw new RuntimeException(ex);
+        }
+        plan.init(txn_id, client_handle, this.base_partition, this.batchSize, this.num_partitions);
 
         // ----------------------
         // DEBUG DUMP
@@ -577,14 +438,6 @@ public class BatchPlanner {
             LOG.trace("\n" + StringUtil.formatMapsBoxed(m));
         }
        
-        List<PlanFragment> frag_list = null;
-        try {
-            frag_list = (List<PlanFragment>)BatchPlanner.PLANFRAGMENTLIST_POOL.borrowObject();
-        } catch (Exception ex) {
-            throw new RuntimeException(ex);
-        }
-        
-        
         for (int stmt_index = 0; stmt_index < this.batchSize; ++stmt_index) {
             final SQLStmt stmt = this.batchStmts[stmt_index];
             assert(stmt != null) : "The SQLStmt object at index " + stmt_index + " is null for " + this.catalog_proc;
@@ -593,8 +446,11 @@ public class BatchPlanner {
             final Object params[] = paramSet.toArray();
             if (trace.get()) LOG.trace(String.format("[%02d] Constructing fragment plans for %s", stmt_index, stmt.catStmt.fullName()));
             
-            this.stmt_partitions[stmt_index].clear();
-            for (Set<Integer> p : this.frag_partitions[stmt_index].values()) {
+            
+            final Map<PlanFragment, Set<Integer>> frag_partitions = this.current_frag_partitions[stmt_index];
+            final Set<Integer> stmt_partitions = this.current_stmt_partitions[stmt_index];
+            
+            for (Set<Integer> p : frag_partitions.values()) {
                 p.clear();
             }
 
@@ -614,13 +470,13 @@ public class BatchPlanner {
                 // to execute on just one partition (note that it could be a local partition or the remote partition).
                 // We'll assume that it's single-partition <<--- Can we cache that??
                 while (true) {
-                    this.all_partitions[stmt_index].clear();
+                    stmt_partitions.clear();
                     fragments = (is_singlepartition ? catalog_stmt.getFragments() : catalog_stmt.getMs_fragments());
-                    this.p_estimator.getAllFragmentPartitions(this.frag_partitions[stmt_index],
-                                                              this.all_partitions[stmt_index],
+                    this.p_estimator.getAllFragmentPartitions(frag_partitions,
+                                                              stmt_partitions,
                                                               fragments, params, base_partition);
 
-                    if (is_singlepartition && this.all_partitions[stmt_index].size() > 1) {
+                    if (is_singlepartition && stmt_partitions.size() > 1) {
                         // If this was suppose to be multi-partitioned, then we want to stop right here!!
                         if (predict_singlepartitioned) {
                             mispredict = true;
@@ -641,45 +497,29 @@ public class BatchPlanner {
             
             // Misprediction!!
             if (mispredict) {
-                throw new MispredictionException(123l); // FIXME
+                throw new MispredictionException(txn_id);
             }
 
-            frag_list.clear();
-            frag_list = QueryPlanUtil.getSortedPlanFragments((List<PlanFragment>)CollectionUtil.addAll(frag_list, fragments));
+            // Get a sorted list of the PlanFragments that we need to execute for this query
+            plan.frag_list.clear();
+            QueryPlanUtil.getSortedPlanFragments((List<PlanFragment>)CollectionUtil.addAll(plan.frag_list, fragments)); // sorts inplace
             
-            boolean is_local = (this.all_partitions[stmt_index].size() == 1 && this.all_partitions[stmt_index].contains(base_partition));
+            boolean is_local = (stmt_partitions.size() == 1 && stmt_partitions.contains(base_partition));
             plan.readonly = plan.readonly && catalog_stmt.getReadonly();
             plan.localFragsAreNonTransactional = plan.localFragsAreNonTransactional || stmt_localFragsAreNonTransactional;
             plan.all_singlesited = plan.all_singlesited && is_singlepartition;
             plan.all_local = plan.all_local && is_local;
 
+            // Keep track of whether the current query in the batch was single-partitioned or not
+            this.current_singlepartition_bitmap[stmt_index] = is_singlepartition;
+            
             // Update the Statement->PartitionId array
             // This is needed by TransactionEstimator
-            plan.stmt_partition_ids[stmt_index] = new int[this.all_partitions[stmt_index].size()];
+            plan.stmt_partition_ids_length[stmt_index] = stmt_partitions.size();
             int idx = 0;
-            for (int partition_id : this.all_partitions[stmt_index]) {
+            for (int partition_id : stmt_partitions) {
                 plan.stmt_partition_ids[stmt_index][idx++] = partition_id;
             } // FOR
-            
-            // Generate the synthetic DependencyIds for the query
-            Integer last_output_id = null;
-            for (int i = 0, cnt = frag_list.size(); i < cnt; i++) {
-                PlanFragment catalog_frag = frag_list.get(i);
-                Set<Integer> f_partitions = this.frag_partitions[stmt_index].get(catalog_frag);
-                boolean f_local = (f_partitions.size() == 1 && f_partitions.contains(base_partition));
-                Integer output_id = BatchPlanner.NEXT_DEPENDENCY_ID.getAndIncrement();
-
-                plan.addFragment(catalog_frag, 
-                                 last_output_id,
-                                 output_id,
-                                 paramSet,
-                                 f_partitions,
-                                 stmt_index,
-                                 f_local);
-                
-                last_output_id = output_id;
-            } // FOR
-            
             
             // ----------------------
             // DEBUG DUMP
@@ -688,13 +528,13 @@ public class BatchPlanner {
                 int ii = 0;
                 Map<String, Object> m = new ListOrderedMap<String, Object>();
                 for (PlanFragment catalog_frag : fragments) {
-                    Set<Integer> p = this.frag_partitions[stmt_index].get(catalog_frag);
+                    Set<Integer> p = this.current_frag_partitions[stmt_index].get(catalog_frag);
                     boolean frag_local = (p.size() == 1 && p.contains(base_partition));
                     m.put(String.format("[%02d] Fragment", ii), catalog_frag.fullName());
                     m.put(String.format("     Partitions"), p);
                     m.put(String.format("     IsLocal"), frag_local);
-                    m.put(String.format("     Inputs"), this.stmt_input_dependencies[stmt_index].get(ii));
-                    m.put(String.format("     Outputs"), this.stmt_output_dependencies[stmt_index].get(ii));
+                    m.put(String.format("     Inputs"), this.current_stmt_inputs[stmt_index].get(ii));
+                    m.put(String.format("     Outputs"), this.current_stmt_outputs[stmt_index].get(ii));
 
                     ii++;
                 } // FOR
@@ -703,8 +543,7 @@ public class BatchPlanner {
                 header.put("Batch Statement#", String.format("%02d / %02d", stmt_index, this.batchSize));
                 header.put("Catalog Statement", stmt.catStmt.fullName());
                 header.put("Statement SQL", stmt.getText());
-                header.put("Initiator Id", this.initiator_id); 
-                header.put("All Partitions", this.all_partitions[stmt_index]);
+                header.put("All Partitions", this.current_stmt_partitions[stmt_index]);
                 header.put("Local Partition", base_partition);
                 header.put("IsSingledSited", is_singlepartition);
                 header.put("IsStmtLocal", is_local);
@@ -713,20 +552,198 @@ public class BatchPlanner {
 
                 LOG.debug("\n" + StringUtil.formatMapsBoxed(header, m));
             }
-            
-
-        } // FOR (SQLStmt)
+        } // FOR
         
-        plan.buildPlanGraph();
-        
-        try {
-            BatchPlanner.PLANFRAGMENTLIST_POOL.returnObject(frag_list);
-        } catch (Exception ex) {
-            throw new RuntimeException(ex);
+        // Check whether we have an existing graph exists for this batch configuration
+        PlanGraph graph = this.plan_graphs.get(this.current_singlepartition_bitmap);
+        if (graph == null) {
+            graph = this.buildPlanGraph(plan);
+            this.plan_graphs.put(this.current_singlepartition_bitmap, graph);
         }
+        this.buildFragmentTaskMessages(plan, graph, batchArgs, client_handle);
         
         if (debug.get()) LOG.debug("Created BatchPlan:\n" + plan.toString());
         return (plan);
+    }
+
+    /**
+     * Construct a map from PartitionId->FragmentTaskMessage
+     * Note that a FragmentTaskMessage may contain multiple fragments that need to be executed
+     * @param txn_id
+     * @return
+     */
+    private void buildFragmentTaskMessages(final BatchPlanner.BatchPlan plan, final PlanGraph graph, final ParameterSet[] batchArgs, final long clientHandle) {
+        long txn_id = plan.txn_id;
+        if (debug.get()) LOG.debug("Constructing list of FragmentTaskMessages to execute [txn_id=#" + txn_id + ", base_partition=" + base_partition + "]");
+//        try {
+//            GraphVisualizationPanel.createFrame(this.plan_graph).setVisible(true);
+//            Thread.sleep(100000000);
+//        } catch (Exception ex) {
+//            ex.printStackTrace();
+//            System.exit(1);
+//        }
+
+        plan.ftasks.clear();
+        plan.rounds_length = graph.max_rounds;
+        for (int i = 0; i < plan.rounds_length; i++) {
+            for (Set<PlanVertex> s : plan.rounds[i]) {
+                s.clear();
+            } // FOR
+        } // FOR
+        
+        for (PlanVertex v : graph.getVertices()) {
+            int stmt_index = v.stmt_index;
+            PlanFragment catalog_frag = v.getCatalogItem();
+            Set<Integer> partitions = this.current_frag_partitions[stmt_index].get(catalog_frag);
+            for (int p : partitions) {
+                plan.rounds[v.round][p].add(v);
+            } // FOR
+        } // FOR
+        
+        // Pre-compute Statement Parameter ByteBuffers
+        for (int stmt_index = 0; stmt_index < this.batchSize; stmt_index++) {
+            try {
+                FastSerializer fs = new FastSerializer();
+                batchArgs[stmt_index].writeExternal(fs);
+                plan.param_buffers[stmt_index] = fs.getBuffer();
+            } catch (Exception ex) {
+                LOG.fatal("Failed to serialize parameters for Statement #" + stmt_index, ex);
+                System.exit(1);
+            }
+            assert(plan.param_buffers[stmt_index] != null) : "Parameter ByteBuffer is null for Statement #" + stmt_index;
+        } // FOR
+        
+        // Roots
+        Set<PlanVertex> roots = graph.getRoots();
+        assert(roots.isEmpty() == false);
+        
+        if (trace.get()) LOG.trace("Generated " + plan.rounds_length + " rounds of tasks for txn #"+ txn_id);
+        for (int round = 0; round < plan.rounds_length; round++) {
+            if (trace.get()) LOG.trace(String.format("Txn #%d - Round %02d", txn_id, round)); //  + " - Round " + e.getKey() + ": " + e.getValue().size() + " partitions");
+
+            for (int partition = 0; partition < this.num_partitions; partition++) {
+                Set<PlanVertex> vertices = plan.rounds[round][partition];
+                if (vertices.isEmpty()) continue;
+            
+                int num_frags = vertices.size();
+                long frag_ids[] = new long[num_frags];
+                int input_ids[] = new int[num_frags];
+                int output_ids[] = new int[num_frags];
+                int stmt_indexes[] = new int[num_frags];
+                ByteBuffer params[] = new ByteBuffer[num_frags];
+        
+                int i = 0;
+                for (PlanVertex v : vertices) { // Does this order matter?
+                    // Fragment Id
+                    frag_ids[i] = v.frag_id;
+                    
+                    // Not all fragments will have an input dependency
+                    input_ids[i] = (v.input_dependency_id == null ? ExecutionSite.NULL_DEPENDENCY_ID : v.input_dependency_id);
+                    
+                    // All fragments will produce some output
+                    output_ids[i] = v.output_dependency_id;
+                    
+                    // SQLStmt Index
+                    stmt_indexes[i] = v.stmt_index;
+                    
+                    // Parameters
+                    params[i] = plan.param_buffers[v.stmt_index];
+                    
+                    if (trace.get())
+                        LOG.trace("Fragment Grouping " + i + " => [" +
+                                   "txn_id=#" + txn_id + ", " +
+                                   "frag_id=" + frag_ids[i] + ", " +
+                                   "input=" + input_ids[i] + ", " +
+                                   "output=" + output_ids[i] + ", " +
+                                   "stmt_indexes=" + stmt_indexes[i] + "]");
+                    
+                    i += 1;
+                } // FOR (frag_idx)
+            
+                if (i == 0) {
+                    if (trace.get()) {
+                        LOG.warn("For some reason we thought it would be a good idea to construct a FragmentTaskMessage with no fragments! [txn_id=#" + txn_id + "]");
+                        LOG.warn("In case you were wondering, this is a terrible idea, which is why we didn't do it!");
+                    }
+                    continue;
+                }
+            
+                FragmentTaskMessage task = new FragmentTaskMessage(
+                        BatchPlanner.this.base_partition,
+                        partition,
+                        txn_id,
+                        clientHandle,
+                        false, // IGNORE
+                        frag_ids,
+                        input_ids,
+                        output_ids,
+                        params,
+                        stmt_indexes,
+                        false); // FIXME(pavlo) Final task?
+                task.setFragmentTaskType(BatchPlanner.this.catalog_proc.getSystemproc() ? FragmentTaskMessage.SYS_PROC_PER_PARTITION : FragmentTaskMessage.USER_PROC);
+                plan.ftasks.add(task);
+                
+                if (debug.get()) {
+                    LOG.debug(String.format("New FragmentTaskMessage to run at partition #%d with %d fragments for txn #%d " +
+                                            "[ids=%d, inputs=%s, outputs=%s]",
+                                            partition, num_frags, txn_id,
+                                            Arrays.toString(frag_ids), Arrays.toString(input_ids), Arrays.toString(output_ids)));
+                    if (trace.get()) LOG.trace("Fragment Contents: [txn_id=#" + txn_id + "]\n" + task.toString());
+                }
+            } // PARTITION
+        } // ROUND            
+        assert(plan.ftasks.size() > 0) : "Failed to generate any FragmentTaskMessages in this BatchPlan for txn #" + txn_id;
+        if (debug.get()) LOG.debug("Created " + plan.ftasks.size() + " FragmentTaskMessage(s) for txn #" + txn_id);
+    }
+
+    
+    /**
+     * Construct 
+     * @param plan
+     * @return
+     */
+    private PlanGraph buildPlanGraph(BatchPlanner.BatchPlan plan) {
+        PlanGraph graph = new PlanGraph(CatalogUtil.getDatabase(this.catalog_proc));
+
+        graph.max_rounds = 0;
+        for (int stmt_index = 0; stmt_index < this.batchSize; ++stmt_index) {
+            Map<PlanFragment, Set<Integer>> frag_partitions = this.current_frag_partitions[stmt_index];            
+            graph.max_rounds = Math.max(plan.frag_list.size(), graph.max_rounds);
+            
+            // Generate the synthetic DependencyIds for the query
+            Integer last_output_id = null;
+            for (int i = 0, cnt = plan.frag_list.size(); i < cnt; i++) {
+                PlanFragment catalog_frag = plan.frag_list.get(i);
+                Set<Integer> f_partitions = frag_partitions.get(catalog_frag);
+                boolean f_local = (f_partitions.size() == 1 && f_partitions.contains(this.base_partition));
+                Integer output_id = BatchPlanner.NEXT_DEPENDENCY_ID.getAndIncrement();
+    
+                int frag_id = Integer.parseInt(catalog_frag.getName());
+                PlanVertex v = new PlanVertex(catalog_frag,
+                                              i,
+                                              frag_id,
+                                              last_output_id,
+                                              output_id,
+                                              stmt_index,
+                                              f_local);
+                graph.addVertex(v);
+                last_output_id = output_id;
+            }
+        } // FOR
+
+        for (PlanVertex v0 : graph.getVertices()) {
+            Integer input_id = v0.input_dependency_id;
+            if (input_id == null) continue;
+            for (PlanVertex v1 : graph.getOutputDependencies(input_id)) {
+                assert(!v0.equals(v1)) : v0;
+                if (!graph.findEdgeSet(v0, v1).isEmpty()) continue;
+                PlanEdge e = new PlanEdge(graph, input_id);
+                graph.addEdge(e, v0, v1);
+            } // FOR
+        } // FOR
+        
+
+        return (graph);
     }
 
     /**

@@ -10,6 +10,7 @@ import org.json.JSONStringer;
 
 import org.voltdb.catalog.*;
 
+import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.JSONUtil;
 import edu.uci.ics.jung.graph.DelegateForest;
 
@@ -31,45 +32,30 @@ public abstract class AbstractDirectedTree<V extends AbstractVertex, E extends A
         this.inner = new InnerGraphInformation<V, E>(this, catalog_db);
     }
     
-    public Set<V> getDescendants(final V V) {
-        final Set<V> found = new HashSet<V>();
-        new VertexTreeWalker<V>(this) {
-            @Override
-            protected void callback(V element) {
-                if (element != V) found.add(element);
-            }
-        }.traverse(V);
-        return (found);
-    }
-    
-    public List<V> getAncestors(final V V) {
-        List<V> ancestors = new ArrayList<V>();
-        this.getAncestors(V, ancestors);
-        return (ancestors);
-    }
-    
-    private void getAncestors(final V V, List<V> ancestors) {
-        V parent = this.getParent(V);
-        if (parent != null) {
-            ancestors.add(parent);
-            this.getAncestors(parent, ancestors);
-        }
-        return;
-    }
-    
-    public V getRoot(V V) {
-        V parent = this.getParent(V);
-        return (parent != null ? this.getRoot(parent) : V);
-    }
-    
     // ----------------------------------------------------------------------------
     // INNER DELEGATION METHODS
     // ----------------------------------------------------------------------------
     
+    public Set<V> getDescendants(V vertex) {
+        return (this.inner.getDescendants(vertex));
+    }
+    public List<V> getAncestors(V vertex) {
+        return (this.inner.getAncestors(vertex));
+    }
+    public Set<V> getRoots() {
+        return (this.inner.getRoots());
+    }
+    public V getRoot(V V) {
+        return (CollectionUtil.getFirst(this.inner.getRoots()));
+    }
     public Database getDatabase() {
         return (this.inner.getDatabase());
     }
     
+    @Override
+    public void enableDirtyChecks() {
+        this.inner.enableDirtyChecks();
+    }
     @Override
     public List<E> getPath(V source, V target) {
         return (this.inner.getPath(source, target));

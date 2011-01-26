@@ -1,10 +1,13 @@
 package edu.brown.graphs;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
+import org.apache.commons.collections15.set.ListOrderedSet;
 import org.voltdb.catalog.CatalogType;
 import org.voltdb.catalog.Database;
 
@@ -16,11 +19,24 @@ import edu.uci.ics.jung.graph.util.EdgeType;
 public class InnerGraphInformation<V extends AbstractVertex, E extends AbstractEdge> {
 //    private static final Logger LOG = Logger.getLogger(InnerGraphInformation.class);
     
+    private enum DirtyIndex {
+        DESCENDANTS,
+        ANCESTORS,
+        ROOTS,
+    };
+    
     private final Database catalog_db;
     private final IGraph<V, E> graph;
     private final Map<String, V> catalog_vertex_xref = new HashMap<String, V>();
     private final Map<Long, V> element_id_xref = new HashMap<Long, V>();
     private String name;
+    private boolean enable_dirty_checks = false;
+    private final boolean dirty[];
+
+    private ListOrderedSet<V> descendants;
+    private List<V> ancestors;
+    private ListOrderedSet<V> roots;
+
     
     /**
      * Constructor
@@ -30,16 +46,55 @@ public class InnerGraphInformation<V extends AbstractVertex, E extends AbstractE
     protected InnerGraphInformation(IGraph<V, E> graph, Database catalog_db) {
         this.graph = graph;
         this.catalog_db = catalog_db;
+        
+        this.dirty = new boolean[DirtyIndex.values().length];
+        this.markAllDirty(false);
     }
     
     public Database getDatabase() {
         return catalog_db;
     }
     
-    public void addVertx(V v) {
+    /**
+     * Enable internal book keeping for when the graph has been modified
+     */
+    public void enableDirtyChecks() {
+        this.enable_dirty_checks = true;
+        this.markAllDirty(true);
+    }
+    
+    /**
+     * Returns true if this has been modified 
+     * @return
+     */
+    protected boolean isDirty(DirtyIndex idx) {
+        return (this.enable_dirty_checks == true && this.dirty[idx.ordinal()]);
+    }
+    /**
+     * Reset the internal dirty bit for this graph to false
+     */
+    protected void resetDirty(DirtyIndex idx) {
+        this.dirty[idx.ordinal()] = false;
+    }
+    /**
+     * Mark all of the internal dirty flags as the given value
+     */
+    private void markAllDirty(boolean value) {
+        for (int i = 0, cnt = this.dirty.length; i < cnt; i++) {
+            this.dirty[i] = value;
+        } // FOR
+    }
+    
+    public synchronized void addVertx(V v) {
         this.catalog_vertex_xref.put(CatalogKey.createKey(v.getCatalogItem()), v);
         this.element_id_xref.put(v.getElementId(), v);
+        if (this.enable_dirty_checks) this.markAllDirty(true);
     }
+    
+    public synchronized void addEdge(E e) {
+        if (this.enable_dirty_checks) this.markAllDirty(true);
+    }
+    
     public V getVertex(String catalog_key) {
         return (this.catalog_vertex_xref.get(catalog_key));
     }
@@ -71,6 +126,108 @@ public class InnerGraphInformation<V extends AbstractVertex, E extends AbstractE
         } // FOR
         return (ret);
     }
+    
+    /**
+     * Return the set of vertices that are descedants of the given vertices
+     * @param vertex
+     * @return
+     */
+    public synchronized Set<V> getDescendants(V vertex) {
+        boolean recompute = false;
+        
+        // First time
+        if (this.descendants == null) {
+            this.descendants = new ListOrderedSet<V>();
+            recompute = true;
+        // Check whether it's been marked as dirty. If it hasn't, then
+        // we know that our cache is still valid
+        } else if (this.isDirty(DirtyIndex.DESCENDANTS)) {
+            recompute = true;
+        }
+        
+        if (recompute) {
+            this.descendants.clear();
+            new VertexTreeWalker<V>(this.graph) {
+                @Override
+                protected void callback(V element) {
+                    descendants.add(element);
+                }
+            }.traverse(vertex);
+            // Probably a race condition...
+            this.resetDirty(DirtyIndex.DESCENDANTS);
+        }
+        return (Collections.unmodifiableSet(this.descendants));
+    }
+    
+    /**
+     * Get the path of ancestor vertices up to a root
+     * @param vertex
+     * @return
+     */
+    public synchronized List<V> getAncestors(final V vertex) {
+        boolean recompute = false;
+        
+        // First time
+        if (this.ancestors == null) {
+            this.ancestors = new ArrayList<V>();
+            recompute = true;
+        // Check whether it's been marked as dirty. If it hasn't, then
+        // we know that our cache is still valid
+        } else if (this.isDirty(DirtyIndex.ANCESTORS)) {
+            recompute = true;
+        }
+        
+        if (recompute) {
+            this.ancestors.clear();
+            this.buildAncestorsList(vertex);
+            // Probably a race condition...
+            this.resetDirty(DirtyIndex.DESCENDANTS);
+        }
+        return (Collections.unmodifiableList(this.ancestors));
+    }
+    
+    private void buildAncestorsList(final V v) {
+        for (V parent : this.graph.getPredecessors(v)) {
+            if (!this.ancestors.contains(parent)) {
+                this.ancestors.add(parent);
+                this.buildAncestorsList(parent);
+            }
+        } // FOR
+        return;
+    }
+    
+    /**
+     * Get the lists of roots for this graph. 
+     * This probably won't work if the graph is undirected
+     * @return
+     */
+    public synchronized Set<V> getRoots() {
+        boolean recompute = false;
+        
+        // First time
+        if (this.roots == null) {
+            this.roots = new ListOrderedSet<V>();
+            recompute = true;
+        // Check whether it's been marked as dirty. If it hasn't, then
+        // we know that our cache is still valid
+        } else if (this.isDirty(DirtyIndex.ROOTS)) {
+            recompute = true;
+        }
+
+        if (recompute) {
+            this.roots.clear();
+            for (V v : this.graph.getVertices()) {
+                if (this.graph.getPredecessorCount(v) == 0) {
+                    this.roots.add(v);
+                }
+            } // FOR
+            // Probably a race condition
+            this.resetDirty(DirtyIndex.ROOTS);
+        }
+        return (Collections.unmodifiableSet(this.roots));
+    }
+    
+    
     public void pruneIsolatedVertices() {
         List<V> vertices = new ArrayList<V>(this.graph.getVertices());
         for (V V : vertices) {
@@ -120,6 +277,4 @@ public class InnerGraphInformation<V extends AbstractVertex, E extends AbstractE
         }
         return (String.format("%s %s %s", source_lbl, edge_marker, dest_lbl));
     }
-    
-    
 }
