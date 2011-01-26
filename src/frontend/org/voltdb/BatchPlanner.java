@@ -62,6 +62,7 @@ public class BatchPlanner {
     protected final int batchSize;
     protected final PartitionEstimator p_estimator;
     protected final int initiator_id;
+    protected final int base_partition;
 
     private final List<Set<Integer>> stmt_partitions[];
     private final Map<PlanFragment, Integer> stmt_input_dependencies[];
@@ -74,7 +75,7 @@ public class BatchPlanner {
     private final int num_partitions;
 
     
-    private static final ObjectPool planFragmentListPool = new StackObjectPool(new BasePoolableObjectFactory() {
+    private static final ObjectPool PLANFRAGMENTLIST_POOL = new StackObjectPool(new BasePoolableObjectFactory() {
         @Override
         public Object makeObject() throws Exception {
             return (new ArrayList<PlanFragment>());
@@ -188,7 +189,7 @@ public class BatchPlanner {
      * BatchPlan
      */
     public class BatchPlan {
-        private final int local_partition;
+        private final long txn_id;
 
         private final PlanGraph plan_graph;
         private boolean plan_graph_ready = false;
@@ -219,8 +220,7 @@ public class BatchPlanner {
         /**
          * Constructor
          */
-        public BatchPlan(int local_partition) {
-            this.local_partition = local_partition;
+        public BatchPlan(long txn_id) {
             this.plan_graph = new PlanGraph(CatalogUtil.getDatabase(catalog));
         }
         
@@ -509,8 +509,8 @@ public class BatchPlanner {
     /**
      * Constructor
      */
-    protected BatchPlanner(SQLStmt[] batchStmts, Procedure catalog_proc, PartitionEstimator p_estimator, int initiator_id) {
-        this(batchStmts, batchStmts.length, catalog_proc, p_estimator, initiator_id);
+    protected BatchPlanner(SQLStmt[] batchStmts, Procedure catalog_proc, PartitionEstimator p_estimator, int initiator_id, int base_partition) {
+        this(batchStmts, batchStmts.length, catalog_proc, p_estimator, initiator_id, base_partition);
         
     }
 
@@ -523,7 +523,7 @@ public class BatchPlanner {
      * @param p_estimator
      * @param local_partition
      */
-    public BatchPlanner(SQLStmt[] batchStmts, int batchSize, Procedure catalog_proc, PartitionEstimator p_estimator, int initiator_id) {
+    public BatchPlanner(SQLStmt[] batchStmts, int batchSize, Procedure catalog_proc, PartitionEstimator p_estimator, int initiator_id, int base_partition) {
         assert(catalog_proc != null);
         assert(p_estimator != null);
 
@@ -533,6 +533,7 @@ public class BatchPlanner {
         this.catalog = catalog_proc.getCatalog();
         this.p_estimator = p_estimator;
         this.initiator_id = initiator_id;
+        this.base_partition = base_partition;
         this.num_partitions = CatalogUtil.getNumberOfPartitions(catalog_proc);
         
         this.catalog_stmts = new Statement[this.batchSize];
@@ -560,7 +561,7 @@ public class BatchPlanner {
      * @param batchArgs
      * @param predict_singlepartitioned TODO
      */
-    public BatchPlan plan(ParameterSet[] batchArgs, int base_partition, boolean predict_singlepartitioned) {
+    public BatchPlan plan(ParameterSet[] batchArgs, long txn_id, boolean predict_singlepartitioned) {
         if (debug.get()) LOG.debug("Constructing a new BatchPlan for " + this.catalog_proc);
         BatchPlan plan = new BatchPlan(base_partition);
 
@@ -578,7 +579,7 @@ public class BatchPlanner {
        
         List<PlanFragment> frag_list = null;
         try {
-            frag_list = (List<PlanFragment>)BatchPlanner.planFragmentListPool.borrowObject();
+            frag_list = (List<PlanFragment>)BatchPlanner.PLANFRAGMENTLIST_POOL.borrowObject();
         } catch (Exception ex) {
             throw new RuntimeException(ex);
         }
@@ -717,6 +718,12 @@ public class BatchPlanner {
         } // FOR (SQLStmt)
         
         plan.buildPlanGraph();
+        
+        try {
+            BatchPlanner.PLANFRAGMENTLIST_POOL.returnObject(frag_list);
+        } catch (Exception ex) {
+            throw new RuntimeException(ex);
+        }
         
         if (debug.get()) LOG.debug("Created BatchPlan:\n" + plan.toString());
         return (plan);
