@@ -4,6 +4,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 
+import org.voltdb.catalog.Catalog;
 import org.voltdb.catalog.CatalogType;
 import org.voltdb.catalog.Column;
 import org.voltdb.utils.Pair;
@@ -65,6 +66,10 @@ public class MultiColumn extends Column implements MultiAttributeCatalogType<Col
     @Override
     public <T extends CatalogType> T getParent() {
         return (T)this.attributes.getFirst().getParent();
+    }
+    @Override
+    public Catalog getCatalog() {
+        return this.attributes.getFirst().getCatalog();
     }
     @Override
     public String getName() {

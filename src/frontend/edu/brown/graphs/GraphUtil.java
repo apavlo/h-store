@@ -7,10 +7,12 @@ import org.apache.log4j.Logger;
 import org.json.*;
 import org.voltdb.catalog.Database;
 
+import edu.brown.gui.common.GraphVisualizationPanel;
 import edu.brown.utils.ClassUtil;
 import edu.brown.utils.FileUtil;
 import edu.brown.utils.JSONUtil;
 import edu.brown.utils.StringUtil;
+import edu.brown.utils.ThreadUtil;
 
 public abstract class GraphUtil {
     protected static final Logger LOG = Logger.getLogger(GraphUtil.class.getName());
@@ -206,6 +208,17 @@ public abstract class GraphUtil {
                 edge.fromJSON(jsonEdge, catalog_db);
             } // FOR
         }
+    }
+    
+    /**
+     * 
+     * @param <V>
+     * @param <E>
+     * @param graph
+     */
+    public static <V extends AbstractVertex, E extends AbstractEdge> void visualizeGraph(IGraph<V, E> graph) {
+        GraphVisualizationPanel.createFrame(graph).setVisible(true);
+        ThreadUtil.sleep(10000);
     }
     
 }

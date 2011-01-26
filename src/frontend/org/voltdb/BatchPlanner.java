@@ -8,6 +8,9 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.commons.collections15.set.ListOrderedSet;
+import org.apache.commons.pool.BasePoolableObjectFactory;
+import org.apache.commons.pool.ObjectPool;
+import org.apache.commons.pool.impl.StackObjectPool;
 import org.apache.log4j.Logger;
 import org.voltdb.catalog.*;
 import org.voltdb.exceptions.MispredictionException;
@@ -59,8 +62,31 @@ public class BatchPlanner {
     protected final int batchSize;
     protected final PartitionEstimator p_estimator;
     protected final int initiator_id;
+
+    private final List<Set<Integer>> stmt_partitions[];
+    private final Map<PlanFragment, Integer> stmt_input_dependencies[];
+    private final Map<PlanFragment, Integer> stmt_output_dependencies[];
+    private final Set<Integer> all_partitions[];
+    
+    private final Map<PlanFragment, Set<Integer>> frag_partitions[];
+
     
     private final int num_partitions;
+
+    
+    private static final ObjectPool planFragmentListPool = new StackObjectPool(new BasePoolableObjectFactory() {
+        @Override
+        public Object makeObject() throws Exception {
+            return (new ArrayList<PlanFragment>());
+        }
+        @Override
+        public void activateObject(Object arg0) throws Exception {
+            @SuppressWarnings("unchecked")
+            List<PlanFragment> list = (List<PlanFragment>)arg0;
+            list.clear();
+        }
+    });
+
     
 
     private class PlanVertex extends AbstractVertex {
@@ -362,6 +388,14 @@ public class BatchPlanner {
         }
         
         /**
+         * 
+         * @return
+         */
+        public PlanGraph getPlanGraph() {
+            return plan_graph;
+        }
+        
+        /**
          * Adds a new FragmentId that needs to be executed on some number of partitions
          * @param frag_id
          * @param output_dependency_id
@@ -480,16 +514,6 @@ public class BatchPlanner {
         
     }
 
-    private final List<PlanFragment> stmt_frags[];
-    private final List<Set<Integer>> stmt_partitions[];
-    private final List<ParameterSet> stmt_params[];
-    private final List<Set<Integer>> stmt_input_dependencies[];
-    private final int stmt_input_dependencies_size[];
-    private final List<Set<Integer>> stmt_output_dependencies[];
-    private final int stmt_output_dependencies_size[];
-    private final Set<Integer> all_partitions[];
-    
-    private final Map<PlanFragment, Set<Integer>> frag_partitions[];
     
     /**
      * Constructor
@@ -513,13 +537,9 @@ public class BatchPlanner {
         
         this.catalog_stmts = new Statement[this.batchSize];
         
-        this.stmt_frags = (List<PlanFragment>[])new List<?>[this.batchSize];
         this.stmt_partitions = (List<Set<Integer>>[])new List<?>[this.batchSize];
-        this.stmt_params = (List<ParameterSet>[])new List<?>[this.batchSize];
-        this.stmt_input_dependencies = (List<Set<Integer>>[])new List<?>[this.batchSize];
-        this.stmt_input_dependencies_size = new int[this.batchSize];
-        this.stmt_output_dependencies = (List<Set<Integer>>[])new List<?>[this.batchSize];
-        this.stmt_output_dependencies_size = new int[this.batchSize];
+        this.stmt_input_dependencies = (Map<PlanFragment, Integer>[])new Map<?, ?>[this.batchSize];
+        this.stmt_output_dependencies = (Map<PlanFragment, Integer>[])new Map<?, ?>[this.batchSize];
         this.all_partitions = (Set<Integer>[])new Set<?>[this.batchSize];
         this.frag_partitions = (Map<PlanFragment, Set<Integer>>[])new HashMap<?, ?>[this.batchSize];
         
@@ -527,11 +547,9 @@ public class BatchPlanner {
             this.catalog_stmts[i] = this.batchStmts[i].catStmt;
             assert(this.catalog_stmts[i] != null);
 
-            this.stmt_frags[i] = new ArrayList<PlanFragment>();
             this.stmt_partitions[i] = new ArrayList<Set<Integer>>();
-            this.stmt_params[i] = new ArrayList<ParameterSet>();
-            this.stmt_input_dependencies[i] = new ArrayList<Set<Integer>>();
-            this.stmt_output_dependencies[i] = new ArrayList<Set<Integer>>();
+            this.stmt_input_dependencies[i] = new HashMap<PlanFragment, Integer>();
+            this.stmt_output_dependencies[i] = new HashMap<PlanFragment, Integer>();
             this.all_partitions[i] = new HashSet<Integer>();
             this.frag_partitions[i] = new HashMap<PlanFragment, Set<Integer>>();
         } // FOR
@@ -557,6 +575,13 @@ public class BatchPlanner {
             }
             LOG.trace("\n" + StringUtil.formatMapsBoxed(m));
         }
+       
+        List<PlanFragment> frag_list = null;
+        try {
+            frag_list = (List<PlanFragment>)BatchPlanner.planFragmentListPool.borrowObject();
+        } catch (Exception ex) {
+            throw new RuntimeException(ex);
+        }
         
         
         for (int stmt_index = 0; stmt_index < this.batchSize; ++stmt_index) {
@@ -567,8 +592,6 @@ public class BatchPlanner {
             final Object params[] = paramSet.toArray();
             if (trace.get()) LOG.trace(String.format("[%02d] Constructing fragment plans for %s", stmt_index, stmt.catStmt.fullName()));
             
-            this.stmt_frags[stmt_index].clear();
-            this.stmt_params[stmt_index].clear();
             this.stmt_partitions[stmt_index].clear();
             for (Set<Integer> p : this.frag_partitions[stmt_index].values()) {
                 p.clear();
@@ -619,13 +642,43 @@ public class BatchPlanner {
             if (mispredict) {
                 throw new MispredictionException(123l); // FIXME
             }
+
+            frag_list.clear();
+            frag_list = QueryPlanUtil.getSortedPlanFragments((List<PlanFragment>)CollectionUtil.addAll(frag_list, fragments));
             
             boolean is_local = (this.all_partitions[stmt_index].size() == 1 && this.all_partitions[stmt_index].contains(base_partition));
             plan.readonly = plan.readonly && catalog_stmt.getReadonly();
             plan.localFragsAreNonTransactional = plan.localFragsAreNonTransactional || stmt_localFragsAreNonTransactional;
-            
             plan.all_singlesited = plan.all_singlesited && is_singlepartition;
             plan.all_local = plan.all_local && is_local;
+
+            // Update the Statement->PartitionId array
+            // This is needed by TransactionEstimator
+            plan.stmt_partition_ids[stmt_index] = new int[this.all_partitions[stmt_index].size()];
+            int idx = 0;
+            for (int partition_id : this.all_partitions[stmt_index]) {
+                plan.stmt_partition_ids[stmt_index][idx++] = partition_id;
+            } // FOR
+            
+            // Generate the synthetic DependencyIds for the query
+            Integer last_output_id = null;
+            for (int i = 0, cnt = frag_list.size(); i < cnt; i++) {
+                PlanFragment catalog_frag = frag_list.get(i);
+                Set<Integer> f_partitions = this.frag_partitions[stmt_index].get(catalog_frag);
+                boolean f_local = (f_partitions.size() == 1 && f_partitions.contains(base_partition));
+                Integer output_id = BatchPlanner.NEXT_DEPENDENCY_ID.getAndIncrement();
+
+                plan.addFragment(catalog_frag, 
+                                 last_output_id,
+                                 output_id,
+                                 paramSet,
+                                 f_partitions,
+                                 stmt_index,
+                                 f_local);
+                
+                last_output_id = output_id;
+            } // FOR
+            
             
             // ----------------------
             // DEBUG DUMP
@@ -639,19 +692,15 @@ public class BatchPlanner {
                     m.put(String.format("[%02d] Fragment", ii), catalog_frag.fullName());
                     m.put(String.format("     Partitions"), p);
                     m.put(String.format("     IsLocal"), frag_local);
-                    
-//                    try {
-//                        AbstractPlanNode root = QueryPlanUtil.deserializePlanFragment(catalog_frag);
-//                        buffer.append("   Plan[" + ii + "]:\n").append(PlanNodeUtil.debug(root));
-//                    } catch (Exception ex) {
-//                        LOG.fatal("Failed to deserialize PlanNode for " + catalog_stmt, ex);
-//                        System.exit(1);
-//                    }
+                    m.put(String.format("     Inputs"), this.stmt_input_dependencies[stmt_index].get(ii));
+                    m.put(String.format("     Outputs"), this.stmt_output_dependencies[stmt_index].get(ii));
+
+                    ii++;
                 } // FOR
 
                 Map<String, Object> header = new ListOrderedMap<String, Object>();
-                header.put("BATCH", stmt_index);
-                header.put("BatchPlanner Output", stmt.catStmt.fullName());
+                header.put("Batch Statement#", String.format("%02d / %02d", stmt_index, this.batchSize));
+                header.put("Catalog Statement", stmt.catStmt.fullName());
                 header.put("Statement SQL", stmt.getText());
                 header.put("Initiator Id", this.initiator_id); 
                 header.put("All Partitions", this.all_partitions[stmt_index]);
@@ -659,56 +708,12 @@ public class BatchPlanner {
                 header.put("IsSingledSited", is_singlepartition);
                 header.put("IsStmtLocal", is_local);
                 header.put("IsBatchLocal", plan.all_local);
-                header.put("Fragments", this.stmt_frags[stmt_index].size());
+                header.put("Fragments", fragments.size());
 
                 LOG.debug("\n" + StringUtil.formatMapsBoxed(header, m));
             }
-           
-            // Generate the synthetic DependencyIds for the query
-            this.generateDependencyIds(stmt_index);
             
-            // Update the Statement->PartitionId array
-            // This is needed by TransactionEstimator
-            plan.stmt_partition_ids_length[stmt_index] = this.all_partitions[stmt_index].size();
-            assert(plan.stmt_partition_ids_length[stmt_index] <= this.num_partitions);
-            int idx = 0;
-            for (int partition_id : this.all_partitions[stmt_index]) {
-                plan.stmt_partition_ids[stmt_index][idx++] = partition_id;
-            } // FOR
-            
-            // SPECIAL CASE: Local INSERT/UPDATE/DELETE queries don't have an output dependency id
-            // but we still need to block the VoltProcedure so that it waits until the operations
-            // are finished and they can get back the # of tuples modified
-//            if (is_local && stmt.catStmt.getQuerytype() != QueryType.SELECT.getValue()) {
-//                LOG.info("Attempting to add local dependency for " + stmt_fragIds);
-//                assert(stmt_output_dependencies.size() == 1);
-//                assert(stmt_output_dependencies.get(0).isEmpty());
-//                stmt_output_dependencies.get(0).add(--local_dependency_ctr);
-//            } else {
-//                LOG.info("Plan does not require local dependency ids for " + stmt_fragIds);
-//                LOG.info("all_partitions=" + all_partitions);
-//                LOG.info("local_partition=" + local_partition);
-//            }
-            
-            for (int i = 0, cnt = this.stmt_frags[stmt_index].size(); i < cnt; i++) {
-                Set<Integer> frag_partitions = this.stmt_partitions[stmt_index].get(i);
-                ParameterSet frag_params = this.stmt_params[stmt_index].get(i);
-                Set<Integer> frag_input_dependency_ids = this.stmt_input_dependencies[stmt_index].get(i);
-                assert(frag_input_dependency_ids.size() <= 1) : frag_input_dependency_ids;
-                Set<Integer> frag_output_dependency_ids = this.stmt_output_dependencies[stmt_index].get(i);
-                assert(frag_output_dependency_ids.size() <= 1) : frag_output_dependency_ids; 
-                
-                boolean frag_local = (frag_partitions.size() == 1 && frag_partitions.contains(base_partition));
-                plan.addFragment(
-                        this.stmt_frags[stmt_index].get(i), 
-                        CollectionUtil.getFirst(frag_input_dependency_ids), // Why do we only need the first here?
-                        CollectionUtil.getFirst(frag_output_dependency_ids),
-                        frag_params,
-                        frag_partitions,
-                        stmt_index,
-                        frag_local);
-            } // FOR
-                        
+
         } // FOR (SQLStmt)
         
         plan.buildPlanGraph();
@@ -717,54 +722,6 @@ public class BatchPlanner {
         return (plan);
     }
 
-    /**
-     * For the given PlanFragments, generate the dependency ids between them
-     * @param stmt_frags
-     * @param stmt_input_dependencies
-     * @param stmt_output_dependencies
-     */
-    protected void generateDependencyIds(int stmt_index) {
-        List<PlanFragment> frags = this.stmt_frags[stmt_index];
-        List<Set<Integer>> input_dependencies = this.stmt_input_dependencies[stmt_index];
-        List<Set<Integer>> output_dependencies = this.stmt_output_dependencies[stmt_index];
-        
-        // Make sure that we always have enough sets in our input/output lists
-        int num_frags = frags.size();
-        this.stmt_input_dependencies_size[stmt_index] = num_frags;
-        this.stmt_output_dependencies_size[stmt_index] = num_frags;
-
-        int input_orig_size = input_dependencies.size();
-        for (int i = 0; i < num_frags; i++) {
-            if (i < input_orig_size) {
-                input_dependencies.get(i).clear();
-            } else {
-                input_dependencies.add(new HashSet<Integer>());
-            }
-        } // FOR
-        
-        int output_orig_size = output_dependencies.size();
-        for (int i = 0; i < num_frags; i++) {
-            if (i < output_orig_size) {
-                output_dependencies.get(i).clear();
-            } else {
-                output_dependencies.add(new HashSet<Integer>());
-            }
-        } // FOR
-
-        Integer last_output_id = null;
-        for (PlanFragment catalog_frag : QueryPlanUtil.getSortedPlanFragments(frags)) {
-            int idx = frags.indexOf(catalog_frag);
-            assert(idx >= 0);
-            
-            Integer output_id = NEXT_DEPENDENCY_ID.getAndIncrement();
-            output_dependencies.get(idx).add(output_id);
-            if (last_output_id != null) {
-                input_dependencies.get(idx).add(last_output_id);
-            }
-            last_output_id = output_id;
-        } // FOR
-    }
-    
     /**
      * List of DependencyIds that need to be satisfied before we return control
      * back to the Java control code

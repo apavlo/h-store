@@ -858,7 +858,7 @@ public class PartitionEstimator {
             this.calculatePartitionsForFragment(null,
                                                 p,
                                                 catalog_frag, params, base_partition);
-            frag_all_partitions.addAll(p);
+            if (frag_all_partitions != null) frag_all_partitions.addAll(p);
         } // FOR
     }
 

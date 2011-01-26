@@ -1007,8 +1007,8 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
         assert (catalog_item != null) : "Null Catalog Item!";
         if (catalog_item instanceof Cluster)
             return ((Cluster) catalog_item);
-        Catalog catalog = (catalog_item instanceof Catalog ? (Catalog)catalog_item : catalog_item.getCatalog());
-        assert (catalog != null);
+        Catalog catalog = catalog_item.getCatalog(); // (catalog_item instanceof Catalog ? (Catalog)catalog_item : catalog_item.getCatalog());
+        assert(catalog != null);
         return (catalog.getClusters().get(DEFAULT_CLUSTER_NAME));
     }
 
