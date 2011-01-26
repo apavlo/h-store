@@ -855,9 +855,16 @@ public class PartitionEstimator {
             } else {
                 p.clear();
             }
+            
             this.calculatePartitionsForFragment(null,
                                                 p,
                                                 catalog_frag, params, base_partition);
+            
+            // If there were no partitions, then the PlanFragment needs to be execute on the base partition
+            // Because these are the PlanFragments that aggregate the results together
+            // XXX: Not sure if this is right, but it's 5:30pm on a snowy night so it's good enough for me...
+            if (p.isEmpty()) p.add(base_partition);
+            
             if (frag_all_partitions != null) frag_all_partitions.addAll(p);
         } // FOR
     }
