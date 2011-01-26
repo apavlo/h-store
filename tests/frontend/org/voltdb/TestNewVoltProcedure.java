@@ -112,7 +112,7 @@ public class TestNewVoltProcedure extends BaseTestCase {
         } // FOR
         
         BatchPlanner planner = new BatchPlanner(batchStmts, catalog_proc, p_estimator, PARTITION_ID);
-        BatchPlanner.BatchPlan plan = planner.plan(args, PARTITION_ID, null);
+        BatchPlanner.BatchPlan plan = planner.plan(args, PARTITION_ID, true);
         assertNotNull(plan);
         
         //

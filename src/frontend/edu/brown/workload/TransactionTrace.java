@@ -182,6 +182,15 @@ public class TransactionTrace extends AbstractTraceElement<Procedure> {
         return (this.query_batches);
     }
     
+    /**
+     * Return the list of queries in the given batch
+     * @param batch_id
+     * @return
+     */
+    public List<QueryTrace> getQueryBatch(int batch_id) {
+        return (this.query_batches.getValue(batch_id));
+    }
+    
     public void toJSONString(JSONStringer stringer, Database catalog_db) throws JSONException {
         super.toJSONString(stringer, catalog_db);
         stringer.key(Members.TXN_ID.name()).value(this.txn_id);

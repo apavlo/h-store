@@ -52,6 +52,10 @@ public class SQLStmt {
         this.hashCode = this.sqlText.hashCode();
     }
     
+    protected SQLStmt(Statement catalog_stmt) {
+        this(catalog_stmt, (catalog_stmt.getHas_singlesited() ? catalog_stmt.getMs_fragments() : catalog_stmt.getFragments()));
+    }
+    
     protected SQLStmt(Statement catalog_stmt, CatalogMap<PlanFragment> fragments) {
         this(catalog_stmt.getSqltext());
         

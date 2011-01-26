@@ -816,8 +816,7 @@ public class PartitionEstimator {
     }
 
     /**
-     * Return a mapping from PlanFragments to sets of PartitionIds
-     * NOTE: This is the one to use at runtime in the BatchPlanner because it doesn't allocate any new Collections!
+     * 
      * @param frag_partitions
      * @param fragments
      * @param params
@@ -826,6 +825,25 @@ public class PartitionEstimator {
      * @throws Exception
      */
     public Map<PlanFragment, Set<Integer>> getAllFragmentPartitions(final Map<PlanFragment, Set<Integer>> frag_partitions, final Iterable<PlanFragment> fragments, final Object params[], final Integer base_partition) throws Exception {
+        this.getAllFragmentPartitions(frag_partitions, null, fragments, params, base_partition);
+        return (frag_partitions);
+    }
+        
+        
+    /**
+     * Populate a mapping from PlanFragments to sets of PartitionIds
+     * NOTE: This is the one to use at runtime in the BatchPlanner because it doesn't allocate any new Collections!
+     * @param frag_partitions
+     * @param frag_all_partitions
+     * @param fragments
+     * @param params
+     * @param base_partition
+     * @return
+     * @throws Exception
+     */
+    public void getAllFragmentPartitions(final Map<PlanFragment, Set<Integer>> frag_partitions,
+                                         final Set<Integer> frag_all_partitions,
+                                         Iterable<PlanFragment> fragments, final Object params[], final Integer base_partition) throws Exception {
         assert(frag_partitions != null);
         
         // Loop through this Statement's plan fragments and get the partitions
@@ -840,8 +858,8 @@ public class PartitionEstimator {
             this.calculatePartitionsForFragment(null,
                                                 p,
                                                 catalog_frag, params, base_partition);
+            frag_all_partitions.addAll(p);
         } // FOR
-        return (frag_partitions);
     }
 
     /**
