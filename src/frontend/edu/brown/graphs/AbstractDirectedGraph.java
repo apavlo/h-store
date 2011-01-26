@@ -9,9 +9,9 @@ import org.voltdb.catalog.*;
 import edu.brown.utils.ClassUtil;
 import edu.brown.utils.JSONUtil;
 import edu.uci.ics.jung.graph.*;
+import edu.uci.ics.jung.graph.util.EdgeType;
 import edu.uci.ics.jung.graph.util.Pair;
 
-import org.apache.commons.collections15.set.ListOrderedSet;
 import org.apache.log4j.Logger;
 import org.json.*;
 
@@ -37,51 +37,29 @@ public abstract class AbstractDirectedGraph<V extends AbstractVertex, E extends 
         super();
         this.inner = new InnerGraphInformation<V, E>(this, catalog_db);
     }
-    
-    public Set<V> getDescendants(V vertex) {
-        final Set<V> found = new ListOrderedSet<V>();
-        new VertexTreeWalker<V>(this) {
-            @Override
-            protected void callback(V element) {
-                found.add(element);
-            }
-        }.traverse(vertex);
-        return (found);
-    }
-    
-    public List<V> getAncestors(final V vertex) {
-        List<V> ancestors = new ArrayList<V>();
-        this.getAncestors(vertex, ancestors);
-        return (ancestors);
-    }
-    
-    private void getAncestors(final V v, List<V> ancestors) {
-        for (V parent : this.getPredecessors(v)) {
-            if (!ancestors.contains(parent)) {
-                ancestors.add(parent);
-                this.getAncestors(parent, ancestors);    
-            }
-        } // FOR
-        return;
-    }
-    public Set<V> getRoots() {
-        Set<V> roots = new HashSet<V>();
-        for (V v : this.getVertices()) {
-            if (this.getPredecessorCount(v) == 0) {
-                roots.add(v);
-            }
-        } // FOR
-        return (roots);
-    }
+
 
     // ----------------------------------------------------------------------------
     // INNER DELEGATION METHODS
     // ----------------------------------------------------------------------------
-    
+
+    public Set<V> getDescendants(V vertex) {
+        return (this.inner.getDescendants(vertex));
+    }
+    public List<V> getAncestors(V vertex) {
+        return (this.inner.getAncestors(vertex));
+    }
+    public Set<V> getRoots() {
+        return (this.inner.getRoots());
+    }
     public Database getDatabase() {
         return (this.inner.getDatabase());
     }
     
+    @Override
+    public void enableDirtyChecks() {
+        this.inner.enableDirtyChecks();
+    }
     @Override
     public List<E> getPath(V source, V target) {
         return (this.inner.getPath(source, target));
@@ -119,6 +97,12 @@ public abstract class AbstractDirectedGraph<V extends AbstractVertex, E extends 
     public void pruneIsolatedVertices() {
         this.inner.pruneIsolatedVertices();
     }
+    @Override
+    public boolean addEdge(E edge, Pair<? extends V> endpoints, EdgeType edgeType) {
+        boolean ret = super.addEdge(edge, endpoints, edgeType);
+        this.inner.addEdge(edge);
+        return (ret);
+    };
 
     /**
      * Makes unique copies of the vertices and edges into the cloned graph

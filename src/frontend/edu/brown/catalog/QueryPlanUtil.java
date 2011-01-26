@@ -81,7 +81,9 @@ public abstract class QueryPlanUtil {
     
     /**
      * For a given list of PlanFragments, return them in a sorted list based on how they
-     * must be executed  
+     * must be executed. The first element in the list will be the first PlanFragment that must be
+     * executed (i.e., the one at the bottom of the PlanNode tree).
+     *
      * @param catalog_frags
      * @return
      * @throws Exception
