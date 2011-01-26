@@ -3,6 +3,7 @@ package edu.brown.catalog.special;
 import java.util.HashMap;
 import java.util.Map;
 
+import org.voltdb.catalog.Catalog;
 import org.voltdb.catalog.CatalogType;
 import org.voltdb.catalog.Column;
 import org.voltdb.catalog.Table;
@@ -32,6 +33,10 @@ public class ReplicatedColumn extends Column {
     @Override
     public <T extends CatalogType> T getParent() {
         return ((T)this.parent);
+    }
+    @Override
+    public Catalog getCatalog() {
+        return this.parent.getCatalog();
     }
     @Override
     public boolean equals(Object obj) {

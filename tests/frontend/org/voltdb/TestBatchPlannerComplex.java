@@ -8,6 +8,7 @@ import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Statement;
 
 import edu.brown.BaseTestCase;
+import edu.brown.graphs.GraphUtil;
 import edu.brown.utils.ProjectType;
 import edu.brown.workload.QueryTrace;
 import edu.brown.workload.TransactionTrace;
@@ -58,14 +59,14 @@ public class TestBatchPlannerComplex extends BaseTestCase {
         // Convert the first QueryTrace batch into a SQLStmt+ParameterSet batch
         TransactionTrace txn_trace = workload.getTransactions().get(0);
         assertNotNull(txn_trace);
-        List<QueryTrace> query_batch = txn_trace.getQueryBatch(0);
+        List<QueryTrace> query_batch = txn_trace.getQueryBatch(3);
         this.batch = new SQLStmt[query_batch.size()];
         this.args = new ParameterSet[query_batch.size()];
         for (int i = 0; i < this.batch.length; i++) {
             QueryTrace query_trace = query_batch.get(i);
             assertNotNull(query_trace);
             this.batch[i] = new SQLStmt(query_trace.getCatalogItem(catalog_db));
-            this.args[i] = VoltProcedure.getCleanParams(this.batch[0], query_trace.getParams());
+            this.args[i] = VoltProcedure.getCleanParams(this.batch[i], query_trace.getParams());
         } // FOR
     }
     
@@ -77,7 +78,7 @@ public class TestBatchPlannerComplex extends BaseTestCase {
         BatchPlanner batchPlan = new BatchPlanner(batch, this.catalog_proc, p_estimator, INITIATOR_ID);
         BatchPlanner.BatchPlan plan = batchPlan.plan(this.args, 0, false);
         
-        
+//        GraphUtil.visualizeGraph(plan.getPlanGraph());
     }
     
 }

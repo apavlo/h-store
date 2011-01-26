@@ -56,8 +56,7 @@ public class MultiPartitionTxnFilter extends Workload.Filter {
                 } // FOR
                 
             } catch (Exception ex) {
-                ex.printStackTrace();
-                assert(false);
+                throw new RuntimeException(ex);
             }
             assert(partitions.isEmpty() == false);
             boolean allow = (this.singlepartition ? (partitions.size() == 1) : (partitions.size() > 1)); 
