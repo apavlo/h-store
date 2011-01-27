@@ -189,7 +189,7 @@ public class BatchPlanner {
             return super.addVertex(v);
         }
         
-        public Set<PlanVertex> getOutputDependencies(int output_id) {
+        public Set<PlanVertex> getOutputDependencies(Integer output_id) {
             return (this.output_dependency_xref.get(output_id));
         }
         
@@ -739,7 +739,7 @@ public class BatchPlanner {
                 Set<Integer> f_partitions = frag_partitions.get(catalog_frag);
                 assert(f_partitions != null) : String.format("No PartitionIds for [%02d] %s in Statement #%d", round, catalog_frag.fullName(), stmt_index);
                 boolean f_local = (f_partitions.size() == 1 && f_partitions.contains(this.base_partition));
-                Integer output_id = BatchPlanner.NEXT_DEPENDENCY_ID.getAndIncrement();
+                int output_id = BatchPlanner.NEXT_DEPENDENCY_ID.getAndIncrement();
     
                 PlanVertex v = new PlanVertex(catalog_frag,
                                               stmt_index,

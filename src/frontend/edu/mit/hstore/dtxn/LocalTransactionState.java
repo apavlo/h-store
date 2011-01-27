@@ -107,10 +107,16 @@ public class LocalTransactionState extends TransactionState {
      */
     private RpcCallback<Dtxn.FragmentResponse> coordinator_callback;
 
+    
     // ----------------------------------------------------------------------------
     // ROUND DATA MEMBERS
     // ----------------------------------------------------------------------------
 
+    /**
+     * Temporary space used in ExecutionSite.waitForResponses
+     */
+    public final List<FragmentTaskMessage> runnable_fragment_list = new ArrayList<FragmentTaskMessage>();
+    
     /**
      * This latch will block until all the Dependency results have returned
      * Generated in startRound()
@@ -271,7 +277,7 @@ public class LocalTransactionState extends TransactionState {
             } // FOR
             if (trace.get()) LOG.trace("Releasing " + this.queued_results.size() + " queued results");
             for (Entry<PartitionDependencyKey, VoltTable> e : this.queued_results.entrySet()) {
-                this.addResult(e.getKey().getFirst(), e.getKey().getSecond(), e.getValue());
+                this.addResult(e.getKey().getFirst().intValue(), e.getKey().getSecond().intValue(), e.getValue());
             } // FOR
             this.queued_responses.clear();
             this.queued_results.clear();
@@ -414,11 +420,11 @@ public class LocalTransactionState extends TransactionState {
      * @param d_id
      * @return
      */
-    private DependencyInfo getOrCreateDependencyInfo(int stmt_index, int d_id) {
-        Map<Integer, DependencyInfo> stmt_dinfos = this.dependencies[stmt_index];
+    private DependencyInfo getOrCreateDependencyInfo(Integer stmt_index, Integer d_id) {
+        Map<Integer, DependencyInfo> stmt_dinfos = this.dependencies[stmt_index.intValue()];
         if (stmt_dinfos == null) {
             stmt_dinfos = new ConcurrentHashMap<Integer, DependencyInfo>();
-            this.dependencies[stmt_index] = stmt_dinfos;
+            this.dependencies[stmt_index.intValue()] = stmt_dinfos;
         }
         DependencyInfo d = stmt_dinfos.get(d_id);
         if (d == null) {
@@ -474,9 +480,11 @@ public class LocalTransactionState extends TransactionState {
         // sure that the txn wait for it to arrive first
         synchronized (this.lock) {
             if (ftask.hasOutputDependencies()) {
+                int output_dependencies[] = ftask.getOutputDependencyIds();
+                int stmt_indexes[] = ftask.getFragmentStmtIndexes();
                 for (int i = 0; i < num_fragments; i++) {
-                    int dependency_id = ftask.getOutputDependencyIds()[i];
-                    int stmt_index = ftask.getFragmentStmtIndexes()[i];
+                    Integer dependency_id = output_dependencies[i];
+                    Integer stmt_index = stmt_indexes[i];
                     
                     if (trace.get()) LOG.trace("Adding new Dependency [stmt_index=" + stmt_index + ", id=" + dependency_id + ", partition=" + partition + "] for txn #" + this.txn_id);
                     this.getOrCreateDependencyInfo(stmt_index, dependency_id).addPartition(partition);

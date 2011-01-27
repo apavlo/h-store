@@ -1351,13 +1351,13 @@ public class ExecutionSite implements Runnable {
         // get one response back from another executor
         ts.initRound(this.getNextUndoToken());
         ts.setBatchSize(batch_size);
-        List<FragmentTaskMessage> runnable = new ArrayList<FragmentTaskMessage>();
+        ts.runnable_fragment_list.clear();
         boolean all_local = true;
         for (FragmentTaskMessage ftask : tasks) {
             all_local = all_local && (ftask.getDestinationPartitionId() == this.getPartitionId());
-            if (!ts.addFragmentTaskMessage(ftask)) runnable.add(ftask);
+            if (!ts.addFragmentTaskMessage(ftask)) ts.runnable_fragment_list.add(ftask);
         } // FOR
-        if (runnable.isEmpty()) {
+        if (ts.runnable_fragment_list.isEmpty()) {
             throw new RuntimeException("Deadlock! All tasks for txn #" + txn_id + " are blocked waiting on input!");
         }
         
@@ -1367,11 +1367,11 @@ public class ExecutionSite implements Runnable {
         final CountDownLatch latch = ts.getDependencyLatch(); 
         
         if (all_local) {
-            if (trace.get()) LOG.trace("Adding " + runnable.size() + " FragmentTasks to local work queue");
-            this.work_queue.addAll(runnable);
+            if (trace.get()) LOG.trace("Adding " + ts.runnable_fragment_list.size() + " FragmentTasks to local work queue");
+            this.work_queue.addAll(ts.runnable_fragment_list);
         } else {
-            if (trace.get()) LOG.trace("Requesting " + runnable.size() + " FragmentTasks to be executed on remote partitions");
-            this.requestWork(ts, runnable);
+            if (trace.get()) LOG.trace("Requesting " + ts.runnable_fragment_list.size() + " FragmentTasks to be executed on remote partitions");
+            this.requestWork(ts, ts.runnable_fragment_list);
         }
         
         if (debug.get()) LOG.debug("Txn #" + txn_id + " is blocked waiting for " + latch.getCount() + " dependencies");

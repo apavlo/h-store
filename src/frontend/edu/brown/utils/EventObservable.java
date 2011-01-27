@@ -1,6 +1,7 @@
 package edu.brown.utils;
 
 import java.util.Observable;
+import java.util.Observer;
 
 /**
  *  EventObservable
@@ -8,6 +9,20 @@ import java.util.Observable;
  */
 public class EventObservable extends Observable {
 
+    private int observer_ctr = 0;
+    
+    @Override
+    public synchronized void addObserver(Observer o) {
+        super.addObserver(o);
+        this.observer_ctr++;
+    }
+    
+    @Override
+    public synchronized void deleteObserver(Observer o) {
+        super.deleteObserver(o);
+        this.observer_ctr--;
+    }
+    
     /********************************************************
      * notifyObservers()
      * Notifies the Observers that a changed occured
@@ -16,7 +31,7 @@ public class EventObservable extends Observable {
      ********************************************************/
     public void notifyObservers(Object arg) {
         this.setChanged();
-        super.notifyObservers(arg);
+        if (this.observer_ctr > 0) super.notifyObservers(arg);
     }
    
     /********************************************************
@@ -26,6 +41,6 @@ public class EventObservable extends Observable {
      ********************************************************/
     public void notifyObservers() {
         this.setChanged();
-        super.notifyObservers();
+        if (this.observer_ctr > 0) super.notifyObservers();
     }
 } // END CLASS

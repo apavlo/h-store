@@ -122,7 +122,7 @@ public abstract class VoltProcedure {
     protected Integer local_partition;
     
     // Callback for when the VoltProcedure finishes and we need to send a ClientResponse somewhere
-    protected final EventObservable observable = new EventObservable();
+    private final EventObservable observable = new EventObservable();
 
     /**
      * Mapping from SQLStmt batch hash codes (computed by VoltProcedure.getBatchHashCode()) to BatchPlanners
@@ -161,7 +161,7 @@ public abstract class VoltProcedure {
         @Override
         public void run() {
             synchronized (executor_lock) {
-                Thread.currentThread().setName(VoltProcedure.this.m_site.getThreadName() + "-" + VoltProcedure.this.procedure_name);
+                if (debug.get()) Thread.currentThread().setName(VoltProcedure.this.m_site.getThreadName() + "-" + VoltProcedure.this.procedure_name);
     
                 long current_txn_id = txnState.getTransactionId();
                 long client_handle = txnState.getClientHandle();
