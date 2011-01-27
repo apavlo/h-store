@@ -4,6 +4,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+import org.junit.Test;
 import org.voltdb.catalog.CatalogMap;
 import org.voltdb.catalog.PlanFragment;
 import org.voltdb.catalog.Procedure;
@@ -17,9 +18,9 @@ import edu.brown.benchmark.tm1.procedures.GetNewDestination;
 import edu.brown.benchmark.tm1.procedures.InsertCallForwarding;
 import edu.brown.benchmark.tm1.procedures.UpdateLocation;
 import edu.brown.hashing.DefaultHasher;
+import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.PartitionEstimator;
 import edu.brown.utils.ProjectType;
-import edu.brown.utils.StringUtil;
 
 public class TestBatchPlanner extends BaseTestCase {
 
@@ -115,6 +116,40 @@ public class TestBatchPlanner extends BaseTestCase {
 ////            System.out.println("------------");
 //        } // FOR
 //    }
+    
+    /**
+     * testPlanVertexHashCode
+     */
+    @Test
+    public void testPlanVertexHashCode() throws Exception {
+        // Need to test that our short-cut methods for calculating the hash code works
+        this.init(SINGLESITE_PROCEDURE, SINGLESITE_STATEMENT, SINGLESITE_PROCEDURE_ARGS);
+        
+        PlanFragment catalog_frag = CollectionUtil.getFirst(CollectionUtil.getFirst(this.catalog_proc.getStatements()).getFragments());
+        assertNotNull(catalog_frag);
+        
+        int round = 0;
+        int stmt_index = 0;
+        int input = 1;
+        int output = 1;
+        boolean is_local = true;
+        
+        BatchPlanner.PlanVertex v0 = new BatchPlanner.PlanVertex(catalog_frag, stmt_index, round, input, output, is_local);
+        assert(v0.hash_code > 0);
+//        System.err.println("v0 = " + v0.hashCode());
+        
+        BatchPlanner.PlanVertex v1 = new BatchPlanner.PlanVertex(catalog_frag, stmt_index, round+1, input, output, is_local);
+        assert(v1.hash_code > 0);
+//        System.err.println("v1 = " + v1.hashCode());
+        
+        BatchPlanner.PlanVertex v2 = new BatchPlanner.PlanVertex(catalog_frag, stmt_index+1, round, input, output, is_local);
+        assert(v2.hash_code > 0);
+//        System.err.println("v2 = " + v2.hashCode());
+        
+        assert(v0.hashCode() != v1.hashCode());
+        assert(v0.hashCode() != v2.hashCode());
+        assert(v1.hashCode() != v2.hashCode());
+    }
     
     /**
      * testSingleSitedLocalPlan

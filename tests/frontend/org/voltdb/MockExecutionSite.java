@@ -10,6 +10,7 @@ import org.voltdb.catalog.Catalog;
 import org.voltdb.messaging.FragmentTaskMessage;
 
 import edu.brown.utils.PartitionEstimator;
+import edu.mit.hstore.dtxn.LocalTransactionState;
 
 /**
  * 
@@ -25,10 +26,10 @@ public class MockExecutionSite extends ExecutionSite {
     public MockExecutionSite(int partition_id, Catalog catalog, PartitionEstimator p_estimator) {
         super(partition_id, catalog, BACKEND_TARGET, p_estimator, null);
     }
-    
+
     @Override
-    protected void requestWork(TransactionState ts, List<FragmentTaskMessage> tasks) {
-        // Nothing!
+    public void requestWork(LocalTransactionState ts, List<FragmentTaskMessage> tasks) {
+        // Nothing
     }
     
     @Override
@@ -37,7 +38,7 @@ public class MockExecutionSite extends ExecutionSite {
     }
     
     @Override
-    public VoltTable[] waitForResponses(long txn_id, List<FragmentTaskMessage> tasks) {
+    public VoltTable[] waitForResponses(long txnId, List<FragmentTaskMessage> tasks, int batchSize) {
         return (new VoltTable[]{ });
     }
     

@@ -19,6 +19,7 @@ package org.voltdb.sysprocs;
 
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import org.voltdb.HsqlBackend;
 import org.voltdb.BackendTarget;
@@ -69,10 +70,11 @@ public class Shutdown extends VoltSystemProcedure {
     }
 
     @Override
-    public DependencySet executePlanFragment(long txn_id, HashMap<Integer, List<VoltTable>> dependencies,
-            int fragmentId,
-                                           ParameterSet params,
-            ExecutionSite.SystemProcedureExecutionContext context) {
+    public DependencySet executePlanFragment(long txn_id,
+                                             Map<Integer, List<VoltTable>> dependencies,
+                                             int fragmentId,
+                                             ParameterSet params,
+                                             ExecutionSite.SystemProcedureExecutionContext context) {
         if (fragmentId == SysProcFragmentId.PF_shutdownCommand) {
             ProcedureProfiler.flushProfile();
             try {

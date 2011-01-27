@@ -19,6 +19,7 @@ package org.voltdb.compiler;
 
 import java.io.PrintStream;
 import java.util.Collections;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.hsqldb.HSQLInterface;
 import org.json.JSONException;
@@ -52,6 +53,8 @@ import org.voltdb.utils.Encoder;
  */
 public abstract class StatementCompiler {
 
+    private static AtomicInteger NEXT_FRAGMENT_ID = new AtomicInteger(10000);
+    
     public static void compile(VoltCompiler compiler, HSQLInterface hsql,
             Catalog catalog, Database db, DatabaseEstimates estimates,
             Statement catalogStmt, String stmt, boolean singlePartition)
@@ -205,12 +208,9 @@ public abstract class StatementCompiler {
             for (CompiledPlan.Fragment fragment : plan.fragments) {
                 node_list = new PlanNodeList(fragment.planGraph);
     
-                //
                 // Now update our catalog information
-                // HACK: We're using the node_tree's hashCode() as it's name. It would be really
-                //     nice if the Catalog code give us an guid without needing a name first...
-                //
-                String planFragmentName = Integer.toString(node_list.hashCode());
+                int id = NEXT_FRAGMENT_ID.getAndIncrement();
+                String planFragmentName = Integer.toString(id);
                 PlanFragment planFragment = null;
                     
                 if (_singleSited) {
@@ -227,6 +227,7 @@ public abstract class StatementCompiler {
                 planFragment.setNontransactional(!fragmentReferencesPersistentTable(fragment.planGraph));
                 planFragment.setHasdependencies(fragment.hasDependencies);
                 planFragment.setMultipartition(fragment.multiPartition);
+                planFragment.setId(id);
     
                 String json = null;
                 try {

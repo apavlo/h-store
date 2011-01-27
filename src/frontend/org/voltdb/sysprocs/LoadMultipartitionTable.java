@@ -67,10 +67,11 @@ public class LoadMultipartitionTable extends VoltSystemProcedure {
     }
 
     @Override
-    public DependencySet executePlanFragment(
-            long txn_id,
-            HashMap<Integer, List<VoltTable>> dependencies, int fragmentId,
-            ParameterSet params, SystemProcedureExecutionContext context) {
+    public DependencySet executePlanFragment(long txn_id,
+                                             Map<Integer, List<VoltTable>> dependencies,
+                                             int fragmentId,
+                                             ParameterSet params,
+                                             SystemProcedureExecutionContext context) {
         final boolean trace = LOG.isTraceEnabled();
         final boolean debug = LOG.isDebugEnabled();
         
