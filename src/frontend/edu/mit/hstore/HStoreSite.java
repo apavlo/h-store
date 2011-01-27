@@ -188,7 +188,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
             self.setName(HStoreSite.this.getThreadName("mon"));
             self.setDaemon(true);
             
-            LOG.debug("Starting HStoreCoordinator status monitor thread [interval=" + interval + " secs]");
+            if (debug.get()) LOG.debug("Starting HStoreCoordinator status monitor thread [interval=" + interval + " secs]");
             while (!self.isInterrupted()) {
                 try {
                     Thread.sleep(interval * 1000);

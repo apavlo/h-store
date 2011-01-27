@@ -26,7 +26,7 @@ public class TestTransactionState extends BaseTestCase {
     private static final Long TXN_ID = 1000l;
     private static final long CLIENT_HANDLE = 99999l;
     private static final boolean EXEC_LOCAL = true;
-    private static final boolean SINGLE_PARTITIONED = true;
+    private static final boolean SINGLE_PARTITIONED = false;
     private static final long UNDO_TOKEN = 10l;
     
     private static final String TARGET_PROCEDURE = "UpdateLocation";
@@ -80,13 +80,16 @@ public class TestTransactionState extends BaseTestCase {
                 batch[i] = new SQLStmt(catalog_stmt, catalog_stmt.getMs_fragments());
                 args[i] = VoltProcedure.getCleanParams(batch[i], raw_args); 
             } // FOR
-            
-            BatchPlanner batchPlan = new BatchPlanner(batch, catalog_proc, p_estimator, LOCAL_PARTITION);
-            plan = batchPlan.plan(TXN_ID, CLIENT_HANDLE, args, true);
+         
+            BatchPlanner planner = new BatchPlanner(batch, catalog_proc, p_estimator, LOCAL_PARTITION);
+            plan = planner.plan(TXN_ID, CLIENT_HANDLE, args, SINGLE_PARTITIONED);
             assertNotNull(plan);
             ftasks = plan.getFragmentTaskMessages();
+            System.err.println("FTASKS: " + ftasks);
             assertFalse(ftasks.isEmpty());
         }
+        assertNotNull(ftasks);
+        
         this.ts = new TransactionState(executor, TXN_ID, TXN_ID, LOCAL_PARTITION, CLIENT_HANDLE, EXEC_LOCAL);
         assertNotNull(this.ts);
         assertEquals(TransactionState.RoundState.NULL, this.ts.getCurrentRoundState());
