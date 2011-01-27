@@ -28,10 +28,8 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
 import java.lang.reflect.Field;
-import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -44,13 +42,11 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
-import org.voltdb.ClusterMonitor;
 import org.voltdb.ServerThread;
 import org.voltdb.VoltDB;
 import org.voltdb.benchmark.BenchmarkResults.Result;
 import org.voltdb.catalog.Catalog;
 import org.voltdb.catalog.Cluster;
-import org.voltdb.catalog.Host;
 import org.voltdb.catalog.Site;
 import org.voltdb.client.Client;
 import org.voltdb.client.ClientFactory;
@@ -63,12 +59,7 @@ import org.voltdb.processtools.SSHTools;
 import org.voltdb.processtools.ShellTools;
 import org.voltdb.utils.LogKeys;
 
-import ca.evanjones.protorpc.NIOEventLoop;
-import ca.evanjones.protorpc.ProtoRpcChannel;
 import ca.evanjones.protorpc.ProtoRpcController;
-
-import com.google.protobuf.ByteString;
-
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.hstore.Hstore;
 import edu.brown.hstore.Hstore.HStoreService;
