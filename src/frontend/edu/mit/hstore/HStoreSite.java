@@ -346,7 +346,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         for (Entry<Integer, ExecutionSite> e : this.executors.entrySet()) {
             Thread t = new Thread(e.getValue());
             t.setDaemon(true);
-            e.getValue().setHStoreCoordinatorNode(this);
+            e.getValue().setHStoreCoordinatorSite(this);
             e.getValue().setHStoreMessenger(this.messenger);
             this.executor_threads.put(e.getKey(), t);
             t.start();
@@ -955,8 +955,12 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
                     error = new Exception(ex);
                     shutdown = true;
                 } catch (Exception ex) {
-                    if (hstore_site.shutdown == false && ex != null &&
-                        ex.getMessage() != null && ex.getMessage().contains("Connection closed") == false) {
+                    if (
+                        hstore_site.shutdown == false &&
+                        ex != null &&
+                        ex.getMessage() != null &&
+                        ex.getMessage().contains("Connection closed") == false
+                    ) {
                         LOG.fatal("Dtxn.Coordinator thread stopped", ex);
                         error = ex;
                         shutdown = true;

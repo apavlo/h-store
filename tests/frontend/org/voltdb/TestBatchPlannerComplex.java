@@ -2,17 +2,19 @@ package org.voltdb;
 
 import java.io.File;
 import java.util.List;
+import java.util.Set;
 
 import org.voltdb.benchmark.tpcc.procedures.neworder;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Statement;
+import org.voltdb.exceptions.MispredictionException;
 
 import edu.brown.BaseTestCase;
-import edu.brown.graphs.GraphUtil;
 import edu.brown.utils.ProjectType;
 import edu.brown.workload.QueryTrace;
 import edu.brown.workload.TransactionTrace;
 import edu.brown.workload.Workload;
+import edu.brown.workload.filters.BasePartitionTxnFilter;
 import edu.brown.workload.filters.MultiPartitionTxnFilter;
 import edu.brown.workload.filters.ProcedureLimitFilter;
 import edu.brown.workload.filters.ProcedureNameFilter;
@@ -20,6 +22,7 @@ import edu.brown.workload.filters.ProcedureNameFilter;
 public class TestBatchPlannerComplex extends BaseTestCase {
 
     private static final Class<? extends VoltProcedure> TARGET_PROCEDURE = neworder.class;
+    private static final int TARGET_BATCH = 1;
     private static final int WORKLOAD_XACT_LIMIT = 1;
     private static final int NUM_PARTITIONS = 50;
     private static final int BASE_PARTITION = 0;
@@ -29,12 +32,13 @@ public class TestBatchPlannerComplex extends BaseTestCase {
     private static Procedure catalog_proc;
     private static Workload workload;
 
-    private Statement catalog_stmt;
-    private SQLStmt batch[];
-    private ParameterSet args[];
+    private static SQLStmt batch[][];
+    private static ParameterSet args[][];
+    private static List<QueryTrace> query_batch[];
+    private static TransactionTrace txn_trace;
 
-    
     @Override
+    @SuppressWarnings("unchecked")
     protected void setUp() throws Exception {
         super.setUp(ProjectType.TPCC);
         this.addPartitions(NUM_PARTITIONS);
@@ -52,35 +56,89 @@ public class TestBatchPlannerComplex extends BaseTestCase {
             // Where is your god now???
             Workload.Filter filter = new ProcedureNameFilter()
                     .include(TARGET_PROCEDURE.getSimpleName())
+                    .attach(new BasePartitionTxnFilter(p_estimator, BASE_PARTITION))
                     .attach(new MultiPartitionTxnFilter(p_estimator))
                     .attach(new ProcedureLimitFilter(WORKLOAD_XACT_LIMIT));
             workload.load(file.getAbsolutePath(), catalog_db, filter);
             assert(workload.getTransactionCount() > 0);
+            
+            // Convert the first QueryTrace batch into a SQLStmt+ParameterSet batch
+            txn_trace = workload.getTransactions().get(0);
+            assertNotNull(txn_trace);
+            int num_batches = txn_trace.getBatchCount();
+            query_batch = (List<QueryTrace>[])new List<?>[num_batches];
+            batch = new SQLStmt[num_batches][];
+            args = new ParameterSet[num_batches][];
+            
+            for (int i = 0; i < query_batch.length; i++) {
+                query_batch[i] = txn_trace.getBatchQueries(i);
+                batch[i] = new SQLStmt[query_batch[i].size()];
+                args[i] = new ParameterSet[query_batch[i].size()];
+                for (int ii = 0; ii < batch[i].length; ii++) {
+                    QueryTrace query_trace = query_batch[i].get(ii);
+                    assertNotNull(query_trace);
+                    batch[i][ii] = new SQLStmt(query_trace.getCatalogItem(catalog_db));
+                    args[i][ii] = VoltProcedure.getCleanParams(batch[i][ii], query_trace.getParams());
+                } // FOR
+            } // FOR
         }
         
-        // Convert the first QueryTrace batch into a SQLStmt+ParameterSet batch
-        TransactionTrace txn_trace = workload.getTransactions().get(0);
-        assertNotNull(txn_trace);
-        List<QueryTrace> query_batch = txn_trace.getQueryBatch(1);
-        this.batch = new SQLStmt[query_batch.size()];
-        this.args = new ParameterSet[query_batch.size()];
-        for (int i = 0; i < this.batch.length; i++) {
-            QueryTrace query_trace = query_batch.get(i);
-            assertNotNull(query_trace);
-            this.batch[i] = new SQLStmt(query_trace.getCatalogItem(catalog_db));
-            this.args[i] = VoltProcedure.getCleanParams(this.batch[i], query_trace.getParams());
-        } // FOR
+
     }
     
     /**
-     * 
-     * @throws Exception
+     * testPlanMultiPartition
      */
     public void testPlanMultiPartition() throws Exception {
-        BatchPlanner batchPlan = new BatchPlanner(batch, catalog_proc, p_estimator, BASE_PARTITION);
-        BatchPlanner.BatchPlan plan = batchPlan.plan(TXN_ID, CLIENT_HANDLE, this.args, false);
+        BatchPlanner batchPlan = new BatchPlanner(batch[TARGET_BATCH], catalog_proc, p_estimator, BASE_PARTITION);
+        BatchPlanner.BatchPlan plan = batchPlan.plan(TXN_ID, CLIENT_HANDLE, args[TARGET_BATCH], false);
+        assertNotNull(plan);
+    }
+    
+    /**
+     * testMispredict
+     */
+    public void testMispredict() throws Exception {
+        BatchPlanner batchPlan = new BatchPlanner(batch[TARGET_BATCH], catalog_proc, p_estimator, BASE_PARTITION+1);
         
-//        GraphUtil.visualizeGraph(plan.getPlanGraph());
+        // Ask the planner to plan a multi-partition transaction where we have predicted it
+        // as single-partitioned. It should throw a nice MispredictionException
+        BatchPlanner.BatchPlan plan = null;
+        boolean caught = false;
+        try {
+            plan = batchPlan.plan(TXN_ID, CLIENT_HANDLE, args[TARGET_BATCH], true);
+        } catch (MispredictionException ex) {
+            caught = true;
+        }
+        if (plan != null) System.err.println(plan.toString());
+        assert(caught);
+    }
+    
+    /**
+     * testGetStatementPartitions
+     */
+    public void testGetStatementPartitions() throws Exception {
+        for (int batch_idx = 0; batch_idx < query_batch.length; batch_idx++) {
+            BatchPlanner batchPlan = new BatchPlanner(batch[batch_idx], catalog_proc, p_estimator, BASE_PARTITION);
+            BatchPlanner.BatchPlan plan = batchPlan.plan(TXN_ID, CLIENT_HANDLE, args[batch_idx], false);
+            assertNotNull(plan);
+            
+            Statement catalog_stmts[] = batchPlan.getStatements();
+            assertNotNull(catalog_stmts);
+            assertEquals(query_batch[batch_idx].size(), catalog_stmts.length);
+            
+            Set<Integer> partitions[] = plan.getStatementPartitions();
+            assertNotNull(partitions);
+            
+            for (int i = 0; i < catalog_stmts.length; i++) {
+                assertEquals(query_batch[batch_idx].get(i).getCatalogItem(catalog_db), catalog_stmts[i]);
+                Set<Integer> p = partitions[i];
+                assertNotNull(p);
+                assertFalse(p.isEmpty());
+            } // FOR
+//            System.err.println(plan);
+        }
+        
     }
     
 }

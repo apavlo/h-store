@@ -223,7 +223,7 @@ public class TestBatchPlanner extends BaseTestCase {
     public void testSingleSitedRemotePlan() throws Exception {
         this.init(SINGLESITE_PROCEDURE, SINGLESITE_STATEMENT, SINGLESITE_PROCEDURE_ARGS);
         BatchPlanner batchPlan = new BatchPlanner(batch, this.catalog_proc, p_estimator, REMOTE_PARTITION);
-        BatchPlanner.BatchPlan plan = batchPlan.plan(TXN_ID, CLIENT_HANDLE, this.args, true);
+        BatchPlanner.BatchPlan plan = batchPlan.plan(TXN_ID, CLIENT_HANDLE, this.args, false);
         assertNotNull(plan);
         int local_frags = plan.getLocalFragmentCount(REMOTE_PARTITION);
         int remote_frags = plan.getRemoteFragmentCount(REMOTE_PARTITION);

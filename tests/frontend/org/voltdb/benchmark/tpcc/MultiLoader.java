@@ -210,7 +210,7 @@ public class MultiLoader extends ClientMain {
         public void run() {
             Integer warehouseId = null;
             while ((warehouseId = availableWarehouseIds.poll()) != null) {
-                LOG.info(String.format("Loading warehouse %d / %d", (m_warehouses - availableWarehouseIds.size()), m_warehouses));
+                LOG.debug(String.format("Loading warehouse %d / %d", (m_warehouses - availableWarehouseIds.size()), m_warehouses));
                 makeStock(warehouseId); // STOCK is made separately to reduce
                                         // memory consumption
                 createDataTables();
@@ -682,12 +682,12 @@ public class MultiLoader extends ClientMain {
                 for (int i = 0, cnt = customerNamesTables.size(); i < cnt; i++) {
                     VoltTable table = customerNamesTables.get(i);
                     VoltTable batch = new VoltTable(table);
-                    LOG.info(String.format("Loading replicated CUSTOMER_NAME table %02d / %02d [tuples=%d]", (i+1), cnt, table.getRowCount()));
+                    LOG.debug(String.format("Loading replicated CUSTOMER_NAME table %02d / %02d [tuples=%d]", (i+1), cnt, table.getRowCount()));
                     try {
                         for (int i2 = 0, cnt2 = table.getRowCount(); i2 < cnt2; i2++) {
                             batch.add(table.fetchRow(i2));
                             if (batch.getRowCount() == 100) {
-                                LOG.info(String.format("Loading replicated CUSTOMER_NAME table [tuples=%d/%d]", i2, cnt2));
+                                LOG.debug(String.format("Loading replicated CUSTOMER_NAME table [tuples=%d/%d]", i2, cnt2));
                                 m_voltClient.callProcedure("@LoadMultipartitionTable", "CUSTOMER_NAME", batch);
                                 batch.clearRowData();
                             }

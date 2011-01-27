@@ -167,10 +167,18 @@ public class TransactionTrace extends AbstractTraceElement<Procedure> {
     }
     
     /**
+     * Returns the number of batches in this transaction
+     * @return
+     */
+    public int getBatchCount() {
+        return (this.query_batches.size());
+    }
+    
+    /**
      * Returns an ordered set of query batch ids for this Transaction
      * @return
      */
-    public List<Integer> getQueryBatchIds() {
+    public List<Integer> getBatchIds() {
         return (this.query_batches.asList());
     }
     
@@ -178,7 +186,7 @@ public class TransactionTrace extends AbstractTraceElement<Procedure> {
      * Return a mapping of batch ids to a list of QueryTrace elements
      * @return
      */
-    public OrderedMap<Integer, List<QueryTrace>> getQueryBatches() {
+    public OrderedMap<Integer, List<QueryTrace>> getBatches() {
         return (this.query_batches);
     }
     
@@ -187,7 +195,7 @@ public class TransactionTrace extends AbstractTraceElement<Procedure> {
      * @param batch_id
      * @return
      */
-    public List<QueryTrace> getQueryBatch(int batch_id) {
+    public List<QueryTrace> getBatchQueries(int batch_id) {
         return (this.query_batches.getValue(batch_id));
     }
     

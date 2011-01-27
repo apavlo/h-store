@@ -37,13 +37,14 @@ public class TransactionEstimator {
     private transient boolean enable_recomputes = false;
     
     private final HashMap<Procedure, MarkovGraph> procedure_graphs = new HashMap<Procedure, MarkovGraph>();
-    private final transient Map<Long, State> xact_states = new ConcurrentHashMap<Long, State>();
-    private final AtomicInteger xact_count = new AtomicInteger(0); 
+    private final transient Map<Long, State> txn_states = new ConcurrentHashMap<Long, State>();
+    private final AtomicInteger txn_count = new AtomicInteger(0); 
     
     /**
      * The current state of a transaction
      */
     public final class State {
+        private final long txn_id;
         private final int base_partition;
         private final long start_time;
         private final MarkovGraph markov;
@@ -54,17 +55,19 @@ public class TransactionEstimator {
         private final Map<Statement, Integer> query_instance_cnts = new HashMap<Statement, Integer>();
         
         private Vertex current;
-        private Estimate last_estimate;
+        private Estimate estimate;
 
         /**
          * Constructor
          * @param markov - the graph that this txn is using
          * @param estimated_path - the initial path estimation from MarkovPathEstimator
          */
-        public State(int base_partition, MarkovGraph markov, List<Vertex> estimated_path, double confidence) {
+        public State(long txn_id, int base_partition, MarkovGraph markov, List<Vertex> estimated_path, double confidence) {
+            this.txn_id = txn_id;
             this.base_partition = base_partition;
             this.markov = markov;
             this.start_time = System.currentTimeMillis();
+            this.estimate = new Estimate();
             this.estimated_path = estimated_path;
             this.estimated_path_confidence = confidence;
             this.setCurrent(markov.getStartVertex());
@@ -130,11 +133,11 @@ public class TransactionEstimator {
         }
 
         public Estimate getLastEstimate() {
-            return this.last_estimate;
+            return this.estimate;
         }
 
         public void setLastEstimate(Estimate last_estimate) {
-            this.last_estimate = last_estimate;
+            this.estimate = last_estimate;
         }
         
         @Override
@@ -158,8 +161,15 @@ public class TransactionEstimator {
 
         // Partition-specific
         private final double finished[];
+        private Set<Integer> finished_partitions;
+        private Set<Integer> target_partitions;
+        
         private final double read[];
+        private Set<Integer> read_partitions;
+        
         private final double write[];
+        private Set<Integer> write_partitions;
+        
         private Long time;
 
         public Estimate() {
@@ -206,32 +216,39 @@ public class TransactionEstimator {
             return time;
         }
         
-        private Set<Integer> getPartitions(double values[], double limit, boolean inverse) {
-            Set<Integer> ret = new HashSet<Integer>();
+        private void getPartitions(Set<Integer> partitions, double values[], double limit, boolean inverse) {
+            partitions.clear();
             for (int i = 0; i < values.length; i++) {
                 if (inverse) {
-                    if ((1 - values[i]) >= limit) ret.add(i);
+                    if ((1 - values[i]) >= limit) partitions.add(i);
                 } else {
-                    if (values[i] >= limit) ret.add(i);
+                    if (values[i] >= limit) partitions.add(i);
                 }
             } // FOR
-            return (ret);
         }
 
         public Set<Integer> getReadOnlyPartitions(EstimationThresholds t) {
-            return (this.getPartitions(this.read, t.getReadThreshold(), false));
+            if (this.read_partitions == null) this.read_partitions = new HashSet<Integer>();
+            this.getPartitions(this.read_partitions, this.read, t.getReadThreshold(), false);
+            return (this.read_partitions);
         }
 
         public Set<Integer> getWritePartitions(EstimationThresholds t) {
-            return (this.getPartitions(this.write, t.getWriteThreshold(), false));
+            if (this.write_partitions == null) this.write_partitions = new HashSet<Integer>();
+            this.getPartitions(this.write_partitions, this.write, t.getWriteThreshold(), false);
+            return (this.write_partitions);
         }
 
         public Set<Integer> getFinishedPartitions(EstimationThresholds t) {
-            return (this.getPartitions(this.finished, t.getDoneThreshold(), false));
+            if (this.finished_partitions == null) this.finished_partitions = new HashSet<Integer>();
+            this.getPartitions(this.finished_partitions, this.finished, t.getDoneThreshold(), false);
+            return (this.finished_partitions);
         }
         
         public Set<Integer> getTargetPartitions(EstimationThresholds t) {
-            return (this.getPartitions(this.finished, t.getDoneThreshold(), true));
+            if (this.target_partitions == null) this.target_partitions = new HashSet<Integer>();
+            this.getPartitions(this.target_partitions, this.finished, t.getDoneThreshold(), true);
+            return (this.target_partitions);
         }
         
         @Override
@@ -328,9 +345,16 @@ public class TransactionEstimator {
      * @return
      */
     public State getState(long txn_id) {
-        State s = this.xact_states.get(txn_id);
-        assert(s != null) : "Unexpected Transaction #" + txn_id;
-        return (s);
+        return (this.txn_states.get(txn_id));
+    }
+    
+    /**
+     * Returns true if this TransactionEstimator is following a transaction
+     * @param txn_id
+     * @return
+     */
+    public boolean hasState(long txn_id) {
+        return (this.txn_states.containsKey(txn_id));
     }
     
     /**
@@ -339,12 +363,12 @@ public class TransactionEstimator {
      * @return
      */
     protected List<Vertex> getInitialPath(long txn_id) {
-        State s = this.xact_states.get(txn_id);
+        State s = this.txn_states.get(txn_id);
         assert(s != null) : "Unexpected Transaction #" + txn_id;
         return (s.getEstimatedPath());
     }
     protected double getConfidence(long txn_id) {
-        State s = this.xact_states.get(txn_id);
+        State s = this.txn_states.get(txn_id);
         assert(s != null) : "Unexpected Transaction #" + txn_id;
         return (s.getEstimatedPathConfidence());
     }
@@ -410,12 +434,12 @@ public class TransactionEstimator {
         }
         assert(path_estimate != null);
         
-        State state = new State(base_partition, graph, path_estimate.getVisitPath(), path_estimate.getConfidence());
-        this.xact_states.put(xact_id, state);
-        Estimate estimate = this.generateEstimate(state);
+        State state = new State(xact_id, base_partition, graph, path_estimate.getVisitPath(), path_estimate.getConfidence());
+        this.txn_states.put(xact_id, state);
+        this.generateEstimate(state);
         
-        this.xact_count.incrementAndGet();
-        return (estimate);
+        this.txn_count.incrementAndGet();
+        return (state.estimate);
     }
 
     /**
@@ -426,34 +450,41 @@ public class TransactionEstimator {
      * @param partitions
      * @return
      */
-    public Estimate executeQueries(long xact_id, Statement catalog_stmts[], Integer partitions[][]) {
+    public Estimate executeQueries(long xact_id, Statement catalog_stmts[], Set<Integer> partitions[]) {
         assert (catalog_stmts.length == partitions.length);       
-        State state = this.xact_states.get(xact_id);
+        State state = this.txn_states.get(xact_id);
         if (state == null) {
             String msg = "No state information exists for txn #" + xact_id;
             LOG.debug(msg);
             return (null);
             // throw new RuntimeException(msg);
         }
-        
+        return (this.executeQueries(state, catalog_stmts, partitions));
+    }
+    
+    /**
+     * 
+     * @param state
+     * @param catalog_stmts
+     * @param partitions
+     * @return
+     */
+    public Estimate executeQueries(State state, Statement catalog_stmts[], Set<Integer> partitions[]) {
         // Roll through the Statements in this batch and move the current vertex
         // for the txn's State handle along the path in the MarkovGraph
         for (int i = 0; i < catalog_stmts.length; i++) {
-            List<Integer> stmt_partitions = new ArrayList<Integer>();
-            for (int p : partitions[i]) stmt_partitions.add(p);
-            this.consume(xact_id, state, catalog_stmts[i], stmt_partitions);
+            this.consume(state, catalog_stmts[i], partitions[i]);
         } // FOR
         
-        // Now 
-        Estimate estimate = this.generateEstimate(state);
-        assert(estimate != null);
+        this.generateEstimate(state);
+        assert(state.estimate != null);
         
         // Once the workload shifts we detect it and trigger this method. Recomputes
         // the graph with the data we collected with the current workload method.
-        if (this.enable_recomputes && state.getMarkovGraph().shouldRecompute(this.xact_count.get(), RECOMPUTE_TOLERANCE)) {
+        if (this.enable_recomputes && state.getMarkovGraph().shouldRecompute(this.txn_count.get(), RECOMPUTE_TOLERANCE)) {
             state.getMarkovGraph().recomputeGraph();
         }
-        return (estimate);
+        return (state.estimate);
     }
 
     /**
@@ -480,7 +511,7 @@ public class TransactionEstimator {
     public State ignore(long xact_id) {
         // We can just remove its state and pass it back
         // We don't care if it's valid or not
-        return (this.xact_states.remove(xact_id));
+        return (this.txn_states.remove(xact_id));
     }
     
     /**
@@ -490,7 +521,7 @@ public class TransactionEstimator {
      * @return
      */
     private State completeTransaction(long xact_id, Vertex.Type vtype) {
-        State s = this.xact_states.remove(xact_id);
+        State s = this.txn_states.remove(xact_id);
         if (s == null) {
             String msg = "No state information exists for txn #" + xact_id;
             LOG.debug(msg);
@@ -520,7 +551,7 @@ public class TransactionEstimator {
     }
 
     public void removeTransaction(long txn_id) {
-        this.xact_states.remove(txn_id);
+        this.txn_states.remove(txn_id);
     }
     
     // ----------------------------------------------------------------------------
@@ -535,8 +566,8 @@ public class TransactionEstimator {
      * @param current
      *            - the Vertex we are currently at in the MarkovGraph
      */
-    protected Estimate generateEstimate(State state) {
-        Estimate estimate = new Estimate();
+    protected void generateEstimate(State state) {
+        Estimate estimate = state.estimate; // We always reuse the same one per txn
         Vertex current = state.getCurrent();
         estimate.singlepartition = current.getSingleSitedProbability();
         estimate.userabort = current.getAbortProbability();
@@ -546,8 +577,6 @@ public class TransactionEstimator {
             estimate.read[i] = current.getReadOnlyProbability(i);
             estimate.write[i] = current.getWriteProbability(i);
         } // FOR
-        state.setLastEstimate(estimate);
-        return (estimate);
     }
 
     /**
@@ -573,7 +602,7 @@ public class TransactionEstimator {
      * @param catalog_stmt
      * @param partitions
      */
-    protected void consume(long xact_id, State state, Statement catalog_stmt, Collection<Integer> partitions) {
+    protected void consume(State state, Statement catalog_stmt, Collection<Integer> partitions) {
         final boolean trace = LOG.isTraceEnabled(); 
         
         // Update the number of times that we have executed this query in the txn
@@ -585,13 +614,13 @@ public class TransactionEstimator {
         // Examine all of the vertices that are adjacent to our current vertex
         // and see which vertex we are going to move to next
         Collection<Edge> edges = g.getOutEdges(state.getCurrent()); 
-        if (trace) LOG.trace("Examining " + edges.size() + " edges from " + state.getCurrent() + " for Txn #" + xact_id);
+        if (trace) LOG.trace("Examining " + edges.size() + " edges from " + state.getCurrent() + " for Txn #" + state.txn_id);
         Vertex next_v = null;
         Edge next_e = null;
         for (Edge e : edges) {
             Vertex v = g.getDest(e);
             if (v.isEqual(catalog_stmt, partitions, state.getTouchedPartitions(), queryInstanceIndex)) {
-                if (trace) LOG.trace("Found next vertex " + v + " for Txn #" + xact_id);
+                if (trace) LOG.trace("Found next vertex " + v + " for Txn #" + state.txn_id);
                 next_v = v;
                 next_e = e;
                 break;
@@ -609,44 +638,44 @@ public class TransactionEstimator {
                                 state.getTouchedPartitions());
             g.addVertex(next_v);
             next_e = g.addToEdge(state.getCurrent(), next_v);
-            if (trace) LOG.trace("Created new edge/vertex from " + state.getCurrent() + " for Txn #" + xact_id);
+            if (trace) LOG.trace("Created new edge/vertex from " + state.getCurrent() + " for Txn #" + state.txn_id);
         }
 
         // Update the counters and other info for the next vertex and edge
-        next_v.addInstanceTime(xact_id, state.getExecutionTimeOffset());
+        next_v.addInstanceTime(state.txn_id, state.getExecutionTimeOffset());
         next_v.incrementInstancehits();
         next_e.incrementInstancehits();
         
         // Update the state information
         state.setCurrent(next_v);
         state.addTouchedPartitions(partitions);
-        if (trace) LOG.trace("Updated State Information for Txn #" + xact_id + ": " + state);
+        if (trace) LOG.trace("Updated State Information for Txn #" + state.txn_id + ": " + state);
     }
 
     // ----------------------------------------------------------------------------
     // HELPER METHODS
     // ----------------------------------------------------------------------------
     
+    @SuppressWarnings("unchecked")
     public State processTransactionTrace(TransactionTrace txn_trace) throws Exception {
         long txn_id = txn_trace.getTransactionId();
         Estimate last_est = this.startTransaction(txn_id, txn_trace.getCatalogItem(this.catalog_db), txn_trace.getParams());
         assert(last_est != null);
         State s = this.getState(txn_id);
         assert(s != null);
-        for (Entry<Integer, List<QueryTrace>> e : txn_trace.getQueryBatches().entrySet()) {
+        for (Entry<Integer, List<QueryTrace>> e : txn_trace.getBatches().entrySet()) {
             int batch_size = e.getValue().size();
             
             // Generate the data structures we will need to give to the TransactionEstimator
             Statement catalog_stmts[] = new Statement[batch_size];
-            Integer partitions[][] = new Integer[batch_size][];
+            Set<Integer> partitions[] = (Set<Integer>[])new Set<?>[batch_size];
             for (int i = 0; i < batch_size; i++) {
                 QueryTrace query_trace = e.getValue().get(i);
                 assert(query_trace != null);
                 catalog_stmts[i] = query_trace.getCatalogItem(catalog_db);
                 
-                Set<Integer> stmt_partitions = this.p_estimator.getAllPartitions(query_trace, s.getBasePartition());
-                assert(stmt_partitions.isEmpty() == false);
-                partitions[i] = stmt_partitions.toArray(new Integer[stmt_partitions.size()]);
+                partitions[i] = this.p_estimator.getAllPartitions(query_trace, s.getBasePartition());
+                assert(partitions[i].isEmpty() == false) : "No partitions for " + query_trace;
             } // FOR
             
             last_est = this.executeQueries(txn_id, catalog_stmts, partitions);

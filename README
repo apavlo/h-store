@@ -3,7 +3,8 @@
 ## | || |___/ __|_   _/ _ \| _ \ __|
 ## | __ |___\__ \ | || (_) |   / _| 
 ## |_||_|   |___/ |_| \___/|_|_\___|
-##                                 
+##
+## Next Generation OLTP DBMS Research
 ## -------------------------------------------------------
 
 More information and documenation is available at:
@@ -14,15 +15,19 @@ http://hstore.cs.brown.edu
 ## RUNNING A BENCHMARK
 ## -------------------------------------------------------
 
-Available benchmarks: tpcc, markov, tm1
+Available benchmarks: tpcc, markov, tm1, auctionmark
 
-(1) First make the project jar file. You will need to do this step everytime you 
+(1) First build the entire distribution:
+
+    $ ant build
+
+(2) Next make the project jar file. You will need to do this step everytime you 
     change the benchmark source code in $HSTORE_DIR/tests/
 
     $ export HSTORE_BENCHMARK=tm1
     $ ant hstore-prepare -Dproject=$HSTORE_BENCHMARK
-    
-(2) You can now execute the benchmark locally on your machine with two partitions
+
+(3) You can now execute the benchmark locally on your machine with two partitions
 
     $ ant hstore-benchmark -Dproject=$HSTORE_BENCHMARK
 
@@ -30,5 +35,5 @@ Available benchmarks: tpcc, markov, tm1
 ## VIEWING CATALOG
 ## -------------------------------------------------------
 
-$ ant viewer -Djar=./$HSTORE_BENCHMARK.jar
+$ ant catalog-viewer -Dproject=$HSTORE_BENCHMARK
 

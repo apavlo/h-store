@@ -45,12 +45,14 @@ import org.apache.commons.pool.BasePoolableObjectFactory;
 import org.apache.log4j.Logger;
 import org.voltdb.BatchPlanner;
 import org.voltdb.ExecutionSite;
+import org.voltdb.VoltProcedure;
 import org.voltdb.VoltTable;
 import org.voltdb.messaging.FragmentTaskMessage;
 import org.voltdb.utils.Pair;
 
 import com.google.protobuf.RpcCallback;
 
+import edu.brown.markov.TransactionEstimator;
 import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.StringUtil;
 import edu.mit.dtxn.Dtxn;
@@ -107,6 +109,10 @@ public class LocalTransactionState extends TransactionState {
      */
     private RpcCallback<Dtxn.FragmentResponse> coordinator_callback;
 
+    /**
+     * 
+     */
+    private VoltProcedure volt_procedure;
     
     // ----------------------------------------------------------------------------
     // ROUND DATA MEMBERS
@@ -174,6 +180,11 @@ public class LocalTransactionState extends TransactionState {
      */
     private int received_ctr = 0;
     
+    /**
+     * TransctionEstimator State Handle
+     */
+    private TransactionEstimator.State estimator_state;
+    
     // ----------------------------------------------------------------------------
     // INITIALIZATION
     // ----------------------------------------------------------------------------
@@ -202,6 +213,8 @@ public class LocalTransactionState extends TransactionState {
         super.finished();
 
         this.coordinator_callback = null;
+        this.volt_procedure = null;
+        this.estimator_state = null;
         this.clearRound();
     }
     
@@ -319,6 +332,14 @@ public class LocalTransactionState extends TransactionState {
     }
     
     
+    public VoltProcedure getVoltProcedure() {
+        return this.volt_procedure;
+    }
+    
+    public void setVoltProcedure(VoltProcedure voltProcedure) {
+        this.volt_procedure = voltProcedure;
+    }
+    
     public int getDependencyCount() { 
         return (this.dependency_ctr);
     }
@@ -327,6 +348,14 @@ public class LocalTransactionState extends TransactionState {
     }
     protected Set<FragmentTaskMessage> getBlockedFragmentTaskMessages() {
         return (this.blocked_tasks);
+    }
+    
+    public TransactionEstimator.State getEstimatorState() {
+        return (this.estimator_state);
+    }
+    
+    public void setEstimatorState(TransactionEstimator.State state) {
+        this.estimator_state = state;
     }
     
     /**

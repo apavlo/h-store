@@ -17,22 +17,24 @@
 
 package org.voltdb.sysprocs;
 
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 import org.apache.log4j.Logger;
-import org.voltdb.HsqlBackend;
 import org.voltdb.BackendTarget;
 import org.voltdb.DependencySet;
 import org.voltdb.ExecutionSite;
+import org.voltdb.HsqlBackend;
 import org.voltdb.ParameterSet;
 import org.voltdb.ProcInfo;
 import org.voltdb.VoltSystemProcedure;
 import org.voltdb.VoltTable;
 import org.voltdb.VoltType;
 import org.voltdb.ExecutionSite.SystemProcedureExecutionContext;
-import org.voltdb.catalog.*;
+import org.voltdb.catalog.Cluster;
+import org.voltdb.catalog.Database;
+import org.voltdb.catalog.Procedure;
+import org.voltdb.catalog.Table;
 import org.voltdb.dtxn.DtxnConstants;
 
 import edu.brown.catalog.CatalogUtil;
@@ -72,7 +74,7 @@ public class LoadMultipartitionTable extends VoltSystemProcedure {
                                              int fragmentId,
                                              ParameterSet params,
                                              SystemProcedureExecutionContext context) {
-        final boolean trace = LOG.isTraceEnabled();
+//        final boolean trace = LOG.isTraceEnabled();
         final boolean debug = LOG.isDebugEnabled();
         
         // need to return something ..
