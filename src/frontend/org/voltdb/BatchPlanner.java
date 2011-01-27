@@ -117,6 +117,7 @@ public class BatchPlanner {
         final Integer input_dependency_id;
         final Integer output_dependency_id;
         final int stmt_index;
+        final int hash_code;
 
         public PlanVertex(PlanFragment catalog_frag,
                           int frag_id,
@@ -131,19 +132,18 @@ public class BatchPlanner {
             this.input_dependency_id = input_dependency_id;
             this.output_dependency_id = output_dependency_id;
             this.stmt_index = stmt_index;
+            this.hash_code = this.frag_id | this.round<<8 | this.round<<16;  
         }
         
         @Override
         public boolean equals(Object obj) {
             if (!(obj instanceof PlanVertex)) return (false);
-            PlanVertex other = (PlanVertex)obj;
-            if (this.frag_id != other.frag_id ||
-                this.round != other.round ||
-                this.stmt_index != other.stmt_index ||
-                this.input_dependency_id != other.input_dependency_id ||
-                this.output_dependency_id != other.output_dependency_id
-            ) return (false);
-            return (true);
+            return (this.hash_code != ((PlanVertex)obj).hash_code);
+        }
+        
+        @Override
+        public int hashCode() {
+            return (this.hash_code);
         }
         
         @Override
@@ -434,22 +434,18 @@ public class BatchPlanner {
             this.current_stmt_partitions[i] = new HashSet<Integer>();
             this.current_frag_partitions[i] = new HashMap<PlanFragment, Set<Integer>>();
         } // FOR
-        
-        // Optimization: We will construct a cache based on whether the queries are single-partitioned or not
-        //               That way after we figure out what partitions the batch will touch (based on the parameters)
-        //               we can grab a PlanGraph that has the same structure and we can just create new FragmentTaskMessages
-        //               with the proper dependency ids and order. This is so that we can make sure that we execute stuff
-        
-        
     }
-   
+
     /**
      * 
+     * @param txn_id
+     * @param client_handle
      * @param batchArgs
-     * @param predict_singlepartitioned TODO
+     * @param predict_singlepartitioned
+     * @return
      */
     public BatchPlan plan(long txn_id, long client_handle, ParameterSet[] batchArgs, boolean predict_singlepartitioned) {
-        if (debug.get()) LOG.debug("Constructing a new BatchPlan for " + this.catalog_proc);
+        if (debug.get()) LOG.debug(String.format("Constructing a new %s BatchPlan for txn #%d", this.catalog_proc.getName(), txn_id));
         
         BatchPlan plan = null;
         try {
@@ -521,6 +517,7 @@ public class BatchPlanner {
                 } // WHILE
             } catch (Exception ex) {
                 LOG.fatal("Unexpected error when planning " + catalog_stmt.fullName(), ex);
+                ex.printStackTrace();
                 throw new RuntimeException(ex);
             }
             
@@ -641,10 +638,6 @@ public class BatchPlanner {
             }
             assert(plan.param_buffers[stmt_index] != null) : "Parameter ByteBuffer is null for Statement #" + stmt_index;
         } // FOR
-        
-        // Roots
-        Set<PlanVertex> roots = graph.getRoots();
-        assert(roots.isEmpty() == false);
         
         if (trace.get()) LOG.trace("Generated " + plan.rounds_length + " rounds of tasks for txn #"+ txn_id);
         for (int round = 0; round < plan.rounds_length; round++) {
