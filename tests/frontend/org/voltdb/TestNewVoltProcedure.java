@@ -1,7 +1,6 @@
 package org.voltdb;
 
 import java.util.Observable;
-import java.util.Random;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
@@ -31,7 +30,6 @@ public class TestNewVoltProcedure extends BaseTestCase {
     
     private static ExecutionSite site;
     private static PartitionEstimator p_estimator;
-    private final Random rand = new Random(); 
     
     private VoltProcedure volt_proc;
     
@@ -48,7 +46,7 @@ public class TestNewVoltProcedure extends BaseTestCase {
             p_estimator = new PartitionEstimator(catalog_db);
             site = new MockExecutionSite(PARTITION_ID, catalog, p_estimator);
         }
-        volt_proc = site.getProcedure(TARGET_PROCEDURE);
+        volt_proc = site.getNewVoltProcedure(TARGET_PROCEDURE);
         assertNotNull(volt_proc);
     }
         
@@ -70,7 +68,6 @@ public class TestNewVoltProcedure extends BaseTestCase {
         Long xact_id = NEXT_TXN_ID.getAndIncrement();
         TransactionState ts = new LocalTransactionState(site).init(xact_id, CLIENT_HANDLE++, PARTITION_ID);
         site.txn_states.put(xact_id, ts);
-        site.running_xacts.put(xact_id, volt_proc);
         
         // 2010-11-12: call() no longer immediately updates the internal state of the VoltProcedure
         //             so there is no way for us to check whether things look legit until we get

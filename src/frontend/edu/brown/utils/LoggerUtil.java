@@ -20,13 +20,48 @@ public abstract class LoggerUtil {
     private static long last_timestamp = 0;
     private static final EventObservable observable = new EventObservable();
     
+    public static class LoggerBoolean {
+        private boolean val = true;
+    
+        public LoggerBoolean(boolean val) {
+            this.val = val;
+        }
+        
+        public boolean get() {
+            return (this.val);
+        }
+        
+        public void set(boolean val) {
+            this.val = val;
+        }
+    }
+    
     private static class LoggerObserver extends EventObserver {
+        
+        private final Logger logger;
+        private final LoggerBoolean debug;
+        private final LoggerBoolean trace;
+        
+        public LoggerObserver(Logger logger, LoggerBoolean debug, LoggerBoolean trace) {
+            this.logger = logger;
+            this.debug = debug;
+            this.trace = trace;
+        }
+        
+        @Override
+        public void update(Observable o, Object arg) {
+            this.debug.set(this.logger.isDebugEnabled());
+            this.trace.set(this.logger.isTraceEnabled());
+        }
+    }
+    
+    private static class AtomicObserver extends EventObserver {
         
         private final Logger logger;
         private final AtomicBoolean debug;
         private final AtomicBoolean trace;
         
-        public LoggerObserver(Logger logger, AtomicBoolean debug, AtomicBoolean trace) {
+        public AtomicObserver(Logger logger, AtomicBoolean debug, AtomicBoolean trace) {
             this.logger = logger;
             this.debug = debug;
             this.trace = trace;
@@ -108,8 +143,12 @@ public abstract class LoggerUtil {
     }
     
     
-    public static void attachObserver(Logger logger, AtomicBoolean debug, AtomicBoolean trace) {
+    public static void attachObserver(Logger logger, LoggerBoolean debug, LoggerBoolean trace) {
         LoggerUtil.attachObserver(new LoggerObserver(logger, debug, trace));
+    }
+    
+    public static void attachObserver(Logger logger, AtomicBoolean debug, AtomicBoolean trace) {
+        LoggerUtil.attachObserver(new AtomicObserver(logger, debug, trace));
     }
     
     public static void attachObserver(EventObserver observer) {

@@ -40,4 +40,9 @@ public class MispredictionException extends SerializableException {
         return this.txn_id;
     }
     
+    @Override
+    public String getMessage() {
+        return ("Mispredicted txn #" + this.txn_id);
+    }
+    
 }

@@ -36,6 +36,8 @@ import org.voltdb.types.TimestampType;
 
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.hashing.AbstractHasher;
+import edu.brown.markov.EstimationThresholds;
+import edu.brown.markov.TransactionEstimator;
 import edu.brown.utils.EventObservable;
 import edu.brown.utils.EventObserver;
 import edu.brown.utils.LoggerUtil;
@@ -63,7 +65,6 @@ public abstract class VoltProcedure {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
     
-
     // Used to get around the "abstract" for StmtProcedures.
     // Path of least resistance?
     static class StmtProcedure extends VoltProcedure {}
@@ -106,7 +107,7 @@ public abstract class VoltProcedure {
     private Long txn_id;
     private Long client_handle;
     private boolean predict_singlepartition;
-    private TransactionState m_currentTxnState;  // assigned in call()
+    private LocalTransactionState m_currentTxnState;  // assigned in call()
     private final SQLStmt batchQueryStmts[] = new SQLStmt[1000];
     private int batchQueryStmtIndex = 0;
     private final Object[] batchQueryArgs[] = new Object[1000][];
@@ -118,17 +119,12 @@ public abstract class VoltProcedure {
     protected String procedure_name;
     protected AbstractHasher hasher;
     protected PartitionEstimator p_estimator;
+    protected EstimationThresholds thresholds;
     
     protected Integer local_partition;
     
     // Callback for when the VoltProcedure finishes and we need to send a ClientResponse somewhere
     private final EventObservable observable = new EventObservable();
-
-    /**
-     * Mapping from SQLStmt batch hash codes (computed by VoltProcedure.getBatchHashCode()) to BatchPlanners
-     * The idea is that we can quickly derived the partitions for each unique set of SQLStmt list
-     */
-    private final Map<Integer, BatchPlanner> batch_planners = new HashMap<Integer, BatchPlanner>();
 
     /**
      * Status code that can be set by stored procedure upon invocation that will be returned with the response.
@@ -166,11 +162,11 @@ public abstract class VoltProcedure {
                 long current_txn_id = txnState.getTransactionId();
                 long client_handle = txnState.getClientHandle();
                 assert(VoltProcedure.this.txn_id == null) : "Old Transaction Id: " + VoltProcedure.this.txn_id + " -> New Transaction Id: " + current_txn_id;
-                VoltProcedure.this.m_currentTxnState = txnState;
+                VoltProcedure.this.m_currentTxnState = (LocalTransactionState)txnState;
                 VoltProcedure.this.txn_id = current_txn_id;
                 VoltProcedure.this.client_handle = client_handle;
                 VoltProcedure.this.procParams = paramList;
-                VoltProcedure.this.predict_singlepartition = ((LocalTransactionState)VoltProcedure.this.m_currentTxnState).isPredictSinglePartition();
+                VoltProcedure.this.predict_singlepartition = VoltProcedure.this.m_currentTxnState.isPredictSinglePartition();
                 
                 if (debug.get()) LOG.debug("Starting execution of txn #" + current_txn_id);
                 
@@ -235,7 +231,7 @@ public abstract class VoltProcedure {
      * non-coordinator sites.
      */
     public void setTransactionState(TransactionState txnState) {
-        m_currentTxnState = txnState;
+        m_currentTxnState = (LocalTransactionState)txnState;
     }
 
     public TransactionState getTransactionState() {
@@ -271,6 +267,7 @@ public abstract class VoltProcedure {
         this.local_partition = this.m_site.getPartitionId();
         
         this.p_estimator = p_estimator;
+        this.thresholds = this.m_site.getHStoreSite().getThresholds();
         this.hasher = this.p_estimator.getHasher();
         // LOG.debug("Initialized VoltProcedure for " + catProc + " [local=" + local_partition + ",total=" + this.hasher.getNumPartitions() + "]");
         
@@ -994,44 +991,49 @@ public abstract class VoltProcedure {
         if (stmtCount == 0)
             return new VoltTable[] {};
 
-        if (ProcedureProfiler.profilingLevel == ProcedureProfiler.Level.INTRUSIVE) {
-            assert(batchStmts.length == 1);
-            assert(batchStmts[0].numFragGUIDs == 1);
-            ProcedureProfiler.startStatementCounter(batchStmts[0].fragGUIDs[0]);
-        }
-        else ProcedureProfiler.startStatementCounter(-1);
+//        if (ProcedureProfiler.profilingLevel == ProcedureProfiler.Level.INTRUSIVE) {
+//            assert(batchStmts.length == 1);
+//            assert(batchStmts[0].numFragGUIDs == 1);
+//            ProcedureProfiler.startStatementCounter(batchStmts[0].fragGUIDs[0]);
+//        }
+//        else ProcedureProfiler.startStatementCounter(-1);
 
         /*if (lastBatchNeedsRollback) {
             lastBatchNeedsRollback = false;
             m_site.ee.undoUndoToken(m_site.undoWindowEnd);
         }*/
-        
-        //
-        // Calculate the hash code for this batch to see whether we already have a planner
-        //
-        final int batchSize = stmtCount;
-        final Integer batchHashCode = VoltProcedure.getBatchHashCode(batchStmts, batchSize);
-        BatchPlanner planner = this.batch_planners.get(batchHashCode);
-        if (planner == null) {
-            planner = new BatchPlanner(batchStmts, batchSize, this.catProc, this.p_estimator, this.local_partition);
-            this.batch_planners.put(batchHashCode, planner);
-        }
-        assert(planner != null);
 
         // Create a list of clean parameters
+        final int batchSize = stmtCount;
         final ParameterSet params[] = new ParameterSet[batchSize];
         for (int i = 0; i < batchSize; i++) {
             params[i] = getCleanParams(batchStmts[i], batchArgs[i]);
         } // FOR
 
-        // TODO: At this point we have to calculate exactly what we need to do on each partition
-        //       for this batch. So somehow right now we need to fire this off to either our
-        //       local executor or to Evan's magical distributed transaction manager
+        
+        // Calculate the hash code for this batch to see whether we already have a planner
+        final Integer batchHashCode = VoltProcedure.getBatchHashCode(batchStmts, batchSize);
+        BatchPlanner planner = null;
+        synchronized (this.m_site.batch_planners) {
+            planner = this.m_site.batch_planners.get(batchHashCode);
+            if (planner == null) {
+                planner = new BatchPlanner(batchStmts, batchSize, this.catProc, this.p_estimator, this.local_partition);
+                this.m_site.batch_planners.put(batchHashCode, planner);
+            }
+        } // SYNCHRONIZED
+        assert(planner != null);
+
+        // At this point we have to calculate exactly what we need to do on each partition
+        // for this batch. So somehow right now we need to fire this off to either our
+        // local executor or to Evan's magical distributed transaction manager
         BatchPlanner.BatchPlan plan = planner.plan(this.txn_id, this.client_handle, params, this.predict_singlepartition);
         
         // Tell the TransactionEstimator that we're about to execute these mofos
-        // TODO(pavlo+evanj): We need to do something with the estimate
-        // TransactionEstimator.Estimate estimate = this.m_site.getTransactionEstimator().executeQueries(this.xact_id, plan.getStatements(), plan.getStatementPartitions());
+        TransactionEstimator t_estimator = this.m_site.getTransactionEstimator();
+        TransactionEstimator.State t_state = this.m_currentTxnState.getEstimatorState();
+        if (t_state != null) {
+            t_estimator.executeQueries(t_state, planner.getStatements(), plan.getStatementPartitions());
+        }
         
         LOG.debug("BatchPlan for txn #" + this.txn_id + ":\n" + plan.toString());
         
@@ -1057,7 +1059,7 @@ public abstract class VoltProcedure {
         // Block until we get all of our responses.
         // We can do this because our ExecutionSite is multi-threaded
         final VoltTable results[] = this.m_site.waitForResponses(this.txn_id, tasks, plan.getBatchSize());
-        assert(results != null);
+        assert(results != null) : "Got back a null results array for txn #" + this.txn_id + "\n" + plan.toString();
 
         // important not to forget
         ProcedureProfiler.stopStatementCounter();

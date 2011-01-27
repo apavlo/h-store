@@ -27,7 +27,6 @@ import java.nio.ByteBuffer;
 import java.util.*;
 import java.util.Map.Entry;
 import java.util.concurrent.*;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.voltdb.catalog.*;
@@ -49,8 +48,6 @@ import org.voltdb.utils.Encoder;
 import org.voltdb.utils.DBBPool.BBContainer;
 import org.voltdb.VoltProcedure.*;
 
-import ca.evanjones.protorpc.ProtoRpcController;
-
 import com.google.protobuf.ByteString;
 import com.google.protobuf.RpcCallback;
 
@@ -58,6 +55,7 @@ import edu.brown.catalog.CatalogUtil;
 import edu.brown.markov.TransactionEstimator;
 import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.PartitionEstimator;
+import edu.brown.utils.LoggerUtil.LoggerBoolean;
 import edu.mit.dtxn.Dtxn;
 import edu.mit.hstore.HStoreSite;
 import edu.mit.hstore.HStoreMessenger;
@@ -73,8 +71,8 @@ import edu.mit.hstore.dtxn.TransactionState;
  */
 public class ExecutionSite implements Runnable {
     public static final Logger LOG = Logger.getLogger(ExecutionSite.class);
-    private final static AtomicBoolean debug = new AtomicBoolean(LOG.isDebugEnabled());
-    private final static AtomicBoolean trace = new AtomicBoolean(LOG.isTraceEnabled());
+    private final static LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private final static LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
     static {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
@@ -90,11 +88,6 @@ public class ExecutionSite implements Runnable {
 
     private static final int NODE_THREAD_POOL_SIZE = 1;
 
-    /**
-     * Default number of VoltProcedure threads to keep around
-     */
-    private static final int NODE_VOLTPROCEDURE_POOL_SIZE = 5;
-
     // ----------------------------------------------------------------------------
     // OBJECT POOLS
     // ----------------------------------------------------------------------------
@@ -108,6 +101,74 @@ public class ExecutionSite implements Runnable {
      * RemoteTransactionState Object Pool
      */
     private final ObjectPool remoteTxnPool = new StackObjectPool(new RemoteTransactionState.Factory(this));
+    
+    /**
+     * Create a new instance of the corresponding VoltProcedure for the given Procedure catalog object
+     */
+    public class VoltProcedureFactory extends BasePoolableObjectFactory {
+        private final Procedure catalog_proc;
+        private final boolean has_java;
+        private final Class<? extends VoltProcedure> proc_class;
+        
+        @SuppressWarnings("unchecked")
+        public VoltProcedureFactory(Procedure catalog_proc) {
+            this.catalog_proc = catalog_proc;
+            this.has_java = this.catalog_proc.getHasjava();
+            
+            // Only try to load the Java class file for the SP if it has one
+            Class<? extends VoltProcedure> p_class = null;
+            if (catalog_proc.getHasjava()) {
+                final String className = catalog_proc.getClassname();
+                try {
+                    p_class = (Class<? extends VoltProcedure>)Class.forName(className);
+                } catch (final ClassNotFoundException e) {
+                    LOG.fatal("Failed to load procedure class '" + className + "'", e);
+                    System.exit(1);
+                }
+            }
+            this.proc_class = p_class;
+
+        }
+        @Override
+        public Object makeObject() throws Exception {
+            VoltProcedure volt_proc = null;
+            try {
+                if (this.has_java) {
+                    volt_proc = (VoltProcedure)this.proc_class.newInstance();
+                } else {
+                    volt_proc = new VoltProcedure.StmtProcedure();
+                }
+                // volt_proc.registerCallback(this.callback);
+                volt_proc.init(ExecutionSite.this,
+                               this.catalog_proc,
+                               ExecutionSite.this.backend_target,
+                               ExecutionSite.this.hsql,
+                               ExecutionSite.this.cluster,
+                               ExecutionSite.this.p_estimator,
+                               ExecutionSite.this.getPartitionId());
+            } catch (Exception e) {
+                if (debug.get()) LOG.warn("Failed to created VoltProcedure instance for " + catalog_proc.getName() , e);
+                throw e;
+            }
+            return (volt_proc);
+        }
+    };
+
+    /**
+     * Procedure Name -> VoltProcedure Object Pool
+     */
+    private final Map<String, ObjectPool> procPool = new HashMap<String, ObjectPool>();
+    
+    /**
+     * VoltProcedure.Executor Thread Pool 
+     */
+    protected final ExecutorService thread_pool;
+    
+    /**
+     * Mapping from SQLStmt batch hash codes (computed by VoltProcedure.getBatchHashCode()) to BatchPlanners
+     * The idea is that we can quickly derived the partitions for each unique set of SQLStmt list
+     */
+    protected final Map<Integer, BatchPlanner> batch_planners = new HashMap<Integer, BatchPlanner>();
     
     // ----------------------------------------------------------------------------
     // DATA MEMBERS
@@ -127,6 +188,9 @@ public class ExecutionSite implements Runnable {
     private boolean shutdown = false;
     private CountDownLatch shutdown_latch;
     
+    /**
+     * Counter for the number of errors that we've hit
+     */
     private final AtomicInteger error_counter = new AtomicInteger(0);
 
     /**
@@ -137,9 +201,6 @@ public class ExecutionSite implements Runnable {
     protected Database database;
     protected Site site;
     protected Partition partition;
-    
-    // Quick lookup for Procedure Name -> Procedure Catalog Object
-    private final Map<String, Procedure> proc_lookup = new HashMap<String, Procedure>();
 
     private final BackendTarget backend_target;
     private final ExecutionEngine ee;
@@ -168,12 +229,12 @@ public class ExecutionSite implements Runnable {
     /**
      * TransactionId -> TransactionState
      */
-    protected final ConcurrentHashMap<Long, TransactionState> txn_states = new ConcurrentHashMap<Long, TransactionState>(); 
+    protected final Map<Long, TransactionState> txn_states = new ConcurrentHashMap<Long, TransactionState>(); 
 
     /**
      * List of Transactions that have been marked as finished
      */
-    protected final ConcurrentLinkedQueue<TransactionState> finished_txn_states = new ConcurrentLinkedQueue<TransactionState>();
+    protected final Queue<TransactionState> finished_txn_states = new ConcurrentLinkedQueue<TransactionState>();
     
     /**
      * The time in ms since epoch of the last call to ExecutionEngine.tick(...)
@@ -197,27 +258,10 @@ public class ExecutionSite implements Runnable {
      */
     private final LinkedBlockingDeque<TransactionInfoBaseMessage> work_queue = new LinkedBlockingDeque<TransactionInfoBaseMessage>();
 
-    /**
-     * These are our executing VoltProcedure threads for transactions initiated in this site. 
-     */
-    protected final ConcurrentHashMap<Long, VoltProcedure> running_xacts = new ConcurrentHashMap<Long, VoltProcedure>();
-
-    /**
-     * Thread Pool 
-     */
-    protected final ExecutorService thread_pool;
     
-    /**
-     * VoltProcedure pool
-     * Since we can invoke multi stored procedures at a time, we will want to keep a pool of reusable
-     * instances so that we don't have to make allocate new memory each time.
-     */
-    protected final HashMap<String, ConcurrentLinkedQueue<VoltProcedure>> proc_pool = new HashMap<String, ConcurrentLinkedQueue<VoltProcedure>>();
-
-    /**
-     * List of all procedures from createVoltProcedure()
-     */
-    protected final HashMap<String, ConcurrentLinkedQueue<VoltProcedure>> all_procs = new HashMap<String, ConcurrentLinkedQueue<VoltProcedure>>();
+    // ----------------------------------------------------------------------------
+    // Coordinator Callback
+    // ----------------------------------------------------------------------------
 
     /**
      * Coordinator -> ExecutionSite Callback
@@ -422,20 +466,7 @@ public class ExecutionSite implements Runnable {
 //            this.ee = null;
     }
 
-        // load up all the stored procedures
-        final CatalogMap<Procedure> catalogProcedures = database.getProcedures();
-        for (final Procedure catalog_proc : catalogProcedures) {
-            this.all_procs.put(catalog_proc.getName(), new ConcurrentLinkedQueue<VoltProcedure>());
-            this.proc_pool.put(catalog_proc.getName(), new ConcurrentLinkedQueue<VoltProcedure>());
-            this.proc_lookup.put(catalog_proc.getName(), catalog_proc);
-            
-            if (catalog_proc.getSystemproc()) {
-                pool_size = 1;
-            } else {
-                pool_size = NODE_VOLTPROCEDURE_POOL_SIZE;
-            }
-            this.createVoltProcedures(catalog_proc, pool_size);
-        } // FOR
+        
     }
 
     public void tick() {
@@ -447,53 +478,13 @@ public class ExecutionSite implements Runnable {
             }
             lastTickTime = time;
         }
-        // doSnapshotWork();
-    }
-    
-    /**
-     * Create a bunch of instances of the corresponding VoltProcedure for the given Procedure catalog object
-     * @param catalog_proc
-     * @param count
-     * @return
-     */
-    protected void createVoltProcedures(final Procedure catalog_proc, int count) {
-        assert(count > 0);
-        Class<?> procClass = null;
-
-        // Only try to load the Java class file for the SP if it has one
-        if (catalog_proc.getHasjava()) {
-            final String className = catalog_proc.getClassname();
-            try {
-                procClass = Class.forName(className);
-            } catch (final ClassNotFoundException e) {
-                LOG.fatal("Failed to load procedure class '" + className + "'", e);
-                System.exit(1);
-            }
-        }
-        try {
-            for (int i = 0; i < count; i++) {
-                VoltProcedure volt_proc = null;
-                if (catalog_proc.getHasjava()) {
-                    volt_proc = (VoltProcedure) procClass.newInstance();
-                } else {
-                    volt_proc = new VoltProcedure.StmtProcedure();
-                }
-                // volt_proc.registerCallback(this.callback);
-                volt_proc.init(this, catalog_proc, this.backend_target, hsql, cluster, this.p_estimator, this.getPartitionId());
-                this.all_procs.get(catalog_proc.getName()).add(volt_proc);
-                this.proc_pool.get(catalog_proc.getName()).add(volt_proc);
-            } // FOR
-        } catch (Exception e) {
-            if (debug.get()) LOG.warn("Failed to created VoltProcedure instance for " + catalog_proc.getName() , e);
-        }
-
     }
 
     public void setHStoreMessenger(HStoreMessenger hstore_messenger) {
         this.hstore_messenger = hstore_messenger;
     }
     
-    public void setHStoreCoordinatorNode(HStoreSite hstore_coordinator) {
+    public void setHStoreCoordinatorSite(HStoreSite hstore_coordinator) {
         this.hstore_site = hstore_coordinator;
     }
     
@@ -538,7 +529,8 @@ public class ExecutionSite implements Runnable {
 
     public VoltProcedure getRunningVoltProcedure(long txn_id) {
         // assert(this.running_xacts.containsKey(txn_id)) : "No running VoltProcedure exists for txn #" + txn_id;
-        return (this.running_xacts.get(txn_id));
+        LocalTransactionState ts = (LocalTransactionState)this.txn_states.get(txn_id);
+        return (ts != null ? ts.getVoltProcedure() : null);
     }
     
     /**
@@ -546,15 +538,13 @@ public class ExecutionSite implements Runnable {
      * @param proc_name
      * @return
      */
-    public VoltProcedure getProcedure(String proc_name) {
-        Procedure catalog_proc = this.proc_lookup.get(proc_name);
-        assert(catalog_proc != null) : "Invalid stored procedure name '" + proc_name + "'"; 
-        
+    public VoltProcedure getNewVoltProcedure(String proc_name) {
         // If our pool is empty, then we need to make a new one
-        VoltProcedure volt_proc = this.proc_pool.get(proc_name).poll();
-        if (volt_proc == null) {
-            this.createVoltProcedures(catalog_proc, 1);
-            volt_proc = this.proc_pool.get(proc_name).poll();
+        VoltProcedure volt_proc = null;
+        try {
+            volt_proc = (VoltProcedure)this.procPool.get(proc_name).borrowObject();
+        } catch (Exception ex) {
+            throw new RuntimeException("Failed to get new " + proc_name + " VoltProcedure", ex);
         }
         assert(volt_proc != null);
         return (volt_proc);
@@ -574,6 +564,25 @@ public class ExecutionSite implements Runnable {
         assert(this.hstore_messenger != null);
         Thread self = Thread.currentThread();
         self.setName(this.getThreadName());
+        
+        // load up all the stored procedures
+        final CatalogMap<Procedure> catalogProcedures = database.getProcedures();
+        for (final Procedure catalog_proc : catalogProcedures) {
+            String proc_name = catalog_proc.getName();
+            this.procPool.put(proc_name, new StackObjectPool(new VoltProcedureFactory(catalog_proc)));
+            
+            // Important: If this is a sysproc, then we need to get borrow/return 
+            // one of them so that init() is at least called.
+            // This is because of some legacy Volt code garbage blah blah...
+            if (catalog_proc.getSystemproc()) {
+                VoltProcedure volt_proc = this.getNewVoltProcedure(proc_name);
+                try {
+                    this.procPool.get(proc_name).returnObject(volt_proc);
+                } catch (Exception ex) {
+                    throw new RuntimeException(ex);
+                }
+            }
+        } // FOR
 
         /*
         NDC.push("ExecutionSite - " + siteId + " index " + siteIndex);
@@ -660,13 +669,13 @@ public class ExecutionSite implements Runnable {
                         result = this.processFragmentTaskMessage(ftask, ts.getLastUndoToken());
                         fresponse.setStatus(FragmentResponseMessage.SUCCESS, null);
                     } catch (EEException ex) {
-                        if (true || debug.get()) LOG.warn("Hit an EE Error for txn #" + txn_id, ex);
+                        LOG.warn("Hit an EE Error for txn #" + txn_id, ex);
                         fresponse.setStatus(FragmentResponseMessage.UNEXPECTED_ERROR, ex);
                     } catch (SQLException ex) {
-                        if (true || debug.get()) LOG.warn("Hit a SQL Error for txn #" + txn_id, ex);
+                        LOG.warn("Hit a SQL Error for txn #" + txn_id, ex);
                         fresponse.setStatus(FragmentResponseMessage.UNEXPECTED_ERROR, ex);
                     } catch (Exception ex) {
-                        if (true || debug.get()) LOG.warn("Something unexpected and bad happended for txn #" + txn_id, ex);
+                        LOG.warn("Something unexpected and bad happended for txn #" + txn_id, ex);
                         fresponse.setStatus(FragmentResponseMessage.UNEXPECTED_ERROR, new SerializableException(ex));
                     } finally {
                         // Success, but without any results???
@@ -739,21 +748,20 @@ public class ExecutionSite implements Runnable {
                 } else if (work instanceof InitiateTaskMessage) {
                     InitiateTaskMessage init_work = (InitiateTaskMessage)work;
                     VoltProcedure volt_proc = null;
+                    long txn_id = init_work.getTxnId();
                     String proc_name = init_work.getStoredProcedureName(); 
-                    assert(!this.txn_states.contains(init_work.getTxnId())) : "Duplicate InitiateTaskMessage message for txn #" + init_work.getTxnId();
 
                     try {
-                        volt_proc = this.getProcedure(proc_name);
+                        volt_proc = this.getNewVoltProcedure(proc_name);
                     } catch (AssertionError ex) {
-                        LOG.error("Unrecoverable error for txn #" + init_work.getTxnId());
+                        LOG.error("Unrecoverable error for txn #" + txn_id);
                         LOG.error("InitiateTaskMessage= " + init_work.getDumpContents().toString());
                         throw ex;
                     }
-                    long txn_id = init_work.getTxnId();
-                    TransactionState ts = this.txn_states.get(txn_id);
+                    LocalTransactionState ts = (LocalTransactionState)this.txn_states.get(txn_id);
                     assert(ts != null) : "The TransactionState is somehow null for txn #" + txn_id;
+                    ts.setVoltProcedure(volt_proc);
                     if (trace.get()) LOG.trace(String.format("Starting execution of txn #%d [proc=%s]", txn_id, proc_name));
-                    
                     this.startTransaction(ts, volt_proc, init_work);
                     
                 // -------------------------------
@@ -811,11 +819,11 @@ public class ExecutionSite implements Runnable {
 //        }
         
         // Invoke the VoltProcedure thread to start the transaction
-        synchronized (this.running_xacts) {
-            assert(!this.running_xacts.values().contains(volt_proc));
-            this.running_xacts.put(txn_id, volt_proc);
-            assert(this.running_xacts.containsKey(txn_id));
-        }
+//        synchronized (this.running_xacts) {
+//            assert(!this.running_xacts.values().contains(volt_proc));
+//            this.running_xacts.put(txn_id, volt_proc);
+//            assert(this.running_xacts.containsKey(txn_id));
+//        }
         volt_proc.call(ts, init_work.getParameters());
     }
 
@@ -924,16 +932,16 @@ public class ExecutionSite implements Runnable {
             assert(fragmentIds.length == 1);
             long fragment_id = (long)fragmentIds[0];
 
-            VoltSystemProcedure proc = null;
+            VoltSystemProcedure volt_proc = null;
             synchronized (this.m_registeredSysProcPlanFragments) {
-                proc = this.m_registeredSysProcPlanFragments.get(fragment_id);
+                volt_proc = this.m_registeredSysProcPlanFragments.get(fragment_id);
             }
-            if (proc == null) throw new RuntimeException("No sysproc handle exists for FragmentID #" + fragment_id + " :: " + this.m_registeredSysProcPlanFragments);
+            if (volt_proc == null) throw new RuntimeException("No sysproc handle exists for FragmentID #" + fragment_id + " :: " + this.m_registeredSysProcPlanFragments);
             
             // HACK: We have to set the TransactionState for sysprocs manually
-            proc.setTransactionState(ts);
-            result = proc.executePlanFragment(txn_id, ts.ee_dependencies, (int)fragmentIds[0], parameterSets[0], this.m_systemProcedureContext);
-            if (trace.get()) LOG.trace("Finished executing sysproc fragments for " + proc.getClass().getSimpleName());
+            volt_proc.setTransactionState(ts);
+            result = volt_proc.executePlanFragment(txn_id, ts.ee_dependencies, (int)fragmentIds[0], parameterSets[0], this.m_systemProcedureContext);
+            if (trace.get()) LOG.trace("Finished executing sysproc fragments for " + volt_proc.getClass().getSimpleName());
         // -------------------------------
         // REGULAR FRAGMENTS
         // -------------------------------
@@ -1038,19 +1046,12 @@ public class ExecutionSite implements Runnable {
         long txn_id = ts.getTransactionId();
         if (trace.get()) LOG.trace("Cleaning up internal state information for Txn #" + txn_id);
         assert(ts.isMarkedFinished());
-        
-        if (ts.isExecLocal()) {
-            VoltProcedure volt_proc = this.running_xacts.remove(txn_id);
-            assert(volt_proc != null) :
-                "Trying to cleanup txn #" + txn_id + " more than once??";
-            assert(this.all_procs.get(volt_proc.getProcedureName()).contains(volt_proc)) :
-                "Trying to cleanup txn #" + txn_id + " more than once??";
-            this.proc_pool.get(volt_proc.getProcedureName()).add(volt_proc);
-        }
         this.txn_states.remove(txn_id);
         
         try {
             if (ts.isExecLocal()) {
+                VoltProcedure volt_proc = ((LocalTransactionState)ts).getVoltProcedure();
+                this.procPool.get(volt_proc.getProcedureName()).returnObject(volt_proc);
                 this.localTxnPool.returnObject(ts);
             } else {
                 this.remoteTxnPool.returnObject(ts);
@@ -1097,13 +1098,6 @@ public class ExecutionSite implements Runnable {
         
         TransactionState ts = this.txn_states.get(txn_id);
         if (ts == null) {
-            // XXX
-//            TransactionEstimator.State s = this.t_estimator.getState(txn_id);
-//            assert(s != null) : "Missing TransactionEstimator.State for txn #" + txn_id;
-//            TransactionEstimator.Estimate est = s.getLastEstimate(); 
-//            assert(est != null) : "Missing last TransactionEstimator.Estimate for txn #" + txn_id;
-//            boolean is_singlepartitioned = est.isSinglePartition(this.hstore_site.getThresholds());
-            
             try {
                 // Local Transaction
                 if (start_txn) {
@@ -1112,6 +1106,7 @@ public class ExecutionSite implements Runnable {
                     LocalTransactionState local_ts = (LocalTransactionState)ts;
                     local_ts.setCoordinatorCallback(callback);
                     local_ts.setPredictSinglePartitioned(single_partitioned);
+                    local_ts.setEstimatorState(this.t_estimator.getState(txn_id));
                     if (debug.get()) LOG.debug(String.format("Starting new VoltProcedure invocation for txn #%d [singlepartitioned=%s]", txn_id, single_partitioned));
                     
                 // Remote Transaction
@@ -1379,7 +1374,7 @@ public class ExecutionSite implements Runnable {
         try {
             latch.await();
         } catch (InterruptedException ex) {
-            LOG.warn(ex);
+            LOG.error("We were interrupted while waiting for results for txn #" + txn_id, ex);
             return (null);
         } catch (Exception ex) {
             LOG.fatal("Fatal error for txn #" + txn_id + " while waiting for results", ex);
@@ -1387,8 +1382,8 @@ public class ExecutionSite implements Runnable {
         }
 
         // IMPORTANT: Check whether the fragments failed somewhere and we got a response with an error
-        // We will rethrow this so that it pops the stack all the way back to VoltProcedure.call() where we can
-        // generate 
+        // We will rethrow this so that it pops the stack all the way back to VoltProcedure.call()
+        // where we can generate a message to the client 
         if (ts.hasPendingError()) {
             if (debug.get()) LOG.warn("Txn #" + txn_id + " was hit with a " + ts.getPendingError().getClass().getSimpleName());
             throw ts.getPendingError();
