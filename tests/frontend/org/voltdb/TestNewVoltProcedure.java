@@ -12,6 +12,8 @@ import org.voltdb.client.ClientResponse;
 import edu.brown.utils.*;
 
 import edu.brown.BaseTestCase;
+import edu.mit.hstore.dtxn.LocalTransactionState;
+import edu.mit.hstore.dtxn.TransactionState;
 
 /**
  * @author pavlo
@@ -66,7 +68,7 @@ public class TestNewVoltProcedure extends BaseTestCase {
         volt_proc.registerCallback(observer);
 
         Long xact_id = NEXT_TXN_ID.getAndIncrement();
-        TransactionState ts = new TransactionState(site, xact_id, xact_id, PARTITION_ID, CLIENT_HANDLE++, true);
+        TransactionState ts = new LocalTransactionState(site).init(xact_id, CLIENT_HANDLE++, PARTITION_ID);
         site.txn_states.put(xact_id, ts);
         site.running_xacts.put(xact_id, volt_proc);
         

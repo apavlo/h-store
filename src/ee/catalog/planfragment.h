@@ -38,6 +38,7 @@ class PlanFragment : public CatalogType {
 protected:
     PlanFragment(Catalog * catalog, CatalogType * parent, const std::string &path, const std::string &name);
 
+    int32_t m_id;
     bool m_hasdependencies;
     bool m_multipartition;
     std::string m_plannodetree;
@@ -50,6 +51,8 @@ protected:
     virtual void removeChild(const std::string &collectionName, const std::string &childName);
 
 public:
+    /** GETTER: Unique Id for this PlanFragment */
+    int32_t id() const;
     /** GETTER: Dependencies must be received before this plan fragment can execute */
     bool hasdependencies() const;
     /** GETTER: Should this plan fragment be sent to all partitions */

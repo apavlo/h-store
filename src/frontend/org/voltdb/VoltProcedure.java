@@ -40,6 +40,8 @@ import edu.brown.utils.EventObservable;
 import edu.brown.utils.EventObserver;
 import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.PartitionEstimator;
+import edu.mit.hstore.dtxn.LocalTransactionState;
+import edu.mit.hstore.dtxn.TransactionState;
 
 import java.io.StringWriter;
 import java.io.PrintWriter;
@@ -103,6 +105,7 @@ public abstract class VoltProcedure {
     // data copied from EE proc wrapper
     private Long txn_id;
     private Long client_handle;
+    private boolean predict_singlepartition;
     private TransactionState m_currentTxnState;  // assigned in call()
     private final SQLStmt batchQueryStmts[] = new SQLStmt[1000];
     private int batchQueryStmtIndex = 0;
@@ -167,6 +170,7 @@ public abstract class VoltProcedure {
                 VoltProcedure.this.txn_id = current_txn_id;
                 VoltProcedure.this.client_handle = client_handle;
                 VoltProcedure.this.procParams = paramList;
+                VoltProcedure.this.predict_singlepartition = ((LocalTransactionState)VoltProcedure.this.m_currentTxnState).isPredictSinglePartition();
                 
                 if (debug.get()) LOG.debug("Starting execution of txn #" + current_txn_id);
                 
@@ -1023,7 +1027,7 @@ public abstract class VoltProcedure {
         // TODO: At this point we have to calculate exactly what we need to do on each partition
         //       for this batch. So somehow right now we need to fire this off to either our
         //       local executor or to Evan's magical distributed transaction manager
-        BatchPlanner.BatchPlan plan = planner.plan(this.txn_id, this.client_handle, params, this.m_currentTxnState.isPredictSinglePartition());
+        BatchPlanner.BatchPlan plan = planner.plan(this.txn_id, this.client_handle, params, this.predict_singlepartition);
         
         // Tell the TransactionEstimator that we're about to execute these mofos
         // TODO(pavlo+evanj): We need to do something with the estimate
@@ -1052,7 +1056,7 @@ public abstract class VoltProcedure {
 
         // Block until we get all of our responses.
         // We can do this because our ExecutionSite is multi-threaded
-        final VoltTable results[] = this.m_site.waitForResponses(this.txn_id, tasks);
+        final VoltTable results[] = this.m_site.waitForResponses(this.txn_id, tasks, plan.getBatchSize());
         assert(results != null);
 
         // important not to forget
@@ -1099,7 +1103,7 @@ public abstract class VoltProcedure {
         throw new Exception("tryScalarMakeCompatible: Unable to matoh parameters:" + slot.getName());
     }
 
-    protected static ParameterSet getCleanParams(SQLStmt stmt, Object[] args) {
+    public static ParameterSet getCleanParams(SQLStmt stmt, Object[] args) {
         final int numParamTypes = stmt.numStatementParamJavaTypes;
         final byte stmtParamTypes[] = stmt.statementParamJavaTypes;
         if (args.length != numParamTypes) {

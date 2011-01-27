@@ -91,10 +91,10 @@ public abstract class VoltSystemProcedure extends VoltProcedure {
     }
 
     abstract public DependencySet executePlanFragment(long txn_id,
-                                                      HashMap<Integer,List<VoltTable>> dependencies,
+                                                      Map<Integer,List<VoltTable>> dependencies,
                                                       int fragmentId,
-            ParameterSet params,
-            ExecutionSite.SystemProcedureExecutionContext context);
+                                                      ParameterSet params,
+                                                      ExecutionSite.SystemProcedureExecutionContext context);
 
     /**
      * Produce work units, possibly on all sites, for a list of plan fragments.
@@ -162,6 +162,6 @@ public abstract class VoltSystemProcedure extends VoltProcedure {
             ftasks.add(task);
         } // FOR
         
-        return (this.m_site.waitForResponses(this.getTransactionId(), ftasks));
+        return (this.m_site.waitForResponses(this.getTransactionId(), ftasks, 1));
     }
 }

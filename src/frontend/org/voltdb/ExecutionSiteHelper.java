@@ -6,6 +6,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.log4j.Logger;
 
 import edu.brown.utils.LoggerUtil;
+import edu.mit.hstore.dtxn.TransactionState;
 
 /**
  * 

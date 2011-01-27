@@ -1,21 +1,30 @@
 /**
  * 
  */
-package org.voltdb;
+package edu.mit.hstore.dtxn;
 
 import java.util.*;
 import java.util.concurrent.CountDownLatch;
 
 import org.apache.commons.collections15.set.ListOrderedSet;
 import org.apache.log4j.Logger;
+import org.voltdb.BatchPlanner;
+import org.voltdb.ExecutionSite;
+import org.voltdb.MockExecutionSite;
+import org.voltdb.ParameterSet;
+import org.voltdb.SQLStmt;
+import org.voltdb.VoltProcedure;
+import org.voltdb.VoltTable;
+import org.voltdb.VoltType;
 import org.voltdb.BatchPlanner.BatchPlan;
-import org.voltdb.TransactionState.DependencyInfo;
 import org.voltdb.catalog.*;
 import org.voltdb.messaging.FragmentTaskMessage;
 
 import edu.brown.BaseTestCase;
 import edu.brown.hashing.DefaultHasher;
 import edu.brown.utils.*;
+import edu.mit.hstore.dtxn.TransactionState;
+import edu.mit.hstore.dtxn.DependencyInfo;
 
 /**
  * @author pavlo
@@ -25,7 +34,6 @@ public class TestTransactionState extends BaseTestCase {
 
     private static final Long TXN_ID = 1000l;
     private static final long CLIENT_HANDLE = 99999l;
-    private static final boolean EXEC_LOCAL = true;
     private static final boolean SINGLE_PARTITIONED = false;
     private static final long UNDO_TOKEN = 10l;
     
@@ -47,7 +55,7 @@ public class TestTransactionState extends BaseTestCase {
     private static BatchPlan plan;
     private static List<FragmentTaskMessage> ftasks;
     
-    private TransactionState ts;
+    private LocalTransactionState ts;
     private ListOrderedSet<Integer> dependency_ids = new ListOrderedSet<Integer>();
     private List<Integer> internal_dependency_ids = new ArrayList<Integer>();
     private List<Integer> output_dependency_ids = new ArrayList<Integer>();
@@ -90,7 +98,8 @@ public class TestTransactionState extends BaseTestCase {
         }
         assertNotNull(ftasks);
         
-        this.ts = new TransactionState(executor, TXN_ID, TXN_ID, LOCAL_PARTITION, CLIENT_HANDLE, EXEC_LOCAL);
+        this.ts = new LocalTransactionState(executor);
+        this.ts.init(TXN_ID, CLIENT_HANDLE, LOCAL_PARTITION);
         assertNotNull(this.ts);
         assertEquals(TransactionState.RoundState.NULL, this.ts.getCurrentRoundState());
     }
@@ -100,6 +109,7 @@ public class TestTransactionState extends BaseTestCase {
      * We will also populate our list of dependency ids
      */
     private void addFragments() {
+        this.ts.setBatchSize(NUM_DUPLICATE_STATEMENTS);
         for (FragmentTaskMessage ftask : ftasks) {
             assertNotNull(ftask);
             this.ts.addFragmentTaskMessage(ftask);
@@ -142,10 +152,11 @@ public class TestTransactionState extends BaseTestCase {
         this.ts.initRound(UNDO_TOKEN);
         assertEquals(TransactionState.RoundState.INITIALIZED, this.ts.getCurrentRoundState());
         this.addFragments();
-        CountDownLatch latch = this.ts.startRound();
+        this.ts.startRound();
+        CountDownLatch latch = this.ts.getDependencyLatch();
         assertNotNull(latch);
         
-//        System.err.println(this.ts);
+        System.err.println(this.ts.toString());
         assertEquals(NUM_EXPECTED_DEPENDENCIES, latch.getCount());
         assertEquals(NUM_DUPLICATE_STATEMENTS, this.ts.getOutputOrder().size());
         
@@ -216,7 +227,7 @@ public class TestTransactionState extends BaseTestCase {
         // We want to add results for just one of the duplicated statements and make sure that
         // we only unblock one of them. First we need to find an internal dependency that has blocked tasks 
         Integer internal_d_id = null;
-        TransactionState.DependencyInfo internal_dinfo = null;
+        DependencyInfo internal_dinfo = null;
         for (Integer d_id : this.internal_dependency_ids) {
             internal_d_id = d_id;
             internal_dinfo = this.ts.getDependencyInfo(0, d_id);
@@ -249,7 +260,7 @@ public class TestTransactionState extends BaseTestCase {
         
         // Make sure that all other Statements didn't accidently unblock their FragmentTaskMessages...
         for (int stmt_index = 1; stmt_index < NUM_DUPLICATE_STATEMENTS; stmt_index++) {
-            TransactionState.DependencyInfo other = this.ts.getDependencyInfo(stmt_index, this.internal_dependency_ids.get(stmt_index));
+            DependencyInfo other = this.ts.getDependencyInfo(stmt_index, this.internal_dependency_ids.get(stmt_index));
             assertNotNull(other);
             assertFalse(other.hasTasksReady());
             assertFalse(other.hasTasksReleased());
@@ -293,7 +304,8 @@ public class TestTransactionState extends BaseTestCase {
         } // FOR (dependency ids)
         assertEquals(NUM_DUPLICATE_STATEMENTS, markers.size());
 
-        CountDownLatch latch = this.ts.startRound();
+        this.ts.startRound();
+        CountDownLatch latch = this.ts.getDependencyLatch();
         assertNotNull(latch);
         assertEquals(0, latch.getCount());
         assertEquals(TransactionState.RoundState.STARTED, this.ts.getCurrentRoundState());

@@ -721,7 +721,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
             callback = done;
         }
             
-        executor.doWork(msg, txn_id, callback, single_partitioned);
+        executor.doWork(msg, callback, single_partitioned);
     }
 
     /**

@@ -54,9 +54,9 @@ public class BatchPlanner {
     
     protected static final AtomicInteger NEXT_DEPENDENCY_ID = new AtomicInteger(1000);
 
-    protected static final int MAX_BATCH_SIZE = 128;
+    public static final int MAX_BATCH_SIZE = 128;
     
-    protected static final int MAX_ROUND_SIZE = 10;
+    public static final int MAX_ROUND_SIZE = 10;
     
     
     /**
@@ -111,34 +111,34 @@ public class BatchPlanner {
     // INTERNAL PLAN GRAPH ELEMENTS
     // ----------------------------------------------------------------------------
 
-    private class PlanVertex extends AbstractVertex {
+    protected static class PlanVertex extends AbstractVertex {
         final int frag_id;
+        final int stmt_index;
         final int round;
         final Integer input_dependency_id;
         final Integer output_dependency_id;
-        final int stmt_index;
         final int hash_code;
 
         public PlanVertex(PlanFragment catalog_frag,
-                          int frag_id,
+                          int stmt_index,
                           int round,
                           Integer input_dependency_id,
                           Integer output_dependency_id,
-                          int stmt_index,
                           boolean is_local) {
             super(catalog_frag);
-            this.frag_id = frag_id;
+            this.frag_id = catalog_frag.getId();
+            this.stmt_index = stmt_index;
             this.round = round;
             this.input_dependency_id = input_dependency_id;
             this.output_dependency_id = output_dependency_id;
-            this.stmt_index = stmt_index;
-            this.hash_code = this.frag_id | this.round<<8 | this.round<<16;  
+            
+            this.hash_code = this.frag_id | this.round<<16 | this.stmt_index<<24;  
         }
         
         @Override
         public boolean equals(Object obj) {
             if (!(obj instanceof PlanVertex)) return (false);
-            return (this.hash_code != ((PlanVertex)obj).hash_code);
+            return (this.hash_code == ((PlanVertex)obj).hash_code);
         }
         
         @Override
@@ -148,11 +148,12 @@ public class BatchPlanner {
         
         @Override
         public String toString() {
-            return String.format("<%s [StmtIndex=%02d, Round=%02d]>", this.getCatalogItem().getName(), this.stmt_index, this.round);
+            return String.format("<FragId=%02d, StmtIndex=%02d, Round=%02d, Input=%02d, Output=%02d>",
+                                 this.frag_id, this.stmt_index, this.round, this.input_dependency_id, this.output_dependency_id);
         }
     }
     
-    private class PlanEdge extends AbstractEdge {
+    private static class PlanEdge extends AbstractEdge {
         final Integer dep_id;
         public PlanEdge(IGraph<PlanVertex, PlanEdge> graph, Integer dep_id) {
             super(graph);
@@ -165,7 +166,7 @@ public class BatchPlanner {
         }
     }
     
-    private class PlanGraph extends AbstractDirectedGraph<PlanVertex, PlanEdge> {
+    private static class PlanGraph extends AbstractDirectedGraph<PlanVertex, PlanEdge> {
         private static final long serialVersionUID = 1L;
         
         private final Map<Integer, Set<PlanVertex>> output_dependency_xref = new HashMap<Integer, Set<PlanVertex>>();
@@ -323,7 +324,6 @@ public class BatchPlanner {
             }
         }
 
-        
         protected int getLocalFragmentCount(int base_partition) {
             int cnt = 0;
             for (FragmentTaskMessage ftask : this.ftasks) {
@@ -331,7 +331,6 @@ public class BatchPlanner {
             } // FOR
             return (cnt);
         }
-        
         protected int getRemoteFragmentCount(int base_partition) {
             int cnt = 0;
             for (FragmentTaskMessage ftask : this.ftasks) {
@@ -384,17 +383,14 @@ public class BatchPlanner {
         }
     } // END CLASS
     
-
-    
     /**
-     * Constructor
+     * Testing Constructor
      */
-    protected BatchPlanner(SQLStmt[] batchStmts, Procedure catalog_proc, PartitionEstimator p_estimator, int base_partition) {
+    public BatchPlanner(SQLStmt[] batchStmts, Procedure catalog_proc, PartitionEstimator p_estimator, int base_partition) {
         this(batchStmts, batchStmts.length, catalog_proc, p_estimator, base_partition);
         
     }
 
-    
     /**
      * Constructor
      * @param batchStmts
@@ -550,6 +546,7 @@ public class BatchPlanner {
             // DEBUG DUMP
             // ----------------------
             if (debug.get()) {
+                @SuppressWarnings("unchecked")
                 Map maps[] = new Map[fragments.size() + 1];
                 int ii = 0;
                 for (PlanFragment catalog_frag : fragments) {
@@ -744,13 +741,11 @@ public class BatchPlanner {
                 boolean f_local = (f_partitions.size() == 1 && f_partitions.contains(this.base_partition));
                 Integer output_id = BatchPlanner.NEXT_DEPENDENCY_ID.getAndIncrement();
     
-                int frag_id = Integer.parseInt(catalog_frag.getName());
                 PlanVertex v = new PlanVertex(catalog_frag,
-                                              frag_id,
+                                              stmt_index,
                                               round,
                                               last_output_id,
                                               output_id,
-                                              stmt_index,
                                               f_local);
                 graph.addVertex(v);
                 last_output_id = output_id;

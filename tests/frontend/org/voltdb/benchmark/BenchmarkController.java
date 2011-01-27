@@ -121,7 +121,6 @@ public class BenchmarkController {
     VoltProjectBuilder m_projectBuilder;
     String m_jarFileName = null;
     ServerThread m_localserver = null;
-    private ClusterMonitor m_clusterMonitor;
 
     private static final Logger LOG = Logger.getLogger(BenchmarkController.class); // .getName(), VoltLoggerFactory.instance());
     private static final Logger benchmarkLog = LOG; // Logger.getLogger("BENCHMARK", VoltLoggerFactory.instance());
@@ -739,14 +738,6 @@ public class BenchmarkController {
             m_clientPSM.writeToProcess(clientName, "STOP\n");
         for (String clientName : m_clients)
             m_clientPSM.joinProcess(clientName);
-
-        try {
-            if (m_clusterMonitor != null) {
-                m_clusterMonitor.stop();
-            }
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
 
         try {
             m_statusThread.join(1000);
