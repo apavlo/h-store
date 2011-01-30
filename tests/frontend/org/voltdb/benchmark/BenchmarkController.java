@@ -532,14 +532,13 @@ public class BenchmarkController {
 
             loaderCommand.append(userParams);
 
-            benchmarkLog.debug("Loader Command: " + loaderCommand.toString());
-
             // RUN THE LOADER
             if (true || m_config.localmode) {
                 localArgs.add("EXITONCOMPLETION=false");
                 ClientMain.main(m_loaderClass, localArgs.toArray(new String[0]), true);
             }
             else {
+                benchmarkLog.debug("Loader Command: " + loaderCommand.toString());
                 String[] command = SSHTools.convert(
                         m_config.remoteUser,
                         m_config.clients[0],

@@ -209,6 +209,7 @@ public class MultiLoader extends ClientMain {
         @Override
         public void run() {
             Integer warehouseId = null;
+            LOG.debug("Total # of Remaining Warehouses: " + availableWarehouseIds.size());
             while ((warehouseId = availableWarehouseIds.poll()) != null) {
                 LOG.debug(String.format("Loading warehouse %d / %d", (m_warehouses - availableWarehouseIds.size()), m_warehouses));
                 makeStock(warehouseId); // STOCK is made separately to reduce
@@ -502,7 +503,6 @@ public class MultiLoader extends ClientMain {
 
         /** STOCK is made in different method to reduce memory consumption. */
         public void makeStock(int w_id) {
-
             // Select 10% of the stock to be marked "original"
 
             final int BATCH = 5;
@@ -530,7 +530,7 @@ public class MultiLoader extends ClientMain {
                 generateStock(w_id, i_id, original);
                 if (i_id % BATCH_SIZE == 0) {
                     commitDataTables(w_id);
-                    // System.err.printf("%d/%d\n", i_id, m_parameters.items);
+                    LOG.debug(String.format("%d/%d", i_id, m_parameters.items));
                 }
             }
             if (data_tables[IDX_STOCKS].getRowCount() != 0) {
@@ -739,6 +739,7 @@ public class MultiLoader extends ClientMain {
 
         /** Send to data to VoltDB and/or to the jdbc connection */
         private void commitDataTables(long w_id) {
+            assert(m_voltClient != null);
             if (m_voltClient != null) {
                 commitDataTables_VoltDB(w_id);
             }
@@ -875,6 +876,7 @@ public class MultiLoader extends ClientMain {
         LOG.info(String.format("Loading %d warehouses using %d load threads", warehouseIds.size(), m_loadThreads.length));
         boolean doMakeReplicated = true;
         for (LoadThread loadThread : m_loadThreads) {
+            LOG.debug("Starting LoadThread...");
             loadThread.start(doMakeReplicated);
             doMakeReplicated = false;
         }

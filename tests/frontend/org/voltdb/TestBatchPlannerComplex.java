@@ -119,7 +119,7 @@ public class TestBatchPlannerComplex extends BaseTestCase {
                 batches[i][ii] = statements.get(ii);
             } // FOR
             hashes[i] = VoltProcedure.getBatchHashCode(batches[i], batch_size);
-            this.executor.batch_planners.put(hashes[i], new BatchPlanner(batches[i], catalog_proc, p_estimator, BASE_PARTITION));
+            this.executor.batch_planners.put(hashes[i], new BatchPlanner(batches[i], catalog_proc, p_estimator));
         } // FOR
         
         for (int i = 0; i < batches.length; i++) {
@@ -145,8 +145,8 @@ public class TestBatchPlannerComplex extends BaseTestCase {
      * testPlanMultiPartition
      */
     public void testPlanMultiPartition() throws Exception {
-        BatchPlanner batchPlan = new BatchPlanner(batch[TARGET_BATCH], catalog_proc, p_estimator, BASE_PARTITION);
-        BatchPlanner.BatchPlan plan = batchPlan.plan(TXN_ID, CLIENT_HANDLE, args[TARGET_BATCH], false);
+        BatchPlanner batchPlan = new BatchPlanner(batch[TARGET_BATCH], catalog_proc, p_estimator);
+        BatchPlanner.BatchPlan plan = batchPlan.plan(TXN_ID, CLIENT_HANDLE, BASE_PARTITION, args[TARGET_BATCH], false);
         assertNotNull(plan);
     }
     
@@ -154,14 +154,14 @@ public class TestBatchPlannerComplex extends BaseTestCase {
      * testMispredict
      */
     public void testMispredict() throws Exception {
-        BatchPlanner batchPlan = new BatchPlanner(batch[TARGET_BATCH], catalog_proc, p_estimator, BASE_PARTITION+1);
+        BatchPlanner batchPlan = new BatchPlanner(batch[TARGET_BATCH], catalog_proc, p_estimator);
         
         // Ask the planner to plan a multi-partition transaction where we have predicted it
         // as single-partitioned. It should throw a nice MispredictionException
         BatchPlanner.BatchPlan plan = null;
         boolean caught = false;
         try {
-            plan = batchPlan.plan(TXN_ID, CLIENT_HANDLE, args[TARGET_BATCH], true);
+            plan = batchPlan.plan(TXN_ID, CLIENT_HANDLE, BASE_PARTITION+1, args[TARGET_BATCH], true);
         } catch (MispredictionException ex) {
             caught = true;
         }
@@ -174,8 +174,8 @@ public class TestBatchPlannerComplex extends BaseTestCase {
      */
     public void testGetStatementPartitions() throws Exception {
         for (int batch_idx = 0; batch_idx < query_batch.length; batch_idx++) {
-            BatchPlanner batchPlan = new BatchPlanner(batch[batch_idx], catalog_proc, p_estimator, BASE_PARTITION);
-            BatchPlanner.BatchPlan plan = batchPlan.plan(TXN_ID, CLIENT_HANDLE, args[batch_idx], false);
+            BatchPlanner batchPlan = new BatchPlanner(batch[batch_idx], catalog_proc, p_estimator);
+            BatchPlanner.BatchPlan plan = batchPlan.plan(TXN_ID, CLIENT_HANDLE, BASE_PARTITION, args[batch_idx], false);
             assertNotNull(plan);
             
             Statement catalog_stmts[] = batchPlan.getStatements();
