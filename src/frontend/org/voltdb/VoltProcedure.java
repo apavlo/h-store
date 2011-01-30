@@ -42,6 +42,8 @@ import edu.brown.utils.EventObservable;
 import edu.brown.utils.EventObserver;
 import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.PartitionEstimator;
+import edu.brown.utils.StringUtil;
+import edu.mit.hstore.HStoreSite;
 import edu.mit.hstore.dtxn.LocalTransactionState;
 import edu.mit.hstore.dtxn.TransactionState;
 
@@ -107,7 +109,7 @@ public abstract class VoltProcedure {
     private Long txn_id;
     private Long client_handle;
     private boolean predict_singlepartition;
-    private LocalTransactionState m_currentTxnState;  // assigned in call()
+    private TransactionState m_currentTxnState;  // assigned in call()
     private final SQLStmt batchQueryStmts[] = new SQLStmt[1000];
     private int batchQueryStmtIndex = 0;
     private final Object[] batchQueryArgs[] = new Object[1000][];
@@ -166,7 +168,7 @@ public abstract class VoltProcedure {
                 VoltProcedure.this.txn_id = current_txn_id;
                 VoltProcedure.this.client_handle = client_handle;
                 VoltProcedure.this.procParams = paramList;
-                VoltProcedure.this.predict_singlepartition = VoltProcedure.this.m_currentTxnState.isPredictSinglePartition();
+                VoltProcedure.this.predict_singlepartition = ((LocalTransactionState)VoltProcedure.this.m_currentTxnState).isPredictSinglePartition();
                 
                 if (debug.get()) LOG.debug("Starting execution of txn #" + current_txn_id);
                 
@@ -231,7 +233,7 @@ public abstract class VoltProcedure {
      * non-coordinator sites.
      */
     public void setTransactionState(TransactionState txnState) {
-        m_currentTxnState = (LocalTransactionState)txnState;
+        m_currentTxnState = txnState;
     }
 
     public TransactionState getTransactionState() {
@@ -267,7 +269,8 @@ public abstract class VoltProcedure {
         this.local_partition = this.m_site.getPartitionId();
         
         this.p_estimator = p_estimator;
-        this.thresholds = this.m_site.getHStoreSite().getThresholds();
+        HStoreSite hstore_site = this.m_site.getHStoreSite();
+        if (hstore_site != null) this.thresholds = hstore_site.getThresholds();
         this.hasher = this.p_estimator.getHasher();
         // LOG.debug("Initialized VoltProcedure for " + catProc + " [local=" + local_partition + ",total=" + this.hasher.getNumPartitions() + "]");
         
@@ -336,6 +339,7 @@ public abstract class VoltProcedure {
                             for (int ii = 0; ii < stmt.numStatementParamJavaTypes; ii++) {
                                 stmt.statementParamJavaTypes[ii] = (byte)parameters[ii].getJavatype();
                             }
+                            stmt.computeHashCode();
                         //stmts.put((Object) (f.get(null)), s);
                         } catch (IllegalArgumentException e) {
                             e.printStackTrace();
@@ -1009,7 +1013,6 @@ public abstract class VoltProcedure {
         for (int i = 0; i < batchSize; i++) {
             params[i] = getCleanParams(batchStmts[i], batchArgs[i]);
         } // FOR
-
         
         // Calculate the hash code for this batch to see whether we already have a planner
         final Integer batchHashCode = VoltProcedure.getBatchHashCode(batchStmts, batchSize);
@@ -1026,11 +1029,31 @@ public abstract class VoltProcedure {
         // At this point we have to calculate exactly what we need to do on each partition
         // for this batch. So somehow right now we need to fire this off to either our
         // local executor or to Evan's magical distributed transaction manager
-        BatchPlanner.BatchPlan plan = planner.plan(this.txn_id, this.client_handle, params, this.predict_singlepartition);
+        BatchPlanner.BatchPlan plan = null;
+        try {
+            plan = planner.plan(this.txn_id, this.client_handle, params, this.predict_singlepartition);
+        } catch (RuntimeException ex) {
+            String msg = StringUtil.SINGLE_LINE;
+            
+            msg += "CURRENT BATCH\n";
+            for (int i = 0; i < batchSize; i++) {
+                msg += String.format("[%02d] %s <==> %s\n     %s\n     %s\n", i, batchStmts[i].catStmt.fullName(), planner.catalog_stmts[i].fullName(), batchStmts[i].catStmt.getSqltext(), Arrays.toString(params[i].toArray()));
+            }
+            
+            msg += "\nPLANNER\n";
+            for (int i = 0; i < batchSize; i++) {
+                Statement stmt0 = planner.catalog_stmts[i];
+                Statement stmt1 = batchStmts[i].catStmt;
+                assert(stmt0.fullName().equals(stmt1.fullName())) : stmt0.fullName() + " != " + stmt1.fullName(); 
+                msg += String.format("[%02d] %s\n     %s\n     %s", i, stmt0.fullName(), stmt1.fullName());
+            } // FOR
+            LOG.fatal("\n" + msg);
+            throw ex;
+        }
         
         // Tell the TransactionEstimator that we're about to execute these mofos
         TransactionEstimator t_estimator = this.m_site.getTransactionEstimator();
-        TransactionEstimator.State t_state = this.m_currentTxnState.getEstimatorState();
+        TransactionEstimator.State t_state = ((LocalTransactionState)this.m_currentTxnState).getEstimatorState();
         if (t_state != null) {
             t_estimator.executeQueries(t_state, planner.getStatements(), plan.getStatementPartitions());
         }

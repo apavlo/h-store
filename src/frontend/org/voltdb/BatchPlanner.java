@@ -88,7 +88,6 @@ public class BatchPlanner {
     protected final Catalog catalog;
     protected final Procedure catalog_proc;
     protected final Statement catalog_stmts[];
-    protected final SQLStmt[] batchStmts;
     protected final int batchSize;
     protected final PartitionEstimator p_estimator;
     protected final int initiator_id;
@@ -402,7 +401,6 @@ public class BatchPlanner {
         assert(catalog_proc != null);
         assert(p_estimator != null);
 
-        this.batchStmts = batchStmts;
         this.batchSize = batchSize;
         this.catalog_proc = catalog_proc;
         this.catalog = catalog_proc.getCatalog();
@@ -413,7 +411,7 @@ public class BatchPlanner {
         
         this.catalog_stmts = new Statement[this.batchSize];
         for (int i = 0; i < this.batchSize; i++) {
-            this.catalog_stmts[i] = this.batchStmts[i].catStmt;
+            this.catalog_stmts[i] = batchStmts[i].catStmt;
         } // FOR
     }
 
@@ -447,18 +445,17 @@ public class BatchPlanner {
             Map<String, Object> m = new ListOrderedMap<String, Object>();
             m.put("Batch Size", this.batchSize);
             for (int i = 0; i < this.batchSize; i++) {
-                m.put(String.format("[%02d] %s", i, this.batchStmts[i].catStmt.getName()), Arrays.toString(batchArgs[i].toArray()));
+                m.put(String.format("[%02d] %s", i, this.catalog_stmts[i].getName()), Arrays.toString(batchArgs[i].toArray()));
             }
             LOG.trace("\n" + StringUtil.formatMapsBoxed(m));
         }
        
         for (int stmt_index = 0; stmt_index < this.batchSize; ++stmt_index) {
-            final SQLStmt stmt = this.batchStmts[stmt_index];
-            assert(stmt != null) : "The SQLStmt object at index " + stmt_index + " is null for " + this.catalog_proc;
-            final Statement catalog_stmt = stmt.catStmt;
+            final Statement catalog_stmt = this.catalog_stmts[stmt_index];
+            assert(catalog_stmt != null) : "The Statement at index " + stmt_index + " is null for " + this.catalog_proc;
             final ParameterSet paramSet = batchArgs[stmt_index];
             final Object params[] = paramSet.toArray();
-            if (trace.get()) LOG.trace(String.format("[%02d] Constructing fragment plans for %s", stmt_index, stmt.catStmt.fullName()));
+            if (trace.get()) LOG.trace(String.format("[%02d] Constructing fragment plans for %s", stmt_index, catalog_stmt.fullName()));
             
             final Map<PlanFragment, Set<Integer>> frag_partitions = plan.frag_partitions[stmt_index];
             final Set<Integer> stmt_all_partitions = plan.stmt_partitions[stmt_index];
@@ -508,6 +505,11 @@ public class BatchPlanner {
                     break;
                 } // WHILE
             } catch (Exception ex) {
+                String msg = "";
+                for (int i = 0; i < this.batchSize; i++) {
+                    msg += String.format("[%02d] %s %s\n     %s\n", i, catalog_stmt.fullName(), catalog_stmt.getSqltext(), Arrays.toString(batchArgs[i].toArray()));
+                }
+                LOG.fatal("\n" + msg);
                 throw new RuntimeException("Unexpected error when planning " + catalog_stmt.fullName(), ex);
             }
             
@@ -545,8 +547,8 @@ public class BatchPlanner {
 
                 Map<String, Object> header = new ListOrderedMap<String, Object>();
                 header.put("Batch Statement#", String.format("%02d / %02d", stmt_index, this.batchSize));
-                header.put("Catalog Statement", stmt.catStmt.fullName());
-                header.put("Statement SQL", stmt.getText());
+                header.put("Catalog Statement", catalog_stmt.fullName());
+                header.put("Statement SQL", catalog_stmt.getSqltext());
                 header.put("All Partitions", plan.stmt_partitions[stmt_index]);
                 header.put("Local Partition", base_partition);
                 header.put("IsSingledSited", is_singlepartition);
