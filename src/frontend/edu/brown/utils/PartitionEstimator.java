@@ -3,6 +3,7 @@ package edu.brown.utils;
 import java.lang.reflect.Array;
 import java.util.*;
 
+import org.apache.commons.collections15.set.ListOrderedSet;
 import org.apache.commons.pool.BasePoolableObjectFactory;
 import org.apache.commons.pool.ObjectPool;
 import org.apache.commons.pool.impl.StackObjectPool;
@@ -72,10 +73,11 @@ public class PartitionEstimator {
         private static final long serialVersionUID = 1L;
         private final QueryType query_type;
         private boolean contains_or = false;
-        private final HashSet<String> table_keys = new HashSet<String>();
+        private final Set<String> table_keys = new HashSet<String>();
         private final HashSet<String> broadcast_tables = new HashSet<String>();
         
-        private final transient HashSet<Table> tables = new HashSet<Table>();
+        private final transient ListOrderedSet<Table> tables = new ListOrderedSet<Table>();
+        private transient boolean is_replicated[];
         private transient boolean is_valid = true;
         private transient Integer last_catalog_hashcode = null;
         
@@ -129,7 +131,7 @@ public class PartitionEstimator {
          * Get all of the tables referenced in this CacheEntry
          * @return
          */
-        public Set<Table> getTables() {
+        public ListOrderedSet<Table> getTables() {
             int cur_catalog_hashcode = catalog_db.hashCode();
             // We have to update the cache set if don't have all of the entries we need or the catalog has changed
             if (this.last_catalog_hashcode == null ||
@@ -137,8 +139,13 @@ public class PartitionEstimator {
                 this.tables.size() < this.table_keys.size()) {
                 LOG.trace("Generating list of tables used by cache entry");
                 this.tables.clear();
+                
+                this.is_replicated = new boolean[this.table_keys.size()];
+                int i = 0;
                 for (String table_key : this.table_keys) {
-                    this.tables.add(CatalogKey.getFromKey(catalog_db, table_key, Table.class));
+                    Table catalog_tbl = CatalogKey.getFromKey(catalog_db, table_key, Table.class); 
+                    this.tables.add(catalog_tbl);
+                    this.is_replicated[i++] = catalog_tbl.getIsreplicated();
                 } // FOR
                 this.last_catalog_hashcode = cur_catalog_hashcode;
             }
@@ -670,6 +677,7 @@ public class PartitionEstimator {
         assert(partition_param_idx < catalog_proc.getParameters().size()): "Invalid Partitioning ProcParameter #" + partition_param_idx + " [ProcParmaeters=" + catalog_proc.getParameters().size() + "]";
         ProcParameter catalog_param = catalog_proc.getParameters().get(partition_param_idx);
         int partition = -1;
+        boolean is_array = catalog_param.getIsarray();
         
         // Special Case: MultiProcParameter
         if (catalog_param instanceof MultiProcParameter) {
@@ -680,14 +688,14 @@ public class PartitionEstimator {
                 int mpp_param_idx = mpp.get(i).getIndex();
                 assert(mpp_param_idx >= 0) : "Invalid Partitioning MultiProcParameter #" + mpp_param_idx;
                 assert(mpp_param_idx < params.length) : CatalogUtil.getDisplayName(mpp) + " < " + params.length;
-                hashes[i] = this.calculatePartition(catalog_proc, params[mpp_param_idx]);
+                hashes[i] = this.calculatePartition(catalog_proc, params[mpp_param_idx], is_array);
                 if (debug.get()) LOG.debug(mpp.get(i) + " value[" + params[mpp_param_idx] + "] => hash[" + hashes[i] + "]");
             } // FOR
             partition = this.hasher.multiValueHash(hashes);
             if (debug.get()) LOG.debug(Arrays.toString(hashes) + " => " + partition);
         // Single ProcParameter
         } else {
-            partition = this.calculatePartition(catalog_proc, params[partition_param_idx]);
+            partition = this.calculatePartition(catalog_proc, params[partition_param_idx], is_array);
         }
         return (partition);
     }
@@ -951,7 +959,11 @@ public class PartitionEstimator {
         // IMPORTANT: If there are no tables (meaning it's some PlanFragment that combines data output 
         //            from other PlanFragments), then won't return anything because it is up to whoever 
         //            to figure out where to send this PlanFragment (it may be at the coordinator)
-        for (Table catalog_tbl : cache_entry.getTables()) {
+        List<Table> tables = cache_entry.getTables().asList();
+        for (int table_idx = 0, cnt = cache_entry.is_replicated.length; table_idx < cnt; table_idx++) {
+            final Table catalog_tbl = tables.get(table_idx);
+            final boolean is_replicated = cache_entry.is_replicated[table_idx];
+            
             @SuppressWarnings("unchecked")
             Set<Integer> table_partitions = (Set<Integer>)this.partitionSetPool.borrowObject();
             assert(table_partitions != null);
@@ -961,7 +973,7 @@ public class PartitionEstimator {
             // current table (but we still need to check the other guys).
             // Conversely, if it's replicated but we're performing an update or a 
             // delete, then we know it's not single-sited.
-            if (catalog_tbl.getIsreplicated()) {
+            if (is_replicated) {
                 if (stmt_type == QueryType.SELECT) {
                     if (trace.get()) LOG.trace("Cache entry " + cache_entry + " will execute on the local partition");
                     if (base_partition != null) table_partitions.add(base_partition);
@@ -1102,9 +1114,9 @@ public class PartitionEstimator {
      * @return
      * @throws Exception
      */
-    private int calculatePartition(Procedure catalog_proc, Object partition_param_val) throws Exception {
+    private int calculatePartition(Procedure catalog_proc, Object partition_param_val, boolean is_array) throws Exception {
         // If the parameter is an array, then just use the first value
-        if (ClassUtil.isArray(partition_param_val)) {
+        if (is_array) {
             int num_elements = Array.getLength(partition_param_val);
             if (num_elements == 0) {
                 if (debug.get()) LOG.debug("Empty partitioning parameter array for " + catalog_proc);
@@ -1211,5 +1223,13 @@ public class PartitionEstimator {
                 }
             } // FOR
         } // FOR
+        
+        for (CacheEntry entry : this.frag_cache_entries.values()) {
+            entry.getTables();
+        }
+        for (CacheEntry entry : this.stmt_cache_entries.values()) {
+            entry.getTables();
+        }
+
     }
 }

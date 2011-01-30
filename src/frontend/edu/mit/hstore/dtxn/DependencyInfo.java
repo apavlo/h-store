@@ -30,15 +30,11 @@ public class DependencyInfo {
     /**
      * DependencyInfo Object Pool
      */
-    protected static final ObjectPool POOL = new StackObjectPool(new BasePoolableObjectFactory() {
+    public static final ObjectPool POOL = new StackObjectPool(new BasePoolableObjectFactory() {
         @Override
         public Object makeObject() throws Exception {
             return (new DependencyInfo());
         }
-        public void passivateObject(Object obj) throws Exception {
-            DependencyInfo info = (DependencyInfo)obj;
-            info.finished();
-        };
     });
 
     
@@ -77,7 +73,13 @@ public class DependencyInfo {
         this.responses.clear();
         this.blocked_tasks.clear();
         this.blocked_tasks_released = false;
-        this.blocked_all_local = true;        
+        this.blocked_all_local = true;
+        
+        try {
+            POOL.returnObject(this);
+        } catch (Exception ex) {
+            throw new RuntimeException(ex);
+        }
     }
     
     

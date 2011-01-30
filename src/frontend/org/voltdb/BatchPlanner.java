@@ -57,7 +57,7 @@ public class BatchPlanner {
     
     public static final int MAX_ROUND_SIZE = 10;
 
-    public static final int PLAN_POOL_INITIAL_SIZE = 1500;
+    public static final int PLAN_POOL_INITIAL_SIZE = 5000;
     
     /**
      * BatchPlan Object Pool
@@ -101,7 +101,7 @@ public class BatchPlanner {
     // ----------------------------------------------------------------------------
     
     // Used for turning ParameterSets into ByteBuffers
-    protected final FastSerializer fs = new FastSerializer();
+//    protected final FastSerializer fs = new FastSerializer();
     
     // the set of dependency ids for the expected results of the batch
     // one per sql statment
@@ -226,6 +226,7 @@ public class BatchPlanner {
 
         /** The serialized ByteBuffers for each Statement in the batch */ 
         private final ByteBuffer param_buffers[] = new ByteBuffer[MAX_BATCH_SIZE];
+        private final FastSerializer param_serializers[] = new FastSerializer[MAX_BATCH_SIZE];
         
         /** Temporary buffer space for sorting the PlanFragments per Statement */
         private final List<PlanFragment> frag_list[];
@@ -309,6 +310,7 @@ public class BatchPlanner {
                 for (int i = 0; i < MAX_BATCH_SIZE; i++) {
                     this.stmt_partitions[i] = new HashSet<Integer>();
                     this.frag_partitions[i] = new HashMap<PlanFragment, Set<Integer>>();
+                    this.param_serializers[i] = new FastSerializer();
                 } // FOR
              
                 for (int i = 0; i < this.rounds.length; i++) {
@@ -322,14 +324,6 @@ public class BatchPlanner {
         }
         
         /**
-         * Return the list of FragmentTaskMessages that need to be executed for this BatchPlan
-         * @return
-         */
-        public List<FragmentTaskMessage> getFragmentTaskMessages() {
-            return (this.ftasks);
-        }
-        
-        /**
          * Marks this BatchPlan as completed (i.e., all of the PlanFragments have
          * been executed the and the results have been returned. This must be called before
          * returning back to the user-level VoltProcedure
@@ -338,6 +332,7 @@ public class BatchPlanner {
             for (int i = 0; i < MAX_BATCH_SIZE; i++) {
                 this.frag_list[i] = null;
                 this.stmt_partitions[i].clear();
+                this.param_serializers[i].clear();
                 for (Set<Integer> s : this.frag_partitions[i].values()) {
                     s.clear();
                 }
@@ -353,6 +348,14 @@ public class BatchPlanner {
             } catch (Exception ex) {
                 throw new RuntimeException(ex);
             }
+        }
+        
+        /**
+         * Return the list of FragmentTaskMessages that need to be executed for this BatchPlan
+         * @return
+         */
+        public List<FragmentTaskMessage> getFragmentTaskMessages() {
+            return (this.ftasks);
         }
 
         protected int getLocalFragmentCount(int base_partition) {
@@ -652,10 +655,9 @@ public class BatchPlanner {
         
         // Pre-compute Statement Parameter ByteBuffers
         for (int stmt_index = 0; stmt_index < this.batchSize; stmt_index++) {
-            FastSerializer fs = new FastSerializer(); // ExecutionSite.buffer_pool);
             try {
-                batchArgs[stmt_index].writeExternal(fs);
-                plan.param_buffers[stmt_index] = fs.getBuffer();
+                batchArgs[stmt_index].writeExternal(plan.param_serializers[stmt_index]);
+                plan.param_buffers[stmt_index] = plan.param_serializers[stmt_index].getBuffer();
             } catch (Exception ex) {
                 LOG.fatal("Failed to serialize parameters for Statement #" + stmt_index, ex);
                 System.exit(1);

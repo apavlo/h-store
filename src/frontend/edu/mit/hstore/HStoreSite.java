@@ -69,6 +69,7 @@ import edu.brown.workload.AbstractTraceElement;
 import edu.brown.workload.Workload;
 import edu.mit.dtxn.Dtxn;
 import edu.mit.dtxn.Dtxn.FragmentResponse.Status;
+import edu.mit.hstore.callbacks.ClientResponseFinalCallback;
 import edu.mit.hstore.callbacks.ForwardTxnRequestCallback;
 import edu.mit.hstore.callbacks.ClientResponsePrepareCallback;
 import edu.mit.hstore.callbacks.InitiateCallback;
@@ -147,6 +148,8 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
      * This is the thing that we will actually use to generate txn ids used by our H-Store specific code
      */
     private final TransactionIdManager txnid_manager;
+    
+    private final boolean ignore_dtxn;
     
     private final DBBPool buffer_pool = new DBBPool(true, false);
     private final Map<Integer, Thread> executor_threads = new HashMap<Integer, Thread>();
@@ -341,6 +344,9 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         this.executors = Collections.unmodifiableMap(new HashMap<Integer, ExecutionSite>(executors));
         this.messenger = new HStoreMessenger(this);
         this.txnid_manager = new TransactionIdManager(this.site_id);
+        
+        this.ignore_dtxn = CatalogUtil.getNumberOfPartitions(catalog_site) == 1;
+        if (this.ignore_dtxn) LOG.info("Ignore Dtxn.Coordinator is enabled!");
         
         this.helper_pool = Executors.newScheduledThreadPool(1);
         
@@ -679,30 +685,40 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         this.inflight_txns.put(txn_id, txn_info);
 
         // Construct the message for the Dtxn.Coordinator
-        ProtoRpcController rpc = new ProtoRpcController();
-        Dtxn.CoordinatorFragment.Builder requestBuilder = Dtxn.CoordinatorFragment.newBuilder();
-        
-        // Note that we pass the fake txn id to the Dtxn.Coordinator. 
-        requestBuilder.setTransactionId(txn_id);
-        
-        // Whether this transaction is single-partitioned or not
-        requestBuilder.setLastFragment(single_partition);
-        
-        // NOTE: Evan betrayed our love so we can't use his txn ids because they are meaningless to us
-        // So we're going to pack in our txn id in the payload. Any message they we get from Evan
-        // will have this payload so that we can figure out what the hell is going on...
-        requestBuilder.setPayload(HStoreSite.encodeTxnId(txn_id));
+        if (this.ignore_dtxn) {
+            Dtxn.Fragment.Builder requestBuilder = Dtxn.Fragment.newBuilder()
+                                                                .setTransactionId(txn_id)
+                                                                .setUndoable(true)
+                                                                .setWork(ByteString.copyFrom(wrapper.getBufferForMessaging(this.buffer_pool).b.array()));
+            txn_info.latch.countDown();
+            this.execute(null, requestBuilder.build(), null);
 
-        // Pack the StoredProcedureInvocation into a Dtxn.PartitionFragment
-        requestBuilder.addFragment(Dtxn.CoordinatorFragment.PartitionFragment.newBuilder()
-                .setPartitionId(dest_partition)
-                .setWork(ByteString.copyFrom(wrapper.getBufferForMessaging(this.buffer_pool).b.array())));
-        
-        // Create a latch so that we don't start executing until we know the coordinator confirmed are initialization request
-        InitiateCallback callback = new InitiateCallback(this, txn_id, txn_info.latch);
-        
-//        assert(requestBuilder.getTransactionId() != callback.getTransactionId());
-        this.coordinator.execute(rpc, requestBuilder.build(), callback);
+        } else {
+            ProtoRpcController rpc = new ProtoRpcController();
+            Dtxn.CoordinatorFragment.Builder requestBuilder = Dtxn.CoordinatorFragment.newBuilder();
+            
+            // Note that we pass the fake txn id to the Dtxn.Coordinator. 
+            requestBuilder.setTransactionId(txn_id);
+            
+            // Whether this transaction is single-partitioned or not
+            requestBuilder.setLastFragment(single_partition);
+            
+            // NOTE: Evan betrayed our love so we can't use his txn ids because they are meaningless to us
+            // So we're going to pack in our txn id in the payload. Any message they we get from Evan
+            // will have this payload so that we can figure out what the hell is going on...
+            requestBuilder.setPayload(HStoreSite.encodeTxnId(txn_id));
+    
+            // Pack the StoredProcedureInvocation into a Dtxn.PartitionFragment
+            requestBuilder.addFragment(Dtxn.CoordinatorFragment.PartitionFragment.newBuilder()
+                    .setPartitionId(dest_partition)
+                    .setWork(ByteString.copyFrom(wrapper.getBufferForMessaging(this.buffer_pool).b.array())));
+            
+            // Create a latch so that we don't start executing until we know the coordinator confirmed are initialization request
+            InitiateCallback callback = new InitiateCallback(this, txn_id, txn_info.latch);
+            
+    //        assert(requestBuilder.getTransactionId() != callback.getTransactionId());
+            this.coordinator.execute(rpc, requestBuilder.build(), callback);
+        }
     }
     
 
@@ -747,11 +763,14 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         if (msg instanceof InitiateTaskMessage) {
             // We need to send back a response before we actually start executing to avoid a race condition
             if (trace.get()) LOG.trace("Sending back Dtxn.FragmentResponse for InitiateTaskMessage message on txn #" + txn_id);
-            Dtxn.FragmentResponse response = Dtxn.FragmentResponse.newBuilder()
-                                                    .setStatus(Status.OK)
-                                                    .setOutput(ByteString.EMPTY)
-                                                    .build();
-            done.run(response);
+            
+            if (this.ignore_dtxn == false) {
+                Dtxn.FragmentResponse response = Dtxn.FragmentResponse.newBuilder()
+                                                        .setStatus(Status.OK)
+                                                        .setOutput(ByteString.EMPTY)
+                                                        .build();
+                done.run(response);
+            }
             TransactionInfo txn_info = this.inflight_txns.get(txn_id);
             assert(txn_info != null) : "Missing TransactionInfo for txn #" + txn_id;
             single_partitioned = txn_info.is_singlepartitioned;
@@ -824,7 +843,12 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
      */
     public void requestFinish(long txn_id, Dtxn.FinishRequest request, RpcCallback<Dtxn.FinishResponse> callback) {
         this.initializationBlock(txn_id);
-        this.coordinator.finish(new ProtoRpcController(), request, callback);
+        if (this.ignore_dtxn) {
+            assert(callback instanceof ClientResponseFinalCallback);
+            this.finish(new ProtoRpcController(), request, callback);
+        } else {
+            this.coordinator.finish(new ProtoRpcController(), request, callback);
+        }
     }
     
     /**
@@ -851,10 +875,16 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
             }
         } // FOR
         
+        // If we're not using the DTXN, then send back the client response right now
+        if (this.ignore_dtxn) {
+            this.inflight_txns.get(txn_id).client_callback.run(((ClientResponseFinalCallback)done).getOutput());
+            
         // Send back a FinishResponse to let them know we're cool with everything...
-        Dtxn.FinishResponse.Builder builder = Dtxn.FinishResponse.newBuilder();
-        done.run(builder.build());
-        if (trace.get()) LOG.trace("Sent back Dtxn.FinishResponse for txn #" + txn_id);
+        } else {
+            Dtxn.FinishResponse.Builder builder = Dtxn.FinishResponse.newBuilder();
+            done.run(builder.build());
+            if (trace.get()) LOG.trace("Sent back Dtxn.FinishResponse for txn #" + txn_id);
+        } 
     }
     
     /**

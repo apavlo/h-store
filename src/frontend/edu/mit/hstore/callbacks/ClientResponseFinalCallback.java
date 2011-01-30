@@ -23,6 +23,10 @@ public class ClientResponseFinalCallback extends AbstractTxnCallback implements 
         this.status = status;
     }
     
+    public byte[] getOutput() {
+        return output;
+    }
+    
     /**
      * We can finally send out the final answer to the client
      */
