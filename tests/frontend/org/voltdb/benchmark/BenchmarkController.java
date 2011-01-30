@@ -387,22 +387,6 @@ public class BenchmarkController {
                 System.exit(-1);
             }
 
-            // START: Dtxn.Coordinator
-            if (m_config.noCoordinator == false) {
-                String host = m_config.coordinatorHost;
-                String[] command = {
-                    "ant",
-                    "dtxn-coordinator",
-                    "-Dproject=" + m_projectBuilder.getProjectName(),
-                };
-
-                command = SSHTools.convert(m_config.remoteUser, host, m_config.remotePath, command);
-                String fullCommand = StringUtil.join(" ", command);
-                benchmarkLog.debug(fullCommand);
-                m_coordPSM.startProcess("dtxn-" + host, command);
-                LOG.info("Started Dtxn.Coordinator on " + host);
-            }
-            
             // START THE SERVERS
             LOG.debug("Number of hosts to start: " + launch_hosts.size());
             int hosts_started = 0;
@@ -448,6 +432,22 @@ public class BenchmarkController {
                 hosts_started++;
             } // FOR
 
+            // START: Dtxn.Coordinator
+            if (m_config.noCoordinator == false) {
+                String host = m_config.coordinatorHost;
+                String[] command = {
+                    "ant",
+                    "dtxn-coordinator",
+                    "-Dproject=" + m_projectBuilder.getProjectName(),
+                };
+
+                command = SSHTools.convert(m_config.remoteUser, host, m_config.remotePath, command);
+                String fullCommand = StringUtil.join(" ", command);
+                benchmarkLog.debug(fullCommand);
+                m_coordPSM.startProcess("dtxn-" + host, command);
+                LOG.info("Started Dtxn.Coordinator on " + host);
+            }
+            
             // WAIT FOR SERVERS TO BE READY
             int waiting = hosts_started;
             if (waiting > 0) {
