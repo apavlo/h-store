@@ -89,8 +89,8 @@ public class TestTransactionState extends BaseTestCase {
                 args[i] = VoltProcedure.getCleanParams(batch[i], raw_args); 
             } // FOR
          
-            BatchPlanner planner = new BatchPlanner(batch, catalog_proc, p_estimator, LOCAL_PARTITION);
-            plan = planner.plan(TXN_ID, CLIENT_HANDLE, args, SINGLE_PARTITIONED);
+            BatchPlanner planner = new BatchPlanner(batch, catalog_proc, p_estimator);
+            plan = planner.plan(TXN_ID, CLIENT_HANDLE, LOCAL_PARTITION, args, SINGLE_PARTITIONED);
             assertNotNull(plan);
             ftasks = plan.getFragmentTaskMessages();
             System.err.println("FTASKS: " + ftasks);

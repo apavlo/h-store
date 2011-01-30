@@ -1016,14 +1016,16 @@ public abstract class VoltProcedure {
         
         // Calculate the hash code for this batch to see whether we already have a planner
         final Integer batchHashCode = VoltProcedure.getBatchHashCode(batchStmts, batchSize);
-        BatchPlanner planner = null;
-        synchronized (this.m_site.batch_planners) {
-            planner = this.m_site.batch_planners.get(batchHashCode);
-            if (planner == null) {
-                planner = new BatchPlanner(batchStmts, batchSize, this.catProc, this.p_estimator, this.local_partition);
-                this.m_site.batch_planners.put(batchHashCode, planner);
-            }
-        } // SYNCHRONIZED
+        BatchPlanner planner = ExecutionSite.batch_planners.get(batchHashCode);
+        if (planner == null) { // Assume fast case
+            synchronized (ExecutionSite.batch_planners) {
+                planner = ExecutionSite.batch_planners.get(batchHashCode);
+                if (planner == null) {
+                    planner = new BatchPlanner(batchStmts, batchSize, this.catProc, this.p_estimator);
+                    ExecutionSite.batch_planners.put(batchHashCode, planner);
+                }
+            } // SYNCHRONIZED
+        }
         assert(planner != null);
 
         // At this point we have to calculate exactly what we need to do on each partition
@@ -1031,7 +1033,7 @@ public abstract class VoltProcedure {
         // local executor or to Evan's magical distributed transaction manager
         BatchPlanner.BatchPlan plan = null;
         try {
-            plan = planner.plan(this.txn_id, this.client_handle, params, this.predict_singlepartition);
+            plan = planner.plan(this.txn_id, this.client_handle, this.local_partition, params, this.predict_singlepartition);
         } catch (RuntimeException ex) {
             String msg = StringUtil.SINGLE_LINE;
             
@@ -1058,7 +1060,7 @@ public abstract class VoltProcedure {
             t_estimator.executeQueries(t_state, planner.getStatements(), plan.getStatementPartitions());
         }
         
-        LOG.debug("BatchPlan for txn #" + this.txn_id + ":\n" + plan.toString());
+        if (debug.get()) LOG.debug("BatchPlan for txn #" + this.txn_id + ":\n" + plan.toString());
         
         // IMPORTANT: Regardless of whether the BatchPlan is local or remote, we are always
         // going to use the ExecutionSite to execute our tasks, rather than use the short-cut
@@ -1087,8 +1089,9 @@ public abstract class VoltProcedure {
         // important not to forget
         ProcedureProfiler.stopStatementCounter();
 
-        // We always have to call finished() on the BatchPlan!
-        plan.finished();
+        // Tell our TransactionState that we are done with this BatchPlan
+        // It will dispose of it when the transaction commits/aborts
+        this.m_currentTxnState.addFinishedBatchPlan(plan);
         
         return results;
     }

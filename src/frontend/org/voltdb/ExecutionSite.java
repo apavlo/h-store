@@ -168,7 +168,7 @@ public class ExecutionSite implements Runnable {
      * Mapping from SQLStmt batch hash codes (computed by VoltProcedure.getBatchHashCode()) to BatchPlanners
      * The idea is that we can quickly derived the partitions for each unique set of SQLStmt list
      */
-    protected final Map<Integer, BatchPlanner> batch_planners = new HashMap<Integer, BatchPlanner>();
+    protected static final Map<Integer, BatchPlanner> batch_planners = new ConcurrentHashMap<Integer, BatchPlanner>();
     
     // ----------------------------------------------------------------------------
     // DATA MEMBERS
@@ -205,7 +205,7 @@ public class ExecutionSite implements Runnable {
     private final BackendTarget backend_target;
     private final ExecutionEngine ee;
     private final HsqlBackend hsql;
-    private static final DBBPool buffer_pool = new DBBPool(true, false);
+    public static final DBBPool buffer_pool = new DBBPool(true, false);
 
     /**
      * Runtime Estimators
@@ -583,7 +583,27 @@ public class ExecutionSite implements Runnable {
                 }
             }
         } // FOR
-
+        
+        // Then preload a bunch of TransactionStates
+        for (boolean local : new boolean[]{ true, false }) {
+            List<TransactionState> states = new ArrayList<TransactionState>();
+            ObjectPool pool = (local ? this.localTxnPool : this.remoteTxnPool);
+            try {
+                for (int i = 0; i < 500; i++) {
+                    TransactionState ts = (TransactionState)pool.borrowObject();
+                    ts.init(-1l, -1l, this.partitionId);
+                    states.add(ts);
+                } // FOR
+                
+                for (TransactionState ts : states) {
+                    pool.returnObject(ts);
+                } // FOR
+            } catch (Exception ex) {
+                throw new RuntimeException(ex);
+            }
+        } // FOR
+        
+        
         /*
         NDC.push("ExecutionSite - " + siteId + " index " + siteIndex);
         if (VoltDB.getUseThreadAffinity()) {

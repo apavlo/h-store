@@ -21,7 +21,7 @@ public abstract class LoggerUtil {
     private static final EventObservable observable = new EventObservable();
     
     public static class LoggerBoolean {
-        private boolean val = true;
+        private boolean val;
     
         public LoggerBoolean(boolean val) {
             this.val = val;
@@ -139,6 +139,9 @@ public abstract class LoggerUtil {
             };
             refresh_thread.setDaemon(true);
             refresh_thread.start();
+            
+            // We need to update all of our observers the first time
+            LoggerUtil.observable.notifyObservers();
         }
     }
     

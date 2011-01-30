@@ -25,19 +25,23 @@
  ***************************************************************************/
 package edu.mit.hstore.dtxn;
 
-import java.util.concurrent.atomic.AtomicBoolean;
-
 import org.apache.commons.pool.BasePoolableObjectFactory;
 import org.apache.log4j.Logger;
 import org.voltdb.ExecutionSite;
 import org.voltdb.VoltTable;
+import org.voltdb.BatchPlanner.BatchPlan;
 
 import edu.brown.utils.LoggerUtil;
+import edu.brown.utils.LoggerUtil.LoggerBoolean;
 
+/**
+ * 
+ * @author pavlo
+ */
 public class RemoteTransactionState extends TransactionState {
     protected static final Logger LOG = Logger.getLogger(RemoteTransactionState.class);
-    private final static AtomicBoolean debug = new AtomicBoolean(LOG.isDebugEnabled());
-    private final static AtomicBoolean trace = new AtomicBoolean(LOG.isTraceEnabled());
+    private final static LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private final static LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
     static {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
@@ -99,6 +103,11 @@ public class RemoteTransactionState extends TransactionState {
     
     @Override
     public void addResult(int partition, int dependencyId, VoltTable result) {
+        // Nothing
+    }
+
+    @Override
+    public void addFinishedBatchPlan(BatchPlan plan) {
         // Nothing
     }
 }

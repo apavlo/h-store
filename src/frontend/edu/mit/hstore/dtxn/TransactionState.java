@@ -34,10 +34,10 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.log4j.Logger;
+import org.voltdb.BatchPlanner;
 import org.voltdb.ExecutionSite;
 import org.voltdb.VoltTable;
 import org.voltdb.messaging.FragmentTaskMessage;
-import org.voltdb.utils.Pair;
 
 import com.google.protobuf.RpcCallback;
 
@@ -62,7 +62,7 @@ public abstract class TransactionState {
         STARTED,
         FINISHED;
     }
-    
+
     // ----------------------------------------------------------------------------
     // GLOBAL DATA MEMBERS
     // ----------------------------------------------------------------------------
@@ -102,11 +102,11 @@ public abstract class TransactionState {
     /**
      * PartitionDependencyKey
      */
-    protected class PartitionDependencyKey extends Pair<Integer, Integer> {
-        public PartitionDependencyKey(Integer partition_id, Integer dependency_id) {
-            super(partition_id, dependency_id);
-        }
-    }
+//    protected class PartitionDependencyKey extends Pair<Integer, Integer> {
+//        public PartitionDependencyKey(Integer partition_id, Integer dependency_id) {
+//            super(partition_id, dependency_id);
+//        }
+//    }
     
     // ----------------------------------------------------------------------------
     // INITIALIZATION
@@ -162,6 +162,8 @@ public abstract class TransactionState {
     public abstract void addResponse(int partition, int dependency_id);
     
     public abstract void addResult(int partition, int dependency_id, VoltTable result);
+
+    public abstract void addFinishedBatchPlan(BatchPlanner.BatchPlan plan);
     
     // ----------------------------------------------------------------------------
     // ROUND METHODS

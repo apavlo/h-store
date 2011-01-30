@@ -29,6 +29,12 @@ public abstract class QueryPlanUtil {
     private static final Map<String, AbstractPlanNode> CACHE_DESERIALIZE_MS_STATEMENT = new HashMap<String, AbstractPlanNode>();
 
     /**
+     * Statement -> Sorted List of PlanFragments
+     */
+    private static final Map<Statement, List<PlanFragment>> CACHE_SORTED_SS_FRAGMENTS = new HashMap<Statement, List<PlanFragment>>();
+    private static final Map<Statement, List<PlanFragment>> CACHE_SORTED_MS_FRAGMENTS = new HashMap<Statement, List<PlanFragment>>();
+    
+    /**
      * 
      */
     private static final Map<String, String> CACHE_STMTPARAMETER_COLUMN = new HashMap<String, String>();
@@ -88,9 +94,36 @@ public abstract class QueryPlanUtil {
      * @return
      * @throws Exception
      */
-    public static List<PlanFragment> getSortedPlanFragments(List<PlanFragment> catalog_frags) {
+    public static List<PlanFragment> sortPlanFragments(List<PlanFragment> catalog_frags) {
         Collections.sort(catalog_frags, PLANFRAGMENT_EXECUTION_ORDER);
         return (catalog_frags);
+    }
+    
+    /**
+     * 
+     * @param catalog_stmt
+     * @param singlepartition
+     * @return
+     */
+    public static List<PlanFragment> getSortedPlanFragments(Statement catalog_stmt, boolean singlepartition) {
+        Map<Statement, List<PlanFragment>> cache = (singlepartition ? CACHE_SORTED_SS_FRAGMENTS : CACHE_SORTED_MS_FRAGMENTS); 
+        List<PlanFragment> ret = cache.get(catalog_stmt);
+        if (ret == null) {
+            CatalogMap<PlanFragment> catalog_frags = null;
+            if (singlepartition && catalog_stmt.getHas_singlesited()) {
+                catalog_frags = catalog_stmt.getFragments();
+            } else if (catalog_stmt.getHas_multisited()) {
+                catalog_frags = catalog_stmt.getMs_fragments();
+            }
+            
+            if (catalog_frags != null) {
+                List<PlanFragment> fragments = (List<PlanFragment>)CollectionUtil.addAll(new ArrayList<PlanFragment>(), catalog_frags); 
+                QueryPlanUtil.sortPlanFragments(fragments);
+                ret = Collections.unmodifiableList(fragments);
+                cache.put(catalog_stmt, ret);
+            }
+        }
+        return (ret);
     }
     
     /**
@@ -260,8 +293,15 @@ public abstract class QueryPlanUtil {
         for (Procedure catalog_proc : catalog_db.getProcedures()) {
             if (catalog_proc.getSystemproc() || catalog_proc.getHasjava() == false) continue; 
             for (Statement catalog_stmt : catalog_proc.getStatements()) {
-                if (catalog_stmt.getHas_singlesited()) QueryPlanUtil.deserializeStatement(catalog_stmt, true);
-                if (catalog_stmt.getHas_multisited()) QueryPlanUtil.deserializeStatement(catalog_stmt, false);
+                if (catalog_stmt.getHas_singlesited()) {
+                    QueryPlanUtil.deserializeStatement(catalog_stmt, true);
+                    QueryPlanUtil.getSortedPlanFragments(catalog_stmt, true);
+                }
+                if (catalog_stmt.getHas_multisited()) {
+                    QueryPlanUtil.deserializeStatement(catalog_stmt, false);
+                    QueryPlanUtil.getSortedPlanFragments(catalog_stmt, false);
+                }
+                
                 for (PlanFragment catalog_frag : catalog_stmt.getFragments()) {
                     QueryPlanUtil.deserializePlanFragment(catalog_frag);
                 } // FOR

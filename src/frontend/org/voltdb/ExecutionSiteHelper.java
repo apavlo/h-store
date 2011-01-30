@@ -5,7 +5,9 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.log4j.Logger;
 
+import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.LoggerUtil;
+import edu.mit.hstore.HStoreSite;
 import edu.mit.hstore.dtxn.TransactionState;
 
 /**
@@ -36,6 +38,8 @@ public class ExecutionSiteHelper implements Runnable {
      */
     private final Collection<ExecutionSite> sites;
     
+    private boolean first = true;
+    
     /**
      * 
      * @param sites
@@ -46,6 +50,13 @@ public class ExecutionSiteHelper implements Runnable {
     
     @Override
     public synchronized void run() {
+        if (this.first) {
+            Thread self = Thread.currentThread();
+            HStoreSite hstore_site = CollectionUtil.getFirst(this.sites).hstore_site;
+            self.setName(hstore_site.getThreadName("help"));
+            this.first = false;
+        }
+        
         long to_remove = System.currentTimeMillis() - FINISHED_TRANSACTION_GARBAGE_COLLECTION;
         for (ExecutionSite es : this.sites) {
           int cleaned = 0;

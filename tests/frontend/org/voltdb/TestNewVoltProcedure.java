@@ -111,8 +111,8 @@ public class TestNewVoltProcedure extends BaseTestCase {
             args[i] = VoltProcedure.getCleanParams(batchStmts[i], TARGET_PARAMS);
         } // FOR
         
-        BatchPlanner planner = new BatchPlanner(batchStmts, catalog_proc, p_estimator, PARTITION_ID);
-        BatchPlanner.BatchPlan plan = planner.plan(txn_id, CLIENT_HANDLE, args, true);
+        BatchPlanner planner = new BatchPlanner(batchStmts, catalog_proc, p_estimator);
+        BatchPlanner.BatchPlan plan = planner.plan(txn_id, CLIENT_HANDLE, PARTITION_ID, args, true);
         assertNotNull(plan);
         
         // Only try to execute a BatchPlan if we have the real EE
