@@ -53,46 +53,24 @@ public class BatchPlanner {
     
     protected static final AtomicInteger NEXT_DEPENDENCY_ID = new AtomicInteger(1000);
 
-    public static final int MAX_BATCH_SIZE = 64;
-    
     public static final int MAX_ROUND_SIZE = 10;
+    
+    public static final int MAX_BATCH_SIZE = 64;
 
-    public static final int PLAN_POOL_INITIAL_SIZE = 5000;
+    public static final int PLAN_POOL_INITIAL_SIZE = 100;
     
     /**
-     * BatchPlan Object Pool
+     * BatchPlan Object Factory
      */
-    private static final ObjectPool PLAN_POOL = new StackObjectPool(new BasePoolableObjectFactory() {
+    private static class BatchPlanFactory extends BasePoolableObjectFactory {
+        private final BatchPlanner planner;
+        
+        public BatchPlanFactory(BatchPlanner planner) {
+            this.planner = planner;
+        }
         @Override
         public Object makeObject() throws Exception {
-            return (new BatchPlanner.BatchPlan());
-        }
-        @Override
-        public void activateObject(Object arg0) throws Exception {
-            BatchPlanner.BatchPlan plan = (BatchPlanner.BatchPlan)arg0;
-            plan.txn_id = null;
-        }
-    }, PLAN_POOL_INITIAL_SIZE, PLAN_POOL_INITIAL_SIZE);
-
-    /**
-     * Pre-load a bunch of BatchPlans so that we don't have to make them as needed
-     * @param num_partitions
-     */
-    public static void preload(int num_partitions) {
-        List<BatchPlan> plans = new ArrayList<BatchPlan>();
-        try {
-            for (int i = 0; i < PLAN_POOL_INITIAL_SIZE; i++) {
-                BatchPlan plan = (BatchPlan)PLAN_POOL.borrowObject();
-                plan.init(-1l, -1l, 0, 0, num_partitions);
-                plans.add(plan);
-            } // FOR
-            
-            for (BatchPlan plan : plans) {
-                plan.finished();
-                PLAN_POOL.returnObject(plan);
-            } // FOR
-        } catch (Exception ex) {
-            throw new RuntimeException(ex);
+            return (this.planner.new BatchPlan());
         }
     }
     
@@ -113,8 +91,9 @@ public class BatchPlanner {
     protected final List<PlanFragment> sorted_singlep_fragments[];
     protected final List<PlanFragment> sorted_multip_fragments[];
     protected final int batchSize;
-    protected final PartitionEstimator p_estimator;
+    private final PartitionEstimator p_estimator;
     private final int num_partitions;
+    private final ObjectPool plan_pool;
 
     private final Map<Integer, PlanGraph> plan_graphs = new HashMap<Integer, PlanGraph>(); 
     
@@ -126,15 +105,15 @@ public class BatchPlanner {
         final int frag_id;
         final int stmt_index;
         final int round;
-        final Integer input_dependency_id;
-        final Integer output_dependency_id;
+        final int input_dependency_id;
+        final int output_dependency_id;
         final int hash_code;
 
         public PlanVertex(PlanFragment catalog_frag,
                           int stmt_index,
                           int round,
                           Integer input_dependency_id,
-                          Integer output_dependency_id,
+                          int output_dependency_id,
                           boolean is_local) {
             super(catalog_frag);
             this.frag_id = catalog_frag.getId();
@@ -213,20 +192,19 @@ public class BatchPlanner {
     /**
      * BatchPlan
      */
-    public static class BatchPlan {
+    public class BatchPlan {
         // ----------------------------------------------------------------------------
         // INVOCATION DATA MEMBERS
         // ----------------------------------------------------------------------------
         
-        private Long txn_id;
+        private long txn_id;
         private long client_handle;
         private int batchSize;
         private Integer base_partition;
-        private boolean initialized = false;
 
         /** The serialized ByteBuffers for each Statement in the batch */ 
-        private final ByteBuffer param_buffers[] = new ByteBuffer[MAX_BATCH_SIZE];
-        private final FastSerializer param_serializers[] = new FastSerializer[MAX_BATCH_SIZE];
+        private final ByteBuffer param_buffers[];
+        private final FastSerializer param_serializers[];
         
         /** Temporary buffer space for sorting the PlanFragments per Statement */
         private final List<PlanFragment> frag_list[];
@@ -254,7 +232,7 @@ public class BatchPlanner {
         /**
          * A bitmap of whether each query at the given index in the batch was single-partitioned or not
          */
-        private final boolean singlepartition_bitmap[] = new boolean[MAX_BATCH_SIZE];
+        private final boolean singlepartition_bitmap[];
 
         // ----------------------------------------------------------------------------
         // DO WE STILL NEED THESE???
@@ -278,13 +256,33 @@ public class BatchPlanner {
          */
         @SuppressWarnings("unchecked")
         public BatchPlan() {
+            int batch_size = BatchPlanner.this.batchSize;
+            int num_partitions = BatchPlanner.this.num_partitions;
+            
             // Round Data
             this.rounds = (Set<PlanVertex>[][])new Set<?>[MAX_ROUND_SIZE][];
+            for (int i = 0; i < this.rounds.length; i++) {
+                this.rounds[i] = (Set<PlanVertex>[])new Set<?>[num_partitions];
+                for (int ii = 0; ii < num_partitions; ii++) {
+                    this.rounds[i][ii] = new HashSet<PlanVertex>();
+                } // FOR
+            } // FOR
+            
+            // Pre-load all of the sets that we could ever possibly need
+            
             
             // Batch Data
-            this.frag_list = (List<PlanFragment>[])new List<?>[MAX_BATCH_SIZE];
-            this.stmt_partitions = (Set<Integer>[])new Set<?>[MAX_BATCH_SIZE];
-            this.frag_partitions = (Map<PlanFragment, Set<Integer>>[])new HashMap<?, ?>[MAX_BATCH_SIZE];           
+            this.frag_list = (List<PlanFragment>[])new List<?>[batch_size];
+            this.stmt_partitions = (Set<Integer>[])new Set<?>[batch_size];
+            this.frag_partitions = (Map<PlanFragment, Set<Integer>>[])new HashMap<?, ?>[batch_size];
+            this.param_buffers = new ByteBuffer[batch_size];
+            this.param_serializers = new FastSerializer[batch_size];
+            this.singlepartition_bitmap = new boolean[batch_size];
+            for (int i = 0; i < batch_size; i++) {
+                this.stmt_partitions[i] = new HashSet<Integer>();
+                this.frag_partitions[i] = new HashMap<PlanFragment, Set<Integer>>();
+                this.param_serializers[i] = new FastSerializer();
+            } // FOR
         }
 
         /**
@@ -293,34 +291,13 @@ public class BatchPlanner {
          * @param client_handle
          * @param base_partition
          * @param batchSize
-         * @param num_partitions
          */
-        @SuppressWarnings("unchecked")
-        private void init(long txn_id, long client_handle, int base_partition, int batchSize, int num_partitions) {
-            assert(this.txn_id == null);
+        private BatchPlan init(long txn_id, long client_handle, int base_partition, int batchSize) {
             this.txn_id = txn_id;
             this.client_handle = client_handle;
             this.batchSize = batchSize;
             this.base_partition = base_partition;
-            
-            // Need to initialize some internal data strucutres the first time we are called
-            // This is because we can't pass in the number of partitions when we create the object from the pool
-            // the stmt_partitions array the first time we're called
-            if (this.initialized == false) {
-                for (int i = 0; i < MAX_BATCH_SIZE; i++) {
-                    this.stmt_partitions[i] = new HashSet<Integer>();
-                    this.frag_partitions[i] = new HashMap<PlanFragment, Set<Integer>>();
-                    this.param_serializers[i] = new FastSerializer();
-                } // FOR
-             
-                for (int i = 0; i < this.rounds.length; i++) {
-                    this.rounds[i] = (Set<PlanVertex>[])new Set<?>[num_partitions];
-                    for (int ii = 0; ii < num_partitions; ii++) {
-                        this.rounds[i][ii] = new HashSet<PlanVertex>();
-                    } // FOR
-                } // FOR
-                this.initialized = true;
-            }
+            return (this);
         }
         
         /**
@@ -328,26 +305,26 @@ public class BatchPlanner {
          * been executed the and the results have been returned. This must be called before
          * returning back to the user-level VoltProcedure
          */
-        public void finished() {
-            for (int i = 0; i < MAX_BATCH_SIZE; i++) {
+        public BatchPlan finished() {
+            this.ftasks.clear();
+            for (int i = 0; i < this.frag_list.length; i++) {
                 this.frag_list[i] = null;
                 this.stmt_partitions[i].clear();
                 this.param_serializers[i].clear();
                 for (Set<Integer> s : this.frag_partitions[i].values()) {
                     s.clear();
-                }
+                } // FOR
             } // FOR
             for (int i = 0; i < this.rounds.length; i++) {
                 for (int ii = 0; ii < this.rounds[i].length; ii++) {
                     this.rounds[i][ii].clear();
                 } // FOR
             } // FOR
-            
-            try {
-                BatchPlanner.PLAN_POOL.returnObject(this);
-            } catch (Exception ex) {
-                throw new RuntimeException(ex);
-            }
+            return (this);
+        }
+
+        public BatchPlanner getPlanner() {
+            return (BatchPlanner.this);
         }
         
         /**
@@ -436,6 +413,8 @@ public class BatchPlanner {
         this.catalog = catalog_proc.getCatalog();
         this.p_estimator = p_estimator;
         this.num_partitions = CatalogUtil.getNumberOfPartitions(catalog_proc);
+        this.plan_pool = new StackObjectPool(new BatchPlanFactory(this), PLAN_POOL_INITIAL_SIZE, PLAN_POOL_INITIAL_SIZE);
+        this.preload(PLAN_POOL_INITIAL_SIZE);
 
         this.sorted_singlep_fragments = (List<PlanFragment>[])new List<?>[this.batchSize];
         this.sorted_multip_fragments = (List<PlanFragment>[])new List<?>[this.batchSize];
@@ -444,6 +423,31 @@ public class BatchPlanner {
         for (int i = 0; i < this.batchSize; i++) {
             this.catalog_stmts[i] = batchStmts[i].catStmt;
         } // FOR
+    }
+
+    /**
+     * Pre-load a bunch of BatchPlans so that we don't have to make them as needed
+     * @param num_partitions
+     */
+    private void preload(int initial_size) {
+        BatchPlan plans[] = new BatchPlan[initial_size];
+        try {
+            for (int i = 0; i < initial_size; i++) {
+                BatchPlan plan = (BatchPlan)this.plan_pool.borrowObject();
+                plans[i] = plan.init(-1l, -1l, 0, 0);
+            } // FOR
+            
+            for (BatchPlan plan : plans) {
+                plan.finished();
+                this.plan_pool.returnObject(plan);
+            } // FOR
+        } catch (Exception ex) {
+            throw new RuntimeException(ex);
+        }
+    }
+    
+    public ObjectPool getBatchPlanPool() {
+        return (this.plan_pool);
     }
 
     public Statement[] getStatements() {
@@ -459,20 +463,23 @@ public class BatchPlanner {
      * @return
      */
     public BatchPlan plan(long txn_id, long client_handle, int base_partition, ParameterSet[] batchArgs, boolean predict_singlepartitioned) {
-        if (debug.get()) LOG.debug(String.format("Constructing a new %s BatchPlan for txn #%d", this.catalog_proc.getName(), txn_id));
+        final boolean t = trace.get();
+        final boolean d = debug.get();
+        
+        if (d) LOG.debug(String.format("Constructing a new %s BatchPlan for txn #%d", this.catalog_proc.getName(), txn_id));
         
         BatchPlan plan = null;
         try {
-            plan = (BatchPlan)BatchPlanner.PLAN_POOL.borrowObject();
+            plan = (BatchPlan)this.plan_pool.borrowObject();
         } catch (Exception ex) {
             throw new RuntimeException(ex);
         }
-        plan.init(txn_id, client_handle, base_partition, this.batchSize, this.num_partitions);
+        plan.init(txn_id, client_handle, base_partition, this.batchSize);
 
         // ----------------------
         // DEBUG DUMP
         // ----------------------
-        if (trace.get()) {
+        if (t) {
             Map<String, Object> m = new ListOrderedMap<String, Object>();
             m.put("Batch Size", this.batchSize);
             for (int i = 0; i < this.batchSize; i++) {
@@ -486,7 +493,7 @@ public class BatchPlanner {
             assert(catalog_stmt != null) : "The Statement at index " + stmt_index + " is null for " + this.catalog_proc;
             final ParameterSet paramSet = batchArgs[stmt_index];
             final Object params[] = paramSet.toArray();
-            if (trace.get()) LOG.trace(String.format("[%02d] Constructing fragment plans for %s", stmt_index, catalog_stmt.fullName()));
+            if (t) LOG.trace(String.format("[%02d] Constructing fragment plans for %s", stmt_index, catalog_stmt.fullName()));
             
             final Map<PlanFragment, Set<Integer>> frag_partitions = plan.frag_partitions[stmt_index];
             final Set<Integer> stmt_all_partitions = plan.stmt_partitions[stmt_index];
@@ -518,7 +525,7 @@ public class BatchPlanner {
                     if (is_singlepartition && stmt_all_partitions.size() > 1) {
                         // If this was suppose to be multi-partitioned, then we want to stop right here!!
                         if (predict_singlepartitioned) {
-                            if (trace.get()) LOG.trace(String.format("Mispredicted txn #%d - Multiple Partitions"));
+                            if (t) LOG.trace(String.format("Mispredicted txn #%d - Multiple Partitions"));
                             mispredict = true;
                             break;
                         }
@@ -528,13 +535,14 @@ public class BatchPlanner {
                         continue;
                     } else if (is_local == false && predict_singlepartitioned) {
                         // Again, this is not what was suppose to happen!
-                        if (trace.get()) LOG.trace(String.format("Mispredicted txn #%d - Remote Partitions"));
+                        if (t) LOG.trace(String.format("Mispredicted txn #%d - Remote Partitions"));
                         mispredict = true;
                         break;
                     }
                     // Score! We have a plan that works!
                     break;
                 } // WHILE
+            // Bad Mojo!
             } catch (Exception ex) {
                 String msg = "";
                 for (int i = 0; i < this.batchSize; i++) {
@@ -571,7 +579,7 @@ public class BatchPlanner {
             // ----------------------
             // DEBUG DUMP
             // ----------------------
-            if (debug.get()) {
+            if (d) {
                 @SuppressWarnings("unchecked")
                 Map maps[] = new Map[fragments.size() + 1];
                 int ii = 0;
@@ -614,7 +622,7 @@ public class BatchPlanner {
         } // SYNCHRONIZED
         this.buildFragmentTaskMessages(plan, graph, batchArgs);
         
-        if (debug.get()) LOG.debug("Created BatchPlan:\n" + plan.toString());
+        if (d) LOG.debug("Created BatchPlan:\n" + plan.toString());
         return (plan);
     }
 
@@ -625,31 +633,19 @@ public class BatchPlanner {
      * @return
      */
     private void buildFragmentTaskMessages(final BatchPlanner.BatchPlan plan, final PlanGraph graph, final ParameterSet[] batchArgs) {
+        final boolean t = trace.get();
+        final boolean d = debug.get();
+        
         long txn_id = plan.txn_id;
         long client_handle = plan.client_handle;
-        if (debug.get()) LOG.debug("Constructing list of FragmentTaskMessages to execute [txn_id=#" + txn_id + ", base_partition=" + plan.base_partition + "]");
-//        try {
-//            GraphVisualizationPanel.createFrame(this.plan_graph).setVisible(true);
-//            Thread.sleep(100000000);
-//        } catch (Exception ex) {
-//            ex.printStackTrace();
-//            System.exit(1);
-//        }
+        if (d) LOG.debug("Constructing list of FragmentTaskMessages to execute [txn_id=#" + txn_id + ", base_partition=" + plan.base_partition + "]");
 
-        plan.ftasks.clear();
         plan.rounds_length = graph.max_rounds;
-        for (int i = 0; i < plan.rounds_length; i++) {
-            for (Set<PlanVertex> s : plan.rounds[i]) {
-                s.clear();
-            } // FOR
-        } // FOR
-        
         for (PlanVertex v : graph.getVertices()) {
             int stmt_index = v.stmt_index;
             PlanFragment catalog_frag = v.getCatalogItem();
-            Set<Integer> partitions = plan.frag_partitions[stmt_index].get(catalog_frag);
-            for (int p : partitions) {
-                plan.rounds[v.round][p].add(v);
+            for (int partition : plan.frag_partitions[stmt_index].get(catalog_frag)) {
+                plan.rounds[v.round][partition].add(v);
             } // FOR
         } // FOR
         
@@ -660,14 +656,14 @@ public class BatchPlanner {
                 plan.param_buffers[stmt_index] = plan.param_serializers[stmt_index].getBuffer();
             } catch (Exception ex) {
                 LOG.fatal("Failed to serialize parameters for Statement #" + stmt_index, ex);
-                System.exit(1);
+                throw new RuntimeException(ex);
             }
             assert(plan.param_buffers[stmt_index] != null) : "Parameter ByteBuffer is null for Statement #" + stmt_index;
         } // FOR
         
-        if (trace.get()) LOG.trace("Generated " + plan.rounds_length + " rounds of tasks for txn #"+ txn_id);
+        if (t) LOG.trace("Generated " + plan.rounds_length + " rounds of tasks for txn #"+ txn_id);
         for (int round = 0; round < plan.rounds_length; round++) {
-            if (trace.get()) LOG.trace(String.format("Txn #%d - Round %02d", txn_id, round)); //  + " - Round " + e.getKey() + ": " + e.getValue().size() + " partitions");
+            if (t) LOG.trace(String.format("Txn #%d - Round %02d", txn_id, round)); //  + " - Round " + e.getKey() + ": " + e.getValue().size() + " partitions");
 
             for (int partition = 0; partition < this.num_partitions; partition++) {
                 Set<PlanVertex> vertices = plan.rounds[round][partition];
@@ -685,8 +681,8 @@ public class BatchPlanner {
                     // Fragment Id
                     frag_ids[i] = v.frag_id;
                     
-                    // Not all fragments will have an input dependency
-                    input_ids[i] = (v.input_dependency_id == null ? ExecutionSite.NULL_DEPENDENCY_ID : v.input_dependency_id);
+                    // Not all fragments will have an input dependency so this could be the NULL_DEPENDENCY_ID
+                    input_ids[i] = v.input_dependency_id;
                     
                     // All fragments will produce some output
                     output_ids[i] = v.output_dependency_id;
@@ -697,19 +693,18 @@ public class BatchPlanner {
                     // Parameters
                     params[i] = plan.param_buffers[v.stmt_index];
                     
-                    if (trace.get())
-                        LOG.trace("Fragment Grouping " + i + " => [" +
-                                   "txn_id=#" + txn_id + ", " +
-                                   "frag_id=" + frag_ids[i] + ", " +
-                                   "input=" + input_ids[i] + ", " +
-                                   "output=" + output_ids[i] + ", " +
-                                   "stmt_indexes=" + stmt_indexes[i] + "]");
+                    if (t) LOG.trace("Fragment Grouping " + i + " => [" +
+                                     "txn_id=#" + txn_id + ", " +
+                                     "frag_id=" + frag_ids[i] + ", " +
+                                     "input=" + input_ids[i] + ", " +
+                                     "output=" + output_ids[i] + ", " +
+                                     "stmt_indexes=" + stmt_indexes[i] + "]");
                     
                     i += 1;
                 } // FOR (frag_idx)
             
                 if (i == 0) {
-                    if (trace.get()) {
+                    if (t) {
                         LOG.warn("For some reason we thought it would be a good idea to construct a FragmentTaskMessage with no fragments! [txn_id=#" + txn_id + "]");
                         LOG.warn("In case you were wondering, this is a terrible idea, which is why we didn't do it!");
                     }
@@ -731,17 +726,17 @@ public class BatchPlanner {
                 task.setFragmentTaskType(BatchPlanner.this.catalog_proc.getSystemproc() ? FragmentTaskMessage.SYS_PROC_PER_PARTITION : FragmentTaskMessage.USER_PROC);
                 plan.ftasks.add(task);
                 
-                if (debug.get()) {
+                if (d) {
                     LOG.debug(String.format("New FragmentTaskMessage to run at partition #%d with %d fragments for txn #%d " +
                                             "[ids=%s, inputs=%s, outputs=%s]",
                                             partition, num_frags, txn_id,
                                             Arrays.toString(frag_ids), Arrays.toString(input_ids), Arrays.toString(output_ids)));
-                    if (trace.get()) LOG.trace("Fragment Contents: [txn_id=#" + txn_id + "]\n" + task.toString());
+                    if (t) LOG.trace("Fragment Contents: [txn_id=#" + txn_id + "]\n" + task.toString());
                 }
             } // PARTITION
         } // ROUND            
         assert(plan.ftasks.size() > 0) : "Failed to generate any FragmentTaskMessages in this BatchPlan for txn #" + txn_id;
-        if (debug.get()) LOG.debug("Created " + plan.ftasks.size() + " FragmentTaskMessage(s) for txn #" + txn_id);
+        if (d) LOG.debug("Created " + plan.ftasks.size() + " FragmentTaskMessage(s) for txn #" + txn_id);
     }
 
     
@@ -762,7 +757,7 @@ public class BatchPlanner {
             graph.max_rounds = Math.max(fragments.size(), graph.max_rounds);
             
             // Generate the synthetic DependencyIds for the query
-            Integer last_output_id = null;
+            int last_output_id = ExecutionSite.NULL_DEPENDENCY_ID;
             for (int round = 0, cnt = fragments.size(); round < cnt; round++) {
                 PlanFragment catalog_frag = fragments.get(round);
                 Set<Integer> f_partitions = frag_partitions.get(catalog_frag);
@@ -782,8 +777,8 @@ public class BatchPlanner {
         } // FOR
 
         for (PlanVertex v0 : graph.getVertices()) {
-            Integer input_id = v0.input_dependency_id;
-            if (input_id == null) continue;
+            int input_id = v0.input_dependency_id;
+            if (input_id == ExecutionSite.NULL_DEPENDENCY_ID) continue;
             for (PlanVertex v1 : graph.getOutputDependencies(input_id)) {
                 assert(!v0.equals(v1)) : v0;
                 if (!graph.findEdgeSet(v0, v1).isEmpty()) continue;
@@ -795,14 +790,4 @@ public class BatchPlanner {
 
         return (graph);
     }
-
-    /**
-     * List of DependencyIds that need to be satisfied before we return control
-     * back to the Java control code
-     * @return
-     */
-    public List<Integer> getDependencyIdsNeededToResume() {
-        return (this.depsToResume);
-    }
-
 }

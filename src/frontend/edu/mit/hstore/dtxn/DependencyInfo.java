@@ -2,12 +2,9 @@ package edu.mit.hstore.dtxn;
 
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.commons.pool.BasePoolableObjectFactory;
 import org.apache.commons.pool.ObjectPool;
@@ -16,13 +13,17 @@ import org.apache.log4j.Logger;
 import org.voltdb.VoltTable;
 import org.voltdb.messaging.FragmentTaskMessage;
 
-import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.LoggerUtil;
+import edu.brown.utils.LoggerUtil.LoggerBoolean;
 
+/**
+ * 
+ * @author pavlo
+ */
 public class DependencyInfo {
     protected static final Logger LOG = Logger.getLogger(DependencyInfo.class);
-    private final static AtomicBoolean debug = new AtomicBoolean(LOG.isDebugEnabled());
-    private final static AtomicBoolean trace = new AtomicBoolean(LOG.isTraceEnabled());
+    private final static LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private final static LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
     static {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
@@ -30,19 +31,32 @@ public class DependencyInfo {
     /**
      * DependencyInfo Object Pool
      */
-    public static final ObjectPool POOL = new StackObjectPool(new BasePoolableObjectFactory() {
+    public static final ObjectPool INFO_POOL = new StackObjectPool(new BasePoolableObjectFactory() {
         @Override
         public Object makeObject() throws Exception {
             return (new DependencyInfo());
         }
     });
-
     
     protected LocalTransactionState ts;
     protected int stmt_index;
     protected int dependency_id;
+    
+    /**
+     * List of PartitionIds that we expect to get responses/results back
+     */
     protected final List<Integer> partitions = new ArrayList<Integer>();
-    protected final Map<Integer, VoltTable> results = new HashMap<Integer, VoltTable>();
+    
+    /**
+     * PartitionId -> VoltTable Result
+     */
+    protected final List<Integer> results = new ArrayList<Integer>();
+    
+    protected final List<VoltTable> results_list = new ArrayList<VoltTable>();
+    
+    /**
+     * List of PartitionIds that have sent responses
+     */
     protected final List<Integer> responses = new ArrayList<Integer>();
     
     /**
@@ -70,16 +84,11 @@ public class DependencyInfo {
     public void finished() {
         this.partitions.clear();
         this.results.clear();
+        this.results_list.clear();
         this.responses.clear();
         this.blocked_tasks.clear();
         this.blocked_tasks_released = false;
         this.blocked_all_local = true;
-        
-        try {
-            POOL.returnObject(this);
-        } catch (Exception ex) {
-            throw new RuntimeException(ex);
-        }
     }
     
     
@@ -120,22 +129,36 @@ public class DependencyInfo {
         this.partitions.add(partition);
     }
     
+    /**
+     * Add a response for a PartitionId
+     * Returns true if we have also stored the result for this PartitionId
+     * @param partition
+     * @return
+     */
     public boolean addResponse(int partition) {
         if (trace.get()) LOG.trace("Storing RESPONSE for DependencyId #" + this.dependency_id + " from Partition #" + partition + " in txn #" + this.ts.txn_id);
         assert(this.responses.contains(partition) == false);
         this.responses.add(partition);
-        return (this.results.containsKey(partition));
+        return (this.results.contains(partition));
     }
     
+    /**
+     * Add a result for a PartitionId
+     * Returns true if we have also stored the response for this PartitionId
+     * @param partition
+     * @param result
+     * @return
+     */
     public boolean addResult(int partition, VoltTable result) {
         if (trace.get()) LOG.trace("Storing RESULT for DependencyId #" + this.dependency_id + " from Partition #" + partition + " in txn #" + this.ts.txn_id + " with " + result.getRowCount() + " tuples");
-        assert(this.results.containsKey(partition) == false);
-        this.results.put(partition, result);
+        assert(this.results.contains(partition) == false);
+        this.results.add(partition);
+        this.results_list.add(result);
         return (this.responses.contains(partition)); 
     }
     
     protected List<VoltTable> getResults() {
-        return (Collections.unmodifiableList(new ArrayList<VoltTable>(this.results.values())));
+        return (Collections.unmodifiableList(this.results_list));
     }
     
     protected List<Integer> getResponses() {
@@ -145,7 +168,7 @@ public class DependencyInfo {
     public VoltTable getResult() {
         assert(this.results.isEmpty() == false) : "There are no result available for " + this;
         assert(this.results.size() == 1) : "There are " + this.results.size() + " results for " + this + "\n-------\n" + this.getResults();
-        return (CollectionUtil.getFirst(this.results.values()));
+        return (this.results_list.get(0));
     }
     
     /**

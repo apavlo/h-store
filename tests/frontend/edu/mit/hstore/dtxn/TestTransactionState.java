@@ -8,6 +8,7 @@ import java.util.concurrent.CountDownLatch;
 
 import org.apache.commons.collections15.set.ListOrderedSet;
 import org.apache.log4j.Logger;
+import org.junit.Test;
 import org.voltdb.BatchPlanner;
 import org.voltdb.ExecutionSite;
 import org.voltdb.MockExecutionSite;
@@ -19,6 +20,7 @@ import org.voltdb.VoltType;
 import org.voltdb.BatchPlanner.BatchPlan;
 import org.voltdb.catalog.*;
 import org.voltdb.messaging.FragmentTaskMessage;
+import org.voltdb.utils.Pair;
 
 import edu.brown.BaseTestCase;
 import edu.brown.hashing.DefaultHasher;
@@ -132,6 +134,39 @@ public class TestTransactionState extends BaseTestCase {
 //        System.err.println(ftasks);
 //        System.err.println("OUTPUT:   " + this.output_dependency_ids);
 //        System.err.println("INTERNAL: " + this.internal_dependency_ids);
+    }
+    
+    /**
+     * testPartitionDependencyKeys
+     */
+    @Test
+    public void testPartitionDependencyKeys() throws Exception {
+        List<Integer> keys = new ArrayList<Integer>();
+        List<Pair<Integer, Integer>> pairs = new ArrayList<Pair<Integer,Integer>>();
+        int num_keys = 10;
+        for (int i = 1; i <= num_keys; i++) {
+            int partition_id = LOCAL_PARTITION;
+            int dependency_id = i * 1000;
+            
+            keys.add(this.ts.createPartitionDependencyKey(partition_id, dependency_id));
+            pairs.add(Pair.of(partition_id, dependency_id));
+        } // FOR
+        
+        int values[] = new int[2];
+        for (int i = 0; i < num_keys; i++) {
+            Integer key = keys.get(i);
+            // Make sure that they're all different
+            for (int ii = i+1; ii < num_keys; ii++) {
+                assert(key != keys.get(ii));
+            } // FOR
+            
+            // Now make sure that we get back the right values
+            Pair<Integer, Integer> expected = pairs.get(i);
+            assertNotNull(expected);
+            this.ts.getPartitionDependencyFromKey(key.intValue(), values);
+            assertEquals(expected.getFirst().intValue(), values[0]);
+            assertEquals(expected.getSecond().intValue(), values[1]);
+        } // FOR
     }
     
     /**

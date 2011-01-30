@@ -87,8 +87,15 @@ public class ExecutionSite implements Runnable {
      */
     public static final int NULL_DEPENDENCY_ID = -1;
 
-    private static final int NODE_THREAD_POOL_SIZE = 1;
+    public static final int NODE_THREAD_POOL_SIZE = 1;
 
+    public static final int PRELOAD_LOCAL_TXN_STATES = 500;
+    
+    public static final int PRELOAD_REMOTE_TXN_STATES = 500;
+    
+    public static final int PRELOAD_DEPENDENCY_INFOS = 10000;
+    
+    
     // ----------------------------------------------------------------------------
     // OBJECT POOLS
     // ----------------------------------------------------------------------------
@@ -465,107 +472,14 @@ public class ExecutionSite implements Runnable {
 //        } else {
 //            this.hsql = null;
 //            this.ee = null;
-    }
-
-        
-    }
-
-    public void tick() {
-        // invoke native ee tick if at least one second has passed
-        final long time = EstTime.currentTimeMillis();
-        if ((time - lastTickTime) >= 1000) {
-            if ((lastTickTime != 0) && (ee != null)) {
-                ee.tick(time, lastCommittedTxnId);
-            }
-            lastTickTime = time;
         }
     }
-
-    public void setHStoreMessenger(HStoreMessenger hstore_messenger) {
-        this.hstore_messenger = hstore_messenger;
-    }
     
-    public void setHStoreCoordinatorSite(HStoreSite hstore_coordinator) {
-        this.hstore_site = hstore_coordinator;
-    }
-    
-    public BackendTarget getBackendTarget() {
-        return (this.backend_target);
-    }
-    
-    public ExecutionEngine getExecutionEngine() {
-        return (this.ee);
-    }
-    public PartitionEstimator getPartitionEstimator() {
-        return (this.p_estimator);
-    }
-    public TransactionEstimator getTransactionEstimator() {
-        return (this.t_estimator);
-    }
-    
-    public Site getCatalogSite() {
-        return site;
-    }
-    
-    public HStoreSite getHStoreSite() {
-        return hstore_site;
-    }
-    
-    public int getHostId() {
-        return getCatalogSite().getHost().getRelativeIndex();
-        // return Integer.valueOf(getCatalogSite().getHost().getTypeName());
-    }
-    
-    public int getSiteId() {
-        return (this.siteId);
-    }
-    
-    /**
-     * Return the local partition id for this ExecutionSite
-     * @return
-     */
-    public int getPartitionId() {
-        return (this.partitionId);
-    }
-
-    public VoltProcedure getRunningVoltProcedure(long txn_id) {
-        // assert(this.running_xacts.containsKey(txn_id)) : "No running VoltProcedure exists for txn #" + txn_id;
-        LocalTransactionState ts = (LocalTransactionState)this.txn_states.get(txn_id);
-        return (ts != null ? ts.getVoltProcedure() : null);
-    }
-    
-    /**
-     * Returns the VoltProcedure instance for a given stored procedure name
-     * @param proc_name
-     * @return
-     */
-    public VoltProcedure getNewVoltProcedure(String proc_name) {
-        // If our pool is empty, then we need to make a new one
-        VoltProcedure volt_proc = null;
-        try {
-            volt_proc = (VoltProcedure)this.procPool.get(proc_name).borrowObject();
-        } catch (Exception ex) {
-            throw new RuntimeException("Failed to get new " + proc_name + " VoltProcedure", ex);
-        }
-        assert(volt_proc != null);
-        return (volt_proc);
-    }
-
-    public String getThreadName() {
-        return (this.hstore_site.getThreadName(String.format("%03d", this.getPartitionId())));
-    }
 
     /**
-     * Primary run method that is invoked a single time when the thread is started.
-     * Has the opportunity to do startup config.
+     * Preload a bunch of stuff that we'll need later on
      */
-    @Override
-    public void run() {
-        assert(this.hstore_site != null);
-        assert(this.hstore_messenger != null);
-        Thread self = Thread.currentThread();
-        self.setName(this.getThreadName());
-        
+    protected void preload() {
         // load up all the stored procedures
         final CatalogMap<Procedure> catalogProcedures = database.getProcedures();
         for (final Procedure catalog_proc : catalogProcedures) {
@@ -589,8 +503,9 @@ public class ExecutionSite implements Runnable {
         for (boolean local : new boolean[]{ true, false }) {
             List<TransactionState> states = new ArrayList<TransactionState>();
             ObjectPool pool = (local ? this.localTxnPool : this.remoteTxnPool);
+            int count = (local ? PRELOAD_LOCAL_TXN_STATES : PRELOAD_REMOTE_TXN_STATES);
             try {
-                for (int i = 0; i < 500; i++) {
+                for (int i = 0; i < count; i++) {
                     TransactionState ts = (TransactionState)pool.borrowObject();
                     ts.init(-1l, -1l, this.partitionId);
                     states.add(ts);
@@ -607,8 +522,8 @@ public class ExecutionSite implements Runnable {
         // And some DependencyInfos
         try {
             List<DependencyInfo> infos = new ArrayList<DependencyInfo>();
-            for (int i = 0; i < 10000; i++) {
-                DependencyInfo di = (DependencyInfo)DependencyInfo.POOL.borrowObject();
+            for (int i = 0; i < PRELOAD_DEPENDENCY_INFOS; i++) {
+                DependencyInfo di = (DependencyInfo)DependencyInfo.INFO_POOL.borrowObject();
                 di.init(null, 1, 1);
                 infos.add(di);
             } // FOR
@@ -618,8 +533,20 @@ public class ExecutionSite implements Runnable {
             } // FOR
         } catch (Exception ex) {
             throw new RuntimeException(ex);
-        }
-        
+        } 
+    }
+
+    /**
+     * Primary run method that is invoked a single time when the thread is started.
+     * Has the opportunity to do startup config.
+     */
+    @Override
+    public void run() {
+        assert(this.hstore_site != null);
+        assert(this.hstore_messenger != null);
+        Thread self = Thread.currentThread();
+        self.setName(this.getThreadName());
+        this.preload();
         
         /*
         NDC.push("ExecutionSite - " + siteId + " index " + siteIndex);
@@ -832,6 +759,93 @@ public class ExecutionSite implements Runnable {
         LOG.debug("ExecutionSite thread is stopping");
     }
 
+    public void tick() {
+        // invoke native ee tick if at least one second has passed
+        final long time = EstTime.currentTimeMillis();
+        if ((time - lastTickTime) >= 1000) {
+            if ((lastTickTime != 0) && (ee != null)) {
+                ee.tick(time, lastCommittedTxnId);
+            }
+            lastTickTime = time;
+        }
+    }
+
+    public void setHStoreMessenger(HStoreMessenger hstore_messenger) {
+        this.hstore_messenger = hstore_messenger;
+    }
+    
+    public void setHStoreCoordinatorSite(HStoreSite hstore_coordinator) {
+        this.hstore_site = hstore_coordinator;
+    }
+    
+    public BackendTarget getBackendTarget() {
+        return (this.backend_target);
+    }
+    
+    public ExecutionEngine getExecutionEngine() {
+        return (this.ee);
+    }
+    public PartitionEstimator getPartitionEstimator() {
+        return (this.p_estimator);
+    }
+    public TransactionEstimator getTransactionEstimator() {
+        return (this.t_estimator);
+    }
+    
+    public Site getCatalogSite() {
+        return site;
+    }
+    
+    public HStoreSite getHStoreSite() {
+        return hstore_site;
+    }
+    
+    public int getHostId() {
+        return getCatalogSite().getHost().getRelativeIndex();
+        // return Integer.valueOf(getCatalogSite().getHost().getTypeName());
+    }
+    
+    public int getSiteId() {
+        return (this.siteId);
+    }
+    
+    /**
+     * Return the local partition id for this ExecutionSite
+     * @return
+     */
+    public int getPartitionId() {
+        return (this.partitionId);
+    }
+
+    public VoltProcedure getRunningVoltProcedure(long txn_id) {
+        // assert(this.running_xacts.containsKey(txn_id)) : "No running VoltProcedure exists for txn #" + txn_id;
+        LocalTransactionState ts = (LocalTransactionState)this.txn_states.get(txn_id);
+        return (ts != null ? ts.getVoltProcedure() : null);
+    }
+    
+    /**
+     * Returns the VoltProcedure instance for a given stored procedure name
+     * @param proc_name
+     * @return
+     */
+    public VoltProcedure getNewVoltProcedure(String proc_name) {
+        // If our pool is empty, then we need to make a new one
+        VoltProcedure volt_proc = null;
+        try {
+            volt_proc = (VoltProcedure)this.procPool.get(proc_name).borrowObject();
+        } catch (Exception ex) {
+            throw new RuntimeException("Failed to get new " + proc_name + " VoltProcedure", ex);
+        }
+        assert(volt_proc != null);
+        return (volt_proc);
+    }
+
+    public String getThreadName() {
+        return (this.hstore_site.getThreadName(String.format("%03d", this.getPartitionId())));
+    }
+
+
+    
     // ---------------------------------------------------------------
     // VOLTPROCEDURE EXECUTION METHODS
     // ---------------------------------------------------------------
@@ -1086,11 +1100,14 @@ public class ExecutionSite implements Runnable {
         this.txn_states.remove(txn_id);
         
         try {
+            
             if (ts.isExecLocal()) {
                 VoltProcedure volt_proc = ((LocalTransactionState)ts).getVoltProcedure();
                 this.procPool.get(volt_proc.getProcedureName()).returnObject(volt_proc);
+                ts.finished();
                 this.localTxnPool.returnObject(ts);
             } else {
+                ts.finished();
                 this.remoteTxnPool.returnObject(ts);
             }
         } catch (Exception ex) {

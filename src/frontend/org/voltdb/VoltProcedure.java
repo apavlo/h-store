@@ -24,7 +24,6 @@ import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.util.*;
 import java.util.concurrent.LinkedBlockingDeque;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.voltdb.catalog.*;
 import org.voltdb.client.ClientResponse;
@@ -43,6 +42,7 @@ import edu.brown.utils.EventObserver;
 import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.PartitionEstimator;
 import edu.brown.utils.StringUtil;
+import edu.brown.utils.LoggerUtil.LoggerBoolean;
 import edu.mit.hstore.HStoreSite;
 import edu.mit.hstore.dtxn.LocalTransactionState;
 import edu.mit.hstore.dtxn.TransactionState;
@@ -61,8 +61,8 @@ import java.io.PrintWriter;
  */
 public abstract class VoltProcedure {
     private static final Logger LOG = Logger.getLogger(VoltProcedure.class);
-    private final static AtomicBoolean debug = new AtomicBoolean(LOG.isDebugEnabled());
-    private final static AtomicBoolean trace = new AtomicBoolean(LOG.isTraceEnabled());
+    private final static LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private final static LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
     static {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
@@ -1047,7 +1047,7 @@ public abstract class VoltProcedure {
                 Statement stmt0 = planner.catalog_stmts[i];
                 Statement stmt1 = batchStmts[i].catStmt;
                 assert(stmt0.fullName().equals(stmt1.fullName())) : stmt0.fullName() + " != " + stmt1.fullName(); 
-                msg += String.format("[%02d] %s\n     %s\n     %s", i, stmt0.fullName(), stmt1.fullName());
+                msg += String.format("[%02d] %s\n     %s\n", i, stmt0.fullName(), stmt1.fullName());
             } // FOR
             LOG.fatal("\n" + msg);
             throw ex;

@@ -137,6 +137,7 @@ public abstract class LoggerUtil {
                     }
                 }
             };
+            refresh_thread.setPriority(Thread.MIN_PRIORITY);
             refresh_thread.setDaemon(true);
             refresh_thread.start();
             

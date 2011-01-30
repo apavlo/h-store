@@ -13,17 +13,22 @@ import edu.brown.catalog.CatalogKey;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.correlations.*;
 import edu.brown.utils.*;
+import edu.brown.utils.LoggerUtil.LoggerBoolean;
 import edu.brown.workload.QueryTrace;
 import edu.brown.workload.TransactionTrace;
 
 /**
  * 
  * @author pavlo
- * 
  */
 public class TransactionEstimator {
-    private static final Logger LOG = Logger.getLogger(TransactionEstimator.class.getName());
-
+    private static final Logger LOG = Logger.getLogger(TransactionEstimator.class);
+    private final static LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private final static LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    static {
+        LoggerUtil.attachObserver(LOG, debug, trace);
+    }
+    
     /**
      * The amount of change in visitation of vertices we would tolerate before we need to recompute the graph.
      * TODO (pavlo): Saurya says: Should this be in MarkovGraph?
@@ -36,7 +41,7 @@ public class TransactionEstimator {
     private transient ParameterCorrelations correlations;
     private transient boolean enable_recomputes = false;
     
-    private final HashMap<Procedure, MarkovGraph> procedure_graphs = new HashMap<Procedure, MarkovGraph>();
+    private final Map<Procedure, MarkovGraph> procedure_graphs = new HashMap<Procedure, MarkovGraph>();
     private final transient Map<Long, State> txn_states = new ConcurrentHashMap<Long, State>();
     private final AtomicInteger txn_count = new AtomicInteger(0); 
     
@@ -403,7 +408,7 @@ public class TransactionEstimator {
         // If we don't have a graph for this procedure, we should probably just return null
         // This will be the case for all sysprocs
         if (!procedure_graphs.containsKey(catalog_proc)) {
-            LOG.debug("No MarkovGraph exists for '" + catalog_proc + "'"); //  on partition #" + this.base_partition);
+            if (debug.get()) LOG.debug("No MarkovGraph exists for '" + catalog_proc + "'"); //  on partition #" + this.base_partition);
             return (null);
             // fillIn(estimate,xact_states.get(xact_id));
             // return estimate;
@@ -454,10 +459,11 @@ public class TransactionEstimator {
         assert (catalog_stmts.length == partitions.length);       
         State state = this.txn_states.get(xact_id);
         if (state == null) {
-            String msg = "No state information exists for txn #" + xact_id;
-            LOG.debug(msg);
+            if (debug.get()) {
+                String msg = "No state information exists for txn #" + xact_id;
+                LOG.debug(msg);
+            }
             return (null);
-            // throw new RuntimeException(msg);
         }
         return (this.executeQueries(state, catalog_stmts, partitions));
     }
@@ -523,8 +529,10 @@ public class TransactionEstimator {
     private State completeTransaction(long xact_id, Vertex.Type vtype) {
         State s = this.txn_states.remove(xact_id);
         if (s == null) {
-            String msg = "No state information exists for txn #" + xact_id;
-            LOG.debug(msg);
+            if (debug.get()) {
+                String msg = "No state information exists for txn #" + xact_id;
+                LOG.debug(msg);
+            }
             return (null);
         }
         
@@ -603,8 +611,6 @@ public class TransactionEstimator {
      * @param partitions
      */
     protected void consume(State state, Statement catalog_stmt, Collection<Integer> partitions) {
-        final boolean trace = LOG.isTraceEnabled(); 
-        
         // Update the number of times that we have executed this query in the txn
         int queryInstanceIndex = state.updateQueryInstanceCount(catalog_stmt);
         
@@ -614,13 +620,13 @@ public class TransactionEstimator {
         // Examine all of the vertices that are adjacent to our current vertex
         // and see which vertex we are going to move to next
         Collection<Edge> edges = g.getOutEdges(state.getCurrent()); 
-        if (trace) LOG.trace("Examining " + edges.size() + " edges from " + state.getCurrent() + " for Txn #" + state.txn_id);
+        if (trace.get()) LOG.trace("Examining " + edges.size() + " edges from " + state.getCurrent() + " for Txn #" + state.txn_id);
         Vertex next_v = null;
         Edge next_e = null;
         for (Edge e : edges) {
             Vertex v = g.getDest(e);
             if (v.isEqual(catalog_stmt, partitions, state.getTouchedPartitions(), queryInstanceIndex)) {
-                if (trace) LOG.trace("Found next vertex " + v + " for Txn #" + state.txn_id);
+                if (trace.get()) LOG.trace("Found next vertex " + v + " for Txn #" + state.txn_id);
                 next_v = v;
                 next_e = e;
                 break;
@@ -638,7 +644,7 @@ public class TransactionEstimator {
                                 state.getTouchedPartitions());
             g.addVertex(next_v);
             next_e = g.addToEdge(state.getCurrent(), next_v);
-            if (trace) LOG.trace("Created new edge/vertex from " + state.getCurrent() + " for Txn #" + state.txn_id);
+            if (trace.get()) LOG.trace("Created new edge/vertex from " + state.getCurrent() + " for Txn #" + state.txn_id);
         }
 
         // Update the counters and other info for the next vertex and edge
@@ -649,7 +655,7 @@ public class TransactionEstimator {
         // Update the state information
         state.setCurrent(next_v);
         state.addTouchedPartitions(partitions);
-        if (trace) LOG.trace("Updated State Information for Txn #" + state.txn_id + ": " + state);
+        if (trace.get()) LOG.trace("Updated State Information for Txn #" + state.txn_id + ": " + state);
     }
 
     // ----------------------------------------------------------------------------
@@ -682,7 +688,6 @@ public class TransactionEstimator {
         } // FOR (batches)
         return (txn_trace.isAborted() ? this.abort(txn_id) : this.commit(txn_id));
     }
-    
     
     // ----------------------------------------------------------------------------
     // YE OLDE MAIN METHOD
