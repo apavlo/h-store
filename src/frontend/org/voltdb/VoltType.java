@@ -155,11 +155,11 @@ public enum VoltType {
         }
     }
 
-    protected static final Map<Byte, VoltType> idx_lookup = new HashMap<Byte, VoltType>();
+    protected static final VoltType idx_lookup[] = new VoltType[VoltType.BOOLEAN.m_val+1];
     protected static final Map<String, VoltType> name_lookup = new HashMap<String, VoltType>();
     static {
         for (VoltType vt : EnumSet.allOf(VoltType.class)) {
-            VoltType.idx_lookup.put(vt.m_val, vt);
+            VoltType.idx_lookup[vt.m_val] = vt;
             VoltType.name_lookup.put(vt.name().toLowerCase().intern(), vt);
         }
     }
@@ -192,7 +192,7 @@ public enum VoltType {
      * @return The appropriate enum value
      */
     public static VoltType get(byte val) {
-        VoltType type = idx_lookup.get(val);
+        VoltType type = idx_lookup[val];
         if (type == null) throw new AssertionError("Unknown type: " + String.valueOf(val));
         return (type);
     }

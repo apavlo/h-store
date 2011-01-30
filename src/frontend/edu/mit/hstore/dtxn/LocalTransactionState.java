@@ -93,7 +93,8 @@ public class LocalTransactionState extends TransactionState {
     private final Object lock = new Object();
 
     private final List<BatchPlanner.BatchPlan> batch_plans = new ArrayList<BatchPlanner.BatchPlan>();
-    
+
+    private final List<DependencyInfo> all_dependencies = new ArrayList<DependencyInfo>();
     
     /**
      * LocalTransactionState Factory
@@ -237,6 +238,11 @@ public class LocalTransactionState extends TransactionState {
             plan.finished();
         }
         this.batch_plans.clear();
+        
+        // Return all of our DependencyInfos
+        for (DependencyInfo d : this.all_dependencies) {
+            d.finished();
+        }
         
         this.clearRound();
     }
@@ -486,6 +492,7 @@ public class LocalTransactionState extends TransactionState {
         if (d == null) {
             try {
                 d = (DependencyInfo)DependencyInfo.POOL.borrowObject();
+                this.all_dependencies.add(d);
             } catch (Exception ex) {
                 throw new RuntimeException(ex);
             }
@@ -534,7 +541,7 @@ public class LocalTransactionState extends TransactionState {
         
         // If this task produces output dependencies, then we need to make 
         // sure that the txn wait for it to arrive first
-        synchronized (this.lock) {
+//        synchronized (this.lock) {
             if (ftask.hasOutputDependencies()) {
                 int output_dependencies[] = ftask.getOutputDependencyIds();
                 int stmt_indexes[] = ftask.getFragmentStmtIndexes();
@@ -572,7 +579,7 @@ public class LocalTransactionState extends TransactionState {
                 this.blocked_tasks.add(ftask);
                 blocked = true;
             }
-        } // SYNC
+//        } // SYNC
         if (debug.get()) LOG.debug("Queued up FragmentTaskMessage in txn #" + this.txn_id + " for partition " + partition + " and marked as" + (blocked ? "" : " not") + " blocked");
         if (trace.get()) LOG.trace("FragmentTaskMessage Contents for txn #" + this.txn_id + ":\n" + ftask);
         return (blocked);

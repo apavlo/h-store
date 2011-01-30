@@ -59,6 +59,7 @@ import edu.brown.utils.LoggerUtil.LoggerBoolean;
 import edu.mit.dtxn.Dtxn;
 import edu.mit.hstore.HStoreSite;
 import edu.mit.hstore.HStoreMessenger;
+import edu.mit.hstore.dtxn.DependencyInfo;
 import edu.mit.hstore.dtxn.LocalTransactionState;
 import edu.mit.hstore.dtxn.RemoteTransactionState;
 import edu.mit.hstore.dtxn.TransactionState;
@@ -602,6 +603,22 @@ public class ExecutionSite implements Runnable {
                 throw new RuntimeException(ex);
             }
         } // FOR
+        
+        // And some DependencyInfos
+        try {
+            List<DependencyInfo> infos = new ArrayList<DependencyInfo>();
+            for (int i = 0; i < 10000; i++) {
+                DependencyInfo di = (DependencyInfo)DependencyInfo.POOL.borrowObject();
+                di.init(null, 1, 1);
+                infos.add(di);
+            } // FOR
+            for (DependencyInfo di : infos) {
+                di.finished();
+//                DependencyInfo.POOL.returnObject(di);
+            } // FOR
+        } catch (Exception ex) {
+            throw new RuntimeException(ex);
+        }
         
         
         /*
