@@ -1,7 +1,11 @@
 package org.voltdb;
 
 import java.io.File;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
+import java.util.Random;
 import java.util.Set;
 
 import org.voltdb.benchmark.tpcc.procedures.neworder;
@@ -10,6 +14,8 @@ import org.voltdb.catalog.Statement;
 import org.voltdb.exceptions.MispredictionException;
 
 import edu.brown.BaseTestCase;
+import edu.brown.catalog.CatalogUtil;
+import edu.brown.utils.ClassUtil;
 import edu.brown.utils.ProjectType;
 import edu.brown.workload.QueryTrace;
 import edu.brown.workload.TransactionTrace;
@@ -36,6 +42,8 @@ public class TestBatchPlannerComplex extends BaseTestCase {
     private static ParameterSet args[][];
     private static List<QueryTrace> query_batch[];
     private static TransactionTrace txn_trace;
+    
+    private MockExecutionSite executor;
 
     @Override
     @SuppressWarnings("unchecked")
@@ -83,7 +91,54 @@ public class TestBatchPlannerComplex extends BaseTestCase {
             } // FOR
         }
         
-
+        VoltProcedure volt_proc = ClassUtil.newInstance(TARGET_PROCEDURE, new Object[0], new Class<?>[0]);
+        assert(volt_proc != null);
+        this.executor = new MockExecutionSite(BASE_PARTITION, catalog, p_estimator);
+        volt_proc.init(this.executor, catalog_proc, BackendTarget.NONE, null, CatalogUtil.getCluster(catalog_proc), p_estimator, BASE_PARTITION);
+    }
+    
+    /**
+     * testBatchHashCode
+     */
+    public void testBatchHashCode() throws Exception {
+        final List<SQLStmt> statements = new ArrayList<SQLStmt>();
+        for (Statement catalog_stmt : catalog_proc.getStatements()) {
+            statements.add(new SQLStmt(catalog_stmt));
+        } // FOR
+        int num_stmts = statements.size();
+        assert(num_stmts > 0);
+        
+        SQLStmt batches[][] = new SQLStmt[10][];
+        int hashes[] = new int[batches.length];
+        Random rand = new Random();
+        for (int i = 0; i < batches.length; i++) {
+            int batch_size = rand.nextInt(num_stmts - 1) + 1; 
+            batches[i] = new SQLStmt[batch_size];
+            Collections.shuffle(statements, rand);
+            for (int ii = 0; ii < batch_size; ii++) {
+                batches[i][ii] = statements.get(ii);
+            } // FOR
+            hashes[i] = VoltProcedure.getBatchHashCode(batches[i], batch_size);
+            this.executor.batch_planners.put(hashes[i], new BatchPlanner(batches[i], catalog_proc, p_estimator, BASE_PARTITION));
+        } // FOR
+        
+        for (int i = 0; i < batches.length; i++) {
+            for (int ii = i+1; ii < batches.length; ii++) {
+                assertNotSame(hashes[i], hashes[ii]);
+                if (hashes[i] == hashes[ii]) {
+                    for (SQLStmt s : batches[i])
+                        System.err.println(s.catStmt.fullName());
+                    System.err.println("---------------------------------------");
+                    for (SQLStmt s : batches[ii])
+                        System.err.println(s.catStmt.fullName());
+                }
+                assert(hashes[i] != hashes[ii]) : Arrays.toString(batches[i]) + "\n" + Arrays.toString(batches[ii]);
+            } // FOR
+            
+            int hash = VoltProcedure.getBatchHashCode(batches[i], batches[i].length-1);
+            assert(hashes[i] != hash);
+            assertNull(this.executor.batch_planners.get(hash));
+        } // FOR
     }
     
     /**

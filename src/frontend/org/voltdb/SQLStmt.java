@@ -32,13 +32,11 @@ import org.voltdb.catalog.Statement;
  */
 public class SQLStmt {
     final String sqlText;
-    final int hashCode;
+    int hashCode;
     byte statementParamJavaTypes[];
     int numStatementParamJavaTypes;
-
     long fragGUIDs[];
     int numFragGUIDs;
-
     Statement catStmt;
 
     /**
@@ -49,7 +47,7 @@ public class SQLStmt {
      */
     public SQLStmt(String sqlText) {
         this.sqlText = sqlText;
-        this.hashCode = this.sqlText.hashCode();
+        this.computeHashCode();
     }
     
     public SQLStmt(Statement catalog_stmt) {
@@ -57,8 +55,7 @@ public class SQLStmt {
     }
     
     public SQLStmt(Statement catalog_stmt, CatalogMap<PlanFragment> fragments) {
-        this(catalog_stmt.getSqltext());
-        
+        this.sqlText = catalog_stmt.getSqltext();
         this.catStmt = catalog_stmt;
 
         this.numFragGUIDs = fragments.size();
@@ -73,6 +70,15 @@ public class SQLStmt {
         for (i = 0; i < this.numStatementParamJavaTypes; i++) {
             this.statementParamJavaTypes[i] = (byte)this.catStmt.getParameters().get(i).getJavatype();
         } // FOR
+        this.computeHashCode();
+    }
+    
+    protected void computeHashCode() {
+        if (this.catStmt != null) {
+            this.hashCode = this.catStmt.fullName().hashCode();
+        } else {
+            this.hashCode = this.sqlText.hashCode();
+        }
     }
 
     /**
