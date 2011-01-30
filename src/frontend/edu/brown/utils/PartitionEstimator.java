@@ -862,6 +862,7 @@ public class PartitionEstimator {
             } else {
                 p.clear();
             }
+            assert(p != null);
             
             this.calculatePartitionsForFragment(null,
                                                 p,
@@ -927,10 +928,9 @@ public class PartitionEstimator {
                 this.generateCache(catalog_stmt);
                 cache_entry = this.frag_cache_entries.get(frag_key);
             }
-        }
+        } // SYNCHRONIZED
         assert(cache_entry != null);
         
-        if (trace.get()) LOG.trace("Getting for Partitions PlanFragment #" + catalog_frag.fullName());
         this.calculatePartitionsForCache(entry_partitions,
                                          all_partitions,
                                          cache_entry, params, base_partition);

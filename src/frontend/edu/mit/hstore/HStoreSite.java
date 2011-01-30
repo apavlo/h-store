@@ -330,6 +330,30 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
     } // END CLASS
     
     /**
+     * SetupThread
+     */
+    protected class SetupThread implements Runnable {
+        public void run() {
+            try {
+                // Load up everything the QueryPlanUtil
+                QueryPlanUtil.preload(HStoreSite.this.catalog_db);
+                
+                // Then load up everything in the PartitionEstimator
+                HStoreSite.this.p_estimator.preload();
+                
+            } catch (Exception ex) {
+                LOG.fatal("Failed to prepare HStoreSite", ex);
+                System.exit(1);
+            }
+            
+            // Schedule the ExecutionSiteHelper
+            ExecutionSiteHelper esh = new ExecutionSiteHelper(HStoreSite.this.executors.values());
+            HStoreSite.this.helper_pool.scheduleAtFixedRate(esh, 250, 1000, TimeUnit.MILLISECONDS);
+        }
+    }
+    
+    
+    /**
      * Constructor
      * @param coordinator
      * @param p_estimator
@@ -345,7 +369,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         this.messenger = new HStoreMessenger(this);
         this.txnid_manager = new TransactionIdManager(this.site_id);
         
-        this.ignore_dtxn = CatalogUtil.getNumberOfPartitions(catalog_site) == 1;
+        this.ignore_dtxn = false; // CatalogUtil.getNumberOfPartitions(catalog_site) == 1;
         if (this.ignore_dtxn) LOG.info("Ignore Dtxn.Coordinator is enabled!");
         
         this.helper_pool = Executors.newScheduledThreadPool(1);
@@ -365,31 +389,11 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         this.messenger.start();
 
         // Preparation Thread
-        new Thread() {
+        new Thread(new SetupThread()) {
             {
                 this.setName(HStoreSite.this.getThreadName("prep"));
                 this.setDaemon(true);
             }
-            public void run() {
-                try {
-                    // Load up everything the QueryPlanUtil
-                    QueryPlanUtil.preload(HStoreSite.this.catalog_db);
-                    
-                    // Then load up everything in the PartitionEstimator
-                    HStoreSite.this.p_estimator.preload();
-                    
-                    // Then preload up a bunch of BatchPlans
-                    BatchPlanner.preload(CatalogUtil.getNumberOfPartitions(catalog_db));
-                    
-                } catch (Exception ex) {
-                    LOG.fatal("Failed to prepare HStoreSite", ex);
-                    System.exit(1);
-                }
-                
-                // Schedule the ExecutionSiteHelper
-                ExecutionSiteHelper esh = new ExecutionSiteHelper(HStoreSite.this.executors.values());
-                HStoreSite.this.helper_pool.scheduleAtFixedRate(esh, 250, 1000, TimeUnit.MILLISECONDS);
-            };
         }.start();
         
         // Then we need to start all of the ExecutionSites in threads
