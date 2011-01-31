@@ -190,7 +190,8 @@ public class PlanColumn
             if (ignore_guid == false && this.m_guid != other.m_guid) return (false);
             if (!this.m_displayName.equals(other.m_displayName)) return (false); 
             if (!this.m_sortOrder.equals(other.m_sortOrder)) return (false);
-            if (!this.m_storage.equals(other.m_storage)) return (false);
+            /** DWU - ignore storage for now? Problematic in the future? **/
+            //if (!this.m_storage.equals(other.m_storage)) return (false);
             if (ignore_exp == false && !ExpressionUtil.equals(this.m_expression, other.m_expression)) return (false);
             return (true);
         }
