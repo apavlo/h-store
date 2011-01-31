@@ -25,6 +25,7 @@ public class MockExecutionSite extends ExecutionSite {
     
     public MockExecutionSite(int partition_id, Catalog catalog, PartitionEstimator p_estimator) {
         super(partition_id, catalog, BACKEND_TARGET, p_estimator, null);
+        this.initializeVoltProcedurePools();
     }
 
     @Override

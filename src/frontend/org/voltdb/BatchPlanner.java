@@ -112,7 +112,7 @@ public class BatchPlanner {
         public PlanVertex(PlanFragment catalog_frag,
                           int stmt_index,
                           int round,
-                          Integer input_dependency_id,
+                          int input_dependency_id,
                           int output_dependency_id,
                           boolean is_local) {
             super(catalog_frag);

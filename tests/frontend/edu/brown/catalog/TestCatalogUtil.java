@@ -345,7 +345,6 @@ public class TestCatalogUtil extends BaseTestCase {
     public void testGetProcedures() throws Exception {
         Procedure expected[] = {
             this.getProcedure(delivery.class),
-            this.getProcedure(InsertNewOrder.class),
             this.getProcedure(neworder.class),
             this.getProcedure(ResetWarehouse.class),
         };
@@ -364,7 +363,6 @@ public class TestCatalogUtil extends BaseTestCase {
     public void testGetProceduresReplicatedColumn() throws Exception {
         Procedure expected[] = {
             this.getProcedure(delivery.class),
-            this.getProcedure(InsertNewOrder.class),
             this.getProcedure(neworder.class),
             this.getProcedure(ResetWarehouse.class),
         };

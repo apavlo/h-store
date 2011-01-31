@@ -475,11 +475,7 @@ public class ExecutionSite implements Runnable {
         }
     }
     
-
-    /**
-     * Preload a bunch of stuff that we'll need later on
-     */
-    protected void preload() {
+    protected void initializeVoltProcedurePools() {
         // load up all the stored procedures
         final CatalogMap<Procedure> catalogProcedures = database.getProcedures();
         for (final Procedure catalog_proc : catalogProcedures) {
@@ -498,6 +494,14 @@ public class ExecutionSite implements Runnable {
                 }
             }
         } // FOR
+    }
+
+    
+    /**
+     * Preload a bunch of stuff that we'll need later on
+     */
+    protected void preload() {
+        this.initializeVoltProcedurePools();
         
         // Then preload a bunch of TransactionStates
         for (boolean local : new boolean[]{ true, false }) {

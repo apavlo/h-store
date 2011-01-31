@@ -799,11 +799,7 @@ public class LocalTransactionState extends TransactionState {
     public synchronized String toString() {
         String ret = super.toString() + StringUtil.SINGLE_LINE;
 
-        String proc_name = null;
-        if (this.executor != null && this.executor.getRunningVoltProcedure(txn_id) != null) {
-            proc_name = this.executor.getRunningVoltProcedure(txn_id).getProcedureName();
-        }
-        
+        String proc_name = (this.volt_procedure != null ? this.volt_procedure.getProcedureName() : null);
         ListOrderedMap<String, Object> m = new ListOrderedMap<String, Object>();
         m.put("Procedure", proc_name);
         m.put("Dtxn.Coordinator Callback", this.coordinator_callback);

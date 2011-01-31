@@ -35,7 +35,6 @@ public class TestExecutionSite extends BaseTestCase {
     private static final int PARTITION_ID = 1;
     private static final int CLIENT_HANDLE = 1001;
     private static final long LAST_SAFE_TXN = -1;
-    private static final BackendTarget BACKEND_TARGET = BackendTarget.HSQLDB_BACKEND;
 
     private static final String TARGET_PROCEDURE = "GetAccessData";
     private static final Object TARGET_PARAMS[] = new Object[] { new Long(1), new Long(1) };
@@ -59,7 +58,7 @@ public class TestExecutionSite extends BaseTestCase {
         if (site == null) {
             PartitionEstimator p_estimator = new PartitionEstimator(catalog_db);
             Site catalog_site = CollectionUtil.getFirst(CatalogUtil.getCluster(catalog).getSites());
-            site = new ExecutionSite(PARTITION_ID, catalog, BACKEND_TARGET, p_estimator, null);
+            site = new MockExecutionSite(PARTITION_ID, catalog, p_estimator);
             
             Map<Integer, ExecutionSite> executors = new HashMap<Integer, ExecutionSite>();
             executors.put(PARTITION_ID, site);
