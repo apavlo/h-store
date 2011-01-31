@@ -467,10 +467,24 @@ public class PlanAssembler {
         PlanOptimizer po = new PlanOptimizer(m_context, m_catalogDb);
         po.optimize(m_parsedSelect.sql, root);
         
-        // connect the nodes to build the graph
+        
+//        if (root.getPlanNodeType().equals(PlanNodeType.PROJECTION) && PlanNodeUtil.getDepth(root) == 0) {
+//            System.out.println("Root node type: " + root.getPlanNodeType());
+//            System.out.println("Depth: " + PlanNodeUtil.getDepth(root));
+//            System.out.println(PlanNodeUtil.debug(root));
+//            System.out.println();
+//            System.out.println();                        
+//        }
+        
         SendPlanNode sendNode = new SendPlanNode(m_context, getNextPlanNodeId());
-        sendNode.addAndLinkChild(root);
-        sendNode.setOutputColumns(root.m_outputColumns);
+        // check if there is a new root + connect the nodes to build the graph
+        if (po.getNewRoot() != null) {
+            sendNode.addAndLinkChild(po.getNewRoot());
+            sendNode.setOutputColumns(po.getNewRoot().m_outputColumns);            
+        } else {
+            sendNode.addAndLinkChild(root);
+            sendNode.setOutputColumns(root.m_outputColumns);                        
+        }
 
         return sendNode;
     }
