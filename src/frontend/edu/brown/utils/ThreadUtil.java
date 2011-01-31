@@ -88,7 +88,7 @@ public abstract class ThreadUtil {
      * @param threads
      * @throws Exception
      */
-    public static void run(final Collection<? extends Thread> threads) throws Exception {
+    public static <R extends Runnable> void run(final Collection<R> threads) throws Exception {
         ThreadUtil.run(threads, null);
     }
     
@@ -99,20 +99,21 @@ public abstract class ThreadUtil {
      * @param max_concurrent
      * @throws Exception
      */
-    public static void run(final Collection<? extends Thread> threads, Integer max_concurrent) throws Exception {
+    public static <R extends Runnable> void run(final Collection<R> threads, Integer max_concurrent) throws Exception {
         final boolean debug = LOG.isDebugEnabled();
         
         // Make a new list of threads so that we can modify its contents without affecting
         // the data structures of whoever called us.
-        List<Thread> available = new ArrayList<Thread>(threads);
-        List<Thread> running = new Vector<Thread>();
+        final List<R> available = new ArrayList<R>(threads);
+        final List<Thread> running = new ArrayList<Thread>();
         if (max_concurrent == null) max_concurrent = -1;
         
         if (debug) LOG.debug("Executing " + available.size() + " threads [max_concurrent=" + max_concurrent + "]");
         long max_sleep = 2000;
         while (!available.isEmpty() || !running.isEmpty()) {
             while ((max_concurrent < 0 || running.size() < max_concurrent) && !available.isEmpty()) {
-                Thread thread = available.remove(0);
+                R r = available.remove(0);
+                Thread thread = (r instanceof Thread ? (Thread)r : new Thread(r));
                 thread.start();
                 running.add(thread);
                 if (debug) {
