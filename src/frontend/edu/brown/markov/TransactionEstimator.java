@@ -12,6 +12,7 @@ import org.voltdb.catalog.*;
 import edu.brown.catalog.CatalogKey;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.correlations.*;
+import edu.brown.graphs.GraphvizExport;
 import edu.brown.utils.*;
 import edu.brown.utils.LoggerUtil.LoggerBoolean;
 import edu.brown.workload.QueryTrace;
@@ -407,7 +408,7 @@ public class TransactionEstimator {
 
         // If we don't have a graph for this procedure, we should probably just return null
         // This will be the case for all sysprocs
-        if (!procedure_graphs.containsKey(catalog_proc)) {
+        if (!this.procedure_graphs.containsKey(catalog_proc)) {
             if (debug.get()) LOG.debug("No MarkovGraph exists for '" + catalog_proc + "'"); //  on partition #" + this.base_partition);
             return (null);
             // fillIn(estimate,xact_states.get(xact_id));
@@ -597,7 +598,18 @@ public class TransactionEstimator {
      */
     protected MarkovPathEstimator estimatePath(final MarkovGraph markov, final int base_partition, final Object args[]) throws Exception {
         MarkovPathEstimator estimator = new MarkovPathEstimator(markov, this, base_partition, args);
-        estimator.traverse(markov.getStartVertex());
+        try {
+            estimator.traverse(markov.getStartVertex());
+        } catch (AssertionError e) {
+            LOG.fatal("Failed to estimate path", e);
+            try {
+                GraphvizExport<Vertex, Edge> gv = MarkovUtil.exportGraphviz(markov, false, markov.getPath(estimator.getVisitPath()));
+                System.err.println("GRAPH DUMP: " + gv.writeToTempFile("dump", "dot"));
+            } catch (Exception ex) {
+                throw new RuntimeException(ex);
+            }
+            throw e;
+        }
         return (estimator);
     }
     

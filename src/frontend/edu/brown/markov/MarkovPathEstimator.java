@@ -103,6 +103,11 @@ public class MarkovPathEstimator extends VertexTreeWalker<Vertex> {
         final boolean trace = LOG.isTraceEnabled();
         final boolean debug = LOG.isDebugEnabled();
         
+        if (element.isAbortVertex() || element.isCommitVertex()) {
+            this.stop();
+            return;
+        }
+        
         if (trace) LOG.trace("Current Vertex: " + element);
         Statement cur_catalog_stmt = element.getCatalogItem();
         int cur_catalog_stmt_index = element.getQueryInstanceIndex();
@@ -127,7 +132,11 @@ public class MarkovPathEstimator extends VertexTreeWalker<Vertex> {
             // Sanity Check: If this vertex is the same Statement as the current vertex,
             // then its instance counter must be greater than the current vertex's counter
             if (next_catalog_stmt.equals(cur_catalog_stmt)) {
-                assert(next_catalog_stmt_index > cur_catalog_stmt_index);
+                if (next_catalog_stmt_index <= cur_catalog_stmt_index) {
+                    System.err.println("CURRENT: " + element + "  [commit=" + element.isCommitVertex() + "]");
+                    System.err.println("NEXT:    " + next + "  [commit=" + next.isCommitVertex() + "]");
+                }
+                assert(next_catalog_stmt_index > cur_catalog_stmt_index) : String.format("%d > %d", next_catalog_stmt_index, cur_catalog_stmt_index);
             }
             
             // Check whether it's COMMIT/ABORT
@@ -305,11 +314,10 @@ public class MarkovPathEstimator extends VertexTreeWalker<Vertex> {
         
         // Anything??
         
-        final MarkovGraph markov = (MarkovGraph)this.getGraph();
-        if (markov.getCommitVertex().equals(element)) {
+        if (element.isCommitVertex()) {
             if (trace) LOG.trace("Reached COMMIT. Stopping...");
             this.stop();
-        } else if (markov.getAbortVertex().equals(element)) {
+        } else if (element.isAbortVertex()) {
             if (trace) LOG.trace("Reached ABORT. Stopping...");
             this.stop();
         }
