@@ -57,7 +57,7 @@ public class TestPlanOptimizations2 extends BaseTestCase {
             this
                     .addStmtProcedure(
                             "ThreeWayJoin",
-                            "SELECT TABLEA.A_VALUE0, TABLEB.B_VALUE0, (TABLEC.C_VALUE0 + TABLEC.C_VALUE1) AS blah FROM TABLEA, TABLEB, TABLEC WHERE TABLEA.A_ID = TABLEB.B_A_ID AND TABLEA.A_ID = TABLEC.C_A_ID AND TABLEC.C_A_ID = ? AND TABLEC.C_VALUE0 != ?");
+                            "SELECT TABLEA.A_VALUE0, TABLEB.B_VALUE0, ((TABLEC.C_VALUE0 + TABLEC.C_VALUE1) / TABLEB.B_A_ID) AS blah FROM TABLEA, TABLEB, TABLEC WHERE TABLEA.A_ID = TABLEB.B_A_ID AND TABLEA.A_ID = TABLEC.C_A_ID AND TABLEA.A_VALUE3 = ? AND TABLEC.C_A_ID = ? AND TABLEC.C_VALUE0 != ? AND TABLEC.C_VALUE1 != ?");
             this.addStmtProcedure("Aggregate", "SELECT COUNT(TABLEB.B_A_ID) AS cnt FROM TABLEB WHERE TABLEB.B_ID = ?");
             this.addStmtProcedure("AggregateColumnAddition", "SELECT AVG(TABLEC.C_VALUE0), C_A_ID FROM TABLEC WHERE TABLEC.C_ID = ? GROUP BY C_A_ID");
             this.addStmtProcedure("OrderBy", "SELECT TABLEC.C_A_ID FROM TABLEC ORDER BY TABLEC.C_A_ID, TABLEC.C_VALUE0");
@@ -72,9 +72,9 @@ public class TestPlanOptimizations2 extends BaseTestCase {
 
     protected void checkColumnIndex(TupleValueExpression expr, Map<String, Integer> tbl_map) {
         // check column exists in the map
-        assert (tbl_map.containsKey(expr.getColumnName())) : expr.getColumnName() + " does not exist in scanned table";
+        assert (tbl_map.containsKey(expr.getColumnAlias())) : expr.getColumnAlias() + " does not exist in scanned table";
         // check column has correct index
-        assert (expr.getColumnIndex() == tbl_map.get(expr.getColumnName())) : "Column : " + expr.getColumnName() + " has offset: " + expr.getColumnIndex() + " expected: " + tbl_map.get(expr.getColumnName());
+        assert (expr.getColumnIndex() == tbl_map.get(expr.getColumnAlias())) : "Column : " + expr.getColumnAlias() + " has offset: " + expr.getColumnIndex() + " expected: " + tbl_map.get(expr.getColumnAlias());
     }
     
     protected void checkColumnIndex(Column col, Map<String, Integer> tbl_map) {
@@ -107,7 +107,7 @@ public class TestPlanOptimizations2 extends BaseTestCase {
                 @Override
                 protected void callback(AbstractExpression exp_element) {
                     if (exp_element instanceof TupleValueExpression) {
-                        //System.out.println("element column: " + ((TupleValueExpression)exp_element).getColumnName() + " element index: " + ((TupleValueExpression)exp_element).getColumnIndex());
+                        //System.out.println("element column: " + ((TupleValueExpression)exp_element).getColumnAlias() + " element index: " + ((TupleValueExpression)exp_element).getColumnIndex());
                         checkColumnIndex((TupleValueExpression)exp_element, tbl_map);
                     }
                 }
@@ -177,7 +177,8 @@ public class TestPlanOptimizations2 extends BaseTestCase {
     /** make sure the output columns of a node exactly match its inline columns (guid for guid) **/
     protected void checkMatchInline(AbstractPlanNode node, AbstractPlanNode inline_node) {
         for (int i = 0; i < node.m_outputColumns.size(); i++) {
-            assert (node.m_outputColumns.get(i) == inline_node.m_outputColumns.get(i)) : "Node guid: " + node.m_outputColumns.get(i) + " doesn't match inline plan guid: " + inline_node.m_outputColumns.get(i);
+            System.out.println("Node guid: " + node.m_outputColumns.get(i) + " inline plan guid: " + inline_node.m_outputColumns.get(i));
+            assert ((int)node.m_outputColumns.get(i) == (int)inline_node.m_outputColumns.get(i)) : "Node guid: " + node.m_outputColumns.get(i) + " doesn't match inline plan guid: " + inline_node.m_outputColumns.get(i);
         }
     }
 
@@ -302,10 +303,12 @@ public class TestPlanOptimizations2 extends BaseTestCase {
         // Grab the root node of the multi-partition query plan tree for this
         // Statement
         AbstractPlanNode root = QueryPlanUtil.deserializeStatement(catalog_stmt, false);
+        
         validateNodeColumnOffsets(root);
-        //System.err.println(PlanNodeUtil.debug(root));
+        System.err.println(PlanNodeUtil.debug(root));
         assertNotNull(root);
     }
+
     
         
      /**
@@ -321,8 +324,8 @@ public class TestPlanOptimizations2 extends BaseTestCase {
      AbstractPlanNode root = QueryPlanUtil.deserializeStatement(catalog_stmt,
      true);
      assertNotNull(root);
-     validateNodeColumnOffsets(root);
-     //System.err.println(PlanNodeUtil.debug(root));
+     //validateNodeColumnOffsets(root);
+     System.err.println(PlanNodeUtil.debug(root));
      }
      
      @Test
@@ -408,123 +411,116 @@ public class TestPlanOptimizations2 extends BaseTestCase {
      // assertEquals(0, proj_nodes.size());
      }
         
-     /**
+    /**
      * testJoinProjectionPushdown
      */
-     @Test
-     public void testJoinProjectionPushdown() throws Exception {
-     Procedure catalog_proc = this.getProcedure("JoinProjection");
-     Statement catalog_stmt = this.getStatement(catalog_proc, "sql");
-            
-     // Grab the root node of the multi-partition query plan tree for this
-     //Statement
-     AbstractPlanNode root = QueryPlanUtil.deserializeStatement(catalog_stmt,
-     false);
-     assertNotNull(root);
-     //validateNodeColumnOffsets(root);
-            
-     new PlanNodeTreeWalker() {
+    @Test
+    public void testJoinProjectionPushdown() throws Exception {
+        Procedure catalog_proc = this.getProcedure("JoinProjection");
+        Statement catalog_stmt = this.getStatement(catalog_proc, "sql");
 
-         @Override
-         protected void callback(AbstractPlanNode element) {
-             //System.out.println("element plannodetype: " + element.getPlanNodeType() + " depth: " + this.getDepth());
-         }
-     }.traverse(root);
-     //
-     //System.err.println("+++++++++++++++++++++++++++++++++++++++++++++++++++");
-//            
-//      System.err.println(PlanNodeUtil.debug(root));
-//     //
-//     System.err.println("+++++++++++++++++++++++++++++++++++++++++++++++++++");
-//     //
-//     // System.err.println("# of Fragments: " +
-//     catalog_stmt.getMs_fragments().size());
-//     // for (PlanFragment pf : catalog_stmt.getMs_fragments()) {
-//     // System.err.println(pf.getName() + "\n" +
-//     PlanNodeUtil.debug(QueryPlanUtil.deserializePlanFragment(pf)));
-     // }
-            
-            
-     // At the very bottom of our tree should be a scan. Grab that and then
-     //check to see that it has an inline ProjectionPlanNode. We will then look to see whether
-     //all of the columns
-     // we need to join are included. Note that we don't care which table is
-     //scanned first, as we can
-     // dynamically figure things out for ourselves
-     Set<AbstractScanPlanNode> scan_nodes = PlanNodeUtil.getPlanNodes(root,
-     AbstractScanPlanNode.class);
-     assertEquals(1, scan_nodes.size());
-     AbstractScanPlanNode scan_node = CollectionUtil.getFirst(scan_nodes);
-     assertNotNull(scan_node);
-     Table catalog_tbl = this.getTable(scan_node.getTargetTableName());
-            
-     assertEquals(1, scan_node.getInlinePlanNodes().size());
-     ProjectionPlanNode inline_proj =
-     (ProjectionPlanNode)scan_node.getInlinePlanNodes().get(PlanNodeType.PROJECTION);
-     assertNotNull(inline_proj);
-            
-     // Validate output columns
-     for (int column_guid : inline_proj.m_outputColumns) {
-     PlanColumn column = PlannerContext.singleton().get(column_guid);
-     assertNotNull("Missing PlanColumn [guid=" + column_guid + "]", column);
-     assertEquals(column_guid, column.guid());
-    
-     // Check that only columns from the scanned table are there
-     String table_name = column.originTableName();
-     assertNotNull(table_name);
-     String column_name = column.originColumnName();
-     assertNotNull(column_name);
-     assertEquals(table_name+"."+column_name, catalog_tbl.getName(),
-     table_name);
-     assertNotNull(table_name+"."+column_name,
-     catalog_tbl.getColumns().get(column_name));
-     } // FOR
-            
-     Set<Column> proj_columns = null;
-     proj_columns = PlanNodeUtil.getOutputColumns(catalog_db, inline_proj);
-     assertFalse(proj_columns.isEmpty());
-            
-     // Now find the join and get all of the columns from the first scanned table in the join operation
-     Set<AbstractJoinPlanNode> join_nodes = PlanNodeUtil.getPlanNodes(root,
-     AbstractJoinPlanNode.class);
-     assertNotNull(join_nodes);
-     assertEquals(1, join_nodes.size());
-     AbstractJoinPlanNode join_node = CollectionUtil.getFirst(join_nodes);
-     assertNotNull(join_node);
-            
-     // Remove the columns from the second table
-     Set<Column> join_columns = CatalogUtil.getReferencedColumns(catalog_db,
-     join_node);
-     assertNotNull(join_columns);
-     assertFalse(join_columns.isEmpty());
-     // System.err.println(CatalogUtil.debug(join_columns));
-     Iterator<Column> it = join_columns.iterator();
-     while (it.hasNext()) {
-     Column catalog_col = it.next();
-     if (catalog_col.getParent().equals(catalog_tbl) == false) {
-     it.remove();
-     }
-     } // WHILE
-     assertFalse(join_columns.isEmpty());
-     // System.err.println("COLUMNS: " + CatalogUtil.debug(join_columns));
-            
-     // Ok so now we have the list of columns that are filtered out in the
-     // inline projection and the list of
-     // columns that are used in the join from the first table. So we need to make sure that
-     // every table that is in the join is in the projection
-     for (Column catalog_col : join_columns) {
-     assert(proj_columns.contains(catalog_col)) : "Missing: " +
-     CatalogUtil.getDisplayName(catalog_col);
-     } // FOR
-            
-     // Lastly, we need to look at the root SEND node and get its output
-     // columns, and make sure that they
-     // are also included in the bottom projection
-     Set<Column> send_columns = PlanNodeUtil.getOutputColumns(catalog_db, root);
-     assertFalse(send_columns.isEmpty());
-     for (Column catalog_col : send_columns) {
-     assert(proj_columns.contains(catalog_col)) : "Missing: " +
-     CatalogUtil.getDisplayName(catalog_col);
-     } // FOR
-     }
+        // Grab the root node of the multi-partition query plan tree for this
+        // Statement
+        AbstractPlanNode root = QueryPlanUtil.deserializeStatement(catalog_stmt, false);
+        assertNotNull(root);
+        validateNodeColumnOffsets(root);
+
+        new PlanNodeTreeWalker() {
+
+            @Override
+            protected void callback(AbstractPlanNode element) {
+                // System.out.println("element plannodetype: " +
+                // element.getPlanNodeType() + " depth: " + this.getDepth());
+            }
+        }.traverse(root);
+        // System.err.println("+++++++++++++++++++++++++++++++++++++++++++++++++++");
+        //            
+        System.err.println(PlanNodeUtil.debug(root));
+        // //
+        // System.err.println("+++++++++++++++++++++++++++++++++++++++++++++++++++");
+        // //
+        // // System.err.println("# of Fragments: " +
+        // catalog_stmt.getMs_fragments().size());
+        // // for (PlanFragment pf : catalog_stmt.getMs_fragments()) {
+        // // System.err.println(pf.getName() + "\n" +
+        // PlanNodeUtil.debug(QueryPlanUtil.deserializePlanFragment(pf)));
+        // }
+
+        // At the very bottom of our tree should be a scan. Grab that and then
+        // check to see that it has an inline ProjectionPlanNode. We will then
+        // look to see whether
+        // all of the columns
+        // we need to join are included. Note that we don't care which table is
+        // scanned first, as we can
+        // dynamically figure things out for ourselves
+        Set<AbstractScanPlanNode> scan_nodes = PlanNodeUtil.getPlanNodes(root, AbstractScanPlanNode.class);
+        assertEquals(1, scan_nodes.size());
+        AbstractScanPlanNode scan_node = CollectionUtil.getFirst(scan_nodes);
+        assertNotNull(scan_node);
+        Table catalog_tbl = this.getTable(scan_node.getTargetTableName());
+
+        assertEquals(1, scan_node.getInlinePlanNodes().size());
+        ProjectionPlanNode inline_proj = (ProjectionPlanNode) scan_node.getInlinePlanNodes().get(PlanNodeType.PROJECTION);
+        assertNotNull(inline_proj);
+
+        // Validate output columns
+        for (int column_guid : inline_proj.m_outputColumns) {
+            PlanColumn column = PlannerContext.singleton().get(column_guid);
+            assertNotNull("Missing PlanColumn [guid=" + column_guid + "]", column);
+            assertEquals(column_guid, column.guid());
+
+            // Check that only columns from the scanned table are there
+            String table_name = column.originTableName();
+            assertNotNull(table_name);
+            String column_name = column.originColumnName();
+            assertNotNull(column_name);
+            assertEquals(table_name + "." + column_name, catalog_tbl.getName(), table_name);
+            assertNotNull(table_name + "." + column_name, catalog_tbl.getColumns().get(column_name));
+        } // FOR
+
+        Set<Column> proj_columns = null;
+        proj_columns = PlanNodeUtil.getOutputColumns(catalog_db, inline_proj);
+        assertFalse(proj_columns.isEmpty());
+
+        // Now find the join and get all of the columns from the first scanned
+        // table in the join operation
+        Set<AbstractJoinPlanNode> join_nodes = PlanNodeUtil.getPlanNodes(root, AbstractJoinPlanNode.class);
+        assertNotNull(join_nodes);
+        assertEquals(1, join_nodes.size());
+        AbstractJoinPlanNode join_node = CollectionUtil.getFirst(join_nodes);
+        assertNotNull(join_node);
+
+        // Remove the columns from the second table
+        Set<Column> join_columns = CatalogUtil.getReferencedColumns(catalog_db, join_node);
+        assertNotNull(join_columns);
+        assertFalse(join_columns.isEmpty());
+        // System.err.println(CatalogUtil.debug(join_columns));
+        Iterator<Column> it = join_columns.iterator();
+        while (it.hasNext()) {
+            Column catalog_col = it.next();
+            if (catalog_col.getParent().equals(catalog_tbl) == false) {
+                it.remove();
+            }
+        } // WHILE
+        assertFalse(join_columns.isEmpty());
+        // System.err.println("COLUMNS: " + CatalogUtil.debug(join_columns));
+
+        // Ok so now we have the list of columns that are filtered out in the
+        // inline projection and the list of
+        // columns that are used in the join from the first table. So we need to
+        // make sure that
+        // every table that is in the join is in the projection
+        for (Column catalog_col : join_columns) {
+            assert (proj_columns.contains(catalog_col)) : "Missing: " + CatalogUtil.getDisplayName(catalog_col);
+        } // FOR
+
+        // Lastly, we need to look at the root SEND node and get its output
+        // columns, and make sure that they
+        // are also included in the bottom projection
+        Set<Column> send_columns = PlanNodeUtil.getOutputColumns(catalog_db, root);
+        assertFalse(send_columns.isEmpty());
+        for (Column catalog_col : send_columns) {
+            assert (proj_columns.contains(catalog_col)) : "Missing: " + CatalogUtil.getDisplayName(catalog_col);
+        } // FOR
+    }
 }
