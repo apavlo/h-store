@@ -253,7 +253,8 @@ public class TestTransactionStateComplex extends BaseTestCase {
             } // FOR (partition)
         } // FOR (dependency ids)
         assertEquals(NUM_DUPLICATE_STATEMENTS, markers.size());
-        System.err.println(ts);
+        assert(this.ts instanceof LocalTransactionState);
+        System.err.println(this.ts.toString());
 
         VoltTable results[] = this.ts.getResults();
         assertNotNull(results);

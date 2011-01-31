@@ -111,12 +111,12 @@ public class TestPartitionEstimatorMultiSite extends BaseTestCase {
         CatalogMap<PlanFragment> fragments = catalog_stmt.getMs_fragments();
         p_estimator.getAllFragmentPartitions(all_partitions, fragments, params, base_partition);
         
-        // We should see one PlanFragment with no partitions and then all others need something
+        // We should see one PlanFragment with that only has our local partition and then all others need something
         boolean internal_flag = false;
         for (PlanFragment catalog_frag : fragments) {
             Collection<Integer> partitions = all_partitions.get(catalog_frag);
             assertNotNull(catalog_frag.fullName(), partitions);
-            if (partitions.isEmpty()) {
+            if (partitions.size() == 1 && partitions.contains(base_partition)) {
                 assertFalse(internal_flag);
                 internal_flag = true;
             }
