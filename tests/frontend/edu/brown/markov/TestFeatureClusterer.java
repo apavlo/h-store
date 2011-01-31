@@ -90,7 +90,7 @@ public class TestFeatureClusterer extends BaseTestCase {
         }
         assertNotNull(data);
         
-        fclusterer = new FeatureClusterer(catalog_db, workload, correlations);
+        fclusterer = new FeatureClusterer(catalog_proc, workload, correlations);
     }
     
     /**
@@ -99,8 +99,20 @@ public class TestFeatureClusterer extends BaseTestCase {
 //    @Test
 //    public void testCreateAttributeSetFilter() throws Exception {
 //        // Test that we can create a filter from an AttributeSet
-//        Set<Integer> idxs = fset.getFeatureIndexes(ParamArrayLengthFeature.class);
+////        Set<Integer> idxs = fset.getFeatureIndexes(ParamArrayLengthFeature.class);
+////        assertEquals(CatalogUtil.getArrayProcParameters(catalog_proc).size(), idxs.size());
+////        AttributeSet aset = new AttributeSet(data, idxs);
+////        assertEquals(idxs.size(), aset.size());
+//
+//        FeatureUtil.get
+//        
+//        // Test that we can create a filter from an AttributeSet
+//        Set<Attribute> attributes = FeatureClusterer.prefix2attributes(data,
+//          FeatureUtil.getFeatureKeyPrefix(ParamArrayLengthFeature.class, this.getProcParameter(catalog_proc, 4)),
+//          FeatureUtil.getFeatureKeyPrefix(ParamNumericValuesFeature.class, this.getProcParameter(catalog_proc, 1))
+//      );
 //        assertEquals(CatalogUtil.getArrayProcParameters(catalog_proc).size(), idxs.size());
+//        
 //        AttributeSet aset = new AttributeSet(data, idxs);
 //        assertEquals(idxs.size(), aset.size());
 //        
@@ -179,11 +191,11 @@ public class TestFeatureClusterer extends BaseTestCase {
         );
         System.err.println("Attributes: " + attributes);
         
-        Pair<Instances, Instances> p = fclusterer.splitWorkload(data);
-        assertNotNull(p);
+        Instances instances[] = fclusterer.splitWorkload(data);
+        assertNotNull(instances);
         
         for (int i = 0; i < 1; i++) {
-            AttributeSet aset = fclusterer.createAttributeSet(catalog_proc, attributes, p.getFirst(), p.getSecond());
+            AttributeSet aset = fclusterer.createAttributeSet(attributes, instances);
 //            System.err.println("[" + i + "] Cost: " + aset.getCost());
         }
 //        System.err.println();
