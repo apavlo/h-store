@@ -188,6 +188,13 @@ public abstract class AbstractTreeWalker<E> {
     protected final void stop() {
         this.stop = true;
     }
+    /**
+     * Returns true is this walker has been marked as stopped
+     * @return
+     */
+    protected final boolean isStopped() {
+        return (this.stop);
+    }
 
     // ----------------------------------------------------------------------
     // TRAVERSAL METHODS

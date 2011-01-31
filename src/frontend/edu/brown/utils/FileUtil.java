@@ -55,10 +55,14 @@ public abstract class FileUtil {
     }
     
     public static File writeStringToTempFile(String content) {
+        return (writeStringToTempFile(content, "tmp"));
+    }
+    
+    public static File writeStringToTempFile(String content, String ext) {
         File tempFile;
         try {
-            tempFile = File.createTempFile("myApp", ".tmp");
-            tempFile.deleteOnExit();
+            tempFile = File.createTempFile("hstore", "." + ext);
+//            tempFile.deleteOnExit();
             
             FileUtil.writeStringToFile(tempFile, content);
             
