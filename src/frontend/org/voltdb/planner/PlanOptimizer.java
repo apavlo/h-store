@@ -14,15 +14,11 @@ import java.util.TreeMap;
 import java.util.TreeSet;
 
 import org.apache.log4j.Logger;
-import org.apache.tools.ant.taskdefs.optional.junit.OutErrSummaryJUnitResultFormatter;
 import org.voltdb.VoltType;
 import org.voltdb.catalog.Column;
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Table;
 import org.voltdb.expressions.AbstractExpression;
-import org.voltdb.expressions.AbstractValueExpression;
-import org.voltdb.expressions.AggregateExpression;
-import org.voltdb.expressions.OperatorExpression;
 import org.voltdb.expressions.TupleValueExpression;
 import org.voltdb.plannodes.AbstractJoinPlanNode;
 import org.voltdb.plannodes.AbstractPlanNode;
@@ -38,8 +34,6 @@ import org.voltdb.plannodes.ProjectionPlanNode;
 import org.voltdb.plannodes.ReceivePlanNode;
 import org.voltdb.plannodes.SendPlanNode;
 import org.voltdb.types.PlanNodeType;
-
-import com.sun.tools.javac.code.Attribute.Array;
 
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.expressions.ExpressionTreeWalker;
