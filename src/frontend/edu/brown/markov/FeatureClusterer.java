@@ -376,14 +376,15 @@ public class FeatureClusterer {
         // Get the list of all the attributes that we are going to want to try to cluster on
         // We want to always remove the first attribute because that's the TransactionId
         List<Attribute> temp = (List<Attribute>)CollectionUtil.addAll(new ArrayList<Attribute>(), data.enumerateAttributes());
+        
+        // Remove the TransactionId and BasePartition features
+        temp.remove(FeatureExtractor.TXNID_ATTRIBUTE_IDX);
+        temp.remove(base_partition_idx);
+
         Collections.shuffle(temp, this.rand);
         ListOrderedSet<Attribute> all_attributes = new ListOrderedSet<Attribute>();
         all_attributes.addAll(temp);
         
-        // Remove the TransactionId and BasePartition features
-        all_attributes.remove(FeatureExtractor.TXNID_ATTRIBUTE_IDX);
-        all_attributes.remove(base_partition_idx);
-
         // List of all AttributeSets ever created
         final SortedSet<MarkovAttributeSet> all_asets = new TreeSet<MarkovAttributeSet>();
 
