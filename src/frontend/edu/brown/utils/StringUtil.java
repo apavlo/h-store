@@ -63,8 +63,6 @@ public abstract class StringUtil {
      * @return
      */
     public static String formatMaps(String delimiter, boolean upper, boolean box, Map<?, ?>...maps) {
-        StringBuilder sb = new StringBuilder();
-        
         // Figure out the largest key size so we can get spacing right
         int max_key_size = 0;
         final Map<?, ?> map_keys[] = new Map<?, ?>[maps.length];
@@ -83,12 +81,16 @@ public abstract class StringUtil {
         final String f = "%-" + (max_key_size + 2) + "s" +
                          (equalsDelimiter ? "= " : "") +
                          "%s\n";
+        
+        // Now make StringBuilder blocks for each map
+        // We do it in this way so that we can get the 
         int max_value_size = 0;
+        StringBuilder blocks[] = new StringBuilder[maps.length];
         for (int i = 0; i < maps.length; i++) {
             Map<?, ?> m = maps[i];
             Map<?, ?> keys = map_keys[i];
+            blocks[i] = new StringBuilder();
             
-            if (i != 0) sb.append(repeat("-", max_key_size + max_value_size + 2)).append("\n");
             for (Entry<?, ?> e : m.entrySet()) {
                 String k = keys.get(e.getKey()).toString();
                 String v = (e.getValue() != null ? e.getValue().toString() : "null");
@@ -98,11 +100,23 @@ public abstract class StringUtil {
                 // If the value is multiple lines, format them nicely!
                 String lines[] = LINE_SPLIT.split(v);
                 for (int line_i = 0; line_i < lines.length; line_i++) {
-                    sb.append(String.format(f, (line_i == 0 ? k : ""), lines[line_i]));
-                    if (i == 0 && maps.length > 1) max_value_size = Math.max(max_value_size, lines[line_i].length());
+                    blocks[i].append(String.format(f, (line_i == 0 ? k : ""), lines[line_i]));
+                    if (maps.length > 1) max_value_size = Math.max(max_value_size, lines[line_i].length());
                 } // FOR
             }
         } // FOR
+        
+        // Put it all together!
+        StringBuilder sb = null;
+        if (maps.length == 1) {
+            sb = blocks[0];
+        } else {
+            sb = new StringBuilder();
+            for (int i = 0; i < maps.length; i++) {
+                if (i != 0) sb.append(repeat("-", max_key_size + max_value_size + 2)).append("\n");
+                sb.append(blocks[i]);
+            } // FOR
+        }
         return (box ? StringUtil.box(sb.toString()) : sb.toString());
     }
 

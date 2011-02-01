@@ -164,7 +164,7 @@ public class GraphvizExport<V extends AbstractVertex, E extends AbstractEdge> {
         LOG.debug("Exporting " + this.graph.getClass().getSimpleName() + " to Graphviz " +
                   "[vertices=" + this.graph.getVertexCount() + ",edges=" + this.graph.getEdgeCount() + "]");
         StringBuilder b = new StringBuilder();
-        boolean digraph = (this.graph instanceof AbstractDirectedGraph || this.graph instanceof AbstractDirectedTree);
+        boolean digraph = (this.graph instanceof AbstractDirectedGraph<?, ?> || this.graph instanceof AbstractDirectedTree<?, ?>);
         
         // Start Graph
         String graph_type = (digraph ? "digraph" : "graph");

@@ -215,7 +215,7 @@ public abstract class CollectionUtil {
      * @return
      */
     public static <T> T getFirst(Iterable<T> items) {
-        if (items instanceof List) {
+        if (items instanceof List<?>) {
             return ((List<T>)items).get(0);
         }
         for (T t : items) {
@@ -256,7 +256,7 @@ public abstract class CollectionUtil {
      * @return
      */
     public static <T> T get(Iterable<T> items, int idx) {
-        if (items instanceof AbstractList) {
+        if (items instanceof AbstractList<?>) {
             return ((AbstractList<T>)items).get(idx);
         }
         int ctr = 0;
@@ -274,7 +274,7 @@ public abstract class CollectionUtil {
      */
     public static <T> T getLast(Iterable<T> items) {
         T last = null;
-        if (items instanceof AbstractList) {
+        if (items instanceof AbstractList<?>) {
             AbstractList<T> list = (AbstractList<T>)items;
             last = (list.isEmpty() ? null : list.get(list.size() - 1));
         } else {
@@ -310,28 +310,28 @@ public abstract class CollectionUtil {
         return (sorted);
     }
     
-    public static <K, V extends Comparable<? super V>> List<K> getKeysSortedByValue(Map<K, V> map) {
-        final int size = map.size();
-        final List<K> keys = new ArrayList<K>(size);
-        if (true || size == 1) {
-            keys.addAll(map.keySet());
-        } else {
-            final List<Map.Entry<K, V>> list = new ArrayList<Map.Entry<K, V>>(size);
-            list.addAll(map.entrySet());
-            final ValueComparator<V> cmp = new ValueComparator<V>();
-            Collections.sort(list, cmp);
-            for (int i = 0; i < size; i++) {
-                keys.set(i, list.get(i).getKey());
-            }
-        }
-        return keys;
-    }
-    
-    private static final class ValueComparator<V extends Comparable<? super V>> implements Comparator<Map.Entry<?, V>> {
-        public int compare(Map.Entry<?, V> o1, Map.Entry<?, V> o2) {
-            return o1.getValue().compareTo(o2.getValue());
-        }
-    }
+//    public static <K, V extends Comparable<? super V>> List<K> getKeysSortedByValue(Map<K, V> map) {
+//        final int size = map.size();
+//        final List<K> keys = new ArrayList<K>(size);
+//        if (true || size == 1) {
+//            keys.addAll(map.keySet());
+//        } else {
+//            final List<Map.Entry<K, V>> list = new ArrayList<Map.Entry<K, V>>(size);
+//            list.addAll(map.entrySet());
+//            final ValueComparator<V> cmp = new ValueComparator<V>();
+//            Collections.sort(list, cmp);
+//            for (int i = 0; i < size; i++) {
+//                keys.set(i, list.get(i).getKey());
+//            }
+//        }
+//        return keys;
+//    }
+//    
+//    private static final class ValueComparator<V extends Comparable<? super V>> implements Comparator<Map.Entry<?, V>> {
+//        public int compare(Map.Entry<?, V> o1, Map.Entry<?, V> o2) {
+//            return o1.getValue().compareTo(o2.getValue());
+//        }
+//    }
     
     /**
      * 

@@ -54,13 +54,19 @@ public class PartitionEstimator {
     private final Set<Integer> all_partitions = new HashSet<Integer>();
     private int num_partitions;
     
-    // PlanFragment Key -> CacheEntry(Column Key -> StmtParameter Indexes)
+    /**
+     * PlanFragment Key -> CacheEntry(Column Key -> StmtParameter Indexes)
+     */
     private final Map<String, CacheEntry> frag_cache_entries = new HashMap<String, CacheEntry>();
     
-    // Statement Key -> CacheEntry(Column Key -> StmtParam Indexes)
+    /**
+     * Statement Key -> CacheEntry(Column Key -> StmtParam Indexes)
+     */
     private final Map<String, CacheEntry> stmt_cache_entries = new HashMap<String, CacheEntry>();
     
-    // Table Key -> All cache entries for Statements that reference Table
+    /**
+     * Table Key -> All cache entries for Statements that reference Table
+     */
     private final Map<String, Set<CacheEntry>> table_cache_xref = new HashMap<String, Set<CacheEntry>>();
     
     private final Random rand = new Random(100);
@@ -185,12 +191,11 @@ public class PartitionEstimator {
         public Object makeObject() throws Exception {
             return (new HashSet<Integer>());
         }
-        @Override
-        public void activateObject(Object arg0) throws Exception {
+        public void passivateObject(Object obj) throws Exception {
             @SuppressWarnings("unchecked")
-            Set<Integer> set = (Set<Integer>)arg0;
+            Set<Integer> set = (Set<Integer>)obj;
             set.clear();
-        }
+        };
     });
     
     /**
@@ -201,14 +206,14 @@ public class PartitionEstimator {
         public Object makeObject() throws Exception {
             return (new HashSet[]{ new HashSet<Integer>(), new HashSet<Integer>() });
         }
-        @Override
-        public void activateObject(Object arg0) throws Exception {
+        public void passivateObject(Object obj) throws Exception {
             @SuppressWarnings("unchecked")
-            HashSet<Integer> sets[] = (HashSet<Integer>[])arg0;
+            HashSet<Integer> sets[] = (HashSet<Integer>[])obj;
             for (HashSet<Integer> s : sets) {
                 s.clear();
             } // FOR
-        }
+            
+        };
     });
     
     // ----------------------------------------------------------------------------

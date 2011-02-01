@@ -26,7 +26,9 @@ import edu.brown.markov.TransactionEstimator.Estimate;
 import edu.brown.markov.TransactionEstimator.State;
 import edu.brown.markov.Vertex.Type;
 import edu.brown.utils.CollectionUtil;
+import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.PartitionEstimator;
+import edu.brown.utils.LoggerUtil.LoggerBoolean;
 import edu.brown.workload.QueryTrace;
 import edu.brown.workload.TransactionTrace;
 import edu.brown.workload.Workload;
@@ -34,18 +36,32 @@ import edu.brown.workload.Workload.Filter;
 
 public class MarkovCostModel extends AbstractCostModel {
     private static final Logger LOG = Logger.getLogger(MarkovCostModel.class);
+    private final static LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private final static LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    static {
+        LoggerUtil.attachObserver(LOG, debug, trace);
+    }
     
+    /**
+     * 
+     */
     private final Map<Integer, TransactionEstimator> t_estimators = new ConcurrentHashMap<Integer, TransactionEstimator>();
-
-    // If this is set to true, then we will use the txnid_cluster_xref to figure out
-    // what cluster each TransactionTrace belongs to
+    /**
+     * If this is set to true, then we will use the txnid_cluster_xref to figure out
+     * what cluster each TransactionTrace belongs to
+     */
     private boolean txnid_cluster = false;
-
-    
-    // Hackish cross-reference table to go from the TransactionId to Cluster#
+    /**
+     * Hackish cross-reference table to go from the TransactionId to Cluster#
+     */
     private final Map<Long, Integer> txnid_cluster_xref = new HashMap<Long, Integer>();
-    
+    /**
+     * The last actual path we processed
+     */
     private transient List<Vertex> last_actual;
+    /**
+     * The last path that we estimated
+     */
     private transient List<Vertex> last_estimated;
     
     /**
@@ -116,8 +132,9 @@ public class MarkovCostModel extends AbstractCostModel {
 
         TransactionEstimator t_estimator = this.t_estimators.get(cluster);
         if (t_estimator == null) {
-            LOG.warn("Unexpected Cluster# " + cluster);
-            return (1.0);
+            throw new RuntimeException("Unexpected Cluster# " + cluster);
+            //if (trace.get()) LOG.warn("Unexpected Cluster# " + cluster);
+            //return (1.0);
         }
         assert(t_estimator != null) : "Unexpected Cluster# " + cluster;
         
@@ -154,12 +171,9 @@ public class MarkovCostModel extends AbstractCostModel {
      * @return
      */
     protected double comparePaths(List<Vertex> estimated, List<Vertex> actual) {
-        final boolean trace = LOG.isTraceEnabled();
-        final boolean debug = LOG.isDebugEnabled();
-        
         double cost = 0.0d;
         
-        if (trace) LOG.trace(String.format("Estimating Cost Different: Estimated [size=%d] vs. Actual Cost [size=%d]", estimated.size(), actual.size()));
+        if (trace.get()) LOG.trace(String.format("Estimating Cost Different: Estimated [size=%d] vs. Actual Cost [size=%d]", estimated.size(), actual.size()));
         
         // There's two things we care about here:
         //  (1) That the partitions that we predicted that the txn would read/write are the same
@@ -177,7 +191,7 @@ public class MarkovCostModel extends AbstractCostModel {
         
         return (cost);
         
-//        if (trace) {
+//        if (trace.get()) {
 //            LOG.trace("Estimated: " + estimated);
 //            LOG.trace("Actual:    " + actual);
 //        }
@@ -196,7 +210,7 @@ public class MarkovCostModel extends AbstractCostModel {
 //                // IGNORE
 //            }
 //        
-//            if (trace) LOG.trace(String.format("Estimated[%02d]%s <==> Actual[%02d]%s", e_i, e, a_i, a));
+//            if (trace.get()) LOG.trace(String.format("Estimated[%02d]%s <==> Actual[%02d]%s", e_i, e, a_i, a));
 //            
 //            if (e != null) {
 //                Statement e_stmt = e.getCatalogItem();
@@ -209,13 +223,13 @@ public class MarkovCostModel extends AbstractCostModel {
 //                
 //                // Check whether they're executing the same queries
 //                if (a_stmt.equals(e_stmt) == false) {
-//                    if (trace) LOG.trace("STMT MISMATCH: " + e_stmt + " != " + a_stmt);
+//                    if (trace.get()) LOG.trace("STMT MISMATCH: " + e_stmt + " != " + a_stmt);
 //                    cost += 1;
 //                // Great, we're getting there. Check whether these queries are
 //                // going to touch the same partitions
 //                } else if ((a_partitions.size() != e_partitions.size()) || 
 //                           (a_partitions.equals(e_partitions) == false)) {
-//                    if (trace) LOG.trace("PARTITION MISMATCH: " + e_partitions + " != " + a_partitions);
+//                    if (trace.get()) LOG.trace("PARTITION MISMATCH: " + e_partitions + " != " + a_partitions);
 //                    
 //                    // Do we want to penalize them for every partition they get wrong?
 //                    for (Integer p : a_partitions) {
@@ -230,12 +244,12 @@ public class MarkovCostModel extends AbstractCostModel {
 //                } else if (a.getQueryInstanceIndex() != e.getQueryInstanceIndex()) {
 //                    int a_idx = a.getQueryInstanceIndex();
 //                    int e_idx = e.getQueryInstanceIndex();
-//                    if (trace) LOG.trace("QUERY INDEX MISMATCH: " + e_idx + " != " + a_idx);
+//                    if (trace.get()) LOG.trace("QUERY INDEX MISMATCH: " + e_idx + " != " + a_idx);
 //                    // Do we actually to penalize them for this??
 //                }
 //                
 //                e_i++;
-//                if (trace) LOG.trace("");
+//                if (trace.get()) LOG.trace("");
 //                
 //            // If our estimated path is too short, then yeah that's going to cost ya'!
 //            } else {
@@ -266,13 +280,21 @@ public class MarkovCostModel extends AbstractCostModel {
 //        // Basically we want to bang them hard if the estimation is wrong
 //        if (e_last_type != Type.QUERY && e_last_type != a_last_type) {
 //            assert(e_last_type != Type.START);
-//            if (trace) LOG.debug("COMMIT/ABORT MISMATCH: " + e_last_type + " != " + a_last_type);
+//            if (trace.get()) LOG.debug("COMMIT/ABORT MISMATCH: " + e_last_type + " != " + a_last_type);
 //        }
 //        
 //        return (cost);
     }
     
-
+    @Override
+    public void clear(boolean force) {
+        super.clear(force);
+        this.t_estimators.clear();
+        this.txnid_cluster_xref.clear();
+        this.txnid_cluster = false;
+        this.last_actual = null;
+        this.last_estimated = null;
+    }
     
     @Override
     public void invalidateCache(String catalogKey) {

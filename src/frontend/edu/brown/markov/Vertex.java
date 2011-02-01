@@ -100,7 +100,7 @@ public class Vertex extends AbstractVertex {
      * For example, the ABORT probability is global to all partitions, so we only need to store one
      * value for it
      */
-    private static final int DEFAULT_PARTITION_ID = 0; // Integer.MAX_VALUE;
+    private static final int DEFAULT_PARTITION_ID = 0;
     
     /**
      * I'm getting back some funky results so we'll just round everything to this
