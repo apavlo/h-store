@@ -85,7 +85,7 @@ public class ArgumentsParser {
     public static final String PARAM_WORKLOAD_PROC_INCLUDE  = PARAM_WORKLOAD + ".procinclude";
     public static final String PARAM_WORKLOAD_PROC_SAMPLE   = PARAM_WORKLOAD + ".sampling";
     public static final String PARAM_WORKLOAD_PROC_INCLUDE_MULTIPLIER  = PARAM_WORKLOAD_PROC_INCLUDE + ".multiplier";
-    public static final String PARAM_WORKLOAD_RANDOM_PARTITIONS = PARAM_WORKLOAD + ".randombase";
+    public static final String PARAM_WORKLOAD_RANDOM_PARTITIONS = PARAM_WORKLOAD + ".randompartitions";
     public static final String PARAM_WORKLOAD_OUTPUT        = PARAM_WORKLOAD + ".output";
     public static final String PARAM_WORKLOAD_CLASS         = PARAM_WORKLOAD + ".class";
     
@@ -101,10 +101,13 @@ public class ArgumentsParser {
     public static final String PARAM_MARKOV_OUTPUT          = PARAM_MARKOV + ".output";
     public static final String PARAM_MARKOV_THRESHOLDS      = PARAM_MARKOV + ".thresholds";
     public static final String PARAM_MARKOV_THRESHOLDS_OUTPUT = PARAM_MARKOV_THRESHOLDS + ".output";
-    public static final String PARAM_MARKOV_WORKLOAD_SPLIT  = PARAM_MARKOV + ".split";
     public static final String PARAM_MARKOV_PARTITIONS      = PARAM_MARKOV + ".partitions";
     public static final String PARAM_MARKOV_TOPK            = PARAM_MARKOV + ".topk";
     public static final String PARAM_MARKOV_ROUNDS          = PARAM_MARKOV + ".rounds";
+    public static final String PARAM_MARKOV_SPLIT           = PARAM_MARKOV + ".split";
+    public static final String PARAM_MARKOV_SPLIT_TRAINING  = PARAM_MARKOV_SPLIT + ".training";
+    public static final String PARAM_MARKOV_SPLIT_VALIDATION = PARAM_MARKOV_SPLIT + ".validation";
+    public static final String PARAM_MARKOV_SPLIT_TESTING   = PARAM_MARKOV_SPLIT + ".testing";
     
     public static final String PARAM_DESIGNER               = "designer";
     public static final String PARAM_DESIGNER_PARTITIONER   = PARAM_DESIGNER + ".partitioner";

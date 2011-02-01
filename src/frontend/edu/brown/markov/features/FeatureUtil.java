@@ -2,13 +2,18 @@ package edu.brown.markov.features;
 
 import java.util.regex.Pattern;
 
+import org.apache.log4j.Logger;
 import org.voltdb.catalog.ProcParameter;
 import org.voltdb.catalog.Procedure;
 
+import weka.core.Instance;
+
+import edu.brown.markov.FeatureExtractor;
 import edu.brown.utils.ClassUtil;
 import edu.brown.utils.PartitionEstimator;
 
 public abstract class FeatureUtil {
+    private static final Logger LOG = Logger.getLogger(FeatureUtil.class);
     
     protected final static String DELIMITER = "-";
     protected final static String SUFFIX = "Feature";
@@ -75,6 +80,23 @@ public abstract class FeatureUtil {
         return (PREFIX_SPLITTER.split(feature_key, 1)[0]);
     }
     
-    
+    /**
+     * Return the TransactionId for a given Instance
+     * @param inst
+     * @return
+     */
+    public static long getTransactionId(Instance inst) {
+        String val = inst.stringValue(FeatureExtractor.TXNID_ATTRIBUTE_IDX);
+        assert(val.isEmpty() == false) : "Missing TransactionIdFeature for Instance\n" + inst;
+        long txn_id = -1;
+        try {
+            txn_id = Long.valueOf(val);
+        } catch (NumberFormatException ex) {
+            LOG.fatal("Invalid Instance: " + inst);
+            throw new RuntimeException("Invalid TransactionIdFeature for Instance", ex);
+        }
+        assert(txn_id != -1);
+        return (txn_id);
+    }
     
 }

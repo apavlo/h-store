@@ -55,7 +55,7 @@ public class MarkovGraph extends AbstractDirectedGraph<Vertex, Edge> implements 
     /**
      * Cached references to the special marker vertices
      */
-    private final transient Map<Vertex.Type, Vertex> vertex_cache = new HashMap<Vertex.Type, Vertex>();
+    private final transient Vertex vertex_cache[] = new Vertex[Vertex.Type.values().length];
 
     /**
      * 
@@ -140,14 +140,16 @@ public class MarkovGraph extends AbstractDirectedGraph<Vertex, Edge> implements 
     public boolean addVertex(Vertex v) {
         boolean ret = super.addVertex(v);
         if (ret) {
-            Vertex.Type type = v.getType();
-            switch (type) {
+            Vertex.Type vtype = v.getType();
+            switch (vtype) {
                 case START:
                 case COMMIT:
-                case ABORT:
-                    assert(!this.vertex_cache.containsKey(type)) : "Trying add duplicate " + type + " vertex";
-                    this.vertex_cache.put(type, v);
+                case ABORT: {
+                    int idx = vtype.ordinal();
+                    assert(this.vertex_cache[idx] == null) : "Trying add duplicate " + vtype + " vertex";
+                    this.vertex_cache[idx] = v;
                     break;
+                }
                 default:
                     // Ignore others
             } // SWITCH
@@ -156,27 +158,47 @@ public class MarkovGraph extends AbstractDirectedGraph<Vertex, Edge> implements 
     }
 
     /**
-     * Return the specific vertex for the state type
-     * @param vtype
-     * @return
+     * For the given Vertex type, return the special vertex
+     * @param vtype - the Vertex type (cannot be a regular query)
+     * @return the single vertex for that type  
      */
     protected Vertex getSpecialVertex(Vertex.Type vtype) {
         assert(vtype != Vertex.Type.QUERY);
         Vertex v = null;
         switch (vtype) {
             case START:
-                v = this.getStartVertex();
-                break;
             case COMMIT:
-                v = this.getCommitVertex();
+            case ABORT: {
+                v = this.vertex_cache[vtype.ordinal()];
+                assert(v != null) : "The special vertex for type " + vtype + " is null";
                 break;
-            case ABORT:
-                v = this.getAbortVertex();
-                break;
+            }
             default:
                 // Ignore others
         } // SWITCH
         return (v);
+    }
+
+    /**
+     * Get the start vertex for this MarkovGraph
+     * @return
+     */
+    public final Vertex getStartVertex() {
+        return (this.getSpecialVertex(Vertex.Type.START));
+    }
+    /**
+     * Get the stop vertex for this MarkovGraph
+     * @return
+     */
+    public final Vertex getCommitVertex() {
+        return (this.getSpecialVertex(Vertex.Type.COMMIT));
+    }
+    /**
+     * Get the abort vertex for this MarkovGraph
+     * @return
+     */
+    public final Vertex getAbortVertex() {
+        return (this.getSpecialVertex(Vertex.Type.ABORT));
     }
     
     /**
@@ -565,39 +587,6 @@ public class MarkovGraph extends AbstractDirectedGraph<Vertex, Edge> implements 
        this.xact_count++; 
     }
     
-    /**
-     * For the given Vertex type, return the special vertex
-     * @param type - the Vertex type (cannot be a regular query)
-     * @return the single vertex for that type  
-     */
-    protected final Vertex getVertex(Vertex.Type type) {
-        Vertex ret = this.vertex_cache.get(type);
-        assert(ret != null) : "The special vertex for type " + type + " is null";
-        return (ret);
-    }
-    
-    /**
-     * Get the start vertex for this MarkovGraph
-     * @return
-     */
-    public final Vertex getStartVertex() {
-        return (this.getVertex(Vertex.Type.START));
-    }
-    /**
-     * Get the stop vertex for this MarkovGraph
-     * @return
-     */
-    public final Vertex getCommitVertex() {
-        return (this.getVertex(Vertex.Type.COMMIT));
-    }
-    /**
-     * Get the abort vertex for this MarkovGraph
-     * @return
-     */
-    public final Vertex getAbortVertex() {
-        return (this.getVertex(Vertex.Type.ABORT));
-    }
-
     // ----------------------------------------------------------------------------
     // YE OLDE MAIN METHOD
     // ----------------------------------------------------------------------------

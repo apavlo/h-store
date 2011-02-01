@@ -41,7 +41,6 @@ import java.util.concurrent.CountDownLatch;
 import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.commons.collections15.set.ListOrderedSet;
 import org.apache.commons.pool.BasePoolableObjectFactory;
-import org.apache.commons.pool.ObjectPool;
 import org.apache.log4j.Logger;
 import org.voltdb.BatchPlanner;
 import org.voltdb.ExecutionSite;
@@ -132,6 +131,11 @@ public class LocalTransactionState extends TransactionState {
         @Override
         public Object makeObject() throws Exception {
             return new LocalTransactionState(this.executor);
+        }
+        @Override
+        public void passivateObject(Object obj) throws Exception {
+            LocalTransactionState ts = (LocalTransactionState)obj;
+            ts.finished();
         }
     };
     
@@ -261,7 +265,6 @@ public class LocalTransactionState extends TransactionState {
             // Return all of our BatchPlans (if we have any)
             if (this.batch_plans.isEmpty() == false) {
                 for (BatchPlanner.BatchPlan plan : this.batch_plans) {
-                    plan.finished();
                     plan.getPlanner().getBatchPlanPool().returnObject(plan);
                 } // FOR
                 this.batch_plans.clear();

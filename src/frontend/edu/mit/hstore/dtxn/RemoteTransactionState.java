@@ -59,6 +59,11 @@ public class RemoteTransactionState extends TransactionState {
         public Object makeObject() throws Exception {
             return new RemoteTransactionState(this.executor);
         }
+        @Override
+        public void passivateObject(Object obj) throws Exception {
+            RemoteTransactionState ts = (RemoteTransactionState)obj;
+            ts.finished();
+        }
     };
     
     public RemoteTransactionState(ExecutionSite executor) {

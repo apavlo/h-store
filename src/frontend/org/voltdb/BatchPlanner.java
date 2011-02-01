@@ -72,6 +72,11 @@ public class BatchPlanner {
         public Object makeObject() throws Exception {
             return (this.planner.new BatchPlan());
         }
+        @Override
+        public void passivateObject(Object obj) throws Exception {
+            BatchPlan plan = (BatchPlan)obj; 
+            plan.finished();
+        }
     }
     
     // ----------------------------------------------------------------------------

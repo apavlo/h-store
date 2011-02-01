@@ -1104,14 +1104,11 @@ public class ExecutionSite implements Runnable {
         this.txn_states.remove(txn_id);
         
         try {
-            
             if (ts.isExecLocal()) {
                 VoltProcedure volt_proc = ((LocalTransactionState)ts).getVoltProcedure();
                 this.procPool.get(volt_proc.getProcedureName()).returnObject(volt_proc);
-                ts.finished();
                 this.localTxnPool.returnObject(ts);
             } else {
-                ts.finished();
                 this.remoteTxnPool.returnObject(ts);
             }
         } catch (Exception ex) {

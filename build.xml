@@ -1877,13 +1877,15 @@ DESIGNER
 <!--         <jvmarg value="-Xloggc:gc.log" /> -->
         <arg value="catalog.jar=${jar}" />
         <arg value="workload=${workload}" />
+        <arg value="workload.randompartitions=${randompartitions}" />
         <arg value="workload.xactlimit=${limit}" />
         <arg value="workload.xactoffset=${offset}" />
-        <arg value="workload.procexclude=${exclude}" />
-        <arg value="workload.procinclude=${include}" />
+        <arg value="workload.procinclude=${procedure}" />
         <arg value="workload.procinclude.multiplier=${multiplier}" />
         <arg value="correlations=./files/correlations/${project}.correlations" />
-        <arg value="markov.split=${split}" />
+        <arg value="markov.split.training=${training}" />
+        <arg value="markov.split.validation=${validation}" />
+        <arg value="markov.split.testing=${testing}" />
         <arg value="markov.rounds=${rounds}" />
         <arg value="markov.partitions=${partitions}" />
         <arg value="markov.topk=${topk}" />
