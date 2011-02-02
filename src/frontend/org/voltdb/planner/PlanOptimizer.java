@@ -482,7 +482,7 @@ public class PlanOptimizer {
 
         // Now we can update output columns and set the distinct column to be
         // the guid
-        node.setDistinctColumnGuid(new_pc.guid());
+      node.setDistinctColumnGuid(new_pc.guid());
 
         markDirty(node);
         if (LOG.isDebugEnabled())
@@ -1290,14 +1290,14 @@ public class PlanOptimizer {
                          * current join node. (Sticks it between the send and
                          * join)
                          **/
-                        final boolean top_join = (join_node_index.get(join_node_index.firstKey()) == element);
+                        //final boolean top_join = (join_node_index.get(join_node_index.firstKey()) == element);
                         new PlanNodeTreeWalker(true) {
                             @Override
                             protected void callback(AbstractPlanNode inner_element) {
                                 int inner_depth = this.getDepth();
                                 if (inner_depth < outer_depth) {
                                     // only interested in projections and index scans
-                                    if (inner_element instanceof ProjectionPlanNode || inner_element instanceof IndexScanPlanNode) {
+                                    if (inner_element instanceof ProjectionPlanNode || inner_element instanceof IndexScanPlanNode || inner_element instanceof AggregatePlanNode) {
                                         Set<Column> col_set = planNodeColumns.get(inner_element);
                                         assert (col_set != null) : "Null column set for inner element: " + inner_element + "\n" + sql;
                                         //Map<String, Integer> current_join_output = new HashMap<String, Integer>();
@@ -1306,15 +1306,15 @@ public class PlanOptimizer {
                                         // those columns now!
                                         // iterate through columns and build the
                                         // projection columns
-                                        if (top_join) {
-                                            int index = 0;
-                                            for (Integer output_guid : inner_element.m_outputColumns) {
-                                                PlanColumn plan_col = m_context.get(output_guid);
-                                                proj_column_order.put(index, plan_col);
-                                                index++;
-                                            }
-                                        }
-                                        else {
+//                                        if (top_join) {
+//                                            int index = 0;
+//                                            for (Integer output_guid : inner_element.m_outputColumns) {
+//                                                PlanColumn plan_col = m_context.get(output_guid);
+//                                                proj_column_order.put(index, plan_col);
+//                                                index++;
+//                                            }
+//                                        }
+//                                        else {
                                             for (Column col : col_set) {
                                                 Integer col_guid = CollectionUtil.getFirst(column_guid_xref.get(col));
                                                 PlanColumn plan_col = m_context.get(col_guid);
@@ -1325,7 +1325,7 @@ public class PlanOptimizer {
                                                     }
                                                 }
                                             }                                            
-                                        }
+//                                        }
                                     }
                                 }
                             }
@@ -1339,13 +1339,13 @@ public class PlanOptimizer {
                         ProjectionPlanNode projectionNode = new ProjectionPlanNode(m_context, PlanAssembler.getNextPlanNodeId());
                         projectionNode.m_outputColumns.clear();
 
-                        if (join_node_index.get(join_node_index.firstKey()) == element) {
-                            assert (proj_column_order != null);
-                            Iterator<Integer> order_iterator = proj_column_order.keySet().iterator();
-                            while (order_iterator.hasNext()) {
-                                projectionNode.appendOutputColumn(proj_column_order.get(order_iterator.next()));                                        
-                            }
-                        } else {
+//                        if (join_node_index.get(join_node_index.firstKey()) == element) {
+//                            assert (proj_column_order != null);
+//                            Iterator<Integer> order_iterator = proj_column_order.keySet().iterator();
+//                            while (order_iterator.hasNext()) {
+//                                projectionNode.appendOutputColumn(proj_column_order.get(order_iterator.next()));                                        
+//                            }
+//                        } else {
                             AbstractExpression orig_col_exp = null;
                             int orig_guid = -1;
                             PlanColumn orig_plan_col = null;
@@ -1380,7 +1380,7 @@ public class PlanOptimizer {
                                     }
                                 }
                             }                            
-                        }
+//                        }
                         
                         projectionNode.addAndLinkChild(element);
                         temp_parent.addAndLinkChild(projectionNode);
@@ -1431,7 +1431,9 @@ public class PlanOptimizer {
             new PlanNodeTreeWalker(false) {
                 @Override
                 protected void callback(AbstractPlanNode element) {
-
+                    // ---------------------------------------------------
+                    // JOIN
+                    // ---------------------------------------------------
                     if (element instanceof AbstractJoinPlanNode) {
                         AbstractJoinPlanNode join_node = (AbstractJoinPlanNode) element;
                         try {
@@ -1451,15 +1453,27 @@ public class PlanOptimizer {
                             this.stop();
                             return;
                         }
-                    } // ---------------------------------------------------
-                    // AGGREGATE
+                    } 
+                    
+//                    // ---------------------------------------------------
+//                    // AGGREGATE
+//                    // ---------------------------------------------------
+//                    else if (element instanceof AggregatePlanNode) {
+//                        if (areChildrenDirty(element) && updateAggregateColumns((AggregatePlanNode) element) == false) {
+//                            this.stop();
+//                            return;
+//                        }
+//
+//                    } 
+                    
                     // ---------------------------------------------------
-                    else if (element instanceof AggregatePlanNode) {
-                        if (areChildrenDirty(element) && updateAggregateColumns((AggregatePlanNode) element) == false) {
+                    // DISTINCT
+                    // ---------------------------------------------------
+                    else if (element instanceof DistinctPlanNode) {
+                        if (areChildrenDirty(element) && updateDistinctColumns((DistinctPlanNode) element) == false) {
                             this.stop();
                             return;
                         }
-
                         // ---------------------------------------------------
                         // PROJECTION
                         // ---------------------------------------------------
@@ -1493,9 +1507,6 @@ public class PlanOptimizer {
 //             System.out.println();
             }
         /** END OF ADDING PROJECTION TO JOINS OPTIMIZATION **/
-//      System.out.println("NEW CURRENT TREE: ");
-//      System.out.println(PlanNodeUtil.debug(rootNode));
-//      System.out.println();
 
         if (debug)
             LOG.trace("Finished Optimizations!");
