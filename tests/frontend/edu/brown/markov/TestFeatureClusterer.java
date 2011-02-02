@@ -107,33 +107,33 @@ public class TestFeatureClusterer extends BaseTestCase {
     /**
      * testGenerateGlobalInformation
      */
-//    @Test
-//    public void testGenerateGlobalInformation() throws Exception {
-//        this.fclusterer.splitWorkload(data);
-//        this.fclusterer.calculateGlobalCost();
-//        int counters[] = this.fclusterer.getGlobalCounters();
-//        assertNotNull(counters);
-//        for (int i = 0; i < counters.length; i++) {
-//            int val = counters[i];
-//            assert(val >= 0) : String.format("Invalid Counter[%d] => %d", i, val);
-//        } // FOR
-//    }
-    
-    /**
-     * testCalculate
-     */
     @Test
-    public void testCalculate() throws Exception {
-        this.fclusterer.setNumRounds(2);
-        this.fclusterer.setAttributeTopK(0.50);
-        MarkovAttributeSet aset = this.fclusterer.calculate(data);
-        assertNotNull(aset);
-        
-        System.err.println(aset);
-        System.err.println("COST: " + aset.getCost());
-        
-        
+    public void testGenerateGlobalInformation() throws Exception {
+        this.fclusterer.splitWorkload(data);
+        this.fclusterer.calculateGlobalCost();
+        int counters[] = this.fclusterer.getGlobalCounters();
+        assertNotNull(counters);
+        for (int i = 0; i < counters.length; i++) {
+            int val = counters[i];
+            assert(val >= 0) : String.format("Invalid Counter[%d] => %d", i, val);
+        } // FOR
     }
+    
+//    /**
+//     * testCalculate
+//     */
+//    @Test
+//    public void testCalculate() throws Exception {
+//        this.fclusterer.setNumRounds(1);
+//        this.fclusterer.setAttributeTopK(0.50);
+//        MarkovAttributeSet aset = this.fclusterer.calculate(data);
+//        assertNotNull(aset);
+//        
+//        System.err.println(aset);
+//        System.err.println("COST: " + aset.getCost());
+//        
+//        
+//    }
     
     /**
      * testCreateMarkovAttributeSetFilter
