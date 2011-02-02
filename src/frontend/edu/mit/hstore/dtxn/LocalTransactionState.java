@@ -135,7 +135,7 @@ public class LocalTransactionState extends TransactionState {
         @Override
         public void passivateObject(Object obj) throws Exception {
             LocalTransactionState ts = (LocalTransactionState)obj;
-            ts.finished();
+            ts.finish();
         }
     };
     
@@ -258,8 +258,8 @@ public class LocalTransactionState extends TransactionState {
     }
     
     @Override
-    public void finished() {
-        super.finished();
+    public void finish() {
+        super.finish();
 
         try {
             // Return all of our BatchPlans (if we have any)
@@ -276,6 +276,13 @@ public class LocalTransactionState extends TransactionState {
                 DependencyInfo.INFO_POOL.returnObject(d);
             } // FOR
             this.all_dependencies.clear();
+        
+            // Return our TransactionEstimator.State handle
+            if (this.estimator_state != null) {
+                this.estimator_state.finish();
+                TransactionEstimator.getStatePool().returnObject(this.estimator_state);
+                this.estimator_state = null;
+            }
             
         } catch (Exception ex) {
             throw new RuntimeException(ex);
@@ -283,7 +290,6 @@ public class LocalTransactionState extends TransactionState {
         
         this.coordinator_callback = null;
         this.volt_procedure = null;
-        this.estimator_state = null;
         
         this.clearRound();
     }

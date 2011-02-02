@@ -9,7 +9,7 @@ import org.apache.log4j.Logger;
  * @author pavlo
  * @param <E> element type
  */
-public abstract class AbstractTreeWalker<E> {
+public abstract class AbstractTreeWalker<E> implements Poolable {
     protected static final Logger LOG = Logger.getLogger(AbstractTreeWalker.class);
     
     public class Children {
@@ -107,6 +107,26 @@ public abstract class AbstractTreeWalker<E> {
      * types of traversal through the tree
      */
     private final Map<E, Children> attached_children = new HashMap<E, Children>();
+    
+    // ----------------------------------------------------------------------
+    // CLEANUP
+    // ----------------------------------------------------------------------
+    
+    @Override
+    public void finish() {
+        this.stack.clear();
+        this.visited.clear();
+        this.first = null;
+        this.depth = -1;
+        this.stop = false;
+        this.allow_revisit = false;
+        this.counter = 0;
+        this.attached_children.clear();
+    }
+    
+    // ----------------------------------------------------------------------
+    // UTILITY METHODS
+    // ----------------------------------------------------------------------
     
     /**
      * Return a Children singleton for a specific element

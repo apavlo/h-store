@@ -38,7 +38,7 @@ public class FeatureExtractor {
     private static final Class<?> DEFAULT_FEATURE_CLASSES[] = new Class<?>[] {
         TransactionIdFeature.class,
         BasePartitionFeature.class,
-        ParamNumericValuesFeature.class,
+        // ParamNumericValuesFeature.class,
         ParamArrayAllSameHashFeature.class,
         ParamHashPartitionFeature.class,
         ParamArrayLengthFeature.class,

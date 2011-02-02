@@ -41,6 +41,7 @@ import edu.brown.utils.EventObservable;
 import edu.brown.utils.EventObserver;
 import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.PartitionEstimator;
+import edu.brown.utils.Poolable;
 import edu.brown.utils.StringUtil;
 import edu.brown.utils.LoggerUtil.LoggerBoolean;
 import edu.mit.hstore.HStoreSite;
@@ -59,7 +60,7 @@ import java.io.PrintWriter;
  * Consider this when specifying access privileges.
  *
  */
-public abstract class VoltProcedure {
+public abstract class VoltProcedure implements Poolable {
     private static final Logger LOG = Logger.getLogger(VoltProcedure.class);
     private final static LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private final static LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
@@ -379,6 +380,11 @@ public abstract class VoltProcedure {
                 paramTypeComponentType[param.getIndex()] = null;
             }
         }
+    }
+    
+    @Override
+    public void finish() {
+        // Nothing...
     }
         
     final void initSQLStmt(SQLStmt stmt) {

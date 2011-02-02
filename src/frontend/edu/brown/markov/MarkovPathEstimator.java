@@ -3,6 +3,7 @@ package edu.brown.markov;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import org.apache.commons.pool.BasePoolableObjectFactory;
 import org.apache.log4j.Logger;
 import org.voltdb.catalog.*;
 import org.voltdb.utils.Pair;
@@ -12,8 +13,10 @@ import edu.brown.correlations.*;
 import edu.brown.graphs.VertexTreeWalker;
 import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.CollectionUtil;
+import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.PartitionEstimator;
 import edu.brown.utils.StringUtil;
+import edu.brown.utils.LoggerUtil.LoggerBoolean;
 import edu.brown.workload.TransactionTrace;
 
 /**
@@ -21,12 +24,34 @@ import edu.brown.workload.TransactionTrace;
  * @author pavlo
  */
 public class MarkovPathEstimator extends VertexTreeWalker<Vertex> {
-    protected static final Logger LOG = Logger.getLogger(MarkovPathEstimator.class);
+    private static final Logger LOG = Logger.getLogger(MarkovPathEstimator.class);
+    private final static LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private final static LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    static {
+        LoggerUtil.attachObserver(LOG, debug, trace);
+    }
 
-    private final TransactionEstimator t_estimator;
-    private final PartitionEstimator p_estimator;
-    private final int base_partition;
-    private final Object args[];
+    /**
+     * 
+     * @author pavlo
+     */
+    public static class Factory extends BasePoolableObjectFactory {
+        @Override
+        public Object makeObject() throws Exception {
+            MarkovPathEstimator path_estimator = new MarkovPathEstimator();
+            return path_estimator;
+        }
+        public void passivateObject(Object obj) throws Exception {
+            MarkovPathEstimator path_estimator = (MarkovPathEstimator)obj;
+            path_estimator.finish();
+        };
+    };
+    
+    private TransactionEstimator t_estimator;
+    private PartitionEstimator p_estimator;
+
+    private int base_partition;
+    private Object args[];
     
     /**
      * If this flag is set to true, then we will always try to go to the end
@@ -40,22 +65,46 @@ public class MarkovPathEstimator extends VertexTreeWalker<Vertex> {
      */
     private double confidence = 1.00;
     
+    // ----------------------------------------------------------------------------
+    // CONSTRUCTORS
+    // ----------------------------------------------------------------------------
+    
+    /**
+     * Base Constructor
+     */
+    public MarkovPathEstimator() {
+        super();
+    }
+    
+    /**
+     * 
+     * @param markov
+     * @param t_estimator
+     * @param base_partition
+     * @param args
+     */
     public MarkovPathEstimator(MarkovGraph markov, TransactionEstimator t_estimator, int base_partition, Object args[]) {
         super(markov);
+        this.init(markov, t_estimator, base_partition, args);
+    }
+    
+    public MarkovPathEstimator init(MarkovGraph markov, TransactionEstimator t_estimator, int base_partition, Object args[]) {
+        this.init(markov, TraverseOrder.DEPTH, Direction.FORWARD);
         this.t_estimator = t_estimator;
-        this.args = args;
         this.p_estimator = this.t_estimator.getPartitionEstimator();
         this.base_partition = base_partition;
+        this.args = args;
         
         assert(this.t_estimator.getCorrelations() != null);
         assert(this.base_partition >= 0);
-        
+
         if (LOG.isTraceEnabled()) {
             LOG.trace("Procedure:       " + markov.getProcedure().getName());
             LOG.trace("Base Partition:  " + this.base_partition);
             LOG.trace("# of Partitions: " + CatalogUtil.getNumberOfPartitions(this.p_estimator.getDatabase()));
 //            LOG.trace("Arguments:       " + Arrays.toString(args));
         }
+        return (this);
     }
     
     /**

@@ -33,6 +33,7 @@ import edu.brown.graphs.AbstractVertex;
 import edu.brown.graphs.IGraph;
 import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.PartitionEstimator;
+import edu.brown.utils.Poolable;
 import edu.brown.utils.StringUtil;
 import edu.brown.utils.LoggerUtil.LoggerBoolean;
 
@@ -75,7 +76,7 @@ public class BatchPlanner {
         @Override
         public void passivateObject(Object obj) throws Exception {
             BatchPlan plan = (BatchPlan)obj; 
-            plan.finished();
+            plan.finish();
         }
     }
     
@@ -197,7 +198,7 @@ public class BatchPlanner {
     /**
      * BatchPlan
      */
-    public class BatchPlan {
+    public class BatchPlan implements Poolable {
         // ----------------------------------------------------------------------------
         // INVOCATION DATA MEMBERS
         // ----------------------------------------------------------------------------
@@ -310,7 +311,8 @@ public class BatchPlanner {
          * been executed the and the results have been returned. This must be called before
          * returning back to the user-level VoltProcedure
          */
-        public BatchPlan finished() {
+        @Override
+        public void finish() {
             this.ftasks.clear();
             for (int i = 0; i < this.frag_list.length; i++) {
                 this.frag_list[i] = null;
@@ -325,7 +327,6 @@ public class BatchPlanner {
                     this.rounds[i][ii].clear();
                 } // FOR
             } // FOR
-            return (this);
         }
 
         public BatchPlanner getPlanner() {
@@ -443,7 +444,7 @@ public class BatchPlanner {
             } // FOR
             
             for (BatchPlan plan : plans) {
-                plan.finished();
+                plan.finish();
                 this.plan_pool.returnObject(plan);
             } // FOR
         } catch (Exception ex) {

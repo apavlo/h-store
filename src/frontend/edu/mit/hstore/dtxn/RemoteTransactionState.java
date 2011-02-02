@@ -62,7 +62,7 @@ public class RemoteTransactionState extends TransactionState {
         @Override
         public void passivateObject(Object obj) throws Exception {
             RemoteTransactionState ts = (RemoteTransactionState)obj;
-            ts.finished();
+            ts.finish();
         }
     };
     

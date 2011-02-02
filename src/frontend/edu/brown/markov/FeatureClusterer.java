@@ -5,6 +5,7 @@ import java.util.Map.Entry;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.commons.collections15.set.ListOrderedSet;
@@ -27,8 +28,6 @@ import edu.brown.correlations.ParameterCorrelations;
 import edu.brown.costmodel.MarkovCostModel;
 import edu.brown.markov.features.BasePartitionFeature;
 import edu.brown.markov.features.FeatureUtil;
-import edu.brown.markov.features.ParamArrayLengthFeature;
-import edu.brown.markov.features.ParamNumericValuesFeature;
 import edu.brown.statistics.Histogram;
 import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.CollectionUtil;
@@ -80,7 +79,7 @@ public class FeatureClusterer {
     private static final double DEFAULT_ATTRIBUTESET_TOP_K = 0.10;
     
     /** Number of threads to use per thread pool */
-    private static final int NUM_THREADS_PER_POOL = 5;
+    private static final int DEFAULT_NUM_THREADS = 2;
     
     /** Number of search rounds in findBestMarkovAttributeSet */
     private static final int DEFAULT_NUM_ROUNDS = 10;
@@ -155,7 +154,7 @@ public class FeatureClusterer {
                 this.clusters_per_partition.put(p, new Histogram());
                 this.markovs_per_partition.put(p, new MarkovGraphsContainer());
                 
-                MarkovCostModel costmodel = new MarkovCostModel(catalog_db, p_estimator);
+                MarkovCostModel costmodel = new MarkovCostModel(catalog_db, p_estimator, thresholds);
                 costmodel.setTransactionClusterMapping(true);
                 this.costmodels_per_partition.put(p, costmodel);
             } // FOR
@@ -173,7 +172,7 @@ public class FeatureClusterer {
                 this.markovs_per_partition.get(p).clear();
 
                 // It's lame, but we need to put this here so that...
-                MarkovCostModel costmodel = new MarkovCostModel(catalog_db, p_estimator);
+                MarkovCostModel costmodel = new MarkovCostModel(catalog_db, p_estimator, thresholds);
                 costmodel.setTransactionClusterMapping(true);
                 this.costmodels_per_partition.put(p, costmodel);
             } // FOR
@@ -220,6 +219,7 @@ public class FeatureClusterer {
     private final Database catalog_db;
     private final Procedure catalog_proc;
     private final Workload workload;
+    private final EstimationThresholds thresholds;
     private final ParameterCorrelations correlations;
     private final PartitionEstimator p_estimator;
     private final Random rand = new Random(); // FIXME
@@ -228,40 +228,59 @@ public class FeatureClusterer {
     
     private double round_topk = DEFAULT_ATTRIBUTESET_TOP_K;
     
-    /** We have one thread pool for createAttributeSet() */
-    private final ExecutorService createAttribute_threadpool;
+    /** We have separate thread pools for calculate and generateMarkovCostModels */
+    private final ExecutorService calculate_threadPool;
+//    private final ExecutorService generate_threadPool;
     
     /** Number of search rounds in calculate() */
     private int num_rounds = DEFAULT_NUM_ROUNDS;
     
     private final Map<Long, Set<Integer>> cache_all_partitions = new HashMap<Long, Set<Integer>>();
     private final Map<Long, Integer> cache_base_partition = new HashMap<Long, Integer>();
-    
+
     /**
      * 
-     * @param catalog_db
+     * @param catalog_proc
      * @param workload
      * @param correlations
      * @param all_partitions
+     * @param num_threads
      */
-    public FeatureClusterer(Procedure catalog_proc, Workload workload, ParameterCorrelations correlations, Collection<Integer> all_partitions) {
+    public FeatureClusterer(Procedure catalog_proc, Workload workload, ParameterCorrelations correlations, Collection<Integer> all_partitions, int num_threads) {
         this.catalog_proc = catalog_proc;
         this.catalog_db = CatalogUtil.getDatabase(catalog_proc);
         this.workload = workload;
         this.correlations = correlations;
+        this.thresholds = new EstimationThresholds(); // FIXME
         this.p_estimator = new PartitionEstimator(catalog_db);
         this.all_partitions = all_partitions;
-        this.createAttribute_threadpool = Executors.newFixedThreadPool(NUM_THREADS_PER_POOL);
+//        this.generate_threadPool = Executors.newFixedThreadPool(NUM_THREADS_PER_POOL);
+        this.calculate_threadPool = Executors.newFixedThreadPool(num_threads);
         
         for (SplitType type : SplitType.values()) {
             this.split_percentages[type.ordinal()] = type.percentage;
         } // FOR
         
-        this.global_costmodel = new MarkovCostModel(catalog_db, p_estimator);
+        this.global_costmodel = new MarkovCostModel(catalog_db, p_estimator, thresholds);
         this.global_costmodel.setTransactionClusterMapping(true);
         for (Integer p : FeatureClusterer.this.all_partitions) {
             this.global_markov.create(p, FeatureClusterer.this.catalog_proc).initialize();
         } // FOR
+    }
+
+    /**
+     * Constructor
+     */
+    public FeatureClusterer(Procedure catalog_proc, Workload workload, ParameterCorrelations correlations, Collection<Integer> all_partitions) {
+        this(catalog_proc, workload, correlations, all_partitions, DEFAULT_NUM_THREADS);
+    }
+
+    /**
+     * Constructor
+     * @param catalog_db
+     */
+    public FeatureClusterer(Procedure catalog_proc, Workload workload, ParameterCorrelations correlations, int num_threads) {
+        this(catalog_proc, workload, correlations, CatalogUtil.getAllPartitionIds(catalog_proc), num_threads);
     }
     
     /**
@@ -269,11 +288,12 @@ public class FeatureClusterer {
      * @param catalog_db
      */
     public FeatureClusterer(Procedure catalog_proc, Workload workload, ParameterCorrelations correlations) {
-        this(catalog_proc, workload, correlations, CatalogUtil.getAllPartitionIds(catalog_proc));
+        this(catalog_proc, workload, correlations, DEFAULT_NUM_THREADS);
     }
     
     protected final void cleanup() {
-        this.createAttribute_threadpool.shutdownNow();
+//        this.generate_threadPool.shutdownNow();
+        this.calculate_threadPool.shutdownNow();
     }
     
     public void setNumRounds(int numRounds) {
@@ -318,7 +338,7 @@ public class FeatureClusterer {
         return (this.splits);
     }
 
-    private int getBasePartition(TransactionTrace txn_trace) {
+    private Integer getBasePartition(TransactionTrace txn_trace) {
         Long txn_id = Long.valueOf(txn_trace.getTransactionId());
         Integer base_partition = this.cache_base_partition.get(txn_id);
         if (base_partition == null) {
@@ -329,7 +349,7 @@ public class FeatureClusterer {
             }
             this.cache_base_partition.put(txn_id, base_partition);
         }
-        return (base_partition.intValue());
+        return (base_partition);
     }
     
     private Set<Integer> getAllPartitions(TransactionTrace txn_trace) {
@@ -402,6 +422,8 @@ public class FeatureClusterer {
             if (debug.get()) {
                 Map<String, Object> m0 = new ListOrderedMap<String, Object>();
                 m0.put("Round #", String.format("%02d", round));
+                m0.put("Number of Partitions", this.all_partitions.size());
+                m0.put("Number of Attributes", all_attributes.size());
                 m0.put("Best Set", best_set);
                 m0.put("Best Cost", (best_set != null ? best_set.getCost() : null));
                 
@@ -415,24 +437,40 @@ public class FeatureClusterer {
                 LOG.debug("\n" + StringUtil.formatMaps(":", true, true, m0, m1));
             }
 
-            int aset_ctr = 0;
-            for (final Set<Attribute> s : UniqueCombinationIterator.factory(all_attributes, round)) {
-                MarkovAttributeSet aset = new MarkovAttributeSet(s);
-                try {
-                    this.calculateAttributeSetCost(aset);
-                } catch (Exception ex) {
-                    LOG.fatal("Failed to calculate MarkovAttributeSet cost for " + s, ex);
-                    throw new RuntimeException(ex);
-                }
-                assert(aset != null);
-                if (debug.get()) LOG.debug(String.format("[%03d] Attributes%s => %.03f", aset_ctr, aset.toString(), aset.getCost()));
-                round_asets.add(aset);
-                
-                aset_ctr += 1;
-//                if (aset_ctr > 6) break;
-            } // WHILE (MarkovAttributeSet)
+            final Iterable<Set<Attribute>> it = UniqueCombinationIterator.factory(all_attributes, round);
+            final List<Set<Attribute>> sets = (List<Set<Attribute>>)CollectionUtil.addAll(new ArrayList<Set<Attribute>>(), it);
+
+            final int num_sets = sets.size();
+            final CountDownLatch latch = new CountDownLatch(num_sets);
+            final AtomicInteger aset_ctr = new AtomicInteger(0);
             
-            all_asets.addAll(round_asets);
+            for (final Set<Attribute> s : sets) {
+                Runnable r = new Runnable() {
+                    @Override
+                    public void run() {
+                        MarkovAttributeSet aset = new MarkovAttributeSet(s);
+                        try {
+                            FeatureClusterer.this.calculateAttributeSetCost(aset);
+                        } catch (Exception ex) {
+                            LOG.fatal("Failed to calculate MarkovAttributeSet cost for " + aset, ex);
+                            throw new RuntimeException(ex);
+                        }
+                        assert(aset != null);
+                        round_asets.add(aset);
+                        all_asets.add(aset);
+                        latch.countDown();
+                        if (debug.get()) {
+                            int my_ctr = aset_ctr.getAndIncrement();
+                            LOG.debug(String.format("[%03d] %s => %.03f", my_ctr, aset, aset.getCost()));
+                        }
+                    }
+                };
+                this.calculate_threadPool.execute(r);
+            } // FOR
+            
+            // Wait until they all finish
+            if (debug.get()) LOG.debug(String.format("Waiting for %d calculateAttributeSetCosts threads to finish", num_sets));
+            latch.await();
             
             // Now figure out what the top-k MarkovAttributeSets from this round
             // For now we'll explode out all of the attributes that they contain and throw that into a set
@@ -458,8 +496,6 @@ public class FeatureClusterer {
         } // WHILE (round)
         return (best_set);
     }
-    
-
 
     /**
      * 
@@ -580,7 +616,7 @@ public class FeatureClusterer {
             long txn_id = FeatureUtil.getTransactionId(inst);
             TransactionTrace txn_trace = this.workload.getTransaction(txn_id);
             assert(txn_trace != null);
-            int base_partition = this.getBasePartition(txn_trace);
+            Integer base_partition = this.getBasePartition(txn_trace);
             // Skip any txn that executes on a partition that we're not evaluating
             if (this.all_partitions.contains(base_partition) == false) continue;
             
@@ -719,7 +755,7 @@ public class FeatureClusterer {
         // Now use the validation data set to figure out how well we are able to predict transaction
         // execution paths using the trained Markov graphs
         // We first need to construct a new costmodel and populate it with TransactionEstimators
-        if (debug.get()) LOG.debug("Constructing CLUSTER-BASED MarkovCostModels");
+        if (trace.get()) LOG.trace("Constructing CLUSTER-BASED MarkovCostModels");
         
         // IMPORTANT: We run out of memory if we try to build the MarkovGraphs for all of the 
         // partitions+clusters. So instead we are going to randomly select some of the partitions to be used in the 
@@ -750,14 +786,14 @@ public class FeatureClusterer {
                     costmodel_latch.countDown();
                 }
             };
-            this.createAttribute_threadpool.execute(r);
+            r.run();
+            // this.generate_threadPool.execute(r);
         } // FOR
         // Wait until everyone finishes
         try {
             costmodel_latch.await();
         } catch (Exception ex) {
-            LOG.fatal(ex);
-            System.exit(1);
+            throw new RuntimeException(ex);
         }
     }
     
@@ -830,9 +866,10 @@ public class FeatureClusterer {
             t_counters[1],
             t_counters[2],
         };
-        
-        final String f = "%4d / %4d [%.03f]";
-        final int total_txns = values[0][2]; 
+
+        final int total_txns = values[0][2];
+        final int value_len = Integer.toString(total_txns).length();
+        final String f = "%" + value_len + "d / %" + value_len + "d [%.03f]";
         final ListOrderedMap<?, ?> maps[] = new ListOrderedMap<?, ?>[values.length];
         for (int i = 0; i < values.length; i++) {
             ListOrderedMap<String, String> m = new ListOrderedMap<String, String>();
@@ -877,6 +914,12 @@ public class FeatureClusterer {
             ArgumentsParser.PARAM_CORRELATIONS
         );
         
+        // Number of threads
+        int num_threads = FeatureClusterer.DEFAULT_NUM_THREADS;
+        if (args.hasIntParam(ArgumentsParser.PARAM_MARKOV_THREADS)) {
+            num_threads = args.getIntParam(ArgumentsParser.PARAM_MARKOV_THREADS);
+        }
+        
         // Get the procedure we're suppose to investigate
         String proc_name = args.getOptParam(0);
         Procedure catalog_proc = args.catalog_db.getProcedures().getIgnoreCase(proc_name);
@@ -911,9 +954,9 @@ public class FeatureClusterer {
 //            System.exit(1);
 //            
             Set<Integer> partitions = h.values();
-            fclusterer = new FeatureClusterer(catalog_proc, args.workload, args.param_correlations, partitions);
+            fclusterer = new FeatureClusterer(catalog_proc, args.workload, args.param_correlations, partitions, num_threads);
         } else {
-            fclusterer = new FeatureClusterer(catalog_proc, args.workload, args.param_correlations);    
+            fclusterer = new FeatureClusterer(catalog_proc, args.workload, args.param_correlations, num_threads);    
         }
         
         // Update split configuration variables

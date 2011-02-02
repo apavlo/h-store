@@ -3,15 +3,7 @@ package edu.mit.hstore;
 import java.io.File;
 import java.io.IOException;
 import java.net.InetSocketAddress;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.TreeMap;
-import java.util.TreeSet;
+import java.util.*;
 import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
@@ -315,6 +307,10 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         }
     } // END CLASS
     
+    // ----------------------------------------------------------------------------
+    // HSTORESTITE SHUTDOWN STUFF
+    // ----------------------------------------------------------------------------
+    
     /**
      * Shutdown Hook Thread
      */
@@ -328,30 +324,56 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
             }
         }
     } // END CLASS
-    
+
     /**
-     * SetupThread
+     * Non-blocking call to take down the cluster
      */
-    protected class SetupThread implements Runnable {
-        public void run() {
-            try {
-                // Load up everything the QueryPlanUtil
-                QueryPlanUtil.preload(HStoreSite.this.catalog_db);
-                
-                // Then load up everything in the PartitionEstimator
-                HStoreSite.this.p_estimator.preload();
-                
-            } catch (Exception ex) {
-                LOG.fatal("Failed to prepare HStoreSite", ex);
-                System.exit(1);
+    public void shutdownCluster() {
+        Thread shutdownThread = new Thread() {
+            @Override
+            public void run() {
+                HStoreSite.this.messenger.shutdownCluster();
             }
-            
-            // Schedule the ExecutionSiteHelper
-            ExecutionSiteHelper esh = new ExecutionSiteHelper(HStoreSite.this.executors.values());
-            HStoreSite.this.helper_pool.scheduleAtFixedRate(esh, 250, 1000, TimeUnit.MILLISECONDS);
-        }
+        };
+        shutdownThread.setDaemon(true);
+        shutdownThread.start();
+        return;
     }
     
+    /**
+     * Perform shutdown operations for this HStoreCoordinatorNode
+     */
+    public synchronized void shutdown() {
+        if (debug.get()) LOG.debug("Shutting down everything at Site #" + this.site_id);
+        
+        // Tell all of our event loops to stop
+        if (trace.get()) LOG.trace("Telling Dtxn.Coordinator event loop to exit");
+        this.coordinatorEventLoop.exitLoop();
+        
+        // Tell anybody that wants to know that we're going down
+        if (trace.get()) LOG.trace("Notifying " + this.shutdown_observable.countObservers() + " observers that we're shutting down");
+        this.shutdown_observable.notifyObservers();
+        
+        // Tell our local boys to go down too
+        for (ExecutionSite executor : this.executors.values()) {
+            if (trace.get()) LOG.trace("Telling the ExecutionSite for Partition #" + executor.getPartitionId() + " to shutdown");
+            executor.shutdown();
+        } // FOR
+        
+        if (debug.get()) LOG.debug("Completed shutdown process at Site #" + this.site_id);
+    }
+    
+    /**
+     * Get the Oberservable handle for this HStoreSite that can alert others when the party is ending
+     * @return
+     */
+    public EventObservable getShutdownObservable() {
+        return shutdown_observable;
+    }
+
+    // ----------------------------------------------------------------------------
+    // INITIALIZATION STUFF
+    // ----------------------------------------------------------------------------
     
     /**
      * Constructor
@@ -377,7 +399,30 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         assert(this.catalog_db != null);
         assert(this.p_estimator != null);
     }
-    
+
+    /**
+     * SetupThread
+     */
+    protected class SetupThread implements Runnable {
+        public void run() {
+            try {
+                // Load up everything the QueryPlanUtil
+                QueryPlanUtil.preload(HStoreSite.this.catalog_db);
+                
+                // Then load up everything in the PartitionEstimator
+                HStoreSite.this.p_estimator.preload();
+                
+            } catch (Exception ex) {
+                LOG.fatal("Failed to prepare HStoreSite", ex);
+                System.exit(1);
+            }
+            
+            // Schedule the ExecutionSiteHelper
+            ExecutionSiteHelper esh = new ExecutionSiteHelper(HStoreSite.this.executors.values());
+            HStoreSite.this.helper_pool.scheduleAtFixedRate(esh, 250, 1000, TimeUnit.MILLISECONDS);
+        }
+    }
+
     /**
      * Initializes all the pieces that we need to start this HStore site up
      */
@@ -434,52 +479,6 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
      */
     public EventObservable getReadyObservable() {
         return (this.ready_observable);
-    }
-
-    /**
-     * Non-blocking call to take down the cluster
-     */
-    public void shutdownCluster() {
-        Thread shutdownThread = new Thread() {
-            @Override
-            public void run() {
-                HStoreSite.this.messenger.shutdownCluster();
-            }
-        };
-        shutdownThread.setDaemon(true);
-        shutdownThread.start();
-        return;
-    }
-    
-    /**
-     * Perform shutdown operations for this HStoreCoordinatorNode
-     */
-    public synchronized void shutdown() {
-        if (debug.get()) LOG.debug("Shutting down everything at Site #" + this.site_id);
-        
-        // Tell all of our event loops to stop
-        if (trace.get()) LOG.trace("Telling Dtxn.Coordinator event loop to exit");
-        this.coordinatorEventLoop.exitLoop();
-        
-        // Tell anybody that wants to know that we're going down
-        if (trace.get()) LOG.trace("Notifying " + this.shutdown_observable.countObservers() + " observers that we're shutting down");
-        this.shutdown_observable.notifyObservers();
-        
-        // Tell our local boys to go down too
-        for (ExecutionSite executor : this.executors.values()) {
-            if (trace.get()) LOG.trace("Telling the ExecutionSite for Partition #" + executor.getPartitionId() + " to shutdown");
-            executor.shutdown();
-        } // FOR
-        
-        if (debug.get()) LOG.debug("Completed shutdown process at Site #" + this.site_id);
-    }
-    
-    /**
-     * Get the Oberservable handle for this HStoreSite that can alert others when the party is ending
-     * @return
-     */
-    public EventObservable getShutdownObservable() {
-        return shutdown_observable;
     }
     
     /**
@@ -544,19 +543,6 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         return (String.format("H%03d%s", this.site_id, suffix));
     }
     
-    /**
-     * Perform final cleanup and book keeping for a completed txn
-     * @param txn_id
-     */
-    public synchronized void completeTransaction(long txn_id) {
-        if (trace.get()) LOG.trace("Cleaning up internal info for Txn #" + txn_id);
-        this.inflight_txns.remove(txn_id);
-        this.completed_txns.incrementAndGet();
-        
-        assert(!this.inflight_txns.containsKey(txn_id)) :
-            "Failed to remove InFlight entry for txn #" + txn_id + "\n" + inflight_txns;
-    }
-    
     public static ByteString encodeTxnId(long txn_id) {
         return (ByteString.copyFrom(Long.toString(txn_id).getBytes()));
     }
@@ -564,6 +550,10 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         return (Long.valueOf(new String(bs.toByteArray())));
     }
 
+    // ----------------------------------------------------------------------------
+    // EXECUTION METHODS
+    // ----------------------------------------------------------------------------
+    
     @Override
     public void procedureInvocation(byte[] serializedRequest, RpcCallback<byte[]> done) {
         if (this.status_monitor != null && !this.status_monitor.isAlive()) this.status_monitor.start();
@@ -584,16 +574,16 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         // Extract the stuff we need to figure out whether this guy belongs at our site
         request.buildParameterSet();
         assert(request.getParams() != null) : "The parameters object is null for new txn from client #" + request.getClientHandle();
-        Object args[] = request.getParams().toArray(); 
-        // LOG.info("Parameter Size = " + request.getParameters())
-        
-        Procedure catalog_proc = this.catalog_db.getProcedures().get(request.getProcName());
+        final Object args[] = request.getParams().toArray(); 
+        final Procedure catalog_proc = this.catalog_db.getProcedures().get(request.getProcName());
         final boolean sysproc = catalog_proc.getSystemproc();
+        
         if (catalog_proc == null) throw new RuntimeException("Unknown procedure '" + request.getProcName() + "'");
         if (debug.get()) LOG.trace("Received new stored procedure invocation request for " + catalog_proc);
         
         // First figure out where this sucker needs to go
-        Integer dest_partition;
+        Integer dest_partition = null;
+        
         // If it's a sysproc, then it doesn't need to go to a specific partition
         if (sysproc) {
             // Just pick the first one for now
@@ -651,6 +641,8 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         TransactionEstimator t_estimator = executor.getTransactionEstimator();
         
         Boolean single_partition = null;
+        Set<Integer> touched_partitions = null;
+        
         if (sysproc) {
             single_partition = false;
         } else if (!t_estimator.canEstimate(catalog_proc)) {
@@ -659,10 +651,13 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
             if (trace.get()) LOG.trace("Using TransactionEstimator to check whether txn #" + txn_id + " is single-partition");
             TransactionEstimator.Estimate estimate = t_estimator.startTransaction(txn_id, catalog_proc, args);
             single_partition = estimate.isSinglePartition(this.thresholds);
+            touched_partitions = estimate.getTargetPartitions(this.thresholds);
         }
         assert (single_partition != null);
         if (single_partition) this.singlepart_ctr.incrementAndGet();
         else this.multipart_ctr.incrementAndGet();
+        
+        // TODO: Tell somebody that we need these partitions!
 
         this.initializeInvocation(txn_id, dest_partition, single_partition, request, done);
         //LOG.debug("Single-Partition = " + single_partition);
@@ -806,7 +801,6 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
          this.initializeInvocation(new_txn_id, dest_partition, false, spi, done);
     }
     
-    
     /**
      * This will block until the the initialization latch is released by the InitiateCallback
      * @param txn_id
@@ -854,6 +848,10 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
             this.coordinator.finish(new ProtoRpcController(), request, callback);
         }
     }
+
+    // ----------------------------------------------------------------------------
+    // TRANSACTION FINISH/CLEANUP METHODS
+    // ----------------------------------------------------------------------------
     
     /**
      * 
@@ -890,6 +888,23 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
             if (trace.get()) LOG.trace("Sent back Dtxn.FinishResponse for txn #" + txn_id);
         } 
     }
+
+    /**
+     * Perform final cleanup and book keeping for a completed txn
+     * @param txn_id
+     */
+    public synchronized void completeTransaction(long txn_id) {
+        if (trace.get()) LOG.trace("Cleaning up internal info for Txn #" + txn_id);
+        this.inflight_txns.remove(txn_id);
+        this.completed_txns.incrementAndGet();
+        
+        assert(!this.inflight_txns.containsKey(txn_id)) :
+            "Failed to remove InFlight entry for txn #" + txn_id + "\n" + inflight_txns;
+    }
+
+    // ----------------------------------------------------------------------------
+    // MAGIC HSTORESITE LAUNCHER
+    // ----------------------------------------------------------------------------
     
     /**
      * 

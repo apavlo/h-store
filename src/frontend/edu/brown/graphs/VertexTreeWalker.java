@@ -47,32 +47,43 @@ public abstract class VertexTreeWalker<V extends AbstractVertex> extends Abstrac
         }
     };
     
-    private final IGraph<V, ? extends AbstractEdge> graph;
-    private final TraverseOrder search_order;
-    private final Direction search_direction; 
+    private IGraph<V, ? extends AbstractEdge> graph;
+    private TraverseOrder search_order;
+    private Direction search_direction; 
     
     // Breadth-First Search
     // The last element at each depth in the tree. This is where we will still all of the
     // children that we need to visit in the next level
-    private final Map<Integer, V> bfs_levels;
-    
-    public VertexTreeWalker(IGraph<V, ? extends AbstractEdge> graph, TraverseOrder order, Direction direction) {
-        this.graph = graph;
-        this.search_order = order;
-        this.search_direction = direction;
-        
-        if (this.search_order == TraverseOrder.BREADTH) {
-            this.bfs_levels = new HashMap<Integer, V>();
-        } else {
-            this.bfs_levels = null;
-        }
+    private Map<Integer, V> bfs_levels;
+
+    protected VertexTreeWalker() {
+        // Nothing!
     }
-    
+    public VertexTreeWalker(IGraph<V, ? extends AbstractEdge> graph, TraverseOrder order, Direction direction) {
+        this.init(graph, order, direction);
+    }
     public VertexTreeWalker(IGraph<V, ? extends AbstractEdge> graph) {
         this(graph, TraverseOrder.DEPTH, Direction.FORWARD);
     }
     public VertexTreeWalker(IGraph<V, ? extends AbstractEdge> graph, TraverseOrder order) {
         this(graph, order, Direction.FORWARD);
+    }
+
+    public VertexTreeWalker<V> init(IGraph<V, ? extends AbstractEdge> graph, TraverseOrder order, Direction direction) {
+        this.graph = graph;
+        this.search_order = order;
+        this.search_direction = direction;
+        
+        if (this.search_order == TraverseOrder.BREADTH && this.bfs_levels == null) {
+            this.bfs_levels = new HashMap<Integer, V>();
+        }
+        return (this);
+    }
+    
+    @Override
+    public void finish() {
+        super.finish();
+        if (this.bfs_levels != null) this.bfs_levels.clear();
     }
     
     public final IGraph<V, ? extends AbstractEdge> getGraph() {
