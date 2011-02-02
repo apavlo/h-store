@@ -126,7 +126,7 @@ public class TestMarkovPathEstimator extends BaseTestCase {
         Vertex commit = this.graph.getCommitVertex();
         Vertex abort = this.graph.getAbortVertex();
         
-        MarkovPathEstimator.LOG.setLevel(Level.DEBUG);
+//        MarkovPathEstimator.LOG.setLevel(Level.DEBUG);
         MarkovPathEstimator estimator = new MarkovPathEstimator(this.graph, this.t_estimator, BASE_PARTITION, singlep_trace.getParams());
         estimator.traverse(this.graph.getStartVertex());
         Vector<Vertex> path = new Vector<Vertex>(estimator.getVisitPath());
@@ -145,7 +145,7 @@ public class TestMarkovPathEstimator extends BaseTestCase {
             assertEquals(1, v.getPartitions().size());
             assert(v.getPartitions().contains(BASE_PARTITION));
         } // FOR
-        MarkovPathEstimator.LOG.setLevel(Level.INFO);
+//        MarkovPathEstimator.LOG.setLevel(Level.INFO);
         
 //        GraphvizExport<Vertex, Edge> gv = MarkovUtil.exportGraphviz(this.graph, true, this.graph.getPath(path));
 //        FileUtil.writeStringToFile("/tmp/dump.dot", gv.export(this.graph.getProcedure().getName()));

@@ -269,7 +269,13 @@ public class Vertex extends AbstractVertex {
     public Type getType() {
         return this.type;
     }
-
+    /**
+     * Returns true if this Vertex is one of the ending states (commit/abort) 
+     * @return
+     */
+    public boolean isEndingVertex() {
+        return (this.type == Type.COMMIT || this.type == Type.ABORT);
+    }
     public boolean isQueryVertex() {
         return (this.type == Type.QUERY);
     }

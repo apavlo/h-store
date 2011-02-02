@@ -41,6 +41,7 @@ import org.voltdb.messaging.FragmentTaskMessage;
 
 import com.google.protobuf.RpcCallback;
 
+import edu.brown.utils.Poolable;
 import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.StringUtil;
 import edu.mit.dtxn.Dtxn;
@@ -48,7 +49,7 @@ import edu.mit.dtxn.Dtxn;
 /**
  * @author pavlo
  */
-public abstract class TransactionState {
+public abstract class TransactionState implements Poolable {
     protected static final Logger LOG = Logger.getLogger(TransactionState.class);
     private final static AtomicBoolean debug = new AtomicBoolean(LOG.isDebugEnabled());
     private final static AtomicBoolean trace = new AtomicBoolean(LOG.isTraceEnabled());
@@ -140,7 +141,8 @@ public abstract class TransactionState {
      * Should be called once the TransactionState is finished and is
      * being returned to the pool
      */
-    public void finished() {
+    @Override
+    public void finish() {
         this.touched_partitions.clear();
         this.fragment_callbacks.clear();
     }

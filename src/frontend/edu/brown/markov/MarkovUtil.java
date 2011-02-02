@@ -446,7 +446,17 @@ public abstract class MarkovUtil {
     public static Pair<Set<Integer>, Set<Integer>> getReadWritePartitions(List<Vertex> path) {
         Set<Integer> read_p = new HashSet<Integer>();
         Set<Integer> write_p = new HashSet<Integer>();
-        
+        MarkovUtil.getReadWritePartitions(path, read_p, write_p);
+        return (Pair.of(read_p, write_p));
+    }
+
+    /**
+     * Get the read/write partition counts for the given path
+     * @param path
+     * @param read_p
+     * @param write_p
+     */
+    public static void getReadWritePartitions(List<Vertex> path, Set<Integer> read_p, Set<Integer> write_p) {
         for (Vertex v : path) {
             if (v.isQueryVertex() == false) continue;
             
@@ -465,7 +475,5 @@ public abstract class MarkovUtil {
                     assert(false) : "Invalid QueryType: " + qtype;
             } // SWITCH
         } // FOR
-        
-        return (Pair.of(read_p, write_p));
     }
 }
