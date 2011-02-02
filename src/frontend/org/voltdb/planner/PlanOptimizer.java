@@ -271,6 +271,8 @@ public class PlanOptimizer {
      * @throws Exception
      */
     protected void extractColumnInfo(AbstractPlanNode node, boolean is_root) throws Exception {
+        //System.out.println("current node type: " + node.getPlanNodeType() + " id: " + node.getPlanNodeId());
+        
         final boolean trace = LOG.isTraceEnabled();
         final boolean debug = LOG.isDebugEnabled();
 
@@ -280,8 +282,8 @@ public class PlanOptimizer {
         // Get all of the AbstractExpression roots for this node
         final Set<AbstractExpression> exps = PlanNodeUtil.getExpressions(node);
         final Set<AbstractExpression> temp_exps = new HashSet<AbstractExpression>();
-        // If this is the root node, then include the output columns
-        if (is_root) {
+        // If this is the root node, then include the output columns + also include output columns if its a projection or limit node
+        if (is_root || node instanceof ProjectionPlanNode | node instanceof LimitPlanNode) {
             for (Integer col_guid : node.m_outputColumns) {
                 PlanColumn col = m_context.get(col_guid);
                 assert (col != null) : "Invalid PlanColumn #" + col_guid;
@@ -1258,7 +1260,7 @@ public class PlanOptimizer {
             }
         }.traverse(rootNode);
         /** Finished building the map between join nodes and reference tables **/
-        
+
         new_root = rootNode;
         if (join_tbl_mapping.size() > 0) {
             if (join_tbl_mapping.size() == 2) {
@@ -1268,6 +1270,10 @@ public class PlanOptimizer {
             // Add projection when right above joins
             // clear the "dirty" nodes lists
             dirtyPlanNodes.clear();
+            if (rootNode.getPlanNodeId() == 73) {
+                System.out.println();
+            }
+            updateColumnInfo(rootNode);
             new PlanNodeTreeWalker(false) {
                 @Override
                 protected void callback(AbstractPlanNode element) {
@@ -1293,7 +1299,7 @@ public class PlanOptimizer {
                                     // only interested in projections and index scans
                                     if (inner_element instanceof ProjectionPlanNode || inner_element instanceof IndexScanPlanNode) {
                                         Set<Column> col_set = planNodeColumns.get(inner_element);
-                                        assert (col_set != null) : "Null column set for inner element: " + inner_element;
+                                        assert (col_set != null) : "Null column set for inner element: " + inner_element + "\n" + sql;
                                         //Map<String, Integer> current_join_output = new HashMap<String, Integer>();
                                         // Check whether any output columns have
                                         // operator, aggregator and project
@@ -1393,13 +1399,26 @@ public class PlanOptimizer {
                 new PlanNodeTreeWalker(false) {
                     @Override
                     protected void callback(AbstractPlanNode element) {
-                        if (element.getParentCount() > 0 && element.getParent(0) instanceof ProjectionPlanNode && !projection_plan_nodes.contains((ProjectionPlanNode) element.getParent(0))) {
+                        /** NOTE: we cannot assume that the projection is the top most node because of the case of the LIMIT case. 
+                         * Limit nodes will always be the top most node so we need to check for that. **/
+                        if (element.getParentCount() > 0 && element.getParent(0) instanceof ProjectionPlanNode && (PlanNodeUtil.getRoot(element) == element.getParent(0)) && !projection_plan_nodes.contains((ProjectionPlanNode) element.getParent(0))) {
                             ProjectionPlanNode proj_node = (ProjectionPlanNode) element.getParent(0);
                             assert (proj_node.getChildCount() == 1) : "Projection element expected 1 child but has " + proj_node.getChildCount() + " children!!!!";
                             // now currently at the child of the top most
                             // projection node
                             proj_node.removeFromGraph();
                             new_root = element;
+                            this.stop();
+                        } else if (element.getParentCount() > 0 && element.getParent(0) instanceof ProjectionPlanNode && (PlanNodeUtil.getRoot(element) != element.getParent(0)) && !projection_plan_nodes.contains((ProjectionPlanNode) element.getParent(0))) {
+                            // this is the case where the top most node is not a projection
+                            ProjectionPlanNode current_projection = (ProjectionPlanNode)element.getParent(0);
+                            // make sure current projection has parent
+                            assert (current_projection.getParentCount() > 0);
+                            AbstractPlanNode projection_parent = current_projection.getParent(0);
+                            element.clearParents();
+                            projection_parent.clearChildren();
+                            projection_parent.addAndLinkChild(element);
+                            new_root = projection_parent;
                             this.stop();
                         }
                     }
@@ -1474,6 +1493,10 @@ public class PlanOptimizer {
 //             System.out.println();
             }
         /** END OF ADDING PROJECTION TO JOINS OPTIMIZATION **/
+//      System.out.println("NEW CURRENT TREE: ");
+//      System.out.println(PlanNodeUtil.debug(rootNode));
+//      System.out.println();
+
         if (debug)
             LOG.trace("Finished Optimizations!");
         // if (debug) LOG.debug("Optimized PlanNodeTree:\n" +
