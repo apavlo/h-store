@@ -51,6 +51,7 @@ public class TestPlanOptimizations2 extends BaseTestCase {
 
             this.addStmtProcedure("SingleProjection", "SELECT TABLEA.A_VALUE0 FROM TABLEA WHERE TABLEA.A_ID = ?");
             this.addStmtProcedure("Limit", "SELECT * FROM TABLEA WHERE TABLEA.A_ID > ? AND TABLEA.A_ID <= ? AND TABLEA.A_VALUE0 != ? LIMIT 15");
+            this.addStmtProcedure("LimitJoin", "SELECT TABLEA.A_ID,TABLEB.B_ID FROM TABLEA, TABLEB WHERE TABLEA.A_ID > ? AND TABLEA.A_ID = TABLEB.B_A_ID LIMIT 15");
             this.addStmtProcedure("JoinProjection", "SELECT TABLEA.A_ID, TABLEA.A_VALUE0, TABLEA.A_VALUE1, TABLEA.A_VALUE2, TABLEA.A_VALUE3, TABLEA.A_VALUE4 FROM TABLEA,TABLEB WHERE TABLEA.A_ID = ? AND TABLEA.A_ID = TABLEB.B_A_ID");
             // NESTLOOP this.addStmtProcedure("ThreeWayJoin",
             // "SELECT TABLEA.A_VALUE0, TABLEB.B_VALUE0, (TABLEC.C_VALUE0 + TABLEC.C_VALUE1) AS blah FROM TABLEA, TABLEB, TABLEC WHERE TABLEA.A_ID = TABLEB.B_ID AND TABLEA.A_ID = TABLEC.C_A_ID AND TABLEC.C_A_ID = ? AND TABLEC.C_VALUE0 != ?");
@@ -177,7 +178,6 @@ public class TestPlanOptimizations2 extends BaseTestCase {
     /** make sure the output columns of a node exactly match its inline columns (guid for guid) **/
     protected void checkMatchInline(AbstractPlanNode node, AbstractPlanNode inline_node) {
         for (int i = 0; i < node.m_outputColumns.size(); i++) {
-            System.out.println("Node guid: " + node.m_outputColumns.get(i) + " inline plan guid: " + inline_node.m_outputColumns.get(i));
             assert ((int)node.m_outputColumns.get(i) == (int)inline_node.m_outputColumns.get(i)) : "Node guid: " + node.m_outputColumns.get(i) + " doesn't match inline plan guid: " + inline_node.m_outputColumns.get(i);
         }
     }
@@ -292,6 +292,41 @@ public class TestPlanOptimizations2 extends BaseTestCase {
      //System.err.println(PlanNodeUtil.debug(root));
      }
 
+     /**
+      * testLimitJoin
+      */
+      @Test
+      public void testLimitJoin() throws Exception {
+      Procedure catalog_proc = this.getProcedure("LimitJoin");
+      Statement catalog_stmt = this.getStatement(catalog_proc, "sql");
+     
+      // Grab the root node of the multi-partition query plan tree for this
+      // Statement
+      AbstractPlanNode root = QueryPlanUtil.deserializeStatement(catalog_stmt,
+      false);
+      validateNodeColumnOffsets(root);
+      assertNotNull(root);
+     
+      // First check that our single scan node has an limit node
+      Set<LimitPlanNode> limit_nodes = PlanNodeUtil.getPlanNodes(root, LimitPlanNode.class);
+      assertEquals(1, limit_nodes.size());
+     
+      // Get the Limit nodes output columns and make sure their valid
+      LimitPlanNode limit_node = CollectionUtil.getFirst(limit_nodes);
+      assertNotNull(limit_node);
+      for (int column_guid : limit_node.m_outputColumns) {
+      PlanColumn column = PlannerContext.singleton().get(column_guid);
+      // System.err.println(String.format("[%02d] %s", column_guid,
+      // column));
+      // System.err.println("==================");
+      // System.err.println(PlannerContext.singleton().debug());
+      assertNotNull("Invalid PlanColumn [guid=" + column_guid + "]", column);
+      assertEquals(column_guid, column.guid());
+      } // FOR
+     
+      //System.err.println(PlanNodeUtil.debug(root));
+      }
+
     /**
      * testThreeWayJoin
      */
@@ -305,11 +340,9 @@ public class TestPlanOptimizations2 extends BaseTestCase {
         AbstractPlanNode root = QueryPlanUtil.deserializeStatement(catalog_stmt, false);
         
         validateNodeColumnOffsets(root);
-        System.err.println(PlanNodeUtil.debug(root));
+        //System.err.println(PlanNodeUtil.debug(root));
         assertNotNull(root);
     }
-
-    
         
      /**
      * testAggregate
@@ -435,7 +468,7 @@ public class TestPlanOptimizations2 extends BaseTestCase {
         }.traverse(root);
         // System.err.println("+++++++++++++++++++++++++++++++++++++++++++++++++++");
         //            
-        System.err.println(PlanNodeUtil.debug(root));
+        //System.err.println(PlanNodeUtil.debug(root));
         // //
         // System.err.println("+++++++++++++++++++++++++++++++++++++++++++++++++++");
         // //
