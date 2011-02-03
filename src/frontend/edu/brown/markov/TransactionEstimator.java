@@ -411,7 +411,7 @@ public class TransactionEstimator {
         this.correlations = (correlations == null ? new ParameterCorrelations() : correlations);
         
         // HACK: Initialize the STATE_POOL
-        synchronized (STATE_POOL) {
+        synchronized (LOG) {
             if (STATE_POOL == null) {
                 STATE_POOL = new StackObjectPool(new State.Factory(this.num_partitions));
             }
