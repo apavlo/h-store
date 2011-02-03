@@ -2,9 +2,11 @@ package edu.brown.costmodel;
 
 import java.io.File;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
+import java.util.Set;
 import java.util.Map.Entry;
 
 import org.junit.Before;
@@ -26,6 +28,7 @@ import edu.brown.markov.MarkovUtil;
 import edu.brown.markov.TransactionEstimator;
 import edu.brown.markov.Vertex;
 import edu.brown.markov.TransactionEstimator.State;
+import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.ProjectType;
 import edu.brown.workload.AbstractTraceElement;
 import edu.brown.workload.TransactionTrace;
@@ -44,6 +47,7 @@ public class TestMarkovCostModel extends BaseTestCase {
     private static final int BASE_PARTITION = 1;
     private static final int NUM_PARTITIONS = 5;
     private static final EstimationThresholds thresholds = new EstimationThresholds();
+    private static final Random rand = new Random();
 
     private static Workload workload;
     private static MarkovGraphsContainer markovs;
@@ -51,8 +55,6 @@ public class TestMarkovCostModel extends BaseTestCase {
     private static MarkovCostModel costmodel;
     private static Procedure catalog_proc;
 
-    private final Random rand = new Random();
-    
     private MarkovGraph markov;
     private TransactionEstimator t_estimator;
     private TransactionTrace txn_trace;
@@ -177,16 +179,46 @@ public class TestMarkovCostModel extends BaseTestCase {
      */
     @Test
     public void testComparePathsFull_Penalty1() throws Exception {
+        // We have to call comparePathsFast first to setup some sets
+        // We don't care what the outcome is here...
+        costmodel.comparePathsFast(this.txn_state.getEstimatedPath(), this.txn_state.getActualPath());
+        
         Vertex abort_v = markov.getAbortVertex();
         List<Vertex> actual = this.txn_state.getActualPath();
         actual.set(actual.size()-1, abort_v);
         double cost = costmodel.comparePathsFull(this.txn_state);
-        System.err.println("FINAL COST: " + cost);
         
         List<Penalty> penalties = costmodel.getLastPenalties();
         assertNotNull(penalties);
-        System.err.println("PENALTIES: " + penalties);
+        System.err.println(String.format("COST=%.03f PENALTIES=%s", cost, penalties));
         assert(penalties.contains(Penalty.MISSED_ABORT_MULTI) || penalties.contains(Penalty.MISSED_ABORT_SINGLE)); 
+    }
+    
+    /**
+     * testComparePathsFull_Penalty2
+     */
+    @Test
+    public void testComparePathsFull_Penalty2() throws Exception {
+        // We have to call comparePathsFast first to setup some sets
+        // We don't care what the outcome is here...
+        costmodel.comparePathsFast(this.txn_state.getEstimatedPath(), this.txn_state.getActualPath());
+        
+        // Remove all of the estimated read partitions except for one
+        Set<Integer> e_read_partitions = costmodel.getLastEstimatedReadPartitions();
+        assertNotNull(e_read_partitions);
+        Set<Integer> retain = (Set<Integer>)CollectionUtil.addAll(new HashSet<Integer>(), CollectionUtil.getFirst(e_read_partitions)); 
+        e_read_partitions.retainAll(retain);
+        
+        // Then add all of our partitions to the actual read partitions
+        Set<Integer> a_read_partitions = costmodel.getLastActualReadPartitions();
+        a_read_partitions.addAll(CatalogUtil.getAllPartitionIds(catalog_db));
+        
+        double cost = costmodel.comparePathsFull(this.txn_state);
+        
+        List<Penalty> penalties = costmodel.getLastPenalties();
+        assertNotNull(penalties);
+        System.err.println(String.format("COST=%.03f PENALTIES=%s", cost, penalties));
+        assert(penalties.contains(Penalty.MISSING_READ_PARTITION)); 
     }
     
     /**

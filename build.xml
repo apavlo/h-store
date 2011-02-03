@@ -1887,6 +1887,7 @@ DESIGNER
         <arg value="markov.split.validation=${validation}" />
         <arg value="markov.split.testing=${testing}" />
         <arg value="markov.rounds=${rounds}" />
+        <arg value="markov.threads=${threads}" />
         <arg value="markov.partitions=${partitions}" />
         <arg value="markov.topk=${topk}" />
         <arg value="${procedure}" />

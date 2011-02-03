@@ -128,9 +128,7 @@ public class TransactionEstimator {
         public void finish() {
             // Return the MarkovPathEstimator
             try {
-                MarkovPathEstimator estimator = this.getInitialEstimator();
-                estimator.finish();
-                TransactionEstimator.ESTIMATOR_POOL.returnObject(estimator);
+                TransactionEstimator.ESTIMATOR_POOL.returnObject(this.getInitialEstimator());
             } catch (Exception ex) {
                 throw new RuntimeException("Failed to return MarkovPathEstimator for txn" + this.txn_id, ex);
             }
@@ -140,9 +138,10 @@ public class TransactionEstimator {
             this.query_instance_cnts.clear();
             this.current = null;
             
+            // We maintain a local cache of Estimates, so there is no pool to return them to
             for (int i = 0; i < this.num_estimates; i++) {
                 this.estimates.get(i).finish();
-            }
+            } // FOR
             this.num_estimates = 0;
         }
         
