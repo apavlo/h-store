@@ -10,7 +10,6 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import org.apache.log4j.Logger;
 import org.voltdb.catalog.Database;
-import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Statement;
 import org.voltdb.types.QueryType;
 
@@ -20,12 +19,10 @@ import edu.brown.markov.TransactionEstimator;
 import edu.brown.markov.Vertex;
 import edu.brown.markov.TransactionEstimator.Estimate;
 import edu.brown.markov.TransactionEstimator.State;
-import edu.brown.markov.Vertex.Type;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.PartitionEstimator;
 import edu.brown.utils.LoggerUtil.LoggerBoolean;
-import edu.brown.workload.QueryTrace;
 import edu.brown.workload.TransactionTrace;
 import edu.brown.workload.Workload;
 import edu.brown.workload.Workload.Filter;
@@ -206,14 +203,32 @@ public class MarkovCostModel extends AbstractCostModel {
      * Not thread-safe
      * @return
      */
-    public List<Penalty> getLastPenalties() {
+    protected List<Penalty> getLastPenalties() {
         return this.penalties;
     }
+    protected Set<Integer> getLastEstimatedAllPartitions() {
+        return (this.e_all_partitions);
+    }
+    protected Set<Integer> getLastEstimatedReadPartitions() {
+        return (this.e_read_partitions);
+    }
+    protected Set<Integer> getLastEstimatedWritePartitions() {
+        return (this.e_write_partitions);
+    }
+    protected Set<Integer> getLastActualAllPartitions() {
+        return (this.a_all_partitions);
+    }
+    protected Set<Integer> getLastActualReadPartitions() {
+        return (this.a_read_partitions);
+    }
+    protected Set<Integer> getLastActualWritePartitions() {
+        return (this.a_write_partitions);
+    }
+
 
     @Override
     public synchronized double estimateTransactionCost(Database catalog_db, Workload workload, Filter filter, TransactionTrace txn_trace) throws Exception {
         long txn_id = txn_trace.getTransactionId();
-        Procedure catalog_proc = txn_trace.getCatalogItem(catalog_db);
         
         // This will allow us to select the right TransactionEstimator
         Integer cluster = null;
@@ -309,6 +324,8 @@ public class MarkovCostModel extends AbstractCostModel {
         final boolean t = trace.get();
         final boolean d = debug.get();
         
+        if (d) LOG.debug("Performing full comparison of Transaction #" + s.getTransactionId());
+        
         this.penalties.clear();
 
         List<Vertex> estimated = s.getEstimatedPath();
@@ -375,8 +392,6 @@ public class MarkovCostModel extends AbstractCostModel {
         for (int i = 0; i < num_estimates; i++) {
             Estimate est = estimates.get(i);
             Vertex est_v = est.getVertex();
-            
-            System.err.println(est.toString() + "\n");
             
             // Check if we read/write at any partition that was previously declared as done
             if (i > 0) {
@@ -508,11 +523,6 @@ public class MarkovCostModel extends AbstractCostModel {
         double cost = 0.0d;
         for (Penalty p : this.penalties) cost += p.getCost();
         return (cost);
-    }
-    
-    public double calculateTotalPenalty() {
-        double total = 0.0d;
-        return (total);
     }
     
     @Override

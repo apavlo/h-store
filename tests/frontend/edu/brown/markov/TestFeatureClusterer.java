@@ -20,13 +20,12 @@ import weka.filters.Filter;
 import edu.brown.BaseTestCase;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.correlations.ParameterCorrelations;
-import edu.brown.costmodel.MarkovCostModel;
 import edu.brown.markov.MarkovAttributeSet;
 import edu.brown.markov.FeatureClusterer.SplitType;
 import edu.brown.markov.features.BasePartitionFeature;
 import edu.brown.markov.features.FeatureUtil;
 import edu.brown.markov.features.ParamArrayLengthFeature;
-import edu.brown.markov.features.ParamNumericValuesFeature;
+import edu.brown.markov.features.ParamHashPartitionFeature;
 import edu.brown.statistics.Histogram;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.ProjectType;
@@ -105,10 +104,10 @@ public class TestFeatureClusterer extends BaseTestCase {
     }
     
     /**
-     * testGenerateGlobalInformation
+     * testCalculateGlobalCost
      */
     @Test
-    public void testGenerateGlobalInformation() throws Exception {
+    public void testCalculateGlobalCost() throws Exception {
         this.fclusterer.splitWorkload(data);
         this.fclusterer.calculateGlobalCost();
         int counters[] = this.fclusterer.getGlobalCounters();
@@ -206,15 +205,14 @@ public class TestFeatureClusterer extends BaseTestCase {
     }
 
     /**
-     * 
-     * @throws Exception
+     * testCalculateAttributeSetCost
      */
     @Test
-    public void testCreateMarkovAttributeSet() throws Exception {
+    public void testCalculateAttributeSetCost() throws Exception {
         Set<Attribute> attributes = FeatureClusterer.prefix2attributes(data,
 //            FeatureUtil.getFeatureKeyPrefix(BasePartitionFeature.class),
             FeatureUtil.getFeatureKeyPrefix(ParamArrayLengthFeature.class, this.getProcParameter(catalog_proc, 4)),
-            FeatureUtil.getFeatureKeyPrefix(ParamNumericValuesFeature.class, this.getProcParameter(catalog_proc, 1))
+            FeatureUtil.getFeatureKeyPrefix(ParamHashPartitionFeature.class, this.getProcParameter(catalog_proc, 1))
         );
         System.err.println("Attributes: " + attributes);
         
