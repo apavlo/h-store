@@ -649,7 +649,8 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
             single_partition = false;
         } else {
             if (trace.get()) LOG.trace("Using TransactionEstimator to check whether txn #" + txn_id + " is single-partition");
-            TransactionEstimator.Estimate estimate = t_estimator.startTransaction(txn_id, catalog_proc, args);
+            TransactionEstimator.State state = t_estimator.startTransaction(txn_id, catalog_proc, args);
+            TransactionEstimator.Estimate estimate = state.getInitialEstimate();
             single_partition = estimate.isSinglePartition(this.thresholds);
             touched_partitions = estimate.getTargetPartitions(this.thresholds);
         }

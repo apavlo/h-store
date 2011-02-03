@@ -11,12 +11,14 @@ import org.junit.Before;
 import org.junit.Test;
 import org.voltdb.VoltProcedure;
 import org.voltdb.benchmark.tpcc.procedures.neworder;
+import org.voltdb.catalog.CatalogType;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.types.ExpressionType;
 
 import edu.brown.BaseTestCase;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.correlations.ParameterCorrelations;
+import edu.brown.costmodel.MarkovCostModel.Penalty;
 import edu.brown.markov.EstimationThresholds;
 import edu.brown.markov.MarkovGraph;
 import edu.brown.markov.MarkovGraphsContainer;
@@ -25,6 +27,7 @@ import edu.brown.markov.TransactionEstimator;
 import edu.brown.markov.Vertex;
 import edu.brown.markov.TransactionEstimator.State;
 import edu.brown.utils.ProjectType;
+import edu.brown.workload.AbstractTraceElement;
 import edu.brown.workload.TransactionTrace;
 import edu.brown.workload.Workload;
 import edu.brown.workload.filters.BasePartitionTxnFilter;
@@ -37,7 +40,7 @@ import edu.brown.workload.filters.ProcedureNameFilter;
 public class TestMarkovCostModel extends BaseTestCase {
 
     private static final Class<? extends VoltProcedure> TARGET_PROCEDURE = neworder.class;
-    private static final int WORKLOAD_XACT_LIMIT = 1000;
+    private static final int WORKLOAD_XACT_LIMIT = 500;
     private static final int BASE_PARTITION = 1;
     private static final int NUM_PARTITIONS = 5;
     private static final EstimationThresholds thresholds = new EstimationThresholds();
@@ -50,6 +53,8 @@ public class TestMarkovCostModel extends BaseTestCase {
 
     private final Random rand = new Random();
     
+    private MarkovGraph markov;
+    private TransactionEstimator t_estimator;
     private TransactionTrace txn_trace;
     private State txn_state;
     private List<Vertex> estimated_path;
@@ -84,6 +89,25 @@ public class TestMarkovCostModel extends BaseTestCase {
                     .attach(new MultiPartitionTxnFilter(p_estimator))
                     .attach(new ProcedureLimitFilter(WORKLOAD_XACT_LIMIT));
             workload.load(file.getAbsolutePath(), catalog_db, filter);
+            
+            // Make a copy that doesn't have the first TransactionTrace
+            Workload clone = new Workload(workload, new Workload.Filter() {
+                private boolean first = true;
+                @Override
+                protected FilterResult filter(AbstractTraceElement<? extends CatalogType> element) {
+                    if (element instanceof TransactionTrace && first) {
+                        this.first = false;
+                        return (FilterResult.SKIP);
+                    }
+                    return FilterResult.ALLOW;
+                }
+                @Override
+                protected String debug() { return null; }
+                @Override
+                protected void resetImpl() { }
+            });
+            assert(workload.getTransactions().get(0).getTransactionId() != clone.getTransactions().get(0).getTransactionId());
+            
             // assertEquals(WORKLOAD_XACT_LIMIT, workload.getTransactionCount());
 
             // for (TransactionTrace xact : workload.getTransactions()) {
@@ -93,7 +117,7 @@ public class TestMarkovCostModel extends BaseTestCase {
             // Generate MarkovGraphs per base partition
 //            file = this.getMarkovFile(ProjectType.TPCC);
 //            markovs = MarkovUtil.load(catalog_db, file.getAbsolutePath());
-            markovs = MarkovUtil.createBasePartitionGraphs(catalog_db, workload, p_estimator);
+            markovs = MarkovUtil.createBasePartitionGraphs(catalog_db, clone, p_estimator);
             assertNotNull(markovs);
             
             // And then populate the MarkovCostModel
@@ -110,10 +134,12 @@ public class TestMarkovCostModel extends BaseTestCase {
         assertNotNull(this.txn_trace);
         int base_partition = p_estimator.getBasePartition(txn_trace);
         
-        TransactionEstimator t_estimator = costmodel.getTransactionEstimator(base_partition);
+        this.t_estimator = costmodel.getTransactionEstimator(base_partition);
         assertNotNull(t_estimator);
         this.txn_state = t_estimator.processTransactionTrace(txn_trace);
         assertNotNull(this.txn_state);
+        this.markov = this.t_estimator.getMarkovGraph(catalog_proc);
+        assertNotNull(this.markov);
         
         this.estimated_path = this.txn_state.getEstimatedPath();
         assertNotNull(this.estimated_path);
@@ -124,35 +150,43 @@ public class TestMarkovCostModel extends BaseTestCase {
     }
 
     /**
-     * testCompareSamePaths
+     * testComparePathsFast
      */
     @Test
-    public void testCompareSamePaths() throws Exception {
-        // We should always get a zero cost if we throw the same path at the cost model
-        /* FIXME
-        double cost = costmodel.comparePathsFast(this.actual_path, this.actual_path);
-        assertEquals(0.0d, cost);
-        */
+    public void testComparePathsFast() throws Exception {
+        List<Vertex> clone = new ArrayList<Vertex>(this.actual_path);
+        
+        // At the very least the exact clone should be equal
+        assert(costmodel.comparePathsFast(clone, this.actual_path));
+        
+        // Test to make sure that it catches when one path aborts while the other commits
+        this.actual_path.add(markov.getCommitVertex());
+        clone.add(markov.getCommitVertex());
+        assert(costmodel.comparePathsFast(clone, this.actual_path));
+        clone.set(clone.size()-1, markov.getAbortVertex());
+        assertFalse(costmodel.comparePathsFast(clone, this.actual_path));
+        this.actual_path.remove(this.actual_path.size()-1);
+        
+        // Now check to make sure that it catches when the read/write differ
+        clone.get(1).partitions.add(Integer.MAX_VALUE);
+        assertEquals(false, costmodel.comparePathsFast(clone, this.actual_path));
     }
     
     /**
-     * testCompareDifferentPartitions
+     * testComparePathsFull_Penalty1
      */
     @Test
-    public void testCompareDifferentPartitions() throws Exception {
-        // Now let's add some random partitions into a new path
-        List<Vertex> tester = new ArrayList<Vertex>(this.actual_path);
-        for (int i = 0, cnt = tester.size(); i < cnt; i++) {
-            if (rand.nextBoolean()) {
-                Vertex v = new Vertex(tester.get(i));
-                v.partitions.add(rand.nextInt(NUM_PARTITIONS));
-                tester.set(i, v);
-            }
-        } // FOR
-        /* FIXME
-        double cost = costmodel.comparePathsFast(tester, this.actual_path);
-        assert(cost > 0);
-        */
+    public void testComparePathsFull_Penalty1() throws Exception {
+        Vertex abort_v = markov.getAbortVertex();
+        List<Vertex> actual = this.txn_state.getActualPath();
+        actual.set(actual.size()-1, abort_v);
+        double cost = costmodel.comparePathsFull(this.txn_state);
+        System.err.println("FINAL COST: " + cost);
+        
+        List<Penalty> penalties = costmodel.getLastPenalties();
+        assertNotNull(penalties);
+        System.err.println("PENALTIES: " + penalties);
+        assert(penalties.contains(Penalty.MISSED_ABORT_MULTI) || penalties.contains(Penalty.MISSED_ABORT_SINGLE)); 
     }
     
     /**

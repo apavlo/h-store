@@ -192,7 +192,7 @@ public class Vertex extends AbstractVertex {
      * @param type
      */
     public Vertex(Statement catalog_stmt, Vertex.Type type) {
-        this(catalog_stmt, type, 0, new HashSet<Integer>(), new HashSet<Integer>());
+        this(catalog_stmt, type, 0, null, null);
     }
     
     /**
@@ -216,8 +216,8 @@ public class Vertex extends AbstractVertex {
     public Vertex(Statement catalog_stmt, Vertex.Type type, int query_instance_index, Collection<Integer> partitions, Collection<Integer> past_partitions) {
         super(catalog_stmt);
         this.type = type;
-        this.partitions.addAll(partitions);
-        this.past_partitions.addAll(past_partitions);
+        if (partitions != null) this.partitions.addAll(partitions);
+        if (past_partitions != null) this.past_partitions.addAll(past_partitions);
         this.query_instance_index = query_instance_index;
         this.probabilities = new float[Vertex.Probability.values().length][];
         this.init();
@@ -610,12 +610,16 @@ public class Vertex extends AbstractVertex {
         totalhits += instancehits2;
     }
 
-    public void setExecutiontime(Long executiontime) {
+    public void setExecutiontime(long executiontime) {
         this.execution_time = executiontime;
     }
 
-    public Long getExecutiontime() {
-        return execution_time;
+    /**
+     * The amount of execution time remaining until a transaction at this vertex commits
+     * @return
+     */
+    public long getExecutiontime() {
+        return this.execution_time;
     }
 
     public void addExecutionTime(long l) {
