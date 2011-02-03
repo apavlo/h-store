@@ -12,6 +12,7 @@ import org.apache.log4j.Logger;
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Statement;
+import org.voltdb.types.QueryType;
 
 import edu.brown.markov.EstimationThresholds;
 import edu.brown.markov.MarkovUtil;
@@ -24,6 +25,7 @@ import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.PartitionEstimator;
 import edu.brown.utils.LoggerUtil.LoggerBoolean;
+import edu.brown.workload.QueryTrace;
 import edu.brown.workload.TransactionTrace;
 import edu.brown.workload.Workload;
 import edu.brown.workload.Workload.Filter;
@@ -40,54 +42,73 @@ public class MarkovCostModel extends AbstractCostModel {
      * Cost Model Penalties
      */
     public enum Penalty {
+        // ----------------------------------------------------------------------------
+        // PENALTY #1
+        // ----------------------------------------------------------------------------
         /**
          * The transaction is single-partitioned and it aborts when we predicted that it wouldn't.
          * Evan says that this is the worst!
          */
-        MISSED_ABORT_SINGLE             (0.0d),
+        MISSED_ABORT_SINGLE             (1.0d),
         /**
          * The transaction is multi-partitioned and it aborts when we predicted that it wouldn't. 
          */
-        MISSED_ABORT_MULTI              (0.0d),
+        MISSED_ABORT_MULTI              (0.8d),
+        
+        // ----------------------------------------------------------------------------
+        // PENALTY #2
+        // ----------------------------------------------------------------------------
         /**
          * The transaction did not declare it would read at a partition 
          */
-        MISSING_READ_PARTITION          (0.0d),
+        MISSING_READ_PARTITION          (0.25d),
         /**
          * The transaction did not declare it would write at a partition 
          */
-        MISSING_WRITE_PARTITION         (0.0d),
+        MISSING_WRITE_PARTITION         (0.25d),
+        
+        // ----------------------------------------------------------------------------
+        // PENALTY #3
+        // ----------------------------------------------------------------------------
         /**
          * The transaction goes back to read at a partition after it declared it was done with it
          */
-        RETURN_READ_PARTITION           (0.0d),
+        RETURN_READ_PARTITION           (0.25d),
         /**
          * The transaction goes back to write at a partition after it declared it was done with it
          */
-        RETURN_WRITE_PARTITION          (0.0d),
+        RETURN_WRITE_PARTITION          (0.25d),
+        
+        // ----------------------------------------------------------------------------
+        // PENALTY #4
+        // ----------------------------------------------------------------------------
         /**
          * The transaction said it was going to read at a partition but it never did
          * And it would have executed as single-partitioned if we didn't say it was going to!
          */
-        UNUSED_READ_PARTITION_SINGLE    (0.0d),
+        UNUSED_READ_PARTITION_SINGLE    (0.5d),
         /**
          * The transaction said it was going to write at a partition but it never did
          * And it would have executed as single-partitioned if we didn't say it was going to!
          */
-        UNUSED_WRITE_PARTITION_SINGLE   (0.0d),
+        UNUSED_WRITE_PARTITION_SINGLE   (0.5d),
         /**
          * The transaction said it was going to read at a partition but it never did
          */
-        UNUSED_READ_PARTITION_MULTI     (0.0d),
+        UNUSED_READ_PARTITION_MULTI     (0.1d),
         /**
          * The transaction said it was going to write at a partition but it never did
          */
-        UNUSED_WRITE_PARTITION_MULTI    (0.0d),
+        UNUSED_WRITE_PARTITION_MULTI    (0.1d),
+        
+        // ----------------------------------------------------------------------------
+        // PENALTY #5
+        // ----------------------------------------------------------------------------
         /**
          * The transaction is done with a partition but we don't identify it
          * until later in the execution path
          */
-        LATE_DONE_PARTITION             (0.0d),
+        LATE_DONE_PARTITION             (0.05d),
         ;
         
         private final double cost;
@@ -180,10 +201,13 @@ public class MarkovCostModel extends AbstractCostModel {
     }
     
 
-    @Override
-    public AbstractCostModel clone(Database catalogDb) throws CloneNotSupportedException {
-        // TODO Auto-generated method stub
-        return null;
+    /**
+     * Get the penalties for the last TransactionTrace processed
+     * Not thread-safe
+     * @return
+     */
+    public List<Penalty> getLastPenalties() {
+        return this.penalties;
     }
 
     @Override
@@ -229,7 +253,7 @@ public class MarkovCostModel extends AbstractCostModel {
         // Try fast version
         if (!this.comparePathsFast(s.getEstimatedPath(), s.getActualPath())) {
             // Otherwise we have to do the full path comparison to figure out just how wrong we are
-            cost = this.comparePathsFull(s, s.getEstimatedPath(), s.getActualPath());
+            cost = this.comparePathsFull(s);
         }
         
         TransactionEstimator.getStatePool().returnObject(s);
@@ -246,7 +270,7 @@ public class MarkovCostModel extends AbstractCostModel {
      * @return
      */
     protected boolean comparePathsFast(final List<Vertex> estimated, final List<Vertex> actual) {
-        if (trace.get()) LOG.trace(String.format("Fast Path Compare: Estimated [size=%d] vs. Actual Cost [size=%d]", estimated.size(), actual.size()));
+        if (trace.get()) LOG.trace(String.format("Fast Path Compare: Estimated [size=%d] vs. Actual [size=%d]", estimated.size(), actual.size()));
         
         // (1) Check that the estimate's last state matches the actual path (commit vs abort) 
         Vertex e_last = CollectionUtil.getLast(estimated);
@@ -281,16 +305,20 @@ public class MarkovCostModel extends AbstractCostModel {
      * @param actual
      * @return
      */
-    protected double comparePathsFull(State s, List<Vertex> estimated, List<Vertex> actual) {
-        double cost = 0.0d;
+    protected double comparePathsFull(State s) {
+        final boolean t = trace.get();
+        final boolean d = debug.get();
+        
         this.penalties.clear();
 
+        List<Vertex> estimated = s.getEstimatedPath();
         this.e_all_partitions.clear();
         this.e_all_partitions.addAll(this.e_read_partitions);
         this.e_all_partitions.addAll(this.e_write_partitions);
-        Vertex e_last = CollectionUtil.getLast(actual);
+        Vertex e_last = CollectionUtil.getLast(estimated);
         assert(e_last != null);
         
+        List<Vertex> actual = s.getActualPath();
         this.a_all_partitions.clear();
         this.a_all_partitions.addAll(this.a_read_partitions);
         this.a_all_partitions.addAll(this.a_write_partitions);
@@ -306,136 +334,184 @@ public class MarkovCostModel extends AbstractCostModel {
         boolean e_singlepartitioned = initial_est.isSinglePartition(this.thresholds); 
         boolean a_singlepartitioned = (this.a_all_partitions.size() == 1);
 
-        
+        // ----------------------------------------------------------------------------
         // PENALTY #1
         // If the transaction was predicted to be single-partitioned and we don't predict that it's going to
         // abort when it actually did, then that's bad! Really bad!
+        // ----------------------------------------------------------------------------
         if (initial_est.isUserAbort(this.thresholds) == false && a_last.isAbortVertex()) {
+            if (t) LOG.trace(String.format("Txn #%d aborts but we predicted that it would never!", s.getTransactionId()));
             this.penalties.add(a_singlepartitioned ? Penalty.MISSED_ABORT_SINGLE : Penalty.MISSED_ABORT_MULTI);
         }
         
+        // ----------------------------------------------------------------------------
         // PENALTY #2
-        // Get the transaction actually reads/writes at more partitions than it originally predicted
+        // The transaction actually reads/writes at more partitions than it originally predicted
         // This is expensive because it means that we have to abort+restart the txn
+        // ----------------------------------------------------------------------------
         for (Integer p : this.a_read_partitions) {
-            if (this.e_read_partitions.contains(p) == false)
+            if (this.e_read_partitions.contains(p) == false) {
+                if (t) LOG.trace(String.format("Txn #%d failed to predict that it was READING at partition %d", s.getTransactionId(), p)); 
                 this.penalties.add(Penalty.MISSING_READ_PARTITION);
+            }
         } // FOR
         for (Integer p : this.a_write_partitions) {
-            if (this.e_write_partitions.contains(p) == false)
+            if (this.e_write_partitions.contains(p) == false) {
+                if (t) LOG.trace(String.format("Txn #%d failed to predict that it was WRITING at partition %d", s.getTransactionId(), p));
                 this.penalties.add(Penalty.MISSING_WRITE_PARTITION);
+            }
         } // FOR
         
+        // ----------------------------------------------------------------------------
         // PENALTY #3
-        // Check whether the transaction has declared that they would read/write at a partition
-        // but then they never actually did so
-        // The penalty is higher if it was predicted as multi-partitioned but it was actually single-partitioned
-        boolean could_be_singlepartitioned = (e_singlepartitioned == false && a_singlepartitioned == true);
-        for (Integer p : this.e_read_partitions) {
-            if (this.a_read_partitions.contains(p) == false)
-                this.penalties.add(could_be_singlepartitioned ? Penalty.UNUSED_READ_PARTITION_SINGLE :
-                                                                Penalty.UNUSED_READ_PARTITION_MULTI);
-        } // FOR
-        for (Integer p : this.e_write_partitions) {
-            if (this.a_write_partitions.contains(p) == false)
-                this.penalties.add(could_be_singlepartitioned ? Penalty.UNUSED_WRITE_PARTITION_SINGLE :
-                                                                Penalty.UNUSED_WRITE_PARTITION_MULTI);
-        } // FOR
-        
-        // PENALTY #4
         // We declared that we were done at a partition but then later we actually needed it
+        // This can happen if there is a path that a has very low probability of us taking it, but then
+        // ended up taking it anyway
+        // ----------------------------------------------------------------------------
         this.done_partitions.clear();
         int num_estimates = s.getEstimateCount();
         List<Estimate> estimates = s.getEstimates();
+        int last_est_idx = 0;
         for (int i = 0; i < num_estimates; i++) {
             Estimate est = estimates.get(i);
-            this.done_partitions.addAll(est.getFinishedPartitions(this.thresholds));
+            Vertex est_v = est.getVertex();
+            
+            System.err.println(est.toString() + "\n");
             
             // Check if we read/write at any partition that was previously declared as done
-            
-            
-        }
-        
-        
-        int e_cnt = estimated.size();
-        int a_cnt = actual.size();
-        for (int e_i = 1, a_i = 1; a_i < a_cnt-1; a_i++) {
-            Vertex a = actual.get(a_i);
-            Vertex e = null;
-            try {
-                e = estimated.get(e_i);
-            } catch (IndexOutOfBoundsException ex) {
-                // IGNORE
-            }
-        
-            if (trace.get()) LOG.trace(String.format("Estimated[%02d]%s <==> Actual[%02d]%s", e_i, e, a_i, a));
-            
-            if (e != null) {
-                Statement e_stmt = e.getCatalogItem();
-                Set<Integer> e_partitions = e.getPartitions();
-                e_all_partitions.addAll(e_partitions);
+            if (i > 0) {
+                // Get the path of vertices
+                int start = last_est_idx;
+                int stop = actual.indexOf(est_v);
+                assert(stop != -1);
                 
-                Statement a_stmt = a.getCatalogItem();
-                Set<Integer> a_partitions = a.getPartitions();
-                a_all_partitions.addAll(a_partitions);
-                
-                // Check whether they're executing the same queries
-                if (a_stmt.equals(e_stmt) == false) {
-                    if (trace.get()) LOG.trace("STMT MISMATCH: " + e_stmt + " != " + a_stmt);
-                    cost += 1;
-                // Great, we're getting there. Check whether these queries are
-                // going to touch the same partitions
-                } else if ((a_partitions.size() != e_partitions.size()) || 
-                           (a_partitions.equals(e_partitions) == false)) {
-                    if (trace.get()) LOG.trace("PARTITION MISMATCH: " + e_partitions + " != " + a_partitions);
+                for ( ; start <= stop; start++) {
+                    Vertex v = actual.get(start);
+                    assert(v != null);
                     
-                    // Do we want to penalize them for every partition they get wrong?
-                    for (Integer p : a_partitions) {
-                        if (e_partitions.contains(p) == false) {
-                            cost += 1.0d;
+                    Statement catalog_stmt = v.getCatalogItem();
+                    QueryType qtype = QueryType.get(catalog_stmt.getQuerytype());
+                    Penalty ptype = (qtype == QueryType.SELECT ? Penalty.RETURN_READ_PARTITION : Penalty.RETURN_WRITE_PARTITION);
+                        
+                    for (Integer p : v.getPartitions()) {
+                        if (this.done_partitions.contains(p)) {
+                            if (t) LOG.trace(String.format("Txn #%d said that it was done at partition %d but it executed a %s",
+                                                           s.getTransactionId(), p, qtype.name()));
+                            this.penalties.add(ptype);
+                            this.done_partitions.remove(p);
                         }
-                    }
-                    
-                // Ok they have the same query and they're going to the same partitions,
-                // So now check whether that this is the same number of times that they've
-                // executed this query before 
-                } else if (a.getQueryInstanceIndex() != e.getQueryInstanceIndex()) {
-                    int a_idx = a.getQueryInstanceIndex();
-                    int e_idx = e.getQueryInstanceIndex();
-                    if (trace.get()) LOG.trace("QUERY INDEX MISMATCH: " + e_idx + " != " + a_idx);
-                    // Do we actually to penalize them for this??
-                }
-                
-                e_i++;
-                if (trace.get()) LOG.trace("");
-                
-            // If our estimated path is too short, then yeah that's going to cost ya'!
-            } else {
-                cost += 1.0d;
+                    } // FOR
+                } // FOR
+                last_est_idx = stop;
+            }
+            this.done_partitions.addAll(est.getFinishedPartitions(this.thresholds));
+        } // FOR
+        
+        // ----------------------------------------------------------------------------
+        // PENALTY #4
+        // Check whether the transaction has declared that they would read/write at a partition
+        // but then they never actually did so
+        // The penalty is higher if it was predicted as multi-partitioned but it was actually single-partitioned
+        // ----------------------------------------------------------------------------
+        boolean could_be_singlepartitioned = (e_singlepartitioned == false && a_singlepartitioned == true);
+        for (Integer p : this.e_read_partitions) {
+            if (this.a_read_partitions.contains(p) == false) {
+                if (t) LOG.trace(String.format("Txn #%d predicted it would READ at partition %d but it never did", s.getTransactionId(), p));
+                this.penalties.add(could_be_singlepartitioned ? Penalty.UNUSED_READ_PARTITION_SINGLE :
+                                                                Penalty.UNUSED_READ_PARTITION_MULTI);
+            }
+        } // FOR
+        for (Integer p : this.e_write_partitions) {
+            if (this.a_write_partitions.contains(p) == false) {
+                if (t) LOG.trace(String.format("Txn #%d predicted it would WRITE at partition %d but it never did", s.getTransactionId(), p));
+                this.penalties.add(could_be_singlepartitioned ? Penalty.UNUSED_WRITE_PARTITION_SINGLE :
+                                                                Penalty.UNUSED_WRITE_PARTITION_MULTI);
             }
         } // FOR
         
-        // Penalize them for invalid partitions
-        // One point for every missing one and one point for every one too many
-        int p_missing = 0;
-        int p_incorrect = 0;
-        for (Integer p : a_all_partitions) {
-            if (e_all_partitions.contains(p) == false) p_missing++;
-        }
-        for (Integer p : e_all_partitions) {
-            if (a_all_partitions.contains(p) == false) p_incorrect++;
-        }
-        cost += p_missing + p_incorrect;
+        // ----------------------------------------------------------------------------
+        // PENALTY #5
+        // ----------------------------------------------------------------------------
         
-       
+//        int e_cnt = estimated.size();
+//        int a_cnt = actual.size();
+//        for (int e_i = 1, a_i = 1; a_i < a_cnt-1; a_i++) {
+//            Vertex a = actual.get(a_i);
+//            Vertex e = null;
+//            try {
+//                e = estimated.get(e_i);
+//            } catch (IndexOutOfBoundsException ex) {
+//                // IGNORE
+//            }
+//        
+//            if (trace.get()) LOG.trace(String.format("Estimated[%02d]%s <==> Actual[%02d]%s", e_i, e, a_i, a));
+//            
+//            if (e != null) {
+//                Statement e_stmt = e.getCatalogItem();
+//                Set<Integer> e_partitions = e.getPartitions();
+//                e_all_partitions.addAll(e_partitions);
+//                
+//                Statement a_stmt = a.getCatalogItem();
+//                Set<Integer> a_partitions = a.getPartitions();
+//                a_all_partitions.addAll(a_partitions);
+//                
+//                // Check whether they're executing the same queries
+//                if (a_stmt.equals(e_stmt) == false) {
+//                    if (trace.get()) LOG.trace("STMT MISMATCH: " + e_stmt + " != " + a_stmt);
+//                    cost += 1;
+//                // Great, we're getting there. Check whether these queries are
+//                // going to touch the same partitions
+//                } else if ((a_partitions.size() != e_partitions.size()) || 
+//                           (a_partitions.equals(e_partitions) == false)) {
+//                    if (trace.get()) LOG.trace("PARTITION MISMATCH: " + e_partitions + " != " + a_partitions);
+//                    
+//                    // Do we want to penalize them for every partition they get wrong?
+//                    for (Integer p : a_partitions) {
+//                        if (e_partitions.contains(p) == false) {
+//                            cost += 1.0d;
+//                        }
+//                    }
+//                    
+//                // Ok they have the same query and they're going to the same partitions,
+//                // So now check whether that this is the same number of times that they've
+//                // executed this query before 
+//                } else if (a.getQueryInstanceIndex() != e.getQueryInstanceIndex()) {
+//                    int a_idx = a.getQueryInstanceIndex();
+//                    int e_idx = e.getQueryInstanceIndex();
+//                    if (trace.get()) LOG.trace("QUERY INDEX MISMATCH: " + e_idx + " != " + a_idx);
+//                    // Do we actually to penalize them for this??
+//                }
+//                
+//                e_i++;
+//                if (trace.get()) LOG.trace("");
+//                
+//            // If our estimated path is too short, then yeah that's going to cost ya'!
+//            } else {
+//                cost += 1.0d;
+//            }
+//        } // FOR
+//        
+//        // Penalize them for invalid partitions
+//        // One point for every missing one and one point for every one too many
+//        int p_missing = 0;
+//        int p_incorrect = 0;
+//        for (Integer p : a_all_partitions) {
+//            if (e_all_partitions.contains(p) == false) p_missing++;
+//        }
+//        for (Integer p : e_all_partitions) {
+//            if (a_all_partitions.contains(p) == false) p_incorrect++;
+//        }
+//        cost += p_missing + p_incorrect;
+        
+        if (t) LOG.trace(String.format("Number of Penalties %d: %s", this.penalties.size(), this.penalties));
+        
+        double cost = 0.0d;
+        for (Penalty p : this.penalties) cost += p.getCost();
         return (cost);
     }
     
     public double calculateTotalPenalty() {
         double total = 0.0d;
-        for (Penalty p : this.penalties) {
-            total += p.getCost();
-        }
         return (total);
     }
     
@@ -453,6 +529,11 @@ public class MarkovCostModel extends AbstractCostModel {
         // Nothing...
     }
 
+    @Override
+    public AbstractCostModel clone(Database catalogDb) throws CloneNotSupportedException {
+        return null;
+    }
+    
     @Override
     public void prepareImpl(Database catalog_db) {
         // This is the start of a new run through the workload, so we need to re-init

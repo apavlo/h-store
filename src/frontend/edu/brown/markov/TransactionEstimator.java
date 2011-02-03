@@ -5,6 +5,7 @@ import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.commons.pool.BasePoolableObjectFactory;
 import org.apache.commons.pool.ObjectPool;
 import org.apache.commons.pool.impl.StackObjectPool;
@@ -84,6 +85,9 @@ public class TransactionEstimator {
         
         private transient Vertex current;
 
+        /**
+         * State Factory
+         */
         public static class Factory extends BasePoolableObjectFactory {
             private int num_partitions;
             
@@ -142,15 +146,24 @@ public class TransactionEstimator {
             this.num_estimates = 0;
         }
         
+        /**
+         * Get the next Estimate object for this State
+         * @return
+         */
         protected synchronized Estimate getNextEstimate() {
             Estimate next = null;
             if (this.num_estimates < this.estimates.size()) {
                 next = this.estimates.get(this.num_estimates);
             } else {
                 next = new Estimate(this.num_partitions);
+                this.estimates.add(next);
             }
-            this.num_estimates++;
+            next.init(this.current, this.num_estimates++);
             return (next);
+        }
+
+        public long getTransactionId() {
+            return (this.txn_id);
         }
         
         public MarkovGraph getMarkovGraph() {
@@ -224,7 +237,7 @@ public class TransactionEstimator {
         }
 
         public Estimate getLastEstimate() {
-            return this.estimates.get(this.num_estimates);
+            return this.estimates.get(this.num_estimates-1);
         }
         
         public int getEstimateCount() {
@@ -268,13 +281,36 @@ public class TransactionEstimator {
         
         private final double write[];
         private Set<Integer> write_partitions;
-        
-        private Long time;
+ 
+        private transient Vertex vertex;
+        private transient int batch;
+        private transient Long time;
 
         private Estimate(int num_partitions) {
             this.finished = new double[num_partitions];
             this.read = new double[num_partitions];
             this.write = new double[num_partitions];
+        }
+        
+        /**
+         * Given an empty estimate object and the current Vertex, we fill in the
+         * relevant information for the transaction coordinator to use.
+         * @param estimate the Estimate object which will be filled in
+         * @param current the Vertex we are currently at in the MarkovGraph
+         */
+        public Estimate init(Vertex current, int batch) {
+            this.batch = batch;
+            this.vertex = current;
+            
+            this.singlepartition = current.getSingleSitedProbability();
+            this.userabort = current.getAbortProbability();
+            this.time = current.getExecutiontime();
+            for (int i = 0; i < this.write.length; i++) {
+                this.finished[i] = current.getDoneProbability(i);
+                this.read[i] = current.getReadOnlyProbability(i);
+                this.write[i] = current.getWriteProbability(i);
+            } // FOR
+            return (this);
         }
         
         @Override
@@ -283,6 +319,22 @@ public class TransactionEstimator {
             this.target_partitions.clear();
             this.read_partitions.clear();
             this.write_partitions.clear();
+        }
+        
+        /**
+         * The last vertex in this batch
+         * @return
+         */
+        public Vertex getVertex() {
+            return vertex;
+        }
+        
+        /**
+         * Return that BatchId for this Estimate
+         * @return
+         */
+        public int getBatchId() {
+            return (this.batch);
         }
 
         // ----------------------------------------------------------------------------
@@ -377,21 +429,20 @@ public class TransactionEstimator {
         
         @Override
         public String toString() {
-            StringBuilder sb = new StringBuilder();
-            final String f = "%.02f"; 
+            final String f = "%-6.02f"; 
             
-            sb.append("Single-Partition: ").append(String.format(f, this.singlepartition)).append("\n");
-            sb.append("User Abort:       ").append(String.format(f, this.userabort)).append("\n");
-            sb.append("\n");
+            Map<String, Object> m0 = new ListOrderedMap<String, Object>();
+            m0.put("Batch Estimate", "#" + this.batch);
+            m0.put("Single-Partition", String.format(f, this.singlepartition));
+            m0.put("User Abort", String.format(f, this.userabort));
             
-            sb.append("              \tRead\tWrite\tFinish\n");
+            Map<String, Object> m1 = new ListOrderedMap<String, Object>();
+            m1.put("", String.format("%-6s%-6s%-6s", "Read", "Write", "Finish"));
             for (int i = 0; i < this.read.length; i++) {
-                sb.append(String.format("Partition %02d:\t", i));
-                sb.append(String.format(f, this.read[i])).append("\t");
-                sb.append(String.format(f, this.write[i])).append("\t");
-                sb.append(String.format(f, this.finished[i])).append("\n");
+                String val = String.format(f + f + f, this.read[i], this.write[i], this.finished[i]);
+                m1.put(String.format("Partition %02d", i), val);
             } // FOR
-            return (sb.toString());
+            return (StringUtil.formatMapsBoxed(m0, m1));
         }
     } // END CLASS
 
@@ -531,7 +582,7 @@ public class TransactionEstimator {
      * @param BASE_PARTITION
      * @return an estimate for the transaction's future
      */
-    public Estimate startTransaction(long txn_id, Procedure catalog_proc, Object args[]) {
+    public State startTransaction(long txn_id, Procedure catalog_proc, Object args[]) {
         assert (catalog_proc != null);
 
         // If we don't have a graph for this procedure, we should probably just return null
@@ -587,10 +638,12 @@ public class TransactionEstimator {
             throw new RuntimeException(ex);
         }
         this.txn_states.put(txn_id, state);
-        Estimate est = this.generateEstimate(state);
+        Estimate est = state.getNextEstimate();
+        assert(est != null);
+        assert(est.getBatchId() == 0);
         
         this.txn_count.incrementAndGet();
-        return (est);
+        return (state);
     }
 
     /**
@@ -628,7 +681,7 @@ public class TransactionEstimator {
             this.consume(state, catalog_stmts[i], partitions[i]);
         } // FOR
         
-        Estimate estimate = this.generateEstimate(state);
+        Estimate estimate = state.getNextEstimate();
         assert(estimate != null);
         
         // Once the workload shifts we detect it and trigger this method. Recomputes
@@ -711,26 +764,6 @@ public class TransactionEstimator {
     // ----------------------------------------------------------------------------
     // INTERNAL ESTIMATION METHODS
     // ----------------------------------------------------------------------------
-    
-    /**
-     * Given an empty estimate object and the current Vertex, we fill in the
-     * relevant information for the transaction coordinator to use.
-     * @param estimate the Estimate object which will be filled in
-     * @param current the Vertex we are currently at in the MarkovGraph
-     */
-    protected Estimate generateEstimate(State state) {
-        Estimate estimate = state.getNextEstimate();
-        Vertex current = state.getCurrent();
-        estimate.singlepartition = current.getSingleSitedProbability();
-        estimate.userabort = current.getAbortProbability();
-        estimate.time = current.getExecutiontime();
-        for (int i : CatalogUtil.getAllPartitionIds(this.catalog_db)) {
-            estimate.finished[i] = current.getDoneProbability(i);
-            estimate.read[i] = current.getReadOnlyProbability(i);
-            estimate.write[i] = current.getWriteProbability(i);
-        } // FOR
-        return (estimate);
-    }
 
     /**
      * At the start of a transaction, estimate the execution path that the
@@ -810,9 +843,7 @@ public class TransactionEstimator {
     @SuppressWarnings("unchecked")
     public State processTransactionTrace(TransactionTrace txn_trace) throws Exception {
         long txn_id = txn_trace.getTransactionId();
-        Estimate last_est = this.startTransaction(txn_id, txn_trace.getCatalogItem(this.catalog_db), txn_trace.getParams());
-        assert(last_est != null);
-        State s = this.getState(txn_id);
+        State s = this.startTransaction(txn_id, txn_trace.getCatalogItem(this.catalog_db), txn_trace.getParams());
         assert(s != null);
         for (Entry<Integer, List<QueryTrace>> e : txn_trace.getBatches().entrySet()) {
             int batch_size = e.getValue().size();
@@ -829,7 +860,7 @@ public class TransactionEstimator {
                 assert(partitions[i].isEmpty() == false) : "No partitions for " + query_trace;
             } // FOR
             
-            last_est = this.executeQueries(txn_id, catalog_stmts, partitions);
+            this.executeQueries(txn_id, catalog_stmts, partitions);
         } // FOR (batches)
         return (txn_trace.isAborted() ? this.abort(txn_id) : this.commit(txn_id));
     }

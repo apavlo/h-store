@@ -14,7 +14,9 @@ import edu.brown.catalog.CatalogUtil;
 import edu.brown.correlations.ParameterCorrelations;
 import edu.brown.graphs.GraphvizExport;
 import edu.brown.markov.TransactionEstimator.Estimate;
+import edu.brown.markov.TransactionEstimator.State;
 import edu.brown.utils.*;
+import edu.brown.workload.QueryTrace;
 import edu.brown.workload.Workload;
 import edu.brown.workload.TransactionTrace;
 import edu.brown.workload.Workload;
@@ -33,7 +35,7 @@ public class TestTransactionEstimator extends BaseTestCase {
 
     public static final Random rand = new Random();
     
-    private static final int WORKLOAD_XACT_LIMIT = 100000;
+    private static final int WORKLOAD_XACT_LIMIT = 50;
     private static final int BASE_PARTITION = 1;
     private static final int NUM_PARTITIONS = 10;
     private static List<Integer> ALL_PARTITIONS;
@@ -72,7 +74,7 @@ public class TestTransactionEstimator extends BaseTestCase {
                     .attach(new BasePartitionTxnFilter(p_estimator, BASE_PARTITION))
                     .attach(new ProcedureLimitFilter(WORKLOAD_XACT_LIMIT));
 
-            file = this.getWorkloadFile(ProjectType.TPCC);
+            file = this.getWorkloadFile(ProjectType.TPCC, "100w.large");
             workload = new Workload(catalog);
             ((Workload) workload).load(file.getAbsolutePath(), catalog_db, filter);
             assert(workload.getTransactionCount() > 0);
@@ -119,17 +121,19 @@ public class TestTransactionEstimator extends BaseTestCase {
     @Test
     public void testStartTransaction() throws Exception {
         long txn_id = XACT_ID++;
-        Estimate est = t_estimator.startTransaction(txn_id, this.catalog_proc, multip_trace.getParams());
+        State state = t_estimator.startTransaction(txn_id, this.catalog_proc, multip_trace.getParams());
+        Estimate est = state.getInitialEstimate();
         assertNotNull(est);
+        assertEquals(est, state.getLastEstimate());
         System.err.println(est.toString());
         
         MarkovGraph markov = markovs.get(BASE_PARTITION, this.catalog_proc);
-        List<Vertex> initial_path = t_estimator.getInitialPath(txn_id);
+        List<Vertex> initial_path = state.getEstimatedPath();
         assertFalse(initial_path.isEmpty());
         System.err.println("# of Vertices: " + markov.getVertexCount());
         System.err.println("# of Edges:    " + markov.getEdgeCount());
         System.err.println("Confidence:    " + String.format("%.4f", t_estimator.getConfidence(txn_id)));
-        System.err.println("INITIAL PATH:\n" + StringUtil.join("\n", initial_path));
+        System.err.println("\nINITIAL PATH:\n" + StringUtil.join("\n", initial_path));
         
 //        GraphvizExport<Vertex, Edge> gv = MarkovUtil.exportGraphviz(markov, false, null);
 //        gv.highlightPath(markov.getPath(initial_path), "blue");
@@ -137,10 +141,9 @@ public class TestTransactionEstimator extends BaseTestCase {
 //
 //        MarkovUtil.exportGraphviz(markov, false, markov.getPath(multip_path)).writeToTempFile(this.catalog_proc, 1);
         
-// FIXME        assert(est.isSinglePartition(this.thresholds));
-// FIXME        assertFalse(est.isUserAbort(this.thresholds));
+        assertFalse(est.isSinglePartition(this.thresholds));
+        assertFalse(est.isUserAbort(this.thresholds));
         
-        /* FIXME
         for (Integer partition : ALL_PARTITIONS) {
             if (partition == BASE_PARTITION) {
                 assertFalse("isFinishedPartition(" + partition + ")", est.isFinishedPartition(thresholds, partition));
@@ -152,12 +155,32 @@ public class TestTransactionEstimator extends BaseTestCase {
                 assertFalse("isTargetPartition(" + partition + ")", est.isTargetPartition(thresholds, partition) == true);
             }
         } // FOR
-        */
     }
     
+    /**
+     * testProcessTransactionTrace
+     */
     @Test
-    public void testStepTransaction() {
+    public void testProcessTransactionTrace() throws Exception {
+        TransactionTrace txn_trace = workload.getTransactions().get(0);
+        assertNotNull(txn_trace);
+        State s = this.t_estimator.processTransactionTrace(txn_trace);
+        assertNotNull(s);
         
+        // We should have an Estimate for each batch, plus one for the initial Estimate
+        assertEquals(txn_trace.getBatchCount()+1, s.getEstimateCount());
+        List<Estimate> estimates = s.getEstimates();
+        for (int i = 0, cnt = txn_trace.getBatchCount(); i < cnt; i++) {
+            List<QueryTrace> queries = txn_trace.getBatchQueries(i);
+            assertFalse(queries.isEmpty());
+            
+            Estimate est = estimates.get(i + 1);
+            assertNotNull(est);
+            
+            // The last vertex in each Estimate should correspond to the last query in each batch
+            Vertex last_v = est.getVertex();
+            assertNotNull(last_v);
+            assertEquals(CollectionUtil.getLast(queries).getCatalogItem(catalog_db), last_v.getCatalogItem());
+        } // FOR
     }
-    
 }
