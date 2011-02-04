@@ -91,152 +91,156 @@ public class TestFeatureClusterer extends BaseTestCase {
     }
     
     
-    /**
-     * testSplitPercentages
-     */
-    @Test
-    public void testSplitPercentages() {
-        double total = 0.0d;
-        for (SplitType stype : FeatureClusterer.SplitType.values()) {
-            total += stype.getPercentage();
-        }
-        assertEquals(1.0d, total);
-    }
-    
-    /**
-     * testCalculateGlobalCost
-     */
-    @Test
-    public void testCalculateGlobalCost() throws Exception {
-        this.fclusterer.splitWorkload(data);
-        this.fclusterer.calculateGlobalCost();
-        int counters[] = this.fclusterer.getGlobalCounters();
-        assertNotNull(counters);
-        for (int i = 0; i < counters.length; i++) {
-            int val = counters[i];
-            assert(val >= 0) : String.format("Invalid Counter[%d] => %d", i, val);
-        } // FOR
-    }
-    
 //    /**
-//     * testCalculate
+//     * testSplitPercentages
 //     */
 //    @Test
-//    public void testCalculate() throws Exception {
-//        this.fclusterer.setNumRounds(1);
-//        this.fclusterer.setAttributeTopK(0.50);
-//        MarkovAttributeSet aset = this.fclusterer.calculate(data);
+//    public void testSplitPercentages() {
+//        double total = 0.0d;
+//        for (SplitType stype : FeatureClusterer.SplitType.values()) {
+//            total += stype.getPercentage();
+//        }
+//        assertEquals(1.0d, total);
+//    }
+//    
+//    /**
+//     * testCalculateGlobalCost
+//     */
+//    @Test
+//    public void testCalculateGlobalCost() throws Exception {
+//        this.fclusterer.splitWorkload(data);
+//        this.fclusterer.calculateGlobalCost();
+//        int counters[] = this.fclusterer.getGlobalCounters();
+//        assertNotNull(counters);
+//        for (int i = 0; i < counters.length; i++) {
+//            int val = counters[i];
+//            assert(val >= 0) : String.format("Invalid Counter[%d] => %d", i, val);
+//        } // FOR
+//    }
+//    
+////    /**
+////     * testCalculate
+////     */
+////    @Test
+////    public void testCalculate() throws Exception {
+////        this.fclusterer.setNumRounds(1);
+////        this.fclusterer.setAttributeTopK(0.50);
+////        MarkovAttributeSet aset = this.fclusterer.calculate(data);
+////        assertNotNull(aset);
+////        
+////        System.err.println(aset);
+////        System.err.println("COST: " + aset.getCost());
+////        
+////        
+////    }
+//    
+//    /**
+//     * testCreateMarkovAttributeSetFilter
+//     */
+//    @Test
+//    public void testCreateMarkovAttributeSetFilter() throws Exception {
+//        // Test that we can create a filter from an MarkovAttributeSet
+//        MarkovAttributeSet aset = new MarkovAttributeSet(data, FeatureUtil.getFeatureKeyPrefix(ParamArrayLengthFeature.class));
+//        assertEquals(CatalogUtil.getArrayProcParameters(catalog_proc).size(), aset.size());
+//        
+//        Filter filter = aset.createFilter(data);
+//        Instances newData = Filter.useFilter(data, filter);
+//        for (int i = 0, cnt = newData.numInstances(); i < cnt; i++) {
+//            Instance processed = newData.instance(i);
+////            System.err.println(processed);
+//            assertEquals(aset.size(), processed.numAttributes());
+//        } // WHILE
+//        assertEquals(data.numInstances(), newData.numInstances());
+////        System.err.println("MarkovAttributeSet: " + aset);
+//        
+//    }
+//    
+//    /**
+//     * testCreateClusterer
+//     */
+//    @Test
+//    public void testCreateClusterer() throws Exception {
+//        // Construct a simple MarkovAttributeSet that only contains the BasePartitionFeature
+//        MarkovAttributeSet base_aset = new MarkovAttributeSet(data, FeatureUtil.getFeatureKeyPrefix(BasePartitionFeature.class));
+//        assertFalse(base_aset.isEmpty());
+//        int base_partition_idx = CollectionUtil.getFirst(base_aset).index();
+//        
+//        AbstractClusterer clusterer = this.fclusterer.createClusterer(base_aset, data);
+//        assertNotNull(clusterer);
+//        
+//        // Make sure that each Txn gets mapped to the same cluster as its base partition
+//        Map<Integer, Histogram> p_c_xref = new HashMap<Integer, Histogram>();
+//        for (int i = 0, cnt = data.numInstances(); i < cnt; i++) {
+//            Instance inst = data.instance(i);
+//            assertNotNull(inst);
+//            long txn_id = FeatureUtil.getTransactionId(inst);
+//
+//            TransactionTrace txn_trace = workload.getTransaction(txn_id);
+//            assertNotNull(txn_trace);
+//            Integer base_partition = p_estimator.getBasePartition(txn_trace);
+//            assertNotNull(base_partition);
+//            assertEquals(base_partition.intValue(), (int)inst.value(base_partition_idx));
+//
+//            int c = clusterer.clusterInstance(inst);
+//            Histogram h = p_c_xref.get(base_partition);
+//            if (h == null) {
+//                h = new Histogram();
+//                p_c_xref.put(base_partition, h);
+//            }
+//            h.put(c);
+//        } // FOR
+//        
+////        System.err.println(StringUtil.formatMaps(p_c_xref));
+//        Set<Integer> c_p_xref = new HashSet<Integer>();
+//        for (Entry<Integer, Histogram> e : p_c_xref.entrySet()) {
+//            Set<Integer> clusters = e.getValue().values();
+//            
+//            // Make sure that each base partition is only mapped to one cluster
+//            assertEquals(e.getKey().toString(), 1, clusters.size());
+//            
+//            // Make sure that two different base partitions are not mapped to the same cluster
+//            assertFalse(c_p_xref.contains(CollectionUtil.getFirst(clusters)));
+//            c_p_xref.addAll(clusters);
+//        } // FOR
+//    }
+//
+//    /**
+//     * testCalculateAttributeSetCost
+//     */
+//    @Test
+//    public void testCalculateAttributeSetCost() throws Exception {
+//        Set<Attribute> attributes = FeatureClusterer.prefix2attributes(data,
+//            FeatureUtil.getFeatureKeyPrefix(ParamArrayLengthFeature.class, this.getProcParameter(catalog_proc, 4)),
+//            FeatureUtil.getFeatureKeyPrefix(ParamHashPartitionFeature.class, this.getProcParameter(catalog_proc, 1))
+//        );
+//        
+//        Instances instances[] = fclusterer.splitWorkload(data);
+//        assertNotNull(instances);
+//        MarkovAttributeSet aset = new MarkovAttributeSet(attributes);
 //        assertNotNull(aset);
-//        
-//        System.err.println(aset);
-//        System.err.println("COST: " + aset.getCost());
-//        
-//        
+//        fclusterer.calculateAttributeSetCost(aset);
+//        assert(aset.getCost() > 0);
 //    }
     
     /**
-     * testCreateMarkovAttributeSetFilter
+     * testGenerateDecisionTree
      */
     @Test
-    public void testCreateMarkovAttributeSetFilter() throws Exception {
-        // Test that we can create a filter from an MarkovAttributeSet
-        MarkovAttributeSet aset = new MarkovAttributeSet(data, FeatureUtil.getFeatureKeyPrefix(ParamArrayLengthFeature.class));
-        assertEquals(CatalogUtil.getArrayProcParameters(catalog_proc).size(), aset.size());
-        
-        Filter filter = aset.createFilter(data);
-        Instances newData = Filter.useFilter(data, filter);
-        for (int i = 0, cnt = newData.numInstances(); i < cnt; i++) {
-            Instance processed = newData.instance(i);
-//            System.err.println(processed);
-            assertEquals(aset.size(), processed.numAttributes());
-        } // WHILE
-        assertEquals(data.numInstances(), newData.numInstances());
-//        System.err.println("MarkovAttributeSet: " + aset);
-        
-    }
-    
-    /**
-     * testCreateClusterer
-     */
-    @Test
-    public void testCreateClusterer() throws Exception {
-        // Construct a simple MarkovAttributeSet that only contains the BasePartitionFeature
-        MarkovAttributeSet base_aset = new MarkovAttributeSet(data, FeatureUtil.getFeatureKeyPrefix(BasePartitionFeature.class));
-        assertFalse(base_aset.isEmpty());
-        int base_partition_idx = CollectionUtil.getFirst(base_aset).index();
-        
-        AbstractClusterer clusterer = this.fclusterer.createClusterer(data, base_aset);
-        assertNotNull(clusterer);
-        
-        // Make sure that each Txn gets mapped to the same cluster as its base partition
-        Map<Integer, Histogram> p_c_xref = new HashMap<Integer, Histogram>();
-        for (int i = 0, cnt = data.numInstances(); i < cnt; i++) {
-            Instance inst = data.instance(i);
-            assertNotNull(inst);
-            long txn_id = FeatureUtil.getTransactionId(inst);
-
-            TransactionTrace txn_trace = workload.getTransaction(txn_id);
-            assertNotNull(txn_trace);
-            Integer base_partition = p_estimator.getBasePartition(txn_trace);
-            assertNotNull(base_partition);
-            assertEquals(base_partition.intValue(), (int)inst.value(base_partition_idx));
-
-            int c = clusterer.clusterInstance(inst);
-            Histogram h = p_c_xref.get(base_partition);
-            if (h == null) {
-                h = new Histogram();
-                p_c_xref.put(base_partition, h);
-            }
-            h.put(c);
-        } // FOR
-        
-//        System.err.println(StringUtil.formatMaps(p_c_xref));
-        Set<Integer> c_p_xref = new HashSet<Integer>();
-        for (Entry<Integer, Histogram> e : p_c_xref.entrySet()) {
-            Set<Integer> clusters = e.getValue().values();
-            
-            // Make sure that each base partition is only mapped to one cluster
-            assertEquals(e.getKey().toString(), 1, clusters.size());
-            
-            // Make sure that two different base partitions are not mapped to the same cluster
-            assertFalse(c_p_xref.contains(CollectionUtil.getFirst(clusters)));
-            c_p_xref.addAll(clusters);
-        } // FOR
-    }
-
-    /**
-     * testCalculateAttributeSetCost
-     */
-    @Test
-    public void testCalculateAttributeSetCost() throws Exception {
+    public void testGenerateDecisionTree() throws Exception {
         Set<Attribute> attributes = FeatureClusterer.prefix2attributes(data,
-//            FeatureUtil.getFeatureKeyPrefix(BasePartitionFeature.class),
-            FeatureUtil.getFeatureKeyPrefix(ParamArrayLengthFeature.class, this.getProcParameter(catalog_proc, 4)),
-            FeatureUtil.getFeatureKeyPrefix(ParamHashPartitionFeature.class, this.getProcParameter(catalog_proc, 1))
-        );
-        System.err.println("Attributes: " + attributes);
-        
-        Instances instances[] = fclusterer.splitWorkload(data);
-        assertNotNull(instances);
-        
-        for (int i = 0; i < 1; i++) {
-            MarkovAttributeSet aset = new MarkovAttributeSet(attributes);
-            assertNotNull(aset);
-            fclusterer.calculateAttributeSetCost(aset);
-            assert(aset.getCost() > 0);
-//            System.err.println("[" + i + "] Cost: " + aset.getCost());
-        }
-//        System.err.println();
-        
-//        attributes = prefix2attributes(
-//            FeatureUtil.getFeatureKeyPrefix(BasePartitionFeature.class),
-//            FeatureUtil.getFeatureKeyPrefix(ParamNumericValuesFeature.class, this.getProcParameter(catalog_proc, 1))
-//        );
-//        System.err.println("Attributes: " + attributes);
-//        for (int i = 0; i < 4; i++) {
-//            MarkovAttributeSet aset = fclusterer.createMarkovAttributeSet(catalog_proc, attributes, p.getFirst(), p.getSecond());
-//            System.err.println("[" + i + "] Cost: " + aset.getCost());
-//        }
+              FeatureUtil.getFeatureKeyPrefix(ParamArrayLengthFeature.class, this.getProcParameter(catalog_proc, 4)),
+              FeatureUtil.getFeatureKeyPrefix(ParamHashPartitionFeature.class, this.getProcParameter(catalog_proc, 1))
+          );
+          
+          Instances instances[] = fclusterer.splitWorkload(data);
+          assertNotNull(instances);
+          
+          MarkovAttributeSet aset = new MarkovAttributeSet(attributes);
+          assertNotNull(aset);
+          AbstractClusterer clusterer = fclusterer.calculateAttributeSetCost(aset);
+          assertNotNull(clusterer);
+          
+          fclusterer.generateDecisionTree(clusterer, aset, data);
     }
 
 }
