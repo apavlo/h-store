@@ -1455,16 +1455,16 @@ public class PlanOptimizer {
                         }
                     } 
                     
-//                    // ---------------------------------------------------
-//                    // AGGREGATE
-//                    // ---------------------------------------------------
-//                    else if (element instanceof AggregatePlanNode) {
-//                        if (areChildrenDirty(element) && updateAggregateColumns((AggregatePlanNode) element) == false) {
-//                            this.stop();
-//                            return;
-//                        }
-//
-//                    } 
+                    // ---------------------------------------------------
+                    // AGGREGATE
+                    // ---------------------------------------------------
+                    else if (element instanceof AggregatePlanNode) {
+                        if (areChildrenDirty(element) && updateAggregateColumns((AggregatePlanNode) element) == false) {
+                            this.stop();
+                            return;
+                        }
+
+                    } 
                     
                     // ---------------------------------------------------
                     // DISTINCT
