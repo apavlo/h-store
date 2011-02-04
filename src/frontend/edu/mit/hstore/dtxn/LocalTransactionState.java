@@ -279,7 +279,6 @@ public class LocalTransactionState extends TransactionState {
         
             // Return our TransactionEstimator.State handle
             if (this.estimator_state != null) {
-                this.estimator_state.finish();
                 TransactionEstimator.getStatePool().returnObject(this.estimator_state);
                 this.estimator_state = null;
             }

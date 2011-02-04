@@ -1,5 +1,6 @@
 package edu.brown.markov;
 
+import java.io.BufferedWriter;
 import java.util.*;
 import java.util.Map.Entry;
 import java.util.concurrent.CountDownLatch;
@@ -16,6 +17,9 @@ import org.apache.log4j.Logger;
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Procedure;
 
+import weka.classifiers.Classifier;
+import weka.classifiers.meta.FilteredClassifier;
+import weka.classifiers.trees.J48;
 import weka.clusterers.AbstractClusterer;
 import weka.clusterers.FilteredClusterer;
 import weka.clusterers.SimpleKMeans;
@@ -23,6 +27,7 @@ import weka.core.Attribute;
 import weka.core.Instance;
 import weka.core.Instances;
 import weka.filters.Filter;
+import weka.filters.unsupervised.attribute.NumericToNominal;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.correlations.ParameterCorrelations;
 import edu.brown.costmodel.MarkovCostModel;
@@ -31,6 +36,7 @@ import edu.brown.markov.features.FeatureUtil;
 import edu.brown.statistics.Histogram;
 import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.CollectionUtil;
+import edu.brown.utils.FileUtil;
 import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.PartitionEstimator;
 import edu.brown.utils.Poolable;
@@ -418,9 +424,11 @@ public class FeatureClusterer {
 
         // The AttributeSets created in each round
         final SortedSet<MarkovAttributeSet> round_asets = new TreeSet<MarkovAttributeSet>();
+        final Map<MarkovAttributeSet, AbstractClusterer> round_clusterers = new HashMap<MarkovAttributeSet, AbstractClusterer>();
 
-        // The best AttributeSet we've seen thus far
-        MarkovAttributeSet best_set = null;
+        // The best AttributeSet + Clusterer we've seen thus far
+        MarkovAttributeSet best_aset = null;
+        AbstractClusterer best_clusterer = null;
         boolean found_new_best = true;
         
         int round = 0;
@@ -429,14 +437,15 @@ public class FeatureClusterer {
             final boolean d = debug.get();
             
             round_asets.clear();
+            round_clusterers.clear();
             
             if (d) {
                 Map<String, Object> m0 = new ListOrderedMap<String, Object>();
                 m0.put("Round #", String.format("%02d", round));
                 m0.put("Number of Partitions", this.all_partitions.size());
                 m0.put("Number of Attributes", all_attributes.size());
-                m0.put("Best Set", best_set);
-                m0.put("Best Cost", (best_set != null ? best_set.getCost() : null));
+                m0.put("Best Set", best_aset);
+                m0.put("Best Cost", (best_aset != null ? best_aset.getCost() : null));
                 
                 Map<String, Object> m1 = new ListOrderedMap<String, Object>();
                 for (SplitType stype : SplitType.values()) {
@@ -460,21 +469,27 @@ public class FeatureClusterer {
                     @Override
                     public void run() {
                         MarkovAttributeSet aset = new MarkovAttributeSet(s);
-                        if (t) LOG.trace("Constructing AttributeSet: " + aset);
-                        try {
-                            FeatureClusterer.this.calculateAttributeSetCost(aset);
-                        } catch (Exception ex) {
-                            LOG.fatal("Failed to calculate MarkovAttributeSet cost for " + aset, ex);
-                            throw new RuntimeException(ex);
+                        AbstractClusterer clusterer = null;
+                        if (aset_ctr.get() <= 0) {
+                            if (t) LOG.trace("Constructing AttributeSet: " + aset);
+                            try {
+                                clusterer = FeatureClusterer.this.calculateAttributeSetCost(aset);
+                            } catch (Exception ex) {
+                                LOG.fatal("Failed to calculate MarkovAttributeSet cost for " + aset, ex);
+                                throw new RuntimeException(ex);
+                            }
+                            assert(aset != null);
+                            assert(clusterer != null);
+                            round_asets.add(aset);
+                            round_clusterers.put(aset, clusterer);
+                            all_asets.add(aset);
+                            if (d) {
+                                int my_ctr = aset_ctr.getAndIncrement();
+                                LOG.debug(String.format("[%03d] %s => %.03f", my_ctr, aset, aset.getCost()));
+                            }
                         }
-                        assert(aset != null);
-                        round_asets.add(aset);
-                        all_asets.add(aset);
                         latch.countDown();
-                        if (d) {
-                            int my_ctr = aset_ctr.getAndIncrement();
-                            LOG.debug(String.format("[%03d] %s => %.03f", my_ctr, aset, aset.getCost()));
-                        }
+                        
                     }
                 };
                 this.calculate_threadPool.execute(r);
@@ -498,15 +513,19 @@ public class FeatureClusterer {
             
             MarkovAttributeSet round_best = round_asets.first();
             assert(round_best != null);
-            if (best_set == null || round_best.getCost() < best_set.getCost()) {
-                best_set = round_best;
+            if (best_aset == null || round_best.getCost() < best_aset.getCost()) {
+                best_aset = round_best;
+                best_clusterer = round_clusterers.get(round_best);
             } else {
                 found_new_best = false;
             }
             
             if (d) LOG.debug(String.format("Next Round Attributes [size=%d]: %s", all_attributes.size(), MarkovAttributeSet.toString(all_attributes)));
         } // WHILE (round)
-        return (best_set);
+        
+        this.generateDecisionTree(best_clusterer, best_aset, data);
+        
+        return (best_aset);
     }
 
     /**
@@ -593,13 +612,13 @@ public class FeatureClusterer {
      * @return
      * @throws Exception
      */
-    public MarkovAttributeSet calculateAttributeSetCost(final MarkovAttributeSet aset) throws Exception {
+    public AbstractClusterer calculateAttributeSetCost(final MarkovAttributeSet aset) throws Exception {
         final boolean t = trace.get();
         final boolean d = debug.get();
         
         // Build our clusterer
         if (d) LOG.debug("Training Clusterer - " + aset);
-        AbstractClusterer clusterer = this.createClusterer(this.splits[SplitType.TRAINING.ordinal()], aset);
+        AbstractClusterer clusterer = this.createClusterer(aset, this.splits[SplitType.TRAINING.ordinal()]);
         
         // Create an ExecutionState for this run
         ExecutionState state = (ExecutionState)this.state_pool.borrowObject();
@@ -716,7 +735,7 @@ public class FeatureClusterer {
         this.state_pool.returnObject(state);
         
         aset.setCost(total_c_cost);
-        return (aset);
+        return (clusterer);
     }
 
     /**
@@ -726,13 +745,13 @@ public class FeatureClusterer {
      * @throws Exception
      */
     protected void generateMarkovGraphs(ExecutionState state, Instances trainingData) throws Exception {
-//        final boolean t = trace.get();
-        final boolean d = debug.get();
+        final boolean t = trace.get();
+//        final boolean d = debug.get();
 
         // Now iterate over validation set and construct Markov models
         // We have to know which field is our txn_id so that we can quickly access it
         int trainingCnt = trainingData.numInstances(); 
-        if (d) LOG.debug(String.format("Training MarkovGraphs using %d instances", trainingCnt));
+        if (t) LOG.trace(String.format("Training MarkovGraphs using %d instances", trainingCnt));
         
         Histogram cluster_h = new Histogram();
         Histogram partition_h = new Histogram();
@@ -784,7 +803,7 @@ public class FeatureClusterer {
         // partitions+clusters. So instead we are going to randomly select some of the partitions to be used in the 
         // cost model estimation.
         final CountDownLatch costmodel_latch = new CountDownLatch(this.all_partitions.size());
-        if (d) LOG.debug(String.format("Generating MarkovGraphs for %d partitions", costmodel_latch.getCount()));
+        if (t) LOG.trace(String.format("Generating MarkovGraphs for %d partitions", costmodel_latch.getCount()));
         
         for (final int partition : this.all_partitions) {
             final MarkovGraphsContainer markovs = state.markovs_per_partition[partition];
@@ -820,7 +839,7 @@ public class FeatureClusterer {
      * @param round
      * @throws Exception
      */
-    protected AbstractClusterer createClusterer(Instances trainingData, MarkovAttributeSet aset) throws Exception {
+    protected AbstractClusterer createClusterer(MarkovAttributeSet aset, Instances trainingData) throws Exception {
         if (trace.get()) LOG.trace(String.format("Clustering %d %s instances with %d attributes", trainingData.numInstances(), CatalogUtil.getDisplayName(catalog_proc), aset.size()));
         
         // Create the filter we need so that we only include the attributes in the given MarkovAttributeSet
@@ -848,6 +867,55 @@ public class FeatureClusterer {
         
         return (clusterer);
     }
+    
+    protected Classifier generateDecisionTree(AbstractClusterer clusterer, MarkovAttributeSet aset, Instances data) throws Exception {
+        // We need to create a new Attribute that has the ClusterId
+        // We will then tell the Classifier to predict that ClusterId based on the MarkovAttributeSet
+        
+        NumericToNominal filter = new NumericToNominal();
+        filter.setInputFormat(data);
+        for (int i = 0, cnt = data.numInstances(); i < cnt; i++) {
+            filter.input(data.instance(i));
+        } // FOR
+        filter.batchFinished();
+      
+        Instances newData = filter.getOutputFormat();
+        Instance processed;
+        while ((processed = filter.output()) != null) {
+            newData.add(processed);
+        } // WHILE
+        
+        newData.insertAttributeAt(new Attribute("cluster_id"), 0);
+        newData.setClassIndex(0);
+        
+        for (int i = 0, cnt = newData.numInstances(); i < cnt; i++) {
+            // Grab the Instance and throw it at the the clusterer to get the target cluster
+            Instance inst = newData.instance(i);
+            int c = (int)clusterer.clusterInstance(inst);
+            inst.setValue(0, c);
+            inst.setClassValue(c);
+        } // FOR
+        
+        String output = this.catalog_proc.getName() + "-labeled.arff";
+        FileUtil.writeStringToFile(output, newData.toString());
+        System.err.println("WROTE LABELED FILE: " + output);
+        
+        // Decision Tree
+        J48 j48 = new J48();
+        // meta-classifier
+        FilteredClassifier fc = new FilteredClassifier();
+        aset.add(data.attribute(0));
+        fc.setFilter(aset.createFilter(newData));
+        fc.setClassifier(j48);
+        
+        // Bombs away!
+        fc.buildClassifier(newData);
+
+
+        
+        return (fc);
+    }
+    
     
     /**
      * Helper method to convet Feature keys to Attributes

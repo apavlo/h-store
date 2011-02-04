@@ -444,7 +444,6 @@ public class BatchPlanner {
             } // FOR
             
             for (BatchPlan plan : plans) {
-                plan.finish();
                 this.plan_pool.returnObject(plan);
             } // FOR
         } catch (Exception ex) {
