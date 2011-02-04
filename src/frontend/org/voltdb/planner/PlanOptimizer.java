@@ -204,9 +204,9 @@ public class PlanOptimizer {
     }
 
     /**
-     * 
+     * Main entry point for the PlanOptimizer
      */
-    protected void optimize(String sql, AbstractPlanNode root) {
+    public void optimize(String sql, AbstractPlanNode root) {
         final boolean trace = LOG.isTraceEnabled();
         this.sql = sql;
         // if (debug) LOG.debug("PlanNodeTree:\n" + PlanNodeUtil.debug(root));
