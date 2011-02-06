@@ -20,7 +20,9 @@ import weka.core.FastVector;
 import weka.core.Instance;
 import weka.core.Instances;
 import edu.brown.markov.features.AbstractFeature;
+import edu.brown.markov.features.BasePartitionFeature;
 import edu.brown.markov.features.FeatureUtil;
+import edu.brown.markov.features.TransactionIdFeature;
 import edu.brown.statistics.Histogram;
 import edu.brown.utils.ClassUtil;
 import edu.brown.utils.CollectionUtil;
@@ -243,6 +245,13 @@ public class FeatureSet implements JSONSerializable {
         return (this.export(name, normalize, this.attributes.keySet()));
     }
     
+    /**
+     * Export this FeatureSet to a Weka Instances data set
+     * @param name
+     * @param normalize
+     * @param prefix_include
+     * @return
+     */
     public Instances export(String name, boolean normalize, Collection<String> prefix_include) {
         // Figure out what attributes we want to export
         Set<String> export_attrs = new ListOrderedSet<String>();
@@ -259,11 +268,19 @@ public class FeatureSet implements JSONSerializable {
         if (debug.get()) LOG.debug("# of Attributes to Export: " + export_attrs.size());
         
         List<SortedMap<Object, Double>> normalized_values = null;
+        Set<String> normalize_ignore = new HashSet<String>();
         if (normalize) {
+            normalize_ignore.add(FeatureUtil.getFeatureKeyPrefix(TransactionIdFeature.class));
+            normalize_ignore.add(FeatureUtil.getFeatureKeyPrefix(BasePartitionFeature.class));
+            
             if (debug.get()) LOG.debug("Normalizing values!");
             normalized_values = new ArrayList<SortedMap<Object,Double>>();
             for (String key : export_attrs) {
-                normalized_values.add(this.attribute_histograms.get(key).normalize()); 
+                if (normalize_ignore.contains(key) == false) {
+                    normalized_values.add(this.attribute_histograms.get(key).normalize());
+                } else {
+                    normalized_values.add(null);
+                }
             } // FOR
         }
         
@@ -272,9 +289,10 @@ public class FeatureSet implements JSONSerializable {
         for (String key : export_attrs) {
             Type type = this.attributes.get(key);
             Attribute a = null;
+            boolean normalize_attr = (normalize && normalize_ignore.contains(key) == false);
 
             // Normalized values will always just be numeric
-            if (normalize) {
+            if (normalize_attr) {
                 a = new Attribute(key);
                 
             // Otherwise we can play games with ranges and strings
@@ -310,14 +328,21 @@ public class FeatureSet implements JSONSerializable {
                 int attr_idx = this.attributes.indexOf(key);
                 Object value = values.get(attr_idx);
                 Type type = this.attributes.getValue(attr_idx);
+                boolean normalize_attr = (normalize && normalize_ignore.contains(key) == false);
 
                 // Null => Missing Value Placeholder
                 if (value == null) {
                     instance[i] = Instance.missingValue();
                 // Normalized
-                } else if (normalize) {
+                } else if (normalize_attr) {
                     assert(normalized_values != null);
-                    instance[i] = normalized_values.get(i).get(value);
+                    try {
+                        instance[i] = normalized_values.get(i).get(value);
+                    } catch (Exception ex) {
+                        System.err.println(normalized_values.get(i));
+                        LOG.fatal("Failed to get normalized value '" + value + "' for Attribute '" + key + "'");
+                        throw new RuntimeException(ex);
+                    }
                 // Actual Values
                 } else {
                     switch (type) {
