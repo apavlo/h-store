@@ -33,6 +33,14 @@ public class MarkovAttributeSet extends ListOrderedSet<Attribute> implements Com
         super((Set<Attribute>)CollectionUtil.addAll(new HashSet<Attribute>(), items));
     }
     
+    /**
+     * Copy constructor
+     * @param clone
+     */
+    public MarkovAttributeSet(MarkovAttributeSet clone) {
+        super(clone);
+    }
+    
     protected MarkovAttributeSet(Instances data, Collection<Integer> idxs) {
         for (Integer i : idxs) {
             this.add(data.attribute(i));

@@ -21,6 +21,7 @@ import weka.classifiers.Classifier;
 import weka.classifiers.meta.FilteredClassifier;
 import weka.classifiers.trees.J48;
 import weka.clusterers.AbstractClusterer;
+import weka.clusterers.EM;
 import weka.clusterers.FilteredClusterer;
 import weka.clusterers.SimpleKMeans;
 import weka.core.Attribute;
@@ -36,7 +37,6 @@ import edu.brown.markov.features.FeatureUtil;
 import edu.brown.statistics.Histogram;
 import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.CollectionUtil;
-import edu.brown.utils.FileUtil;
 import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.PartitionEstimator;
 import edu.brown.utils.Poolable;
@@ -335,7 +335,19 @@ public class FeatureClusterer {
         for (SplitType stype : SplitType.values()) {
             int idx = stype.ordinal();
             this.split_counts[idx] = (int)Math.round(all_cnt * stype.percentage);
-            this.splits[idx] = new Instances(data, offset, this.split_counts[idx]);
+            
+            try {
+                this.splits[idx] = new Instances(data, offset, this.split_counts[idx]);
+            
+                // Apply NumericToNominal filter!
+                NumericToNominal filter = new NumericToNominal();
+                filter.setInputFormat(this.splits[idx]);
+                this.splits[idx] = Filter.useFilter(this.splits[idx], filter);
+                
+            } catch (Exception ex) {
+                throw new RuntimeException("Failed to split " + stype + " workload", ex);
+            }
+            
             offset += this.split_counts[idx];
             if (debug.get()) LOG.debug(String.format("%-12s%d", stype.toString()+":", this.split_counts[idx]));
         } // FOR
@@ -470,7 +482,7 @@ public class FeatureClusterer {
                     public void run() {
                         MarkovAttributeSet aset = new MarkovAttributeSet(s);
                         AbstractClusterer clusterer = null;
-                        if (aset_ctr.get() <= 0) {
+//                        if (aset_ctr.get() <= 0) {
                             if (t) LOG.trace("Constructing AttributeSet: " + aset);
                             try {
                                 clusterer = FeatureClusterer.this.calculateAttributeSetCost(aset);
@@ -487,7 +499,7 @@ public class FeatureClusterer {
                                 int my_ctr = aset_ctr.getAndIncrement();
                                 LOG.debug(String.format("[%03d] %s => %.03f", my_ctr, aset, aset.getCost()));
                             }
-                        }
+//                        }
                         latch.countDown();
                         
                     }
@@ -706,7 +718,7 @@ public class FeatureClusterer {
 //                    for (int ii = 0, cnt = Math.max(e_path.size(), a_path.size()); ii < cnt; ii++) {
 //                        Vertex e = (ii < e_path.size() ? e_path.get(ii) : null);
 //                        Vertex a = (ii < a_path.size() ? a_path.get(ii) : null);
-//                        String match = (e != null && e.equals(a) ? "" : "XXX");
+//                        String match = (e != null && e.equals(a) ? "" : "***");
 //                        System.err.println(String.format("%-60s%-10s%s", e, match, a));
 //                    } // FOR
 //
@@ -847,22 +859,21 @@ public class FeatureClusterer {
         
         // Using our training set to build the clusterer
         int seed = this.rand.nextInt(); 
-        SimpleKMeans inner_clusterer = new SimpleKMeans();
-//        EM inner_clusterer = new EM();
+//        SimpleKMeans inner_clusterer = new SimpleKMeans();
+        EM inner_clusterer = new EM();
         String options[] = {
             "-N", Integer.toString(1000), // num_partitions),
             "-S", Integer.toString(seed),
+            "-I", Integer.toString(100),
+            
         };
         inner_clusterer.setOptions(options);
-//        kmeans_clusterer.setNumClusters(num_partitions);
-//        kmeans_clusterer.setSeed(seed);
         
         FilteredClusterer filtered_clusterer = new FilteredClusterer();
         filtered_clusterer.setFilter(filter);
         filtered_clusterer.setClusterer(inner_clusterer);
         
-        AbstractClusterer clusterer = filtered_clusterer; // kmeans_clusterer;
-//        clusterer.buildClusterer(Filter.useFilter(data, filter));
+        AbstractClusterer clusterer = filtered_clusterer;
         clusterer.buildClusterer(trainingData);
         
         return (clusterer);
@@ -870,48 +881,47 @@ public class FeatureClusterer {
     
     protected Classifier generateDecisionTree(AbstractClusterer clusterer, MarkovAttributeSet aset, Instances data) throws Exception {
         // We need to create a new Attribute that has the ClusterId
+        Instances newData = data; // new Instances(data);
+        newData.insertAttributeAt(new Attribute("ClusterId"), newData.numAttributes());
+        Attribute cluster_attr = newData.attribute(newData.numAttributes()-1);
+        assert(cluster_attr != null);
+        assert(cluster_attr.index() > 0);
+        newData.setClass(cluster_attr);
+        
         // We will then tell the Classifier to predict that ClusterId based on the MarkovAttributeSet
-        
-        NumericToNominal filter = new NumericToNominal();
-        filter.setInputFormat(data);
-        for (int i = 0, cnt = data.numInstances(); i < cnt; i++) {
-            filter.input(data.instance(i));
-        } // FOR
-        filter.batchFinished();
-      
-        Instances newData = filter.getOutputFormat();
-        Instance processed;
-        while ((processed = filter.output()) != null) {
-            newData.add(processed);
-        } // WHILE
-        
-        newData.insertAttributeAt(new Attribute("cluster_id"), 0);
-        newData.setClassIndex(0);
-        
+        Histogram cluster_h = new Histogram();
         for (int i = 0, cnt = newData.numInstances(); i < cnt; i++) {
             // Grab the Instance and throw it at the the clusterer to get the target cluster
             Instance inst = newData.instance(i);
             int c = (int)clusterer.clusterInstance(inst);
-            inst.setValue(0, c);
             inst.setClassValue(c);
+            cluster_h.put(c);
         } // FOR
-        
-        String output = this.catalog_proc.getName() + "-labeled.arff";
-        FileUtil.writeStringToFile(output, newData.toString());
-        System.err.println("WROTE LABELED FILE: " + output);
+        System.err.println("Number of Elements: " + cluster_h.getValueCount());
+        System.err.println(cluster_h);
+
+        NumericToNominal filter = new NumericToNominal();
+        filter.setInputFormat(newData);
+        newData = Filter.useFilter(newData, filter);
         
         // Decision Tree
         J48 j48 = new J48();
-        // meta-classifier
+        String options[] = {
+            "-S", Integer.toString(this.rand.nextInt()),
+            
+        };
+        j48.setOptions(options);
+
+        // Make sure we add the ClusterId attribute to a new MarkovAttributeSet so that
+        // we can tell the Classifier to classify that!
         FilteredClassifier fc = new FilteredClassifier();
-        aset.add(data.attribute(0));
-        fc.setFilter(aset.createFilter(newData));
+        MarkovAttributeSet classifier_aset = new MarkovAttributeSet(aset);
+        classifier_aset.add(cluster_attr);
+        fc.setFilter(classifier_aset.createFilter(newData));
         fc.setClassifier(j48);
         
         // Bombs away!
         fc.buildClassifier(newData);
-
-
         
         return (fc);
     }
@@ -1022,7 +1032,10 @@ public class FeatureClusterer {
         {
             // Hopefully this will get garbage collected if we put it here...
             FeatureExtractor fextractor = new FeatureExtractor(args.catalog_db);
-            data = fextractor.calculate(args.workload).get(catalog_proc).export(catalog_proc.getName());
+            Map<Procedure, FeatureSet> fsets = fextractor.calculate(args.workload);
+            FeatureSet fset = fsets.get(catalog_proc);
+            assert(fset != null) : "Failed to get FeatureSet for " + catalog_proc;
+            data = fset.export(catalog_proc.getName());
         }
         assert(data != null);
         assert(args.workload.getTransactionCount() == data.numInstances());
@@ -1058,11 +1071,6 @@ public class FeatureClusterer {
             fclusterer.setNumRounds(args.getIntParam(ArgumentsParser.PARAM_MARKOV_ROUNDS));
         }
         
-//        Set<Attribute> attributes = prefix2attributes(data,
-//            FeatureUtil.getFeatureKeyPrefix(ParamArrayLengthFeature.class, catalog_proc.getParameters().get(4)),
-//            FeatureUtil.getFeatureKeyPrefix(ParamNumericValuesFeature.class, catalog_proc.getParameters().get(1))
-//        );
-//        System.err.println("Attributes: " + attributes);
         MarkovAttributeSet aset = fclusterer.calculate(data);
         System.err.println(aset + "\nCost: " + aset.getCost());
         fclusterer.cleanup();
