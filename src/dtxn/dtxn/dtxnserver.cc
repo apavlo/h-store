@@ -246,7 +246,8 @@ ServerTransactionState* DtxnServer::findOrCreateTransaction(
     } else {
         // This had better be another message for an in-progress multiple partition transaction
         assert(result.first->second != NULL);
-        assert(fragment.multiple_partitions);
+        assert(result.first->second->last_fragment().multiple_partitions());
+        assert(fragment.multiple_partitions || fragment.last_fragment);
     }
 
     return result.first->second;

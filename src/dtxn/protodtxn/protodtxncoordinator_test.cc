@@ -6,6 +6,7 @@
 
 #include "dtxn/distributedtransaction.h"
 #include "dtxn/dtxnmanager.h"
+#include "dtxn/mockdtxnmanager.h"
 #include "protodtxn/protodtxncoordinator.h"
 #include "stupidunit/stupidunit.h"
 
@@ -14,35 +15,14 @@ using std::string;
 
 using namespace protodtxn;
 
-class MockDtxnManager : public dtxn::DtxnManager {
-public:
-    MockDtxnManager() : transaction_(NULL), commit_(false) {}
-    virtual ~MockDtxnManager() {}
-
-    virtual void execute(DistributedTransaction* transaction,
-            const std::tr1::function<void()>& callback) {
-        transaction_ = transaction;
-        callback_ = callback;
-    }
-
-    virtual void finish(DistributedTransaction* transaction, bool commit,
-            const std::tr1::function<void()>& callback) {
-        transaction_ = transaction;
-        commit_ = commit;
-        callback_ = callback;
-    }
-
-    DistributedTransaction* transaction_;
-    bool commit_;
-    std::tr1::function<void()> callback_;
-};
-
 class ProtoCoordinatorTest : public Test, public google::protobuf::Closure {
 public:
     ProtoCoordinatorTest () :
             coordinator_(&manager_, 4),
             called_(false) {
         request_.set_transaction_id(0);
+        finish_request_.set_transaction_id(0);
+        finish_request_.set_commit(true);
     }
 
     ~ProtoCoordinatorTest() {
@@ -52,7 +32,7 @@ public:
         called_ = true;
     }
 
-    MockDtxnManager manager_;
+    dtxn::MockDtxnManager manager_;
     ProtoDtxnCoordinator coordinator_;
     CoordinatorFragment request_;
     CoordinatorResponse response_;
@@ -110,7 +90,6 @@ TEST_F(ProtoCoordinatorTest, SinglePartition) {
     EXPECT_EQ("output", response_.response(0).output());
 
     // ProtoDtxn requires .Finish() to be called (but it must match! it must commit in this case)
-    finish_request_.set_transaction_id(0);
     finish_request_.set_commit(false);
     EXPECT_DEATH(coordinator_.Finish(NULL, &finish_request_, &finish_response_, this));
     finish_request_.set_commit(true);
@@ -155,8 +134,6 @@ TEST_F(ProtoCoordinatorTest, OneShotCommit) {
     // Commit the transaction
     manager_.transaction_ = NULL;
     called_ = false;
-    finish_request_.set_transaction_id(0);
-    finish_request_.set_commit(true);
     coordinator_.Finish(NULL, &finish_request_, &finish_response_, this);
     EXPECT_TRUE(manager_.transaction_ != NULL);
     EXPECT_TRUE(manager_.commit_);
@@ -190,8 +167,6 @@ TEST_F(ProtoCoordinatorTest, OneShotParticipantAbort) {
     EXPECT_EQ("", response_.response(0).output());
 
     // We must call Finish with abort
-    finish_request_.set_transaction_id(0);
-    finish_request_.set_commit(true);
     called_ = false;
     EXPECT_DEATH(coordinator_.Finish(NULL, &finish_request_, &finish_response_, this));
     finish_request_.set_commit(false);
@@ -252,8 +227,6 @@ TEST_F(ProtoCoordinatorTest, GeneralTransaction) {
 
     // Commit the transaction: finishes the 2pc
     EXPECT_FALSE(manager_.commit_);
-    finish_request_.set_transaction_id(0);
-    finish_request_.set_commit(true);
     coordinator_.Finish(NULL, &finish_request_, &finish_response_, this);
     EXPECT_TRUE(manager_.commit_);
     manager_.callback_();
@@ -282,12 +255,44 @@ TEST_F(ProtoCoordinatorTest, CommitUnfinishedMPtoSPDowngrade) {
     EXPECT_EQ("zeroout", response_.response(0).output());    
 
     // Commit: this "downgrades" the transaction to a single partition transaction!
-    finish_request_.set_transaction_id(0);
-    finish_request_.set_commit(true);
     coordinator_.Finish(NULL, &finish_request_, &finish_response_, this);
     EXPECT_TRUE(manager_.commit_);
     manager_.callback_();
     EXPECT_TRUE(called_);
+}
+
+TEST_F(ProtoCoordinatorTest, DonePartitions) {
+    CoordinatorFragment::PartitionFragment* fragment = request_.add_fragment();
+    fragment->set_partition_id(0);
+    fragment->set_work("work");
+    request_.add_done_partition(1);
+    request_.add_done_partition(1);
+    EXPECT_DEATH(coordinator_.Execute(NULL, &request_, &response_, this));
+
+    request_.clear_done_partition();
+    request_.add_done_partition(1);
+    request_.set_last_fragment(true);
+    EXPECT_DEATH(coordinator_.Execute(NULL, &request_, &response_, this));
+
+    request_.clear_last_fragment();
+    request_.clear_done_partition();
+    request_.add_done_partition(2);
+    request_.add_done_partition(0);
+    request_.add_done_partition(3);
+    coordinator_.Execute(NULL, &request_, &response_, this);
+
+    ASSERT_EQ(1, manager_.transaction_->sent().size());
+    EXPECT_TRUE(manager_.transaction_->isDone(0));
+    EXPECT_FALSE(manager_.transaction_->isDone(1));
+    EXPECT_TRUE(manager_.transaction_->isDone(2));
+    EXPECT_TRUE(manager_.transaction_->isDone(3));
+
+    // respond to all fragments and abort to free memory
+    manager_.transaction_->receive(0, "", DistributedTransaction::OK);
+    manager_.callback_();
+    finish_request_.set_commit(false);
+    coordinator_.Finish(NULL, &finish_request_, &finish_response_, this);
+    manager_.callback_();
 }
 
 int main() {

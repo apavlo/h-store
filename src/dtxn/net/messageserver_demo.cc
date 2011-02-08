@@ -5,7 +5,7 @@
 #include <netinet/in.h>
 
 #include "io/libeventloop.h"
-#include "libevent/event.h"
+#include "libevent/include/event2/event.h"
 #include "networkaddress.h"
 #include "net/demomessages.h"
 #include "net/messageserver.h"

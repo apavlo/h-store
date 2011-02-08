@@ -42,6 +42,7 @@ public:
     size_t size() const { return container_.size(); }
     const T& at(size_t index) const { return *container_.at(index); }
     const T& front() const { return *container_.front(); }
+    T* mutable_front() { return container_.front(); }
 
     void pop_front() {
         // Fetch and remove the first element

@@ -20,7 +20,7 @@
 // A random number generator that uses random_r.
 class RandomGenerator {
 public:
-    // Seeds the generator with the current time.
+    // Seeds the generator using seedDefault
     RandomGenerator();
 
     // Returns a pseudo-random number from 0 to maximum().
@@ -31,6 +31,9 @@ public:
 
     // Seed the generator with seed.
     void seed(unsigned int seed);
+
+    // Seed the generator with the current time and thread id.
+    void seedDefault();
 
     // Selects num_shuffle elements from members at random without replacement. This generates
     // a random permutation of members.

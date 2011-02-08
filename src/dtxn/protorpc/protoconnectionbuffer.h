@@ -21,10 +21,14 @@ public:
     ProtoConnectionBuffer() : has_length_(false), length_(0) {}
     ~ProtoConnectionBuffer() {}
 
-    // Returns the length of the message in bytes if a message is read from
-    // the stream. Returns 0 if there is insufficient data available. Returns
-    // -1 if the stream is closed.
-    int tryRead(io::InputStream* input, google::protobuf::MessageLite* message);
+    // See io::FIFOBuffer::readAllAvailable().
+    int readAllAvailable(io::InputStream* input) {
+        return input_buffer_.readAllAvailable(input);
+    }
+
+    // Returns true if message was parsed from the internal buffer. False means not enough
+    // data is in the buffer.
+    bool readBufferedMessage(google::protobuf::MessageLite* message);
 
     // Serializes message to the internal buffer.
     void bufferMessage(const google::protobuf::MessageLite& message);

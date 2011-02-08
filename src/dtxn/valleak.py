@@ -37,6 +37,8 @@ def valleak(executable):
             log_argument + "=" + valgrind_output.name,
             "--error-exitcode=1",
             executable)
+            
+    #~ print " ".join(valgrind_command)
     process = subprocess.Popen(
             valgrind_command,
             bufsize = -1,
@@ -63,13 +65,17 @@ def valleak(executable):
     append_valgrind = False
     if error == 0:
         assert "== ERROR SUMMARY: 0 errors" in summary
-        # Check for memory leaks
-        if "==    definitely lost:" in summary:
+        # Check for memory leaks: we care about definitely and possibly lost reports
+        # Still reachable is not interesting
+        if "==    definitely lost:" in summary and (
+                "==    definitely lost: 0" not in summary or
+                "==      possibly lost: 0" not in summary):
             error = 1
             append_valgrind = True
     elif "== ERROR SUMMARY: 0 errors" not in summary:
         # We also have valgrind errors: append the log to stderr
         append_valgrind = True
+
     if append_valgrind:
         stderr = stderr + "\n\n" + valgrind_error
 

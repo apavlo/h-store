@@ -7,7 +7,7 @@
 #include "dtxn/executionengine.h"
 #include "dtxn/messages.h"
 #include "io/libeventloop.h"
-#include "libevent/event.h"
+#include "libevent/include/event2/event.h"
 
 
 using std::string;

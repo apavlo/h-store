@@ -20,7 +20,8 @@ BlockingScheduler::~BlockingScheduler() {}
 void BlockingScheduler::fragmentArrived(TransactionState* transaction) {
     assert(transaction->last_fragment().response().status == ExecutionEngine::INVALID);
     if (!execute_queue_.empty() && transaction == execute_queue_.front()) {
-        // nothing to do here
+        // this occurs when receiving the next fragment of a multi-partition transaction that has
+        // begun execution: nothing to do; this will be executed on the next call to doWork()
     } else {
         assert(!base::contains(unreplicated_queue_, transaction));
         assert(!base::contains(execute_queue_, transaction));

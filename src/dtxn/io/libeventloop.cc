@@ -9,14 +9,20 @@
 
 #include "base/assert.h"
 #include "io/libeventloop.h"
-#include "libevent/event.h"
+#include "libevent/include/event2/event.h"
+#include "libevent/include/event2/thread.h"
+#include "libevent/include/event2/event_struct.h"
+#include "google/protobuf/stubs/common.h"
+
+using google::protobuf::Closure;
 
 namespace io {
 
-LibEventLoop::LibEventLoop() :
-        base_(event_base_new()),
-        sigint_event_(NULL) {
-    assert(base_ != NULL);
+LibEventLoop::LibEventLoop() : sigint_event_(NULL) {
+    int error = evthread_use_pthreads();
+    ASSERT(error == 0);
+    base_ = event_base_new();
+    ASSERT(base_ != NULL);
 }
 
 LibEventLoop::~LibEventLoop() {
@@ -33,9 +39,8 @@ public:
     LibEventLoopCallback(LibEventLoop* event_loop, EventLoop::TimeOutCallback callback, void* argument) :
             callback_(callback), callback_argument_(argument) {
         assert(callback_ != NULL);
-        evtimer_set(&event_, libeventCallback, this);
-        int result = event_base_set(event_loop->base(), &event_);
-        ASSERT(result == 0);
+        int error = event_assign(&event_, event_loop->base(), -1, EV_TIMEOUT, libeventCallback, this);
+        ASSERT(error == 0);
     }
 
     ~LibEventLoopCallback() {
@@ -97,30 +102,64 @@ void LibEventLoop::exitOnSigInt(bool value) {
     if (value) {
         if (sigint_event_ != NULL) return;
 
-        sigint_event_ = new event();
-        //~ event_set(sigint_event_, SIGINT, EV_SIGNAL, sigintHandler, base_);
-        signal_set(sigint_event_, SIGINT, sigintHandler, base_);
-        int error = event_base_set(base_, sigint_event_);
-        ASSERT(error == 0);
-        error = event_add(sigint_event_, NULL);
+        sigint_event_ = evsignal_new(base_, SIGINT, sigintHandler, base_);
+        int error = event_add(sigint_event_, NULL);
         ASSERT(error == 0);
     } else {
         if (sigint_event_ == NULL) return;
 
         int error = event_del(sigint_event_);
         ASSERT(error == 0);
-        delete sigint_event_;
+        event_free(sigint_event_);
         sigint_event_ = NULL;
     }
 }
 
 void LibEventLoop::exit() {
-    int error = event_base_loopexit(base_, NULL);
+    int error = event_base_loopbreak(base_);
     ASSERT(error == 0);
 }
 
 void LibEventLoop::run() {
-    event_base_dispatch(base_);
+    // run the loop and block even if there are no events: other threads may add them
+    event_base_loop(base_, EVLOOP_BLOCK_FOR_EXPLICIT_EXIT);
+}
+
+class LibEventClosureWrapper {
+public:
+    static LibEventClosureWrapper* New(event_base* base, Closure* callback) {
+        return new LibEventClosureWrapper(base, callback);
+    }
+
+    void activate() {
+        event_active(&event_, EV_WRITE, 1);
+    }
+
+private:
+    LibEventClosureWrapper(event_base* base, Closure* callback) : callback_(callback) {
+        assert(callback_ != NULL);
+        int error = event_assign(&event_, base, -1, 0, libeventCallback, this);
+        ASSERT(error == 0);
+    }
+
+    static void libeventCallback(int fd, short type, void* argument) {
+        ASSERT(fd == -1);
+        ASSERT(type == EV_WRITE);
+        LibEventClosureWrapper* wrapper = reinterpret_cast<LibEventClosureWrapper*>(argument);
+        Closure* callback = wrapper->callback_;
+        delete wrapper;
+
+        callback->Run();
+    }
+
+    Closure* callback_;
+    event event_;
+};
+
+void LibEventLoop::runInEventLoop(Closure* callback) {
+    // TODO: Use a recycle list to avoid allocation/deallocation? But it needs to be thread-safe
+    LibEventClosureWrapper* wrapper = LibEventClosureWrapper::New(base_, callback);
+    wrapper->activate();
 }
 
 void LibEventLoop::enableIdleCallback(bool enable) {

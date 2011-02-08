@@ -18,10 +18,10 @@ namespace dtxn {
 digraph G {
     node [shape=rectangle,fontname=Helvetica];
     edge [fontname=Helvetica];
-    unknown -> involved [label=write];
+    unknown -> active [label=write];
     unknown -> finished [label=done];
 
-    involved -> preparing [label=done];
+    active -> preparing [label=done];
     preparing -> prepared [label=ack];
     preparing -> finished [label="single partition ack"]
     prepared -> finished [label=commit];
@@ -32,8 +32,9 @@ public:
 
     bool isParticipant() const { return status_ != UNKNOWN && status_ != FINISHED; }
 
-    // Returns true if the transaction has "ended" at this partition. If true, no more work can be
-    // done.
+    // Returns true if the transaction has no more work to do at this partition. However, this
+    // partition may be involved in a two-phase commit, so more messages might need to
+    // be exchanged.
     bool isDone() const { return !(status_ == UNKNOWN || status_ == ACTIVE); }
 
     bool unknown() const { return status_ == UNKNOWN; }
@@ -87,8 +88,7 @@ public:
             partition_status_(num_partitions),
             received_count_(0),
             multiple_partitions_(true),
-            state_(NULL),
-            payload_(NULL) {
+            state_(NULL) {
         assert(partition_status_.size() > 0);
     }
 
@@ -120,6 +120,16 @@ public:
         received_messages_.clear();
     }
 
+    void setDone(int index) {
+        assert(validPartitionIndex(index));
+        if (partition_status_[index].active() && !containsKey(sent_messages_, index)) {
+            // Need to send an explicit prepare
+            sent_messages_.push_back(std::make_pair(index, std::string()));
+        }
+
+        partition_status_[index].setDone();
+    }
+
     bool isAllDone() const __attribute__((warn_unused_result)) {
         for (int i = 0; i < partition_status_.size(); ++i) {
             if (!partition_status_[i].isDone()) {
@@ -134,11 +144,10 @@ public:
     void setAllDone() {
         int participants = 0;
         for (int i = 0; i < partition_status_.size(); ++i) {
-            if (partition_status_[i].active() && !containsKey(sent_messages_, i)) {
-                // Need to send an explicit prepare
-                sent_messages_.push_back(std::make_pair(i, std::string()));
+            // this partition could already be done: eg. it was explicitly marked done earlier
+            if (!partition_status_[i].isDone()) {
+                setDone(i);
             }
-            partition_status_[i].setDone();
 
             if (partition_status_[i].isParticipant()) {
                 participants += 1;
@@ -169,7 +178,7 @@ public:
         assert(!containsKey(received_messages_, index));
         assert(containsKey(sent_messages_, index));
         // If this is a prepare response, it must be empty
-        assert(!sent_messages_[findPartition(sent_messages_, index)].second.empty() ||
+        assert(!findPartition(sent_messages_, index)->second.empty() ||
                 message.empty());
         assert(status != ABORT_DEADLOCK || message.empty());
         assert(status == OK || status == ABORT_USER ||
@@ -197,19 +206,19 @@ public:
         }
     }
 
+    // TODO: Can this be combined into readyNextRound?
     void removePrepareResponses() {
         assert(!received_messages_.empty());
         assert(receivedAll());
-        // TODO: A more efficient way to do this?
-        for (int i = 0; i < received_messages_.size(); ++i) {
-            if (received_messages_[i].second.empty()) {
-                int sent_index = findPartition(sent_messages_, received_messages_[i].first);
-                assert(validPartitionIndex(sent_index));
-                if (sent_messages_[sent_index].second.empty()) {
-                    // This is a prepare response: remove it
-                    received_messages_.erase(received_messages_.begin() + i);
-                    i -= 1;
-                }
+
+        for (int i = 0; i < sent_messages_.size(); ++i) {
+            if (sent_messages_[i].second.empty()) {
+                assert(partition_status_[sent_messages_[i].first].isDone());
+
+                // remove the response from the responses
+                MessageList::iterator it = findPartition(&received_messages_, sent_messages_[i].first);
+                assert(it != received_messages_.end());
+                received_messages_.erase(it);
             }
         }
     }
@@ -263,14 +272,29 @@ public:
         return partition_status_[index].isParticipant();
     }
 
+    bool isDone(int index) const __attribute__((warn_unused_result)) {
+        assert(validPartitionIndex(index));
+        return partition_status_[index].isDone();
+    }
+
     bool isActive(int index) const __attribute__((warn_unused_result)) {
         assert(validPartitionIndex(index));
         return partition_status_[index].active();
     }
 
+    bool isUnknown(int index) const __attribute__((warn_unused_result)) {
+        assert(validPartitionIndex(index));
+        return partition_status_[index].unknown();
+    }
+
     bool isPrepared(int index) const __attribute__((warn_unused_result)) {
         assert(validPartitionIndex(index));
         return partition_status_[index].prepared();
+    }
+
+    bool isFinished(int index) const __attribute__((warn_unused_result)) {
+        assert(validPartitionIndex(index));
+        return partition_status_[index].finished();
     }
 
     std::vector<int> getParticipants() const __attribute__((warn_unused_result)) {
@@ -286,29 +310,38 @@ public:
 
 
     // PAVLO
-    inline bool has_payload() const { return (payload_ != NULL); }
+    bool has_payload() const { return !payload_.empty(); }
     void set_payload(const std::string& payload) {
-        if (payload_ == NULL) payload_ = new ::std::string;
-        payload_->assign(payload);
+        assert(!payload.empty());
+		payload_ = payload;
     }
-    inline const ::std::string& payload() const { return (*payload_); }
+    const std::string& payload() const { return payload_; }
 
 private:
     bool validPartitionIndex(int index) const {
         return 0 <= index && index < partition_status_.size();
     }
 
-    /** Returns the array index for partition_index in messages, or -1 if not found. */
-    int findPartition(const MessageList& messages, int partition_index) const {
-        for (int i = 0; i < messages.size(); ++i) {
-            if (messages[i].first == partition_index) return i;
+    // Yucky template to work with both const_iterator and non-const iterator. Gross.
+    // TODO: get rid of this? we don't really use the const version.
+    template <typename ItType> ItType findPartition(ItType it, ItType end, int value) const {
+        while (it != end) {
+            if (it->first == value) break;
+            ++it;
         }
-        return -1;
+        return it;
+    }
+    /** Returns an iterator to the message for partition_index in messages, or messages->end() if not found. */
+    MessageList::iterator findPartition(MessageList* messages, int partition_index) const {
+        return findPartition(messages->begin(), messages->end(), partition_index);
+    }
+    MessageList::const_iterator findPartition(const MessageList& messages, int partition_index) const {
+        return findPartition(messages.begin(), messages.end(), partition_index);
     }
 
     bool containsKey(const MessageList& messages, int index) const
             __attribute__((warn_unused_result)) {
-        return findPartition(messages, index) != -1;
+        return findPartition(messages, index) != messages.end();
     }
 
     // The current status of the transaction
@@ -327,10 +360,9 @@ private:
 
     // Opaque pointer for use by the Coordinator.
     void* state_;
-    
-    // PAVLO: Let things attach payload data that we can send around during the finish process
-    std::string *payload_;
 
+    // PAVLO: Let things attach payload data that we can send around during the finish process
+    std::string payload_;
 };
 
 }  // namespace dtxn

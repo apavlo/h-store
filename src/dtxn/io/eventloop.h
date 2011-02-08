@@ -8,6 +8,10 @@
 #include <cassert>
 #include <vector>
 
+namespace google { namespace protobuf {
+class Closure;
+}}  // namespace google::protobuf
+
 namespace io {
 
 /** Interface to a generic event loop. This permits libevent code to be unit tested. */
@@ -60,11 +64,16 @@ public:
     /** If enabled, SIGINT will be caught and used to exit the event loop. */
     virtual void exitOnSigInt(bool value) = 0;
 
-    /** Causes the event loop to exit at some point in the future. */
+    /** Causes the event loop to exit at some point in the future. Safe if called by another
+    thread.*/
     virtual void exit() = 0;
 
     /** Runs the event loop. */
     virtual void run() = 0;
+
+    /** Runs callback in the event loop. This can be used to "defer" a callback until later, or
+    to run something in the event thread, rather than a sub thread. */
+    virtual void runInEventLoop(google::protobuf::Closure* callback) = 0;
 
 protected:
     /** If enable is true, the idle callback should be called. If false it should be turned off. */
@@ -129,6 +138,10 @@ public:
             should_exit_ = false;
             return;
         }
+        assert(false);
+    }
+
+    virtual void runInEventLoop(google::protobuf::Closure* callback) {
         assert(false);
     }
 

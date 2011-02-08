@@ -9,20 +9,23 @@
 #include <cstring>
 #include <ctime>
 
+#include <pthread.h>
+#include <sys/time.h>
+#include <time.h>
+
 #include "base/assert.h"
 
 using std::vector;
 
 RandomGenerator::RandomGenerator() {
-#ifdef HAVE_RANDOM_R
     // Set the random state to zeros. glibc will attempt to access the old state if not NULL.
     memset(&state, 0, sizeof(state));
+#ifdef HAVE_RANDOM_R
     int result = initstate_r(static_cast<unsigned int>(time(NULL)), state_array,
             sizeof(state_array), &state);
     ASSERT(result == 0);
-#else
-    seed(time(NULL));
 #endif
+    seedDefault();
 }
 
 int32_t RandomGenerator::random() {
@@ -47,6 +50,18 @@ void RandomGenerator::seed(unsigned int value) {
     memcpy(state, &value, copy_bytes);
     memset(state + copy_bytes, 0, remaining_bytes);
 #endif
+}
+
+void RandomGenerator::seedDefault() {
+    // Initialize the random number generator using both a thread id and time
+    // the thread id guarantees different sequences within this run.
+    // the time guarantees different sequences between runs. Hopefully.
+    struct timeval time;
+    int error = gettimeofday(&time, NULL);
+    ASSERT(error == 0);
+
+    // TODO: Mix in the cycle counter and hash this better.
+    seed((unsigned int)(pthread_self() + time.tv_usec + time.tv_sec));
 }
 
 void RandomGenerator::shuffle(vector<int>* members, int num_shuffle) {

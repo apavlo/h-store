@@ -11,7 +11,8 @@
 #include "base/stlutil.h"
 #include "messageconnection.h"
 #include "io/libeventloop.h"
-#include "libevent/event.h"
+#include "libevent/include/event2/event.h"
+#include "libevent/include/event2/event_struct.h"
 #include "networkaddress.h"
 #include "tcplistener.h"
 
@@ -47,9 +48,8 @@ public:
         give_up_timeout_.tv_usec = 0;
 
         // Start the give up timer
-        event_set(&give_up_event_,
+        int error = event_assign(&give_up_event_, libevent_base_,
                 -1, EV_TIMEOUT, &ParallelConnectState::giveUpCallback, this);
-        int error = event_base_set(libevent_base_, &give_up_event_);
         ASSERT(error == 0);
         error = event_add(&give_up_event_, &give_up_timeout_);
         ASSERT(error == 0);
@@ -64,7 +64,10 @@ public:
         unconnected_count_ -= 1;
         assert(unconnected_count_  >= 0);
         if (unconnected_count_ == 0) {
-            event_del(&give_up_event_);
+            int error = event_del(&give_up_event_);
+            ASSERT(error == 0);
+            error = event_base_loopexit(libevent_base_, NULL);
+            ASSERT(error == 0);
         }
     }
 
@@ -129,9 +132,8 @@ public:
             assert(error == 0);
             connection->socket_ = -1;
 
-            event_set(&connection->libevent_event_, 
+            error = event_assign(&connection->libevent_event_, parallel_state->base(),
                     -1, EV_TIMEOUT, &AsyncConnectionState::retryCallback, connection);
-            error = event_base_set(parallel_state->base(), &connection->libevent_event_);
             ASSERT(error == 0);
 
             error = event_add(&connection->libevent_event_, parallel_state->retry_timeout());
@@ -170,9 +172,8 @@ public:
             return -errno;
         }
 
-        event_set(&libevent_event_, 
+        error = event_assign(&libevent_event_, parallel_state_->base(),
                 socket_, EV_WRITE, &AsyncConnectionState::connectCallback, this);
-        error = event_base_set(parallel_state_->base(), &libevent_event_);
         ASSERT(error == 0);
         error = event_add(&libevent_event_, NULL);
         ASSERT(error == 0);

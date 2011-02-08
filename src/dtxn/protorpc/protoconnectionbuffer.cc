@@ -72,42 +72,28 @@ private:
     io::FIFOBuffer* buffer_;
 };
 
-int ProtoConnectionBuffer::tryRead(io::InputStream* input, google::protobuf::MessageLite* message) {
+bool ProtoConnectionBuffer::readBufferedMessage(google::protobuf::MessageLite* message) {
     if (!has_length_) {
-        // read until we have enough for a length
-        int available = input_buffer_.readUntilAvailable(input, sizeof(length_));
-        if (available < 0) {
-            // Error (connection closed?)
-            return available;
-        } else if (available < sizeof(length_)) {
-            return 0;
-        }
+        if (input_buffer_.available() < sizeof(length_)) return false;
+
         input_buffer_.copyOut(&length_, sizeof(length_));
         CHECK(length_ >= 0);
         has_length_ = true;
     }
 
-    int available = input_buffer_.readUntilAvailable(input, length_);
-    if (available < 0) {
-        // Error (connection closed?)
-        return available;
-    } else if (available < length_) {
-        return 0;
-    }
+    if (input_buffer_.available() < length_) return false;
 
     ZeroCopyFIFOReadAdapter adapter(&input_buffer_);
     bool success = message->ParseFromBoundedZeroCopyStream(&adapter, length_);
     CHECK(success);
 
-    int old_length = length_;
     length_ = 0;
     has_length_ = false;
-    return old_length;
+    return true;
 }
 
 // Serializes message to the internal buffer.
 void ProtoConnectionBuffer::bufferMessage(const google::protobuf::MessageLite& message) {
-    assert(message.IsInitialized());
     ZeroCopyFIFOWriteAdapter adapter(&output_buffer_);
     google::protobuf::io::CodedOutputStream out(&adapter);
 

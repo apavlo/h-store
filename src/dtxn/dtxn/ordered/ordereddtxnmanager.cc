@@ -171,7 +171,7 @@ OrderedDtxnManager::OrderedDtxnManager(io::EventLoop* event_loop, net::MessageSe
         const vector<net::ConnectionHandle*>& partitions) :
         partitions_(partitions),
         last_partition_commit_(partitions.size(), -1),
-        first_unfinished_id_(NO_UNFINISHED_ID),
+        partition_next_send_txn_id_(partitions.size(), 0),
         event_loop_(event_loop),
         msg_server_(msg_server) {
     assert(!partitions_.empty());
@@ -212,18 +212,101 @@ void OrderedDtxnManager::execute(DistributedTransaction* transaction,
     } else {
         // This should be a "continuation" of an existing transaction
         assert(!transaction->received().empty());
-        assert(first_unfinished_id_ == state->manager_id());
     }
     state->setCallback(callback);
     assert(queue_.at(state->manager_id()) == state);
-    if (first_unfinished_id_ == NO_UNFINISHED_ID || first_unfinished_id_ == state->manager_id() ||
-            !transaction->multiple_partitions()) {
-        sendFragments(state);
+
+    // check if we can send out this round of messages
+    trySendRound(state);
+
+    // Check uninvolved partitions to see if we can send fragments of the next transactions
+    // TODO: Only check the actual changed partitions? Some of this checking is redundant with
+    // checks in trySendRound
+    for (int i = 0; i < partitions_.size(); ++i) {
+        if (transaction->isFinished(i) && partition_next_send_txn_id_[i] == state->manager_id()) {
+            advanceSendId(i, state->manager_id());
+        }
     }
 }
 
-void OrderedDtxnManager::finish(DistributedTransaction* transaction, bool commit, const std::string& payload,
-        const std::tr1::function<void()>& callback) {
+void OrderedDtxnManager::trySendRound(TransactionState* state) {
+    assert(!state->transaction()->sent().empty());
+
+    const DistributedTransaction::MessageList& messages = state->transaction()->sent();
+    if (state->transaction()->multiple_partitions()) {
+        for (int i = 0; i < messages.size(); ++i) {
+            int partition_index = messages[i].first;
+
+            assert(partition_next_send_txn_id_[partition_index] <= state->manager_id());
+            if (partition_next_send_txn_id_[partition_index] < state->manager_id()) {
+                // There is some *other* transaction that still needs to finish, it could have JUST
+                // finished and we are re-checking, so we can't assert() on it
+                return;
+            }
+        }
+    }
+
+    sendFragments(state);
+
+    // check the done state of any sent fragments
+    // we can only advanced the counter for sent fragments because we need to make sure the
+    // partition has started this transaction before we send the next ones!
+    for (int i = 0; i < messages.size(); ++i) {
+        int partition_index = messages[i].first;
+        if (state->transaction()->isDone(partition_index) && partition_next_send_txn_id_[i] == state->manager_id()) {
+            advanceSendId(i, state->manager_id());
+        }
+    }
+}
+
+void OrderedDtxnManager::advanceSendId(int partition_index, int current_send_id) {
+    int send_id = partition_next_send_txn_id_[partition_index];
+    assert(send_id == current_send_id);
+    assert(send_id < queue_.firstIndex() || queue_.at(send_id) == NULL ||
+            queue_.at(send_id)->transaction()->isDone(partition_index));
+
+    // increment the send_id until we get to the end or find a transaction that needs sending
+    TransactionState* state = NULL;
+    bool is_finished_txn = false;
+    do {
+        send_id += 1;
+        partition_next_send_txn_id_[partition_index] = send_id;
+
+        state = NULL;
+        is_finished_txn = false;
+        if (send_id < queue_.firstIndex()) {
+            // transaction must be finished because we no longer have a record of it
+            is_finished_txn = true;
+        } else if (send_id < queue_.nextIndex()) {
+            state = queue_.at(send_id);
+            if (state == NULL) {
+                is_finished_txn = true;
+            } else if (!state->transaction()->multiple_partitions()) {
+                is_finished_txn = true;
+            } else {
+                // is this multi-partition transaction finished at this partition?
+                assert(state->transaction()->multiple_partitions());
+                is_finished_txn = state->transaction()->isFinished(partition_index);
+            }
+        }
+        // continue incrementing while there are more transactions and we have a finished transaction
+    } while (send_id < queue_.nextIndex() && is_finished_txn);
+
+    if (state == NULL) {
+        assert(send_id == queue_.nextIndex());
+        return;
+    }
+    assert(state->transaction()->multiple_partitions());
+    assert(state->transaction()->isParticipant(partition_index) ||
+            state->transaction()->isUnknown(partition_index));
+    if (state->transaction()->isParticipant(partition_index)) {
+        // try to send this round out
+        trySendRound(state);
+    }
+}
+
+void OrderedDtxnManager::finish(DistributedTransaction* transaction, bool commit,
+        const string& payload, const std::tr1::function<void()>& callback) {
     CHECK(transaction->multiple_partitions());
     CHECK(transaction->status() == DistributedTransaction::OK);
     TransactionState* state = (TransactionState*) transaction->state();
@@ -247,6 +330,13 @@ void OrderedDtxnManager::finish(DistributedTransaction* transaction, bool commit
                 
         LOG_DEBUG("Going to call sendFragments to perform Canadian Voodoo Magic!!");
         sendFragments(state);
+
+        // check if finishing this transaction has unblocked any rounds
+        for (int i = 0; i < partitions_.size(); ++i) {
+            if (partition_next_send_txn_id_[i] == state->manager_id()) {
+                advanceSendId(i, state->manager_id());
+            }
+        }
     } else {
         finishTransaction(state, commit);
         delete state;
@@ -284,11 +374,6 @@ void OrderedDtxnManager::responseReceived(net::ConnectionHandle* connection,
     }
     TransactionState* state = queue_.at(response.id);
     assert(-1 <= response.dependency && response.dependency < response.id);
-    assert(!state->transaction()->multiple_partitions() ||
-            first_unfinished_id_ == state->manager_id() ||
-            ((first_unfinished_id_ == NO_UNFINISHED_ID ||
-                    first_unfinished_id_ > state->manager_id()) &&
-                    state->transaction()->isAllDone()));
 
     // Find the partition index
     int partition_index = -1;
@@ -296,6 +381,12 @@ void OrderedDtxnManager::responseReceived(net::ConnectionHandle* connection,
         if (partitions_[partition_index] == connection) break;
     }
     assert(0 <= partition_index && partition_index < partitions_.size());
+    // this must either be a single partition transaction (order doesn't matter),
+    // the "current" transaction for this partition, or a "finished" transaction for this partition
+    assert(!state->transaction()->multiple_partitions() ||
+            partition_next_send_txn_id_[partition_index] == state->manager_id() ||
+            (partition_next_send_txn_id_[partition_index] > state->manager_id() &&
+                    state->transaction()->isDone(partition_index)));
 
     state->transaction()->receive(
             partition_index, response.result, (DistributedTransaction::Status) response.status);
@@ -335,11 +426,11 @@ void OrderedDtxnManager::responseReceived(net::ConnectionHandle* connection,
 }
 
 void OrderedDtxnManager::nextRound(TransactionState* state) {
-    // TODO: It would be nice if we could speculative return results to the coordinator, since it
+    // TODO: It would be nice if we could speculatively return results to the client, since it
     // would reduce latency. However it would complicate aborts significantly.
     assert(state->transaction()->receivedAll() && state->dependenciesResolved());
 
-    // The transaction is completed done if this is an abort or if it is single partition
+    // The transaction is completed if this is an abort or if it is single partition
     // TODO: Would it be simpler to not special case this?
     assert(state->transaction()->multiple_partitions() || state->transaction()->isAllDone());
     bool finished = state->transaction()->status() != DistributedTransaction::OK ||
@@ -377,17 +468,6 @@ void OrderedDtxnManager::responseTimeout(TransactionState* state) {
 void OrderedDtxnManager::sendFragments(TransactionState* state) {
     assert(!state->transaction()->sent().empty());
 
-    if (state->transaction()->multiple_partitions()) {
-        assert(first_unfinished_id_ == state->manager_id() ||
-                first_unfinished_id_ == NO_UNFINISHED_ID);
-#ifndef NDEBUG
-        // every transaction except this one must be all done
-        for (size_t i = queue_.firstIndex(); i < state->manager_id(); ++i) {
-            assert(queue_.at(i) == NULL || queue_.at(i)->transaction()->isAllDone());
-        }
-#endif
-    }
-    
     // Send out messages to partitions
     Fragment request;
     request.id = state->manager_id();
@@ -402,8 +482,11 @@ void OrderedDtxnManager::sendFragments(TransactionState* state) {
     const DistributedTransaction::MessageList& messages = state->transaction()->sent();
     for (int i = 0; i < messages.size(); ++i) {
         int partition_index = messages[i].first;
-        request.transaction = messages[i].second;
         assert(state->transaction()->isParticipant(partition_index));
+        assert(!state->transaction()->multiple_partitions() ||
+                partition_next_send_txn_id_[partition_index] == state->manager_id());
+
+        request.transaction = messages[i].second;
         request.last_fragment = !state->transaction()->isActive(partition_index);
         bool success = msg_server_->send(partitions_[partition_index], request);
         ASSERT(success);
@@ -417,27 +500,6 @@ void OrderedDtxnManager::sendFragments(TransactionState* state) {
         //~ state->startResponseTimer(this, 200);
     }
     state->transaction()->sentMessages();
-
-    // If this is the last round, dispatch the next transaction
-    if (state->transaction()->isAllDone() && (first_unfinished_id_ == state->manager_id() ||
-            first_unfinished_id_ == NO_UNFINISHED_ID)) {
-        // We are done: look for the next multi-partition transaction
-        unblockTransactions(state->manager_id());
-    } else if (state->transaction()->multiple_partitions()) {
-        first_unfinished_id_ = state->manager_id();
-    }
-}
-
-void OrderedDtxnManager::unblockTransactions(int transaction_id) {
-    assert(first_unfinished_id_ == transaction_id || first_unfinished_id_ == NO_UNFINISHED_ID);
-    first_unfinished_id_ = NO_UNFINISHED_ID;
-    for (int i = std::max(transaction_id + 1, (int) queue_.firstIndex());
-            i < queue_.nextIndex(); ++i) {
-        if (queue_.at(i) != NULL && queue_.at(i)->transaction()->multiple_partitions()) {
-            sendFragments(queue_.at(i));
-            break;
-        }
-    }
 }
 
 bool OrderedDtxnManager::removeDependency(
@@ -521,12 +583,13 @@ void OrderedDtxnManager::finishTransaction(TransactionState* state, bool commit)
         queue_.pop_front();
     }
 
-    if (first_unfinished_id_ == state->manager_id()) {
-        // If the unfinished multi-partition transaction is being aborted,
-        // unblock other transactions
-        assert(!commit);
-        assert(state->transaction()->multiple_partitions());
-        unblockTransactions(state->manager_id());
+    // If this is an abort the done state has probably changed.
+    if (!commit) {
+        for (int i = 0; i < partitions_.size(); ++i) {
+            if (partition_next_send_txn_id_[i] == state->manager_id()) {
+                advanceSendId(i, state->manager_id());
+            }
+        }
     }
 }
 
