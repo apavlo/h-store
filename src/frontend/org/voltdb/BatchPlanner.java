@@ -36,6 +36,7 @@ import edu.brown.utils.PartitionEstimator;
 import edu.brown.utils.Poolable;
 import edu.brown.utils.StringUtil;
 import edu.brown.utils.LoggerUtil.LoggerBoolean;
+import edu.mit.hstore.HStoreSite;
 
 /**
  * @author pavlo
@@ -419,6 +420,7 @@ public class BatchPlanner {
         this.catalog = catalog_proc.getCatalog();
         this.p_estimator = p_estimator;
         this.num_partitions = CatalogUtil.getNumberOfPartitions(catalog_proc);
+        
         this.plan_pool = new StackObjectPool(new BatchPlanFactory(this), PLAN_POOL_INITIAL_SIZE, PLAN_POOL_INITIAL_SIZE);
         this.preload(PLAN_POOL_INITIAL_SIZE);
 
@@ -436,6 +438,7 @@ public class BatchPlanner {
      * @param num_partitions
      */
     private void preload(int initial_size) {
+        initial_size = (int)Math.round(initial_size / HStoreSite.getPreloadScaleFactor());
         BatchPlan plans[] = new BatchPlan[initial_size];
         try {
             for (int i = 0; i < initial_size; i++) {
