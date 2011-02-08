@@ -41,19 +41,16 @@ public:
     }
 
     virtual void readAvailable(TCPConnection* connection) {
-        // Call tryRead in a loop to handle batches of multiple messages
-        while (true) {
-            int result = buffer_.tryRead(connection, &rpc_request_);
-            if (result == -1) {
-                // Connection closed:
-                server_->closed(this);
-                return;
-            } else if (result == 0) {
-                // No complete message; try later
-                return;
-            }
-            assert(result > 0);
+        // Read as much data as possible from connection
+        int result = buffer_.readAllAvailable(connection);
+        if (result == -1) {
+            // Connection closed
+            server_->closed(this);
+            return;
+        }
 
+        // Parse as many messages as possible from the buffer
+        while (buffer_.readBufferedMessage(&rpc_request_)) {
             CHECK(rpc_request_.sequence_number() == next_sequence_);
             next_sequence_ += 1;
 

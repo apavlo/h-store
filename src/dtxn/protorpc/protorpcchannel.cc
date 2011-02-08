@@ -60,10 +60,13 @@ void ProtoRpcChannel::callMethodByName(const string& method_name, ProtoRpcContro
 
 void ProtoRpcChannel::readAvailable(TCPConnection* connection) {
     assert(connection == connection_);
-    int result = buffer_.tryRead(connection, &rpc_response_);
-    // Connection closed?
+    // Read as much data as possible from connection
+    int result = buffer_.readAllAvailable(connection);
+    // TODO: Handle connection closed.
     CHECK(result != -1);
-    if (result > 0) {
+
+    // Parse all messages in buffer
+    while (buffer_.readBufferedMessage(&rpc_response_)) {
         // Look up and remove the RPC from pending RPCs
         PendingRpcMap::iterator it = pending_rpcs_.find(rpc_response_.sequence_number());
         CHECK(it != pending_rpcs_.end());
@@ -72,9 +75,6 @@ void ProtoRpcChannel::readAvailable(TCPConnection* connection) {
 
         // Trigger the callback
         rpc->finished(rpc_response_);
-    } else {
-        // Blocked: try again later
-        assert(result == 0);
     }
 }
 

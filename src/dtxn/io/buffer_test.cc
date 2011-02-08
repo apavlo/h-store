@@ -226,42 +226,32 @@ TEST_F(FIFOBufferTest, CopyIn) {
     EXPECT_EQ(0, remaining_);
 }
 
-TEST_F(FIFOBufferTest, ReadUntilAvailable) {
+TEST_F(FIFOBufferTest, ReadAllAvailable) {
     io::MockInputStream input;
-    EXPECT_DEATH(buffer_.readUntilAvailable(&input, -1));
-    EXPECT_EQ(0, buffer_.readUntilAvailable(&input, 0));
-    EXPECT_EQ(0, input.read_count_);
+    EXPECT_EQ(0, buffer_.readAllAvailable(&input));
+    EXPECT_EQ(1, input.read_count_);
 
-    input.addFakeData(io::FIFOBuffer::PAGE_DATA_SIZE + 100);
-    int available = buffer_.readUntilAvailable(&input, io::FIFOBuffer::PAGE_DATA_SIZE + 101);
-    EXPECT_EQ(io::FIFOBuffer::PAGE_DATA_SIZE + 100, available);
-    EXPECT_EQ(io::FIFOBuffer::PAGE_DATA_SIZE + 100, buffer_.available());
-
-    // Call read twice: once per block
-    EXPECT_EQ(2, input.read_count_);
-
-    // Calling with <= the number available doesn't call read again
-    EXPECT_EQ(io::FIFOBuffer::PAGE_DATA_SIZE + 100, buffer_.readUntilAvailable(&input, 1));
-    EXPECT_EQ(io::FIFOBuffer::PAGE_DATA_SIZE + 100,
-            buffer_.readUntilAvailable(&input, io::FIFOBuffer::PAGE_DATA_SIZE + 100));
-    EXPECT_EQ(2, input.read_count_);
-    EXPECT_EQ(io::FIFOBuffer::PAGE_DATA_SIZE + 100, buffer_.available());
-
-    // Fill the 2nd block
-    input.addFakeData(io::FIFOBuffer::PAGE_DATA_SIZE - 100);
-    available = buffer_.readUntilAvailable(&input, io::FIFOBuffer::PAGE_DATA_SIZE * 2 + 1);
-    EXPECT_EQ(io::FIFOBuffer::PAGE_DATA_SIZE * 2, available);
-    EXPECT_EQ(io::FIFOBuffer::PAGE_DATA_SIZE * 2, buffer_.available());
-
-    // Calls read twice: once to fill the block, again to check for more data
-    EXPECT_EQ(4, input.read_count_);
-
+    input.addFakeData(io::FIFOBuffer::PAGE_DATA_SIZE * 2);
     input.close();
-    EXPECT_EQ(io::FIFOBuffer::PAGE_DATA_SIZE * 2,
-            buffer_.readUntilAvailable(&input, io::FIFOBuffer::PAGE_DATA_SIZE * 2));
-    EXPECT_EQ(-1,
-            buffer_.readUntilAvailable(&input, io::FIFOBuffer::PAGE_DATA_SIZE * 2 + 1));
+    EXPECT_EQ(io::FIFOBuffer::PAGE_DATA_SIZE * 2, buffer_.readAllAvailable(&input));
+    EXPECT_EQ(4, input.read_count_);
     EXPECT_EQ(io::FIFOBuffer::PAGE_DATA_SIZE * 2, buffer_.available());
+
+    // Reading again returns -1: the connection is closed, no new data was read. This simulates
+    // the case where the application read a bunch of data, but needs more so it waits for more
+    // input using epoll(). That is ready immediately, so it calls readAllAvailable() again.
+    EXPECT_EQ(-1, buffer_.readAllAvailable(&input));
+    EXPECT_EQ(5, input.read_count_);
+
+    buffer_.readBuffer(&read_, &remaining_);
+    EXPECT_EQ(io::FIFOBuffer::PAGE_DATA_SIZE, remaining_);
+    buffer_.readBuffer(&read_, &remaining_);
+    EXPECT_EQ(io::FIFOBuffer::PAGE_DATA_SIZE, remaining_);
+    buffer_.readBuffer(&read_, &remaining_);
+    EXPECT_EQ(0, remaining_);
+
+    EXPECT_EQ(-1, buffer_.readAllAvailable(&input));
+    EXPECT_EQ(6, input.read_count_);
 }
 
 TEST_F(FIFOBufferTest, WriteAvailable) {

@@ -49,6 +49,7 @@ int main(int argc, const char* argv[]) {
     net::MessageServer msg_server;
     vector<net::ConnectionHandle*> connections = msg_server.addConnections(msg_connections);
     msg_connections.clear();
+
     dtxn::OrderedDtxnManager manager(&event_loop, &msg_server, connections);
     protodtxn::ProtoDtxnCoordinator coordinator(&manager, (int) partitions.size());
 

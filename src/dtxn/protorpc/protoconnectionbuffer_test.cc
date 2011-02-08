@@ -38,6 +38,7 @@ public:
     io::MemoryInputStream in_stream_;
 };
 
+/*
 TEST_F(ProtoConnectionBufferTest, ReadByteAtATime) {
     string bytes = serialize(42);
 
@@ -89,6 +90,7 @@ TEST_F(ProtoConnectionBufferTest, ConnectionBreak) {
     EXPECT_EQ(0, message_.value());
     EXPECT_FALSE(message_.has_value());
 }
+*/
 
 class StringOutput : public io::OutputStream {
 public:

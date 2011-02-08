@@ -25,16 +25,17 @@ public:
 
     OrderedDtxnManagerTest() :
             transaction_(NUM_PARTITIONS),
+            transaction2_(NUM_PARTITIONS),
             txn_(NULL),
             callback_(std::tr1::bind(&OrderedDtxnManagerTest::callback, this)),
             callback2_(std::tr1::bind(&OrderedDtxnManagerTest::callback2, this)),
             called_(false),
             called2_(false),
             manager_(NULL) {
-        replicas_.push_back(new MockMessageConnection());
-        replicas_.push_back(new MockMessageConnection());
-        replica_handles_.push_back(msg_server_.addConnection(replicas_[0]));
-        replica_handles_.push_back(msg_server_.addConnection(replicas_[1]));
+        for (int i = 0; i < NUM_PARTITIONS; ++i) {
+            replicas_.push_back(new MockMessageConnection());
+            replica_handles_.push_back(msg_server_.addConnection(replicas_.back()));
+        }
         response_.status = ExecutionEngine::OK;
         manager_ = new OrderedDtxnManager(&event_loop_, &msg_server_, replica_handles_);
     }
@@ -54,6 +55,7 @@ public:
     }
 
     DistributedTransaction transaction_;
+    DistributedTransaction transaction2_;
     DistributedTransaction* txn_;
     std::tr1::function<void()> callback_;
     std::tr1::function<void()> callback2_;
@@ -68,6 +70,7 @@ public:
 
     Fragment fragment_;
     FragmentResponse response_;
+    dtxn::CommitDecision decision_;
 };
 
 TEST_F(OrderedDtxnManagerTest, BadCreate) {
@@ -207,13 +210,12 @@ TEST_F(OrderedDtxnManagerTest, OneShotCommit) {
 
     // Commit messages should go out after we call finish
     manager_->finish(&transaction_, true, callback_);
-    dtxn::CommitDecision decision;
-    replicas_[0]->getMessage(&decision);
-    EXPECT_EQ(0, decision.id);
-    EXPECT_EQ(true, decision.commit);
-    replicas_[1]->getMessage(&decision);
-    EXPECT_EQ(0, decision.id);
-    EXPECT_EQ(true, decision.commit);
+    replicas_[0]->getMessage(&decision_);
+    EXPECT_EQ(0, decision_.id);
+    EXPECT_EQ(true, decision_.commit);
+    replicas_[1]->getMessage(&decision_);
+    EXPECT_EQ(0, decision_.id);
+    EXPECT_EQ(true, decision_.commit);
 }
 
 TEST_F(OrderedDtxnManagerTest, OneShotReplicaAbort) {
@@ -238,13 +240,12 @@ TEST_F(OrderedDtxnManagerTest, OneShotReplicaAbort) {
     EXPECT_EQ("twoerror", transaction_.received()[0].second);
 
     // Abort messages should go out automatically
-    dtxn::CommitDecision decision;
-    replicas_[0]->getMessage(&decision);
-    EXPECT_EQ(0, decision.id);
-    EXPECT_EQ(false, decision.commit);
-    replicas_[1]->getMessage(&decision);
-    EXPECT_EQ(0, decision.id);
-    EXPECT_EQ(false, decision.commit);
+    replicas_[0]->getMessage(&decision_);
+    EXPECT_EQ(0, decision_.id);
+    EXPECT_EQ(false, decision_.commit);
+    replicas_[1]->getMessage(&decision_);
+    EXPECT_EQ(0, decision_.id);
+    EXPECT_EQ(false, decision_.commit);
 
     // Can't call finish on an aborted transaction
     EXPECT_DEATH(manager_->finish(&transaction_, false, callback_));
@@ -260,10 +261,9 @@ TEST_F(OrderedDtxnManagerTest, SinglePartitionQueuing) {
     EXPECT_EQ("one", fragment_.transaction);
 
     // A second single partition request also gets passed through
-    DistributedTransaction two(1);
-    two.send(0, "two");
-    two.setAllDone();
-    manager_->execute(&two, callback_);
+    transaction2_.send(0, "two");
+    transaction2_.setAllDone();
+    manager_->execute(&transaction2_, callback_);
     replicas_[0]->getMessage(&fragment_);
     EXPECT_EQ(1, fragment_.id);
     EXPECT_EQ("two", fragment_.transaction);
@@ -277,12 +277,12 @@ TEST_F(OrderedDtxnManagerTest, SinglePartitionQueuing) {
 
     EXPECT_TRUE(called_);
     called_ = false;
-    ASSERT_EQ(1, two.received().size());
-    EXPECT_EQ(0, two.received()[0].first);
-    EXPECT_EQ("twoout", two.received()[0].second);
+    ASSERT_EQ(1, transaction2_.received().size());
+    EXPECT_EQ(0, transaction2_.received()[0].first);
+    EXPECT_EQ("twoout", transaction2_.received()[0].second);
 
     // Queue another transaction to get passed through
-    DistributedTransaction three(1);
+    DistributedTransaction three(NUM_PARTITIONS);
     three.send(0, "three");
     three.setAllDone();
     manager_->execute(&three, callback_);
@@ -330,6 +330,8 @@ TEST_F(OrderedDtxnManagerTest, SinglePartitionMultipleRounds) {
     transaction_.setAllDone();
     manager_->execute(&transaction_, callback_);
     replicas_[0]->getMessage(&fragment_);
+    // TODO: It would be better to represent this by adding a "txn_state" field: OPEN, PREPARE, COMMIT
+    // then we could treat single partition and multi-partition transactions the same way at the participants
     EXPECT_FALSE(fragment_.multiple_partitions);
     EXPECT_TRUE(fragment_.last_fragment);
     manager_->responseReceived(replica_handles_[0], response_);
@@ -348,9 +350,8 @@ TEST_F(OrderedDtxnManagerTest, SinglePartitionMultipleRoundQueuing) {
     EXPECT_EQ(false, fragment_.last_fragment);
 
     // Start another multi-partition transaction: blocked
-    DistributedTransaction txn2(2);
-    txn2.send(1, "sp");
-    manager_->execute(&txn2, callback2_);
+    transaction2_.send(1, "sp");
+    manager_->execute(&transaction2_, callback2_);
     EXPECT_FALSE(replicas_[0]->hasMessage());
     
     // reply to the blocked mp transaction
@@ -377,10 +378,9 @@ TEST_F(OrderedDtxnManagerTest, MultiplePartitionQueuingWithSinglePartition) {
     replicas_[0]->getMessage(&fragment_);
 
     // Start and finish a single partition transaction
-    DistributedTransaction txn2(2);
-    txn2.send(1, "sp");
-    txn2.setAllDone();
-    manager_->execute(&txn2, callback2_);
+    transaction2_.send(1, "sp");
+    transaction2_.setAllDone();
+    manager_->execute(&transaction2_, callback2_);
     replicas_[1]->getMessage(&fragment_);
     response_.id = 1;
     manager_->responseReceived(replica_handles_[1], response_);
@@ -395,6 +395,20 @@ TEST_F(OrderedDtxnManagerTest, MultiplePartitionQueuingWithSinglePartition) {
     called_ = false;
     manager_->finish(&transaction_, false, callback_);
     EXPECT_TRUE(called_);
+}
+
+// Start an sp, then an mp: sp does not block the mp
+TEST_F(OrderedDtxnManagerTest, SinglePartitionNotBlockingMultiplePartition) {
+    // Start single partition
+    transaction_.send(0, "round1");
+    transaction_.setAllDone();
+    manager_->execute(&transaction_, callback_);
+    replicas_[0]->getMessage(&fragment_);
+
+    // Start a multi-partition transaction: it should get passed through
+    transaction2_.send(0, "mp");
+    manager_->execute(&transaction2_, callback2_);
+    replicas_[0]->getMessage(&fragment_);
 }
 
 TEST_F(OrderedDtxnManagerTest, TwoRoundCommit) {
@@ -447,13 +461,12 @@ TEST_F(OrderedDtxnManagerTest, TwoRoundCommit) {
     // Commit
     EXPECT_FALSE(called_);
     manager_->finish(&transaction_, true, callback_);
-    dtxn::CommitDecision decision;
-    replicas_[0]->getMessage(&decision);
-    EXPECT_EQ(0, decision.id);
-    EXPECT_EQ(true, decision.commit);
-    replicas_[1]->getMessage(&decision);
-    EXPECT_EQ(0, decision.id);
-    EXPECT_EQ(true, decision.commit);
+    replicas_[0]->getMessage(&decision_);
+    EXPECT_EQ(0, decision_.id);
+    EXPECT_EQ(true, decision_.commit);
+    replicas_[1]->getMessage(&decision_);
+    EXPECT_EQ(0, decision_.id);
+    EXPECT_EQ(true, decision_.commit);
     EXPECT_TRUE(called_);
 }
 
@@ -467,24 +480,23 @@ TEST_F(OrderedDtxnManagerTest, TwoRoundQueuing) {
     EXPECT_EQ(false, fragment_.last_fragment);
 
     // Start a single partition transaction: passed through.
-    DistributedTransaction txn2(2);
-    txn2.send(0, "sp");
-    txn2.setAllDone();
-    manager_->execute(&txn2, callback2_);
+    transaction2_.send(0, "sp");
+    transaction2_.setAllDone();
+    manager_->execute(&transaction2_, callback2_);
     replicas_[0]->getMessage(&fragment_);
     EXPECT_EQ(1, fragment_.id);
     EXPECT_EQ(false, fragment_.multiple_partitions);
     EXPECT_EQ(true, fragment_.last_fragment);
 
     // Start a couple one shot multi-partition transactions: blocked
-    DistributedTransaction txn3(2);
+    DistributedTransaction txn3(NUM_PARTITIONS);
     txn3.send(0, "txn3");
     txn3.send(1, "txn3");
     txn3.setAllDone();
     manager_->execute(&txn3, callback_);
     EXPECT_FALSE(replicas_[0]->hasMessage());
     EXPECT_FALSE(replicas_[1]->hasMessage());
-    DistributedTransaction txn4(2);
+    DistributedTransaction txn4(NUM_PARTITIONS);
     txn4.send(1, "txn4");
     manager_->execute(&txn4, callback_);
 
@@ -519,6 +531,32 @@ TEST_F(OrderedDtxnManagerTest, TwoRoundQueuing) {
     EXPECT_EQ(false, fragment_.last_fragment);
 }
 
+// Start a mp txn; send sp txn, finish mp txn in second round: bug caused sp to be resent
+TEST_F(OrderedDtxnManagerTest, TwoRoundQueuingSPUnfinished) {
+    // Send round 1
+    transaction_.send(0, "round1");
+    manager_->execute(&transaction_, callback_);
+    replicas_[0]->getMessage(&fragment_);
+
+    // Start a single partition transaction: passed through.
+    transaction2_.send(0, "sp");
+    transaction2_.setAllDone();
+    manager_->execute(&transaction2_, callback2_);
+    replicas_[0]->getMessage(&fragment_);
+
+    // reply to first mp txn
+    response_.id = 0;
+    manager_->responseReceived(replica_handles_[0], response_);
+
+    // send last round for mp txn
+    transaction_.send(0, "round2");
+    transaction_.setAllDone();
+    manager_->execute(&transaction_, callback_);
+    replicas_[0]->getMessage(&fragment_);
+    // OLD BUG: this previously sent sp txn again, and id = 1 (if one partition), or it crashed
+    EXPECT_EQ(0, fragment_.id);
+}
+
 TEST_F(OrderedDtxnManagerTest, TwoRoundQueuingAbort) {
     // Send round 1
     transaction_.send(0, "round1");
@@ -529,9 +567,8 @@ TEST_F(OrderedDtxnManagerTest, TwoRoundQueuingAbort) {
     EXPECT_EQ(false, fragment_.last_fragment);
 
     // Start a multi-partition transaction
-    DistributedTransaction txn2(2);
-    txn2.send(1, "sp");
-    manager_->execute(&txn2, callback2_);
+    transaction2_.send(1, "sp");
+    manager_->execute(&transaction2_, callback2_);
     EXPECT_FALSE(replicas_[1]->hasMessage());
 
     // Abort round 1: other transaction goes out
@@ -585,13 +622,12 @@ TEST_F(OrderedDtxnManagerTest, UnfinishedCommit) {
     EXPECT_TRUE(called_);
 
     // Commit finally goes out
-    dtxn::CommitDecision decision;
-    replicas_[0]->getMessage(&decision);
-    EXPECT_EQ(0, decision.id);
-    EXPECT_EQ(true, decision.commit);
-    replicas_[1]->getMessage(&decision);
-    EXPECT_EQ(0, decision.id);
-    EXPECT_EQ(true, decision.commit);
+    replicas_[0]->getMessage(&decision_);
+    EXPECT_EQ(0, decision_.id);
+    EXPECT_EQ(true, decision_.commit);
+    replicas_[1]->getMessage(&decision_);
+    EXPECT_EQ(0, decision_.id);
+    EXPECT_EQ(true, decision_.commit);
 }
 
 TEST_F(OrderedDtxnManagerTest, UnfinishedCommitSinglePartition) {
@@ -648,12 +684,75 @@ TEST_F(OrderedDtxnManagerTest, UnfinishedAbort) {
 
     // abort
     manager_->finish(&transaction_, false, callback_);
-    dtxn::CommitDecision decision;
-    replicas_[0]->getMessage(&decision);
-    EXPECT_EQ(0, decision.id);
-    EXPECT_EQ(false, decision.commit);
+    replicas_[0]->getMessage(&decision_);
+    EXPECT_EQ(0, decision_.id);
+    EXPECT_EQ(false, decision_.commit);
     EXPECT_TRUE(called_);
 }
+
+
+TEST_F(OrderedDtxnManagerTest, DisjointTxnsNotBlocking) {
+    // txn1: 0 involved, 1, 2 done, 3 unknown
+    transaction_.send(0, "0round1");
+    transaction_.setDone(1);
+    transaction_.setDone(2);
+    manager_->execute(&transaction_, callback_);
+    replicas_[0]->getMessage(&fragment_);
+    EXPECT_EQ(true, fragment_.multiple_partitions);
+    EXPECT_EQ(false, fragment_.last_fragment);
+
+    // txn2: 0 unknown, 1, 2 involved, 3 done
+    transaction2_.send(1, "3round1");
+    transaction2_.send(2, "3round1");
+    transaction2_.setDone(3);
+    manager_->execute(&transaction2_, callback2_);
+    replicas_[1]->getMessage(&fragment_);
+    replicas_[2]->getMessage(&fragment_);
+
+    // txn3: 1, 3 involved
+    DistributedTransaction txn3(NUM_PARTITIONS);
+    txn3.send(0, "0");
+    txn3.send(3, "3");
+    manager_->execute(&txn3, callback2_);
+    EXPECT_FALSE(replicas_[0]->hasMessage());
+    EXPECT_FALSE(replicas_[3]->hasMessage());
+
+    // txn2: responded and send round to 0, 1: blocked due to txn1
+    response_.status = ExecutionEngine::OK;
+    response_.id = 1;
+    manager_->responseReceived(replica_handles_[1], response_);
+    manager_->responseReceived(replica_handles_[2], response_);
+    EXPECT_TRUE(called2_);
+    called2_ = false;
+    transaction2_.send(0, "round2");
+    transaction2_.send(1, "round2");
+    transaction2_.setAllDone();
+    manager_->execute(&transaction2_, callback2_);
+    EXPECT_FALSE(replicas_[0]->hasMessage());
+    EXPECT_FALSE(replicas_[1]->hasMessage());
+
+    // txn1: responded and finished
+    response_.id = 0;
+    manager_->responseReceived(replica_handles_[0], response_);
+    EXPECT_TRUE(called_);
+    called_ = false;
+    manager_->finish(&transaction_, true, callback_);
+//    replicas_[0]->getMessage(&decision_);
+//    EXPECT_EQ(0, decision_.id);
+
+    // txn1 finishing causes txn2 round 2 to be sent
+//    replicas_[0]->getMessage(&fragment_);
+    replicas_[1]->getMessage(&fragment_);
+    EXPECT_EQ(1, fragment_.id);
+    EXPECT_EQ(true, fragment_.last_fragment);
+
+    // txn2 last fragment being sent causes txn3 to be sent
+    replicas_[0]->getMessage(&fragment_);
+    EXPECT_EQ(2, fragment_.id);
+    EXPECT_EQ(false, fragment_.last_fragment);
+    replicas_[2]->getMessage(&fragment_);
+}
+
 
 #ifdef FOO
 TEST_F(OrderedDtxnManagerTest, TransactionIds) {

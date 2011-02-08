@@ -1,9 +1,7 @@
-diff --git a/libevent/config.h b/libevent/config.h
-new file mode 100644
-diff --git a/libevent/event-config.h b/libevent/event-config.h
+diff --git a/libevent/include/event2/event-config.h b/libevent/include/event2/event-config.h
 new file mode 120000
 --- /dev/null
-+++ b/libevent/event-config.h
++++ b/libevent/include/event2/event-config.h
 @@ -0,0 +1,1 @@
 +event-config.h.linux
 \ No newline at end of file

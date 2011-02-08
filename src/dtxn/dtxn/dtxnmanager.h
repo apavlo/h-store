@@ -17,6 +17,8 @@ class DistributedTransaction;
 // Manages distributed transactions. Specific implementations provide
 // different protocols, concurrency control mechanisms and fault-tolerance.
 // TODO: Creating DistributedTransactions requires knowing the number of partitions. Fix this?
+// this may not be as "easy" as adding a newTransaction() method here: there is a complex
+// relationship between the partitions that exist and the DtxnManager that needs to be considered.
 class DtxnManager {
 public:
     virtual ~DtxnManager() {}

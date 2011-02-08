@@ -22,6 +22,7 @@ TEST_F(NetworkAddressTest, ParseSpace) {
     EXPECT_EQ(true, result);
     EXPECT_EQ(12345, address_.port());
     EXPECT_EQ("127.0.0.1:12345", address_.toString());
+    EXPECT_EQ("127.0.0.1", address_.ipToString());
 }
 
 TEST_F(NetworkAddressTest, ParseColon) {

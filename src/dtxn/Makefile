@@ -126,20 +126,26 @@ $(PREFIX)/protorpc/sequencereader_main.o: protorpc/sequencereader_main.cc
 ## ------------------------------------------------------------------
 ## LIBEVENT
 ## ------------------------------------------------------------------
-libevent:  $(PREFIX)/libevent/strlcpy.o $(PREFIX)/libevent/poll.o $(PREFIX)/libevent/http.o $(PREFIX)/libevent/epoll.o $(PREFIX)/libevent/epoll_sub.o $(PREFIX)/libevent/evutil.o $(PREFIX)/libevent/log.o $(PREFIX)/libevent/select.o $(PREFIX)/libevent/signal.o $(PREFIX)/libevent/evbuffer.o $(PREFIX)/libevent/event.o $(PREFIX)/libevent/event_tagging.o $(PREFIX)/libevent/buffer.o  $(PREFIX)/libevent/libevent_core.a $(PREFIX)/libevent/libevent_http.a
+#libevent:  $(PREFIX)/libevent/strlcpy.o $(PREFIX)/libevent/poll.o $(PREFIX)/libevent/http.o $(PREFIX)/libevent/epoll.o $(PREFIX)/libevent/epoll_sub.o $(PREFIX)/libevent/evutil.o $(PREFIX)/libevent/log.o $(PREFIX)/libevent/select.o $(PREFIX)/libevent/signal.o $(PREFIX)/libevent/event.o $(PREFIX)/libevent/event_tagging.o $(PREFIX)/libevent/buffer.o  $(PREFIX)/libevent/libevent_core.a $(PREFIX)/libevent/libevent_http.a
 
 $(PREFIX)/libevent/strlcpy.o: libevent/strlcpy.c
 	$(CC_COMPILE)
 $(PREFIX)/libevent/poll.o: libevent/poll.c
 	$(CC_COMPILE)
-$(PREFIX)/libevent/http.o: libevent/http.c
-	$(CC_COMPILE)
+#$(PREFIX)/libevent/http.o: libevent/http.c
+#	$(CC_COMPILE)
 $(PREFIX)/libevent/epoll_sub.o: libevent/epoll_sub.c
 	$(CC_COMPILE)
 $(PREFIX)/libevent/epoll.o: libevent/epoll.c
 	$(CC_COMPILE)
-$(PREFIX)/libevent/libevent_http.a: $(PREFIX)/libevent/http.o $(PREFIX)/libevent/strlcpy.o
-	$(CC_LIBRARY)
+#$(PREFIX)/libevent/libevent_http.a: $(PREFIX)/libevent/http.o $(PREFIX)/libevent/strlcpy.o
+#	$(CC_LIBRARY)
+$(PREFIX)/libevent/evmap.o: libevent/evmap.c
+	$(CC_COMPILE)
+$(PREFIX)/libevent/evthread.o: libevent/evthread.c
+	$(CC_COMPILE)
+$(PREFIX)/libevent/evthread_pthread.o: libevent/evthread_pthread.c
+	$(CC_COMPILE)
 $(PREFIX)/libevent/evutil.o: libevent/evutil.c
 	$(CC_COMPILE)
 $(PREFIX)/libevent/log.o: libevent/log.c
@@ -148,11 +154,9 @@ $(PREFIX)/libevent/select.o: libevent/select.c
 	$(CC_COMPILE)
 $(PREFIX)/libevent/signal.o: libevent/signal.c
 	$(CC_COMPILE)
-$(PREFIX)/libevent/evbuffer.o: libevent/evbuffer.c
-	$(CC_COMPILE)
 $(PREFIX)/libevent/event.o: libevent/event.c
 	$(CC_COMPILE)
-$(PREFIX)/libevent/libevent_core.a: $(PREFIX)/libevent/event.o $(PREFIX)/libevent/buffer.o $(PREFIX)/libevent/evbuffer.o $(PREFIX)/libevent/log.o $(PREFIX)/libevent/evutil.o $(PREFIX)/libevent/select.o $(PREFIX)/libevent/poll.o $(PREFIX)/libevent/epoll.o $(PREFIX)/libevent/signal.o
+$(PREFIX)/libevent/libevent_core.a: $(PREFIX)/libevent/event.o $(PREFIX)/libevent/buffer.o $(PREFIX)/libevent/log.o $(PREFIX)/libevent/evmap.o $(PREFIX)/libevent/evthread.o $(PREFIX)/libevent/evthread_pthread.o $(PREFIX)/libevent/evutil.o $(PREFIX)/libevent/select.o $(PREFIX)/libevent/poll.o $(PREFIX)/libevent/epoll.o $(PREFIX)/libevent/signal.o $(PREFIX)/libevent/strlcpy.o
 	$(CC_LIBRARY)
 $(PREFIX)/libevent/event_tagging.o: libevent/event_tagging.c
 	$(CC_COMPILE)

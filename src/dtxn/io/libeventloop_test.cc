@@ -4,12 +4,18 @@
 
 #include <cstring>
 
+#include <pthread.h>
 #include <signal.h>
+#include <time.h>
 
 #include "base/assert.h"
 #include "io/libeventloop.h"
-#include "libevent/event.h"
+#include "libevent/include/event2/event.h"
+#include "libevent/include/event2/event_struct.h"
 #include "stupidunit/stupidunit.h"
+#include "third_party/protobuf/src/google/protobuf/stubs/common.h"
+
+using google::protobuf::NewCallback;
 
 static bool sent_sigint = false;
 static void sendSigint(int fd, short type, void* argument) {
@@ -26,18 +32,22 @@ public:
 
     ~LibEventLoopTest() {
         // This can fail if the event was never used
-        event_del(&event_);
+        if (event_initialized(&event_)) {
+            int error = event_del(&event_);
+            ASSERT(error == 0);
+        }
     }
 
     void setSendSigint(const timeval& timeout) {
         // remove the timer in case it has already been set
-        evtimer_del(&event_);
+        if (event_initialized(&event_)) {
+            int error = evtimer_del(&event_);
+            ASSERT(error == 0);
+        }
 
-        evtimer_set(&event_, sendSigint, NULL);
-        int error = event_base_set(event_loop_.base(), &event_);
-        assert(error == 0);
-        error = event_add(&event_, &timeout);
-        assert(error == 0);
+        event_assign(&event_, event_loop_.base(), -1, EV_TIMEOUT, sendSigint, NULL);
+        int error = event_add(&event_, &timeout);
+        ASSERT(error == 0);
     }
 
     io::LibEventLoop event_loop_;
@@ -164,6 +174,53 @@ TEST_F(LibEventLoopTest, TimeOutReset) {
     event_loop_.cancelTimeOut(handle);
     EXPECT_DEATH(event_reinit(event_loop_.base()); event_loop_.run());
 }
+
+static pthread_t tid = 0;
+static int call_count = 0;
+static void eventLoopCall() {
+    tid = pthread_self();
+    call_count += 1;
+}
+
+static bool loop_exited = false;
+static void* loopthread(void* argument) {
+    io::EventLoop* event_loop = reinterpret_cast<io::EventLoop*>(argument);
+    event_loop->run();
+    loop_exited = true;
+    return NULL;
+}
+
+TEST_F(LibEventLoopTest, RunInEventLoop) {
+    // Queue two callbacks; one of which will exit the loop
+    event_loop_.runInEventLoop(NewCallback(&eventLoopCall));
+    event_loop_.runInEventLoop(NewCallback(&event_loop_, &io::LibEventLoop::exit));
+    EXPECT_EQ(0, call_count);
+    event_loop_.run();
+    EXPECT_EQ(1, call_count);
+    EXPECT_EQ(pthread_self(), tid);
+
+    // run the loop in another thread with no events: it does not exit
+    loop_exited = false;
+    pthread_t loop_tid;
+    int error = pthread_create(&loop_tid, NULL, loopthread, &event_loop_);
+    ASSERT(error == 0);
+
+    static const struct timespec MILLISECOND = { 0, 1000000 };
+    error = nanosleep(&MILLISECOND, NULL);
+    ASSERT(error == 0);
+    EXPECT_FALSE(loop_exited);
+
+    // Now for the real magic: run that again in another thread!
+    event_loop_.runInEventLoop(NewCallback(&eventLoopCall));
+    event_loop_.runInEventLoop(NewCallback(&event_loop_, &io::LibEventLoop::exit));
+    error = pthread_join(loop_tid, NULL);
+    ASSERT(error == 0);
+
+    EXPECT_EQ(2, call_count);
+    EXPECT_EQ(loop_tid, tid);
+    EXPECT_TRUE(loop_exited);
+}
+
 
 int main() {
     return TestSuite::globalInstance()->runAll();

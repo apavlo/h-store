@@ -9,7 +9,6 @@
 
 #include "base/circularbuffer.h"
 #include "dtxn/executionengine.h"
-#include "dtxn/transaction.h"
 
 namespace io {
 class EventLoop;
