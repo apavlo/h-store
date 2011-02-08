@@ -81,7 +81,11 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
     public static final String DTXN_COORDINATOR = "protodtxncoordinator";
     public static final String DTXN_ENGINE = "protodtxnengine";
     public static final String SITE_READY_MSG = "Site is ready for action";
-    
+
+    private static final double PRELOAD_SCALE_FACTOR = Double.valueOf(System.getProperty("hstore.preload", "1.0")); 
+    public static double getPreloadScaleFactor() {
+        return (PRELOAD_SCALE_FACTOR);
+    }
 
     // ----------------------------------------------------------------------------
     // HStoreSite Internal Transaction Information

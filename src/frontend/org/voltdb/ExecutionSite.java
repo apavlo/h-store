@@ -502,12 +502,14 @@ public class ExecutionSite implements Runnable {
      */
     protected void preload() {
         this.initializeVoltProcedurePools();
+
+        double scaleFactor = HStoreSite.getPreloadScaleFactor();
         
         // Then preload a bunch of TransactionStates
         for (boolean local : new boolean[]{ true, false }) {
             List<TransactionState> states = new ArrayList<TransactionState>();
             ObjectPool pool = (local ? this.localTxnPool : this.remoteTxnPool);
-            int count = (local ? PRELOAD_LOCAL_TXN_STATES : PRELOAD_REMOTE_TXN_STATES);
+            int count = (int)Math.round((local ? PRELOAD_LOCAL_TXN_STATES : PRELOAD_REMOTE_TXN_STATES) / scaleFactor);
             try {
                 for (int i = 0; i < count; i++) {
                     TransactionState ts = (TransactionState)pool.borrowObject();
@@ -526,7 +528,8 @@ public class ExecutionSite implements Runnable {
         // And some DependencyInfos
         try {
             List<DependencyInfo> infos = new ArrayList<DependencyInfo>();
-            for (int i = 0; i < PRELOAD_DEPENDENCY_INFOS; i++) {
+            int count = (int)Math.round(PRELOAD_DEPENDENCY_INFOS / scaleFactor);
+            for (int i = 0; i < count; i++) {
                 DependencyInfo di = (DependencyInfo)DependencyInfo.INFO_POOL.borrowObject();
                 di.init(null, 1, 1);
                 infos.add(di);
