@@ -8,6 +8,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.Map.Entry;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -406,8 +407,14 @@ public class MarkovGraph extends AbstractDirectedGraph<Vertex, Edge> implements 
      */
     public boolean isValid() {
         double EPSILON = 0.00001;
-        for (Vertex v : getVertices()) {
+        for (Vertex v : this.getVertices()) {
             double sum = 0.0;
+            
+            if (v.isValid() == false) {
+                LOG.warn("The probabilities for " + v + " are not valid!");
+                return (false);
+            }
+            
             Set<Vertex> seen_vertices = new HashSet<Vertex>(); 
             for (Edge e : this.getOutEdges(v)) {
                 Vertex v1 = this.getOpposite(v, e);
@@ -629,7 +636,20 @@ public class MarkovGraph extends AbstractDirectedGraph<Vertex, Edge> implements 
         //
         if (args.hasParam(ArgumentsParser.PARAM_MARKOV_OUTPUT)) {
             LOG.info("Writing graphs out to " + args.getParam(ArgumentsParser.PARAM_MARKOV_OUTPUT));
-            MarkovUtil.save(graphs_per_partition, args.getParam(ArgumentsParser.PARAM_MARKOV_OUTPUT));
+            
+            // HACK: Split the graphs into separate MarkovGraphsContainers based on partition ids
+            Map<Integer, MarkovGraphsContainer> markovs = new HashMap<Integer, MarkovGraphsContainer>();
+            for (Entry<Integer, Map<Procedure, MarkovGraph>> e : graphs_per_partition.entrySet()) {
+                MarkovGraphsContainer m = new MarkovGraphsContainer();
+                Integer p = e.getKey();
+                for (MarkovGraph markov : e.getValue().values()) {
+                    m.put(p, markov);
+                } // FOR
+                markovs.put(p, m);
+            } // FOR
+            MarkovUtil.save(markovs, args.getParam(ArgumentsParser.PARAM_MARKOV_OUTPUT));
+            
+            
 //            for (Integer partition : graphs_per_partition.keySet()) {
 //                for (MarkovGraph g : graphs_per_partition.get(partition)) {
 //                    String name = g.getProcedure() + "_" + partition;

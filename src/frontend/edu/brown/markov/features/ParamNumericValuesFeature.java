@@ -55,9 +55,9 @@ public class ParamNumericValuesFeature extends AbstractFeature {
     }
 
     @Override
-    public Object calculate(String key, TransactionTrace txn_trace) throws Exception {
+    public Object calculate(String key, Object params[]) throws Exception {
         Pair<ProcParameter, Integer> p = this.getProcParameterWithIndex(key);
-        Object param = txn_trace.getParam(p.getFirst().getIndex());
+        Object param = params[p.getFirst().getIndex()];
         if (p.getSecond() != null) {
             assert(p.getFirst().getIsarray()) : "Invalid: " + key;
             param = ((Object[])param)[p.getSecond()];

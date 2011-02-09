@@ -26,7 +26,13 @@ public class TransactionIdFeature extends AbstractFeature {
     
     @Override
     public Object calculate(String key, TransactionTrace txnTrace) throws Exception {
-        return (txnTrace.getTransactionId());
+        return txnTrace.getTransactionId();
+    }
+    
+    @Override
+    public Object calculate(String key, Object params[]) throws Exception {
+        assert(false);
+        return (null);
     }
 
 }

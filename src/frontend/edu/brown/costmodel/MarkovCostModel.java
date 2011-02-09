@@ -1,12 +1,9 @@
 package edu.brown.costmodel;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 
 import org.apache.log4j.Logger;
 import org.voltdb.catalog.Database;
@@ -22,6 +19,7 @@ import edu.brown.markov.TransactionEstimator.State;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.PartitionEstimator;
+import edu.brown.utils.StringUtil;
 import edu.brown.utils.LoggerUtil.LoggerBoolean;
 import edu.brown.workload.TransactionTrace;
 import edu.brown.workload.Workload;
@@ -122,21 +120,7 @@ public class MarkovCostModel extends AbstractCostModel {
     // ----------------------------------------------------------------------------
     
     private final EstimationThresholds thresholds;
-    
-    /**
-     * ClusterId -> TransactionEstimator
-     */
-    private final Map<Integer, TransactionEstimator> t_estimators = new ConcurrentHashMap<Integer, TransactionEstimator>();
-    /**
-     * If this is set to true, then we will use the txnid_cluster_xref to figure out
-     * what cluster each TransactionTrace belongs to
-     */
-    private boolean txnid_cluster = false;
-    /**
-     * Hackish cross-reference table to go from the TransactionId to Cluster#
-     */
-    private final Map<Long, Integer> txnid_cluster_xref = new HashMap<Long, Integer>();
-    
+    private final TransactionEstimator t_estimator;
     
     // ----------------------------------------------------------------------------
     // INVOCATION DATA MEMBERS
@@ -162,41 +146,12 @@ public class MarkovCostModel extends AbstractCostModel {
      * @param catalog_db
      * @param p_estimator
      */
-    public MarkovCostModel(Database catalog_db, PartitionEstimator p_estimator, EstimationThresholds thresholds) {
+    public MarkovCostModel(Database catalog_db, PartitionEstimator p_estimator, TransactionEstimator t_estimator, EstimationThresholds thresholds) {
         super(MarkovCostModel.class, catalog_db, p_estimator);
         this.thresholds = thresholds;
+        this.t_estimator = t_estimator;
+        assert(this.t_estimator != null) : "Missing TransactionEstimator";
     }
-
-    /**
-     * Enable the TransactionId -> ClusterId lookup
-     * @param flag
-     */
-    public void setTransactionClusterMapping(boolean flag) {
-        this.txnid_cluster = flag;
-    }
-    
-    /**
-     * Add a TransactionEstimator that is mapped to the given cluster_id
-     * @param cluster_id
-     * @param t_estimator
-     */
-    public void addTransactionEstimator(int cluster_id, TransactionEstimator t_estimator) {
-        this.t_estimators.put(cluster_id, t_estimator);
-    }
-    
-    public TransactionEstimator getTransactionEstimator(int cluster_id) {
-        return (this.t_estimators.get(cluster_id));
-    }
-    
-    /**
-     * Map a TransactionId to a ClusterId
-     * @param txn_id
-     * @param cluster_id
-     */
-    public void addTransactionClusterXref(long txn_id, int cluster_id) {
-        this.txnid_cluster_xref.put(txn_id, cluster_id);
-    }
-    
 
     /**
      * Get the penalties for the last TransactionTrace processed
@@ -228,34 +183,13 @@ public class MarkovCostModel extends AbstractCostModel {
 
     @Override
     public synchronized double estimateTransactionCost(Database catalog_db, Workload workload, Filter filter, TransactionTrace txn_trace) throws Exception {
-        long txn_id = txn_trace.getTransactionId();
-        
-        // This will allow us to select the right TransactionEstimator
-        Integer cluster = null;
-        if (this.txnid_cluster) {
-            // Look-up what cluster our TransactionTrace belongs to
-            cluster = this.txnid_cluster_xref.get(txn_id);
-        } else {
-            // Otherwise just use the base partition
-            cluster = this.p_estimator.getBasePartition(txn_trace);
-        }
-        assert(cluster != null) : "Unexpected Txn# " + txn_id;
-
-        TransactionEstimator t_estimator = this.t_estimators.get(cluster);
-        if (t_estimator == null) {
-            throw new RuntimeException("Unexpected Cluster# " + cluster);
-            //if (trace.get()) LOG.warn("Unexpected Cluster# " + cluster);
-            //return (1.0);
-        }
-        assert(t_estimator != null) : "Unexpected Cluster# " + cluster;
-        
         // Throw the txn at the estimator and let it come up with the initial path estimation.
         // Now execute the queries and see what path the txn actually takes
         // I don't think it matters whether we do this in batches, but it probably doesn't hurt
         // to do it right in case we need it later
         // At this point we know what the transaction actually would do using the TransactionEstimator's
         // internal Markov models.
-        State s = t_estimator.processTransactionTrace(txn_trace);
+        State s = this.t_estimator.processTransactionTrace(txn_trace);
         assert(s != null);
         
         if (trace.get()) {
@@ -267,9 +201,19 @@ public class MarkovCostModel extends AbstractCostModel {
         
         // Try fast version
         if (!this.comparePathsFast(s.getEstimatedPath(), s.getActualPath())) {
+            if (debug.get()) LOG.info("Fast Comparsion Failed!");
             // Otherwise we have to do the full path comparison to figure out just how wrong we are
             cost = this.comparePathsFull(s);
         }
+//        if (cost > 0) {
+//            System.err.println("COST = " + cost);
+//            System.err.println("PENALTIES = " + this.penalties);
+//            System.err.println("ESTIMATED PARTITIONS: " + this.e_all_partitions);
+//            System.err.println("ACTUAL PARTITIONS: " + this.a_all_partitions);
+//            System.err.println("ESTIMATED:\n" + StringUtil.join("\n", s.getEstimatedPath()) + "\n" + StringUtil.repeat("-", 100));
+//            System.err.println("ACTUAL:\n" + StringUtil.join("\n", s.getActualPath()));
+//            throw new RuntimeException("We're fucked");
+//        }
         
         TransactionEstimator.getStatePool().returnObject(s);
         
@@ -300,7 +244,7 @@ public class MarkovCostModel extends AbstractCostModel {
         // (2) Check that the partitions that we predicted that the txn would read/write are the same
         this.e_read_partitions.clear();
         this.e_write_partitions.clear();
-        this.a_write_partitions.clear();
+        this.a_read_partitions.clear();
         this.a_write_partitions.clear();
 
         MarkovUtil.getReadWritePartitions(estimated, this.e_read_partitions, this.e_write_partitions);
@@ -410,8 +354,12 @@ public class MarkovCostModel extends AbstractCostModel {
                         
                     for (Integer p : v.getPartitions()) {
                         if (this.done_partitions.contains(p)) {
-                            if (t) LOG.trace(String.format("Txn #%d said that it was done at partition %d but it executed a %s",
-                                                           s.getTransactionId(), p, qtype.name()));
+                            if (t) {
+                                LOG.trace(String.format("Txn #%d said that it was done at partition %d but it executed a %s",
+                                        s.getTransactionId(), p, qtype.name()));
+//                                System.err.println(StringUtil.box(v.debug()));
+                            }
+                                                           
                             this.penalties.add(ptype);
                             this.done_partitions.remove(p);
                         }
@@ -528,9 +476,6 @@ public class MarkovCostModel extends AbstractCostModel {
     @Override
     public void clear(boolean force) {
         super.clear(force);
-        this.t_estimators.clear();
-        this.txnid_cluster_xref.clear();
-        this.txnid_cluster = false;
         this.penalties.clear();
     }
     
@@ -549,8 +494,6 @@ public class MarkovCostModel extends AbstractCostModel {
         // This is the start of a new run through the workload, so we need to re-init
         // our PartitionEstimator so that we are getting the proper catalog objects back
         this.p_estimator.initCatalog(catalog_db);
-        this.txnid_cluster_xref.clear();
-        this.t_estimators.clear();
     }
 
 }

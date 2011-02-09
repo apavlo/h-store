@@ -1,6 +1,5 @@
 package edu.brown.markov;
 
-import java.io.BufferedWriter;
 import java.util.*;
 import java.util.Map.Entry;
 import java.util.concurrent.CountDownLatch;
@@ -34,9 +33,12 @@ import edu.brown.correlations.ParameterCorrelations;
 import edu.brown.costmodel.MarkovCostModel;
 import edu.brown.markov.features.BasePartitionFeature;
 import edu.brown.markov.features.FeatureUtil;
+import edu.brown.markov.features.ParamArrayLengthFeature;
+import edu.brown.markov.features.ParamHashPartitionFeature;
 import edu.brown.statistics.Histogram;
 import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.CollectionUtil;
+import edu.brown.utils.FileUtil;
 import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.PartitionEstimator;
 import edu.brown.utils.Poolable;
@@ -92,7 +94,42 @@ public class FeatureClusterer {
     private static final int DEFAULT_NUM_ROUNDS = 10;
 
     // ----------------------------------------------------------------------------
-    // DEFAULT CONFIGURATION VALUES
+    // MARKOVGRAPHSCONTAINER WRAPPER
+    // ----------------------------------------------------------------------------
+    
+    private static class TxnToClusterMarkovGraphsContainer extends MarkovGraphsContainer {
+        
+        /**
+         * Hackish cross-reference table to go from the TransactionId to Cluster#
+         */
+        private final Map<Long, Integer> txnid_cluster_xref = new HashMap<Long, Integer>();
+        
+        @Override
+        public MarkovGraph getFromParams(long txn_id, int base_partition, Object[] params, Procedure catalog_proc) {
+            // Look-up what cluster our TransactionTrace belongs to
+            Integer cluster = this.txnid_cluster_xref.get(txn_id);
+            assert(cluster != null) : "Failed to initialize TransactionId->Cluster# xref for txn #" + txn_id;
+            return this.get(cluster, catalog_proc);
+        }
+        
+        /**
+         * Map a TransactionId to a ClusterId
+         * @param txn_id
+         * @param cluster_id
+         */
+        public void addTransactionClusterXref(long txn_id, int cluster_id) {
+            this.txnid_cluster_xref.put(txn_id, cluster_id);
+        }
+        
+        @Override
+        public void clear() {
+            super.clear();
+            this.txnid_cluster_xref.clear();
+        }
+    }
+    
+    // ----------------------------------------------------------------------------
+    // EXECUTION STATE
     // ----------------------------------------------------------------------------
 
     /**
@@ -131,11 +168,15 @@ public class FeatureClusterer {
          * We want to always split the MarkovGraphContainers by base partition, since we already know
          * that this is going to be the best predictor
          */
-        final MarkovGraphsContainer markovs_per_partition[];
+        final TxnToClusterMarkovGraphsContainer markovs_per_partition[];
         /**
          * Then we have a costmodel for each PartitionId 
          */
         final MarkovCostModel costmodels_per_partition[];
+        /**
+         * And a TransactionEstimator for each PartitionId
+         */
+        final TransactionEstimator t_estimators_per_partition[];
         /**
          * Histogram of Clusters Per Partition
          */
@@ -157,17 +198,17 @@ public class FeatureClusterer {
          */
         private ExecutionState() {
             // We allocate a complete array for all of the partitions in the catalog
-            this.markovs_per_partition = new MarkovGraphsContainer[FeatureClusterer.this.total_num_partitions];
+            this.markovs_per_partition = new TxnToClusterMarkovGraphsContainer[FeatureClusterer.this.total_num_partitions];
             this.costmodels_per_partition = new MarkovCostModel[FeatureClusterer.this.total_num_partitions];
+            this.t_estimators_per_partition = new TransactionEstimator[FeatureClusterer.this.total_num_partitions];
             this.clusters_per_partition = new Histogram[FeatureClusterer.this.total_num_partitions];
             
             // But then only initialize the partition-specific data structures
             for (int p : FeatureClusterer.this.all_partitions) {
                 this.clusters_per_partition[p] = new Histogram();
-                this.markovs_per_partition[p] = new MarkovGraphsContainer();
-                
-                this.costmodels_per_partition[p] = new MarkovCostModel(catalog_db, p_estimator, thresholds);
-                this.costmodels_per_partition[p].setTransactionClusterMapping(true);
+                this.markovs_per_partition[p] = new TxnToClusterMarkovGraphsContainer();
+                this.t_estimators_per_partition[p] = new TransactionEstimator(FeatureClusterer.this.p_estimator, FeatureClusterer.this.correlations, this.markovs_per_partition[p]);
+                this.costmodels_per_partition[p] = new MarkovCostModel(catalog_db, p_estimator, this.t_estimators_per_partition[p], thresholds);
             } // FOR
         }
         
@@ -183,8 +224,7 @@ public class FeatureClusterer {
                 this.markovs_per_partition[p].clear();
 
                 // It's lame, but we need to put this here so that...
-                this.costmodels_per_partition[p] = new MarkovCostModel(catalog_db, p_estimator, thresholds);
-                this.costmodels_per_partition[p].setTransactionClusterMapping(true);
+                this.costmodels_per_partition[p] = new MarkovCostModel(catalog_db, p_estimator, this.t_estimators_per_partition[p], thresholds);
             } // FOR
             
             // Reset Counters
@@ -203,12 +243,24 @@ public class FeatureClusterer {
     /**
      * We also maintain a "global" MarkovGraphContainer that consumes all transactions
      * We will use to compare whether our cluster-specific models do better than the global one
+     * This is automatically connected to the FeatureClusterer's base partition cache, so we
+     * don't have to do anything special to get out what we need here
      */
-    private final MarkovGraphsContainer global_markov = new MarkovGraphsContainer();
+    private final MarkovGraphsContainer global_markov = new MarkovGraphsContainer() {
+        public MarkovGraph getFromParams(long txn_id, int base_partition, Object[] params, Procedure catalog_proc) {
+            return (this.get(base_partition, catalog_proc));
+        };
+    };
+    
     /**
      * Global Cost Model
      */
     private final MarkovCostModel global_costmodel;
+    /**
+     * Global TransactionEstimator
+     */
+    private final TransactionEstimator global_t_estimator;
+    
     /**
      * Global Counters
      */
@@ -266,10 +318,10 @@ public class FeatureClusterer {
             this.split_percentages[type.ordinal()] = type.percentage;
         } // FOR
         
-        this.global_costmodel = new MarkovCostModel(catalog_db, p_estimator, thresholds);
-        this.global_costmodel.setTransactionClusterMapping(true);
+        this.global_t_estimator = new TransactionEstimator(this.p_estimator, this.correlations, this.global_markov);
+        this.global_costmodel = new MarkovCostModel(this.catalog_db, this.p_estimator, this.global_t_estimator, this.thresholds);
         for (Integer p : FeatureClusterer.this.all_partitions) {
-            this.global_markov.create(p, FeatureClusterer.this.catalog_proc).initialize();
+            this.global_markov.getOrCreate(p, FeatureClusterer.this.catalog_proc).initialize();
         } // FOR
     }
 
@@ -579,10 +631,10 @@ public class FeatureClusterer {
         // BUILD GLOBAL COST MODELS
         // ----------------------------------------------------------------------------
         for (Integer partition : FeatureClusterer.this.all_partitions) {
-            this.global_markov.get(partition, catalog_proc).calculateProbabilities();
-            TransactionEstimator t_estimator = new TransactionEstimator(p_estimator, correlations);
-            t_estimator.addMarkovGraphs(this.global_markov.get(partition));
-            this.global_costmodel.addTransactionEstimator(partition, t_estimator);
+            MarkovGraph m = this.global_markov.get(partition, this.catalog_proc);
+            assert(m != null);
+            m.calculateProbabilities();
+            assert(m.isValid()) : "The MarkovGraph at Partition #" + partition + " is not valid!";
         } // FOR
         if (d) LOG.debug(String.format("Finished initializing GLOBAL MarkovCostModel"));
 
@@ -590,6 +642,7 @@ public class FeatureClusterer {
         // ESTIMATE GLOBAL COST
         // ----------------------------------------------------------------------------
         int validationCnt = validationData.numInstances();
+        int recalculate_ctr = 0;
         for (int i = 0; i < validationCnt; i++) {
             if (t && i > 0 && i % 1000 == 0) LOG.trace(String.format("TransactionTrace %d/%d", i, validationCnt));
             Instance inst = validationData.instance(i);
@@ -606,13 +659,38 @@ public class FeatureClusterer {
             boolean singlepartitioned = (partitions.size() == 1);
             
             // Estimate Global MarkovGraph Cost
-            this.global_costmodel.addTransactionClusterXref(txn_id, base_partition);
             double g_cost = this.global_costmodel.estimateTransactionCost(this.catalog_db, txn_trace);
             if (g_cost > 0) {
                 this.total_g_cost += g_cost;
                 this.g_counters[singlepartitioned ? 0 : 1]++;
+             
+                MarkovGraph m = this.global_markov.get(base_partition, this.catalog_proc);
+                assert(m != null);
+                m.processTransaction(txn_trace, p_estimator);
+                // m.calculateProbabilities();
+                recalculate_ctr++;
             }
         } // FOR
+        if (d) LOG.debug(String.format("Recalculated global probabilities %d out of %d times", recalculate_ctr, validationCnt));
+    }
+    
+    protected Map<Integer, MarkovGraphsContainer> constructMarkovModels(MarkovAttributeSet aset, Instances data) throws Exception {
+        
+        // Create an ExecutionState for this run
+        ExecutionState state = (ExecutionState)this.state_pool.borrowObject();
+        state.init(this.createClusterer(aset, data));
+        
+        // Construct the MarkovGraphs for each Partition/Cluster using the Training Data Set
+        this.generateMarkovGraphs(state, data);
+        
+        // Generate the MarkovModels for the different partitions+clusters
+        this.generateMarkovCostModels(state);
+        
+        Map<Integer, MarkovGraphsContainer> ret = new HashMap<Integer, MarkovGraphsContainer>();
+        for (int p = 0; p < state.markovs_per_partition.length; p++) {
+            ret.put(p, state.markovs_per_partition[p]);
+        } // FOR
+        return (ret);
     }
     
     /**
@@ -687,25 +765,26 @@ public class FeatureClusterer {
             // Estimate Clusterer MarkovGraphCost
             MarkovCostModel c_costmodel = state.costmodels_per_partition[base_partition.intValue()];
             double c_cost = 0.0;
-            MarkovGraphsContainer markovs = state.markovs_per_partition[base_partition.intValue()];
+            TxnToClusterMarkovGraphsContainer markovs = state.markovs_per_partition[base_partition.intValue()];
+            markovs.addTransactionClusterXref(txn_id, c);
             MarkovGraph markov = markovs.get(c, catalog_proc);
 
             // Check that this is a cluster that we've seen before at this partition
             if (markov == null) {
                 if (t) LOG.warn(String.format("Txn #%d was mapped to never before seen Cluster #%d at partition %d", txn_id, c, base_partition));
-                markov = markovs.create(c, this.catalog_proc).initialize();
-                
-                TransactionEstimator t_estimator = new TransactionEstimator(this.p_estimator, this.correlations);
-                t_estimator.addMarkovGraph(this.catalog_proc, markov);
-                t_estimator.processTransactionTrace(txn_trace);
-                c_costmodel.addTransactionEstimator(c, t_estimator);
+                markov = markovs.getOrCreate(c, this.catalog_proc).initialize();
+                markovs.addTransactionClusterXref(txn_id, c);
+                // state.t_estimators_per_partition[base_partition.intValue()].processTransactionTrace(txn_trace);
                 c_counters[2]++; // Unknown Clusters
             }
-            c_costmodel.addTransactionClusterXref(txn_id, c);
             c_cost = c_costmodel.estimateTransactionCost(this.catalog_db, txn_trace);
             if (c_cost > 0) {
                 total_c_cost += c_cost;
                 c_counters[singlepartitioned ? 0 : 1]++;
+                
+                // So that we can improve our predictions...
+                markov.processTransaction(txn_trace, p_estimator);
+                markov.calculateProbabilities();
                 
 //                if (c_counters[singlepartitioned ? 0 : 1] == 1) {
 ////                    MarkovPathEstimator.LOG.setLevel(Level.TRACE);
@@ -788,7 +867,7 @@ public class FeatureClusterer {
             MarkovGraphsContainer markovs = state.markovs_per_partition[base_partition.intValue()];
             MarkovGraph markov = markovs.get(c, this.catalog_proc);
             if (markov == null) {
-                markov = markovs.create(c, this.catalog_proc).initialize();
+                markov = markovs.getOrCreate(c, this.catalog_proc).initialize();
                 markovs.put(c, markov);
             }
             markov.processTransaction(txn_trace, this.p_estimator);
@@ -819,7 +898,6 @@ public class FeatureClusterer {
         
         for (final int partition : this.all_partitions) {
             final MarkovGraphsContainer markovs = state.markovs_per_partition[partition];
-            final MarkovCostModel costmodel = state.costmodels_per_partition[partition];
             if (t) LOG.trace(String.format("Calculating Partition #%d probabilities for %d clusters", partition, markovs.size()));
             for (Entry<Integer, Map<Procedure, MarkovGraph>> e : markovs.entrySet()) {
                 // if (debug.get()) LOG.debug(String.format("Partition %d - Cluster %d", partition, i++));
@@ -828,10 +906,6 @@ public class FeatureClusterer {
                 for (MarkovGraph markov : e.getValue().values()) {
                     markov.calculateProbabilities();
                 } // FOR
-                
-                TransactionEstimator t_estimator = new TransactionEstimator(p_estimator, correlations);
-                t_estimator.addMarkovGraphs(e.getValue());
-                costmodel.addTransactionEstimator(e.getKey(), t_estimator);
             } // FOR
             if (t) LOG.trace(String.format("Finished processing MarkovGraphs for Partition #%d [count=%d]", partition, costmodel_latch.getCount()));
             costmodel_latch.countDown();
@@ -903,6 +977,10 @@ public class FeatureClusterer {
         NumericToNominal filter = new NumericToNominal();
         filter.setInputFormat(newData);
         newData = Filter.useFilter(newData, filter);
+        
+        String output = this.catalog_proc.getName() + "-labeled.arff";
+        FileUtil.writeStringToFile(output, newData.toString());
+        LOG.info("Wrote labeled data set to " + output);
         
         // Decision Tree
         J48 j48 = new J48();
@@ -1070,9 +1148,25 @@ public class FeatureClusterer {
         if (args.hasIntParam(ArgumentsParser.PARAM_MARKOV_ROUNDS)) {
             fclusterer.setNumRounds(args.getIntParam(ArgumentsParser.PARAM_MARKOV_ROUNDS));
         }
+
+//      MarkovAttributeSet aset = fclusterer.calculate(data);
         
-        MarkovAttributeSet aset = fclusterer.calculate(data);
-        System.err.println(aset + "\nCost: " + aset.getCost());
+        // HACK
+        Set<Attribute> attributes = FeatureClusterer.prefix2attributes(data,
+            "ParamArrayLength-04"
+//            "ParamHashPartition-01"
+        );
+        MarkovAttributeSet aset = new MarkovAttributeSet(attributes);
+        Map<Integer, MarkovGraphsContainer> markovs = fclusterer.constructMarkovModels(aset, data);
+        
+        String output = catalog_proc.getName() + ".markovs";
+        MarkovUtil.save(markovs, output);
+        
+//        fclusterer.calculateGlobalCost();
+//        AbstractClusterer clusterer = fclusterer.calculateAttributeSetCost(aset);
+//        fclusterer.generateDecisionTree(clusterer, aset, data);
+//        
+//        System.err.println(aset + "\nCost: " + aset.getCost());
         fclusterer.cleanup();
     }
     

@@ -34,11 +34,11 @@ public class ParamArrayLengthFeature extends AbstractFeature {
     }
     
     @Override
-    public Object calculate(String key, TransactionTrace txn_trace) throws Exception {
+    public Object calculate(String key, Object params[]) throws Exception {
         ProcParameter catalog_param = this.getProcParameter(key);
         assert(catalog_param.getIsarray()) : "Invalid: " + catalog_param;
-        Object params[] = (Object[])txn_trace.getParam(catalog_param.getIndex());
-        return (params.length);
+        Object inner_params[] = (Object[])params[catalog_param.getIndex()];
+        return (inner_params.length);
     }
 
 }

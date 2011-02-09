@@ -39,12 +39,12 @@ public class ParamHashEqualsBasePartitionFeature extends AbstractFeature {
     }
     
     @Override
-    public Object calculate(String key, TransactionTrace txn_trace) throws Exception {
+    public Object calculate(String key, Object params[]) throws Exception {
         Pair<ProcParameter, Integer> p = this.getProcParameterWithIndex(key);
-        Integer base_partition = this.p_estimator.getBasePartition(this.catalog_proc, txn_trace.getParams());
+        Integer base_partition = this.p_estimator.getBasePartition(this.catalog_proc, params);
         assert(base_partition != null);
         
-        Object param = txn_trace.getParam(p.getFirst().getIndex());
+        Object param = params[p.getFirst().getIndex()];
         Integer param_hash = null; 
         if (p.getSecond() != null) {
             assert(p.getFirst().getIsarray()) : "Invalid: " + key;

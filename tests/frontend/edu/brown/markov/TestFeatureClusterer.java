@@ -3,10 +3,8 @@ package edu.brown.markov;
 import java.io.File;
 import java.util.Arrays;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
-import java.util.Map.Entry;
 
 import org.junit.Test;
 import org.voltdb.VoltProcedure;
@@ -23,7 +21,6 @@ import weka.filters.unsupervised.attribute.NumericToNominal;
 import edu.brown.BaseTestCase;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.correlations.ParameterCorrelations;
-import edu.brown.markov.MarkovAttributeSet;
 import edu.brown.markov.FeatureClusterer.SplitType;
 import edu.brown.markov.features.BasePartitionFeature;
 import edu.brown.markov.features.FeatureUtil;

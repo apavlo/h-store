@@ -256,7 +256,18 @@ public class Vertex extends AbstractVertex {
         } // FOR
         this.resetAllProbabilities();
     }
-   
+
+    public boolean isValid() {
+        if (this.type == Type.QUERY) {
+            for (Vertex.Probability ptype : Vertex.Probability.values()) {
+                int idx = ptype.ordinal();
+                for (int i = 0, cnt = this.probabilities[idx].length; i < cnt; i++) {
+                    if (this.probabilities[idx][i] == NULL_MARKER) return (false);
+                } // FOR
+            }
+        }
+        return (true);
+    }
 
     // ----------------------------------------------------------------------------
     // DATA MEMBER METHODS
@@ -391,7 +402,9 @@ public class Vertex extends AbstractVertex {
             int i = type.ordinal();
             
             if (type.single_value) {
-                top.append(String.format("+%-14s %s\n", type.toString() + ":", formatter.format(this.probabilities[i][DEFAULT_PARTITION_ID])));
+                float val = this.probabilities[i][DEFAULT_PARTITION_ID];
+                String val_str = (val == NULL_MARKER ? "<NONE>" : formatter.format(val));
+                top.append(String.format("+%-14s %s\n", type.toString() + ":", val_str));
             } else {
                 bot.append(String.format(f, StringUtil.abbrv(type.name(), 6, false)));    
             }
@@ -664,8 +677,9 @@ public class Vertex extends AbstractVertex {
      * Add another instance time to the map. We use these times to figure out how long each
      * transaction takes to execute in the on-line model.
      */
-    public void addInstanceTime(long xact_id, long time){
+    public Vertex addInstanceTime(long xact_id, long time){
         this.instancetimes.put(xact_id, time);
+        return (this);
     }
     
     /**

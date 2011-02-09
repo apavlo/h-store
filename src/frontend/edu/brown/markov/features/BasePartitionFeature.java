@@ -25,8 +25,8 @@ public class BasePartitionFeature extends AbstractFeature {
     }
     
     @Override
-    public Object calculate(String key, TransactionTrace txn_trace) throws Exception {
-        return (this.p_estimator.getBasePartition(this.catalog_proc, txn_trace.getParams()));
+    public Object calculate(String key, Object params[]) throws Exception {
+        return (this.p_estimator.getBasePartition(this.catalog_proc, params));
     }
 
 }

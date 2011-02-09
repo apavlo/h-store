@@ -1,14 +1,23 @@
 package edu.brown.markov;
 
+import java.io.File;
+import java.util.HashMap;
+import java.util.Map;
+
 import org.json.JSONObject;
+import org.voltdb.catalog.Procedure;
 
 import edu.brown.BaseTestCase;
+import edu.brown.benchmark.tm1.procedures.GetNewDestination;
+import edu.brown.catalog.CatalogUtil;
+import edu.brown.utils.FileUtil;
 import edu.brown.utils.ProjectType;
 
 public class TestMarkovUtil extends BaseTestCase {
     
     public void setUp() throws Exception {
         super.setUp(ProjectType.TM1);
+        this.addPartitions(10);
     }
     
     private void examineVertices(Vertex v0, Vertex v1) {
@@ -17,6 +26,38 @@ public class TestMarkovUtil extends BaseTestCase {
         assertNotSame(v0, v1);
         assertEquals(v0.getCatalogKey(), v0.getCatalogKey());
         assertEquals(v0.getCatalogItem(), v1.getCatalogItem());
+    }
+    
+    /**
+     * testSerialization
+     */
+    public void testSerialization() throws Exception {
+        Procedure catalog_proc = this.getProcedure(GetNewDestination.class);
+        
+        // Make a bunch of MarkovGraphsContainers
+        Map<Integer, MarkovGraphsContainer> markovs = new HashMap<Integer, MarkovGraphsContainer>();
+        for (int i = 1000; i < 1010; i++) {
+            MarkovGraphsContainer m = new MarkovGraphsContainer();
+            for (Integer p : CatalogUtil.getAllPartitionIds(catalog_db)) {
+                m.getOrCreate(p, catalog_proc).initialize();
+            } // FOR
+            markovs.put(i, m);
+        } // FOR
+        
+        // Serialize them out to a file. This will also make a nice little index in the file
+        File temp = FileUtil.getTempFile("markovs", true);
+        assertNotNull(temp);
+        MarkovUtil.save(markovs, temp.getAbsolutePath());
+        
+        // Now read it back in make sure everything is there
+        Map<Integer, MarkovGraphsContainer> clone = MarkovUtil.load(catalog_db, temp.getAbsolutePath());
+        assertNotNull(clone);
+        assertEquals(markovs.size(), clone.size());
+        assert(markovs.keySet().containsAll(clone.keySet()));
+        for (Integer id : markovs.keySet()) {
+            MarkovGraphsContainer clone_m = clone.get(id);
+            assertNotNull(clone_m);
+        } // FOR
     }
     
     /**
@@ -39,11 +80,11 @@ public class TestMarkovUtil extends BaseTestCase {
     public void testGetAbortVertex() throws Exception {
         this.examineVertices(MarkovUtil.getAbortVertex(catalog_db), MarkovUtil.getAbortVertex(catalog_db)); 
     }
-    
+
     /**
-     * testSerialization
+     * testSpecialVertexSerialization
      */
-    public void testVertexSerialization() throws Exception {
+    public void testSpecialVertexSerialization() throws Exception {
         Vertex.Type types[] = new Vertex.Type[] {
                 Vertex.Type.START,
                 Vertex.Type.COMMIT,
@@ -60,9 +101,9 @@ public class TestMarkovUtil extends BaseTestCase {
     }
     
     /**
-     * testDeserialization
+     * testVertexDeserialization
      */
-    public void testVertexDeserialization() throws Exception {
+    public void testSpecialVertexDeserialization() throws Exception {
         Vertex.Type types[] = new Vertex.Type[] {
                 Vertex.Type.START,
                 Vertex.Type.COMMIT,

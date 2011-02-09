@@ -1827,9 +1827,9 @@ DESIGNER
 
 <target name='weka' description="Launch Weka GUI">
     <java fork="yes" classname="weka.gui.GUIChooser">
-<!--         <jvmarg value="-Xmx5m" /> -->
+        <jvmarg value="-Xmx${volt.client.memory}m" />
         <classpath refid='project.classpath' />
-        <assertions><enable /></assertions>
+<!--         <assertions><enable /></assertions> -->
     </java>
 </target>
 
@@ -2208,7 +2208,7 @@ H-STORE REMIX
         <arg value="dtxn.conf=${build.dtxn.dir}/hstore.conf" />
         <arg value="dtxn.engine=${build.dtxn.dir}/protodtxn/protodtxnengine" />
         <arg value="hasher.class=${hasher}" />
-        <arg value="markov=${markov}" />
+        <arg value="markov=files/markovs/${project}.markovs.gz" />
         <arg value="markov.thresholds=${thresholds}" />
         <arg value="correlations=${correlations}" />
         <arg value="partitionplan=${partitionplan}" />
