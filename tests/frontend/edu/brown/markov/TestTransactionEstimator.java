@@ -12,14 +12,12 @@ import org.voltdb.types.ExpressionType;
 import edu.brown.BaseTestCase;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.correlations.ParameterCorrelations;
-import edu.brown.graphs.GraphvizExport;
 import edu.brown.markov.TransactionEstimator.Estimate;
 import edu.brown.markov.TransactionEstimator.State;
 import edu.brown.utils.*;
 import edu.brown.workload.QueryTrace;
 import edu.brown.workload.Workload;
 import edu.brown.workload.TransactionTrace;
-import edu.brown.workload.Workload;
 import edu.brown.workload.filters.BasePartitionTxnFilter;
 import edu.brown.workload.filters.ProcParameterArraySizeFilter;
 import edu.brown.workload.filters.ProcParameterValueFilter;
@@ -110,8 +108,7 @@ public class TestTransactionEstimator extends BaseTestCase {
 //        assertNotNull(singlep_trace);
         
         // Setup
-        this.t_estimator = new TransactionEstimator(p_estimator, correlations);
-        this.t_estimator.addMarkovGraphs(markovs.get(BASE_PARTITION));
+        this.t_estimator = new TransactionEstimator(p_estimator, correlations, markovs);
         this.thresholds = new EstimationThresholds();
     }
     
@@ -122,6 +119,7 @@ public class TestTransactionEstimator extends BaseTestCase {
     public void testStartTransaction() throws Exception {
         long txn_id = XACT_ID++;
         State state = t_estimator.startTransaction(txn_id, this.catalog_proc, multip_trace.getParams());
+        assertNotNull(state);
         Estimate est = state.getInitialEstimate();
         assertNotNull(est);
         assertEquals(est, state.getLastEstimate());

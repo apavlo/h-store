@@ -4,10 +4,8 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Random;
 import java.util.Set;
-import java.util.Map.Entry;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -54,9 +52,9 @@ public class TestMarkovCostModel extends BaseTestCase {
     private static ParameterCorrelations correlations;
     private static MarkovCostModel costmodel;
     private static Procedure catalog_proc;
+    private static TransactionEstimator t_estimator;
 
     private MarkovGraph markov;
-    private TransactionEstimator t_estimator;
     private TransactionTrace txn_trace;
     private State txn_state;
     private List<Vertex> estimated_path;
@@ -123,24 +121,17 @@ public class TestMarkovCostModel extends BaseTestCase {
             assertNotNull(markovs);
             
             // And then populate the MarkovCostModel
-            costmodel = new MarkovCostModel(catalog_db, p_estimator, thresholds);
-            for (Entry<Integer, Map<Procedure, MarkovGraph>> e : markovs.entrySet()) {
-                TransactionEstimator t_estimator = new TransactionEstimator(p_estimator, correlations);
-                t_estimator.addMarkovGraphs(e.getValue());
-                costmodel.addTransactionEstimator(e.getKey(), t_estimator);
-            } // FOR
+            t_estimator = new TransactionEstimator(p_estimator, correlations, markovs);
+            costmodel = new MarkovCostModel(catalog_db, p_estimator, t_estimator, thresholds);
         }
         
         // Take a TransactionTrace and throw it at the estimator to get our path info
         this.txn_trace = workload.getTransactions().get(0);
         assertNotNull(this.txn_trace);
-        int base_partition = p_estimator.getBasePartition(txn_trace);
         
-        this.t_estimator = costmodel.getTransactionEstimator(base_partition);
-        assertNotNull(t_estimator);
         this.txn_state = t_estimator.processTransactionTrace(txn_trace);
         assertNotNull(this.txn_state);
-        this.markov = this.t_estimator.getMarkovGraph(catalog_proc);
+        this.markov = markovs.get(BASE_PARTITION, catalog_proc);
         assertNotNull(this.markov);
         
         this.estimated_path = this.txn_state.getEstimatedPath();

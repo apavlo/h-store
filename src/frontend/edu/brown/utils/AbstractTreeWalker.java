@@ -249,7 +249,7 @@ public abstract class AbstractTreeWalker<E> implements Poolable {
                               "Visited=" + this.visited.size() + "]");
     
         // Stackoverflow check
-        if (this.depth > 70) {
+        if (this.depth > 100) {
             System.err.println(StringUtil.join("\n", Thread.currentThread().getStackTrace()));
             System.err.println("!!!");
             System.exit(1);

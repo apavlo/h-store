@@ -37,13 +37,24 @@ public abstract class AbstractFeature {
     public abstract void extract(FeatureSet fset, TransactionTrace txn_trace) throws Exception;
     
     /**
+     * For the given feature key, calculate its value from the given transaction parameters 
+     * @param key
+     * @param txn_trace
+     * @return
+     * @throws Exception
+     */
+    public abstract Object calculate(String key, Object params[]) throws Exception;
+    
+    /**
      * For the given feature key, calculate its value from the given TransactionTrace 
      * @param key
      * @param txn_trace
      * @return
      * @throws Exception
      */
-    public abstract Object calculate(String key, TransactionTrace txn_trace) throws Exception;
+    public Object calculate(String key, TransactionTrace txn_trace) throws Exception {
+        return (this.calculate(key, txn_trace.getParams()));
+    }
 
     /**
      * Return the ProcParameter referenced in this feature key

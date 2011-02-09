@@ -13,7 +13,6 @@ import org.apache.log4j.Logger;
 
 import org.voltdb.catalog.*;
 
-import edu.brown.catalog.CatalogKey;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.correlations.*;
 import edu.brown.graphs.GraphvizExport;
@@ -56,7 +55,7 @@ public class TransactionEstimator {
     private final int num_partitions;
     private final PartitionEstimator p_estimator;
     private final ParameterCorrelations correlations;
-    private final Map<Procedure, MarkovGraph> procedure_graphs = new HashMap<Procedure, MarkovGraph>();
+    private final MarkovGraphsContainer markovs;
     private final Map<Long, State> txn_states = new ConcurrentHashMap<Long, State>();
     private final AtomicInteger txn_count = new AtomicInteger(0);
     
@@ -453,9 +452,11 @@ public class TransactionEstimator {
      * Constructor
      * @param p_estimator
      * @param correlations
+     * @param markovs
      */
-    public TransactionEstimator(PartitionEstimator p_estimator, ParameterCorrelations correlations) {
+    public TransactionEstimator(PartitionEstimator p_estimator, ParameterCorrelations correlations, MarkovGraphsContainer markovs) {
         this.p_estimator = p_estimator;
+        this.markovs = markovs;
         this.catalog_db = this.p_estimator.getDatabase();
         this.num_partitions = CatalogUtil.getNumberOfPartitions(this.catalog_db);
         this.correlations = (correlations == null ? new ParameterCorrelations() : correlations);
@@ -474,7 +475,7 @@ public class TransactionEstimator {
      * @param catalog_db
      */
     public TransactionEstimator(int base_partition, PartitionEstimator p_estimator) {
-        this(p_estimator, null);
+        this(p_estimator, null, new MarkovGraphsContainer());
     }
 
     // ----------------------------------------------------------------------------
@@ -501,26 +502,12 @@ public class TransactionEstimator {
         return this.p_estimator;
     }
 
-    public void addMarkovGraphs(Set<MarkovGraph> markovs) {
-        for (MarkovGraph m : markovs) {
-            this.addMarkovGraph(m.getProcedure(), m);
-        } // FOR
+    protected MarkovGraphsContainer getMarkovs() {
+        return (this.markovs);
     }
     
-    public void addMarkovGraphs(Map<Procedure, MarkovGraph> markovs) {
-        this.procedure_graphs.putAll(markovs);
-    }
-
-    public void addMarkovGraph(Procedure catalog_proc, MarkovGraph graph) {
-        this.procedure_graphs.put(catalog_proc, graph);
-    }
-
-    public MarkovGraph getMarkovGraph(Procedure catalog_proc) {
-        return (this.procedure_graphs.get(catalog_proc));
-    }
-
-    public MarkovGraph getMarkovGraph(String catalog_key) {
-        return (this.getMarkovGraph(CatalogKey.getFromKey(this.catalog_db, catalog_key, Procedure.class)));
+    public void addMarkovGraphs(MarkovGraphsContainer markovs) {
+        this.markovs.copy(markovs);
     }
     
     /**
@@ -560,18 +547,7 @@ public class TransactionEstimator {
     // ----------------------------------------------------------------------------
     // RUNTIME METHODS
     // ----------------------------------------------------------------------------
-
-    
-    /**
-     * Returns true if we will be able to calculate estimations for the given Procedure
-     * 
-     * @param catalog_proc
-     * @return
-     */
-    public boolean canEstimate(Procedure catalog_proc) {
-        return (catalog_proc.getSystemproc() == false && procedure_graphs.containsKey(catalog_proc));
-    }
-    
+   
     /**
      * Sets up the beginning of a transaction. Returns an estimate of where this
      * transaction will go.
@@ -582,26 +558,6 @@ public class TransactionEstimator {
      * @return an estimate for the transaction's future
      */
     public State startTransaction(long txn_id, Procedure catalog_proc, Object args[]) {
-        assert (catalog_proc != null);
-
-        // If we don't have a graph for this procedure, we should probably just return null
-        // This will be the case for all sysprocs
-        if (!this.procedure_graphs.containsKey(catalog_proc)) {
-            if (debug.get()) LOG.debug("No MarkovGraph exists for '" + catalog_proc + "'"); //  on partition #" + this.base_partition);
-            return (null);
-            // fillIn(estimate,xact_states.get(xact_id));
-            // return estimate;
-        }
-
-        MarkovGraph markov = this.procedure_graphs.get(catalog_proc);
-        assert (markov != null);
-        // ??? graph.resetCounters();
-
-        long start_time = System.currentTimeMillis();
-        
-        Vertex start = markov.getStartVertex();
-        start.addInstanceTime(txn_id, start_time);
-        
         Integer base_partition = null; 
         try {
             base_partition = this.p_estimator.getBasePartition(catalog_proc, args);
@@ -611,12 +567,40 @@ public class TransactionEstimator {
         }
         assert(base_partition != null);
         
+        return (this.startTransaction(txn_id, base_partition.intValue(), catalog_proc, args));
+    }
+        
+    /**
+     * 
+     * @param txn_id
+     * @param base_partition
+     * @param catalog_proc
+     * @param args
+     * @return
+     */
+    public State startTransaction(long txn_id, int base_partition, Procedure catalog_proc, Object args[]) {
+        assert (catalog_proc != null);
+
+        // If we don't have a graph for this procedure, we should probably just return null
+        // This will be the case for all sysprocs
+        if (this.markovs == null) return (null);
+        MarkovGraph markov = this.markovs.getFromParams(txn_id, base_partition, args, catalog_proc);
+        if (markov == null) {
+            if (debug.get()) LOG.debug(String.format("No %s MarkovGraph exists for txn #%d", catalog_proc.getName(), txn_id));
+            return (null);
+        }
+        // ??? graph.resetCounters();
+
+        long start_time = System.currentTimeMillis();
+        Vertex start = markov.getStartVertex().addInstanceTime(txn_id, start_time);
+        
         // Calculate initial path estimate
         MarkovPathEstimator estimator = null;
         try {
             estimator = (MarkovPathEstimator)ESTIMATOR_POOL.borrowObject();
             estimator.init(markov, this, base_partition, args);
-            estimator.traverse(markov.getStartVertex());
+            estimator.enableForceTraversal(true);
+            estimator.traverse(start);
         } catch (Throwable e) {
             LOG.fatal("Failed to estimate path", e);
             try {

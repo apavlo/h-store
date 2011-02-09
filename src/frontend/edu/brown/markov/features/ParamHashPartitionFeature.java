@@ -38,9 +38,9 @@ public class ParamHashPartitionFeature extends AbstractFeature {
     }
 
     @Override
-    public Object calculate(String key, TransactionTrace txn_trace) throws Exception {
+    public Object calculate(String key, Object params[]) throws Exception {
         Pair<ProcParameter, Integer> p = this.getProcParameterWithIndex(key);
-        Object param = txn_trace.getParam(p.getFirst().getIndex());
+        Object param = params[p.getFirst().getIndex()];
         Integer param_hash = null; 
         if (p.getSecond() != null) {
             assert(p.getFirst().getIsarray()) : "Invalid: " + key;

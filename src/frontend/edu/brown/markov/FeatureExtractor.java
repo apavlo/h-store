@@ -138,8 +138,12 @@ public class FeatureExtractor {
         FeatureExtractor extractor = new FeatureExtractor(args.catalog_db);
         Map<Procedure, FeatureSet> fsets = extractor.calculate(args.workload);
         
+//        List<String> targets = args.getOptParams();
+        
         for (Entry<Procedure, FeatureSet> e : fsets.entrySet()) {
             String proc_name = e.getKey().getName();
+//            if (targets.contains(proc_name) == false) continue;
+            
 //            File path = new File(proc_name + ".fset");
 //            e.getValue().save(path.getAbsolutePath());
 //            LOG.info(String.format("Wrote FeatureSet with %d instances to '%s'", e.getValue().getTransactionCount(), path.getAbsolutePath()));

@@ -387,16 +387,14 @@ public class MarkovPathEstimator extends VertexTreeWalker<Vertex> {
         MarkovGraphsContainer markovs = null;
         
         if (args.hasParam(ArgumentsParser.PARAM_MARKOV)) {
-            markovs = MarkovUtil.load(args.catalog_db, args.getParam(ArgumentsParser.PARAM_MARKOV));
+            markovs = new MarkovGraphsContainer();
+            markovs.load(args.getParam(ArgumentsParser.PARAM_MARKOV), args.catalog_db);
         } else {
             markovs = MarkovUtil.createBasePartitionGraphs(args.catalog_db, args.workload, p_estimator);
         }
         
         // Blah blah blah...
-        Map<Integer, TransactionEstimator> t_estimators = new HashMap<Integer, TransactionEstimator>();
-        for (Integer partition : CatalogUtil.getAllPartitionIds(args.catalog_db)) {
-            t_estimators.put(partition, new TransactionEstimator(p_estimator, args.param_correlations));
-        } // FOR
+        TransactionEstimator t_estimator = new TransactionEstimator(p_estimator, args.param_correlations, markovs);
         
         final Set<String> skip = new HashSet<String>();
         
@@ -429,7 +427,7 @@ public class MarkovPathEstimator extends VertexTreeWalker<Vertex> {
             totals.get(catalog_proc).incrementAndGet();
             
             MarkovGraph markov = markovs.get(partition, catalog_proc);
-            TransactionEstimator t_estimator = t_estimators.get(partition);
+            if (markov == null) continue;
             
             // Check whether we predict the same path
             List<Vertex> actual_path = markov.processTransaction(xact, p_estimator);
@@ -455,10 +453,8 @@ public class MarkovPathEstimator extends VertexTreeWalker<Vertex> {
         } // FOR
         
         if (args.hasParam(ArgumentsParser.PARAM_MARKOV_OUTPUT)) {
-            MarkovUtil.save(markovs, args.getParam(ArgumentsParser.PARAM_MARKOV_OUTPUT));
+            markovs.save(args.getParam(ArgumentsParser.PARAM_MARKOV_OUTPUT));
         }
-        
-        
         
         System.err.println("Procedure\t\tTotal\tSingleP\tPartitions\tPaths");
         for (Procedure catalog_proc : totals.keySet()) {

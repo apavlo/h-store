@@ -57,10 +57,10 @@ public class ParamArrayAllSameHashFeature extends AbstractFeature {
     }
     
     @Override
-    public Object calculate(String key, TransactionTrace txn_trace) throws Exception {
+    public Object calculate(String key, Object params[]) throws Exception {
         ProcParameter catalog_param = this.getProcParameter(key);
-        Object params[] = (Object[])txn_trace.getParam(catalog_param.getIndex());
-        return (this.calculate(params));
+        Object inner_params[] = (Object[])params[catalog_param.getIndex()];
+        return (this.calculate(inner_params));
     }
 
 }
