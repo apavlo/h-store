@@ -1,21 +1,29 @@
 package edu.brown.costmodel;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.Map.Entry;
 
 import org.apache.log4j.Logger;
 import org.voltdb.catalog.Database;
+import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Statement;
 import org.voltdb.types.QueryType;
 
 import edu.brown.markov.EstimationThresholds;
+import edu.brown.markov.MarkovGraph;
+import edu.brown.markov.MarkovGraphsContainer;
 import edu.brown.markov.MarkovUtil;
 import edu.brown.markov.TransactionEstimator;
 import edu.brown.markov.Vertex;
 import edu.brown.markov.TransactionEstimator.Estimate;
 import edu.brown.markov.TransactionEstimator.State;
+import edu.brown.statistics.Histogram;
+import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.PartitionEstimator;
@@ -205,6 +213,7 @@ public class MarkovCostModel extends AbstractCostModel {
             // Otherwise we have to do the full path comparison to figure out just how wrong we are
             cost = this.comparePathsFull(s);
         }
+        
 //        if (cost > 0) {
 //            System.err.println("COST = " + cost);
 //            System.err.println("PENALTIES = " + this.penalties);
@@ -214,6 +223,7 @@ public class MarkovCostModel extends AbstractCostModel {
 //            System.err.println("ACTUAL:\n" + StringUtil.join("\n", s.getActualPath()));
 //            throw new RuntimeException("We're fucked");
 //        }
+
         
         TransactionEstimator.getStatePool().returnObject(s);
         
@@ -495,5 +505,58 @@ public class MarkovCostModel extends AbstractCostModel {
         // our PartitionEstimator so that we are getting the proper catalog objects back
         this.p_estimator.initCatalog(catalog_db);
     }
-
+    
+    /**
+     * @param args
+     */
+    public static void main(String vargs[]) throws Exception {
+        ArgumentsParser args = ArgumentsParser.load(vargs);
+        args.require(
+            ArgumentsParser.PARAM_CATALOG, 
+            ArgumentsParser.PARAM_MARKOV,
+            ArgumentsParser.PARAM_WORKLOAD,
+            ArgumentsParser.PARAM_CORRELATIONS
+        );
+        
+        String input_path = args.getParam(ArgumentsParser.PARAM_MARKOV);
+        
+        Map<Integer, MarkovGraphsContainer> m = MarkovUtil.load(args.catalog_db, input_path);
+        assert(m != null);
+        Boolean global = m.containsKey(MarkovUtil.GLOBAL_MARKOV_CONTAINER_ID);
+        
+        MarkovGraphsContainer markovs = null;
+        if (global != null && global == true) {
+            markovs = m.get(MarkovUtil.GLOBAL_MARKOV_CONTAINER_ID);
+            
+        // HACK: Combine the partitioned-based graphs into a single Container
+        } else {
+            markovs = new MarkovGraphsContainer();
+            for (MarkovGraphsContainer orig : m.values()) {
+                markovs.copy(orig);
+            } // FOR
+        }
+        
+        PartitionEstimator p_estimator = new PartitionEstimator(args.catalog_db);
+        EstimationThresholds thresholds = new EstimationThresholds();
+        TransactionEstimator t_estimator = new TransactionEstimator(p_estimator, args.param_correlations, markovs);
+        MarkovCostModel costmodel = new MarkovCostModel(args.catalog_db, p_estimator, t_estimator, thresholds);
+        
+        int total = 0;
+        int accurate = 0;
+        Histogram total_h = new Histogram();
+        Histogram accurate_h = new Histogram();
+        for (TransactionTrace txn_trace : args.workload.getTransactions()) {
+            double cost = costmodel.estimateTransactionCost(args.catalog_db, txn_trace);
+            if ((cost > 0) == false) {
+                accurate_h.put(txn_trace.getCatalogItemName());
+                accurate++; 
+            }
+            total_h.put(txn_trace.getCatalogItemName());
+            total++;
+        } // FOR
+        System.err.println(total_h);
+        System.err.println(StringUtil.DOUBLE_LINE);
+        System.err.println(accurate_h);
+        System.err.println(String.format("RESULT: %d / %d [%.03f]", accurate, total, (accurate / (double)total)));
+    }
 }

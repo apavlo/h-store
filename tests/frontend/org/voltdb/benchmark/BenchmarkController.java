@@ -434,6 +434,9 @@ public class BenchmarkController {
 
             // START: Dtxn.Coordinator
             if (m_config.noCoordinator == false) {
+                // Sleep for a few seconds
+                ThreadUtil.sleep(30000);
+                
                 String host = m_config.coordinatorHost;
                 String[] command = {
                     "ant",

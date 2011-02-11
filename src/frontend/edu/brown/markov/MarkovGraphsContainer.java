@@ -34,15 +34,34 @@ public class MarkovGraphsContainer implements JSONSerializable {
 
     public enum Members {
         MARKOVS,
-        FEATURES;
+        FEATURES,
+        GLOBAL,
+        ;
     }
     
+    private boolean global;
+    
+    /**
+     * 
+     */
     private final SortedMap<Integer, Map<Procedure,MarkovGraph>> markovs = new TreeMap<Integer, Map<Procedure,MarkovGraph>>();
     
     /**
      * 
      */
     private final Map<Procedure, List<String>> features = new HashMap<Procedure, List<String>>();
+    
+    /**
+     * 
+     * @param global
+     */
+    public MarkovGraphsContainer(boolean global) {
+        this.global = global;
+    }
+    
+    public MarkovGraphsContainer() {
+        this(false);
+    }
     
     
     public void clear() {
@@ -55,13 +74,32 @@ public class MarkovGraphsContainer implements JSONSerializable {
         return (inner != null ? inner.get(catalog_proc) : null);
     }
     
-    public MarkovGraph getOrCreate(Integer id, Procedure catalog_proc) {
+    /**
+     * 
+     * @param id
+     * @param catalog_proc
+     * @param initialize
+     * @return
+     */
+    public MarkovGraph getOrCreate(Integer id, Procedure catalog_proc, boolean initialize) {
         MarkovGraph markov = this.get(id, catalog_proc);
         if (markov == null) {
             markov = new MarkovGraph(catalog_proc);
             this.put(id, markov);
+            if (initialize) markov.initialize();
         }
         return (markov);
+    }
+    
+    /**
+     * Get or create the MarkovGraph for the given id+catalog_proc
+     * Does not automatically initialize a new graph by default
+     * @param id
+     * @param catalog_proc
+     * @return
+     */
+    public MarkovGraph getOrCreate(Integer id, Procedure catalog_proc) {
+        return (this.getOrCreate(id, catalog_proc, false));
     }
     
     public void put(Integer id, MarkovGraph markov) {
@@ -83,11 +121,15 @@ public class MarkovGraphsContainer implements JSONSerializable {
      */
     public MarkovGraph getFromParams(long txn_id, int base_partition, Object params[], Procedure catalog_proc) {
         MarkovGraph m = null;
-        List<String> proc_features = this.features.get(catalog_proc);
-        if (proc_features == null) {
-            m = this.get(base_partition, catalog_proc);
+        if (this.global) {
+            m = this.get(MarkovUtil.GLOBAL_MARKOV_CONTAINER_ID, catalog_proc);
         } else {
-            assert(false) : "To be implemented!";
+            List<String> proc_features = this.features.get(catalog_proc);
+            if (proc_features == null) {
+                m = this.get(base_partition, catalog_proc);
+            } else {
+                assert(false) : "To be implemented!";
+            }
         }
         return (m);
     }
@@ -106,10 +148,26 @@ public class MarkovGraphsContainer implements JSONSerializable {
         return (this.features.get(catalog_proc));
     }
     
-    protected void copy(MarkovGraphsContainer other) {
-        this.features.clear();
+    /**
+     * Invoke MarkovGraph.calculateProbabilities() for all of the graphs stored within this container 
+     */
+    public void calculateProbabilities() {
+        for (Map<Procedure, MarkovGraph> inner : this.markovs.values()) {
+            for (Entry<Procedure, MarkovGraph> e : inner.entrySet()) {
+                e.getValue().calculateProbabilities();
+                assert(e.getValue().isValid()) : "Failed to calculate probabilities for " + e.getKey();
+            } // FOR
+        } // FOR
+    }
+    
+    protected Map<Procedure, MarkovGraph> getAll(Integer id) {
+        return (this.markovs.get(id));
+    }
+    
+    public void copy(MarkovGraphsContainer other) {
+//        this.features.clear();
         this.features.putAll(other.features);
-        this.markovs.clear();
+//        this.markovs.clear();
         this.markovs.putAll(other.markovs);
     }
     
@@ -146,6 +204,9 @@ public class MarkovGraphsContainer implements JSONSerializable {
 
     @Override
     public void toJSON(JSONStringer stringer) throws JSONException {
+        // IS GLOBAL
+        stringer.key(Members.GLOBAL.name()).value(this.global);
+        
         // FEATURE KEYS
         stringer.key(Members.FEATURES.name()).object();
         for (Procedure catalog_proc : this.features.keySet()) {
@@ -175,6 +236,9 @@ public class MarkovGraphsContainer implements JSONSerializable {
 
     @Override
     public void fromJSON(JSONObject json_object, Database catalog_db) throws JSONException {
+        // IS GLOBAL
+        this.global = json_object.getBoolean(Members.GLOBAL.name());
+        
         // FEATURE KEYS
         JSONObject json_inner = json_object.getJSONObject(Members.FEATURES.name());
         for (String proc_key : CollectionUtil.wrapIterator(json_inner.keys())) {

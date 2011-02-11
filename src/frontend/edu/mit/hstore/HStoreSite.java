@@ -166,6 +166,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
     private final EventObservable shutdown_observable = new EventObservable();
     
     private final Site catalog_site;
+    private final List<Integer> all_partitions;
     private final int site_id;
     private final Map<Integer, ExecutionSite> executors;
     private final Database catalog_db;
@@ -394,6 +395,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         this.catalog_site = catalog_site;
         this.site_id = this.catalog_site.getId();
         this.catalog_db = CatalogUtil.getDatabase(this.catalog_site);
+        this.all_partitions = CatalogUtil.getAllPartitionIds(this.catalog_db);
         this.p_estimator = p_estimator;
         this.thresholds = new EstimationThresholds(); // default values
         this.executors = Collections.unmodifiableMap(new HashMap<Integer, ExecutionSite>(executors));
@@ -566,7 +568,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
     @Override
     public void procedureInvocation(byte[] serializedRequest, RpcCallback<byte[]> done) {
         if (this.status_monitor != null && !this.status_monitor.isAlive()) this.status_monitor.start();
-
+        
         // The serializedRequest is a ProcedureInvocation object
         StoredProcedureInvocation request = null;
         FastDeserializer fds = new FastDeserializer(serializedRequest);
@@ -650,30 +652,28 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         TransactionEstimator t_estimator = executor.getTransactionEstimator();
         
         Boolean single_partition = null;
-        Set<Integer> touched_partitions = null;
-        
         TransactionEstimator.State estimator_state = null; 
-        
+
+        // Sysprocs are always multi-partitioned
         if (sysproc) {
             single_partition = false;
             
+        // Otherwise, we'll try to estimate what the transaction will do (if we can)
         } else {
             if (trace.get()) LOG.trace("Using TransactionEstimator to check whether txn #" + txn_id + " is single-partition");
             estimator_state = t_estimator.startTransaction(txn_id, dest_partition, catalog_proc, args);
             if (estimator_state == null) {
                 single_partition = false;    
             } else {
+                LOG.info("\n" + StringUtil.box(estimator_state.toString()));
                 TransactionEstimator.Estimate estimate = estimator_state.getInitialEstimate();
                 single_partition = estimate.isSinglePartition(this.thresholds);
-                touched_partitions = estimate.getTargetPartitions(this.thresholds);
             }
         }
         assert (single_partition != null);
         if (single_partition) this.singlepart_ctr.incrementAndGet();
         else this.multipart_ctr.incrementAndGet();
         
-        // TODO: Tell somebody that we need these partitions!
-
         TransactionInfo txn_info = new TransactionInfo(txn_id, dest_partition, request, single_partition, estimator_state, done);
         
         this.initializeInvocation(txn_info);
@@ -719,6 +719,17 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
             
             // Whether this transaction is single-partitioned or not
             requestBuilder.setLastFragment(txn_info.is_singlepartitioned);
+            
+            // Tell the Dtxn.Coordinator that we are finished with partitions if we have an estimate
+            if (txn_info.estimator_state != null) {
+                // TODO: How do we want to come up with estimates per partition?
+                Set<Integer> touched_partitions = txn_info.estimator_state.getEstimatedPartitions();
+                for (Integer p : this.all_partitions) {
+                    if (touched_partitions.contains(p) == false) {
+                        requestBuilder.addDonePartition(p.intValue());
+                    }
+                } // FOR
+            }
             
             // NOTE: Evan betrayed our love so we can't use his txn ids because they are meaningless to us
             // So we're going to pack in our txn id in the payload. Any message they we get from Evan
@@ -796,7 +807,6 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         } else {
             callback = done;
         }
-            
         executor.doWork(msg, callback, single_partitioned);
     }
 
@@ -816,7 +826,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         assert(spi != null) : "Missing StoredProcedureInvocation for txn #" + txn_id;
         
          if (debug.get()) LOG.debug(String.format("Re-executing mispredicted txn #%d as new txn #%d", txn_id, new_txn_id));
-         this.initializeInvocation(new TransactionInfo(txn_id, dest_partition, spi, false, txn_info.estimator_state, done));
+         this.initializeInvocation(new TransactionInfo(new_txn_id, dest_partition, spi, false, txn_info.estimator_state, done));
     }
     
     /**
@@ -1138,6 +1148,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
             } else {
                 if (LOG.isDebugEnabled()) LOG.warn("The Markov Graphs file '" + path + "' does not exist");
             }
+            LOG.info("Finished loading markovGraphsContainer");
         }
 
         // Workload Trace Output
@@ -1195,7 +1206,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         }
         
         // Bombs Away!
-        LOG.debug("Instantiating HStoreCoordinator network connections...");
+        LOG.info("Instantiating HStoreSite network connections...");
         HStoreSite.launch(site,
                 args.getParam(ArgumentsParser.PARAM_DTXN_CONF), 
                 args.getParam(ArgumentsParser.PARAM_DTXN_ENGINE),

@@ -269,8 +269,12 @@ public class GraphvizExport<V extends AbstractVertex, E extends AbstractEdge> {
     public String writeToTempFile(CatalogType catalog_obj, String suffix) throws Exception {
         return (this.writeToTempFile(catalog_obj.fullName(), suffix));
     }
+    public String writeToTempFile(String name) throws Exception {
+        return (this.writeToTempFile(name, null));
+    }
     public String writeToTempFile(String name, String suffix) throws Exception {
         if (suffix != null && suffix.length() > 0) suffix = "-" + suffix;
+        else if (suffix == null) suffix = "";
         String filename = String.format("/tmp/%s%s.dot", name, suffix);
         FileUtil.writeStringToFile(filename, this.export(name));
         return (filename);

@@ -1844,6 +1844,18 @@ DESIGNER
         <arg value="workload.procinclude=${include}" />
         <arg value="workload.procinclude.multiplier=${multiplier}" />
         <arg value="markov.output=${output}" />
+        <arg value="markov.global=${global}" />
+        <classpath refid='project.classpath' />
+        <assertions><enable /></assertions>
+    </java>
+</target>
+
+<target name='markov-graphviz' description="Create MarkovGraphs Graphviz files">
+    <java fork="yes" classname="edu.brown.markov.MarkovGraphvizExport" failonerror='true'>
+        <jvmarg value="-Xmx${volt.client.memory}m" />
+        <arg value="catalog.jar=${jar}" />
+        <arg value="markov=${markov}" />
+        <arg value="${procedure}" />
         <classpath refid='project.classpath' />
         <assertions><enable /></assertions>
     </java>
@@ -2171,12 +2183,6 @@ H-STORE REMIX
 </target>
 
 <target name="hstore-prepare" description="Prepares a benchmark catalog">
-    <!-- Creates voltbin -->
-<!--     <antcall target="voltbin" /> -->
-    
-    <!-- Copies voltbin to home directory -->
-<!--     <antcall target="voltbincopy" /> -->
-
     <!-- Compile + create benchmark project jar -->
     <antcall target="benchmark">
         <param name="compileonly"   value="true" />
