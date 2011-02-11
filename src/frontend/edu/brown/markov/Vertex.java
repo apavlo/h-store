@@ -262,7 +262,11 @@ public class Vertex extends AbstractVertex {
             for (Vertex.Probability ptype : Vertex.Probability.values()) {
                 int idx = ptype.ordinal();
                 for (int i = 0, cnt = this.probabilities[idx].length; i < cnt; i++) {
-                    if (this.probabilities[idx][i] == NULL_MARKER) return (false);
+                    float prob = this.probabilities[idx][i];
+                    if (prob < 0.0 || prob > 1.0) {
+                        LOG.warn(String.format("%s :: %s[%d] = %.03f", this.toString(), ptype.name(), i, prob));
+                        return (false);
+                    }
                 } // FOR
             }
         }

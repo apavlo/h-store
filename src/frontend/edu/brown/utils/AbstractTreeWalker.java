@@ -175,6 +175,13 @@ public abstract class AbstractTreeWalker<E> implements Poolable {
         return (this.visited.contains(element));
     }
     /**
+     * Mark the given element as having been already visited
+     * @param element
+     */
+    protected void markAsVisited(E element) {
+        this.visited.add(element);
+    }
+    /**
      * Returns the ordered list of elements that were visited 
      * @return
      */

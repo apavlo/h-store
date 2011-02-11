@@ -106,6 +106,7 @@ public class ArgumentsParser {
     public static final String PARAM_MARKOV_ROUNDS          = PARAM_MARKOV + ".rounds";
     public static final String PARAM_MARKOV_THREADS         = PARAM_MARKOV + ".threads";
     public static final String PARAM_MARKOV_SPLIT           = PARAM_MARKOV + ".split";
+    public static final String PARAM_MARKOV_GLOBAL          = PARAM_MARKOV + ".global";
     public static final String PARAM_MARKOV_SPLIT_TRAINING  = PARAM_MARKOV_SPLIT + ".training";
     public static final String PARAM_MARKOV_SPLIT_VALIDATION = PARAM_MARKOV_SPLIT + ".validation";
     public static final String PARAM_MARKOV_SPLIT_TESTING   = PARAM_MARKOV_SPLIT + ".testing";
@@ -342,6 +343,14 @@ public class ArgumentsParser {
             } catch (NumberFormatException ex) {
                 // Nothing...
             }
+        }
+        return (false);
+    }
+    
+    public boolean hasBooleanParam(String key) {
+        if (this.hasParam(key)) {
+            Boolean val = Boolean.valueOf(this.params.get(key));
+            if (val != null) return (true);
         }
         return (false);
     }

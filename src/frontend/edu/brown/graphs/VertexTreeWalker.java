@@ -1,6 +1,3 @@
-/**
- * 
- */
 package edu.brown.graphs;
 
 import java.util.Collection;
@@ -50,10 +47,12 @@ public abstract class VertexTreeWalker<V extends AbstractVertex> extends Abstrac
     private IGraph<V, ? extends AbstractEdge> graph;
     private TraverseOrder search_order;
     private Direction search_direction; 
-    
-    // Breadth-First Search
-    // The last element at each depth in the tree. This is where we will still all of the
-    // children that we need to visit in the next level
+
+    /**
+     * Breadth-First Search
+     * The last element at each depth in the tree. This is where we will still all of the
+     * children that we need to visit in the next level
+     */
     private Map<Integer, V> bfs_levels;
 
     protected VertexTreeWalker() {

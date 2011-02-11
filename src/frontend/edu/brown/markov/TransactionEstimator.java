@@ -148,7 +148,7 @@ public class TransactionEstimator {
          * Get the next Estimate object for this State
          * @return
          */
-        protected synchronized Estimate getNextEstimate() {
+        protected synchronized Estimate getNextEstimate(Vertex v) {
             Estimate next = null;
             if (this.num_estimates < this.estimates.size()) {
                 next = this.estimates.get(this.num_estimates);
@@ -156,20 +156,39 @@ public class TransactionEstimator {
                 next = new Estimate(this.num_partitions);
                 this.estimates.add(next);
             }
-            next.init(this.current, this.num_estimates++);
+            next.init(v, this.num_estimates++);
             return (next);
         }
 
         public long getTransactionId() {
             return (this.txn_id);
         }
-        
+        public long getStartTime() {
+            return this.start_time;
+        }
         public MarkovGraph getMarkovGraph() {
             return (this.markov);
         }
-        
         public int getBasePartition() {
             return (this.base_partition);
+        }
+        public int getEstimateCount() {
+            return (this.num_estimates);
+        }
+        public List<Estimate> getEstimates() {
+            return (this.estimates);
+        }
+        public Vertex getCurrent() {
+            return (this.current);
+        }
+        /**
+         * Set the current vertex for this transaction and update the actual path
+         * @param current
+         */
+        public void setCurrent(Vertex current) {
+            if (this.current != null) assert(this.current.equals(current) == false);
+            this.actual_path.add(current);
+            this.current = current;
         }
         
         /**
@@ -183,17 +202,19 @@ public class TransactionEstimator {
         public int updateQueryInstanceCount(Statement catalog_stmt) {
             Integer cnt = this.query_instance_cnts.get(catalog_stmt);
             if (cnt == null) cnt = 0;
-            this.query_instance_cnts.put(catalog_stmt, cnt + 1);
-            return (cnt);
+            this.query_instance_cnts.put(catalog_stmt, cnt.intValue() + 1);
+            return (cnt.intValue());
         }
         
-        public Set<Integer> getTouchedPartitions() {
-            return (this.touched_partitions);
+        public Set<Integer> getEstimatedPartitions() {
+            return (this.initial_estimator.getAllPartitions());
         }
-        public void addTouchedPartitions(Collection<Integer> partitions) {
-            this.touched_partitions.addAll(partitions);
+        public Set<Integer> getEstimatedReadPartitions() {
+            return (this.initial_estimator.getReadPartitions());
         }
-
+        public Set<Integer> getEstimatedWritePartitions() {
+            return (this.initial_estimator.getWritePartitions());
+        }
         private MarkovPathEstimator getInitialEstimator() {
             return (this.initial_estimator);
         }
@@ -203,27 +224,15 @@ public class TransactionEstimator {
         public double getEstimatedPathConfidence() {
             return (this.initial_estimator.getConfidence());
         }
-
+        
+        public Set<Integer> getTouchedPartitions() {
+            return (this.touched_partitions);
+        }
+        public void addTouchedPartitions(Collection<Integer> partitions) {
+            this.touched_partitions.addAll(partitions);
+        }
         public List<Vertex> getActualPath() {
             return (this.actual_path);
-        }
-
-        public Vertex getCurrent() {
-            return (this.current);
-        }
-
-        /**
-         * Set the current vertex for this transaction and update the actual path
-         * @param current
-         */
-        public void setCurrent(Vertex current) {
-            if (this.current != null) assert(this.current.equals(current) == false);
-            this.actual_path.add(current);
-            this.current = current;
-        }
-
-        public long getStartTime() {
-            return this.start_time;
         }
 
         /**
@@ -238,22 +247,22 @@ public class TransactionEstimator {
             return this.estimates.get(this.num_estimates-1);
         }
         
-        public int getEstimateCount() {
-            return (this.num_estimates);
-        }
-        
-        public List<Estimate> getEstimates() {
-            return (this.estimates);
-        }
-        
         @Override
         public String toString() {
-            StringBuilder sb = new StringBuilder();
-            sb.append("{")
-              .append("Current=").append(this.current).append(", ")
-              .append("Touched=").append(this.touched_partitions)
-              .append("}");
-            return sb.toString();
+            Map<String, Object> m0 = new ListOrderedMap<String, Object>();
+            m0.put("TransactionId", this.txn_id);
+            m0.put("Procedure", this.markov.getProcedure().getName());
+            
+            Map<String, Object> m1 = new ListOrderedMap<String, Object>();
+            m1.put("Initial Partitions", this.getEstimatedPartitions());
+            m1.put("Initial Confidence", this.getEstimatedPathConfidence());
+            m1.put("Initial Estimate", this.getInitialEstimate().vertex.debug());
+            
+            Map<String, Object> m2 = new ListOrderedMap<String, Object>();
+            m2.put("Actual Partitions", this.getTouchedPartitions());
+            m2.put("Current Estimate", this.current.debug());
+            
+            return StringUtil.formatMaps(m0, m1, m2);
         }
     } // END CLASS
 
@@ -294,19 +303,19 @@ public class TransactionEstimator {
          * Given an empty estimate object and the current Vertex, we fill in the
          * relevant information for the transaction coordinator to use.
          * @param estimate the Estimate object which will be filled in
-         * @param current the Vertex we are currently at in the MarkovGraph
+         * @param v the Vertex we are currently at in the MarkovGraph
          */
-        public Estimate init(Vertex current, int batch) {
+        public Estimate init(Vertex v, int batch) {
             this.batch = batch;
-            this.vertex = current;
+            this.vertex = v;
             
-            this.singlepartition = current.getSingleSitedProbability();
-            this.userabort = current.getAbortProbability();
-            this.time = current.getExecutiontime();
+            this.singlepartition = v.getSingleSitedProbability();
+            this.userabort = v.getAbortProbability();
+            this.time = v.getExecutiontime();
             for (int i = 0; i < this.write.length; i++) {
-                this.finished[i] = current.getDoneProbability(i);
-                this.read[i] = current.getReadOnlyProbability(i);
-                this.write[i] = current.getWriteProbability(i);
+                this.finished[i] = v.getDoneProbability(i);
+                this.read[i] = v.getReadOnlyProbability(i);
+                this.write[i] = v.getWriteProbability(i);
             } // FOR
             return (this);
         }
@@ -621,7 +630,10 @@ public class TransactionEstimator {
             throw new RuntimeException(ex);
         }
         this.txn_states.put(txn_id, state);
-        Estimate est = state.getNextEstimate();
+        
+        // The initial estimate should be based on the second-to-last vertex in the initial path estimation
+        List<Vertex> initial_path = estimator.getVisitPath();
+        Estimate est = state.getNextEstimate(initial_path.get(initial_path.size() - 2));
         assert(est != null);
         assert(est.getBatchId() == 0);
         
@@ -664,7 +676,7 @@ public class TransactionEstimator {
             this.consume(state, catalog_stmts[i], partitions[i]);
         } // FOR
         
-        Estimate estimate = state.getNextEstimate();
+        Estimate estimate = state.getNextEstimate(state.current);
         assert(estimate != null);
         
         // Once the workload shifts we detect it and trigger this method. Recomputes
@@ -749,20 +761,6 @@ public class TransactionEstimator {
     // ----------------------------------------------------------------------------
 
     /**
-     * At the start of a transaction, estimate the execution path that the
-     * transaction will likely take during its lifetime
-     * 
-     * @param markov
-     * @param args
-     * @throws Exception
-     */
-    protected MarkovPathEstimator estimatePath(final MarkovGraph markov, final int base_partition, final Object args[]) throws Exception {
-        MarkovPathEstimator estimator = new MarkovPathEstimator(markov, this, base_partition, args);
-
-        return (estimator);
-    }
-    
-    /**
      * Figure out the next vertex that the txn will transition to for the give Statement catalog object
      * and the partitions that it will touch when it is executed. If no vertex exists, we will create
      * it and dynamically add it to our MarkovGraph
@@ -827,7 +825,7 @@ public class TransactionEstimator {
     public State processTransactionTrace(TransactionTrace txn_trace) throws Exception {
         long txn_id = txn_trace.getTransactionId();
         State s = this.startTransaction(txn_id, txn_trace.getCatalogItem(this.catalog_db), txn_trace.getParams());
-        assert(s != null);
+        assert(s != null) : "Null TransactionEstimator.State for txn #" + txn_id;
         for (Entry<Integer, List<QueryTrace>> e : txn_trace.getBatches().entrySet()) {
             int batch_size = e.getValue().size();
             

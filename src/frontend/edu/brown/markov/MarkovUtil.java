@@ -4,17 +4,28 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.util.*;
-import java.util.Map.Entry;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.SortedSet;
+import java.util.TreeSet;
 
 import org.apache.log4j.Logger;
 import org.json.JSONObject;
 import org.json.JSONStringer;
-import org.voltdb.catalog.*;
+import org.voltdb.catalog.Catalog;
+import org.voltdb.catalog.CatalogType;
+import org.voltdb.catalog.Database;
+import org.voltdb.catalog.Procedure;
+import org.voltdb.catalog.Statement;
 import org.voltdb.types.QueryType;
 import org.voltdb.utils.Pair;
 
-import edu.brown.catalog.CatalogKey;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.graphs.GraphvizExport;
 import edu.brown.graphs.GraphvizExport.Attributes;
@@ -22,7 +33,9 @@ import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.FileUtil;
 import edu.brown.utils.PartitionEstimator;
 import edu.brown.utils.ThreadUtil;
-import edu.brown.workload.*;
+import edu.brown.workload.AbstractTraceElement;
+import edu.brown.workload.TransactionTrace;
+import edu.brown.workload.Workload;
 import edu.brown.workload.filters.ProcedureNameFilter;
 
 /**
@@ -39,6 +52,13 @@ import edu.brown.workload.filters.ProcedureNameFilter;
 public abstract class MarkovUtil {
     private static final Logger LOG = Logger.getLogger(MarkovUtil.class);
 
+    
+    /**
+     * 
+     */
+    public static final Integer GLOBAL_MARKOV_CONTAINER_ID = -1;
+    
+    
     /**
      * Wrapper class for our special "marker" vertices
      */
@@ -283,6 +303,33 @@ public abstract class MarkovUtil {
     }
     
     /**
+     * Generate all of the procedure-based MarkovGraphs
+     * @param catalog_db
+     * @param workload
+     * @param p_estimator
+     * @return
+     */
+    public static MarkovGraphsContainer createProcedureGraphs(Database catalog_db, Workload workload, PartitionEstimator p_estimator) {
+        assert(workload != null);
+        assert(p_estimator != null);
+        
+        MarkovGraphsContainer markovs = new MarkovGraphsContainer(true); 
+        for (TransactionTrace xact : workload.getTransactions()) {
+            Procedure catalog_proc = xact.getCatalogItem(catalog_db);
+            MarkovGraph g = markovs.getOrCreate(GLOBAL_MARKOV_CONTAINER_ID, catalog_proc, true);
+            assert(g != null) : "No MarkovGraph exists for " + catalog_proc;
+            try {
+                g.processTransaction(xact, p_estimator);
+            } catch (Exception ex) {
+                LOG.fatal("Failed to process " + xact, ex);
+                throw new RuntimeException(ex);
+            }
+        } // FOR
+        markovs.calculateProbabilities();
+        return (markovs);
+    }
+    
+    /**
      * Load a list of Markov objects from a serialized for a particular id
      * @param catalog_db
      * @param input_path
@@ -340,8 +387,13 @@ public abstract class MarkovUtil {
                     for (String key : CollectionUtil.wrapIterator(json_object.keys())) {
                         Integer partition = Integer.valueOf(key);
                         
-                        // Check whether we want to include this partition in the output 
-                        if (ids == null || ids.contains(partition)) {
+                        // We want the MarkovGraphContainer pointed to by this line if
+                        // (1) This partition is the same as our GLOBAL_MARKOV_CONTAINER_ID, which means that
+                        //     there isn't going to be partition-specific graphs. There should only be one entry
+                        //     in this file and we're always going to want to load it
+                        // (2) They didn't pass us any ids, so we'll take everything we see
+                        // (3) They did pass us ids, so check whether its included in the set
+                        if (partition.equals(GLOBAL_MARKOV_CONTAINER_ID) || ids == null || ids.contains(partition)) {
                             Integer offset = json_object.getInt(key);
                             line_xref.put(offset, partition);
                         }

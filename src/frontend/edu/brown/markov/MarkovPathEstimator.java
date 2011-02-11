@@ -6,6 +6,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.commons.pool.BasePoolableObjectFactory;
 import org.apache.log4j.Logger;
 import org.voltdb.catalog.*;
+import org.voltdb.types.QueryType;
 import org.voltdb.utils.Pair;
 
 import edu.brown.catalog.CatalogUtil;
@@ -46,12 +47,21 @@ public class MarkovPathEstimator extends VertexTreeWalker<Vertex> {
             path_estimator.finish();
         };
     };
+
+    // ----------------------------------------------------------------------------
+    // INVOCATION MEMBERS
+    // ----------------------------------------------------------------------------
     
     private TransactionEstimator t_estimator;
+    private ParameterCorrelations correlations;
     private PartitionEstimator p_estimator;
-
     private int base_partition;
     private Object args[];
+
+    private final Set<Integer> all_partitions = new HashSet<Integer>();
+    private final Set<Integer> read_partitions = new HashSet<Integer>();
+    private final Set<Integer> write_partitions = new HashSet<Integer>();
+    
     
     /**
      * If this flag is set to true, then we will always try to go to the end
@@ -59,11 +69,28 @@ public class MarkovPathEstimator extends VertexTreeWalker<Vertex> {
      * just pick the edge from the one that is available that has the highest probability
      */
     private boolean force_traversal = false;
+
+    /**
+     * These are the vertices that we weren't sure about.
+     * This only gets populated when force_traversal is set to true 
+     */
+    private final Set<Vertex> forced_vertices = new HashSet<Vertex>();
     
     /**
      * This is how confident we are 
      */
     private double confidence = 1.00;
+
+
+    // ----------------------------------------------------------------------------
+    // TEMPORARY TRAVERSAL MEMBERS
+    // ----------------------------------------------------------------------------
+
+    private final transient SortedSet<Edge> candidates = new TreeSet<Edge>();
+    
+    private final transient Set<Pair<Statement, Integer>> next_statements = new HashSet<Pair<Statement, Integer>>();
+    
+    private final transient Set<Integer> stmt_partitions = new HashSet<Integer>();
     
     // ----------------------------------------------------------------------------
     // CONSTRUCTORS
@@ -88,10 +115,19 @@ public class MarkovPathEstimator extends VertexTreeWalker<Vertex> {
         this.init(markov, t_estimator, base_partition, args);
     }
     
+    /**
+     * 
+     * @param markov
+     * @param t_estimator
+     * @param base_partition
+     * @param args
+     * @return
+     */
     public MarkovPathEstimator init(MarkovGraph markov, TransactionEstimator t_estimator, int base_partition, Object args[]) {
         this.init(markov, TraverseOrder.DEPTH, Direction.FORWARD);
         this.t_estimator = t_estimator;
         this.p_estimator = this.t_estimator.getPartitionEstimator();
+        this.correlations = this.t_estimator.getCorrelations();
         this.base_partition = base_partition;
         this.args = args;
         
@@ -107,12 +143,39 @@ public class MarkovPathEstimator extends VertexTreeWalker<Vertex> {
         return (this);
     }
     
+    @Override
+    public void finish() {
+        super.finish();
+        this.all_partitions.clear();
+        this.read_partitions.clear();
+        this.write_partitions.clear();
+        this.forced_vertices.clear();
+    }
+    
     /**
      * 
      * @param flag
      */
     public void enableForceTraversal(boolean flag) {
         this.force_traversal = flag;
+    }
+    
+    public Set<Integer> getAllPartitions() {
+        return this.all_partitions;
+    }
+    public Set<Integer> getReadPartitions() {
+        return this.read_partitions;
+    }
+    public Set<Integer> getWritePartitions() {
+        return this.write_partitions;
+    }
+    
+    /**
+     * 
+     * @return
+     */
+    public Set<Vertex> getForcedVertices() {
+        return this.forced_vertices;
     }
     
     /**
@@ -124,29 +187,7 @@ public class MarkovPathEstimator extends VertexTreeWalker<Vertex> {
     }
     
     /**
-     * Conveinence method that returns the traversal path predicted for this instance
-     * @param markov
-     * @param t_estimator
-     * @param args
-     * @return
-     */
-    public static List<Vertex> predictPath(MarkovGraph markov, TransactionEstimator t_estimator, Object args[]) {
-        Integer base_partition = null; 
-        try {
-            base_partition = t_estimator.getPartitionEstimator().getBasePartition(markov.getProcedure(), args);
-        } catch (Exception ex) {
-            LOG.fatal(String.format("Failed to calculate base partition for <%s, %s>", markov.getProcedure().getName(), Arrays.toString(args)), ex);
-            System.exit(1);
-        }
-        assert(base_partition != null);
-        
-        MarkovPathEstimator estimator = new MarkovPathEstimator(markov, t_estimator, base_partition, args);
-        estimator.traverse(markov.getStartVertex());
-        return (new Vector<Vertex>(estimator.getVisitPath()));
-    }
-    
-    /**
-     * 
+     * This is the main part of where we figure out the path that this transaction will take
      */
     protected void populate_children(Children children, Vertex element) {
         final boolean trace = LOG.isTraceEnabled();
@@ -157,23 +198,24 @@ public class MarkovPathEstimator extends VertexTreeWalker<Vertex> {
             return;
         }
         
+        // Initialize temporary data
+        this.candidates.clear();
+        this.next_statements.clear();
+        
         if (trace) LOG.trace("Current Vertex: " + element);
         Statement cur_catalog_stmt = element.getCatalogItem();
         int cur_catalog_stmt_index = element.getQueryInstanceIndex();
         MarkovGraph markov = (MarkovGraph)this.getGraph();
-        final SortedSet<Edge> candidates = new TreeSet<Edge>();
         
         // At our current vertex we need to gather all of our neighbors
         // and get unique Statements that we could be executing next
-        Collection<Vertex> next_vertices = markov.getSuccessors(element);
-        
+        Collection<Vertex> next_vertices = markov.getSuccessors(element);        
         if (trace) LOG.trace("Successors: " + next_vertices);
 
         // Step #1
         // Get all of the unique Statement+StatementInstanceIndex pairs for the vertices
         // that are adjacent to our current vertex
         // XXX: Why do we use the pairs rather than just look at the vertices?
-        Set<Pair<Statement, Integer>> next_statements = new HashSet<Pair<Statement, Integer>>();
         for (Vertex next : next_vertices) {
             Statement next_catalog_stmt = next.getCatalogItem();
             int next_catalog_stmt_index = next.getQueryInstanceIndex();
@@ -182,8 +224,8 @@ public class MarkovPathEstimator extends VertexTreeWalker<Vertex> {
             // then its instance counter must be greater than the current vertex's counter
             if (next_catalog_stmt.equals(cur_catalog_stmt)) {
                 if (next_catalog_stmt_index <= cur_catalog_stmt_index) {
-                    System.err.println("CURRENT: " + element + "  [commit=" + element.isCommitVertex() + "]");
-                    System.err.println("NEXT:    " + next + "  [commit=" + next.isCommitVertex() + "]");
+                    LOG.error("CURRENT: " + element + "  [commit=" + element.isCommitVertex() + "]");
+                    LOG.error("NEXT:    " + next + "  [commit=" + next.isCommitVertex() + "]");
                 }
                 assert(next_catalog_stmt_index > cur_catalog_stmt_index) : String.format("%d > %d", next_catalog_stmt_index, cur_catalog_stmt_index);
             }
@@ -192,25 +234,27 @@ public class MarkovPathEstimator extends VertexTreeWalker<Vertex> {
             if (next.equals(markov.getCommitVertex()) || next.equals(markov.getAbortVertex())) {
                 Edge candidate = markov.findEdge(element, next);
                 assert(candidate != null);
-                candidates.add(candidate);
+                this.candidates.add(candidate);
             } else {
-                next_statements.add(Pair.of(next_catalog_stmt, next_catalog_stmt_index));
+                this.next_statements.add(Pair.of(next_catalog_stmt, next_catalog_stmt_index));
             }
         } // FOR
         
         // Now for the unique set of Statement+StatementIndex pairs, figure out which partitions
         // the queries will go to.
-        for (Pair<Statement, Integer> pair : next_statements) {
+        for (Pair<Statement, Integer> pair : this.next_statements) {
             Statement catalog_stmt = pair.getFirst();
             Integer catalog_stmt_index = pair.getSecond();
             if (trace) LOG.trace("Examining " + pair);
             
             // Get the correlation objects (if any) for next
             // This is the only way we can predict what partitions we will touch
-            SortedMap<StmtParameter, SortedSet<Correlation>> param_correlations = this.t_estimator.getCorrelations().get(catalog_stmt, catalog_stmt_index);
+            SortedMap<StmtParameter, SortedSet<Correlation>> param_correlations = this.correlations.get(catalog_stmt, catalog_stmt_index);
             if (param_correlations == null) {
-                if (trace) LOG.trace("No parameter correlations for " + pair);
-                System.err.println(this.t_estimator.getCorrelations().debug(catalog_stmt));
+                if (trace) {
+                    LOG.warn("No parameter correlations for " + pair);
+                    LOG.trace(this.correlations.debug(catalog_stmt));
+                }
                 continue;
             }
             
@@ -280,32 +324,32 @@ public class MarkovPathEstimator extends VertexTreeWalker<Vertex> {
             // things out for this Statement
             if (stmt_args_set) {
                 if (trace) LOG.trace("Mapped StmtParameters: " + Arrays.toString(stmt_args));
-                Set<Integer> partitions = null;
+                this.stmt_partitions.clear();
                 try {
-                    partitions = this.p_estimator.getAllPartitions(catalog_stmt, stmt_args, this.base_partition);
+                    this.p_estimator.getAllPartitions(this.stmt_partitions, catalog_stmt, stmt_args, this.base_partition);
                 } catch (Exception ex) {
                     String msg = "Failed to calculate partitions for " + catalog_stmt + " using parameters " + Arrays.toString(stmt_args);
                     LOG.error(msg, ex);
                     this.stop();
                     return;
                 }
-                if (trace) LOG.trace("Estimated Partitions for " + catalog_stmt + ": " + partitions);
+                if (trace) LOG.trace("Estimated Partitions for " + catalog_stmt + ": " + this.stmt_partitions);
                 
                 // Now for this given list of partitions, find a Vertex in our next set
                 // that has the same partitions
-                if (partitions != null && !partitions.isEmpty()) {
+                if (this.stmt_partitions != null && !this.stmt_partitions.isEmpty()) {
                     Edge candidate = null;
                     for (Vertex next : next_vertices) {
                         if (next.getCatalogItem().equals(catalog_stmt) &&
                             next.getQueryInstanceIndex() == catalog_stmt_index &&
-                            next.getPartitions().equals(partitions)) {
+                            next.getPartitions().equals(this.stmt_partitions)) {
                             // BINGO!!!
                             assert(candidate == null);
                             candidate = markov.findEdge(element, next);
                             assert(candidate != null);
 
-                            candidates.add(candidate);
-                            LOG.trace("Found candidate edge to " + next + " [" + candidate + "]");
+                            this.candidates.add(candidate);
+                            if (trace) LOG.trace("Found candidate edge to " + next + " [" + candidate + "]");
                             break; // ???
                         }
                     } // FOR (Vertex
@@ -319,33 +363,46 @@ public class MarkovPathEstimator extends VertexTreeWalker<Vertex> {
         
         // If we don't have any candidate edges and the FORCE TRAVERSAL flag is set, then we'll just
         // grab all of the edges from our currect vertex
-        int num_candidates = candidates.size();
+        int num_candidates = this.candidates.size();
+        boolean was_forced = false;
         if (num_candidates == 0 && this.force_traversal) {
             if (trace) LOG.trace("No candidate edges were found. Force travesal flag is set, so taking all");
-            candidates.addAll(markov.getOutEdges(element));
-            num_candidates = candidates.size();
+            this.candidates.addAll(markov.getOutEdges(element));
+            num_candidates = this.candidates.size();
+            was_forced = true;
         }
         
         // So now we have our list of candidate edges. We can pick the first one
         // since they will be sorted by their probability
-        if (trace) LOG.trace("Candidate Edges: " + candidates);
+        if (trace) LOG.trace("Candidate Edges: " + this.candidates);
         if (num_candidates > 0) {
-            Edge next_edge = CollectionUtil.getFirst(candidates);
+            Edge next_edge = CollectionUtil.getFirst(this.candidates);
             Vertex next_vertex = markov.getOpposite(element, next_edge);
             children.addAfter(next_vertex);
+            if (was_forced) this.forced_vertices.add(next_vertex);
+ 
+            // Update our list of partitions touched by this transaction
+            Statement catalog_stmt = next_vertex.getCatalogItem();
+            if (catalog_stmt.getQuerytype() == QueryType.SELECT.getValue()) {
+                this.read_partitions.addAll(next_vertex.getPartitions());
+            } else {
+                this.write_partitions.addAll(next_vertex.getPartitions());
+            }
+            this.all_partitions.addAll(next_vertex.getPartitions());
             
             // Our confidence is based on the total sum of the probabilities for all of the
             // edges that we could have taken in comparison to the one that we did take
-            float total_probability = 0.0f;
+            double total_probability = 0.0;
             if (debug) LOG.debug("CANDIDATES:");
-            for (Edge e : candidates) {
+            for (Edge e : this.candidates) {
                 Vertex v = markov.getOpposite(element, e);
                 total_probability += e.getProbability();
-                if (debug) LOG.debug("  " + element + " --[" + e + "]--> " + v + (next_vertex.equals(v) ? " *******" : ""));
-                if (debug && candidates.size() > 1) LOG.debug(StringUtil.addSpacers(v.debug()));
+                if (debug) {
+                    LOG.debug("  " + element + " --[" + e + "]--> " + v + (next_vertex.equals(v) ? " *******" : ""));
+                    if (this.candidates.size() > 1) LOG.debug(StringUtil.addSpacers(v.debug()));
+                }
             } // FOR
-            double next_probability = next_edge.getProbability();
-            this.confidence *= next_probability / total_probability;
+            this.confidence *= next_edge.getProbability() / total_probability;
             
             if (debug) {
                 LOG.debug("TOTAL:    " + total_probability);
@@ -354,14 +411,12 @@ public class MarkovPathEstimator extends VertexTreeWalker<Vertex> {
         } else {
             if (trace) LOG.trace("No matching children found. We have to stop...");
         }
-        LOG.debug(StringUtil.repeat("-", 100));
+        if (debug) LOG.debug(StringUtil.repeat("-", 100));
     }
     
     @Override
     protected void callback(Vertex element) {
         final boolean trace = LOG.isTraceEnabled();
-        
-        // Anything??
         
         if (element.isCommitVertex()) {
             if (trace) LOG.trace("Reached COMMIT. Stopping...");
@@ -370,6 +425,29 @@ public class MarkovPathEstimator extends VertexTreeWalker<Vertex> {
             if (trace) LOG.trace("Reached ABORT. Stopping...");
             this.stop();
         }
+    }
+    
+    
+    /**
+     * Convenience method that returns the traversal path predicted for this instance
+     * @param markov
+     * @param t_estimator
+     * @param args
+     * @return
+     */
+    public static List<Vertex> predictPath(MarkovGraph markov, TransactionEstimator t_estimator, Object args[]) {
+        Integer base_partition = null; 
+        try {
+            base_partition = t_estimator.getPartitionEstimator().getBasePartition(markov.getProcedure(), args);
+        } catch (Exception ex) {
+            LOG.fatal(String.format("Failed to calculate base partition for <%s, %s>", markov.getProcedure().getName(), Arrays.toString(args)), ex);
+            System.exit(1);
+        }
+        assert(base_partition != null);
+        
+        MarkovPathEstimator estimator = new MarkovPathEstimator(markov, t_estimator, base_partition, args);
+        estimator.traverse(markov.getStartVertex());
+        return (new Vector<Vertex>(estimator.getVisitPath()));
     }
     
     public static void main(String[] vargs) throws Exception {
