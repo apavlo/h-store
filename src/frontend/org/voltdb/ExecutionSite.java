@@ -1202,7 +1202,8 @@ public class ExecutionSite implements Runnable {
      * Send a ClientResponseImpl message back to the coordinator
      */
     public void sendClientResponse(ClientResponseImpl cresponse) {
-        final boolean t = true; // trace.get();
+        final boolean d = debug.get();
+        final boolean t = trace.get();
         
         long txn_id = cresponse.getTransactionId();
         // Don't remove the TransactionState here. We do that later in commit/abort
@@ -1220,16 +1221,21 @@ public class ExecutionSite implements Runnable {
         long client_handle = cresponse.getClientHandle();
         assert(client_handle != -1) : "The client handle for txn #" + txn_id + " was not set properly";
 
-        FastSerializer out = new FastSerializer(ExecutionSite.buffer_pool);
-        try {
-            out.writeObject(cresponse);
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-        Dtxn.FragmentResponse.Builder builder = Dtxn.FragmentResponse.newBuilder().setOutput(ByteString.copyFrom(out.getBytes()));
-        if (t) {
-            LOG.debug("Sending ClientResponseImpl back for txn #" + txn_id + " [status=" + cresponse.getStatusName() + ", size=" + builder.getOutput().size() + "]");
-            LOG.debug("RESULTS:\n" + Arrays.toString(cresponse.getResults()));
+        LOG.debug(String.format("Sending ClientResponseImpl back for txn #%d [status=%s]", txn_id, cresponse.getStatusName()));
+        Dtxn.FragmentResponse.Builder builder = Dtxn.FragmentResponse.newBuilder();
+
+        // Don't send anything back if it's a mispredict because it's as waste of time...
+        if (cresponse.getStatus() != ClientResponseImpl.MISPREDICTION) {
+            FastSerializer out = new FastSerializer(ExecutionSite.buffer_pool);
+            try {
+                out.writeObject(cresponse);
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+            builder.setOutput(ByteString.copyFrom(out.getBytes()));
+            if (t) LOG.trace("RESULTS:\n" + Arrays.toString(cresponse.getResults()));
+        } else {
+            builder.setOutput(ByteString.EMPTY);
         }
 
         // IMPORTANT: If we executed this locally and only touched our partition, then we need to commit/abort right here
@@ -1244,7 +1250,7 @@ public class ExecutionSite implements Runnable {
                 if (is_local) this.commitWork(txn_id);
                 break;
             case ClientResponseImpl.MISPREDICTION:
-                if (t) LOG.debug("Txn #" + txn_id + " was mispredicted! Aborting work and restarting! [is_local=" + is_local + "]");
+                if (d) LOG.debug("Txn #" + txn_id + " was mispredicted! Aborting work and restarting! [is_local=" + is_local + "]");
                 builder.setStatus(Dtxn.FragmentResponse.Status.ABORT_MISPREDICT);
                 // We should always abort on a misprediction... is that true??
                 this.abortWork(txn_id);
@@ -1260,7 +1266,7 @@ public class ExecutionSite implements Runnable {
                 if (is_local) this.abortWork(txn_id);
                 break;
         } // SWITCH
-        if (t) LOG.debug("Invoking finished callback for txn #" + txn_id);
+        if (d) LOG.debug("Invoking Dtxn.FragmentResponse callback for txn #" + txn_id);
         callback.run(builder.build());
     }
 

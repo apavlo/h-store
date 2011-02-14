@@ -20,13 +20,23 @@ public abstract class ThreadUtil {
             // IGNORE!
         }
     }
-    
+
     /**
-     * Fork the command (in the current thread) and countdown the latch everytime we see
-     * our match string in the output
+     * Fork the command (in the current thread)
      * @param command
      */
-    public static void fork(String command[], final String prefix, final EventObservable stop_observable) {
+    public static void fork(String command[], EventObservable stop_observable) {
+        ThreadUtil.fork(command, stop_observable, null, false);
+    }
+    
+    /**
+     * 
+     * @param command
+     * @param prefix
+     * @param stop_observable
+     * @param print_output
+     */
+    public static void fork(String command[], final EventObservable stop_observable, final String prefix, final boolean print_output) {
         final boolean debug = LOG.isDebugEnabled(); 
         
         final String prog_name = FileUtil.basename(command[0]);
@@ -58,22 +68,24 @@ public abstract class ThreadUtil {
                 }
             });
         }
-        
-//        BufferedInputStream in = new BufferedInputStream(p.getInputStream());
-//        StringBuilder buffer = new StringBuilder();
-//        int c;
-//        try {
-//            while((c = in.read()) != -1) {
-//                buffer.append((char)c);
-//                if (((char)c) == '\n') {
-//                    System.out.print(prefix + buffer.toString());
-//                    buffer = new StringBuilder();
-//                }
-//            }
-//        } catch (Exception e) {
-//            p.destroy();
-//        }
-//        if (buffer.length() > 0) System.out.println(prefix + buffer);
+
+        if (print_output) {
+            BufferedInputStream in = new BufferedInputStream(p.getInputStream());
+            StringBuilder buffer = new StringBuilder();
+            int c;
+            try {
+                while((c = in.read()) != -1) {
+                    buffer.append((char)c);
+                    if (((char)c) == '\n') {
+                        System.out.print(prefix + buffer.toString());
+                        buffer = new StringBuilder();
+                    }
+                }
+            } catch (Exception e) {
+                p.destroy();
+            }
+            if (buffer.length() > 0) System.out.println(prefix + buffer);
+        }
         
         try {
             p.waitFor();

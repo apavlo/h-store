@@ -1475,21 +1475,21 @@ BENCHMARKS
         <arg value="COORDINATORHOST=${hstore.coordinator.host}" />
 
         <!-- Execution Options -->
-        <arg value="TXNRATE=${hstore.txnrate}" />
-        <arg value="CLIENTCOUNT=${hstore.clientcount}" />
-        <arg value="PROCESSESPERCLIENT=${hstore.processesperclient}" />
-        <arg value="INTERVAL=${hstore.interval}" />
-        <arg value="DURATION=${hstore.duration}" />
-        <arg value="BLOCKING=${hstore.blocking}" />
+        <arg value="TXNRATE=${hstore.client.txnrate}" />
+        <arg value="CLIENTCOUNT=${hstore.client.count}" />
+        <arg value="PROCESSESPERCLIENT=${hstore.client.processesperclient}" />
+        <arg value="INTERVAL=${hstore.client.interval}" />
+        <arg value="DURATION=${hstore.client.duration}" />
+        <arg value="BLOCKING=${hstore.client.blocking}" />
         <arg value="TRACE=${trace}" />
         <arg value="PROFILESITES=${profilesites}" />
         <arg value="NOCOORDINATOR=${nocoordinator}" />
 
         <!-- Global Parameters -->
-        <arg value="scalefactor=${hstore.scalefactor}" />
-        <arg value="skewfactor=${hstore.skewfactor}" />
-        <arg value="temporalwindow=${hstore.temporalwindow}" />
-        <arg value="temporaltotal=${hstore.temporaltotal}" />
+        <arg value="scalefactor=${hstore.client.scalefactor}" />
+        <arg value="skewfactor=${hstore.client.skewfactor}" />
+        <arg value="temporalwindow=${hstore.client.temporalwindow}" />
+        <arg value="temporaltotal=${hstore.client.temporaltotal}" />
 
         <!-- Benchmark Parameters -->
         <arg value="CLIENT=${benchmark.client}" />

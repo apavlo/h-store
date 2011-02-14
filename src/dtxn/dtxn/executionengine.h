@@ -25,6 +25,8 @@ public:
         ABORT_DEADLOCK,
         /** Blocked trying to acquire locks. */
         BLOCKED,
+        /** PAVLO: Aborting because of a misprediction. */
+        ABORT_MISPREDICT = 5,
         // TODO: Add a timeout abort code
         /** An invalid state. Should only be used internally. */
         INVALID = -1,
