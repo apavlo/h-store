@@ -101,6 +101,9 @@ public:
 
         /** A deadlock was detected. */
         ABORT_DEADLOCK = 2,
+        
+        /** PAVLO: Misprediction! */
+        ABORT_MISPREDICT = 5,
     };
 
     typedef std::vector<std::pair<int, std::string> > MessageList;
@@ -181,7 +184,7 @@ public:
         assert(!findPartition(sent_messages_, index)->second.empty() ||
                 message.empty());
         assert(status != ABORT_DEADLOCK || message.empty());
-        assert(status == OK || status == ABORT_USER ||
+        assert(status == OK || status == ABORT_USER || status == ABORT_MISPREDICT ||
                 status == ABORT_DEADLOCK);
         assert(partition_status_[index].isParticipant());
 

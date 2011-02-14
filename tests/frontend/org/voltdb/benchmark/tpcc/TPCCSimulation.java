@@ -242,7 +242,7 @@ public class TPCCSimulation
                 Constants.MAX_OL_CNT);
 
         // 1% of transactions roll back
-        boolean rollback = false; // FIXME generator.number(1, 100) == 1;
+        boolean rollback = generator.number(1, 100) == 1;
         int local_warehouses = 0;
         int remote_warehouses = 0;
 
@@ -259,7 +259,7 @@ public class TPCCSimulation
             }
 
             // XXX: 1% of items are from a remote warehouse
-            boolean remote = true; // FIXME generator.number(1, 100) == 1;
+            boolean remote = generator.number(1, 100) == 1;
             if (parameters.warehouses > 1 && remote) {
                 supply_w_id[i] = (short)generator.numberExcluding(parameters.starting_warehouse, this.max_w_id, (int) warehouse_id);
                 if (supply_w_id[i] != warehouse_id) remote_warehouses++;

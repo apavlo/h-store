@@ -18,7 +18,7 @@ message FragmentResponse {
         OK = 0;
         ABORT_USER = 1;
         ABORT_DEADLOCK = 2;
-        ABORT_MISPREDICT = 3;
+        ABORT_MISPREDICT = 5;
     };
 
     required Status status = 1;

@@ -503,6 +503,8 @@ public abstract class MarkovUtil {
         
         // Full Debug Output
         if (use_full_output) {
+            final String empty_set = "\u2205";
+            
             for (Vertex v0 : markov.getVertices()) {
                 String label = "";
                 
@@ -518,7 +520,7 @@ public abstract class MarkovUtil {
                     
                     label += "Partitions: ";
                     if (v0.getPartitions().isEmpty()) {
-                        label += "∅";
+                        label += empty_set;
                     } else {
                         label += "{ ";
                         String add = "";
@@ -532,7 +534,7 @@ public abstract class MarkovUtil {
                     
                     label += "Previous: ";
                     if (v0.getPastPartitions().isEmpty()) {
-                        label += "∅";
+                        label += empty_set;
                     } else {
                         label += "{ ";
                         String add = "";

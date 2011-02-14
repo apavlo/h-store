@@ -217,9 +217,11 @@ public class TransactionTrace extends AbstractTraceElement<Procedure> {
         super.fromJSONObject(object, db);
         this.txn_id = object.getLong(Members.TXN_ID.name());
         Procedure catalog_proc = (Procedure)db.getProcedures().get(this.catalog_item_name);
+        assert(catalog_proc != null) : "Unexpected procedure '" + this.catalog_item_name + "'";
         try {
             super.paramsFromJSONObject(object, catalog_proc.getParameters(), "type");
         } catch (Exception ex) {
+            LOG.fatal("Failed to extract procedure params for txn #" + this.txn_id, ex);
             throw new JSONException(ex);
         }
         

@@ -617,10 +617,10 @@ public class TPCCClient extends org.voltdb.benchmark.ClientMain implements TPCCS
 
         @Override
         public void clientCallback(ClientResponse clientResponse) {
-            LOG.info("clientResponse.getStatus() = " + clientResponse.getStatusName());
+            if (LOG.isDebugEnabled()) LOG.debug("clientResponse.getStatus() = " + clientResponse.getStatusName());
             
             boolean status = checkTransaction(Constants.NEWORDER, clientResponse, cbRollback, false);
-            assert (this.cbRollback || status) : "Rollback=" + this.cbRollback + ", Status=" + status;
+            assert (this.cbRollback || status) : "Rollback=" + this.cbRollback + ", Status=" + clientResponse.getStatusName();
             m_counts[TPCCSimulation.Transaction.NEW_ORDER.ordinal()].incrementAndGet();
         }
 

@@ -104,7 +104,8 @@ bool BlockingScheduler::doWork(SchedulerOutput* output) {
             response->status = engine_->tryExecute(
                     fragment->request().transaction, &response->result, undo_pointer, NULL, transaction->payload());
             assert(response->status == ExecutionEngine::OK ||
-                    response->status == ExecutionEngine::ABORT_USER);
+                   response->status == ExecutionEngine::ABORT_USER ||
+                   response->status == ExecutionEngine::ABORT_MISPREDICT);
             assert(undo == NULL || undo_pointer != NULL);
             transaction->scheduler_state(undo);
         }
