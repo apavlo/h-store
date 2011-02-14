@@ -37,6 +37,7 @@ public class GraphvizExport<V extends AbstractVertex, E extends AbstractEdge> {
         FILLCOLOR,
         FONTSIZE,
         FONTCOLOR,
+        FONTNAME,
         PACK,
         PENWIDTH,
         RATIO,

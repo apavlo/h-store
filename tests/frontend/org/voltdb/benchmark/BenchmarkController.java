@@ -418,6 +418,8 @@ public class BenchmarkController {
                 command.add("-Dhstore.coordinator.host=" + m_config.coordinatorHost);
                 command.add("-Dproject=" + m_projectBuilder.getProjectName());
                 command.add("-Dnode.site=" + site_id);
+                if (m_config.markovPath != null) command.add("-Dmarkov=" + m_config.markovPath);
+                if (m_config.thresholdsPath != null) command.add("-Dthresholds=" + m_config.thresholdsPath);
                 
                 // Enable workload trace outputs
                 if (m_config.workloadTrace != null) {
@@ -434,9 +436,6 @@ public class BenchmarkController {
 
             // START: Dtxn.Coordinator
             if (m_config.noCoordinator == false) {
-                // Sleep for a few seconds
-                ThreadUtil.sleep(30000);
-                
                 String host = m_config.coordinatorHost;
                 String[] command = {
                     "ant",
@@ -907,6 +906,10 @@ public class BenchmarkController {
         String applicationName = null;
         String subApplicationName = null;
         
+        // Markov Stuff
+        String markov_path = null;
+        String thresholds_path = null;
+        
         // List of SiteIds that we won't start because they'll be started by the profiler
         Set<Integer> profileSiteIds = new HashSet<Integer>();
 
@@ -1088,6 +1091,12 @@ public class BenchmarkController {
                 for (String s : parts[1].split(",")) {
                     profileSiteIds.add(Integer.valueOf(s));
                 } // FOR
+
+            } else if (parts[0].equalsIgnoreCase("MARKOV")) {
+                markov_path = parts[1];
+            } else if (parts[0].equalsIgnoreCase("THRESHOLDS")) {
+                thresholds_path = parts[1];
+
             /** PAVLO **/
                 
             } else {
@@ -1210,7 +1219,9 @@ public class BenchmarkController {
                 useCatalogHosts,
                 noDataLoad,
                 workloadTrace,
-                profileSiteIds);
+                profileSiteIds,
+                markov_path,
+                thresholds_path);
 
         // Always pass these parameters
         clientParams.put("INTERVAL", Long.toString(interval));

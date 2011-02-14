@@ -141,13 +141,14 @@ public class ArgumentsParser {
     public static final String PARAM_COORDINATOR_HOST       = PARAM_COORDINATOR + ".host";
     public static final String PARAM_COORDINATOR_PORT       = PARAM_COORDINATOR + ".port";
     public static final String PARAM_COORDINATOR_PARTITION  = PARAM_COORDINATOR + ".partition";
-    public static final String PARAM_COORDINATOR_STATUS_INTERVAL = PARAM_COORDINATOR + ".statusinterval";
 
     private static final String PARAM_NODE                  = "node";
     public static final String PARAM_NODE_HOST              = PARAM_NODE + ".host";
     public static final String PARAM_NODE_PORT              = PARAM_NODE + ".port";
     public static final String PARAM_NODE_PARTITION         = PARAM_NODE + ".partition";
     public static final String PARAM_NODE_SITE              = PARAM_NODE + ".site";
+    public static final String PARAM_NODE_FORCE_SINGLEPARTITION = PARAM_NODE + ".forcesinglepartition";
+    public static final String PARAM_NODE_STATUS_INTERVAL   = PARAM_NODE + ".statusinterval";
     
     private static final String PARAM_DTXN                  = "dtxn";
     public static final String PARAM_DTXN_CONF              = PARAM_DTXN + ".conf";

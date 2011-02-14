@@ -218,7 +218,7 @@ public abstract class MarkovUtil {
         final MarkovGraphsContainer graphs_per_partition = new MarkovGraphsContainer();
         
         List<Runnable> runnables = new ArrayList<Runnable>();
-        for (final Procedure catalog_proc : catalog_db.getProcedures()) {
+        for (final Procedure catalog_proc : workload.getProcedures(catalog_db)) {
             if (catalog_proc.getSystemproc()) continue;
             runnables.add(new Runnable() {
                 @Override
@@ -478,21 +478,25 @@ public abstract class MarkovUtil {
         GraphvizExport<Vertex, Edge> graphviz = new GraphvizExport<Vertex, Edge>(markov);
         graphviz.setEdgeLabels(true);
         graphviz.getGlobalGraphAttributes().put(Attributes.PACK, "true");
+        graphviz.getGlobalVertexAttributes().put(Attributes.FONTNAME, "Courier");
         
         Vertex v = markov.getStartVertex();
-        graphviz.getAttributes(v).put(Attributes.FILLCOLOR, "darkgreen");
+        graphviz.getAttributes(v).put(Attributes.FILLCOLOR, "darkblue");
         graphviz.getAttributes(v).put(Attributes.FONTCOLOR, "white");
         graphviz.getAttributes(v).put(Attributes.STYLE, "filled,bold");
+        graphviz.getAttributes(v).put(Attributes.FONTSIZE, "24");
 
         v = markov.getCommitVertex();
         graphviz.getAttributes(v).put(Attributes.FILLCOLOR, "darkgreen");
         graphviz.getAttributes(v).put(Attributes.FONTCOLOR, "white");
         graphviz.getAttributes(v).put(Attributes.STYLE, "filled,bold");
+        graphviz.getAttributes(v).put(Attributes.FONTSIZE, "24");
         
         v = markov.getAbortVertex();
         graphviz.getAttributes(v).put(Attributes.FILLCOLOR, "firebrick4");
         graphviz.getAttributes(v).put(Attributes.FONTCOLOR, "white");
         graphviz.getAttributes(v).put(Attributes.STYLE, "filled,bold");
+        graphviz.getAttributes(v).put(Attributes.FONTSIZE, "24");
 
         // Highlight Path
         if (path != null) graphviz.highlightPath(path, "red");
@@ -500,7 +504,47 @@ public abstract class MarkovUtil {
         // Full Debug Output
         if (use_full_output) {
             for (Vertex v0 : markov.getVertices()) {
-                graphviz.getAttributes(v0).put(Attributes.LABEL, v0.debug().replace("\n", "\\n").replace("\t", "     "));    
+                String label = "";
+                
+                if (v0.isAbortVertex()) {
+                    label = "abort";
+                } else if (v0.isStartVertex()) {
+                    label = "begin";
+                } else if (v0.isCommitVertex()) {
+                    label = "commit";
+                } else {
+                    label = v0.getCatalogItem().getName() + "\n";
+                    label += "Counter: " + v0.getQueryInstanceIndex() + "\n";
+                    
+                    label += "Partitions: ";
+                    if (v0.getPartitions().isEmpty()) {
+                        label += "∅";
+                    } else {
+                        label += "{ ";
+                        String add = "";
+                        for (Integer p : v0.getPartitions()) {
+                            label += add + p;
+                            add = ", ";
+                        } // FOR
+                        label += " }";
+                    }
+                    label += "\n";
+                    
+                    label += "Previous: ";
+                    if (v0.getPastPartitions().isEmpty()) {
+                        label += "∅";
+                    } else {
+                        label += "{ ";
+                        String add = "";
+                        for (Integer p : v0.getPastPartitions()) {
+                            label += add + p;
+                            add = ", ";
+                        } // FOR
+                        label += " }";
+                    }
+                }
+                label = v0.debug();
+                graphviz.getAttributes(v0).put(Attributes.LABEL, label.replace("\n", "\\n"));
             } // FOR
         }
         

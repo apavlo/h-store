@@ -23,6 +23,7 @@
 
 package org.voltdb.benchmark.tpcc;
 
+import org.apache.log4j.Logger;
 import org.voltdb.VoltTable;
 import org.voltdb.VoltType;
 import org.voltdb.types.TimestampType;
@@ -43,8 +44,8 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-public class TPCCClient extends org.voltdb.benchmark.ClientMain
-implements TPCCSimulation.ProcCaller {
+public class TPCCClient extends org.voltdb.benchmark.ClientMain implements TPCCSimulation.ProcCaller {
+    private static final Logger LOG = Logger.getLogger(TPCCClient.class);
     final TPCCSimulation m_tpccSim;
     final TPCCSimulation m_tpccSim2;
     private final ScaleParameters m_scaleParams;
@@ -616,8 +617,10 @@ implements TPCCSimulation.ProcCaller {
 
         @Override
         public void clientCallback(ClientResponse clientResponse) {
+            LOG.info("clientResponse.getStatus() = " + clientResponse.getStatusName());
+            
             boolean status = checkTransaction(Constants.NEWORDER, clientResponse, cbRollback, false);
-            assert this.cbRollback || status;
+            assert (this.cbRollback || status) : "Rollback=" + this.cbRollback + ", Status=" + status;
             m_counts[TPCCSimulation.Transaction.NEW_ORDER.ordinal()].incrementAndGet();
         }
 

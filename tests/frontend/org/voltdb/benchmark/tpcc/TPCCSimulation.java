@@ -242,7 +242,7 @@ public class TPCCSimulation
                 Constants.MAX_OL_CNT);
 
         // 1% of transactions roll back
-        boolean rollback = generator.number(1, 100) == 1;
+        boolean rollback = false; // FIXME generator.number(1, 100) == 1;
         int local_warehouses = 0;
         int remote_warehouses = 0;
 
@@ -259,7 +259,7 @@ public class TPCCSimulation
             }
 
             // XXX: 1% of items are from a remote warehouse
-            boolean remote = generator.number(1, 100) == 1;
+            boolean remote = true; // FIXME generator.number(1, 100) == 1;
             if (parameters.warehouses > 1 && remote) {
                 supply_w_id[i] = (short)generator.numberExcluding(parameters.starting_warehouse, this.max_w_id, (int) warehouse_id);
                 if (supply_w_id[i] != warehouse_id) remote_warehouses++;
@@ -293,10 +293,10 @@ public class TPCCSimulation
         // This is not strictly accurate: The requirement is for certain
         // *minimum* percentages to be maintained. This is close to the right
         // thing, but not precisely correct. See TPC-C 5.2.4 (page 68).
-//        if (true) {
-//            doStockLevel();
-//            return Transaction.STOCK_LEVEL.ordinal();
-//        }
+        if (true) {
+            doNewOrder();
+            return Transaction.NEW_ORDER.ordinal();
+        }
         
         int x = generator.number(1, 100);
         if (x <= 4) { // 4%

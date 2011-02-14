@@ -503,10 +503,6 @@ public class TransactionEstimator {
         return this.correlations;
     }
 
-//    public int getBasePartition() {
-//        return this.base_partition;
-//    }
-
     public PartitionEstimator getPartitionEstimator() {
         return this.p_estimator;
     }

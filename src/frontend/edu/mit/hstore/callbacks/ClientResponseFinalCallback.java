@@ -32,22 +32,21 @@ public class ClientResponseFinalCallback extends AbstractTxnCallback implements 
      */
     @Override
     public void run(Dtxn.FinishResponse parameter) {
-        final boolean debug = LOG.isDebugEnabled();
-        
-        if (debug) {
-            LOG.debug("Invoking final response callback for txn #" + this.txn_id + " [" +
-                      "status=" + this.status + ", " + 
-                      "payload=" + parameter.hasPayload() + ", " +
-                      "bytes=" + this.output.length + "]");
-        }
+        final boolean d = LOG.isDebugEnabled();
         
         // Always clean-up the transaction with the HStoreSite
         this.hstore_site.completeTransaction(this.txn_id);
         
         // But only send the output to the client if this wasn't a mispredict
         if (this.status != Dtxn.FragmentResponse.Status.ABORT_MISPREDICT) {
+            if (d) {
+                LOG.debug("Invoking final response callback for txn #" + this.txn_id + " [" +
+                          "status=" + this.status + ", " + 
+                          "payload=" + parameter.hasPayload() + ", " +
+                          "bytes=" + this.output.length + "]");
+            }
             this.done.run(this.output);
-        } else if (debug) {
+        } else if (d) {
             LOG.debug(String.format("Ignoring Dtxn.FinishResponse for ClientResponse because txn #%d was %s", this.txn_id, this.status));
         }
     }

@@ -546,20 +546,21 @@ public class MarkovGraph extends AbstractDirectedGraph<Vertex, Edge> implements 
                 v = new Vertex(catalog_stmnt, Vertex.Type.QUERY, queryInstanceIndex, partitions, new HashSet<Integer>(past_partitions));
                 this.addVertex(v);
             }
+            assert(v.isQueryVertex());
             // Add to the edge between the previous vertex and the current one
             this.addToEdge(previous, v);
 
-            if (query_trace.getAborted()) {
-                // Add an edge between the current vertex and the abort vertex
-                this.addToEdge(v, this.getAbortVertex());
-            }
             // Annotate the vertex with remaining execution time
             v.addExecutionTime(txn_trace.getStopTimestamp() - query_trace.getStartTimestamp());
             previous = v;
             path.add(v);
             past_partitions.addAll(partitions);
         } // FOR
-        if (!previous.equals(this.getAbortVertex())) {
+        
+        if (txn_trace.isAborted()) {
+            this.addToEdge(previous, this.getAbortVertex());
+            path.add(this.getAbortVertex());
+        } else {
             this.addToEdge(previous, this.getCommitVertex());
             path.add(this.getCommitVertex());
         }
@@ -637,7 +638,8 @@ public class MarkovGraph extends AbstractDirectedGraph<Vertex, Edge> implements 
         MarkovGraphsContainer markovs = null;
         
         // Check whether we are generating the global graphs or the clustered versions
-        if (args.getBooleanParam(ArgumentsParser.PARAM_MARKOV_GLOBAL) == true) {
+        Boolean global = args.getBooleanParam(ArgumentsParser.PARAM_MARKOV_GLOBAL); 
+        if (global != null && global == true) {
             markovs = MarkovUtil.createProcedureGraphs(args.catalog_db, args.workload, p_estimator);
 
         // Or whether we should divide the transactions by their base partition 
