@@ -107,7 +107,7 @@ public class Edge extends AbstractEdge implements Comparable<Edge> {
 
     @Override
     public String toString() {
-        return String.format("%.03f", this.probability); // FORMAT.format(this.probability);
+        return String.format("%.02f", this.probability); // FORMAT.format(this.probability);
     }
 
     // ----------------------------------------------------------------------------

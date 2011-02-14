@@ -21,12 +21,19 @@ public class MarkovGraphvizExport {
         Procedure catalog_proc = args.catalog_db.getProcedures().getIgnoreCase(proc_name);
         assert(catalog_proc != null);
         
-        // Assume global file for now...
         Map<Integer, MarkovGraphsContainer> m = MarkovUtil.load(args.catalog_db, input_path);
-        MarkovGraphsContainer markovs = m.get(MarkovUtil.GLOBAL_MARKOV_CONTAINER_ID);
-        assert(markovs != null);
-        
-        MarkovGraph markov = markovs.get(MarkovUtil.GLOBAL_MARKOV_CONTAINER_ID, catalog_proc);
+        MarkovGraphsContainer markovs = null;
+        MarkovGraph markov = null;
+        if (m.containsKey(MarkovUtil.GLOBAL_MARKOV_CONTAINER_ID)) {
+            markovs = m.get(MarkovUtil.GLOBAL_MARKOV_CONTAINER_ID);
+            markov = markovs.get(MarkovUtil.GLOBAL_MARKOV_CONTAINER_ID, catalog_proc);
+        } else {
+            assert(args.getOptParamCount() > 1) : "Missing partition argument";
+            int partition = args.getIntOptParam(1);
+            markovs = m.get(partition);
+            markov = markovs.get(partition, catalog_proc);
+        }
+        assert(markov != null);
         assert(markov.isValid()) : "The graph for " + catalog_proc + " is not initialized!";
         GraphvizExport<Vertex, Edge> gv = MarkovUtil.exportGraphviz(markov, true, null);
         System.err.println("WROTE FILE: " + gv.writeToTempFile(catalog_proc.getName()));

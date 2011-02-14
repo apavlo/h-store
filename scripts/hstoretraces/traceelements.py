@@ -176,7 +176,14 @@ class TransactionTrace(AbstractTraceElement):
         ## to be the start timestamp of this query[\s]*
         ## But doesn't it matter whether the queries are in
         ## the same batch or not??
-        
+    ## DEF
+    
+    def removeQuery(self, query_trace):
+        self.__queries.remove(query_trace)
+    ## DEF
+    
+    def setQueries(self, queries):
+        self.__queries = queries[:]
     ## DEF
     
     def toJSON(self):

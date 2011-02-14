@@ -1437,12 +1437,12 @@ DTXN BINARIES + LIBRARIES
     <condition property="port" value="${hstore.coordinator.port}">
         <not><isset property="port"/></not>
     </condition>
+    <sleep seconds="${hstore.coordinator.delay}" />
     <exec executable="${build.dtxn.dir}/protodtxn/protodtxncoordinator">
         <arg line="${port}"/>
         <arg line="${build.dtxn.dir}/hstore.conf"/>
     </exec>
 </target>
-
 
 <!--
 ***************************************
@@ -1856,6 +1856,7 @@ DESIGNER
         <arg value="catalog.jar=${jar}" />
         <arg value="markov=${markov}" />
         <arg value="${procedure}" />
+        <arg value="${partition}" />
         <classpath refid='project.classpath' />
         <assertions><enable /></assertions>
     </java>
@@ -2199,22 +2200,30 @@ H-STORE REMIX
 </target>
 
 <target name="hstore-site" description="H-Store Execution Node/Coordinator">
+    <condition property="markov" value="files/markovs/${project}.markovs">
+        <not><isset property="markov"/></not>
+    </condition>
+    <condition property="correlations" value="files/correlations/${project}.correlations">
+        <not><isset property="correlations"/></not>
+    </condition>
+
     <java fork="yes" classname="edu.mit.hstore.HStoreSite">
         <jvmarg value="-Xmx${volt.server.memory}m" />
         <jvmarg value="-Dlog4j.configuration=${basedir}/log4j.properties"/>
         <jvmarg value="-server" />
         <jvmarg value="-Djava.library.path=${build.dir}/nativelibs" />
         <jvmarg value="-Xcheck:jni" />
-        <jvmarg value="-Dhstore.preload=${hstore.preload}" />
+        <jvmarg value="-Dhstore.preload=${hstore.node.preload}" />
         <arg value="catalog.jar=${benchmark.jar}" />
         <arg value="node.site=${node.site}" />
+        <arg value="node.statusinterval=${hstore.node.statusinterval}" />
+        <arg value="node.forcesinglepartition=${hstore.node.forcesinglepartition}" />
         <arg value="coordinator.host=${hstore.coordinator.host}" />
         <arg value="coordinator.port=${hstore.coordinator.port}" />
-        <arg value="coordinator.statusinterval=${statusinterval}" />
         <arg value="dtxn.conf=${build.dtxn.dir}/hstore.conf" />
         <arg value="dtxn.engine=${build.dtxn.dir}/protodtxn/protodtxnengine" />
         <arg value="hasher.class=${hasher}" />
-        <arg value="markov=files/markovs/${project}.markovs.gz" />
+        <arg value="markov=${markov}" />
         <arg value="markov.thresholds=${thresholds}" />
         <arg value="correlations=${correlations}" />
         <arg value="partitionplan=${partitionplan}" />

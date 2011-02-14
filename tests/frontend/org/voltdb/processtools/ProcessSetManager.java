@@ -128,6 +128,7 @@ public class ProcessSetManager {
                         // final long now = (System.currentTimeMillis() / 1000) - 1256158053;
                         // m_writer.write(String.format("(%d) %s: %s\n", now, m_processName, line));
                         m_writer.write(String.format("%s\n", line));
+                        m_writer.flush();
                     }
                     else {
                         Thread.yield();

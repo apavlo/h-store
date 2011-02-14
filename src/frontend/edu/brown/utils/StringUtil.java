@@ -200,6 +200,23 @@ public abstract class StringUtil {
         
         return (sb.toString());
     }
+
+    /**
+     * Append the prefix to the beginning of each line in str
+     * @param str
+     * @param prefix
+     * @return
+     */
+    public static String prefix(String str, String prefix) {
+        String lines[] = LINE_SPLIT.split(str);
+        if (lines.length == 0) return ("");
+        
+        StringBuilder sb = new StringBuilder();
+        for (String line : lines) {
+            sb.append(prefix).append(line).append("\n");
+        } // FOR
+        return (sb.toString());
+    }
     
     /**
      * Abbreviate the given string. The last three chars will be periods

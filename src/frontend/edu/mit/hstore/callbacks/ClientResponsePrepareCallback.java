@@ -1,12 +1,6 @@
 package edu.mit.hstore.callbacks;
 
-import java.io.IOException;
-
 import org.apache.log4j.Logger;
-import org.voltdb.ClientResponseImpl;
-import org.voltdb.messaging.FastDeserializer;
-
-import ca.evanjones.protorpc.ProtoRpcController;
 
 import com.google.protobuf.RpcCallback;
 
@@ -45,7 +39,7 @@ public final class ClientResponsePrepareCallback extends AbstractTxnCallback imp
     
     @Override
     public void run(Dtxn.FragmentResponse response) {
-        LOG.trace("FragmentResponsePassThroughCallback.run()");
+        LOG.trace("ClientResponsePrepareCallback.run()");
         this.prepareFinish(response.getOutput().toByteArray(), response.getStatus());
     }
     
@@ -73,10 +67,10 @@ public final class ClientResponsePrepareCallback extends AbstractTxnCallback imp
         // If the txn was mispredicted, then we will pass the information over to the HStoreSite
         // so that it can re-execute the transaction
         if (mispredict) {
-            this.hstore_site.misprediction(this.txn_id, this);
+            this.hstore_site.misprediction(this.txn_id, this.done);
         }
             
-        // We *always* need to send out the FinishRequest to the Dtxn.Coordinator (yes, even if its a mispredict)
+        // We *always* need to send out the FinishRequest to the Dtxn.Coordinator (yes, even if it's a mispredict)
         // because we want to make sure that Dtxn.Coordinator cleans up the internal state for this busted transaction
         ClientResponseFinalCallback callback = new ClientResponseFinalCallback(this.hstore_site, this.txn_id, output, status, this.done);
         if (trace) LOG.debug("Calling Dtxn.Coordinator.finish() for txn #" + this.txn_id + " [payload=" + request.hasPayload() + "]");

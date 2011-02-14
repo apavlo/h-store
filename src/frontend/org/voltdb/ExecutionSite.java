@@ -1202,6 +1202,8 @@ public class ExecutionSite implements Runnable {
      * Send a ClientResponseImpl message back to the coordinator
      */
     public void sendClientResponse(ClientResponseImpl cresponse) {
+        final boolean t = true; // trace.get();
+        
         long txn_id = cresponse.getTransactionId();
         // Don't remove the TransactionState here. We do that later in commit/abort
         LocalTransactionState ts = (LocalTransactionState)this.txn_states.get(txn_id);
@@ -1225,9 +1227,9 @@ public class ExecutionSite implements Runnable {
             throw new RuntimeException(e);
         }
         Dtxn.FragmentResponse.Builder builder = Dtxn.FragmentResponse.newBuilder().setOutput(ByteString.copyFrom(out.getBytes()));
-        if (trace.get()) {
-            LOG.trace("Sending ClientResponseImpl back for txn #" + txn_id + " [status=" + cresponse.getStatusName() + ", size=" + builder.getOutput().size() + "]");
-            LOG.trace("RESULTS:\n" + Arrays.toString(cresponse.getResults()));
+        if (t) {
+            LOG.debug("Sending ClientResponseImpl back for txn #" + txn_id + " [status=" + cresponse.getStatusName() + ", size=" + builder.getOutput().size() + "]");
+            LOG.debug("RESULTS:\n" + Arrays.toString(cresponse.getResults()));
         }
 
         // IMPORTANT: If we executed this locally and only touched our partition, then we need to commit/abort right here
@@ -1237,17 +1239,18 @@ public class ExecutionSite implements Runnable {
         byte status = cresponse.getStatus();
         switch (status) {
             case ClientResponseImpl.SUCCESS:
-                if (trace.get()) LOG.trace("Marking txn #" + txn_id + " as success. If only Evan was still alive to see this!");
+                if (t) LOG.trace("Marking txn #" + txn_id + " as success. If only Evan was still alive to see this!");
                 builder.setStatus(Dtxn.FragmentResponse.Status.OK);
                 if (is_local) this.commitWork(txn_id);
                 break;
             case ClientResponseImpl.MISPREDICTION:
-                if (trace.get()) LOG.trace("Txn #" + txn_id + " was mispredicted! Aborting work and restarting!");
+                if (t) LOG.debug("Txn #" + txn_id + " was mispredicted! Aborting work and restarting! [is_local=" + is_local + "]");
                 builder.setStatus(Dtxn.FragmentResponse.Status.ABORT_MISPREDICT);
-                if (is_local) this.abortWork(txn_id);
+                // We should always abort on a misprediction... is that true??
+                this.abortWork(txn_id);
                 break;
             case ClientResponseImpl.USER_ABORT:
-                if (trace.get()) LOG.trace("Marking txn #" + txn_id + " as user aborted. Are you sure Mr.Pavlo?");
+                if (t) LOG.trace("Marking txn #" + txn_id + " as user aborted. Are you sure Mr.Pavlo?");
             default:
                 if (status != ClientResponseImpl.USER_ABORT) {
                     this.error_counter.incrementAndGet();
@@ -1257,7 +1260,7 @@ public class ExecutionSite implements Runnable {
                 if (is_local) this.abortWork(txn_id);
                 break;
         } // SWITCH
-        if (trace.get()) LOG.trace("Invoking finished callback for txn #" + txn_id);
+        if (t) LOG.debug("Invoking finished callback for txn #" + txn_id);
         callback.run(builder.build());
     }
 

@@ -160,7 +160,10 @@ public abstract class VoltProcedure implements Poolable {
         @Override
         public void run() {
             synchronized (executor_lock) {
-                if (debug.get()) Thread.currentThread().setName(VoltProcedure.this.m_site.getThreadName() + "-" + VoltProcedure.this.procedure_name);
+                final boolean t = trace.get();
+                final boolean d = debug.get();
+                
+                if (d) Thread.currentThread().setName(VoltProcedure.this.m_site.getThreadName() + "-" + VoltProcedure.this.procedure_name);
     
                 long current_txn_id = txnState.getTransactionId();
                 long client_handle = txnState.getClientHandle();
@@ -171,20 +174,20 @@ public abstract class VoltProcedure implements Poolable {
                 VoltProcedure.this.procParams = paramList;
                 VoltProcedure.this.predict_singlepartition = ((LocalTransactionState)VoltProcedure.this.m_currentTxnState).isPredictSinglePartition();
                 
-                if (debug.get()) LOG.debug("Starting execution of txn #" + current_txn_id);
+                if (d) LOG.debug("Starting execution of txn #" + current_txn_id);
                 
                 try {
                     // Execute the txn (this blocks until we return)
-                    if (trace.get()) LOG.trace("Invoking VoltProcedure.call for txn #" + current_txn_id);
+                    if (t) LOG.trace("Invoking VoltProcedure.call for txn #" + current_txn_id);
                     ClientResponse response = VoltProcedure.this.call();
                     assert(response != null);
     
                     // Send the response back immediately!
-                    if (trace.get()) LOG.trace("Sending ClientResponse back for txn #" + current_txn_id + " [status=" + response.getStatusName() + "]");
+                    if (t) LOG.trace("Sending ClientResponse back for txn #" + current_txn_id + " [status=" + response.getStatusName() + "]");
                     VoltProcedure.this.m_site.sendClientResponse((ClientResponseImpl)response);
                     
                     // Notify anybody who cares that we're finished (used in testing)
-                    if (trace.get()) LOG.trace("Notifying observers that txn #" + current_txn_id + " is finished");
+                    if (t) LOG.trace("Notifying observers that txn #" + current_txn_id + " is finished");
                     VoltProcedure.this.observable.notifyObservers(response);
                     
                 } catch (AssertionError ex) {
@@ -197,7 +200,7 @@ public abstract class VoltProcedure implements Poolable {
                     assert(VoltProcedure.this.txn_id == current_txn_id) : VoltProcedure.this.txn_id + " != " + current_txn_id;
                     
                     // Clear out our private data
-                    if (trace.get()) LOG.trace("Releasing lock for txn #" + current_txn_id);
+                    if (t) LOG.trace("Releasing lock for txn #" + current_txn_id);
                     VoltProcedure.this.m_currentTxnState = null;
                     VoltProcedure.this.txn_id = null;
                 }
@@ -1041,21 +1044,24 @@ public abstract class VoltProcedure implements Poolable {
         try {
             plan = planner.plan(this.txn_id, this.client_handle, this.local_partition, params, this.predict_singlepartition);
         } catch (RuntimeException ex) {
-            String msg = StringUtil.SINGLE_LINE;
-            
-            msg += "CURRENT BATCH\n";
-            for (int i = 0; i < batchSize; i++) {
-                msg += String.format("[%02d] %s <==> %s\n     %s\n     %s\n", i, batchStmts[i].catStmt.fullName(), planner.catalog_stmts[i].fullName(), batchStmts[i].catStmt.getSqltext(), Arrays.toString(params[i].toArray()));
+            if (debug.get()) {
+                String msg = StringUtil.SINGLE_LINE;
+                msg += "Caught " + ex.getClass().getSimpleName() + "!\n";
+                
+                msg += "CURRENT BATCH\n";
+                for (int i = 0; i < batchSize; i++) {
+                    msg += String.format("[%02d] %s <==> %s\n     %s\n     %s\n", i, batchStmts[i].catStmt.fullName(), planner.catalog_stmts[i].fullName(), batchStmts[i].catStmt.getSqltext(), Arrays.toString(params[i].toArray()));
+                }
+                
+                msg += "\nPLANNER\n";
+                for (int i = 0; i < batchSize; i++) {
+                    Statement stmt0 = planner.catalog_stmts[i];
+                    Statement stmt1 = batchStmts[i].catStmt;
+                    assert(stmt0.fullName().equals(stmt1.fullName())) : stmt0.fullName() + " != " + stmt1.fullName(); 
+                    msg += String.format("[%02d] %s\n     %s\n", i, stmt0.fullName(), stmt1.fullName());
+                } // FOR
+                LOG.fatal("\n" + msg);
             }
-            
-            msg += "\nPLANNER\n";
-            for (int i = 0; i < batchSize; i++) {
-                Statement stmt0 = planner.catalog_stmts[i];
-                Statement stmt1 = batchStmts[i].catStmt;
-                assert(stmt0.fullName().equals(stmt1.fullName())) : stmt0.fullName() + " != " + stmt1.fullName(); 
-                msg += String.format("[%02d] %s\n     %s\n", i, stmt0.fullName(), stmt1.fullName());
-            } // FOR
-            LOG.fatal("\n" + msg);
             throw ex;
         }
         

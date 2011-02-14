@@ -65,6 +65,9 @@ public class BenchmarkConfig {
     public final boolean noDataLoad;
     public final String workloadTrace;
     public final Set<Integer> profileSiteIds;
+    
+    public final String markovPath;
+    public final String thresholdsPath;
 
     public final Map<String, String> parameters = new HashMap<String, String>();
 
@@ -103,7 +106,9 @@ public class BenchmarkConfig {
             boolean useCatalogHosts,
             boolean noDataLoad,
             String workloadTrace,
-            Set<Integer> profileSiteIds
+            Set<Integer> profileSiteIds,
+            String markovPath,
+            String thresholdsPath
         ) {
 
         this.benchmarkClient = benchmarkClient;
@@ -146,6 +151,9 @@ public class BenchmarkConfig {
         this.noDataLoad = noDataLoad;
         this.workloadTrace = workloadTrace;
         this.profileSiteIds = profileSiteIds;
+        
+        this.markovPath = markovPath;
+        this.thresholdsPath = thresholdsPath;
     }
 
     @Override
