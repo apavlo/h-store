@@ -101,6 +101,12 @@ string AbstractJoinPlanNode::debugInfo(const string& spacer) const
     {
         buffer << m_predicate->debug(spacer);
     }
+    
+    buffer << spacer << "OutputColumns[" << m_outputColumnGuids.size() << "]\n";
+    for (int ii = 0; ii < m_outputColumnGuids.size(); ii++) {
+        buffer << spacer << "  [" << ii << "] " << m_outputColumnGuids[ii] << "\n";
+    }
+    
     return (buffer.str());
 }
 
