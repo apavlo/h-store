@@ -151,7 +151,7 @@ public class LoadMultipartitionTable extends VoltSystemProcedure {
                 pfs[i].multipartition = false; // true
                 pfs[i].nonExecSites = false;
                 pfs[i].parameters = params;
-                pfs[i].siteId = partition;
+                pfs[i].destPartitionId = partition;
             } // FOR
 
             // create a work unit to aggregate the results.
@@ -163,7 +163,7 @@ public class LoadMultipartitionTable extends VoltSystemProcedure {
             pfs[0].multipartition = false;
             pfs[0].nonExecSites = false;
             pfs[0].parameters = new ParameterSet();
-            pfs[0].siteId = local_partition;
+            pfs[0].destPartitionId = local_partition;
 
             // distribute and execute the fragments providing pfs and id
             // of the aggregator's output dependency table.
@@ -222,7 +222,7 @@ public class LoadMultipartitionTable extends VoltSystemProcedure {
                 pfs[i].outputDependencyIds = new int[] { (int)DEP_distribute };
                 pfs[i].multipartition = false;
                 pfs[i].nonExecSites = false;
-                pfs[i].siteId = partition; // partitionsToSites[i - 1];
+                pfs[i].destPartitionId = partition; // partitionsToSites[i - 1];
                 pfs[i].parameters = params;
                 pfs[i].last_task = true;
                 if (trace) sb.append("\n  Partition #").append(partition).append(": ")
@@ -232,7 +232,7 @@ public class LoadMultipartitionTable extends VoltSystemProcedure {
 
             // a final plan fragment to aggregate the results
             pfs[0] = new SynthesizedPlanFragment();
-            pfs[0].siteId = local_partition;
+            pfs[0].destPartitionId = local_partition;
             pfs[0].fragmentId = SysProcFragmentId.PF_aggregate;
             pfs[0].inputDependencyIds = new int[] { (int)DEP_distribute };
             pfs[0].outputDependencyIds = new int[] { (int)DEP_aggregate };

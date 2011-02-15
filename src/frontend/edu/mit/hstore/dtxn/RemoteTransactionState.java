@@ -103,12 +103,12 @@ public class RemoteTransactionState extends TransactionState {
     
     @Override
     public void addResponse(int partition, int dependencyId) {
-        // Nothing
+        throw new RuntimeException("Trying to store a response for a transaction not executing locally [txn=" + this.txn_id + "]");
     }
     
     @Override
     public void addResult(int partition, int dependencyId, VoltTable result) {
-        // Nothing
+        throw new RuntimeException("Trying to store a result for a transaction not executing locally [txn=" + this.txn_id + "]");
     }
 
     @Override
