@@ -1469,6 +1469,7 @@ BENCHMARKS
         <arg value="HOSTCOUNT=${hostcount}" />
         <arg value="SITESPERHOST=${sitesperhost}"/>
         <arg value="KFACTOR=${kfactor}"/>
+        <arg value="SSHOPTIONS=${hstore.global.sshoptions}" />
         <arg value="REMOTEPATH=${basedir}" />
         <arg value="REMOTEUSER=${remoteuser}"/>
         <arg value="CATALOG=${catalog}" />

@@ -30,6 +30,7 @@ import java.io.IOException;
 import java.lang.reflect.Field;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -353,7 +354,7 @@ public class BenchmarkController {
             
             // Dtxn.Coordinator
             if (m_config.noCoordinator == false) {
-                KillStragglers ks = new KillStragglers(m_config.remoteUser, m_config.coordinatorHost, m_config.remotePath)
+                KillStragglers ks = new KillStragglers(m_config.remoteUser, m_config.coordinatorHost, m_config.remotePath, m_config.sshOptions)
                                             .enableKillCoordinator();
                 threads.add(new Thread(ks));
                 Runtime.getRuntime().addShutdownHook(new Thread(ks));
@@ -362,7 +363,7 @@ public class BenchmarkController {
             // IMPORTANT: Don't try to kill things if we're going to profile... for obvious reasons... duh!
             if (m_config.profileSiteIds.isEmpty()) {
                 for (String host : unique_hosts) {
-                    KillStragglers ks = new KillStragglers(m_config.remoteUser, host, m_config.remotePath)
+                    KillStragglers ks = new KillStragglers(m_config.remoteUser, host, m_config.remotePath, m_config.sshOptions)
                                                 .enableKillSite()
                                                 .enableKillEngine();
                     threads.add(new Thread(ks));
@@ -371,7 +372,7 @@ public class BenchmarkController {
             }
             // Client
             for (String host : m_config.clients) {
-                KillStragglers ks = new KillStragglers(m_config.remoteUser, host, m_config.remotePath)
+                KillStragglers ks = new KillStragglers(m_config.remoteUser, host, m_config.remotePath, m_config.sshOptions)
                                             .enableKillClient();
                 threads.add(new Thread(ks));
                 Runtime.getRuntime().addShutdownHook(new Thread(ks));
@@ -426,7 +427,7 @@ public class BenchmarkController {
                     command.add("-Dworkload.output=" + m_config.workloadTrace);
                 }
 
-                String exec_command[] = SSHTools.convert(m_config.remoteUser, host, m_config.remotePath, command.toArray(new String[]{}));
+                String exec_command[] = SSHTools.convert(m_config.remoteUser, host, m_config.remotePath, m_config.sshOptions, command.toArray(new String[]{}));
                 String fullCommand = StringUtil.join(" ", exec_command);
                 uploader.setCommandLineForHost(host, fullCommand);
                 benchmarkLog.debug(fullCommand);
@@ -443,7 +444,7 @@ public class BenchmarkController {
                     "-Dproject=" + m_projectBuilder.getProjectName(),
                 };
 
-                command = SSHTools.convert(m_config.remoteUser, host, m_config.remotePath, command);
+                command = SSHTools.convert(m_config.remoteUser, host, m_config.remotePath, m_config.sshOptions, command);
                 String fullCommand = StringUtil.join(" ", command);
                 benchmarkLog.debug(fullCommand);
                 m_coordPSM.startProcess("dtxn-" + host, command);
@@ -545,6 +546,7 @@ public class BenchmarkController {
                         m_config.remoteUser,
                         m_config.clients[0],
                         m_config.remotePath,
+                        m_config.sshOptions,
                         loaderCommand.toString());
                 status = ShellTools.cmdToStdOut(command);
                 assert(status);
@@ -610,7 +612,7 @@ public class BenchmarkController {
                 tempCLArgs.add("NUMCLIENTS=" + numClients);
                 String[] args = tempCLArgs.toArray(new String[0]);
 
-                args = SSHTools.convert(m_config.remoteUser, client, m_config.remotePath, args);
+                args = SSHTools.convert(m_config.remoteUser, client, m_config.remotePath, m_config.sshOptions, args);
                 String fullCommand = StringUtil.join(" ", args);
 
                 uploader.setCommandLineForClient(host_id, fullCommand);
@@ -878,6 +880,7 @@ public class BenchmarkController {
         int k_factor = 0;
         int clientCount = 1;
         int processesPerClient = 1;
+        String sshOptions = "";
         String remotePath = "voltbin/";
         String remoteUser = null; // null implies current local username
         String clientClassname = m_tpccClientClassName;
@@ -1006,6 +1009,12 @@ public class BenchmarkController {
                  * Loader that also extends ClientMain
                  */
                 clientClassname = parts[1];
+            } else if (parts[0].equalsIgnoreCase("SSHOPTIONS")) {
+                /*
+                 * Options used when logging into client/server hosts
+                 */
+                sshOptions = parts[1];
+
             } else if (parts[0].equalsIgnoreCase("REMOTEPATH")) {
                 /*
                  * Directory on the NFS host where the VoltDB files are stored
@@ -1196,6 +1205,7 @@ public class BenchmarkController {
                 processesPerClient, 
                 interval, 
                 duration,
+                sshOptions,
                 remotePath, 
                 remoteUser, 
                 listenForDebugger, 
@@ -1222,7 +1232,7 @@ public class BenchmarkController {
                 profileSiteIds,
                 markov_path,
                 thresholds_path);
-
+        
         // Always pass these parameters
         clientParams.put("INTERVAL", Long.toString(interval));
         clientParams.put("DURATION", Long.toString(duration));

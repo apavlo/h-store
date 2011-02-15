@@ -35,6 +35,7 @@ public class KillStragglers implements Runnable {
     final String m_username;
     final String m_hostname;
     final String m_remotePath;
+    final String m_sshOptions[];
     
     // Options
     Integer m_siteid = null;
@@ -44,10 +45,11 @@ public class KillStragglers implements Runnable {
     boolean m_killClient = false;
     
     
-    public KillStragglers(String username, String hostname, String remotePath) {
+    public KillStragglers(String username, String hostname, String remotePath, String sshOptions[]) {
         m_username = username;
         m_hostname = hostname;
         m_remotePath = remotePath;
+        m_sshOptions = sshOptions;
     }
     
     public void setSiteId(int siteid) {
@@ -84,7 +86,7 @@ public class KillStragglers implements Runnable {
         if (m_killEngine) kill_cmd += " --protoengine";
         if (m_killClient) kill_cmd += " --client";
         
-        String cmd[] = SSHTools.convert(m_username, m_hostname, m_remotePath, kill_cmd); 
+        String cmd[] = SSHTools.convert(m_username, m_hostname, m_remotePath, m_sshOptions, kill_cmd); 
         LOG.debug("KILL PUSSY CAT KILL: " + Arrays.toString(cmd));
         ShellTools.cmdToStdOut(cmd);
     }

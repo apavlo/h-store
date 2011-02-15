@@ -257,7 +257,7 @@ public class ResultsUploader implements BenchmarkController.BenchmarkInterest {
     public String getHostIdForHostName(String hostname) {
         String mac = m_hostIdCache.get(hostname);
         if (mac == null) {
-            mac = SSHTools.cmd(m_config.remoteUser, hostname, m_config.remotePath, "./getmac.py");
+            mac = SSHTools.cmd(m_config.remoteUser, hostname, m_config.remotePath, m_config.sshOptions, "./getmac.py");
             mac = mac.trim();
             m_hostIdCache.put(hostname, mac);
         }
@@ -272,7 +272,7 @@ public class ResultsUploader implements BenchmarkController.BenchmarkInterest {
 
         retval = new String[2];
         String distro = SSHTools.cmd(m_config.remoteUser, hostname,
-                                     m_config.remotePath, "lsb_release -ir");
+                                     m_config.remotePath, m_config.sshOptions, "lsb_release -ir");
         String[] lines = distro.trim().split("\n");
         for (String l : lines) {
             String[] kv = l.split(":");
