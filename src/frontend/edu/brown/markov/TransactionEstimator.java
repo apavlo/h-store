@@ -629,9 +629,13 @@ public class TransactionEstimator {
         
         // The initial estimate should be based on the second-to-last vertex in the initial path estimation
         List<Vertex> initial_path = estimator.getVisitPath();
-        Estimate est = state.getNextEstimate(initial_path.get(initial_path.size() - 2));
-        assert(est != null);
-        assert(est.getBatchId() == 0);
+        int path_size = initial_path.size();
+        if (path_size > 0) {
+            Vertex est_v = (path_size > 2 ? initial_path.get(path_size - 2) : initial_path.get(path_size - 1));
+            Estimate est = state.getNextEstimate(est_v);
+            assert(est != null);
+            assert(est.getBatchId() == 0);
+        }
         
         this.txn_count.incrementAndGet();
         return (state);
