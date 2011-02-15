@@ -480,10 +480,11 @@ public class HStoreMessenger {
      */
     public void sendDependencySet(long txn_id, int sender_partition_id, int dest_partition_id, DependencySet dset) {
         assert(dset != null);
+        final boolean d = debug.get();
         
         // Local Transfer
         if (this.local_partitions.contains(dest_partition_id)) {
-            if (debug.get()) LOG.debug("Transfering " + dset.size() + " dependencies directly from partition #" + sender_partition_id + " to partition #" + dest_partition_id);
+            if (d) LOG.debug("Transfering " + dset.size() + " dependencies directly from partition #" + sender_partition_id + " to partition #" + dest_partition_id);
             for (int i = 0, cnt = dset.size(); i < cnt; i++) {
                 ExecutionSite executor = this.hstore_site.getExecutors().get(dest_partition_id);
                 assert(executor != null) : "Unexpected null ExecutionSite for Partition #" + dest_partition_id + " on Site #" + catalog_site.getId();
@@ -502,7 +503,7 @@ public class HStoreMessenger {
             } // FOR
         // Remote Transfer
         } else {
-            if (debug.get()) LOG.debug("Transfering " + dset.size() + " dependencies through network from partition #" + sender_partition_id + " to partition #" + dest_partition_id);
+            if (d) LOG.debug("Transfering " + dset.size() + " dependencies through network from partition #" + sender_partition_id + " to partition #" + dest_partition_id);
             ProtoRpcController rpc = new ProtoRpcController();
             int site_id = this.partition_site_xref.get(dest_partition_id);
             HStoreService channel = this.channels.get(site_id);

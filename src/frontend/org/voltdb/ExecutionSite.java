@@ -146,7 +146,6 @@ public class ExecutionSite implements Runnable {
                 } else {
                     volt_proc = new VoltProcedure.StmtProcedure();
                 }
-                // volt_proc.registerCallback(this.callback);
                 volt_proc.init(ExecutionSite.this,
                                this.catalog_proc,
                                ExecutionSite.this.backend_target,
@@ -584,9 +583,12 @@ public class ExecutionSite implements Runnable {
             TransactionInfoBaseMessage work = null;
             
             while (stop == false && this.shutdown == false) {
+                final boolean d = debug.get();
+                final boolean t = trace.get();
+                
                 work = null;
                 if ((++poll_ctr % 10000000) == 0) {
-                    if (trace.get()) LOG.trace("Polling work queue [" + poll_ctr + "]: " + this.work_queue + "");
+                    if (t) LOG.trace("Polling work queue [" + poll_ctr + "]: " + this.work_queue + "");
                     if (this.error_counter.get() > 0) {
                         LOG.warn("There were " + error_counter.get() + " errors since the last time we checked. You might want to enable debugging");
                         this.error_counter.set(0);
@@ -599,7 +601,7 @@ public class ExecutionSite implements Runnable {
                 try {
                     work = this.work_queue.poll(500, TimeUnit.MILLISECONDS);
                 } catch (InterruptedException ex) {
-                    if (debug.get()) LOG.debug("Interupted while polling work queue. Halting ExecutionSite...", ex);
+                    if (d) LOG.debug("Interupted while polling work queue. Halting ExecutionSite...", ex);
                     stop = true;
                 }
 
@@ -620,10 +622,8 @@ public class ExecutionSite implements Runnable {
                     // A txn is "local" if the Java is executing at the same site as we are
                     boolean is_local = ts.isExecLocal();
                     boolean is_dtxn = ftask.isUsingDtxnCoordinator();
-                    if (trace.get()) LOG.trace("Executing FragmentTaskMessage txn #" + txn_id + " [partition=" + ftask.getSourcePartitionId() + ", " +
-                    		                                                                "is_local=" + is_local + ", " +
-                                                                                            "is_dtxn=" + is_dtxn + ", " +
-                                                                                            "fragments=" + Arrays.toString(ftask.getFragmentIds()) + "]");
+                    if (t) LOG.trace(String.format("Executing FragmentTaskMessage txn #%d [partition=%d, is_local=%s, is_dtxn=%s, fragments=%s]",
+                                     txn_id, ftask.getSourcePartitionId(), is_local, is_dtxn, Arrays.toString(ftask.getFragmentIds())));
 
                     // If this txn isn't local, then we have to update our undoToken
                     if (is_local == false) {
@@ -652,7 +652,7 @@ public class ExecutionSite implements Runnable {
                         // Success, but without any results???
                         if (result == null && fresponse.getStatusCode() == FragmentResponseMessage.SUCCESS) {
                             Exception ex = new Exception("The Fragment executed successfully but result is null!");
-                            if (debug.get()) LOG.warn(ex);
+                            if (d) LOG.warn(ex);
                             fresponse.setStatus(FragmentResponseMessage.UNEXPECTED_ERROR, new SerializableException(ex));
                         }
                     }
@@ -681,7 +681,7 @@ public class ExecutionSite implements Runnable {
                         // If the transaction is local, store the result in the local TransactionState
                         // Unless we were sent this FragmentTaskMessage through the Dtxn.Coordinator
                         if (is_local && is_dtxn == false) {
-                            if (debug.get()) LOG.debug("Storing " + result.size() + " dependency results locally for successful FragmentTaskMessage");
+                            if (d) LOG.debug("Storing " + result.size() + " dependency results locally for successful FragmentTaskMessage");
                             assert(ts != null);
                             for (int i = 0, cnt = result.size(); i < cnt; i++) {
                                 // ts.addResult(result.depIds[i], result.dependencies[i]);
@@ -692,8 +692,8 @@ public class ExecutionSite implements Runnable {
                             
                         // Otherwise push dependencies back to the remote partition that needs it
                         } else {
-                            if (debug.get()) LOG.debug("Constructing FragmentResponseMessage " + Arrays.toString(ftask.getFragmentIds()) + " with " + result.size() + " bytes from Partition #" + this.getPartitionId() + 
-                                                       " results to send back to initial site for txn #" + txn_id);
+                            if (d) LOG.debug(String.format("Constructing FragmentResponseMessage %s with %d bytes from partition %d to send back to initial partition %d for txn #%d",
+                                                           Arrays.toString(ftask.getFragmentIds()), result.size(), this.partitionId, txn_partition_id, txn_id));
                             
                             // We need to include the DependencyIds in our response, but we will send the actual
                             // data through the HStoreMessenger
@@ -709,7 +709,7 @@ public class ExecutionSite implements Runnable {
                     
                     // Again, if we're not local, just clean up our TransactionState
                     if (is_local == false && is_dtxn == true) {
-                        if (debug.get()) LOG.debug("Executed non-local FragmentTask " + Arrays.toString(ftask.getFragmentIds()) + ". Notifying TransactionState for txn #" + txn_id + " to finish round");
+                        if (d) LOG.debug("Executed non-local FragmentTask " + Arrays.toString(ftask.getFragmentIds()) + ". Notifying TransactionState for txn #" + txn_id + " to finish round");
                         ts.finishRound();
                     }
 
@@ -732,7 +732,7 @@ public class ExecutionSite implements Runnable {
                     LocalTransactionState ts = (LocalTransactionState)this.txn_states.get(txn_id);
                     assert(ts != null) : "The TransactionState is somehow null for txn #" + txn_id;
                     ts.setVoltProcedure(volt_proc);
-                    if (trace.get()) LOG.trace(String.format("Starting execution of txn #%d [proc=%s]", txn_id, proc_name));
+                    if (t) LOG.trace(String.format("Starting execution of txn #%d [proc=%s]", txn_id, proc_name));
                     this.startTransaction(ts, volt_proc, init_work);
                     
                 // -------------------------------
@@ -763,7 +763,7 @@ public class ExecutionSite implements Runnable {
         if (this.shutdown == false) {
             if (this.hstore_messenger != null) this.hstore_messenger.stop();
         }
-        LOG.debug("ExecutionSite thread is stopping");
+        if (debug.get()) LOG.debug("ExecutionSite thread is stopping");
     }
 
     public void tick() {
@@ -1048,7 +1048,7 @@ public class ExecutionSite implements Runnable {
     public void storeDependency(long txn_id, int sender_partition_id, int dependency_id, VoltTable data) {
         TransactionState ts = this.txn_states.get(txn_id);
         if (ts == null) {
-            String msg = "No transaction state for txn #" + txn_id;
+            String msg = String.format("No transaction state for txn #%d at partition %s", txn_id, this.partitionId);
             LOG.error(msg);
             throw new RuntimeException(msg);
         }
@@ -1165,11 +1165,12 @@ public class ExecutionSite implements Runnable {
                     local_ts.setCoordinatorCallback(callback);
                     local_ts.setPredictSinglePartitioned(single_partitioned);
                     local_ts.setEstimatorState(this.t_estimator.getState(txn_id));
-                    if (debug.get()) LOG.debug(String.format("Starting new VoltProcedure invocation for txn #%d [singlepartitioned=%s]", txn_id, single_partitioned));
+                    if (debug.get()) LOG.debug(String.format("Starting new VoltProcedure invocation for txn #%d [partition=%d, singlepartitioned=%s]", txn_id, this.partitionId, single_partitioned));
                     
                 // Remote Transaction
                 } else {
                     ts = (RemoteTransactionState)remoteTxnPool.borrowObject();
+                    if (debug.get()) LOG.debug(String.format("Creating new RemoteTransactionState for txn #%d running at partition %d [local_partition=%d, singlepartitioned=%s]", txn_id, task.getSourcePartitionId(), this.partitionId, single_partitioned));
                 }
             } catch (Exception ex) {
                 LOG.fatal("Failed to construct TransactionState for txn #" + txn_id, ex);
@@ -1194,7 +1195,7 @@ public class ExecutionSite implements Runnable {
         }
         assert(ts != null) : "The TransactionState is somehow null for txn #" + txn_id;
         
-        if (debug.get()) LOG.debug("Adding work request for txn #" + txn_id + " with" + (callback == null ? "out" : "") + " a callback");
+        if (debug.get()) LOG.debug(String.format("Adding work request for txn #%d on partition %d with %s a callback", txn_id, this.partitionId, (callback == null ? "out" : "")));
         this.work_queue.add(task);
     }
 
@@ -1298,7 +1299,7 @@ public class ExecutionSite implements Runnable {
 //        LOG.info("Serialized FragmentResponseMessage [size=" + serialized.capacity() + ",id=" + serialized.get(VoltMessage.HEADER_SIZE) + "]");
 //        assert(serialized.get(VoltMessage.HEADER_SIZE) == VoltMessage.FRAGMENT_RESPONSE_ID);
         
-        if (trace.get()) LOG.trace("Sending FragmentResponseMessage for txn #" + txn_id + " [size=" + bs.size() + "]");
+        if (debug.get()) LOG.debug("Sending FragmentResponseMessage for txn #" + txn_id + " [size=" + bs.size() + "]");
         Dtxn.FragmentResponse.Builder builder = Dtxn.FragmentResponse.newBuilder().setOutput(bs);
         
         switch (fresponse.getStatusCode()) {
