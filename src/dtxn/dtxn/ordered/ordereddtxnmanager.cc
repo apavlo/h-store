@@ -253,8 +253,9 @@ void OrderedDtxnManager::trySendRound(TransactionState* state) {
     // partition has started this transaction before we send the next ones!
     for (int i = 0; i < messages.size(); ++i) {
         int partition_index = messages[i].first;
-        if (state->transaction()->isDone(partition_index) && partition_next_send_txn_id_[i] == state->manager_id()) {
-            advanceSendId(i, state->manager_id());
+        if (state->transaction()->isDone(partition_index) &&
+                partition_next_send_txn_id_[partition_index] == state->manager_id()) {
+            advanceSendId(partition_index, state->manager_id());
         }
     }
 }
@@ -432,7 +433,6 @@ void OrderedDtxnManager::nextRound(TransactionState* state) {
 
     // The transaction is completed if this is an abort or if it is single partition
     // TODO: Would it be simpler to not special case this?
-    assert(state->transaction()->multiple_partitions() || state->transaction()->isAllDone());
     bool finished = state->transaction()->status() != DistributedTransaction::OK ||
             !state->transaction()->multiple_partitions();
     if (finished) {

@@ -218,7 +218,7 @@ TEST_F(OrderedDtxnManagerTest, OneShotCommit) {
     EXPECT_EQ(true, decision_.commit);
 }
 
-TEST_F(OrderedDtxnManagerTest, OneShotReplicaAbort) {
+TEST_F(OrderedDtxnManagerTest, OneShotPartitionAbort) {
     // Multi-partition request
     transaction_.send(0, "one");
     transaction_.send(1, "two");
@@ -342,33 +342,49 @@ TEST_F(OrderedDtxnManagerTest, SinglePartitionMultipleRounds) {
 
 TEST_F(OrderedDtxnManagerTest, SinglePartitionMultipleRoundQueuing) {
     // Send round 1
-    transaction_.send(0, "round1");
+    transaction_.send(1, "round1");
     manager_->execute(&transaction_, callback_);
-    replicas_[0]->getMessage(&fragment_);
+    replicas_[1]->getMessage(&fragment_);
     EXPECT_EQ(0, fragment_.id);
     EXPECT_EQ(true, fragment_.multiple_partitions);
     EXPECT_EQ(false, fragment_.last_fragment);
 
     // Start another multi-partition transaction: blocked
-    transaction2_.send(1, "sp");
+    transaction2_.send(0, "sp");
     manager_->execute(&transaction2_, callback2_);
     EXPECT_FALSE(replicas_[0]->hasMessage());
     
     // reply to the blocked mp transaction
-    manager_->responseReceived(replica_handles_[0], response_);
+    manager_->responseReceived(replica_handles_[1], response_);
     EXPECT_TRUE(called_);
     called_ = false;
 
     // round 2: this becomes single partition; this and the next txn should be sent
-    transaction_.send(0, "round2");
+    transaction_.send(1, "round2");
     transaction_.setAllDone();
     manager_->execute(&transaction_, callback_);
-    replicas_[0]->getMessage(&fragment_);
+    replicas_[1]->getMessage(&fragment_);
     EXPECT_EQ(false, fragment_.multiple_partitions);
     EXPECT_EQ(true, fragment_.last_fragment);
-    replicas_[1]->getMessage(&fragment_);
+    replicas_[0]->getMessage(&fragment_);
     EXPECT_EQ(true, fragment_.multiple_partitions);
     EXPECT_EQ(false, fragment_.last_fragment);
+
+    // Finish transaction2
+    response_.id = 1;
+    manager_->responseReceived(replica_handles_[0], response_);
+    EXPECT_TRUE(called2_);
+    manager_->finish(&transaction2_, true, callback2_);
+    replicas_[0]->getMessage(&fragment_);
+
+    // Start another multi-partition transaction: should get passed through
+    // This previously was a bug: the wrong partitions were getting marked as "done"
+    DistributedTransaction transaction3(NUM_PARTITIONS);
+    transaction3.send(0, "mp");
+    transaction3.send(1, "mp");
+    manager_->execute(&transaction3, callback2_);
+    EXPECT_TRUE(replicas_[0]->hasMessage());
+    EXPECT_TRUE(replicas_[1]->hasMessage());
 }
 
 TEST_F(OrderedDtxnManagerTest, MultiplePartitionQueuingWithSinglePartition) {
