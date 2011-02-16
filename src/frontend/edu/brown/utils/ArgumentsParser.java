@@ -147,8 +147,10 @@ public class ArgumentsParser {
     public static final String PARAM_NODE_PORT              = PARAM_NODE + ".port";
     public static final String PARAM_NODE_PARTITION         = PARAM_NODE + ".partition";
     public static final String PARAM_NODE_SITE              = PARAM_NODE + ".site";
-    public static final String PARAM_NODE_FORCE_SINGLEPARTITION = PARAM_NODE + ".forcesinglepartition";
+    public static final String PARAM_NODE_FORCE_SINGLEPARTITION = PARAM_NODE + ".force_singlepartition";
+    public static final String PARAM_NODE_FORCE_LOCALEXECUTION = PARAM_NODE + ".force_localexecution";
     public static final String PARAM_NODE_STATUS_INTERVAL   = PARAM_NODE + ".statusinterval";
+    public static final String PARAM_NODE_STATUS_INTERVAL_KILL   = PARAM_NODE + ".statusinterval_kill";
     
     private static final String PARAM_DTXN                  = "dtxn";
     public static final String PARAM_DTXN_CONF              = PARAM_DTXN + ".conf";

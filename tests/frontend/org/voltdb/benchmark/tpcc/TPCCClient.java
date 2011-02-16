@@ -629,11 +629,12 @@ public class TPCCClient extends org.voltdb.benchmark.ClientMain implements TPCCS
 
     int randomIndex = 0;
     @Override
-    public void callNewOrder(boolean rollback, Object... paramlist) throws IOException {
+    public void callNewOrder(boolean rollback, boolean noop, Object... paramlist) throws IOException {
+        final String proc_name = (noop ? Constants.NOOP : Constants.NEWORDER);
+        final NewOrderCallback cb = new NewOrderCallback(rollback);
+        
         if (m_blockOnBackpressure) {
-            final NewOrderCallback cb = new NewOrderCallback(rollback);
-            while (!m_voltClient.callProcedure( cb,
-                Constants.NEWORDER, paramlist)) {
+            while (!m_voltClient.callProcedure(cb, proc_name, paramlist)) {
                 try {
                     m_voltClient.backpressureBarrier();
                 } catch (InterruptedException e) {
@@ -642,8 +643,7 @@ public class TPCCClient extends org.voltdb.benchmark.ClientMain implements TPCCS
                 }
             }
         } else {
-            m_queuedMessage = m_voltClient.callProcedure(new NewOrderCallback(rollback),
-                    Constants.NEWORDER, paramlist);
+            m_queuedMessage = m_voltClient.callProcedure(cb, proc_name, paramlist);
         }
     }
 

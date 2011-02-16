@@ -34,6 +34,7 @@ import org.voltdb.benchmark.tpcc.procedures.ResetWarehouse;
 import org.voltdb.benchmark.tpcc.procedures.SelectAll;
 import org.voltdb.benchmark.tpcc.procedures.delivery;
 import org.voltdb.benchmark.tpcc.procedures.neworder;
+import org.voltdb.benchmark.tpcc.procedures.noop;
 import org.voltdb.benchmark.tpcc.procedures.ostatByCustomerId;
 import org.voltdb.benchmark.tpcc.procedures.ostatByCustomerName;
 import org.voltdb.benchmark.tpcc.procedures.paymentByCustomerId;
@@ -70,6 +71,7 @@ public class TPCCProjectBuilder extends AbstractProjectBuilder {
         slev.class,
         
         // Utility Procedures
+        noop.class,
         SelectAll.class,
         ResetWarehouse.class,
         LoadWarehouse.class,
