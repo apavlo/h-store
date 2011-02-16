@@ -9,6 +9,7 @@ import getopt
 import commands
 import logging
 import time
+import threading
 from pprint import pprint
 
 logging.basicConfig(level = logging.INFO,
@@ -65,6 +66,26 @@ def getInstanceIPs(instances):
         ## IF
     ## FOR
     return (ret)
+## DEF
+
+## ==============================================
+## deployHostsFile
+## ==============================================
+def deployHostsFile(public_ip, hosts_file, mount_nfs = False):
+    ## I'm too lazy to install autofs
+    extra = "&& sudo mount /opt/nfs" if mount_nfs else ""
+    
+    inst_commands = [
+        "scp %s %s %s@%s:~/" % (SSH_OPTIONS, hosts_file, SSH_USER, public_ip), \
+        "ssh %s %s@%s \"sudo mv ~/%s /etc/hosts %s\"" % (SSH_OPTIONS, SSH_USER, public_ip, os.path.basename(hosts_file), extra)
+    ]
+
+    for cmd in inst_commands:
+        logging.debug(cmd)
+        (result, output) = commands.getstatusoutput(cmd)
+        assert result == 0, "%s\n%s" % (cmd, output)
+    ## FOR 
+    
 ## DEF
 
 ## ==============================================
@@ -137,27 +158,18 @@ ff02::3 ip6-allhosts
         
         ## Upload this mofo to each machine
         ## Note that we always have to update the NFS node first
+        threads = [ ]
         for inst in [ NFS_INSTANCE ] + instances:
             public_ip = instance_ips[inst][0]
             logging.info("Updating %s at %s" % (inst, public_ip))
-            
-            ## I'm too lazy to install autofs
-            extra = "&& sudo mount /opt/nfs" if inst != NFS_INSTANCE and "mount-nfs" in options else ""
-            
-            inst_commands = [
-                "scp %s %s %s@%s:~/" % (SSH_OPTIONS, TEMP_HOSTS_FILE, SSH_USER, public_ip), \
-                "ssh %s %s@%s \"sudo mv ~/%s /etc/hosts %s\"" % (SSH_OPTIONS, SSH_USER, public_ip, os.path.basename(TEMP_HOSTS_FILE), extra)
-            ]
-
-            for cmd in inst_commands:
-                logging.debug(cmd)
-                (result, output) = commands.getstatusoutput(cmd)
-                assert result == 0, "%s\n%s" % (cmd, output)
-            ## FOR 
+            mount_nfs = (inst != NFS_INSTANCE and "mount-nfs" in options)
+            threads.append(threading.Thread(target=deployHostsFile, args=(public_ip, TEMP_HOSTS_FILE, mount_nfs)))
+            threads[-1].start()
         ## FOR
-        
+        for t in threads:
+            t.join()
         os.unlink(TEMP_HOSTS_FILE)
-        
     ## IF
 
 ## IF
+
