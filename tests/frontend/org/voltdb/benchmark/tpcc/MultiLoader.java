@@ -605,6 +605,7 @@ public class MultiLoader extends ClientMain {
             // items.ensureStringCapacity(parameters.items * 96);
             // Select 10% of the rows to be marked "original"
             HashSet<Integer> originalRows = selectUniqueIds(m_parameters.items / 10, 1, m_parameters.items);
+            int max_batch = 50;
             for (int i = 1; i <= m_parameters.items; ++i) {
                 // if we're on a 10% boundary, print out some nice status info
                 // if (i % (m_parameters.items / 10) == 0)
@@ -615,7 +616,7 @@ public class MultiLoader extends ClientMain {
                 generateItem(items, i, original);
                 
                 // Items! Sail yo ho!
-                if (items.getRowCount() == 100) {
+                if (items.getRowCount() == max_batch) {
                     try {
                         LOG.info(String.format("Loading replicated ITEM table [tuples=%d/%d]", i, m_parameters.items));
                         m_voltClient.callProcedure("@LoadMultipartitionTable", "ITEM", items);
@@ -686,7 +687,7 @@ public class MultiLoader extends ClientMain {
                     try {
                         for (int i2 = 0, cnt2 = table.getRowCount(); i2 < cnt2; i2++) {
                             batch.add(table.fetchRow(i2));
-                            if (batch.getRowCount() == 100) {
+                            if (batch.getRowCount() == max_batch) {
                                 LOG.debug(String.format("Loading replicated CUSTOMER_NAME table [tuples=%d/%d]", i2, cnt2));
                                 m_voltClient.callProcedure("@LoadMultipartitionTable", "CUSTOMER_NAME", batch);
                                 batch.clearRowData();
