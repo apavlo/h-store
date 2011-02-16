@@ -197,6 +197,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
     private final AtomicInteger multipart_ctr = new AtomicInteger(0);
     private final AtomicInteger mispredict_ctr = new AtomicInteger(0);
     private final AtomicInteger abort_ctr = new AtomicInteger(0);
+    private final AtomicInteger redirect_ctr = new AtomicInteger(0);
     
     /**
      * Keep track of which txns that we have in-flight right now
@@ -280,6 +281,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
                 int multip_txns = HStoreSite.this.multipart_ctr.get();
                 int mispredict_txns = HStoreSite.this.mispredict_ctr.get();
                 int abort_txns = HStoreSite.this.abort_ctr.get();
+                int redirect_txns = HStoreSite.this.redirect_ctr.get();
                 int total_txns = singlep_txns + multip_txns;
                 int completed = HStoreSite.this.completed_txns.get();
 
@@ -298,6 +300,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
                 m0.put("Multi-Partition Txns", multip_txns);
                 m0.put("Aborted Txns", abort_txns);
                 m0.put("Mispredicted Txns", mispredict_txns);
+                m0.put("Redirected Txns", redirect_txns);
                 m0.put("Total Txns", total_txns);
                 m0.put("Completed Txns", String.format("%-4d\n", completed));
 
@@ -663,6 +666,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
             // we will just forward it back to the client. How sweet is that??
             ForwardTxnRequestCallback callback = new ForwardTxnRequestCallback(done);
             this.messenger.forwardTransaction(serializedRequest, callback, dest_partition);
+            this.redirect_ctr.incrementAndGet();
             return;
         }
 
