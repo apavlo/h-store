@@ -207,10 +207,11 @@ public class BulkTPCCClient extends BulkClient {
         }
 
         @Override
-        public void callNewOrder(boolean rollback, Object... paramlist)
+        public void callNewOrder(boolean rollback, boolean noop, Object... paramlist)
                 throws IOException {
+            String proc_name = (noop ? Constants.NOOP : Constants.NEWORDER);
              invokeProcedure( c, new NewOrderCallback(rollback),
-                    Constants.NEWORDER, paramlist);
+                    proc_name, paramlist);
         }
         @Override
         public void callOrderStatus(String proc, Object... paramlist)

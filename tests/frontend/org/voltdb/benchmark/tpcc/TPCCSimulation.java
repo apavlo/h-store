@@ -86,7 +86,7 @@ public class TPCCSimulation
         public void callPaymentById(short w_id, byte d_id, double h_amount,
                 short c_w_id, byte c_d_id, int c_id, TimestampType now)
         throws IOException;
-        public void callNewOrder(boolean rollback, Object... paramlist) throws IOException;
+        public void callNewOrder(boolean rollback, boolean noop, Object... paramlist) throws IOException;
     }
 
 
@@ -237,6 +237,7 @@ public class TPCCSimulation
 
     /** Executes a new order transaction. */
     public void doNewOrder() throws IOException {
+        boolean noop = true;
         short warehouse_id = generateWarehouseId();
         int ol_cnt = generator.number(Constants.MIN_OL_CNT,
                 Constants.MAX_OL_CNT);
@@ -278,7 +279,7 @@ public class TPCCSimulation
 //        }
 
         TimestampType now = clock.getDateTime();
-        client.callNewOrder(rollback, warehouse_id, generateDistrict(), generateCID(),
+        client.callNewOrder(rollback, noop, warehouse_id, generateDistrict(), generateCID(),
                             now, item_id, supply_w_id, quantity);
     }
 

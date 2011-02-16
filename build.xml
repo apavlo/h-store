@@ -170,29 +170,25 @@ PRIMARY ENTRY POINTS
 
 <!--
 ***************************************
-DISTRIBUTION
+ENVIRONMENT SETUP
 ***************************************
 -->
 
-<target name="voltbin" depends="compile, ee, jars">
-    <mkdir dir="${build.dir}/voltbin" />
-    <copy todir="${build.dir}/voltbin" flatten="true">
-        <fileset dir="${build.dir}" defaultexcludes="yes">
-            <include name="nativelibs/libvoltdb*" />
-            <include name="prod/hstore.jar" />
-        </fileset>
-    </copy>
-    <!-- use cp to preserve permissions -->
-    <exec dir="tools" executable="cp" failonerror="true">
-        <arg line="getmac.py"/>
-        <arg line="killstragglers.sh"/>
-        <arg line="${build.dir}/voltbin"/>
-    </exec>
-    <!-- strip the voltbin shared library (~40x size reduction) -->
-    <exec dir='${build.dir}/voltbin' executable='/bin/sh'>
-        <arg line="-c '/usr/bin/strip -x libvoltdb*'"/>
-    </exec>
+<!--<target name="default_properties.check">
+   <available property="default_properties.exists" file="${propeties.dir}/default.properties" />
 </target>
+
+<target name="default_properties" depends="default_properties.check" unless="default_properties.exists">
+    <property name="default.properties" location="log4j.properties"/>
+    <symlink link="${build.prod.dir}" resource="${log4j.properties}" failonerror="false"/>
+</target>-->
+
+
+<!--
+***************************************
+DISTRIBUTION
+***************************************
+-->
 
 <target name="dist_internal" depends="compile, ee, hstore.jar">
     <!-- prepare release directory for new content -->
@@ -338,7 +334,6 @@ CLEANING
     <delete includeemptydirs="true" dir="${build.dir}/objects" />
     <delete includeemptydirs="true" dir="${build.dir}/cpptests" />
     <delete includeemptydirs="true" dir="${build.testobjects.dir}" />
-    <delete includeemptydirs="true" dir="${build.dir}/voltbin" />
 </target>
 
 <target name="clean-all" description="Remove all compiled files.">
@@ -1300,12 +1295,6 @@ TEST CASES
     </exec>
 </target>
 
-<target name='voltbincopy'>
-  <copy todir="${env.HOME}/voltbin">
-    <fileset dir="${build.dir}/voltbin"/>
-  </copy>
-</target>
-
 <!--
 ***************************************
 PROTOCOL BUFFERS
@@ -2218,7 +2207,8 @@ H-STORE REMIX
         <arg value="catalog.jar=${benchmark.jar}" />
         <arg value="node.site=${node.site}" />
         <arg value="node.statusinterval=${hstore.node.statusinterval}" />
-        <arg value="node.forcesinglepartition=${hstore.node.forcesinglepartition}" />
+        <arg value="node.force_singlepartition=${hstore.node.force_singlepartition}" />
+        <arg value="node.force_localexecution=${hstore.node.force_localexecution}" />
         <arg value="coordinator.host=${hstore.coordinator.host}" />
         <arg value="coordinator.port=${hstore.coordinator.port}" />
         <arg value="dtxn.conf=${build.dtxn.dir}/hstore.conf" />

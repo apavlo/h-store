@@ -162,7 +162,8 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
     
     private final boolean ignore_dtxn;
 
-    private boolean always_singlepartitioned = false;
+    private boolean force_singlepartitioned = false;
+    private boolean force_localexecution = false;
     
     private final DBBPool buffer_pool = new DBBPool(true, false);
     private final Map<Integer, Thread> executor_threads = new HashMap<Integer, Thread>();
@@ -227,6 +228,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
      */
     protected class StatusMonitorThread implements Runnable {
         private final int interval; // seconds
+        private final boolean kill_when_hanging;
         private final TreeMap<Integer, TreeSet<Long>> partition_txns = new TreeMap<Integer, TreeSet<Long>>();
         
         private Integer last_completed = null;
@@ -234,10 +236,9 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         private Integer inflight_min = null;
         private Integer inflight_max = null;
         
-        private boolean kill_when_hanging = true;
-        
-        public StatusMonitorThread(int interval) {
+        public StatusMonitorThread(int interval, boolean kill_when_hanging) {
             this.interval = interval;
+            this.kill_when_hanging = kill_when_hanging;
             for (Integer partition : CatalogUtil.getAllPartitionIds(HStoreSite.this.catalog_db)) {
                 this.partition_txns.put(partition, new TreeSet<Long>());
             } // FOR
@@ -523,9 +524,9 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
      * Enable the HStoreCoordinator's status monitor
      * @param interval
      */
-    public void enableStatusMonitor(int interval) {
+    public void enableStatusMonitor(int interval, boolean kill_when_hanging) {
         if (interval > 0) {
-            this.status_monitor = new Thread(new StatusMonitorThread(interval));
+            this.status_monitor = new Thread(new StatusMonitorThread(interval, kill_when_hanging));
             this.status_monitor.setPriority(Thread.MIN_PRIORITY);
             this.status_monitor.setDaemon(true);
         }
@@ -644,6 +645,12 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
                 return;
             }
             
+        // Always execute this transaction at one of our partitions (random)
+        } else if (this.force_localexecution) {
+            if (t) LOG.debug("Forcing all transaction requests to execute locally");
+            dest_partition = CollectionUtil.getRandomValue(this.executors.keySet());
+            
+            
         // Otherwise we use the PartitionEstimator to know where it is going
         } else {
             try {
@@ -659,7 +666,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         }
         
         // If the dest_partition isn't local, then we need to ship it off to the right location
-        if (this.executors.containsKey(dest_partition) == false) {
+        if (this.force_localexecution == false && this.executors.containsKey(dest_partition) == false) {
             if (debug.get()) LOG.debug("StoredProcedureInvocation request for " +  catalog_proc + " needs to be forwarded to Partition #" + dest_partition);
             
             // Make a wrapper for the original callback so that when the result comes back frm the remote partition
@@ -689,7 +696,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
             single_partition = false;
             
         // Force all transactions to be single-partitioned
-        } else if (this.always_singlepartitioned) {
+        } else if (this.force_singlepartitioned) {
             if (t) LOG.trace("The \"Always Single-Partitioned\" flag is true. Marking as single-partitioned!");
             single_partition = true;
             
@@ -1294,14 +1301,23 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
 
         // Force all transactions to be single-partitioned
         if (args.hasBooleanParam(ArgumentsParser.PARAM_NODE_FORCE_SINGLEPARTITION)) {
-            site.always_singlepartitioned = args.getBooleanParam(ArgumentsParser.PARAM_NODE_FORCE_SINGLEPARTITION);
+            site.force_singlepartitioned = args.getBooleanParam(ArgumentsParser.PARAM_NODE_FORCE_SINGLEPARTITION);
             LOG.info("Forcing all transactions to execute as single-partitioned");
+        }
+        // Force all transactions to be executed at the first partition that the request arrives on
+        if (args.hasBooleanParam(ArgumentsParser.PARAM_NODE_FORCE_LOCALEXECUTION)) {
+            site.force_localexecution = args.getBooleanParam(ArgumentsParser.PARAM_NODE_FORCE_LOCALEXECUTION);
+            LOG.info("Forcing all transactions to execute at the partition they arrive on");
         }
         
         // Status Monitor
         if (args.hasParam(ArgumentsParser.PARAM_NODE_STATUS_INTERVAL)) {
             int interval = args.getIntParam(ArgumentsParser.PARAM_NODE_STATUS_INTERVAL);
-            if (interval > 0) site.enableStatusMonitor(interval);
+            boolean kill_when_hanging = false;
+            if (args.hasBooleanParam(ArgumentsParser.PARAM_NODE_STATUS_INTERVAL_KILL)) {
+                kill_when_hanging = args.getBooleanParam(ArgumentsParser.PARAM_NODE_STATUS_INTERVAL_KILL);
+            }
+            if (interval > 0) site.enableStatusMonitor(interval, kill_when_hanging);
         }
         
         // ----------------------------------------------------------------------------
