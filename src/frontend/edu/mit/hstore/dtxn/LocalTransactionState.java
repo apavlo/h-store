@@ -822,8 +822,8 @@ public class LocalTransactionState extends TransactionState {
         ret += StringUtil.formatMaps(m);
 
         for (int stmt_index = 0; stmt_index < this.batch_size; stmt_index++) {
-            Map<Integer, DependencyInfo> s_dependencies = this.dependencies[stmt_index]; 
-            Set<Integer> dependency_ids = s_dependencies.keySet();
+            Map<Integer, DependencyInfo> s_dependencies = new HashMap<Integer, DependencyInfo>(this.dependencies[stmt_index]); 
+            Set<Integer> dependency_ids = new HashSet<Integer>(s_dependencies.keySet());
 
             ret += StringUtil.SINGLE_LINE;
             ret += "  Statement #" + stmt_index + "\n";
