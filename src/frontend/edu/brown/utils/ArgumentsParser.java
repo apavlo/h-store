@@ -149,6 +149,7 @@ public class ArgumentsParser {
     public static final String PARAM_NODE_SITE              = PARAM_NODE + ".site";
     public static final String PARAM_NODE_FORCE_SINGLEPARTITION = PARAM_NODE + ".force_singlepartition";
     public static final String PARAM_NODE_FORCE_LOCALEXECUTION = PARAM_NODE + ".force_localexecution";
+    public static final String PARAM_NODE_FORCE_NEWORDERINSPECT = PARAM_NODE + ".force_neworderinspect";
     public static final String PARAM_NODE_STATUS_INTERVAL   = PARAM_NODE + ".statusinterval";
     public static final String PARAM_NODE_STATUS_INTERVAL_KILL   = PARAM_NODE + ".statusinterval_kill";
     
