@@ -112,11 +112,13 @@ public class VoltProcedureListener extends AbstractEventHandler {
             boolean blocked = connection.write(serializedResult);
             // Only register the write if being blocked is "new"
             // TODO: Use NonBlockingConnection which avoids attempting to write when blocked
+            // NOTE: It is possible for the connection to become ready for writing before we run
+            // the event loop. In this case, blocked will be false, but connectionBlocked will be
+            // true. This will lead to a "useless" pass around the event loop, but that is safe.
             if (blocked && !connectionBlocked) {
                 eventLoop.registerWrite(connection.getChannel(), this);
                 connectionBlocked = true;
             }
-            assert blocked == connectionBlocked;
         }
 
         private final MessageConnection connection;
