@@ -237,13 +237,16 @@ public class TPCCSimulation
 
     /** Executes a new order transaction. */
     public void doNewOrder() throws IOException {
-        boolean noop = true;
+        boolean noop = false;
+        boolean allow_rollback = false;
+        boolean allow_remote_w_id = false;
+        
         short warehouse_id = generateWarehouseId();
         int ol_cnt = generator.number(Constants.MIN_OL_CNT,
                 Constants.MAX_OL_CNT);
 
         // 1% of transactions roll back
-        boolean rollback = generator.number(1, 100) == 1;
+        boolean rollback = (allow_rollback && generator.number(1, 100) == 1);
         int local_warehouses = 0;
         int remote_warehouses = 0;
 
@@ -260,7 +263,7 @@ public class TPCCSimulation
             }
 
             // XXX: 1% of items are from a remote warehouse
-            boolean remote = generator.number(1, 100) == 1;
+            boolean remote = (allow_remote_w_id && generator.number(1, 100) == 1);
             if (parameters.warehouses > 1 && remote) {
                 supply_w_id[i] = (short)generator.numberExcluding(parameters.starting_warehouse, this.max_w_id, (int) warehouse_id);
                 if (supply_w_id[i] != warehouse_id) remote_warehouses++;

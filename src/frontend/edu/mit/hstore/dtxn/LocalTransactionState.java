@@ -212,7 +212,7 @@ public class LocalTransactionState extends TransactionState {
     /**
      * Number of SQLStmts in the current batch
      */
-    private Integer batch_size = null;
+    private int batch_size = 0;
     
     /**
      * The total # of dependencies this Transaction is waiting for in the current round
@@ -309,13 +309,10 @@ public class LocalTransactionState extends TransactionState {
             q.clear();
         } // FOR
         
-        if (this.batch_size != null) {
-            for (int i = 0; i < this.batch_size; i++) {
-                this.dependencies[i].clear();
-            } // FOR
-        }
-        
-        this.batch_size = null;
+        for (int i = 0; i < this.batch_size; i++) {
+            this.dependencies[i].clear();
+        } // FOR
+        this.batch_size = 0;
         this.dependency_ctr = 0;
         this.received_ctr = 0;
     }
@@ -349,7 +346,7 @@ public class LocalTransactionState extends TransactionState {
     @Override
     public void startRound() {
         assert(this.output_order.isEmpty());
-        assert(this.batch_size != null);
+        assert(this.batch_size > 0);
         if (d) LOG.debug("Starting round for local txn #" + this.txn_id + " with " + this.batch_size + " queued Statements");
         
         synchronized (this.lock) {
@@ -495,7 +492,7 @@ public class LocalTransactionState extends TransactionState {
      * @return
      */
     public boolean isExecSinglePartition() {
-        return (this.touched_partitions.size() == 1);
+        return (this.touched_partitions.size() <= 1);
     }
     
     /**

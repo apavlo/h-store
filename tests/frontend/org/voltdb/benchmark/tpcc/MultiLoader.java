@@ -605,7 +605,7 @@ public class MultiLoader extends ClientMain {
             // items.ensureStringCapacity(parameters.items * 96);
             // Select 10% of the rows to be marked "original"
             HashSet<Integer> originalRows = selectUniqueIds(m_parameters.items / 10, 1, m_parameters.items);
-            int max_batch = 50;
+            int max_batch = 20;
             for (int i = 1; i <= m_parameters.items; ++i) {
                 // if we're on a 10% boundary, print out some nice status info
                 // if (i % (m_parameters.items / 10) == 0)

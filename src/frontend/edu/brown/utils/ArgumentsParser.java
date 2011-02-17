@@ -152,6 +152,8 @@ public class ArgumentsParser {
     public static final String PARAM_NODE_FORCE_NEWORDERINSPECT = PARAM_NODE + ".force_neworderinspect";
     public static final String PARAM_NODE_STATUS_INTERVAL   = PARAM_NODE + ".statusinterval";
     public static final String PARAM_NODE_STATUS_INTERVAL_KILL   = PARAM_NODE + ".statusinterval_kill";
+    public static final String PARAM_NODE_CLEANUP_INTERVAL = PARAM_NODE + ".cleanup_interval";
+    public static final String PARAM_NODE_CLEANUP_TXN_EXPIRE = PARAM_NODE + ".cleanup_txn_expire";
     
     private static final String PARAM_DTXN                  = "dtxn";
     public static final String PARAM_DTXN_CONF              = PARAM_DTXN + ".conf";

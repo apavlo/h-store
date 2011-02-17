@@ -440,6 +440,7 @@ public class TransactionEstimator {
             
             Map<String, Object> m0 = new ListOrderedMap<String, Object>();
             m0.put("Batch Estimate", "#" + this.batch);
+            m0.put("Vertex", this.vertex);
             m0.put("Single-Partition", String.format(f, this.singlepartition));
             m0.put("User Abort", String.format(f, this.userabort));
             
@@ -631,10 +632,21 @@ public class TransactionEstimator {
         List<Vertex> initial_path = estimator.getVisitPath();
         int path_size = initial_path.size();
         if (path_size > 0) {
-            Vertex est_v = (path_size > 2 ? initial_path.get(path_size - 2) : initial_path.get(path_size - 1));
-            Estimate est = state.getNextEstimate(est_v);
-            assert(est != null);
-            assert(est.getBatchId() == 0);
+            int idx = 1;
+            Vertex last_v = null;
+            do {
+                last_v = initial_path.get(path_size - idx);
+                idx++;
+            } while ((last_v.isQueryVertex() == false) || (idx < path_size));
+            assert(last_v != null);
+
+            if (last_v.isQueryVertex() == false) {
+                LOG.warn(String.format("Failed to find a query vertex in %s for txn #%d", catalog_proc.getName(), txn_id));
+            } else {
+                Estimate est = state.getNextEstimate(last_v);
+                assert(est != null);
+                assert(est.getBatchId() == 0);
+            }
         }
         
         this.txn_count.incrementAndGet();

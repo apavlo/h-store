@@ -95,7 +95,7 @@ public abstract class StringUtil {
                 String k = keys.get(e.getKey()).toString();
                 String v = (e.getValue() != null ? e.getValue().toString() : "null");
                 if (upper) k = k.toUpperCase();
-                if (equalsDelimiter == false) k += ":";
+                if (equalsDelimiter == false && k.isEmpty() == false) k += ":";
                 
                 // If the value is multiple lines, format them nicely!
                 String lines[] = LINE_SPLIT.split(v);

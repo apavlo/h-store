@@ -1,21 +1,18 @@
 package edu.brown.costmodel;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.Map.Entry;
 
+import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.log4j.Logger;
 import org.voltdb.catalog.Database;
-import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Statement;
 import org.voltdb.types.QueryType;
 
 import edu.brown.markov.EstimationThresholds;
-import edu.brown.markov.MarkovGraph;
 import edu.brown.markov.MarkovGraphsContainer;
 import edu.brown.markov.MarkovUtil;
 import edu.brown.markov.TransactionEstimator;
@@ -41,6 +38,14 @@ public class MarkovCostModel extends AbstractCostModel {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
 
+    public enum PenaltyGroup {
+        MISSED_ABORT,
+        MISSING_PARTITION,
+        RETURN_PARTITION,
+        UNUSED_PARTITION,
+        LATE_DONE;
+    }
+    
     /**
      * Cost Model Penalties
      */
@@ -52,11 +57,11 @@ public class MarkovCostModel extends AbstractCostModel {
          * The transaction is single-partitioned and it aborts when we predicted that it wouldn't.
          * Evan says that this is the worst!
          */
-        MISSED_ABORT_SINGLE             (1.0d),
+        MISSED_ABORT_SINGLE             (PenaltyGroup.MISSED_ABORT, 1.0d),
         /**
          * The transaction is multi-partitioned and it aborts when we predicted that it wouldn't. 
          */
-        MISSED_ABORT_MULTI              (0.8d),
+        MISSED_ABORT_MULTI              (PenaltyGroup.MISSED_ABORT, 0.8d),
         
         // ----------------------------------------------------------------------------
         // PENALTY #2
@@ -64,11 +69,11 @@ public class MarkovCostModel extends AbstractCostModel {
         /**
          * The transaction did not declare it would read at a partition 
          */
-        MISSING_READ_PARTITION          (0.25d),
+        MISSING_READ_PARTITION          (PenaltyGroup.MISSING_PARTITION, 0.25d),
         /**
          * The transaction did not declare it would write at a partition 
          */
-        MISSING_WRITE_PARTITION         (0.25d),
+        MISSING_WRITE_PARTITION         (PenaltyGroup.MISSING_PARTITION, 0.25d),
         
         // ----------------------------------------------------------------------------
         // PENALTY #3
@@ -76,11 +81,11 @@ public class MarkovCostModel extends AbstractCostModel {
         /**
          * The transaction goes back to read at a partition after it declared it was done with it
          */
-        RETURN_READ_PARTITION           (0.25d),
+        RETURN_READ_PARTITION           (PenaltyGroup.RETURN_PARTITION, 0.25d),
         /**
          * The transaction goes back to write at a partition after it declared it was done with it
          */
-        RETURN_WRITE_PARTITION          (0.25d),
+        RETURN_WRITE_PARTITION          (PenaltyGroup.RETURN_PARTITION, 0.25d),
         
         // ----------------------------------------------------------------------------
         // PENALTY #4
@@ -89,20 +94,20 @@ public class MarkovCostModel extends AbstractCostModel {
          * The transaction said it was going to read at a partition but it never did
          * And it would have executed as single-partitioned if we didn't say it was going to!
          */
-        UNUSED_READ_PARTITION_SINGLE    (0.5d),
+        UNUSED_READ_PARTITION_SINGLE    (PenaltyGroup.UNUSED_PARTITION, 0.5d),
         /**
          * The transaction said it was going to write at a partition but it never did
          * And it would have executed as single-partitioned if we didn't say it was going to!
          */
-        UNUSED_WRITE_PARTITION_SINGLE   (0.5d),
+        UNUSED_WRITE_PARTITION_SINGLE   (PenaltyGroup.UNUSED_PARTITION, 0.5d),
         /**
          * The transaction said it was going to read at a partition but it never did
          */
-        UNUSED_READ_PARTITION_MULTI     (0.1d),
+        UNUSED_READ_PARTITION_MULTI     (PenaltyGroup.UNUSED_PARTITION, 0.1d),
         /**
          * The transaction said it was going to write at a partition but it never did
          */
-        UNUSED_WRITE_PARTITION_MULTI    (0.1d),
+        UNUSED_WRITE_PARTITION_MULTI    (PenaltyGroup.UNUSED_PARTITION, 0.1d),
         
         // ----------------------------------------------------------------------------
         // PENALTY #5
@@ -111,15 +116,20 @@ public class MarkovCostModel extends AbstractCostModel {
          * The transaction is done with a partition but we don't identify it
          * until later in the execution path
          */
-        LATE_DONE_PARTITION             (0.05d),
+        LATE_DONE_PARTITION             (PenaltyGroup.LATE_DONE, 0.05d),
         ;
         
         private final double cost;
-        private Penalty(double cost) {
+        private final PenaltyGroup group;
+        private Penalty(PenaltyGroup group, double cost) {
+            this.group = group;
             this.cost = cost;
         }
         public double getCost() {
             return this.cost;
+        }
+        public PenaltyGroup getGroup() {
+            return this.group;
         }
     }
     
@@ -214,15 +224,20 @@ public class MarkovCostModel extends AbstractCostModel {
             cost = this.comparePathsFull(s);
         }
         
-//        if (cost > 0) {
-//            System.err.println("COST = " + cost);
-//            System.err.println("PENALTIES = " + this.penalties);
-//            System.err.println("ESTIMATED PARTITIONS: " + this.e_all_partitions);
-//            System.err.println("ACTUAL PARTITIONS: " + this.a_all_partitions);
-//            System.err.println("ESTIMATED:\n" + StringUtil.join("\n", s.getEstimatedPath()) + "\n" + StringUtil.repeat("-", 100));
-//            System.err.println("ACTUAL:\n" + StringUtil.join("\n", s.getActualPath()));
-//            throw new RuntimeException("We're fucked");
-//        }
+        if (cost > 0) {
+            System.err.println("COST = " + cost);
+            System.err.println("PENALTIES = " + this.penalties);
+            System.err.println("ESTIMATED PARTITIONS: " + this.e_all_partitions);
+            System.err.println("ACTUAL PARTITIONS: " + this.a_all_partitions);
+            System.err.println("ESTIMATED:\n" + StringUtil.join("\n", s.getEstimatedPath()) + "\n" + StringUtil.repeat("-", 100));
+            System.err.println("ACTUAL:\n" + StringUtil.join("\n", s.getActualPath()) + "\n");
+            
+            for (Estimate est : s.getEstimates()) {
+                System.err.println(est + "\n" + est.getVertex().debug() + "\n" + StringUtil.SINGLE_LINE);
+            }
+            
+            throw new RuntimeException("We're fucked");
+        }
 
         
         TransactionEstimator.getStatePool().returnObject(s);
@@ -542,21 +557,49 @@ public class MarkovCostModel extends AbstractCostModel {
         MarkovCostModel costmodel = new MarkovCostModel(args.catalog_db, p_estimator, t_estimator, thresholds);
         
         int total = 0;
-        int accurate = 0;
         Histogram total_h = new Histogram();
+        Histogram missed_h = new Histogram();
         Histogram accurate_h = new Histogram();
+        Histogram penalty_h = new Histogram();
+        Set<PenaltyGroup> penalty_groups = new HashSet<PenaltyGroup>();
+        
         for (TransactionTrace txn_trace : args.workload.getTransactions()) {
             double cost = costmodel.estimateTransactionCost(args.catalog_db, txn_trace);
-            if ((cost > 0) == false) {
-                accurate_h.put(txn_trace.getCatalogItemName());
-                accurate++; 
+            String proc_name = txn_trace.getCatalogItemName();
+            if (cost > 0) {
+                penalty_groups.clear();
+                for (Penalty p : costmodel.getLastPenalties()) {
+                    penalty_groups.add(p.getGroup());
+                } // FOR
+                for (PenaltyGroup pg : penalty_groups) {
+                    penalty_h.put(pg);
+                } // FOR
+                
+                missed_h.put(proc_name);
+            } else {
+                accurate_h.put(proc_name);
             }
             total_h.put(txn_trace.getCatalogItemName());
             total++;
         } // FOR
+        int accurate_cnt = total - (int)missed_h.getSampleCount();
+        assert(accurate_cnt == accurate_h.getSampleCount());
+        
+        Map<String, Object> m0 = new ListOrderedMap<String, Object>();
+        m0.put("RESULT", String.format("%05d / %05d [%.03f]", accurate_cnt, total, (accurate_cnt / (double)total)));
+        
+        Map<String, Object> m1 = new ListOrderedMap<String, Object>();
+        for (PenaltyGroup pg : PenaltyGroup.values()) {
+            long cnt = penalty_h.get(pg, 0);
+            m1.put(pg.toString(), String.format("%05d [%.03f]", cnt, cnt / (double)total));
+        }
+        
+        System.err.println("TRANSACTION COUNTS:");
         System.err.println(total_h);
         System.err.println(StringUtil.DOUBLE_LINE);
+        System.err.println("TRANSACTION ACCURACY:");
         System.err.println(accurate_h);
-        System.err.println(String.format("RESULT: %d / %d [%.03f]", accurate, total, (accurate / (double)total)));
+        System.err.println(StringUtil.DOUBLE_LINE);
+        System.err.println(StringUtil.formatMaps(m0, m1));
     }
 }

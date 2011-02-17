@@ -1,17 +1,19 @@
 #!/bin/bash -x
 
 BENCHMARKS=( \
-    "tm1" \
+#    "tm1" \
     "tpcc.100w.large" \
 #     "auctionmark"\
 )
 PARTITIONS=( \
-    8 \
-    16 \
-    32 \
-    64 \
+#     8 \
+#     16 \
+#     32 \
+#     64 \
     128 \
 )
+HEAP_SIZE=3072
+WORKLOAD_SIZE=50000
 
 ## -----------------------------------------------------
 ## buildMarkovs
@@ -22,10 +24,10 @@ buildMarkovs() {
     OUTPUT=$3
     GLOBAL=$4
     ant markov \
-        -Dvolt.client.memory=2048 \
+        -Dvolt.client.memory=$HEAP_SIZE \
         -Dproject=$BENCHMARK \
         -Dworkload=files/workloads/$WORKLOAD.trace.gz \
-        -Dlimit=-1 \
+        -Dlimit=$WORKLOAD_SIZE \
         -Doutput=$OUTPUT \
         -Dglobal=$GLOBAL || exit
 }
