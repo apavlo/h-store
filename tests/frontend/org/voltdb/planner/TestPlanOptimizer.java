@@ -133,7 +133,7 @@ public class TestPlanOptimizer extends BaseTestCase {
        Statement catalog_stmt = this.getStatement(catalog_proc, "sql");
        // Grab the root node of the multi-partition query plan tree for this Statement 
        AbstractPlanNode rootNode = QueryPlanUtil.deserializeStatement(catalog_stmt, false);
-       final PlanOptimizer plan_opt = new PlanOptimizer(m_context, catalog_db);
+       final PlanOptimizerDylanBack plan_opt = new PlanOptimizerDylanBack(m_context, catalog_db);
        plan_opt.populateTableNodeInfo(rootNode);
        // check two hashmaps contain what we expect
        checkPlanNodeColumns(plan_opt.planNodeColumns);
