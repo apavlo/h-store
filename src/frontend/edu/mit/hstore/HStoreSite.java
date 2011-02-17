@@ -270,9 +270,12 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
     private final Map<Long, Long> restarted_txns = new ConcurrentHashMap<Long, Long>();
 
     /**
-     * 
+     * Helper Thread Stuff
      */
     private final ScheduledExecutorService helper_pool;
+    private int helper_interval = 1000;
+    private int helper_txn_per_round = -1;
+    private int helper_txn_expire = 1000;
     
     
     // ----------------------------------------------------------------------------
@@ -509,8 +512,8 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
             }
             
             // Schedule the ExecutionSiteHelper
-            ExecutionSiteHelper esh = new ExecutionSiteHelper(HStoreSite.this.executors.values());
-            HStoreSite.this.helper_pool.scheduleAtFixedRate(esh, 250, 1000, TimeUnit.MILLISECONDS);
+            ExecutionSiteHelper esh = new ExecutionSiteHelper(HStoreSite.this.executors.values(), helper_txn_per_round, helper_txn_expire);
+            HStoreSite.this.helper_pool.scheduleAtFixedRate(esh, 2000, helper_interval, TimeUnit.MILLISECONDS);
             
             // Start Monitor Thread
             if (HStoreSite.this.status_monitor != null) HStoreSite.this.status_monitor.start(); 
@@ -1320,10 +1323,10 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
             File path = new File(args.getParam(ArgumentsParser.PARAM_MARKOV));
             if (path.exists()) {
                 markovs = MarkovUtil.load(args.catalog_db, path.getAbsolutePath(), CatalogUtil.getLocalPartitionIds(catalog_site));
+                LOG.info("Finished loading MarkovGraphsContainer '" + path + "'");
             } else {
                 if (LOG.isDebugEnabled()) LOG.warn("The Markov Graphs file '" + path + "' does not exist");
             }
-            LOG.info("Finished loading MarkovGraphsContainer '" + path + "'");
         }
 
         // ----------------------------------------------------------------------------
@@ -1398,6 +1401,16 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         if (args.hasBooleanParam(ArgumentsParser.PARAM_NODE_FORCE_NEWORDERINSPECT)) {
             site.force_neworder_hack = args.getBooleanParam(ArgumentsParser.PARAM_NODE_FORCE_NEWORDERINSPECT);
             if (site.force_neworder_hack) LOG.info("Enabling the inspection of incoming neworder parameters");
+        }
+        // Clean-up Interval
+        if (args.hasIntParam(ArgumentsParser.PARAM_NODE_CLEANUP_INTERVAL)) {
+            site.helper_interval = args.getIntParam(ArgumentsParser.PARAM_NODE_CLEANUP_INTERVAL);
+            LOG.info("Setting Cleanup Interval = " + site.helper_interval + "ms");
+        }
+        // Txn Expiration Time
+        if (args.hasIntParam(ArgumentsParser.PARAM_NODE_CLEANUP_TXN_EXPIRE)) {
+            site.helper_txn_expire = args.getIntParam(ArgumentsParser.PARAM_NODE_CLEANUP_TXN_EXPIRE);
+            LOG.info("Setting Cleanup Txn Expiration = " + site.helper_txn_expire + "ms");
         }
         
         // Status Monitor
