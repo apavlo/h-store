@@ -46,6 +46,10 @@ public class PlannerContext {
     
     private transient final Map<Integer, PlanColumn> hashcode_col_xref = new HashMap<Integer, PlanColumn>();
 
+    public TreeMap<Integer, PlanColumn> getscolumnPool() {
+        return s_columnPool;
+    }
+    
     public PlanColumn getPlanColumn(AbstractExpression expression, String columnName) {
         return getPlanColumn(expression, columnName, SortOrder.kUnsorted, Storage.kTemporary);
     }

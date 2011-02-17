@@ -23,6 +23,7 @@ import org.json.JSONException;
 import org.json.JSONObject;
 import org.json.JSONStringer;
 import org.voltdb.catalog.Database;
+import org.voltdb.planner.PlanColumn;
 import org.voltdb.planner.PlannerContext;
 import org.voltdb.types.*;
 
@@ -155,5 +156,29 @@ public class OrderByPlanNode extends AbstractPlanNode {
             m_sortColumnGuids.add(sortColumn.getInt(Members.COLUMN_GUID.name()));
             m_sortDirections.add(SortDirectionType.valueOf(sortColumn.getString(Members.SORT_DIRECTION.name())));
         }
+    }
+
+    /** adds a plan column to the list of output columns **/
+    public void appendOutputColumn(PlanColumn column)
+    {
+        m_outputColumns.add(column.guid());
+    }
+
+    /** adds a sort column to the list of output columns **/
+    public void appendSortColumn(PlanColumn column)
+    {
+        m_sortColumnGuids.add(column.guid());
+    }
+
+    /** clears the list of output columns **/
+    public void clearOutputColumn()
+    {
+        m_outputColumns.clear();
+    }
+
+    /** clears the list of sort column GUIDS **/
+    public void clearSortColumn()
+    {
+        m_sortColumnGuids.clear();
     }
 }

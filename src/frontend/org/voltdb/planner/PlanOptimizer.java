@@ -735,7 +735,9 @@ public class PlanOptimizer {
                     clone_exp.setColumnIndex(i);
                     PlanColumn new_col = m_context.getPlanColumn(clone_exp, orig_pc.displayName(), orig_pc.getSortOrder(), orig_pc.getStorage());
                     assert (new_col != null);
-                    node.m_outputColumns.set(i, new_col.guid());
+                    // DWU: set this to the orig plan column guid
+                    node.m_outputColumns.set(i, orig_pc.guid());
+                    //node.m_outputColumns.set(i, new_col.guid());
                 }
             } // FOR                
             }
