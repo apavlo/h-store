@@ -112,9 +112,9 @@ public class TM1Loader extends TM1BaseClient {
             System.exit(-1);
         }
 
-        // LOG.debug("\n" + this.dumpTableCounts());
+        //System.err.println("\n" + this.dumpTableCounts());
 
-        LOG.debug("TM1 loader done. ");
+        //LOG.debug("TM1 loader done. ");
     }
 
     public String dumpTableCounts() {
