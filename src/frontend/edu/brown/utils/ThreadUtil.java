@@ -103,14 +103,7 @@ public abstract class ThreadUtil {
         p.destroy();
     }
     
-    /**
-     * For a given list of threads, execute them all (up to max_concurrent at a time) and return
-     * once they have completed. If max_concurrent is null, then all threads will be fired off at the same time
-     * @param threads
-     * @param max_concurrent
-     * @throws Exception
-     */
-    public static <R extends Runnable> void run(final Collection<R> threads) {
+    public static <R extends Runnable> void runGlobalPool(final Collection<R> threads) {
         final boolean d = LOG.isDebugEnabled();
         
         // Initialize the thread pool the first time that we run
@@ -131,13 +124,37 @@ public abstract class ThreadUtil {
             }
         } // SYNCHRONIZED
         
+        ThreadUtil.run(threads, ThreadUtil.pool, false);
+    }
+    
+    /**
+     * 
+     * @param <R>
+     * @param threads
+     */
+    public static <R extends Runnable> void runNewPool(final Collection<R> threads) {
+        ExecutorService pool = Executors.newCachedThreadPool();
+        ThreadUtil.run(threads, pool, true);
+    }
+    
+    /**
+     * For a given list of threads, execute them all (up to max_concurrent at a time) and return
+     * once they have completed. If max_concurrent is null, then all threads will be fired off at the same time
+     * @param threads
+     * @param max_concurrent
+     * @throws Exception
+     */
+    private static final <R extends Runnable> void run(final Collection<R> threads, final ExecutorService pool, final boolean stop_pool) {
+        final boolean d = LOG.isDebugEnabled();
+        
         int num_threads = threads.size();
         CountDownLatch latch = new CountDownLatch(num_threads);
         
         if (d) LOG.debug(String.format("Executing %d threads and blocking until they finish", num_threads));
         for (R r : threads) {
-            ThreadUtil.pool.execute(new LatchRunnable(r, latch));
+            pool.execute(new LatchRunnable(r, latch));
         } // FOR
+        if (stop_pool) pool.shutdown();
         
         try {
             latch.await();

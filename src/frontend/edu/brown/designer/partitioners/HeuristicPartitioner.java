@@ -130,7 +130,7 @@ public class HeuristicPartitioner extends AbstractPartitioner {
             }; // THREAD
             threads.add(thread);
         } // FOR
-        ThreadUtil.run(threads);
+        ThreadUtil.runNewPool(threads);
         
         // ----------------------------------------------------
         // (2) Combine all of the PartitionTrees from each Procedure into single

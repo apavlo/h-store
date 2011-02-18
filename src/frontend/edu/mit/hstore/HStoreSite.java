@@ -703,20 +703,22 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
                 this.shutdownCluster(); // Non-blocking...
                 return;
             }
-            
-        // Always execute this transaction at one of our partitions (random)
-        } else if (this.force_localexecution) {
-            if (t) LOG.debug("Forcing all transaction requests to execute locally");
-            dest_partition = CollectionUtil.getRandomValue(this.executors.keySet());
-            
         // Otherwise we use the PartitionEstimator to know where it is going
-        } else {
+        } else if (this.force_localexecution == false) {
             try {
                 dest_partition = this.p_estimator.getBasePartition(catalog_proc, args);
             } catch (Exception ex) {
                 throw new RuntimeException(ex);
             }
         }
+        // If we don't have a partition to send this transaction to, then we will just pick
+        // one our partitions at random. This can happen if we're forcing txns to execute locally
+        // or if there are no input parameters <-- this should be in the paper!!!
+        if (dest_partition == null) {
+            if (t && this.force_localexecution) LOG.debug("Forcing all transaction requests to execute locally");
+            dest_partition = CollectionUtil.getRandomValue(this.executors.keySet());
+        }
+        
         // assert(dest_partition >= 0);
         if (t) {
             LOG.trace("Client Handle = " + request.getClientHandle());
@@ -1273,7 +1275,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
 //        }
 
         // Blocks!
-        ThreadUtil.run(threads);
+        ThreadUtil.runNewPool(threads);
     }
     
     /**

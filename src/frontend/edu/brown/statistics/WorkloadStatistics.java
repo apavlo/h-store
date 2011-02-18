@@ -199,7 +199,7 @@ public class WorkloadStatistics implements JSONSerializable {
                 }
             });
         } // FOR
-        ThreadUtil.run(threads);
+        ThreadUtil.runNewPool(threads);
         
         // -----------------------------------------------------
         // POST-PROCESS
