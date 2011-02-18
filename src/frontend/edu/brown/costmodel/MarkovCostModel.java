@@ -224,20 +224,20 @@ public class MarkovCostModel extends AbstractCostModel {
             cost = this.comparePathsFull(s);
         }
         
-        if (cost > 0) {
-            System.err.println("COST = " + cost);
-            System.err.println("PENALTIES = " + this.penalties);
-            System.err.println("ESTIMATED PARTITIONS: " + this.e_all_partitions);
-            System.err.println("ACTUAL PARTITIONS: " + this.a_all_partitions);
-            System.err.println("ESTIMATED:\n" + StringUtil.join("\n", s.getEstimatedPath()) + "\n" + StringUtil.repeat("-", 100));
-            System.err.println("ACTUAL:\n" + StringUtil.join("\n", s.getActualPath()) + "\n");
-            
-            for (Estimate est : s.getEstimates()) {
-                System.err.println(est + "\n" + est.getVertex().debug() + "\n" + StringUtil.SINGLE_LINE);
-            }
-            
-            throw new RuntimeException("We're fucked");
-        }
+//        if (cost > 0) {
+//            System.err.println("COST = " + cost);
+//            System.err.println("PENALTIES = " + this.penalties);
+//            System.err.println("ESTIMATED PARTITIONS: " + this.e_all_partitions);
+//            System.err.println("ACTUAL PARTITIONS: " + this.a_all_partitions);
+//            System.err.println("ESTIMATED:\n" + StringUtil.join("\n", s.getEstimatedPath()) + "\n" + StringUtil.repeat("-", 100));
+//            System.err.println("ACTUAL:\n" + StringUtil.join("\n", s.getActualPath()) + "\n");
+//            
+//            for (Estimate est : s.getEstimates()) {
+//                System.err.println(est + "\n" + est.getVertex().debug() + "\n" + StringUtil.SINGLE_LINE);
+//            }
+//            
+//            throw new RuntimeException("We're fucked");
+//        }
 
         
         TransactionEstimator.getStatePool().returnObject(s);

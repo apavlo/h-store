@@ -475,7 +475,7 @@ public abstract class MarkovUtil {
      * @return
      * @throws Exception
      */
-    public static GraphvizExport<Vertex, Edge> exportGraphviz(MarkovGraph markov, boolean use_full_output, List<Edge> path) throws Exception {
+    public static GraphvizExport<Vertex, Edge> exportGraphviz(MarkovGraph markov, boolean use_full_output, List<Edge> path) {
         GraphvizExport<Vertex, Edge> graphviz = new GraphvizExport<Vertex, Edge>(markov);
         graphviz.setEdgeLabels(true);
         graphviz.getGlobalGraphAttributes().put(Attributes.PACK, "true");

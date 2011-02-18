@@ -156,7 +156,15 @@ public class MarkovGraphsContainer implements JSONSerializable {
         for (Map<Procedure, MarkovGraph> inner : this.markovs.values()) {
             for (Entry<Procedure, MarkovGraph> e : inner.entrySet()) {
                 e.getValue().calculateProbabilities();
-                assert(e.getValue().isValid()) : "Failed to calculate probabilities for " + e.getKey();
+                boolean is_valid = e.getValue().isValid();
+                if (is_valid == false) {
+                    try {
+                        System.err.println("DUMP: " + MarkovUtil.exportGraphviz(e.getValue(), false, null).writeToTempFile(e.getKey()));
+                    } catch (Exception ex) {
+                        throw new RuntimeException(ex);
+                    }
+                }
+                assert(is_valid) : "Failed to calculate probabilities for " + e.getKey();
             } // FOR
         } // FOR
     }
