@@ -1041,6 +1041,10 @@ public class Workload implements WorkloadTrace, Iterable<AbstractTraceElement<? 
             long txn_id = xact.getTransactionId();
             
             if (this.ignored_xact_ids.contains(txn_id)) return (null);
+            
+            Map<Integer, AtomicInteger> open_queries = this.xact_open_queries.get(txn_id);
+            assert(open_queries != null) : "Starting a query before starting the txn?? [" + txn_id + "]";
+            
             query_handle = new QueryTrace(catalog_statement, args, batch_id);
             xact.addQuery(query_handle);
             this.element_ids.add(query_handle.getId());
@@ -1049,20 +1053,20 @@ public class Workload implements WorkloadTrace, Iterable<AbstractTraceElement<? 
             
             // Make sure that there aren't still running queries in the previous batch
             if (batch_id > 0) {
-                AtomicInteger last_batch_ctr = this.xact_open_queries.get(txn_id).get(batch_id - 1);
-                if (last_batch_ctr.intValue() != 0) {
+                AtomicInteger last_batch_ctr = open_queries.get(batch_id - 1);
+                if (last_batch_ctr != null && last_batch_ctr.intValue() != 0) {
                     String msg = "Txn #" + txn_id + " is trying to start a new query in batch #" + batch_id + 
                                  " but there are still " + last_batch_ctr.intValue() + " queries running in batch #" + (batch_id-1);
                     throw new IllegalStateException(msg);
                 }
             }
             
-            AtomicInteger batch_ctr = this.xact_open_queries.get(txn_id).get(batch_id);
+            AtomicInteger batch_ctr = open_queries.get(batch_id);
             if (batch_ctr == null) {
-                synchronized (this.xact_open_queries.get(txn_id)) {
+                synchronized (open_queries) {
                     batch_ctr = new AtomicInteger(0);
-                    this.xact_open_queries.get(txn_id).put(batch_id, batch_ctr);
-                }
+                    open_queries.put(batch_id, batch_ctr);
+                } // SYNCHRONIZED
             }
             batch_ctr.incrementAndGet();
             
