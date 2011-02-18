@@ -9,6 +9,7 @@ import java.util.Set;
 import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.log4j.Logger;
 import org.voltdb.catalog.Database;
+import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Statement;
 import org.voltdb.types.QueryType;
 
@@ -532,10 +533,12 @@ public class MarkovCostModel extends AbstractCostModel {
             ArgumentsParser.PARAM_WORKLOAD,
             ArgumentsParser.PARAM_CORRELATIONS
         );
+
+        // Only load the MarkovGraphs that we actually need
+        Set<Procedure> procedures = args.workload.getProcedures(args.catalog_db);
         
         String input_path = args.getParam(ArgumentsParser.PARAM_MARKOV);
-        
-        Map<Integer, MarkovGraphsContainer> m = MarkovUtil.load(args.catalog_db, input_path);
+        Map<Integer, MarkovGraphsContainer> m = MarkovUtil.loadProcedures(args.catalog_db, input_path, procedures);
         assert(m != null);
         Boolean global = m.containsKey(MarkovUtil.GLOBAL_MARKOV_CONTAINER_ID);
         

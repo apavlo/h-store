@@ -1,6 +1,8 @@
 package edu.brown.markov;
 
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 
 import org.voltdb.catalog.Procedure;
 
@@ -20,8 +22,10 @@ public class MarkovGraphvizExport {
         String proc_name = args.getOptParam(0);
         Procedure catalog_proc = args.catalog_db.getProcedures().getIgnoreCase(proc_name);
         assert(catalog_proc != null);
+        Set<Procedure> procedures = new HashSet<Procedure>();
+        procedures.add(catalog_proc);
         
-        Map<Integer, MarkovGraphsContainer> m = MarkovUtil.load(args.catalog_db, input_path);
+        Map<Integer, MarkovGraphsContainer> m = MarkovUtil.loadProcedures(args.catalog_db, input_path, procedures);
         MarkovGraphsContainer markovs = null;
         MarkovGraph markov = null;
         if (m.containsKey(MarkovUtil.GLOBAL_MARKOV_CONTAINER_ID)) {

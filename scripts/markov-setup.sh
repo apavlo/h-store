@@ -15,6 +15,7 @@ PARTITIONS=( \
 )
 HEAP_SIZE=3072
 MAX_THREADS=2
+MAKE_GLOBAL=false
 
 WORKLOAD_BUILD_SIZE=50000
 WORKLOAD_BUILD_MULTIPLIER=500
@@ -60,6 +61,9 @@ for BENCHMARK in ${BENCHMARKS[@]}; do
             
         for GLOBAL in "true" "false" ]; do
             if [ $GLOBAL = "true" ]; then
+                if [ $MAKE_GLOBAL != "true" ]; then
+                    continue
+                fi
                 MARKOV_FILE=$MARKOV_FILES_DIR/$BENCHMARK.global.${NUM_PARTITIONS}p.markovs
             else
                 MARKOV_FILE=$MARKOV_FILES_DIR/$BENCHMARK.${NUM_PARTITIONS}p.markovs
