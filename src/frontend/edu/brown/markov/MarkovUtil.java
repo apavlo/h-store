@@ -4,16 +4,7 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.SortedSet;
-import java.util.TreeSet;
+import java.util.*;
 
 import org.apache.log4j.Logger;
 import org.json.JSONObject;
@@ -337,23 +328,24 @@ public abstract class MarkovUtil {
      * @return
      * @throws Exception
      */
-    public static MarkovGraphsContainer load(Database catalog_db, String input_path, int id) throws Exception {
+    public static MarkovGraphsContainer loadId(Database catalog_db, String input_path, int id) throws Exception {
         Set<Integer> idset = (Set<Integer>)CollectionUtil.addAll(new HashSet<Integer>(), Integer.valueOf(id));
-        Map<Integer, MarkovGraphsContainer> markovs = MarkovUtil.load(catalog_db, input_path, idset);
+        Map<Integer, MarkovGraphsContainer> markovs = MarkovUtil.load(catalog_db, input_path, null, idset);
         assert(markovs.size() == 1);
         assert(markovs.containsKey(id));
         return (markovs.get(id));
     }
     
-    /**
-     * Load all of the MarkovGraphsContainers at the given input path
-     * @param catalog_db
-     * @param input_path
-     * @return
-     * @throws Exception
-     */
-    public static Map<Integer, MarkovGraphsContainer> load(Database catalog_db, String input_path) throws Exception {
-        return (MarkovUtil.load(catalog_db, input_path, null));
+    public static Map<Integer, MarkovGraphsContainer> loadIds(Database catalog_db, String input_path, Collection<Integer> ids) throws Exception {
+        return (MarkovUtil.load(catalog_db, input_path, null, ids));
+    }
+    
+    public static Map<Integer, MarkovGraphsContainer> loadProcedures(Database catalog_db, String input_path, Collection<Procedure> procedures) throws Exception {
+        return (MarkovUtil.load(catalog_db, input_path, procedures, null));
+    }
+    
+    public static Map<Integer, MarkovGraphsContainer> load(final Database catalog_db, String input_path) throws Exception {
+        return (MarkovUtil.load(catalog_db, input_path, null, null));
     }
     
     /**
@@ -364,10 +356,10 @@ public abstract class MarkovUtil {
      * @return
      * @throws Exception
      */
-    public static Map<Integer, MarkovGraphsContainer> load(final Database catalog_db, String input_path, Collection<Integer> ids) throws Exception {
+    public static Map<Integer, MarkovGraphsContainer> load(final Database catalog_db, String input_path, Collection<Procedure> procedures, Collection<Integer> ids) throws Exception {
         final Map<Integer, MarkovGraphsContainer> ret = new HashMap<Integer, MarkovGraphsContainer>();
         final String className = MarkovGraphsContainer.class.getSimpleName();
-        LOG.info("Loading in serialized " + className + " from '" + input_path + "' [ids=" + ids + "]");
+        LOG.info(String.format("Loading in serialized %s from '%s' [procedures=%s, ids=%s]", className, input_path, procedures, ids));
         
         try {
             // File Format: One PartitionId per line, each with its own MarkovGraphsContainer 
@@ -398,11 +390,12 @@ public abstract class MarkovUtil {
                             line_xref.put(offset, partition);
                         }
                     } // FOR
+                    LOG.info(String.format("Loading %d MarkovGraphsContainers", line_xref.size()));
                     
                 // Otherwise check whether this is a line number that we care about
                 } else if (line_xref.containsKey(Integer.valueOf(line_ctr))) {
                     final Integer partition = line_xref.remove(Integer.valueOf(line_ctr));
-                    MarkovGraphsContainer markovs = new MarkovGraphsContainer();
+                    MarkovGraphsContainer markovs = new MarkovGraphsContainer(procedures);
                     JSONObject json_object = new JSONObject(line);
                     LOG.info("Populating MarkovGraphsContainer for partition " + partition);
                     markovs.fromJSON(json_object.getJSONObject(partition.toString()), catalog_db);
