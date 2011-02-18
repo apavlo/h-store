@@ -234,7 +234,7 @@ public abstract class MarkovUtil {
             });
         } // FOR
         try {
-            ThreadUtil.run(runnables, 5);
+            ThreadUtil.run(runnables);
         } catch (Exception ex) {
             throw new RuntimeException(ex);
         }
@@ -364,7 +364,7 @@ public abstract class MarkovUtil {
      * @return
      * @throws Exception
      */
-    public static Map<Integer, MarkovGraphsContainer> load(Database catalog_db, String input_path, Collection<Integer> ids) throws Exception {
+    public static Map<Integer, MarkovGraphsContainer> load(final Database catalog_db, String input_path, Collection<Integer> ids) throws Exception {
         final Map<Integer, MarkovGraphsContainer> ret = new HashMap<Integer, MarkovGraphsContainer>();
         final String className = MarkovGraphsContainer.class.getSimpleName();
         LOG.info("Loading in serialized " + className + " from '" + input_path + "' [ids=" + ids + "]");
@@ -378,7 +378,7 @@ public abstract class MarkovUtil {
             
             int line_ctr = 0;
             while (in.ready()) {
-                String line = in.readLine();
+                final String line = in.readLine();
                 
                 // If this is the first line, then it is our index
                 if (line_ctr == 0) {
@@ -401,23 +401,24 @@ public abstract class MarkovUtil {
                     
                 // Otherwise check whether this is a line number that we care about
                 } else if (line_xref.containsKey(Integer.valueOf(line_ctr))) {
-                    JSONObject json_object = new JSONObject(line);
-                    Integer partition = line_xref.remove(Integer.valueOf(line_ctr));
-                    
+                    final Integer partition = line_xref.remove(Integer.valueOf(line_ctr));
                     MarkovGraphsContainer markovs = new MarkovGraphsContainer();
+                    JSONObject json_object = new JSONObject(line);
+                    LOG.info("Populating MarkovGraphsContainer for partition " + partition);
                     markovs.fromJSON(json_object.getJSONObject(partition.toString()), catalog_db);
-                    ret.put(partition, markovs);
+                    ret.put(partition, markovs);        
                     
                     if (line_xref.isEmpty()) break;
                 }
                 line_ctr++;
             } // WHILE
             if (line_ctr == 0) throw new IOException("The " + className + " file '" + input_path + "' is empty");
+            
         } catch (Exception ex) {
             LOG.error("Failed to deserialize the " + className + " from file '" + input_path + "'", ex);
             throw new IOException(ex);
         }
-        LOG.debug("The loading of the " + className + " is complete");
+        LOG.info("The loading of the " + className + " is complete");
         return (ret);
     }
     

@@ -1768,14 +1768,10 @@ DESIGNER
 </target>
 
 <target name='workload-combine'>
-    <condition property="jar" value="${benchmark.jar}">
-        <not><isset property="jar"/></not>
-    </condition>
-
     <java fork="yes" failonerror="true" classname="edu.brown.workload.CombineWorkloadTraces">
         <jvmarg value="-Xmx${volt.server.memory}m" />
         <jvmarg value="-Dlog4j.configuration=${basedir}/log4j.properties"/>
-        <arg value="catalog.jar=${jar}" />
+        <arg value="catalog.jar=${benchmark.jar}" />
         <arg value="workload.output=${output}" />
         <arg value="${workload}" />
         <classpath refid='project.classpath' />
@@ -1839,6 +1835,25 @@ DESIGNER
         <assertions><enable /></assertions>
     </java>
 </target>
+
+<target name='markov-cost' description="Estimate MarkovGraph Costs">
+    <java fork="yes" classname="edu.brown.costmodel.MarkovCostModel" failonerror='true'>
+        <jvmarg value="-Xmx${volt.client.memory}m" />
+        <jvmarg value="-Dhstore.max_threads=${hstore.max_threads}" />
+        <arg value="catalog.jar=${jar}" />
+        <arg value="workload=${workload}" />
+        <arg value="workload.xactlimit=${limit}" />
+        <arg value="workload.xactoffset=${offset}" />
+        <arg value="workload.procexclude=${exclude}" />
+        <arg value="workload.procinclude=${include}" />
+        <arg value="workload.procinclude.multiplier=${multiplier}" />
+        <arg value="correlations=files/correlations/${project}.correlations" />
+        <arg value="markov=${markov}" />
+        <classpath refid='project.classpath' />
+        <assertions><enable /></assertions>
+    </java>
+</target>
+
 
 <target name='markov-graphviz' description="Create MarkovGraphs Graphviz files">
     <java fork="yes" classname="edu.brown.markov.MarkovGraphvizExport" failonerror='true'>
