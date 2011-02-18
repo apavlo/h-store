@@ -21,7 +21,7 @@ public class TestThreadUtil extends TestCase {
             });
         } // FOR
         
-        ThreadUtil.run(threads);
+        ThreadUtil.runNewPool(threads);
         assertEquals(num_threads, ctr.get());
     }
     

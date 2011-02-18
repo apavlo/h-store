@@ -380,7 +380,7 @@ public class BenchmarkController {
 
             
             try {
-                ThreadUtil.run(threads);
+                ThreadUtil.runNewPool(threads);
             } catch (Exception e) {
                 LogKeys logkey = LogKeys.benchmark_BenchmarkController_UnableToRunRemoteKill;
                 benchmarkLog.l7dlog(Level.FATAL, logkey.name(), e);

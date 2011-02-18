@@ -225,7 +225,7 @@ public abstract class MarkovUtil {
             });
         } // FOR
         try {
-            ThreadUtil.run(runnables);
+            ThreadUtil.runGlobalPool(runnables);
         } catch (Exception ex) {
             throw new RuntimeException(ex);
         }

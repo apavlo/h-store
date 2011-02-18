@@ -373,6 +373,6 @@ public class MarkovGraphsContainer implements JSONSerializable {
             } // FOR (proc key)
         } // FOR (id key)
         if (d) LOG.debug(String.format("Going to wait for %d MarkovGraphs to load", runnables.size())); 
-        ThreadUtil.run(runnables);
+        ThreadUtil.runGlobalPool(runnables);
     }
 }
