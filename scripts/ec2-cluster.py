@@ -17,7 +17,7 @@ logging.basicConfig(level = logging.INFO,
                     datefmt="%m-%d-%Y %H:%M:%S",
                     stream = sys.stderr)
 
-INSTANCES = [
+ALL_INSTANCES = [
     "i-8f6227e3",
     "i-b50b4fd9",
     "i-bd6e29d1",
@@ -73,7 +73,7 @@ def getInstanceIPs(instances):
 ## ==============================================
 def deployHostsFile(public_ip, hosts_file, mount_nfs = False):
     ## I'm too lazy to install autofs
-    extra = "&& sudo mount /opt/nfs" if mount_nfs else ""
+    extra = "&& sh -c 'if [ `mount | grep -c hstore-nfs` = 0 ]; then sudo mount /opt/nfs ; fi'" if mount_nfs else ""
     
     inst_commands = [
         "scp %s %s %s@%s:~/" % (SSH_OPTIONS, hosts_file, SSH_USER, public_ip), \
@@ -95,6 +95,8 @@ if __name__ == '__main__':
     _options, args = getopt.gnu_getopt(sys.argv[1:], '', [
         ## Mount NFS
         "mount-nfs",
+        ## Limit the number of instances to start/stop
+        "limit=",
         ## Enable debug logging
         "debug",
     ])
@@ -114,11 +116,12 @@ if __name__ == '__main__':
     assert len(args) > 0
     command = args[0].strip().lower()
     assert command in [ "start", "stop", "update" ]
-    instances = args[1:] if len(args) > 1 else INSTANCES
-    
+    instances = args[1:] if len(args) > 1 else ALL_INSTANCES
+    if "limit" in options: instances = instances[:int(options["limit"][0])]
     
     if command in [ "start", "stop" ]:
-        cmd = "%s %s" % (EC2_START_COMMAND if command == "start" else EC2_STOP_COMMAND, " ".join(INSTANCES))
+        logging.info("%sing %d instances" % (command.title(), len(instances)))
+        cmd = "%s %s" % (EC2_START_COMMAND if command == "start" else EC2_STOP_COMMAND, " ".join(instances))
         (result, output) = commands.getstatusoutput(cmd)
         assert result == 0, "%s\n%s" % (cmd, output)
     
