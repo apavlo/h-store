@@ -22,6 +22,7 @@ import edu.brown.catalog.CatalogKey;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.JSONSerializable;
 import edu.brown.utils.JSONUtil;
+import edu.brown.utils.ThreadUtil;
 
 /**
  * Convenience wrapper for a collection of Procedure-based MarkovGraphs that are split on some unique id 
@@ -235,7 +236,7 @@ public class MarkovGraphsContainer implements JSONSerializable {
     }
 
     @Override
-    public void fromJSON(JSONObject json_object, Database catalog_db) throws JSONException {
+    public void fromJSON(JSONObject json_object, final Database catalog_db) throws JSONException {
         // IS GLOBAL
         this.global = json_object.getBoolean(Members.GLOBAL.name());
         
@@ -255,21 +256,32 @@ public class MarkovGraphsContainer implements JSONSerializable {
         
         // MARKOV GRAPHS
         json_inner = json_object.getJSONObject(Members.MARKOVS.name());
+        List<Runnable> runnables = new ArrayList<Runnable>();
         for (String id_key : CollectionUtil.wrapIterator(json_inner.keys())) {
-            Integer id = Integer.valueOf(id_key);
+            final Integer id = Integer.valueOf(id_key);
         
-            JSONObject json_procs = json_inner.getJSONObject(id_key);
+            final JSONObject json_procs = json_inner.getJSONObject(id_key);
             assert(json_procs != null);
             
-            for (String proc_key : CollectionUtil.wrapIterator(json_procs.keys())) {
-                Procedure catalog_proc = CatalogKey.getFromKey(catalog_db, proc_key, Procedure.class);
-                assert(catalog_proc != null);
-                
-                JSONObject json_graph = json_procs.getJSONObject(proc_key);
-                MarkovGraph markov = new MarkovGraph(catalog_proc);
-                markov.fromJSON(json_graph, catalog_db);
-                this.put(id, markov);
+            for (final String proc_key : CollectionUtil.wrapIterator(json_procs.keys())) {
+                runnables.add(new Runnable() {
+                    @Override
+                    public void run() {
+                        final Procedure catalog_proc = CatalogKey.getFromKey(catalog_db, proc_key, Procedure.class);
+                        assert(catalog_proc != null);
+                        
+                        try {
+                            JSONObject json_graph = json_procs.getJSONObject(proc_key);
+                            MarkovGraph markov = new MarkovGraph(catalog_proc);
+                            markov.fromJSON(json_graph, catalog_db);
+                            MarkovGraphsContainer.this.put(id, markov);
+                        } catch (Exception ex) {
+                            throw new RuntimeException(ex);
+                        }
+                    }
+                });
             } // FOR (proc key)
         } // FOR (id key)
+        ThreadUtil.run(runnables);
     }
 }

@@ -102,6 +102,9 @@ public class CombineWorkloadTraces {
             File base_workload_path = new File(args.getOptParam(i));
             File base_directory = base_workload_path.getParentFile();
             String base_workload_name = base_workload_path.getName();
+            if (base_workload_name.endsWith("*")) {
+                base_workload_name = base_workload_name.substring(0, base_workload_name.length()-2);
+            }
             
             workload_files.addAll(FileUtil.getFilesInDirectory(base_directory, base_workload_name));
             if (workload_files.isEmpty()) {

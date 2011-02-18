@@ -562,7 +562,8 @@ public class MarkovCostModel extends AbstractCostModel {
         Histogram accurate_h = new Histogram();
         Histogram penalty_h = new Histogram();
         Set<PenaltyGroup> penalty_groups = new HashSet<PenaltyGroup>();
-        
+ 
+        LOG.info(String.format("Estimating the accuracy of the MarkovGraphs using %d transactions", args.workload.getTransactionCount()));
         for (TransactionTrace txn_trace : args.workload.getTransactions()) {
             double cost = costmodel.estimateTransactionCost(args.catalog_db, txn_trace);
             String proc_name = txn_trace.getCatalogItemName();

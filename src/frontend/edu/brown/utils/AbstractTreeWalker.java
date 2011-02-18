@@ -107,6 +107,10 @@ public abstract class AbstractTreeWalker<E> implements Poolable {
      * types of traversal through the tree
      */
     private final Map<E, Children> attached_children = new HashMap<E, Children>();
+    /**
+     * Depth limit (for debugging)
+     */
+    private int depth_limit = -1;
     
     // ----------------------------------------------------------------------
     // CLEANUP
@@ -121,6 +125,7 @@ public abstract class AbstractTreeWalker<E> implements Poolable {
         this.stop = false;
         this.allow_revisit = false;
         this.counter = 0;
+        this.depth_limit = -1;
         this.attached_children.clear();
     }
     
@@ -210,6 +215,13 @@ public abstract class AbstractTreeWalker<E> implements Poolable {
         return (this.counter);
     }
     /**
+     * Set the depth limit. Once this reached we will dump out the stack
+     * @param limit
+     */
+    protected final void setDepthLimit(int limit) {
+        this.depth_limit = limit;
+    }
+    /**
      * The callback() method can call this if it wants the walker to break out of the traversal
      */
     protected final void stop() {
@@ -256,9 +268,9 @@ public abstract class AbstractTreeWalker<E> implements Poolable {
                               "Visited=" + this.visited.size() + "]");
     
         // Stackoverflow check
-        if (this.depth > 100) {
+        if (this.depth_limit >= 0 && this.depth > this.depth_limit) {
+            LOG.fatal("Reached depth limit [" + this.depth + "]");
             System.err.println(StringUtil.join("\n", Thread.currentThread().getStackTrace()));
-            System.err.println("!!!");
             System.exit(1);
         }
         

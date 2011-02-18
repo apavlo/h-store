@@ -680,7 +680,12 @@ public class BenchmarkController {
     }
 
     public void runBenchmark() {
-        LOG.info(String.format("Starting execution phase with %d clients [hosts=%d, clientsperhost=%d]", m_clients.size(), m_config.clients.length, m_config.processesPerClient));
+        LOG.info(String.format("Starting execution phase with %d clients [hosts=%d, clientsperhost=%d, txnrate=%d]",
+                                m_clients.size(),
+                                m_config.clients.length,
+                                m_config.processesPerClient,
+                                m_config.parameters.get("TXNRATE")
+        ));
         
         m_currentResults = new BenchmarkResults(m_config.interval, m_config.duration, m_clients.size());
         m_statusThread = new ClientStatusThread();
