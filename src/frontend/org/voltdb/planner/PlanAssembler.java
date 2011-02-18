@@ -1214,7 +1214,7 @@ public class PlanAssembler {
         }
         
         // PAVLO: Push non-AVG aggregates down into the scan for multi-partition queries
-        while (false && aggNode != null) {
+        while (aggNode != null) {
             // String orig_root_debug2 = PlanNodeUtil.debug(root);
             if (debug) LOG.debug("Trying to apply Aggregate pushdown optimization!");
             
@@ -1229,6 +1229,10 @@ public class PlanAssembler {
                 break;
             }
             
+            // DWU add
+            if (!(aggNode.getChild(0) instanceof ReceivePlanNode)) {
+                break;
+            }
             // Get the AbstractScanPlanNode that is directly below us
             Set<AbstractScanPlanNode> scans = PlanNodeUtil.getPlanNodes(aggNode, AbstractScanPlanNode.class);
             if (scans.size() != 1) {
@@ -1285,15 +1289,23 @@ public class PlanAssembler {
             
             clone_node.getGroupByColumns().addAll(aggNode.getGroupByColumns());
             clone_node.getGroupByColumnNames().addAll(aggNode.getGroupByColumnNames());
+            // DWU add
+            clone_node.getGroupByColumnIds().addAll(aggNode.getGroupByColumnIds());
             clone_node.getAggregateColumnGuids().addAll(aggNode.getAggregateColumnGuids());
             clone_node.getAggregateColumnNames().addAll(aggNode.getAggregateColumnNames());
             clone_node.getAggregateTypes().addAll(aggNode.getAggregateTypes());
             clone_node.getAggregateOutputColumns().addAll(aggNode.getAggregateOutputColumns());
             clone_node.m_outputColumns.addAll(aggNode.m_outputColumns); // HACK
             
+            // set aggregate node to contain sum
+            aggNode.getAggregateTypes().clear();
+            ArrayList<ExpressionType> exp_types = new ArrayList<ExpressionType>();
+            exp_types.add(ExpressionType.AGGREGATE_SUM);
+            aggNode.getAggregateTypes().addAll(exp_types);
+            
             assert(clone_node.getGroupByColumns().size() == aggNode.getGroupByColumns().size());
             assert(clone_node.getGroupByColumnNames().size() == aggNode.getGroupByColumnNames().size());
-            assert(clone_node.getGroupByColumnIds().size() == aggNode.getGroupByColumnIds().size());
+            assert(clone_node.getGroupByColumnIds().size() == aggNode.getGroupByColumnIds().size()) : clone_node.getGroupByColumnIds().size() + " not equal " + aggNode.getGroupByColumnIds().size();
             assert(clone_node.getAggregateTypes().size() == aggNode.getAggregateTypes().size());
             assert(clone_node.getAggregateColumnGuids().size() == aggNode.getAggregateColumnGuids().size());
             assert(clone_node.getAggregateColumnNames().size() == aggNode.getAggregateColumnNames().size());

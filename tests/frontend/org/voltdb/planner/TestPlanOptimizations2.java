@@ -346,9 +346,6 @@ public class TestPlanOptimizations2 extends BaseTestCase {
         }.traverse(node);
     }
 
-    /**
-     * testAggregate
-     */
     @Test
     public void testAggregate() throws Exception {
         Procedure catalog_proc = this.getProcedure("Aggregate");
@@ -359,12 +356,10 @@ public class TestPlanOptimizations2 extends BaseTestCase {
         AbstractPlanNode root = QueryPlanUtil.deserializeStatement(catalog_stmt, true);
         assertNotNull(root);
 //        validateNodeColumnOffsets(root);
-        // System.err.println(PlanNodeUtil.debug(root));
+        System.err.println(PlanNodeUtil.debug(root));
     }
 
-    /**
-     * testDistinctAggregate
-     */
+    /** Other NON-Aggregate test cases **/
     @Test
     public void testDistinct() throws Exception {
         Procedure catalog_proc = this.getProcedure("DistinctAggregate");
@@ -376,8 +371,6 @@ public class TestPlanOptimizations2 extends BaseTestCase {
         //validateNodeColumnOffsets(root);
         // System.err.println(PlanNodeUtil.debug(root));
     }
-
-    /** Other NON-Aggregate test cases **/
 
     @Test
     public void testLimit() throws Exception {
@@ -626,7 +619,7 @@ public class TestPlanOptimizations2 extends BaseTestCase {
         // Statement
         AbstractPlanNode root = QueryPlanUtil.deserializeStatement(catalog_stmt, true);
         assertNotNull(root);
-        System.err.println(PlanNodeUtil.debug(root));
+        //System.err.println(PlanNodeUtil.debug(root));
         //validateNodeColumnOffsets(root);
     }
 

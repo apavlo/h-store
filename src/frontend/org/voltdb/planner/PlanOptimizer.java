@@ -20,6 +20,7 @@ import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Table;
 import org.voltdb.expressions.AbstractExpression;
 import org.voltdb.expressions.TupleValueExpression;
+import org.voltdb.planner.PlanColumn.Storage;
 import org.voltdb.plannodes.AbstractJoinPlanNode;
 import org.voltdb.plannodes.AbstractPlanNode;
 import org.voltdb.plannodes.AbstractScanPlanNode;
@@ -564,12 +565,17 @@ public class PlanOptimizer {
             int new_idx = 0;
             for (Integer guid : child_node.m_outputColumns) {
                 PlanColumn pc = m_context.get(guid);
-                assert (pc != null);
-                if (pc.equals(orig_pc, true, true)) {
-                    if (trace)
-                        LOG.trace(String.format("[%02d] Found non-expression PlanColumn match:\nORIG: %s\nNEW:  %s", new_idx, orig_pc, pc));
+                if (pc.getStorage().equals(Storage.kTemporary)) {
                     new_pc = pc;
                     break;
+                } else {
+                    assert (pc != null);
+                    if (pc.equals(orig_pc, true, true)) {
+                        if (trace)
+                            LOG.trace(String.format("[%02d] Found non-expression PlanColumn match:\nORIG: %s\nNEW:  %s", new_idx, orig_pc, pc));
+                        new_pc = pc;
+                        break;
+                    }                    
                 }
                 new_idx++;
             } // FOR
@@ -591,12 +597,17 @@ public class PlanOptimizer {
             int new_idx = 0;
             for (Integer guid : child_node.m_outputColumns) {
                 PlanColumn pc = m_context.get(guid);
-                assert (pc != null);
-                if (pc.equals(orig_pc, true, true)) {
-                    if (trace)
-                        LOG.trace(String.format("[%02d] Found non-expression PlanColumn match:\nORIG: %s\nNEW:  %s", new_idx, orig_pc, pc));
+                if (pc.getStorage().equals(Storage.kTemporary)) {
                     new_pc = pc;
                     break;
+                } else {
+                    assert (pc != null);
+                    if (pc.equals(orig_pc, true, true)) {
+                        if (trace)
+                            LOG.trace(String.format("[%02d] Found non-expression PlanColumn match:\nORIG: %s\nNEW:  %s", new_idx, orig_pc, pc));
+                        new_pc = pc;
+                        break;
+                    }                    
                 }
                 new_idx++;
             } // FOR
