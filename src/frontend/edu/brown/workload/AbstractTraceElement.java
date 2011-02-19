@@ -259,6 +259,7 @@ public abstract class AbstractTraceElement<T extends CatalogType> implements JSO
     
     protected <U extends CatalogType> void paramsFromJSONObject(JSONObject object, CatalogMap<U> catalog_params, String param_field) throws Exception {
         assert(catalog_params != null);
+        final Thread self = Thread.currentThread();
         JSONArray jsonParams = object.getJSONArray(Members.PARAMS.name());
         int num_params = catalog_params.size();
         this.params = new Object[num_params];
@@ -304,7 +305,7 @@ public abstract class AbstractTraceElement<T extends CatalogType> implements JSO
             if (param_isarray) {
                 Object inner[] = new Object[jsonInner.length()];
                 for (int j = 0; j < jsonInner.length(); j++) {
-                    inner[j] = VoltTypeUtil.getObjectFromString(param_type, jsonInner.getString(j));
+                    inner[j] = VoltTypeUtil.getObjectFromString(param_type, jsonInner.getString(j), self);
                     if (inner[j] == null) {
                         LOG.fatal("Array parameter " + j + " for " + catalog_param + " is null");
                         System.exit(1);
@@ -316,7 +317,7 @@ public abstract class AbstractTraceElement<T extends CatalogType> implements JSO
             } else {
                 //System.err.println("[" + i + "] " + jsonParams.getString(i) + " (" + param_type + ")");
                 try {
-                    this.params[i] = VoltTypeUtil.getObjectFromString(param_type, jsonParams.getString(i));
+                    this.params[i] = VoltTypeUtil.getObjectFromString(param_type, jsonParams.getString(i), self);
                     if (this.params[i] == null) {
                         throw new Exception(catalog_param + " is null [" + param_type + "]");
                     }

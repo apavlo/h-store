@@ -444,13 +444,14 @@ public class Workload implements WorkloadTrace, Iterable<AbstractTraceElement<? 
                 int thread_ctr = 0;
                 try {
                     while (in.ready()) {
-                        String line = new String(in.readLine().trim());
+                        String line = in.readLine().trim();
                         if (line.isEmpty()) continue;
                         load_threads.get(thread_ctr).lines.add(Pair.of(line_ctr, line));
                         if (++thread_ctr == num_threads) thread_ctr = 0;
                         line_ctr++;
                     } // WHILE
                     in.close();
+                    if (debug) LOG.debug("Finished reading file. Telling all LoadThreads to stop when their queue is empty");
                     
                     // Tell all the load threads to stop before we finish
                     for (LoadThread lt : load_threads) {
@@ -484,7 +485,6 @@ public class Workload implements WorkloadTrace, Iterable<AbstractTraceElement<? 
         @Override
         public void run() {
             final boolean trace = LOG.isTraceEnabled();
-//            final boolean debug = LOG.isDebugEnabled();
 
             AtomicInteger xact_ctr = this.counters[0];
             AtomicInteger query_ctr = this.counters[1];
@@ -503,7 +503,11 @@ public class Workload implements WorkloadTrace, Iterable<AbstractTraceElement<? 
                 }
 
                 if (p == null) {
-                    if (this.stop) break;
+                    if (this.stop) {
+                        if (trace) LOG.trace("Queue is empty and we were told to stop!");
+                        break;
+                    }
+                    if (trace) LOG.trace("Queue is empty but we haven't been told to stop yet");
                     continue;
                 }
                 
@@ -514,6 +518,7 @@ public class Workload implements WorkloadTrace, Iterable<AbstractTraceElement<? 
                 
                     // TransactionTrace
                     if (jsonObject.has(TransactionTrace.Members.TXN_ID.name())) {
+                        
                         // If we have already loaded in up to our limit, then we don't need to
                         // do anything else. But we still have to keep reading because we need
                         // be able to load in our index structures that are at the bottom of the file
@@ -553,6 +558,7 @@ public class Workload implements WorkloadTrace, Iterable<AbstractTraceElement<? 
         }
         
         public void stop() {
+            LOG.trace("Told to stop [queue_size=" + this.lines.size() + "]");
             this.stop = true;
         }
     }
@@ -778,7 +784,7 @@ public class Workload implements WorkloadTrace, Iterable<AbstractTraceElement<? 
      * @param xact
      * @param force_index_update
      */
-    protected void addTransaction(Procedure catalog_proc, TransactionTrace xact, boolean force_index_update) {
+    protected synchronized void addTransaction(Procedure catalog_proc, TransactionTrace xact, boolean force_index_update) {
         this.xact_trace.add(xact);
         this.xact_trace_xref.put(xact.getTransactionId(), xact);
         this.xact_open_queries.put(xact.getTransactionId(), new HashMap<Integer, AtomicInteger>());

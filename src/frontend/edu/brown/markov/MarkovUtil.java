@@ -364,6 +364,8 @@ public abstract class MarkovUtil {
      * @throws Exception
      */
     public static Map<Integer, MarkovGraphsContainer> load(final Database catalog_db, String input_path, Collection<Procedure> procedures, Collection<Integer> ids) throws Exception {
+        final boolean d = LOG.isDebugEnabled();
+        
         final Map<Integer, MarkovGraphsContainer> ret = new HashMap<Integer, MarkovGraphsContainer>();
         final String className = MarkovGraphsContainer.class.getSimpleName();
         LOG.info(String.format("Loading in serialized %s from '%s' [procedures=%s, ids=%s]", className, input_path, procedures, ids));
@@ -397,14 +399,14 @@ public abstract class MarkovUtil {
                             line_xref.put(offset, partition);
                         }
                     } // FOR
-                    LOG.info(String.format("Loading %d MarkovGraphsContainers", line_xref.size()));
+                    if (d) LOG.debug(String.format("Loading %d MarkovGraphsContainers", line_xref.size()));
                     
                 // Otherwise check whether this is a line number that we care about
                 } else if (line_xref.containsKey(Integer.valueOf(line_ctr))) {
                     final Integer partition = line_xref.remove(Integer.valueOf(line_ctr));
                     MarkovGraphsContainer markovs = new MarkovGraphsContainer(procedures);
                     JSONObject json_object = new JSONObject(line);
-                    LOG.info("Populating MarkovGraphsContainer for partition " + partition);
+                    if (d) LOG.debug("Populating MarkovGraphsContainer for partition " + partition);
                     markovs.fromJSON(json_object.getJSONObject(partition.toString()), catalog_db);
                     ret.put(partition, markovs);        
                     
@@ -418,7 +420,7 @@ public abstract class MarkovUtil {
             LOG.error("Failed to deserialize the " + className + " from file '" + input_path + "'", ex);
             throw new IOException(ex);
         }
-        LOG.info("The loading of the " + className + " is complete");
+        if (d) LOG.debug("The loading of the " + className + " is complete");
         return (ret);
     }
     
