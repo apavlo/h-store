@@ -103,15 +103,29 @@ public abstract class ThreadUtil {
         p.destroy();
     }
     
+    /**
+     * Get the max number of threads that will be allowed to run concurrenctly in the global pool
+     * @return
+     */
+    public static int getMaxGlobalThreads() {
+        int max_threads = 5;
+        String prop = System.getProperty("hstore.max_threads");
+        if (prop != null && prop.startsWith("${") == false) max_threads = Integer.parseInt(prop);
+        return (max_threads);
+    }
+    
+    /**
+     * 
+     * @param <R>
+     * @param threads
+     */
     public static <R extends Runnable> void runGlobalPool(final Collection<R> threads) {
         final boolean d = LOG.isDebugEnabled();
         
         // Initialize the thread pool the first time that we run
         synchronized (ThreadUtil.lock) {
             if (ThreadUtil.pool == null) {
-                int max_threads = 5;
-                String prop = System.getProperty("hstore.max_threads");
-                if (prop != null && prop.startsWith("${") == false) max_threads = Integer.parseInt(prop);
+                int max_threads = ThreadUtil.getMaxGlobalThreads();
                 if (d) LOG.debug("Creating new fixed thread pool [num_threads=" + max_threads + "]");
                 ThreadUtil.pool = Executors.newFixedThreadPool(max_threads, new ThreadFactory() {
                     @Override

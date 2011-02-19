@@ -321,7 +321,7 @@ public abstract class AbstractTraceElement<T extends CatalogType> implements JSO
                         throw new Exception(catalog_param + " is null [" + param_type + "]");
                     }
                 } catch (Exception ex) {
-                    LOG.fatal("Failed to convert param '" + jsonParams.getString(i) + "' to " + param_type + " for " + catalog_param + " in " + CatalogUtil.getDisplayName(catalog_param.getParent()));
+                    LOG.fatal("Failed to convert param '" + jsonParams.getString(i) + "' to " + param_type + " for " + catalog_param + " in " + CatalogUtil.getDisplayName(catalog_param.getParent()), ex);
                     throw ex;
                 }
             }

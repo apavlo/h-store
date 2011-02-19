@@ -33,6 +33,8 @@ import java.io.FileReader;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.util.*;
+import java.util.concurrent.LinkedBlockingDeque;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.zip.GZIPInputStream;
 
@@ -43,11 +45,13 @@ import org.json.JSONObject;
 import org.voltdb.*;
 import org.voltdb.catalog.*;
 import org.voltdb.types.*;
+import org.voltdb.utils.Pair;
 
 import edu.brown.catalog.CatalogKey;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.statistics.*;
 import edu.brown.utils.ClassUtil;
+import edu.brown.utils.ThreadUtil;
 import edu.brown.workload.Workload.Filter.FilterResult;
 
 /**
@@ -400,7 +404,7 @@ public class Workload implements WorkloadTrace, Iterable<AbstractTraceElement<? 
      * @throws Exception
      */
     public void load(String input_path, Database catalog_db, Filter filter) throws Exception {
-        final boolean trace = LOG.isTraceEnabled();
+//        final boolean trace = LOG.isTraceEnabled();
         final boolean debug = LOG.isDebugEnabled();
         
         if (debug) LOG.debug("Reading workload trace from file '" + input_path + "'");
@@ -408,88 +412,150 @@ public class Workload implements WorkloadTrace, Iterable<AbstractTraceElement<? 
          
 
         // Check whether it's gzipped. Yeah that's right, we support that!
-        BufferedReader in = null;
+        BufferedReader temp_in = null;
         if (this.input_path.getPath().endsWith(".gz")) {
             FileInputStream fin = new FileInputStream(this.input_path);
             GZIPInputStream gzis = new GZIPInputStream(fin);
-            in = new BufferedReader(new InputStreamReader(gzis));
+            temp_in = new BufferedReader(new InputStreamReader(gzis));
         } else {
-            in = new BufferedReader(new FileReader(this.input_path));   
+            temp_in = new BufferedReader(new FileReader(this.input_path));   
         }
+        final BufferedReader in = temp_in;
         
-        long xact_ctr = 0;
-        long query_ctr = 0;
-        long line_ctr = 0;
-        long element_ctr = 0;
-        
-        while (in.ready()) {
-//            StringBuilder buffer = new StringBuilder();
-//            do {
-//                String line = in.readLine();
-//                buffer.append(line);
-//                if (line.equals("}")) break;
-//            } while (in.ready());
-//            JSONObject jsonObject = new JSONObject(buffer.toString()); //in.readLine());
-            String line = in.readLine().trim();
-            if (line.isEmpty()) continue;
-            JSONObject jsonObject = null; 
-            try {
-                jsonObject = new JSONObject(line);
-            } catch (Exception ex) {
-                throw new Exception("Error on line " + (line_ctr+1) + " of workload trace file '" + this.input_path.getName() + "'", ex);
-            }
-            
-            //
-            // TransactionTrace
-            //
-            if (jsonObject.has(TransactionTrace.Members.TXN_ID.name())) {
-                // If we have already loaded in up to our limit, then we don't need to
-                // do anything else. But we still have to keep reading because we need
-                // be able to load in our index structures that are at the bottom of the file
-                //
-                // NOTE: If we ever load something else but the straight trace dumps, then the following
-                // line should be a continue and not a break.
-                
-                // Load the xact from the jsonObject
-                TransactionTrace xact = null;
-                try {
-                    xact = TransactionTrace.loadFromJSONObject(jsonObject, catalog_db);
-                } catch (Exception ex) {
-                    LOG.error("Failed JSONObject:\n" + jsonObject.toString(2));
-                    throw ex;
-                }
-                if (xact == null) {
-                    throw new Exception("Failed to deserialize transaction trace on line " + xact_ctr);
-                } else if (filter != null) {
-                    FilterResult result = filter.apply(xact);
-                    if (result == FilterResult.HALT) break;
-                    else if (result == FilterResult.SKIP) continue;
-                    if (trace) LOG.trace(result + ": " + xact);
-                }
+        final AtomicInteger counters[] = new AtomicInteger[] {
+            new AtomicInteger(0), // TXN COUNTER
+            new AtomicInteger(0), // QUERY COUNTER
+            new AtomicInteger(0)  // ELEMENT COUNTER
+        };
 
-                // Keep track of how many trace elements we've loaded so that we can make sure
-                // that our element trace list is complete
-                xact_ctr++;
-                query_ctr += xact.getQueryCount();
-                if (trace && xact_ctr % 10000 == 0) LOG.trace("Read in " + xact_ctr + " transactions...");
-                element_ctr += 1 + xact.getQueries().size();
-                
-                // This call just updates the various other index structures 
-                this.addTransaction(xact.getCatalogItem(catalog_db), xact, true);
-                
-            // Unknown!
-            } else {
-                LOG.fatal("Unexpected serialization line in workload trace '" + input_path + "' on line " + line_ctr);
-                System.exit(1);
+        final int num_threads = ThreadUtil.getMaxGlobalThreads() - 1;
+        final List<LoadThread> load_threads = new ArrayList<LoadThread>();
+        List<Runnable> all_runnables = new ArrayList<Runnable>();
+        for (int i = 0; i < num_threads; i++) {
+            LoadThread lt = new LoadThread(catalog_db, filter, counters);
+            load_threads.add(lt);
+            all_runnables.add(lt);
+        } // FOR
+        
+        // Create our thread that reads the trace file and passes off the work to the LoadThreads
+        all_runnables.add(new Runnable() {
+            public void run() {
+                int line_ctr = 0;
+                int thread_ctr = 0;
+                try {
+                    while (in.ready()) {
+                        String line = new String(in.readLine().trim());
+                        if (line.isEmpty()) continue;
+                        load_threads.get(thread_ctr).lines.add(Pair.of(line_ctr, line));
+                        if (++thread_ctr == num_threads) thread_ctr = 0;
+                        line_ctr++;
+                    } // WHILE
+                    in.close();
+                    
+                    // Tell all the load threads to stop before we finish
+                    for (LoadThread lt : load_threads) {
+                        lt.stop();
+                    } // FOR
+                } catch (Exception ex) {
+                    throw new RuntimeException(ex);
+                }
             }
-            line_ctr++;
-        } // WHILE
-        in.close();
+        });
+        if (debug) LOG.debug(String.format("Loading workload trace using %d LoadThreads", load_threads.size())); 
+        ThreadUtil.runGlobalPool(all_runnables);
         this.validate();
-        LOG.info("Loaded in " + this.xact_trace.size() + " txns with " + query_ctr + " queries from '" + this.input_path.getName() + "'");
+        LOG.info("Loaded in " + this.xact_trace.size() + " txns with " + counters[1].get() + " queries from '" + this.input_path.getName() + "'");
         return;
     }
     
+    private class LoadThread implements Runnable {
+        final Database catalog_db;
+        final Filter filter;
+        final AtomicInteger counters[];
+        final LinkedBlockingDeque<Pair<Integer, String>> lines = new LinkedBlockingDeque<Pair<Integer, String>>(); 
+        boolean stop = false;
+        
+        public LoadThread(Database catalog_db, Filter filter, AtomicInteger counters[]) {
+            this.catalog_db = catalog_db;
+            this.filter = filter;
+            this.counters = counters;
+        }
+        
+        @Override
+        public void run() {
+            final boolean trace = LOG.isTraceEnabled();
+//            final boolean debug = LOG.isDebugEnabled();
+
+            AtomicInteger xact_ctr = this.counters[0];
+            AtomicInteger query_ctr = this.counters[1];
+            AtomicInteger element_ctr = this.counters[2];
+            
+            while (true) {
+                String line = null;
+                Integer line_ctr = null;
+                JSONObject jsonObject = null;
+                Pair<Integer, String> p = null;
+                
+                try {
+                    p = this.lines.poll(100, TimeUnit.MILLISECONDS);
+                } catch (Exception ex) {
+                    throw new RuntimeException(ex);
+                }
+
+                if (p == null) {
+                    if (this.stop) break;
+                    continue;
+                }
+                
+                line_ctr = p.getFirst();
+                line = p.getSecond();
+                try {
+                    jsonObject = new JSONObject(line);    
+                
+                    // TransactionTrace
+                    if (jsonObject.has(TransactionTrace.Members.TXN_ID.name())) {
+                        // If we have already loaded in up to our limit, then we don't need to
+                        // do anything else. But we still have to keep reading because we need
+                        // be able to load in our index structures that are at the bottom of the file
+                        //
+                        // NOTE: If we ever load something else but the straight trace dumps, then the following
+                        // line should be a continue and not a break.
+                        
+                        // Load the xact from the jsonObject
+                        TransactionTrace xact = TransactionTrace.loadFromJSONObject(jsonObject, catalog_db);
+                        if (xact == null) {
+                            throw new Exception("Failed to deserialize transaction trace on line " + xact_ctr);
+                        } else if (filter != null) {
+                            FilterResult result = filter.apply(xact);
+                            if (result == FilterResult.HALT) break;
+                            else if (result == FilterResult.SKIP) continue;
+                            if (trace) LOG.trace(result + ": " + xact);
+                        }
+    
+                        // Keep track of how many trace elements we've loaded so that we can make sure
+                        // that our element trace list is complete
+                        int x = xact_ctr.incrementAndGet();
+                        if (trace && x % 10000 == 0) LOG.trace("Read in " + xact_ctr + " transactions...");
+                        query_ctr.addAndGet(xact.getQueryCount());
+                        element_ctr.addAndGet(1 + xact.getQueries().size());
+                        
+                        // This call just updates the various other index structures 
+                        Workload.this.addTransaction(xact.getCatalogItem(catalog_db), xact, true);
+                        
+                    // Unknown!
+                    } else {
+                        throw new Exception("Unexpected serialization line in workload trace");
+                    }
+                } catch (Exception ex) {
+                    throw new RuntimeException("Error on line " + (line_ctr+1) + " of workload trace file", ex);
+                }
+            } // WHILE
+        }
+        
+        public void stop() {
+            this.stop = true;
+        }
+    }
     
     // ----------------------------------------------------------
     // ITERATORS METHODS

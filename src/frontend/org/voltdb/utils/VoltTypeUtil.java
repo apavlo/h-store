@@ -41,6 +41,7 @@ public abstract class VoltTypeUtil {
         new SimpleDateFormat("EEE MMM dd HH:mm:ss zzz yyyy"),
         new SimpleDateFormat("yyyy-MM-dd HH:mm:ss"), // 2010-03-05 20:14:15
         new SimpleDateFormat("yyyy-MM-dd"), // 2010-03-05
+        new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS.0"), // 2010-03-05T20:14:16.000.0
     };
 
     public static Object getRandomValue(VoltType type) {
@@ -284,13 +285,17 @@ public abstract class VoltTypeUtil {
             case TIMESTAMP: {
                 Date date = null;
                 int usecs = 0;
+                if (value.isEmpty()) throw new RuntimeException("Empty " + type + " parameter value");
                 
                 ParseException last_ex = null;
                 for (int i = 0; i < DATE_FORMATS.length; i++) {
                     try {
-                        date = DATE_FORMATS[i].parse(value);
-                        // We need to get the last microseconds
-                        if (i == 0) usecs = Integer.parseInt(value.substring(value.lastIndexOf('.')+1));
+                        // We have to do this because apparently SimpleDateFormat isn't thread safe
+                        synchronized (DATE_FORMATS[i]) {
+                            date = DATE_FORMATS[i].parse(value);
+                            // We need to get the last microseconds
+                            if (i == 0) usecs = Integer.parseInt(value.substring(value.lastIndexOf('.')+1));
+                        }
                     } catch (ParseException ex) {
                         last_ex = ex;
                     }
