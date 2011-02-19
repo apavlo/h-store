@@ -3,8 +3,8 @@
 BENCHMARKS=( \
 #    "tm1" \
     "tpcc.100w.large" \
-#     "auctionmark"\
-#     "tpce" \
+    "auctionmark.large"\
+    "tpce" \
 )
 PARTITIONS=( \
 #     8 \
@@ -15,13 +15,14 @@ PARTITIONS=( \
 )
 HEAP_SIZE=3072
 MAX_THREADS=2
-MAKE_GLOBAL=false
+MAKE_GLOBAL=true
+CALCULATE_COST=true
 
 WORKLOAD_BUILD_SIZE=50000
 WORKLOAD_BUILD_MULTIPLIER=500
-WORKLOAD_TEST_SIZE=100
+WORKLOAD_TEST_SIZE=50000
 WORKLOAD_TEST_OFFSET=0
-WORKLOAD_TEST_MULTIPLIER=10
+WORKLOAD_TEST_MULTIPLIER=500
 MARKOV_FILES_DIR=files/markovs/vldb-feb2011
 
 tm1_mix="DeleteCallForwarding:2,GetAccessData:35,GetNewDestination:10,GetSubscriberData:35,InsertCallForwarding:2,UpdateLocation:14,UpdateSubscriberData:2"
@@ -40,10 +41,14 @@ for BENCHMARK in ${BENCHMARKS[@]}; do
         WORKLOAD_MIX=$tpce_mix
         WORKLOAD_TEST_OFFSET=75000
         TEST_WORKLOAD=$BUILD_WORKLOAD
-    elif [ "$BENCHMARK" = "auctionmark" ]; then
+    elif [ "$BENCHMARK" = "auctionmark.large" ]; then
+        BENCHMARK="auctionmark"
         WORKLOAD_MIX=$auctionmark_mix
     elif [ "$BENCHMARK" = "tm1" ]; then
         WORKLOAD_MIX=$tm1_mix
+    fi
+    if [ -n "$1" -a $1 != $BENCHMARK ]; then
+        continue
     fi
 
     ## Build project jar
@@ -85,15 +90,17 @@ for BENCHMARK in ${BENCHMARKS[@]}; do
             fi
             
             ## MarkovCostModel
-            ant markov-cost \
-                -Dproject=$BENCHMARK \
-                -Dvolt.client.memory=$HEAP_SIZE \
-                -Dhstore.max_threads=$MAX_THREADS \
-                -Dworkload=files/workloads/$TEST_WORKLOAD.trace.gz \
-                -Dlimit=$WORKLOAD_TEST_SIZE \
-                -Dmultiplier=$WORKLOAD_TEST_MULTIPLIER \
-                -Dinclude=$WORKLOAD_MIX \
-                -Dmarkov=$MARKOV_FILE|| exit
+            if [ $CALCULATE_COST = "true" ]; then
+                ant markov-cost \
+                    -Dproject=$BENCHMARK \
+                    -Dvolt.client.memory=$HEAP_SIZE \
+                    -Dhstore.max_threads=$MAX_THREADS \
+                    -Dworkload=files/workloads/$TEST_WORKLOAD.trace.gz \
+                    -Dlimit=$WORKLOAD_TEST_SIZE \
+                    -Dmultiplier=$WORKLOAD_TEST_MULTIPLIER \
+                    -Dinclude=$WORKLOAD_MIX \
+                    -Dmarkov=$MARKOV_FILE|| exit
+            fi
         done # GLOBAL
     done # PARTITIONS
     

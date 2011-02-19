@@ -109,7 +109,7 @@ public abstract class ThreadUtil {
         // Initialize the thread pool the first time that we run
         synchronized (ThreadUtil.lock) {
             if (ThreadUtil.pool == null) {
-                int max_threads = 2;
+                int max_threads = 5;
                 String prop = System.getProperty("hstore.max_threads");
                 if (prop != null && prop.startsWith("${") == false) max_threads = Integer.parseInt(prop);
                 if (d) LOG.debug("Creating new fixed thread pool [num_threads=" + max_threads + "]");
