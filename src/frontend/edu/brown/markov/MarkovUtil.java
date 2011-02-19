@@ -224,12 +224,8 @@ public abstract class MarkovUtil {
                 }
             });
         } // FOR
-        try {
-            ThreadUtil.runGlobalPool(runnables);
-        } catch (Exception ex) {
-            throw new RuntimeException(ex);
-        }
-        
+        LOG.info(String.format("Waiting for %d MarkovGraphs to get populated", runnables.size()));
+        ThreadUtil.runGlobalPool(runnables);
         return (graphs_per_partition);
     }
     
@@ -300,23 +296,34 @@ public abstract class MarkovUtil {
      * @param p_estimator
      * @return
      */
-    public static MarkovGraphsContainer createProcedureGraphs(Database catalog_db, Workload workload, PartitionEstimator p_estimator) {
+    public static MarkovGraphsContainer createProcedureGraphs(final Database catalog_db, final Workload workload, final PartitionEstimator p_estimator) {
         assert(workload != null);
         assert(p_estimator != null);
         
-        MarkovGraphsContainer markovs = new MarkovGraphsContainer(true); 
-        for (TransactionTrace xact : workload.getTransactions()) {
-            Procedure catalog_proc = xact.getCatalogItem(catalog_db);
-            MarkovGraph g = markovs.getOrCreate(GLOBAL_MARKOV_CONTAINER_ID, catalog_proc, true);
-            assert(g != null) : "No MarkovGraph exists for " + catalog_proc;
-            try {
-                g.processTransaction(xact, p_estimator);
-            } catch (Exception ex) {
-                LOG.fatal("Failed to process " + xact, ex);
-                throw new RuntimeException(ex);
-            }
+        MarkovGraphsContainer markovs = new MarkovGraphsContainer(true);
+        List<Runnable> runnables = new ArrayList<Runnable>();
+        for (final Procedure catalog_proc : workload.getProcedures(catalog_db)) {
+            final MarkovGraph g = markovs.getOrCreate(GLOBAL_MARKOV_CONTAINER_ID, catalog_proc, true);
+            assert(g != null) : "Failed to create global MarkovGraph for " + catalog_proc;
+            
+            runnables.add(new Runnable() {
+                public void run() {
+                    LOG.info("Populating global MarkovGraph for " + catalog_proc);
+                    for (TransactionTrace xact : workload.getTraces(catalog_proc)) {
+                        try {
+                            g.processTransaction(xact, p_estimator);
+                        } catch (Exception ex) {
+                            LOG.fatal("Failed to process " + xact, ex);
+                            throw new RuntimeException(ex);
+                        }
+                    } // FOR
+                    g.calculateProbabilities();
+                    LOG.info("Finished creating MarkovGraph for " + catalog_proc);
+                }
+            });
         } // FOR
-        markovs.calculateProbabilities();
+        LOG.info(String.format("Waiting for %d MarkovGraphs to get populated", runnables.size()));
+        ThreadUtil.runGlobalPool(runnables);
         return (markovs);
     }
     
