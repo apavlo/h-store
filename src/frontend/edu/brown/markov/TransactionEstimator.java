@@ -637,7 +637,7 @@ public class TransactionEstimator {
             do {
                 last_v = initial_path.get(path_size - idx);
                 idx++;
-            } while ((last_v.isQueryVertex() == false) || (idx < path_size));
+            } while ((last_v.isQueryVertex() == false) && (idx < path_size));
             assert(last_v != null);
 
             if (last_v.isQueryVertex() == false) {

@@ -197,11 +197,15 @@ public class MarkovGraphsContainer implements JSONSerializable {
     public void calculateProbabilities() {
         for (Map<Procedure, MarkovGraph> inner : this.markovs.values()) {
             for (Entry<Procedure, MarkovGraph> e : inner.entrySet()) {
-                e.getValue().calculateProbabilities();
-                boolean is_valid = e.getValue().isValid();
+                MarkovGraph m = e.getValue();
+                m.calculateProbabilities();
+                boolean is_valid = m.isValid();
                 if (is_valid == false) {
                     try {
-                        System.err.println("DUMP: " + MarkovUtil.exportGraphviz(e.getValue(), false, null).writeToTempFile(e.getKey()));
+                        String dump = "/tmp/" + e.getKey().getName() + ".markovs"; 
+                        m.save(dump);
+                        System.err.println("DUMP: " + dump);
+                        System.err.println("GRAPHVIZ: " + MarkovUtil.exportGraphviz(e.getValue(), false, null).writeToTempFile(e.getKey()));
                     } catch (Exception ex) {
                         throw new RuntimeException(ex);
                     }
@@ -344,6 +348,8 @@ public class MarkovGraphsContainer implements JSONSerializable {
         List<Runnable> runnables = new ArrayList<Runnable>();
         for (String id_key : CollectionUtil.wrapIterator(json_inner.keys())) {
             final Integer id = Integer.valueOf(id_key);
+            // HACK
+            if (id == MarkovUtil.GLOBAL_MARKOV_CONTAINER_ID) this.global = true;
         
             final JSONObject json_procs = json_inner.getJSONObject(id_key);
             assert(json_procs != null);
