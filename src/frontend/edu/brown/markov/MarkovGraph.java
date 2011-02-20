@@ -654,7 +654,7 @@ public class MarkovGraph extends AbstractDirectedGraph<Vertex, Edge> implements 
             // HACK: Split the graphs into separate MarkovGraphsContainers based on partition ids
             Map<Integer, MarkovGraphsContainer> inner = new HashMap<Integer, MarkovGraphsContainer>();
             for (Entry<Integer, Map<Procedure, MarkovGraph>> e : markovs.entrySet()) {
-                MarkovGraphsContainer m = new MarkovGraphsContainer();
+                MarkovGraphsContainer m = new MarkovGraphsContainer(markovs.isGlobal());
                 Integer p = e.getKey();
                 for (MarkovGraph markov : e.getValue().values()) {
                     m.put(p, markov);

@@ -100,7 +100,7 @@ public class TransactionTrace extends AbstractTraceElement<Procedure> {
           .append(catalog_proc.getName().toUpperCase() + " - Txn#" + this.txn_id + " - Trace#" + this.id + "\n")
           .append("Start Time:   " + this.start_timestamp + "\n")
           .append("Stop Time:    " + this.stop_timestamp + "\n")
-          .append("Run Time:     " + (this.stop_timestamp - this.start_timestamp) + "\n")
+          .append("Run Time:     " + (this.stop_timestamp != null ? this.stop_timestamp - this.start_timestamp : "???") + "\n")
           .append("Txn Aborted:  " + this.aborted + "\n")
           .append("# of Queries: " + this.queries.size() + "\n")
           .append("# of Batches: " + this.query_batches.size() + "\n");

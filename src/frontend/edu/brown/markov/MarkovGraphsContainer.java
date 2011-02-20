@@ -99,6 +99,11 @@ public class MarkovGraphsContainer implements JSONSerializable {
     // PSEUDO-MAP METHODS
     // -----------------------------------------------------------------
     
+    public boolean isGlobal() {
+        return global;
+    }
+    
+    
     public void clear() {
         this.markovs.clear();
         this.features.clear();
@@ -349,7 +354,7 @@ public class MarkovGraphsContainer implements JSONSerializable {
         for (String id_key : CollectionUtil.wrapIterator(json_inner.keys())) {
             final Integer id = Integer.valueOf(id_key);
             // HACK
-            if (id == MarkovUtil.GLOBAL_MARKOV_CONTAINER_ID) this.global = true;
+            if (id.equals(MarkovUtil.GLOBAL_MARKOV_CONTAINER_ID)) this.global = true;
         
             final JSONObject json_procs = json_inner.getJSONObject(id_key);
             assert(json_procs != null);
@@ -365,7 +370,7 @@ public class MarkovGraphsContainer implements JSONSerializable {
                 runnables.add(new Runnable() {
                     @Override
                     public void run() {
-                        if (d) LOG.debug(String.format("Loading MarkovGraph [id=%d, proc=%s]", id, catalog_proc.getName()));
+                        LOG.info(String.format("Loading MarkovGraph [id=%d, proc=%s]", id, catalog_proc.getName()));
                         try {
                             JSONObject json_graph = new JSONObject(Encoder.hexDecodeToString(json_procs.getString(proc_key)));
                             MarkovGraph markov = new MarkovGraph(catalog_proc);
