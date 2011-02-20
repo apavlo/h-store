@@ -209,7 +209,10 @@ public class MarkovPathEstimator extends VertexTreeWalker<Vertex> {
         
         // At our current vertex we need to gather all of our neighbors
         // and get unique Statements that we could be executing next
-        Collection<Vertex> next_vertices = markov.getSuccessors(element);        
+        Collection<Vertex> next_vertices = null;
+        synchronized (element) {
+            next_vertices = markov.getSuccessors(element);
+        } // SYNCH
         if (trace) LOG.trace("Successors: " + next_vertices);
 
         // Step #1
@@ -367,7 +370,9 @@ public class MarkovPathEstimator extends VertexTreeWalker<Vertex> {
         boolean was_forced = false;
         if (num_candidates == 0 && this.force_traversal) {
             if (trace) LOG.trace("No candidate edges were found. Force travesal flag is set, so taking all");
-            this.candidates.addAll(markov.getOutEdges(element));
+            synchronized (element) {
+                this.candidates.addAll(markov.getOutEdges(element));
+            } // SYNCH
             num_candidates = this.candidates.size();
             was_forced = true;
         }

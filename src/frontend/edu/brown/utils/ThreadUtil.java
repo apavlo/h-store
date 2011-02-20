@@ -160,6 +160,7 @@ public abstract class ThreadUtil {
      */
     private static final <R extends Runnable> void run(final Collection<R> threads, final ExecutorService pool, final boolean stop_pool) {
         final boolean d = LOG.isDebugEnabled();
+        final long start = System.currentTimeMillis();
         
         int num_threads = threads.size();
         CountDownLatch latch = new CountDownLatch(num_threads);
@@ -176,7 +177,10 @@ public abstract class ThreadUtil {
             LOG.fatal("ThreadUtil.run() was interuptted!", ex);
             throw new RuntimeException(ex);
         }
-        if (d) LOG.debug("All threads are finished");
+        if (d) {
+            final long stop = System.currentTimeMillis();
+            LOG.debug(String.format("Finished executing %d threads [time=%.02f]", num_threads, (stop-start)/1000d));
+        }
         return;
     }
     
