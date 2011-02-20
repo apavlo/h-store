@@ -48,7 +48,7 @@ public class ProcedureLimitFilter extends Workload.Filter {
     }
         
     @Override
-    public FilterResult filter(AbstractTraceElement<? extends CatalogType> element) {
+    public synchronized FilterResult filter(AbstractTraceElement<? extends CatalogType> element) {
         FilterResult result = FilterResult.ALLOW;
         if (element instanceof TransactionTrace) {
             if (this.limit >= 0) {

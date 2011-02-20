@@ -598,25 +598,33 @@ public class TransactionEstimator {
         // ??? graph.resetCounters();
 
         long start_time = System.currentTimeMillis();
-        Vertex start = markov.getStartVertex().addInstanceTime(txn_id, start_time);
-        
-        // Calculate initial path estimate
+        Vertex start = markov.getStartVertex();
+
         MarkovPathEstimator estimator = null;
         try {
             estimator = (MarkovPathEstimator)ESTIMATOR_POOL.borrowObject();
             estimator.init(markov, this, base_partition, args);
             estimator.enableForceTraversal(true);
-            estimator.traverse(start);
-        } catch (Throwable e) {
-            LOG.fatal("Failed to estimate path", e);
-            try {
-                GraphvizExport<Vertex, Edge> gv = MarkovUtil.exportGraphviz(markov, false, markov.getPath(estimator.getVisitPath()));
-                System.err.println("GRAPH DUMP: " + gv.writeToTempFile("dump", "dot"));
-            } catch (Exception ex) {
-                throw new RuntimeException(ex);
-            }
-            throw new RuntimeException(e);
+        } catch (Exception ex) {
+            throw new RuntimeException(ex);
         }
+
+        // Calculate initial path estimate
+        synchronized (markov) {
+            start.addInstanceTime(txn_id, start_time);
+            try {
+                estimator.traverse(start);
+            } catch (Throwable e) {
+                LOG.fatal("Failed to estimate path", e);
+                try {
+                    GraphvizExport<Vertex, Edge> gv = MarkovUtil.exportGraphviz(markov, false, markov.getPath(estimator.getVisitPath()));
+                    System.err.println("GRAPH DUMP: " + gv.writeToTempFile("dump", "dot"));
+                } catch (Exception ex) {
+                    throw new RuntimeException(ex);
+                }
+                throw new RuntimeException(e);
+            }
+        } // SYNCH
         assert(estimator != null);
         
         State state = null;
@@ -684,9 +692,11 @@ public class TransactionEstimator {
     public Estimate executeQueries(State state, Statement catalog_stmts[], Set<Integer> partitions[]) {
         // Roll through the Statements in this batch and move the current vertex
         // for the txn's State handle along the path in the MarkovGraph
-        for (int i = 0; i < catalog_stmts.length; i++) {
-            this.consume(state, catalog_stmts[i], partitions[i]);
-        } // FOR
+        synchronized (state.getMarkovGraph()) {
+            for (int i = 0; i < catalog_stmts.length; i++) {
+                this.consume(state, catalog_stmts[i], partitions[i]);
+            } // FOR
+        } // SYNCH
         
         Estimate estimate = state.getNextEstimate(state.current);
         assert(estimate != null);
@@ -751,18 +761,17 @@ public class TransactionEstimator {
         Edge next_e = null;
         
         // If no edge exists to the next vertex, then we need to create one
-        synchronized (current) {
+        synchronized (g) {
             next_e = g.findEdge(current, next_v);
             if (next_e == null) next_e = g.addToEdge(current, next_v);
 
             // Update counters
             next_v.incrementInstancehits();
             next_v.addInstanceTime(xact_id, s.getExecutionTimeOffset());
+            next_e.incrementInstancehits();
         } // SYNCH
         assert(next_e != null);
         s.setCurrent(next_v);
-        next_e.incrementInstancehits();
-
         return (s);
     }
 
@@ -793,37 +802,36 @@ public class TransactionEstimator {
         // Examine all of the vertices that are adjacent to our current vertex
         // and see which vertex we are going to move to next
         Vertex current = state.getCurrent();
+        assert(current != null);
         Vertex next_v = null;
         Edge next_e = null;
 
         // Synchronize on the single vertex so that it's more fine-grained than the entire graph
-        synchronized (current) {
-            Collection<Edge> edges = g.getOutEdges(state.getCurrent()); 
-            if (trace.get()) LOG.trace("Examining " + edges.size() + " edges from " + state.getCurrent() + " for Txn #" + state.txn_id);
-            for (Edge e : edges) {
-                Vertex v = g.getDest(e);
-                if (v.isEqual(catalog_stmt, partitions, state.getTouchedPartitions(), queryInstanceIndex)) {
-                    if (trace.get()) LOG.trace("Found next vertex " + v + " for Txn #" + state.txn_id);
-                    next_v = v;
-                    next_e = e;
-                    break;
-                }
-            } // FOR
-        
-            // If we fail to find the next vertex, that means we have to dynamically create a new 
-            // one. The graph is self-managed, so we don't need to worry about whether 
-            // we need to recompute probabilities.
-            if (next_v == null) {
-                next_v = new Vertex(catalog_stmt,
-                                    Vertex.Type.QUERY,
-                                    queryInstanceIndex,
-                                    partitions,
-                                    state.getTouchedPartitions());
-                g.addVertex(next_v);
-                next_e = g.addToEdge(state.getCurrent(), next_v);
-                if (trace.get()) LOG.trace("Created new edge/vertex from " + state.getCurrent() + " for Txn #" + state.txn_id);
+        Collection<Edge> edges = g.getOutEdges(current); 
+        if (trace.get()) LOG.trace("Examining " + edges.size() + " edges from " + current + " for Txn #" + state.txn_id);
+        for (Edge e : edges) {
+            Vertex v = g.getDest(e);
+            if (v.isEqual(catalog_stmt, partitions, state.getTouchedPartitions(), queryInstanceIndex)) {
+                if (trace.get()) LOG.trace("Found next vertex " + v + " for Txn #" + state.txn_id);
+                next_v = v;
+                next_e = e;
+                break;
             }
-        } // SYNCHRONIZED
+        } // FOR
+    
+        // If we fail to find the next vertex, that means we have to dynamically create a new 
+        // one. The graph is self-managed, so we don't need to worry about whether 
+        // we need to recompute probabilities.
+        if (next_v == null) {
+            next_v = new Vertex(catalog_stmt,
+                                Vertex.Type.QUERY,
+                                queryInstanceIndex,
+                                partitions,
+                                state.getTouchedPartitions());
+            g.addVertex(next_v);
+            next_e = g.addToEdge(current, next_v);
+            if (trace.get()) LOG.trace("Created new edge/vertex from " + state.getCurrent() + " for Txn #" + state.txn_id);
+        }
 
         // Update the counters and other info for the next vertex and edge
         next_v.addInstanceTime(state.txn_id, state.getExecutionTimeOffset());
@@ -850,6 +858,7 @@ public class TransactionEstimator {
         if (t) LOG.trace(txn_trace.debug(this.catalog_db));
         State s = this.startTransaction(txn_id, txn_trace.getCatalogItem(this.catalog_db), txn_trace.getParams());
         assert(s != null) : "Null TransactionEstimator.State for txn #" + txn_id;
+        
         for (Entry<Integer, List<QueryTrace>> e : txn_trace.getBatches().entrySet()) {
             int batch_size = e.getValue().size();
             if (t) LOG.trace(String.format("Batch #%d: %d traces", e.getKey(), batch_size));
@@ -865,8 +874,10 @@ public class TransactionEstimator {
                 partitions[i] = this.p_estimator.getAllPartitions(query_trace, s.getBasePartition());
                 assert(partitions[i].isEmpty() == false) : "No partitions for " + query_trace;
             } // FOR
-            
-            this.executeQueries(txn_id, catalog_stmts, partitions);
+        
+            synchronized (s.getMarkovGraph()) {
+                this.executeQueries(s, catalog_stmts, partitions);
+            } // SYNCH
         } // FOR (batches)
         if (txn_trace.isAborted()) this.abort(txn_id);
         else this.commit(txn_id);

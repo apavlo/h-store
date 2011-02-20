@@ -1,7 +1,7 @@
 #!/bin/bash -x
 
 BENCHMARKS=( \
-#    "tm1" \
+    "tm1" \
     "tpcc.100w.large" \
     "auctionmark.large"\
     "tpce" \
@@ -83,7 +83,7 @@ for BENCHMARK in ${BENCHMARKS[@]}; do
             -Dnumpartitions=1 \
             -Dcorrelations=files/correlations/${BENCHMARK}.correlations || exit
             
-        for GLOBAL in "true" "false" ]; do
+        for GLOBAL in "true" "false" ; do
             if [ $GLOBAL = "true" ]; then
                 if [ $MAKE_GLOBAL != "true" ]; then
                     continue
