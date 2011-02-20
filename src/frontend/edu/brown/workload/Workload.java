@@ -523,6 +523,7 @@ public class Workload implements WorkloadTrace, Iterable<AbstractTraceElement<? 
             if (this.stop == false) {
                 LOG.info("ReadThread Told to stop by LoadThread [queue_size=" + this.lines.size() + "]");
                 this.stop = true;
+                this.lines.clear();
                 this.self.interrupt();
             }
         }

@@ -2,11 +2,16 @@ package edu.brown.costmodel;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Deque;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.LinkedBlockingDeque;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.log4j.Logger;
@@ -30,6 +35,7 @@ import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.PartitionEstimator;
 import edu.brown.utils.StringUtil;
+import edu.brown.utils.ThreadUtil;
 import edu.brown.utils.LoggerUtil.LoggerBoolean;
 import edu.brown.workload.TransactionTrace;
 import edu.brown.workload.Workload;
@@ -567,7 +573,7 @@ public class MarkovCostModel extends AbstractCostModel {
      * @param args
      */
     public static void main(String vargs[]) throws Exception {
-        ArgumentsParser args = ArgumentsParser.load(vargs);
+        final ArgumentsParser args = ArgumentsParser.load(vargs);
         args.require(
             ArgumentsParser.PARAM_CATALOG, 
             ArgumentsParser.PARAM_MARKOV,
@@ -622,48 +628,78 @@ public class MarkovCostModel extends AbstractCostModel {
             } // FOR
         }
  
-        PartitionEstimator p_estimator = new PartitionEstimator(args.catalog_db);
-        EstimationThresholds thresholds = new EstimationThresholds();
-        TransactionEstimator t_estimator = new TransactionEstimator(p_estimator, args.param_correlations, markovs);
-        MarkovCostModel costmodel = new MarkovCostModel(args.catalog_db, p_estimator, t_estimator, thresholds);
+        final PartitionEstimator p_estimator = new PartitionEstimator(args.catalog_db);
+        final EstimationThresholds thresholds = new EstimationThresholds();
+        final TransactionEstimator t_estimator = new TransactionEstimator(p_estimator, args.param_correlations, markovs);
         
-        int total = 0;
-        Histogram total_h = new Histogram();
-        Histogram missed_h = new Histogram();
-        Histogram accurate_h = new Histogram();
-        Histogram penalty_h = new Histogram();
-        Set<PenaltyGroup> penalty_groups = new HashSet<PenaltyGroup>();
+        
+        final Histogram total_h = new Histogram();
+        final Histogram missed_h = new Histogram();
+        final Histogram accurate_h = new Histogram();
+        final Histogram penalty_h = new Histogram();
         
         LOG.info(String.format("Estimating the accuracy of the MarkovGraphs using %d transactions", args.workload.getTransactionCount()));
+        int num_threads = ThreadUtil.getMaxGlobalThreads() - 1;
+        final Deque<TransactionTrace> queue = new LinkedList<TransactionTrace>();
         for (TransactionTrace txn_trace : args.workload.getTransactions()) {
-            double cost = costmodel.estimateTransactionCost(args.catalog_db, txn_trace);
-            String proc_name = txn_trace.getCatalogItemName();
-            if (cost > 0) {
-                penalty_groups.clear();
-                for (Penalty p : costmodel.getLastPenalties()) {
-                    penalty_groups.add(p.getGroup());
-                } // FOR
-                for (PenaltyGroup pg : penalty_groups) {
-                    penalty_h.put(pg);
-                } // FOR
-                
-                missed_h.put(proc_name);
-            } else {
-                accurate_h.put(proc_name);
-            }
+            queue.push(txn_trace);
             total_h.put(txn_trace.getCatalogItemName());
-            total++;
         } // FOR
-        int accurate_cnt = total - (int)missed_h.getSampleCount();
+
+        final AtomicInteger total = new AtomicInteger(0);
+        final List<Runnable> runnables = new ArrayList<Runnable>();
+        for (int i = 0; i < num_threads; i++) {
+            runnables.add(new Runnable() {
+                @Override
+                public void run() {
+                    TransactionTrace txn_trace = null;
+                    final MarkovCostModel costmodel = new MarkovCostModel(args.catalog_db, p_estimator, t_estimator, thresholds);
+                    final Set<PenaltyGroup> penalty_groups = new HashSet<PenaltyGroup>();
+                    
+                    while (true) {
+                        synchronized (queue) {
+                            if (queue.isEmpty()) break;
+                            txn_trace = queue.removeFirst();
+                        }
+                        
+                        double cost = 0.0d;
+                        try {
+                            cost = costmodel.estimateTransactionCost(args.catalog_db, txn_trace);
+                        } catch (Exception ex) {
+                            throw new RuntimeException(ex);
+                        }
+                       
+                        String proc_name = txn_trace.getCatalogItemName();
+                        if (cost > 0) {
+                            penalty_groups.clear();
+                            for (Penalty p : costmodel.getLastPenalties()) {
+                                penalty_groups.add(p.getGroup());
+                            } // FOR
+                            for (PenaltyGroup pg : penalty_groups) {
+                                penalty_h.put(pg);
+                            } // FOR
+                            missed_h.put(proc_name);
+                        } else {
+                            accurate_h.put(proc_name);
+                        }
+                        if (total.incrementAndGet() % 10000 == 0) LOG.info(String.format("Processed %d transactions", total.get()));
+                        
+                    } // WHILE
+                } 
+            });
+        } // FOR
+        ThreadUtil.runGlobalPool(runnables);
+        
+        int accurate_cnt = total.get() - (int)missed_h.getSampleCount();
         assert(accurate_cnt == accurate_h.getSampleCount());
         
         Map<String, Object> m0 = new ListOrderedMap<String, Object>();
-        m0.put("RESULT", String.format("%05d / %05d [%.03f]", accurate_cnt, total, (accurate_cnt / (double)total)));
+        m0.put("RESULT", String.format("%05d / %05d [%.03f]", accurate_cnt, total, (accurate_cnt / (double)total.get())));
         
         Map<String, Object> m1 = new ListOrderedMap<String, Object>();
         for (PenaltyGroup pg : PenaltyGroup.values()) {
             long cnt = penalty_h.get(pg, 0);
-            m1.put(pg.toString(), String.format("%05d [%.03f]", cnt, cnt / (double)total));
+            m1.put(pg.toString(), String.format("%05d [%.03f]", cnt, cnt / (double)total.get()));
         }
 
         System.err.println("TRANSACTION COUNTS:");

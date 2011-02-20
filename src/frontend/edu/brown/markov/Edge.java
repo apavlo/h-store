@@ -97,11 +97,11 @@ public class Edge extends AbstractEdge implements Comparable<Edge> {
         return instancehits;
     }
 
-    public void incrementInstancehits() {
+    public synchronized void incrementInstancehits() {
         instancehits++;
     }
 
-    public void setInstancehits(int i) {
+    public synchronized void setInstancehits(int i) {
         instancehits = i;
     }
 

@@ -745,20 +745,22 @@ public class TransactionEstimator {
         // We need to update the counter information in our MarkovGraph so that we know
         // that the procedure may transition to the ABORT vertex from where ever it was before 
         MarkovGraph g = s.getMarkovGraph();
+        Vertex current = s.getCurrent();
         Vertex next_v = g.getSpecialVertex(vtype);
         assert(next_v != null) : "Missing " + vtype;
-        s.setCurrent(next_v);
+        Edge next_e = null;
         
         // If no edge exists to the next vertex, then we need to create one
-        Edge next_e = g.findEdge(s.getCurrent(), next_v);
-        if (next_e == null) {
-            next_e = g.addToEdge(s.getCurrent(), next_v);
-        }
+        synchronized (current) {
+            next_e = g.findEdge(current, next_v);
+            if (next_e == null) next_e = g.addToEdge(current, next_v);
+
+            // Update counters
+            next_v.incrementInstancehits();
+            next_v.addInstanceTime(xact_id, s.getExecutionTimeOffset());
+        } // SYNCH
         assert(next_e != null);
-        
-        // Update counters
-        next_v.incrementInstancehits();
-        next_v.addInstanceTime(xact_id, s.getExecutionTimeOffset());
+        s.setCurrent(next_v);
         next_e.incrementInstancehits();
 
         return (s);
@@ -790,33 +792,38 @@ public class TransactionEstimator {
         
         // Examine all of the vertices that are adjacent to our current vertex
         // and see which vertex we are going to move to next
-        Collection<Edge> edges = g.getOutEdges(state.getCurrent()); 
-        if (trace.get()) LOG.trace("Examining " + edges.size() + " edges from " + state.getCurrent() + " for Txn #" + state.txn_id);
+        Vertex current = state.getCurrent();
         Vertex next_v = null;
         Edge next_e = null;
-        for (Edge e : edges) {
-            Vertex v = g.getDest(e);
-            if (v.isEqual(catalog_stmt, partitions, state.getTouchedPartitions(), queryInstanceIndex)) {
-                if (trace.get()) LOG.trace("Found next vertex " + v + " for Txn #" + state.txn_id);
-                next_v = v;
-                next_e = e;
-                break;
-            }
-        } // FOR
+
+        // Synchronize on the single vertex so that it's more fine-grained than the entire graph
+        synchronized (current) {
+            Collection<Edge> edges = g.getOutEdges(state.getCurrent()); 
+            if (trace.get()) LOG.trace("Examining " + edges.size() + " edges from " + state.getCurrent() + " for Txn #" + state.txn_id);
+            for (Edge e : edges) {
+                Vertex v = g.getDest(e);
+                if (v.isEqual(catalog_stmt, partitions, state.getTouchedPartitions(), queryInstanceIndex)) {
+                    if (trace.get()) LOG.trace("Found next vertex " + v + " for Txn #" + state.txn_id);
+                    next_v = v;
+                    next_e = e;
+                    break;
+                }
+            } // FOR
         
-        // If we fail to find the next vertex, that means we have to dynamically create a new 
-        // one. The graph is self-managed, so we don't need to worry about whether 
-        // we need to recompute probabilities.
-        if (next_v == null) {
-            next_v = new Vertex(catalog_stmt,
-                                Vertex.Type.QUERY,
-                                queryInstanceIndex,
-                                partitions,
-                                state.getTouchedPartitions());
-            g.addVertex(next_v);
-            next_e = g.addToEdge(state.getCurrent(), next_v);
-            if (trace.get()) LOG.trace("Created new edge/vertex from " + state.getCurrent() + " for Txn #" + state.txn_id);
-        }
+            // If we fail to find the next vertex, that means we have to dynamically create a new 
+            // one. The graph is self-managed, so we don't need to worry about whether 
+            // we need to recompute probabilities.
+            if (next_v == null) {
+                next_v = new Vertex(catalog_stmt,
+                                    Vertex.Type.QUERY,
+                                    queryInstanceIndex,
+                                    partitions,
+                                    state.getTouchedPartitions());
+                g.addVertex(next_v);
+                next_e = g.addToEdge(state.getCurrent(), next_v);
+                if (trace.get()) LOG.trace("Created new edge/vertex from " + state.getCurrent() + " for Txn #" + state.txn_id);
+            }
+        } // SYNCHRONIZED
 
         // Update the counters and other info for the next vertex and edge
         next_v.addInstanceTime(state.txn_id, state.getExecutionTimeOffset());
