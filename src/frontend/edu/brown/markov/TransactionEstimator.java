@@ -627,7 +627,7 @@ public class TransactionEstimator {
             throw new RuntimeException(ex);
         }
         this.txn_states.put(txn_id, state);
-        
+
         // The initial estimate should be based on the second-to-last vertex in the initial path estimation
         List<Vertex> initial_path = estimator.getVisitPath();
         int path_size = initial_path.size();
@@ -835,11 +835,17 @@ public class TransactionEstimator {
     
     @SuppressWarnings("unchecked")
     public State processTransactionTrace(TransactionTrace txn_trace) throws Exception {
+        final boolean t = trace.get();
+        final boolean d = debug.get();
+        
         long txn_id = txn_trace.getTransactionId();
+        if (d) LOG.debug("Processing TransactionTrace #" + txn_id);
+        if (t) LOG.trace(txn_trace.debug(this.catalog_db));
         State s = this.startTransaction(txn_id, txn_trace.getCatalogItem(this.catalog_db), txn_trace.getParams());
         assert(s != null) : "Null TransactionEstimator.State for txn #" + txn_id;
         for (Entry<Integer, List<QueryTrace>> e : txn_trace.getBatches().entrySet()) {
             int batch_size = e.getValue().size();
+            if (t) LOG.trace(String.format("Batch #%d: %d traces", e.getKey(), batch_size));
             
             // Generate the data structures we will need to give to the TransactionEstimator
             Statement catalog_stmts[] = new Statement[batch_size];
@@ -855,7 +861,12 @@ public class TransactionEstimator {
             
             this.executeQueries(txn_id, catalog_stmts, partitions);
         } // FOR (batches)
-        return (txn_trace.isAborted() ? this.abort(txn_id) : this.commit(txn_id));
+        if (txn_trace.isAborted()) this.abort(txn_id);
+        else this.commit(txn_id);
+        
+//        System.err.println(StringUtil.join("\n", s.getActualPath()));
+        assert(s.getActualPath().size() == (txn_trace.getQueryCount() + 2));
+        return (s);
     }
     
     // ----------------------------------------------------------------------------

@@ -25,6 +25,39 @@ public abstract class StringUtil {
     private static Pattern LINE_SPLIT = Pattern.compile("\n");
     
     /**
+     * 
+     * @param strs
+     * @return
+     */
+    public static String columns(String...strs) {
+        String lines[][] = new String[strs.length][];
+        String prefixes[] = new String[strs.length];
+        int max_length = 0;
+        int max_lines = 0;
+        
+        for (int i = 0; i < strs.length; i++) {
+            lines[i] = LINE_SPLIT.split(strs[i]);
+            prefixes[i] = (i == 0 ? "" : " ┃ ");
+            for (String line : lines[i]) {
+                max_length = Math.max(max_length, line.length());
+            } // FOR
+            max_lines = Math.max(max_lines, lines[i].length);
+        } // FOR
+        
+        String f = "%-" + max_length + "s";
+        StringBuilder sb = new StringBuilder();
+        for (int ii = 0; ii < max_lines; ii++) {
+            for (int i = 0; i < strs.length; i++) {
+                String line = (ii >= lines[i].length ? "" : lines[i][ii]);
+                sb.append(prefixes[i]).append(String.format(f, line));
+            } // FOR
+            sb.append("\n");
+        } // FOR
+        
+        return (sb.toString());
+    }
+    
+    /**
      * Return key/value maps into a nicely formatted table
      * Delimiter ":", No UpperCase Keys, No Boxing
      * @param maps

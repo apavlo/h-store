@@ -231,10 +231,8 @@ public class Workload implements WorkloadTrace, Iterable<AbstractTraceElement<? 
         
         @Override
         public boolean hasNext() {
-            //
             // Important! If this is the first time, then we need to get the next element
             // using next() so that we know we can even begin grabbing stuff
-            //
             if (!this.is_init) this.init();
             return (this.peek != null);
         }
@@ -251,10 +249,10 @@ public class Workload implements WorkloadTrace, Iterable<AbstractTraceElement<? 
                 Long next_id = Workload.this.element_ids.get(this.idx - 1);
                 AbstractTraceElement<? extends CatalogType> element = Workload.this.element_id_xref.get(next_id);
                 if (element == null) {
-                    System.err.println("idx: " + this.idx);
-                    System.err.println("next_id: " + next_id);
-                    System.err.println("elements: " + Workload.this.element_id_xref);
-                    System.err.println("size: " + Workload.this.element_id_xref.size());
+                    LOG.warn("idx: " + this.idx);
+                    LOG.warn("next_id: " + next_id);
+                    // System.err.println("elements: " + Workload.this.element_id_xref);
+                    LOG.warn("size: " + Workload.this.element_id_xref.size());
                 }
                 if (this.filter == null || (this.filter != null && this.filter.apply(element) == Filter.FilterResult.ALLOW)) {
                     this.peek = element;
