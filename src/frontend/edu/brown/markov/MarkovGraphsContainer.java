@@ -168,7 +168,8 @@ public class MarkovGraphsContainer implements JSONSerializable {
         } else {
             List<String> proc_features = this.features.get(catalog_proc);
             if (proc_features == null) {
-                m = this.get(base_partition, catalog_proc);
+                m = this.getOrCreate(base_partition, catalog_proc, true);
+//                m = this.get(base_partition, catalog_proc);
             } else {
                 assert(false) : "To be implemented!";
             }
@@ -370,7 +371,7 @@ public class MarkovGraphsContainer implements JSONSerializable {
                 runnables.add(new Runnable() {
                     @Override
                     public void run() {
-                        LOG.info(String.format("Loading MarkovGraph [id=%d, proc=%s]", id, catalog_proc.getName()));
+                        if (d) LOG.debug(String.format("Loading MarkovGraph [id=%d, proc=%s]", id, catalog_proc.getName()));
                         try {
                             JSONObject json_graph = new JSONObject(Encoder.hexDecodeToString(json_procs.getString(proc_key)));
                             MarkovGraph markov = new MarkovGraph(catalog_proc);

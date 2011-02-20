@@ -53,6 +53,14 @@ public class ProcedureNameFilter extends Workload.Filter {
     }
     
     /**
+     * Return the set of procedure names that we want to include
+     * @return
+     */
+    public Set<String> getProcedureNames() {
+        return (this.whitelist.keySet());
+    }
+    
+    /**
      * Add the given catalog object names to this filter's blacklist
      * @param names
      */

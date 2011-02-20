@@ -2,6 +2,7 @@ package edu.brown.costmodel;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -15,6 +16,7 @@ import org.voltdb.catalog.Statement;
 import org.voltdb.types.QueryType;
 import org.voltdb.types.TimestampType;
 
+import edu.brown.catalog.CatalogUtil;
 import edu.brown.markov.EstimationThresholds;
 import edu.brown.markov.MarkovGraphsContainer;
 import edu.brown.markov.MarkovUtil;
@@ -142,6 +144,7 @@ public class MarkovCostModel extends AbstractCostModel {
     
     private final EstimationThresholds thresholds;
     private final TransactionEstimator t_estimator;
+    private final List<Integer> all_partitions;
     
     // ----------------------------------------------------------------------------
     // INVOCATION DATA MEMBERS
@@ -153,6 +156,7 @@ public class MarkovCostModel extends AbstractCostModel {
     private transient final List<Penalty> penalties = new ArrayList<Penalty>();
     
     private transient final Set<Integer> done_partitions = new HashSet<Integer>();
+    private transient final Map<Integer, Integer> idle_partition_ctrs = new HashMap<Integer, Integer>();
     
     private transient final Set<Integer> e_all_partitions = new HashSet<Integer>();
     private transient final Set<Integer> e_read_partitions = new HashSet<Integer>();
@@ -171,6 +175,8 @@ public class MarkovCostModel extends AbstractCostModel {
         super(MarkovCostModel.class, catalog_db, p_estimator);
         this.thresholds = thresholds;
         this.t_estimator = t_estimator;
+        this.all_partitions = CatalogUtil.getAllPartitionIds(catalog_db);
+        
         assert(this.t_estimator != null) : "Missing TransactionEstimator";
     }
 
@@ -395,19 +401,32 @@ public class MarkovCostModel extends AbstractCostModel {
         // We declared that we were done at a partition but then later we actually needed it
         // This can happen if there is a path that a has very low probability of us taking it, but then
         // ended up taking it anyway
+        //
+        // PENALTY #5
+        // We keep track of the last batch round that we finished with a partition. We then
+        // count how long it takes before we realize that we are finished. We declare that the estimate
+        // was late if we don't mark it as finished immediately in the next batch
         // ----------------------------------------------------------------------------
         first_penalty = true;
+        boolean first_penalty5 = true;
+        
         this.done_partitions.clear();
         int num_estimates = s.getEstimateCount();
         List<Estimate> estimates = s.getEstimates();
         int last_est_idx = 0;
         Set<Integer> touched_partitions = new HashSet<Integer>();
         Set<Integer> new_touched_partitions = new HashSet<Integer>();
+
+        // Reset the idle counters
+        for (Integer p : this.all_partitions) {
+            this.idle_partition_ctrs.put(p, 0);
+        }
+        
         for (int i = 0; i < num_estimates; i++) {
             Estimate est = estimates.get(i);
             Vertex est_v = est.getVertex();
             
-            // Check if we read/write at any partition that was previously declared as done
+            // The first estimate is the initial estimate, so we'll skip that
             if (i > 0) {
                 // Get the path of vertices
                 int start = last_est_idx;
@@ -423,6 +442,7 @@ public class MarkovCostModel extends AbstractCostModel {
                     QueryType qtype = QueryType.get(catalog_stmt.getQuerytype());
                     Penalty ptype = (qtype == QueryType.SELECT ? Penalty.RETURN_READ_PARTITION : Penalty.RETURN_WRITE_PARTITION);
                     for (Integer p : v.getPartitions()) {
+                        // Check if we read/write at any partition that was previously declared as done
                         if (this.done_partitions.contains(p)) {
                             if (t) {
                                 if (first_penalty) {
@@ -436,6 +456,15 @@ public class MarkovCostModel extends AbstractCostModel {
                         }
                     } // FOR
                     new_touched_partitions.addAll(v.getPartitions());
+                    
+                    // For each partition that we don't touch here, we want to increase their idle counter
+                    for (Integer p : this.all_partitions) {
+                        if (new_touched_partitions.contains(p) == false) {
+                            this.idle_partition_ctrs.put(p, this.idle_partition_ctrs.get(p)+1);
+                        } else {
+                            this.idle_partition_ctrs.put(p, 0);
+                        }
+                    } // FOR
                 } // FOR
                 last_est_idx = stop;
                 touched_partitions.addAll(new_touched_partitions);
@@ -447,9 +476,25 @@ public class MarkovCostModel extends AbstractCostModel {
             // our initial estimation of what partitions we are done at will be based on the total
             // path estimation and not directly on the finished probabilities
             for (Integer finished_p : est.getFinishedPartitions(this.thresholds)) {
-                if (touched_partitions.contains(finished_p) && this.done_partitions.contains(finished_p) == false) {
-                    if (t) LOG.trace(String.format("Marking touched partition %d as finished for the first time in estimate #%d", finished_p.intValue(), i));
-                    this.done_partitions.add(finished_p);
+                if (touched_partitions.contains(finished_p)) {
+                    // We are late with identifying that a partition is finished if it was
+                    // idle for more than one batch round
+                    if (this.idle_partition_ctrs.get(finished_p) > 0) {
+                        if (t) {
+                            if (first_penalty5) {
+                                LOG.trace("PENALTY #5: " + PenaltyGroup.LATE_DONE);
+                                first_penalty5 = false;
+                            }
+                            LOG.trace(String.format("Txn #%d kept partition %d idle for %d batch rounds before declaring it was done", s.getTransactionId(), finished_p, this.idle_partition_ctrs.get(finished_p)));
+                        }
+                        this.penalties.add(Penalty.LATE_DONE_PARTITION);
+                        // Set it to basically negative infinity so that we are nevery penalized more than once for this partition
+                        this.idle_partition_ctrs.put(finished_p, Integer.MIN_VALUE);
+                    }
+                    if (this.done_partitions.contains(finished_p) == false) {
+                        if (t) LOG.trace(String.format("Marking touched partition %d as finished for the first time in estimate #%d", finished_p.intValue(), i));
+                        this.done_partitions.add(finished_p);
+                    }
                 }
             } // FOR
         } // FOR
@@ -489,83 +534,7 @@ public class MarkovCostModel extends AbstractCostModel {
             }
         } // FOR
         
-        // ----------------------------------------------------------------------------
-        // PENALTY #5
-        // ----------------------------------------------------------------------------
-//        if (t) LOG.trace("PENALTY #5: " + PenaltyGroup.LATE_DONE);
-        
-//        int e_cnt = estimated.size();
-//        int a_cnt = actual.size();
-//        for (int e_i = 1, a_i = 1; a_i < a_cnt-1; a_i++) {
-//            Vertex a = actual.get(a_i);
-//            Vertex e = null;
-//            try {
-//                e = estimated.get(e_i);
-//            } catch (IndexOutOfBoundsException ex) {
-//                // IGNORE
-//            }
-//        
-//            if (trace.get()) LOG.trace(String.format("Estimated[%02d]%s <==> Actual[%02d]%s", e_i, e, a_i, a));
-//            
-//            if (e != null) {
-//                Statement e_stmt = e.getCatalogItem();
-//                Set<Integer> e_partitions = e.getPartitions();
-//                e_all_partitions.addAll(e_partitions);
-//                
-//                Statement a_stmt = a.getCatalogItem();
-//                Set<Integer> a_partitions = a.getPartitions();
-//                a_all_partitions.addAll(a_partitions);
-//                
-//                // Check whether they're executing the same queries
-//                if (a_stmt.equals(e_stmt) == false) {
-//                    if (trace.get()) LOG.trace("STMT MISMATCH: " + e_stmt + " != " + a_stmt);
-//                    cost += 1;
-//                // Great, we're getting there. Check whether these queries are
-//                // going to touch the same partitions
-//                } else if ((a_partitions.size() != e_partitions.size()) || 
-//                           (a_partitions.equals(e_partitions) == false)) {
-//                    if (trace.get()) LOG.trace("PARTITION MISMATCH: " + e_partitions + " != " + a_partitions);
-//                    
-//                    // Do we want to penalize them for every partition they get wrong?
-//                    for (Integer p : a_partitions) {
-//                        if (e_partitions.contains(p) == false) {
-//                            cost += 1.0d;
-//                        }
-//                    }
-//                    
-//                // Ok they have the same query and they're going to the same partitions,
-//                // So now check whether that this is the same number of times that they've
-//                // executed this query before 
-//                } else if (a.getQueryInstanceIndex() != e.getQueryInstanceIndex()) {
-//                    int a_idx = a.getQueryInstanceIndex();
-//                    int e_idx = e.getQueryInstanceIndex();
-//                    if (trace.get()) LOG.trace("QUERY INDEX MISMATCH: " + e_idx + " != " + a_idx);
-//                    // Do we actually to penalize them for this??
-//                }
-//                
-//                e_i++;
-//                if (trace.get()) LOG.trace("");
-//                
-//            // If our estimated path is too short, then yeah that's going to cost ya'!
-//            } else {
-//                cost += 1.0d;
-//            }
-//        } // FOR
-//        
-//        // Penalize them for invalid partitions
-//        // One point for every missing one and one point for every one too many
-//        int p_missing = 0;
-//        int p_incorrect = 0;
-//        for (Integer p : a_all_partitions) {
-//            if (e_all_partitions.contains(p) == false) p_missing++;
-//        }
-//        for (Integer p : e_all_partitions) {
-//            if (a_all_partitions.contains(p) == false) p_incorrect++;
-//        }
-//        cost += p_missing + p_incorrect;
-        
         if (t) LOG.trace(String.format("Number of Penalties %d: %s", this.penalties.size(), this.penalties));
-        
         double cost = 0.0d;
         for (Penalty p : this.penalties) cost += p.getCost();
         return (cost);
