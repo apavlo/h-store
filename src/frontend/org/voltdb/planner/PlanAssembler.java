@@ -1298,10 +1298,19 @@ public class PlanAssembler {
             clone_node.m_outputColumns.addAll(aggNode.m_outputColumns); // HACK
             
             // set aggregate node to contain sum
-            aggNode.getAggregateTypes().clear();
-            ArrayList<ExpressionType> exp_types = new ArrayList<ExpressionType>();
-            exp_types.add(ExpressionType.AGGREGATE_SUM);
-            aggNode.getAggregateTypes().addAll(exp_types);
+            if (clone_node.getAggregateTypes().size() > 0) {
+                aggNode.getAggregateTypes().clear();
+                ArrayList<ExpressionType> exp_types = new ArrayList<ExpressionType>();
+                if (clone_node.getAggregateTypes().get(0).equals(ExpressionType.AGGREGATE_COUNT) || clone_node.getAggregateTypes().get(0).equals(ExpressionType.AGGREGATE_COUNT_STAR) || clone_node.getAggregateTypes().get(0).equals(ExpressionType.AGGREGATE_SUM)) {
+                    exp_types.add(ExpressionType.AGGREGATE_SUM);                
+                } else if (clone_node.getAggregateTypes().get(0).equals(ExpressionType.AGGREGATE_MAX)) {
+                    exp_types.add(ExpressionType.AGGREGATE_MAX);
+                } else if (clone_node.getAggregateTypes().get(0).equals(ExpressionType.AGGREGATE_MIN)) {
+                    exp_types.add(ExpressionType.AGGREGATE_MIN);
+                }
+                assert (exp_types != null);
+                aggNode.getAggregateTypes().addAll(exp_types);
+            }
             
             assert(clone_node.getGroupByColumns().size() == aggNode.getGroupByColumns().size());
             assert(clone_node.getGroupByColumnNames().size() == aggNode.getGroupByColumnNames().size());

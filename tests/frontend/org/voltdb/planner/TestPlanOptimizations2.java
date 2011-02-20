@@ -49,6 +49,9 @@ public class TestPlanOptimizations2 extends BaseTestCase {
             this.addPartitionInfo("TABLEB", "B_A_ID");
             this.addPartitionInfo("TABLEC", "C_A_ID");
 
+            this.addStmtProcedure("MaxGroup", "SELECT B_ID, Max(TABLEB.B_A_ID) FROM TABLEB GROUP BY B_ID");
+            this.addStmtProcedure("Max", "SELECT Max(TABLEB.B_A_ID) FROM TABLEB");
+            this.addStmtProcedure("Min", "SELECT Min(TABLEB.B_A_ID) FROM TABLEB");
             this.addStmtProcedure("Aggregate", "SELECT COUNT(TABLEB.B_A_ID) AS cnt FROM TABLEB");
             this.addStmtProcedure("DistinctAggregate",
                     "SELECT COUNT(DISTINCT(TABLEB.B_ID)) AS DISTINCTNUMBER FROM TABLEA, TABLEB WHERE TABLEA.A_ID = TABLEB.B_A_ID AND TABLEA.A_ID = ? AND TABLEB.B_ID < ?");
@@ -347,6 +350,46 @@ public class TestPlanOptimizations2 extends BaseTestCase {
     }
 
     @Test
+    public void testMaxGroup() throws Exception {
+        Procedure catalog_proc = this.getProcedure("MaxGroup");
+        Statement catalog_stmt = this.getStatement(catalog_proc, "sql");
+
+        // Grab the root node of the multi-partition query plan tree for this
+        // Statement
+        AbstractPlanNode root = QueryPlanUtil.deserializeStatement(catalog_stmt, true);
+        assertNotNull(root);
+//        validateNodeColumnOffsets(root);
+//        System.err.println(PlanNodeUtil.debug(root));
+    }
+    
+    /** Other NON-max test cases **/
+    @Test
+    public void testMax() throws Exception {
+        Procedure catalog_proc = this.getProcedure("Max");
+        Statement catalog_stmt = this.getStatement(catalog_proc, "sql");
+
+        // Grab the root node of the multi-partition query plan tree for this
+        // Statement
+        AbstractPlanNode root = QueryPlanUtil.deserializeStatement(catalog_stmt, true);
+        assertNotNull(root);
+//        validateNodeColumnOffsets(root);
+//        System.err.println(PlanNodeUtil.debug(root));
+    }
+    
+    @Test
+    public void testMin() throws Exception {
+        Procedure catalog_proc = this.getProcedure("Min");
+        Statement catalog_stmt = this.getStatement(catalog_proc, "sql");
+
+        // Grab the root node of the multi-partition query plan tree for this
+        // Statement
+        AbstractPlanNode root = QueryPlanUtil.deserializeStatement(catalog_stmt, true);
+        assertNotNull(root);
+//        validateNodeColumnOffsets(root);
+//        System.err.println(PlanNodeUtil.debug(root));
+    }
+
+    @Test
     public void testAggregate() throws Exception {
         Procedure catalog_proc = this.getProcedure("Aggregate");
         Statement catalog_stmt = this.getStatement(catalog_proc, "sql");
@@ -356,10 +399,9 @@ public class TestPlanOptimizations2 extends BaseTestCase {
         AbstractPlanNode root = QueryPlanUtil.deserializeStatement(catalog_stmt, true);
         assertNotNull(root);
 //        validateNodeColumnOffsets(root);
-        System.err.println(PlanNodeUtil.debug(root));
+//        System.err.println(PlanNodeUtil.debug(root));
     }
 
-    /** Other NON-Aggregate test cases **/
     @Test
     public void testDistinct() throws Exception {
         Procedure catalog_proc = this.getProcedure("DistinctAggregate");
