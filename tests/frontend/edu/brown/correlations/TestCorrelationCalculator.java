@@ -12,6 +12,8 @@ import edu.brown.correlations.CorrelationCalculator.*;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.ProjectType;
 import edu.brown.workload.*;
+import edu.brown.workload.filters.ProcParameterValueFilter;
+import edu.brown.workload.filters.ProcedureLimitFilter;
 import edu.brown.workload.filters.ProcedureNameFilter;
 
 public class TestCorrelationCalculator extends BaseTestCase {
@@ -30,10 +32,13 @@ public class TestCorrelationCalculator extends BaseTestCase {
         if (workload == null) {
             File file = this.getWorkloadFile(ProjectType.TPCC);
             workload = new Workload(catalog);
-            ProcedureNameFilter filter = new ProcedureNameFilter();
-            filter.include(TARGET_PROCEDURE.getSimpleName(), WORKLOAD_XACT_LIMIT);
+            Workload.Filter filter = new ProcedureNameFilter()
+                    .include(TARGET_PROCEDURE.getSimpleName())
+                    .attach(new ProcParameterValueFilter().include(1, new Long(1))) // D_ID
+                    .attach(new ProcedureLimitFilter(WORKLOAD_XACT_LIMIT));
             ((Workload) workload).load(file.getAbsolutePath(), catalog_db, filter);
         }
+        assert(workload.getTransactionCount() > 0);
         
         // Setup
         this.catalog_proc = this.getProcedure(TARGET_PROCEDURE);
@@ -141,7 +146,7 @@ public class TestCorrelationCalculator extends BaseTestCase {
                 this.catalog_proc.getParameters().get(4),
                 this.catalog_proc.getParameters().get(5),
         };
-        int expected_index[] = { 0, 11 };
+        int expected_index[] = { 0, 14 }; // ???
         
         for (int i = 0, cnt = catalog_stmt.getParameters().size(); i < cnt; i++) {
             StmtParameter catalog_param = catalog_stmt.getParameters().get(i);

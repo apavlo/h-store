@@ -36,6 +36,8 @@ import java.util.*;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.zip.GZIPInputStream;
 
 import org.apache.log4j.Logger;
@@ -51,8 +53,11 @@ import edu.brown.catalog.CatalogKey;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.statistics.*;
 import edu.brown.utils.ClassUtil;
+import edu.brown.utils.FileUtil;
+import edu.brown.utils.StringUtil;
 import edu.brown.utils.ThreadUtil;
 import edu.brown.workload.Workload.Filter.FilterResult;
+import edu.brown.workload.filters.ProcedureNameFilter;
 
 /**
  * 
@@ -407,74 +412,132 @@ public class Workload implements WorkloadTrace, Iterable<AbstractTraceElement<? 
         
         if (debug) LOG.debug("Reading workload trace from file '" + input_path + "'");
         this.input_path = new File(input_path);
-         
 
-        // Check whether it's gzipped. Yeah that's right, we support that!
-        BufferedReader temp_in = null;
-        if (this.input_path.getPath().endsWith(".gz")) {
-            FileInputStream fin = new FileInputStream(this.input_path);
-            GZIPInputStream gzis = new GZIPInputStream(fin);
-            temp_in = new BufferedReader(new InputStreamReader(gzis));
-        } else {
-            temp_in = new BufferedReader(new FileReader(this.input_path));   
+        
+        // HACK: Throw out traces unless they have the procedures that we're looking for
+        Pattern temp_pattern = null;
+        if (filter != null) {
+            List<ProcedureNameFilter> procname_filters = filter.getFilters(ProcedureNameFilter.class);
+            if (procname_filters.isEmpty() == false) {
+                Set<String> names = new HashSet<String>();
+                for (ProcedureNameFilter f : procname_filters) {
+                    for (String name : f.getProcedureNames()) {
+                        names.add(Pattern.quote(name));
+                    } // FOR
+                } // FOR
+                if (names.isEmpty() == false) {
+                    temp_pattern = Pattern.compile(String.format("\"NAME\":[\\s]*\"(%s)\"", StringUtil.join("|", names)), Pattern.CASE_INSENSITIVE);
+                    if (debug) {
+                        LOG.debug(String.format("Fast filter for %d procedure names", names.size()));
+                        LOG.debug("PATTERN: " + temp_pattern.pattern());
+                    }
+                } 
+            }
         }
-        final BufferedReader in = temp_in;
+        final Pattern pattern = temp_pattern;
         
         final AtomicInteger counters[] = new AtomicInteger[] {
             new AtomicInteger(0), // TXN COUNTER
             new AtomicInteger(0), // QUERY COUNTER
             new AtomicInteger(0)  // ELEMENT COUNTER
         };
-
-        final int num_threads = ThreadUtil.getMaxGlobalThreads() - 1;
-        final List<LoadThread> load_threads = new ArrayList<LoadThread>();
+        
         List<Runnable> all_runnables = new ArrayList<Runnable>();
+        int num_threads = ThreadUtil.getMaxGlobalThreads() - 1;
+        
+        // Create the reader thread first
+        ReadThread rt = new ReadThread(this.input_path, pattern, num_threads);
+        all_runnables.add(rt);
+        
+        // Then create all of our load threads
         for (int i = 0; i < num_threads; i++) {
-            LoadThread lt = new LoadThread(catalog_db, filter, counters);
-            load_threads.add(lt);
+            LoadThread lt = new LoadThread(rt, catalog_db, filter, counters);
+            rt.load_threads.add(lt);
             all_runnables.add(lt);
         } // FOR
         
-        // Create our thread that reads the trace file and passes off the work to the LoadThreads
-        all_runnables.add(new Runnable() {
-            public void run() {
-                int line_ctr = 0;
-                int thread_ctr = 0;
-                try {
-                    while (in.ready()) {
-                        String line = in.readLine().trim();
-                        if (line.isEmpty()) continue;
-                        load_threads.get(thread_ctr).lines.add(Pair.of(line_ctr, line));
-                        if (++thread_ctr == num_threads) thread_ctr = 0;
-                        line_ctr++;
-                    } // WHILE
-                    in.close();
-                    if (debug) LOG.debug("Finished reading file. Telling all LoadThreads to stop when their queue is empty");
-                    
-                    // Tell all the load threads to stop before we finish
-                    for (LoadThread lt : load_threads) {
-                        lt.stop();
-                    } // FOR
-                } catch (Exception ex) {
-                    throw new RuntimeException(ex);
-                }
-            }
-        });
-        if (debug) LOG.debug(String.format("Loading workload trace using %d LoadThreads", load_threads.size())); 
+        if (debug) LOG.debug(String.format("Loading workload trace using %d LoadThreads", rt.load_threads.size())); 
         ThreadUtil.runGlobalPool(all_runnables);
         this.validate();
         LOG.info("Loaded in " + this.xact_trace.size() + " txns with " + counters[1].get() + " queries from '" + this.input_path.getName() + "'");
         return;
     }
     
+    /**
+     * READ THREAD
+     */
+    private class ReadThread implements Runnable {
+        final File input_path;
+        final List<LoadThread> load_threads = new ArrayList<LoadThread>();
+        final LinkedBlockingDeque<Pair<Integer, String>> lines;
+        final Pattern pattern;
+        boolean stop = false;
+        Thread self;
+        
+        public ReadThread(File input_path, Pattern pattern, int num_threads) {
+            this.input_path = input_path;
+            this.pattern = pattern;
+            this.lines = new LinkedBlockingDeque<Pair<Integer, String>>(num_threads * 2);
+        }
+        
+        @Override
+        public void run() {
+            boolean debug = LOG.isDebugEnabled();
+            self = Thread.currentThread();
+            
+            BufferedReader in = null;
+            try {
+                in = FileUtil.getReader(this.input_path);
+            } catch (Exception ex) {
+                throw new RuntimeException(ex);
+            }
+            
+            int line_ctr = 0;
+            int fast_ctr = 0;
+            try {
+                while (in.ready() && this.stop == false) {
+                    String line = in.readLine().trim();
+                    if (line.isEmpty()) continue;
+                    if (this.pattern != null && this.pattern.matcher(line).find() == false) {
+                        fast_ctr++;
+                        continue;
+                    }
+                    this.lines.offerLast(Pair.of(line_ctr, line), 100, TimeUnit.SECONDS);
+                    line_ctr++;
+                } // WHILE
+                in.close();
+                if (debug) LOG.debug("Finished reading file. Telling all LoadThreads to stop when their queue is empty");
+            } catch (InterruptedException ex) {
+                if (this.stop == false) throw new RuntimeException(ex);
+            } catch (Exception ex) {
+                throw new RuntimeException(ex);
+            } finally {
+                // Tell all the load threads to stop before we finish
+                for (LoadThread lt : this.load_threads) {
+                    lt.stop();
+                } // FOR
+            }
+            LOG.info(String.format("Read %d lines [fast_filter=%d]", line_ctr, fast_ctr));
+        }
+        public synchronized void stop() {
+            if (this.stop == false) {
+                LOG.info("ReadThread Told to stop by LoadThread [queue_size=" + this.lines.size() + "]");
+                this.stop = true;
+                this.self.interrupt();
+            }
+        }
+    } // END CLASS
+    
     private class LoadThread implements Runnable {
+        final ReadThread reader;
         final Database catalog_db;
         final Filter filter;
         final AtomicInteger counters[];
-        final LinkedBlockingDeque<Pair<Integer, String>> lines = new LinkedBlockingDeque<Pair<Integer, String>>(); 
+         
         boolean stop = false;
         
-        public LoadThread(Database catalog_db, Filter filter, AtomicInteger counters[]) {
+        public LoadThread(ReadThread reader, Database catalog_db, Filter filter, AtomicInteger counters[]) {
+            this.reader = reader;
             this.catalog_db = catalog_db;
             this.filter = filter;
             this.counters = counters;
@@ -495,7 +558,7 @@ public class Workload implements WorkloadTrace, Iterable<AbstractTraceElement<? 
                 Pair<Integer, String> p = null;
                 
                 try {
-                    p = this.lines.poll(100, TimeUnit.MILLISECONDS);
+                    p = this.reader.lines.poll(100, TimeUnit.MILLISECONDS);
                 } catch (Exception ex) {
                     throw new RuntimeException(ex);
                 }
@@ -530,7 +593,12 @@ public class Workload implements WorkloadTrace, Iterable<AbstractTraceElement<? 
                             throw new Exception("Failed to deserialize transaction trace on line " + xact_ctr);
                         } else if (filter != null) {
                             FilterResult result = filter.apply(xact);
-                            if (result == FilterResult.HALT) break;
+                            if (result == FilterResult.HALT) {
+                                // We have to tell the ReadThread to stop too!
+                                if (trace) LOG.trace("Got HALT response from filter! Telling ReadThread to stop!");
+                                this.reader.stop();
+                                break;
+                            }
                             else if (result == FilterResult.SKIP) continue;
                             if (trace) LOG.trace(result + ": " + xact);
                         }
@@ -556,7 +624,7 @@ public class Workload implements WorkloadTrace, Iterable<AbstractTraceElement<? 
         }
         
         public void stop() {
-            LOG.trace("Told to stop [queue_size=" + this.lines.size() + "]");
+            LOG.trace("Told to stop [queue_size=" + this.reader.lines.size() + "]");
             this.stop = true;
         }
     }

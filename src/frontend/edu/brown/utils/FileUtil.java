@@ -108,9 +108,19 @@ public abstract class FileUtil {
      * @throws IOException
      */
     public static BufferedReader getReader(String path) throws IOException {
-        File file = new File(path);
+        return (FileUtil.getReader(new File(path)));
+    }
+    
+    /**
+     * Creates a BufferedReader for the given input path
+     * Can handle both gzip and plain text files
+     * @param file
+     * @return
+     * @throws IOException
+     */
+    public static BufferedReader getReader(File file) throws IOException {
         if (!file.exists()) {
-            throw new IOException("ERROR: The file '" + path + "' does not exist");
+            throw new IOException("The file '" + file + "' does not exist");
         }
         
         BufferedReader in = null;
