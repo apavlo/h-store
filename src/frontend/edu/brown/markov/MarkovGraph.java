@@ -141,36 +141,55 @@ public class MarkovGraph extends AbstractDirectedGraph<Vertex, Edge> implements 
     public Procedure getProcedure() {
         return catalog_proc;
     }
-    
-//    /**
-//     * Return the base partition id that this Markov graph represents
-//     * @return
-//     */
-//    public int getBasePartition() {
-//        return this.base_partition;
-//    }
+
+    /**
+     * Increases the weight between two vertices. Creates an edge if one does
+     * not exist, then increments the source vertex's count and the edge's count
+     * 
+     * @param source the source vertex
+     * @param dest the destination vertex
+     */
+    public Edge addToEdge(Vertex source, Vertex dest) {
+        assert(source != null);
+        assert(dest != null);
+        
+        Edge e = null;
+        synchronized (source) {
+            e = this.findEdge(source, dest);
+            if (e == null) {
+                e = new Edge(this);
+                this.addEdge(e, source, dest);
+            }
+            source.increment();
+            e.increment();
+        } // SYNCH
+        return (e);
+    }
     
     /**
      * 
      */
     @Override
     public boolean addVertex(Vertex v) {
-        boolean ret = super.addVertex(v);
-        if (ret) {
-            Vertex.Type vtype = v.getType();
-            switch (vtype) {
-                case START:
-                case COMMIT:
-                case ABORT: {
-                    int idx = vtype.ordinal();
-                    assert(this.vertex_cache[idx] == null) : "Trying add duplicate " + vtype + " vertex";
-                    this.vertex_cache[idx] = v;
-                    break;
-                }
-                default:
-                    // Ignore others
-            } // SWITCH
-        }
+        boolean ret;
+        synchronized (v) {
+            ret = super.addVertex(v);
+            if (ret) {
+                Vertex.Type vtype = v.getType();
+                switch (vtype) {
+                    case START:
+                    case COMMIT:
+                    case ABORT: {
+                        int idx = vtype.ordinal();
+                        assert(this.vertex_cache[idx] == null) : "Trying add duplicate " + vtype + " vertex";
+                        this.vertex_cache[idx] = v;
+                        break;
+                    }
+                    default:
+                        // Ignore others
+                } // SWITCH
+            }
+        } // SYNCH
         return (ret);
     }
 
@@ -486,26 +505,6 @@ public class MarkovGraph extends AbstractDirectedGraph<Vertex, Edge> implements 
     // ----------------------------------------------------------------------------
     
     /**
-     * Increases the weight between two vertices. Creates an edge if one does
-     * not exist, then increments the source vertex's count and the edge's count
-     * 
-     * @param source
-     *            - the source vertex
-     * @param dest
-     *            - the destination vertex
-     */
-    public Edge addToEdge(Vertex source, Vertex dest) {
-        Edge e = this.findEdge(source, dest);
-        if (e == null) {
-            e = new Edge(this);
-            this.addEdge(e, source, dest);
-        }
-        source.increment();
-        e.increment();
-        return (e);
-    }
-    
-    /**
      * For a given TransactionTrace object, process its contents and update our
      * graph
      * 
@@ -540,30 +539,35 @@ public class MarkovGraph extends AbstractDirectedGraph<Vertex, Edge> implements 
             Statement catalog_stmnt = query_trace.getCatalogItem(this.getDatabase());
 
             int queryInstanceIndex = query_instance_counters.get(catalog_stmnt).getAndIncrement(); 
-            Vertex v = this.getVertex(catalog_stmnt, partitions, past_partitions, queryInstanceIndex);
-            if (v == null) {
-                // If no such vertex exists we simply create one
-                v = new Vertex(catalog_stmnt, Vertex.Type.QUERY, queryInstanceIndex, partitions, new HashSet<Integer>(past_partitions));
-                this.addVertex(v);
-            }
-            assert(v.isQueryVertex());
-            // Add to the edge between the previous vertex and the current one
-            this.addToEdge(previous, v);
-
-            // Annotate the vertex with remaining execution time
-            v.addExecutionTime(txn_trace.getStopTimestamp() - query_trace.getStartTimestamp());
+            Vertex v = null;
+            synchronized (previous) {
+                v = this.getVertex(catalog_stmnt, partitions, past_partitions, queryInstanceIndex);
+                if (v == null) {
+                    // If no such vertex exists we simply create one
+                    v = new Vertex(catalog_stmnt, Vertex.Type.QUERY, queryInstanceIndex, partitions, new HashSet<Integer>(past_partitions));
+                    this.addVertex(v);
+                }
+                assert(v.isQueryVertex());
+                // Add to the edge between the previous vertex and the current one
+                this.addToEdge(previous, v);
+    
+                // Annotate the vertex with remaining execution time
+                v.addExecutionTime(txn_trace.getStopTimestamp() - query_trace.getStartTimestamp());
+            } // SYNCH
             previous = v;
             path.add(v);
             past_partitions.addAll(partitions);
         } // FOR
         
-        if (txn_trace.isAborted()) {
-            this.addToEdge(previous, this.getAbortVertex());
-            path.add(this.getAbortVertex());
-        } else {
-            this.addToEdge(previous, this.getCommitVertex());
-            path.add(this.getCommitVertex());
-        }
+        synchronized (previous) {
+            if (txn_trace.isAborted()) {
+                this.addToEdge(previous, this.getAbortVertex());
+                path.add(this.getAbortVertex());
+            } else {
+                this.addToEdge(previous, this.getCommitVertex());
+                path.add(this.getCommitVertex());
+            }
+        } // SYNCH
         // -----------END QUERY TRACE-VERTEX CREATION--------------
         this.xact_count++;
         return (path);

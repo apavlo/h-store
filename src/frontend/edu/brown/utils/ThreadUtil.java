@@ -179,7 +179,7 @@ public abstract class ThreadUtil {
         }
         if (d) {
             final long stop = System.currentTimeMillis();
-            LOG.debug(String.format("Finished executing %d threads [time=%.02f]", num_threads, (stop-start)/1000d));
+            LOG.debug(String.format("Finished executing %d threads [time=%.02fs]", num_threads, (stop-start)/1000d));
         }
         return;
     }

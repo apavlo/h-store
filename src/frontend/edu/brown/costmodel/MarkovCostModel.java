@@ -2,6 +2,7 @@ package edu.brown.costmodel;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Deque;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -639,12 +640,13 @@ public class MarkovCostModel extends AbstractCostModel {
         final Histogram penalty_h = new Histogram();
         
         LOG.info(String.format("Estimating the accuracy of the MarkovGraphs using %d transactions", args.workload.getTransactionCount()));
-        int num_threads = ThreadUtil.getMaxGlobalThreads() - 1;
-        final Deque<TransactionTrace> queue = new LinkedList<TransactionTrace>();
+        int num_threads = ThreadUtil.getMaxGlobalThreads();
+        final List<TransactionTrace> queue = new ArrayList<TransactionTrace>();
         for (TransactionTrace txn_trace : args.workload.getTransactions()) {
-            queue.push(txn_trace);
+            queue.add(txn_trace);
             total_h.put(txn_trace.getCatalogItemName());
         } // FOR
+        Collections.shuffle(queue);
 
         final AtomicInteger total = new AtomicInteger(0);
         final List<Runnable> runnables = new ArrayList<Runnable>();
@@ -659,7 +661,7 @@ public class MarkovCostModel extends AbstractCostModel {
                     while (true) {
                         synchronized (queue) {
                             if (queue.isEmpty()) break;
-                            txn_trace = queue.removeFirst();
+                            txn_trace = queue.remove(0);
                         }
                         
                         double cost = 0.0d;
@@ -682,7 +684,8 @@ public class MarkovCostModel extends AbstractCostModel {
                         } else {
                             accurate_h.put(proc_name);
                         }
-                        if (total.incrementAndGet() % 10000 == 0) LOG.info(String.format("Processed %d transactions", total.get()));
+                        int cnt = total.incrementAndGet(); 
+                        if (cnt % 100 == 0) LOG.info(String.format("Processed %d transactions", cnt));
                         
                     } // WHILE
                 } 
@@ -694,7 +697,7 @@ public class MarkovCostModel extends AbstractCostModel {
         assert(accurate_cnt == accurate_h.getSampleCount());
         
         Map<String, Object> m0 = new ListOrderedMap<String, Object>();
-        m0.put("RESULT", String.format("%05d / %05d [%.03f]", accurate_cnt, total, (accurate_cnt / (double)total.get())));
+        m0.put("RESULT", String.format("%05d / %05d [%.03f]", accurate_cnt, total.get(), (accurate_cnt / (double)total.get())));
         
         Map<String, Object> m1 = new ListOrderedMap<String, Object>();
         for (PenaltyGroup pg : PenaltyGroup.values()) {
