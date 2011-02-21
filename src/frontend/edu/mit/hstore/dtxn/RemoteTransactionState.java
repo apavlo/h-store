@@ -96,6 +96,12 @@ public class RemoteTransactionState extends TransactionState {
     }
     
     @Override
+    public boolean getHStoreSiteDone() {
+        return (true);
+    }
+    
+    
+    @Override
     public VoltTable[] getResults() {
         // TODO Auto-generated method stub
         return null;

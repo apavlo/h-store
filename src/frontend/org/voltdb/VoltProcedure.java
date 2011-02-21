@@ -534,6 +534,7 @@ public abstract class VoltProcedure implements Poolable {
 
         //lastBatchNeedsRollback = false;
 
+        final LocalTransactionState local_ts = (LocalTransactionState)this.m_currentTxnState;
         VoltTable[] results = new VoltTable[0];
         byte status = ClientResponseImpl.SUCCESS;
         SerializableException se = null;
@@ -571,7 +572,7 @@ public abstract class VoltProcedure implements Poolable {
             m_workloadXactHandle = ProcedureProfiler.workloadTrace.startTransaction(this, catProc, this.procParams);
         }
 
-        // Unblock the thread 
+        local_ts.java_time.startThinkMarker();
         try {
             if (trace.get()) LOG.trace("Invoking txn #" + this.txn_id + " [" +
                                        "procMethod=" + procMethod.getName() + ", " +
@@ -651,6 +652,9 @@ public abstract class VoltProcedure implements Poolable {
         } catch (AssertionError e) {
             LOG.fatal(e);
             System.exit(1);
+        } finally {
+            if (local_ts.java_time.isStarted()) local_ts.java_time.stopThinkMarker();
+            if (local_ts.ee_time.isStarted()) local_ts.ee_time.stopThinkMarker();
         }
 
 //        if (ProcedureProfiler.profilingLevel != ProcedureProfiler.Level.DISABLED)
@@ -928,6 +932,10 @@ public abstract class VoltProcedure implements Poolable {
             queryResults.clear();
             return batch_results;
         }
+        LocalTransactionState local_ts = (LocalTransactionState)this.m_currentTxnState;
+        long timestamp = System.currentTimeMillis();
+        local_ts.java_time.stopThinkMarker(timestamp);
+        local_ts.ee_time.startThinkMarker(timestamp);
 
         assert (batchQueryStmtIndex == batchQueryArgsIndex);
 
@@ -966,6 +974,11 @@ public abstract class VoltProcedure implements Poolable {
 
         batchQueryStmtIndex = 0;
         batchQueryArgsIndex = 0;
+        
+        timestamp = System.currentTimeMillis();
+        local_ts.ee_time.stopThinkMarker(timestamp);
+        local_ts.java_time.startThinkMarker(timestamp);
+        
         return retval;
     }
 
