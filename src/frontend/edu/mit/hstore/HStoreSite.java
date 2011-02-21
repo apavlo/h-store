@@ -55,6 +55,7 @@ import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.EventObservable;
 import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.PartitionEstimator;
+import edu.brown.utils.ProfileMeasurement;
 import edu.brown.utils.StringUtil;
 import edu.brown.utils.ThreadUtil;
 import edu.brown.utils.LoggerUtil.LoggerBoolean;
@@ -163,6 +164,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
     private boolean force_singlepartitioned = false;
     private boolean force_localexecution = false;
     private boolean force_neworder_hack = false;
+    private boolean enable_profiling = false;
     
     private final DBBPool buffer_pool = new DBBPool(true, false);
     private final Map<Integer, Thread> executor_threads = new HashMap<Integer, Thread>();
@@ -590,7 +592,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         final boolean t = trace.get();
         final boolean d = debug.get();
         if (this.status_monitor != null) TxnCounter.RECEIVED.inc();
-        long timestamp = System.currentTimeMillis();
+        long timestamp = (this.enable_profiling ? ProfileMeasurement.getTime() : -1);
         
         // The serializedRequest is a ProcedureInvocation object
         StoredProcedureInvocation request = null;
@@ -744,9 +746,9 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
             throw new RuntimeException(ex);
         }
         local_ts.init(txn_id, request.getClientHandle(), dest_partition.intValue(), sysproc, request, done);
-        local_ts.total_time.startThinkMarker(timestamp);
         local_ts.setPredictSinglePartitioned(single_partition);
-        local_ts.setEstimatorState(estimator_state);
+        local_ts.setEstimatorState(estimator_state);        
+        if (this.enable_profiling) local_ts.total_time.startThinkMarker(timestamp);
         this.initializeInvocation(local_ts);
     }
     
@@ -1060,15 +1062,15 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
      * @param txn_id
      */
     public void completeTransaction(long txn_id) {
-        if (trace.get()) LOG.trace("Cleaning up internal info for Txn #" + txn_id);
+        if (debug.get()) LOG.debug("Cleaning up internal info for Txn #" + txn_id);
         LocalTransactionState txn_info = this.inflight_txns.remove(txn_id);
         assert(txn_info != null) : "No LocalTransactionState for txn #" + txn_id;
         
-        if (txn_info != null) {
-            txn_info.setHStoreSiteDone(true); 
-            if (txn_info.sysproc == false) txn_info.total_time.stopThinkMarker();
+        if (txn_info.sysproc == false && this.enable_profiling) {
+            txn_info.total_time.stopThinkMarker();
             if (trace.get()) LOG.trace(String.format("Tranction #%d total time: %d [done=%s]", txn_info.getTransactionId(), txn_info.total_time.getTotalThinkTime(), txn_info.getHStoreSiteDone()));
         }
+        txn_info.setHStoreSiteDone(true);
         if (this.status_monitor != null) TxnCounter.COMPLETED.inc();
     }
 
@@ -1379,6 +1381,14 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
             site.helper_txn_expire = args.getIntParam(ArgumentsParser.PARAM_NODE_CLEANUP_TXN_EXPIRE);
             LOG.info("Setting Cleanup Txn Expiration = " + site.helper_txn_expire + "ms");
         }
+        // Profiling
+        if (args.hasBooleanParam(ArgumentsParser.PARAM_NODE_ENABLE_PROFILING)) {
+            site.enable_profiling = args.getBooleanParam(ArgumentsParser.PARAM_NODE_ENABLE_PROFILING);
+            for (ExecutionSite e : executors.values()) {
+                e.setEnableProfiling(site.enable_profiling);
+            } // FOR
+            if (site.enable_profiling) LOG.info("Enabling procedure profiling");
+        }
         
         // Status Monitor
         if (args.hasParam(ArgumentsParser.PARAM_NODE_STATUS_INTERVAL)) {
@@ -1387,7 +1397,10 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
             if (args.hasBooleanParam(ArgumentsParser.PARAM_NODE_STATUS_INTERVAL_KILL)) {
                 kill_when_hanging = args.getBooleanParam(ArgumentsParser.PARAM_NODE_STATUS_INTERVAL_KILL);
             }
-            if (interval > 0) site.enableStatusMonitor(interval, kill_when_hanging);
+            if (interval > 0) {
+                LOG.info(String.format("Enabling StatusMonitorThread [interval=%d, kill=%s]", interval, kill_when_hanging));
+                site.enableStatusMonitor(interval, kill_when_hanging);
+            }
         }
         
         // ----------------------------------------------------------------------------

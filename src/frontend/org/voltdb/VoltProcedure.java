@@ -42,6 +42,7 @@ import edu.brown.utils.EventObserver;
 import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.PartitionEstimator;
 import edu.brown.utils.Poolable;
+import edu.brown.utils.ProfileMeasurement;
 import edu.brown.utils.StringUtil;
 import edu.brown.utils.LoggerUtil.LoggerBoolean;
 import edu.mit.hstore.HStoreSite;
@@ -572,7 +573,7 @@ public abstract class VoltProcedure implements Poolable {
             m_workloadXactHandle = ProcedureProfiler.workloadTrace.startTransaction(this, catProc, this.procParams);
         }
 
-        local_ts.java_time.startThinkMarker();
+        if (this.m_site.enable_profiling) local_ts.java_time.startThinkMarker();
         try {
             if (trace.get()) LOG.trace("Invoking txn #" + this.txn_id + " [" +
                                        "procMethod=" + procMethod.getName() + ", " +
@@ -653,8 +654,11 @@ public abstract class VoltProcedure implements Poolable {
             LOG.fatal(e);
             System.exit(1);
         } finally {
-            if (local_ts.java_time.isStarted()) local_ts.java_time.stopThinkMarker();
-            if (local_ts.ee_time.isStarted()) local_ts.ee_time.stopThinkMarker();
+            if (this.m_site.enable_profiling) {
+                long time = ProfileMeasurement.getTime();
+                if (local_ts.java_time.isStarted()) local_ts.java_time.stopThinkMarker(time);
+                if (local_ts.coord_time.isStarted()) local_ts.coord_time.stopThinkMarker(time);
+            }
         }
 
 //        if (ProcedureProfiler.profilingLevel != ProcedureProfiler.Level.DISABLED)
@@ -932,10 +936,13 @@ public abstract class VoltProcedure implements Poolable {
             queryResults.clear();
             return batch_results;
         }
+        
         LocalTransactionState local_ts = (LocalTransactionState)this.m_currentTxnState;
-        long timestamp = System.currentTimeMillis();
-        local_ts.java_time.stopThinkMarker(timestamp);
-        local_ts.ee_time.startThinkMarker(timestamp);
+        if (this.m_site.enable_profiling) {
+            long timestamp = ProfileMeasurement.getTime();
+            local_ts.java_time.stopThinkMarker(timestamp);
+            local_ts.coord_time.startThinkMarker(timestamp);
+        }
 
         assert (batchQueryStmtIndex == batchQueryArgsIndex);
 
@@ -975,9 +982,11 @@ public abstract class VoltProcedure implements Poolable {
         batchQueryStmtIndex = 0;
         batchQueryArgsIndex = 0;
         
-        timestamp = System.currentTimeMillis();
-        local_ts.ee_time.stopThinkMarker(timestamp);
-        local_ts.java_time.startThinkMarker(timestamp);
+        if (this.m_site.enable_profiling) {
+            long timestamp = ProfileMeasurement.getTime();
+            local_ts.coord_time.stopThinkMarker(timestamp);
+            local_ts.java_time.startThinkMarker(timestamp);
+        }
         
         return retval;
     }

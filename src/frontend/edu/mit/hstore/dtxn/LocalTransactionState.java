@@ -199,6 +199,10 @@ public class LocalTransactionState extends TransactionState {
      */
     public final ProfileMeasurement java_time = new ProfileMeasurement(Type.JAVA);
     /**
+     * The amount of time spent coordinating the transaction
+     */
+    public final ProfileMeasurement coord_time = new ProfileMeasurement(Type.COORDINATOR);
+    /**
      * The amount of time spent executing in the plan fragments
      */
     public final ProfileMeasurement ee_time = new ProfileMeasurement(Type.EE);
@@ -322,9 +326,12 @@ public class LocalTransactionState extends TransactionState {
         this.estimator_state = orig.estimator_state;
         
         // Append the profiling times
-        this.total_time.appendTime(orig.total_time);
-        this.java_time.appendTime(orig.java_time);
-        this.ee_time.appendTime(orig.ee_time);
+        if (this.executor.getEnableProfiling()) {
+            this.total_time.appendTime(orig.total_time);
+            this.java_time.appendTime(orig.java_time);
+            this.coord_time.appendTime(orig.coord_time);
+            this.ee_time.appendTime(orig.ee_time);
+        }
         
         return (this.init(txnId, orig.client_handle, orig.source_partition));
     }
@@ -362,9 +369,13 @@ public class LocalTransactionState extends TransactionState {
         this.coordinator_callback = null;
         this.volt_procedure = null;
         this.total_time.reset();
-        this.java_time.reset();
-        this.ee_time.reset();
-        this.est_time = null;
+        
+        if (this.executor.getEnableProfiling()) {
+            this.java_time.reset();
+            this.coord_time.reset();
+            this.ee_time.reset();
+            this.est_time = null;
+        }
         
         this.clearRound();
     }

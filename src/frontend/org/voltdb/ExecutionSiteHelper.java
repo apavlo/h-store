@@ -1,6 +1,7 @@
 package org.voltdb;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
@@ -79,8 +80,9 @@ public class ExecutionSiteHelper implements Runnable {
             executor.getHStoreSite().addShutdownObservable(new EventObserver() {
                 @Override
                 public void update(Observable o, Object arg) {
+                    ExecutionSiteHelper.this.shutdown();
                     LOG.info("Got shutdown notification from HStoreSite. Dumping profile information");
-                    System.err.println(ExecutionSiteHelper.this.dumpProfileInformation());
+                    System.err.println(StringUtil.box(ExecutionSiteHelper.this.dumpProfileInformation()));
                 }
             });
         }
@@ -105,15 +107,14 @@ public class ExecutionSiteHelper implements Runnable {
             self.setName(hstore_site.getThreadName("help"));
             this.first = false;
         }
-        if (d) LOG.debug("New invocation of the ExecutionSiteHelper. Let's clean-up some txns!");
+        if (t) LOG.trace("New invocation of the ExecutionSiteHelper. Let's clean-up some txns!");
         
         long to_remove = System.currentTimeMillis() - this.txn_expire;
         for (ExecutionSite es : this.sites) {
-            if (d) LOG.debug(String.format("Partition %d has %d finished transactions", es.partitionId, es.finished_txn_states.size()));
+            if (t) LOG.trace(String.format("Partition %d has %d finished transactions", es.partitionId, es.finished_txn_states.size()));
             
             int cleaned = 0;
-            while (es.finished_txn_states.isEmpty() == false &&
-                    (this.txn_per_round < 0 || cleaned < this.txn_per_round)) {
+            while (es.finished_txn_states.isEmpty() == false && (this.txn_per_round < 0 || cleaned < this.txn_per_round)) {
                 TransactionState ts = es.finished_txn_states.peek();
                 if (ts.getFinishedTimestamp() < to_remove) {
 //                    if (traceLOG.info(String.format("Want to clean txn #%d [done=%s, type=%s]", ts.getTransactionId(), ts.getHStoreSiteDone(), ts.getClass().getSimpleName()));
@@ -131,9 +132,28 @@ public class ExecutionSiteHelper implements Runnable {
                     cleaned++;
                 } else break;
             } // WHILE
-            if (d) LOG.debug(String.format("Cleaned %d TransactionStates at partition %d", cleaned, es.partitionId));
+            if (d && cleaned > 0) LOG.debug(String.format("Cleaned %d TransactionStates at partition %d", cleaned, es.partitionId));
             // Only call tick here!
             es.tick();
+        } // FOR
+    }
+    
+    /**
+     * 
+     */
+    private synchronized void shutdown() {
+        LOG.info("Shutdown event received. Cleaning all transactions");
+        TransactionState ts = null;
+        for (ExecutionSite es : this.sites) {
+            int cleaned = 0;
+            while ((ts = es.finished_txn_states.poll()) != null) {
+                if (this.enable_profiling && ts instanceof LocalTransactionState) {
+                    this.calculateProfileInformation((LocalTransactionState)ts);
+                }
+                cleaned++;
+            } // WHILE
+            assert(es.finished_txn_states.isEmpty());
+            if (debug.get()) LOG.debug(String.format("Cleaned %d TransactionStates at partition %d", cleaned, es.partitionId));
         } // FOR
     }
 
@@ -158,6 +178,7 @@ public class ExecutionSiteHelper implements Runnable {
         ProfileMeasurement pms[] = {
             ts.total_time,
             ts.java_time,
+            ts.coord_time,
             ts.ee_time,
             ts.est_time,
         };
@@ -168,6 +189,7 @@ public class ExecutionSiteHelper implements Runnable {
         
         Procedure catalog_proc = ts.getProcedure();
         assert(catalog_proc != null);
+        if (trace.get()) LOG.trace(String.format("Txn #%d - %s: %s", ts.getTransactionId(), catalog_proc.getName(), Arrays.toString(tuple)));
         this.proc_profiles.get(catalog_proc).add(tuple);
     }
     
@@ -175,11 +197,13 @@ public class ExecutionSiteHelper implements Runnable {
         
         String header[] = {
             "",
-            "Total",
-            "Java",
-            "EE",
-            "Estmt",
-            "Misc",
+            "# of Txns",
+            "Total Time",
+            "Java Procedure",
+            "Coordinator",
+            "ExecutionEngine",
+            "Estimation",
+            "Miscellaneous",
         };
         int num_procs = 0;
         for (List<long[]> tuples : this.proc_profiles.values()) {
@@ -196,17 +220,19 @@ public class ExecutionSiteHelper implements Runnable {
             int num_tuples = e.getValue().size();
             if (num_tuples == 0) continue;
             for (int i = 0; i < totals.length; i++) totals[i] = 0;
+            totals[0] = num_tuples;
             
             // Sum up the total time for each category
             for (long tuple[] : e.getValue()) {
                 long tuple_total = 0;
-                for (int i = 0; i < totals.length; i++) {
+                for (int i = 0, cnt = totals.length-1; i < cnt; i++) {
                     // The last one should be the total time minus the time in the
-                    // Java/EE/Estimation parts. This is will be considered the misc/bookkeeping time
+                    // Java/EE/Coord/Est parts. This is will be considered the misc/bookkeeping time
                     if (i == tuple.length) {
-                        totals[i] = tuple[0] - tuple_total;
+                        totals[i+1] = tuple[0] - tuple_total;
+//                        LOG.info(String.format("misc=%d, total=%d, else=%d", totals[i+1], tuple[0], tuple_total));
                     } else {
-                        totals[i] += tuple[i];
+                        totals[i+1] += tuple[i];
                         if (i > 0) tuple_total += tuple[i];
                     }
                 } // FOR
@@ -217,10 +243,17 @@ public class ExecutionSiteHelper implements Runnable {
             rows[row_idx][0] = e.getKey().getName();
             
             for (int i = 0; i < totals.length; i++) {
+                // # of Txns
                 if (i == 0) {
-                    rows[row_idx][i+1] = String.format(f, totals[i] / (double)num_tuples) + "ms";
+                    rows[row_idx][i+1] = Long.toString(totals[i]);
+                // Total Time
+                } else if (i == 1) {
+                    // rows[row_idx][i+1] = String.format(f, totals[i] / (double)num_tuples) + "ms";
+                    rows[row_idx][i+1] = String.format("%.02f", totals[i] / 1000000d);
+                // Everything Else
                 } else {
-                    rows[row_idx][i+1] = String.format(f, (totals[i] / (double)totals[0]) * 100) + "%";
+//                    rows[row_idx][i+1] = String.format(f, (totals[i] / (double)totals[0]) * 100) + "%";
+                    rows[row_idx][i+1] = String.format("%.02f", totals[i] / 1000000d);
                 }
             } // FOR
             row_idx++;

@@ -149,6 +149,10 @@ public abstract class TransactionState implements Poolable {
      */
     @Override
     public void finish() {
+        this.finished_timestamp = null;
+        this.submitted_to_ee = false;
+        this.pending_error = null;
+        this.last_undo_token = null;
         this.touched_partitions.clear();
         this.fragment_callbacks.clear();
     }
