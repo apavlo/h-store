@@ -73,6 +73,12 @@ public abstract class TransactionState implements Poolable {
     
     public final Map<Integer, List<VoltTable>> ee_dependencies = new HashMap<Integer, List<VoltTable>>();
     
+    /**
+     * A simple flag that lets us know that the HStoreSite is done with this guy
+     */
+    private  boolean hstore_site_done = false;
+
+    
     // ----------------------------------------------------------------------------
     // INVOCATION DATA MEMBERS
     // ----------------------------------------------------------------------------
@@ -304,6 +310,22 @@ public abstract class TransactionState implements Poolable {
      */
     public long getClientHandle() {
         return this.client_handle;
+    }
+    public boolean getHStoreSiteDone() {
+        if (trace.get()) LOG.trace(String.format("Txn #%d - Returning HStoreSite done [val=%s, hash=%d]", this.txn_id, this.hstore_site_done, this.hashCode()));
+        return (this.hstore_site_done);
+    }
+    public void setHStoreSiteDone(boolean val) {
+        this.hstore_site_done = val;
+        if (trace.get()) LOG.trace(String.format("Txn #%d - Setting HStoreSite done [val=%s, hash=%d]", this.txn_id, this.hstore_site_done, this.hashCode()));
+    }
+    
+    /**
+     * 
+     * @return
+     */
+    public int getSourcePartition() {
+        return source_partition;
     }
     
     /**

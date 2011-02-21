@@ -103,12 +103,12 @@ public class ExecutionSite implements Runnable {
     /**
      * LocalTransactionState Object Pool
      */
-    private final ObjectPool localTxnPool = new StackObjectPool(new LocalTransactionState.Factory(this));
+    public final ObjectPool localTxnPool = new StackObjectPool(new LocalTransactionState.Factory(this));
 
     /**
      * RemoteTransactionState Object Pool
      */
-    private final ObjectPool remoteTxnPool = new StackObjectPool(new RemoteTransactionState.Factory(this));
+    public final ObjectPool remoteTxnPool = new StackObjectPool(new RemoteTransactionState.Factory(this));
     
     /**
      * Create a new instance of the corresponding VoltProcedure for the given Procedure catalog object
@@ -1140,38 +1140,21 @@ public class ExecutionSite implements Runnable {
      * @param task
      */
     public void doWork(TransactionInfoBaseMessage task) {
-        this.doWork(task, null, null);
+        this.doWork(task, null);
     }
-
-    /**
-     * New work from the coordinator that this local site needs to execute (non-blocking)
-     * This method will simply chuck the task into the work queue.
-     * @param task
-     * @param callback the RPC handle to send the response to
-     */
-    public void doWork(TransactionInfoBaseMessage task, RpcCallback<Dtxn.FragmentResponse> callback, Boolean single_partitioned) {
+    
+    public void doWork(TransactionInfoBaseMessage task, RpcCallback<Dtxn.FragmentResponse> callback) {
         long txn_id = task.getTxnId();
         long client_handle = task.getClientHandle();
         boolean start_txn = (task instanceof InitiateTaskMessage);
         
         TransactionState ts = this.txn_states.get(txn_id);
         if (ts == null) {
+            assert(start_txn == false);
             try {
-                // Local Transaction
-                if (start_txn) {
-                    ts = (LocalTransactionState)localTxnPool.borrowObject();
-                    assert(callback != null) : "Missing coordinator callback for txn #" + txn_id;
-                    LocalTransactionState local_ts = (LocalTransactionState)ts;
-                    local_ts.setCoordinatorCallback(callback);
-                    local_ts.setPredictSinglePartitioned(single_partitioned);
-                    local_ts.setEstimatorState(this.t_estimator.getState(txn_id));
-                    if (debug.get()) LOG.debug(String.format("Starting new VoltProcedure invocation for txn #%d [partition=%d, singlepartitioned=%s]", txn_id, this.partitionId, single_partitioned));
-                    
                 // Remote Transaction
-                } else {
-                    ts = (RemoteTransactionState)remoteTxnPool.borrowObject();
-                    if (debug.get()) LOG.debug(String.format("Creating new RemoteTransactionState for txn #%d running at partition %d [local_partition=%d, singlepartitioned=%s]", txn_id, task.getSourcePartitionId(), this.partitionId, single_partitioned));
-                }
+                ts = (RemoteTransactionState)remoteTxnPool.borrowObject();
+                if (debug.get()) LOG.debug(String.format("Creating new RemoteTransactionState for txn #%d running at partition %d [local_partition=%d, singlepartitioned=%s]", txn_id, task.getSourcePartitionId(), this.partitionId, false));
             } catch (Exception ex) {
                 LOG.fatal("Failed to construct TransactionState for txn #" + txn_id, ex);
                 throw new RuntimeException(ex);
@@ -1183,7 +1166,8 @@ public class ExecutionSite implements Runnable {
             this.txn_states.put(txn_id, ts);
             if (trace.get()) LOG.trace(String.format("Creating transaction state for txn #%d [partition=%d]", txn_id, this.getPartitionId()));
         }
-        
+
+        // Remote Work
         if (start_txn == false) {
             FragmentTaskMessage ftask = (FragmentTaskMessage)task;
             if (callback != null) {
@@ -1193,9 +1177,20 @@ public class ExecutionSite implements Runnable {
                 assert(ftask.isUsingDtxnCoordinator() == false) : "No callback for remote execution request for txn #" + txn_id;
             }
         }
+        this.work_queue.add(task);
+    }
+
+    /**
+     * New work from the coordinator that this local site needs to execute (non-blocking)
+     * This method will simply chuck the task into the work queue.
+     * @param task
+     * @param callback the RPC handle to send the response to
+     */
+    public void doWork(TransactionInfoBaseMessage task, RpcCallback<Dtxn.FragmentResponse> callback, LocalTransactionState ts) {
+        long txn_id = task.getTxnId();
         assert(ts != null) : "The TransactionState is somehow null for txn #" + txn_id;
-        
         if (debug.get()) LOG.debug(String.format("Adding work request for txn #%d on partition %d with %s a callback", txn_id, this.partitionId, (callback == null ? "out" : "")));
+        this.txn_states.put(txn_id, ts);
         this.work_queue.add(task);
     }
 

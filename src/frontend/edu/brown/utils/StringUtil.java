@@ -25,7 +25,43 @@ public abstract class StringUtil {
     private static Pattern LINE_SPLIT = Pattern.compile("\n");
     
     /**
-     * 
+     * Format the header + rows into a neat little table
+     * @param header
+     * @param rows
+     * @return
+     */
+    public static String table(String header[], Object[]...rows) {
+        
+        // First we need to figure out the size for each column
+        String col_formats[] = new String[header.length];
+        for (int col_idx = 0; col_idx < col_formats.length; col_idx++) {
+            int width = header[col_idx].length();
+            for (int row_idx = 0; row_idx < rows.length; row_idx++) {
+                width = Math.max(width, rows[row_idx][col_idx].toString().length());    
+            } // FOR
+            col_formats[col_idx] = (col_idx > 0 ? "  " : "") + "%-" + width + "s";
+        } // FOR
+        
+        // Create header row
+        StringBuilder sb = new StringBuilder();
+        for (int col_idx = 0; col_idx < col_formats.length; col_idx++) {
+            sb.append(String.format(col_formats[col_idx], header[col_idx]));
+        } // FOR
+        
+        // Now dump out the table
+        for (int row_idx = 0; row_idx < rows.length; row_idx++) {
+            Object row[] = rows[row_idx];
+            sb.append("\n");
+            for (int col_idx = 0; col_idx < col_formats.length; col_idx++) {
+                sb.append(String.format(col_formats[col_idx], row[col_idx].toString()));    
+            } // FOR
+        } // FOR
+        
+        return (sb.toString());
+    }
+    
+    /**
+     * Split the multi-lined strings into separate columns
      * @param strs
      * @return
      */

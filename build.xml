@@ -657,7 +657,8 @@ NATIVE EE STUFF
     description="Build C++ JNI library and copy it to production folder.">
     <exec dir='.' executable='python' failonerror='true'>
 <!--         <arg line="build.py ${build}" /> -->
-        <arg line="build.py debug" />
+<!--         <arg line="build.py debug" /> -->
+        <arg line="build.py release" />
     </exec>
 <!--     <exec dir='.' executable='/bin/sh'>
         <arg line="-c 'rm -f ${build.dir}/nativelibs/libvoltdb.so'"/>
@@ -1494,7 +1495,7 @@ BENCHMARKS
         <arg value="HOST=${host1}" />
         <arg value="CLIENTHOST=${hstore.client.host}" />
         <arg value="LISTENFORDEBUGGER=${debug}" />
-        <arg value="USEPROFILE=${hstore.useprofile}" />
+        <arg value="USEPROFILE=${hstore.node.useprofile}" />
         <arg value="CHECKTRANSACTION=${checktransaction}" />
         <arg value="CHECKTABLES=${checktables}" />
         <arg value="LOCAL=${local}" />

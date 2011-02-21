@@ -30,7 +30,6 @@ import java.io.IOException;
 import java.lang.reflect.Field;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -51,8 +50,6 @@ import org.voltdb.catalog.Cluster;
 import org.voltdb.catalog.Site;
 import org.voltdb.client.Client;
 import org.voltdb.client.ClientFactory;
-import org.voltdb.client.NoConnectionsException;
-import org.voltdb.client.NullCallback;
 import org.voltdb.client.ProcCallException;
 import org.voltdb.compiler.VoltProjectBuilder;
 import org.voltdb.processtools.ProcessSetManager;
@@ -627,33 +624,40 @@ public class BenchmarkController {
         }
         m_clientsNotReady.set(m_clientPSM.size());
 
-
         registerInterest(new ResultsPrinter());
         // registerInterest(uploader);
     }
 
     public void cleanUpBenchmark() {
-        m_clientPSM.killAll();
-        Client client = ClientFactory.createClient();
-        try {
-            if (m_config.hosts.length > 0) {
-                client.createConnection(m_config.hosts[0], Client.VOLTDB_SERVER_PORT, "", "");
-                NullCallback cb = new NullCallback();
-                client.callProcedure("@Shutdown");
-                // client.callProcedure(cb, "@Shutdown");
-            }
-        } catch (NoConnectionsException e) {
-            e.printStackTrace();
-        } catch (UnknownHostException e) {
-            e.printStackTrace();
-        } catch (IOException e) {
-            // e.printStackTrace();
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+//        Client client = ClientFactory.createClient();
+//        try {
+//            if (m_config.hosts.length > 0) {
+//                System.err.println(String.format("Trying to connect to %s:%d", m_config.hosts[0], VoltDB.DEFAULT_PORT));
+//                client.createConnection(m_config.hosts[0], VoltDB.DEFAULT_PORT, "", "");
+//                NullCallback cb = new NullCallback();
+//                client.callProcedure("@Shutdown");
+//                // client.callProcedure(cb, "@Shutdown");
+//            }
+//        } catch (NoConnectionsException e) {
+//            e.printStackTrace();
+//        } catch (UnknownHostException e) {
+//            e.printStackTrace();
+//        } catch (IOException e) {
+//            // e.printStackTrace();
+//        } catch (Exception e) {
+//            e.printStackTrace();
+//        }
 
+        LOG.debug("Killing clients");
+        m_clientPSM.killAll();
+
+        LOG.debug("Killing nodes");
         m_serverPSM.killAll();
-        if (m_config.noCoordinator == false) m_coordPSM.killAll();
+        
+        if (m_config.noCoordinator == false) {
+            LOG.debug("Killing Dtxn.Coordinator");
+            m_coordPSM.killAll();
+        }
         
 //        // Kill the coordinator
 //        LOG.info("Killing " + HStoreSite.DTXN_COORDINATOR + " on host " + m_config.coordinatorHost);
@@ -680,7 +684,7 @@ public class BenchmarkController {
     }
 
     public void runBenchmark() {
-        LOG.info(String.format("Starting execution phase with %d clients [hosts=%d, clientsperhost=%d, txnrate=%d]",
+        LOG.info(String.format("Starting execution phase with %d clients [hosts=%d, clientsperhost=%d, txnrate=%s]",
                                 m_clients.size(),
                                 m_config.clients.length,
                                 m_config.processesPerClient,
@@ -733,11 +737,20 @@ public class BenchmarkController {
         }
 
         // shut down all the clients
-        for (String clientName : m_clients)
-            m_clientPSM.writeToProcess(clientName, "STOP\n");
+        boolean first = true;
+        for (String clientName : m_clients) {
+            if (first) {
+                m_clientPSM.writeToProcess(clientName, "SHUTDOWN\n");
+                first = false;
+            } else {
+                m_clientPSM.writeToProcess(clientName, "STOP\n");
+            }
+        }
+        LOG.debug("Waiting for " + m_clients.size() + " clients to finish");
         for (String clientName : m_clients)
             m_clientPSM.joinProcess(clientName);
 
+        LOG.debug("Waiting for status thread to finish");
         try {
             m_statusThread.join(1000);
         }

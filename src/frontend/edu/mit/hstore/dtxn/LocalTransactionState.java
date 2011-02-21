@@ -44,17 +44,21 @@ import org.apache.commons.pool.BasePoolableObjectFactory;
 import org.apache.log4j.Logger;
 import org.voltdb.BatchPlanner;
 import org.voltdb.ExecutionSite;
+import org.voltdb.StoredProcedureInvocation;
 import org.voltdb.VoltProcedure;
 import org.voltdb.VoltTable;
 import org.voltdb.BatchPlanner.BatchPlan;
+import org.voltdb.catalog.Procedure;
 import org.voltdb.messaging.FragmentTaskMessage;
 
 import com.google.protobuf.RpcCallback;
 
 import edu.brown.markov.TransactionEstimator;
 import edu.brown.utils.LoggerUtil;
+import edu.brown.utils.ProfileMeasurement;
 import edu.brown.utils.StringUtil;
 import edu.brown.utils.LoggerUtil.LoggerBoolean;
+import edu.brown.utils.ProfileMeasurement.Type;
 import edu.mit.dtxn.Dtxn;
 
 /**
@@ -147,7 +151,6 @@ public class LocalTransactionState extends TransactionState {
      * Callback to the coordinator for txns that are running on this partition
      */
     private RpcCallback<Dtxn.FragmentResponse> coordinator_callback;
-
     /**
      * 
      */
@@ -157,6 +160,53 @@ public class LocalTransactionState extends TransactionState {
      * List of encoded Partition/Dependency keys
      */
     private ListOrderedSet<Integer> partition_dependency_keys = new ListOrderedSet<Integer>();
+
+    // ----------------------------------------------------------------------------
+    // HSTORE SITE DATA MEMBERS
+    // ----------------------------------------------------------------------------
+    
+    /**
+     * Whether this is a sysproc
+     */
+    public boolean sysproc;
+    /**
+     * 
+     */
+    public StoredProcedureInvocation invocation;
+    /**
+     * Initialization Barrier
+     * This ensures that a transaction does not start until the Dtxn.Coordinator has returned the acknowledgement
+     * that from our call from procedureInvocation()->execute()
+     * This probably should be pushed further into the ExecutionSite so that we can actually invoke the procedure
+     * but just not send any data requests.
+     */
+    public CountDownLatch init_latch;
+    /**
+     * Final RpcCallback to the client
+     */
+    public RpcCallback<byte[]> client_callback;
+    
+    // ----------------------------------------------------------------------------
+    // PROFILE MEASUREMENTS
+    // ----------------------------------------------------------------------------
+
+    /**
+     * Total time spent executing the transaction
+     */
+    public final ProfileMeasurement total_time = new ProfileMeasurement(Type.TOTAL);
+    /**
+     * The amount of time spent executing the Java-portion of the stored procedure
+     */
+    public final ProfileMeasurement java_time = new ProfileMeasurement(Type.JAVA);
+    /**
+     * The amount of time spent executing in the plan fragments
+     */
+    public final ProfileMeasurement ee_time = new ProfileMeasurement(Type.EE);
+    /**
+     * The amount of time spent estimating what the transaction will do
+     * This will come from the TransactionEstimator.State 
+     */
+    public ProfileMeasurement est_time;
     
     // ----------------------------------------------------------------------------
     // ROUND DATA MEMBERS
@@ -246,15 +296,37 @@ public class LocalTransactionState extends TransactionState {
         } // FOR
     }
     
-    @Override
     @SuppressWarnings("unchecked")
     public LocalTransactionState init(long txnId, long clientHandle, int source_partition) {
         // We'll use these to reduce the number of calls to the LoggerBooleans
         // Probably doesn't make a difference but I'll take anything I can get now...
         this.t = trace.get();
         this.d = debug.get();
-        
         return ((LocalTransactionState)super.init(txnId, clientHandle, source_partition, true));
+    }
+    
+    public LocalTransactionState init(long txnId, long clientHandle, int source_partition, boolean sysproc, StoredProcedureInvocation invocation, RpcCallback<byte[]> client_callback) {
+        this.sysproc = sysproc;
+        this.invocation = invocation;
+        this.client_callback = client_callback;
+        this.init_latch = new CountDownLatch(1);
+        
+        return (this.init(txnId, clientHandle, source_partition));
+    }
+    
+    public LocalTransactionState init(long txnId, LocalTransactionState orig) {
+        this.sysproc = orig.sysproc;
+        this.invocation = orig.invocation;
+        this.client_callback = orig.client_callback;
+        this.init_latch = new CountDownLatch(1);
+        this.estimator_state = orig.estimator_state;
+        
+        // Append the profiling times
+        this.total_time.appendTime(orig.total_time);
+        this.java_time.appendTime(orig.java_time);
+        this.ee_time.appendTime(orig.ee_time);
+        
+        return (this.init(txnId, orig.client_handle, orig.source_partition));
     }
     
     @Override
@@ -289,6 +361,10 @@ public class LocalTransactionState extends TransactionState {
         
         this.coordinator_callback = null;
         this.volt_procedure = null;
+        this.total_time.reset();
+        this.java_time.reset();
+        this.ee_time.reset();
+        this.est_time = null;
         
         this.clearRound();
     }
@@ -411,11 +487,30 @@ public class LocalTransactionState extends TransactionState {
         this.batch_size = batchSize;
     }
     
+    public StoredProcedureInvocation getInvocation() {
+        return invocation;
+    }
+    public RpcCallback<byte[]> getClientCallback() {
+        return client_callback;
+    }
+    public CountDownLatch getInitializationLatch() {
+        return (this.init_latch);
+    }
     
+    /**
+     * Return the underlying procedure catalog object
+     * The VoltProcedure must have already been set
+     * @return
+     */
+    public Procedure getProcedure() {
+        if (this.volt_procedure != null) {
+            return (this.volt_procedure.getProcedure());
+        }
+        return (null);
+    }
     public VoltProcedure getVoltProcedure() {
         return this.volt_procedure;
     }
-    
     public void setVoltProcedure(VoltProcedure voltProcedure) {
         this.volt_procedure = voltProcedure;
     }
@@ -436,6 +531,9 @@ public class LocalTransactionState extends TransactionState {
     
     public void setEstimatorState(TransactionEstimator.State state) {
         this.estimator_state = state;
+        if (this.estimator_state != null) {
+            this.est_time = state.getProfiler();
+        }
     }
     
     /**
