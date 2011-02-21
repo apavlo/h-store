@@ -55,6 +55,7 @@ import edu.brown.catalog.CatalogUtil;
 import edu.brown.markov.TransactionEstimator;
 import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.PartitionEstimator;
+import edu.brown.utils.ProfileMeasurement;
 import edu.brown.utils.LoggerUtil.LoggerBoolean;
 import edu.mit.dtxn.Dtxn;
 import edu.mit.hstore.HStoreSite;
@@ -221,6 +222,7 @@ public class ExecutionSite implements Runnable {
     protected final TransactionEstimator t_estimator;
     
     protected WorkloadTrace workload_trace;
+    protected boolean enable_profiling = false;
     
     // ----------------------------------------------------------------------------
     // H-Store Transaction Stuff
@@ -816,6 +818,14 @@ public class ExecutionSite implements Runnable {
         return (this.siteId);
     }
     
+    public void setEnableProfiling(boolean val) {
+        this.enable_profiling = val;
+        this.t_estimator.setEnableProfiling(val);
+    }
+    public boolean getEnableProfiling() {
+        return (this.enable_profiling);
+    }
+    
     /**
      * Return the local partition id for this ExecutionSite
      * @return
@@ -970,13 +980,14 @@ public class ExecutionSite implements Runnable {
         
         // TODO(pavlo): Can this always be empty?
         TransactionState ts = this.txn_states.get(txn_id);
+        LocalTransactionState local_ts = (ts instanceof LocalTransactionState ? (LocalTransactionState)ts : null);
         ts.ee_dependencies.clear();
         if (ftask.hasAttachedResults()) {
             if (trace.get()) LOG.trace("Retrieving internal dependency results attached to FragmentTaskMessage for txn #" + txn_id);
             ts.ee_dependencies.putAll(ftask.getAttachedResults());
         }
         if (ftask.hasInputDependencies() && ts != null && ts.isExecLocal() == true) {
-            LocalTransactionState local_ts = (LocalTransactionState)ts; 
+            local_ts = (LocalTransactionState)ts; 
             if (local_ts.getInternalDependencyIds().isEmpty() == false) {
                 if (trace.get()) LOG.trace("Retrieving internal dependency results from TransactionState for txn #" + txn_id);
                 ts.ee_dependencies.putAll(local_ts.removeInternalDependencies(ftask));
@@ -1022,6 +1033,11 @@ public class ExecutionSite implements Runnable {
                 ee.stashWorkUnitDependencies(ts.ee_dependencies);
             }
             ts.setSubmittedEE();
+            if (local_ts != null && this.enable_profiling) {
+                long time = ProfileMeasurement.getTime();
+                local_ts.coord_time.stopThinkMarker(time);
+                local_ts.ee_time.startThinkMarker(time);
+            }
             result = this.ee.executeQueryPlanFragmentsAndGetDependencySet(
                         fragmentIds,
                         fragmentIdIndex,
@@ -1032,6 +1048,11 @@ public class ExecutionSite implements Runnable {
                         txn_id,
                         this.lastCommittedTxnId,
                         undoToken);
+            if (local_ts != null && this.enable_profiling) {
+                long time = ProfileMeasurement.getTime();
+                local_ts.coord_time.startThinkMarker(time);
+                local_ts.ee_time.stopThinkMarker(time);
+            }
             if (trace.get()) LOG.trace("Executed fragments " + Arrays.toString(fragmentIds) + " and got back results: " + Arrays.toString(result.depIds)); //  + "\n" + Arrays.toString(result.dependencies));
             assert(result != null) : "The resulting DependencySet for FragmentTaskMessage " + ftask + " is null!";
         }
@@ -1248,16 +1269,17 @@ public class ExecutionSite implements Runnable {
         // IMPORTANT: If we executed this locally and only touched our partition, then we need to commit/abort right here
         // 2010-11-14: The reason why we can do this is because we will just ignore the commit
         // message when it shows from the Dtxn.Coordinator. We should probably double check with Evan on this...
-        boolean is_local = ts.isExecSinglePartition() && ts.isExecLocal();
+        boolean is_local_singlepartitioned = ts.isExecSinglePartition() && ts.isExecLocal();
+        LOG.debug(String.format("Txn #%d [single_partitioned=%s, local=%s]", txn_id, ts.isExecSinglePartition(), ts.isExecLocal()));
         byte status = cresponse.getStatus();
         switch (status) {
             case ClientResponseImpl.SUCCESS:
                 if (t) LOG.trace("Marking txn #" + txn_id + " as success. If only Evan was still alive to see this!");
                 builder.setStatus(Dtxn.FragmentResponse.Status.OK);
-                if (is_local) this.commitWork(txn_id);
+                if (is_local_singlepartitioned) this.commitWork(txn_id);
                 break;
             case ClientResponseImpl.MISPREDICTION:
-                if (d) LOG.debug("Txn #" + txn_id + " was mispredicted! Aborting work and restarting! [is_local=" + is_local + "]");
+                if (d) LOG.debug("Txn #" + txn_id + " was mispredicted! Aborting work and restarting! [is_local=" + is_local_singlepartitioned + "]");
                 builder.setStatus(Dtxn.FragmentResponse.Status.ABORT_MISPREDICT);
                 // We should always abort on a misprediction... is that true??
                 this.abortWork(txn_id);
@@ -1270,7 +1292,7 @@ public class ExecutionSite implements Runnable {
                     if (debug.get()) LOG.warn("Unexpected server error for txn #" + txn_id + ": " + cresponse.getStatusString());
                 }
                 builder.setStatus(Dtxn.FragmentResponse.Status.ABORT_USER);
-                if (is_local) this.abortWork(txn_id);
+                if (is_local_singlepartitioned) this.abortWork(txn_id);
                 break;
         } // SWITCH
         if (d) LOG.debug("Invoking Dtxn.FragmentResponse callback for txn #" + txn_id);
@@ -1489,6 +1511,7 @@ public class ExecutionSite implements Runnable {
         // This is ok because the Dtxn.Coordinator can't send us a single message for
         // all of the partitions managed by our HStoreSite
         } else if (ts.isMarkedFinished()) {
+            assert(this.finished_txn_states.contains(ts)) : "Txn #" + txn_id + " was marked as finished but it was not in our finished states!";
             return;
         }
         

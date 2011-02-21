@@ -14,6 +14,8 @@ public class ProfileMeasurement {
         TOTAL,
         /** The amount of time spent executing the Java-portion of the stored procedure */
         JAVA,
+        /** The amount of time spend coordinating the transaction */
+        COORDINATOR,
         /** The amount of time spent executing in the plan fragments */
         EE,
         /** The amount of time spent estimating what the transaction will do */
@@ -22,6 +24,11 @@ public class ProfileMeasurement {
         MISC;
     }
 
+    public static long getTime() {
+//        return System.currentTimeMillis();
+        return System.nanoTime();
+    }
+    
     /**
      * The profile type
      */
@@ -77,11 +84,11 @@ public class ProfileMeasurement {
     public synchronized void startThinkMarker(long time) {
         assert(this.think_marker == null) : this.type + " - " + this.hashCode();
         this.think_marker = time;
-//        LOG.info(String.format("START %s [%d]", this.type, this.hashCode()));
+//        if (type == Type.JAVA) LOG.info(String.format("START %s [%d]", this.type, this.hashCode()));
     }
     
     public void startThinkMarker() {
-        this.startThinkMarker(System.currentTimeMillis());
+        this.startThinkMarker(getTime());
     }
     
     public boolean isStarted() {
@@ -90,9 +97,10 @@ public class ProfileMeasurement {
     
     public synchronized void stopThinkMarker(long time) {
         assert(this.think_marker != null) : this.type + " - " + this.hashCode();
-        this.think_time += (time - this.think_marker);
+        long added = (time - this.think_marker);
+        this.think_time += added;
         this.think_marker = null;
-//        LOG.info(String.format("STOP %s [%d]", this.type, this.hashCode()));
+//        if (type == Type.JAVA) LOG.info(String.format("STOP %s [time=%d, id=%d]", this.type, added, this.hashCode()));
     }
     
     public boolean isStopped() {
@@ -100,13 +108,13 @@ public class ProfileMeasurement {
     }
     
     public void stopThinkMarker() {
-        this.stopThinkMarker(System.currentTimeMillis());
+        this.stopThinkMarker(getTime());
     }
     
     public void reset() {
         this.think_marker = null;
         this.think_time = 0;
-//        LOG.info(String.format("RESET %s [%d]", this.type, this.hashCode()));
+//        if (type == Type.JAVA) LOG.info(String.format("RESET %s [%d]", this.type, this.hashCode()));
     }
     
 }

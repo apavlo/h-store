@@ -61,6 +61,7 @@ public class TransactionEstimator {
     private final AtomicInteger txn_count = new AtomicInteger(0);
     
     private transient boolean enable_recomputes = false;
+    private transient boolean enable_profiling = false;
     
     // ----------------------------------------------------------------------------
     // TRANSACTION STATE
@@ -560,6 +561,13 @@ public class TransactionEstimator {
         assert(s != null) : "Unexpected Transaction #" + txn_id;
         return (s.getEstimatedPathConfidence());
     }
+    
+    public void setEnableProfiling(boolean val) {
+        this.enable_profiling = val;
+    }
+    public boolean getEnableProfiling() {
+        return (this.enable_profiling);
+    }
 
     // ----------------------------------------------------------------------------
     // RUNTIME METHODS
@@ -598,6 +606,7 @@ public class TransactionEstimator {
     public State startTransaction(long txn_id, int base_partition, Procedure catalog_proc, Object args[]) {
         assert (catalog_proc != null);
         long start_time = System.currentTimeMillis();
+        long profile_time = (this.enable_profiling ? ProfileMeasurement.getTime() : -1);
 
         // If we don't have a graph for this procedure, we should probably just return null
         // This will be the case for all sysprocs
@@ -669,7 +678,7 @@ public class TransactionEstimator {
         }
         
         this.txn_count.incrementAndGet();
-        state.profiler.addThinkTime(start_time, System.currentTimeMillis());
+        if (this.enable_profiling) state.profiler.addThinkTime(profile_time, ProfileMeasurement.getTime());
         return (state);
     }
 
@@ -702,8 +711,7 @@ public class TransactionEstimator {
      * @return
      */
     public Estimate executeQueries(State state, Statement catalog_stmts[], Set<Integer> partitions[]) {
-        long start_time = System.currentTimeMillis();
-        state.profiler.startThinkMarker(start_time);
+        if (this.enable_profiling) state.profiler.startThinkMarker();
         
         // Roll through the Statements in this batch and move the current vertex
         // for the txn's State handle along the path in the MarkovGraph
@@ -722,7 +730,7 @@ public class TransactionEstimator {
             state.getMarkovGraph().recomputeGraph();
         }
         
-        state.profiler.stopThinkMarker();
+        if (this.enable_profiling) state.profiler.stopThinkMarker();
         return (estimate);
     }
 
@@ -769,7 +777,7 @@ public class TransactionEstimator {
             return (null);
         }
         long start_time = System.currentTimeMillis();
-        s.profiler.startThinkMarker(start_time);
+        if (this.enable_profiling) s.profiler.startThinkMarker();
         
         // We need to update the counter information in our MarkovGraph so that we know
         // that the procedure may transition to the ABORT vertex from where ever it was before 
@@ -791,7 +799,7 @@ public class TransactionEstimator {
         } // SYNCH
         assert(next_e != null);
         s.setCurrent(next_v); // In case somebody wants to do post-processing...
-        s.profiler.stopThinkMarker();
+        if (this.enable_profiling) s.profiler.stopThinkMarker();
         
         return (s);
     }
