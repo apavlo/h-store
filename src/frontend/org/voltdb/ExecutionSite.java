@@ -1150,11 +1150,22 @@ public class ExecutionSite implements Runnable {
         
         TransactionState ts = this.txn_states.get(txn_id);
         if (ts == null) {
-            assert(start_txn == false);
             try {
-                // Remote Transaction
-                ts = (RemoteTransactionState)remoteTxnPool.borrowObject();
-                if (debug.get()) LOG.debug(String.format("Creating new RemoteTransactionState for txn #%d running at partition %d [local_partition=%d, singlepartitioned=%s]", txn_id, task.getSourcePartitionId(), this.partitionId, false));
+                if (start_txn) {
+                    boolean single_partitioned = true;
+                    
+                    ts = (LocalTransactionState)localTxnPool.borrowObject();
+                    assert(callback != null) : "Missing coordinator callback for txn #" + txn_id;
+                    LocalTransactionState local_ts = (LocalTransactionState)ts;
+                    local_ts.setCoordinatorCallback(callback);
+                    local_ts.setPredictSinglePartitioned(single_partitioned);
+                    local_ts.setEstimatorState(this.t_estimator.getState(txn_id));
+                    if (debug.get()) LOG.debug(String.format("Starting new VoltProcedure invocation for txn #%d [partition=%d, singlepartitioned=%s]", txn_id, this.partitionId, single_partitioned));
+                } else {
+                    // Remote Transaction
+                    ts = (RemoteTransactionState)remoteTxnPool.borrowObject();
+                    if (debug.get()) LOG.debug(String.format("Creating new RemoteTransactionState for txn #%d running at partition %d [local_partition=%d, singlepartitioned=%s]", txn_id, task.getSourcePartitionId(), this.partitionId, false));
+                }
             } catch (Exception ex) {
                 LOG.fatal("Failed to construct TransactionState for txn #" + txn_id, ex);
                 throw new RuntimeException(ex);
