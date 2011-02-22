@@ -34,11 +34,11 @@ public class PlanFragment extends CatalogType {
 
     void setBaseValues(Catalog catalog, CatalogType parent, String path, String name) {
         super.setBaseValues(catalog, parent, path, name);
-        m_fields.put("id", m_id);
-        m_fields.put("hasdependencies", m_hasdependencies);
-        m_fields.put("multipartition", m_multipartition);
-        m_fields.put("plannodetree", m_plannodetree);
-        m_fields.put("nontransactional", m_nontransactional);
+        this.addField("id", m_id);
+        this.addField("hasdependencies", m_hasdependencies);
+        this.addField("multipartition", m_multipartition);
+        this.addField("plannodetree", m_plannodetree);
+        this.addField("nontransactional", m_nontransactional);
     }
 
     void update() {

@@ -35,11 +35,11 @@ public class Host extends CatalogType {
 
     void setBaseValues(Catalog catalog, CatalogType parent, String path, String name) {
         super.setBaseValues(catalog, parent, path, name);
-        m_fields.put("ipaddr", m_ipaddr);
-        m_fields.put("num_cpus", m_num_cpus);
-        m_fields.put("corespercpu", m_corespercpu);
-        m_fields.put("threadspercore", m_threadspercore);
-        m_fields.put("memory", m_memory);
+        this.addField("ipaddr", m_ipaddr);
+        this.addField("num_cpus", m_num_cpus);
+        this.addField("corespercpu", m_corespercpu);
+        this.addField("threadspercore", m_threadspercore);
+        this.addField("memory", m_memory);
         m_cpus = new CatalogMap<HardwareCPU>(catalog, this, path + "/" + "cpus", HardwareCPU.class);
         m_childCollections.put("cpus", m_cpus);
     }

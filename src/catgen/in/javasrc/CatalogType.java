@@ -39,9 +39,8 @@ public abstract class CatalogType implements Comparable<CatalogType> {
         public String path;
     }
 
-    LinkedHashMap<String, Object> m_fields = new LinkedHashMap<String, Object>();
-    LinkedHashMap<String, CatalogMap<? extends CatalogType>> m_childCollections
-        = new LinkedHashMap<String, CatalogMap<? extends CatalogType>>();
+    private LinkedHashMap<String, Object> m_fields = new LinkedHashMap<String, Object>();
+    LinkedHashMap<String, CatalogMap<? extends CatalogType>> m_childCollections = new LinkedHashMap<String, CatalogMap<? extends CatalogType>>();
 
     String m_path;
     String m_typename;
@@ -55,6 +54,18 @@ public abstract class CatalogType implements Comparable<CatalogType> {
     
     private transient String m_fullName = null;
     private transient String m_toString = null;
+    private transient int m_num_fields = 0;
+    private transient Class<? extends CatalogType> m_class = null;
+    
+    /**
+     * Add a field and update the count for the number of fields
+     * @param key
+     * @param val
+     */
+    protected synchronized final void addField(String key, Object val) {
+        this.m_fields.put(key, val);
+        this.m_num_fields++;
+    }
     
     /**
      * Get the parent of this CatalogType instance
@@ -402,24 +413,23 @@ public abstract class CatalogType implements Comparable<CatalogType> {
     
     @Override
     public boolean equals(Object obj) {
-        // this isn't really the convention for null handling
-        if ((obj == null) || (obj.getClass().equals(getClass()) == false))
-            return false;
-
-        // this is safe because of the class check
-        // it is also known that the childCollections var will be the same
-        //  from the class check
+        // It's null or not a CatalogType
+        if (obj == null || (obj instanceof CatalogType) == false) return (false);
+        
         CatalogType other = (CatalogType)obj;
+        
+        // Quickly check whether they are at least the same class
+        if (this.m_class == null) this.m_class = this.getClass();
+        if (other.m_class == null) other.m_class = other.getClass();
+        if (this.m_class.equals(other.m_class) == false) return (false);
 
-        // are the fields the same value?
-        if (m_fields.size() != other.m_fields.size())
-            return false;
+        // Are the fields the same value?
+        if (this.m_fields.size() != other.m_fields.size()) return (false);
         
         // SUPER HACK!!!
         // The only thing that we care about matching up correctly by hash code will be database..
-        if (this instanceof Database) {
-            return (this.hashCode() == other.hashCode());
-        }
+        if (this instanceof Database) return (this.hashCode() == other.hashCode());
+        
         // Everything else can be about paths...
         // All of this below is busted, so let's just compare paths if we can...
         if (this.m_path == null) {
@@ -433,28 +443,6 @@ public abstract class CatalogType implements Comparable<CatalogType> {
             return (other.m_path == null);
         }
         return (this.m_path.equals(other.m_path));
-        
-//        for (String field : m_fields.keySet()) {
-//            if (m_fields.get(field) == null) {
-//                if (other.m_fields.get(field) != null)
-//                    return false;
-//            }
-//            else if (m_fields.get(field).equals(other.m_fields.get(field)) == false)
-//                return false;
-//        }
-//
-//        // are the children the same (deep compare)
-//        for (String collectionName : m_childCollections.keySet()) {
-//            CatalogMap<? extends CatalogType> myMap = m_childCollections.get(collectionName);
-//            CatalogMap<? extends CatalogType> otherMap = m_childCollections.get(collectionName);
-//
-//            // if two types are the same class, this shouldn't happen
-//            assert(otherMap != null);
-//
-//            if (myMap.equals(otherMap) == false)
-//                return false;
-//        }
-//        return true;
     }
 }
 

@@ -39,6 +39,7 @@ protected:
     Partition(Catalog * catalog, CatalogType * parent, const std::string &path, const std::string &name);
 
     int32_t m_id;
+    int32_t m_dtxn_port;
 
     virtual void update();
 
@@ -49,6 +50,8 @@ protected:
 public:
     /** GETTER: Partition id */
     int32_t id() const;
+    /** GETTER: Port used by DTXN ProtoEngine */
+    int32_t dtxn_port() const;
 };
 
 } // namespace catalog

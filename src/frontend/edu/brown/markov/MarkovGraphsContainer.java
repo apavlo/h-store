@@ -377,6 +377,7 @@ public class MarkovGraphsContainer implements JSONSerializable {
                             MarkovGraph markov = new MarkovGraph(catalog_proc);
                             markov.fromJSON(json_graph, catalog_db);
                             MarkovGraphsContainer.this.put(id, markov);
+                            markov.buildCache();
                         } catch (Exception ex) {
                             throw new RuntimeException(ex);
                         }

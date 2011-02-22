@@ -820,7 +820,6 @@ public class ExecutionSite implements Runnable {
     
     public void setEnableProfiling(boolean val) {
         this.enable_profiling = val;
-        this.t_estimator.setEnableProfiling(val);
     }
     public boolean getEnableProfiling() {
         return (this.enable_profiling);

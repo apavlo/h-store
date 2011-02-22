@@ -172,6 +172,10 @@ public class Vertex extends AbstractVertex {
      * The count, used to figure out the average execution time above
      */
     private transient long execution_time_count = 0l;
+    
+    
+    private transient String to_string = null;
+    
 
     // ----------------------------------------------------------------------------
     // CONSTRUCTORS
@@ -336,11 +340,15 @@ public class Vertex extends AbstractVertex {
     public boolean equals(Object o) {
         if (o instanceof Vertex) {
             Vertex v = (Vertex) o;
-            return (this.type.equals(v.type) &&
-                    this.catalog_item.equals(v.catalog_item) &&
-                    this.partitions.equals(v.partitions) &&
-                    (MarkovGraph.USE_PAST_PARTITIONS == false || this.past_partitions.equals(v.past_partitions)) &&
-                    this.query_instance_index == v.query_instance_index);
+            if (this.to_string == null) this.toString();
+            if (v.to_string == null) v.toString();
+            return (this.to_string.equals(v.to_string));
+
+//            return (this.type.equals(v.type) &&
+//                    this.catalog_item.equals(v.catalog_item) &&
+//                    this.partitions.equals(v.partitions) &&
+//                    (MarkovGraph.USE_PAST_PARTITIONS == false || this.past_partitions.equals(v.past_partitions)) &&
+//                    this.query_instance_index == v.query_instance_index);
         }
         return false;
     }
@@ -372,21 +380,25 @@ public class Vertex extends AbstractVertex {
      */
     public boolean isEqual(Statement other_stmt, Collection<Integer> other_partitions, Collection<Integer> other_past, int other_queryInstanceIndex, boolean use_past_partitions) {
         return (other_stmt.equals(this.catalog_item) &&
+                other_queryInstanceIndex == this.query_instance_index &&
                 other_partitions.equals(this.partitions) &&
-                (use_past_partitions == false || other_past.equals(this.past_partitions)) &&
-                other_queryInstanceIndex == this.query_instance_index);
+                (use_past_partitions ? other_past.equals(this.past_partitions) : true));
     }
     
     @Override
     public String toString() {
-        StringBuilder sb = new StringBuilder();
-        sb.append(this.catalog_item.getName());
-        if (this.type == Type.QUERY) {
-            sb.append(String.format(" Indx:%d,Prtns:%s,Past:%s", this.query_instance_index,
-                                                                this.partitions,
-                                                                this.past_partitions));
+        if (this.to_string == null) {
+            StringBuilder sb = new StringBuilder();
+            sb.append("{").append(this.catalog_item.getName());
+            if (this.type == Type.QUERY) {
+                sb.append(String.format(" Indx:%d,Prtns:%s,Past:%s", this.query_instance_index,
+                                                                    this.partitions,
+                                                                    this.past_partitions));
+            }
+            sb.append("}");
+            this.to_string = sb.toString();
         }
-        return ("{" + sb.toString() + "}"); 
+        return (this.to_string); 
     }
     
     /**

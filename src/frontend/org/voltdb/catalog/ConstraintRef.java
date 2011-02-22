@@ -29,7 +29,7 @@ public class ConstraintRef extends CatalogType {
 
     void setBaseValues(Catalog catalog, CatalogType parent, String path, String name) {
         super.setBaseValues(catalog, parent, path, name);
-        m_fields.put("constraint", null);
+        this.addField("constraint", null);
     }
 
     void update() {

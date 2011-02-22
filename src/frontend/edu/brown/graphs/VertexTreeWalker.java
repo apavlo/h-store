@@ -113,7 +113,7 @@ public abstract class VertexTreeWalker<V extends AbstractVertex> extends Abstrac
     @Override
     protected void populate_children(VertexTreeWalker<V>.Children children, V element) {
         final boolean trace = LOG.isTraceEnabled();
-        ListOrderedSet<V> bfs_children = new ListOrderedSet<V>();
+        ListOrderedSet<V> bfs_children = null;
         
         if (trace) LOG.trace("Populating Children for " + element + " [direction=" + this.search_direction + "]"); 
         
@@ -124,6 +124,7 @@ public abstract class VertexTreeWalker<V extends AbstractVertex> extends Abstrac
                         children.addAfter(child);
                         break;
                     case BREADTH:
+                        if (bfs_children == null) bfs_children = new ListOrderedSet<V>();
                         bfs_children.add(child);
                         break;
                     case LONGEST_PATH: {
@@ -146,7 +147,7 @@ public abstract class VertexTreeWalker<V extends AbstractVertex> extends Abstrac
         } // FOR
         
         // Special Case: Breadth-First Search
-        if (this.search_order == TraverseOrder.BREADTH && bfs_children.isEmpty() == false) {
+        if (this.search_order == TraverseOrder.BREADTH && bfs_children != null && bfs_children.isEmpty() == false) {
             if (element.equals(this.getFirst())) {
                 children.addAfter(bfs_children);
                 

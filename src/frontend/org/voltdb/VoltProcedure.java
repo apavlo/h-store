@@ -1088,10 +1088,21 @@ public abstract class VoltProcedure implements Poolable {
         }
         
         // Tell the TransactionEstimator that we're about to execute these mofos
+        LocalTransactionState local_ts = (LocalTransactionState)this.m_currentTxnState;
+        if (this.m_site.enable_profiling) {
+            long time = ProfileMeasurement.getTime();
+            local_ts.coord_time.stopThinkMarker(time);
+            local_ts.est_time.startThinkMarker(time); 
+        }
         TransactionEstimator t_estimator = this.m_site.getTransactionEstimator();
-        TransactionEstimator.State t_state = ((LocalTransactionState)this.m_currentTxnState).getEstimatorState();
+        TransactionEstimator.State t_state = local_ts.getEstimatorState();
         if (t_state != null) {
             t_estimator.executeQueries(t_state, planner.getStatements(), plan.getStatementPartitions());
+        }
+        if (this.m_site.enable_profiling) {
+            long time = ProfileMeasurement.getTime();
+            local_ts.coord_time.startThinkMarker(time);
+            local_ts.est_time.stopThinkMarker(time);
         }
         
         if (debug.get()) LOG.debug("BatchPlan for txn #" + this.txn_id + ":\n" + plan.toString());

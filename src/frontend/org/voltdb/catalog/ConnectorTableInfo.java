@@ -30,8 +30,8 @@ public class ConnectorTableInfo extends CatalogType {
 
     void setBaseValues(Catalog catalog, CatalogType parent, String path, String name) {
         super.setBaseValues(catalog, parent, path, name);
-        m_fields.put("table", null);
-        m_fields.put("appendOnly", m_appendOnly);
+        this.addField("table", null);
+        this.addField("appendOnly", m_appendOnly);
     }
 
     void update() {

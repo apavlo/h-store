@@ -208,9 +208,8 @@ public class LocalTransactionState extends TransactionState {
     public final ProfileMeasurement ee_time = new ProfileMeasurement(Type.EE);
     /**
      * The amount of time spent estimating what the transaction will do
-     * This will come from the TransactionEstimator.State 
      */
-    public ProfileMeasurement est_time;
+    public final ProfileMeasurement est_time = new ProfileMeasurement(Type.ESTIMATION);
     
     // ----------------------------------------------------------------------------
     // ROUND DATA MEMBERS
@@ -331,6 +330,7 @@ public class LocalTransactionState extends TransactionState {
             this.java_time.appendTime(orig.java_time);
             this.coord_time.appendTime(orig.coord_time);
             this.ee_time.appendTime(orig.ee_time);
+            this.est_time.appendTime(orig.est_time);
         }
         
         return (this.init(txnId, orig.client_handle, orig.source_partition));
@@ -374,7 +374,7 @@ public class LocalTransactionState extends TransactionState {
             this.java_time.reset();
             this.coord_time.reset();
             this.ee_time.reset();
-            this.est_time = null;
+            this.est_time.reset();
         }
         
         this.clearRound();
@@ -542,9 +542,6 @@ public class LocalTransactionState extends TransactionState {
     
     public void setEstimatorState(TransactionEstimator.State state) {
         this.estimator_state = state;
-        if (this.estimator_state != null) {
-            this.est_time = state.getProfiler();
-        }
     }
     
     /**

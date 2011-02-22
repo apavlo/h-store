@@ -1464,6 +1464,7 @@ BENCHMARKS
         <arg value="REMOTEUSER=${remoteuser}"/>
         <arg value="CATALOG=${catalog}" />
         <arg value="COORDINATORHOST=${hstore.coordinator.host}" />
+        <arg value="MARKOV=${markov}" />
 
         <!-- Execution Options -->
         <arg value="TXNRATE=${hstore.client.txnrate}" />

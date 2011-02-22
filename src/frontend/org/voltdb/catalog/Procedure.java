@@ -41,19 +41,19 @@ public class Procedure extends CatalogType {
 
     void setBaseValues(Catalog catalog, CatalogType parent, String path, String name) {
         super.setBaseValues(catalog, parent, path, name);
-        m_fields.put("classname", m_classname);
+        this.addField("classname", m_classname);
         m_authUsers = new CatalogMap<UserRef>(catalog, this, path + "/" + "authUsers", UserRef.class);
         m_childCollections.put("authUsers", m_authUsers);
         m_authGroups = new CatalogMap<GroupRef>(catalog, this, path + "/" + "authGroups", GroupRef.class);
         m_childCollections.put("authGroups", m_authGroups);
-        m_fields.put("readonly", m_readonly);
-        m_fields.put("singlepartition", m_singlepartition);
-        m_fields.put("everysite", m_everysite);
-        m_fields.put("systemproc", m_systemproc);
-        m_fields.put("hasjava", m_hasjava);
-        m_fields.put("partitiontable", null);
-        m_fields.put("partitioncolumn", null);
-        m_fields.put("partitionparameter", m_partitionparameter);
+        this.addField("readonly", m_readonly);
+        this.addField("singlepartition", m_singlepartition);
+        this.addField("everysite", m_everysite);
+        this.addField("systemproc", m_systemproc);
+        this.addField("hasjava", m_hasjava);
+        this.addField("partitiontable", null);
+        this.addField("partitioncolumn", null);
+        this.addField("partitionparameter", m_partitionparameter);
         m_authPrograms = new CatalogMap<AuthProgram>(catalog, this, path + "/" + "authPrograms", AuthProgram.class);
         m_childCollections.put("authPrograms", m_authPrograms);
         m_statements = new CatalogMap<Statement>(catalog, this, path + "/" + "statements", Statement.class);

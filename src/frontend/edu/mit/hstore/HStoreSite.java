@@ -22,8 +22,10 @@ import org.voltdb.ProcedureProfiler;
 import org.voltdb.StoredProcedureInvocation;
 import org.voltdb.TransactionIdManager;
 import org.voltdb.VoltTable;
+import org.voltdb.VoltType;
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Partition;
+import org.voltdb.catalog.ProcParameter;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Site;
 import org.voltdb.client.ClientResponse;
@@ -687,8 +689,18 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         Boolean single_partition = null;
         TransactionEstimator.State estimator_state = null; 
 
+        LocalTransactionState local_ts = null;
+        try {
+            local_ts = (LocalTransactionState)executor.localTxnPool.borrowObject();
+        } catch (Exception ex) {
+            LOG.fatal("Failed to instantiate new LocalTransactionState for txn #" + txn_id);
+            throw new RuntimeException(ex);
+        }
+
+        
         // Sysprocs are always multi-partitioned
         if (sysproc) {
+            if (t) LOG.trace(String.format("Txn # is a sysproc, so it has to be multi-partitioned", txn_id));
             single_partition = false;
             
         // Force all transactions to be single-partitioned
@@ -722,29 +734,52 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
             
         // Otherwise, we'll try to estimate what the transaction will do (if we can)
         } else {
-            single_partition = false; // FIXME
-            if (single_partition) {
-                if (t) LOG.trace("Using TransactionEstimator to check whether txn #" + txn_id + " is single-partition");
-                estimator_state = t_estimator.startTransaction(txn_id, dest_partition, catalog_proc, args);
-                if (estimator_state == null) {
-                    single_partition = false;    
+            if (d) LOG.debug(String.format("Using TransactionEstimator to check whether %s txn #%d is single-partition", catalog_proc.getName(), txn_id));
+            
+            // HACK: Convert the array parameters to object arrays...
+            Object cast_args[] = new Object[args.length];
+            for (ProcParameter catalog_param : catalog_proc.getParameters()) {
+                int i = catalog_param.getIndex();
+                if (catalog_param.getIsarray()) {
+                    String classname = args[i].getClass().getName();
+                    Object inner[] = null;
+                    
+                    // SO FUCKING GROSS!
+                    if (classname.startsWith("[S")) {
+                        short arr[] = (short[])args[i];
+                        inner = new Object[arr.length];
+                        for (int j = 0; j < arr.length; j++) {
+                            inner[j] = arr[j];
+                        } // FOR
+                    } else if (classname.startsWith("[I")) {
+                        int arr[] = (int[])args[i];
+                        inner = new Object[arr.length];
+                        for (int j = 0; j < arr.length; j++) {
+                            inner[j] = arr[j];
+                        } // FOR    
+                    }
+                    cast_args[i] = inner;
                 } else {
-                    LOG.info("\n" + StringUtil.box(estimator_state.toString()));
-                    TransactionEstimator.Estimate estimate = estimator_state.getInitialEstimate();
-                    single_partition = estimate.isSinglePartition(this.thresholds);
+                    cast_args[i] = args[i];
                 }
             }
+
+            if (this.enable_profiling) local_ts.est_time.startThinkMarker();
+            
+            estimator_state = t_estimator.startTransaction(txn_id, dest_partition, catalog_proc, cast_args);
+            if (estimator_state == null) {
+                if (d) LOG.debug(String.format("No TransactionEstimator.State was returned for txn #%d, will have to execute as multi-partitioned", txn_id)); 
+                single_partition = false;    
+            } else {
+                if (t) LOG.trace("\n" + StringUtil.box(estimator_state.toString()));
+                TransactionEstimator.Estimate estimate = estimator_state.getInitialEstimate();
+                single_partition = estimate.isSinglePartition(this.thresholds);
+            }
+            if (this.enable_profiling) local_ts.est_time.stopThinkMarker();
         }
         assert (single_partition != null);
         if (d) LOG.debug(String.format("Executing %s txn #%d on partition %d [single-partitioned=%s]", catalog_proc.getName(), txn_id, dest_partition, single_partition));
 
-        LocalTransactionState local_ts = null;
-        try {
-            local_ts = (LocalTransactionState)executor.localTxnPool.borrowObject();
-        } catch (Exception ex) {
-            LOG.fatal("Failed to instantiate new LocalTransactionState for txn #" + txn_id);
-            throw new RuntimeException(ex);
-        }
         local_ts.init(txn_id, request.getClientHandle(), dest_partition.intValue(), sysproc, request, done);
         local_ts.setPredictSinglePartitioned(single_partition);
         local_ts.setEstimatorState(estimator_state);        
