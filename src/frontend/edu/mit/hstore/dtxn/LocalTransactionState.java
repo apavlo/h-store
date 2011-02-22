@@ -164,6 +164,8 @@ public class LocalTransactionState extends TransactionState {
     // ----------------------------------------------------------------------------
     // HSTORE SITE DATA MEMBERS
     // ----------------------------------------------------------------------------
+
+    private Procedure catalog_proc;
     
     /**
      * Whether this is a sysproc
@@ -312,8 +314,9 @@ public class LocalTransactionState extends TransactionState {
         return ((LocalTransactionState)super.init(txnId, clientHandle, source_partition, true));
     }
     
-    public LocalTransactionState init(long txnId, long clientHandle, int source_partition, boolean sysproc, StoredProcedureInvocation invocation, RpcCallback<byte[]> client_callback) {
-        this.sysproc = sysproc;
+    public LocalTransactionState init(long txnId, long clientHandle, int source_partition, Procedure catalog_proc, StoredProcedureInvocation invocation, RpcCallback<byte[]> client_callback) {
+        this.catalog_proc = catalog_proc;
+        this.sysproc = catalog_proc.getSystemproc();
         this.invocation = invocation;
         this.client_callback = client_callback;
         this.init_latch = new CountDownLatch(1);
@@ -322,6 +325,7 @@ public class LocalTransactionState extends TransactionState {
     }
     
     public LocalTransactionState init(long txnId, LocalTransactionState orig) {
+        this.catalog_proc = orig.catalog_proc;
         this.sysproc = orig.sysproc;
         this.invocation = orig.invocation;
         this.client_callback = orig.client_callback;
@@ -329,13 +333,13 @@ public class LocalTransactionState extends TransactionState {
         this.estimator_state = orig.estimator_state;
         
         // Append the profiling times
-        if (this.executor.getEnableProfiling()) {
-            this.total_time.appendTime(orig.total_time);
-            this.java_time.appendTime(orig.java_time);
-            this.coord_time.appendTime(orig.coord_time);
-            this.ee_time.appendTime(orig.ee_time);
-            this.est_time.appendTime(orig.est_time);
-        }
+//        if (this.executor.getEnableProfiling()) {
+//            this.total_time.appendTime(orig.total_time);
+//            this.java_time.appendTime(orig.java_time);
+//            this.coord_time.appendTime(orig.coord_time);
+//            this.ee_time.appendTime(orig.ee_time);
+//            this.est_time.appendTime(orig.est_time);
+//        }
         
         return (this.init(txnId, orig.client_handle, orig.source_partition));
     }
@@ -370,6 +374,8 @@ public class LocalTransactionState extends TransactionState {
             throw new RuntimeException(ex);
         }
         
+        this.catalog_proc = null;
+        this.sysproc = false;
         this.coordinator_callback = null;
         this.volt_procedure = null;
         this.total_time.reset();
@@ -518,10 +524,11 @@ public class LocalTransactionState extends TransactionState {
      * @return
      */
     public Procedure getProcedure() {
-        if (this.volt_procedure != null) {
-            return (this.volt_procedure.getProcedure());
-        }
-        return (null);
+        return (this.catalog_proc);
+//        if (this.volt_procedure != null) {
+//            return (this.volt_procedure.getProcedure());
+//        }
+//        return (null);
     }
     public VoltProcedure getVoltProcedure() {
         return this.volt_procedure;

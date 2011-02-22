@@ -212,7 +212,7 @@ public abstract class PlanNodeUtil {
              * Visit the inline nodes after the parent
              */
             @Override
-            protected void populate_children(PlanNodeTreeWalker.Children children, AbstractPlanNode node) {
+            protected void populate_children(PlanNodeTreeWalker.Children<AbstractPlanNode> children, AbstractPlanNode node) {
                 super.populate_children(children, node);
                 for (AbstractPlanNode inline_node : node.getInlinePlanNodes().values()) {
                     children.addAfter(inline_node);

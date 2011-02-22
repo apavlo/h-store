@@ -88,7 +88,7 @@ for BENCHMARK in ${BENCHMARKS[@]}; do
                 if [ $MAKE_GLOBAL != "true" ]; then
                     continue
                 fi
-                MARKOV_FILE=$MARKOV_FILES_DIR/$BENCHMARK.global.${NUM_PARTITIONS}p.markovs
+                MARKOV_FILE=$MARKOV_FILES_DIR/$BENCHMARK.${NUM_PARTITIONS}p.global.markovs
             else
                 MARKOV_FILE=$MARKOV_FILES_DIR/$BENCHMARK.${NUM_PARTITIONS}p.markovs
             fi

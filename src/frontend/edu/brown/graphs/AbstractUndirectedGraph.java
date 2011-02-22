@@ -81,6 +81,10 @@ public abstract class AbstractUndirectedGraph<V extends AbstractVertex, E extend
     public void pruneIsolatedVertices() {
         this.inner.pruneIsolatedVertices();
     }
+//    @Override
+//    public E findEdge(V v1, V v2) {
+//        return (this.inner.findEdge(v1, v2));
+//    }
     
 //    @Override
 //    public Object clone() throws CloneNotSupportedException {

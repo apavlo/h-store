@@ -2276,32 +2276,6 @@ H-STORE REMIX
     </antcall>
 </target>
 
-<!--<target name="hstore-benchmark" description="H-Store Test Setup">
-    <parallel failonany="true">
-        <antcall target="dtxn-coordinator">
-            <param name="port" value="${hstore.coordinator.port}" />
-        </antcall>
-        <antcall target="hstore-site">
-            <param name="benchmark.jar" value="${benchmark.jar}" />
-            <param name="node.site" value="0" />
-            <param name="markov" value="./files/markovs/${project}.markovs" />
-            <param name="thresholds" value="./files/thresholds/default.thresholds" />
-            <param name="correlations" value="./files/correlations/${project}.correlations" />
-        </antcall>
-        <antcall target="hstore-site">
-            <param name="benchmark.jar" value="${benchmark.jar}" />
-            <param name="node.site" value="1" />
-            <param name="markov" value="./files/markovs/${project}.markovs" />
-            <param name="thresholds" value="./files/thresholds/default.thresholds" />
-            <param name="correlations" value="./files/correlations/${project}.correlations" />
-        </antcall>
-        <sequential>
-            <sleep seconds="18" />
-            <antcall target="hstore-client" />
-        </sequential>
-    </parallel>
-</target>-->
-
 
 <!-- END PROJECT -->
 </project>

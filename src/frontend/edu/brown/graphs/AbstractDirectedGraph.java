@@ -102,7 +102,11 @@ public abstract class AbstractDirectedGraph<V extends AbstractVertex, E extends 
         boolean ret = super.addEdge(edge, endpoints, edgeType);
         this.inner.addEdge(edge);
         return (ret);
-    };
+    }
+//    @Override
+//    public E findEdge(V v1, V v2) {
+//        return (this.inner.findEdge(v1, v2));
+//    }
 
     /**
      * Makes unique copies of the vertices and edges into the cloned graph

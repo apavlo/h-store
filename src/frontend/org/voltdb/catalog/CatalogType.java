@@ -90,6 +90,7 @@ public abstract class CatalogType implements Comparable<CatalogType> {
      * Get the parent of this CatalogType instance
      * @return The parent of this CatalogType instance
      */
+    @SuppressWarnings("unchecked")
     public <T extends CatalogType> T getParent() {
         return (T)m_parent;
     }

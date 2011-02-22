@@ -3,6 +3,8 @@ package edu.brown.utils;
 import java.util.*;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
+import org.apache.commons.pool.BasePoolableObjectFactory;
+import org.apache.commons.pool.impl.StackObjectPool;
 import org.apache.log4j.Logger;
 
 /**
@@ -12,13 +14,45 @@ import org.apache.log4j.Logger;
 public abstract class AbstractTreeWalker<E> implements Poolable {
     protected static final Logger LOG = Logger.getLogger(AbstractTreeWalker.class);
     
-    public class Children {
-        private final E parent;
+    private static final Map<Class<?>, StackObjectPool> CHILDREN_POOLS = new HashMap<Class<?>, StackObjectPool>();
+
+    /**
+     * Children Object Pool Factory
+     */
+    private static class ChildrenFactory<E> extends BasePoolableObjectFactory {
+        @Override
+        public Object makeObject() throws Exception {
+            Children<E> c = new Children<E>();
+            return (c);
+        }
+        public void passivateObject(Object obj) throws Exception {
+            Children<?> c = (Children<?>)obj;
+            c.finish();
+        };
+    };
+    
+    /**
+     * The children data structure keeps track of the elements that we need to visit before and after
+     * each element in the tree
+     */
+    public static class Children<E> implements Poolable {
+        private E parent;
         private final Queue<E> before_list = new ConcurrentLinkedQueue<E>();
         private final Queue<E> after_list = new ConcurrentLinkedQueue<E>();
         
-        private Children(E parent) {
+        private Children() {
+            // Nothing...
+        }
+        
+        public void init(E parent) {
             this.parent = parent;
+        }
+        
+        @Override
+        public void finish() {
+            this.parent = null;
+            this.before_list.clear();
+            this.after_list.clear();
         }
 
         public Queue<E> getBefore() {
@@ -106,7 +140,12 @@ public abstract class AbstractTreeWalker<E> implements Poolable {
      * Others can attach Children to elements out-of-band so that we can do other
      * types of traversal through the tree
      */
-    private final Map<E, Children> attached_children = new HashMap<E, Children>();
+    private final Map<E, Children<E>> attached_children = new HashMap<E, Children<E>>();
+    /**
+     * Cache handle to the object pool we use for the children
+     */
+    private StackObjectPool children_pool;
+    
     /**
      * Depth limit (for debugging)
      */
@@ -126,7 +165,16 @@ public abstract class AbstractTreeWalker<E> implements Poolable {
         this.allow_revisit = false;
         this.counter = 0;
         this.depth_limit = -1;
+
+        try {
+            for (Children<E> c : this.attached_children.values()) {
+                this.children_pool.returnObject(c);
+            } // FOR
+        } catch (Exception ex) {
+            throw new RuntimeException(ex);
+        }
         this.attached_children.clear();
+        this.children_pool = null;
     }
     
     // ----------------------------------------------------------------------
@@ -134,15 +182,37 @@ public abstract class AbstractTreeWalker<E> implements Poolable {
     // ----------------------------------------------------------------------
     
     /**
+     * Initialize the children object pool needed by this object
+     */
+    private void initChildrenPool(E element) {
+        // Grab the handle to the children object pool we'll need
+        Class<?> elementClass = element.getClass();
+        synchronized (CHILDREN_POOLS) {
+            this.children_pool = CHILDREN_POOLS.get(elementClass);
+            if (this.children_pool == null) {
+                this.children_pool = new StackObjectPool(new ChildrenFactory<E>());
+                CHILDREN_POOLS.put(elementClass, this.children_pool);
+            }
+        } // SYNCH
+    }
+    
+    /**
      * Return a Children singleton for a specific element
      * This allows us to add children either before our element is invoked
      * @param element
      * @return
      */
-    protected final Children getChildren(E element) {
-        Children c = this.attached_children.get(element);
+    @SuppressWarnings("unchecked")
+    protected final Children<E> getChildren(E element) {
+        Children<E> c = this.attached_children.get(element);
         if (c == null) {
-            c = new Children(element);
+            if (this.children_pool == null) this.initChildrenPool(element);
+            try {
+                c = (Children<E>)this.children_pool.borrowObject();
+            } catch (Exception ex) {
+                throw new RuntimeException("Failed to borrow object for " + element, ex);
+            }
+            c.init(element);
             this.attached_children.put(element, c);
         }
         return (c);
@@ -255,6 +325,10 @@ public abstract class AbstractTreeWalker<E> implements Poolable {
         if (this.first == null) {
             assert(this.counter == 0) : "Unexpected counter value on first element [" + this.counter + "]";
             this.first = element;
+            
+            // Grab the handle to the children object pool we'll need
+            this.initChildrenPool(element);
+            
             if (trace) LOG.trace("callback_first(" + element + ")");
             this.callback_first(element);
         }
@@ -279,7 +353,7 @@ public abstract class AbstractTreeWalker<E> implements Poolable {
         
         // Get the list of children to visit before and after we call ourself
 //        if (!this.visited.contains(element)) {
-            AbstractTreeWalker<E>.Children children = this.getChildren(element);
+            AbstractTreeWalker.Children<E> children = this.getChildren(element);
             this.populate_children(children, element);
             if (trace) LOG.trace("Populate Children: " + children);
             for (E child : children.before_list) {
@@ -309,6 +383,17 @@ public abstract class AbstractTreeWalker<E> implements Poolable {
         this.callback_after(element);
         this.depth--;
         if (this.depth == -1) {
+            // We need to return all of the children here, because most instances are not going to be pooled,
+            // which means that finish() will not likely be called
+            try {
+                for (Children<E> c : this.attached_children.values()) {
+                    this.children_pool.returnObject(c);
+                } // FOR
+            } catch (Exception ex) {
+                throw new RuntimeException(ex);
+            }
+            this.attached_children.clear();
+            
             if (trace) LOG.trace("callback_last(" + element + ")");
             this.callback_last(element);
         }
@@ -320,7 +405,7 @@ public abstract class AbstractTreeWalker<E> implements Poolable {
      * before or after the callback method is called for the element 
      * @param element
      */
-    protected abstract void populate_children(AbstractTreeWalker<E>.Children children, E element);
+    protected abstract void populate_children(AbstractTreeWalker.Children<E> children, E element);
     
     // ----------------------------------------------------------------------
     // CALLBACK METHODS

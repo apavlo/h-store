@@ -93,6 +93,10 @@ public abstract class AbstractDirectedTree<V extends AbstractVertex, E extends A
     public void pruneIsolatedVertices() {
         this.inner.pruneIsolatedVertices();
     }
+//    @Override
+//    public E findEdge(V v1, V v2) {
+//        return (this.inner.findEdge(v1, v2));
+//    }
     
     @Override
     public String toString(E e, boolean verbose) {

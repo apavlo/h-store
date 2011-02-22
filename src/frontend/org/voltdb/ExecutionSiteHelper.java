@@ -58,6 +58,10 @@ public class ExecutionSiteHelper implements Runnable {
      */
     private final Collection<ExecutionSite> sites;
     /**
+     * HStoreSite Handle
+     */
+    private final HStoreSite hstore_site;
+    /**
      * Set to false after the first time we are invoked
      */
     private boolean first = true;
@@ -73,17 +77,20 @@ public class ExecutionSiteHelper implements Runnable {
         this.txn_expire = txn_expire;
         this.txn_per_round = max_txn_per_round;
         this.enable_profiling = enable_profiling;
+
+        ExecutionSite executor = CollectionUtil.getFirst(this.sites);
+        assert(executor != null);
+        this.hstore_site = executor.getHStoreSite();
         
         if (this.enable_profiling) {
-            ExecutionSite executor = CollectionUtil.getFirst(this.sites);
-            assert(executor != null);
             this.prepareProfileInformation(CatalogUtil.getDatabase(executor.getCatalogSite()));
-            executor.getHStoreSite().addShutdownObservable(new EventObserver() {
+            this.hstore_site.addShutdownObservable(new EventObserver() {
                 @Override
                 public void update(Observable o, Object arg) {
                     ExecutionSiteHelper.this.shutdown();
                     LOG.info("Got shutdown notification from HStoreSite. Dumping profile information");
-                    System.err.println(StringUtil.box(ExecutionSiteHelper.this.dumpProfileInformation()));
+                    System.err.println(ExecutionSiteHelper.this.dumpProfileInformation());
+                    System.err.println(ExecutionSiteHelper.this.hstore_site.statusSnapshot());
                 }
             });
         }
@@ -216,7 +223,7 @@ public class ExecutionSiteHelper implements Runnable {
         
         Object rows[][] = new String[num_procs][header.length];
         long totals[] = new long[header.length-1];
-        String f = "%.02f";
+//        String f = "%.02f";
         
         int row_idx = 0;
         for (Entry<Procedure, List<long[]>> e : this.proc_profiles.entrySet()) {
@@ -249,19 +256,14 @@ public class ExecutionSiteHelper implements Runnable {
                 // # of Txns
                 if (i == 0) {
                     rows[row_idx][i+1] = Long.toString(totals[i]);
-                // Total Time
-                } else if (i == 1) {
-                    // rows[row_idx][i+1] = String.format(f, totals[i] / (double)num_tuples) + "ms";
-                    rows[row_idx][i+1] = String.format("%.02f", totals[i] / 1000000d);
                 // Everything Else
                 } else {
-//                    rows[row_idx][i+1] = String.format(f, (totals[i] / (double)totals[0]) * 100) + "%";
-                    rows[row_idx][i+1] = String.format("%.02f", totals[i] / 1000000d);
+                    rows[row_idx][i+1] = String.format("%.03f", totals[i] / 1000000d);
                 }
             } // FOR
             row_idx++;
         }
-        return (StringUtil.table(header, rows));
+        return (StringUtil.csv(header, rows));
     }
 
 }

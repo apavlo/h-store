@@ -332,7 +332,7 @@ public abstract class AbstractPartitioner {
             // the edge weights in the AccessGraph
             new VertexTreeWalker<Vertex>(info.dgraph, VertexTreeWalker.TraverseOrder.BREADTH) {
                 @Override
-                protected void populate_children(VertexTreeWalker<Vertex>.Children children, Vertex element) {
+                protected void populate_children(VertexTreeWalker.Children<Vertex> children, Vertex element) {
                     // For the current element, look at all of its children and count up the total
                     // weight of all the edges to each child
                     final Map<Table, Double> vertex_weights = new HashMap<Table, Double>();
