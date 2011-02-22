@@ -657,7 +657,14 @@ public abstract class VoltProcedure implements Poolable {
             if (this.m_site.enable_profiling) {
                 long time = ProfileMeasurement.getTime();
                 if (local_ts.java_time.isStarted()) local_ts.java_time.stopThinkMarker(time);
-                if (local_ts.coord_time.isStarted()) local_ts.coord_time.stopThinkMarker(time);
+                if (local_ts.coord_time.isStarted()) {
+                    assert(false) : "Txn #" + this.txn_id;
+                    local_ts.coord_time.stopThinkMarker(time);
+                }
+                if (local_ts.plan_time.isStarted()) {
+                    assert(false) : "Txn #" + this.txn_id;
+                    local_ts.plan_time.stopThinkMarker(time);
+                }
             }
         }
 
@@ -941,7 +948,7 @@ public abstract class VoltProcedure implements Poolable {
         if (this.m_site.enable_profiling) {
             long timestamp = ProfileMeasurement.getTime();
             local_ts.java_time.stopThinkMarker(timestamp);
-            local_ts.coord_time.startThinkMarker(timestamp);
+            local_ts.plan_time.startThinkMarker(timestamp);
         }
 
         assert (batchQueryStmtIndex == batchQueryArgsIndex);
@@ -1045,6 +1052,7 @@ public abstract class VoltProcedure implements Poolable {
             params[i] = getCleanParams(batchStmts[i], batchArgs[i]);
         } // FOR
         
+        
         // Calculate the hash code for this batch to see whether we already have a planner
         final Integer batchHashCode = VoltProcedure.getBatchHashCode(batchStmts, batchSize);
         BatchPlanner planner = ExecutionSite.batch_planners.get(batchHashCode);
@@ -1091,7 +1099,7 @@ public abstract class VoltProcedure implements Poolable {
         LocalTransactionState local_ts = (LocalTransactionState)this.m_currentTxnState;
         if (this.m_site.enable_profiling) {
             long time = ProfileMeasurement.getTime();
-            local_ts.coord_time.stopThinkMarker(time);
+            local_ts.plan_time.stopThinkMarker(time);
             local_ts.est_time.startThinkMarker(time); 
         }
         TransactionEstimator t_estimator = this.m_site.getTransactionEstimator();
