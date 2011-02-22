@@ -458,8 +458,14 @@ public class Vertex extends AbstractVertex {
      */
     public boolean isLocalPartitionOnly() {
         if (this.type == Type.QUERY) {
-            return (this.partitions.size() == 1 && this.past_partitions.size() == 1 &&
-                    this.partitions.containsAll(this.past_partitions));
+            // If there is more than one partition then we know immediately that this is busted
+            if (this.partitions.size() != 1) return (false);
+            
+            // If there are not past partitions yet, then yes this is technically single-partitioned
+            if (this.past_partitions.isEmpty()) return (true);
+            
+            // Lastly, we can check... 
+            return (this.partitions.size() == 1 && this.past_partitions.size() == 1 && this.partitions.containsAll(this.past_partitions));
         }
         return (true);
     }

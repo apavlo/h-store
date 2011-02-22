@@ -65,7 +65,8 @@ public class InsertCallForwarding extends VoltProcedure{
          result = voltExecuteSQL();
          assert(result.length == 1);
          assert(result[0].getRowCount() == 1) : "Unexpected tuple count\n" + result[0];
-         assert(result[0].advanceRow());
+         boolean adv = result[0].advanceRow();
+         assert(adv);
          long s_id = result[0].getLong(0);
          
          voltQueueSQL(query2, s_id);

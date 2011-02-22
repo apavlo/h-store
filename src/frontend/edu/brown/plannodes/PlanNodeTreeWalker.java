@@ -30,7 +30,7 @@ public abstract class PlanNodeTreeWalker extends AbstractTreeWalker<AbstractPlan
      * Depth first traversal
      * @param node
      */
-    protected void populate_children(PlanNodeTreeWalker.Children children, AbstractPlanNode node) {
+    protected void populate_children(PlanNodeTreeWalker.Children<AbstractPlanNode> children, AbstractPlanNode node) {
         for (int ctr = 0, cnt = node.getChildCount(); ctr < cnt; ctr++) {
             children.addBefore(node.getChild(ctr));
         }

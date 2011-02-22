@@ -658,11 +658,11 @@ public abstract class VoltProcedure implements Poolable {
                 long time = ProfileMeasurement.getTime();
                 if (local_ts.java_time.isStarted()) local_ts.java_time.stopThinkMarker(time);
                 if (local_ts.coord_time.isStarted()) {
-                    assert(false) : "Txn #" + this.txn_id;
+//                    assert(false) : "Txn #" + this.txn_id;
                     local_ts.coord_time.stopThinkMarker(time);
                 }
                 if (local_ts.plan_time.isStarted()) {
-                    assert(false) : "Txn #" + this.txn_id;
+//                    assert(false) : "Txn #" + this.txn_id;
                     local_ts.plan_time.stopThinkMarker(time);
                 }
             }
@@ -945,11 +945,7 @@ public abstract class VoltProcedure implements Poolable {
         }
         
         LocalTransactionState local_ts = (LocalTransactionState)this.m_currentTxnState;
-        if (this.m_site.enable_profiling) {
-            long timestamp = ProfileMeasurement.getTime();
-            local_ts.java_time.stopThinkMarker(timestamp);
-            local_ts.plan_time.startThinkMarker(timestamp);
-        }
+        if (this.m_site.enable_profiling) ProfileMeasurement.swap(local_ts.java_time, local_ts.plan_time);
 
         assert (batchQueryStmtIndex == batchQueryArgsIndex);
 
@@ -989,11 +985,7 @@ public abstract class VoltProcedure implements Poolable {
         batchQueryStmtIndex = 0;
         batchQueryArgsIndex = 0;
         
-        if (this.m_site.enable_profiling) {
-            long timestamp = ProfileMeasurement.getTime();
-            local_ts.coord_time.stopThinkMarker(timestamp);
-            local_ts.java_time.startThinkMarker(timestamp);
-        }
+        if (this.m_site.enable_profiling) ProfileMeasurement.swap(local_ts.coord_time, local_ts.java_time);
         
         return retval;
     }
@@ -1097,21 +1089,13 @@ public abstract class VoltProcedure implements Poolable {
         
         // Tell the TransactionEstimator that we're about to execute these mofos
         LocalTransactionState local_ts = (LocalTransactionState)this.m_currentTxnState;
-        if (this.m_site.enable_profiling) {
-            long time = ProfileMeasurement.getTime();
-            local_ts.plan_time.stopThinkMarker(time);
-            local_ts.est_time.startThinkMarker(time); 
-        }
+        if (this.m_site.enable_profiling) ProfileMeasurement.swap(local_ts.plan_time, local_ts.est_time);
         TransactionEstimator t_estimator = this.m_site.getTransactionEstimator();
         TransactionEstimator.State t_state = local_ts.getEstimatorState();
         if (t_state != null) {
             t_estimator.executeQueries(t_state, planner.getStatements(), plan.getStatementPartitions());
         }
-        if (this.m_site.enable_profiling) {
-            long time = ProfileMeasurement.getTime();
-            local_ts.coord_time.startThinkMarker(time);
-            local_ts.est_time.stopThinkMarker(time);
-        }
+        if (this.m_site.enable_profiling) ProfileMeasurement.swap(local_ts.est_time, local_ts.coord_time);
         
         if (debug.get()) LOG.debug("BatchPlan for txn #" + this.txn_id + ":\n" + plan.toString());
         

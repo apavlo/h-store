@@ -109,11 +109,9 @@ public class DependencyUtil {
                 final Vector<String> col_ancestors = new Vector<String>();
                 
                 new AbstractTreeWalker<Column>() {
-                    protected void populate_children(AbstractTreeWalker<Column>.Children children, Column element) {
-                        //
+                    protected void populate_children(AbstractTreeWalker.Children<Column> children, Column element) {
                         // For the current element, we need to look at it's parents in the 
                         // DependencyGraph and select the one that our foreign key column points to
-                        //
                         Column catalog_fkey_col = CatalogUtil.getForeignKeyParent(element);
                         if (catalog_fkey_col != null) children.addAfter(catalog_fkey_col);
                     }

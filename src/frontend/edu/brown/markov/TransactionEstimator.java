@@ -601,7 +601,6 @@ public class TransactionEstimator {
             return (null);
         }
         // ??? graph.resetCounters();
-
         
         Vertex start = markov.getStartVertex();
         MarkovPathEstimator estimator = null;
@@ -622,7 +621,7 @@ public class TransactionEstimator {
                 LOG.fatal("Failed to estimate path", e);
                 try {
                     GraphvizExport<Vertex, Edge> gv = MarkovUtil.exportGraphviz(markov, false, markov.getPath(estimator.getVisitPath()));
-                    System.err.println("GRAPH DUMP: " + gv.writeToTempFile("dump", "dot"));
+                    System.err.println("GRAPH DUMP: " + gv.writeToTempFile(catalog_proc));
                 } catch (Exception ex) {
                     throw new RuntimeException(ex);
                 }
@@ -630,7 +629,7 @@ public class TransactionEstimator {
             }
         } // SYNCH
         assert(estimator != null);
-        
+
         State state = null;
         try {
             state = (State)STATE_POOL.borrowObject();

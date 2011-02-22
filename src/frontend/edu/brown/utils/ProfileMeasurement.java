@@ -26,11 +26,6 @@ public class ProfileMeasurement {
         MISC;
     }
 
-    public static long getTime() {
-//        return System.currentTimeMillis();
-        return System.nanoTime();
-    }
-    
     /**
      * The profile type
      */
@@ -54,7 +49,13 @@ public class ProfileMeasurement {
         this.type = pmtype;
         this.reset();
     }
-    
+
+    public void reset() {
+        this.think_marker = null;
+        this.think_time = 0;
+//        if (type == Type.JAVA) LOG.info(String.format("RESET %s [%d]", this.type, this.hashCode()));
+    }
+
     /**
      * Get the profile type
      * @return
@@ -71,52 +72,90 @@ public class ProfileMeasurement {
         return (this.think_time);
     }
     
+    // ----------------------------------------------------------------------------
+    // START METHODS
+    // ----------------------------------------------------------------------------
+
+    /**
+     * Main method for stop this ProfileMeasurement from recording time
+     * @return this
+     */
+
+    public ProfileMeasurement startThinkMarker(long time) {
+        assert(this.think_marker == null) : this.type + " - " + this.hashCode();
+        this.think_marker = time;
+//        if (type == Type.JAVA) LOG.info(String.format("START %s [%d]", this.type, this.hashCode()));
+        return (this);
+    }
+    
+    public ProfileMeasurement startThinkMarker() {
+        return (this.startThinkMarker(getTime()));
+    }
+    
+    public boolean isStarted() {
+        return (this.think_marker != null);
+    }
+
+    // ----------------------------------------------------------------------------
+    // STOP METHODS
+    // ----------------------------------------------------------------------------
+
+    /**
+     * Main method for stop this ProfileMeasurement from recording time
+     * We will check to make sure that this handle was started first
+     * @return this
+     */
+    public ProfileMeasurement stopThinkMarker(long time) {
+        assert(this.think_marker != null) : this.type + " - " + this.hashCode();
+        long added = (time - this.think_marker);
+        this.think_time += added;
+        this.think_marker = null;
+//        if (type == Type.JAVA) LOG.info(String.format("STOP %s [time=%d, id=%d]", this.type, added, this.hashCode()));
+        return (this);
+    }
+
+    public ProfileMeasurement stopThinkMarker() {
+        return (this.stopThinkMarker(getTime()));
+    }
+
+    public boolean isStopped() {
+        return (this.think_marker == null);
+    }
+
+    // ----------------------------------------------------------------------------
+    // UTILITY METHODS
+    // ----------------------------------------------------------------------------
+    
     public void appendTime(ProfileMeasurement other) {
         assert(other != null);
         assert(this.type == other.type);
         this.think_time += other.think_time;
         this.think_marker = other.think_marker;
     }
-    
+ 
     public void addThinkTime(long start, long stop) {
         assert(this.think_marker == null) : this.type;
         this.think_time += (stop - start);
     }
-    
-    public synchronized void startThinkMarker(long time) {
-        assert(this.think_marker == null) : this.type + " - " + this.hashCode();
-        this.think_marker = time;
-//        if (type == Type.JAVA) LOG.info(String.format("START %s [%d]", this.type, this.hashCode()));
+
+    /**
+     * Return the current time in nano-seconds
+     * @return
+     */
+    public static long getTime() {
+//      return System.currentTimeMillis();
+      return System.nanoTime();
     }
     
-    public void startThinkMarker() {
-        this.startThinkMarker(getTime());
-    }
-    
-    public boolean isStarted() {
-        return (this.think_marker != null);
-    }
-    
-    public synchronized void stopThinkMarker(long time) {
-        assert(this.think_marker != null) : this.type + " - " + this.hashCode();
-        long added = (time - this.think_marker);
-        this.think_time += added;
-        this.think_marker = null;
-//        if (type == Type.JAVA) LOG.info(String.format("STOP %s [time=%d, id=%d]", this.type, added, this.hashCode()));
-    }
-    
-    public boolean isStopped() {
-        return (this.think_marker == null);
-    }
-    
-    public void stopThinkMarker() {
-        this.stopThinkMarker(getTime());
-    }
-    
-    public void reset() {
-        this.think_marker = null;
-        this.think_time = 0;
-//        if (type == Type.JAVA) LOG.info(String.format("RESET %s [%d]", this.type, this.hashCode()));
+    /**
+     * Stop one of the given ProfileMeasurement handles and start the other
+     * @param to_stop the handle to stop
+     * @param to_start the handle to start
+     */
+    public static void swap(ProfileMeasurement to_stop, ProfileMeasurement to_start) {
+        long time = ProfileMeasurement.getTime();
+        to_stop.stopThinkMarker(time);
+        to_start.startThinkMarker(time);
     }
     
 }

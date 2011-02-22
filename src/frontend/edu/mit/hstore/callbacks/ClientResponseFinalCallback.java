@@ -34,9 +34,6 @@ public class ClientResponseFinalCallback extends AbstractTxnCallback implements 
     public void run(Dtxn.FinishResponse parameter) {
         final boolean d = LOG.isDebugEnabled();
         
-        // Always clean-up the transaction with the HStoreSite
-        this.hstore_site.completeTransaction(this.txn_id);
-        
         // But only send the output to the client if this wasn't a mispredict
         if (this.status != Dtxn.FragmentResponse.Status.ABORT_MISPREDICT) {
             if (d) {
@@ -49,5 +46,8 @@ public class ClientResponseFinalCallback extends AbstractTxnCallback implements 
         } else if (d) {
             LOG.debug(String.format("Ignoring Dtxn.FinishResponse for ClientResponse because txn #%d was %s", this.txn_id, this.status));
         }
+        
+        // Always clean-up the transaction with the HStoreSite
+        this.hstore_site.completeTransaction(this.txn_id);
     }
 } // END CLASS

@@ -192,6 +192,22 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
         } // FOR
         return (null);
     }
+    
+    /**
+     * Return an ordered list of VoltTypes for the ProcParameters for the given Procedure
+     * @param catalog_proc
+     * @return
+     */
+    public static List<VoltType> getProcParameterTypes(final Procedure catalog_proc) {
+        List<VoltType> vtypes = new ArrayList<VoltType>();
+        for (ProcParameter catalog_param : CatalogUtil.getSortedCatalogItems(catalog_proc.getParameters(), "index")) {
+            VoltType vtype = VoltType.get(catalog_param.getType());
+            assert(vtype != null);
+            assert(vtype != VoltType.INVALID);
+            vtypes.add(vtype);
+        } // FOR
+        return (vtypes);
+    }
 
     /**
      * Return the list of ProcParameters that are array parameters for the given procedure
@@ -487,7 +503,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
         final Catalog new_catalog = new Catalog();
 
         new AbstractTreeWalker<CatalogType>() {
-            protected void populate_children(AbstractTreeWalker<CatalogType>.Children children, CatalogType element) {
+            protected void populate_children(AbstractTreeWalker.Children<CatalogType> children, CatalogType element) {
                 if (element instanceof Catalog) {
                     children.addAfter(((Catalog) element).getClusters().values());
                 } else if (element instanceof Cluster) {
@@ -1366,8 +1382,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
         final Set<Column> columns = new TreeSet<Column>();
         new PlanNodeTreeWalker() {
             @Override
-            protected void populate_children(
-                    PlanNodeTreeWalker.Children children, AbstractPlanNode node) {
+            protected void populate_children(PlanNodeTreeWalker.Children<AbstractPlanNode> children, AbstractPlanNode node) {
                 super.populate_children(children, node);
                 List<AbstractPlanNode> to_add = new ArrayList<AbstractPlanNode>();
                 for (AbstractPlanNode child : children.getBefore()) {

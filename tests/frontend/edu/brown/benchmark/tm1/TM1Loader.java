@@ -112,7 +112,7 @@ public class TM1Loader extends TM1BaseClient {
             System.exit(-1);
         }
 
-        System.err.println("\n" + this.dumpTableCounts());
+//        System.err.println("\n" + this.dumpTableCounts());
 
         LOG.debug("TM1 loader done. ");
     }
@@ -128,11 +128,11 @@ public class TM1Loader extends TM1BaseClient {
         }
         assert (results.length == 1);
 
-        String ret = "TM1 Table Stats:\n";
+        String ret = "TM1 Table Stats:";
         while (results[0].advanceRow()) {
             String name = results[0].getString(0);
             long count = results[0].getLong(1);
-            ret += String.format("%-20s %d\n", name + ":", count);
+            ret += String.format("\n%-20s %d", name + ":", count);
             
             assert(this.table_counts.containsKey(name));
             long expected = this.table_counts.get(name); 

@@ -9,13 +9,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.Map.Entry;
-import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.log4j.Logger;
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Statement;
+import org.voltdb.types.QueryType;
 
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.graphs.AbstractDirectedGraph;
@@ -27,6 +28,7 @@ import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.PartitionEstimator;
 import edu.brown.utils.StringUtil;
+import edu.brown.utils.LoggerUtil.LoggerBoolean;
 import edu.brown.workload.QueryTrace;
 import edu.brown.workload.TransactionTrace;
 
@@ -38,8 +40,8 @@ import edu.brown.workload.TransactionTrace;
 public class MarkovGraph extends AbstractDirectedGraph<Vertex, Edge> implements Comparable<MarkovGraph> {
     private static final long serialVersionUID = 3548405718926801012L;
     private static final Logger LOG = Logger.getLogger(MarkovGraph.class);
-    private final static AtomicBoolean debug = new AtomicBoolean(LOG.isDebugEnabled());
-    private final static AtomicBoolean trace = new AtomicBoolean(LOG.isTraceEnabled());
+    private final static LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private final static LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
     static {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
@@ -58,14 +60,6 @@ public class MarkovGraph extends AbstractDirectedGraph<Vertex, Edge> implements 
      */
     private int xact_count;
 
-    /**
-     * Cached references to the special marker vertices
-     */
-    private final transient Vertex cache_specialVertices[] = new Vertex[Vertex.Type.values().length];
-
-
-    private final transient Map<Statement, Set<Vertex>> cache_stmtVertices = new HashMap<Statement, Set<Vertex>>();
-    
     // ----------------------------------------------------------------------------
     // CONSTRUCTORS
     // ----------------------------------------------------------------------------
@@ -137,7 +131,13 @@ public class MarkovGraph extends AbstractDirectedGraph<Vertex, Edge> implements 
     // CACHED METHODS
     // ----------------------------------------------------------------------------
 
-    private transient final Map<Vertex, Collection<Vertex>> cache_getSuccessors = new HashMap<Vertex, Collection<Vertex>>();
+    /**
+     * Cached references to the special marker vertices
+     */
+    private transient final Vertex cache_specialVertices[] = new Vertex[Vertex.Type.values().length];
+
+    private transient final Map<Statement, Set<Vertex>> cache_stmtVertices = new HashMap<Statement, Set<Vertex>>();
+    private transient final Map<Vertex, Collection<Vertex>> cache_getSuccessors = new ConcurrentHashMap<Vertex, Collection<Vertex>>();
     
     @Override
     public Collection<Vertex> getSuccessors(Vertex vertex) {
@@ -374,7 +374,7 @@ public class MarkovGraph extends AbstractDirectedGraph<Vertex, Edge> implements 
                     // And will not Read/Write Probability
                     for (Integer partition : all_partitions) {
                         element.setDoneProbability(partition, 1.0f);
-                        element.setReadOnlyProbability(partition, 0.0f);
+                        element.setReadOnlyProbability(partition, 1.0f);
                         element.setWriteProbability(partition, 0.0f);
                     } // FOR
                     
@@ -400,6 +400,7 @@ public class MarkovGraph extends AbstractDirectedGraph<Vertex, Edge> implements 
                     }
 
                     Statement catalog_stmt = element.getCatalogItem();
+                    QueryType qtype = QueryType.get(catalog_stmt.getQuerytype());
                     
                     Collection<Edge> edges = MarkovGraph.this.getOutEdges(element);
                     for (Edge e : edges) {
@@ -433,9 +434,11 @@ public class MarkovGraph extends AbstractDirectedGraph<Vertex, Edge> implements 
                                 
                                 // Figure out whether it is a read or a write
                                 if (catalog_stmt.getReadonly()) {
+                                    if (trace.get()) LOG.trace(String.format("%s does not modify partition %d. Setting writing probability based on children [%s]", element, partition, qtype));
                                     element.addWriteProbability(partition, (float)(e.getProbability() * successor.getWriteProbability(partition)));
                                     element.addReadOnlyProbability(partition, (float)(e.getProbability() * successor.getReadOnlyProbability(partition)));
                                 } else {
+                                    if (trace.get()) LOG.trace(String.format("%s modifies partition %d. Setting writing probability to 1.0 [%s]", element, partition, qtype));
                                     element.setWriteProbability(partition, 1.0f);
                                     element.setReadOnlyProbability(partition, 0.0f);
                                 }

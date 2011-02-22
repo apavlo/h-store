@@ -6,6 +6,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 import org.apache.commons.collections15.set.ListOrderedSet;
 import org.voltdb.catalog.CatalogType;
@@ -37,6 +38,7 @@ public class InnerGraphInformation<V extends AbstractVertex, E extends AbstractE
     private List<V> ancestors;
     private ListOrderedSet<V> roots;
 
+    private transient final Map<V, Map<V, E>> cache_findEdge = new ConcurrentHashMap<V, Map<V, E>>();
     
     /**
      * Constructor
@@ -94,6 +96,26 @@ public class InnerGraphInformation<V extends AbstractVertex, E extends AbstractE
     public synchronized void addEdge(E e) {
         if (this.enable_dirty_checks) this.markAllDirty(true);
     }
+    
+//    public E findEdge(V v1, V v2) {
+//        this.graph.
+//        return (this.graph.findEdge(v1, v2));
+////        E e = null;
+////        synchronized (v1) {
+////            Map<V, E> cache = this.cache_findEdge.get(v1);
+////            if (cache == null) {
+////                cache = new HashMap<V, E>();
+////                this.cache_findEdge.put(v1, cache);
+////            }
+////            e = cache.get(v2);
+////            if (v2 == null) {
+////                e = this.graph.findEdge(v1, v2);
+////                cache.put(v2, e);
+////            }
+////            System.err.println(v2 + ": " + cache);
+////        } // SYNCH
+////        return (e);
+//    }
     
     public V getVertex(String catalog_key) {
         return (this.catalog_vertex_xref.get(catalog_key));

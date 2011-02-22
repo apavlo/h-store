@@ -1032,11 +1032,7 @@ public class ExecutionSite implements Runnable {
                 ee.stashWorkUnitDependencies(ts.ee_dependencies);
             }
             ts.setSubmittedEE();
-            if (local_ts != null && this.enable_profiling) {
-                long time = ProfileMeasurement.getTime();
-                local_ts.coord_time.stopThinkMarker(time);
-                local_ts.ee_time.startThinkMarker(time);
-            }
+            if (local_ts != null && this.enable_profiling) ProfileMeasurement.swap(local_ts.coord_time, local_ts.ee_time);
             result = this.ee.executeQueryPlanFragmentsAndGetDependencySet(
                         fragmentIds,
                         fragmentIdIndex,
@@ -1047,11 +1043,7 @@ public class ExecutionSite implements Runnable {
                         txn_id,
                         this.lastCommittedTxnId,
                         undoToken);
-            if (local_ts != null && this.enable_profiling) {
-                long time = ProfileMeasurement.getTime();
-                local_ts.coord_time.startThinkMarker(time);
-                local_ts.ee_time.stopThinkMarker(time);
-            }
+            if (local_ts != null && this.enable_profiling) ProfileMeasurement.swap(local_ts.ee_time, local_ts.coord_time);
             if (trace.get()) LOG.trace("Executed fragments " + Arrays.toString(fragmentIds) + " and got back results: " + Arrays.toString(result.depIds)); //  + "\n" + Arrays.toString(result.dependencies));
             assert(result != null) : "The resulting DependencySet for FragmentTaskMessage " + ftask + " is null!";
         }

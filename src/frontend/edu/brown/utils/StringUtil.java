@@ -25,21 +25,50 @@ public abstract class StringUtil {
     private static Pattern LINE_SPLIT = Pattern.compile("\n");
     
     /**
+     * Format the header + rows into a CSV
+     * @param header
+     * @param rows
+     * @return
+     */
+    public static String csv(String header[], Object[]...rows) {
+        return (StringUtil.table(",", false, false, header, rows));        
+    }
+    
+    /**
      * Format the header + rows into a neat little table
      * @param header
      * @param rows
      * @return
      */
     public static String table(String header[], Object[]...rows) {
+        return (StringUtil.table("  ", true, false, header, rows));
+    }
         
+    /**
+     * Format the header+rows into a table
+     * @param delimiter the character to use in between cells
+     * @param spacing whether to make the width of each column the size of the largest cell
+     * @param quotes whether to surround each cell in quotation marks
+     * @param header
+     * @param rows
+     * @return
+     */
+    public static String table(String delimiter, boolean spacing, boolean quotes, String header[], Object[]...rows) {
         // First we need to figure out the size for each column
         String col_formats[] = new String[header.length];
         for (int col_idx = 0; col_idx < col_formats.length; col_idx++) {
-            int width = header[col_idx].length();
-            for (int row_idx = 0; row_idx < rows.length; row_idx++) {
-                width = Math.max(width, rows[row_idx][col_idx].toString().length());    
-            } // FOR
-            col_formats[col_idx] = (col_idx > 0 ? "  " : "") + "%-" + width + "s";
+            String f = null;
+            if (spacing) {
+                int width = header[col_idx].length();
+                for (int row_idx = 0; row_idx < rows.length; row_idx++) {
+                    width = Math.max(width, rows[row_idx][col_idx].toString().length());    
+                } // FOR
+                f = "%-" + width + "s";
+            } else {
+                f = "%s";
+            }
+            if (quotes) f = '"' + f + '"';
+            col_formats[col_idx] = (col_idx > 0 ? delimiter : "") + f;
         } // FOR
         
         // Create header row
@@ -182,7 +211,7 @@ public abstract class StringUtil {
         } else {
             sb = new StringBuilder();
             for (int i = 0; i < maps.length; i++) {
-                if (i != 0) sb.append(repeat("-", max_key_size + max_value_size + 2)).append("\n");
+                if (i != 0 && maps[i].size() > 0) sb.append(repeat("-", max_key_size + max_value_size + 2)).append("\n");
                 sb.append(blocks[i]);
             } // FOR
         }

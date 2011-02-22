@@ -15,7 +15,7 @@ import edu.brown.utils.CollectionUtil;
  *
  */
 public abstract class VertexTreeWalker<V extends AbstractVertex> extends AbstractTreeWalker<V> {
-    protected static final Logger LOG = Logger.getLogger(VertexTreeWalker.class);
+    private static final Logger LOG = Logger.getLogger(VertexTreeWalker.class);
     
     public enum TraverseOrder {
         BREADTH,
@@ -111,7 +111,7 @@ public abstract class VertexTreeWalker<V extends AbstractVertex> extends Abstrac
      * @see org.voltdb.utils.AbstractTreeWalker#traverse_children(java.lang.Object)
      */
     @Override
-    protected void populate_children(VertexTreeWalker<V>.Children children, V element) {
+    protected void populate_children(VertexTreeWalker.Children<V> children, V element) {
         final boolean trace = LOG.isTraceEnabled();
         ListOrderedSet<V> bfs_children = null;
         
@@ -159,7 +159,7 @@ public abstract class VertexTreeWalker<V extends AbstractVertex> extends Abstrac
                 assert(last_element != null) : "Null last_element at depth " + this.getDepth();
 
                 // Put all of our children into the last element's in our depth children
-                Children last_element_c = this.getChildren(last_element);
+                Children<V> last_element_c = this.getChildren(last_element);
                 for (V child : bfs_children) {
                     // We have to do this to avoid duplicates...
                     if (last_element_c.getAfter().contains(child) == false) last_element_c.addAfter(child);
