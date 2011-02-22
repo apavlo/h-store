@@ -244,7 +244,7 @@ public class TransactionEstimator {
          * @return
          */
         public Estimate getInitialEstimate() {
-            return this.estimates.get(0);
+            return (this.num_estimates > 0 ? this.estimates.get(0) : null);
         }
 
         public Estimate getLastEstimate() {

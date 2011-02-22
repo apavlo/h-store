@@ -14,8 +14,10 @@ public class ProfileMeasurement {
         TOTAL,
         /** The amount of time spent executing the Java-portion of the stored procedure */
         JAVA,
-        /** The amount of time spend coordinating the transaction */
+        /** The amount of time spent coordinating the transaction */
         COORDINATOR,
+        /** The amount of time spent generating the execution plans for the transaction */
+        PLANNER,
         /** The amount of time spent executing in the plan fragments */
         EE,
         /** The amount of time spent estimating what the transaction will do */

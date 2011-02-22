@@ -766,14 +766,15 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
 
             if (this.enable_profiling) local_ts.est_time.startThinkMarker();
             
+            single_partition = false;
             estimator_state = t_estimator.startTransaction(txn_id, dest_partition, catalog_proc, cast_args);
             if (estimator_state == null) {
                 if (d) LOG.debug(String.format("No TransactionEstimator.State was returned for txn #%d, will have to execute as multi-partitioned", txn_id)); 
-                single_partition = false;    
+                single_partition = false;
             } else {
                 if (t) LOG.trace("\n" + StringUtil.box(estimator_state.toString()));
                 TransactionEstimator.Estimate estimate = estimator_state.getInitialEstimate();
-                single_partition = estimate.isSinglePartition(this.thresholds);
+                single_partition = (estimate != null ? estimate.isSinglePartition(this.thresholds) : false);
             }
             if (this.enable_profiling) local_ts.est_time.stopThinkMarker();
         }
@@ -844,9 +845,10 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
             // that we're done at any partitions because it will throw an error
             // Instead, if we're not single-partitioned then that's that only time that 
             // we Tell the Dtxn.Coordinator that we are finished with partitions if we have an estimate
-            if (singled_partitioned == false && txn_info.getEstimatorState() != null) {
+            TransactionEstimator.State estimator_state = txn_info.getEstimatorState(); 
+            if (singled_partitioned == false && estimator_state != null && estimator_state.getInitialEstimate() != null) {
                 // TODO: How do we want to come up with estimates per partition?
-                Set<Integer> touched_partitions = txn_info.getEstimatorState().getEstimatedPartitions();
+                Set<Integer> touched_partitions = estimator_state.getEstimatedPartitions();
                 for (Integer p : this.all_partitions) {
                     if (touched_partitions.contains(p) == false) {
                         requestBuilder.addDonePartition(p.intValue());
@@ -1252,8 +1254,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
                     error = new Exception(ex);
                     shutdown = true;
                 } catch (Exception ex) {
-                    if (
-                        hstore_site.shutdown == false &&
+                    if (hstore_site.shutdown == false &&
                         ex != null &&
                         ex.getMessage() != null &&
                         ex.getMessage().contains("Connection closed") == false

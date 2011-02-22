@@ -7,6 +7,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Observable;
+import java.util.TreeMap;
 import java.util.Map.Entry;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -43,7 +44,7 @@ public class ExecutionSiteHelper implements Runnable {
     /**
      * Maintain a set of tuples for the times
      */
-    private final Map<Procedure, List<long[]>> proc_profiles = new HashMap<Procedure, List<long[]>>();
+    private final Map<Procedure, List<long[]>> proc_profiles = new TreeMap<Procedure, List<long[]>>();
     /**
      * How many milliseconds will we keep around old transaction states
      */
@@ -179,6 +180,7 @@ public class ExecutionSiteHelper implements Runnable {
             ts.total_time,
             ts.java_time,
             ts.coord_time,
+            ts.plan_time,
             ts.ee_time,
             ts.est_time,
         };
@@ -201,6 +203,7 @@ public class ExecutionSiteHelper implements Runnable {
             "Total Time",
             "Java Procedure",
             "Coordinator",
+            "Planner",
             "ExecutionEngine",
             "Estimation",
             "Miscellaneous",

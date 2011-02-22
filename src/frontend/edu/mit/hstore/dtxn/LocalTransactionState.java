@@ -203,6 +203,10 @@ public class LocalTransactionState extends TransactionState {
      */
     public final ProfileMeasurement coord_time = new ProfileMeasurement(Type.COORDINATOR);
     /**
+     * The amount of time spent planning the transaction
+     */
+    public final ProfileMeasurement plan_time = new ProfileMeasurement(Type.PLANNER);
+    /**
      * The amount of time spent executing in the plan fragments
      */
     public final ProfileMeasurement ee_time = new ProfileMeasurement(Type.EE);

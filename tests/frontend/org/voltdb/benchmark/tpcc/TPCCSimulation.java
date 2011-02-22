@@ -297,10 +297,10 @@ public class TPCCSimulation
         // This is not strictly accurate: The requirement is for certain
         // *minimum* percentages to be maintained. This is close to the right
         // thing, but not precisely correct. See TPC-C 5.2.4 (page 68).
-        if (true) {
-            doNewOrder();
-            return Transaction.NEW_ORDER.ordinal();
-        }
+//        if (true) {
+//            doNewOrder();
+//            return Transaction.NEW_ORDER.ordinal();
+//        }
         
         int x = generator.number(1, 100);
         if (x <= 4) { // 4%
