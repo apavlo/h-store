@@ -26,7 +26,7 @@ public class GroupRef extends CatalogType {
 
     void setBaseValues(Catalog catalog, CatalogType parent, String path, String name) {
         super.setBaseValues(catalog, parent, path, name);
-        m_fields.put("group", null);
+        this.addField("group", null);
     }
 
     void update() {

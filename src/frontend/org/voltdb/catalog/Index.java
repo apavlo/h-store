@@ -32,8 +32,8 @@ public class Index extends CatalogType {
 
     void setBaseValues(Catalog catalog, CatalogType parent, String path, String name) {
         super.setBaseValues(catalog, parent, path, name);
-        m_fields.put("unique", m_unique);
-        m_fields.put("type", m_type);
+        this.addField("unique", m_unique);
+        this.addField("type", m_type);
         m_columns = new CatalogMap<ColumnRef>(catalog, this, path + "/" + "columns", ColumnRef.class);
         m_childCollections.put("columns", m_columns);
     }

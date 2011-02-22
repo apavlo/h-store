@@ -31,8 +31,8 @@ public class Partition extends CatalogType {
 
     void setBaseValues(Catalog catalog, CatalogType parent, String path, String name) {
         super.setBaseValues(catalog, parent, path, name);
-        m_fields.put("id", m_id);
-        m_fields.put("dtxn_port", m_dtxn_port);
+        this.addField("id", m_id);
+        this.addField("dtxn_port", m_dtxn_port);
     }
 
     void update() {

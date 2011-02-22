@@ -26,7 +26,7 @@ public class UserRef extends CatalogType {
 
     void setBaseValues(Catalog catalog, CatalogType parent, String path, String name) {
         super.setBaseValues(catalog, parent, path, name);
-        m_fields.put("user", null);
+        this.addField("user", null);
     }
 
     void update() {

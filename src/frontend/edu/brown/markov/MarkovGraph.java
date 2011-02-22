@@ -54,15 +54,18 @@ public class MarkovGraph extends AbstractDirectedGraph<Vertex, Edge> implements 
     protected final Procedure catalog_proc;
 
     /**
-     * Cached references to the special marker vertices
-     */
-    private final transient Vertex vertex_cache[] = new Vertex[Vertex.Type.values().length];
-
-    /**
      * 
      */
     private int xact_count;
 
+    /**
+     * Cached references to the special marker vertices
+     */
+    private final transient Vertex cache_specialVertices[] = new Vertex[Vertex.Type.values().length];
+
+
+    private final transient Map<Statement, Set<Vertex>> cache_stmtVertices = new HashMap<Statement, Set<Vertex>>();
+    
     // ----------------------------------------------------------------------------
     // CONSTRUCTORS
     // ----------------------------------------------------------------------------
@@ -129,6 +132,36 @@ public class MarkovGraph extends AbstractDirectedGraph<Vertex, Edge> implements 
         assert(o != null);
         return (this.catalog_proc.compareTo(o.catalog_proc));
     }
+
+    // ----------------------------------------------------------------------------
+    // CACHED METHODS
+    // ----------------------------------------------------------------------------
+
+    private transient final Map<Vertex, Collection<Vertex>> cache_getSuccessors = new HashMap<Vertex, Collection<Vertex>>();
+    
+    @Override
+    public Collection<Vertex> getSuccessors(Vertex vertex) {
+        Collection<Vertex> successors = this.cache_getSuccessors.get(vertex);
+        if (successors == null) {
+            successors = super.getSuccessors(vertex);
+            this.cache_getSuccessors.put(vertex, successors);
+        }
+        return (successors);
+    }
+    
+    protected void buildCache() {
+        for (Statement catalog_stmt : this.catalog_proc.getStatements()) {
+            if (this.cache_stmtVertices.containsKey(catalog_stmt) == false)
+                this.cache_stmtVertices.put(catalog_stmt, new HashSet<Vertex>());
+        } // FOR
+        for (Vertex v : this.getVertices()) {
+            if (v.isQueryVertex()) {
+                Statement catalog_stmt = v.getCatalogItem();
+                this.cache_stmtVertices.get(catalog_stmt).add(v);
+            }
+        } // FOR
+        
+    }
     
     // ----------------------------------------------------------------------------
     // DATA MEMBER METHODS
@@ -175,19 +208,19 @@ public class MarkovGraph extends AbstractDirectedGraph<Vertex, Edge> implements 
         synchronized (v) {
             ret = super.addVertex(v);
             if (ret) {
-                Vertex.Type vtype = v.getType();
-                switch (vtype) {
-                    case START:
-                    case COMMIT:
-                    case ABORT: {
-                        int idx = vtype.ordinal();
-                        assert(this.vertex_cache[idx] == null) : "Trying add duplicate " + vtype + " vertex";
-                        this.vertex_cache[idx] = v;
-                        break;
+                if (v.isQueryVertex()) {
+                    Set<Vertex> stmt_vertices = this.cache_stmtVertices.get(v.getCatalogItem());
+                    if (stmt_vertices == null) {
+                        stmt_vertices = new HashSet<Vertex>();
+                        this.cache_stmtVertices.put((Statement)v.getCatalogItem(), stmt_vertices);
                     }
-                    default:
-                        // Ignore others
-                } // SWITCH
+                    stmt_vertices.add(v);
+                } else {
+                    Vertex.Type vtype = v.getType();
+                    int idx = vtype.ordinal();
+                    assert(this.cache_specialVertices[idx] == null) : "Trying add duplicate " + vtype + " vertex";
+                    this.cache_specialVertices[idx] = v;
+                }
             }
         } // SYNCH
         return (ret);
@@ -205,7 +238,7 @@ public class MarkovGraph extends AbstractDirectedGraph<Vertex, Edge> implements 
             case START:
             case COMMIT:
             case ABORT: {
-                v = this.vertex_cache[vtype.ordinal()];
+                v = this.cache_specialVertices[vtype.ordinal()];
                 assert(v != null) : "The special vertex for type " + vtype + " is null";
                 break;
             }
@@ -250,7 +283,12 @@ public class MarkovGraph extends AbstractDirectedGraph<Vertex, Edge> implements 
      * @return
      */
     protected Vertex getVertex(Statement a, Set<Integer> partitions, Set<Integer> past_partitions, int queryInstanceIndex) {
-        for (Vertex v : this.getVertices()) {
+        Set<Vertex> stmt_vertices = this.cache_stmtVertices.get(a);
+        if (stmt_vertices == null) {
+            this.buildCache();
+            stmt_vertices = this.cache_stmtVertices.get(a);
+        }
+        for (Vertex v : stmt_vertices) {
             if (v.isEqual(a, partitions, past_partitions, queryInstanceIndex)) {
                 return v;
             }

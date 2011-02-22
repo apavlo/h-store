@@ -18,7 +18,6 @@ import edu.brown.correlations.*;
 import edu.brown.graphs.GraphvizExport;
 import edu.brown.utils.*;
 import edu.brown.utils.LoggerUtil.LoggerBoolean;
-import edu.brown.utils.ProfileMeasurement.Type;
 import edu.brown.workload.QueryTrace;
 import edu.brown.workload.TransactionTrace;
 
@@ -61,7 +60,6 @@ public class TransactionEstimator {
     private final AtomicInteger txn_count = new AtomicInteger(0);
     
     private transient boolean enable_recomputes = false;
-    private transient boolean enable_profiling = false;
     
     // ----------------------------------------------------------------------------
     // TRANSACTION STATE
@@ -76,7 +74,6 @@ public class TransactionEstimator {
         private final Map<Statement, Integer> query_instance_cnts = new HashMap<Statement, Integer>();
         private final List<Estimate> estimates = new ArrayList<Estimate>();
         private final int num_partitions;
-        private final ProfileMeasurement profiler = new ProfileMeasurement(Type.ESTIMATION);
 
         private long txn_id;
         private int base_partition;
@@ -138,7 +135,6 @@ public class TransactionEstimator {
             this.actual_path.clear();
             this.touched_partitions.clear();
             this.query_instance_cnts.clear();
-            this.profiler.reset();
             this.current = null;
             
             // We maintain a local cache of Estimates, so there is no pool to return them to
@@ -146,10 +142,6 @@ public class TransactionEstimator {
                 this.estimates.get(i).finish();
             } // FOR
             this.num_estimates = 0;
-        }
-        
-        public ProfileMeasurement getProfiler() {
-             return (this.profiler);
         }
         
         /**
@@ -562,13 +554,6 @@ public class TransactionEstimator {
         return (s.getEstimatedPathConfidence());
     }
     
-    public void setEnableProfiling(boolean val) {
-        this.enable_profiling = val;
-    }
-    public boolean getEnableProfiling() {
-        return (this.enable_profiling);
-    }
-
     // ----------------------------------------------------------------------------
     // RUNTIME METHODS
     // ----------------------------------------------------------------------------
@@ -606,7 +591,6 @@ public class TransactionEstimator {
     public State startTransaction(long txn_id, int base_partition, Procedure catalog_proc, Object args[]) {
         assert (catalog_proc != null);
         long start_time = System.currentTimeMillis();
-        long profile_time = (this.enable_profiling ? ProfileMeasurement.getTime() : -1);
 
         // If we don't have a graph for this procedure, we should probably just return null
         // This will be the case for all sysprocs
@@ -678,7 +662,6 @@ public class TransactionEstimator {
         }
         
         this.txn_count.incrementAndGet();
-        if (this.enable_profiling) state.profiler.addThinkTime(profile_time, ProfileMeasurement.getTime());
         return (state);
     }
 
@@ -711,8 +694,6 @@ public class TransactionEstimator {
      * @return
      */
     public Estimate executeQueries(State state, Statement catalog_stmts[], Set<Integer> partitions[]) {
-        if (this.enable_profiling) state.profiler.startThinkMarker();
-        
         // Roll through the Statements in this batch and move the current vertex
         // for the txn's State handle along the path in the MarkovGraph
         synchronized (state.getMarkovGraph()) {
@@ -730,7 +711,6 @@ public class TransactionEstimator {
             state.getMarkovGraph().recomputeGraph();
         }
         
-        if (this.enable_profiling) state.profiler.stopThinkMarker();
         return (estimate);
     }
 
@@ -777,7 +757,6 @@ public class TransactionEstimator {
             return (null);
         }
         long start_time = System.currentTimeMillis();
-        if (this.enable_profiling) s.profiler.startThinkMarker();
         
         // We need to update the counter information in our MarkovGraph so that we know
         // that the procedure may transition to the ABORT vertex from where ever it was before 
@@ -799,7 +778,6 @@ public class TransactionEstimator {
         } // SYNCH
         assert(next_e != null);
         s.setCurrent(next_v); // In case somebody wants to do post-processing...
-        if (this.enable_profiling) s.profiler.stopThinkMarker();
         
         return (s);
     }

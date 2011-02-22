@@ -35,14 +35,14 @@ public class Site extends CatalogType {
 
     void setBaseValues(Catalog catalog, CatalogType parent, String path, String name) {
         super.setBaseValues(catalog, parent, path, name);
-        m_fields.put("id", m_id);
-        m_fields.put("host", null);
+        this.addField("id", m_id);
+        this.addField("host", null);
         m_partitions = new CatalogMap<Partition>(catalog, this, path + "/" + "partitions", Partition.class);
         m_childCollections.put("partitions", m_partitions);
-        m_fields.put("isUp", m_isUp);
-        m_fields.put("proc_port", m_proc_port);
-        m_fields.put("dtxn_port", m_dtxn_port);
-        m_fields.put("messenger_port", m_messenger_port);
+        this.addField("isUp", m_isUp);
+        this.addField("proc_port", m_proc_port);
+        this.addField("dtxn_port", m_dtxn_port);
+        this.addField("messenger_port", m_messenger_port);
     }
 
     void update() {

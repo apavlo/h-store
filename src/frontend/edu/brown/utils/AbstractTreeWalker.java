@@ -81,7 +81,7 @@ public abstract class AbstractTreeWalker<E> implements Poolable {
     /**
      * List of elements that we visited (in proper order)
      */
-    private final Vector<E> visited = new Vector<E>();
+    private final List<E> visited = new ArrayList<E>();
     /**
      * The first element that started the traversal
      */

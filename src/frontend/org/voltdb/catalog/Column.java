@@ -38,18 +38,18 @@ public class Column extends CatalogType {
 
     void setBaseValues(Catalog catalog, CatalogType parent, String path, String name) {
         super.setBaseValues(catalog, parent, path, name);
-        m_fields.put("index", m_index);
-        m_fields.put("type", m_type);
-        m_fields.put("size", m_size);
-        m_fields.put("nullable", m_nullable);
-        m_fields.put("name", m_name);
-        m_fields.put("defaultvalue", m_defaultvalue);
-        m_fields.put("defaulttype", m_defaulttype);
+        this.addField("index", m_index);
+        this.addField("type", m_type);
+        this.addField("size", m_size);
+        this.addField("nullable", m_nullable);
+        this.addField("name", m_name);
+        this.addField("defaultvalue", m_defaultvalue);
+        this.addField("defaulttype", m_defaulttype);
         m_constraints = new CatalogMap<ConstraintRef>(catalog, this, path + "/" + "constraints", ConstraintRef.class);
         m_childCollections.put("constraints", m_constraints);
-        m_fields.put("matview", null);
-        m_fields.put("aggregatetype", m_aggregatetype);
-        m_fields.put("matviewsource", null);
+        this.addField("matview", null);
+        this.addField("aggregatetype", m_aggregatetype);
+        this.addField("matviewsource", null);
     }
 
     void update() {

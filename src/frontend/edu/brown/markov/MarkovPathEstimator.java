@@ -85,12 +85,18 @@ public class MarkovPathEstimator extends VertexTreeWalker<Vertex> {
     // ----------------------------------------------------------------------------
     // TEMPORARY TRAVERSAL MEMBERS
     // ----------------------------------------------------------------------------
-
+    
+    private final transient Set<Integer> past_partitions = new HashSet<Integer>();
+    
     private final transient SortedSet<Edge> candidates = new TreeSet<Edge>();
     
     private final transient Set<Pair<Statement, Integer>> next_statements = new HashSet<Pair<Statement, Integer>>();
     
     private final transient Set<Integer> stmt_partitions = new HashSet<Integer>();
+    
+    private final transient Map<Statement, StmtParameter[]> stmt_params = new HashMap<Statement, StmtParameter[]>();
+    
+    private final transient Map<Statement, Object[]> stmt_param_arrays = new HashMap<Statement, Object[]>();
     
     // ----------------------------------------------------------------------------
     // CONSTRUCTORS
@@ -149,6 +155,7 @@ public class MarkovPathEstimator extends VertexTreeWalker<Vertex> {
         this.all_partitions.clear();
         this.read_partitions.clear();
         this.write_partitions.clear();
+        this.past_partitions.clear();
         this.forced_vertices.clear();
     }
     
@@ -185,6 +192,30 @@ public class MarkovPathEstimator extends VertexTreeWalker<Vertex> {
     public double getConfidence() {
         return this.confidence;
     }
+
+    private StmtParameter[] getStatementParams(Statement catalog_stmt) {
+        StmtParameter arr[] = this.stmt_params.get(catalog_stmt);
+        if (arr == null) {
+            arr = new StmtParameter[catalog_stmt.getParameters().size()];
+            for (StmtParameter catalog_param : catalog_stmt.getParameters()) {
+                arr[catalog_param.getIndex()] = catalog_param;
+            }
+            this.stmt_param_arrays.put(catalog_stmt, arr);
+        }
+        return (arr);
+    }
+    
+    private Object[] getStatementParamsArray(Statement catalog_stmt) {
+        Object arr[] = this.stmt_param_arrays.get(catalog_stmt);
+        int size = catalog_stmt.getParameters().size();
+        if (arr == null) {
+            arr = new Object[size];
+            this.stmt_param_arrays.put(catalog_stmt, arr);
+        } else {
+            for (int i = 0; i < size; i++) arr[i] = null;
+        }
+        return (arr);
+    }
     
     /**
      * This is the main part of where we figure out the path that this transaction will take
@@ -201,6 +232,7 @@ public class MarkovPathEstimator extends VertexTreeWalker<Vertex> {
         // Initialize temporary data
         this.candidates.clear();
         this.next_statements.clear();
+        this.past_partitions.addAll(element.getPartitions());
         
         if (trace) LOG.trace("Current Vertex: " + element);
         Statement cur_catalog_stmt = element.getCatalogItem();
@@ -235,7 +267,7 @@ public class MarkovPathEstimator extends VertexTreeWalker<Vertex> {
             }
             
             // Check whether it's COMMIT/ABORT
-            if (next.equals(markov.getCommitVertex()) || next.equals(markov.getAbortVertex())) {
+            if (next.isCommitVertex() || next.isAbortVertex()) {
                 Edge candidate = markov.findEdge(element, next);
                 assert(candidate != null);
                 this.candidates.add(candidate);
@@ -263,10 +295,11 @@ public class MarkovPathEstimator extends VertexTreeWalker<Vertex> {
             }
             
             // Go through the StmtParameters and map values from ProcParameters
-            Object stmt_args[] = new Object[catalog_stmt.getParameters().size()];
+            StmtParameter stmt_params[] = this.getStatementParams(catalog_stmt);
+            Object stmt_args[] = new Object[stmt_params.length]; // this.getStatementParamsArray(catalog_stmt);
             boolean stmt_args_set = false;
             for (int i = 0; i < stmt_args.length; i++) {
-                StmtParameter catalog_stmt_param = catalog_stmt.getParameters().get(i);
+                StmtParameter catalog_stmt_param = stmt_params[i];
                 assert(catalog_stmt_param != null);
                 if (trace) LOG.trace("Examining " + CatalogUtil.getDisplayName(catalog_stmt_param, true));
                 
@@ -344,9 +377,7 @@ public class MarkovPathEstimator extends VertexTreeWalker<Vertex> {
                 if (this.stmt_partitions != null && !this.stmt_partitions.isEmpty()) {
                     Edge candidate = null;
                     for (Vertex next : next_vertices) {
-                        if (next.getCatalogItem().equals(catalog_stmt) &&
-                            next.getQueryInstanceIndex() == catalog_stmt_index &&
-                            next.getPartitions().equals(this.stmt_partitions)) {
+                        if (next.isEqual(catalog_stmt, this.stmt_partitions, this.past_partitions, catalog_stmt_index)) {
                             // BINGO!!!
                             assert(candidate == null);
                             candidate = markov.findEdge(element, next);

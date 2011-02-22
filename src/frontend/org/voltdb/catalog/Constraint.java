@@ -32,10 +32,10 @@ public class Constraint extends CatalogType {
 
     void setBaseValues(Catalog catalog, CatalogType parent, String path, String name) {
         super.setBaseValues(catalog, parent, path, name);
-        m_fields.put("type", m_type);
-        m_fields.put("oncommit", m_oncommit);
-        m_fields.put("index", null);
-        m_fields.put("foreignkeytable", null);
+        this.addField("type", m_type);
+        this.addField("oncommit", m_oncommit);
+        this.addField("index", null);
+        this.addField("foreignkeytable", null);
         m_foreignkeycols = new CatalogMap<ColumnRef>(catalog, this, path + "/" + "foreignkeycols", ColumnRef.class);
         m_childCollections.put("foreignkeycols", m_foreignkeycols);
     }

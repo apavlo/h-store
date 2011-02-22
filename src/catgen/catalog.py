@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+# -*- coding: utf-8 -*-
 
 # This file is part of VoltDB.
 # Copyright (C) 2008-2010 VoltDB L.L.C.
@@ -120,9 +121,9 @@ def genjava( classes, prepath, postpath, package ):
                 write( interp( '        m_$fname = new $ftype(catalog, this, path + "/" + "$fname", $realtype.class);', locals() ) )
                 write( interp( '        m_childCollections.put("$fname", m_$fname);', locals() ) )
             elif field.type[-1] == '?':
-                write( interp( '        m_fields.put("$fname", null);', locals() ) )
+                write( interp( '        this.addField("$fname", null);', locals() ) )
             else:
-                write( interp( '        m_fields.put("$fname", m_$fname);', locals() ) )
+                write( interp( '        this.addField("$fname", m_$fname);', locals() ) )
         write( '    }\n' )
 
         # update
