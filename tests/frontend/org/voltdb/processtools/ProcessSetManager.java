@@ -32,7 +32,9 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public class ProcessSetManager {
@@ -198,17 +200,30 @@ public class ProcessSetManager {
     }
 
     public int joinProcess(String processName) {
-        ProcessData pd = m_processes.get(processName);
+        final ProcessData pd = m_processes.get(processName);
         assert(pd != null);
         pd.out.m_expectDeath.set(true);
         pd.err.m_expectDeath.set(true);
 
+        final CountDownLatch latch = new CountDownLatch(1);
+        Thread t = new Thread() {
+            public void run() {
+                try {
+                    pd.process.waitFor();
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+                latch.countDown();
+            }
+        };
+        t.setDaemon(true);
+        t.start();
+        
         try {
-            pd.process.waitFor();
-        } catch (InterruptedException e) {
-            e.printStackTrace();
+            latch.await(2, TimeUnit.SECONDS);
+        } catch (InterruptedException ex) {
+            // Ignore...
         }
-
         return killProcess(processName);
     }
 

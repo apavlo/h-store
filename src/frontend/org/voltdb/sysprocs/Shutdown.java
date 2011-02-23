@@ -104,7 +104,7 @@ public class Shutdown extends VoltSystemProcedure {
 
     public VoltTable[] run() {
         LOG.info("Got shutdown request. Notifying HStoreSite and returning to client");
-        m_site.getHStoreSite().shutdownCluster();
+        m_site.getHStoreSite().getMessenger().shutdownCluster(false, null);
         
 //        SynthesizedPlanFragment pfs[] = new SynthesizedPlanFragment[this.all_partitions.size() + 1];
 //        for (int i = 1; i < pfs.length; i++) {

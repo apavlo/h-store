@@ -746,11 +746,11 @@ public class BenchmarkController {
                 m_clientPSM.writeToProcess(clientName, "STOP\n");
             }
         }
-        LOG.debug("Waiting for " + m_clients.size() + " clients to finish");
+        LOG.info("Waiting for " + m_clients.size() + " clients to finish");
         for (String clientName : m_clients)
             m_clientPSM.joinProcess(clientName);
 
-        LOG.debug("Waiting for status thread to finish");
+        LOG.info("Waiting for status thread to finish");
         try {
             m_statusThread.join(1000);
         }
