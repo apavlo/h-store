@@ -333,7 +333,7 @@ public class LocalTransactionState extends TransactionState {
         this.invocation = orig.invocation;
         this.client_callback = orig.client_callback;
         this.init_latch = new CountDownLatch(1);
-        this.estimator_state = orig.estimator_state;
+        // this.estimator_state = orig.estimator_state;
         
         // Append the profiling times
 //        if (this.executor.getEnableProfiling()) {
