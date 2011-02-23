@@ -1244,7 +1244,7 @@ public class ExecutionSite implements Runnable {
         if (callback == null) {
             throw new RuntimeException("No RPC callback to HStoreCoordinator for txn #" + txn_id);
         }
-        long client_handle = cresponse.getClientHandle();
+        long client_handle   = cresponse.getClientHandle();
         assert(client_handle != -1) : "The client handle for txn #" + txn_id + " was not set properly";
 
         LOG.debug(String.format("Sending ClientResponseImpl back for txn #%d [status=%s]", txn_id, cresponse.getStatusName()));
@@ -1366,6 +1366,7 @@ public class ExecutionSite implements Runnable {
         // sure that we don't touch any partition other than our local one. If we do, then we need abort
         // it and restart it as multi-partitioned
         boolean need_restart = false;
+        Set<Integer> done_partitions = ts.getDonePartitions();
         
         for (FragmentTaskMessage ftask : tasks) {
             assert(!ts.isBlocked(ftask));
@@ -1378,6 +1379,10 @@ public class ExecutionSite implements Runnable {
             // Make sure things are still legit for our single-partition transaction
             if (ts.isPredictSinglePartition() && target_partition != this.partitionId) {
                 if (debug.get()) LOG.debug(String.format("Txn #%d on partition %d is suppose to be single-partitioned, but it wants to execute a fragment on partition %d", txn_id, this.partitionId, target_partition));
+                need_restart = true;
+                break;
+            } else if (done_partitions.contains(target_partition)) {
+                if (debug.get()) LOG.debug(String.format("Txn #%d on partition %d was marked as done on partition %d but now it wants to go back for more!", txn_id, this.partitionId, target_partition));
                 need_restart = true;
                 break;
             }

@@ -170,6 +170,11 @@ public class LocalTransactionState extends TransactionState {
     private Procedure catalog_proc;
     
     /**
+     * The partitions that we told the Dtxn.Coordinator that we were done with
+     */
+    private final Set<Integer> done_partitions = new HashSet<Integer>();
+    
+    /**
      * Whether this is a sysproc
      */
     public boolean sysproc;
@@ -380,6 +385,7 @@ public class LocalTransactionState extends TransactionState {
         this.orig_txn_id = null;
         this.catalog_proc = null;
         this.sysproc = false;
+        this.done_partitions.clear();
         this.coordinator_callback = null;
         this.volt_procedure = null;
         this.total_time.reset();
@@ -528,6 +534,14 @@ public class LocalTransactionState extends TransactionState {
      */
     public Long getOriginalTransactionId() {
         return (this.orig_txn_id);
+    }
+    
+    /**
+     * 
+     * @return
+     */
+    public Set<Integer> getDonePartitions() {
+        return done_partitions;
     }
     
     /**
