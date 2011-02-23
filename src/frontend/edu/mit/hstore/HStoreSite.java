@@ -840,8 +840,9 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         final boolean t = trace.get();
         
         long txn_id = txn_info.getTransactionId();
+        Long orig_txn_id = txn_info.getOriginalTransactionId();
         int base_partition = txn_info.getSourcePartition();
-        boolean singled_partitioned = (txn_info.getOriginalTransactionId() == null && txn_info.isPredictSinglePartition());
+        boolean singled_partitioned = (orig_txn_id == null && txn_info.isPredictSinglePartition());
         
         if (d) {
             LOG.debug(String.format("Passing %s to Dtxn.Coordinator as %s-partition txn #%d for partition %d",
@@ -883,7 +884,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
             // Instead, if we're not single-partitioned then that's that only time that 
             // we Tell the Dtxn.Coordinator that we are finished with partitions if we have an estimate
             TransactionEstimator.State estimator_state = txn_info.getEstimatorState(); 
-            if (singled_partitioned && estimator_state != null && estimator_state.getInitialEstimate() != null) {
+            if (singled_partitioned == false && orig_txn_id == null && estimator_state != null && estimator_state.getInitialEstimate() != null) {
                 // TODO: How do we want to come up with estimates per partition?
                 Set<Integer> touched_partitions = estimator_state.getEstimatedPartitions();
                 for (Integer p : this.all_partitions) {
@@ -1034,6 +1035,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
             LOG.fatal("Failed to instantiate new LocalTransactionState for txn #" + txn_id);
             throw new RuntimeException(ex);
         }
+        if (this.enable_profiling) local_ts.total_time.startThinkMarker();
         local_ts.init(new_txn_id, orig_ts);
         local_ts.setPredictSinglePartitioned(false);
         
