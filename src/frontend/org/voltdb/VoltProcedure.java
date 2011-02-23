@@ -112,6 +112,7 @@ public abstract class VoltProcedure implements Poolable {
     private Long client_handle;
     private boolean predict_singlepartition;
     private TransactionState m_currentTxnState;  // assigned in call()
+    private LocalTransactionState m_localTxnState;  // assigned in call()
     private final SQLStmt batchQueryStmts[] = new SQLStmt[1000];
     private int batchQueryStmtIndex = 0;
     private final Object[] batchQueryArgs[] = new Object[1000][];
@@ -170,6 +171,7 @@ public abstract class VoltProcedure implements Poolable {
                 long client_handle = txnState.getClientHandle();
                 assert(VoltProcedure.this.txn_id == null) : "Old Transaction Id: " + VoltProcedure.this.txn_id + " -> New Transaction Id: " + current_txn_id;
                 VoltProcedure.this.m_currentTxnState = (LocalTransactionState)txnState;
+                VoltProcedure.this.m_localTxnState = (LocalTransactionState)txnState;
                 VoltProcedure.this.txn_id = current_txn_id;
                 VoltProcedure.this.client_handle = client_handle;
                 VoltProcedure.this.procParams = paramList;
@@ -203,6 +205,7 @@ public abstract class VoltProcedure implements Poolable {
                     // Clear out our private data
                     if (t) LOG.trace("Releasing lock for txn #" + current_txn_id);
                     VoltProcedure.this.m_currentTxnState = null;
+                    VoltProcedure.this.m_localTxnState = null;
                     VoltProcedure.this.txn_id = null;
                 }
             }
@@ -535,7 +538,6 @@ public abstract class VoltProcedure implements Poolable {
 
         //lastBatchNeedsRollback = false;
 
-        final LocalTransactionState local_ts = (LocalTransactionState)this.m_currentTxnState;
         VoltTable[] results = new VoltTable[0];
         byte status = ClientResponseImpl.SUCCESS;
         SerializableException se = null;
@@ -573,7 +575,7 @@ public abstract class VoltProcedure implements Poolable {
             m_workloadXactHandle = ProcedureProfiler.workloadTrace.startTransaction(this, catProc, this.procParams);
         }
 
-        if (this.m_site.enable_profiling) local_ts.java_time.startThinkMarker();
+        if (this.m_site.enable_profiling) this.m_localTxnState.java_time.startThinkMarker();
         try {
             if (trace.get()) LOG.trace("Invoking txn #" + this.txn_id + " [" +
                                        "procMethod=" + procMethod.getName() + ", " +
@@ -656,14 +658,14 @@ public abstract class VoltProcedure implements Poolable {
         } finally {
             if (this.m_site.enable_profiling) {
                 long time = ProfileMeasurement.getTime();
-                if (local_ts.java_time.isStarted()) local_ts.java_time.stopThinkMarker(time);
-                if (local_ts.coord_time.isStarted()) {
+                if (this.m_localTxnState.java_time.isStarted()) this.m_localTxnState.java_time.stopThinkMarker(time);
+                if (this.m_localTxnState.coord_time.isStarted()) {
 //                    assert(false) : "Txn #" + this.txn_id;
-                    local_ts.coord_time.stopThinkMarker(time);
+                    this.m_localTxnState.coord_time.stopThinkMarker(time);
                 }
-                if (local_ts.plan_time.isStarted()) {
+                if (this.m_localTxnState.plan_time.isStarted()) {
 //                    assert(false) : "Txn #" + this.txn_id;
-                    local_ts.plan_time.stopThinkMarker(time);
+                    this.m_localTxnState.plan_time.stopThinkMarker(time);
                 }
             }
         }
@@ -944,9 +946,6 @@ public abstract class VoltProcedure implements Poolable {
             return batch_results;
         }
         
-        LocalTransactionState local_ts = (LocalTransactionState)this.m_currentTxnState;
-        if (this.m_site.enable_profiling) ProfileMeasurement.swap(local_ts.java_time, local_ts.plan_time);
-
         assert (batchQueryStmtIndex == batchQueryArgsIndex);
 
         // if profiling is turned on, record the sql statements being run
@@ -962,13 +961,10 @@ public abstract class VoltProcedure implements Poolable {
             }
         }
 
-        VoltTable[] retval = null;
+//      if (ProcedureProfiler.profilingLevel == ProcedureProfiler.Level.INTRUSIVE) {
+//      retval = executeQueriesInIndividualBatches(batchQueryStmtIndex, batchQueryStmts, batchQueryArgs, isFinalSQL);
 
-        if (ProcedureProfiler.profilingLevel == ProcedureProfiler.Level.INTRUSIVE) {
-            retval = executeQueriesInIndividualBatches(batchQueryStmtIndex, batchQueryStmts, batchQueryArgs, isFinalSQL);
-        } else {
-            retval = executeQueriesInABatch(batchQueryStmtIndex, batchQueryStmts, batchQueryArgs, isFinalSQL);
-        }
+        VoltTable[] retval = executeQueriesInABatch(batchQueryStmtIndex, batchQueryStmts, batchQueryArgs, isFinalSQL);
 
         // Workload Trace - Stop Query
         if (ProcedureProfiler.profilingLevel == ProcedureProfiler.Level.INTRUSIVE) {
@@ -985,7 +981,7 @@ public abstract class VoltProcedure implements Poolable {
         batchQueryStmtIndex = 0;
         batchQueryArgsIndex = 0;
         
-        if (this.m_site.enable_profiling) ProfileMeasurement.swap(local_ts.coord_time, local_ts.java_time);
+        if (this.m_site.enable_profiling) ProfileMeasurement.swap(this.m_localTxnState.coord_time, this.m_localTxnState.java_time);
         
         return retval;
     }
@@ -1022,8 +1018,11 @@ public abstract class VoltProcedure implements Poolable {
         assert(batchStmts.length > 0);
         assert(batchArgs.length > 0);
 
-        if (stmtCount == 0)
+        if (stmtCount == 0) {
             return new VoltTable[] {};
+        }
+        
+        if (this.m_site.enable_profiling) ProfileMeasurement.swap(this.m_localTxnState.java_time, this.m_localTxnState.plan_time);
 
 //        if (ProcedureProfiler.profilingLevel == ProcedureProfiler.Level.INTRUSIVE) {
 //            assert(batchStmts.length == 1);
@@ -1043,7 +1042,6 @@ public abstract class VoltProcedure implements Poolable {
         for (int i = 0; i < batchSize; i++) {
             params[i] = getCleanParams(batchStmts[i], batchArgs[i]);
         } // FOR
-        
         
         // Calculate the hash code for this batch to see whether we already have a planner
         final Integer batchHashCode = VoltProcedure.getBatchHashCode(batchStmts, batchSize);
@@ -1088,14 +1086,13 @@ public abstract class VoltProcedure implements Poolable {
         }
         
         // Tell the TransactionEstimator that we're about to execute these mofos
-        LocalTransactionState local_ts = (LocalTransactionState)this.m_currentTxnState;
-        if (this.m_site.enable_profiling) ProfileMeasurement.swap(local_ts.plan_time, local_ts.est_time);
+        if (this.m_site.enable_profiling) ProfileMeasurement.swap(this.m_localTxnState.plan_time, this.m_localTxnState.est_time);
         TransactionEstimator t_estimator = this.m_site.getTransactionEstimator();
-        TransactionEstimator.State t_state = local_ts.getEstimatorState();
+        TransactionEstimator.State t_state = this.m_localTxnState.getEstimatorState();
         if (t_state != null) {
             t_estimator.executeQueries(t_state, planner.getStatements(), plan.getStatementPartitions());
         }
-        if (this.m_site.enable_profiling) ProfileMeasurement.swap(local_ts.est_time, local_ts.coord_time);
+        if (this.m_site.enable_profiling) ProfileMeasurement.swap(this.m_localTxnState.est_time, this.m_localTxnState.coord_time);
         
         if (debug.get()) LOG.debug("BatchPlan for txn #" + this.txn_id + ":\n" + plan.toString());
         

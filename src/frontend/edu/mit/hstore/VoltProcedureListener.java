@@ -28,7 +28,7 @@ import edu.mit.net.NIOMessageConnection;
 
 /** Listens and responds to Volt client stored procedure requests. */
 public class VoltProcedureListener extends AbstractEventHandler {
-    private static final Logger LOG = Logger.getLogger(VoltProcedureListener.class.getName());
+    private static final Logger LOG = Logger.getLogger(VoltProcedureListener.class);
     
     private final EventLoop eventLoop;
     private final Handler handler;
@@ -161,7 +161,7 @@ public class VoltProcedureListener extends AbstractEventHandler {
                 // write to say "okay": BIG HACK
                 eventLoopCallback.hackWritePasswordOk();
             } else {
-                LOG.debug("got request " + output.length);
+                if (LOG.isDebugEnabled()) LOG.debug("got request " + output.length);
 
                 try {
                     handler.procedureInvocation(output, eventLoopCallback);
