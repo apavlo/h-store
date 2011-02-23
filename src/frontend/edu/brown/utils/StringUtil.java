@@ -201,7 +201,7 @@ public abstract class StringUtil {
                     blocks[i].append(String.format(f, (line_i == 0 ? k : ""), lines[line_i]));
                     if (maps.length > 1) max_value_size = Math.max(max_value_size, lines[line_i].length());
                 } // FOR
-                if (v.substring(v.length()-2).equals("\n")) blocks[lines.length-1].append("\n"); 
+                if (v.isEmpty() == false && v.substring(v.length()-1).equals("\n")) blocks[lines.length-1].append("\n"); 
             }
         } // FOR
         
