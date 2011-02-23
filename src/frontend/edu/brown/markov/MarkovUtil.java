@@ -368,11 +368,12 @@ public abstract class MarkovUtil {
         
         final Map<Integer, MarkovGraphsContainer> ret = new HashMap<Integer, MarkovGraphsContainer>();
         final String className = MarkovGraphsContainer.class.getSimpleName();
-        LOG.info(String.format("Loading in serialized %s from '%s' [procedures=%s, ids=%s]", className, input_path, procedures, ids));
+        final File file = new File(input_path);
+        LOG.info(String.format("Loading in serialized %s from '%s' [procedures=%s, ids=%s]", className, file.getName(), procedures, ids));
         
         try {
             // File Format: One PartitionId per line, each with its own MarkovGraphsContainer 
-            BufferedReader in = FileUtil.getReader(input_path);
+            BufferedReader in = FileUtil.getReader(file);
             
             // Line# -> Partition#
             final Map<Integer, Integer> line_xref = new HashMap<Integer, Integer>();

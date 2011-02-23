@@ -600,7 +600,6 @@ public class TransactionEstimator {
             if (debug.get()) LOG.debug(String.format("No %s MarkovGraph exists for txn #%d", catalog_proc.getName(), txn_id));
             return (null);
         }
-        // ??? graph.resetCounters();
         
         Vertex start = markov.getStartVertex();
         MarkovPathEstimator estimator = null;
@@ -613,6 +612,7 @@ public class TransactionEstimator {
         }
 
         // Calculate initial path estimate
+        if (trace.get()) LOG.trace("Estimating initial execution path for txn #" + txn_id);
         synchronized (markov) {
             start.addInstanceTime(txn_id, start_time);
             try {
@@ -630,6 +630,7 @@ public class TransactionEstimator {
         } // SYNCH
         assert(estimator != null);
 
+        if (trace.get()) LOG.trace("Creating new State txn #" + txn_id);
         State state = null;
         try {
             state = (State)STATE_POOL.borrowObject();
@@ -637,11 +638,13 @@ public class TransactionEstimator {
         } catch (Exception ex) {
             throw new RuntimeException(ex);
         }
-        this.txn_states.put(txn_id, state);
+        State old = this.txn_states.put(txn_id, state);
+        assert(old == null);
 
         // The initial estimate should be based on the second-to-last vertex in the initial path estimation
         List<Vertex> initial_path = estimator.getVisitPath();
         int path_size = initial_path.size();
+        if (trace.get()) LOG.trace(String.format("Found initial execution path of length %d for txn #%d", path_size, txn_id));
         if (path_size > 0) {
             int idx = 1;
             Vertex last_v = null;
@@ -742,17 +745,14 @@ public class TransactionEstimator {
     
     /**
      * 
-     * @param xact_id
+     * @param txn_id
      * @param vtype
      * @return
      */
-    private State completeTransaction(long xact_id, Vertex.Type vtype) {
-        State s = this.txn_states.remove(xact_id);
+    private State completeTransaction(long txn_id, Vertex.Type vtype) {
+        State s = this.txn_states.remove(txn_id);
         if (s == null) {
-            if (debug.get()) {
-                String msg = "No state information exists for txn #" + xact_id;
-                LOG.debug(msg);
-            }
+            if (trace.get()) LOG.warn("No state information exists for txn #" + txn_id);
             return (null);
         }
         long start_time = System.currentTimeMillis();
@@ -772,7 +772,7 @@ public class TransactionEstimator {
 
             // Update counters
             next_v.incrementInstancehits();
-            next_v.addInstanceTime(xact_id, s.getExecutionTimeOffset(start_time));
+            next_v.addInstanceTime(txn_id, s.getExecutionTimeOffset(start_time));
             next_e.incrementInstancehits();
         } // SYNCH
         assert(next_e != null);
@@ -847,7 +847,7 @@ public class TransactionEstimator {
         // Update the state information
         state.setCurrent(next_v);
         state.addTouchedPartitions(partitions);
-        if (trace.get()) LOG.trace("Updated State Information for Txn #" + state.txn_id + ": " + state);
+        if (trace.get()) LOG.trace("Updated State Information for Txn #" + state.txn_id + ":\n" + state);
     }
 
     // ----------------------------------------------------------------------------

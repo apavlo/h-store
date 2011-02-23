@@ -540,6 +540,28 @@ public class HStoreMessenger {
     }
 
     /**
+     * Take down the cluster. If the blocking flag is true, then this call will never return
+     * @param blocking
+     * @param ex
+     */
+    public void shutdownCluster(final boolean blocking, final Throwable ex) {
+        if (blocking) {
+            this.shutdownCluster(null);
+        } else {
+            // Make this a thread so that we don't block and can continue cleaning up other things
+            Thread shutdownThread = new Thread() {
+                @Override
+                public void run() {
+                    HStoreMessenger.this.shutdownCluster(ex); // Never returns!
+                }
+            };
+            shutdownThread.setDaemon(true);
+            shutdownThread.start();
+        }
+        return;
+    }
+    
+    /**
      * Tell all of the other sites to shutdown and then knock ourselves out...
      */
     public void shutdownCluster() {

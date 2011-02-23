@@ -404,7 +404,16 @@ public class ExecutionSite implements Runnable {
 
         // Setup Thread Pool
         int pool_size = NODE_THREAD_POOL_SIZE;
-        this.thread_pool = Executors.newFixedThreadPool(pool_size);
+        this.thread_pool = Executors.newFixedThreadPool(pool_size, new ThreadFactory() {
+            final AtomicInteger cnt = new AtomicInteger(0);
+            @Override
+            public Thread newThread(Runnable r) {
+                Thread t = new Thread(r);
+                t.setDaemon(true);
+                t.setName(String.format("%s-%02d", ExecutionSite.this.getThreadName(), this.cnt.getAndIncrement()));
+                return (t);
+            }
+        });
         if (debug.get()) LOG.debug("Created ExecutionSite thread pool with " + pool_size + " threads");
         
         // The PartitionEstimator is what we use to figure our where our transactions are going to go
@@ -859,8 +868,6 @@ public class ExecutionSite implements Runnable {
     public String getThreadName() {
         return (this.hstore_site.getThreadName(String.format("%03d", this.getPartitionId())));
     }
-
-
     
     // ---------------------------------------------------------------
     // VOLTPROCEDURE EXECUTION METHODS
@@ -1461,7 +1468,7 @@ public class ExecutionSite implements Runnable {
         try {
             latch.await();
         } catch (InterruptedException ex) {
-            LOG.error("We were interrupted while waiting for results for txn #" + txn_id, ex);
+            if (this.hstore_site.isShuttingDown() == false) LOG.error("We were interrupted while waiting for results for txn #" + txn_id, ex);
             return (null);
         } catch (Exception ex) {
             LOG.fatal("Fatal error for txn #" + txn_id + " while waiting for results", ex);

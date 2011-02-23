@@ -24,10 +24,13 @@ public class ParameterMangler {
         this.param_types = new VoltType[this.params.length];
         boolean found_array = false;
         for (ProcParameter catalog_param : this.catalog_proc.getParameters()) {
+            int i = catalog_param.getIndex();
             boolean is_array = catalog_param.getIsarray();
-            this.param_isarray[catalog_param.getIndex()] = is_array;
             found_array = found_array || is_array;
-        }
+            
+            this.param_isarray[i] = is_array;
+            this.param_types[i] = VoltType.get(catalog_param.getType());
+        } // FOR
         this.has_arrays = found_array;
     }
     

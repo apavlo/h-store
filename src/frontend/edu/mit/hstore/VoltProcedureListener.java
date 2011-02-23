@@ -163,7 +163,12 @@ public class VoltProcedureListener extends AbstractEventHandler {
             } else {
                 LOG.debug("got request " + output.length);
 
-                handler.procedureInvocation(output, eventLoopCallback);
+                try {
+                    handler.procedureInvocation(output, eventLoopCallback);
+                } catch (Exception ex) {
+                    LOG.fatal("Unexpected error when calling procedureInvocation!", ex);
+                    throw new RuntimeException(ex);
+                }
             }
         }
     }
