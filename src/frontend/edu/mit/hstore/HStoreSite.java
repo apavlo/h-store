@@ -136,7 +136,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
                 case ABORTED:
                 case MISPREDICTED:
                 case EXECUTED:
-                    total = EXECUTED.get();
+                    total = EXECUTED.get() - SYSPROCS.get();
                     break;
                 case REDIRECTED:
                 case RECEIVED:

@@ -220,7 +220,7 @@ public class ProcessSetManager {
         t.start();
         
         try {
-            latch.await(2, TimeUnit.SECONDS);
+            latch.await(5, TimeUnit.SECONDS);
         } catch (InterruptedException ex) {
             // Ignore...
         }
