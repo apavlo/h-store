@@ -887,9 +887,11 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
             if (singled_partitioned == false && orig_txn_id == null && estimator_state != null && estimator_state.getInitialEstimate() != null) {
                 // TODO: How do we want to come up with estimates per partition?
                 Set<Integer> touched_partitions = estimator_state.getEstimatedPartitions();
+                Set<Integer> done_partitions = txn_info.getDonePartitions();
                 for (Integer p : this.all_partitions) {
                     if (touched_partitions.contains(p) == false) {
                         requestBuilder.addDonePartition(p.intValue());
+                        done_partitions.add(p);
                     }
                 } // FOR
                 if (d && requestBuilder.getDonePartitionCount() > 0) {

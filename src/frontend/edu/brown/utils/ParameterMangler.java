@@ -42,50 +42,57 @@ public class ParameterMangler {
         Object cast_args[] = new Object[this.params.length];
         for (int i = 0; i < this.params.length; i++) {
             // Primitive Arrays! This is messed up in Java and why we're even here!
-            if (this.param_isarray[i]) {
+            VoltType vtype = this.param_types[i];
+            if (this.param_isarray[i] && vtype != VoltType.STRING && vtype != VoltType.TIMESTAMP) {
                 Object inner[] = null;
-                switch (this.param_types[i]) {
-                    case TINYINT: {
-                        byte arr[] = (byte[])orig[i];
-                        inner = new Object[arr.length];
-                        for (int j = 0; j < arr.length; j++) {
-                            inner[j] = arr[j];
-                        } // FOR    
-                        break;
-                    }
-                    case SMALLINT: {
-                        short arr[] = (short[])orig[i];
-                        inner = new Object[arr.length];
-                        for (int j = 0; j < arr.length; j++) {
-                            inner[j] = arr[j];
-                        } // FOR    
-                        break;
-                    }
-                    case INTEGER: {
-                        int arr[] = (int[])orig[i];
-                        inner = new Object[arr.length];
-                        for (int j = 0; j < arr.length; j++) {
-                            inner[j] = arr[j];
-                        } // FOR    
-                        break;
-                    }
-                    case BIGINT: {
-                        long arr[] = (long[])orig[i];
-                        inner = new Object[arr.length];
-                        for (int j = 0; j < arr.length; j++) {
-                            inner[j] = arr[j];
-                        } // FOR
-                    }
-                    case FLOAT: {
-                        double arr[] = (double[])orig[i];
-                        inner = new Object[arr.length];
-                        for (int j = 0; j < arr.length; j++) {
-                            inner[j] = arr[j];
-                        } // FOR
-                    }
-                    default:
-                        assert(false) : "Unhandled type " + this.param_types[i];
-                } // SWITCH
+                try {
+                    switch (this.param_types[i]) {
+                        case TINYINT: {
+                            byte arr[] = (byte[])orig[i];
+                            inner = new Object[arr.length];
+                            for (int j = 0; j < arr.length; j++) {
+                                inner[j] = arr[j];
+                            } // FOR    
+                            break;
+                        }
+                        case SMALLINT: {
+                            short arr[] = (short[])orig[i];
+                            inner = new Object[arr.length];
+                            for (int j = 0; j < arr.length; j++) {
+                                inner[j] = arr[j];
+                            } // FOR    
+                            break;
+                        }
+                        case INTEGER: {
+                            int arr[] = (int[])orig[i];
+                            inner = new Object[arr.length];
+                            for (int j = 0; j < arr.length; j++) {
+                                inner[j] = arr[j];
+                            } // FOR    
+                            break;
+                        }
+                        case BIGINT: {
+                            long arr[] = (long[])orig[i];
+                            inner = new Object[arr.length];
+                            for (int j = 0; j < arr.length; j++) {
+                                inner[j] = arr[j];
+                            } // FOR
+                            break;
+                        }
+                        case FLOAT: {
+                            float arr[] = (float[])orig[i];
+                            inner = new Object[arr.length];
+                            for (int j = 0; j < arr.length; j++) {
+                                inner[j] = arr[j];
+                            } // FOR
+                            break;
+                        }
+                        default:
+                            assert(false) : "Unhandled type " + this.param_types[i];
+                    } // SWITCH
+                } catch (Exception ex) {
+                    throw new RuntimeException("Failed to properly convert " + this.params[i].fullName(), ex);
+                }
                 cast_args[i] = inner;
             } else {
                 cast_args[i] = orig[i];
