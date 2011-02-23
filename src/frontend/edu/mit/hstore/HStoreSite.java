@@ -883,7 +883,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
             // Instead, if we're not single-partitioned then that's that only time that 
             // we Tell the Dtxn.Coordinator that we are finished with partitions if we have an estimate
             TransactionEstimator.State estimator_state = txn_info.getEstimatorState(); 
-            if (singled_partitioned == false && estimator_state != null && estimator_state.getInitialEstimate() != null) {
+            if (singled_partitioned && estimator_state != null && estimator_state.getInitialEstimate() != null) {
                 // TODO: How do we want to come up with estimates per partition?
                 Set<Integer> touched_partitions = estimator_state.getEstimatedPartitions();
                 for (Integer p : this.all_partitions) {
