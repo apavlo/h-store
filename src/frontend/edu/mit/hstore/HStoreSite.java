@@ -132,6 +132,8 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
             switch (this) {
                 case SINGLE_PARTITION:
                 case MULTI_PARTITION:
+                    total = SINGLE_PARTITION.get() + MULTI_PARTITION.get();
+                    break;
                 case SYSPROCS:
                 case ABORTED:
                 case MISPREDICTED:
@@ -839,7 +841,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         
         long txn_id = txn_info.getTransactionId();
         int base_partition = txn_info.getSourcePartition();
-        boolean singled_partitioned = txn_info.isPredictSinglePartition();
+        boolean singled_partitioned = (txn_info.getOriginalTransactionId() == null && txn_info.isPredictSinglePartition());
         
         if (d) {
             LOG.debug(String.format("Passing %s to Dtxn.Coordinator as %s-partition txn #%d for partition %d",
@@ -874,7 +876,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
             requestBuilder.setTransactionId(txn_id);
             
             // Whether this transaction is single-partitioned or not
-            requestBuilder.setLastFragment(txn_info.isPredictSinglePartition());
+            requestBuilder.setLastFragment(singled_partitioned);
             
             // If we know we're single-partitioned, then we *don't* want to tell the Dtxn.Coordinator
             // that we're done at any partitions because it will throw an error

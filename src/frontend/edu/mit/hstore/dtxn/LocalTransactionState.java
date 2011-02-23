@@ -165,6 +165,8 @@ public class LocalTransactionState extends TransactionState {
     // HSTORE SITE DATA MEMBERS
     // ----------------------------------------------------------------------------
 
+    private Long orig_txn_id;
+    
     private Procedure catalog_proc;
     
     /**
@@ -325,6 +327,7 @@ public class LocalTransactionState extends TransactionState {
     }
     
     public LocalTransactionState init(long txnId, LocalTransactionState orig) {
+        this.orig_txn_id = orig.getTransactionId();
         this.catalog_proc = orig.catalog_proc;
         this.sysproc = orig.sysproc;
         this.invocation = orig.invocation;
@@ -373,7 +376,8 @@ public class LocalTransactionState extends TransactionState {
         } catch (Exception ex) {
             throw new RuntimeException(ex);
         }
-        
+
+        this.orig_txn_id = null;
         this.catalog_proc = null;
         this.sysproc = false;
         this.coordinator_callback = null;
@@ -516,6 +520,14 @@ public class LocalTransactionState extends TransactionState {
     }
     public CountDownLatch getInitializationLatch() {
         return (this.init_latch);
+    }
+    
+    /**
+     * Return the original txn id that this txn was restarted for (after a mispredict)
+     * @return
+     */
+    public Long getOriginalTransactionId() {
+        return (this.orig_txn_id);
     }
     
     /**

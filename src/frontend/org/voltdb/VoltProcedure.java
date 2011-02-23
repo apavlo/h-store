@@ -981,8 +981,6 @@ public abstract class VoltProcedure implements Poolable {
         batchQueryStmtIndex = 0;
         batchQueryArgsIndex = 0;
         
-        if (this.m_site.enable_profiling) ProfileMeasurement.swap(this.m_localTxnState.coord_time, this.m_localTxnState.java_time);
-        
         return retval;
     }
 
@@ -1101,7 +1099,9 @@ public abstract class VoltProcedure implements Poolable {
         // to access the EE directly here in executeLocalBatch(). This is because we want
         // to maintain state information in TransactionState. We can probably add in the code
         // to update this txn's state object later on. For now this is just easier.
-        return (this.executeBatch(plan));
+        VoltTable result[] = this.executeBatch(plan); 
+        if (this.m_site.enable_profiling) ProfileMeasurement.swap(this.m_localTxnState.coord_time, this.m_localTxnState.java_time);
+        return (result);
     }
 
     /**
