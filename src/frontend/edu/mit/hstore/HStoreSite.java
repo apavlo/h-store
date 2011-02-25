@@ -311,7 +311,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
                     if (tc != TxnCounter.COMPLETED && tc != TxnCounter.EXECUTED) {
                         val += String.format(" [%.03f]", tc.ratio());
                     }
-                    if (cnt > 0) val += "\n" + tc.getHistogram().toString();
+                    if (cnt > 0) val += "\n" + tc.getHistogram().toString(50);
                     m0.put(tc.toString(), val + "\n");
                 } // FOR
     
