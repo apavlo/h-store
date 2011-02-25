@@ -206,6 +206,7 @@ public abstract class FixCatalog {
                 assert(data.length == 3) : "Invalid host information '" + host_info + "'";
                 
                 String host = data[0];
+                if (host.startsWith("#")) continue;
                 int site = Integer.parseInt(data[1]);
                 int partition = Integer.parseInt(data[2]);
                 
