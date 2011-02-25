@@ -307,7 +307,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
             if (show_txns) {
                 for (TxnCounter tc : TxnCounter.values()) {
                     int cnt = tc.get();
-                    String val = String.format("%-5d", cnt);
+                    String val = Integer.toString(cnt);
                     if (tc != TxnCounter.COMPLETED && tc != TxnCounter.EXECUTED) {
                         val += String.format(" [%.03f]", tc.ratio());
                     }
@@ -315,7 +315,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
                     m0.put(tc.toString(), val + "\n");
                 } // FOR
     
-                m0.put("InFlight Txn Ids", String.format("%-4d [min=%d, max=%d]", inflight_cur, inflight_min, inflight_max));
+                m0.put("InFlight Txn Ids", String.format("%d [min=%d, max=%d]", inflight_cur, inflight_min, inflight_max));
                 for (Integer partition : this.partition_txns.keySet()) {
                     int cnt = this.partition_txns.get(partition).size();
                     if (cnt > 0) {
@@ -976,10 +976,15 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         //
         RpcCallback<Dtxn.FragmentResponse> callback = null;
         if (msg instanceof InitiateTaskMessage) {
+            InitiateTaskMessage task = (InitiateTaskMessage)msg;
             LocalTransactionState txn_info = this.inflight_txns.get(txn_id);
             assert(txn_info != null) : "Missing TransactionInfo for txn #" + txn_id;
             single_partitioned = txn_info.isPredictSinglePartition();
             assert(txn_info.client_callback != null) : "Missing original RpcCallback for txn #" + txn_id;
+      
+            // SCORE!
+            assert(task.getStoredProcedureInvocation() == null);
+            task.setStoredProcedureInvocation(txn_info.invocation);
             
             // If we're single-partitioned, then we don't want to send back a callback now.
             // The response from the ExecutionSite should be the only response that we send back to the Dtxn.Coordinator

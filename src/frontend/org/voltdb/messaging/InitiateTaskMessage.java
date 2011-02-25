@@ -109,6 +109,14 @@ public class InitiateTaskMessage extends TransactionInfoBaseMessage {
         return m_lastSafeTxnID;
     }
     
+    public StoredProcedureInvocation getStoredProcedureInvocation() {
+        return m_invocation;
+    }
+    
+    public void setStoredProcedureInvocation(StoredProcedureInvocation mInvocation) {
+        m_invocation = mInvocation;
+    }
+    
     @Override
     protected void flattenToBuffer(final DBBPool pool) {
         // stupid lame flattening of the proc invocation
@@ -119,7 +127,7 @@ public class InitiateTaskMessage extends TransactionInfoBaseMessage {
             e.printStackTrace();
             assert(false);
         }
-        ByteBuffer invocationBytes = fs.getBuffer();
+        ByteBuffer invocationBytes = ByteBuffer.allocate(0); //  fs.getBuffer();
 
         // size of MembershipNotice
         int msgsize = super.getMessageByteCount();
@@ -147,7 +155,7 @@ public class InitiateTaskMessage extends TransactionInfoBaseMessage {
             for (int i = 0; i < m_nonCoordinatorSites.length; i++)
                 m_buffer.putInt(m_nonCoordinatorSites[i]);
         }
-        m_buffer.put(invocationBytes);
+        // m_buffer.put(invocationBytes);
         m_buffer.limit(m_buffer.position());
     }
 
@@ -165,14 +173,14 @@ public class InitiateTaskMessage extends TransactionInfoBaseMessage {
             for (int i = 0; i < siteCount; i++)
                 m_nonCoordinatorSites[i] = m_buffer.getInt();
         }
-        FastDeserializer fds = new FastDeserializer(m_buffer);
-        try {
-            m_invocation = fds.readObject(StoredProcedureInvocation.class);
-            m_invocation.buildParameterSet();
-        } catch (IOException e) {
-            e.printStackTrace();
-            assert(false);
-        }
+//        FastDeserializer fds = new FastDeserializer(m_buffer);
+//        try {
+//            m_invocation = fds.readObject(StoredProcedureInvocation.class);
+//            m_invocation.buildParameterSet();
+//        } catch (IOException e) {
+//            e.printStackTrace();
+//            assert(false);
+//        }
     }
 
     @Override
