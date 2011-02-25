@@ -61,6 +61,7 @@ import org.voltdb.types.PlanNodeType;
 import org.voltdb.types.SortDirectionType;
 import org.voltdb.utils.CatalogUtil;
 
+import edu.brown.plannodes.PlanNodeTreeWalker;
 import edu.brown.plannodes.PlanNodeUtil;
 import edu.brown.utils.CollectionUtil;
 
@@ -462,11 +463,14 @@ public class PlanAssembler {
             limit.setOutputColumns(root.m_outputColumns);
             root = limit;
         }
-
+        
+//        System.out.println(PlanNodeUtil.debug(root));
+//        System.out.println();
+//        System.out.println();
+        
 //        System.err.println(m_parsedSelect.sql);
         PlanOptimizer po = new PlanOptimizer(m_context, m_catalogDb);
         po.optimize(m_parsedSelect.sql, root);
-        
         
 //        if (root.getPlanNodeType().equals(PlanNodeType.PROJECTION) && PlanNodeUtil.getDepth(root) == 0) {
 //            System.out.println("Root node type: " + root.getPlanNodeType());
@@ -485,7 +489,7 @@ public class PlanAssembler {
             sendNode.addAndLinkChild(root);
             sendNode.setOutputColumns(root.m_outputColumns);                        
         }
-
+        
         return sendNode;
     }
 
@@ -1229,10 +1233,39 @@ public class PlanAssembler {
                 break;
             }
             
+            // Check if this is count(distinct) query
+            if (aggNode.getAggregateTypes().get(0) == ExpressionType.AGGREGATE_COUNT) {
+                for (AbstractPlanNode child : aggNode.getChildren()) {
+                    if (child.getClass().equals(DistinctPlanNode.class)) {
+                        final DistinctPlanNode distinct_plan_node = PlanNodeUtil.getPlanNodes(aggNode, DistinctPlanNode.class).iterator().next();
+                        // write crap here to handle copying distinct above seqscan
+                        new PlanNodeTreeWalker() {
+                            @Override
+                            protected void callback(AbstractPlanNode element) {
+                                if (element instanceof SendPlanNode) {
+                                    AbstractPlanNode child = element.getChild(0);
+                                    element.clearChildren();
+                                    child.clearParents();
+                                    //DistinctPlanNode distinct_plan_node = new DistinctPlanNode(m_context, getNextPlanNodeId());
+                                    DistinctPlanNode distinct_clone = distinct_plan_node.produceCopyForTransformation();
+                                    distinct_clone.m_outputColumns.clear();
+                                    distinct_clone.m_outputColumns.addAll(child.m_outputColumns);
+                                    distinct_clone.addAndLinkChild(child);
+                                    element.addAndLinkChild(distinct_clone);
+                                }
+                            }
+                        }.traverse(aggNode);
+                        //System.out.println(PlanNodeUtil.debug(aggNode));
+                        break;
+                    }
+                }                
+            }
+            
             // DWU add
             if (!(aggNode.getChild(0) instanceof ReceivePlanNode)) {
                 break;
             }
+            
             // Get the AbstractScanPlanNode that is directly below us
             Set<AbstractScanPlanNode> scans = PlanNodeUtil.getPlanNodes(aggNode, AbstractScanPlanNode.class);
             if (scans.size() != 1) {

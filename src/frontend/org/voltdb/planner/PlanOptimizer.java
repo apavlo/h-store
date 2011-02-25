@@ -466,28 +466,34 @@ public class PlanOptimizer {
 
         node.setOutputColumns(child_node.m_outputColumns);
 
-        PlanColumn new_pc = null;
-        int new_idx = 0;
-        for (Integer guid : node.m_outputColumns) {
-            PlanColumn pc = m_context.get(guid);
-            assert (pc != null);
-            if (pc.equals(orig_pc, true, true)) {
-                if (trace)
-                    LOG.trace(String.format("[%02d] Found non-expression PlanColumn match:\nORIG: %s\nNEW:  %s", new_idx, orig_pc, pc));
-                new_pc = pc;
-                break;
-            }
-            new_idx++;
-        } // FOR
-        assert (new_pc != null);
+//        PlanColumn new_pc = null;
+//        int new_idx = 0;
+//        for (Integer guid : node.m_outputColumns) {
+//            PlanColumn pc = m_context.get(guid);
+//            assert (pc != null);
+//            if (pc.equals(orig_pc, true, true)) {
+//                if (trace)
+//                    LOG.trace(String.format("[%02d] Found non-expression PlanColumn match:\nORIG: %s\nNEW:  %s", new_idx, orig_pc, pc));
+//                new_pc = pc;
+//                break;
+//            }
+//            new_idx++;
+//        } // FOR
+//        assert (new_pc != null);
+//
+//        
+//        
+//        // Now we can update output columns and set the distinct column to be
+//        // the guid
+//      node.setDistinctColumnGuid(new_pc.guid());
 
-        // Now we can update output columns and set the distinct column to be
-        // the guid
-      node.setDistinctColumnGuid(new_pc.guid());
+        for (Integer guid : node.m_outputColumns) {
+            node.setDistinctColumnGuid(guid);            
+        } // FOR
 
         markDirty(node);
-        if (LOG.isDebugEnabled())
-            LOG.debug(String.format("Updated %s with proper distinct column guid: ORIG[%d] => NEW[%d]", node, orig_guid, new_pc.guid()));
+//        if (LOG.isDebugEnabled())
+//            LOG.debug(String.format("Updated %s with proper distinct column guid: ORIG[%d] => NEW[%d]", node, orig_guid, new_pc.guid()));
 
         return (true);
     }
