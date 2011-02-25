@@ -664,7 +664,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         if (this.status_monitor != null) TxnCounter.RECEIVED.inc(catalog_proc);
         
         if (catalog_proc == null) throw new RuntimeException("Unknown procedure '" + request.getProcName() + "'");
-        if (t) LOG.trace("Received new stored procedure invocation request for " + catalog_proc);
+        if (d) LOG.debug(String.format("Received new stored procedure invocation request for %s [bytes=%d]", catalog_proc.getName(), serializedRequest.length));
         
         // First figure out where this sucker needs to go
         Integer dest_partition = null;
@@ -925,8 +925,9 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
             }
             
             if (this.enable_profiling) txn_info.coord_time.startThinkMarker();
-            this.coordinator.execute(rpc, requestBuilder.build(), callback);
-            if (d) LOG.debug("Sent Dtxn.CoordinatorFragment for txn #" + txn_id);
+            Dtxn.CoordinatorFragment dtxn_request = requestBuilder.build();
+            this.coordinator.execute(rpc, dtxn_request, callback);
+            if (d) LOG.debug(String.format("Sent Dtxn.CoordinatorFragment for txn #%d [bytes=%d]", txn_id, dtxn_request.getSerializedSize()));
         }
     }
     
