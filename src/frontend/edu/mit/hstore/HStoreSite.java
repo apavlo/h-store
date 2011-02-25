@@ -319,7 +319,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
                 for (Integer partition : this.partition_txns.keySet()) {
                     int cnt = this.partition_txns.get(partition).size();
                     if (cnt > 0) {
-                        m0.put(String.format("  Partition[%02d]", partition), this.partition_txns.get(partition));
+                        m0.put(String.format("  Partition[%02d]", partition), this.partition_txns.get(partition).size() + " txns");
                     }
                 } // FOR
             }
