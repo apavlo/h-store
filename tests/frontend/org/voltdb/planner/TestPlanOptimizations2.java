@@ -49,12 +49,13 @@ public class TestPlanOptimizations2 extends BaseTestCase {
             this.addPartitionInfo("TABLEB", "B_A_ID");
             this.addPartitionInfo("TABLEC", "C_A_ID");
 
+            this.addStmtProcedure("DistinctAggregate",
+            "SELECT COUNT(DISTINCT(TABLEB.B_ID)) AS DISTINCTNUMBER FROM TABLEA, TABLEB WHERE TABLEA.A_ID = TABLEB.B_A_ID AND TABLEA.A_ID = ? AND TABLEB.B_ID < ?");
+            this.addStmtProcedure("DistinctCount", "SELECT COUNT(DISTINCT(TABLEB.B_A_ID)) FROM TABLEB");
             this.addStmtProcedure("MaxGroup", "SELECT B_ID, Max(TABLEB.B_A_ID) FROM TABLEB GROUP BY B_ID");
             this.addStmtProcedure("Max", "SELECT Max(TABLEB.B_A_ID) FROM TABLEB");
             this.addStmtProcedure("Min", "SELECT Min(TABLEB.B_A_ID) FROM TABLEB");
             this.addStmtProcedure("Aggregate", "SELECT COUNT(TABLEB.B_A_ID) AS cnt FROM TABLEB");
-            this.addStmtProcedure("DistinctAggregate",
-                    "SELECT COUNT(DISTINCT(TABLEB.B_ID)) AS DISTINCTNUMBER FROM TABLEA, TABLEB WHERE TABLEA.A_ID = TABLEB.B_A_ID AND TABLEA.A_ID = ? AND TABLEB.B_ID < ?");
             this.addStmtProcedure("Limit", "SELECT * FROM TABLEA WHERE TABLEA.A_ID > ? AND TABLEA.A_ID <= ? AND TABLEA.A_VALUE0 != ? LIMIT 15");
             this.addStmtProcedure("LimitJoin", "SELECT TABLEA.A_ID,TABLEB.B_ID FROM TABLEA, TABLEB WHERE TABLEA.A_ID > ? AND TABLEA.A_ID = TABLEB.B_A_ID LIMIT 15");
             this
@@ -350,6 +351,32 @@ public class TestPlanOptimizations2 extends BaseTestCase {
     }
 
     @Test
+    public void testDistinct() throws Exception {
+        Procedure catalog_proc = this.getProcedure("DistinctAggregate");
+        Statement catalog_stmt = this.getStatement(catalog_proc, "sql");
+
+        // Grab the root node of the multi-partition query plan tree for this
+        // Statement
+        AbstractPlanNode root = QueryPlanUtil.deserializeStatement(catalog_stmt, false);
+        //validateNodeColumnOffsets(root);
+        //System.err.println(PlanNodeUtil.debug(root));
+    }    
+    
+    @Test
+    public void testCountDistinct() throws Exception {
+        Procedure catalog_proc = this.getProcedure("DistinctCount");
+        Statement catalog_stmt = this.getStatement(catalog_proc, "sql");
+
+        // Grab the root node of the multi-partition query plan tree for this
+        // Statement
+        AbstractPlanNode root = QueryPlanUtil.deserializeStatement(catalog_stmt, true);
+        assertNotNull(root);
+//        validateNodeColumnOffsets(root);
+        //System.err.println(PlanNodeUtil.debug(root));
+    }
+    
+    /** Other NON-max test cases **/
+    @Test
     public void testMaxGroup() throws Exception {
         Procedure catalog_proc = this.getProcedure("MaxGroup");
         Statement catalog_stmt = this.getStatement(catalog_proc, "sql");
@@ -362,7 +389,6 @@ public class TestPlanOptimizations2 extends BaseTestCase {
 //        System.err.println(PlanNodeUtil.debug(root));
     }
     
-    /** Other NON-max test cases **/
     @Test
     public void testMax() throws Exception {
         Procedure catalog_proc = this.getProcedure("Max");
@@ -402,17 +428,7 @@ public class TestPlanOptimizations2 extends BaseTestCase {
 //        System.err.println(PlanNodeUtil.debug(root));
     }
 
-    @Test
-    public void testDistinct() throws Exception {
-        Procedure catalog_proc = this.getProcedure("DistinctAggregate");
-        Statement catalog_stmt = this.getStatement(catalog_proc, "sql");
 
-        // Grab the root node of the multi-partition query plan tree for this
-        // Statement
-        AbstractPlanNode root = QueryPlanUtil.deserializeStatement(catalog_stmt, false);
-        //validateNodeColumnOffsets(root);
-        // System.err.println(PlanNodeUtil.debug(root));
-    }
 
     @Test
     public void testLimit() throws Exception {
