@@ -17,19 +17,24 @@ logging.basicConfig(level = logging.INFO,
                     datefmt="%m-%d-%Y %H:%M:%S",
                     stream = sys.stderr)
 
-ALL_INSTANCES = [
-    "i-8f6227e3",
-    "i-b50b4fd9",
-    "i-bd6e29d1",
-    "i-bf6e29d3",
-    "i-b96e29d5",
-    "i-bb6e29d7",
-    "i-b56e29d9",
-    "i-b76e29db",
-    "i-b16e29dd",
-    "i-b36e29df",
-    "i-5f692e33",
-]
+ALL_INSTANCES = {
+    "large": [
+        "i-8f6227e3",
+        "i-b50b4fd9",
+        "i-bd6e29d1",
+        "i-bf6e29d3",
+        "i-b96e29d5",
+        "i-bb6e29d7",
+        "i-b56e29d9",
+        "i-b76e29db",
+        "i-b16e29dd",
+        "i-b36e29df",
+        "i-5f692e33",
+    ],
+    "cpu":  [
+        "i-371a355b",
+    ]
+}
 NFS_INSTANCE = "i-9bd693f7"
 
 EC2_HSTORE_PEM = os.path.join(os.environ["HOME"], ".ssh/hstore.pem")
@@ -43,6 +48,11 @@ EC2_STOP_COMMAND = "ec2stop"
 EC2_DESCRIBE_COMMAND = "ec2din"
 
 TEMP_HOSTS_FILE = "/tmp/hstore-ec2.hosts"
+
+
+OPT_MOUNT_NFS = False
+OPT_TYPE = "large"
+OPT_LIMIT = -1
 
 ## ==============================================
 ## getInstanceIP
@@ -93,6 +103,8 @@ def deployHostsFile(public_ip, hosts_file, mount_nfs = False):
 ## ==============================================
 if __name__ == '__main__':
     _options, args = getopt.gnu_getopt(sys.argv[1:], '', [
+        ## Instance type
+        "type=",
         ## Mount NFS
         "mount-nfs",
         ## Limit the number of instances to start/stop
@@ -112,12 +124,21 @@ if __name__ == '__main__':
           options[key] = [ value ]
     ## FOR
     if "debug" in options: logging.getLogger().setLevel(logging.DEBUG)
+    
+    ## Global Options
+    for key in options:
+        varname = "OPT_" + key.replace("-", "_").upper()
+        if varname in globals() and len(options[key]) == 1:
+            orig_type = type(globals()[varname]) if globals()[varname] != None else str
+            globals()[varname] = orig_type(True if orig_type == bool else options[key][0])
+            logging.debug("%s = %s" % (varname, str(globals()[varname])))
+    ## FOR
 
     assert len(args) > 0
     command = args[0].strip().lower()
     assert command in [ "start", "stop", "update" ]
-    instances = args[1:] if len(args) > 1 else ALL_INSTANCES
-    if "limit" in options: instances = instances[:int(options["limit"][0])]
+    instances = args[1:] if len(args) > 1 else ALL_INSTANCES[OPT_TYPE]
+    if OPT_LIMIT > 0: instances = instances[:OPT_LIMIT]
     
     if command in [ "start", "stop" ]:
         logging.info("%sing %d instances" % (command.title(), len(instances)))
@@ -165,7 +186,7 @@ ff02::3 ip6-allhosts
         for inst in [ NFS_INSTANCE ] + instances:
             public_ip = instance_ips[inst][0]
             logging.info("Updating %s at %s" % (inst, public_ip))
-            mount_nfs = (inst != NFS_INSTANCE and "mount-nfs" in options)
+            mount_nfs = (inst != NFS_INSTANCE and OPT_MOUNT_NFS)
             threads.append(threading.Thread(target=deployHostsFile, args=(public_ip, TEMP_HOSTS_FILE, mount_nfs)))
             threads[-1].start()
         ## FOR
