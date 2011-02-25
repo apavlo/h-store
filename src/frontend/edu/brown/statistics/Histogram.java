@@ -595,8 +595,18 @@ public class Histogram implements JSONSerializable {
         return (this.toString(MAX_CHARS, MAX_VALUE_LENGTH));
     }
     
+    /**
+     * 
+     * @param max_chars size of the bars
+     * @return
+     */
+    public String toString(Integer max_chars) {
+        return (this.toString(max_chars, MAX_VALUE_LENGTH));
+    }
+        
     public String toString(Integer max_chars, Integer max_length) {
         StringBuilder s = new StringBuilder();
+        if (max_length == null) max_length = MAX_VALUE_LENGTH;
         
         // Don't let anything go longer than MAX_VALUE_LENGTH chars
         String f = "%-" + max_length + "s [%5d] ";
