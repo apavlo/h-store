@@ -157,5 +157,9 @@ public class ProfileMeasurement {
         to_stop.stopThinkMarker(time);
         to_start.startThinkMarker(time);
     }
-    
+
+    @Override
+    public String toString() {
+        return (String.format("%s[total=%d, marker=%s]", this.type, this.think_time, this.think_marker));
+    }
 }

@@ -3,7 +3,6 @@ package org.voltdb;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Observable;
@@ -89,7 +88,7 @@ public class ExecutionSiteHelper implements Runnable {
                 public void update(Observable o, Object arg) {
                     ExecutionSiteHelper.this.shutdown();
                     LOG.info("Got shutdown notification from HStoreSite. Dumping profile information");
-                    System.err.println(ExecutionSiteHelper.this.dumpProfileInformation());
+                    System.err.println("\n" + ExecutionSiteHelper.this.dumpProfileInformation() + "\n");
                     System.err.println(ExecutionSiteHelper.this.hstore_site.statusSnapshot());
                 }
             });

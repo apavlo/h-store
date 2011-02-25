@@ -54,7 +54,7 @@ public class NewPurchase extends VoltProcedure{
             "WHERE ip_ib_id = ? AND ip_ib_i_id = ? AND ip_ib_u_id = ?"
         );    
     
-    public VoltTable run(long ib_id, long i_id, long u_id,long buyer_id) throws VoltAbortException {
+    public VoltTable run(long ib_id, long i_id, long u_id, long buyer_id) throws VoltAbortException {
     	
     	// Check if this is the correct max_bid ( max_bid_buyer_id == buyer_id)
     	voltQueueSQL(select_item_max_bid, i_id, u_id);

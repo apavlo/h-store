@@ -194,10 +194,11 @@ public abstract class VoltProcedure implements Poolable {
                     VoltProcedure.this.observable.notifyObservers(response);
                     
                 } catch (AssertionError ex) {
-                    LOG.fatal("Unexpected error while executing txn #" + current_txn_id, ex);
+                    LOG.fatal("Unexpected error while executing txn #" + current_txn_id + " [" + VoltProcedure.this.procedure_name + "]", ex);
+                    LOG.fatal("LocalTransactionState Dump:\n" + m_localTxnState);
                     VoltProcedure.this.m_site.crash(ex.getCause());
                 } catch (Exception ex) {
-                    LOG.fatal("Unexpected error while executing txn #" + current_txn_id, ex);
+                    LOG.fatal("Unexpected error while executing txn #" + current_txn_id + " [" + VoltProcedure.this.procedure_name + "]", ex);
                     VoltProcedure.this.m_site.crash(ex);
                 } finally {
                     assert(VoltProcedure.this.txn_id == current_txn_id) : VoltProcedure.this.txn_id + " != " + current_txn_id;

@@ -654,7 +654,11 @@ public class ExecutionSite implements Runnable {
                         LOG.warn("Hit an EE Error for txn #" + txn_id, ex);
                         fresponse.setStatus(FragmentResponseMessage.UNEXPECTED_ERROR, ex);
                     } catch (SQLException ex) {
-                        LOG.warn("Hit a SQL Error for txn #" + txn_id, ex);
+                        String extra = "";
+                        if (ts instanceof LocalTransactionState) {
+                            extra = "[" + ((LocalTransactionState)ts).getProcedure().getName() + "]";
+                        }
+                        LOG.warn("Hit a SQL Error for txn #" + txn_id + extra, ex);
                         fresponse.setStatus(FragmentResponseMessage.UNEXPECTED_ERROR, ex);
                     } catch (Exception ex) {
                         LOG.warn("Something unexpected and bad happended for txn #" + txn_id, ex);
@@ -755,9 +759,9 @@ public class ExecutionSite implements Runnable {
 
                 // stop = stop || self.isInterrupted();
             } // WHILE
-        } catch (final RuntimeException e) {
-            LOG.fatal(e);
-            throw e;
+        } catch (final RuntimeException ex) {
+            LOG.fatal("Unexpected error for ExecutionSite Partition #" + this.getPartitionId(), ex);
+            this.hstore_messenger.shutdownCluster(new Exception(ex));
         } catch (AssertionError ex) {
             LOG.fatal("Unexpected error for ExecutionSite Partition #" + this.getPartitionId(), ex);
             this.hstore_messenger.shutdownCluster(new Exception(ex));
