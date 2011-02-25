@@ -1,17 +1,12 @@
 package edu.brown.costmodel;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
-import java.util.Deque;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.commons.collections15.map.ListOrderedMap;
@@ -20,7 +15,6 @@ import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Statement;
 import org.voltdb.types.QueryType;
-import org.voltdb.types.TimestampType;
 
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.markov.EstimationThresholds;
@@ -649,6 +643,7 @@ public class MarkovCostModel extends AbstractCostModel {
         Collections.shuffle(queue);
 
         final AtomicInteger total = new AtomicInteger(0);
+        final AtomicInteger failures = new AtomicInteger(0);
         final List<Runnable> runnables = new ArrayList<Runnable>();
         for (int i = 0; i < num_threads; i++) {
             runnables.add(new Runnable() {
@@ -665,12 +660,20 @@ public class MarkovCostModel extends AbstractCostModel {
                         }
                         
                         double cost = 0.0d;
+                        Throwable error = null;
                         try {
                             cost = costmodel.estimateTransactionCost(args.catalog_db, txn_trace);
+                        } catch (AssertionError ex) {
+                            error = ex;
                         } catch (Exception ex) {
-                            throw new RuntimeException(ex);
+                            error = ex;
                         }
-                       
+                        if (error != null) {
+                            LOG.warn("Failed to estimate cost for " + txn_trace, error);
+                            failures.getAndIncrement();
+                            continue;
+                        }
+                        
                         String proc_name = txn_trace.getCatalogItemName();
                         if (cost > 0) {
                             penalty_groups.clear();
@@ -685,8 +688,7 @@ public class MarkovCostModel extends AbstractCostModel {
                             accurate_h.put(proc_name);
                         }
                         int cnt = total.incrementAndGet(); 
-                        if (cnt % 100 == 0) LOG.info(String.format("Processed %d transactions", cnt));
-                        
+                        if (cnt % 100 == 0) LOG.info(String.format("Processed %d transactions [failures=%d]", cnt, failures.get()));
                     } // WHILE
                 } 
             });
@@ -698,6 +700,7 @@ public class MarkovCostModel extends AbstractCostModel {
         
         Map<String, Object> m0 = new ListOrderedMap<String, Object>();
         m0.put("RESULT", String.format("%05d / %05d [%.03f]", accurate_cnt, total.get(), (accurate_cnt / (double)total.get())));
+        m0.put("FAILURES", String.format("%05d / %05d [%.03f]", failures.get(), total_h.getSampleCount(), (failures.get() / (double)total_h.getSampleCount())));
         
         Map<String, Object> m1 = new ListOrderedMap<String, Object>();
         for (PenaltyGroup pg : PenaltyGroup.values()) {
