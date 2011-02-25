@@ -474,7 +474,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
             }
             
             // Schedule the ExecutionSiteHelper
-            ExecutionSiteHelper esh = new ExecutionSiteHelper(HStoreSite.this.executors.values(), helper_txn_per_round, helper_txn_expire, true);
+            ExecutionSiteHelper esh = new ExecutionSiteHelper(HStoreSite.this.executors.values(), helper_txn_per_round, helper_txn_expire, HStoreSite.this.enable_profiling);
             HStoreSite.this.helper_pool.scheduleAtFixedRate(esh, 2000, helper_interval, TimeUnit.MILLISECONDS);
             
             // Start Monitor Thread
