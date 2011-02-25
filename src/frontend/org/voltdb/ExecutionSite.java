@@ -1427,8 +1427,9 @@ public class ExecutionSite implements Runnable {
         }
         
         // Bombs away!
-        this.hstore_site.requestWork(txn_id, requestBuilder.build(), this.request_work_callback);
-        if (debug.get()) LOG.debug(String.format("Work request is sent for txn #%d [#fragments=%d]", txn_id, tasks.size()));
+        Dtxn.CoordinatorFragment dtxn_request = requestBuilder.build(); 
+        this.hstore_site.requestWork(txn_id, dtxn_request, this.request_work_callback);
+        if (debug.get()) LOG.debug(String.format("Work request is sent for txn #%d [bytes=%d, #fragments=%d]", txn_id, dtxn_request.getSerializedSize(), tasks.size()));
     }
 
     /**

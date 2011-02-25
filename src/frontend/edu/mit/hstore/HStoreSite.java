@@ -1082,7 +1082,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
      */
     public void requestWork(long txn_id, Dtxn.CoordinatorFragment fragment, RpcCallback<Dtxn.CoordinatorResponse> callback) {
         this.initializationBlock(this.inflight_txns.get(txn_id));
-        if (trace.get()) LOG.trace(String.format("Telling the Dtxn.Coordinator to execute fragment for txn #%d [last=%s]", txn_id, fragment.getLastFragment()));
+        if (debug.get()) LOG.debug(String.format("Asking the Dtxn.Coordinator to execute fragment for txn #%d [bytes=%d, last=%s]", txn_id, fragment.getSerializedSize(), fragment.getLastFragment()));
         this.coordinator.execute(new ProtoRpcController(), fragment, callback);
     }
 

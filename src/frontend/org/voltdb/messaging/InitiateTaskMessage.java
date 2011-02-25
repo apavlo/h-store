@@ -120,13 +120,13 @@ public class InitiateTaskMessage extends TransactionInfoBaseMessage {
     @Override
     protected void flattenToBuffer(final DBBPool pool) {
         // stupid lame flattening of the proc invocation
-        FastSerializer fs = new FastSerializer();
-        try {
-            fs.writeObject(m_invocation);
-        } catch (IOException e) {
-            e.printStackTrace();
-            assert(false);
-        }
+//        FastSerializer fs = new FastSerializer();
+//        try {
+//            fs.writeObject(m_invocation);
+//        } catch (IOException e) {
+//            e.printStackTrace();
+//            assert(false);
+//        }
         ByteBuffer invocationBytes = ByteBuffer.allocate(0); //  fs.getBuffer();
 
         // size of MembershipNotice
@@ -214,9 +214,9 @@ public class InitiateTaskMessage extends TransactionInfoBaseMessage {
         }
 
         sb.append("\n  PROCEDURE: ");
-        sb.append(m_invocation.getProcName());
+        sb.append(m_invocation != null ? m_invocation.getProcName() : "null");
         sb.append("\n  PARAMS: ");
-        sb.append(m_invocation.getParams().toString());
+        sb.append(m_invocation != null ? m_invocation.getParams().toString() : "null");
 
         return sb.toString();
     }
