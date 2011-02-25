@@ -362,13 +362,19 @@ public abstract class TransactionState implements Poolable {
 
     @Override
     public String toString() {
+        return (StringUtil.formatMaps(this.getDebugMap()));
+    }
+    
+    protected Map<String, Object> getDebugMap() {
         Map<String, Object> m = new ListOrderedMap<String, Object>();
+        m.put("Transaction #", this.txn_id);
         m.put("Current Round State", this.round_state);
         m.put("FragmentTask Callbacks", this.fragment_callbacks.size());
         m.put("Executing Locally", this.exec_local);
         m.put("Local Partition", this.executor.getPartitionId());
         m.put("Last UndoToken", this.last_undo_token);
         m.put("# of Rounds", this.round_ctr);
-        return (String.format("Transaction State #%d\n%s", this.txn_id, StringUtil.formatMaps(m)));
+        m.put("Pending Error", (this.pending_error != null ? this.pending_error.toString() : null));
+        return (m);
     }
 }

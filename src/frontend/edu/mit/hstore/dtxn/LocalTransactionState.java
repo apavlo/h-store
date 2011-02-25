@@ -49,6 +49,7 @@ import org.voltdb.VoltProcedure;
 import org.voltdb.VoltTable;
 import org.voltdb.BatchPlanner.BatchPlan;
 import org.voltdb.catalog.Procedure;
+import org.voltdb.exceptions.MispredictionException;
 import org.voltdb.messaging.FragmentTaskMessage;
 
 import com.google.protobuf.RpcCallback;
@@ -388,6 +389,7 @@ public class LocalTransactionState extends TransactionState {
         this.done_partitions.clear();
         this.coordinator_callback = null;
         this.volt_procedure = null;
+        this.dependency_latch = null;
         this.total_time.reset();
         
         if (this.executor.getEnableProfiling()) {
@@ -487,7 +489,7 @@ public class LocalTransactionState extends TransactionState {
             // Now create the latch
             int count = this.dependency_ctr - this.received_ctr;
             assert(count >= 0);
-            assert(this.dependency_latch == null);
+            assert(this.dependency_latch == null) : "This should never happen!\n" + this.toString();
             this.dependency_latch = new CountDownLatch(count);
         }
     }
@@ -911,7 +913,14 @@ public class LocalTransactionState extends TransactionState {
             }
         } // FOR
         if (!to_execute.isEmpty()) {
-            this.executor.requestWork(this, to_execute);
+            try {
+                this.executor.requestWork(this, to_execute);
+            } catch (MispredictionException ex) {
+                this.setPendingError(ex);
+                if (this.dependency_latch != null) {
+                    while (this.dependency_latch.getCount() > 0) this.dependency_latch.countDown();
+                }
+            }
         }
     }
     
@@ -945,73 +954,93 @@ public class LocalTransactionState extends TransactionState {
     
     @Override
     public synchronized String toString() {
-        String ret = super.toString() + StringUtil.SINGLE_LINE;
-
+        Map<String, Object> header = super.getDebugMap();
+        
         String proc_name = (this.volt_procedure != null ? this.volt_procedure.getProcedureName() : null);
-        ListOrderedMap<String, Object> m = new ListOrderedMap<String, Object>();
-        m.put("Procedure", proc_name);
-        m.put("Dtxn.Coordinator Callback", this.coordinator_callback);
-        m.put("Dependency Ctr", this.dependency_ctr);
-        m.put("Internal Ctr", this.internal_dependencies.size());
-        m.put("Received Ctr", this.received_ctr);
-        m.put("CountdownLatch", this.dependency_latch);
-        m.put("# of Blocked Tasks", this.blocked_tasks.size());
-        m.put("# of Statements", this.batch_size);
-        m.put("Expected Results", this.results_dependency_stmt_ctr.keySet());
-        m.put("Expected Responses", this.responses_dependency_stmt_ctr.keySet());
-        ret += StringUtil.formatMaps(m);
+        ListOrderedMap<String, Object> m0 = new ListOrderedMap<String, Object>();
+        m0.put("Procedure", proc_name);
+        m0.put("Dtxn.Coordinator Callback", this.coordinator_callback);
+        m0.put("Dependency Ctr", this.dependency_ctr);
+        m0.put("Internal Ctr", this.internal_dependencies.size());
+        m0.put("Received Ctr", this.received_ctr);
+        m0.put("CountdownLatch", this.dependency_latch);
+        m0.put("# of Blocked Tasks", this.blocked_tasks.size());
+        m0.put("# of Statements", this.batch_size);
+        m0.put("Expected Results", this.results_dependency_stmt_ctr.keySet());
+        m0.put("Expected Responses", this.responses_dependency_stmt_ctr.keySet());
+        
+        ListOrderedMap<String, Object> m1 = new ListOrderedMap<String, Object>();
+        m1.put("Original Txn Id", this.orig_txn_id);
+        m1.put("Init Latch", this.init_latch);
+        m1.put("Client Callback", this.client_callback);
+        m1.put("SysProc", this.sysproc);
+        m1.put("Done Partitions", this.done_partitions);
+        
+        ListOrderedMap<String, Object> m2 = new ListOrderedMap<String, Object>();
+        m2.put("Total Time", this.total_time);
+        m2.put("Java Time", this.java_time);
+        m2.put("Coordinator Time", this.coord_time);
+        m2.put("Planner Time", this.plan_time);
+        m2.put("EE Time", this.ee_time);
+        m2.put("Estimator Time", this.est_time);
+        
+        StringBuilder sb = new StringBuilder();
+        sb.append(StringUtil.formatMaps(header, m0, m1, m2));
+        sb.append(StringUtil.SINGLE_LINE);
 
+        String stmt_debug[] = new String[this.batch_size];
         for (int stmt_index = 0; stmt_index < this.batch_size; stmt_index++) {
             Map<Integer, DependencyInfo> s_dependencies = new HashMap<Integer, DependencyInfo>(this.dependencies[stmt_index]); 
             Set<Integer> dependency_ids = new HashSet<Integer>(s_dependencies.keySet());
-
-            ret += StringUtil.SINGLE_LINE;
-            ret += "  Statement #" + stmt_index + "\n";
-            ret += "  Output Dependency Id: " + (this.output_order.contains(stmt_index) ? this.output_order.get(stmt_index) : "<NOT STARTED>") + "\n";
+            String inner = "";
+            inner += "  Statement #" + stmt_index + "\n";
+            inner += "  Output Dependency Id: " + (this.output_order.contains(stmt_index) ? this.output_order.get(stmt_index) : "<NOT STARTED>") + "\n";
             
-            ret += "  Dependency Partitions:\n";
+            inner += "  Dependency Partitions:\n";
             for (Integer dependency_id : dependency_ids) {
-                ret += "    [" + dependency_id + "] => " + s_dependencies.get(dependency_id).partitions + "\n";
+                inner += "    [" + dependency_id + "] => " + s_dependencies.get(dependency_id).partitions + "\n";
             } // FOR
             
-            ret += "  Dependency Results:\n";
+            inner += "  Dependency Results:\n";
             for (Integer dependency_id : dependency_ids) {
-                ret += "    [" + dependency_id + "] => [";
+                inner += "    [" + dependency_id + "] => [";
                 String add = "";
                 for (VoltTable vt : s_dependencies.get(dependency_id).getResults()) {
-                    ret += add + (vt == null ? vt : "{" + vt.getRowCount() + " tuples}");
+                    inner += add + (vt == null ? vt : "{" + vt.getRowCount() + " tuples}");
                     add = ",";
                 }
-                ret += "]\n";
+                inner += "]\n";
             } // FOR
             
-            ret += "  Dependency Responses:\n";
+            inner += "  Dependency Responses:\n";
             for (Integer dependency_id : dependency_ids) {
-                ret += "    [" + dependency_id + "] => " + s_dependencies.get(dependency_id).getResponses() + "\n";
+                inner += "    [" + dependency_id + "] => " + s_dependencies.get(dependency_id).getResponses() + "\n";
             } // FOR
     
-            ret += "  Blocked FragmentTaskMessages:\n";
+            inner += "  Blocked FragmentTaskMessages:\n";
             boolean none = true;
             for (Integer dependency_id : dependency_ids) {
                 DependencyInfo d = s_dependencies.get(dependency_id);
                 for (FragmentTaskMessage task : d.getBlockedFragmentTaskMessages()) {
                     if (task == null) continue;
-                    ret += "    [" + dependency_id + "] => [";
+                    inner += "    [" + dependency_id + "] => [";
                     String add = "";
                     for (long id : task.getFragmentIds()) {
-                        ret += add + id;
+                        inner += add + id;
                         add = ", ";
                     } // FOR
-                    ret += "]";
-                    if (d.hasTasksReady()) ret += " READY!"; 
-                    ret += "\n";
+                    inner += "]";
+                    if (d.hasTasksReady()) inner += " READY!"; 
+                    inner += "\n";
                     none = false;
                 }
             } // FOR
-            if (none) ret += "    <none>\n";
+            if (none) inner += "    <none>\n";
+            stmt_debug[stmt_index] = inner;
         } // (dependencies)
+        sb.append(StringUtil.columns(stmt_debug));
         
-        return (ret);
+        return (sb.toString());
     }
 
     @Override

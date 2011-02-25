@@ -617,10 +617,11 @@ public class TransactionEstimator {
             start.addInstanceTime(txn_id, start_time);
             try {
                 estimator.traverse(start);
+                // if (catalog_proc.getName().equalsIgnoreCase("NewBid")) throw new Exception ("Fake!");
             } catch (Throwable e) {
                 LOG.fatal("Failed to estimate path", e);
                 try {
-                    GraphvizExport<Vertex, Edge> gv = MarkovUtil.exportGraphviz(markov, false, markov.getPath(estimator.getVisitPath()));
+                    GraphvizExport<Vertex, Edge> gv = MarkovUtil.exportGraphviz(markov, true, markov.getPath(estimator.getVisitPath()));
                     System.err.println("GRAPH DUMP: " + gv.writeToTempFile(catalog_proc));
                 } catch (Exception ex) {
                     throw new RuntimeException(ex);
@@ -639,7 +640,7 @@ public class TransactionEstimator {
             throw new RuntimeException(ex);
         }
         State old = this.txn_states.put(txn_id, state);
-        assert(old == null);
+        assert(old == null) : "Duplicate transaction id #" + txn_id + " [" + catalog_proc.getName() + "]";
 
         // The initial estimate should be based on the second-to-last vertex in the initial path estimation
         List<Vertex> initial_path = estimator.getVisitPath();
