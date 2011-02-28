@@ -36,6 +36,11 @@ public class DependencyInfo {
         public Object makeObject() throws Exception {
             return (new DependencyInfo());
         }
+        public void passivateObject(Object obj) throws Exception {
+            DependencyInfo d = (DependencyInfo)obj;
+            d.finished();
+            
+        };
     });
     
     protected LocalTransactionState ts;

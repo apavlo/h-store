@@ -65,6 +65,8 @@ public class ExecutionSiteHelper implements Runnable {
      */
     private boolean first = true;
     
+    private int total_cleaned = 0;
+    
     /**
      * 
      * @param sites
@@ -116,9 +118,9 @@ public class ExecutionSiteHelper implements Runnable {
         }
         if (t) LOG.trace("New invocation of the ExecutionSiteHelper. Let's clean-up some txns!");
         
-        long to_remove = System.currentTimeMillis() - this.txn_expire;
         for (ExecutionSite es : this.sites) {
             if (t) LOG.trace(String.format("Partition %d has %d finished transactions", es.partitionId, es.finished_txn_states.size()));
+            long to_remove = System.currentTimeMillis() - this.txn_expire;
             
             int cleaned = 0;
             while (es.finished_txn_states.isEmpty() == false && (this.txn_per_round < 0 || cleaned < this.txn_per_round)) {
@@ -137,9 +139,10 @@ public class ExecutionSiteHelper implements Runnable {
                     es.cleanupTransaction(ts);
                     es.finished_txn_states.remove();
                     cleaned++;
+                    this.total_cleaned++;
                 } else break;
             } // WHILE
-            if (d && cleaned > 0) LOG.debug(String.format("Cleaned %d TransactionStates at partition %d", cleaned, es.partitionId));
+            if (d && cleaned > 0) LOG.debug(String.format("Cleaned %d TransactionStates at partition %d [total=%d]", cleaned, es.partitionId, this.total_cleaned));
             // Only call tick here!
             es.tick();
         } // FOR

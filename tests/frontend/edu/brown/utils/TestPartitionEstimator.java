@@ -72,6 +72,7 @@ public class TestPartitionEstimator extends BaseTestCase {
         MultiColumn mc = MultiColumn.get(catalog_cols);
         assertNotNull(mc);
         catalog_tbl.setPartitioncolumn(mc);
+        p_estimator.initCatalog(clone_db);
         
         // Procedure Partition
         Long proc_params[] = new Long[] {
@@ -114,6 +115,7 @@ public class TestPartitionEstimator extends BaseTestCase {
         assertNotNull(mpp);
         assert(mpp.getIndex() >= 0);
         catalog_proc.setPartitionparameter(mpp.getIndex());
+        p_estimator.initCatalog(clone_db);
         
         // Case #1: Both parameters have values in the input
         Long params[] = new Long[] {
@@ -136,7 +138,7 @@ public class TestPartitionEstimator extends BaseTestCase {
         assert(partition1 >= 0);
         assert(partition1 < NUM_PARTITIONS);
 //        System.err.println("partition1=" + partition1);
-        assertNotSame(partition0, partition1);
+        assert(partition0.equals(partition1) == false);
         
         // Case #3: The first parameter is null
         params = new Long[] {
@@ -148,7 +150,7 @@ public class TestPartitionEstimator extends BaseTestCase {
         assert(partition2 >= 0);
         assert(partition2 < NUM_PARTITIONS);
 //        System.err.println("partition2=" + partition2);
-        assertNotSame(partition0, partition2);
+        assert(partition0.equals(partition2) == false);
     }
     
     

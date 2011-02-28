@@ -54,6 +54,8 @@ public class PartitionEstimator {
     private final Set<Integer> all_partitions = new HashSet<Integer>();
     private int num_partitions;
     
+    private final Map<Procedure, ProcParameter> cache_procparam = new HashMap<Procedure, ProcParameter>();
+    
     /**
      * PlanFragment Key -> CacheEntry(Column Key -> StmtParameter Indexes)
      */
@@ -285,6 +287,14 @@ public class PartitionEstimator {
         } */
         this.catalog_db = new_catalog_db;
 //        System.err.println("++++ CATALOG HASH: " + this.catalog_db.hashCode());
+
+        this.cache_procparam.clear();
+        for (Procedure catalog_proc : this.catalog_db.getProcedures()) {
+            if (catalog_proc.getSystemproc() == false && catalog_proc.getParameters().size() > 0) {
+                int param_idx = catalog_proc.getPartitionparameter();
+                this.cache_procparam.put(catalog_proc, catalog_proc.getParameters().get(param_idx));
+            }
+        } // FOR
         
         // Generate a list of all the partition ids, so that we can quickly
         // add them to the output when estimating later on
@@ -666,21 +676,25 @@ public class PartitionEstimator {
      */
     public Integer getBasePartition(final Procedure catalog_proc, Object params[], boolean force) throws Exception {
         assert(catalog_proc != null);
-        final int partition_param_idx = catalog_proc.getPartitionparameter();
+        ProcParameter catalog_param = this.cache_procparam.get(catalog_proc);
         
-        if (catalog_proc.getParameters().isEmpty()) {
-            if (debug.get()) LOG.debug(catalog_proc + " has no parameters. No base partition!");
-            return (null);
-        } else if (!force && partition_param_idx == NullProcParameter.PARAM_IDX) {
+        if (catalog_param == null) { 
+            if (force) {
+                int idx = catalog_proc.getPartitionparameter();
+                catalog_param = catalog_proc.getParameters().get(idx); 
+            } else {
+                if (debug.get()) LOG.debug(catalog_proc + " has no parameters. No base partition!");
+                return (null);    
+            }
+        }
+        
+        if (!force && catalog_param instanceof NullProcParameter) {
             if (debug.get()) LOG.debug(catalog_proc + " does not have a pre-defined partition parameter. No base partition!");
             return (null);
 //        } else if (!force && !catalog_proc.getSinglepartition()) {
 //            if (debug.get()) LOG.debug(catalog_proc + " is not marked as single-partitioned. Executing as multi-partition");
 //            return (null);
         }
-        assert(partition_param_idx >= 0) : "Invalid Partitioning ProcParameter #" + partition_param_idx;
-        assert(partition_param_idx < catalog_proc.getParameters().size()): "Invalid Partitioning ProcParameter #" + partition_param_idx + " [ProcParmaeters=" + catalog_proc.getParameters().size() + "]";
-        ProcParameter catalog_param = catalog_proc.getParameters().get(partition_param_idx);
         int partition = -1;
         boolean is_array = catalog_param.getIsarray();
         
@@ -700,7 +714,7 @@ public class PartitionEstimator {
             if (debug.get()) LOG.debug(Arrays.toString(hashes) + " => " + partition);
         // Single ProcParameter
         } else {
-            partition = this.calculatePartition(catalog_proc, params[partition_param_idx], is_array);
+            partition = this.calculatePartition(catalog_proc, params[catalog_param.getIndex()], is_array);
         }
         return (partition);
     }

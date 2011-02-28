@@ -2093,6 +2093,7 @@ TPC-E EGenLoader
    
     <echo message="src.tpce.dir: ${src.tpce.dir}" />
     <exec executable="make" dir="${src.tpce.dir}/prj" failonerror="true" resolveexecutable="true" >
+        <arg value="-j 2" />
         <arg value="SOURCE=.." />
         <arg value="PREFIX=${build.tpce.dir}" />
         <arg value="DEBUG_OPTS=-DDEBUG -Wall -Wextra" />
@@ -2221,8 +2222,8 @@ H-STORE REMIX
         <jvmarg value="-server" />
         <jvmarg value="-Djava.library.path=${build.dir}/nativelibs" />
         <jvmarg value="-Xcheck:jni" />
-<!--        <jvmarg value="-XX:+UseParNewGC" />
-        <jvmarg value="-XX:+UseConcMarkSweepGC" />-->
+<!--        <jvmarg value="-XX:+UseParNewGC" /> -->
+        <jvmarg value="-XX:+UseConcMarkSweepGC" />
 
         <jvmarg value="-Dhstore.preload=${hstore.node.preload}" />
         <arg value="catalog.jar=${benchmark.jar}" />
