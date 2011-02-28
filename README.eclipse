@@ -14,11 +14,11 @@ $ ant protorpc
 
 Wait until everything finishes
 
-2) Create a new workspace for Eclipse
+2) Create a new workspace for Eclipse (if necessary)
 
 3) Select File -> New -> Java Project
 
-4) Select "create project from existing source" and set the directory to $HSTORE/src
+4) Uncheck "Use default location." Click browse and set the directory to $HSTORE/src
 
 5) Click next, wait a bit...
 
@@ -37,6 +37,7 @@ $HSTORE/third_party/java/jars and select the following jars:
 ant.jar
 ant-junit.jar
 collections-generic-4.01.jar
+commons-pool-1.5.5.jar
 japex.jar
 jung-algorithms-2.0.jar
 jung-api-2.0.jar
@@ -45,6 +46,8 @@ jung-visualization-2.0.jar
 junit-4.4.jar
 log4j-1.2.15.jar
 tools.jar
+velocity-1.6.3.jar
+velocity-1.6.3-dep.jar
 weka-3.6.3.jar
 
 8) Click finish. It should now build without any errors.
