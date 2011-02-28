@@ -122,6 +122,7 @@ public class ProtoRpcChannel extends AbstractEventHandler implements RpcChannel 
         }
 
         // Package up the request and send it
+        final boolean debug = LOG.isDebugEnabled();
         synchronized (this) {
             pendingRpcs.put(sequence, rpc);
             // System.err.println("Sending RPC sequence " + sequence);
@@ -130,8 +131,10 @@ public class ProtoRpcChannel extends AbstractEventHandler implements RpcChannel 
             boolean blocked = connection.tryWrite(rpcRequest);
             if (blocked) {
                 // the write blocked: wait for write callbacks
+                if (debug) LOG.debug("registering write with eventLoop: " + eventLoop);
                 eventLoop.registerWrite(connection.getChannel(), this);
             }
+            if (debug) LOG.debug(String.format("%d: Sending RPC %s sequence %d blocked = %b", hashCode(), method.getFullName(), sequence, blocked));
         }
     }
 
@@ -205,7 +208,9 @@ public class ProtoRpcChannel extends AbstractEventHandler implements RpcChannel 
 
     @Override
     public boolean writeCallback(SelectableChannel channel) {
-        return connection.writeAvailable();
+        boolean blocked = connection.writeAvailable();
+        if (LOG.isDebugEnabled()) LOG.debug(String.format("%d: writeCallback blocked = %b", hashCode(), blocked));
+        return blocked;
     }
 
     @Override

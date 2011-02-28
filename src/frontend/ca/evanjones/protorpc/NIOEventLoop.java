@@ -138,6 +138,7 @@ public class NIOEventLoop implements EventLoop {
                 assert callback == key.attachment();
             }
             key.interestOps(key.interestOps() | operation);
+            selector.wakeup();
         } else {
             register(channel, operation, callback);
         }
