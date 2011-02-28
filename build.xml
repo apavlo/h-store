@@ -2093,7 +2093,6 @@ TPC-E EGenLoader
    
     <echo message="src.tpce.dir: ${src.tpce.dir}" />
     <exec executable="make" dir="${src.tpce.dir}/prj" failonerror="true" resolveexecutable="true" >
-        <arg value="-j 2" />
         <arg value="SOURCE=.." />
         <arg value="PREFIX=${build.tpce.dir}" />
         <arg value="DEBUG_OPTS=-DDEBUG -Wall -Wextra" />
