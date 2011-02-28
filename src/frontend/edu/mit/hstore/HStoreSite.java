@@ -692,7 +692,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         // Otherwise we use the PartitionEstimator to know where it is going
         } else if (this.force_localexecution == false) {
             try {
-                dest_partition = this.p_estimator.getBasePartition(catalog_proc, args);
+                dest_partition = this.p_estimator.getBasePartition(catalog_proc, args, false);
             } catch (Exception ex) {
                 throw new RuntimeException(ex);
             }
@@ -870,7 +870,6 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
             this.execute(null, requestBuilder.build(), null);
 
         } else {
-            ProtoRpcController rpc = new ProtoRpcController();
             Dtxn.CoordinatorFragment.Builder requestBuilder = Dtxn.CoordinatorFragment.newBuilder();
             
             // Note that we pass the fake txn id to the Dtxn.Coordinator. 
@@ -926,7 +925,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
             
             if (this.enable_profiling) txn_info.coord_time.startThinkMarker();
             Dtxn.CoordinatorFragment dtxn_request = requestBuilder.build();
-            this.coordinator.execute(rpc, dtxn_request, callback);
+            this.coordinator.execute(new ProtoRpcController(), dtxn_request, callback);
             if (d) LOG.debug(String.format("Sent Dtxn.CoordinatorFragment for txn #%d [bytes=%d]", txn_id, dtxn_request.getSerializedSize()));
         }
     }

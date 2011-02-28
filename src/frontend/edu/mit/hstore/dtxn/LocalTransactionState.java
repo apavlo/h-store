@@ -368,7 +368,6 @@ public class LocalTransactionState extends TransactionState {
 
             // Return all of our DependencyInfos
             for (DependencyInfo d : this.all_dependencies) {
-                d.finished();
                 DependencyInfo.INFO_POOL.returnObject(d);
             } // FOR
             this.all_dependencies.clear();

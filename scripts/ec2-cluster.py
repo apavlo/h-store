@@ -103,6 +103,8 @@ def deployHostsFile(public_ip, hosts_file, mount_nfs = False):
 ## ==============================================
 if __name__ == '__main__':
     _options, args = getopt.gnu_getopt(sys.argv[1:], '', [
+        ## Dump out all of the instances
+        "dump",
         ## Instance type
         "type=",
         ## Mount NFS
@@ -133,6 +135,9 @@ if __name__ == '__main__':
             globals()[varname] = orig_type(True if orig_type == bool else options[key][0])
             logging.debug("%s = %s" % (varname, str(globals()[varname])))
     ## FOR
+    if "dump" in options:
+        pprint(ALL_INSTANCES)
+        sys.exit(0)
 
     assert len(args) > 0
     command = args[0].strip().lower()
