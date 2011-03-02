@@ -205,6 +205,18 @@ public class LocalTransactionState extends TransactionState {
      */
     public final ProfileMeasurement total_time = new ProfileMeasurement(Type.TOTAL);
     /**
+     * Time spent in HStoreSite procedureInitialization
+     */
+    public final ProfileMeasurement init_time = new ProfileMeasurement(Type.INITIALIZATION);
+    /**
+     * Time spent getting the response back to the client
+     */
+    public final ProfileMeasurement finish_time = new ProfileMeasurement(Type.CLEANUP);
+    /**
+     * Time spent waiting in queue
+     */
+    public final ProfileMeasurement queue_time = new ProfileMeasurement(Type.QUEUE);
+    /**
      * The amount of time spent executing the Java-portion of the stored procedure
      */
     public final ProfileMeasurement java_time = new ProfileMeasurement(Type.JAVA);
@@ -389,9 +401,12 @@ public class LocalTransactionState extends TransactionState {
         this.coordinator_callback = null;
         this.volt_procedure = null;
         this.dependency_latch = null;
-        this.total_time.reset();
         
         if (this.executor.getEnableProfiling()) {
+            this.total_time.reset();
+            this.init_time.reset();
+            this.queue_time.reset();
+            this.finish_time.reset();
             this.java_time.reset();
             this.coord_time.reset();
             this.ee_time.reset();
@@ -408,6 +423,7 @@ public class LocalTransactionState extends TransactionState {
         this.queued_results.clear();
         this.blocked_tasks.clear();
         this.internal_dependencies.clear();
+        this.runnable_fragment_list.clear();
 
         // Note that we only want to clear the queues and not the whole maps
         for (Queue<Integer> q : this.results_dependency_stmt_ctr.values()) {

@@ -386,14 +386,12 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
             return;
         }
         this.shutdown = true;
-        if (debug.get()) LOG.debug("Shutting down everything at Site #" + this.site_id);
-        
-        // Tell all of our event loops to stop
-        if (trace.get()) LOG.trace("Telling Dtxn.Coordinator event loop to exit");
-        this.coordinatorEventLoop.exitLoop();
+//        if (debug.get()) 
+            LOG.info("Shutting down everything at Site #" + this.site_id);
         
         // Tell anybody that wants to know that we're going down
-        if (trace.get()) LOG.trace("Notifying " + this.shutdown_observable.countObservers() + " observers that we're shutting down");
+//        if (trace.get()) 
+            LOG.info("Notifying " + this.shutdown_observable.countObservers() + " observers that we're shutting down");
         this.shutdown_observable.notifyObservers();
         
         // Tell our local boys to go down too
@@ -401,6 +399,10 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
             if (trace.get()) LOG.trace("Telling the ExecutionSite for Partition #" + executor.getPartitionId() + " to shutdown");
             executor.shutdown();
         } // FOR
+        
+        // Tell all of our event loops to stop
+        if (trace.get()) LOG.trace("Telling Dtxn.Coordinator event loop to exit");
+        this.coordinatorEventLoop.exitLoop();
         
         if (debug.get()) LOG.debug("Completed shutdown process at Site #" + this.site_id);
     }
@@ -624,12 +626,17 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         return (this.getThreadName(suffix, null));
     }
     
-    
+    private static final Map<Long, ByteString> cache_encoded = new ConcurrentHashMap<Long, ByteString>();
     public static ByteString encodeTxnId(long txn_id) {
-        return (ByteString.copyFrom(Long.toString(txn_id).getBytes()));
+        ByteString bs = cache_encoded.get(txn_id);
+        if (bs == null) {
+            bs = ByteString.copyFrom(Long.toString(txn_id).getBytes());
+            cache_encoded.put(txn_id, bs);
+        }
+        return (bs);
     }
     public static long decodeTxnId(ByteString bs) {
-        return (Long.valueOf(new String(bs.toByteArray())));
+        return (Long.valueOf(bs.toStringUtf8()));
     }
 
     // ----------------------------------------------------------------------------
@@ -787,7 +794,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
                 // HACK: Convert the array parameters to object arrays...
                 Object cast_args[] = this.param_manglers.get(catalog_proc).convert(args);
                 
-                if (this.enable_profiling) local_ts.est_time.startThinkMarker();
+                if (this.enable_profiling) local_ts.est_time.start();
                 estimator_state = t_estimator.startTransaction(txn_id, dest_partition, catalog_proc, cast_args);
                 if (estimator_state == null) {
                     if (d) LOG.debug(String.format("No TransactionEstimator.State was returned for txn #%d. Executing as multi-partitioned", txn_id)); 
@@ -803,7 +810,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
                         single_partition = estimate.isSinglePartition(this.thresholds);     
                     }
                 }
-                if (this.enable_profiling) local_ts.est_time.stopThinkMarker();
+                if (this.enable_profiling) local_ts.est_time.stop();
             } catch (RuntimeException ex) {
                 LOG.fatal("Failed calculate estimate for txn #" + txn_id, ex);
                 throw ex;
@@ -821,7 +828,10 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         local_ts.init(txn_id, request.getClientHandle(), dest_partition.intValue(), catalog_proc, request, done);
         local_ts.setPredictSinglePartitioned(single_partition);
         local_ts.setEstimatorState(estimator_state);        
-        if (this.enable_profiling) local_ts.total_time.startThinkMarker(timestamp);
+        if (this.enable_profiling) {
+            local_ts.total_time.start(timestamp);
+            local_ts.init_time.start(timestamp);
+        }
         this.initializeInvocation(local_ts);
     }
     
@@ -922,9 +932,8 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
                 if (t) LOG.trace("Using InitiateCallback for txn #" + txn_id);
                 callback = new InitiateCallback(this, txn_id, txn_info.init_latch);
             }
-            
-            if (this.enable_profiling) txn_info.coord_time.startThinkMarker();
             Dtxn.CoordinatorFragment dtxn_request = requestBuilder.build();
+            if (this.enable_profiling) ProfileMeasurement.swap(txn_info.init_time, txn_info.coord_time);
             this.coordinator.execute(new ProtoRpcController(), dtxn_request, callback);
             if (d) LOG.debug(String.format("Sent Dtxn.CoordinatorFragment for txn #%d [bytes=%d]", txn_id, dtxn_request.getSerializedSize()));
         }
@@ -979,6 +988,8 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
             InitiateTaskMessage task = (InitiateTaskMessage)msg;
             LocalTransactionState txn_info = this.inflight_txns.get(txn_id);
             assert(txn_info != null) : "Missing TransactionInfo for txn #" + txn_id;
+            if (this.enable_profiling) txn_info.coord_time.stop();
+            
             single_partitioned = txn_info.isPredictSinglePartition();
             assert(txn_info.client_callback != null) : "Missing original RpcCallback for txn #" + txn_id;
       
@@ -1004,7 +1015,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
             }
             txn_info.setCoordinatorCallback(callback);
             
-            if (this.enable_profiling) txn_info.coord_time.stopThinkMarker();
+            if (enable_profiling) txn_info.queue_time.start();
             executor.doWork(msg, callback, txn_info);
             
             if (this.status_monitor != null) TxnCounter.EXECUTED.inc(txn_info.getProcedure());
@@ -1042,7 +1053,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
             LOG.fatal("Failed to instantiate new LocalTransactionState for txn #" + txn_id);
             throw new RuntimeException(ex);
         }
-        if (this.enable_profiling) local_ts.total_time.startThinkMarker();
+        if (this.enable_profiling) local_ts.total_time.start();
         local_ts.init(new_txn_id, orig_ts);
         local_ts.setPredictSinglePartitioned(false);
         
@@ -1099,6 +1110,11 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
             assert(callback instanceof ClientResponseFinalCallback);
             this.finish(new ProtoRpcController(), request, callback);
         } else {
+            if (local_ts.sysproc == false && this.enable_profiling) {
+                long time = ProfileMeasurement.getTime();
+                local_ts.finish_time.stop(time);
+                local_ts.total_time.stop(time);
+            }
             if (debug.get()) LOG.debug(String.format("Telling the Dtxn.Coordinator to finish txn #%d [commit=%s]", txn_id, request.getCommit()));
             this.coordinator.finish(new ProtoRpcController(), request, callback);
         }
@@ -1122,15 +1138,20 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         assert(txn_id != null) : "Null txn id in Dtxn.FinishRequest payload";
         if (debug.get()) LOG.debug("Got Dtxn.FinishRequest for txn #" + txn_id + " [commit=" + request.getCommit() + "]");
         
-        // Tell our node to either commit or abort the txn in the FinishRequest
-        // FIXME: Dtxn.FinishRequest needs to tell us what partition to tell to commit/abort
-        for (Entry<Integer, ExecutionSite> e : this.executors.entrySet()) {
-            if (request.getCommit()) {
-                e.getValue().commitWork(txn_id);
-            } else {
-                e.getValue().abortWork(txn_id);
-            }
-        } // FOR
+        // We only need to call commit/abort if this wasn't a single-partition transaction
+        LocalTransactionState local_ts = this.inflight_txns.get(txn_id);
+        if (local_ts == null || local_ts.isPredictSinglePartition() == false) {
+            // Tell our node to either commit or abort the txn in the FinishRequest
+            // FIXME: Dtxn.FinishRequest needs to tell us what partition to tell to commit/abort
+            boolean commit = request.getCommit(); 
+            for (Entry<Integer, ExecutionSite> e : this.executors.entrySet()) {
+                if (commit) {
+                    e.getValue().commitWork(txn_id);
+                } else {
+                    e.getValue().abortWork(txn_id);
+                }
+            } // FOR
+        }
         
         // If we're not using the DTXN, then send back the client response right now
         if (this.ignore_dtxn) {
@@ -1152,12 +1173,8 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         if (debug.get()) LOG.debug("Cleaning up internal info for Txn #" + txn_id);
         LocalTransactionState txn_info = this.inflight_txns.remove(txn_id);
         assert(txn_info != null) : "No LocalTransactionState for txn #" + txn_id;
-        
-        if (txn_info.sysproc == false && this.enable_profiling) {
-            txn_info.total_time.stopThinkMarker();
-            if (trace.get()) LOG.trace(String.format("Tranction #%d total time: %d [done=%s]", txn_info.getTransactionId(), txn_info.total_time.getTotalThinkTime(), txn_info.getHStoreSiteDone()));
-        }
         txn_info.setHStoreSiteDone(true);
+        cache_encoded.remove(txn_id);
         if (this.status_monitor != null) TxnCounter.COMPLETED.inc(txn_info.getProcedure());
     }
 

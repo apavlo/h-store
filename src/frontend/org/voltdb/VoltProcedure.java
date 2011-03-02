@@ -144,71 +144,66 @@ public abstract class VoltProcedure implements Poolable {
     // a given call don't re-seed and generate the same number over and over
     private Random m_cachedRNG = null;
     
+    private VoltProcedureExecutor executor = new VoltProcedureExecutor();
+    
     /**
      * Execution runnable for handling transactions
      */
     // protected final Semaphore executor_lock = new Semaphore(1);
-    protected final Object executor_lock = new Object();
+//    protected final Object executor_lock = new Object();
     protected class VoltProcedureExecutor implements Runnable {
         
-        private final TransactionState txnState;
-        private final Object paramList[];
+        private LocalTransactionState txnState = null;
+        private Object paramList[] = null;
         
-        public VoltProcedureExecutor(TransactionState txnState, Object paramList[]) {
-            this.txnState = txnState;
+        public VoltProcedureExecutor() {
+            
+        }
+        public void init(TransactionState txnState, Object paramList[]) {
+            this.txnState = (LocalTransactionState)txnState;
             this.paramList = paramList;
         }
-        
         @Override
         public void run() {
-            synchronized (executor_lock) {
-                final boolean t = trace.get();
-                final boolean d = debug.get();
+            final boolean t = trace.get();
+            final boolean d = debug.get();
+            
+            if (d) Thread.currentThread().setName(VoltProcedure.this.m_site.getThreadName() + "-" + VoltProcedure.this.procedure_name);
+
+            long current_txn_id = txnState.getTransactionId();
+            long client_handle = txnState.getClientHandle();
+            assert(VoltProcedure.this.txn_id == null) : "Old Transaction Id: " + VoltProcedure.this.txn_id + " -> New Transaction Id: " + current_txn_id;
+            VoltProcedure.this.m_currentTxnState = this.txnState;
+            VoltProcedure.this.m_localTxnState = this.txnState;
+            VoltProcedure.this.txn_id = current_txn_id;
+            VoltProcedure.this.client_handle = client_handle;
+            VoltProcedure.this.procParams = paramList;
+            VoltProcedure.this.predict_singlepartition = this.txnState.isPredictSinglePartition();
+            
+            if (d) LOG.debug("Starting execution of txn #" + current_txn_id);
+            
+            try {
+                // Execute the txn (this blocks until we return)
+                if (t) LOG.trace("Invoking VoltProcedure.call for txn #" + current_txn_id);
+                ClientResponse response = VoltProcedure.this.call();
+                assert(response != null);
+                if (VoltProcedure.this.m_site.enable_profiling) this.txnState.finish_time.start();
+
+                // Send the response back immediately!
+                if (t) LOG.trace("Sending ClientResponse back for txn #" + current_txn_id + " [status=" + response.getStatusName() + "]");
+                VoltProcedure.this.m_site.sendClientResponse(this.txnState, (ClientResponseImpl)response);
                 
-                if (d) Thread.currentThread().setName(VoltProcedure.this.m_site.getThreadName() + "-" + VoltProcedure.this.procedure_name);
-    
-                long current_txn_id = txnState.getTransactionId();
-                long client_handle = txnState.getClientHandle();
-                assert(VoltProcedure.this.txn_id == null) : "Old Transaction Id: " + VoltProcedure.this.txn_id + " -> New Transaction Id: " + current_txn_id;
-                VoltProcedure.this.m_currentTxnState = (LocalTransactionState)txnState;
-                VoltProcedure.this.m_localTxnState = (LocalTransactionState)txnState;
-                VoltProcedure.this.txn_id = current_txn_id;
-                VoltProcedure.this.client_handle = client_handle;
-                VoltProcedure.this.procParams = paramList;
-                VoltProcedure.this.predict_singlepartition = ((LocalTransactionState)VoltProcedure.this.m_currentTxnState).isPredictSinglePartition();
+                // Notify anybody who cares that we're finished (used in testing)
+                if (t) LOG.trace("Notifying observers that txn #" + current_txn_id + " is finished");
+                VoltProcedure.this.observable.notifyObservers(response);
                 
-                if (d) LOG.debug("Starting execution of txn #" + current_txn_id);
-                
-                try {
-                    // Execute the txn (this blocks until we return)
-                    if (t) LOG.trace("Invoking VoltProcedure.call for txn #" + current_txn_id);
-                    ClientResponse response = VoltProcedure.this.call();
-                    assert(response != null);
-    
-                    // Send the response back immediately!
-                    if (t) LOG.trace("Sending ClientResponse back for txn #" + current_txn_id + " [status=" + response.getStatusName() + "]");
-                    VoltProcedure.this.m_site.sendClientResponse((ClientResponseImpl)response);
-                    
-                    // Notify anybody who cares that we're finished (used in testing)
-                    if (t) LOG.trace("Notifying observers that txn #" + current_txn_id + " is finished");
-                    VoltProcedure.this.observable.notifyObservers(response);
-                    
-                } catch (AssertionError ex) {
-                    LOG.fatal("Unexpected error while executing txn #" + current_txn_id + " [" + VoltProcedure.this.procedure_name + "]", ex);
-                    LOG.fatal("LocalTransactionState Dump:\n" + m_localTxnState);
-                    VoltProcedure.this.m_site.crash(ex.getCause());
-                } catch (Exception ex) {
-                    LOG.fatal("Unexpected error while executing txn #" + current_txn_id + " [" + VoltProcedure.this.procedure_name + "]", ex);
-                    VoltProcedure.this.m_site.crash(ex);
-                } finally {
-                    assert(VoltProcedure.this.txn_id == current_txn_id) : VoltProcedure.this.txn_id + " != " + current_txn_id;
-                    
-                    // Clear out our private data
-                    if (t) LOG.trace("Releasing lock for txn #" + current_txn_id);
-                    VoltProcedure.this.m_currentTxnState = null;
-                    VoltProcedure.this.m_localTxnState = null;
-                    VoltProcedure.this.txn_id = null;
-                }
+            } catch (AssertionError ex) {
+                LOG.fatal("Unexpected error while executing txn #" + current_txn_id + " [" + VoltProcedure.this.procedure_name + "]", ex);
+                LOG.fatal("LocalTransactionState Dump:\n" + m_localTxnState);
+                VoltProcedure.this.m_site.crash(ex.getCause());
+            } catch (Exception ex) {
+                LOG.fatal("Unexpected error while executing txn #" + current_txn_id + " [" + VoltProcedure.this.procedure_name + "]", ex);
+                VoltProcedure.this.m_site.crash(ex);
             }
         }
     };
@@ -392,7 +387,9 @@ public abstract class VoltProcedure implements Poolable {
     
     @Override
     public void finish() {
-        // Nothing...
+        this.m_currentTxnState = null;
+        this.m_localTxnState = null;
+        this.txn_id = null;
     }
         
     final void initSQLStmt(SQLStmt stmt) {
@@ -520,7 +517,8 @@ public abstract class VoltProcedure implements Poolable {
 //        assert(this.txn_id == null) : "Conflict with txn #" + this.txn_id; // This should never happen!
         
         // Bombs away!
-         this.m_site.thread_pool.execute(new VoltProcedureExecutor(txnState, paramList));
+        this.executor.init(txnState, paramList);
+        this.m_site.thread_pool.execute(this.executor);
     }
 
     /**
@@ -576,7 +574,7 @@ public abstract class VoltProcedure implements Poolable {
             m_workloadXactHandle = ProcedureProfiler.workloadTrace.startTransaction(this, catProc, this.procParams);
         }
 
-        if (this.m_site.enable_profiling) this.m_localTxnState.java_time.startThinkMarker();
+        if (this.m_site.enable_profiling) this.m_localTxnState.java_time.start();
         try {
             if (trace.get()) LOG.trace("Invoking txn #" + this.txn_id + " [" +
                                        "procMethod=" + procMethod.getName() + ", " +
@@ -659,14 +657,14 @@ public abstract class VoltProcedure implements Poolable {
         } finally {
             if (this.m_site.enable_profiling) {
                 long time = ProfileMeasurement.getTime();
-                if (this.m_localTxnState.java_time.isStarted()) this.m_localTxnState.java_time.stopThinkMarker(time);
+                if (this.m_localTxnState.java_time.isStarted()) this.m_localTxnState.java_time.stop(time);
                 if (this.m_localTxnState.coord_time.isStarted()) {
 //                    assert(false) : "Txn #" + this.txn_id;
-                    this.m_localTxnState.coord_time.stopThinkMarker(time);
+                    this.m_localTxnState.coord_time.stop(time);
                 }
                 if (this.m_localTxnState.plan_time.isStarted()) {
 //                    assert(false) : "Txn #" + this.txn_id;
-                    this.m_localTxnState.plan_time.stopThinkMarker(time);
+                    this.m_localTxnState.plan_time.stop(time);
                 }
             }
         }

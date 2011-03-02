@@ -47,6 +47,7 @@ import org.voltdb.VoltDB;
 import org.voltdb.benchmark.BenchmarkResults.Result;
 import org.voltdb.catalog.Catalog;
 import org.voltdb.catalog.Cluster;
+import org.voltdb.catalog.Host;
 import org.voltdb.catalog.Site;
 import org.voltdb.client.Client;
 import org.voltdb.client.ClientFactory;
@@ -471,9 +472,6 @@ public class BenchmarkController {
             m_localserver.waitForInitialization();
         }
 
-        // Block ourselves until we know that the cluster is ready
-        // TODO(sw47) this.blockUntilClusterReady(catalog);
-        
         final int numClients = (m_config.clients.length * m_config.processesPerClient);
         if (m_loaderClass != null && !m_config.noDataLoad) {
             LOG.debug("Starting loader: " + m_loaderClass);
@@ -503,10 +501,12 @@ public class BenchmarkController {
             }
             loaderCommand.append(" -cp \"" + classpath + "\" ");
             loaderCommand.append(m_loaderClass.getCanonicalName());
-            for (String host : unique_hosts) {
-                String port = String.valueOf(VoltDB.DEFAULT_PORT);
-                loaderCommand.append(" HOST=" + host + ":" + port);
-                localArgs.add("HOST=" + host + ":" + port);
+            
+            for (Site catalog_site : CatalogUtil.getCluster(catalog).getSites()) {
+                String address = String.format("%s:%d", catalog_site.getHost().getIpaddr(), catalog_site.getProc_port());
+                loaderCommand.append(" HOST=" + address);
+                localArgs.add("HOST=" + address);
+                LOG.info("HStoreSite: " + address);
             }
 
             loaderCommand.append(" NUMCLIENTS=" + numClients + " ");
