@@ -40,7 +40,7 @@ public class SimpleIndexSelector extends AbstractIndexSelector {
             if (agraph == null) continue;
 
             for (Edge edge : agraph.getEdges()) {
-                Vector<Vertex> vertices = new Vector<Vertex>();
+                ArrayList<Vertex> vertices = new ArrayList<Vertex>();
                 vertices.addAll(agraph.getIncidentVertices(edge));
                 // FIXME
                 if (true || ! ( ptree.getPath(vertices.get(0), vertices.get(1)).isEmpty() &&

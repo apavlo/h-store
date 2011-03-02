@@ -29,9 +29,16 @@ public abstract class JSONUtil {
      * @return
      * @throws JSONException
      */
-    public static String format(String json) throws JSONException {
-        JSONObject jsonObject = new JSONObject(json);
-        return (jsonObject.toString(1));
+    public static String format(String json) {
+        try {
+            JSONObject jsonObject = new JSONObject(json);
+            return (jsonObject.toString(1));
+        } catch (Exception ex) {
+            System.err.println(json);
+            ex.printStackTrace();
+            // Ignore...
+        }
+        return (null);
     }
     
     /**

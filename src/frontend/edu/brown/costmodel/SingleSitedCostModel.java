@@ -1022,14 +1022,15 @@ public class SingleSitedCostModel extends AbstractCostModel {
         // whether the values of the StmtParameters used on the partitioning column of each table
         // all hash to the same value. If they don't, then we know we can't sbe single-partition
         } else {
-            for (String table_key : stmt_partitions.keySet()) {
+            for (Entry<String, Set<Integer>> entry: stmt_partitions.entrySet()) {
+            	String table_key = entry.getKey();
                 Table catalog_tbl = CatalogKey.getFromKey(catalog_db, table_key, Table.class);
                 if (catalog_tbl.getIsreplicated()) {
                     continue;
                 }
 
                 Column table_partition_col = catalog_tbl.getPartitioncolumn();
-                Set<Integer> hashes = stmt_partitions.get(table_key);
+                Set<Integer> hashes = entry.getValue();
 
                 // If there is more than one partition, then we'll never be multi-partition so we
                 // can stop our search right here.

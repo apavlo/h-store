@@ -235,6 +235,12 @@ public class SelectSubPlanAssembler extends SubPlanAssembler {
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
+//                System.out.println("Join Tables: ");
+//                for (Table t : joinOrder)
+//                {
+//                	System.out.println("Table Name: " + t.getName());
+//                }
+                //System.out.println("Node type: " + innerNode.getPlanNodeType() + " offset #: " + offset);
                 ExpressionUtil.setAndOffsetColumnIndexes(
                         m_context,
                         innerNode.getPredicate(),

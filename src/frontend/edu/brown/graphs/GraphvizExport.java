@@ -57,7 +57,7 @@ public class GraphvizExport<V extends AbstractVertex, E extends AbstractEdge> {
         }
         
         public String toString(String delimiter) {
-            final String f = (delimiter == "\n" ? StringUtil.SPACER : "") + "%s=\"%s\"" + delimiter;
+            final String f = (delimiter.equals("\n") ? StringUtil.SPACER : "") + "%s=\"%s\"" + delimiter;
             StringBuilder sb = new StringBuilder();
             for (Entry<Attributes, String> e : this.entrySet()) {
                 sb.append(String.format(f, e.getKey().name().toLowerCase(), e.getValue()));        

@@ -10,6 +10,8 @@ import org.apache.log4j.Logger;
 import org.json.*;
 
 import org.voltdb.*;
+import org.voltdb.planner.PlanColumn;
+import org.voltdb.planner.PlannerContext;
 import org.voltdb.plannodes.*;
 import org.voltdb.types.*;
 import org.voltdb.utils.*;
@@ -1195,6 +1197,20 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
     }
 
     /**
+     * Return all of the tables referenced in the given AbstractPlanNode
+     * Non-recursive.
+     * @param catalog_db
+     * @param node
+     * @return
+     * @throws Exception
+     */
+    public static Set<Table> getReferencedTablesNonRecursive(final Database catalog_db, final AbstractPlanNode node) throws Exception {
+        final Set<Table> ret = new HashSet<Table>();
+        CatalogUtil.getReferencedTables(catalog_db, node, ret);
+        return (ret);
+    }
+    
+    /**
      * Return all of the columns referenced in the given AbstractPlanNode
      * Non-recursive.
      * @param catalog_db
@@ -1262,9 +1278,29 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
                 // Need to make sure we get both the WHERE clause and the fields that are updated
                 // We need to get the list of columns from the ScanPlanNode below us
                 UpdatePlanNode up_node = (UpdatePlanNode) node;
+                Table catalog_tbl = catalog_db.getTables().get(up_node.getTargetTableName());
+                assert (catalog_tbl != null) : "Missing table " + up_node.getTargetTableName();
+                
                 AbstractScanPlanNode scan_node = CollectionUtil.getFirst(PlanNodeUtil.getPlanNodes(up_node, AbstractScanPlanNode.class));
                 assert (scan_node != null) : "Failed to find underlying scan node for " + up_node;
                 columns.addAll(PlanNodeUtil.getOutputColumns(catalog_db, scan_node));
+                if (scan_node.getInlinePlanNodeCount() > 0) {
+                    ProjectionPlanNode proj_node = scan_node.getInlinePlanNode(PlanNodeType.PROJECTION);
+                    assert(proj_node != null);
+                    
+                    // This is a bit tricky. We have to go by the names of the output columns to find what
+                    // column is meant to be updated
+                    PlannerContext pcontext = PlannerContext.singleton();
+                    for (Integer col_guid : proj_node.getOutputColumnGUIDs()) {
+                        PlanColumn pc = pcontext.get(col_guid);
+                        assert(pc != null);
+                        if (pc.getExpression() instanceof TupleAddressExpression) continue;
+                        
+                        Column catalog_col = catalog_tbl.getColumns().get(pc.displayName());
+                        assert(catalog_col != null) : String.format("Missing %s.%s", catalog_tbl.getName(), pc.displayName());
+                        columns.add(catalog_col);
+                    } // FOR
+                }
                 break;
             }
             case DELETE:
@@ -1285,28 +1321,30 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
      * @throws Exception
      */
     public static Set<Column> getReferencedColumns(final Database catalog_db, AbstractExpression exp) throws Exception {
+        final boolean debug = LOG.isDebugEnabled();
         final Set<Column> found_columns = new HashSet<Column>();
         new ExpressionTreeWalker() {
             @Override
             protected void callback(AbstractExpression element) {
                 if (element instanceof TupleValueExpression) {
-                    String table_name = ((TupleValueExpression) element)
-                            .getTableName();
+                    String table_name = ((TupleValueExpression)element).getTableName();
                     Table catalog_tbl = catalog_db.getTables().get(table_name);
                     if (catalog_tbl == null) {
-                        LOG.fatal("Unknown table '" + table_name + "' referenced in Expression node " + element);
-                        this.stop();
+                        // If it's a temp then we just ignore it. Otherwise throw an error!
+                        if (table_name.contains("VOLT_AGGREGATE_NODE_TEMP_TABLE") == false) {
+                            this.stop();
+                            throw new RuntimeException(String.format("Unknown table '%s' referenced in Expression node %s", table_name, element));
+                        } else if (debug) {
+                            LOG.debug("Ignoring temporary table '" + table_name + "'");
+                        }
                         return;
                     }
 
                     String column_name = ((TupleValueExpression) element).getColumnName();
                     Column catalog_col = catalog_tbl.getColumns().get(column_name);
                     if (catalog_col == null) {
-                        LOG.fatal("Unknown column '" + table_name + "."
-                                + column_name
-                                + "' referenced in Expression node " + element);
                         this.stop();
-                        return;
+                        throw new RuntimeException(String.format("Unknown column '%s.%s' referenced in Expression node %s", table_name, column_name, element));
                     }
                     found_columns.add(catalog_col);
                 }
@@ -1326,45 +1364,38 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
      */
     public static Set<Table> getReferencedTables(final Database catalog_db, final AbstractPlanNode root) {
         final Set<Table> found = new HashSet<Table>();
-        new PlanNodeTreeWalker() {
-            @Override
-            protected void populate_children(PlanNodeTreeWalker.Children children, AbstractPlanNode node) {
-                super.populate_children(children, node);
-                // Visit the inline nodes after the parent
-                for (AbstractPlanNode inline_node : node.getInlinePlanNodes()
-                        .values()) {
-                    children.addAfter(inline_node);
-                }
-                return;
-            }
-
+        new PlanNodeTreeWalker(true) {
             @Override
             protected void callback(AbstractPlanNode element) {
-                String table_name = null;
-                // AbstractScanNode
-                if (element instanceof AbstractScanPlanNode) {
-                    AbstractScanPlanNode cast_node = (AbstractScanPlanNode) element;
-                    table_name = cast_node.getTargetTableName();
-                    assert (table_name != null);
-                    assert (!table_name.isEmpty());
-                // AbstractOperationPlanNode
-                } else if (element instanceof AbstractOperationPlanNode) {
-                    AbstractOperationPlanNode cast_node = (AbstractOperationPlanNode) element;
-                    table_name = cast_node.getTargetTableName();
-                    assert (table_name != null);
-                    assert (!table_name.isEmpty());
-                }
-
-                if (table_name != null) {
-                    Table catalog_tbl = catalog_db.getTables().get(table_name);
-                    assert (catalog_tbl != null) : "Invalid table '"
-                            + table_name + "' extracted from " + element;
-                    found.add(catalog_tbl);
-                }
+                CatalogUtil.getReferencedTables(catalog_db, element, found);
                 return;
             }
         }.traverse(root);
         return (found);
+    }
+    
+    public static void getReferencedTables(final Database catalog_db, final AbstractPlanNode node, final Set<Table> found) {
+        String table_name = null;
+        // AbstractScanNode
+        if (node instanceof AbstractScanPlanNode) {
+            AbstractScanPlanNode cast_node = (AbstractScanPlanNode) node;
+            table_name = cast_node.getTargetTableName();
+            assert (table_name != null);
+            assert (!table_name.isEmpty());
+        // AbstractOperationPlanNode
+        } else if (node instanceof AbstractOperationPlanNode) {
+            AbstractOperationPlanNode cast_node = (AbstractOperationPlanNode) node;
+            table_name = cast_node.getTargetTableName();
+            assert (table_name != null);
+            assert (!table_name.isEmpty());
+        }
+
+        if (table_name != null) {
+            Table catalog_tbl = catalog_db.getTables().get(table_name);
+            assert (catalog_tbl != null) : "Invalid table '"
+                    + table_name + "' extracted from " + node;
+            found.add(catalog_tbl);
+        }
     }
 
     /**
@@ -1380,23 +1411,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
      */
     public static Set<Column> getPartitionableColumnReferences(final Database catalog_db, AbstractPlanNode node) throws Exception {
         final Set<Column> columns = new TreeSet<Column>();
-        new PlanNodeTreeWalker() {
-            @Override
-            protected void populate_children(PlanNodeTreeWalker.Children<AbstractPlanNode> children, AbstractPlanNode node) {
-                super.populate_children(children, node);
-                List<AbstractPlanNode> to_add = new ArrayList<AbstractPlanNode>();
-                for (AbstractPlanNode child : children.getBefore()) {
-                    to_add.addAll(child.getInlinePlanNodes().values());
-                } // FOR
-                children.addBefore(to_add);
-
-                to_add.clear();
-                for (AbstractPlanNode child : children.getAfter()) {
-                    to_add.addAll(child.getInlinePlanNodes().values());
-                } // FOR
-                children.addAfter(to_add);
-            };
-
+        new PlanNodeTreeWalker(true) {
             @Override
             protected void callback(final AbstractPlanNode node) {
                 try {
