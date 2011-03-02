@@ -219,6 +219,7 @@ public class AggregatePlanNode extends AbstractPlanNode {
             JSONObject aggregateColumn = aggregateColumns.getJSONObject(ii);
             m_aggregateTypes.add(ExpressionType.valueOf(aggregateColumn.getString(Members.AGGREGATE_TYPE.name())));
             m_aggregateColumnNames.add(aggregateColumn.getString(Members.AGGREGATE_NAME.name()));
+            m_aggregateColumnGuids.add(aggregateColumn.getInt(Members.AGGREGATE_GUID.name()));
             m_aggregateOutputColumns.add(aggregateColumn.getInt(Members.AGGREGATE_OUTPUT_COLUMN.name()));
         }
         

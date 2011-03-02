@@ -109,6 +109,7 @@ bool NestLoopIndexExecutor::p_init(AbstractPlanNode* abstract_node,
         columnNames[cur_index] = input_table->columnName(col_ctr);
         outputColumnGuids.
             push_back(node->getChildren()[0]->getOutputColumnGuids()[col_ctr]);
+//         fprintf(stderr, "[%d] %s [guid=%d]\n", cur_index, columnNames[cur_index].c_str(), outputColumnGuids[cur_index]);
     }
 
     // copy from inner table (target table)
@@ -117,8 +118,12 @@ bool NestLoopIndexExecutor::p_init(AbstractPlanNode* abstract_node,
          col_ctr++, cur_index++)
     {
         columnNames[cur_index] = target_table->columnName(col_ctr);
-        outputColumnGuids.push_back(inline_node->getOutputColumnGuids()[col_ctr]);
+        // HACK: Since our output columns for the inline IndexScan now include the outer table, 
+        //       we need to use the cur_index as the proper offset to get the right guid
+        outputColumnGuids.push_back(inline_node->getOutputColumnGuids()[cur_index]);
+//         fprintf(stderr, "[%d] %s [guid=%d]\n", cur_index, columnNames[cur_index].c_str(), outputColumnGuids[cur_index]);
     }
+//     fprintf(stderr, "=========================\n");
 
     // create the output table
     node->setOutputTable(TableFactory::getTempTable(node->getInputTables()[0]->databaseId(),

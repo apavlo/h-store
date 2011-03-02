@@ -42,9 +42,9 @@ public abstract class LoggerUtil {
         // Hack for testing...
         String paths[] = new String[]{
             System.getProperty("log4j.configuration", log4j_filename),
-            "/home/pavlo/Documents/H-Store/SVN-Brown/trunk/" + log4j_filename,
+            "/home/pavlo/Documents/H-Store/SVN-Brown/planopt-branch/" + log4j_filename,
             "/host/work/hstore/src/" + log4j_filename, 
-            "/research/hstore/sw47/trunk/" + log4j_filename,
+            "/research/hstore/sw47/planopt-branch/" + log4j_filename,
         };
         for (String p : paths) {
             File file = new File(p);

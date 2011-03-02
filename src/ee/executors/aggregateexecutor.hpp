@@ -787,6 +787,10 @@ AggregateExecutor<aggregateType>::p_init(AbstractPlanNode *abstract_node,
                 child_node->
                 getColumnIndexFromGuid(node->getAggregateColumnGuids()[ctr],
                                        catalog_db);
+            if (index == -1) {
+                fprintf(stderr, "[%02d] GUID = %d\n", ctr, node->getAggregateColumnGuids()[ctr]);
+                fprintf(stderr, "CHILD:\n%s\n----------------\nNODE:\n%s\n", child_node->debugInfo("").c_str(), node->debugInfo("").c_str());
+            }
             assert(index != -1);
             if (index == -1)
             {

@@ -35,6 +35,7 @@ import org.voltdb.planner.ParameterInfo;
 import org.voltdb.planner.PlanColumn;
 import org.voltdb.planner.QueryPlanner;
 import org.voltdb.planner.TrivialCostModel;
+import org.voltdb.planner.CompiledPlan.Fragment;
 import org.voltdb.plannodes.AbstractPlanNode;
 import org.voltdb.plannodes.AbstractScanPlanNode;
 import org.voltdb.plannodes.DeletePlanNode;
@@ -44,6 +45,8 @@ import org.voltdb.plannodes.UpdatePlanNode;
 import org.voltdb.types.QueryType;
 import org.voltdb.utils.BuildDirectoryUtils;
 import org.voltdb.utils.Encoder;
+
+import edu.brown.plannodes.PlanNodeUtil;
 
 /**
  * Compiles individual SQL statements and updates the given catalog.
@@ -131,6 +134,7 @@ public abstract class StatementCompiler {
                 e.printStackTrace();
                 throw compiler.new VoltCompilerException("Failed to plan for stmt: " + catalogStmt.getName());
             }
+
             if (plan == null) {
                 String msg = "Failed to plan for stmt: " + catalogStmt.getName();
                 String plannerMsg = planner.getErrorMessage();
@@ -176,20 +180,24 @@ public abstract class StatementCompiler {
             // serialize full plan to the catalog
             // for the benefit of the designer
             if (plan.fullWinnerPlan != null) {
-                String json = "ERROR";
-                try {
-                    // serialize to pretty printed json
-                    String jsonCompact = plan.fullWinnerPlan.toJSONString();
-                    // pretty printing seems to cause issues
-                    //JSONObject jobj = new JSONObject(jsonCompact);
-                    //json = jobj.toString(4);
-                    json = jsonCompact;
-                } catch (Exception e) {
-                    // hopefully someone will notice
-                    e.printStackTrace();
-                }
+                String json = plan.fullplan_json;
+//                try {
+//                    // serialize to pretty printed json
+////                    String jsonCompact = plan.fullWinnerPlan.toJSONString();
+//                    // pretty printing seems to cause issues
+//                    //JSONObject jobj = new JSONObject(jsonCompact);
+//                    //json = jobj.toString(4);
+////                    json = jsonCompact;
+//                } catch (Exception e) {
+//                    // hopefully someone will notice
+//                    e.printStackTrace();
+//                }
                 String hexString = Encoder.hexEncode(json);
-                catalogStmt.setFullplan(hexString);
+                if (_singleSited) {
+                    catalogStmt.setFullplan(hexString);
+                } else {
+                    catalogStmt.setMs_fullplan(hexString);
+                }
             }
     
             //Store the list of parameters types and indexes in the plan node list.
@@ -204,12 +212,10 @@ public abstract class StatementCompiler {
             Collections.sort(plan.fragments);
             for (CompiledPlan.Fragment fragment : plan.fragments) {
                 node_list = new PlanNodeList(fragment.planGraph);
-    
-                //
+                
                 // Now update our catalog information
                 // HACK: We're using the node_tree's hashCode() as it's name. It would be really
                 //     nice if the Catalog code give us an guid without needing a name first...
-                //
                 String planFragmentName = Integer.toString(node_list.hashCode());
                 PlanFragment planFragment = null;
                     
@@ -227,13 +233,12 @@ public abstract class StatementCompiler {
                 planFragment.setNontransactional(!fragmentReferencesPersistentTable(fragment.planGraph));
                 planFragment.setHasdependencies(fragment.hasDependencies);
                 planFragment.setMultipartition(fragment.multiPartition);
-    
+                
                 String json = null;
                 try {
                     JSONObject jobj = new JSONObject(node_list.toJSONString());
                     json = jobj.toString(4);
                 } catch (JSONException e2) {
-                    // TODO Auto-generated catch block
                     e2.printStackTrace();
                     System.exit(-1);
                 }
@@ -265,6 +270,7 @@ public abstract class StatementCompiler {
                     throw compiler.new VoltCompilerException(e.getMessage());
                 }
             }
+            
             last_plan = plan;
         } // FOR (multipartition + singlepartition)
         if (last_plan == null) {
