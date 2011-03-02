@@ -28,7 +28,7 @@ import edu.brown.workload.filters.ProcedureNameFilter;
  * @author pavlo
  */
 public class TestMarkovPathEstimator extends BaseTestCase {
-    private static final int WORKLOAD_XACT_LIMIT = 1000;
+    private static final int WORKLOAD_XACT_LIMIT = 100;
     private static final int BASE_PARTITION = 1;
     private static final int NUM_PARTITIONS = 10;
     private static final Class<? extends VoltProcedure> TARGET_PROCEDURE = neworder.class;

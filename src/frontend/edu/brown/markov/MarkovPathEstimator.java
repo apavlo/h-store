@@ -226,7 +226,6 @@ public class MarkovPathEstimator extends VertexTreeWalker<Vertex> {
         final boolean debug = LOG.isDebugEnabled();
         
         if (element.isAbortVertex() || element.isCommitVertex()) {
-            this.stop();
             return;
         }
         

@@ -16,6 +16,8 @@ public abstract class ThreadUtil {
     private static final Object lock = new Object();
     private static ExecutorService pool;
     
+    private static final int DEFAULT_NUM_THREADS = 2;
+    
     
     /**
      * Convenience wrapper around Thread.sleep() for when we don't care about exceptions
@@ -108,7 +110,7 @@ public abstract class ThreadUtil {
      * @return
      */
     public static int getMaxGlobalThreads() {
-        int max_threads = 5;
+        int max_threads = DEFAULT_NUM_THREADS;
         String prop = System.getProperty("hstore.max_threads");
         if (prop != null && prop.startsWith("${") == false) max_threads = Integer.parseInt(prop);
         return (max_threads);
