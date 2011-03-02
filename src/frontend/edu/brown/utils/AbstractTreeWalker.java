@@ -371,13 +371,13 @@ public abstract class AbstractTreeWalker<E> implements Poolable {
             if (trace) LOG.trace("Stop Called. Halting traversal.");
             return;
         }
-            
-        if (trace) LOG.trace("callback(" + element + ")");
-        this.callback(element);
 
         // Why is this here and not up above when we update the stack?
         this.visited.add(element);
         
+        if (trace) LOG.trace("callback(" + element + ")");
+        this.callback(element);
+
         if (this.stop) {
             if (trace) LOG.trace("Stop Called. Halting traversal.");
             return;
