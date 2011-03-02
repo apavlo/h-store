@@ -417,10 +417,14 @@ public abstract class PlanNodeUtil {
         // AggregatePlanNode
         if (node instanceof AggregatePlanNode) {
             AggregatePlanNode cast_node = (AggregatePlanNode)node;
-            ret += spacer + "AggregateTypes[" + cast_node.getAggregateTypes() + "]\n";
-            ret += spacer + "AggregateColumns" + cast_node.getAggregateOutputColumns() + " => " + cast_node.getAggregateColumnGuids() + "\n";
-            ret += spacer + "GroupByColumns" + cast_node.getGroupByColumns() + "\n";
-            //ret += PlanNodeUtil.debugOutputColumns("OutputColumns", cast_node, spacer);
+            sb.append(inner_spacer).append("AggregateTypes[" + cast_node.getAggregateTypes() + "]\n");
+//            sb.append(inner_spacer).append("AggregateColumns" + cast_node.getAggregateOutputColumns() + "\n");
+            sb.append(inner_spacer).append(PlanNodeUtil.debugOutputColumns("AggregateColumns", cast_node.getAggregateColumnGuids(), line_spacer));
+//            sb.append(inner_spacer).append("GroupByColumns" + cast_node.getGroupByColumns() + "\n");
+            sb.append(inner_spacer).append(PlanNodeUtil.debugOutputColumns("GroupByColumns", cast_node.getGroupByColumnIds(), line_spacer));
+
+            
+        // DeletePlanNode
         } else if (node instanceof DeletePlanNode) {
             sb.append(inner_spacer).append("Truncate[" + ((DeletePlanNode)node).isTruncate() + "\n");
             
