@@ -49,7 +49,7 @@ public class Fragmentizer {
         // there should be only one fragment in the plan at this point
         CompiledPlan.Fragment rootFragment = plan.fragments.get(0);
 
-        rootFragment.planGraph.updateOutputColumns(db);
+        // rootFragment.planGraph.updateOutputColumns(db);
 
         // chop up the plan and set all the proper dependencies recursively
         recursiveFindFragment(rootFragment, rootFragment.planGraph, plan.fragments);

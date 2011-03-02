@@ -178,21 +178,30 @@ public class PlanColumn
         return (this.m_hashCode);
     }
     
-    @Override
-    public boolean equals(Object obj) {
+    /**
+     * Check if the two objects are equal in all regards except for the AbstractExpression
+     * @param obj
+     * @param ignore_exp
+     * @return
+     */
+    public boolean equals(Object obj, boolean ignore_exp, boolean ignore_guid) {
         if (obj instanceof PlanColumn) {
             PlanColumn other = (PlanColumn)obj;
-            if (this.m_guid != other.m_guid) return (false);
+            if (ignore_guid == false && this.m_guid != other.m_guid) return (false);
             if (!this.m_displayName.equals(other.m_displayName)) return (false); 
             if (!this.m_sortOrder.equals(other.m_sortOrder)) return (false);
-            if (!this.m_storage.equals(other.m_storage)) return (false);
-            if (!ExpressionUtil.equals(this.m_expression, other.m_expression)) return (false);
+            /** DWU - ignore storage for now? Problematic in the future? **/
+            //if (!this.m_storage.equals(other.m_storage)) return (false);
+            if (ignore_exp == false && !ExpressionUtil.equals(this.m_expression, other.m_expression)) return (false);
             return (true);
         }
         return (false);
     }
 
-
+    @Override
+    public boolean equals(Object obj) {
+        return (this.equals(obj, false, false));
+    }
     
     //
     // Accessors: all return copies or immutable values

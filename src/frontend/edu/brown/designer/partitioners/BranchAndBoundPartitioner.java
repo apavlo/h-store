@@ -38,7 +38,7 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
         String spacer = "";
         for (int i = 0; i < 100; i++) {
             spacer += "  "; // StringUtil.SPACER;
-            TRAVERSAL_SPACERS.put(i, new String(spacer));
+            TRAVERSAL_SPACERS.put(i, spacer);
         } // FOR
     } // STATIC
     

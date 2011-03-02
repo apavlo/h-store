@@ -87,7 +87,6 @@ public abstract class LoggerUtil {
         paths.add("/host/work/hstore/src/" + log4j_filename);
         paths.add("/research/hstore/sw47/trunk/" + log4j_filename);
         
-        
         for (String p : paths) {
             File file = new File(p);
             if (file.exists()) {

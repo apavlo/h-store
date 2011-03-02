@@ -90,6 +90,7 @@ OPT_OUTPUT_DIR = "/home/pavlo/Documents/H-Store/Papers/partitioning/graphs"
 def readCostsFile(file, force = False, scale = None):
     logging.debug("Reading costs from '%s'" % file)
     costs = [ ]
+    regex = re.compile("[\s\t]+")
     with open(file, "r") as fd:
         ## Read costs until we find our date tag. We then need to check
         ## whether the next timestamp is less than our last one, meaning that
@@ -99,9 +100,13 @@ def readCostsFile(file, force = False, scale = None):
             if line.startswith("-- "):
                 checkpoint = line[3:].strip()
                 continue
-            data = line.split("\t")
-            timestamp = int(data[0])/1000
-            cost = float(data[1])
+            try:
+                data = regex.split(line)
+                timestamp = int(data[0])/1000
+                cost = float(data[1])
+            except:
+                logging.error("Failed to split: " + line)
+                raise
             
             last_timestamp = costs[0][0] if len(costs) > 0 else None
             last_cost = costs[0][1] if len(costs) > 0 else None
@@ -465,7 +470,7 @@ if __name__ == '__main__':
                         logging.debug("Calculating lower bounds for %s-%s" % (exp_type, benchmark))
                         costs_file = pplan.replace("pplan", "costs")
                         assert os.path.exists(costs_file), "Missing " + costs_file
-                        scale = None # 28800
+                        scale = 28800
                         cost_intervals = readCostsFile(costs_file, force = True, scale = scale)
                         assert cost_intervals, "Failed to get data from " + costs_file
                         
@@ -484,6 +489,8 @@ if __name__ == '__main__':
                             value = match.group(2).strip()  
                             lb_costs[param] = float(value)
                         ## FOR
+                        if benchmark == "auctionmark":
+                            lb_costs["Lower Bounds"] = 0.44
                         lb_costs["Upper Bounds"] = cost_intervals[0][1] - lb_costs["Lower Bounds"]
 
                         vldb_costs_file = os.path.join(OPT_OUTPUT_DIR, "lowerbounds-%s.dat" % (benchmark))

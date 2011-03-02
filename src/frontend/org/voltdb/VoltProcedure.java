@@ -644,7 +644,13 @@ public abstract class VoltProcedure implements Poolable {
                 ex.printStackTrace(pw);
                 String msg = sw.toString();
                 if (msg == null) msg = ex.toString();
-                LOG.fatal("PROCEDURE "+ catProc.getName() + " UNEXPECTED ABORT: " + msg + ex);
+                
+                String currentQueries = "";
+                for (int i = 0; i < batchQueryStmtIndex; i++) {
+                    currentQueries += String.format("[%02d] %s\n", i, CatalogUtil.getDisplayName(batchQueryStmts[i].catStmt));
+                }
+                LOG.fatal(String.format("PROCEDURE %s UNEXPECTED ABORT: %s\n%s", catProc.getName(), msg, currentQueries), ex);
+                
                 status = ClientResponseImpl.UNEXPECTED_FAILURE;
                 extra = "UNEXPECTED ABORT: " + msg;
             }
@@ -774,7 +780,7 @@ public abstract class VoltProcedure implements Poolable {
                  * and incur the performance hit. The client should serialize the correct invocation
                  * parameters
                  */
-                new Exception(
+                throw new Exception(
                         "tryScalarMakeCompatible: Unable to match parameter array:"
                         + sSubCls.getName() + " to provided " + pSubCls.getName());
             }
@@ -1614,7 +1620,7 @@ public abstract class VoltProcedure implements Poolable {
         StackTraceElement[] stack = e.getStackTrace();
         ArrayList<StackTraceElement> matches = new ArrayList<StackTraceElement>();
         for (StackTraceElement ste : stack) {
-            if (ste.getClassName() == getClass().getName())
+            if (ste.getClassName().equals(getClass().getName()))
                 matches.add(ste);
         }
 

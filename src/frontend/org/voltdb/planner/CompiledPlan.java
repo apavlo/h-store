@@ -63,6 +63,9 @@ public class CompiledPlan {
     public List<Fragment> fragments = new ArrayList<Fragment>();
 
     public String sql = null;
+    
+    /** PAVLO: Full Plan JSON before Fragemtizer Gets to it! **/
+    public String fullplan_json = null;
 
     /** A list of parameter names, indexes and types */
     public List<ParameterInfo> parameters = new ArrayList<ParameterInfo>();
@@ -129,7 +132,7 @@ public class CompiledPlan {
     private int resetPlanNodeIds(AbstractPlanNode node, int nextId) {
         node.overrideId(nextId++);
         for (AbstractPlanNode inNode : node.getInlinePlanNodes().values()) {
-            inNode.overrideId(0);
+            inNode.overrideId(nextId++);
         }
 
         for (int i = 0; i < node.getChildCount(); i++) {
@@ -137,7 +140,6 @@ public class CompiledPlan {
             assert(child != null);
             nextId = resetPlanNodeIds(child, nextId);
         }
-
         return nextId;
     }
 }

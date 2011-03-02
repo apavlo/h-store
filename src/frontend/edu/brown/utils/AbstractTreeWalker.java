@@ -12,7 +12,7 @@ import org.apache.log4j.Logger;
  * @param <E> element type
  */
 public abstract class AbstractTreeWalker<E> implements Poolable {
-    protected static final Logger LOG = Logger.getLogger(AbstractTreeWalker.class);
+    private static final Logger LOG = Logger.getLogger(AbstractTreeWalker.class);
     
     private static final Map<Class<?>, StackObjectPool> CHILDREN_POOLS = new HashMap<Class<?>, StackObjectPool>();
 
@@ -318,11 +318,7 @@ public abstract class AbstractTreeWalker<E> implements Poolable {
         assert(element != null) : "AbstractTreeWalker.traverse() was passed a null element";
         
         if (trace) LOG.trace("traverse(" + element + ")");
-        if (this.stop) {
-            if (trace) LOG.trace("Stop Called. Halting traversal.");
-            return;
-        }
-        if (this.first == null) {
+        if (this.first == null && this.stop == false) {
             assert(this.counter == 0) : "Unexpected counter value on first element [" + this.counter + "]";
             this.first = element;
             
@@ -331,6 +327,10 @@ public abstract class AbstractTreeWalker<E> implements Poolable {
             
             if (trace) LOG.trace("callback_first(" + element + ")");
             this.callback_first(element);
+        }
+        if (this.stop) {
+            if (trace) LOG.trace("Stop Called. Halting traversal.");
+            return;
         }
 
         this.stack.push(element);
@@ -350,37 +350,63 @@ public abstract class AbstractTreeWalker<E> implements Poolable {
         
         if (trace) LOG.trace("callback_before(" + element + ")");
         this.callback_before(element);
+        if (this.stop) {
+            if (trace) LOG.trace("Stop Called. Halting traversal.");
+            return;
+        }
         
         // Get the list of children to visit before and after we call ourself
-//        if (!this.visited.contains(element)) {
-            AbstractTreeWalker.Children<E> children = this.getChildren(element);
-            this.populate_children(children, element);
-            if (trace) LOG.trace("Populate Children: " + children);
-            for (E child : children.before_list) {
-                if (this.allow_revisit || this.visited.contains(child) == false) {
-                    if (trace) LOG.trace("Traversing child " + child + "' before " + element);
-                    this.traverse(child);
-                }
-            } // FOR
-            
-            // Why is this here and not up above when we update the stack?
-            this.visited.add(element);
-            
-            if (trace) LOG.trace("callback(" + element + ")");
-            this.callback(element);
+        AbstractTreeWalker.Children<E> children = this.getChildren(element);
+        this.populate_children(children, element);
+        if (trace) LOG.trace("Populate Children: " + children);
 
-            for (E child : children.after_list) {
-                if (this.allow_revisit || this.visited.contains(child) == false) {
-                    if (trace) LOG.trace("Traversing child " + child + " after " + element);
-                    this.traverse(child);
-                }
-            } // FOR
-//        }
+        for (E child : children.before_list) {
+            if (this.allow_revisit || this.visited.contains(child) == false) {
+                if (trace) LOG.trace("Traversing child " + child + "' before " + element);
+                this.traverse(child);
+            }
+            if (this.stop) break;
+        } // FOR
+        if (this.stop) {
+            if (trace) LOG.trace("Stop Called. Halting traversal.");
+            return;
+        }
+            
+        if (trace) LOG.trace("callback(" + element + ")");
+        this.callback(element);
+
+        // Why is this here and not up above when we update the stack?
+        this.visited.add(element);
+        
+        if (trace) LOG.trace("callback(" + element + ")");
+        this.callback(element);
+        if (this.stop) {
+            if (trace) LOG.trace("Stop Called. Halting traversal.");
+            return;
+        }
+
+        for (E child : children.after_list) {
+            if (this.stop) return;
+            if (this.allow_revisit || this.visited.contains(child) == false) {
+                if (trace) LOG.trace("Traversing child " + child + " after " + element);
+                this.traverse(child);
+            }
+            if (this.stop) break;
+        } // FOR
+        if (this.stop) {
+            if (trace) LOG.trace("Stop Called. Halting traversal.");
+            return;
+        }
         
         E check_exp = this.stack.pop();
         assert(element.equals(check_exp));
         
         this.callback_after(element);
+        if (this.stop) {
+            if (trace) LOG.trace("Stop Called. Halting traversal.");
+            return;
+        }
+        
         this.depth--;
         if (this.depth == -1) {
             // We need to return all of the children here, because most instances are not going to be pooled,

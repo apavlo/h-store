@@ -142,11 +142,13 @@ string
 OrderByPlanNode::debugInfo(const string& spacer) const
 {
     ostringstream buffer;
-    buffer << spacer << "SortColumns[" << m_sortColumns.size() << "]\n";
-    for (int ctr = 0, cnt = (int)m_sortColumns.size(); ctr < cnt; ctr++)
+    buffer << spacer << "SortColumns[" << m_sortColumnGuids.size() << "]\n";
+    for (int ctr = 0, cnt = (int)m_sortColumnGuids.size(); ctr < cnt; ctr++)
     {
-        buffer << spacer << "  [" << ctr << "] " << m_sortColumns[ctr]
-               << "::" << m_sortDirections[ctr] << "\n";
+        buffer << spacer << "  [" << ctr << "] "
+               << m_sortColumnNames[ctr] << " "
+               << "(guid=" << m_sortColumnGuids[ctr] << ", "
+               << "direction=" << m_sortDirections[ctr] << ")\n";
     }
     return buffer.str();
 

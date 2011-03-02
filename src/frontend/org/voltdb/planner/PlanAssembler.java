@@ -61,9 +61,9 @@ import org.voltdb.types.PlanNodeType;
 import org.voltdb.types.SortDirectionType;
 import org.voltdb.utils.CatalogUtil;
 
+import edu.brown.plannodes.PlanNodeTreeWalker;
 import edu.brown.plannodes.PlanNodeUtil;
 import edu.brown.utils.CollectionUtil;
-import edu.brown.utils.StringUtil;
 
 /**
  * The query planner accepts catalog data, SQL statements from the catalog, then
@@ -460,14 +460,36 @@ public class PlanAssembler {
                 limit.setLimitParameterIndex(parameterInfo.index);
             }
             limit.addAndLinkChild(root);
+            limit.setOutputColumns(root.m_outputColumns);
             root = limit;
         }
-
+        
+//        System.out.println(PlanNodeUtil.debug(root));
+//        System.out.println();
+//        System.out.println();
+        
+//        System.err.println(m_parsedSelect.sql);
+        PlanOptimizer po = new PlanOptimizer(m_context, m_catalogDb);
+        po.optimize(m_parsedSelect.sql, root);
+        
+//        if (root.getPlanNodeType().equals(PlanNodeType.PROJECTION) && PlanNodeUtil.getDepth(root) == 0) {
+//            System.out.println("Root node type: " + root.getPlanNodeType());
+//            System.out.println("Depth: " + PlanNodeUtil.getDepth(root));
+//            System.out.println(PlanNodeUtil.debug(root));
+//            System.out.println();
+//            System.out.println();                        
+//        }
+        
         SendPlanNode sendNode = new SendPlanNode(m_context, getNextPlanNodeId());
-
-        // connect the nodes to build the graph
-        sendNode.addAndLinkChild(root);
-
+        // check if there is a new root + connect the nodes to build the graph
+        if (po.getNewRoot() != null) {
+            sendNode.addAndLinkChild(po.getNewRoot());
+            sendNode.setOutputColumns(po.getNewRoot().m_outputColumns);            
+        } else {
+            sendNode.addAndLinkChild(root);
+            sendNode.setOutputColumns(root.m_outputColumns);                        
+        }
+        
         return sendNode;
     }
 
@@ -525,6 +547,7 @@ public class PlanAssembler {
                 SendPlanNode sendNode = new SendPlanNode(m_context, getNextPlanNodeId());
                 sendNode.setFake(true);
                 sendNode.addAndLinkChild(deleteNode);
+                sendNode.setOutputColumns(deleteNode.m_outputColumns);
                 return sendNode;
             } else {
                 return deleteNode;
@@ -635,9 +658,10 @@ public class PlanAssembler {
                 SendPlanNode sendNode = new SendPlanNode(m_context, getNextPlanNodeId());
                 sendNode.setFake(true);
                 sendNode.addAndLinkChild(updateNode);
+                sendNode.setOutputColumns(updateNode.m_outputColumns);
                 return sendNode;
             } else {
-            return updateNode;
+                return updateNode;
             }
             
         } else {
@@ -801,6 +825,7 @@ public class PlanAssembler {
             SendPlanNode sendNode = new SendPlanNode(m_context, getNextPlanNodeId());
             sendNode.setFake(true);
             sendNode.addAndLinkChild(insertNode);
+            sendNode.setOutputColumns(insertNode.m_outputColumns);
             rootNode = sendNode;
         }
 
@@ -1193,7 +1218,7 @@ public class PlanAssembler {
         }
         
         // PAVLO: Push non-AVG aggregates down into the scan for multi-partition queries
-        while (false && aggNode != null) {
+        while (aggNode != null) {
             // String orig_root_debug2 = PlanNodeUtil.debug(root);
             if (debug) LOG.debug("Trying to apply Aggregate pushdown optimization!");
             
@@ -1205,6 +1230,39 @@ public class PlanAssembler {
             // Can't do averages
             if (aggNode.getAggregateTypes().get(0) == ExpressionType.AGGREGATE_AVG) {
                 if (debug) LOG.debug("SKIP => Can't optimize AVG()");
+                break;
+            }
+            
+            // Check if this is count(distinct) query
+            if (aggNode.getAggregateTypes().get(0) == ExpressionType.AGGREGATE_COUNT) {
+                for (AbstractPlanNode child : aggNode.getChildren()) {
+                    if (child.getClass().equals(DistinctPlanNode.class)) {
+                        final DistinctPlanNode distinct_plan_node = PlanNodeUtil.getPlanNodes(aggNode, DistinctPlanNode.class).iterator().next();
+                        // write crap here to handle copying distinct above seqscan
+                        new PlanNodeTreeWalker() {
+                            @Override
+                            protected void callback(AbstractPlanNode element) {
+                                if (element instanceof SendPlanNode) {
+                                    AbstractPlanNode child = element.getChild(0);
+                                    element.clearChildren();
+                                    child.clearParents();
+                                    //DistinctPlanNode distinct_plan_node = new DistinctPlanNode(m_context, getNextPlanNodeId());
+                                    DistinctPlanNode distinct_clone = distinct_plan_node.produceCopyForTransformation();
+                                    distinct_clone.m_outputColumns.clear();
+                                    distinct_clone.m_outputColumns.addAll(child.m_outputColumns);
+                                    distinct_clone.addAndLinkChild(child);
+                                    element.addAndLinkChild(distinct_clone);
+                                }
+                            }
+                        }.traverse(aggNode);
+                        //System.out.println(PlanNodeUtil.debug(aggNode));
+                        break;
+                    }
+                }                
+            }
+            
+            // DWU add
+            if (!(aggNode.getChild(0) instanceof ReceivePlanNode)) {
                 break;
             }
             
@@ -1264,15 +1322,32 @@ public class PlanAssembler {
             
             clone_node.getGroupByColumns().addAll(aggNode.getGroupByColumns());
             clone_node.getGroupByColumnNames().addAll(aggNode.getGroupByColumnNames());
+            // DWU add
+            clone_node.getGroupByColumnIds().addAll(aggNode.getGroupByColumnIds());
             clone_node.getAggregateColumnGuids().addAll(aggNode.getAggregateColumnGuids());
             clone_node.getAggregateColumnNames().addAll(aggNode.getAggregateColumnNames());
             clone_node.getAggregateTypes().addAll(aggNode.getAggregateTypes());
             clone_node.getAggregateOutputColumns().addAll(aggNode.getAggregateOutputColumns());
             clone_node.m_outputColumns.addAll(aggNode.m_outputColumns); // HACK
             
+            // set aggregate node to contain sum
+            if (clone_node.getAggregateTypes().size() > 0) {
+                aggNode.getAggregateTypes().clear();
+                ArrayList<ExpressionType> exp_types = new ArrayList<ExpressionType>();
+                if (clone_node.getAggregateTypes().get(0).equals(ExpressionType.AGGREGATE_COUNT) || clone_node.getAggregateTypes().get(0).equals(ExpressionType.AGGREGATE_COUNT_STAR) || clone_node.getAggregateTypes().get(0).equals(ExpressionType.AGGREGATE_SUM)) {
+                    exp_types.add(ExpressionType.AGGREGATE_SUM);                
+                } else if (clone_node.getAggregateTypes().get(0).equals(ExpressionType.AGGREGATE_MAX)) {
+                    exp_types.add(ExpressionType.AGGREGATE_MAX);
+                } else if (clone_node.getAggregateTypes().get(0).equals(ExpressionType.AGGREGATE_MIN)) {
+                    exp_types.add(ExpressionType.AGGREGATE_MIN);
+                }
+                assert (exp_types != null);
+                aggNode.getAggregateTypes().addAll(exp_types);
+            }
+            
             assert(clone_node.getGroupByColumns().size() == aggNode.getGroupByColumns().size());
             assert(clone_node.getGroupByColumnNames().size() == aggNode.getGroupByColumnNames().size());
-            assert(clone_node.getGroupByColumnIds().size() == aggNode.getGroupByColumnIds().size());
+            assert(clone_node.getGroupByColumnIds().size() == aggNode.getGroupByColumnIds().size()) : clone_node.getGroupByColumnIds().size() + " not equal " + aggNode.getGroupByColumnIds().size();
             assert(clone_node.getAggregateTypes().size() == aggNode.getAggregateTypes().size());
             assert(clone_node.getAggregateColumnGuids().size() == aggNode.getAggregateColumnGuids().size());
             assert(clone_node.getAggregateColumnNames().size() == aggNode.getAggregateColumnNames().size());

@@ -517,7 +517,7 @@ public class ArgumentsParser {
         
         // Workload Trace
         if (this.params.containsKey(PARAM_WORKLOAD)) {
-            assert(this.catalog_db != null);
+            assert(this.catalog_db != null) : "Missing catalog!";
             String path = new File(this.params.get(PARAM_WORKLOAD)).getAbsolutePath();
             
             // This will prune out duplicate trace records...

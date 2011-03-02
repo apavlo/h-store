@@ -39,6 +39,18 @@ import java.util.zip.GZIPInputStream;
 public abstract class FileUtil {
     private static final Logger LOG = Logger.getLogger(FileUtil.class);
 
+    
+    public static String realpath(String path) {
+        File f = new File(path);
+        String ret = null;
+        try {
+            ret = f.getCanonicalPath();
+        } catch (Exception ex) {
+            LOG.warn(ex);
+        }
+        return (ret);
+    }
+    
     public static String basename(String path) {
         return (new File(path)).getName();
     }

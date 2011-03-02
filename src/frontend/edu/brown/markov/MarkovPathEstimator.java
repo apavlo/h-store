@@ -1,6 +1,7 @@
 package edu.brown.markov;
 
 import java.util.*;
+import java.util.Map.Entry;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.commons.pool.BasePoolableObjectFactory;
@@ -570,8 +571,9 @@ public class MarkovPathEstimator extends VertexTreeWalker<Vertex> {
         }
         
         System.err.println("Procedure\t\tTotal\tSingleP\tPartitions\tPaths");
-        for (Procedure catalog_proc : totals.keySet()) {
-            int total = totals.get(catalog_proc).get();
+        for (Entry<Procedure, AtomicInteger> entry : totals.entrySet()) {
+        	Procedure catalog_proc = entry.getKey();
+            int total = entry.getValue().get();
             if (total == 0) continue;
             
             int valid_partitions = correct_partitions_txns.get(catalog_proc).get();

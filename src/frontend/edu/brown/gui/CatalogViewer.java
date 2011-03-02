@@ -35,9 +35,12 @@ import java.util.*;
 import java.util.Map.Entry;
 
 import org.apache.commons.collections15.map.ListOrderedMap;
+import org.json.JSONObject;
 import org.voltdb.catalog.*;
 import org.voltdb.catalog.CatalogType.UnresolvedInfo;
 import org.voltdb.plannodes.AbstractPlanNode;
+import org.voltdb.plannodes.PlanNodeList;
+import org.voltdb.plannodes.PlanNodeTree;
 import org.voltdb.types.*;
 import org.voltdb.utils.Encoder;
 import org.voltdb.utils.Pair;
@@ -130,6 +133,12 @@ public class CatalogViewer extends AbstractViewer {
     public static void main(final String[] vargs) throws Exception {
         final ArgumentsParser args = ArgumentsParser.load(vargs);
         args.require(ArgumentsParser.PARAM_CATALOG);
+        
+//        Procedure catalog_proc = args.catalog_db.getProcedures().get("slev");
+//        Statement catalog_stmt = catalog_proc.getStatements().get("GetStockCount");
+//        String jsonString = Encoder.hexDecodeToString(catalog_stmt.getMs_fullplan());
+//        JSONObject jsonObject = new JSONObject(jsonString);
+//        System.err.println(jsonObject.toString(2));
         
         javax.swing.SwingUtilities.invokeLater(new Runnable() {
             public void run() {
@@ -332,25 +341,39 @@ public class CatalogViewer extends AbstractViewer {
 	protected void search(String value) {
         LOG.debug("Searching based on keyword '" + value + "'...");
         
-        //
-        // Check if it's a digit, which means that they are searching by Catalog guid
-        //
         Set<DefaultMutableTreeNode> found = new HashSet<DefaultMutableTreeNode>();
+
         Integer guid = null;
-        try {
-            guid = Integer.parseInt(value);
-            if (this.catalogTreeModel.getGuidNodeXref().containsKey(guid)) {
-                found.add(this.catalogTreeModel.getGuidNodeXref().get(guid));
-            } else {
-                guid = null;
+
+        // If it starts with "guid=", then that's a PlanColumn!
+        if (value.startsWith("guid=")) {
+            try {
+                guid = Integer.valueOf(value.split("guid=")[1]);
+                if (this.catalogTreeModel.getPlanNodeGuidNodeXref().containsKey(guid)) {
+                    found.addAll(this.catalogTreeModel.getPlanNodeGuidNodeXref().get(guid));
+                } else {
+                    guid = null;
+                }
+            } catch (Exception ex) {
+                // Ignore...
             }
-        } catch (Exception ex) {
-            // Ignore...
-        }
+            
+        } else {
+            
+            // Check if it's a digit, which means that they are searching by Catalog guid
+            try {
+                guid = Integer.parseInt(value);
+                if (this.catalogTreeModel.getGuidNodeXref().containsKey(guid)) {
+                    found.add(this.catalogTreeModel.getGuidNodeXref().get(guid));
+                } else {
+                    guid = null;
+                }
+            } catch (Exception ex) {
+                // Ignore...
+            }
+	    }
         
-        //
         // Otherwise search by name...
-        //
         if (guid == null && value.length() >= SEARCH_MIN_LENGTH) {
             LOG.debug("Searching for matching name '" + value + "'");
             for (String name : this.catalogTreeModel.getNameNodeXref().keySet()) {
@@ -405,7 +428,10 @@ public class CatalogViewer extends AbstractViewer {
 	protected String getSummaryText() {
 	    StringBuilder buffer = new StringBuilder();
 
-	    buffer.append("Catalog Summary\n").append(StringUtil.repeat("=", 50)).append("\n");
+	    buffer.append("Catalog Summary\n")
+	          .append(StringUtil.repeat("=", 50)).append("\n")
+	          .append(FileUtil.realpath(this.catalog_path)).append("\n")
+	          .append(StringUtil.repeat("=", 50)).append("\n");
 	    
         int cols = 0;
         int fkeys = 0;
