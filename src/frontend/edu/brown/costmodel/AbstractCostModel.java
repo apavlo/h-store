@@ -260,6 +260,10 @@ public abstract class AbstractCostModel implements Cloneable {
         */
     }
     
+    public PartitionEstimator getPartitionEstimator() {
+        return p_estimator;
+    }
+    
     // ----------------------------------------------------------------------------
     // ABSTRACT METHODS
     // ----------------------------------------------------------------------------
