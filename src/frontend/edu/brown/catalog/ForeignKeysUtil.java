@@ -1,6 +1,8 @@
 package edu.brown.catalog;
 
 import java.util.*;
+import java.util.Map.Entry;
+
 import org.apache.log4j.Logger;
 
 import org.voltdb.catalog.*;
@@ -243,8 +245,9 @@ public abstract class ForeignKeysUtil {
         final Database catalog_db = (Database)catalog_tbl.getParent();
         
         Map<Table, Constraint> table_const_map = new HashMap<Table, Constraint>();
-        for (String column : fkeys.keySet()) {
-            String fkey[] = fkeys.get(column).split("\\.");
+        for ( Entry<String, String> entry: fkeys.entrySet()) {
+        	String column = entry.getKey();
+            String fkey[] = entry.getValue().split("\\.");
             Column catalog_col = catalog_tbl.getColumns().get(column);
             Table catalog_fkey_tbl = catalog_db.getTables().get(fkey[0]);
             Column catalog_fkey_col = catalog_fkey_tbl.getColumns().get(fkey[1]);

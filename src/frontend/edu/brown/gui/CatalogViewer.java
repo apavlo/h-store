@@ -298,7 +298,7 @@ public class CatalogViewer extends AbstractViewer {
 		JPanel innerSearchPanel = new JPanel();
 		innerSearchPanel.setLayout(new BoxLayout(innerSearchPanel, BoxLayout.X_AXIS));
 		innerSearchPanel.add(new JLabel("Search: "));
-		this.searchField = new JTextField(20);
+		this.searchField = new JTextField(30);
 		innerSearchPanel.add(this.searchField);
 		searchPanel.add(innerSearchPanel, BorderLayout.EAST);
 		

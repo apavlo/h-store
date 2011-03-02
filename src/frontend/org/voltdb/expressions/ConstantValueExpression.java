@@ -90,6 +90,8 @@ public class ConstantValueExpression extends AbstractValueExpression {
 
     @Override
     public boolean equals(Object obj) {
+    	if (this == obj) return true;
+    	
         if (obj instanceof ConstantValueExpression == false) return false;
         ConstantValueExpression expr = (ConstantValueExpression) obj;
 

@@ -56,26 +56,26 @@ public class ClusterMonitor {
             "numPartitionsPerHost, numTotalPartitions, numKSafety) " +
             "values ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);");
 
-    private static final String insertInitiatorStatement = new String("insert into " + initiatorsTable +
+    private static final String insertInitiatorStatement = "insert into " + initiatorsTable +
             " ( instanceId, tsEvent, hostId, hostName, siteId, connectionId, connectionHostname, " +
             " procedureName, numInvocations, avgExecutionTime, minExecutionTime, maxExecutionTime, " +
             " numAborts, numFailures )" +
-            " values ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);");
+            " values ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);";
 
-    private static final String insertIOStatsStatement = new String("insert into " + iostatsTable +
+    private static final String insertIOStatsStatement = "insert into " + iostatsTable +
             " ( instanceId, tsEvent, hostId, hostName, connectionId, connectionHostname, " +
             " numBytesRead, numMessagesRead, numBytesWritten, numMessagesWritten )" +
-            " values ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);");
+            " values ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);";
 
-    private static final String insertProceduresStatement = new String("insert into " + proceduresTable +
+    private static final String insertProceduresStatement = "insert into " + proceduresTable +
             " (instanceId, tsEvent, hostId, hostName, siteId, procedureName, numInvocations, " +
             " numTimedInvocations, avgExecutionTime, minExecutionTime, maxExecutionTime, numAborts, numFailures )" +
-            " values ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);");
+            " values ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);";
 
-    private static final String insertTableStatsStatement = new String("insert into " + tablestatsTable +
+    private static final String insertTableStatsStatement = "insert into " + tablestatsTable +
             " (instanceId, tsEvent, hostId, hostName, siteId, partitionId, " +
             " tableName, tableType, numActiveTuples, numAllocatedTuples, numDeletedTuples )" +
-            " values ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);");
+            " values ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);";
 
     private final Thread m_loadThread = new Thread(new Loader(), "Client stats loader");
 
