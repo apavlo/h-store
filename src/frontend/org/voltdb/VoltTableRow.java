@@ -232,13 +232,13 @@ public abstract class VoltTableRow {
         Object ret = null;
         switch (type) {
         case TINYINT:
-            ret = new Byte((byte)getLong(columnIndex));
+            ret = Byte.valueOf((byte)getLong(columnIndex));
             break;
         case SMALLINT:
-            ret = new Short((short)getLong(columnIndex));
+            ret = Short.valueOf((short)getLong(columnIndex));
             break;
         case INTEGER:
-            ret = new Integer((int)getLong(columnIndex));
+            ret = Integer.valueOf((int)getLong(columnIndex));
             break;
         case BIGINT:
             ret = getLong(columnIndex);
@@ -279,13 +279,13 @@ public abstract class VoltTableRow {
         Object ret = null;
         switch (type) {
         case TINYINT:
-            ret = new Byte((byte) getLong(columnName));
+            ret = Byte.valueOf((byte) getLong(columnName));
             break;
         case SMALLINT:
-            ret = new Short((short) getLong(columnName));
+            ret = Short.valueOf((short) getLong(columnName));
             break;
         case INTEGER:
-            ret = new Integer((int) getLong(columnName));
+            ret = Integer.valueOf((int) getLong(columnName));
             break;
         case BIGINT:
             ret = getLong(columnName);

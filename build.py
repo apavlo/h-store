@@ -98,8 +98,8 @@ if CTX.LEVEL == "MEMCHECK_NOFREELIST":
     CTX.OUTPUT_PREFIX = "obj/memcheck_nofreelist"
 
 if CTX.LEVEL == "DEBUG":
-    CTX.EXTRAFLAGS += " -g3 -rdynamic -DDEBUG -DVOLT_LOG_LEVEL=500"
-    #CTX.OUTPUT_PREFIX = "obj/debug"
+    CTX.EXTRAFLAGS += " -g0 -rdynamic -DDEBUG -DVOLT_LOG_LEVEL=500"
+    CTX.OUTPUT_PREFIX = "obj/debug"
     CTX.OUTPUT_PREFIX = "obj/release"
 
 if CTX.LEVEL == "RELEASE":

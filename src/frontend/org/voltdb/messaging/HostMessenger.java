@@ -23,7 +23,7 @@ import java.net.SocketException;
 import java.nio.ByteBuffer;
 import java.nio.channels.SocketChannel;
 import java.util.HashMap;
-import java.util.Hashtable;
+import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Queue;
 import java.util.concurrent.Callable;
@@ -81,6 +81,8 @@ public class HostMessenger implements Messenger {
         m_hostsToWaitFor.set(expectedHosts);
         m_network = network;
         m_joiner = new SocketJoiner(m_coordinatorAddr, m_expectedHosts, catalogCRC, hostLog);
+        // To start a Thread 'before' a object is fully constructed is dangerous!!!!
+        // It's better to create a method to explicitly start the Thread
         m_joiner.start();
 
         m_foreignHosts = new ForeignHost[expectedHosts + 1];
@@ -110,9 +112,11 @@ public class HostMessenger implements Messenger {
         }
 
         m_localHostId = m_joiner.getLocalHostId();
-        Hashtable<Integer, SocketChannel> sockets = m_joiner.getHostsAndSockets();
-        for (Integer hostId : sockets.keySet()) {
-            SocketChannel socket = sockets.get(hostId);
+        Map<Integer, SocketChannel> sockets = m_joiner.getHostsAndSockets();
+        for (Entry<Integer, SocketChannel> entry : sockets.entrySet()) {
+        	int hostId = entry.getKey();
+            SocketChannel socket = entry.getValue();
+            
             try {
                 socket.socket().setSendBufferSize(1024*1024*2);
                 socket.socket().setReceiveBufferSize(1024*1024*2);

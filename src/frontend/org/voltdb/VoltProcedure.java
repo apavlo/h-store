@@ -727,7 +727,7 @@ public abstract class VoltProcedure {
                  * and incur the performance hit. The client should serialize the correct invocation
                  * parameters
                  */
-                new Exception(
+                throw new Exception(
                         "tryScalarMakeCompatible: Unable to match parameter array:"
                         + sSubCls.getName() + " to provided " + pSubCls.getName());
             }
@@ -1537,7 +1537,7 @@ public abstract class VoltProcedure {
         StackTraceElement[] stack = e.getStackTrace();
         ArrayList<StackTraceElement> matches = new ArrayList<StackTraceElement>();
         for (StackTraceElement ste : stack) {
-            if (ste.getClassName() == getClass().getName())
+            if (ste.getClassName().equals(getClass().getName()))
                 matches.add(ste);
         }
 
