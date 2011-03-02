@@ -46,6 +46,8 @@ public class GetTableCounts extends VoltProcedure {
             assert(results[0].getRowCount() > 0);
             assert(results[0].advanceRow()) : "Unable to advance results row for table " + e.getKey();
             ret.addRow(e.getKey(), results[0].getLong(0));
+            ret.addRow("Min", results[0].getLong(0));
+            ret.addRow("Max", results[0].getLong(0));
         } // FOR
         return (new VoltTable[]{ ret });
     }

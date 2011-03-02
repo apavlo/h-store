@@ -146,6 +146,8 @@ public class TupleValueExpression extends AbstractValueExpression {
             if (expr.m_columnName.equals(m_columnName) == false)
                 return false;
 
+        if (this.m_columnIndex != expr.m_columnIndex) return false;
+        
         // if all seems well, defer to the superclass, which checks kids
         return super.equals(obj);
     }

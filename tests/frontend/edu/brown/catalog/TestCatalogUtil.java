@@ -8,12 +8,14 @@ import org.voltdb.benchmark.tpcc.procedures.delivery;
 import org.voltdb.benchmark.tpcc.procedures.neworder;
 import org.voltdb.benchmark.tpcc.procedures.slev;
 import org.voltdb.catalog.*;
+import org.voltdb.plannodes.AbstractPlanNode;
 
 import edu.brown.BaseTestCase;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.catalog.special.MultiColumn;
 import edu.brown.catalog.special.MultiProcParameter;
 import edu.brown.catalog.special.ReplicatedColumn;
+import edu.brown.plannodes.PlanNodeUtil;
 import edu.brown.utils.ClassUtil;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.ProjectType;
@@ -332,6 +334,8 @@ public class TestCatalogUtil extends BaseTestCase {
         };
         
         Set<Column> columns = CatalogUtil.getReferencedColumns(catalog_stmt);
+//        AbstractPlanNode node = QueryPlanUtil.deserializeStatement(catalog_stmt, true);
+//        System.err.println(PlanNodeUtil.debug(node));
         assertNotNull(columns);
         assertEquals(columns.toString(), expected.length, columns.size());
         for (int i = 0; i < expected.length; i++) {

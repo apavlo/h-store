@@ -29,7 +29,6 @@ import org.voltdb.catalog.Cluster;
 import org.voltdb.catalog.Database;
 import org.voltdb.compiler.DatabaseEstimates;
 import org.voltdb.compiler.ScalarValueHints;
-import org.voltdb.planner.CompiledPlan;
 import org.voltdb.planner.PlanColumn;
 import org.voltdb.planner.PlanStatistics;
 import org.voltdb.planner.PlannerContext;
@@ -47,7 +46,8 @@ public abstract class AbstractPlanNode implements JSONString, Comparable<Abstrac
         INLINE_NODES,
         CHILDREN_IDS,
         PARENT_IDS,
-        OUTPUT_COLUMNS;
+        OUTPUT_COLUMNS,
+        IS_INLINE,
     }
 
     protected int m_id = -1;
@@ -81,6 +81,7 @@ public abstract class AbstractPlanNode implements JSONString, Comparable<Abstrac
      */
     protected AbstractPlanNode(PlannerContext context, Integer id) {
         assert(context != null);
+        assert(id != 0);
         m_context = context;
         m_id = id;
     }
@@ -112,11 +113,25 @@ public abstract class AbstractPlanNode implements JSONString, Comparable<Abstrac
 
     public abstract PlanNodeType getPlanNodeType();
 
+    public void setOutputColumns(Collection<Integer> col_guids) {
+        this.m_outputColumns.clear();
+        this.m_outputColumns.addAll(col_guids);
+    }
+    
     public boolean updateOutputColumns(Database db) {
-        ArrayList<Integer> childCols = new ArrayList<Integer>();
+    	//System.out.println("updateOutputColumns Node type: " + this.getPlanNodeType() + " # of inline nodes: " + this.getInlinePlanNodes().size());
+
+    	ArrayList<Integer> childCols = new ArrayList<Integer>();
         for (AbstractPlanNode child : m_children) {
             boolean result = child.updateOutputColumns(db);
             assert(result);
+            
+            // print child inline columns
+//            for (Integer out : child.m_outputColumns)
+//            {
+//            	System.out.println(m_context.get(out).displayName());
+//            }
+            
             childCols.addAll(child.m_outputColumns);
         }
 
@@ -149,6 +164,31 @@ public abstract class AbstractPlanNode implements JSONString, Comparable<Abstrac
         return (ArrayList<Integer>)input.clone();
     }
 
+    /**
+     * Get number of output columns for this node
+     * @return
+     */
+    public int getOutputColumnCount() {
+        return (this.m_outputColumns.size());
+    }
+    
+    /**
+     * Return the PlanColumn GUID at the given offset
+     * @param idx
+     * @return
+     */
+    public int getOutputColumnGUID(int idx) {
+        return (this.m_outputColumns.get(idx));
+    }
+    
+    /**
+     * Get an unmodifiable list of the Output PlanColumn GUIDs
+     * @return
+     */
+    public List<Integer> getOutputColumnGUIDs() {
+        return (Collections.unmodifiableList(this.m_outputColumns));
+    }
+    
     public PlanColumn findMatchingOutputColumn(String tableName,
                                                String columnName,
                                                String columnAlias)
@@ -271,6 +311,14 @@ public abstract class AbstractPlanNode implements JSONString, Comparable<Abstrac
     public AbstractPlanNode getChild(int index) {
         return m_children.get(index);
     }
+    
+    /**
+     * Gets all of the children of this node
+     * @return
+     */
+    public List<AbstractPlanNode> getChildren() {
+        return (Collections.unmodifiableList(m_children));
+    }
 
     public void clearChildren() {
         m_children.clear();
@@ -281,7 +329,7 @@ public abstract class AbstractPlanNode implements JSONString, Comparable<Abstrac
     }
 
     /**
-     * Gets the parents.
+     * Gets the number of parents.
      * @return the parents
      */
     public int getParentCount() {
@@ -290,6 +338,14 @@ public abstract class AbstractPlanNode implements JSONString, Comparable<Abstrac
 
     public AbstractPlanNode getParent(int index) {
         return m_parents.get(index);
+    }
+    
+    /**
+     * Gets all of the parents of this node
+     * @return
+     */
+    public List<AbstractPlanNode> getParents() {
+        return (Collections.unmodifiableList(m_parents));
     }
 
     public void clearParents() {
@@ -330,6 +386,10 @@ public abstract class AbstractPlanNode implements JSONString, Comparable<Abstrac
     public Map<PlanNodeType, AbstractPlanNode> getInlinePlanNodes() {
         return m_inlineNodes;
     }
+    
+    public int getInlinePlanNodeCount() {
+        return (m_inlineNodes.size());
+    }
 
     /**
      * @param node
@@ -356,8 +416,9 @@ public abstract class AbstractPlanNode implements JSONString, Comparable<Abstrac
      * @param type
      * @return An inlined node of the given type or null if none.
      */
-    public AbstractPlanNode getInlinePlanNode(PlanNodeType type) {
-        return m_inlineNodes.get(type);
+    @SuppressWarnings("unchecked")
+    public <T extends AbstractPlanNode> T getInlinePlanNode(PlanNodeType type) {
+        return (T)m_inlineNodes.get(type);
     }
 
     /**
@@ -536,9 +597,9 @@ public abstract class AbstractPlanNode implements JSONString, Comparable<Abstrac
     public void toJSONString(JSONStringer stringer) throws JSONException {
         stringer.key(Members.ID.name()).value(m_id);
         stringer.key(Members.PLAN_NODE_TYPE.name()).value(getPlanNodeType().toString());
+
+        stringer.key(Members.IS_INLINE.name()).value(m_isInline);
         stringer.key(Members.INLINE_NODES.name()).array();
-
-
         PlanNodeType types[] = new PlanNodeType[m_inlineNodes.size()];
         int i = 0;
         for (PlanNodeType type : m_inlineNodes.keySet()) {
@@ -590,6 +651,7 @@ public abstract class AbstractPlanNode implements JSONString, Comparable<Abstrac
             return null;
         }
         node.m_id = obj.getInt(Members.ID.name());
+        node.m_isInline = obj.getBoolean(Members.IS_INLINE.name());
         
         JSONArray inlineNodes = obj.getJSONArray(Members.INLINE_NODES.name());
         for (int ii = 0; ii < inlineNodes.length(); ii++) {
@@ -614,6 +676,7 @@ public abstract class AbstractPlanNode implements JSONString, Comparable<Abstrac
             PlanColumn column = PlanColumn.fromJSONObject(jsonObject, db);
             assert(column != null);
             node.m_outputColumns.add(column.guid());
+//            System.err.println(String.format("[%02d] %s => %s", ii, node, column));
         }
         
         node.loadFromJSONObject(obj, db);

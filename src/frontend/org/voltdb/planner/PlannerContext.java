@@ -17,6 +17,7 @@
 
 package org.voltdb.planner;
 
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.TreeMap;
@@ -27,6 +28,8 @@ import org.apache.log4j.Logger;
 import org.voltdb.expressions.AbstractExpression;
 import org.voltdb.planner.PlanColumn.SortOrder;
 import org.voltdb.planner.PlanColumn.Storage;
+
+import edu.brown.utils.ThreadUtil;
 
 public class PlannerContext {
     private static final Logger LOG = Logger.getLogger(PlannerContext.class);
@@ -43,6 +46,10 @@ public class PlannerContext {
     
     private transient final Map<Integer, PlanColumn> hashcode_col_xref = new HashMap<Integer, PlanColumn>();
 
+    public TreeMap<Integer, PlanColumn> getscolumnPool() {
+        return s_columnPool;
+    }
+    
     public PlanColumn getPlanColumn(AbstractExpression expression, String columnName) {
         return getPlanColumn(expression, columnName, SortOrder.kUnsorted, Storage.kTemporary);
     }
@@ -57,6 +64,10 @@ public class PlannerContext {
         if (retval == null) {
             int guid = s_nextId.incrementAndGet();
             retval = new PlanColumn(guid, expression, columnName, sortOrder, storage);
+            if (s_columnPool.get(guid) != null) {
+                PlanColumn orig = s_columnPool.get(guid); 
+                LOG.warn(String.format("Trying to add PlanColumn GUID #%d more than once!\nORIG: %s\nNEW: %s", guid, orig, retval));
+            }
             assert(s_columnPool.get(guid) == null);
             s_columnPool.put(guid, retval);
         }
@@ -71,9 +82,10 @@ public class PlannerContext {
     protected synchronized void registerPlanColumn(PlanColumn col) {
         int hashCode = col.hashCode();
         this.hashcode_col_xref.put(hashCode, col);
+//        if (col.guid() > this.s_nextId)
+//        this.s_nextId
     }
 
-    
     public PlanColumn clonePlanColumn(PlanColumn orig) {
         PlanColumn clone = this.getPlanColumn(orig.m_expression,
                                               orig.displayName(),

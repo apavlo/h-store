@@ -32,10 +32,14 @@ import org.voltdb.catalog.Cluster;
 import org.voltdb.catalog.Database;
 import org.voltdb.compiler.DatabaseEstimates;
 import org.voltdb.compiler.ScalarValueHints;
+import org.voltdb.planner.CompiledPlan.Fragment;
 import org.voltdb.planner.microoptimizations.MicroOptimizationRunner;
 import org.voltdb.plannodes.AbstractPlanNode;
 import org.voltdb.plannodes.PlanNodeList;
 import org.voltdb.utils.BuildDirectoryUtils;
+
+import edu.brown.plannodes.PlanNodeUtil;
+import edu.brown.utils.StringUtil;
 
 /**
  * The query planner accepts catalog data, SQL statements from the catalog, then
@@ -230,13 +234,12 @@ public class QueryPlanner {
                     // compute resource usage using the single stats collector
                     stats = new PlanStatistics();
                     AbstractPlanNode planGraph = plan.fragments.get(0).planGraph;
-
+                    
                     // compute statistics about a plan
                     boolean result = planGraph.computeEstimatesRecursively(stats, m_cluster, m_db, m_estimates, paramHints);
                     assert(result);
 
-                    // GENERATE JSON DEBUGGING OUTPUT BEFORE WE CLEAN UP THE
-                    // PlanColumns
+                    // GENERATE JSON DEBUGGING OUTPUT BEFORE WE CLEAN UP THE PlanColumns
                     // convert a tree into an execution list
                     PlanNodeList nodeList = new PlanNodeList(planGraph);
 
@@ -293,7 +296,7 @@ public class QueryPlanner {
             m_recentErrorMsg = "Unable to plan for statement. Error unknown.";
             return null;
         }
-        
+
         // Validate that everything is there
         Set<Integer> bestPlan_columns = bestPlan.getColumnGuids(); 
         for (Integer column_guid : bestPlan_columns) {
@@ -341,8 +344,38 @@ public class QueryPlanner {
             plansOut.close();
         }
 
+        // PAVLO: Get the full plan json
+        AbstractPlanNode root = bestPlan.fragments.get(0).planGraph;
+//        String orig_debug = PlanNodeUtil.debug(root);
+        assert(root != null);
+        String json = null;
+        try {
+            JSONObject jobj = new JSONObject(new PlanNodeList(root).toJSONString());
+            json = jobj.toString();
+        } catch (JSONException e2) {
+            e2.printStackTrace();
+            System.exit(-1);
+        }
+        assert(json != null);
+        
         // split up the plan everywhere we see send/recieve into multiple plan fragments
         bestPlan = Fragmentizer.fragmentize(bestPlan, m_db);
+        bestPlan.fullplan_json = json;
+        
+        // PAVLO:
+//        if (singlePartition == false && procName.equalsIgnoreCase("GetTableCounts") && stmtName.equalsIgnoreCase("HistoryCount")) {
+//            System.err.println(sql + "\n+++++++++++++++++++++++++++++++++");
+//            
+//            System.err.println("ORIGINAL:\n" + orig_debug + StringUtil.SINGLE_LINE);
+//            System.err.println("NEW:");
+//            
+//            for (int ii = 0; ii < bestPlan.fragments.size(); ii++) {
+//                Fragment f = bestPlan.fragments.get(ii);
+//                System.err.println(String.format("Fragment #%02d\n%s\n", ii, PlanNodeUtil.debug(f.planGraph)));
+//            }
+//            System.err.println(StringUtil.DOUBLE_LINE);
+//            System.exit(1);
+//        }
 
         // DTXN/EE can't handle plans that have more than 2 fragments yet.
 //        if (bestPlan.fragments.size() > 2) {

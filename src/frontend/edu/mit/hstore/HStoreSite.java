@@ -506,6 +506,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
                 throw new RuntimeException(ex);
             }
         }
+        if (dest_partition == null) dest_partition = CollectionUtil.getRandomValue(this.executors.keySet());
         // assert(dest_partition >= 0);
         if (trace) {
             LOG.trace("Client Handle = " + client_handle);

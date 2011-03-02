@@ -607,7 +607,13 @@ public abstract class VoltProcedure {
                 ex.printStackTrace(pw);
                 String msg = sw.toString();
                 if (msg == null) msg = ex.toString();
-                LOG.fatal("PROCEDURE "+ catProc.getName() + " UNEXPECTED ABORT: " + msg + ex);
+                
+                String currentQueries = "";
+                for (int i = 0; i < batchQueryStmtIndex; i++) {
+                    currentQueries += String.format("[%02d] %s\n", i, CatalogUtil.getDisplayName(batchQueryStmts[i].catStmt));
+                }
+                LOG.fatal(String.format("PROCEDURE %s UNEXPECTED ABORT: %s\n%s", catProc.getName(), msg, currentQueries), ex);
+                
                 status = ClientResponseImpl.UNEXPECTED_FAILURE;
                 extra = "UNEXPECTED ABORT: " + msg;
             }
