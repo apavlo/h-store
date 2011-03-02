@@ -67,7 +67,7 @@ public class TestMarkovPathEstimator extends BaseTestCase {
                   .attach(new BasePartitionTxnFilter(p_estimator, BASE_PARTITION))
                   .attach(new ProcedureLimitFilter(WORKLOAD_XACT_LIMIT));
             
-            file = this.getWorkloadFile(ProjectType.TPCC);
+            file = this.getWorkloadFile(ProjectType.TPCC, "100w.large");
             workload = new Workload(catalog);
             ((Workload) workload).load(file.getAbsolutePath(), catalog_db, filter);
 //             for (TransactionTrace xact : workload.getTransactions()) {
@@ -121,6 +121,7 @@ public class TestMarkovPathEstimator extends BaseTestCase {
         
 //        MarkovPathEstimator.LOG.setLevel(Level.DEBUG);
         MarkovPathEstimator estimator = new MarkovPathEstimator(this.graph, this.t_estimator, BASE_PARTITION, singlep_trace.getParams());
+        estimator.enableForceTraversal(true);
         estimator.traverse(this.graph.getStartVertex());
         Vector<Vertex> path = new Vector<Vertex>(estimator.getVisitPath());
         double confidence = estimator.getConfidence();
@@ -155,6 +156,7 @@ public class TestMarkovPathEstimator extends BaseTestCase {
         Vertex abort = this.graph.getAbortVertex();
         
         MarkovPathEstimator estimator = new MarkovPathEstimator(this.graph, this.t_estimator, BASE_PARTITION, multip_trace.getParams());
+        estimator.enableForceTraversal(true);
         estimator.traverse(this.graph.getStartVertex());
         Vector<Vertex> path = new Vector<Vertex>(estimator.getVisitPath());
         
