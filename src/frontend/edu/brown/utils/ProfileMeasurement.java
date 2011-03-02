@@ -12,6 +12,12 @@ public class ProfileMeasurement {
     public enum Type {
         /** The total amount of time spent for a transactions */
         TOTAL,
+        /** Initialization time **/
+        INITIALIZATION,
+        /** Clean-up time **/
+        CLEANUP,
+        /** The time spent waiting in the execution queue **/
+        QUEUE,
         /** The amount of time spent executing the Java-portion of the stored procedure */
         JAVA,
         /** The amount of time spent coordinating the transaction */
@@ -81,15 +87,15 @@ public class ProfileMeasurement {
      * @return this
      */
 
-    public ProfileMeasurement startThinkMarker(long time) {
+    public ProfileMeasurement start(long time) {
         assert(this.think_marker == null) : this.type + " - " + this.hashCode();
         this.think_marker = time;
 //        if (type == Type.JAVA) LOG.info(String.format("START %s [%d]", this.type, this.hashCode()));
         return (this);
     }
     
-    public ProfileMeasurement startThinkMarker() {
-        return (this.startThinkMarker(getTime()));
+    public ProfileMeasurement start() {
+        return (this.start(getTime()));
     }
     
     public boolean isStarted() {
@@ -105,7 +111,7 @@ public class ProfileMeasurement {
      * We will check to make sure that this handle was started first
      * @return this
      */
-    public ProfileMeasurement stopThinkMarker(long time) {
+    public ProfileMeasurement stop(long time) {
         assert(this.think_marker != null) : this.type + " - " + this.hashCode();
         long added = (time - this.think_marker);
         this.think_time += added;
@@ -114,8 +120,8 @@ public class ProfileMeasurement {
         return (this);
     }
 
-    public ProfileMeasurement stopThinkMarker() {
-        return (this.stopThinkMarker(getTime()));
+    public ProfileMeasurement stop() {
+        return (this.stop(getTime()));
     }
 
     public boolean isStopped() {
@@ -154,8 +160,8 @@ public class ProfileMeasurement {
      */
     public static void swap(ProfileMeasurement to_stop, ProfileMeasurement to_start) {
         long time = ProfileMeasurement.getTime();
-        to_stop.stopThinkMarker(time);
-        to_start.startThinkMarker(time);
+        to_stop.stop(time);
+        to_start.start(time);
     }
 
     @Override

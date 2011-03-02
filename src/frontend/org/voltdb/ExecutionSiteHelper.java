@@ -8,7 +8,6 @@ import java.util.Map;
 import java.util.Observable;
 import java.util.TreeMap;
 import java.util.Map.Entry;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.log4j.Logger;
 import org.voltdb.catalog.Database;
@@ -20,6 +19,7 @@ import edu.brown.utils.EventObserver;
 import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.ProfileMeasurement;
 import edu.brown.utils.StringUtil;
+import edu.brown.utils.LoggerUtil.LoggerBoolean;
 import edu.mit.hstore.HStoreSite;
 import edu.mit.hstore.dtxn.LocalTransactionState;
 import edu.mit.hstore.dtxn.TransactionState;
@@ -30,8 +30,8 @@ import edu.mit.hstore.dtxn.TransactionState;
  */
 public class ExecutionSiteHelper implements Runnable {
     public static final Logger LOG = Logger.getLogger(ExecutionSiteHelper.class);
-    private final static AtomicBoolean debug = new AtomicBoolean(LOG.isDebugEnabled());
-    private final static AtomicBoolean trace = new AtomicBoolean(LOG.isTraceEnabled());
+    private final static LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private final static LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
     static {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
@@ -183,19 +183,23 @@ public class ExecutionSiteHelper implements Runnable {
      * @param ts
      */
     public void calculateProfileInformation(LocalTransactionState ts) {
-        if (ts.sysproc) return;
+        if (ts.sysproc || ts.total_time.isStopped() == false) return;
         if (trace.get()) LOG.info("Calculating profile information for txn #" + ts.getTransactionId());
         ProfileMeasurement pms[] = {
             ts.total_time,
+            ts.init_time,
+            ts.queue_time,
             ts.java_time,
             ts.coord_time,
             ts.plan_time,
             ts.ee_time,
             ts.est_time,
+            ts.finish_time,
         };
         long tuple[] = new long[pms.length];
         for (int i = 0; i < pms.length; i++) {
             if (pms[i] != null) tuple[i] = pms[i].getTotalThinkTime();
+            if (i == 0) assert(tuple[i] > 0) : "????";
         } // FOR
         
         Procedure catalog_proc = ts.getProcedure();
@@ -210,11 +214,14 @@ public class ExecutionSiteHelper implements Runnable {
             "",
             "# of Txns",
             "Total Time",
+            "Initialization",
+            "Queue Time",
             "Java Procedure",
             "Coordinator",
             "Planner",
             "ExecutionEngine",
             "Estimation",
+            "Finish",
             "Miscellaneous",
         };
         int num_procs = 0;
