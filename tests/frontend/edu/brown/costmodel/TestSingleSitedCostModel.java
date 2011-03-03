@@ -388,6 +388,7 @@ public class TestSingleSitedCostModel extends BaseTestCase {
         // Make something else the ProcParameter
         cost_model.invalidateCache(catalog_proc);
         catalog_proc.setPartitionparameter(orig_partition_parameter + 1);
+        cost_model.getPartitionEstimator().initCatalog(clone_db);
         cost_model.estimateTransactionCost(clone_db, target_txn);
         entry = cost_model.getTransactionCacheEntry(target_txn);
         assertNotNull(entry);
@@ -397,6 +398,7 @@ public class TestSingleSitedCostModel extends BaseTestCase {
         // Now let's put S_ID back in as the ProcParameter
         cost_model.invalidateCache(catalog_proc);
         catalog_proc.setPartitionparameter(orig_partition_parameter);
+        cost_model.getPartitionEstimator().initCatalog(clone_db);
         cost_model.estimateTransactionCost(clone_db, target_txn);
         entry = cost_model.getTransactionCacheEntry(target_txn);
         assertNotNull(entry);

@@ -32,9 +32,9 @@ public class ProcParameter extends CatalogType {
 
     void setBaseValues(Catalog catalog, CatalogType parent, String path, String name) {
         super.setBaseValues(catalog, parent, path, name);
-        m_fields.put("type", m_type);
-        m_fields.put("isarray", m_isarray);
-        m_fields.put("index", m_index);
+        this.addField("type", m_type);
+        this.addField("isarray", m_isarray);
+        this.addField("index", m_index);
     }
 
     void update() {

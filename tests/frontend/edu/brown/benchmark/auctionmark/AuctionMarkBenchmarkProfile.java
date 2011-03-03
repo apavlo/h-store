@@ -63,7 +63,17 @@ public class AuctionMarkBenchmarkProfile implements JSONSerializable {
     public List<Long> user_ids;
 
     public enum Members {
-        SCALE_FACTOR, TABLE_SIZES, ITEM_CATEGORY_HISTOGRAM, USER_IDS, USER_AVAILABLE_ITEMS, USER_WAIT_FOR_PURCHASE_ITEMS, USER_COMPLETE_ITEMS, ITEM_BID_MAP, ITEM_BUYER_MAP, GAG_GAV_MAP, GAG_GAV_HISTOGRAM
+        SCALE_FACTOR,
+        TABLE_SIZES, 
+        ITEM_CATEGORY_HISTOGRAM,
+        USER_IDS,
+        USER_AVAILABLE_ITEMS,
+        USER_WAIT_FOR_PURCHASE_ITEMS,
+        USER_COMPLETE_ITEMS,
+        ITEM_BID_MAP,
+        ITEM_BUYER_MAP,
+        GAG_GAV_MAP,
+        GAG_GAV_HISTOGRAM
     };
 
     /**

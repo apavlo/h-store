@@ -21,6 +21,13 @@ public interface IGraph<V extends AbstractVertex, E extends AbstractEdge> extend
     public void setName(String name);
     public List<E> getPath(V source, V target);
     public List<E> getPath(List<V> path);
+    
+    /**
+     * Enable the checks on whether the graph is dirty
+     */
+    public void enableDirtyChecks();
+    
+    
     public String toString(E e, boolean verbose);
     public String debug();
 }

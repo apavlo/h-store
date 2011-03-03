@@ -130,7 +130,7 @@ public class HeuristicPartitioner extends AbstractPartitioner {
             }; // THREAD
             threads.add(thread);
         } // FOR
-        ThreadUtil.run(threads, info.getNumThreads());
+        ThreadUtil.runNewPool(threads);
         
         // ----------------------------------------------------
         // (2) Combine all of the PartitionTrees from each Procedure into single
@@ -743,7 +743,7 @@ public class HeuristicPartitioner extends AbstractPartitioner {
 //                System.out.println("ROOT: " + root);
                 new VertexTreeWalker<Vertex>(ptree) {
                     @Override
-                    protected void populate_children(VertexTreeWalker<Vertex>.Children children, Vertex element) {
+                    protected void populate_children(VertexTreeWalker.Children<Vertex> children, Vertex element) {
                       for (Vertex v : this.getGraph().getSuccessors(element)) {
                           if (!this.hasVisited(v)) {
                               children.addAfter(v);

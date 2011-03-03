@@ -4,6 +4,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 
+import org.voltdb.catalog.Catalog;
 import org.voltdb.catalog.CatalogType;
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.ProcParameter;
@@ -68,6 +69,10 @@ public class MultiProcParameter extends ProcParameter implements MultiAttributeC
     @Override
     public <T extends CatalogType> T getParent() {
         return (T)this.attributes.getFirst().getParent();
+    }
+    @Override
+    public Catalog getCatalog() {
+        return this.attributes.getFirst().getCatalog();
     }
     @Override
     public String getName() {

@@ -186,5 +186,20 @@ public class TestVoltProcedureListener extends TestCase {
         channel.writeChannel.numBytesToAccept = 0;
         handler.run(MESSAGE);
         assertEquals(handler, mockEvent.writeHandler);
+        assertArrayEquals(new byte[0], channel.writeChannel.dequeueWrite());
+
+        // unblocked while attempting to write: this would previously crash
+        channel.writeChannel.numBytesToAccept = -1;
+        handler.run(MESSAGE);
+        expected = Arrays.copyOfRange(EXPECTED_MESSAGE, 0, EXPECTED_MESSAGE.length * 2);
+        for (int i = 0; i < EXPECTED_MESSAGE.length; i++) {
+            expected[i+EXPECTED_MESSAGE.length] = EXPECTED_MESSAGE[i]; 
+        }
+        assertArrayEquals(expected, channel.writeChannel.dequeueWrite());
+
+        // calling the write handler should do nothing
+        channel.writeChannel.writeCalled = false;
+        assertFalse(handler.writeCallback(channel));
+        assertFalse(channel.writeChannel.writeCalled);
     }
 }

@@ -15,12 +15,16 @@ public class ClientResponseFinalCallback extends AbstractTxnCallback implements 
     private static final Logger LOG = Logger.getLogger(ClientResponseFinalCallback.class);
     
     private final byte output[];
-    private final boolean commit;
+    private final Dtxn.FragmentResponse.Status status;
     
-    public ClientResponseFinalCallback(HStoreSite hstore_coordinator, long txn_id, byte output[], boolean commit, RpcCallback<byte[]> done) {
+    public ClientResponseFinalCallback(HStoreSite hstore_coordinator, long txn_id, byte output[], Dtxn.FragmentResponse.Status status, RpcCallback<byte[]> done) {
         super(hstore_coordinator, txn_id, done);
         this.output = output;
-        this.commit = commit;
+        this.status = status;
+    }
+    
+    public byte[] getOutput() {
+        return output;
     }
     
     /**
@@ -28,13 +32,22 @@ public class ClientResponseFinalCallback extends AbstractTxnCallback implements 
      */
     @Override
     public void run(Dtxn.FinishResponse parameter) {
-        if (LOG.isDebugEnabled()) {
-            LOG.debug("Sending final response to client for txn #" + this.txn_id + " [" +
-                      "status=" + (this.commit ? "COMMIT" : "ABORT") + ", " + 
-                      "payload=" + parameter.hasPayload() + ", " +
-                      "bytes=" + this.output.length + "]");
+        final boolean d = LOG.isDebugEnabled();
+        
+        // But only send the output to the client if this wasn't a mispredict
+        if (this.status != Dtxn.FragmentResponse.Status.ABORT_MISPREDICT) {
+            if (d) {
+                LOG.debug("Invoking final response callback for txn #" + this.txn_id + " [" +
+                          "status=" + this.status + ", " + 
+                          "payload=" + parameter.hasPayload() + ", " +
+                          "bytes=" + this.output.length + "]");
+            }
+            this.done.run(this.output);
+        } else if (d) {
+            LOG.debug(String.format("Ignoring Dtxn.FinishResponse for ClientResponse because txn #%d was %s", this.txn_id, this.status));
         }
-        this.hstore_coordinator.completeTransaction(this.txn_id);
-        this.done.run(this.output);
+        
+        // Always clean-up the transaction with the HStoreSite
+        this.hstore_site.completeTransaction(this.txn_id);
     }
 } // END CLASS

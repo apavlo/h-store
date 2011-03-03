@@ -12,8 +12,8 @@ import org.voltdb.plannodes.AbstractPlanNode;
 
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.catalog.QueryPlanUtil;
-import edu.brown.plannodes.PlanNodeUtil;
 import edu.brown.utils.CollectionUtil;
+import edu.brown.plannodes.PlanNodeUtil;
 
 /**
  * 
@@ -220,12 +220,11 @@ public class CatalogTreeModel extends DefaultTreeModel {
                             if (!is_singlesited && !statement_cat.getHas_multisited()) continue;
 
                             String label = (is_singlesited ? "Single" : "Multi") + "-Sited Plan Fragments";
-                            String attributes = "";
+//                            String attributes = "";
                             AbstractPlanNode node = null;
                             
                             try {
                                 node = QueryPlanUtil.deserializeStatement(statement_cat, is_singlesited);
-                                attributes = PlanNodeUtil.debug(node);
                             } catch (Exception e) {
                                 String msg = e.getMessage();
                                 if (msg == null || msg.length() == 0) {
@@ -299,7 +298,7 @@ public class CatalogTreeModel extends DefaultTreeModel {
             DefaultMutableTreeNode hosts_node = new CatalogMapTreeNode("Hosts", cluster_cat.getHosts());
             cluster_node.add(hosts_node);
             for (Host host_cat : cluster_cat.getHosts()) {
-                DefaultMutableTreeNode host_node = new DefaultMutableTreeNode(new WrapperNode(host_cat, true));
+                DefaultMutableTreeNode host_node = new DefaultMutableTreeNode(new WrapperNode(host_cat, host_cat.getIpaddr()));
                 hosts_node.add(host_node);
                 buildSearchIndex(host_cat, host_node);
                 

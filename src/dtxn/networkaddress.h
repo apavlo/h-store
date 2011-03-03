@@ -25,7 +25,11 @@ public:
 
     bool operator==(const sockaddr_in& other) const;
 
+    /** Returns IP:port as a string. */
     std::string toString() const;
+
+    /** Returns the IP address formatted as a string. */
+    std::string ipToString() const;
 
     // Fills the addr structure with this address.
     void fill(struct sockaddr_in* addr) const;

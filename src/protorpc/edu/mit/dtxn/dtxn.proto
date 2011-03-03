@@ -7,7 +7,7 @@ message Fragment {
 
     // If true then the fragment must be undoable using a call to Finish.
     required bool undoable = 3;
-    
+
     // PAVLO: Attach extra info for the txn
     optional bytes payload = 4;
 }
@@ -18,6 +18,7 @@ message FragmentResponse {
         OK = 0;
         ABORT_USER = 1;
         ABORT_DEADLOCK = 2;
+        ABORT_MISPREDICT = 5;
     };
 
     required Status status = 1;
@@ -65,9 +66,8 @@ service ExecutionEngine {
 }
 
 
-// Specifies a single round of work performed by the coordinator.
-// IMPORTANT: If this is a multi-partition transaction, setting last_fragment still needs a
-// commit/abort message.
+// Describes a single round of work performed by the coordinator as part of a new or existing
+// transaction.
 message CoordinatorFragment {
     // Specifies the work to be performed at a single partition.
     message PartitionFragment {
@@ -78,14 +78,19 @@ message CoordinatorFragment {
     // Transaction id that is local for this connection.
     required int64 transaction_id = 1;
 
-    // Set of partitions to send work to. A partition can appear only once in this list
+    // Set of partitions to send work to. A partition can appear only once in this list.
     repeated PartitionFragment fragment = 2;
 
-    // If true, this is the final chunk of work for this transaction (indicates autocommit).
+    // If true, this is the final fragment for this transaction and the active set is empty.
     optional bool last_fragment = 3 [default = false];
-    
+
+    // After this fragment, the partitions in this list have no more work as part of this
+    // transaction. It is an error to to include a partition in this list that has already been
+    // excluded.
+    repeated int32 done_partition = 4;
+
     // PAVLO: Attach extra info for the txn
-    optional bytes payload = 4;
+    optional bytes payload = 5;
 }
 
 
@@ -105,6 +110,22 @@ message CoordinatorResponse {
 }
 
 service Coordinator {
+    /* Begin or continue executing a distributed transaction by distributing the work described in
+    the CoordinatorFragment. Returns all the responses in a single CoordinatorResponse message.
+    Only a single "round" can be active at once.
+
+    All transactions must be completed by calling Finish(), even though in some cases it is not
+    possible to change the transaction's outcome (single partition "finished" transactions).
+
+    All transactions start by including all partitions. The "active partition set" can be shrunk in
+    order to optimize execution (important for ordered execution). The active set can never grow.
+
+    Single partition transactions: either a single round of work or multiple rounds sent to a
+    single partition. In either case, the partition itself manages the commit so this avoids 2PC
+    and avoids blocking (for the "deterministic" scheduling).
+    */
     rpc Execute (CoordinatorFragment) returns (CoordinatorResponse);
+
+    // Finishes an active transaction. All transactions must be finished by calling this method.
     rpc Finish (FinishRequest) returns (FinishResponse);
 }

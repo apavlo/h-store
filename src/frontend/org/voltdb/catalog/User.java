@@ -32,9 +32,9 @@ public class User extends CatalogType {
         super.setBaseValues(catalog, parent, path, name);
         m_groups = new CatalogMap<GroupRef>(catalog, this, path + "/" + "groups", GroupRef.class);
         m_childCollections.put("groups", m_groups);
-        m_fields.put("sysproc", m_sysproc);
-        m_fields.put("adhoc", m_adhoc);
-        m_fields.put("shadowPassword", m_shadowPassword);
+        this.addField("sysproc", m_sysproc);
+        this.addField("adhoc", m_adhoc);
+        this.addField("shadowPassword", m_shadowPassword);
     }
 
     void update() {

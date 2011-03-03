@@ -25,8 +25,7 @@ public:
             last_fragment_(last_fragment),
             result_sent_(false),
             last_status_(ExecutionEngine::INVALID),
-            undo_(NULL), external_state_(external_state),
-            payload_(NULL) {
+            undo_(NULL), external_state_(external_state) {
         log_entry_.fragments.push_back(initial_work_unit);
         log_entry_.multiple_partitions = multiple_partitions;
         // for sp TXNs, last_fragment_ must be true
@@ -106,12 +105,15 @@ public:
     const LogEntry& log_entry() { return log_entry_; }
 
     // PAVLO
-    inline bool has_payload() const { return (payload_ != NULL); }
+    bool has_payload() const { return !payload_.empty(); }
     void set_payload(const std::string& payload) {
-        if (payload_ == NULL) payload_ = new ::std::string;
-        payload_->assign(payload);
+        assert(!payload.empty());
+        payload_ = payload;
     }
-    inline const ::std::string& payload() const { return (*payload_); }
+    const ::std::string& payload() const {
+        assert(!payload_.empty());
+        return payload_;
+    }
 
 private:
     // Stores the work units and multi-partition status. Work units are stored in order to
@@ -132,7 +134,7 @@ private:
     void* external_state_;
     
     // PAVLO: Let things attach payload data that we can send around during the finish process
-    std::string *payload_;
+    std::string payload_;
 };
 
 /** An implementation that does not support locks. */

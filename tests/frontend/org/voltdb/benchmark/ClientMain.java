@@ -245,7 +245,16 @@ public abstract class ClientMain {
                     // if (LOG.isDebugEnabled()) LOG.debug("Got poll message! Calling tick()!");
                     ClientMain.this.tick();
                 }
-                else if (command.equalsIgnoreCase("STOP")) {
+                else if (command.equalsIgnoreCase("SHUTDOWN")) {
+                    if (m_controlState == ControlState.RUNNING) {
+                        try {
+                            m_voltClient.callProcedure("@Shutdown");
+                        } catch (Exception ex) {
+                            ex.printStackTrace();
+                        }
+                    }
+                    System.exit(0);
+                } else if (command.equalsIgnoreCase("STOP")) {
                     if (m_controlState == ControlState.RUNNING) {
                         try {
                             if (m_sampler != null) {
@@ -258,8 +267,9 @@ public abstract class ClientMain {
                             }
                         } catch (InterruptedException e) {
                             System.exit(0);
+                        } finally {
+                            System.exit(0);
                         }
-                        System.exit(0);
                     }
                     LOG.fatal("STOP when not RUNNING");
                     System.exit(-1);

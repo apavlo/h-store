@@ -184,9 +184,9 @@ void FIFOBuffer::copyIn(const void* data, int length) {
     }
 }
 
-int FIFOBuffer::readUntilAvailable(io::InputStream* input, int desired_available) {
-    CHECK(desired_available >= 0);
-    while (available_ < desired_available) {
+int FIFOBuffer::readAllAvailable(io::InputStream* input) {
+    bool first = true;
+    while (true) {
         void* data;
         int length;
         writeBuffer(&data, &length);
@@ -194,7 +194,12 @@ int FIFOBuffer::readUntilAvailable(io::InputStream* input, int desired_available
         if (bytes < 0) {
             // Error (connection closed I hope)
             undoWrite(length);
-            return -1;
+
+            // If this was the first read attempt, return -1 == closed
+            // otherwise we return the number of bytes available.
+            // This makes it easy to consume the end of the stream
+            if (first) return -1;
+            break;
         } else if (bytes < length) {
             // Incomplete read: put back some of the buffer space
             assert(0 <= bytes && bytes < length);
@@ -204,6 +209,7 @@ int FIFOBuffer::readUntilAvailable(io::InputStream* input, int desired_available
         } else {
             // Complete read
             assert(bytes == length);
+            first = false;
         }
     }
 

@@ -23,6 +23,7 @@
 
 package org.voltdb.benchmark.tpcc;
 
+import org.apache.log4j.Logger;
 import org.voltdb.VoltTable;
 import org.voltdb.VoltType;
 import org.voltdb.types.TimestampType;
@@ -43,8 +44,8 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-public class TPCCClient extends org.voltdb.benchmark.ClientMain
-implements TPCCSimulation.ProcCaller {
+public class TPCCClient extends org.voltdb.benchmark.ClientMain implements TPCCSimulation.ProcCaller {
+    private static final Logger LOG = Logger.getLogger(TPCCClient.class);
     final TPCCSimulation m_tpccSim;
     final TPCCSimulation m_tpccSim2;
     private final ScaleParameters m_scaleParams;
@@ -616,8 +617,10 @@ implements TPCCSimulation.ProcCaller {
 
         @Override
         public void clientCallback(ClientResponse clientResponse) {
+            if (LOG.isDebugEnabled()) LOG.debug("clientResponse.getStatus() = " + clientResponse.getStatusName());
+            
             boolean status = checkTransaction(Constants.NEWORDER, clientResponse, cbRollback, false);
-            assert this.cbRollback || status;
+            assert (this.cbRollback || status) : "Rollback=" + this.cbRollback + ", Status=" + clientResponse.getStatusName();
             m_counts[TPCCSimulation.Transaction.NEW_ORDER.ordinal()].incrementAndGet();
         }
 
@@ -626,11 +629,12 @@ implements TPCCSimulation.ProcCaller {
 
     int randomIndex = 0;
     @Override
-    public void callNewOrder(boolean rollback, Object... paramlist) throws IOException {
+    public void callNewOrder(boolean rollback, boolean noop, Object... paramlist) throws IOException {
+        final String proc_name = (noop ? Constants.NOOP : Constants.NEWORDER);
+        final NewOrderCallback cb = new NewOrderCallback(rollback);
+        
         if (m_blockOnBackpressure) {
-            final NewOrderCallback cb = new NewOrderCallback(rollback);
-            while (!m_voltClient.callProcedure( cb,
-                Constants.NEWORDER, paramlist)) {
+            while (!m_voltClient.callProcedure(cb, proc_name, paramlist)) {
                 try {
                     m_voltClient.backpressureBarrier();
                 } catch (InterruptedException e) {
@@ -639,8 +643,7 @@ implements TPCCSimulation.ProcCaller {
                 }
             }
         } else {
-            m_queuedMessage = m_voltClient.callProcedure(new NewOrderCallback(rollback),
-                    Constants.NEWORDER, paramlist);
+            m_queuedMessage = m_voltClient.callProcedure(cb, proc_name, paramlist);
         }
     }
 

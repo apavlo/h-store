@@ -37,7 +37,7 @@ import java.util.zip.GZIPInputStream;
  * @author pavlo
  */
 public abstract class FileUtil {
-    private static final Logger LOG = Logger.getLogger(FileUtil.class.getName());
+    private static final Logger LOG = Logger.getLogger(FileUtil.class);
 
     
     public static String realpath(String path) {
@@ -54,6 +54,24 @@ public abstract class FileUtil {
     public static String basename(String path) {
         return (new File(path)).getName();
     }
+
+    /**
+     * Return a File handle to a temporary file location
+     * @param ext the suffix of the filename (not including the period)
+     * @param deleteOnExit whether to delete this file after the JVM exits
+     * @return
+     */
+    public static File getTempFile(String ext, boolean deleteOnExit) {
+        File tempFile;
+        try {
+            tempFile = File.createTempFile("hstore", "." + ext);
+            if (deleteOnExit) tempFile.deleteOnExit();
+        } catch (Exception ex) {
+            throw new RuntimeException(ex);
+        }
+        return (tempFile);
+    }
+    
     
     public static void writeStringToFile(String file_path, String content) throws IOException {
         FileUtil.writeStringToFile(new File(file_path), content);
@@ -67,19 +85,17 @@ public abstract class FileUtil {
     }
     
     public static File writeStringToTempFile(String content) {
-        File tempFile;
+        return (writeStringToTempFile(content, "tmp"));
+    }
+    
+    public static File writeStringToTempFile(String content, String ext) {
+        File tempFile = FileUtil.getTempFile(ext, false);
         try {
-            tempFile = File.createTempFile("myApp", ".tmp");
-            tempFile.deleteOnExit();
-            
-            FileUtil.writeStringToFile(tempFile, content);
-            
-            return tempFile;
-            
+            FileUtil.writeStringToFile(tempFile, content);    
         } catch (Exception e) {
-            e.printStackTrace();
-            return null;
+            throw new RuntimeException(e);
         }
+        return tempFile;
     }
     
     public static String readFile(File path) throws IOException {
@@ -104,9 +120,19 @@ public abstract class FileUtil {
      * @throws IOException
      */
     public static BufferedReader getReader(String path) throws IOException {
-        File file = new File(path);
+        return (FileUtil.getReader(new File(path)));
+    }
+    
+    /**
+     * Creates a BufferedReader for the given input path
+     * Can handle both gzip and plain text files
+     * @param file
+     * @return
+     * @throws IOException
+     */
+    public static BufferedReader getReader(File file) throws IOException {
         if (!file.exists()) {
-            throw new IOException("ERROR: The file '" + path + "' does not exist");
+            throw new IOException("The file '" + file + "' does not exist");
         }
         
         BufferedReader in = null;
@@ -153,14 +179,25 @@ public abstract class FileUtil {
      * @throws IOException
      */
     public static File findDirectory(String dirName) throws IOException {
-        return (FileUtil.findDirectory(dirName, new File(".").getCanonicalFile()).getCanonicalFile());
+        return (FileUtil.find(dirName, new File(".").getCanonicalFile(), true).getCanonicalFile());
     }
     
-    private static final File findDirectory(String dirName, File current) throws IOException {
-        LOG.debug("FindDirectory Current Location = " + current);
+    /**
+     * Find the path to a directory below our current location in the source tree
+     * Throws a RuntimeException if we go beyond our repository checkout
+     * @param dirName
+     * @return
+     * @throws IOException
+     */
+    public static File findFile(String fileName) throws IOException {
+        return (FileUtil.find(fileName, new File(".").getCanonicalFile(), false).getCanonicalFile());
+    }
+    
+    private static final File find(String name, File current, boolean isdir) throws IOException {
+        LOG.debug("Find Current Location = " + current);
         boolean has_svn = false;
         for (File file : current.listFiles()) {
-            if (file.getCanonicalPath().endsWith(File.separator + dirName)) {
+            if (file.getCanonicalPath().endsWith(File.separator + name) && file.isDirectory() == isdir) {
                 return (file);
             // Make sure that we don't go to far down...
             } else if (file.getCanonicalPath().endsWith(File.separator + ".svn")) {
@@ -169,9 +206,9 @@ public abstract class FileUtil {
         } // FOR
         // If we didn't see an .svn directory, then we went too far down
         if (!has_svn)
-            throw new RuntimeException("Unable to find directory '" + dirName + "' [last_dir=" + current.getAbsolutePath() + "]");  
+            throw new RuntimeException("Unable to find directory '" + name + "' [last_dir=" + current.getAbsolutePath() + "]");  
         File next = new File(current.getCanonicalPath() + File.separator + "..");
-        return (FileUtil.findDirectory(dirName, next));
+        return (FileUtil.find(name, next, isdir));
     }
     
     /**

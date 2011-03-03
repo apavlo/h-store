@@ -29,6 +29,9 @@ TEST(CachedCircularBuffer, Simple) {
 
     EXPECT_EQ("foo", buffer.front());
     EXPECT_EQ("foo", buffer.at(0));
+
+    buffer.mutable_front()->assign("bar");
+    EXPECT_EQ("bar", buffer.at(0));
 }
 
 TEST(CachedCircularBuffer, LeakRecycledElements) {

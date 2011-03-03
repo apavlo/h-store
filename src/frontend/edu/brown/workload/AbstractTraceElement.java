@@ -48,16 +48,21 @@ public abstract class AbstractTraceElement<T extends CatalogType> implements JSO
     private static AtomicLong NEXT_ID = new AtomicLong(0);
     
     public enum Members {
+        // Unique AbstractTraceElement Id
         ID,
-        START_TIMESTAMP,
-        STOP_TIMESTAMP,
+        // Catalog Name
+        NAME,
+        // Start Time (relative to start of trace)
+        START,
+        // Stop Time (relative to start of trace)
+        STOP,
+        // Element Parameters
         PARAMS,
-        CATALOG_NAME,
+        // Aborted (true/false)
         ABORTED,
     };
     
     protected long id;
-    protected String xact_id;
     protected Long start_timestamp;
     protected Long stop_timestamp; 
     protected Object params[];
@@ -72,15 +77,12 @@ public abstract class AbstractTraceElement<T extends CatalogType> implements JSO
         // Nothing to do...
     }
     
-    public AbstractTraceElement(String xact_id, T catalog_item, Object params[]) {
-        //
+    public AbstractTraceElement(T catalog_item, Object params[]) {
         // Important: We have to create a new unique id here. This is needed so that we can keep
         // the list of the trace elements as they are created by the system in order to play back
         // the trace by what really happened (as opposed to just getting the individual xact elements
         // one by one.
-        //
         this.id = NEXT_ID.getAndIncrement();
-        this.xact_id = xact_id;
         this.params = params;
         this.catalog_item_name = catalog_item.getName();
         this.start_timestamp = System.nanoTime();
@@ -117,14 +119,6 @@ public abstract class AbstractTraceElement<T extends CatalogType> implements JSO
         return this.id;
     }
     
-    /**
-     * Return the TransactionId for this TransactionTrace
-     * @return the xact_id
-     */
-    public String getTransactionId() {
-        return this.xact_id;
-    }
-
     /**
      * @return the start_timestamp
      */
@@ -206,9 +200,9 @@ public abstract class AbstractTraceElement<T extends CatalogType> implements JSO
     
     public void toJSONString(JSONStringer stringer, Database catalog_db) throws JSONException {
         stringer.key(Members.ID.name()).value(this.id);
-        stringer.key(Members.CATALOG_NAME.name()).value(this.catalog_item_name);
-        stringer.key(Members.START_TIMESTAMP.name()).value(this.start_timestamp);
-        stringer.key(Members.STOP_TIMESTAMP.name()).value(this.stop_timestamp);
+        stringer.key(Members.NAME.name()).value(this.catalog_item_name);
+        stringer.key(Members.START.name()).value(this.start_timestamp);
+        stringer.key(Members.STOP.name()).value(this.stop_timestamp);
         stringer.key(Members.ABORTED.name()).value(this.aborted);
           
         // This doesn't work because CatalogType doesn't have have we need
@@ -265,6 +259,7 @@ public abstract class AbstractTraceElement<T extends CatalogType> implements JSO
     
     protected <U extends CatalogType> void paramsFromJSONObject(JSONObject object, CatalogMap<U> catalog_params, String param_field) throws Exception {
         assert(catalog_params != null);
+        final Thread self = Thread.currentThread();
         JSONArray jsonParams = object.getJSONArray(Members.PARAMS.name());
         int num_params = catalog_params.size();
         this.params = new Object[num_params];
@@ -310,7 +305,7 @@ public abstract class AbstractTraceElement<T extends CatalogType> implements JSO
             if (param_isarray) {
                 Object inner[] = new Object[jsonInner.length()];
                 for (int j = 0; j < jsonInner.length(); j++) {
-                    inner[j] = VoltTypeUtil.getObjectFromString(param_type, jsonInner.getString(j));
+                    inner[j] = VoltTypeUtil.getObjectFromString(param_type, jsonInner.getString(j), self);
                     if (inner[j] == null) {
                         LOG.fatal("Array parameter " + j + " for " + catalog_param + " is null");
                         System.exit(1);
@@ -322,12 +317,12 @@ public abstract class AbstractTraceElement<T extends CatalogType> implements JSO
             } else {
                 //System.err.println("[" + i + "] " + jsonParams.getString(i) + " (" + param_type + ")");
                 try {
-                    this.params[i] = VoltTypeUtil.getObjectFromString(param_type, jsonParams.getString(i));
+                    this.params[i] = VoltTypeUtil.getObjectFromString(param_type, jsonParams.getString(i), self);
                     if (this.params[i] == null) {
                         throw new Exception(catalog_param + " is null [" + param_type + "]");
                     }
                 } catch (Exception ex) {
-                    LOG.fatal("Failed to convert param '" + jsonParams.getString(i) + "' to " + param_type + " for " + catalog_param + " in " + CatalogUtil.getDisplayName(catalog_param.getParent()));
+                    LOG.fatal("Failed to convert param '" + jsonParams.getString(i) + "' to " + param_type + " for " + catalog_param + " in " + CatalogUtil.getDisplayName(catalog_param.getParent()), ex);
                     throw ex;
                 }
             }
@@ -336,11 +331,11 @@ public abstract class AbstractTraceElement<T extends CatalogType> implements JSO
     
     protected void fromJSONObject(JSONObject object, Database db) throws JSONException {
         this.id = object.getLong(Members.ID.name());
-        this.start_timestamp = object.getLong(Members.START_TIMESTAMP.name());
-        if (!object.isNull(Members.STOP_TIMESTAMP.name())) {
-            this.stop_timestamp = object.getLong(Members.STOP_TIMESTAMP.name());
+        this.start_timestamp = object.getLong(Members.START.name());
+        if (!object.isNull(Members.STOP.name())) {
+            this.stop_timestamp = object.getLong(Members.STOP.name());
         }
-        this.catalog_item_name = object.getString(Members.CATALOG_NAME.name());
+        this.catalog_item_name = object.getString(Members.NAME.name());
         this.aborted = object.getBoolean(Members.ABORTED.name());
     }
 }

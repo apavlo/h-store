@@ -208,28 +208,33 @@ public class ParameterCorrelations extends TreeSet<Correlation> implements JSONS
     }
     
     public String debug(Statement...catalog_stmts) {
-        List<Statement> list = new ArrayList<Statement>();
-        CollectionUtil.addAll(list, catalog_stmts);
-        return (this.debug(list));
+        return (this.debug(CollectionUtil.addAll(new ArrayList<Statement>(), catalog_stmts)));
     }
  
     public String debug(Collection<Statement> catalog_stmts) {
-        String ret = "";
+        StringBuilder sb = new StringBuilder();
         for (Statement catalog_stmt : catalog_stmts) {
-            int num_instances = this.stmt_correlations.get(catalog_stmt).size();
-            ret += catalog_stmt.getName() + " [# of Instances=" + num_instances + "]\n";
-            for (Integer catalog_stmt_index : this.stmt_correlations.get(catalog_stmt).keySet()) {
-                if (num_instances > 1) ret += String.format("   Instance #%02d:\n", catalog_stmt_index);
-                SortedMap<StmtParameter, SortedSet<Correlation>> params = this.stmt_correlations.get(catalog_stmt).get(catalog_stmt_index);
-                for (StmtParameter catalog_stmt_param : params.keySet()) {
-                    for (Correlation c : params.get(catalog_stmt_param)) {
-                        ret += "   " + c + "\n";
-                    } // FOR (correlation)
-                } // FOR (catalog_stmt_param)
-            } // FOR (catalog_stmt_index)
-            ret += CorrelationCalculator.DEFAULT_SINGLE_LINE;
+            if (this.stmt_correlations.containsKey(catalog_stmt)) {
+                int num_instances = this.stmt_correlations.get(catalog_stmt).size();
+                sb.append(catalog_stmt.getName() + " [# of Instances=" + num_instances + "]\n");
+                for (Integer catalog_stmt_index : this.stmt_correlations.get(catalog_stmt).keySet()) {
+                    if (num_instances > 1) sb.append(String.format("   Instance #%02d:\n", catalog_stmt_index));
+    
+                    if (this.stmt_correlations.get(catalog_stmt).containsKey(catalog_stmt_index)) {
+                        SortedMap<StmtParameter, SortedSet<Correlation>> params = this.stmt_correlations.get(catalog_stmt).get(catalog_stmt_index);
+                        for (StmtParameter catalog_stmt_param : params.keySet()) {
+                            for (Correlation c : params.get(catalog_stmt_param)) {
+                                sb.append("   " + c + "\n");
+                            } // FOR (correlation)
+                        } // FOR (catalog_stmt_param)
+                    } else {
+                        sb.append("   <NONE>\n");
+                    }
+                } // FOR (catalog_stmt_index)
+                sb.append(CorrelationCalculator.DEFAULT_SINGLE_LINE);
+            }
         } // FOR (catalot_stmt)
-        return (ret);
+        return (sb.toString());
     }
     
     // ----------------------------------------------------------------------------

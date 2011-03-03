@@ -50,7 +50,6 @@
 <property name='build.protorpc.dir'          location='${build.dir}/protorpc' />
 <property name='vendor.lib.dir'              location='third_party/java/jars' />
 <property name='vendor.src.dir'              location='third_party/java/src'  />
-<property name='vendor.obj.dir'              location='third_party/java/obj'  />
 <property name='m1catalog'                   location='${src.test.dir}/org/voltdb/catalog/catalog.txt' />
 <property name='depcache'                    value='.depcache' />
 
@@ -84,6 +83,10 @@
 <property file="${benchmark.dir}/${project}.properties" prefix="benchmark" />
 <property name="benchmark.jar" location="${project}.jar" />
 
+<condition property="jar" value="${benchmark.jar}">
+    <not><isset property="jar"/></not>
+</condition>
+
 <!-- Default heap size for Volt server (MB)  -->
 <condition property="volt.server.memory" value="2048">
     <not><isset property="volt.server.memory"/></not>
@@ -102,7 +105,6 @@
     <pathelement location='${build.instr.dir}' />
     <pathelement location='${build.prod.dir}' />
     <pathelement location='${build.test.dir}' />
-    <pathelement location='${vendor.obj.dir}' />
     <fileset dir='${vendor.lib.dir}'>
         <include name='*.jar' />
         <exclude name='ant.jar' />
@@ -169,29 +171,25 @@ PRIMARY ENTRY POINTS
 
 <!--
 ***************************************
-DISTRIBUTION
+ENVIRONMENT SETUP
 ***************************************
 -->
 
-<target name="voltbin" depends="compile, ee, jars">
-    <mkdir dir="${build.dir}/voltbin" />
-    <copy todir="${build.dir}/voltbin" flatten="true">
-        <fileset dir="${build.dir}" defaultexcludes="yes">
-            <include name="nativelibs/libvoltdb*" />
-            <include name="prod/hstore.jar" />
-        </fileset>
-    </copy>
-    <!-- use cp to preserve permissions -->
-    <exec dir="tools" executable="cp" failonerror="true">
-        <arg line="getmac.py"/>
-        <arg line="killstragglers.sh"/>
-        <arg line="${build.dir}/voltbin"/>
-    </exec>
-    <!-- strip the voltbin shared library (~40x size reduction) -->
-    <exec dir='${build.dir}/voltbin' executable='/bin/sh'>
-        <arg line="-c '/usr/bin/strip -x libvoltdb*'"/>
-    </exec>
+<!--<target name="default_properties.check">
+   <available property="default_properties.exists" file="${propeties.dir}/default.properties" />
 </target>
+
+<target name="default_properties" depends="default_properties.check" unless="default_properties.exists">
+    <property name="default.properties" location="log4j.properties"/>
+    <symlink link="${build.prod.dir}" resource="${log4j.properties}" failonerror="false"/>
+</target>-->
+
+
+<!--
+***************************************
+DISTRIBUTION
+***************************************
+-->
 
 <target name="dist_internal" depends="compile, ee, hstore.jar">
     <!-- prepare release directory for new content -->
@@ -337,7 +335,6 @@ CLEANING
     <delete includeemptydirs="true" dir="${build.dir}/objects" />
     <delete includeemptydirs="true" dir="${build.dir}/cpptests" />
     <delete includeemptydirs="true" dir="${build.testobjects.dir}" />
-    <delete includeemptydirs="true" dir="${build.dir}/voltbin" />
 </target>
 
 <target name="clean-all" description="Remove all compiled files.">
@@ -391,9 +388,6 @@ JAR BUILDING
             <include name="edu/brown/**" />
             <include name="edu/mit/**" />
         </fileset>
-        <fileset dir="${vendor.obj.dir}" defaultexcludes="yes" >
-            <include name="**" />
-        </fileset>
         <fileset dir="."><include name="buildstring.txt"/></fileset>
         <manifest>
             <section name="Credits">
@@ -418,8 +412,8 @@ JAVA COMPILATION
 
 <target name="compile"> 
     <!-- Delete additional class files from third_party jars before we build -->
-    <delete dir="${build.prod.dir}/org/apache/" />
-    <delete dir="${build.prod.dir}/edu/uci/" />
+<!--     <delete dir="${build.prod.dir}/org/apache/" /> -->
+<!--     <delete dir="${build.prod.dir}/edu/uci/" /> -->
 
     <mkdir dir='${build.prod.dir}' />
     <mkdir dir='${build.test.dir}' />
@@ -524,10 +518,10 @@ JAVA COMPILATION
     </javac>
     
     <!-- Unzip Apache Commons & JUNG so that it gets included in volt jars -->
-    <unzip src="${vendor.lib.dir}/collections-generic-4.01.jar" dest="${build.prod.dir}"/>
+<!--    <unzip src="${vendor.lib.dir}/collections-generic-4.01.jar" dest="${build.prod.dir}"/>
     <unzip src="${vendor.lib.dir}/jung-algorithms-2.0.jar" dest="${build.prod.dir}"/>
     <unzip src="${vendor.lib.dir}/jung-api-2.0.jar" dest="${build.prod.dir}"/>
-    <unzip src="${vendor.lib.dir}/jung-graph-impl-2.0.jar" dest="${build.prod.dir}"/>
+    <unzip src="${vendor.lib.dir}/jung-graph-impl-2.0.jar" dest="${build.prod.dir}"/>-->
     <delete dir="${build.prod.dir}/META-INF/"/>
     
     <antcall target="log4j_properties" />
@@ -664,7 +658,8 @@ NATIVE EE STUFF
     description="Build C++ JNI library and copy it to production folder.">
     <exec dir='.' executable='python' failonerror='true'>
 <!--         <arg line="build.py ${build}" /> -->
-        <arg line="build.py debug" />
+<!--         <arg line="build.py debug" /> -->
+        <arg line="build.py release" />
     </exec>
 <!--     <exec dir='.' executable='/bin/sh'>
         <arg line="-c 'rm -f ${build.dir}/nativelibs/libvoltdb.so'"/>
@@ -1302,12 +1297,6 @@ TEST CASES
     </exec>
 </target>
 
-<target name='voltbincopy'>
-  <copy todir="${env.HOME}/voltbin">
-    <fileset dir="${build.dir}/voltbin"/>
-  </copy>
-</target>
-
 <!--
 ***************************************
 PROTOCOL BUFFERS
@@ -1439,12 +1428,12 @@ DTXN BINARIES + LIBRARIES
     <condition property="port" value="${hstore.coordinator.port}">
         <not><isset property="port"/></not>
     </condition>
+    <sleep seconds="${hstore.coordinator.delay}" />
     <exec executable="${build.dtxn.dir}/protodtxn/protodtxncoordinator">
         <arg line="${port}"/>
         <arg line="${build.dtxn.dir}/hstore.conf"/>
     </exec>
 </target>
-
 
 <!--
 ***************************************
@@ -1471,24 +1460,29 @@ BENCHMARKS
         <arg value="HOSTCOUNT=${hostcount}" />
         <arg value="SITESPERHOST=${sitesperhost}"/>
         <arg value="KFACTOR=${kfactor}"/>
+        <arg value="SSHOPTIONS=${hstore.global.sshoptions}" />
         <arg value="REMOTEPATH=${basedir}" />
         <arg value="REMOTEUSER=${remoteuser}"/>
         <arg value="CATALOG=${catalog}" />
         <arg value="COORDINATORHOST=${hstore.coordinator.host}" />
+        <arg value="MARKOV=${markov}" />
 
         <!-- Execution Options -->
-        <arg value="TXNRATE=${hstore.txnrate}" />
-        <arg value="CLIENTCOUNT=${hstore.clientcount}" />
-        <arg value="PROCESSESPERCLIENT=${hstore.processesperclient}" />
-        <arg value="INTERVAL=${hstore.interval}" />
-        <arg value="DURATION=${hstore.duration}" />
-        <arg value="BLOCKING=${hstore.blocking}" />
+        <arg value="TXNRATE=${hstore.client.txnrate}" />
+        <arg value="CLIENTCOUNT=${hstore.client.count}" />
+        <arg value="PROCESSESPERCLIENT=${hstore.client.processesperclient}" />
+        <arg value="INTERVAL=${hstore.client.interval}" />
+        <arg value="DURATION=${hstore.client.duration}" />
+        <arg value="BLOCKING=${hstore.client.blocking}" />
+        <arg value="TRACE=${trace}" />
+        <arg value="PROFILESITES=${profilesites}" />
+        <arg value="NOCOORDINATOR=${nocoordinator}" />
 
         <!-- Global Parameters -->
-        <arg value="scalefactor=${hstore.scalefactor}" />
-        <arg value="skewfactor=${hstore.skewfactor}" />
-        <arg value="temporalwindow=${hstore.temporalwindow}" />
-        <arg value="temporaltotal=${hstore.temporaltotal}" />
+        <arg value="scalefactor=${hstore.client.scalefactor}" />
+        <arg value="skewfactor=${hstore.client.skewfactor}" />
+        <arg value="temporalwindow=${hstore.client.temporalwindow}" />
+        <arg value="temporaltotal=${hstore.client.temporaltotal}" />
 
         <!-- Benchmark Parameters -->
         <arg value="CLIENT=${benchmark.client}" />
@@ -1501,9 +1495,9 @@ BENCHMARKS
         <!-- These are currently ignored (I think...) -->
         <arg value="HOST=${manualhost1}" />
         <arg value="HOST=${host1}" />
-        <arg value="CLIENTHOST=${clienthost}" />
+        <arg value="CLIENTHOST=${hstore.client.host}" />
         <arg value="LISTENFORDEBUGGER=${debug}" />
-        <arg value="USEPROFILE=${hstore.useprofile}" />
+        <arg value="USEPROFILE=${hstore.node.useprofile}" />
         <arg value="CHECKTRANSACTION=${checktransaction}" />
         <arg value="CHECKTABLES=${checktables}" />
         <arg value="LOCAL=${local}" />
@@ -1777,14 +1771,10 @@ DESIGNER
 </target>
 
 <target name='workload-combine'>
-    <condition property="jar" value="${benchmark.jar}">
-        <not><isset property="jar"/></not>
-    </condition>
-
     <java fork="yes" failonerror="true" classname="edu.brown.workload.CombineWorkloadTraces">
-        <jvmarg value="-Xmx${volt.client.memory}m" />
+        <jvmarg value="-Xmx${volt.server.memory}m" />
         <jvmarg value="-Dlog4j.configuration=${basedir}/log4j.properties"/>
-        <arg value="catalog.jar=${jar}" />
+        <arg value="catalog.jar=${benchmark.jar}" />
         <arg value="workload.output=${output}" />
         <arg value="${workload}" />
         <classpath refid='project.classpath' />
@@ -1824,9 +1814,18 @@ DESIGNER
     </java>
 </target>
 
+<target name='weka' description="Launch Weka GUI">
+    <java fork="yes" classname="weka.gui.GUIChooser">
+        <jvmarg value="-Xmx${volt.client.memory}m" />
+        <classpath refid='project.classpath' />
+<!--         <assertions><enable /></assertions> -->
+    </java>
+</target>
+
 <target name='markov' description="Generate Markov Graphs">
     <java fork="yes" classname="edu.brown.markov.MarkovGraph" failonerror='true'>
         <jvmarg value="-Xmx${volt.client.memory}m" />
+        <jvmarg value="-Dhstore.max_threads=${hstore.max_threads}" />
         <arg value="catalog.jar=${jar}" />
         <arg value="workload=${workload}" />
         <arg value="workload.xactlimit=${limit}" />
@@ -1835,6 +1834,86 @@ DESIGNER
         <arg value="workload.procinclude=${include}" />
         <arg value="workload.procinclude.multiplier=${multiplier}" />
         <arg value="markov.output=${output}" />
+        <arg value="markov.global=${global}" />
+        <classpath refid='project.classpath' />
+        <assertions><enable /></assertions>
+    </java>
+</target>
+
+<target name='markov-cost' description="Estimate MarkovGraph Costs">
+    <java fork="yes" classname="edu.brown.costmodel.MarkovCostModel" failonerror='true'>
+        <jvmarg value="-Xmx${volt.client.memory}m" />
+        <jvmarg value="-Dhstore.max_threads=${hstore.max_threads}" />
+        <arg value="catalog.jar=${jar}" />
+        <arg value="workload=${workload}" />
+        <arg value="workload.xactlimit=${limit}" />
+        <arg value="workload.xactoffset=${offset}" />
+        <arg value="workload.procexclude=${exclude}" />
+        <arg value="workload.procinclude=${include}" />
+        <arg value="workload.procinclude.multiplier=${multiplier}" />
+        <arg value="correlations=files/correlations/${project}.correlations" />
+        <arg value="markov=${markov}" />
+        <classpath refid='project.classpath' />
+        <assertions><enable /></assertions>
+    </java>
+</target>
+
+
+<target name='markov-graphviz' description="Create MarkovGraphs Graphviz files">
+    <java fork="yes" classname="edu.brown.markov.MarkovGraphvizExport" failonerror='true'>
+        <jvmarg value="-Xmx${volt.client.memory}m" />
+        <arg value="catalog.jar=${jar}" />
+        <arg value="markov=${markov}" />
+        <arg value="${procedure}" />
+        <arg value="${partition}" />
+        <classpath refid='project.classpath' />
+        <assertions><enable /></assertions>
+    </java>
+</target>
+
+<target name='markov-extractor' description="Generate Weka Feature Files">
+    <java fork="yes" classname="edu.brown.markov.FeatureExtractor" failonerror='true'>
+        <jvmarg value="-Xmx${volt.client.memory}m" />
+        <arg value="catalog.jar=${jar}" />
+        <arg value="workload=${workload}" />
+        <arg value="workload.xactlimit=${limit}" />
+        <arg value="workload.xactoffset=${offset}" />
+        <arg value="workload.procexclude=${exclude}" />
+        <arg value="workload.procinclude=${include}" />
+        <arg value="workload.procinclude.multiplier=${multiplier}" />
+        <arg value="correlations=./files/correlations/${project}.correlations" />
+        <classpath refid='project.classpath' />
+        <assertions><enable /></assertions>
+    </java>
+</target>
+
+<target name='markov-cluster' description="Generate Markov Cluster-based File">
+    <java fork="yes" classname="edu.brown.markov.FeatureClusterer" failonerror='true'>
+        <jvmarg value="-Xmx${volt.client.memory}m" />
+        <jvmarg value="-server" />
+<!--         <jvmarg value="-verbose:gc" /> -->
+        <jvmarg value="-XX:+UseParNewGC" />
+        <jvmarg value="-XX:+UseConcMarkSweepGC" />
+<!--         <jvmarg value="-XX:+PrintGCDetails" /> -->
+<!--         <jvmarg value="-XX:+PrintGCTimeStamps" /> -->
+<!--         <jvmarg value="-Xloggc:gc.log" /> -->
+        <arg value="catalog.jar=${jar}" />
+        <arg value="workload=${workload}" />
+        <arg value="workload.randompartitions=${randompartitions}" />
+        <arg value="workload.xactlimit=${limit}" />
+        <arg value="workload.xactoffset=${offset}" />
+        <arg value="workload.procinclude=${procedure}" />
+        <arg value="workload.procinclude.multiplier=${multiplier}" />
+        <arg value="correlations=./files/correlations/${project}.correlations" />
+        <arg value="markov.split.training=${training}" />
+        <arg value="markov.split.validation=${validation}" />
+        <arg value="markov.split.testing=${testing}" />
+        <arg value="markov.rounds=${rounds}" />
+        <arg value="markov.threads=${threads}" />
+        <arg value="markov.partitions=${partitions}" />
+        <arg value="markov.topk=${topk}" />
+        <arg value="${procedure}" />
+        <arg value="${procedure}.arff" />
         <classpath refid='project.classpath' />
         <assertions><enable /></assertions>
     </java>
@@ -2114,18 +2193,11 @@ H-STORE REMIX
 </target>
 
 <target name="hstore-prepare" description="Prepares a benchmark catalog">
-    <!-- Creates voltbin -->
-<!--     <antcall target="voltbin" /> -->
-    
-    <!-- Copies voltbin to home directory -->
-<!--     <antcall target="voltbincopy" /> -->
-
     <!-- Compile + create benchmark project jar -->
     <antcall target="benchmark">
         <param name="compileonly"   value="true" />
         <param name="compile"       value="true" />
         <param name="host1"         value="${hstore.defaulthost}" />
-        <param name="clienthost"    value="${hstore.defaulthost}" />
         <param name="loadthreads"   value="${hstore.loadthreads}" />
         <param name="client"        value="${benchmark.client}" />
     </antcall>
@@ -2141,17 +2213,35 @@ H-STORE REMIX
 </target>
 
 <target name="hstore-site" description="H-Store Execution Node/Coordinator">
+    <condition property="markov" value="files/markovs/${project}.markovs">
+        <not><isset property="markov"/></not>
+    </condition>
+    <condition property="correlations" value="files/correlations/${project}.correlations">
+        <not><isset property="correlations"/></not>
+    </condition>
+
     <java fork="yes" classname="edu.mit.hstore.HStoreSite">
-        <jvmarg value="-Xmx${volt.server.memory}m" />
+        <jvmarg value="-Xmx${hstore.node.memory}m" />
         <jvmarg value="-Dlog4j.configuration=${basedir}/log4j.properties"/>
         <jvmarg value="-server" />
         <jvmarg value="-Djava.library.path=${build.dir}/nativelibs" />
         <jvmarg value="-Xcheck:jni" />
+<!--        <jvmarg value="-XX:+UseParNewGC" /> -->
+        <jvmarg value="-XX:+UseConcMarkSweepGC" />
+
+        <jvmarg value="-Dhstore.preload=${hstore.node.preload}" />
         <arg value="catalog.jar=${benchmark.jar}" />
         <arg value="node.site=${node.site}" />
+        <arg value="node.statusinterval=${hstore.node.statusinterval}" />
+        <arg value="node.statusinterval_kill=${hstore.node.statusinterval_kill}" />
+        <arg value="node.force_singlepartition=${hstore.node.force_singlepartition}" />
+        <arg value="node.force_localexecution=${hstore.node.force_localexecution}" />
+        <arg value="node.force_neworderinspect=${hstore.node.force_neworderinspect}" />
+        <arg value="node.cleanup_interval=${hstore.node.cleanup_interval}" />
+        <arg value="node.cleanup_txn_expire=${hstore.node.cleanup_txn_expire}" />
+        <arg value="node.enable_profiling=${hstore.node.enable_profiling}" />
         <arg value="coordinator.host=${hstore.coordinator.host}" />
         <arg value="coordinator.port=${hstore.coordinator.port}" />
-        <arg value="coordinator.statusinterval=${statusinterval}" />
         <arg value="dtxn.conf=${build.dtxn.dir}/hstore.conf" />
         <arg value="dtxn.engine=${build.dtxn.dir}/protodtxn/protodtxnengine" />
         <arg value="hasher.class=${hasher}" />
@@ -2160,7 +2250,7 @@ H-STORE REMIX
         <arg value="correlations=${correlations}" />
         <arg value="partitionplan=${partitionplan}" />
         <arg value="partitionplan.apply=true" />
-        <arg value="workload.output=${trace}" />
+        <arg value="workload.output=${workload.output}" />
         <arg value="workload.procexclude=${benchmark.workload.ignore}" />
         <classpath refid='project.classpath' />
         <assertions><enable /></assertions>
@@ -2171,7 +2261,7 @@ H-STORE REMIX
     <antcall target="benchmark">
         <param name="catalog" value="${benchmark.jar}" />
         <param name="compile" value="false" />
-        <param name="clienthost" value="${hstore.defaulthost}" />
+        <param name="cataloghosts" value="true" />
         <param name="cataloghosts" value="true" />
     </antcall>
 </target>
@@ -2188,33 +2278,6 @@ H-STORE REMIX
         <param name="hosts" value="${hstore.defaulthost}:0:0,${hstore.defaulthost}:0:1,${hstore.defaulthost}:1:2,${hstore.defaulthost}:1:3" />
     </antcall>
 </target>
-
-<!--<target name="hstore-benchmark" description="H-Store Test Setup">
-    <parallel failonany="true">
-        <antcall target="dtxn-coordinator">
-            <param name="port" value="${hstore.coordinator.port}" />
-        </antcall>
-        <antcall target="hstore-site">
-            <param name="benchmark.jar" value="${benchmark.jar}" />
-            <param name="node.site" value="0" />
-            <param name="markov" value="./files/markovs/${project}.markovs" />
-            <param name="thresholds" value="./files/thresholds/default.thresholds" />
-            <param name="correlations" value="./files/correlations/${project}.correlations" />
-        </antcall>
-        <antcall target="hstore-site">
-            <param name="benchmark.jar" value="${benchmark.jar}" />
-            <param name="node.site" value="1" />
-            <param name="markov" value="./files/markovs/${project}.markovs" />
-            <param name="thresholds" value="./files/thresholds/default.thresholds" />
-            <param name="correlations" value="./files/correlations/${project}.correlations" />
-        </antcall>
-        <sequential>
-            <sleep seconds="18" />
-            <antcall target="hstore-client" />
-        </sequential>
-    </parallel>
-</target>-->
-
 
 <!-- END PROJECT -->
 </project>

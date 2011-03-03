@@ -82,5 +82,16 @@ public abstract class MathUtil {
         double p = (double)Math.pow(10, percision);
         return (double)Math.round(d * p) / p;
     }
+    
+    /**
+     * Round a float to the given number decimal places
+     * @param d
+     * @param percision
+     * @return
+     */
+    public static float roundToDecimals(float d, int percision) {
+        float p = (float)Math.pow(10, percision);
+        return (float)Math.round(d * p) / p;
+    }
 
 }

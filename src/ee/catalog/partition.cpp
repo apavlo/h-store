@@ -31,10 +31,12 @@ Partition::Partition(Catalog *catalog, CatalogType *parent, const string &path, 
 {
     CatalogValue value;
     m_fields["id"] = value;
+    m_fields["dtxn_port"] = value;
 }
 
 void Partition::update() {
     m_id = m_fields["id"].intValue;
+    m_dtxn_port = m_fields["dtxn_port"].intValue;
 }
 
 CatalogType * Partition::addChild(const std::string &collectionName, const std::string &childName) {
@@ -51,5 +53,9 @@ void Partition::removeChild(const std::string &collectionName, const std::string
 
 int32_t Partition::id() const {
     return m_id;
+}
+
+int32_t Partition::dtxn_port() const {
+    return m_dtxn_port;
 }
 

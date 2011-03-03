@@ -3,12 +3,22 @@ package edu.brown.utils;
 import java.io.BufferedInputStream;
 import java.io.IOException;
 import java.util.*;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadFactory;
 
 import org.apache.log4j.Logger;
 
 public abstract class ThreadUtil {
     private static final Logger LOG = Logger.getLogger(ThreadUtil.class);
 
+    private static final Object lock = new Object();
+    private static ExecutorService pool;
+    
+    private static final int DEFAULT_NUM_THREADS = 2;
+    
+    
     /**
      * Convenience wrapper around Thread.sleep() for when we don't care about exceptions
      * @param millis
@@ -20,13 +30,23 @@ public abstract class ThreadUtil {
             // IGNORE!
         }
     }
-    
+
     /**
-     * Fork the command (in the current thread) and countdown the latch everytime we see
-     * our match string in the output
+     * Fork the command (in the current thread)
      * @param command
      */
-    public static void fork(String command[], final String prefix, final EventObservable stop_observable) {
+    public static void fork(String command[], EventObservable stop_observable) {
+        ThreadUtil.fork(command, stop_observable, null, false);
+    }
+    
+    /**
+     * 
+     * @param command
+     * @param prefix
+     * @param stop_observable
+     * @param print_output
+     */
+    public static void fork(String command[], final EventObservable stop_observable, final String prefix, final boolean print_output) {
         final boolean debug = LOG.isDebugEnabled(); 
         
         final String prog_name = FileUtil.basename(command[0]);
@@ -58,22 +78,24 @@ public abstract class ThreadUtil {
                 }
             });
         }
-        
-        BufferedInputStream in = new BufferedInputStream(p.getInputStream());
-        StringBuilder buffer = new StringBuilder();
-        int c;
-        try {
-            while((c = in.read()) != -1) {
-                buffer.append((char)c);
-                if (((char)c) == '\n') {
-                    System.out.print(prefix + buffer.toString());
-                    buffer = new StringBuilder();
+
+        if (print_output) {
+            BufferedInputStream in = new BufferedInputStream(p.getInputStream());
+            StringBuilder buffer = new StringBuilder();
+            int c;
+            try {
+                while((c = in.read()) != -1) {
+                    buffer.append((char)c);
+                    if (((char)c) == '\n') {
+                        System.out.print(prefix + buffer.toString());
+                        buffer = new StringBuilder();
+                    }
                 }
+            } catch (Exception e) {
+                p.destroy();
             }
-        } catch (Exception e) {
-            p.destroy();
+            if (buffer.length() > 0) System.out.println(prefix + buffer);
         }
-        if (buffer.length() > 0) System.out.println(prefix + buffer);
         
         try {
             p.waitFor();
@@ -84,12 +106,51 @@ public abstract class ThreadUtil {
     }
     
     /**
-     * For a given list of threads, execute them all at the same time and block until they have all completed
-     * @param threads
-     * @throws Exception
+     * Get the max number of threads that will be allowed to run concurrenctly in the global pool
+     * @return
      */
-    public static void run(final Collection<? extends Thread> threads) throws Exception {
-        ThreadUtil.run(threads, null);
+    public static int getMaxGlobalThreads() {
+        int max_threads = DEFAULT_NUM_THREADS;
+        String prop = System.getProperty("hstore.max_threads");
+        if (prop != null && prop.startsWith("${") == false) max_threads = Integer.parseInt(prop);
+        return (max_threads);
+    }
+    
+    /**
+     * 
+     * @param <R>
+     * @param threads
+     */
+    public static <R extends Runnable> void runGlobalPool(final Collection<R> threads) {
+        final boolean d = LOG.isDebugEnabled();
+        
+        // Initialize the thread pool the first time that we run
+        synchronized (ThreadUtil.lock) {
+            if (ThreadUtil.pool == null) {
+                int max_threads = ThreadUtil.getMaxGlobalThreads();
+                if (d) LOG.debug("Creating new fixed thread pool [num_threads=" + max_threads + "]");
+                ThreadUtil.pool = Executors.newFixedThreadPool(max_threads, new ThreadFactory() {
+                    @Override
+                    public Thread newThread(Runnable r) {
+                        Thread t = new Thread(r);
+                        t.setDaemon(true);
+                        return (t);
+                    }
+                });
+            }
+        } // SYNCHRONIZED
+        
+        ThreadUtil.run(threads, ThreadUtil.pool, false);
+    }
+    
+    /**
+     * 
+     * @param <R>
+     * @param threads
+     */
+    public static <R extends Runnable> void runNewPool(final Collection<R> threads) {
+        ExecutorService pool = Executors.newCachedThreadPool();
+        ThreadUtil.run(threads, pool, true);
     }
     
     /**
@@ -99,49 +160,45 @@ public abstract class ThreadUtil {
      * @param max_concurrent
      * @throws Exception
      */
-    public static void run(final Collection<? extends Thread> threads, Integer max_concurrent) throws Exception {
-        final boolean debug = LOG.isDebugEnabled();
+    private static final <R extends Runnable> void run(final Collection<R> threads, final ExecutorService pool, final boolean stop_pool) {
+        final boolean d = LOG.isDebugEnabled();
+        final long start = System.currentTimeMillis();
         
-        // Make a new list of threads so that we can modify its contents without affecting
-        // the data structures of whoever called us.
-        List<Thread> available = new ArrayList<Thread>(threads);
-        List<Thread> running = new Vector<Thread>();
-        if (max_concurrent == null) max_concurrent = -1;
+        int num_threads = threads.size();
+        CountDownLatch latch = new CountDownLatch(num_threads);
         
-        if (debug) LOG.debug("Executing " + available.size() + " threads [max_concurrent=" + max_concurrent + "]");
-        long max_sleep = 16000;
-        while (!available.isEmpty() || !running.isEmpty()) {
-            while ((max_concurrent < 0 || running.size() < max_concurrent) && !available.isEmpty()) {
-                Thread thread = available.remove(0);
-                thread.start();
-                running.add(thread);
-                if (debug) {
-                    LOG.debug("Started " + thread);
-                    LOG.debug("Running=" + running.size() + ", Waiting=" + available.size() + ", Available=" + (max_concurrent - running.size()));
-                }
-            } // WHILE
-            int num_running = running.size();
-            long sleep = 1000;
-            while (num_running > 0) {
-                for (int i = 0; i < num_running; i++) {
-                    Thread thread = running.get(i);
-                    thread.join(sleep);
-                    if (!thread.isAlive()) {
-                        running.remove(i);
-                        if (debug) {
-                            LOG.debug(thread + " is complete");
-                            LOG.debug("Running=" + running.size() + ", Waiting=" + available.size() + ", Available=" + (max_concurrent - running.size()));
-                        }
-                        break;
-                    }
-                } // FOR
-                if (num_running != running.size()) break;
-                sleep *= 2;
-                if (sleep > max_sleep) sleep = max_sleep;
-            } // WHILE
-        } // WHILE
-        if (debug) LOG.debug("All threads are finished");
+        if (d) LOG.debug(String.format("Executing %d threads and blocking until they finish", num_threads));
+        for (R r : threads) {
+            pool.execute(new LatchRunnable(r, latch));
+        } // FOR
+        if (stop_pool) pool.shutdown();
+        
+        try {
+            latch.await();
+        } catch (InterruptedException ex) {
+            LOG.fatal("ThreadUtil.run() was interuptted!", ex);
+            throw new RuntimeException(ex);
+        }
+        if (d) {
+            final long stop = System.currentTimeMillis();
+            LOG.debug(String.format("Finished executing %d threads [time=%.02fs]", num_threads, (stop-start)/1000d));
+        }
         return;
+    }
+    
+    private static class LatchRunnable implements Runnable {
+        private final Runnable r;
+        private final CountDownLatch latch;
+        
+        public LatchRunnable(Runnable r, CountDownLatch latch) {
+            this.r = r;
+            this.latch = latch;
+        }
+        @Override
+        public void run() {
+            this.r.run();
+            this.latch.countDown();
+        }
     }
     
 }

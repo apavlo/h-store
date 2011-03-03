@@ -71,23 +71,36 @@ bool NetworkAddress::operator==(const sockaddr_in& other) const {
     return true;
 }
 
-std::string NetworkAddress::toString() const {
+static const int MAX_PORT_STRING = 6;  // maximum length: 6 bytes (5 digits, 1 NUL)
+static std::string callGetNameInfo(const NetworkAddress& address, char* port_string) {
     sockaddr_in addr;
-    fill(&addr);
+    address.fill(&addr);
 
     string retval;
-    retval.resize(32);
-    char port_string[6];
+    // maximum length for IPv4 address is 16 (12 digits, 3 '.', 1 NUL)
+    // IPv6 is 16 bytes = 32 hex bytes + 7 ':' + NULL = 40
+    retval.resize(40);
     int error = getnameinfo(reinterpret_cast<struct sockaddr*>(&addr),
             sizeof(addr), base::stringArray(&retval), static_cast<socklen_t>(retval.size()),
-            port_string, sizeof(port_string), NI_NUMERICHOST | NI_NUMERICSERV);
+            port_string, MAX_PORT_STRING, NI_NUMERICHOST | NI_NUMERICSERV);
     ASSERT(error == 0);
     retval.resize(strlen(retval.data()));
 
+    return retval;
+}
+
+string NetworkAddress::toString() const {
+    char port_string[MAX_PORT_STRING];
+    string retval = callGetNameInfo(*this, port_string);
     retval.push_back(':');
     retval.append(port_string);
 
     return retval;
+}
+
+string NetworkAddress::ipToString() const {
+    char port_string[MAX_PORT_STRING];
+    return callGetNameInfo(*this, port_string);
 }
 
 void NetworkAddress::fill(struct sockaddr_in* addr) const {

@@ -27,19 +27,19 @@ public class Edge extends AbstractEdge implements Comparable<Edge> {
     /**
      * This is the probability that the source of the edge will transition to the destination vertex
      */
-    public double probability;
+    public float probability;
 
     /**
      * This is the total number of times that we have traversed over this edge
      */
-    public long hits;
+    public int hits;
 
     /**
      * This is the temporary number of times that we have traversed over this edge in the current "period" of the
      * MarkovGraph. This will eventually get folded into the global hits count, but we need to keep it separate so that
      * we can determine whether the current workload is deviating from the training set
      */
-    private transient long instancehits = 0;
+    private transient int instancehits = 0;
 
     /**
      * Constructor
@@ -55,7 +55,7 @@ public class Edge extends AbstractEdge implements Comparable<Edge> {
     public Edge(IGraph<Vertex, Edge> graph, int hits, double probability) {
         super(graph);
         this.hits = hits;
-        this.probability = probability;
+        this.probability = (float)probability;
     }
 
     @Override
@@ -97,17 +97,17 @@ public class Edge extends AbstractEdge implements Comparable<Edge> {
         return instancehits;
     }
 
-    public void incrementInstancehits() {
+    public synchronized void incrementInstancehits() {
         instancehits++;
     }
 
-    public void setInstancehits(int i) {
+    public synchronized void setInstancehits(int i) {
         instancehits = i;
     }
 
     @Override
     public String toString() {
-        return String.format("%.03f", this.probability); // FORMAT.format(this.probability);
+        return String.format("%.02f", this.probability); // FORMAT.format(this.probability);
     }
 
     // ----------------------------------------------------------------------------

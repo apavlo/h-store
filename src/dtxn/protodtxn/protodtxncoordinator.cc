@@ -63,7 +63,7 @@ public:
         CHECK(done != NULL);
         done_ = done;
     }
-    
+
 private:
     void executeDone() {
         LOG_DEBUG("executeDone %ld", id_);
@@ -140,7 +140,7 @@ void ProtoDtxnCoordinator::Execute(RpcController* controller,
         CHECK(state->transaction()->multiple_partitions());
     }
     state->setResponse(controller, response, done);
-    
+
     // PAVLO:
     if (state->transaction()->has_payload() == false && request->has_payload() == true) {
         LOG_DEBUG("Setting DistributedTransaction payload [%s]", request->payload().c_str());
@@ -152,9 +152,14 @@ void ProtoDtxnCoordinator::Execute(RpcController* controller,
                 request->fragment(i).partition_id(), request->fragment(i).work());
     }
 
-    // TODO: Specify "done" at a finer granularity?
+    // Check which partitions are now done
     if (request->last_fragment()) {
+        CHECK(request->done_partition_size() == 0);
         state->transaction()->setAllDone();
+    } else if (request->done_partition_size() > 0) {
+        for (int i = 0; i < request->done_partition_size(); ++i) {
+            state->transaction()->setDone(request->done_partition(i));
+        }
     }
 
     dtxn_manager_->execute(state->transaction(), state->callback());

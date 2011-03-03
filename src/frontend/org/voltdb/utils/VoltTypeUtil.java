@@ -20,6 +20,8 @@ package org.voltdb.utils;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Random;
 import java.util.logging.Logger;
 import java.util.regex.Matcher;
@@ -36,12 +38,14 @@ public abstract class VoltTypeUtil {
     protected static final Integer DATE_STOP = Math.round(System.currentTimeMillis() / 1000);
     protected static final Integer DATE_START = VoltTypeUtil.DATE_STOP - 153792000;
     
-    protected static final SimpleDateFormat DATE_FORMATS[] = {
-        new SimpleDateFormat(TimestampType.STRING_FORMAT),
-        new SimpleDateFormat("EEE MMM dd HH:mm:ss zzz yyyy"),
-        new SimpleDateFormat("yyyy-MM-dd HH:mm:ss"), // 2010-03-05 20:14:15
-        new SimpleDateFormat("yyyy-MM-dd"), // 2010-03-05
+    private static final String DATE_FORMAT_PATTERNS[] = {
+        TimestampType.STRING_FORMAT,
+        "EEE MMM dd HH:mm:ss zzz yyyy",
+        "yyyy-MM-dd HH:mm:ss", // 2010-03-05 20:14:15
+        "yyyy-MM-dd", // 2010-03-05
+        "yyyy-MM-dd'T'HH:mm:ss.SSS.0", // 2010-03-05T20:14:16.000.0
     };
+    private static final Map<Thread, SimpleDateFormat[]> CACHED_DATE_FORMATS = new HashMap<Thread, SimpleDateFormat[]>();
 
     public static Object getRandomValue(VoltType type) {
         Object ret = null;
@@ -234,9 +238,20 @@ public abstract class VoltTypeUtil {
      * Returns a casted object of the input value string based on the given type
      * @throws ParseException
      */
-    public static Object getObjectFromString(VoltType type, String value)
-    throws ParseException
-    {
+    public static Object getObjectFromString(VoltType type, String value) throws ParseException {
+        return (VoltTypeUtil.getObjectFromString(type, value, Thread.currentThread()));
+    }
+        
+    /**
+     * Returns a casted object of the input value string based on the given type
+     * You can pass the current thread to get a faster access for the cached SimpleDateFormats
+     * @param type
+     * @param value
+     * @param self
+     * @return
+     * @throws ParseException
+     */
+    public static Object getObjectFromString(VoltType type, String value, Thread self) throws ParseException {
         Object ret = null;
         switch (type) {
             // NOTE: All runtime integer parameters are actually Longs,so we will have problems
@@ -284,11 +299,22 @@ public abstract class VoltTypeUtil {
             case TIMESTAMP: {
                 Date date = null;
                 int usecs = 0;
+                if (value.isEmpty()) throw new RuntimeException("Empty " + type + " parameter value");
+                
+                // We have to do this because apparently SimpleDateFormat isn't thread safe
+                SimpleDateFormat formats[] = VoltTypeUtil.CACHED_DATE_FORMATS.get(self);
+                if (formats == null) {
+                    formats = new SimpleDateFormat[VoltTypeUtil.DATE_FORMAT_PATTERNS.length];
+                    for (int i = 0; i < formats.length; i++) {
+                        formats[i] = new SimpleDateFormat(VoltTypeUtil.DATE_FORMAT_PATTERNS[i]);
+                    } // FOR
+                    VoltTypeUtil.CACHED_DATE_FORMATS.put(self, formats);
+                }
                 
                 ParseException last_ex = null;
-                for (int i = 0; i < DATE_FORMATS.length; i++) {
+                for (int i = 0; i < formats.length; i++) {
                     try {
-                        date = DATE_FORMATS[i].parse(value);
+                        date = formats[i].parse(value);
                         // We need to get the last microseconds
                         if (i == 0) usecs = Integer.parseInt(value.substring(value.lastIndexOf('.')+1));
                     } catch (ParseException ex) {
@@ -301,10 +327,23 @@ public abstract class VoltTypeUtil {
                 break;
             }
             // --------------------------------
+            // BOOLEAN
+            // --------------------------------
+            case BOOLEAN:
+                ret = Boolean.parseBoolean(value);
+                break;
+
+            // --------------------------------
+            // NULL
+            // --------------------------------
+            case NULL:
+                ret = null;
+                break;
+            // --------------------------------
             // INVALID
             // --------------------------------
             default: {
-                String msg = "ERROR: Unable to generate random value for invalid ValueType '" + type + "'";
+                String msg = "Unable to get object for value with invalid ValueType '" + type + "'";
                 throw new ParseException(msg, 0);
                 // LOG.severe(msg);
             }

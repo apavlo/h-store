@@ -2,20 +2,19 @@
  * Compile with:
  * cc -I/usr/local/include -o time-test time-test.c -L/usr/local/lib -levent
  */
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
-
+#include "event2/event-config.h"
 
 #ifdef WIN32
 #include <winsock2.h>
+#else
+#include <unistd.h>
 #endif
 #include <sys/types.h>
 #include <sys/stat.h>
-#ifdef HAVE_SYS_TIME_H
+#ifdef _EVENT_HAVE_SYS_TIME_H
 #include <sys/time.h>
 #endif
-#ifdef HAVE_SYS_SOCKET_H
+#ifdef _EVENT_HAVE_SYS_SOCKET_H
 #include <sys/socket.h>
 #endif
 #include <fcntl.h>
@@ -23,25 +22,28 @@
 #include <stdio.h>
 #include <string.h>
 #include <signal.h>
-#ifdef HAVE_UNISTD_H
-#include <unistd.h>
-#endif
 #include <errno.h>
 
-#include <event.h>
-#include <evutil.h>
+#include <event2/event.h>
+#include <event2/event_struct.h>
+#include <event2/event_compat.h>
+#include <event2/util.h>
 
-int pair[2];
+#ifdef _EVENT___func__
+#define __func__ _EVENT___func__
+#endif
+
+evutil_socket_t pair[2];
 int test_okay = 1;
 int called = 0;
 
 static void
-write_cb(int fd, short event, void *arg)
+write_cb(evutil_socket_t fd, short event, void *arg)
 {
 	const char *test = "test string";
 	int len;
 
-	len = send(fd, test, strlen(test) + 1, 0);
+	len = send(fd, test, (int)strlen(test) + 1, 0);
 
 	printf("%s: write %d%s\n", __func__,
 	    len, len ? "" : " - means EOF");
@@ -49,7 +51,7 @@ write_cb(int fd, short event, void *arg)
 	if (len > 0) {
 		if (!called)
 			event_add(arg, NULL);
-		EVUTIL_CLOSESOCKET(pair[0]);
+		evutil_closesocket(pair[0]);
 	} else if (called == 1)
 		test_okay = 0;
 
@@ -57,9 +59,19 @@ write_cb(int fd, short event, void *arg)
 }
 
 int
-main (int argc, char **argv)
+main(int argc, char **argv)
 {
 	struct event ev;
+
+#ifdef WIN32
+	WORD wVersionRequested;
+	WSADATA wsaData;
+	int	err;
+
+	wVersionRequested = MAKEWORD(2, 2);
+
+	err = WSAStartup(wVersionRequested, &wsaData);
+#endif
 
 #ifndef WIN32
 	if (signal(SIGPIPE, SIG_IGN) == SIG_ERR)

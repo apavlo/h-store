@@ -24,6 +24,7 @@ public:
     virtual void exitOnSigInt(bool value);
     virtual void exit();
     virtual void run();
+    virtual void runInEventLoop(google::protobuf::Closure* callback);
 
     struct event_base* base() { return base_; }
 

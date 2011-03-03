@@ -2,6 +2,10 @@ package edu.brown.utils;
 
 import java.util.*;
 
+/**
+ * 
+ * @author pavlo
+ */
 public abstract class CollectionUtil {
     
     private static final Random rand = new Random();
@@ -211,7 +215,7 @@ public abstract class CollectionUtil {
      * @return
      */
     public static <T> T getFirst(Iterable<T> items) {
-        if (items instanceof List) {
+        if (items instanceof List<?>) {
             return ((List<T>)items).get(0);
         }
         for (T t : items) {
@@ -252,7 +256,7 @@ public abstract class CollectionUtil {
      * @return
      */
     public static <T> T get(Iterable<T> items, int idx) {
-        if (items instanceof AbstractList) {
+        if (items instanceof AbstractList<?>) {
             return ((AbstractList<T>)items).get(idx);
         }
         int ctr = 0;
@@ -270,7 +274,7 @@ public abstract class CollectionUtil {
      */
     public static <T> T getLast(Iterable<T> items) {
         T last = null;
-        if (items instanceof AbstractList) {
+        if (items instanceof AbstractList<?>) {
             AbstractList<T> list = (AbstractList<T>)items;
             last = (list.isEmpty() ? null : list.get(list.size() - 1));
         } else {
@@ -306,28 +310,28 @@ public abstract class CollectionUtil {
         return (sorted);
     }
     
-    public static <K, V extends Comparable<? super V>> List<K> getKeysSortedByValue(Map<K, V> map) {
-        final int size = map.size();
-        final List<K> keys = new ArrayList<K>(size);
-        if (true || size == 1) {
-            keys.addAll(map.keySet());
-        } else {
-            final List<Map.Entry<K, V>> list = new ArrayList<Map.Entry<K, V>>(size);
-            list.addAll(map.entrySet());
-            final ValueComparator<V> cmp = new ValueComparator<V>();
-            Collections.sort(list, cmp);
-            for (int i = 0; i < size; i++) {
-                keys.set(i, list.get(i).getKey());
-            }
-        }
-        return keys;
-    }
-    
-    private static final class ValueComparator<V extends Comparable<? super V>> implements Comparator<Map.Entry<?, V>> {
-        public int compare(Map.Entry<?, V> o1, Map.Entry<?, V> o2) {
-            return o1.getValue().compareTo(o2.getValue());
-        }
-    }
+//    public static <K, V extends Comparable<? super V>> List<K> getKeysSortedByValue(Map<K, V> map) {
+//        final int size = map.size();
+//        final List<K> keys = new ArrayList<K>(size);
+//        if (true || size == 1) {
+//            keys.addAll(map.keySet());
+//        } else {
+//            final List<Map.Entry<K, V>> list = new ArrayList<Map.Entry<K, V>>(size);
+//            list.addAll(map.entrySet());
+//            final ValueComparator<V> cmp = new ValueComparator<V>();
+//            Collections.sort(list, cmp);
+//            for (int i = 0; i < size; i++) {
+//                keys.set(i, list.get(i).getKey());
+//            }
+//        }
+//        return keys;
+//    }
+//    
+//    private static final class ValueComparator<V extends Comparable<? super V>> implements Comparator<Map.Entry<?, V>> {
+//        public int compare(Map.Entry<?, V> o1, Map.Entry<?, V> o2) {
+//            return o1.getValue().compareTo(o2.getValue());
+//        }
+//    }
     
     /**
      * 
@@ -343,5 +347,59 @@ public abstract class CollectionUtil {
         } // FOR
         return (ret);
     }
+    
+    /**
+     * Wrap an Iterable around an Iterator
+     * @param <T>
+     * @param it
+     * @return
+     */
+    public static <T> Iterable<T> wrapIterator(final Iterator<T> it) {
+        return (new Iterable<T>() {
+            @Override
+            public Iterator<T> iterator() {
+                return (it);
+            }
+        });
+    }
+//    
+//    /**
+//     * Create a set of all possible permutations of the given size for the elements in the data set
+//     * @param <T>
+//     * @param size
+//     * @return
+//     */
+//    public static <T> Set<Set<T>> createCombinations(Collection<T> data, final int size) {
+//        assert(size > 1);
+//        assert(size < data.size());
+//
+//        final int total_num_elements = data.size();
+//        final List<T> list = new ArrayList<T>(data);
+//        
+//        Set<Set<T>> ret = new HashSet<Set<T>>();
+//        for (int i = 0; i < total_num_elements; i++) {
+//            ListOrderedSet<T> buffer = new ListOrderedSet<T>();
+//            T t = list.get(i);
+//            buffer.add(t);
+//            populatePermutation(ret, list, buffer, size - 1, total_num_elements, i+1);
+//        } // FOR
+//        return (ret);
+//    }
+//    
+//    private static <T> void populatePermutation(Set<Set<T>> sets, List<T> list, ListOrderedSet<T> buffer, int size, int num_elements, int i) {
+//        for ( ; i < num_elements; i++) {
+//            buffer.add(list.get(i));
+//            if (size > 0 && (i+size) < num_elements) {
+//                populatePermutation(sets, list, buffer, size-1, num_elements, i+1);
+//            } else if (size == 0) {
+//                
+//                
+//            }
+//            
+//            // Remove ourselves from the buffer
+//            buffer.remove(num_elements-size);
+//            
+//        } // FOR
+//    }
     
 }

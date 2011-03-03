@@ -42,25 +42,24 @@ public class InitiateTaskMessage extends TransactionInfoBaseMessage {
     }
 
     // Don't use this one!
-    public InitiateTaskMessage(long txnId, int srcPartitionId, long clientHandle, StoredProcedureInvocation invocation) {
-        this(srcPartitionId, -1, txnId, clientHandle, false, false, invocation, -1);
+    public InitiateTaskMessage(long txnId, int srcPartitionId, StoredProcedureInvocation invocation) {
+        this(srcPartitionId, -1, txnId, false, false, invocation, -1);
     }
     
     // Use this one asshole!
-    public InitiateTaskMessage(long txnId, int srcPartitionId, int destPartitionId, long clientHandle, StoredProcedureInvocation invocation) {
-        this(srcPartitionId, destPartitionId, txnId, clientHandle, false, false, invocation, -1);
+    public InitiateTaskMessage(long txnId, int srcPartitionId, int destPartitionId, StoredProcedureInvocation invocation) {
+        this(srcPartitionId, destPartitionId, txnId, false, false, invocation, -1);
     }
 
 
     public InitiateTaskMessage(int sourcePartitionId,
                         int destPartitionId,
                         long txnId,
-                        long clientHandle,
                         boolean isReadOnly,
                         boolean isSinglePartition,
                         StoredProcedureInvocation invocation,
                         long lastSafeTxnID) {
-        super(sourcePartitionId, destPartitionId, txnId, clientHandle, isReadOnly);
+        super(sourcePartitionId, destPartitionId, txnId, invocation.getClientHandle(), isReadOnly);
         m_isSinglePartition = isSinglePartition;
         m_invocation = invocation;
         m_invocation.buildParameterSet();
@@ -110,17 +109,25 @@ public class InitiateTaskMessage extends TransactionInfoBaseMessage {
         return m_lastSafeTxnID;
     }
     
+    public StoredProcedureInvocation getStoredProcedureInvocation() {
+        return m_invocation;
+    }
+    
+    public void setStoredProcedureInvocation(StoredProcedureInvocation mInvocation) {
+        m_invocation = mInvocation;
+    }
+    
     @Override
     protected void flattenToBuffer(final DBBPool pool) {
         // stupid lame flattening of the proc invocation
-        FastSerializer fs = new FastSerializer();
-        try {
-            fs.writeObject(m_invocation);
-        } catch (IOException e) {
-            e.printStackTrace();
-            assert(false);
-        }
-        ByteBuffer invocationBytes = fs.getBuffer();
+//        FastSerializer fs = new FastSerializer();
+//        try {
+//            fs.writeObject(m_invocation);
+//        } catch (IOException e) {
+//            e.printStackTrace();
+//            assert(false);
+//        }
+        ByteBuffer invocationBytes = ByteBuffer.allocate(0); //  fs.getBuffer();
 
         // size of MembershipNotice
         int msgsize = super.getMessageByteCount();
@@ -148,7 +155,7 @@ public class InitiateTaskMessage extends TransactionInfoBaseMessage {
             for (int i = 0; i < m_nonCoordinatorSites.length; i++)
                 m_buffer.putInt(m_nonCoordinatorSites[i]);
         }
-        m_buffer.put(invocationBytes);
+        // m_buffer.put(invocationBytes);
         m_buffer.limit(m_buffer.position());
     }
 
@@ -166,14 +173,14 @@ public class InitiateTaskMessage extends TransactionInfoBaseMessage {
             for (int i = 0; i < siteCount; i++)
                 m_nonCoordinatorSites[i] = m_buffer.getInt();
         }
-        FastDeserializer fds = new FastDeserializer(m_buffer);
-        try {
-            m_invocation = fds.readObject(StoredProcedureInvocation.class);
-            m_invocation.buildParameterSet();
-        } catch (IOException e) {
-            e.printStackTrace();
-            assert(false);
-        }
+//        FastDeserializer fds = new FastDeserializer(m_buffer);
+//        try {
+//            m_invocation = fds.readObject(StoredProcedureInvocation.class);
+//            m_invocation.buildParameterSet();
+//        } catch (IOException e) {
+//            e.printStackTrace();
+//            assert(false);
+//        }
     }
 
     @Override
@@ -207,9 +214,9 @@ public class InitiateTaskMessage extends TransactionInfoBaseMessage {
         }
 
         sb.append("\n  PROCEDURE: ");
-        sb.append(m_invocation.getProcName());
+        sb.append(m_invocation != null ? m_invocation.getProcName() : "null");
         sb.append("\n  PARAMS: ");
-        sb.append(m_invocation.getParams().toString());
+        sb.append(m_invocation != null ? m_invocation.getParams().toString() : "null");
 
         return sb.toString();
     }

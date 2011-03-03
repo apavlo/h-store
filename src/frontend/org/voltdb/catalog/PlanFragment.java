@@ -26,6 +26,7 @@ package org.voltdb.catalog;
  */
 public class PlanFragment extends CatalogType {
 
+    int m_id;
     boolean m_hasdependencies;
     boolean m_multipartition;
     String m_plannodetree = new String();
@@ -33,17 +34,24 @@ public class PlanFragment extends CatalogType {
 
     void setBaseValues(Catalog catalog, CatalogType parent, String path, String name) {
         super.setBaseValues(catalog, parent, path, name);
-        m_fields.put("hasdependencies", m_hasdependencies);
-        m_fields.put("multipartition", m_multipartition);
-        m_fields.put("plannodetree", m_plannodetree);
-        m_fields.put("nontransactional", m_nontransactional);
+        this.addField("id", m_id);
+        this.addField("hasdependencies", m_hasdependencies);
+        this.addField("multipartition", m_multipartition);
+        this.addField("plannodetree", m_plannodetree);
+        this.addField("nontransactional", m_nontransactional);
     }
 
     void update() {
+        m_id = (Integer) m_fields.get("id");
         m_hasdependencies = (Boolean) m_fields.get("hasdependencies");
         m_multipartition = (Boolean) m_fields.get("multipartition");
         m_plannodetree = (String) m_fields.get("plannodetree");
         m_nontransactional = (Boolean) m_fields.get("nontransactional");
+    }
+
+    /** GETTER: Unique Id for this PlanFragment */
+    public int getId() {
+        return m_id;
     }
 
     /** GETTER: Dependencies must be received before this plan fragment can execute */
@@ -64,6 +72,11 @@ public class PlanFragment extends CatalogType {
     /** GETTER: True if this fragment doesn't read from or write to any persistent tables */
     public boolean getNontransactional() {
         return m_nontransactional;
+    }
+
+    /** SETTER: Unique Id for this PlanFragment */
+    public void setId(int value) {
+        m_id = value; m_fields.put("id", value);
     }
 
     /** SETTER: Dependencies must be received before this plan fragment can execute */

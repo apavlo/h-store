@@ -15,7 +15,7 @@
 #include "io/buffer.h"
 #include "io/libeventloop.h"
 #include "io/message.h"
-#include "libevent/event.h"
+#include "libevent/include/event2/event.h"
 #include "net/messageserver.h"
 #include "networkaddress.h"
 #include "replication/primarybackuplistener.h"

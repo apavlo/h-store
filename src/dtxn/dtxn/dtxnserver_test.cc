@@ -246,6 +246,33 @@ TEST_F(DtxnServerTest, MultiplePhaseCommit) {
     EXPECT_EQ(false, client_->hasMessage());
 }
 
+// start a transaction as a general transaction, then it becomes single partition
+TEST_F(DtxnServerTest, MultiplePhaseSinglePartition) {
+    // starts as a general transaction
+    fragment_.multiple_partitions = true;
+    fragment_.last_fragment = false;
+    server_->fragmentReceived(client_handle_, fragment_);
+
+    scheduler_->next_result_ = "";
+    scheduler_->next_status_ = ExecutionEngine::OK;
+    scheduler_->nextOrder(0);
+    event_loop_.idle();
+    client_->getMessage(&response_);
+
+    // receive part 2 which makes it single partition. this should get logged then finished
+    fragment_.multiple_partitions = false;
+    fragment_.last_fragment = true;
+    fragment_.transaction = "bar";
+    server_->fragmentReceived(client_handle_, fragment_);
+    EXPECT_EQ("bar", scheduler_->arrived_.at(0)->request().transaction);
+
+    scheduler_->next_result_ = "out";
+    scheduler_->next_status_ = ExecutionEngine::OK;
+    scheduler_->nextOrder(0);
+    event_loop_.idle();
+    client_->getMessage(&response_);
+}
+
 TEST_F(DtxnServerTest, PollResponsesOnIdle) {
     fragment_.multiple_partitions = false;
 

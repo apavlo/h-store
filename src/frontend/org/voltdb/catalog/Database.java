@@ -37,7 +37,7 @@ public class Database extends CatalogType {
 
     void setBaseValues(Catalog catalog, CatalogType parent, String path, String name) {
         super.setBaseValues(catalog, parent, path, name);
-        m_fields.put("schema", m_schema);
+        this.addField("schema", m_schema);
         m_users = new CatalogMap<User>(catalog, this, path + "/" + "users", User.class);
         m_childCollections.put("users", m_users);
         m_groups = new CatalogMap<Group>(catalog, this, path + "/" + "groups", Group.class);

@@ -28,10 +28,8 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
 import java.lang.reflect.Field;
-import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -44,7 +42,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
-import org.voltdb.ClusterMonitor;
 import org.voltdb.ServerThread;
 import org.voltdb.VoltDB;
 import org.voltdb.benchmark.BenchmarkResults.Result;
@@ -54,8 +51,6 @@ import org.voltdb.catalog.Host;
 import org.voltdb.catalog.Site;
 import org.voltdb.client.Client;
 import org.voltdb.client.ClientFactory;
-import org.voltdb.client.NoConnectionsException;
-import org.voltdb.client.NullCallback;
 import org.voltdb.client.ProcCallException;
 import org.voltdb.compiler.VoltProjectBuilder;
 import org.voltdb.processtools.ProcessSetManager;
@@ -63,12 +58,7 @@ import org.voltdb.processtools.SSHTools;
 import org.voltdb.processtools.ShellTools;
 import org.voltdb.utils.LogKeys;
 
-import ca.evanjones.protorpc.NIOEventLoop;
-import ca.evanjones.protorpc.ProtoRpcChannel;
 import ca.evanjones.protorpc.ProtoRpcController;
-
-import com.google.protobuf.ByteString;
-
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.hstore.Hstore;
 import edu.brown.hstore.Hstore.HStoreService;
@@ -87,9 +77,15 @@ public class BenchmarkController {
         LoggerUtil.setupLogging();
     }
 
+    // Dtxn.Coordinator
     final ProcessSetManager m_coordPSM = new ProcessSetManager();
+    
+    // Clients
     final ProcessSetManager m_clientPSM = new ProcessSetManager();
+    
+    // Server Sites
     final ProcessSetManager m_serverPSM = new ProcessSetManager();
+    
     BenchmarkResults m_currentResults = null;
     Set<String> m_clients = new HashSet<String>();
     ClientStatusThread m_statusThread = null;
@@ -114,7 +110,6 @@ public class BenchmarkController {
     VoltProjectBuilder m_projectBuilder;
     String m_jarFileName = null;
     ServerThread m_localserver = null;
-    private ClusterMonitor m_clusterMonitor;
 
     private static final Logger LOG = Logger.getLogger(BenchmarkController.class); // .getName(), VoltLoggerFactory.instance());
     private static final Logger benchmarkLog = LOG; // Logger.getLogger("BENCHMARK", VoltLoggerFactory.instance());
@@ -355,31 +350,33 @@ public class BenchmarkController {
             Set<Thread> threads = new HashSet<Thread>();
             
             // Dtxn.Coordinator
-            {
-                KillStragglers ks = new KillStragglers(m_config.remoteUser, m_config.coordinatorHost, m_config.remotePath)
+            if (m_config.noCoordinator == false) {
+                KillStragglers ks = new KillStragglers(m_config.remoteUser, m_config.coordinatorHost, m_config.remotePath, m_config.sshOptions)
                                             .enableKillCoordinator();
                 threads.add(new Thread(ks));
                 Runtime.getRuntime().addShutdownHook(new Thread(ks));
             }
             // HStoreSite
-            for (String host : unique_hosts) {
-                KillStragglers ks = new KillStragglers(m_config.remoteUser, host, m_config.remotePath)
-                                            .enableKillSite()
-                                            .enableKillEngine();
-                threads.add(new Thread(ks));
-                Runtime.getRuntime().addShutdownHook(new Thread(ks));
-            } // FOR
+            // IMPORTANT: Don't try to kill things if we're going to profile... for obvious reasons... duh!
+            if (m_config.profileSiteIds.isEmpty()) {
+                for (String host : unique_hosts) {
+                    KillStragglers ks = new KillStragglers(m_config.remoteUser, host, m_config.remotePath, m_config.sshOptions)
+                                                .enableKillSite()
+                                                .enableKillEngine();
+                    threads.add(new Thread(ks));
+                    Runtime.getRuntime().addShutdownHook(new Thread(ks));
+                } // FOR
+            }
             // Client
             for (String host : m_config.clients) {
-                KillStragglers ks = new KillStragglers(m_config.remoteUser, host, m_config.remotePath)
+                KillStragglers ks = new KillStragglers(m_config.remoteUser, host, m_config.remotePath, m_config.sshOptions)
                                             .enableKillClient();
                 threads.add(new Thread(ks));
                 Runtime.getRuntime().addShutdownHook(new Thread(ks));
             } // FOR
-
             
             try {
-                ThreadUtil.run(threads);
+                ThreadUtil.runNewPool(threads);
             } catch (Exception e) {
                 LogKeys logkey = LogKeys.benchmark_BenchmarkController_UnableToRunRemoteKill;
                 benchmarkLog.l7dlog(Level.FATAL, logkey.name(), e);
@@ -387,31 +384,22 @@ public class BenchmarkController {
                 System.exit(-1);
             }
 
-            // START: Dtxn.Coordinator
-            {
-                String host = m_config.coordinatorHost;
-                String[] command = {
-                    "ant",
-                    "dtxn-coordinator",
-                    "-Dproject=" + m_projectBuilder.getProjectName(),
-                };
-
-                command = SSHTools.convert(m_config.remoteUser, host, m_config.remotePath, command);
-                String fullCommand = StringUtil.join(" ", command);
-                benchmarkLog.debug(fullCommand);
-                m_coordPSM.startProcess("dtxn-" + host, command);
-                LOG.info("Started Dtxn.Coordinator on " + host);
-            }
-            
             // START THE SERVERS
             LOG.debug("Number of hosts to start: " + launch_hosts.size());
+            int hosts_started = 0;
             for (String[] triplet : launch_hosts) {
                 String host = triplet[0];
                 String port = triplet[1];
-                String site_id = triplet[2];
-                String host_id = String.format("site-%s-%s", host, site_id);
+                int site_id = Integer.valueOf(triplet[2]);
+                String host_id = String.format("site-%s-%d", host, site_id);
                 
-                LOG.info(String.format("Starting HStoreSite on %s:%s with site id #%s", host, port, site_id));
+                // Check whether this one of the sites that will be started externally
+                if (m_config.profileSiteIds.contains(site_id)) {
+                    LOG.info(String.format("Skipping HStoreSite #%d because it will be started by profiler", site_id));
+                    continue;
+                }
+                
+                LOG.info(String.format("Starting HStoreSite on %s:%s with site id #%d", host, port, site_id));
 
 //                String debugString = "";
 //                if (m_config.listenForDebugger) {
@@ -421,30 +409,56 @@ public class BenchmarkController {
                 // -agentlib:hprof=cpu=samples,
                 // depth=32,interval=10,lineno=y,monitor=y,thread=y,force=y,
                 // file=" + host + "_hprof_tpcc.txt"
-                String[] command = {
-                    "ant",
-                    "hstore-site",
-                    "-Dhstore.coordinator.host=" + m_config.coordinatorHost,
-                    "-Dproject=" + m_projectBuilder.getProjectName(),
-                    "-Dnode.site=" + site_id,
-                };
+                List<String> command = new ArrayList<String>();
+                command.add("ant");
+                command.add("hstore-site");
+                command.add("-Dhstore.coordinator.host=" + m_config.coordinatorHost);
+                command.add("-Dproject=" + m_projectBuilder.getProjectName());
+                command.add("-Dnode.site=" + site_id);
+                if (m_config.markovPath != null) command.add("-Dmarkov=" + m_config.markovPath);
+                if (m_config.thresholdsPath != null) command.add("-Dthresholds=" + m_config.thresholdsPath);
+                
+                // Enable workload trace outputs
+                if (m_config.workloadTrace != null) {
+                    command.add("-Dworkload.output=" + m_config.workloadTrace);
+                }
 
-                command = SSHTools.convert(m_config.remoteUser, host, m_config.remotePath, command);
-                String fullCommand = StringUtil.join(" ", command);
+                String exec_command[] = SSHTools.convert(m_config.remoteUser, host, m_config.remotePath, m_config.sshOptions, command.toArray(new String[]{}));
+                String fullCommand = StringUtil.join(" ", exec_command);
                 uploader.setCommandLineForHost(host, fullCommand);
                 benchmarkLog.debug(fullCommand);
-                m_serverPSM.startProcess(host_id, command);
+                m_serverPSM.startProcess(host_id, exec_command);
+                hosts_started++;
             } // FOR
 
+            // START: Dtxn.Coordinator
+            if (m_config.noCoordinator == false) {
+                String host = m_config.coordinatorHost;
+                String[] command = {
+                    "ant",
+                    "dtxn-coordinator",
+                    "-Dproject=" + m_projectBuilder.getProjectName(),
+                };
+
+                command = SSHTools.convert(m_config.remoteUser, host, m_config.remotePath, m_config.sshOptions, command);
+                String fullCommand = StringUtil.join(" ", command);
+                benchmarkLog.debug(fullCommand);
+                m_coordPSM.startProcess("dtxn-" + host, command);
+                LOG.info("Started Dtxn.Coordinator on " + host);
+            }
+            
             // WAIT FOR SERVERS TO BE READY
-            int waiting = launch_hosts.size();
-            LOG.info("Waiting for " + waiting + " HStoreSites to finish initialization");
-            do {
-                ProcessSetManager.OutputLine line = m_serverPSM.nextBlocking();
-                if (line.value.contains(HStoreSite.SITE_READY_MSG)) {
-                    waiting--;
-                }
-            } while (waiting > 0);
+            int waiting = hosts_started;
+            if (waiting > 0) {
+                LOG.info("Waiting for " + waiting + " HStoreSites to finish initialization");
+                
+                do {
+                    ProcessSetManager.OutputLine line = m_serverPSM.nextBlocking();
+                    if (line.value.contains(HStoreSite.SITE_READY_MSG)) {
+                        waiting--;
+                    }
+                } while (waiting > 0);
+            }
             LOG.info("All remote HStoreSites are initialized");
         }
         else {
@@ -456,9 +470,6 @@ public class BenchmarkController {
             m_localserver.waitForInitialization();
         }
 
-        // Block ourselves until we know that the cluster is ready
-        // TODO(sw47) this.blockUntilClusterReady(catalog);
-        
         final int numClients = (m_config.clients.length * m_config.processesPerClient);
         if (m_loaderClass != null && !m_config.noDataLoad) {
             LOG.debug("Starting loader: " + m_loaderClass);
@@ -488,10 +499,12 @@ public class BenchmarkController {
             }
             loaderCommand.append(" -cp \"" + classpath + "\" ");
             loaderCommand.append(m_loaderClass.getCanonicalName());
-            for (String host : unique_hosts) {
-                String port = String.valueOf(VoltDB.DEFAULT_PORT);
-                loaderCommand.append(" HOST=" + host + ":" + port);
-                localArgs.add("HOST=" + host + ":" + port);
+            
+            for (Site catalog_site : CatalogUtil.getCluster(catalog).getSites()) {
+                String address = String.format("%s:%d", catalog_site.getHost().getIpaddr(), catalog_site.getProc_port());
+                loaderCommand.append(" HOST=" + address);
+                localArgs.add("HOST=" + address);
+                LOG.info("HStoreSite: " + address);
             }
 
             loaderCommand.append(" NUMCLIENTS=" + numClients + " ");
@@ -517,18 +530,18 @@ public class BenchmarkController {
 
             loaderCommand.append(userParams);
 
-            benchmarkLog.debug("Loader Command: " + loaderCommand.toString());
-
             // RUN THE LOADER
             if (true || m_config.localmode) {
                 localArgs.add("EXITONCOMPLETION=false");
                 ClientMain.main(m_loaderClass, localArgs.toArray(new String[0]), true);
             }
             else {
+                benchmarkLog.debug("Loader Command: " + loaderCommand.toString());
                 String[] command = SSHTools.convert(
                         m_config.remoteUser,
                         m_config.clients[0],
                         m_config.remotePath,
+                        m_config.sshOptions,
                         loaderCommand.toString());
                 status = ShellTools.cmdToStdOut(command);
                 assert(status);
@@ -594,7 +607,7 @@ public class BenchmarkController {
                 tempCLArgs.add("NUMCLIENTS=" + numClients);
                 String[] args = tempCLArgs.toArray(new String[0]);
 
-                args = SSHTools.convert(m_config.remoteUser, client, m_config.remotePath, args);
+                args = SSHTools.convert(m_config.remoteUser, client, m_config.remotePath, m_config.sshOptions, args);
                 String fullCommand = StringUtil.join(" ", args);
 
                 uploader.setCommandLineForClient(host_id, fullCommand);
@@ -609,60 +622,76 @@ public class BenchmarkController {
         }
         m_clientsNotReady.set(m_clientPSM.size());
 
-
         registerInterest(new ResultsPrinter());
         // registerInterest(uploader);
     }
 
     public void cleanUpBenchmark() {
-        m_clientPSM.killAll();
-        Client client = ClientFactory.createClient();
-        try {
-            if (m_config.hosts.length > 0) {
-                client.createConnection(m_config.hosts[0], Client.VOLTDB_SERVER_PORT, "", "");
-                NullCallback cb = new NullCallback();
-                client.callProcedure("@Shutdown");
-                // client.callProcedure(cb, "@Shutdown");
-            }
-        } catch (NoConnectionsException e) {
-            e.printStackTrace();
-        } catch (UnknownHostException e) {
-            e.printStackTrace();
-        } catch (IOException e) {
-            // e.printStackTrace();
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+//        Client client = ClientFactory.createClient();
+//        try {
+//            if (m_config.hosts.length > 0) {
+//                System.err.println(String.format("Trying to connect to %s:%d", m_config.hosts[0], VoltDB.DEFAULT_PORT));
+//                client.createConnection(m_config.hosts[0], VoltDB.DEFAULT_PORT, "", "");
+//                NullCallback cb = new NullCallback();
+//                client.callProcedure("@Shutdown");
+//                // client.callProcedure(cb, "@Shutdown");
+//            }
+//        } catch (NoConnectionsException e) {
+//            e.printStackTrace();
+//        } catch (UnknownHostException e) {
+//            e.printStackTrace();
+//        } catch (IOException e) {
+//            // e.printStackTrace();
+//        } catch (Exception e) {
+//            e.printStackTrace();
+//        }
 
+        LOG.debug("Killing clients");
+        m_clientPSM.killAll();
+
+        LOG.debug("Killing nodes");
         m_serverPSM.killAll();
         
-        // Kill the coordinator
-        LOG.info("Killing " + HStoreSite.DTXN_COORDINATOR + " on host " + m_config.coordinatorHost);
-        SSHTools.cmd(m_config.remoteUser, m_config.coordinatorHost, m_config.remotePath, 
-                     new String[] { "killall", HStoreSite.DTXN_COORDINATOR });
-        
-        // And all the engines
-        List<Thread> threads = new ArrayList<Thread>();
-        for (final String host : CollectionUtil.toStringSet(Arrays.asList(m_config.hosts))) {
-            threads.add(new Thread() {
-                public void run() {
-                    LOG.info("Killing " + HStoreSite.DTXN_ENGINE + " on host " + host);
-                    SSHTools.cmd(m_config.remoteUser, host, m_config.remotePath, 
-                                 new String[] { "killall", HStoreSite.DTXN_ENGINE }); 
-                };
-            });
-        } // FOR
-        try {
-            ThreadUtil.run(threads);
-        } catch (Exception ex) {
-            ex.printStackTrace();
+        if (m_config.noCoordinator == false) {
+            LOG.debug("Killing Dtxn.Coordinator");
+            m_coordPSM.killAll();
         }
+        
+//        // Kill the coordinator
+//        LOG.info("Killing " + HStoreSite.DTXN_COORDINATOR + " on host " + m_config.coordinatorHost);
+//        SSHTools.cmd(m_config.remoteUser, m_config.coordinatorHost, m_config.remotePath, 
+//                     new String[] { "killall", HStoreSite.DTXN_COORDINATOR });
+//        
+//        // And all the engines
+//        List<Thread> threads = new ArrayList<Thread>();
+//        for (final String host : CollectionUtil.toStringSet(Arrays.asList(m_config.hosts))) {
+//            threads.add(new Thread() {
+//                public void run() {
+//                    LOG.info("Killing " + HStoreSite.DTXN_ENGINE + " on host " + host);
+//                    SSHTools.cmd(m_config.remoteUser, host, m_config.remotePath, 
+//                                 new String[] { "killall", HStoreSite.DTXN_ENGINE }); 
+//                };
+//            });
+//        } // FOR
+//        try {
+//            ThreadUtil.run(threads);
+//        } catch (Exception ex) {
+//            ex.printStackTrace();
+//        }
+//        LOG.info("All DTXN processes are killed. Exiting...");
     }
 
     public void runBenchmark() {
-        m_currentResults =
-            new BenchmarkResults(m_config.interval, m_config.duration, m_clients.size());
+        LOG.info(String.format("Starting execution phase with %d clients [hosts=%d, clientsperhost=%d, txnrate=%s]",
+                                m_clients.size(),
+                                m_config.clients.length,
+                                m_config.processesPerClient,
+                                m_config.parameters.get("TXNRATE")
+        ));
+        
+        m_currentResults = new BenchmarkResults(m_config.interval, m_config.duration, m_clients.size());
         m_statusThread = new ClientStatusThread();
+        m_statusThread.setDaemon(true);
         m_pollCount = m_config.duration / m_config.interval;
         m_statusThread.start();
 
@@ -706,19 +735,20 @@ public class BenchmarkController {
         }
 
         // shut down all the clients
-        for (String clientName : m_clients)
-            m_clientPSM.writeToProcess(clientName, "STOP\n");
+        boolean first = true;
+        for (String clientName : m_clients) {
+            if (first) {
+                m_clientPSM.writeToProcess(clientName, "SHUTDOWN\n");
+                first = false;
+            } else {
+                m_clientPSM.writeToProcess(clientName, "STOP\n");
+            }
+        }
+        LOG.info("Waiting for " + m_clients.size() + " clients to finish");
         for (String clientName : m_clients)
             m_clientPSM.joinProcess(clientName);
 
-        try {
-            if (m_clusterMonitor != null) {
-                m_clusterMonitor.stop();
-            }
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
-
+        LOG.info("Waiting for status thread to finish");
         try {
             m_statusThread.join(1000);
         }
@@ -866,6 +896,7 @@ public class BenchmarkController {
         int k_factor = 0;
         int clientCount = 1;
         int processesPerClient = 1;
+        String sshOptions = "";
         String remotePath = "voltbin/";
         String remoteUser = null; // null implies current local username
         String clientClassname = m_tpccClientClassName;
@@ -879,6 +910,7 @@ public class BenchmarkController {
         boolean compileOnly = false;
         boolean useCatalogHosts = false;
         boolean noDataLoad = false;
+        String workloadTrace = null;
         int num_partitions = 0;
         String backend = "jni";
         String snapshotPath = null;
@@ -888,9 +920,17 @@ public class BenchmarkController {
         float checkTransaction = 0;
         boolean checkTables = false;
         String coordinatorHost = null;
+        boolean noCoordinator = false;
         String statsTag = null;
         String applicationName = null;
         String subApplicationName = null;
+        
+        // Markov Stuff
+        String markov_path = null;
+        String thresholds_path = null;
+        
+        // List of SiteIds that we won't start because they'll be started by the profiler
+        Set<Integer> profileSiteIds = new HashSet<Integer>();
 
         // try to read connection string for reporting database
         // from a "mysqlp" file
@@ -985,6 +1025,12 @@ public class BenchmarkController {
                  * Loader that also extends ClientMain
                  */
                 clientClassname = parts[1];
+            } else if (parts[0].equalsIgnoreCase("SSHOPTIONS")) {
+                /*
+                 * Options used when logging into client/server hosts
+                 */
+                sshOptions = parts[1];
+
             } else if (parts[0].equalsIgnoreCase("REMOTEPATH")) {
                 /*
                  * Directory on the NFS host where the VoltDB files are stored
@@ -1027,6 +1073,8 @@ public class BenchmarkController {
             /** PAVLO **/
             } else if (parts[0].equalsIgnoreCase("COORDINATORHOST")) {
                 coordinatorHost = parts[1];
+            } else if (parts[0].equalsIgnoreCase("NOCOORDINATOR")) {
+                noCoordinator = Boolean.valueOf(parts[1]);
                 
             } else if (parts[0].equalsIgnoreCase("CATALOG")) {
                 catalogPath = new File(parts[1]);
@@ -1056,6 +1104,25 @@ public class BenchmarkController {
                  * Disable data loading
                  */
                 noDataLoad = Boolean.parseBoolean(parts[1]);
+            } else if (parts[0].equalsIgnoreCase("TRACE")) {
+                /*
+                 * Workload Trace Output
+                 */
+                workloadTrace = parts[1];
+            } else if (parts[0].equalsIgnoreCase("PROFILESITES")) {
+                /*
+                 * Profile SiteIds
+                 */
+                for (String s : parts[1].split(",")) {
+                    profileSiteIds.add(Integer.valueOf(s));
+                } // FOR
+
+            } else if (parts[0].equalsIgnoreCase("MARKOV")) {
+                markov_path = parts[1];
+                LOG.info("MARKOV PATH = " + markov_path);
+            } else if (parts[0].equalsIgnoreCase("THRESHOLDS")) {
+                thresholds_path = parts[1];
+
             /** PAVLO **/
                 
             } else {
@@ -1146,7 +1213,8 @@ public class BenchmarkController {
         BenchmarkConfig config = new BenchmarkConfig(
                 clientClassname,
                 backend, 
-                coordinatorHost, 
+                coordinatorHost,
+                noCoordinator,
                 hostNames,
                 sitesPerHost, 
                 k_factor, 
@@ -1154,6 +1222,7 @@ public class BenchmarkController {
                 processesPerClient, 
                 interval, 
                 duration,
+                sshOptions,
                 remotePath, 
                 remoteUser, 
                 listenForDebugger, 
@@ -1175,8 +1244,12 @@ public class BenchmarkController {
                 compileBenchmark, 
                 compileOnly, 
                 useCatalogHosts,
-                noDataLoad);
-
+                noDataLoad,
+                workloadTrace,
+                profileSiteIds,
+                markov_path,
+                thresholds_path);
+        
         // Always pass these parameters
         clientParams.put("INTERVAL", Long.toString(interval));
         clientParams.put("DURATION", Long.toString(duration));

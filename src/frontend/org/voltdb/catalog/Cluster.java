@@ -42,10 +42,10 @@ public class Cluster extends CatalogType {
         m_childCollections.put("hosts", m_hosts);
         m_sites = new CatalogMap<Site>(catalog, this, path + "/" + "sites", Site.class);
         m_childCollections.put("sites", m_sites);
-        m_fields.put("num_partitions", m_num_partitions);
-        m_fields.put("leaderaddress", m_leaderaddress);
-        m_fields.put("localepoch", m_localepoch);
-        m_fields.put("securityEnabled", m_securityEnabled);
+        this.addField("num_partitions", m_num_partitions);
+        this.addField("leaderaddress", m_leaderaddress);
+        this.addField("localepoch", m_localepoch);
+        this.addField("securityEnabled", m_securityEnabled);
     }
 
     void update() {

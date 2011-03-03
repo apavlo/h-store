@@ -9,6 +9,7 @@ import org.voltdb.VoltTableRow;
 import org.voltdb.VoltType;
 import org.voltdb.VoltTable.ColumnInfo;
 import org.voltdb.benchmark.tpcc.procedures.neworder;
+import org.voltdb.benchmark.tpcc.procedures.paymentByCustomerId;
 import org.voltdb.benchmark.tpcc.procedures.paymentByCustomerIdW;
 import org.voltdb.catalog.*;
 import org.voltdb.utils.VoltTypeUtil;
@@ -50,7 +51,7 @@ public class TestPartitionEstimator extends BaseTestCase {
         PartitionEstimator p_estimator = new PartitionEstimator(clone_db);
 
         // Procedure
-        Procedure catalog_proc = this.getProcedure(clone_db, paymentByCustomerIdW.class);
+        Procedure catalog_proc = this.getProcedure(clone_db, paymentByCustomerId.class);
         ProcParameter catalog_params[] = new ProcParameter[] {
             this.getProcParameter(clone_db, catalog_proc, 1),   // D_ID
             this.getProcParameter(clone_db, catalog_proc, 0),   // W_ID
@@ -71,13 +72,14 @@ public class TestPartitionEstimator extends BaseTestCase {
         MultiColumn mc = MultiColumn.get(catalog_cols);
         assertNotNull(mc);
         catalog_tbl.setPartitioncolumn(mc);
+        p_estimator.initCatalog(clone_db);
         
         // Procedure Partition
         Long proc_params[] = new Long[] {
             new Long(NUM_PARTITIONS-1), // W_ID
             new Long(BASE_PARTITION),   // D_ID
         };
-        Integer proc_partition = p_estimator.getPartition(catalog_proc, proc_params, true);
+        Integer proc_partition = p_estimator.getBasePartition(catalog_proc, proc_params, true);
         assertNotNull(proc_partition);
         assert(proc_partition >= 0);
         assert(proc_partition < NUM_PARTITIONS);
@@ -113,13 +115,14 @@ public class TestPartitionEstimator extends BaseTestCase {
         assertNotNull(mpp);
         assert(mpp.getIndex() >= 0);
         catalog_proc.setPartitionparameter(mpp.getIndex());
+        p_estimator.initCatalog(clone_db);
         
         // Case #1: Both parameters have values in the input
         Long params[] = new Long[] {
             new Long(NUM_PARTITIONS-1), // W_ID
             new Long(BASE_PARTITION),   // D_ID
         };
-        Integer partition0 = p_estimator.getPartition(catalog_proc, params, true);
+        Integer partition0 = p_estimator.getBasePartition(catalog_proc, params, true);
         assertNotNull(partition0);
         assert(partition0 >= 0);
 //        System.err.println("partition0=" + partition0);
@@ -130,24 +133,24 @@ public class TestPartitionEstimator extends BaseTestCase {
             new Long(NUM_PARTITIONS-1), // W_ID
             null,                       // D_ID
         };
-        Integer partition1 = p_estimator.getPartition(catalog_proc, params, true);
+        Integer partition1 = p_estimator.getBasePartition(catalog_proc, params, true);
         assertNotNull(partition1);
         assert(partition1 >= 0);
         assert(partition1 < NUM_PARTITIONS);
 //        System.err.println("partition1=" + partition1);
-        assertNotSame(partition0, partition1);
+        assert(partition0.equals(partition1) == false);
         
         // Case #3: The first parameter is null
         params = new Long[] {
             null,                       // W_ID
             new Long(BASE_PARTITION),   // D_ID
         };
-        Integer partition2 = p_estimator.getPartition(catalog_proc, params, true);
+        Integer partition2 = p_estimator.getBasePartition(catalog_proc, params, true);
         assertNotNull(partition2);
         assert(partition2 >= 0);
         assert(partition2 < NUM_PARTITIONS);
 //        System.err.println("partition2=" + partition2);
-        assertNotSame(partition0, partition2);
+        assert(partition0.equals(partition2) == false);
     }
     
     
@@ -191,7 +194,7 @@ public class TestPartitionEstimator extends BaseTestCase {
         });
         vt.addRow(params[0], params[1]);
         VoltTableRow vt_row = vt.fetchRow(0);
-        int vt_partition = p_estimator.getPartition(catalog_tbl, vt_row);
+        int vt_partition = p_estimator.getTableRowPartition(catalog_tbl, vt_row);
         assert(vt_partition >= 0) : "Invalid Partition: " + vt_partition;
         assertEquals(stmt_partition, vt_partition);
     }
@@ -251,7 +254,7 @@ public class TestPartitionEstimator extends BaseTestCase {
         for (int w_id = 1; w_id < NUM_PARTITIONS; w_id++) {
             Object params[] = new Integer[]{ 2, w_id }; // d_id, d_w_id
             PartitionEstimator estimator = new PartitionEstimator(catalog_db, hasher);
-            Collection<Integer> partitions = estimator.getPartitions(catalog_stmt, params, BASE_PARTITION);
+            Collection<Integer> partitions = estimator.getAllPartitions(catalog_stmt, params, BASE_PARTITION);
             assertEquals(w_id, (int)CollectionUtil.getFirst(partitions));
         } // FOR
     }
@@ -271,7 +274,7 @@ public class TestPartitionEstimator extends BaseTestCase {
         for (int w_id = 1; w_id < NUM_PARTITIONS; w_id++) {
             Object params[] = new Integer[]{ 2, w_id }; // d_id, d_w_id
             PartitionEstimator estimator = new PartitionEstimator(catalog_db, hasher);
-            Collection<Integer> partitions = estimator.getPartitions(catalog_stmt, params, BASE_PARTITION);
+            Collection<Integer> partitions = estimator.getAllPartitions(catalog_stmt, params, BASE_PARTITION);
             assertEquals(w_id, (int)CollectionUtil.getFirst(partitions));
         } // FOR
     }
@@ -302,7 +305,7 @@ public class TestPartitionEstimator extends BaseTestCase {
             //System.out.print((i != 0 ? ", " : "[") + params[i].toString() + (i + 1 == params.length ? "\n" : "")); 
         } // FOR
         
-        Collection<Integer> partitions = estimator.getPartitions(catalog_stmt, params, BASE_PARTITION);
+        Collection<Integer> partitions = estimator.getAllPartitions(catalog_stmt, params, BASE_PARTITION);
 //        System.out.println(catalog_stmt.getName() + " Partitions: " + partitions);
         assertFalse(partitions.isEmpty());
         assertEquals(1, partitions.size());
@@ -337,7 +340,7 @@ public class TestPartitionEstimator extends BaseTestCase {
         
         // We should get back exactly one partition id (base_partition)
         Object params[] = new Object[] { new Long(1234) };
-        Set<Integer> partitions = p_estimator.getPartitions(catalog_stmt, params, BASE_PARTITION);
+        Set<Integer> partitions = p_estimator.getAllPartitions(catalog_stmt, params, BASE_PARTITION);
         assertNotNull(partitions);
         assertEquals(1, partitions.size());
         assertEquals(BASE_PARTITION, CollectionUtil.getFirst(partitions).intValue());
@@ -371,7 +374,7 @@ public class TestPartitionEstimator extends BaseTestCase {
         // First calculate the partitions for the query using the original catalog
         // We should get back exactly one partition id (base_partition)
         Object params[] = new Object[] { new Long(BASE_PARTITION) };
-        Set<Integer> partitions = p_estimator.getPartitions(catalog_stmt, params, BASE_PARTITION);
+        Set<Integer> partitions = p_estimator.getAllPartitions(catalog_stmt, params, BASE_PARTITION);
         assertNotNull(partitions);
         assertEquals(1, partitions.size());
         assertEquals(BASE_PARTITION, CollectionUtil.getFirst(partitions).intValue());
@@ -383,7 +386,7 @@ public class TestPartitionEstimator extends BaseTestCase {
         catalog_proc = new_database.getProcedures().get(catalog_proc.getName());
         catalog_stmt = catalog_proc.getStatements().get("getWarehouseTaxRate");
         
-        Set<Integer> new_partitions = p_estimator.getPartitions(catalog_stmt, params, BASE_PARTITION);
+        Set<Integer> new_partitions = p_estimator.getAllPartitions(catalog_stmt, params, BASE_PARTITION);
         List<Integer> all_partitions = CatalogUtil.getAllPartitionIds(new_database);
         assertNotNull(new_partitions);
         assertEquals(all_partitions.size(), new_partitions.size());

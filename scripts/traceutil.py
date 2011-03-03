@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+from __future__ import with_statement
+
 import os
 import sys
 import re
@@ -41,6 +43,8 @@ if __name__ == '__main__':
         "raw",
         ## Enable debug logging
         "debug",
+        ## Commands Output
+        "help",
     ])
     ## ----------------------------------------------
     ## COMMAND OPTIONS
@@ -57,7 +61,7 @@ if __name__ == '__main__':
 
     args = map(string.strip, args)
     trace_file = options["trace"][0] if "trace" in options else "-"
-    command = args.pop(0)
+    command = args.pop(0).lower()
     search_key = args[0] if len(args) > 0 else None
     if search_key != None and search_key.isdigit(): search_key = int(search_key)
     
@@ -70,6 +74,7 @@ if __name__ == '__main__':
     write_raw = ("raw" in options)
     
     txn_ctr = -1
+    txn_abort_ctr = 0
     limit_ctr = 0
     count_data = { }
     current_txn = None
@@ -100,14 +105,15 @@ if __name__ == '__main__':
                 
             if limit != None and limit_ctr >= limit: break
             json_data = json.loads(line)
-            catalog_name = json_data["CATALOG_NAME"]
+            catalog_name = json_data["NAME"]
             trace_id = int(json_data["ID"])
+            txn_id = int(json_data["TXN_ID"])
             
             ## ----------------------------------------------
             ## GET
             ## ----------------------------------------------
             if command == "get":
-                if search_key == None or search_key in [ catalog_name, trace_id ]:
+                if search_key == None or search_key in [ catalog_name, trace_id, txn_id ]:
                     txn = TransactionTrace().fromJSON(json_data)
                     assert txn
                     
@@ -115,8 +121,9 @@ if __name__ == '__main__':
                     if write_raw:
                         print line
                     else:
-                        print "[%05d] %s" % (txn_ctr, txn.catalog_name)
-                        print json.dumps(txn.toJSON(), indent=2)
+                        print "[%05d] %s" % (txn_ctr, txn.name)
+                        pprint(txn.toJSON());
+                        #print json.dumps(txn.toJSON(), indent=2)
                     limit_ctr += 1
             ## ----------------------------------------------
             ## FIX TPC-E MarketFeed
@@ -146,7 +153,26 @@ if __name__ == '__main__':
                         print json.dumps(current_txn.toJSON(), indent=2)
                     current_txn = None
                     limit_ctr += 1
-                
+            ## ----------------------------------------------
+            ## FIX TXN IDS
+            ## ----------------------------------------------
+            elif command == "fixtxnids":
+                txn = TransactionTrace().fromJSON(json_data)
+                if type(txn.txn_id) in (str, unicode) and \
+                   not txn.txn_id.isdigit():
+                    txn.txn_id = TransactionTrace.NEXT_TXN_ID - 1
+                    #print "FIX:", txn.txn_id
+                #else:
+                    #print "txn_id:", txn.txn_id
+                    #print "type:", type(txn.txn_id)
+                    #print "digit:", txn.txn_id.isdigit()
+                    
+                ## IF
+                if write_raw:
+                    print json.dumps(txn.toJSON())
+                else:
+                    print json.dumps(txn.toJSON(), indent=2)
+                limit_ctr += 1
             ## ----------------------------------------------
             ## FIX
             ## ----------------------------------------------
@@ -180,12 +206,110 @@ if __name__ == '__main__':
                         writeJSON(txn.toJSON(), sys.stdout)
                         if not catalog_name in count_data: count_data[catalog_name] = 0
                         count_data[catalog_name] += 1
-                        #print "[%05d] %s" % (txn_ctr, txn.catalog_name)
+                        #print "[%05d] %s" % (txn_ctr, txn.name)
                         #print json.dumps(txn.toJSON(), indent=2)
                     else:
                         print line
                 else:
                     print line
+                limit_ctr += 1
+            ## ----------------------------------------------
+            ## MARKOV PAPER NEWORDER RESTRUCTURE
+            ## ----------------------------------------------
+            elif command == "markov":
+                if catalog_name != "neworder": continue
+
+                txn = TransactionTrace().fromJSON(json_data)
+                assert txn
+                w_id = txn.params[0]
+    
+                ## We want to remove these queries
+                remove = [ "getItemInfo", "getDistrict", "getCustomer", "createNewOrder", "incrementNextOrderId" ]
+                to_remove = [ ]
+                
+                max_num_items = 2
+                num_partitions = 2
+                
+                ## And then move createOrder to be right before the first updateStock
+                to_move = None
+                to_move_before = None
+                
+                counters = { }
+                
+                num_items = 2 # random.randint(1, max_num_items)
+                
+                ## Randomly let some of them abort
+                abort_idx = None
+                if random.randint(0, 100) == 1:
+                    abort_idx = random.randint(0, num_items-1)
+                    txn_abort_ctr += 1
+                    logging.debug("ABORT: %d / %d" % (txn_abort_ctr, txn_ctr))
+                aborted = False
+
+                ## 10% of txns need to use a remote warehouse
+                remote_idx = None
+                if random.randint(0, 9) == 0:
+                    remote_idx = random.randint(0, num_items-1)
+                    remote_w_id = w_id + random.randint(1, num_partitions)
+
+                queries = txn.getQueries()
+                
+                for i in range(len(queries)):
+                    q = queries[i]
+                    assert q
+                    
+                    if q.name in remove:
+                        to_remove.append(q)
+                    elif q.name == "createOrder":
+                        assert to_move == None
+                        to_move = q
+                    elif q.name == "updateStock" and to_move_before == None:
+                        to_move_before = q
+                    ## All getStockInfo## should be set to getStockInfo01
+                    elif q.name.startswith("getStockInfo"):
+                        q.name = "getStockInfo01"
+                    ## IF
+
+                    if not q.name in counters: counters[q.name] = 0
+                    
+                    if abort_idx != None and q.name == "updateStock" and counters[q.name] == abort_idx:
+                        txn.aborted = True
+                        aborted = True
+                    if q.name in [ "updateStock", "getStockInfo01" ]:
+                        ## Need to make remote
+                        if remote_idx != None and counters[q.name] == remote_idx:
+                            q.params[-1] = remote_w_id
+                        else:
+                            q.params[-1] = w_id
+                    ## IF
+                    
+                    counters[q.name] += 1
+                    if aborted or (q.name in ["getStockInfo01", "updateStock", "createOrderLine"] and counters[q.name] > num_items):
+                        to_remove.append(q)
+                    ## IF
+                ## FOR
+                
+                # Update queries
+                for q in to_remove:
+                    queries.remove(q)
+                ## FOR
+                if to_move != None:
+                    if to_move_before == None: continue
+                    queries.remove(to_move)
+                    try:
+                        idx = queries.index(to_move_before)
+                        queries.insert(idx, to_move)
+                    except:
+                        queries.append(to_move)
+                ## IF
+                if len(queries) == 1: continue
+                
+                txn.setQueries(queries)
+                
+                if write_raw:
+                    print json.dumps(txn.toJSON())
+                else:
+                    pprint(txn.toJSON())
                 limit_ctr += 1
 
             ## ----------------------------------------------
@@ -211,6 +335,12 @@ if __name__ == '__main__':
                     count_data[catalog_name] += 1
                     limit_ctr += 1
                 ## IF
+            ## ----------------------------------------------
+            ## INVALID!
+            ## ----------------------------------------------
+            else:
+                logging.fatal("Invalid command '%s'" % command.upper())
+                sys.exit(1)
             ## IF
         ## FOR
     ## WITH

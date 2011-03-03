@@ -146,7 +146,7 @@ public class PartitionPlan implements JSONSerializable {
             // Ancestors
             final Vector<Table> ancestors = new Vector<Table>();
             new AbstractTreeWalker<Table>() {
-                protected void populate_children(AbstractTreeWalker<Table>.Children children, Table element) {
+                protected void populate_children(AbstractTreeWalker.Children<Table> children, Table element) {
                     PartitionEntry current_entry = table_entries.get(element);
                     Table parent = current_entry.getParent();
                     if (parent != null) {

@@ -382,6 +382,10 @@ public abstract class BaseTestCase extends TestCase {
         return (this.getWorkloadFile(new File(".").getCanonicalFile(), type, "workloads", "trace"));
     }
     
+    public File getWorkloadFile(ProjectType type, String suffix) throws IOException {
+        return (this.getWorkloadFile(new File(".").getCanonicalFile(), type, "workloads", suffix+".trace"));
+    }
+    
     /**
      * Find a stats cache file for a given project type
      * @param current

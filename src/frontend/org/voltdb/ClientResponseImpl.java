@@ -44,6 +44,8 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
     // PAVLO
     // TODO: Need to pass in txn_id
     private long txn_id;
+    
+    private boolean singlepartition = false;
 
 
     /** opaque data optionally provided by and returned to the client */
@@ -131,6 +133,16 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
         setResults(status, results, extra);
     }
 
+    @Override
+    public boolean isSinglePartition() {
+        return singlepartition;
+    }
+    
+    @Override
+    public void setSinglePartition(boolean val) {
+        this.singlepartition = val;
+    }
+    
     public byte getStatus() {
         return status;
     }
@@ -165,6 +177,7 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
         in.readByte();//Skip version byte
         txn_id = in.readLong();
         clientHandle = in.readLong();
+        singlepartition = in.readBoolean();
         byte presentFields = in.readByte();
         status = in.readByte();
         if ((presentFields & (1 << 5)) != 0) {
@@ -194,6 +207,7 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
         out.writeByte(0);//version
         out.writeLong(txn_id);
         out.writeLong(clientHandle);
+        out.writeBoolean(singlepartition);
         byte presentFields = 0;
         if (appStatusString != null) {
             presentFields |= 1 << 7;
@@ -268,6 +282,9 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
                 break;
             case ClientResponseImpl.UNEXPECTED_FAILURE:
                 ret = "UNEXPECTED_FAILURE";
+                break;
+            case ClientResponseImpl.MISPREDICTION:
+                ret = "MISPREDICTION";
                 break;
             default:
                 assert(false) : "Unknown ClientResponse status '" + this.status + "'";

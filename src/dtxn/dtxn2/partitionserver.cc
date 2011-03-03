@@ -303,7 +303,8 @@ void PartitionServer::replicate(TransactionState* transaction) {
 
 void PartitionServer::executed(FragmentState* fragment) {
     assert(fragment->response().status == ExecutionEngine::OK ||
-            fragment->response().status == ExecutionEngine::ABORT_USER);
+           fragment->response().status == ExecutionEngine::ABORT_USER ||
+           fragment->response().status == ExecutionEngine::ABORT_MISPREDICT);
     ServerTransactionState* transaction = (ServerTransactionState*) fragment->transaction();
     transaction->setExecuted(fragment, msg_server_);
     if (transaction->isDone()) {

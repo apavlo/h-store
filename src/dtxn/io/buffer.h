@@ -89,14 +89,24 @@ public:
         copyOut(base::stringArray(out), length);
     }
 
-    // Reads from input into this FIFO until there are at least
-    // desired_available bytes available. Returns the number of bytes
-    // available, or -1 if the input stream returns -1.
-    int readUntilAvailable(io::InputStream* input, int desired_available);
+    // Reads all available data from input. Returns the number of bytes
+    // available, or -1 if no data was read and the input stream returns -1.
+    // This allows the application an opportunity to consume the last bytes in the stream, without
+    // getting stuck if the connection is closed with a partial message.
+    //
+    // NOTE: This used to be readUntilAvailable, to enable "incremental" processing. In other
+    // words, read a chunk into the buffer, process it, read next, .... This can eliminate
+    // excess allocation / deallocation of buffer chunks. However, it causes an excess read
+    // in the "typical" case where the buffer is filled on the first read.
+    // Using readAllAvailable yielded a ~3% performance improvement by reducing system calls.
+    // TODO: Resurrect readUntilAvailable in a better form? Or maybe it doesn't matter.
+    int readAllAvailable(io::InputStream* input);
 
     // Writes as much data as is available. Returns -1 if the output stream
     // returned -1. Returns 0 if all the data was written. Returns > 0 if
-    // the OutputStream blocked and more data can be written.
+    // the OutputStream blocked and data remains in this buffer. This means
+    // this needs to be called again, once the OutputStream is ready (eg. in
+    // response to epoll).
     int writeAvailable(io::OutputStream* output);
 
     // Returns the number of bytes available for reading in the buffer.

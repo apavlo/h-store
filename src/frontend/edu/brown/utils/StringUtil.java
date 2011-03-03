@@ -2,6 +2,9 @@ package edu.brown.utils;
 
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Map.Entry;
 import java.util.regex.Pattern;
 
 import org.voltdb.client.Client;
@@ -21,6 +24,210 @@ public abstract class StringUtil {
     
     private static Pattern LINE_SPLIT = Pattern.compile("\n");
     
+    /**
+     * Format the header + rows into a CSV
+     * @param header
+     * @param rows
+     * @return
+     */
+    public static String csv(String header[], Object[]...rows) {
+        return (StringUtil.table(",", false, false, header, rows));        
+    }
+    
+    /**
+     * Format the header + rows into a neat little table
+     * @param header
+     * @param rows
+     * @return
+     */
+    public static String table(String header[], Object[]...rows) {
+        return (StringUtil.table("  ", true, false, header, rows));
+    }
+        
+    /**
+     * Format the header+rows into a table
+     * @param delimiter the character to use in between cells
+     * @param spacing whether to make the width of each column the size of the largest cell
+     * @param quotes whether to surround each cell in quotation marks
+     * @param header
+     * @param rows
+     * @return
+     */
+    public static String table(String delimiter, boolean spacing, boolean quotes, String header[], Object[]...rows) {
+        // First we need to figure out the size for each column
+        String col_formats[] = new String[header.length];
+        for (int col_idx = 0; col_idx < col_formats.length; col_idx++) {
+            String f = null;
+            if (spacing) {
+                int width = header[col_idx].length();
+                for (int row_idx = 0; row_idx < rows.length; row_idx++) {
+                    width = Math.max(width, rows[row_idx][col_idx].toString().length());    
+                } // FOR
+                f = "%-" + width + "s";
+            } else {
+                f = "%s";
+            }
+            if (quotes) f = '"' + f + '"';
+            col_formats[col_idx] = (col_idx > 0 ? delimiter : "") + f;
+        } // FOR
+        
+        // Create header row
+        StringBuilder sb = new StringBuilder();
+        for (int col_idx = 0; col_idx < col_formats.length; col_idx++) {
+            sb.append(String.format(col_formats[col_idx], header[col_idx]));
+        } // FOR
+        
+        // Now dump out the table
+        for (int row_idx = 0; row_idx < rows.length; row_idx++) {
+            Object row[] = rows[row_idx];
+            sb.append("\n");
+            for (int col_idx = 0; col_idx < col_formats.length; col_idx++) {
+                sb.append(String.format(col_formats[col_idx], row[col_idx].toString()));    
+            } // FOR
+        } // FOR
+        
+        return (sb.toString());
+    }
+    
+    /**
+     * Split the multi-lined strings into separate columns
+     * @param strs
+     * @return
+     */
+    public static String columns(String...strs) {
+        String lines[][] = new String[strs.length][];
+        String prefixes[] = new String[strs.length];
+        int max_length = 0;
+        int max_lines = 0;
+        
+        for (int i = 0; i < strs.length; i++) {
+            lines[i] = LINE_SPLIT.split(strs[i]);
+            prefixes[i] = (i == 0 ? "" : " ┃ ");
+            for (String line : lines[i]) {
+                max_length = Math.max(max_length, line.length());
+            } // FOR
+            max_lines = Math.max(max_lines, lines[i].length);
+        } // FOR
+        
+        String f = "%-" + max_length + "s";
+        StringBuilder sb = new StringBuilder();
+        for (int ii = 0; ii < max_lines; ii++) {
+            for (int i = 0; i < strs.length; i++) {
+                String line = (ii >= lines[i].length ? "" : lines[i][ii]);
+                sb.append(prefixes[i]).append(String.format(f, line));
+            } // FOR
+            sb.append("\n");
+        } // FOR
+        
+        return (sb.toString());
+    }
+    
+    /**
+     * Return key/value maps into a nicely formatted table
+     * Delimiter ":", No UpperCase Keys, No Boxing
+     * @param maps
+     * @return
+     */
+    public static String formatMaps(Map<?, ?>...maps) {
+        return (formatMaps(":", false, false, maps));
+    }
+    
+    /**
+     * Return key/value maps into a nicely formatted table using the given delimiter
+     * No Uppercase Keys, No Boxing
+     * @param delimiter
+     * @param maps
+     * @return
+     */
+    public static String formatMaps(String delimiter, Map<?, ?>...maps) {
+        return (formatMaps(delimiter, false, false, maps));
+    }
+
+    /**
+     * Return key/value maps into a nicely formatted table
+     * The maps are displayed in order from first to last, and there will be a spacer
+     * created between each map. The format for each record is:
+     * 
+     * <KEY><DELIMITER><SPACING><VALUE>
+     * 
+     * If the delimiter is an equal sign, then the format is:
+     * 
+     *  <KEY><SPACING><DELIMITER><VALUE>
+     * 
+     * @param delimiter
+     * @param upper Upper-case all keys
+     * @param box Box results
+     * @param maps
+     * @return
+     */
+    public static String formatMaps(String delimiter, boolean upper, boolean box, Map<?, ?>...maps) {
+        // Figure out the largest key size so we can get spacing right
+        int max_key_size = 0;
+        final Map<?, ?> map_keys[] = new Map<?, ?>[maps.length];
+        for (int i = 0; i < maps.length; i++) {
+            Map<?, ?> m = maps[i];
+            Map<Object, String> keys = new HashMap<Object, String>();
+            for (Object k : m.keySet()) {
+                String k_str = k.toString();
+                keys.put(k, k_str);
+                max_key_size = Math.max(max_key_size, k_str.length());
+            } // FOR
+            map_keys[i] = keys;
+        } // FOR
+        
+        boolean equalsDelimiter = delimiter.equals("=");
+        final String f = "%-" + (max_key_size + 2) + "s" +
+                         (equalsDelimiter ? "= " : "") +
+                         "%s\n";
+        
+        // Now make StringBuilder blocks for each map
+        // We do it in this way so that we can get the 
+        int max_value_size = 0;
+        StringBuilder blocks[] = new StringBuilder[maps.length];
+        for (int i = 0; i < maps.length; i++) {
+            Map<?, ?> m = maps[i];
+            Map<?, ?> keys = map_keys[i];
+            blocks[i] = new StringBuilder();
+            
+            for (Entry<?, ?> e : m.entrySet()) {
+                String k = keys.get(e.getKey()).toString();
+                String v = (e.getValue() != null ? e.getValue().toString() : "null");
+                if (upper) k = k.toUpperCase();
+                if (equalsDelimiter == false && k.isEmpty() == false) k += ":";
+                
+                // If the value is multiple lines, format them nicely!
+                String lines[] = LINE_SPLIT.split(v);
+                for (int line_i = 0; line_i < lines.length; line_i++) {
+                    blocks[i].append(String.format(f, (line_i == 0 ? k : ""), lines[line_i]));
+                    if (maps.length > 1) max_value_size = Math.max(max_value_size, lines[line_i].length());
+                } // FOR
+                if (v.endsWith("\n")) blocks[i].append("\n"); 
+            }
+        } // FOR
+        
+        // Put it all together!
+        StringBuilder sb = null;
+        if (maps.length == 1) {
+            sb = blocks[0];
+        } else {
+            sb = new StringBuilder();
+            for (int i = 0; i < maps.length; i++) {
+                if (i != 0 && maps[i].size() > 0) sb.append(repeat("-", max_key_size + max_value_size + 2)).append("\n");
+                sb.append(blocks[i]);
+            } // FOR
+        }
+        return (box ? StringUtil.box(sb.toString()) : sb.toString());
+    }
+
+    /**
+     * 
+     * @param maps
+     * @return
+     */
+    public static String formatMapsBoxed(Map<?, ?>...maps) {
+        return (formatMaps(":", false, true, maps));
+    }
+
     /**
      * Returns the given string repeated the given # of times
      * @param str
@@ -90,6 +297,23 @@ public abstract class StringUtil {
         } // FOR
         sb.append(top_line);
         
+        return (sb.toString());
+    }
+
+    /**
+     * Append the prefix to the beginning of each line in str
+     * @param str
+     * @param prefix
+     * @return
+     */
+    public static String prefix(String str, String prefix) {
+        String lines[] = LINE_SPLIT.split(str);
+        if (lines.length == 0) return ("");
+        
+        StringBuilder sb = new StringBuilder();
+        for (String line : lines) {
+            sb.append(prefix).append(line).append("\n");
+        } // FOR
         return (sb.toString());
     }
     
@@ -172,7 +396,7 @@ public abstract class StringUtil {
      
         StringBuilder sb = new StringBuilder();
         for (Object x : items)
-            sb.append(x.toString()).append(delimiter);
+            sb.append(x != null ? x.toString() : x).append(delimiter);
         sb.delete(sb.length() - delimiter.length(), sb.length());
      
         return sb.toString();

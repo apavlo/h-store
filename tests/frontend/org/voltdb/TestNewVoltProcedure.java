@@ -1,7 +1,6 @@
 package org.voltdb;
 
 import java.util.Observable;
-import java.util.Random;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
@@ -12,6 +11,8 @@ import org.voltdb.client.ClientResponse;
 import edu.brown.utils.*;
 
 import edu.brown.BaseTestCase;
+import edu.mit.hstore.dtxn.LocalTransactionState;
+import edu.mit.hstore.dtxn.TransactionState;
 
 /**
  * @author pavlo
@@ -29,7 +30,6 @@ public class TestNewVoltProcedure extends BaseTestCase {
     
     private static ExecutionSite site;
     private static PartitionEstimator p_estimator;
-    private final Random rand = new Random(); 
     
     private VoltProcedure volt_proc;
     
@@ -46,7 +46,7 @@ public class TestNewVoltProcedure extends BaseTestCase {
             p_estimator = new PartitionEstimator(catalog_db);
             site = new MockExecutionSite(PARTITION_ID, catalog, p_estimator);
         }
-        volt_proc = site.getProcedure(TARGET_PROCEDURE);
+        volt_proc = site.getNewVoltProcedure(TARGET_PROCEDURE);
         assertNotNull(volt_proc);
     }
         
@@ -66,9 +66,8 @@ public class TestNewVoltProcedure extends BaseTestCase {
         volt_proc.registerCallback(observer);
 
         Long xact_id = NEXT_TXN_ID.getAndIncrement();
-        TransactionState ts = new TransactionState(site, xact_id, xact_id, PARTITION_ID, CLIENT_HANDLE++, true);
+        TransactionState ts = new LocalTransactionState(site).init(xact_id, CLIENT_HANDLE++, PARTITION_ID);
         site.txn_states.put(xact_id, ts);
-        site.running_xacts.put(xact_id, volt_proc);
         
         // 2010-11-12: call() no longer immediately updates the internal state of the VoltProcedure
         //             so there is no way for us to check whether things look legit until we get
@@ -94,7 +93,8 @@ public class TestNewVoltProcedure extends BaseTestCase {
      * testExecuteLocalBatch
      */
     public void testExecuteLocalBatch() throws Exception {
-        volt_proc.setTransactionId(rand.nextLong());
+        long txn_id = NEXT_TXN_ID.incrementAndGet();
+        volt_proc.setTransactionId(txn_id);
         
         //
         // We have to slap some queries into a BatchPlan
@@ -111,14 +111,12 @@ public class TestNewVoltProcedure extends BaseTestCase {
             args[i] = VoltProcedure.getCleanParams(batchStmts[i], TARGET_PARAMS);
         } // FOR
         
-        BatchPlanner planner = new BatchPlanner(batchStmts, catalog_proc, p_estimator, PARTITION_ID);
-        BatchPlanner.BatchPlan plan = planner.plan(args, PARTITION_ID);
+        BatchPlanner planner = new BatchPlanner(batchStmts, catalog_proc, p_estimator);
+        BatchPlanner.BatchPlan plan = planner.plan(txn_id, CLIENT_HANDLE, PARTITION_ID, args, true);
         assertNotNull(plan);
         
-        //
         // Only try to execute a BatchPlan if we have the real EE
         // The HSQL Backend doesn't take plan fragments
-        //
         if (BACKEND_TARGET == BackendTarget.NATIVE_EE_JNI) {
 //            VoltTable results[] = volt_proc.executeLocalBatch(plan);
 //            assertNotNull(results);

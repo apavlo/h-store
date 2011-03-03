@@ -74,7 +74,7 @@ public class TestVertex extends BaseTestCase {
                                           Arrays.asList(this.partitions[i]), new HashSet<Integer>());
         } // FOR
         
-        graph = new MarkovGraph(catalog_proc, 0);
+        graph = new MarkovGraph(catalog_proc);
         graph.initialize();
         start = graph.getStartVertex();
         commit = graph.getCommitVertex();
@@ -219,22 +219,22 @@ public class TestVertex extends BaseTestCase {
         // System.err.println(start.debug());
         
         assertNotNull(start);
-        v.setAbortProbability(0.50d);
-        v.setSingleSitedProbability(0.50d);
+        v.setAbortProbability(0.50f);
+        v.setSingleSitedProbability(0.50f);
         for (int i = 0; i < NUM_PARTITIONS; i++) {
-            v.setDoneProbability(i, 0.50d);
-            v.setWriteProbability(i, 0.50d);
-            v.setReadOnlyProbability(i, 0.50d);
+            v.setDoneProbability(i, 0.50f);
+            v.setWriteProbability(i, 0.50f);
+            v.setReadOnlyProbability(i, 0.50f);
         } // FOR
         
         v.resetAllProbabilities();
         
-        assertEquals(0.0d, v.getAbortProbability());
-        assertEquals(0.0d, v.getSingleSitedProbability());
+        assertEquals(0.0f, v.getAbortProbability());
+        assertEquals(0.0f, v.getSingleSitedProbability());
         for (int i = 0; i < NUM_PARTITIONS; i++) {
-            assertEquals(1.0d, v.getDoneProbability(i));
-            assertEquals(0.0d, v.getWriteProbability(i));
-            assertEquals(0.0d, v.getReadOnlyProbability(i));
+            assertEquals(1.0f, v.getDoneProbability(i));
+            assertEquals(0.0f, v.getWriteProbability(i));
+            assertEquals(0.0f, v.getReadOnlyProbability(i));
         } // FOR
     }
 

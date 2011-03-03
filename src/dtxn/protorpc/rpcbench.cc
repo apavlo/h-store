@@ -12,7 +12,7 @@
 #include "base/stlutil.h"
 #include "benchmark/benchmark.h"
 #include "io/libeventloop.h"
-#include "libevent/event.h"
+#include "libevent/include/event2/event.h"
 #include "networkaddress.h"
 #include "protorpc/null.pb.h"
 #include "protorpc/Protocol.pb.h"
@@ -156,7 +156,7 @@ static const int TEST_SECONDS = 60;
 
 int main(int argc, const char* argv[]) {
     if (argc != 4) {
-        fprintf(stderr, "rpcproxy (target address) (log file) (dispatch count)\n");
+        fprintf(stderr, "rpcbench (target address) (log file) (dispatch count)\n");
         return 1;
     }
     const char* const address = argv[1];

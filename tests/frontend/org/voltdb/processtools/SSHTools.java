@@ -106,46 +106,53 @@ public abstract class SSHTools {
         return true;
     }
 
-    public static String cmd(String username, String hostname, String remotePath, String command) {
-        return ShellTools.cmd(convert(username, hostname, remotePath, command));
+    public static String cmd(String username, String hostname, String remotePath, String sshOptions[], String command) {
+        return ShellTools.cmd(convert(username, hostname, remotePath, sshOptions, command));
     }
 
-    public static String cmd(String username, String hostname, String remotePath, String[] command) {
-        return ShellTools.cmd(convert(username, hostname, remotePath, command));
+    public static String cmd(String username, String hostname, String remotePath, String sshOptions[], String[] command) {
+        return ShellTools.cmd(convert(username, hostname, remotePath, sshOptions, command));
     }
 
-    public static String[] convert(String username, String hostname, String remotePath, String command) {
+    public static String[] convert(String username, String hostname, String remotePath, String sshOptions[], String command) {
         String[] command2 = command.split(" ");
-        return convert(username, hostname, remotePath, command2);
+        return convert(username, hostname, remotePath, sshOptions, command2);
     }
 
-    public static String[] convert(String username, String hostname, String remotePath, String[] command) {
+    public static String[] convert(String username, String hostname, String remotePath, String sshOptions[], String[] command) {
         assert(hostname != null);
-        int sshArgCount = 7 + (remotePath == null ? 0 : 1);
+        int sshArgCount = 7 + (remotePath == null ? 0 : 1) + sshOptions.length;
 
+        int i = 0;
         String[] retval = new String[command.length + sshArgCount];
-        retval[0] = "ssh";
-        retval[1] = "-q";
-        retval[2] = "-o";
-        retval[3] = "UserKnownHostsFile=/dev/null";
-        retval[4] = "-o";
-        retval[5] = "StrictHostKeyChecking=no";
-        retval[6] = "";
+        retval[i++] = "ssh";
+        retval[i++] = "-q";
+        retval[i++] = "-o";
+        retval[i++] = "UserKnownHostsFile=/dev/null";
+        retval[i++] = "-o";
+        retval[i++] = "StrictHostKeyChecking=no";
+        for (String opt : sshOptions) {
+            retval[i++] = opt;
+        }
+        
+        retval[i] = "";
         if (username != null)
-            retval[6] = retval[6].concat(username + "@");
-        retval[6] = retval[6].concat(hostname);
+            retval[i] = retval[i].concat(username + "@");
+        retval[i] = retval[i].concat(hostname);
+        i++;
+        
         if (remotePath != null)
-            retval[7] = "cd " + remotePath + ";";
-        for (int i = 0; i < command.length; i++) {
-            assert(command[i] != null);
-            retval[sshArgCount + i] = command[i];
+            retval[i++] = "cd " + remotePath + ";";
+        for (int j = 0; j < command.length; j++) {
+            assert(command[j] != null);
+            retval[i + j] = command[j];
         }
 
         return retval ;
     }
 
     public static void main(String[] args) {
-        System.out.print(cmd(null, "volt3b", null, "echo foo"));
+        System.out.print(cmd(null, "volt3b", null, new String[0], "echo foo"));
         System.out.println(copyFromLocal(new File("build.py"), null, "volt3b", "."));
     }
 }

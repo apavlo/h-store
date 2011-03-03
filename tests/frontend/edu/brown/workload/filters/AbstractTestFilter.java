@@ -8,7 +8,7 @@ import edu.brown.workload.Workload;
 
 public abstract class AbstractTestFilter extends BaseTestCase {
 
-    protected static final int WORKLOAD_XACT_LIMIT = 10000;
+    protected static final int WORKLOAD_XACT_LIMIT = 1000;
     protected static final int NUM_PARTITIONS = 10;
     protected static final int BASE_PARTITION = 1;
     

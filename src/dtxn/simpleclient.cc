@@ -7,7 +7,7 @@
 #include <netinet/in.h>
 
 #include "base/time.h"
-#include "libevent/event.h"
+#include "libevent/include/event2/event.h"
 #include "messageconnection.h"
 #include "networkaddress.h"
 

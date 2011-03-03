@@ -80,7 +80,7 @@ public abstract class VoltSystemProcedure extends VoltProcedure {
 
     /** Bundles the data needed to describe a plan fragment. */
     public static class SynthesizedPlanFragment {
-        public long siteId = -1;
+        public long destPartitionId = -1;
         public long fragmentId = -1;
         public int inputDependencyIds[] = null;
         public int outputDependencyIds[] = null;
@@ -91,10 +91,10 @@ public abstract class VoltSystemProcedure extends VoltProcedure {
     }
 
     abstract public DependencySet executePlanFragment(long txn_id,
-                                                      HashMap<Integer,List<VoltTable>> dependencies,
+                                                      Map<Integer,List<VoltTable>> dependencies,
                                                       int fragmentId,
-            ParameterSet params,
-            ExecutionSite.SystemProcedureExecutionContext context);
+                                                      ParameterSet params,
+                                                      ExecutionSite.SystemProcedureExecutionContext context);
 
     /**
      * Produce work units, possibly on all sites, for a list of plan fragments.
@@ -145,10 +145,10 @@ public abstract class VoltSystemProcedure extends VoltProcedure {
                 parambytes = fs.getBuffer();
             }
 
-            LOG.debug("Creating SysProc FragmentTaskMessage for " + (pf.siteId < 0 ? "coordinator" : "partition #" + pf.siteId) + " in txn #" + this.getTransactionId());
+            LOG.debug("Creating SysProc FragmentTaskMessage for " + (pf.destPartitionId < 0 ? "coordinator" : "partition #" + pf.destPartitionId) + " in txn #" + this.getTransactionId());
             FragmentTaskMessage task = new FragmentTaskMessage(
-                    this.m_site.getSiteId(),
-                    (int)pf.siteId,
+                    this.m_site.getPartitionId(),
+                    (int)pf.destPartitionId,
                     this.getTransactionId(),
                     -1,
                     false,
@@ -162,6 +162,6 @@ public abstract class VoltSystemProcedure extends VoltProcedure {
             ftasks.add(task);
         } // FOR
         
-        return (this.m_site.waitForResponses(this.getTransactionId(), ftasks));
+        return (this.m_site.waitForResponses(this.getTransactionId(), ftasks, 1));
     }
 }

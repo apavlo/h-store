@@ -33,6 +33,11 @@ import java.io.FileReader;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.util.*;
+import java.util.concurrent.LinkedBlockingDeque;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.zip.GZIPInputStream;
 
 import org.apache.log4j.Logger;
@@ -42,12 +47,17 @@ import org.json.JSONObject;
 import org.voltdb.*;
 import org.voltdb.catalog.*;
 import org.voltdb.types.*;
+import org.voltdb.utils.Pair;
 
 import edu.brown.catalog.CatalogKey;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.statistics.*;
 import edu.brown.utils.ClassUtil;
+import edu.brown.utils.FileUtil;
+import edu.brown.utils.StringUtil;
+import edu.brown.utils.ThreadUtil;
 import edu.brown.workload.Workload.Filter.FilterResult;
+import edu.brown.workload.filters.ProcedureNameFilter;
 
 /**
  * 
@@ -83,57 +93,47 @@ public class Workload implements WorkloadTrace, Iterable<AbstractTraceElement<? 
     //
     protected Catalog catalog;
 
-    //
     // Ordered list of element ids that are used
-    //
     protected final transient List<Long> element_ids = new ArrayList<Long>();
     
-    //
     // Mapping from element ids to actual objects
-    //
     private final transient Map<Long, AbstractTraceElement<? extends CatalogType>> element_id_xref = new HashMap<Long, AbstractTraceElement<? extends CatalogType>>();
     
-    //
     // The following data structures are specific to Transactions
-    //
     private final transient ListOrderedSet<TransactionTrace> xact_trace = new ListOrderedSet<TransactionTrace>();
-    private final transient Map<String, TransactionTrace> xact_trace_xref = new HashMap<String, TransactionTrace>();
+    private final transient Map<Long, TransactionTrace> xact_trace_xref = new HashMap<Long, TransactionTrace>();
     private final transient Map<TransactionTrace, Integer> trace_bach_id = new HashMap<TransactionTrace, Integer>();
+
+    // Reverse mapping from QueryTraces to TxnIds
+    private final transient Map<QueryTrace, Long> query_txn_xref = new HashMap<QueryTrace, Long>();
+   
+    // List of running queries in each batch per transaction
+    // TXN_ID -> <BATCHID, COUNTER>
+    private final transient Map<Long, Map<Integer, AtomicInteger>> xact_open_queries = new HashMap<Long, Map<Integer,AtomicInteger>>();
     
-    //
     // A mapping from a particular procedure to a list
     // Procedure Catalog Key -> List of Txns
-    //
     protected final transient Map<String, List<TransactionTrace>> proc_xact_xref = new HashMap<String, List<TransactionTrace>>();
     
-    //
     // We can have a list of Procedure names that we want to ignore, which we make transparent
     // to whomever is calling us. But this means that we need to keep track of transaction ids
     // that are being ignored. 
-    //
     protected Set<String> ignored_procedures = new HashSet<String>();
-    protected Set<String> ignored_xact_ids = new HashSet<String>();
+    protected Set<Long> ignored_xact_ids = new HashSet<Long>();
     
-    //
     // We also have a list of procedures that are used for bulk loading so that we can determine
     // the number of tuples and other various information about the tables.
-    //
     protected Set<String> bulkload_procedures = new HashSet<String>();
     
-    //
     // Table Statistics (generated from bulk loading)
-    //
     protected WorkloadStatistics stats;
     protected Database stats_catalog_db;
     protected final Map<String, Statement> stats_load_stmts = new HashMap<String, Statement>();
     
-    //
     // Histogram for the distribution of procedures
     protected final Histogram proc_histogram = new Histogram();
     
-    //
     // Transaction Start Timestamp Ranges
-    //
     protected transient Long min_start_timestamp;
     protected transient Long max_start_timestamp;
     
@@ -169,6 +169,7 @@ public class Workload implements WorkloadTrace, Iterable<AbstractTraceElement<? 
             return (this.getFilters(search, new ArrayList<T>()));
         }
         
+        @SuppressWarnings("unchecked")
         private final <T extends Filter> List<T> getFilters(Class<? extends T> search, List<T> found) {
             if (ClassUtil.getSuperClasses(this.getClass()).contains(search)) {
                 found.add((T)this);
@@ -235,10 +236,8 @@ public class Workload implements WorkloadTrace, Iterable<AbstractTraceElement<? 
         
         @Override
         public boolean hasNext() {
-            //
             // Important! If this is the first time, then we need to get the next element
             // using next() so that we know we can even begin grabbing stuff
-            //
             if (!this.is_init) this.init();
             return (this.peek != null);
         }
@@ -255,10 +254,10 @@ public class Workload implements WorkloadTrace, Iterable<AbstractTraceElement<? 
                 Long next_id = Workload.this.element_ids.get(this.idx - 1);
                 AbstractTraceElement<? extends CatalogType> element = Workload.this.element_id_xref.get(next_id);
                 if (element == null) {
-                    System.err.println("idx: " + this.idx);
-                    System.err.println("next_id: " + next_id);
-                    System.err.println("elements: " + Workload.this.element_id_xref);
-                    System.err.println("size: " + Workload.this.element_id_xref.size());
+                    LOG.warn("idx: " + this.idx);
+                    LOG.warn("next_id: " + next_id);
+                    // System.err.println("elements: " + Workload.this.element_id_xref);
+                    LOG.warn("size: " + Workload.this.element_id_xref.size());
                 }
                 if (this.filter == null || (this.filter != null && this.filter.apply(element) == Filter.FilterResult.ALLOW)) {
                     this.peek = element;
@@ -408,96 +407,228 @@ public class Workload implements WorkloadTrace, Iterable<AbstractTraceElement<? 
      * @throws Exception
      */
     public void load(String input_path, Database catalog_db, Filter filter) throws Exception {
-        final boolean trace = LOG.isTraceEnabled();
+//        final boolean trace = LOG.isTraceEnabled();
         final boolean debug = LOG.isDebugEnabled();
         
         if (debug) LOG.debug("Reading workload trace from file '" + input_path + "'");
-        File file = new File(input_path);
-
-        // Check whether it's gzipped. Yeah that's right, we support that!
-        BufferedReader in = null;
-        if (file.getPath().endsWith(".gz")) {
-            FileInputStream fin = new FileInputStream(file);
-            GZIPInputStream gzis = new GZIPInputStream(fin);
-            in = new BufferedReader(new InputStreamReader(gzis));
-        } else {
-            in = new BufferedReader(new FileReader(file));   
-        }
-        
-        long xact_ctr = 0;
-        long query_ctr = 0;
-        long line_ctr = 0;
-        long element_ctr = 0;
-        
-        while (in.ready()) {
-//            StringBuilder buffer = new StringBuilder();
-//            do {
-//                String line = in.readLine();
-//                buffer.append(line);
-//                if (line.equals("}")) break;
-//            } while (in.ready());
-//            JSONObject jsonObject = new JSONObject(buffer.toString()); //in.readLine());
-            String line = in.readLine().trim();
-            if (line.isEmpty()) continue;
-            JSONObject jsonObject = null; 
-            try {
-                jsonObject = new JSONObject(line);
-            } catch (Exception ex) {
-                throw new Exception("Error on line " + (line_ctr+1) + " of workload trace file '" + file.getName() + "'", ex);
-            }
-            
-            //
-            // TransactionTrace
-            //
-            if (jsonObject.has(TransactionTrace.Members.XACT_ID.name())) {
-                // If we have already loaded in up to our limit, then we don't need to
-                // do anything else. But we still have to keep reading because we need
-                // be able to load in our index structures that are at the bottom of the file
-                //
-                // NOTE: If we ever load something else but the straight trace dumps, then the following
-                // line should be a continue and not a break.
-                
-                // Load the xact from the jsonObject
-                TransactionTrace xact = null;
-                try {
-                    xact = TransactionTrace.loadFromJSONObject(jsonObject, catalog_db);
-                } catch (Exception ex) {
-                    LOG.error("Failed JSONObject:\n" + jsonObject.toString(2));
-                    throw ex;
-                }
-                if (xact == null) {
-                    throw new Exception("Failed to deserialize transaction trace on line " + xact_ctr);
-                } else if (filter != null) {
-                    FilterResult result = filter.apply(xact);
-                    if (result == FilterResult.HALT) break;
-                    else if (result == FilterResult.SKIP) continue;
-                    if (trace) LOG.trace(result + ": " + xact);
-                }
-
-                // Keep track of how many trace elements we've loaded so that we can make sure
-                // that our element trace list is complete
-                xact_ctr++;
-                query_ctr += xact.getQueryCount();
-                if (trace && xact_ctr % 10000 == 0) LOG.trace("Read in " + xact_ctr + " transactions...");
-                element_ctr += 1 + xact.getQueries().size();
-                
-                // This call just updates the various other index structures 
-                this.addTransaction(xact.getCatalogItem(catalog_db), xact, true);
-                
-            // Unknown!
-            } else {
-                LOG.fatal("Unexpected serialization line in workload trace '" + input_path + "' on line " + line_ctr);
-                System.exit(1);
-            }
-            line_ctr++;
-        } // WHILE
-        in.close();
-        this.validate();
-        LOG.info("Loaded in " + this.xact_trace.size() + " transactions with a total of " + query_ctr + " queries from workload trace '" + file.getName() + "'");
         this.input_path = new File(input_path);
+
+        
+        // HACK: Throw out traces unless they have the procedures that we're looking for
+        Pattern temp_pattern = null;
+        if (filter != null) {
+            List<ProcedureNameFilter> procname_filters = filter.getFilters(ProcedureNameFilter.class);
+            if (procname_filters.isEmpty() == false) {
+                Set<String> names = new HashSet<String>();
+                for (ProcedureNameFilter f : procname_filters) {
+                    for (String name : f.getProcedureNames()) {
+                        names.add(Pattern.quote(name));
+                    } // FOR
+                } // FOR
+                if (names.isEmpty() == false) {
+                    temp_pattern = Pattern.compile(String.format("\"NAME\":[\\s]*\"(%s)\"", StringUtil.join("|", names)), Pattern.CASE_INSENSITIVE);
+                    if (debug) {
+                        LOG.debug(String.format("Fast filter for %d procedure names", names.size()));
+                        LOG.debug("PATTERN: " + temp_pattern.pattern());
+                    }
+                } 
+            }
+        }
+        final Pattern pattern = temp_pattern;
+        
+        final AtomicInteger counters[] = new AtomicInteger[] {
+            new AtomicInteger(0), // TXN COUNTER
+            new AtomicInteger(0), // QUERY COUNTER
+            new AtomicInteger(0)  // ELEMENT COUNTER
+        };
+        
+        List<Runnable> all_runnables = new ArrayList<Runnable>();
+        int num_threads = ThreadUtil.getMaxGlobalThreads() - 1;
+        
+        // Create the reader thread first
+        ReadThread rt = new ReadThread(this.input_path, pattern, num_threads);
+        all_runnables.add(rt);
+        
+        // Then create all of our load threads
+        for (int i = 0; i < num_threads; i++) {
+            LoadThread lt = new LoadThread(rt, catalog_db, filter, counters);
+            rt.load_threads.add(lt);
+            all_runnables.add(lt);
+        } // FOR
+        
+        if (debug) LOG.debug(String.format("Loading workload trace using %d LoadThreads", rt.load_threads.size())); 
+        ThreadUtil.runGlobalPool(all_runnables);
+        this.validate();
+        LOG.info("Loaded in " + this.xact_trace.size() + " txns with " + counters[1].get() + " queries from '" + this.input_path.getName() + "'");
         return;
     }
     
+    /**
+     * READ THREAD
+     */
+    private class ReadThread implements Runnable {
+        final File input_path;
+        final List<LoadThread> load_threads = new ArrayList<LoadThread>();
+        final LinkedBlockingDeque<Pair<Integer, String>> lines;
+        final Pattern pattern;
+        boolean stop = false;
+        Thread self;
+        
+        public ReadThread(File input_path, Pattern pattern, int num_threads) {
+            this.input_path = input_path;
+            this.pattern = pattern;
+            this.lines = new LinkedBlockingDeque<Pair<Integer, String>>(num_threads * 2);
+        }
+        
+        @Override
+        public void run() {
+            boolean debug = LOG.isDebugEnabled();
+            self = Thread.currentThread();
+            
+            BufferedReader in = null;
+            try {
+                in = FileUtil.getReader(this.input_path);
+            } catch (Exception ex) {
+                throw new RuntimeException(ex);
+            }
+            
+            int line_ctr = 0;
+            int fast_ctr = 0;
+            try {
+                while (in.ready() && this.stop == false) {
+                    String line = in.readLine().trim();
+                    if (line.isEmpty()) continue;
+                    if (this.pattern != null && this.pattern.matcher(line).find() == false) {
+                        fast_ctr++;
+                        continue;
+                    }
+                    this.lines.offerLast(Pair.of(line_ctr, line), 100, TimeUnit.SECONDS);
+                    line_ctr++;
+                } // WHILE
+                in.close();
+                if (debug) LOG.debug("Finished reading file. Telling all LoadThreads to stop when their queue is empty");
+            } catch (InterruptedException ex) {
+                if (this.stop == false) throw new RuntimeException(ex);
+            } catch (Exception ex) {
+                throw new RuntimeException(ex);
+            } finally {
+                // Tell all the load threads to stop before we finish
+                for (LoadThread lt : this.load_threads) {
+                    lt.stop();
+                } // FOR
+            }
+            LOG.info(String.format("Read %d lines [fast_filter=%d]", line_ctr, fast_ctr));
+        }
+        public synchronized void stop() {
+            if (this.stop == false) {
+                LOG.info("ReadThread Told to stop by LoadThread [queue_size=" + this.lines.size() + "]");
+                this.stop = true;
+                this.lines.clear();
+                this.self.interrupt();
+            }
+        }
+    } // END CLASS
+    
+    private class LoadThread implements Runnable {
+        final ReadThread reader;
+        final Database catalog_db;
+        final Filter filter;
+        final AtomicInteger counters[];
+         
+        boolean stop = false;
+        
+        public LoadThread(ReadThread reader, Database catalog_db, Filter filter, AtomicInteger counters[]) {
+            this.reader = reader;
+            this.catalog_db = catalog_db;
+            this.filter = filter;
+            this.counters = counters;
+        }
+        
+        @Override
+        public void run() {
+            final boolean trace = LOG.isTraceEnabled();
+
+            AtomicInteger xact_ctr = this.counters[0];
+            AtomicInteger query_ctr = this.counters[1];
+            AtomicInteger element_ctr = this.counters[2];
+            
+            while (true) {
+                String line = null;
+                Integer line_ctr = null;
+                JSONObject jsonObject = null;
+                Pair<Integer, String> p = null;
+                
+                try {
+                    p = this.reader.lines.poll(100, TimeUnit.MILLISECONDS);
+                } catch (Exception ex) {
+                    throw new RuntimeException(ex);
+                }
+
+                if (p == null) {
+                    if (this.stop) {
+                        if (trace) LOG.trace("Queue is empty and we were told to stop!");
+                        break;
+                    }
+                    if (trace) LOG.trace("Queue is empty but we haven't been told to stop yet");
+                    continue;
+                }
+                
+                line_ctr = p.getFirst();
+                line = p.getSecond();
+                try {
+                    jsonObject = new JSONObject(line);    
+                
+                    // TransactionTrace
+                    if (jsonObject.has(TransactionTrace.Members.TXN_ID.name())) {
+                        
+                        // If we have already loaded in up to our limit, then we don't need to
+                        // do anything else. But we still have to keep reading because we need
+                        // be able to load in our index structures that are at the bottom of the file
+                        //
+                        // NOTE: If we ever load something else but the straight trace dumps, then the following
+                        // line should be a continue and not a break.
+                        
+                        // Load the xact from the jsonObject
+                        TransactionTrace xact = TransactionTrace.loadFromJSONObject(jsonObject, catalog_db);
+                        if (xact == null) {
+                            throw new Exception("Failed to deserialize transaction trace on line " + xact_ctr);
+                        } else if (filter != null) {
+                            FilterResult result = filter.apply(xact);
+                            if (result == FilterResult.HALT) {
+                                // We have to tell the ReadThread to stop too!
+                                if (trace) LOG.trace("Got HALT response from filter! Telling ReadThread to stop!");
+                                this.reader.stop();
+                                break;
+                            }
+                            else if (result == FilterResult.SKIP) continue;
+                            if (trace) LOG.trace(result + ": " + xact);
+                        }
+    
+                        // Keep track of how many trace elements we've loaded so that we can make sure
+                        // that our element trace list is complete
+                        int x = xact_ctr.incrementAndGet();
+                        if (trace && x % 10000 == 0) LOG.trace("Read in " + xact_ctr + " transactions...");
+                        query_ctr.addAndGet(xact.getQueryCount());
+                        element_ctr.addAndGet(1 + xact.getQueries().size());
+                        
+                        // This call just updates the various other index structures 
+                        Workload.this.addTransaction(xact.getCatalogItem(catalog_db), xact, true);
+                        
+                    // Unknown!
+                    } else {
+                        throw new Exception("Unexpected serialization line in workload trace");
+                    }
+                } catch (Exception ex) {
+                    throw new RuntimeException("Error on line " + (line_ctr+1) + " of workload trace file", ex);
+                }
+            } // WHILE
+        }
+        
+        public void stop() {
+            LOG.trace("Told to stop [queue_size=" + this.reader.lines.size() + "]");
+            this.stop = true;
+        }
+    }
     
     // ----------------------------------------------------------
     // ITERATORS METHODS
@@ -575,6 +706,20 @@ public class Workload implements WorkloadTrace, Iterable<AbstractTraceElement<? 
      */
     public int getTransactionCount() {
         return (this.xact_trace.size());
+    }
+    
+    /**
+     * Get the set of procedures that were invoked in this workload
+     * @param catalog_db
+     * @return
+     */
+    public Set<Procedure> getProcedures(final Database catalog_db) {
+        Set<String> proc_keys = this.proc_histogram.values();
+        Set<Procedure> procedures = new HashSet<Procedure>();
+        for (String proc_key : proc_keys) {
+            procedures.add(CatalogKey.getFromKey(catalog_db, proc_key, Procedure.class));
+        } // FOR
+        return (procedures);
     }
     
     /**
@@ -673,8 +818,10 @@ public class Workload implements WorkloadTrace, Iterable<AbstractTraceElement<? 
      * @param caller a reference to the object calling for a new xact id
      * @return
      */
-    private final String createTransactionId(Object caller) {
-        return (Integer.toString(caller.hashCode()) + "-" + Long.toString(System.currentTimeMillis()));
+    private final long createTransactionId(Object caller) {
+        assert(caller instanceof VoltProcedure);
+        return (((VoltProcedure)caller).getTransactionId());
+//        return (Integer.toString(caller.hashCode()) + "-" + Long.toString(System.currentTimeMillis()));
     }
     
     /**
@@ -685,6 +832,7 @@ public class Workload implements WorkloadTrace, Iterable<AbstractTraceElement<? 
     protected void removeTransaction(TransactionTrace xact) {
         this.xact_trace.remove(xact);
         this.xact_trace_xref.remove(xact.getTransactionId());
+        this.xact_open_queries.remove(xact.getTransactionId());
         this.trace_bach_id.remove(xact);
     }
     
@@ -693,17 +841,24 @@ public class Workload implements WorkloadTrace, Iterable<AbstractTraceElement<? 
      * @param catalog_proc
      * @param xact
      */
-    protected void addTransaction(Procedure catalog_proc, TransactionTrace xact) {
+    public void addTransaction(Procedure catalog_proc, TransactionTrace xact) {
         this.addTransaction(catalog_proc, xact, false);
     }
     
-    protected void addTransaction(Procedure catalog_proc, TransactionTrace xact, boolean force_index_update) {
+    /**
+     * 
+     * @param catalog_proc
+     * @param xact
+     * @param force_index_update
+     */
+    protected synchronized void addTransaction(Procedure catalog_proc, TransactionTrace xact, boolean force_index_update) {
         this.xact_trace.add(xact);
-        this.xact_trace_xref.put(xact.xact_id, xact);
+        this.xact_trace_xref.put(xact.getTransactionId(), xact);
+        this.xact_open_queries.put(xact.getTransactionId(), new HashMap<Integer, AtomicInteger>());
         
         // Check whether we need to add the element id of the txn and all of its queries.
         // This happens when if we are trying to insert the txn from another one
-        // It's kind of a hack, but what times are tough..
+        // It's kind of a hack, but what are you going to do when times are tough..
         if (force_index_update || this.element_ids.contains(xact.getId()) == false) {
             this.element_ids.add(xact.getId());
             this.element_id_xref.put(xact.getId(), xact);
@@ -734,6 +889,15 @@ public class Workload implements WorkloadTrace, Iterable<AbstractTraceElement<? 
      */
     public ListOrderedSet<TransactionTrace> getTransactions() {
         return (this.xact_trace);
+    }
+    
+    /**
+     * Return the proper TransactionTrace object for the given txn_id
+     * @param txn_id
+     * @return
+     */
+    public TransactionTrace getTransaction(long txn_id) { 
+        return this.xact_trace_xref.get(txn_id);
     }
     
     /**
@@ -770,9 +934,9 @@ public class Workload implements WorkloadTrace, Iterable<AbstractTraceElement<? 
     @Override
     public TransactionTrace startTransaction(Object caller, Procedure catalog_proc, Object args[]) {
         String proc_name = catalog_proc.getName().toUpperCase();
-        String xact_id = this.createTransactionId(caller);
+        long xact_id = this.createTransactionId(caller);
         TransactionTrace xact_handle = null;
-        
+
         //
         // Bulk-loader Procedure
         //
@@ -811,7 +975,7 @@ public class Workload implements WorkloadTrace, Iterable<AbstractTraceElement<? 
                 //
                 // Temporary Loader Procedure
                 //
-                TransactionTrace loader_xact = new TransactionTrace(caller.toString(), catalog_proc, new Object[0]) {
+                TransactionTrace loader_xact = new TransactionTrace(xact_id, catalog_proc, new Object[0]) {
                     /**
                      * We need this wrapper so that when CatalogUtil tries to figure out what
                      * the index of partitioning parameter we can just use the column index of partitioning
@@ -843,11 +1007,12 @@ public class Workload implements WorkloadTrace, Iterable<AbstractTraceElement<? 
                     this.stats_load_stmts.put(table_key, catalog_stmt);
 
                     // TERRIBLE HACK!
-                    String stmt_key = CatalogKey.createKey(catalog_stmt);
-                    CatalogUtil.CACHE_STATEMENT_COLUMNS_KEYS.put(stmt_key, new java.util.HashSet<String>());
-                    CatalogUtil.CACHE_STATEMENT_COLUMNS_KEYS.get(stmt_key).add(table_key);
+                    // 2011-01-25 :: Why do I need to do this??
+//                    String stmt_key = CatalogKey.createKey(catalog_stmt);
+//                    CatalogUtil.CACHE_STATEMENT_COLUMNS_KEYS.put(stmt_key, new java.util.HashSet<String>());
+//                    CatalogUtil.CACHE_STATEMENT_COLUMNS_KEYS.get(stmt_key).add(table_key);
                 }
-                QueryTrace loader_query = new QueryTrace(caller.toString(), catalog_stmt, new Object[0], 0);
+                QueryTrace loader_query = new QueryTrace(catalog_stmt, new Object[0], 0);
                 loader_xact.addQuery(loader_query);
                 
                 //
@@ -922,15 +1087,16 @@ public class Workload implements WorkloadTrace, Iterable<AbstractTraceElement<? 
      */
     @Override
     public void stopTransaction(Object xact_handle) {
+        final boolean debug = LOG.isDebugEnabled();
+        
         if (xact_handle instanceof TransactionTrace) {
             TransactionTrace xact = (TransactionTrace)xact_handle;
-            //
+            
             // Make sure we have stopped all of our queries
-            //
             boolean unclean = false;
             for (QueryTrace query : xact.getQueries()) {
                 if (!query.isStopped()) {
-                    LOG.warn("Trace for '" + query + "' was not stopped before the transaction. Assuming it was aborted");
+                    if (debug) LOG.warn("Trace for '" + query + "' was not stopped before the transaction. Assuming it was aborted");
                     query.aborted = true;
                     unclean = true;
                 }
@@ -938,14 +1104,16 @@ public class Workload implements WorkloadTrace, Iterable<AbstractTraceElement<? 
             if (unclean) LOG.warn("The entries in " + xact + " were not stopped cleanly before the transaction was stopped");
             
             xact.stop();
-            LOG.debug("Stopping trace for transaction " + xact);
+            
+            // Remove from internal cache data structures
+            this.removeTransaction(xact);
+            
+            if (debug) LOG.debug("Stopping trace for transaction " + xact);
         } else {
             LOG.fatal("Unable to stop transaction trace: Invalid transaction handle");
         }
 
-        //
         // Write the trace object out to our file if it is not null
-        //
         if (xact_handle != null && xact_handle instanceof TransactionTrace) {
             TransactionTrace xact = (TransactionTrace)xact_handle;
             Database catalog_db = this.xact_db_xref.remove(xact);
@@ -954,13 +1122,11 @@ public class Workload implements WorkloadTrace, Iterable<AbstractTraceElement<? 
                 LOG.warn("The database catalog handle is null: " + xact);
             } else {
                 if (this.out == null) {
-                    LOG.warn("No output path is set. Unable to log trace information to file");
+                    if (debug) LOG.warn("No output path is set. Unable to log trace information to file");
                 } else {
                     writeTransactionToStream(catalog_db, xact, this.out);
                 }
             }
-            // Remove from cache
-            this.removeTransaction(xact);
         }
         
         return;
@@ -987,6 +1153,7 @@ public class Workload implements WorkloadTrace, Iterable<AbstractTraceElement<? 
             for (QueryTrace query : xact.getQueries()) {
                 if (query.isStopped() == false) {
                     query.abort();
+                    this.query_txn_xref.remove(query);
                 }
             } // FOR
             xact.abort();
@@ -1010,12 +1177,39 @@ public class Workload implements WorkloadTrace, Iterable<AbstractTraceElement<? 
         QueryTrace query_handle = null;
         if (xact_handle instanceof TransactionTrace) {
             TransactionTrace xact = (TransactionTrace)xact_handle;
-            if (this.ignored_xact_ids.contains(xact.xact_id)) return (null);
-            query_handle = new QueryTrace(xact.xact_id, catalog_statement, args, batch_id);
+            long txn_id = xact.getTransactionId();
+            
+            if (this.ignored_xact_ids.contains(txn_id)) return (null);
+            
+            Map<Integer, AtomicInteger> open_queries = this.xact_open_queries.get(txn_id);
+            assert(open_queries != null) : "Starting a query before starting the txn?? [" + txn_id + "]";
+            
+            query_handle = new QueryTrace(catalog_statement, args, batch_id);
             xact.addQuery(query_handle);
             this.element_ids.add(query_handle.getId());
             this.element_id_xref.put(query_handle.getId(), query_handle);
-            LOG.debug("Created '" + catalog_statement.getName() + "' query trace record for xact '" + xact.xact_id + "'");
+            this.query_txn_xref.put(query_handle, txn_id);
+            
+            // Make sure that there aren't still running queries in the previous batch
+            if (batch_id > 0) {
+                AtomicInteger last_batch_ctr = open_queries.get(batch_id - 1);
+                if (last_batch_ctr != null && last_batch_ctr.intValue() != 0) {
+                    String msg = "Txn #" + txn_id + " is trying to start a new query in batch #" + batch_id + 
+                                 " but there are still " + last_batch_ctr.intValue() + " queries running in batch #" + (batch_id-1);
+                    throw new IllegalStateException(msg);
+                }
+            }
+            
+            AtomicInteger batch_ctr = open_queries.get(batch_id);
+            if (batch_ctr == null) {
+                synchronized (open_queries) {
+                    batch_ctr = new AtomicInteger(0);
+                    open_queries.put(batch_id, batch_ctr);
+                } // SYNCHRONIZED
+            }
+            batch_ctr.incrementAndGet();
+            
+            LOG.debug("Created '" + catalog_statement.getName() + "' query trace record for xact '" + txn_id + "'");
         } else {
             LOG.fatal("Unable to create new query trace: Invalid transaction handle");
         }
@@ -1027,6 +1221,14 @@ public class Workload implements WorkloadTrace, Iterable<AbstractTraceElement<? 
         if (query_handle instanceof QueryTrace) {
             QueryTrace query = (QueryTrace)query_handle;
             query.stop();
+            
+            // Decrement open query counter for this batch
+            Long txn_id = this.query_txn_xref.remove(query);
+            assert(txn_id != null) : "Unexpected QueryTrace handle that doesn't have a txn id!";
+            AtomicInteger batch_ctr = this.xact_open_queries.get(txn_id).get(query.getBatchId());
+            int count = batch_ctr.decrementAndGet();
+            assert(count >= 0) : "Invalid open query counter for batch #" + query.getBatchId() + " in Txn #" + txn_id;
+            
             LOG.debug("Stopping trace for query " + query);
         } else {
             LOG.fatal("Unable to stop query trace: Invalid query handle");

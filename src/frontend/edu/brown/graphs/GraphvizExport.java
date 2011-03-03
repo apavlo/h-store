@@ -37,6 +37,7 @@ public class GraphvizExport<V extends AbstractVertex, E extends AbstractEdge> {
         FILLCOLOR,
         FONTSIZE,
         FONTCOLOR,
+        FONTNAME,
         PACK,
         PENWIDTH,
         RATIO,
@@ -164,7 +165,7 @@ public class GraphvizExport<V extends AbstractVertex, E extends AbstractEdge> {
         LOG.debug("Exporting " + this.graph.getClass().getSimpleName() + " to Graphviz " +
                   "[vertices=" + this.graph.getVertexCount() + ",edges=" + this.graph.getEdgeCount() + "]");
         StringBuilder b = new StringBuilder();
-        boolean digraph = (this.graph instanceof AbstractDirectedGraph || this.graph instanceof AbstractDirectedTree);
+        boolean digraph = (this.graph instanceof AbstractDirectedGraph<?, ?> || this.graph instanceof AbstractDirectedTree<?, ?>);
         
         // Start Graph
         String graph_type = (digraph ? "digraph" : "graph");
@@ -261,13 +262,22 @@ public class GraphvizExport<V extends AbstractVertex, E extends AbstractEdge> {
      * @throws Exception
      */
     public String writeToTempFile(CatalogType catalog_obj) throws Exception {
-        String filename = "/tmp/" + catalog_obj.getName() + ".dot";
-        FileUtil.writeStringToFile(filename, this.export(catalog_obj.getName()));
-        return (filename);
+        return (this.writeToTempFile(catalog_obj.fullName(), null));
     }
     public String writeToTempFile(CatalogType catalog_obj, int i) throws Exception {
-        String filename = "/tmp/" + catalog_obj.getName() + ".dot" + i;
-        FileUtil.writeStringToFile(filename, this.export(catalog_obj.getName()));
+        return (this.writeToTempFile(catalog_obj.fullName(), Integer.toString(i)));
+    }
+    public String writeToTempFile(CatalogType catalog_obj, String suffix) throws Exception {
+        return (this.writeToTempFile(catalog_obj.fullName(), suffix));
+    }
+    public String writeToTempFile(String name) throws Exception {
+        return (this.writeToTempFile(name, null));
+    }
+    public String writeToTempFile(String name, String suffix) throws Exception {
+        if (suffix != null && suffix.length() > 0) suffix = "-" + suffix;
+        else if (suffix == null) suffix = "";
+        String filename = String.format("/tmp/%s%s.dot", name, suffix);
+        FileUtil.writeStringToFile(filename, this.export(name));
         return (filename);
     }
     

@@ -183,6 +183,7 @@ public final class Constants {
     public static final String PAYMENT_BY_ID_C = paymentByCustomerIdC.class.getSimpleName();
     public static final String PAYMENT_BY_ID_W = paymentByCustomerIdW.class.getSimpleName();
     public static final String NEWORDER = neworder.class.getSimpleName();
+    public static final String NOOP = noop.class.getSimpleName();
     public static final String STOCK_LEVEL = slev.class.getSimpleName();
     //public static final String STOCK_LEVEL = slevIterative.class.getSimpleName();
 

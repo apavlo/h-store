@@ -7,7 +7,6 @@ import java.util.List;
 import java.util.Set;
 import java.util.Vector;
 
-import org.apache.log4j.Level;
 import org.voltdb.VoltProcedure;
 import org.voltdb.benchmark.tpcc.procedures.neworder;
 import org.voltdb.catalog.ProcParameter;
@@ -17,16 +16,11 @@ import org.voltdb.types.ExpressionType;
 import edu.brown.BaseTestCase;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.correlations.ParameterCorrelations;
-import edu.brown.graphs.GraphvizExport;
-import edu.brown.utils.FileUtil;
 import edu.brown.utils.ProjectType;
-import edu.brown.utils.StringUtil;
-import edu.brown.workload.Workload;
 import edu.brown.workload.TransactionTrace;
 import edu.brown.workload.Workload;
 import edu.brown.workload.filters.BasePartitionTxnFilter;
 import edu.brown.workload.filters.ProcParameterArraySizeFilter;
-import edu.brown.workload.filters.ProcParameterValueFilter;
 import edu.brown.workload.filters.ProcedureLimitFilter;
 import edu.brown.workload.filters.ProcedureNameFilter;
 
@@ -34,7 +28,7 @@ import edu.brown.workload.filters.ProcedureNameFilter;
  * @author pavlo
  */
 public class TestMarkovPathEstimator extends BaseTestCase {
-    private static final int WORKLOAD_XACT_LIMIT = 1000;
+    private static final int WORKLOAD_XACT_LIMIT = 100;
     private static final int BASE_PARTITION = 1;
     private static final int NUM_PARTITIONS = 10;
     private static final Class<? extends VoltProcedure> TARGET_PROCEDURE = neworder.class;
@@ -73,7 +67,7 @@ public class TestMarkovPathEstimator extends BaseTestCase {
                   .attach(new BasePartitionTxnFilter(p_estimator, BASE_PARTITION))
                   .attach(new ProcedureLimitFilter(WORKLOAD_XACT_LIMIT));
             
-            file = this.getWorkloadFile(ProjectType.TPCC);
+            file = this.getWorkloadFile(ProjectType.TPCC, "100w.large");
             workload = new Workload(catalog);
             ((Workload) workload).load(file.getAbsolutePath(), catalog_db, filter);
 //             for (TransactionTrace xact : workload.getTransactions()) {
@@ -82,7 +76,7 @@ public class TestMarkovPathEstimator extends BaseTestCase {
 //             }
             
             // Generate MarkovGraphs
-            markovs = MarkovUtil.createGraphs(catalog_db, workload, p_estimator);
+            markovs = MarkovUtil.createBasePartitionGraphs(catalog_db, workload, p_estimator);
             assertNotNull(markovs);
             
             // Find a single-partition and multi-partition trace
@@ -114,8 +108,7 @@ public class TestMarkovPathEstimator extends BaseTestCase {
         // Setup
         this.graph = markovs.get(BASE_PARTITION, this.catalog_proc);
         assertNotNull("No graph exists for " + this.catalog_proc + " on Partition #" + BASE_PARTITION, this.graph);
-        this.t_estimator = new TransactionEstimator(BASE_PARTITION, p_estimator, correlations);
-        this.t_estimator.addMarkovGraphs(markovs.get(BASE_PARTITION));
+        this.t_estimator = new TransactionEstimator(p_estimator, correlations, markovs);
     }
     
     /**
@@ -126,8 +119,9 @@ public class TestMarkovPathEstimator extends BaseTestCase {
         Vertex commit = this.graph.getCommitVertex();
         Vertex abort = this.graph.getAbortVertex();
         
-        MarkovPathEstimator.LOG.setLevel(Level.DEBUG);
-        MarkovPathEstimator estimator = new MarkovPathEstimator(this.graph, this.t_estimator, singlep_trace.getParams());
+//        MarkovPathEstimator.LOG.setLevel(Level.DEBUG);
+        MarkovPathEstimator estimator = new MarkovPathEstimator(this.graph, this.t_estimator, BASE_PARTITION, singlep_trace.getParams());
+        estimator.enableForceTraversal(true);
         estimator.traverse(this.graph.getStartVertex());
         Vector<Vertex> path = new Vector<Vertex>(estimator.getVisitPath());
         double confidence = estimator.getConfidence();
@@ -145,10 +139,10 @@ public class TestMarkovPathEstimator extends BaseTestCase {
             assertEquals(1, v.getPartitions().size());
             assert(v.getPartitions().contains(BASE_PARTITION));
         } // FOR
-        MarkovPathEstimator.LOG.setLevel(Level.INFO);
+//        MarkovPathEstimator.LOG.setLevel(Level.INFO);
         
-        GraphvizExport<Vertex, Edge> gv = MarkovUtil.exportGraphviz(this.graph, true, this.graph.getPath(path));
-        FileUtil.writeStringToFile("/tmp/dump.dot", gv.export(this.graph.getProcedure().getName()));
+//        GraphvizExport<Vertex, Edge> gv = MarkovUtil.exportGraphviz(this.graph, true, this.graph.getPath(path));
+//        FileUtil.writeStringToFile("/tmp/dump.dot", gv.export(this.graph.getProcedure().getName()));
     }
     
     /**
@@ -161,7 +155,8 @@ public class TestMarkovPathEstimator extends BaseTestCase {
         Vertex commit = this.graph.getCommitVertex();
         Vertex abort = this.graph.getAbortVertex();
         
-        MarkovPathEstimator estimator = new MarkovPathEstimator(this.graph, this.t_estimator, multip_trace.getParams());
+        MarkovPathEstimator estimator = new MarkovPathEstimator(this.graph, this.t_estimator, BASE_PARTITION, multip_trace.getParams());
+        estimator.enableForceTraversal(true);
         estimator.traverse(this.graph.getStartVertex());
         Vector<Vertex> path = new Vector<Vertex>(estimator.getVisitPath());
         
