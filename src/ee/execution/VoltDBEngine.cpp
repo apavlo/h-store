@@ -637,7 +637,7 @@ bool VoltDBEngine::clearAndLoadAllPlanFragments() {
             for (pf_iterator = catalogStmt->fragments().begin();
                  pf_iterator!= catalogStmt->fragments().end(); pf_iterator++) {
                 int64_t fragId = uniqueIdForFragment(pf_iterator->second);
-                fprintf(stderr, "Initializing Single-Partition: %jd\n", (intmax_t)fragId);
+//                 fprintf(stderr, "Initializing Single-Partition: %jd\n", (intmax_t)fragId);
                 std::string planNodeTree = pf_iterator->second->plannodetree();
                 if (!initPlanFragment(fragId, planNodeTree)) {
                     VOLT_ERROR("Failed to initialize plan fragment '%s' from"
@@ -653,7 +653,7 @@ bool VoltDBEngine::clearAndLoadAllPlanFragments() {
             for (pf_iterator2 = catalogStmt->ms_fragments().begin();
                  pf_iterator2 != catalogStmt->ms_fragments().end(); pf_iterator2++) {
                 int64_t fragId = uniqueIdForFragment(pf_iterator2->second);
-                fprintf(stderr, "Initializing Multi-Partition: %jd\n", (intmax_t)fragId);
+//                 fprintf(stderr, "Initializing Multi-Partition: %jd\n", (intmax_t)fragId);
                 std::string planNodeTree = pf_iterator2->second->plannodetree();
                 if (!initPlanFragment(fragId, planNodeTree)) {
                     VOLT_ERROR("Failed to initialize multi-partition plan fragment '%s' from"
