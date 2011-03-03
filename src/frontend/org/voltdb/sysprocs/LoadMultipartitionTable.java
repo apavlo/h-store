@@ -17,22 +17,24 @@
 
 package org.voltdb.sysprocs;
 
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 import org.apache.log4j.Logger;
-import org.voltdb.HsqlBackend;
 import org.voltdb.BackendTarget;
 import org.voltdb.DependencySet;
 import org.voltdb.ExecutionSite;
+import org.voltdb.HsqlBackend;
 import org.voltdb.ParameterSet;
 import org.voltdb.ProcInfo;
 import org.voltdb.VoltSystemProcedure;
 import org.voltdb.VoltTable;
 import org.voltdb.VoltType;
 import org.voltdb.ExecutionSite.SystemProcedureExecutionContext;
-import org.voltdb.catalog.*;
+import org.voltdb.catalog.Cluster;
+import org.voltdb.catalog.Database;
+import org.voltdb.catalog.Procedure;
+import org.voltdb.catalog.Table;
 import org.voltdb.dtxn.DtxnConstants;
 
 import edu.brown.catalog.CatalogUtil;
@@ -67,11 +69,12 @@ public class LoadMultipartitionTable extends VoltSystemProcedure {
     }
 
     @Override
-    public DependencySet executePlanFragment(
-            long txn_id,
-            HashMap<Integer, List<VoltTable>> dependencies, int fragmentId,
-            ParameterSet params, SystemProcedureExecutionContext context) {
-        final boolean trace = LOG.isTraceEnabled();
+    public DependencySet executePlanFragment(long txn_id,
+                                             Map<Integer, List<VoltTable>> dependencies,
+                                             int fragmentId,
+                                             ParameterSet params,
+                                             SystemProcedureExecutionContext context) {
+//        final boolean trace = LOG.isTraceEnabled();
         final boolean debug = LOG.isDebugEnabled();
         
         // need to return something ..
@@ -148,7 +151,7 @@ public class LoadMultipartitionTable extends VoltSystemProcedure {
                 pfs[i].multipartition = false; // true
                 pfs[i].nonExecSites = false;
                 pfs[i].parameters = params;
-                pfs[i].siteId = partition;
+                pfs[i].destPartitionId = partition;
             } // FOR
 
             // create a work unit to aggregate the results.
@@ -160,7 +163,7 @@ public class LoadMultipartitionTable extends VoltSystemProcedure {
             pfs[0].multipartition = false;
             pfs[0].nonExecSites = false;
             pfs[0].parameters = new ParameterSet();
-            pfs[0].siteId = local_partition;
+            pfs[0].destPartitionId = local_partition;
 
             // distribute and execute the fragments providing pfs and id
             // of the aggregator's output dependency table.
@@ -189,7 +192,7 @@ public class LoadMultipartitionTable extends VoltSystemProcedure {
             while (table.advanceRow()) {
                 int p = -1;
                 try {
-                    p = this.p_estimator.getPartition(catTable, table.fetchRow(table.getActiveRowIndex()));
+                    p = this.p_estimator.getTableRowPartition(catTable, table.fetchRow(table.getActiveRowIndex()));
                 } catch (Exception e) {
                     LOG.fatal("Failed to split input table into partitions", e);
                     throw new RuntimeException(e.getMessage());
@@ -219,7 +222,7 @@ public class LoadMultipartitionTable extends VoltSystemProcedure {
                 pfs[i].outputDependencyIds = new int[] { (int)DEP_distribute };
                 pfs[i].multipartition = false;
                 pfs[i].nonExecSites = false;
-                pfs[i].siteId = partition; // partitionsToSites[i - 1];
+                pfs[i].destPartitionId = partition; // partitionsToSites[i - 1];
                 pfs[i].parameters = params;
                 pfs[i].last_task = true;
                 if (trace) sb.append("\n  Partition #").append(partition).append(": ")
@@ -229,7 +232,7 @@ public class LoadMultipartitionTable extends VoltSystemProcedure {
 
             // a final plan fragment to aggregate the results
             pfs[0] = new SynthesizedPlanFragment();
-            pfs[0].siteId = local_partition;
+            pfs[0].destPartitionId = local_partition;
             pfs[0].fragmentId = SysProcFragmentId.PF_aggregate;
             pfs[0].inputDependencyIds = new int[] { (int)DEP_distribute };
             pfs[0].outputDependencyIds = new int[] { (int)DEP_aggregate };

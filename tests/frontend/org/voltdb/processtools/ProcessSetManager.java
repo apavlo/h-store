@@ -32,7 +32,9 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public class ProcessSetManager {
@@ -122,11 +124,14 @@ public class ProcessSetManager {
                         }
                         return;
                     }
+
                     if (line != null) {
                         OutputLine ol = new OutputLine(m_processName, m_stream, line);
                         m_output.add(ol);
-                        final long now = (System.currentTimeMillis() / 1000) - 1256158053;
-                        m_writer.write(String.format("(%d) %s: %s\n", now, m_processName, line));
+                        // final long now = (System.currentTimeMillis() / 1000) - 1256158053;
+                        // m_writer.write(String.format("(%d) %s: %s\n", now, m_processName, line));
+                        m_writer.write(String.format("%s\n", line));
+                        m_writer.flush();
                     }
                     else {
                         Thread.yield();
@@ -196,17 +201,30 @@ public class ProcessSetManager {
     }
 
     public int joinProcess(String processName) {
-        ProcessData pd = m_processes.get(processName);
+        final ProcessData pd = m_processes.get(processName);
         assert(pd != null);
         pd.out.m_expectDeath.set(true);
         pd.err.m_expectDeath.set(true);
 
+        final CountDownLatch latch = new CountDownLatch(1);
+        Thread t = new Thread() {
+            public void run() {
+                try {
+                    pd.process.waitFor();
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+                latch.countDown();
+            }
+        };
+        t.setDaemon(true);
+        t.start();
+        
         try {
-            pd.process.waitFor();
-        } catch (InterruptedException e) {
-            e.printStackTrace();
+            latch.await(5, TimeUnit.SECONDS);
+        } catch (InterruptedException ex) {
+            // Ignore...
         }
-
         return killProcess(processName);
     }
 

@@ -101,7 +101,7 @@ public class TestAccessGraphGenerator2 extends BaseTestCase {
                 Pair.of(this.getTable("ORDERS"), this.getTable("ORDERS")),
                 Pair.of(this.getTable("ORDERS"), this.getTable("WAREHOUSE")),
                 Pair.of(this.getTable("ORDER_LINE"), this.getTable("STOCK")),
-                Pair.of(this.getTable("ORDER_LINE"), this.getTable("WAREHOUSE")),
+//                Pair.of(this.getTable("ORDER_LINE"), this.getTable("WAREHOUSE")),
                 Pair.of(this.getTable("ORDER_LINE"), this.getTable("ORDER_LINE")),
                 Pair.of(this.getTable("STOCK"), this.getTable("STOCK")),
                 Pair.of(this.getTable("STOCK"), this.getTable("STOCK")),

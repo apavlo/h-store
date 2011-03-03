@@ -145,6 +145,18 @@ public class MockVoltClient implements Client {
                 return 0;
             }
 
+            @Override
+            public boolean isSinglePartition() {
+                // TODO Auto-generated method stub
+                return false;
+            }
+
+            @Override
+            public void setSinglePartition(boolean val) {
+                // TODO Auto-generated method stub
+                
+            }
+
         };
     }
 

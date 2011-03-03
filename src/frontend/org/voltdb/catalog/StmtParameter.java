@@ -33,11 +33,11 @@ public class StmtParameter extends CatalogType {
 
     void setBaseValues(Catalog catalog, CatalogType parent, String path, String name) {
         super.setBaseValues(catalog, parent, path, name);
-        m_fields.put("sqltype", m_sqltype);
-        m_fields.put("javatype", m_javatype);
-        m_fields.put("index", m_index);
-        m_fields.put("procparameter", null);
-        m_fields.put("procparameteroffset", m_procparameteroffset);
+        this.addField("sqltype", m_sqltype);
+        this.addField("javatype", m_javatype);
+        this.addField("index", m_index);
+        this.addField("procparameter", null);
+        this.addField("procparameteroffset", m_procparameteroffset);
     }
 
     void update() {

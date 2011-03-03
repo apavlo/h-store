@@ -34,7 +34,7 @@ private:
 
 class TransactionState {
 public:
-    TransactionState() : scheduler_state_(NULL), payload_(NULL) {}
+    TransactionState() : scheduler_state_(NULL) {}
 
     ~TransactionState() {
         STLDeleteElements(&fragments_);
@@ -50,14 +50,17 @@ public:
     void scheduler_state(void* state) {
         scheduler_state_ = state;
     }
-    
+
     // PAVLO
-    inline bool has_payload() const { return (payload_ != NULL); }
+    bool has_payload() const { return !payload_.empty(); }
     void set_payload(const std::string& payload) {
-        if (payload_ == NULL) payload_ = new ::std::string;
-        payload_->assign(payload);
+        assert(!payload.empty());
+        payload_ = payload;
     }
-    inline const ::std::string& payload() const { return (*payload_); }
+    const std::string& payload() const {
+        assert(!payload_.empty());
+        return payload_;
+    }
 
 protected:
     void addFragment(const dtxn::Fragment& fragment) {
@@ -68,9 +71,9 @@ protected:
 private:
     std::vector<FragmentState*> fragments_;
     void* scheduler_state_;
-    
+
     // PAVLO: Let things attach payload data that we can send around during the finish process
-    std::string *payload_;
+    std::string payload_;
 };
 
 }  // namespace dtxn

@@ -133,7 +133,7 @@ public class TestHStoreMessenger extends BaseTestCase {
                 } 
             });
         } // FOR
-        ThreadUtil.run(threads);
+        ThreadUtil.runNewPool(threads);
         if (group.exceptions.isEmpty() == false) stopMessengers(); 
         assert(group.exceptions.isEmpty()) : group.exceptions;
     }
@@ -354,7 +354,7 @@ public class TestHStoreMessenger extends BaseTestCase {
         } // FOR
 
         // BOMBS AWAY!
-        ThreadUtil.run(threads);
+        ThreadUtil.runNewPool(threads);
         
         // BLOCK!
         latch.await();

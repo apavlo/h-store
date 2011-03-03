@@ -3,22 +3,56 @@ package edu.brown.utils;
 import java.util.*;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
+import org.apache.commons.pool.BasePoolableObjectFactory;
+import org.apache.commons.pool.impl.StackObjectPool;
 import org.apache.log4j.Logger;
 
 /**
  * @author pavlo
  * @param <E> element type
  */
-public abstract class AbstractTreeWalker<E> {
+public abstract class AbstractTreeWalker<E> implements Poolable {
     private static final Logger LOG = Logger.getLogger(AbstractTreeWalker.class);
     
-    public class Children {
-        private final E parent;
+    private static final Map<Class<?>, StackObjectPool> CHILDREN_POOLS = new HashMap<Class<?>, StackObjectPool>();
+
+    /**
+     * Children Object Pool Factory
+     */
+    private static class ChildrenFactory<E> extends BasePoolableObjectFactory {
+        @Override
+        public Object makeObject() throws Exception {
+            Children<E> c = new Children<E>();
+            return (c);
+        }
+        public void passivateObject(Object obj) throws Exception {
+            Children<?> c = (Children<?>)obj;
+            c.finish();
+        };
+    };
+    
+    /**
+     * The children data structure keeps track of the elements that we need to visit before and after
+     * each element in the tree
+     */
+    public static class Children<E> implements Poolable {
+        private E parent;
         private final Queue<E> before_list = new ConcurrentLinkedQueue<E>();
         private final Queue<E> after_list = new ConcurrentLinkedQueue<E>();
         
-        private Children(E parent) {
+        private Children() {
+            // Nothing...
+        }
+        
+        public void init(E parent) {
             this.parent = parent;
+        }
+        
+        @Override
+        public void finish() {
+            this.parent = null;
+            this.before_list.clear();
+            this.after_list.clear();
         }
 
         public Queue<E> getBefore() {
@@ -81,7 +115,7 @@ public abstract class AbstractTreeWalker<E> {
     /**
      * List of elements that we visited (in proper order)
      */
-    private final Vector<E> visited = new Vector<E>();
+    private final List<E> visited = new ArrayList<E>();
     /**
      * The first element that started the traversal
      */
@@ -106,7 +140,61 @@ public abstract class AbstractTreeWalker<E> {
      * Others can attach Children to elements out-of-band so that we can do other
      * types of traversal through the tree
      */
-    private final Map<E, Children> attached_children = new HashMap<E, Children>();
+    private final Map<E, Children<E>> attached_children = new HashMap<E, Children<E>>();
+    /**
+     * Cache handle to the object pool we use for the children
+     */
+    private StackObjectPool children_pool;
+    
+    /**
+     * Depth limit (for debugging)
+     */
+    private int depth_limit = -1;
+    
+    // ----------------------------------------------------------------------
+    // CLEANUP
+    // ----------------------------------------------------------------------
+    
+    @Override
+    public void finish() {
+        this.stack.clear();
+        this.visited.clear();
+        this.first = null;
+        this.depth = -1;
+        this.stop = false;
+        this.allow_revisit = false;
+        this.counter = 0;
+        this.depth_limit = -1;
+
+        try {
+            for (Children<E> c : this.attached_children.values()) {
+                this.children_pool.returnObject(c);
+            } // FOR
+        } catch (Exception ex) {
+            throw new RuntimeException(ex);
+        }
+        this.attached_children.clear();
+        this.children_pool = null;
+    }
+    
+    // ----------------------------------------------------------------------
+    // UTILITY METHODS
+    // ----------------------------------------------------------------------
+    
+    /**
+     * Initialize the children object pool needed by this object
+     */
+    private void initChildrenPool(E element) {
+        // Grab the handle to the children object pool we'll need
+        Class<?> elementClass = element.getClass();
+        synchronized (CHILDREN_POOLS) {
+            this.children_pool = CHILDREN_POOLS.get(elementClass);
+            if (this.children_pool == null) {
+                this.children_pool = new StackObjectPool(new ChildrenFactory<E>());
+                CHILDREN_POOLS.put(elementClass, this.children_pool);
+            }
+        } // SYNCH
+    }
     
     /**
      * Return a Children singleton for a specific element
@@ -114,10 +202,17 @@ public abstract class AbstractTreeWalker<E> {
      * @param element
      * @return
      */
-    protected final Children getChildren(E element) {
-        Children c = this.attached_children.get(element);
+    @SuppressWarnings("unchecked")
+    protected final Children<E> getChildren(E element) {
+        Children<E> c = this.attached_children.get(element);
         if (c == null) {
-            c = new Children(element);
+            if (this.children_pool == null) this.initChildrenPool(element);
+            try {
+                c = (Children<E>)this.children_pool.borrowObject();
+            } catch (Exception ex) {
+                throw new RuntimeException("Failed to borrow object for " + element, ex);
+            }
+            c.init(element);
             this.attached_children.put(element, c);
         }
         return (c);
@@ -155,6 +250,13 @@ public abstract class AbstractTreeWalker<E> {
         return (this.visited.contains(element));
     }
     /**
+     * Mark the given element as having been already visited
+     * @param element
+     */
+    protected void markAsVisited(E element) {
+        this.visited.add(element);
+    }
+    /**
      * Returns the ordered list of elements that were visited 
      * @return
      */
@@ -183,10 +285,24 @@ public abstract class AbstractTreeWalker<E> {
         return (this.counter);
     }
     /**
+     * Set the depth limit. Once this reached we will dump out the stack
+     * @param limit
+     */
+    protected final void setDepthLimit(int limit) {
+        this.depth_limit = limit;
+    }
+    /**
      * The callback() method can call this if it wants the walker to break out of the traversal
      */
     protected final void stop() {
         this.stop = true;
+    }
+    /**
+     * Returns true is this walker has been marked as stopped
+     * @return
+     */
+    protected final boolean isStopped() {
+        return (this.stop);
     }
 
     // ----------------------------------------------------------------------
@@ -205,6 +321,10 @@ public abstract class AbstractTreeWalker<E> {
         if (this.first == null && this.stop == false) {
             assert(this.counter == 0) : "Unexpected counter value on first element [" + this.counter + "]";
             this.first = element;
+            
+            // Grab the handle to the children object pool we'll need
+            this.initChildrenPool(element);
+            
             if (trace) LOG.trace("callback_first(" + element + ")");
             this.callback_first(element);
         }
@@ -222,9 +342,9 @@ public abstract class AbstractTreeWalker<E> {
                               "Visited=" + this.visited.size() + "]");
     
         // Stackoverflow check
-        if (this.depth > 70) {
+        if (this.depth_limit >= 0 && this.depth > this.depth_limit) {
+            LOG.fatal("Reached depth limit [" + this.depth + "]");
             System.err.println(StringUtil.join("\n", Thread.currentThread().getStackTrace()));
-            System.err.println("!!!");
             System.exit(1);
         }
         
@@ -236,9 +356,10 @@ public abstract class AbstractTreeWalker<E> {
         }
         
         // Get the list of children to visit before and after we call ourself
-        AbstractTreeWalker<E>.Children children = this.getChildren(element);
+        AbstractTreeWalker.Children<E> children = this.getChildren(element);
         this.populate_children(children, element);
         if (trace) LOG.trace("Populate Children: " + children);
+
         for (E child : children.before_list) {
             if (this.allow_revisit || this.visited.contains(child) == false) {
                 if (trace) LOG.trace("Traversing child " + child + "' before " + element);
@@ -250,12 +371,13 @@ public abstract class AbstractTreeWalker<E> {
             if (trace) LOG.trace("Stop Called. Halting traversal.");
             return;
         }
-        
+
         // Why is this here and not up above when we update the stack?
         this.visited.add(element);
         
         if (trace) LOG.trace("callback(" + element + ")");
         this.callback(element);
+
         if (this.stop) {
             if (trace) LOG.trace("Stop Called. Halting traversal.");
             return;
@@ -285,6 +407,17 @@ public abstract class AbstractTreeWalker<E> {
         
         this.depth--;
         if (this.depth == -1) {
+            // We need to return all of the children here, because most instances are not going to be pooled,
+            // which means that finish() will not likely be called
+            try {
+                for (Children<E> c : this.attached_children.values()) {
+                    this.children_pool.returnObject(c);
+                } // FOR
+            } catch (Exception ex) {
+                throw new RuntimeException(ex);
+            }
+            this.attached_children.clear();
+            
             if (trace) LOG.trace("callback_last(" + element + ")");
             this.callback_last(element);
         }
@@ -296,7 +429,7 @@ public abstract class AbstractTreeWalker<E> {
      * before or after the callback method is called for the element 
      * @param element
      */
-    protected abstract void populate_children(AbstractTreeWalker<E>.Children children, E element);
+    protected abstract void populate_children(AbstractTreeWalker.Children<E> children, E element);
     
     // ----------------------------------------------------------------------
     // CALLBACK METHODS

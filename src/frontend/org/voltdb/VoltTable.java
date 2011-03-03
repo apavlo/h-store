@@ -162,6 +162,18 @@ public final class VoltTable extends VoltTableRow implements FastSerializable {
     VoltTable() {}
 
     /**
+     * Clone the schema of a table
+     * @param clone
+     */
+    public VoltTable(VoltTable clone) {
+        ColumnInfo cols[] = new ColumnInfo[clone.getColumnCount()];
+        for (int i = 0; i < cols.length; i++) {
+            cols[i] = new ColumnInfo(clone.getColumnName(i), clone.getColumnType(i));
+        }
+        initializeFromColumns(cols, cols.length);
+    }
+
+    /**
      * Create a table from an existing backing buffer.
      *
      * @param backing The buffer containing the serialized table.

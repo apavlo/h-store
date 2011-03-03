@@ -11,6 +11,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.Map.Entry;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.log4j.LogManager;
 import org.apache.log4j.Logger;
@@ -43,6 +45,7 @@ import edu.brown.hstore.Hstore.HStoreService;
 import edu.brown.hstore.Hstore.MessageRequest;
 import edu.brown.hstore.Hstore.MessageAcknowledgement;
 import edu.brown.hstore.Hstore.MessageType;
+import edu.brown.utils.LoggerUtil;
 import edu.mit.hstore.callbacks.ForwardTxnResponseCallback;
 
 /**
@@ -51,7 +54,12 @@ import edu.mit.hstore.callbacks.ForwardTxnResponseCallback;
  */
 public class HStoreMessenger {
     public static final Logger LOG = Logger.getLogger(HStoreMessenger.class);
-
+    private final static AtomicBoolean debug = new AtomicBoolean(LOG.isDebugEnabled());
+    private final static AtomicBoolean trace = new AtomicBoolean(LOG.isTraceEnabled());
+    static {
+        LoggerUtil.attachObserver(LOG, debug, trace);
+    }
+    
     enum MessengerState {
         INITIALIZED,
         STARTED,
@@ -109,7 +117,15 @@ public class HStoreMessenger {
                 try {
                     HStoreMessenger.this.eventLoop.run();
                 } catch (Exception ex) {
-                    Throwable cause = (ex instanceof RuntimeException ? ex.getCause() : ex);
+                    ex.printStackTrace();
+                    
+                    Throwable cause = null;
+                    if (ex instanceof RuntimeException && ex.getCause() != null) {
+                        if (ex.getCause().getMessage() != null && ex.getCause().getMessage().isEmpty() == false) {
+                            cause = ex.getCause();
+                        }
+                    }
+                    if (cause == null) cause = ex;
                     
                     // These errors are ok if we're actually stopping...
                     if (HStoreMessenger.this.state == MessengerState.STOPPED ||
@@ -117,11 +133,12 @@ public class HStoreMessenger {
                         // IGNORE
                     } else {
                         LOG.fatal("Unexpected error in messenger listener thread", cause);
+                        HStoreMessenger.this.shutdownCluster(ex);
                     }
                 } finally {
                     // if (HStoreMessenger.this.state != MessengerState.STOPPED) HStoreMessenger.this.stop();
                 }
-                if (LOG.isTraceEnabled()) {
+                if (trace.get()) {
                     LOG.trace("Messenger Thread for Site #" + catalog_site.getId() + " has stopped!");
                 }
             }
@@ -168,25 +185,24 @@ public class HStoreMessenger {
      */
     public synchronized void stop() {
         assert(this.state == MessengerState.STARTED || this.state == MessengerState.PREPARE_STOP) : "Invalid MessengerState " + this.state;
-        final boolean trace = LOG.isTraceEnabled();
         
         this.state = MessengerState.STOPPED;
         
         try {
-            if (trace) LOG.trace("Stopping eventLoop for Site #" + this.getLocalSiteId());
+            if (trace.get()) LOG.trace("Stopping eventLoop for Site #" + this.getLocalSiteId());
             this.eventLoop.exitLoop();
 
-            if (trace) LOG.trace("Stopping listener thread for Site #" + this.getLocalSiteId());
+            if (trace.get()) LOG.trace("Stopping listener thread for Site #" + this.getLocalSiteId());
             this.listener_thread.interrupt();
             
-            if (trace) LOG.trace("Joining on listener thread for Site #" + this.getLocalSiteId());
+            if (trace.get()) LOG.trace("Joining on listener thread for Site #" + this.getLocalSiteId());
             this.listener_thread.join();
         } catch (InterruptedException ex) {
             // IGNORE
         } catch (Exception ex) {
             LOG.error("Unexpected error when trying to stop messenger for Site #" + this.getLocalSiteId(), ex);
         } finally {
-            if (trace) LOG.trace("Closing listener socket for Site #" + this.getLocalSiteId());
+            if (trace.get()) LOG.trace("Closing listener socket for Site #" + this.getLocalSiteId());
             this.listener.close();
         }
         assert(this.isStopped());
@@ -221,11 +237,10 @@ public class HStoreMessenger {
      * Initialize all the network connections to remote 
      */
     private void initConnections() {
-        final boolean debug = LOG.isDebugEnabled(); 
         Database catalog_db = CatalogUtil.getDatabase(this.catalog_site);
         
         // Find all the destinations we need to connect to
-        if (debug) LOG.debug("Configuring outbound network connections for Site #" + this.catalog_site.getId());
+        if (debug.get()) LOG.debug("Configuring outbound network connections for Site #" + this.catalog_site.getId());
         Map<Host, Set<Site>> host_partitions = CatalogUtil.getSitesPerHost(catalog_db);
         Integer local_port = this.catalog_site.getMessenger_port();
         
@@ -237,7 +252,7 @@ public class HStoreMessenger {
                 int site_id = catalog_site.getId();
                 int port = catalog_site.getMessenger_port();
                 if (site_id != this.catalog_site.getId()) {
-                    if (debug) LOG.debug("Creating RpcChannel to " + host + ":" + port + " for site #" + site_id);
+                    if (debug.get()) LOG.debug("Creating RpcChannel to " + host + ":" + port + " for site #" + site_id);
                     destinations.add(new InetSocketAddress(host, port));
                     site_ids.add(site_id);
                     
@@ -250,15 +265,15 @@ public class HStoreMessenger {
         
         // Initialize inbound channel
         assert(local_port != null);
-        if (debug) LOG.debug("Binding listener to port " + local_port + " for Site #" + this.catalog_site.getId());
+        if (debug.get()) LOG.debug("Binding listener to port " + local_port + " for Site #" + this.catalog_site.getId());
         this.listener.register(this.handler);
         this.listener.bind(local_port);
 
         // Make the outbound connections
         if (destinations.isEmpty()) {
-            if (debug) LOG.debug("There are no remote sites so we are skipping creating connections");
+            if (debug.get()) LOG.debug("There are no remote sites so we are skipping creating connections");
         } else {
-            if (debug) LOG.debug("Connecting to " + destinations.size() + " remote site messengers");
+            if (debug.get()) LOG.debug("Connecting to " + destinations.size() + " remote site messengers");
             ProtoRpcChannel[] channels = null;
             try {
                 channels = ProtoRpcChannel.connectParallel(this.eventLoop, destinations.toArray(new InetSocketAddress[]{}), 15000);
@@ -279,7 +294,7 @@ public class HStoreMessenger {
             } // FOR
 
             
-            if (debug) LOG.debug("Site #" + this.getLocalSiteId() + " is fully connected to all sites");
+            if (debug.get()) LOG.debug("Site #" + this.getLocalSiteId() + " is fully connected to all sites");
         }
     }
     
@@ -291,16 +306,10 @@ public class HStoreMessenger {
 
         @Override
         public void sendMessage(RpcController controller, MessageRequest request, RpcCallback<MessageAcknowledgement> done) {
-            final boolean trace = LOG.isTraceEnabled();
-            final boolean debug = LOG.isDebugEnabled();
-            
-            // HACK
-//            HStoreMessenger.this.eventLoop.clearAllTimers();
-            
             int sender = request.getSenderId();
             int dest = request.getDestId();
             MessageType type = request.getType();
-            if (debug) LOG.debug("Received " + type.name() + " request from Site #" + sender);
+            if (debug.get()) LOG.debug("Received " + type.name() + " request from Site #" + sender);
             
             Hstore.MessageAcknowledgement response = null;
             switch (type) {
@@ -348,7 +357,7 @@ public class HStoreMessenger {
                     // We need to create a wrapper callback so that we can get the output that
                     // HStoreCoordinatorNode wants to send to the client and forward 
                     // it back to whomever told us about this txn
-                    if (trace) LOG.trace("Passing " + type.name() + " information to HStoreCoordinatorNode");
+                    if (trace.get()) LOG.trace("Passing " + type.name() + " information to HStoreCoordinatorNode");
                     byte serializedRequest[] = request.getData().toByteArray();
                     ForwardTxnResponseCallback callback = new ForwardTxnResponseCallback(dest, sender, done);
                     HStoreMessenger.this.hstore_site.procedureInvocation(serializedRequest, callback);
@@ -388,12 +397,10 @@ public class HStoreMessenger {
          */
         @Override
         public void sendFragment(RpcController controller, FragmentTransfer request, RpcCallback<FragmentAcknowledgement> done) {
-            final boolean trace = LOG.isTraceEnabled();
-            
             long txn_id = request.getTxnId();
             int sender_partition_id = request.getSenderPartitionId();
             int dest_partition_id = request.getDestPartitionId();
-            if (trace) LOG.trace("Incoming data from Partition #" + sender_partition_id + " to Partition #" + dest_partition_id +
+            if (trace.get()) LOG.trace("Incoming data from Partition #" + sender_partition_id + " to Partition #" + dest_partition_id +
                                  " for Txn #" + txn_id + " with " + request.getDependenciesCount() + " dependencies");
 
             for (Hstore.FragmentDependency fd : request.getDependenciesList()) {
@@ -409,12 +416,12 @@ public class HStoreMessenger {
                 assert(data != null) : "Null data table from " + request;
                 
                 // Store the VoltTable in the ExecutionSite
-                if (trace) LOG.trace("Storing Depedency #" + dependency_id + " for Txn #" + txn_id + " at Partition #" + dest_partition_id);
+                if (trace.get()) LOG.trace("Storing Depedency #" + dependency_id + " for Txn #" + txn_id + " at Partition #" + dest_partition_id);
                 HStoreMessenger.this.hstore_site.getExecutors().get(dest_partition_id).storeDependency(txn_id, sender_partition_id, dependency_id, data);
             } // FOR
             
             // Send back a response
-            if (trace) LOG.trace("Sending back FragmentAcknowledgement to Partition #" + sender_partition_id + " for Txn #" + txn_id);
+            if (trace.get()) LOG.trace("Sending back FragmentAcknowledgement to Partition #" + sender_partition_id + " for Txn #" + txn_id);
             Hstore.FragmentAcknowledgement ack = Hstore.FragmentAcknowledgement.newBuilder()
                                                         .setTxnId(txn_id)
                                                         .setSenderPartitionId(dest_partition_id)
@@ -432,7 +439,7 @@ public class HStoreMessenger {
         
         @Override
         public void run(FragmentAcknowledgement parameter) {
-            if (LOG.isTraceEnabled())
+            if (trace.get())
                 LOG.trace("Received sendFragment callback from remote Partition #" + parameter.getSenderPartitionId() +
                           " for Txn #" + parameter.getTxnId());
         }
@@ -473,11 +480,11 @@ public class HStoreMessenger {
      */
     public void sendDependencySet(long txn_id, int sender_partition_id, int dest_partition_id, DependencySet dset) {
         assert(dset != null);
-        final boolean debug = LOG.isDebugEnabled();
+        final boolean d = debug.get();
         
         // Local Transfer
         if (this.local_partitions.contains(dest_partition_id)) {
-            if (debug) LOG.debug("Transfering " + dset.size() + " dependencies directly from partition #" + sender_partition_id + " to partition #" + dest_partition_id);
+            if (d) LOG.debug("Transfering " + dset.size() + " dependencies directly from partition #" + sender_partition_id + " to partition #" + dest_partition_id);
             for (int i = 0, cnt = dset.size(); i < cnt; i++) {
                 ExecutionSite executor = this.hstore_site.getExecutors().get(dest_partition_id);
                 assert(executor != null) : "Unexpected null ExecutionSite for Partition #" + dest_partition_id + " on Site #" + catalog_site.getId();
@@ -496,7 +503,7 @@ public class HStoreMessenger {
             } // FOR
         // Remote Transfer
         } else {
-            if (debug) LOG.debug("Transfering " + dset.size() + " dependencies through network from partition #" + sender_partition_id + " to partition #" + dest_partition_id);
+            if (d) LOG.debug("Transfering " + dset.size() + " dependencies through network from partition #" + sender_partition_id + " to partition #" + dest_partition_id);
             ProtoRpcController rpc = new ProtoRpcController();
             int site_id = this.partition_site_xref.get(dest_partition_id);
             HStoreService channel = this.channels.get(site_id);
@@ -533,6 +540,28 @@ public class HStoreMessenger {
     }
 
     /**
+     * Take down the cluster. If the blocking flag is true, then this call will never return
+     * @param blocking
+     * @param ex
+     */
+    public void shutdownCluster(final boolean blocking, final Throwable ex) {
+        if (blocking) {
+            this.shutdownCluster(null);
+        } else {
+            // Make this a thread so that we don't block and can continue cleaning up other things
+            Thread shutdownThread = new Thread() {
+                @Override
+                public void run() {
+                    HStoreMessenger.this.shutdownCluster(ex); // Never returns!
+                }
+            };
+            shutdownThread.setDaemon(true);
+            shutdownThread.start();
+        }
+        return;
+    }
+    
+    /**
      * Tell all of the other sites to shutdown and then knock ourselves out...
      */
     public void shutdownCluster() {
@@ -544,14 +573,11 @@ public class HStoreMessenger {
      * exit with a non-zero status.
      * @param ex
      */
-    public synchronized void shutdownCluster(Exception ex) {
-        final boolean trace = LOG.isTraceEnabled();
-        final boolean debug = LOG.isDebugEnabled();
-        
+    public synchronized void shutdownCluster(Throwable ex) {
         final int num_sites = this.channels.size();
         if (this.shutting_down) return;
         this.shutting_down = true;
-        if (debug) LOG.debug("Sending shutdown request to " + num_sites + " remote sites");
+        if (debug.get()) LOG.debug("Sending shutdown request to " + num_sites + " remote sites");
         
         final CountDownLatch latch = new CountDownLatch(num_sites);
         RpcCallback<MessageAcknowledgement> callback = new RpcCallback<MessageAcknowledgement>() {
@@ -562,7 +588,7 @@ public class HStoreMessenger {
                 int siteid = parameter.getSenderId();
                 assert(this.siteids.contains(siteid) == false) : "Duplicate response from Site #" + siteid;
                 this.siteids.add(siteid);
-                if (trace) LOG.trace("Received " + this.siteids.size() + "/" + num_sites + " shutdown acknowledgements");
+                if (trace.get()) LOG.trace("Received " + this.siteids.size() + "/" + num_sites + " shutdown acknowledgements");
                 latch.countDown();
             }
         };
@@ -576,7 +602,7 @@ public class HStoreMessenger {
                                             .setType(MessageType.SHUTDOWN)
                                             .build();
             e.getValue().sendMessage(new ProtoRpcController(), sm, callback);
-            if (trace) LOG.trace("Sent SHUTDOWN to Site #" + e.getKey());
+            if (trace.get()) LOG.trace("Sent SHUTDOWN to Site #" + e.getKey());
         } // FOR
         
         // Tell ourselves to shutdown while we wait
@@ -584,7 +610,7 @@ public class HStoreMessenger {
         
         // Block until the latch releases us
         try {
-            latch.await();
+            latch.await(5, TimeUnit.SECONDS);
         } catch (Exception ex2) {
             // IGNORE!
         }
@@ -600,11 +626,8 @@ public class HStoreMessenger {
      * @param partition
      */
     public void forwardTransaction(byte[] serializedRequest, RpcCallback<MessageAcknowledgement> done, int partition) {
-        final boolean trace = LOG.isTraceEnabled();
-        final boolean debug = LOG.isDebugEnabled();
-        
         int dest_site_id = this.partition_site_xref.get(partition);
-        if (debug) LOG.debug("Forwarding a transaction request to Partition #" + partition + " on Site #" + dest_site_id);
+        if (debug.get()) LOG.debug("Forwarding a transaction request to Partition #" + partition + " on Site #" + dest_site_id);
         Hstore.MessageRequest mr = Hstore.MessageRequest.newBuilder()
                                         .setSenderId(this.catalog_site.getId())
                                         .setDestId(dest_site_id)
@@ -612,7 +635,7 @@ public class HStoreMessenger {
                                         .setData(ByteString.copyFrom(serializedRequest))
                                         .build();
         this.channels.get(dest_site_id).sendMessage(new ProtoRpcController(), mr, done);
-        if (trace) LOG.debug("Sent " + MessageType.FORWARD_TXN.name() + " to Site #" + dest_site_id);
+        if (trace.get()) LOG.debug("Sent " + MessageType.FORWARD_TXN.name() + " to Site #" + dest_site_id);
     }
 
     /**

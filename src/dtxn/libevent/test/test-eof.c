@@ -2,39 +2,39 @@
  * Compile with:
  * cc -I/usr/local/include -o time-test time-test.c -L/usr/local/lib -levent
  */
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
-
+#include "event2/event-config.h"
 
 #ifdef WIN32
 #include <winsock2.h>
+#else
+#include <unistd.h>
 #endif
 #include <sys/types.h>
 #include <sys/stat.h>
-#ifdef HAVE_SYS_TIME_H
+#ifdef _EVENT_HAVE_SYS_TIME_H
 #include <sys/time.h>
 #endif
-#ifdef HAVE_SYS_SOCKET_H
+#ifdef _EVENT_HAVE_SYS_SOCKET_H
 #include <sys/socket.h>
 #endif
 #include <fcntl.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-#ifdef HAVE_UNISTD_H
-#include <unistd.h>
-#endif
 #include <errno.h>
 
 #include <event.h>
 #include <evutil.h>
 
+#ifdef _EVENT___func__
+#define __func__ _EVENT___func__
+#endif
+
 int test_okay = 1;
 int called = 0;
 
 static void
-read_cb(int fd, short event, void *arg)
+read_cb(evutil_socket_t fd, short event, void *arg)
 {
 	char buf[256];
 	int len;
@@ -58,17 +58,27 @@ read_cb(int fd, short event, void *arg)
 #endif
 
 int
-main (int argc, char **argv)
+main(int argc, char **argv)
 {
 	struct event ev;
 	const char *test = "test string";
-	int pair[2];
+	evutil_socket_t pair[2];
+
+#ifdef WIN32
+	WORD wVersionRequested;
+	WSADATA wsaData;
+	int	err;
+
+	wVersionRequested = MAKEWORD(2, 2);
+
+	err = WSAStartup(wVersionRequested, &wsaData);
+#endif
 
 	if (evutil_socketpair(AF_UNIX, SOCK_STREAM, 0, pair) == -1)
 		return (1);
 
-	
-	send(pair[0], test, strlen(test)+1, 0);
+
+	send(pair[0], test, (int)strlen(test)+1, 0);
 	shutdown(pair[0], SHUT_WR);
 
 	/* Initalize the event library */

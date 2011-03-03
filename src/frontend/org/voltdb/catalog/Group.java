@@ -31,8 +31,8 @@ public class Group extends CatalogType {
         super.setBaseValues(catalog, parent, path, name);
         m_users = new CatalogMap<UserRef>(catalog, this, path + "/" + "users", UserRef.class);
         m_childCollections.put("users", m_users);
-        m_fields.put("sysproc", m_sysproc);
-        m_fields.put("adhoc", m_adhoc);
+        this.addField("sysproc", m_sysproc);
+        this.addField("adhoc", m_adhoc);
     }
 
     void update() {

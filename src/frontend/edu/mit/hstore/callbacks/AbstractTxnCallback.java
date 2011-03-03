@@ -10,19 +10,29 @@ import edu.mit.hstore.HStoreSite;
  */
 public abstract class AbstractTxnCallback {
     
-    protected final HStoreSite hstore_coordinator;
+    protected final HStoreSite hstore_site;
     protected final RpcCallback<byte[]> done;
     protected final long txn_id;
     
  
-    public AbstractTxnCallback(HStoreSite hstore_coordinator, long txn_id, RpcCallback<byte[]> done) {
-        this.hstore_coordinator = hstore_coordinator;
+    public AbstractTxnCallback(HStoreSite hstore_site, long txn_id, RpcCallback<byte[]> done) {
+        this.hstore_site = hstore_site;
         this.txn_id = txn_id;
         this.done = done;
-        assert(this.hstore_coordinator != null) : "Null HStoreCoordinatorNode for txn #" + this.txn_id;
+        assert(this.hstore_site != null) : "Null HStoreSite for txn #" + this.txn_id;
     }
     
     public long getTransactionId() {
         return txn_id;
     }
+    
+    /**
+     * This is the original callback that is used to send the ClientResponse 
+     * back to the client. Obviously this can only be invoked once.
+     * @return
+     */
+    public RpcCallback<byte[]> getOriginalRpcCallback() {
+        return done;
+    }
+    
 } // END CLASS

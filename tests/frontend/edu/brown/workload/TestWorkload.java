@@ -5,6 +5,8 @@ import java.util.Date;
 import java.util.List;
 import java.util.Random;
 
+import org.junit.Test;
+import org.voltdb.VoltProcedure;
 import org.voltdb.benchmark.tpcc.procedures.neworder;
 import org.voltdb.catalog.*;
 
@@ -18,7 +20,11 @@ public class TestWorkload extends BaseTestCase {
     public static final String TARGET_PROCEDURE = neworder.class.getSimpleName();
     public static final int NUM_ORDER_ITEMS = 5;
     public static final int BASE_PARTITION = 1;
-    public static final String CALLER = "XXX"; 
+    public static final VoltProcedure CALLER = new VoltProcedure() {
+        public Long getTransactionId() {
+            return (1001l);
+        };
+    };
 
     public static final Object BASE_ARGS[] = new Object[]{
         new Long(BASE_PARTITION),   // [0] W_ID
@@ -115,6 +121,7 @@ public class TestWorkload extends BaseTestCase {
     public void testStartTransaction() throws Exception {
         TransactionTrace xact = this.startTransaction(this.single_xact_args);
         assertNotNull(this.workload.getTraceObject(xact.getId()));
+        assertFalse(xact.isAborted());
     }
     
     /**
@@ -125,6 +132,77 @@ public class TestWorkload extends BaseTestCase {
         
         this.workload.stopTransaction(xact);
         assertNotNull(xact.getStopTimestamp());
+        assertFalse(xact.isAborted());
+    }
+
+    /**
+     * testAbortTransaction
+     */
+    public void testAbortTransaction() throws Exception {
+        TransactionTrace xact = this.startTransaction(this.single_xact_args);
+        
+        // Start+Stop one query to make sure that it doesn't get marked as aborted
+        Statement catalog_stmt = this.getStatement(xact.getCatalogItem(catalog_db), "getWarehouseTaxRate");
+        QueryTrace nonabort_query = this.startQuery(xact, catalog_stmt, new Object[]{1l}, 0);
+        assertNotNull(nonabort_query);
+        assert(xact.getQueries().contains(nonabort_query));
+        this.workload.stopQuery(nonabort_query);
+        assert(nonabort_query.isStopped());
+        assertFalse(nonabort_query.isAborted());
+        
+        // Now start but don't stop a few queries so that we can make sure they do get aborted!
+        List<QueryTrace> aborted = new ArrayList<QueryTrace>();
+        for (int i = 0; i < 4; i++) {
+            catalog_stmt = this.getStatement(xact.getCatalogItem(catalog_db), "getWarehouseTaxRate");
+            QueryTrace abort_query = this.startQuery(xact, catalog_stmt, new Object[]{i}, 0);
+            assertNotNull(abort_query);
+            assert(xact.getQueries().contains(abort_query));
+            assertFalse(abort_query.isStopped());
+            assertFalse(abort_query.isAborted());
+            aborted.add(abort_query);
+        } // FOR
+        
+        this.workload.abortTransaction(xact);
+        assertNotNull(xact.getStopTimestamp());
+        assert(xact.isAborted());
+        assertEquals(aborted.size()+1, xact.getQueryCount());
+//        System.err.println(xact.debug(catalog_db));
+        
+        for (QueryTrace query : xact.getQueries()) {
+            if (aborted.contains(query)) {
+                assert(query.isAborted());
+            } else {
+                assertFalse(query.isAborted());
+            }
+        } // FOR
+    }
+    
+    /**
+     * testStopQuery
+     */
+    @Test(expected=IllegalStateException.class)
+    public void testStopQuery() throws Exception {
+        TransactionTrace xact = this.startTransaction(this.single_xact_args);
+        
+        // Start one query in Batch #0 but then don't stop it
+        Statement catalog_stmt = this.getStatement(xact.getCatalogItem(catalog_db), "getWarehouseTaxRate");
+        QueryTrace query = this.startQuery(xact, catalog_stmt, new Object[]{1l}, 0);
+        assertNotNull(query);
+        assert(xact.getQueries().contains(query));
+        assertFalse(query.isStopped());
+        
+        // Now try to start/stop another query in the next batch.
+        // The workload trace manager should disallow this!
+        boolean valid = false;
+        try {
+            query = this.startQuery(xact, catalog_stmt, new Object[]{2l}, 1);
+        } catch (IllegalStateException ex) {
+            valid = true;
+        }
+        assert(valid);
+//        assertNotNull(query);
+//        assert(xact.getQueries().contains(query));
+//        this.workload.stopQuery(query);
     }
     
     /**
@@ -182,7 +260,7 @@ public class TestWorkload extends BaseTestCase {
             
             QueryTrace query = this.startQuery(xact, catalog_stmt, args, batch_id);
             assertNotNull(query);
-            assertEquals(xact.getTransactionId(), query.getTransactionId());
+            assert(xact.getQueries().contains(query));
             this.workload.stopQuery(query);
         } // FOR
         

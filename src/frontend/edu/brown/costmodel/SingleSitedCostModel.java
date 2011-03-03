@@ -851,7 +851,7 @@ public class SingleSitedCostModel extends AbstractCostModel {
             
             Integer base_partition = null; 
             try {
-                base_partition = this.p_estimator.getPartition(catalog_proc, txn_trace.getParams(), true);
+                base_partition = this.p_estimator.getBasePartition(catalog_proc, txn_trace.getParams(), true);
             } catch (Exception ex) {
                 LOG.error("Unexpected error from PartitionEstimator for " + txn_trace, ex);
             }

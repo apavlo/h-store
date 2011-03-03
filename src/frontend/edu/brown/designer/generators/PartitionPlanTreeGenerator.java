@@ -52,7 +52,7 @@ public class PartitionPlanTreeGenerator extends AbstractGenerator<PartitionTree>
             
             // Walk down the paths in the plans and create the partition tree that represents the PartitionPlan
             new VertexTreeWalker<Vertex>(info.dgraph) {
-                protected void populate_children(VertexTreeWalker<Vertex>.Children children, Vertex element) {
+                protected void populate_children(VertexTreeWalker.Children<Vertex> children, Vertex element) {
                     Set<Table> element_children = pplan.getChildren((Table)element.getCatalogItem());
                     if (element_children != null) {
                         for (Table child_tbl : element_children) {

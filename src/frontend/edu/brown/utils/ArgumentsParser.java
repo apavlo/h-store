@@ -85,6 +85,7 @@ public class ArgumentsParser {
     public static final String PARAM_WORKLOAD_PROC_INCLUDE  = PARAM_WORKLOAD + ".procinclude";
     public static final String PARAM_WORKLOAD_PROC_SAMPLE   = PARAM_WORKLOAD + ".sampling";
     public static final String PARAM_WORKLOAD_PROC_INCLUDE_MULTIPLIER  = PARAM_WORKLOAD_PROC_INCLUDE + ".multiplier";
+    public static final String PARAM_WORKLOAD_RANDOM_PARTITIONS = PARAM_WORKLOAD + ".randompartitions";
     public static final String PARAM_WORKLOAD_OUTPUT        = PARAM_WORKLOAD + ".output";
     public static final String PARAM_WORKLOAD_CLASS         = PARAM_WORKLOAD + ".class";
     
@@ -100,6 +101,15 @@ public class ArgumentsParser {
     public static final String PARAM_MARKOV_OUTPUT          = PARAM_MARKOV + ".output";
     public static final String PARAM_MARKOV_THRESHOLDS      = PARAM_MARKOV + ".thresholds";
     public static final String PARAM_MARKOV_THRESHOLDS_OUTPUT = PARAM_MARKOV_THRESHOLDS + ".output";
+    public static final String PARAM_MARKOV_PARTITIONS      = PARAM_MARKOV + ".partitions";
+    public static final String PARAM_MARKOV_TOPK            = PARAM_MARKOV + ".topk";
+    public static final String PARAM_MARKOV_ROUNDS          = PARAM_MARKOV + ".rounds";
+    public static final String PARAM_MARKOV_THREADS         = PARAM_MARKOV + ".threads";
+    public static final String PARAM_MARKOV_SPLIT           = PARAM_MARKOV + ".split";
+    public static final String PARAM_MARKOV_GLOBAL          = PARAM_MARKOV + ".global";
+    public static final String PARAM_MARKOV_SPLIT_TRAINING  = PARAM_MARKOV_SPLIT + ".training";
+    public static final String PARAM_MARKOV_SPLIT_VALIDATION = PARAM_MARKOV_SPLIT + ".validation";
+    public static final String PARAM_MARKOV_SPLIT_TESTING   = PARAM_MARKOV_SPLIT + ".testing";
     
     public static final String PARAM_DESIGNER               = "designer";
     public static final String PARAM_DESIGNER_PARTITIONER   = PARAM_DESIGNER + ".partitioner";
@@ -131,13 +141,20 @@ public class ArgumentsParser {
     public static final String PARAM_COORDINATOR_HOST       = PARAM_COORDINATOR + ".host";
     public static final String PARAM_COORDINATOR_PORT       = PARAM_COORDINATOR + ".port";
     public static final String PARAM_COORDINATOR_PARTITION  = PARAM_COORDINATOR + ".partition";
-    public static final String PARAM_COORDINATOR_STATUS_INTERVAL = PARAM_COORDINATOR + ".statusinterval";
 
     private static final String PARAM_NODE                  = "node";
     public static final String PARAM_NODE_HOST              = PARAM_NODE + ".host";
     public static final String PARAM_NODE_PORT              = PARAM_NODE + ".port";
     public static final String PARAM_NODE_PARTITION         = PARAM_NODE + ".partition";
     public static final String PARAM_NODE_SITE              = PARAM_NODE + ".site";
+    public static final String PARAM_NODE_FORCE_SINGLEPARTITION = PARAM_NODE + ".force_singlepartition";
+    public static final String PARAM_NODE_FORCE_LOCALEXECUTION = PARAM_NODE + ".force_localexecution";
+    public static final String PARAM_NODE_FORCE_NEWORDERINSPECT = PARAM_NODE + ".force_neworderinspect";
+    public static final String PARAM_NODE_STATUS_INTERVAL   = PARAM_NODE + ".statusinterval";
+    public static final String PARAM_NODE_STATUS_INTERVAL_KILL   = PARAM_NODE + ".statusinterval_kill";
+    public static final String PARAM_NODE_CLEANUP_INTERVAL = PARAM_NODE + ".cleanup_interval";
+    public static final String PARAM_NODE_CLEANUP_TXN_EXPIRE = PARAM_NODE + ".cleanup_txn_expire";
+    public static final String PARAM_NODE_ENABLE_PROFILING  = PARAM_NODE + ".enable_profiling";
     
     private static final String PARAM_DTXN                  = "dtxn";
     public static final String PARAM_DTXN_CONF              = PARAM_DTXN + ".conf";
@@ -337,6 +354,14 @@ public class ArgumentsParser {
         return (false);
     }
     
+    public boolean hasBooleanParam(String key) {
+        if (this.hasParam(key)) {
+            Boolean val = Boolean.valueOf(this.params.get(key));
+            if (val != null) return (true);
+        }
+        return (false);
+    }
+    
     public void setDatabase(Database catalog_db) {
         this.catalog_db = catalog_db;
     }
@@ -499,12 +524,30 @@ public class ArgumentsParser {
             if (params.containsKey(PARAM_WORKLOAD_REMOVE_DUPES)) {
                 this.workload_filter = new DuplicateTraceFilter();
             }
+
+            // TRANSACTION OFFSET
+            if (params.containsKey(PARAM_WORKLOAD_XACT_OFFSET)) {
+                this.workload_xact_offset = Long.parseLong(params.get(PARAM_WORKLOAD_XACT_OFFSET));
+                ProcedureLimitFilter filter = new ProcedureLimitFilter(-1l, this.workload_xact_offset);
+                // Important! The offset should go in the front!
+                this.workload_filter = (this.workload_filter != null ? filter.attach(this.workload_filter) : filter);
+            }
+            
+            // RANDOM BASE PARTITIONS
+            if (params.containsKey(PARAM_WORKLOAD_RANDOM_PARTITIONS)) {
+                BasePartitionTxnFilter filter = new BasePartitionTxnFilter(new PartitionEstimator(catalog_db));
+                
+                double factor = this.getDoubleParam(PARAM_WORKLOAD_RANDOM_PARTITIONS);
+                List<Integer> partitions = new ArrayList<Integer>(CatalogUtil.getAllPartitionIds(catalog_db)); 
+                Collections.shuffle(partitions, new Random());
+                filter.addPartitions(partitions.subList(0, (int)(partitions.size() * factor)));
+                this.workload_filter = (this.workload_filter != null ? this.workload_filter.attach(filter) : filter);
+            }
+
             
             // Txn Limit
             this.workload_xact_limit = this.getLongParam(PARAM_WORKLOAD_XACT_LIMIT);
-            
             Histogram proc_histogram = null;
-            
             // Include/exclude procedures from the traces
             if (params.containsKey(PARAM_WORKLOAD_PROC_INCLUDE) || params.containsKey(PARAM_WORKLOAD_PROC_EXCLUDE)) {
                 Workload.Filter filter = new ProcedureNameFilter();
@@ -602,14 +645,6 @@ public class ArgumentsParser {
                 this.workload_query_limit = Long.parseLong(params.get(PARAM_WORKLOAD_QUERY_LIMIT));
                 QueryLimitFilter filter = new QueryLimitFilter(this.workload_query_limit);
                 this.workload_filter = (this.workload_filter != null ? this.workload_filter.attach(filter) : filter);
-            }
-
-            // TRANSACTION OFFSET
-            if (params.containsKey(PARAM_WORKLOAD_XACT_OFFSET)) {
-                this.workload_xact_offset = Long.parseLong(params.get(PARAM_WORKLOAD_XACT_OFFSET));
-                ProcedureLimitFilter filter = new ProcedureLimitFilter(-1l, this.workload_xact_offset);
-                // Important! The offset should go in the front!
-                this.workload_filter = (this.workload_filter != null ? filter.attach(this.workload_filter) : filter);
             }
             
             if (this.workload_filter != null && debug) LOG.debug("Workload Filters: " + this.workload_filter.toString());

@@ -32,9 +32,9 @@ public class ConstantValue extends CatalogType {
 
     void setBaseValues(Catalog catalog, CatalogType parent, String path, String name) {
         super.setBaseValues(catalog, parent, path, name);
-        m_fields.put("value", m_value);
-        m_fields.put("is_null", m_is_null);
-        m_fields.put("type", m_type);
+        this.addField("value", m_value);
+        this.addField("is_null", m_is_null);
+        this.addField("type", m_type);
     }
 
     void update() {

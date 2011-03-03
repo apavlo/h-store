@@ -31,10 +31,10 @@ public class MaterializedViewInfo extends CatalogType {
 
     void setBaseValues(Catalog catalog, CatalogType parent, String path, String name) {
         super.setBaseValues(catalog, parent, path, name);
-        m_fields.put("dest", null);
+        this.addField("dest", null);
         m_groupbycols = new CatalogMap<ColumnRef>(catalog, this, path + "/" + "groupbycols", ColumnRef.class);
         m_childCollections.put("groupbycols", m_groupbycols);
-        m_fields.put("predicate", m_predicate);
+        this.addField("predicate", m_predicate);
     }
 
     void update() {

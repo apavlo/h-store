@@ -3,6 +3,7 @@ package edu.brown.catalog.special;
 import java.util.HashMap;
 import java.util.Map;
 
+import org.voltdb.catalog.Catalog;
 import org.voltdb.catalog.CatalogType;
 import org.voltdb.catalog.ProcParameter;
 import org.voltdb.catalog.Procedure;
@@ -37,6 +38,10 @@ public class NullProcParameter extends ProcParameter {
     @Override
     public <T extends CatalogType> T getParent() {
         return ((T)this.parent);
+    }
+    @Override
+    public Catalog getCatalog() {
+        return this.parent.getCatalog();
     }
     @Override
     public boolean equals(Object obj) {

@@ -25,7 +25,7 @@ public abstract class WorkloadUtil {
     public static Histogram getProcedureHistogram(File workload_path) throws Exception {
         final Histogram h = new Histogram();
         final String regex = "^\\{.*?,[\\s]*\"" +
-                             AbstractTraceElement.Members.CATALOG_NAME.name() +
+                             AbstractTraceElement.Members.NAME.name() +
                              "\":[\\s]*\"([\\w\\d]+)\"[\\s]*,[\\s]*.*";
         final Pattern p = Pattern.compile(regex);
 

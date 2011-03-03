@@ -28,7 +28,7 @@ import edu.mit.net.NIOMessageConnection;
 
 /** Listens and responds to Volt client stored procedure requests. */
 public class VoltProcedureListener extends AbstractEventHandler {
-    private static final Logger LOG = Logger.getLogger(VoltProcedureListener.class.getName());
+    private static final Logger LOG = Logger.getLogger(VoltProcedureListener.class);
     
     private final EventLoop eventLoop;
     private final Handler handler;
@@ -112,11 +112,13 @@ public class VoltProcedureListener extends AbstractEventHandler {
             boolean blocked = connection.write(serializedResult);
             // Only register the write if being blocked is "new"
             // TODO: Use NonBlockingConnection which avoids attempting to write when blocked
+            // NOTE: It is possible for the connection to become ready for writing before we run
+            // the event loop. In this case, blocked will be false, but connectionBlocked will be
+            // true. This will lead to a "useless" pass around the event loop, but that is safe.
             if (blocked && !connectionBlocked) {
                 eventLoop.registerWrite(connection.getChannel(), this);
                 connectionBlocked = true;
             }
-            assert blocked == connectionBlocked;
         }
 
         private final MessageConnection connection;
@@ -159,9 +161,14 @@ public class VoltProcedureListener extends AbstractEventHandler {
                 // write to say "okay": BIG HACK
                 eventLoopCallback.hackWritePasswordOk();
             } else {
-                LOG.debug("got request " + output.length);
+                if (LOG.isDebugEnabled()) LOG.debug("got request " + output.length);
 
-                handler.procedureInvocation(output, eventLoopCallback);
+                try {
+                    handler.procedureInvocation(output, eventLoopCallback);
+                } catch (Exception ex) {
+                    LOG.fatal("Unexpected error when calling procedureInvocation!", ex);
+                    throw new RuntimeException(ex);
+                }
             }
         }
     }

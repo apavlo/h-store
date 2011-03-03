@@ -18,9 +18,9 @@ public abstract class QueryPlanUtil {
     private static final Logger LOG = Logger.getLogger(QueryPlanUtil.class.getName());
     
     /**
-     * PlanFragment -> AbstractPlanNode
+     * PlanFragmentId -> AbstractPlanNode
      */
-    private static final Map<PlanFragment, AbstractPlanNode> CACHE_DESERIALIZE_FRAGMENT = new HashMap<PlanFragment, AbstractPlanNode>();
+    private static final Map<String, AbstractPlanNode> CACHE_DESERIALIZE_FRAGMENT = new HashMap<String, AbstractPlanNode>();
 
     /**
      * Procedure.Statement -> AbstractPlanNode
@@ -28,6 +28,12 @@ public abstract class QueryPlanUtil {
     private static final Map<String, AbstractPlanNode> CACHE_DESERIALIZE_SS_STATEMENT = new HashMap<String, AbstractPlanNode>();
     private static final Map<String, AbstractPlanNode> CACHE_DESERIALIZE_MS_STATEMENT = new HashMap<String, AbstractPlanNode>();
 
+    /**
+     * Statement -> Sorted List of PlanFragments
+     */
+    private static final Map<Statement, List<PlanFragment>> CACHE_SORTED_SS_FRAGMENTS = new HashMap<Statement, List<PlanFragment>>();
+    private static final Map<Statement, List<PlanFragment>> CACHE_SORTED_MS_FRAGMENTS = new HashMap<Statement, List<PlanFragment>>();
+    
     /**
      * 
      */
@@ -81,15 +87,43 @@ public abstract class QueryPlanUtil {
     
     /**
      * For a given list of PlanFragments, return them in a sorted list based on how they
-     * must be executed  
+     * must be executed. The first element in the list will be the first PlanFragment that must be
+     * executed (i.e., the one at the bottom of the PlanNode tree).
+     *
      * @param catalog_frags
      * @return
      * @throws Exception
      */
-    public static List<PlanFragment> getSortedPlanFragments(Collection<PlanFragment> catalog_frags) {
-        final ArrayList<PlanFragment> sorted_frags = new ArrayList<PlanFragment>(catalog_frags);
-        Collections.sort(sorted_frags, PLANFRAGMENT_EXECUTION_ORDER);
-        return (sorted_frags);
+    public static List<PlanFragment> sortPlanFragments(List<PlanFragment> catalog_frags) {
+        Collections.sort(catalog_frags, PLANFRAGMENT_EXECUTION_ORDER);
+        return (catalog_frags);
+    }
+    
+    /**
+     * 
+     * @param catalog_stmt
+     * @param singlepartition
+     * @return
+     */
+    public static List<PlanFragment> getSortedPlanFragments(Statement catalog_stmt, boolean singlepartition) {
+        Map<Statement, List<PlanFragment>> cache = (singlepartition ? CACHE_SORTED_SS_FRAGMENTS : CACHE_SORTED_MS_FRAGMENTS); 
+        List<PlanFragment> ret = cache.get(catalog_stmt);
+        if (ret == null) {
+            CatalogMap<PlanFragment> catalog_frags = null;
+            if (singlepartition && catalog_stmt.getHas_singlesited()) {
+                catalog_frags = catalog_stmt.getFragments();
+            } else if (catalog_stmt.getHas_multisited()) {
+                catalog_frags = catalog_stmt.getMs_fragments();
+            }
+            
+            if (catalog_frags != null) {
+                List<PlanFragment> fragments = (List<PlanFragment>)CollectionUtil.addAll(new ArrayList<PlanFragment>(), catalog_frags); 
+                QueryPlanUtil.sortPlanFragments(fragments);
+                ret = Collections.unmodifiableList(fragments);
+                cache.put(catalog_stmt, ret);
+            }
+        }
+        return (ret);
     }
     
     /**
@@ -230,6 +264,7 @@ public abstract class QueryPlanUtil {
             //System.exit(1);
         }
         
+        cache.put(cache_key, ret);
         return (ret);
     }
     
@@ -240,16 +275,46 @@ public abstract class QueryPlanUtil {
      * @throws Exception
      */
     public static AbstractPlanNode deserializePlanFragment(PlanFragment catalog_frgmt) throws Exception {
-        AbstractPlanNode ret = QueryPlanUtil.CACHE_DESERIALIZE_FRAGMENT.get(catalog_frgmt);
+        String id = catalog_frgmt.getName();
+        AbstractPlanNode ret = QueryPlanUtil.CACHE_DESERIALIZE_FRAGMENT.get(id);
         if (ret == null) {
+            if (LOG.isDebugEnabled()) LOG.warn("No cached object for " + catalog_frgmt.fullName());
             Database catalog_db = CatalogUtil.getDatabase(catalog_frgmt);
             String jsonString = Encoder.hexDecodeToString(catalog_frgmt.getPlannodetree());
             JSONObject jsonObject = new JSONObject(jsonString);
 //            System.err.println(jsonObject.toString(2));
             PlanNodeList list = (PlanNodeList)PlanNodeTree.fromJSONObject(jsonObject, catalog_db);
             ret = list.getRootPlanNode();
-            QueryPlanUtil.CACHE_DESERIALIZE_FRAGMENT.put(catalog_frgmt, ret);
+            QueryPlanUtil.CACHE_DESERIALIZE_FRAGMENT.put(id, ret);
         }
         return (ret);
+    }
+    
+    /**
+     * Pre-load the cache for all of the PlanFragments
+     * @param catalog_db
+     * @throws Exception
+     */
+    public static void preload(Database catalog_db) throws Exception {
+        for (Procedure catalog_proc : catalog_db.getProcedures()) {
+            if (catalog_proc.getSystemproc() || catalog_proc.getHasjava() == false) continue; 
+            for (Statement catalog_stmt : catalog_proc.getStatements()) {
+                if (catalog_stmt.getHas_singlesited()) {
+                    QueryPlanUtil.deserializeStatement(catalog_stmt, true);
+                    QueryPlanUtil.getSortedPlanFragments(catalog_stmt, true);
+                }
+                if (catalog_stmt.getHas_multisited()) {
+                    QueryPlanUtil.deserializeStatement(catalog_stmt, false);
+                    QueryPlanUtil.getSortedPlanFragments(catalog_stmt, false);
+                }
+                
+                for (PlanFragment catalog_frag : catalog_stmt.getFragments()) {
+                    QueryPlanUtil.deserializePlanFragment(catalog_frag);
+                } // FOR
+                for (PlanFragment catalog_frag : catalog_stmt.getMs_fragments()) {
+                    QueryPlanUtil.deserializePlanFragment(catalog_frag);
+                } // FOR
+            } // FOR
+        } // FOR
     }
 }

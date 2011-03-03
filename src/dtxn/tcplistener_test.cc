@@ -113,7 +113,7 @@ TEST_F(TCPListenerTest, ClearTargetPendingEvents) {
     // Disable the callback target, run the event loop. Pending events should not cause problems.
     connection_->setTarget(NULL, NULL);
     ASSERT_EQ(true, readFromOther());
-    ASSERT_EQ(0, event_base_loop(event_loop_.base(), EVLOOP_ONCE|EVLOOP_NONBLOCK));
+    ASSERT_EQ(0, event_base_loop(event_loop_.base(), EVLOOP_NONBLOCK));
     EXPECT_EQ(true, data_.empty());
 }
 

@@ -29,7 +29,7 @@ public class TestBasePartitionTxnFilter extends AbstractTestFilter {
             if (element instanceof TransactionTrace) {
                 // Make sure that this txn's base partition is what we expect it to be
                 TransactionTrace txn = (TransactionTrace)element;
-                Integer base_partition = p_estimator.getPartition(txn.getCatalogItem(catalog_db), txn.getParams(), true);
+                Integer base_partition = p_estimator.getBasePartition(txn.getCatalogItem(catalog_db), txn.getParams(), true);
                 assertNotNull(base_partition);
                 assertEquals(BASE_PARTITION, base_partition.intValue());
                 count++;

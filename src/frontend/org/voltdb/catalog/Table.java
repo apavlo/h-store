@@ -41,12 +41,12 @@ public class Table extends CatalogType {
         m_childCollections.put("indexes", m_indexes);
         m_constraints = new CatalogMap<Constraint>(catalog, this, path + "/" + "constraints", Constraint.class);
         m_childCollections.put("constraints", m_constraints);
-        m_fields.put("isreplicated", m_isreplicated);
-        m_fields.put("partitioncolumn", null);
-        m_fields.put("estimatedtuplecount", m_estimatedtuplecount);
+        this.addField("isreplicated", m_isreplicated);
+        this.addField("partitioncolumn", null);
+        this.addField("estimatedtuplecount", m_estimatedtuplecount);
         m_views = new CatalogMap<MaterializedViewInfo>(catalog, this, path + "/" + "views", MaterializedViewInfo.class);
         m_childCollections.put("views", m_views);
-        m_fields.put("materializer", null);
+        this.addField("materializer", null);
     }
 
     void update() {

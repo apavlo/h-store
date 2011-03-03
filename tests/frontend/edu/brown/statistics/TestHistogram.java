@@ -8,6 +8,10 @@ import org.json.*;
 
 import edu.brown.BaseTestCase;
 
+/**
+ * 
+ * @author pavlo
+ */
 public class TestHistogram extends BaseTestCase {
 
     public static final int NUM_PARTITIONS = 100;
@@ -27,6 +31,42 @@ public class TestHistogram extends BaseTestCase {
         for (int i = 0; i < NUM_SAMPLES; i++) {
             h.put((long)(rand.nextInt(RANGE)));
         }
+    }
+    
+    /**
+     * testNormalize
+     */
+    @Test
+    public void testNormalize() throws Exception {
+        int size = 1;
+        int rounds = 8;
+        int min = 1000;
+        while (rounds-- > 0) {
+            Histogram h = new Histogram();
+            for (int i = 0; i < size; i++) {
+                h.put((long)(rand.nextInt(min) + min));
+            }    
+            
+            SortedMap<Long, Double> n = h.normalize();
+            assertNotNull(n);
+            assertEquals(h.getValueCount(), n.size());
+//            System.err.println(size + " => " + n);
+            
+            Set<Long> keys = h.values();
+            Set<Double> normalized_values = new HashSet<Double>();
+            for (Long k : keys) {
+                assert(n.containsKey(k)) : "[" + rounds +"] Missing " + k;
+                Double normalized = n.get(k);
+                assertNotNull(normalized);
+                assertFalse(normalized_values.contains(normalized));
+                normalized_values.add(normalized);
+            } // FOR
+            
+            assertEquals(-1.0d, n.get(n.firstKey()));
+            if (size > 1) assertEquals(1.0d, n.get(n.lastKey()));
+            
+            size += size;
+        } // FOR
     }
     
     /**

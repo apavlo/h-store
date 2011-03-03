@@ -25,6 +25,7 @@ package org.voltdb.benchmark;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 
 public class BenchmarkConfig {
 
@@ -37,6 +38,7 @@ public class BenchmarkConfig {
     public final int processesPerClient;
     public final long interval;
     public final long duration;
+    public final String sshOptions[];
     public final String remotePath;
     public final String remoteUser;
     public final boolean listenForDebugger;
@@ -57,10 +59,16 @@ public class BenchmarkConfig {
     public final String subApplicationName;
     
     public final String coordinatorHost;
+    public final boolean noCoordinator;
     public final boolean compileBenchmark;
     public final boolean compileOnly;
     public final boolean useCatalogHosts;
     public final boolean noDataLoad;
+    public final String workloadTrace;
+    public final Set<Integer> profileSiteIds;
+    
+    public final String markovPath;
+    public final String thresholdsPath;
 
     public final Map<String, String> parameters = new HashMap<String, String>();
 
@@ -68,6 +76,7 @@ public class BenchmarkConfig {
             String benchmarkClient,
             String backend,
             String coordinatorHost,
+            boolean noCoordinator,
             String[] hosts,
             int sitesPerHost,
             int kFactor,
@@ -75,6 +84,7 @@ public class BenchmarkConfig {
             int processesPerClient,
             long interval,
             long duration,
+            String sshOptions,
             String remotePath,
             String remoteUser,
             boolean listenForDebugger,
@@ -96,12 +106,17 @@ public class BenchmarkConfig {
             boolean compileBenchmark,
             boolean compileOnly,
             boolean useCatalogHosts,
-            boolean noDataLoad
+            boolean noDataLoad,
+            String workloadTrace,
+            Set<Integer> profileSiteIds,
+            String markovPath,
+            String thresholdsPath
         ) {
 
         this.benchmarkClient = benchmarkClient;
         this.backend = backend;
         this.coordinatorHost = coordinatorHost;
+        this.noCoordinator = noCoordinator;
         this.hosts = new String[hosts.length];
         for (int i = 0; i < hosts.length; i++)
             this.hosts[i] = hosts[i];
@@ -113,6 +128,7 @@ public class BenchmarkConfig {
         this.processesPerClient = processesPerClient;
         this.interval = interval;
         this.duration = duration;
+        this.sshOptions = sshOptions.split(" "); // HACK
         this.remotePath = remotePath;
         this.remoteUser = remoteUser;
         this.listenForDebugger = listenForDebugger;
@@ -136,7 +152,11 @@ public class BenchmarkConfig {
         this.compileOnly = compileOnly;
         this.useCatalogHosts = useCatalogHosts;
         this.noDataLoad = noDataLoad;
+        this.workloadTrace = workloadTrace;
+        this.profileSiteIds = profileSiteIds;
         
+        this.markovPath = markovPath;
+        this.thresholdsPath = thresholdsPath;
     }
 
     @Override

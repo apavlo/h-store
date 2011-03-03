@@ -41,7 +41,7 @@ dtxn::ExecutionEngine::Status ProtoDtxnEngine::tryExecute(
     request.set_transaction_id(transaction_id);
     request.set_work(work_unit);
     request.set_undoable(undo != NULL);
-    
+
     // PAVLO
     if (&payload != NULL) {
         LOG_DEBUG("Setting Fragment (request?) payload directly for txn %ld [%s]", transaction_id, payload.c_str());

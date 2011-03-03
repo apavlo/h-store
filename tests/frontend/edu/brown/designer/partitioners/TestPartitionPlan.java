@@ -118,21 +118,21 @@ public class TestPartitionPlan extends BaseTestCase {
         m.put(this.getProcedure(paymentByCustomerId.class),
                 MultiProcParameter.get(this.getProcParameter(paymentByCustomerId.class, 1),
                                        this.getProcParameter(paymentByCustomerId.class, 0)));
-        m.put(this.getProcedure(paymentByCustomerIdC.class),
-                MultiProcParameter.get(this.getProcParameter(paymentByCustomerIdC.class, 1),
-                                       this.getProcParameter(paymentByCustomerIdC.class, 0)));
-        m.put(this.getProcedure(paymentByCustomerIdW.class),
-                MultiProcParameter.get(this.getProcParameter(paymentByCustomerIdW.class, 1),
-                                       this.getProcParameter(paymentByCustomerIdW.class, 0)));
+//        m.put(this.getProcedure(paymentByCustomerIdC.class),
+//                MultiProcParameter.get(this.getProcParameter(paymentByCustomerIdC.class, 1),
+//                                       this.getProcParameter(paymentByCustomerIdC.class, 0)));
+//        m.put(this.getProcedure(paymentByCustomerIdW.class),
+//                MultiProcParameter.get(this.getProcParameter(paymentByCustomerIdW.class, 1),
+//                                       this.getProcParameter(paymentByCustomerIdW.class, 0)));
         m.put(this.getProcedure(paymentByCustomerName.class),
                 MultiProcParameter.get(this.getProcParameter(paymentByCustomerName.class, 1),
                                        this.getProcParameter(paymentByCustomerName.class, 0)));
-        m.put(this.getProcedure(paymentByCustomerNameC.class),
-                MultiProcParameter.get(this.getProcParameter(paymentByCustomerNameC.class, 1),
-                                       this.getProcParameter(paymentByCustomerNameC.class, 0)));
-        m.put(this.getProcedure(paymentByCustomerNameW.class),
-                MultiProcParameter.get(this.getProcParameter(paymentByCustomerNameW.class, 1),
-                                       this.getProcParameter(paymentByCustomerNameW.class, 0)));
+//        m.put(this.getProcedure(paymentByCustomerNameC.class),
+//                MultiProcParameter.get(this.getProcParameter(paymentByCustomerNameC.class, 1),
+//                                       this.getProcParameter(paymentByCustomerNameC.class, 0)));
+//        m.put(this.getProcedure(paymentByCustomerNameW.class),
+//                MultiProcParameter.get(this.getProcParameter(paymentByCustomerNameW.class, 1),
+//                                       this.getProcParameter(paymentByCustomerNameW.class, 0)));
         m.put(this.getProcedure(slev.class),
                 MultiProcParameter.get(this.getProcParameter(slev.class, 1),
                                        this.getProcParameter(slev.class, 0)));

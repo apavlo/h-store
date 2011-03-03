@@ -18,7 +18,7 @@
 
 #include "base/assert.h"
 #include "base/cast.h"
-#include "libevent/event.h"
+#include "libevent/include/event2/event.h"
 
 int connectTCP(const sockaddr_in& address) {
     int sock = socket(PF_INET, SOCK_STREAM, 0);
@@ -147,20 +147,16 @@ void TCPConnection::setTarget(event_base* event_loop, TCPConnectionCallback* tar
         assert(write_event_ == NULL);
 
         // Register with libevent
-        read_event_ = new event();
-        event_set(read_event_, sock_, EV_READ|EV_PERSIST, libeventCallback, this);
-        int error = event_base_set(event_loop, read_event_);
-        ASSERT(error == 0);
-        error = event_add(read_event_, NULL);
+        read_event_ = event_new(event_loop, sock_, EV_READ|EV_PERSIST, libeventCallback, this);
+        ASSERT(read_event_ != NULL);
+        int error = event_add(read_event_, NULL);
         ASSERT(error == 0);
         //~ printf("registered for reading on %d\n", sock_);
 
         // Initialize the write event, but don't enable it: it gets called if the socket is
         // available for writing, which is almost always. It should only be added when needed.
-        write_event_ = new event();
-        event_set(write_event_, sock_, EV_WRITE, libeventCallback, this);
-        error = event_base_set(event_loop, write_event_);
-        ASSERT(error == 0);
+        write_event_ = event_new(event_loop, sock_, EV_WRITE, libeventCallback, this);
+        ASSERT(write_event_ != NULL);
     } else if (target_ == NULL && read_event_ != NULL) {
         unregisterLibevent();
     }
@@ -183,14 +179,14 @@ void TCPConnection::unregisterLibevent() {
     assert(read_event_ != NULL);
     int error = event_del(read_event_);
     assert(error == 0);
-    delete read_event_;
+    event_free(read_event_);
     read_event_ = NULL;
 
     // The write event may or may not be enabled: clean it up just in case.
     assert(write_event_ != NULL);
     error = event_del(write_event_);
     assert(error == 0);
-    delete write_event_;
+    event_free(write_event_);
     write_event_ = NULL;
 }
 
@@ -198,7 +194,7 @@ TCPListener::~TCPListener() {
     if (event_ != NULL) {
         int error = event_del(event_);
         assert(error == 0);
-        delete event_;
+        event_free(event_);
 
         assert(sock_ >= 0);
         error = close(sock_);
@@ -228,10 +224,7 @@ bool TCPListener::listen(int listen_port) {
     makeSocketNonBlocking(sock_);
 
     // Add the socket to libevent
-    event_ = new event();
-    event_set(event_, sock_, EV_READ|EV_PERSIST, libeventCallback, this);
-    error = event_base_set(event_loop_, event_);
-    assert(error == 0);
+    event_ = event_new(event_loop_, sock_, EV_READ|EV_PERSIST, libeventCallback, this);
     error = event_add(event_, NULL);
     assert(error == 0);
 

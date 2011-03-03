@@ -401,7 +401,7 @@ public abstract class DesignerUtil {
             {
                 this.setAllowRevisit(true);
             }
-            protected void populate_children(PlanNodeTreeWalker.Children children, AbstractPlanNode node) {
+            protected void populate_children(PlanNodeTreeWalker.Children<AbstractPlanNode> children, AbstractPlanNode node) {
                 super.populate_children(children, node);
                 List<AbstractPlanNode> to_add = new ArrayList<AbstractPlanNode>();
                 for (AbstractPlanNode child : children.getBefore()) {

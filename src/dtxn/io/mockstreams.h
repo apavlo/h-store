@@ -47,15 +47,17 @@ public:
 
 class MockInputStream : public io::InputStream {
 public:
-    MockInputStream() : read_count_(0), available_(0) {}
+    MockInputStream() : read_count_(0), available_(0), closed_(false) {}
 
     virtual int read(char* buffer, size_t length) {
         read_count_ += 1;
-        if (available_ == -1) return -1;
 
         int bytes_read = std::min(available_, static_cast<int>(length));
         available_ -= bytes_read;
         assert(available_ >= 0);
+
+        // If there are no more bytes and the stream is closed: we are done here
+        if (bytes_read == 0 && closed_) return -1;
 
         return bytes_read;
     }
@@ -65,13 +67,15 @@ public:
     }
 
     void close() {
-        available_ = -1;
+        assert(!closed_);
+        closed_ = true;
     }
 
     int read_count_;
 
 private:
     int available_;
+    bool closed_;
 };
 
 }

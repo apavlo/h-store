@@ -30,8 +30,8 @@ public class ColumnRef extends CatalogType {
 
     void setBaseValues(Catalog catalog, CatalogType parent, String path, String name) {
         super.setBaseValues(catalog, parent, path, name);
-        m_fields.put("index", m_index);
-        m_fields.put("column", null);
+        this.addField("index", m_index);
+        this.addField("column", null);
     }
 
     void update() {

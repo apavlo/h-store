@@ -14,6 +14,7 @@ import org.voltdb.utils.VoltTypeUtil;
 
 import edu.brown.utils.JSONSerializable;
 import edu.brown.utils.JSONUtil;
+import edu.brown.utils.MathUtil;
 
 /**
  * This class provides a way to visualize the variation in use of a variable.
@@ -273,6 +274,15 @@ public class Histogram implements JSONSerializable {
     @SuppressWarnings("unchecked")
     public <T> T getMaxCountValue() {
         return ((T)this.max_count_value);
+    }
+    
+    /**
+     * Return the internal variable for what we "think" the type is for this Histogram
+     * Use this at your own risk
+     * @return
+     */
+    public VoltType getEstimatedType() {
+        return (this.value_type);
     }
 
     /**
@@ -537,6 +547,42 @@ public class Histogram implements JSONSerializable {
         }
         return (sum / (double)this.histogram.values().size());
     }
+
+    /**
+     * Return a map where the values of the Histogram are mapped to 
+     * doubles in the range [-1.0, 1.0] 
+     * @return
+     */
+    @SuppressWarnings("unchecked")
+    public <T> SortedMap<T, Double> normalize() {
+        final boolean trace = LOG.isTraceEnabled();
+        
+        double delta = 2.0d / (double)(this.getValueCount() - 1);
+        if (trace) {
+            LOG.trace("# of Values = " + this.getValueCount());
+            LOG.trace("Delta Step  = " + delta);
+        }
+
+        // We only want to round the values that we put into the map. If you round
+        // the current counter than we will always be off at the end
+        SortedMap<T, Double> normalized = new TreeMap<T, Double>();
+        int precision = 10;
+        double current = -1.0d;
+        for (T k : (Set<T>)this.histogram.keySet()) {
+            normalized.put(k, MathUtil.roundToDecimals(current, precision));
+            if (trace) LOG.trace(k + " => " + current + " / " + normalized.get(k));
+            current += delta;
+        } // FOR
+        assert(this.histogram.size() == normalized.size());
+        
+        return (normalized);
+    }
+    
+    
+    // ----------------------------------------------------------------------------
+    // DEBUG METHODS
+    // ----------------------------------------------------------------------------
+    
     /**
      * @return Uses the following template for the visualization of a histogram:
      * 4 *
@@ -549,8 +595,18 @@ public class Histogram implements JSONSerializable {
         return (this.toString(MAX_CHARS, MAX_VALUE_LENGTH));
     }
     
+    /**
+     * 
+     * @param max_chars size of the bars
+     * @return
+     */
+    public String toString(Integer max_chars) {
+        return (this.toString(max_chars, MAX_VALUE_LENGTH));
+    }
+        
     public String toString(Integer max_chars, Integer max_length) {
         StringBuilder s = new StringBuilder();
+        if (max_length == null) max_length = MAX_VALUE_LENGTH;
         
         // Don't let anything go longer than MAX_VALUE_LENGTH chars
         String f = "%-" + max_length + "s [%5d] ";
@@ -560,11 +616,11 @@ public class Histogram implements JSONSerializable {
             if (!first) s.append("\n");
             String str = null;
             if (has_labels) str = this.debug_names.get(value);
-            if (str == null) str = value.toString();
+            if (str == null) str = (value != null ? value.toString() : "null");
             int value_str_len = str.length();
             if (value_str_len > max_length) str = str.substring(0, max_length - 3) + "...";
             
-            long cnt = this.histogram.get(value);
+            long cnt = (value != null ? this.histogram.get(value) : 0);
             int chars = (int)((cnt / (double)this.max_count) * max_chars);
             s.append(String.format(f, str, cnt));
             for (int i = 0; i < chars; i++) s.append(MARKER);

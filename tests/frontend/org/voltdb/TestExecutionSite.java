@@ -24,7 +24,6 @@ import edu.brown.BaseTestCase;
 import edu.mit.dtxn.Dtxn;
 import edu.mit.dtxn.Dtxn.FragmentResponse;
 import edu.mit.hstore.HStoreSite;
-import edu.mit.hstore.HStoreMessenger;
 
 /**
  * @author pavlo
@@ -34,9 +33,8 @@ public class TestExecutionSite extends BaseTestCase {
 
     private static final int NUM_PARTITONS = 10;
     private static final int PARTITION_ID = 1;
-    private static final long CLIENT_HANDLE = 1001;
+    private static final int CLIENT_HANDLE = 1001;
     private static final long LAST_SAFE_TXN = -1;
-    private static final BackendTarget BACKEND_TARGET = BackendTarget.HSQLDB_BACKEND;
 
     private static final String TARGET_PROCEDURE = "GetAccessData";
     private static final Object TARGET_PARAMS[] = new Object[] { new Long(1), new Long(1) };
@@ -60,12 +58,12 @@ public class TestExecutionSite extends BaseTestCase {
         if (site == null) {
             PartitionEstimator p_estimator = new PartitionEstimator(catalog_db);
             Site catalog_site = CollectionUtil.getFirst(CatalogUtil.getCluster(catalog).getSites());
-            site = new ExecutionSite(PARTITION_ID, catalog, BACKEND_TARGET, p_estimator, null);
+            site = new MockExecutionSite(PARTITION_ID, catalog, p_estimator);
             
             Map<Integer, ExecutionSite> executors = new HashMap<Integer, ExecutionSite>();
             executors.put(PARTITION_ID, site);
             HStoreSite hstore_site = new HStoreSite(catalog_site, executors, p_estimator);
-            site.setHStoreCoordinatorNode(hstore_site);
+            site.setHStoreCoordinatorSite(hstore_site);
             site.setHStoreMessenger(hstore_site.getMessenger());
             
         }
@@ -88,37 +86,17 @@ public class TestExecutionSite extends BaseTestCase {
     }
     
     /**
-     * testGetExecutionEngine
-     */
-//    public void testGetExecutionEngine() {
-//        assertNotNull(site.getExecutionEngine());
-//    }
-    
-    /**
      * testGetProcedure
      */
     public void testGetProcedure() {
-        VoltProcedure volt_proc = site.getProcedure(TARGET_PROCEDURE);
-        assertNotNull(volt_proc);
-        assertFalse(site.proc_pool.get(TARGET_PROCEDURE).contains(volt_proc));
-        assertTrue(site.all_procs.get(TARGET_PROCEDURE).contains(volt_proc));
-    }
-    
-    /**
-     * testCreateVoltProcedures
-     */
-    public void testCreateVoltProcedures() {
-        Procedure catalog_proc = this.getProcedure(TARGET_PROCEDURE);
-        int orig_count = site.all_procs.get(TARGET_PROCEDURE).size();
-        int new_proc_count = 4;
-        int count = 0;
-        site.createVoltProcedures(catalog_proc, new_proc_count);
-        for (VoltProcedure volt_proc : site.all_procs.get(TARGET_PROCEDURE)) {
-            assertTrue(volt_proc.isInitialized());
-            assertTrue(site.all_procs.get(TARGET_PROCEDURE).contains(volt_proc));
-            count++;
-        } // WHILE
-        assertEquals(orig_count+new_proc_count, count);
+        VoltProcedure volt_proc0 = site.getNewVoltProcedure(TARGET_PROCEDURE);
+        assertNotNull(volt_proc0);
+        
+        // If we get another one it should be a different instance
+        VoltProcedure volt_proc1 = site.getNewVoltProcedure(TARGET_PROCEDURE);
+        assertNotNull(volt_proc1);
+        
+        assertNotSame(volt_proc0, volt_proc1);
     }
     
     /**
@@ -156,34 +134,26 @@ public class TestExecutionSite extends BaseTestCase {
         Thread thread = new Thread(site);
         thread.start();
         
-        //
-        // Peek in the VoltProcedure pool and register a callback
         // Use this callback to attach to the VoltProcedure and get the ClientResponse
-        //
-        VoltProcedure volt_proc = site.proc_pool.get(TARGET_PROCEDURE).peek();
-        assertNotNull(volt_proc);
         BlockingObserver observer = new BlockingObserver();
-        volt_proc.registerCallback(observer);
         
-        //
         // Create an InitiateTaskMessage and shove that to the ExecutionSite
-        //
         StoredProcedureInvocation invocation = new StoredProcedureInvocation();
         invocation.setProcName(TARGET_PROCEDURE);
         invocation.setParams(TARGET_PARAMS);
-        invocation.setClientHandle(10001);
+        invocation.setClientHandle(CLIENT_HANDLE);
         
         Long txn_id = new Long(rand.nextInt());
-        InitiateTaskMessage init_task = new InitiateTaskMessage(PARTITION_ID, PARTITION_ID, txn_id, CLIENT_HANDLE, true, true, invocation, LAST_SAFE_TXN); 
-        site.doWork(init_task, txn_id, new MockCallback());
+        InitiateTaskMessage init_task = new InitiateTaskMessage(PARTITION_ID, PARTITION_ID, txn_id, true, true, invocation, LAST_SAFE_TXN); 
+        site.doWork(init_task, new MockCallback());
         
-        int tries = 1000;
+        int tries = 10000;
         boolean found = false;
         while (tries-- > 0) {
             VoltProcedure running_volt_proc = site.getRunningVoltProcedure(txn_id);
             if (running_volt_proc != null) {
-                assert(volt_proc == running_volt_proc);
                 assertEquals(TARGET_PROCEDURE, running_volt_proc.getProcedureName());
+                running_volt_proc.registerCallback(observer);
                 found = true;
                 break;
             }
@@ -191,9 +161,7 @@ public class TestExecutionSite extends BaseTestCase {
         } // WHILE
         assertTrue(found);
         
-        //
         // Now check whether we got the ClientResponse
-        //
         ClientResponse response = observer.poll();
         assertNotNull(response);
         assertEquals(1, response.getResults().length);

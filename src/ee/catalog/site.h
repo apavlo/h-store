@@ -44,7 +44,8 @@ protected:
     CatalogType* m_host;
     CatalogMap<Partition> m_partitions;
     bool m_isUp;
-    int32_t m_port;
+    int32_t m_proc_port;
+    int32_t m_dtxn_port;
     int32_t m_messenger_port;
 
     virtual void update();
@@ -62,9 +63,11 @@ public:
     const CatalogMap<Partition> & partitions() const;
     /** GETTER: Is the site up? */
     bool isUp() const;
-    /** GETTER: Yeah, you know what this is */
-    int32_t port() const;
-    /** GETTER: Inbound port for receiving data messages */
+    /** GETTER: Port used by VoltProcedureListener */
+    int32_t proc_port() const;
+    /** GETTER: Port used by DTXN ProtoServer */
+    int32_t dtxn_port() const;
+    /** GETTER: Port used by HStoreMessenger */
     int32_t messenger_port() const;
 };
 

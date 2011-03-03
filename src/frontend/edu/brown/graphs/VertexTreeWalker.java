@@ -1,6 +1,3 @@
-/**
- * 
- */
 package edu.brown.graphs;
 
 import java.util.Collection;
@@ -18,11 +15,15 @@ import edu.brown.utils.CollectionUtil;
  *
  */
 public abstract class VertexTreeWalker<V extends AbstractVertex> extends AbstractTreeWalker<V> {
-    protected static final Logger LOG = Logger.getLogger(VertexTreeWalker.class);
+    private static final Logger LOG = Logger.getLogger(VertexTreeWalker.class);
     
     public enum TraverseOrder {
         BREADTH,
         DEPTH,
+        /**
+         * Traverse the graph such that the first callback is for the first element that
+         * is furthest away from the given root
+         */
         LONGEST_PATH,
     };
     public enum Direction {
@@ -43,32 +44,45 @@ public abstract class VertexTreeWalker<V extends AbstractVertex> extends Abstrac
         }
     };
     
-    private final IGraph<V, ? extends AbstractEdge> graph;
-    private final TraverseOrder search_order;
-    private final Direction search_direction; 
-    
-    // Breadth-First Search
-    // The last element at each depth in the tree. This is where we will still all of the
-    // children that we need to visit in the next level
-    private final Map<Integer, V> bfs_levels;
-    
-    public VertexTreeWalker(IGraph<V, ? extends AbstractEdge> graph, TraverseOrder order, Direction direction) {
-        this.graph = graph;
-        this.search_order = order;
-        this.search_direction = direction;
-        
-        if (this.search_order == TraverseOrder.BREADTH) {
-            this.bfs_levels = new HashMap<Integer, V>();
-        } else {
-            this.bfs_levels = null;
-        }
+    private IGraph<V, ? extends AbstractEdge> graph;
+    private TraverseOrder search_order;
+    private Direction search_direction; 
+
+    /**
+     * Breadth-First Search
+     * The last element at each depth in the tree. This is where we will still all of the
+     * children that we need to visit in the next level
+     */
+    private Map<Integer, V> bfs_levels;
+
+    protected VertexTreeWalker() {
+        // Nothing!
     }
-    
+    public VertexTreeWalker(IGraph<V, ? extends AbstractEdge> graph, TraverseOrder order, Direction direction) {
+        this.init(graph, order, direction);
+    }
     public VertexTreeWalker(IGraph<V, ? extends AbstractEdge> graph) {
         this(graph, TraverseOrder.DEPTH, Direction.FORWARD);
     }
     public VertexTreeWalker(IGraph<V, ? extends AbstractEdge> graph, TraverseOrder order) {
         this(graph, order, Direction.FORWARD);
+    }
+
+    public VertexTreeWalker<V> init(IGraph<V, ? extends AbstractEdge> graph, TraverseOrder order, Direction direction) {
+        this.graph = graph;
+        this.search_order = order;
+        this.search_direction = direction;
+        
+        if (this.search_order == TraverseOrder.BREADTH && this.bfs_levels == null) {
+            this.bfs_levels = new HashMap<Integer, V>();
+        }
+        return (this);
+    }
+    
+    @Override
+    public void finish() {
+        super.finish();
+        if (this.bfs_levels != null) this.bfs_levels.clear();
     }
     
     public final IGraph<V, ? extends AbstractEdge> getGraph() {
@@ -97,9 +111,9 @@ public abstract class VertexTreeWalker<V extends AbstractVertex> extends Abstrac
      * @see org.voltdb.utils.AbstractTreeWalker#traverse_children(java.lang.Object)
      */
     @Override
-    protected void populate_children(VertexTreeWalker<V>.Children children, V element) {
+    protected void populate_children(VertexTreeWalker.Children<V> children, V element) {
         final boolean trace = LOG.isTraceEnabled();
-        ListOrderedSet<V> bfs_children = new ListOrderedSet<V>();
+        ListOrderedSet<V> bfs_children = null;
         
         if (trace) LOG.trace("Populating Children for " + element + " [direction=" + this.search_direction + "]"); 
         
@@ -110,6 +124,7 @@ public abstract class VertexTreeWalker<V extends AbstractVertex> extends Abstrac
                         children.addAfter(child);
                         break;
                     case BREADTH:
+                        if (bfs_children == null) bfs_children = new ListOrderedSet<V>();
                         bfs_children.add(child);
                         break;
                     case LONGEST_PATH: {
@@ -132,7 +147,7 @@ public abstract class VertexTreeWalker<V extends AbstractVertex> extends Abstrac
         } // FOR
         
         // Special Case: Breadth-First Search
-        if (this.search_order == TraverseOrder.BREADTH && bfs_children.isEmpty() == false) {
+        if (this.search_order == TraverseOrder.BREADTH && bfs_children != null && bfs_children.isEmpty() == false) {
             if (element.equals(this.getFirst())) {
                 children.addAfter(bfs_children);
                 
@@ -144,7 +159,7 @@ public abstract class VertexTreeWalker<V extends AbstractVertex> extends Abstrac
                 assert(last_element != null) : "Null last_element at depth " + this.getDepth();
 
                 // Put all of our children into the last element's in our depth children
-                Children last_element_c = this.getChildren(last_element);
+                Children<V> last_element_c = this.getChildren(last_element);
                 for (V child : bfs_children) {
                     // We have to do this to avoid duplicates...
                     if (last_element_c.getAfter().contains(child) == false) last_element_c.addAfter(child);

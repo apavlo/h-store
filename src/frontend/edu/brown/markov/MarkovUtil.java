@@ -5,21 +5,28 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.*;
-import java.util.Map.Entry;
 
 import org.apache.log4j.Logger;
 import org.json.JSONObject;
 import org.json.JSONStringer;
-import org.voltdb.catalog.*;
+import org.voltdb.catalog.Catalog;
+import org.voltdb.catalog.CatalogType;
+import org.voltdb.catalog.Database;
+import org.voltdb.catalog.Procedure;
+import org.voltdb.catalog.Statement;
+import org.voltdb.types.QueryType;
+import org.voltdb.utils.Pair;
 
-import edu.brown.catalog.CatalogKey;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.graphs.GraphvizExport;
 import edu.brown.graphs.GraphvizExport.Attributes;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.FileUtil;
 import edu.brown.utils.PartitionEstimator;
-import edu.brown.workload.*;
+import edu.brown.utils.ThreadUtil;
+import edu.brown.workload.AbstractTraceElement;
+import edu.brown.workload.TransactionTrace;
+import edu.brown.workload.Workload;
 import edu.brown.workload.filters.ProcedureNameFilter;
 
 /**
@@ -36,27 +43,44 @@ import edu.brown.workload.filters.ProcedureNameFilter;
 public abstract class MarkovUtil {
     private static final Logger LOG = Logger.getLogger(MarkovUtil.class);
 
+    
+    /**
+     * 
+     */
+    public static final Integer GLOBAL_MARKOV_CONTAINER_ID = -1;
+    
+    
     /**
      * Wrapper class for our special "marker" vertices
      */
     public static class StatementWrapper extends Statement {
+        private final Catalog catalog;
         private final Vertex.Type type;
         private String id;
         private final Procedure parent = new Procedure() {
             public String getName() {
                 return ("markov");
             };
+            public Catalog getCatalog() {
+                return (StatementWrapper.this.catalog);
+            };
         };
 
-        public StatementWrapper(Vertex.Type type) {
+        public StatementWrapper(Catalog catalog, Vertex.Type type) {
+            this.catalog = catalog;
             this.type = type;
             this.id="";
             this.setReadonly(true);
         }
-        public StatementWrapper(Vertex.Type type, boolean readonly, String id) {
+        public StatementWrapper(Catalog catalog, Vertex.Type type, boolean readonly, String id) {
+            this.catalog = catalog;
             this.type = type;
             this.id = id;
             this.setReadonly(readonly);
+        }
+        @Override
+        public Catalog getCatalog() {
+            return (this.catalog);
         }
         public String getName() {
             return ("--" + this.type.toString() + id +"--");
@@ -67,32 +91,28 @@ public abstract class MarkovUtil {
             return (this.parent);
         }
     } // END CLASS
-    private final static StatementWrapper start_stmt = new StatementWrapper(Vertex.Type.START);
-    private final static StatementWrapper stop_stmt = new StatementWrapper(Vertex.Type.COMMIT);
-    private final static StatementWrapper abort_stmt = new StatementWrapper(Vertex.Type.ABORT);
 
     /**
      * Return the Statement object representing the special Vertex type
+     * @param catalog_db TODO
      * @param type
      * @return
      */
-    public static Statement getSpecialStatement(Vertex.Type type) {
-        Statement ret = null;
-        switch (type) {
-            case START:
-                ret = MarkovUtil.start_stmt;
-                break;
-            case COMMIT:
-                ret = MarkovUtil.stop_stmt;
-                break;
-            case ABORT:
-                ret = MarkovUtil.abort_stmt;
-                break;
-            default:
-                assert(false) : "Unexpected Vertex type '" + type + "'";
-        } // SWITCH
-        return (ret);
+    public static Statement getSpecialStatement(Database catalog_db, Vertex.Type type) {
+        Map<Vertex.Type, Statement> cache = CACHE_specialStatements.get(catalog_db);
+        if (cache == null) {
+            cache = new HashMap<Vertex.Type, Statement>();
+            CACHE_specialStatements.put(catalog_db, cache);
+        }
+        
+        Statement catalog_stmt = cache.get(type);
+        if (catalog_stmt == null) {
+            catalog_stmt = new StatementWrapper(catalog_db.getCatalog(), type);
+            cache.put(type, catalog_stmt);
+        }
+        return (catalog_stmt);
     }
+    private final static Map<Database, Map<Vertex.Type, Statement>> CACHE_specialStatements = new HashMap<Database, Map<Vertex.Type, Statement>>();
     
     /**
      * For the given Vertex type, return a unique Vertex instance
@@ -100,24 +120,17 @@ public abstract class MarkovUtil {
      * @return
      */
     public static Vertex getSpecialVertex(Database catalog_db, Vertex.Type type) {
-        Vertex v = null;
-        switch (type) {
-            case START:
-                v = new Vertex(MarkovUtil.start_stmt, Vertex.Type.START);
-                break;
-            case COMMIT:
-                v = new Vertex(MarkovUtil.stop_stmt, Vertex.Type.COMMIT);
-                break;
-            case ABORT:
-                v = new Vertex(MarkovUtil.abort_stmt, Vertex.Type.ABORT);
-                v.addAbortProbability((float) 1.0);
-                break;
-            default:
-                assert(false) : "Unexpected Vertex type '" + type + "'";
-        } // SWITCH
+        Statement catalog_stmt = MarkovUtil.getSpecialStatement(catalog_db, type);
+        assert(catalog_stmt != null);
+
+        Vertex v = new Vertex(catalog_stmt, type);
+        
+        if (type == Vertex.Type.ABORT) {
+            v.setAbortProbability(1.0f);
+        }
         if (type != Vertex.Type.START) {
             for (int i : CatalogUtil.getAllPartitionIds(catalog_db)) {
-                v.addDoneProbability(i, 1.0f);
+                v.setDoneProbability(i, 1.0f);
             } // FOR
         }
         assert(v != null);
@@ -147,13 +160,6 @@ public abstract class MarkovUtil {
     }
     
     /**
-     * To allow for any strange sort of partitioning proposition:
-     * Say only partitions 1,3,7 exist in this guy or the numbering scheme 
-     * starts somewhere strange, we just modify this instead of all the for loops everywhere.
-     * @return a List of partitions
-     */
-
-    /**
      * Give a blank graph to fill in for each partition for the given procedure. Called by 
      * anyone who wants to create MarkovGraphs
      * @param numPartitions the number of partitions/sites in this installation
@@ -164,7 +170,7 @@ public abstract class MarkovUtil {
         HashMap<Integer, MarkovGraph> graphs = new HashMap<Integer, MarkovGraph>();
         Database catalog_db = CatalogUtil.getDatabase(catalog_proc);
         for (int i : CatalogUtil.getAllPartitionIds(catalog_db)) {
-            MarkovGraph g = new MarkovGraph(catalog_proc, i);
+            MarkovGraph g = new MarkovGraph(catalog_proc);
             g.addVertex(MarkovUtil.getStartVertex(catalog_db));
             g.addVertex(MarkovUtil.getAbortVertex(catalog_db));
             g.addVertex(MarkovUtil.getCommitVertex(catalog_db));
@@ -189,30 +195,37 @@ public abstract class MarkovUtil {
     }
 
     /**
-     * Construct all of the Markov graphs for a workload+catalog
+     * Construct all of the Markov graphs for a workload+catalog split by the txn's base partition
      * @param catalog_db
      * @param workload
      * @param p_estimator
      * @return
      */
-    public static MarkovGraphsContainer createGraphs(
-            Database catalog_db, Workload workload, PartitionEstimator p_estimator) {
+    public static MarkovGraphsContainer createBasePartitionGraphs(final Database catalog_db, final Workload workload, final PartitionEstimator p_estimator) {
         assert(workload != null);
         assert(p_estimator != null);
         
         final List<Integer> partitions = CatalogUtil.getAllPartitionIds(catalog_db);
-        
         final MarkovGraphsContainer graphs_per_partition = new MarkovGraphsContainer();
-        for (Procedure catalog_proc : catalog_db.getProcedures()) {
+        
+        List<Runnable> runnables = new ArrayList<Runnable>();
+        for (final Procedure catalog_proc : workload.getProcedures(catalog_db)) {
             if (catalog_proc.getSystemproc()) continue;
-            LOG.debug("Creating MarkovGraphs for " + catalog_proc);
-            Map<Integer, MarkovGraph> gs = MarkovUtil.createGraphsForProcedure(catalog_proc, workload, p_estimator);
-            for (int partition : gs.keySet()) {
-                assert(partitions.contains(partition));
-                MarkovGraph markov = gs.get(partition);
-                graphs_per_partition.put(partition, markov);
-            } // FOR
+            runnables.add(new Runnable() {
+                @Override
+                public void run() {
+                    LOG.info("Creating MarkovGraphs for " + catalog_proc);
+                    Map<Integer, MarkovGraph> gs = MarkovUtil.createBasePartitionGraphsForProcedure(catalog_proc, workload, p_estimator);
+                    for (int partition : gs.keySet()) {
+                        assert(partitions.contains(partition));
+                        MarkovGraph markov = gs.get(partition);
+                        graphs_per_partition.put(partition, markov);
+                    } // FOR
+                }
+            });
         } // FOR
+        LOG.info(String.format("Waiting for %d MarkovGraphs to get populated", runnables.size()));
+        ThreadUtil.runGlobalPool(runnables);
         return (graphs_per_partition);
     }
     
@@ -229,8 +242,7 @@ public abstract class MarkovUtil {
      *            workload to trace through
      * @return
      */
-    public static Map<Integer, MarkovGraph> createGraphsForProcedure(
-            Procedure catalog_proc, Workload workload, PartitionEstimator p_estimator) {
+    public static Map<Integer, MarkovGraph> createBasePartitionGraphsForProcedure(Procedure catalog_proc, Workload workload, PartitionEstimator p_estimator) {
         final boolean trace = LOG.isTraceEnabled();
         assert(catalog_proc != null);
         assert(workload != null);
@@ -250,7 +262,7 @@ public abstract class MarkovUtil {
                 assert(xact != null);
                 Integer base_partition = null;
                 try {
-                    base_partition = p_estimator.getPartition(catalog_proc, xact.getParams(), true);
+                    base_partition = p_estimator.getBasePartition(catalog_proc, xact.getParams(), true);
                 } catch (Exception ex) {
                     LOG.fatal("Failed to calculate base partition for " + xact, ex);
                     System.exit(1);
@@ -261,7 +273,12 @@ public abstract class MarkovUtil {
                 
                 MarkovGraph g = partitiongraphs.get(base_partition);
                 assert(g != null) : "No MarkovGraph exists for base partition #" + base_partition;
-                g.processTransaction(xact, p_estimator);
+                try {
+                    g.processTransaction(xact, p_estimator);
+                } catch (Exception ex) {
+                    LOG.fatal("Failed to process " + xact, ex);
+                    System.exit(1);
+                }
             }
         } // WHILE
         // After we created all of the graphs for each partition, invoke the calculateProbabilities()
@@ -271,105 +288,178 @@ public abstract class MarkovUtil {
         } // FOR
         return partitiongraphs;
     }
-
-    public static MarkovGraphsContainer load(Database catalog_db, String input_path) throws Exception {
-        return (MarkovUtil.load(catalog_db, input_path, CatalogUtil.getAllPartitionIds(catalog_db)));
+    
+    /**
+     * Generate all of the procedure-based MarkovGraphs
+     * @param catalog_db
+     * @param workload
+     * @param p_estimator
+     * @return
+     */
+    public static MarkovGraphsContainer createProcedureGraphs(final Database catalog_db, final Workload workload, final PartitionEstimator p_estimator) {
+        assert(workload != null);
+        assert(p_estimator != null);
+        
+        MarkovGraphsContainer markovs = new MarkovGraphsContainer(true);
+        List<Runnable> runnables = new ArrayList<Runnable>();
+        for (final Procedure catalog_proc : workload.getProcedures(catalog_db)) {
+            final MarkovGraph g = markovs.getOrCreate(GLOBAL_MARKOV_CONTAINER_ID, catalog_proc, true);
+            assert(g != null) : "Failed to create global MarkovGraph for " + catalog_proc;
+            
+            runnables.add(new Runnable() {
+                public void run() {
+                    LOG.info("Populating global MarkovGraph for " + catalog_proc);
+                    for (TransactionTrace xact : workload.getTraces(catalog_proc)) {
+                        try {
+                            g.processTransaction(xact, p_estimator);
+                        } catch (Exception ex) {
+                            LOG.fatal("Failed to process " + xact, ex);
+                            throw new RuntimeException(ex);
+                        }
+                    } // FOR
+                    g.calculateProbabilities();
+                    LOG.info("Finished creating MarkovGraph for " + catalog_proc);
+                }
+            });
+        } // FOR
+        LOG.info(String.format("Waiting for %d MarkovGraphs to get populated", runnables.size()));
+        ThreadUtil.runGlobalPool(runnables);
+        return (markovs);
     }
     
     /**
-     * Load a list of Markov objects from a serialized for a particular base partition
+     * Load a list of Markov objects from a serialized for a particular id
      * @param catalog_db
      * @param input_path
-     * @param base_partition
+     * @param id
      * @return
      * @throws Exception
      */
-    public static Map<Procedure, MarkovGraph> load(Database catalog_db, String input_path, int base_partition) throws Exception {
-        Map<Integer, Map<Procedure, MarkovGraph>> markovs = MarkovUtil.load(catalog_db, input_path,
-                                                                            new ArrayList<Integer>(Arrays.asList(new Integer[] { base_partition })));
+    public static MarkovGraphsContainer loadId(Database catalog_db, String input_path, int id) throws Exception {
+        Set<Integer> idset = (Set<Integer>)CollectionUtil.addAll(new HashSet<Integer>(), Integer.valueOf(id));
+        Map<Integer, MarkovGraphsContainer> markovs = MarkovUtil.load(catalog_db, input_path, null, idset);
         assert(markovs.size() == 1);
-        assert(markovs.containsKey(base_partition));
-        return (markovs.get(base_partition));
+        assert(markovs.containsKey(id));
+        return (markovs.get(id));
+    }
+    
+    public static Map<Integer, MarkovGraphsContainer> loadIds(Database catalog_db, String input_path, Collection<Integer> ids) throws Exception {
+        return (MarkovUtil.load(catalog_db, input_path, null, ids));
+    }
+    
+    public static Map<Integer, MarkovGraphsContainer> loadProcedures(Database catalog_db, String input_path, Collection<Procedure> procedures) throws Exception {
+        return (MarkovUtil.load(catalog_db, input_path, procedures, null));
+    }
+    
+    public static Map<Integer, MarkovGraphsContainer> load(final Database catalog_db, String input_path) throws Exception {
+        return (MarkovUtil.load(catalog_db, input_path, null, null));
     }
     
     /**
      * 
      * @param catalog_db
      * @param input_path
-     * @param partitions
+     * @param ids
      * @return
      * @throws Exception
      */
-    public static MarkovGraphsContainer load(Database catalog_db, String input_path, Collection<Integer> partitions) throws Exception {
-        MarkovGraphsContainer ret = new MarkovGraphsContainer(); // HashMap<Integer, Map<Procedure,MarkovGraph>>();
-        final String className = MarkovGraph.class.getSimpleName();
-        LOG.info("Loading in serialized " + className + " from '" + input_path + "' [partitions=" + partitions + "]");
-        String contents = FileUtil.readFile(input_path);
-        if (contents.isEmpty()) {
-            throw new IOException("The " + className + " file '" + input_path + "' is empty");
-        }
+    public static Map<Integer, MarkovGraphsContainer> load(final Database catalog_db, String input_path, Collection<Procedure> procedures, Collection<Integer> ids) throws Exception {
+        final boolean d = LOG.isDebugEnabled();
         
-        // File Format: One Partition per line, each with a mapping from Procedure to MarkovGraph
-        HashSet<Integer> remaining = new HashSet<Integer>();
-        remaining.addAll(partitions);
+        final Map<Integer, MarkovGraphsContainer> ret = new HashMap<Integer, MarkovGraphsContainer>();
+        final String className = MarkovGraphsContainer.class.getSimpleName();
+        final File file = new File(input_path);
+        LOG.info(String.format("Loading in serialized %s from '%s' [procedures=%s, ids=%s]", className, file.getName(), procedures, ids));
+        
         try {
-            BufferedReader in = FileUtil.getReader(input_path);
+            // File Format: One PartitionId per line, each with its own MarkovGraphsContainer 
+            BufferedReader in = FileUtil.getReader(file);
+            
+            // Line# -> Partition#
+            final Map<Integer, Integer> line_xref = new HashMap<Integer, Integer>();
+            
+            int line_ctr = 0;
             while (in.ready()) {
-                JSONObject json_object = new JSONObject(in.readLine());
-                String partition_key = CollectionUtil.getFirst(json_object.keys());
-                Integer partition = Integer.valueOf(partition_key);
-                if (!remaining.contains(partition)) continue;
+                final String line = in.readLine();
                 
-                Map<Procedure, MarkovGraph> markovs = new HashMap<Procedure, MarkovGraph>();
-                JSONObject json_procs = json_object.getJSONObject(partition_key);
-                Iterator<String> proc_keys = json_procs.keys();
-                while (proc_keys.hasNext()) {
-                    String proc_key = proc_keys.next();
-                    Procedure catalog_proc = CatalogKey.getFromKey(catalog_db, proc_key, Procedure.class);
-                    assert(catalog_proc != null);
+                // If this is the first line, then it is our index
+                if (line_ctr == 0) {
+                    // Construct our line->partition mapping
+                    JSONObject json_object = new JSONObject(line);
+                    for (String key : CollectionUtil.wrapIterator(json_object.keys())) {
+                        Integer partition = Integer.valueOf(key);
+                        
+                        // We want the MarkovGraphContainer pointed to by this line if
+                        // (1) This partition is the same as our GLOBAL_MARKOV_CONTAINER_ID, which means that
+                        //     there isn't going to be partition-specific graphs. There should only be one entry
+                        //     in this file and we're always going to want to load it
+                        // (2) They didn't pass us any ids, so we'll take everything we see
+                        // (3) They did pass us ids, so check whether its included in the set
+                        if (partition.equals(GLOBAL_MARKOV_CONTAINER_ID) || ids == null || ids.contains(partition)) {
+                            Integer offset = json_object.getInt(key);
+                            line_xref.put(offset, partition);
+                        }
+                    } // FOR
+                    if (d) LOG.debug(String.format("Loading %d MarkovGraphsContainers", line_xref.size()));
                     
-                    JSONObject json_graph = json_procs.getJSONObject(proc_key);
-                    MarkovGraph markov = new MarkovGraph(catalog_proc, partition);
-                    markov.fromJSON(json_graph, catalog_db);
-                    markovs.put(catalog_proc, markov);
-                } // WHILE
-                ret.put(partition, markovs);
-                remaining.remove(partition);
-                if (remaining.isEmpty()) break;
+                // Otherwise check whether this is a line number that we care about
+                } else if (line_xref.containsKey(Integer.valueOf(line_ctr))) {
+                    final Integer partition = line_xref.remove(Integer.valueOf(line_ctr));
+                    MarkovGraphsContainer markovs = new MarkovGraphsContainer(procedures);
+                    JSONObject json_object = new JSONObject(line);
+                    if (d) LOG.debug("Populating MarkovGraphsContainer for partition " + partition);
+                    markovs.fromJSON(json_object.getJSONObject(partition.toString()), catalog_db);
+                    ret.put(partition, markovs);        
+                    
+                    if (line_xref.isEmpty()) break;
+                }
+                line_ctr++;
             } // WHILE
+            if (line_ctr == 0) throw new IOException("The " + className + " file '" + input_path + "' is empty");
+            
         } catch (Exception ex) {
             LOG.error("Failed to deserialize the " + className + " from file '" + input_path + "'", ex);
             throw new IOException(ex);
         }
-        LOG.debug("The loading of the " + className + " is complete");
+        if (d) LOG.debug("The loading of the " + className + " is complete");
         return (ret);
     }
     
     /**
-     * For the given list of MarkovGraph objects, serialize them out to a file
+     * For the given MarkovGraphContainer, serialize them out to a file
      * @param markovs
      * @param output_path
      * @throws Exception
      */
-    public static void save(MarkovGraphsContainer markovs, String output_path) throws Exception {
-        final String className = MarkovGraph.class.getSimpleName();
+    public static void save(Map<Integer, MarkovGraphsContainer> markovs, String output_path) throws Exception {
+        final String className = MarkovGraphsContainer.class.getSimpleName();
         LOG.info("Writing out graphs of " + className + " to '" + output_path + "'");
+        
+        // Sort the list of partitions so we always iterate over them in the same order
+        SortedSet<Integer> sorted = new TreeSet<Integer>(markovs.keySet());
         
         File file = new File(output_path);
         try {
             FileOutputStream out = new FileOutputStream(file);
-            for (Integer partition : markovs.keySet()) {
-                LOG.debug("Serializing " + markovs.get(partition).size() + " graphs for partition " + partition);
-                JSONStringer stringer = new JSONStringer();
-                stringer.object().key(partition.toString()).object();
-                for (Entry<Procedure, MarkovGraph> e : markovs.get(partition).entrySet()) {
-                    stringer.key(CatalogKey.createKey(e.getKey())).object();
-                    e.getValue().toJSON(stringer);
-                    stringer.endObject();
-                } // FOR
+            
+            // First construct an index that allows us to quickly find the partitions that we want
+            JSONStringer stringer = (JSONStringer)(new JSONStringer().object());
+            int offset = 1;
+            for (Integer partition : sorted) {
+                stringer.key(Integer.toString(partition)).value(offset++);
+            } // FOR
+            out.write((stringer.endObject().toString() + "\n").getBytes());
+            
+            // Now roll through each id and create a single JSONObject on each line
+            for (Integer partition : sorted) {
+                MarkovGraphsContainer markov = markovs.get(partition);
+                assert(markov != null) : "Null MarkovGraphsContainer for partition #" + partition;
+                
+                stringer = (JSONStringer)new JSONStringer().object();
+                stringer.key(partition.toString()).object();
+                markov.toJSON(stringer);
                 stringer.endObject().endObject();
-                out.write(stringer.toString().getBytes());
-                out.write("\n".getBytes());
+                out.write((stringer.toString() + "\n").getBytes());
             } // FOR
             out.close();
         } catch (Exception ex) {
@@ -388,44 +478,134 @@ public abstract class MarkovUtil {
      * @return
      * @throws Exception
      */
-    public static GraphvizExport<Vertex, Edge> exportGraphviz(MarkovGraph markov, boolean use_full_output, List<Edge> path) throws Exception {
+    public static GraphvizExport<Vertex, Edge> exportGraphviz(MarkovGraph markov, boolean use_full_output, List<Edge> path) {
         GraphvizExport<Vertex, Edge> graphviz = new GraphvizExport<Vertex, Edge>(markov);
         graphviz.setEdgeLabels(true);
         graphviz.getGlobalGraphAttributes().put(Attributes.PACK, "true");
+        graphviz.getGlobalVertexAttributes().put(Attributes.FONTNAME, "Courier");
         
         Vertex v = markov.getStartVertex();
-        graphviz.getAttributes(v).put(Attributes.FILLCOLOR, "darkgreen");
+        graphviz.getAttributes(v).put(Attributes.FILLCOLOR, "darkblue");
         graphviz.getAttributes(v).put(Attributes.FONTCOLOR, "white");
         graphviz.getAttributes(v).put(Attributes.STYLE, "filled,bold");
+        graphviz.getAttributes(v).put(Attributes.FONTSIZE, "24");
 
         v = markov.getCommitVertex();
         graphviz.getAttributes(v).put(Attributes.FILLCOLOR, "darkgreen");
         graphviz.getAttributes(v).put(Attributes.FONTCOLOR, "white");
         graphviz.getAttributes(v).put(Attributes.STYLE, "filled,bold");
+        graphviz.getAttributes(v).put(Attributes.FONTSIZE, "24");
         
         v = markov.getAbortVertex();
         graphviz.getAttributes(v).put(Attributes.FILLCOLOR, "firebrick4");
         graphviz.getAttributes(v).put(Attributes.FONTCOLOR, "white");
         graphviz.getAttributes(v).put(Attributes.STYLE, "filled,bold");
+        graphviz.getAttributes(v).put(Attributes.FONTSIZE, "24");
 
         // Highlight Path
         if (path != null) graphviz.highlightPath(path, "red");
         
         // Full Debug Output
         if (use_full_output) {
+            final String empty_set = "\u2205";
+            
             for (Vertex v0 : markov.getVertices()) {
-                graphviz.getAttributes(v0).put(Attributes.LABEL, v0.debug().replace("\n", "\\n").replace("\t", "     "));    
+                String label = "";
+                
+                if (v0.isAbortVertex()) {
+                    label = "abort";
+                } else if (v0.isStartVertex()) {
+                    label = "begin";
+                } else if (v0.isCommitVertex()) {
+                    label = "commit";
+                } else {
+                    label = v0.getCatalogItem().getName() + "\n";
+                    label += "Counter: " + v0.getQueryInstanceIndex() + "\n";
+                    
+                    label += "Partitions: ";
+                    if (v0.getPartitions().isEmpty()) {
+                        label += empty_set;
+                    } else {
+                        label += "{ ";
+                        String add = "";
+                        for (Integer p : v0.getPartitions()) {
+                            label += add + p;
+                            add = ", ";
+                        } // FOR
+                        label += " }";
+                    }
+                    label += "\n";
+                    
+                    label += "Previous: ";
+                    if (v0.getPastPartitions().isEmpty()) {
+                        label += empty_set;
+                    } else {
+                        label += "{ ";
+                        String add = "";
+                        for (Integer p : v0.getPastPartitions()) {
+                            label += add + p;
+                            add = ", ";
+                        } // FOR
+                        label += " }";
+                    }
+                }
+                label = v0.debug();
+                graphviz.getAttributes(v0).put(Attributes.LABEL, label.replace("\n", "\\n"));
             } // FOR
         }
         
         return (graphviz);
     }
     
+    /**
+     * Get the set of all partitions touched (either read or write) by the list of vertices
+     * @param path
+     * @return
+     */
     public static Set<Integer> getTouchedPartitions(List<Vertex> path) {
         Set<Integer> partitions = new HashSet<Integer>();
         for (Vertex v : path) {
             partitions.addAll(v.getPartitions());
         } // FOR
         return (partitions);
+    }
+    
+    /**
+     * Get the read/write partition counts for the given path
+     * @param path
+     * @return Set<ReadPartitions>, Set<WritePartitions>
+     */
+    public static Pair<Set<Integer>, Set<Integer>> getReadWritePartitions(List<Vertex> path) {
+        Set<Integer> read_p = new HashSet<Integer>();
+        Set<Integer> write_p = new HashSet<Integer>();
+        MarkovUtil.getReadWritePartitions(path, read_p, write_p);
+        return (Pair.of(read_p, write_p));
+    }
+
+    /**
+     * Get the read/write partition counts for the given path
+     * @param path
+     * @param read_p
+     * @param write_p
+     */
+    public static void getReadWritePartitions(List<Vertex> path, Set<Integer> read_p, Set<Integer> write_p) {
+        for (Vertex v : path) {
+            if (v.isQueryVertex() == false) continue;
+            
+            Statement catalog_stmt = v.getCatalogItem();
+            QueryType qtype = QueryType.get(catalog_stmt.getQuerytype());
+            switch (qtype) {
+                case SELECT:
+                    read_p.addAll(v.getPartitions());
+                    break;
+                case INSERT:
+                case UPDATE:
+                case DELETE:
+                    write_p.addAll(v.getPartitions());
+                    break;
+                default:
+                    assert(false) : "Invalid QueryType: " + qtype;
+            } // SWITCH
+        } // FOR
     }
 }

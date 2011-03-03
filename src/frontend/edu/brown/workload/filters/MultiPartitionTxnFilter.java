@@ -48,16 +48,15 @@ public class MultiPartitionTxnFilter extends Workload.Filter {
             
             Set<Integer> partitions = new HashSet<Integer>();
             try {
-                int base_partition = this.p_estimator.getPartition(catalog_proc, xact.getParams(), true);
+                int base_partition = this.p_estimator.getBasePartition(catalog_proc, xact.getParams(), true);
                 partitions.add(base_partition);
                 
                 for (QueryTrace query : xact.getQueries()) {
-                    partitions.addAll(this.p_estimator.getPartitions(query, base_partition));
+                    partitions.addAll(this.p_estimator.getAllPartitions(query, base_partition));
                 } // FOR
                 
             } catch (Exception ex) {
-                ex.printStackTrace();
-                assert(false);
+                throw new RuntimeException(ex);
             }
             assert(partitions.isEmpty() == false);
             boolean allow = (this.singlepartition ? (partitions.size() == 1) : (partitions.size() > 1)); 

@@ -283,8 +283,7 @@ public class ParametersUtil {
     
     public static void populateCatalog(Database catalog_db, Map<String, ParameterMapping> proc_mapping, boolean force) throws Exception {
         //
-        // For each Procedure in the catalog, we need to find the matching
-        // record
+        // For each Procedure in the catalog, we need to find the matching record
         // in the mapping and update the catalog elements as necessary
         //
         for (Procedure catalog_proc : catalog_db.getProcedures()) {
@@ -570,35 +569,35 @@ public class ParametersUtil {
         // c_id [5]
         // timestamp [6]
         //
-        proc_name = "paymentByCustomerNameW";
-        map = new ParameterMapping();
-
-        stmt_name = "getWarehouse";
-        map.add(stmt_name, 0, "w_id", 0, "w_id");
-
-        stmt_name = "updateWarehouseBalance";
-        map.add(stmt_name, 0, "w_ytd", 2, "h_amount");
-        map.add(stmt_name, 1, "w_id", 0, "w_id");
-
-        stmt_name = "getDistrict";
-        map.add(stmt_name, 0, "d_w_id", 0, "w_id");
-        map.add(stmt_name, 1, "d_id", 1, "d_id");
-
-        stmt_name = "updateDistrictBalance";
-        map.add(stmt_name, 0, "d_ytd", 2, "h_amount");
-        map.add(stmt_name, 1, "d_w_id", 0, "w_id");
-        map.add(stmt_name, 2, "d_id", 1, "d_id");
-
-        stmt_name = "insertHistory";
-        map.add(stmt_name, 0, "c_id", 5, "c_id");
-        map.add(stmt_name, 1, "c_d_id", 4, "c_d_id");
-        map.add(stmt_name, 2, "c_w_id", 3, "c_w_id");
-        map.add(stmt_name, 3, "d_id", 1, "d_id");
-        map.add(stmt_name, 4, "w_id", 0, "w_id");
-        map.add(stmt_name, 5, "timestamp", 6, "timestamp");
-        map.add(stmt_name, 6, "h_amount", 2, "h_amount");
-
-        this.TPCC_PARAMS.put(proc_name, map);
+//        proc_name = "paymentByCustomerNameW";
+//        map = new ParameterMapping();
+//
+//        stmt_name = "getWarehouse";
+//        map.add(stmt_name, 0, "w_id", 0, "w_id");
+//
+//        stmt_name = "updateWarehouseBalance";
+//        map.add(stmt_name, 0, "w_ytd", 2, "h_amount");
+//        map.add(stmt_name, 1, "w_id", 0, "w_id");
+//
+//        stmt_name = "getDistrict";
+//        map.add(stmt_name, 0, "d_w_id", 0, "w_id");
+//        map.add(stmt_name, 1, "d_id", 1, "d_id");
+//
+//        stmt_name = "updateDistrictBalance";
+//        map.add(stmt_name, 0, "d_ytd", 2, "h_amount");
+//        map.add(stmt_name, 1, "d_w_id", 0, "w_id");
+//        map.add(stmt_name, 2, "d_id", 1, "d_id");
+//
+//        stmt_name = "insertHistory";
+//        map.add(stmt_name, 0, "c_id", 5, "c_id");
+//        map.add(stmt_name, 1, "c_d_id", 4, "c_d_id");
+//        map.add(stmt_name, 2, "c_w_id", 3, "c_w_id");
+//        map.add(stmt_name, 3, "d_id", 1, "d_id");
+//        map.add(stmt_name, 4, "w_id", 0, "w_id");
+//        map.add(stmt_name, 5, "timestamp", 6, "timestamp");
+//        map.add(stmt_name, 6, "h_amount", 2, "h_amount");
+//
+//        this.TPCC_PARAMS.put(proc_name, map);
 
         //
         // paymentByCustomerId
@@ -665,35 +664,35 @@ public class ParametersUtil {
         // c_id [5]
         // timestamp [6]
         //
-        proc_name = "paymentByCustomerIdW";
-        map = new ParameterMapping();
-
-        stmt_name = "getWarehouse";
-        map.add(stmt_name, 0, "w_id", 0, "w_id");
-
-        stmt_name = "updateWarehouseBalance";
-        map.add(stmt_name, 0, "w_ytd", 2, "h_amount");
-        map.add(stmt_name, 1, "w_id", 0, "w_id");
-
-        stmt_name = "getDistrict";
-        map.add(stmt_name, 0, "d_w_id", 0, "w_id");
-        map.add(stmt_name, 1, "d_id", 1, "d_id");
-
-        stmt_name = "updateDistrictBalance";
-        map.add(stmt_name, 0, "d_ytd", 2, "h_amount");
-        map.add(stmt_name, 1, "d_w_id", 0, "w_id");
-        map.add(stmt_name, 2, "d_id", 1, "d_id");
-
-        stmt_name = "insertHistory";
-        map.add(stmt_name, 0, "c_id", 5, "c_id");
-        map.add(stmt_name, 1, "c_d_id", 4, "c_d_id");
-        map.add(stmt_name, 2, "c_w_id", 3, "c_w_id");
-        map.add(stmt_name, 3, "d_id", 1, "d_id");
-        map.add(stmt_name, 4, "w_id", 0, "w_id");
-        map.add(stmt_name, 5, "timestamp", 6, "timestamp");
-        map.add(stmt_name, 6, "h_amount", 2, "h_amount");
-
-        this.TPCC_PARAMS.put(proc_name, map);
+//        proc_name = "paymentByCustomerIdW";
+//        map = new ParameterMapping();
+//
+//        stmt_name = "getWarehouse";
+//        map.add(stmt_name, 0, "w_id", 0, "w_id");
+//
+//        stmt_name = "updateWarehouseBalance";
+//        map.add(stmt_name, 0, "w_ytd", 2, "h_amount");
+//        map.add(stmt_name, 1, "w_id", 0, "w_id");
+//
+//        stmt_name = "getDistrict";
+//        map.add(stmt_name, 0, "d_w_id", 0, "w_id");
+//        map.add(stmt_name, 1, "d_id", 1, "d_id");
+//
+//        stmt_name = "updateDistrictBalance";
+//        map.add(stmt_name, 0, "d_ytd", 2, "h_amount");
+//        map.add(stmt_name, 1, "d_w_id", 0, "w_id");
+//        map.add(stmt_name, 2, "d_id", 1, "d_id");
+//
+//        stmt_name = "insertHistory";
+//        map.add(stmt_name, 0, "c_id", 5, "c_id");
+//        map.add(stmt_name, 1, "c_d_id", 4, "c_d_id");
+//        map.add(stmt_name, 2, "c_w_id", 3, "c_w_id");
+//        map.add(stmt_name, 3, "d_id", 1, "d_id");
+//        map.add(stmt_name, 4, "w_id", 0, "w_id");
+//        map.add(stmt_name, 5, "timestamp", 6, "timestamp");
+//        map.add(stmt_name, 6, "h_amount", 2, "h_amount");
+//
+//        this.TPCC_PARAMS.put(proc_name, map);
 
     } // STATIC
 
