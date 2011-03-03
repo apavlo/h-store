@@ -134,9 +134,9 @@ public class TM1Loader extends TM1BaseClient {
             long count = results[0].getLong(1);
             ret += String.format("\n%-20s %d", name + ":", count);
             
-            assert(this.table_counts.containsKey(name));
-            long expected = this.table_counts.get(name); 
-            assert(expected == count) : "Expected " + expected + " tuples for table " + name + " but got back " + count; 
+            // assert(this.table_counts.containsKey(name));
+            // long expected = this.table_counts.get(name); 
+            // assert(expected == count) : "Expected " + expected + " tuples for table " + name + " but got back " + count; 
         } // WHILE
         return (ret);
     }
