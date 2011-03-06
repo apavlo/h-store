@@ -18,11 +18,11 @@ import org.voltdb.types.QueryType;
 
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.markov.EstimationThresholds;
+import edu.brown.markov.MarkovEstimate;
 import edu.brown.markov.MarkovGraphsContainer;
 import edu.brown.markov.MarkovUtil;
 import edu.brown.markov.TransactionEstimator;
 import edu.brown.markov.Vertex;
-import edu.brown.markov.TransactionEstimator.Estimate;
 import edu.brown.markov.TransactionEstimator.State;
 import edu.brown.statistics.Histogram;
 import edu.brown.utils.ArgumentsParser;
@@ -246,7 +246,7 @@ public class MarkovCostModel extends AbstractCostModel {
 //            String a_path = "ACTUAL PATH:\n" + StringUtil.join("\n", s.getActualPath());
 //            System.err.println(StringUtil.columns(e_path, a_path));
 //            
-////            for (Estimate est : s.getEstimates()) {
+////            for (MarkovEstimate est : s.getEstimates()) {
 ////                System.err.println(est + "\n" + est.getVertex().debug() + "\n" + StringUtil.SINGLE_LINE);
 ////            }
 //            
@@ -271,7 +271,7 @@ public class MarkovCostModel extends AbstractCostModel {
         final boolean t = trace.get();
         if (t) LOG.trace(String.format("Fast Path Compare: Estimated [size=%d] vs. Actual [size=%d]", estimated.size(), actual.size()));
         
-        // (1) Check that the estimate's last state matches the actual path (commit vs abort) 
+        // (1) Check that the MarkovEstimate's last state matches the actual path (commit vs abort) 
         Vertex e_last = CollectionUtil.getLast(estimated);
         assert(e_last != null);
         Vertex a_last = CollectionUtil.getLast(actual);
@@ -339,9 +339,9 @@ public class MarkovCostModel extends AbstractCostModel {
         assert(a_last != null);
         assert(a_last.isEndingVertex());
         
-        Estimate initial_est = s.getInitialEstimate();
+        MarkovEstimate initial_est = s.getInitialEstimate();
         assert(initial_est != null);
-        Estimate last_est = s.getLastEstimate();
+        MarkovEstimate last_est = s.getLastEstimate();
         assert(last_est != null);
 
         boolean e_singlepartitioned = initial_est.isSinglePartition(this.thresholds); 
@@ -405,7 +405,7 @@ public class MarkovCostModel extends AbstractCostModel {
         //
         // PENALTY #5
         // We keep track of the last batch round that we finished with a partition. We then
-        // count how long it takes before we realize that we are finished. We declare that the estimate
+        // count how long it takes before we realize that we are finished. We declare that the MarkovEstimate
         // was late if we don't mark it as finished immediately in the next batch
         // ----------------------------------------------------------------------------
         first_penalty = true;
@@ -413,7 +413,7 @@ public class MarkovCostModel extends AbstractCostModel {
         
         this.done_partitions.clear();
         int num_estimates = s.getEstimateCount();
-        List<Estimate> estimates = s.getEstimates();
+        List<MarkovEstimate> estimates = s.getEstimates();
         int last_est_idx = 0;
         Set<Integer> touched_partitions = new HashSet<Integer>();
         Set<Integer> new_touched_partitions = new HashSet<Integer>();
@@ -424,52 +424,49 @@ public class MarkovCostModel extends AbstractCostModel {
         }
         
         for (int i = 0; i < num_estimates; i++) {
-            Estimate est = estimates.get(i);
+            MarkovEstimate est = estimates.get(i);
             Vertex est_v = est.getVertex();
             
-            // The first estimate is the initial estimate, so we'll skip that
-            if (i > 0) {
-                // Get the path of vertices
-                int start = last_est_idx;
-                int stop = actual.indexOf(est_v);
-                assert(stop != -1);
+            // Get the path of vertices
+            int start = last_est_idx;
+            int stop = actual.indexOf(est_v);
+            assert(stop != -1);
+            
+            new_touched_partitions.clear();
+            for ( ; start <= stop; start++) {
+                Vertex v = actual.get(start);
+                assert(v != null);
                 
-                new_touched_partitions.clear();
-                for ( ; start <= stop; start++) {
-                    Vertex v = actual.get(start);
-                    assert(v != null);
-                    
-                    Statement catalog_stmt = v.getCatalogItem();
-                    QueryType qtype = QueryType.get(catalog_stmt.getQuerytype());
-                    Penalty ptype = (qtype == QueryType.SELECT ? Penalty.RETURN_READ_PARTITION : Penalty.RETURN_WRITE_PARTITION);
-                    for (Integer p : v.getPartitions()) {
-                        // Check if we read/write at any partition that was previously declared as done
-                        if (this.done_partitions.contains(p)) {
-                            if (t) {
-                                if (first_penalty) {
-                                    LOG.trace("PENALTY #3: " + PenaltyGroup.RETURN_PARTITION);
-                                    first_penalty = false;
-                                }
-                                LOG.trace(String.format("Txn #%d said that it was done at partition %d but it executed a %s", s.getTransactionId(), p, qtype.name()));
+                Statement catalog_stmt = v.getCatalogItem();
+                QueryType qtype = QueryType.get(catalog_stmt.getQuerytype());
+                Penalty ptype = (qtype == QueryType.SELECT ? Penalty.RETURN_READ_PARTITION : Penalty.RETURN_WRITE_PARTITION);
+                for (Integer p : v.getPartitions()) {
+                    // Check if we read/write at any partition that was previously declared as done
+                    if (this.done_partitions.contains(p)) {
+                        if (t) {
+                            if (first_penalty) {
+                                LOG.trace("PENALTY #3: " + PenaltyGroup.RETURN_PARTITION);
+                                first_penalty = false;
                             }
-                            this.penalties.add(ptype);
-                            this.done_partitions.remove(p);
+                            LOG.trace(String.format("Txn #%d said that it was done at partition %d but it executed a %s", s.getTransactionId(), p, qtype.name()));
                         }
-                    } // FOR
-                    new_touched_partitions.addAll(v.getPartitions());
-                    
-                    // For each partition that we don't touch here, we want to increase their idle counter
-                    for (Integer p : this.all_partitions) {
-                        if (new_touched_partitions.contains(p) == false) {
-                            this.idle_partition_ctrs.put(p, this.idle_partition_ctrs.get(p)+1);
-                        } else {
-                            this.idle_partition_ctrs.put(p, 0);
-                        }
-                    } // FOR
+                        this.penalties.add(ptype);
+                        this.done_partitions.remove(p);
+                    }
                 } // FOR
-                last_est_idx = stop;
-                touched_partitions.addAll(new_touched_partitions);
-            }
+                new_touched_partitions.addAll(v.getPartitions());
+                
+                // For each partition that we don't touch here, we want to increase their idle counter
+                for (Integer p : this.all_partitions) {
+                    if (new_touched_partitions.contains(p) == false) {
+                        this.idle_partition_ctrs.put(p, this.idle_partition_ctrs.get(p)+1);
+                    } else {
+                        this.idle_partition_ctrs.put(p, 0);
+                    }
+                } // FOR
+            } // FOR
+            last_est_idx = stop;
+            touched_partitions.addAll(new_touched_partitions);
             
             // This is the key part: We will only add a partition to our set of "done" partitions
             // if we touched it in the past. Otherwise, we will always mark every partition as done
@@ -493,7 +490,7 @@ public class MarkovCostModel extends AbstractCostModel {
                         this.idle_partition_ctrs.put(finished_p, Integer.MIN_VALUE);
                     }
                     if (this.done_partitions.contains(finished_p) == false) {
-                        if (t) LOG.trace(String.format("Marking touched partition %d as finished for the first time in estimate #%d", finished_p.intValue(), i));
+                        if (t) LOG.trace(String.format("Marking touched partition %d as finished for the first time in MarkovEstimate #%d", finished_p.intValue(), i));
                         this.done_partitions.add(finished_p);
                     }
                 }
@@ -669,7 +666,7 @@ public class MarkovCostModel extends AbstractCostModel {
                             error = ex;
                         }
                         if (error != null) {
-                            LOG.warn("Failed to estimate cost for " + txn_trace, error);
+                            LOG.warn("Failed to MarkovEstimate cost for " + txn_trace, error);
                             failures.getAndIncrement();
                             continue;
                         }
