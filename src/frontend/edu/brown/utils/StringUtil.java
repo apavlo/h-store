@@ -7,6 +7,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.regex.Pattern;
 
+import org.apache.commons.collections15.map.ListOrderedMap;
 import org.voltdb.client.Client;
 import org.voltdb.utils.Pair;
 
@@ -42,6 +43,30 @@ public abstract class StringUtil {
      */
     public static String table(String header[], Object[]...rows) {
         return (StringUtil.table("  ", true, false, header, rows));
+    }
+    
+    public static Map<String, String> tableMap(String header[], Object[]...rows) {
+        String new_header[] = new String[header.length-1];
+        for (int i = 0; i < new_header.length; i++) {
+            new_header[i] = header[i+1];
+        } // FOR
+        Object new_rows[][] = new String[rows.length][];
+        for (int i = 0; i < new_rows.length; i++) {
+            Object row[] = rows[i];
+            new_rows[i] = new String[row.length - 1];
+            for (int j = 0; j < new_rows[i].length; j++) {
+                new_rows[i][j] = row[j+1].toString();
+            } // FOR
+        }
+        
+        Map<String, String> m = new ListOrderedMap<String, String>();
+        String lines[] = LINE_SPLIT.split(StringUtil.table(new_header, new_rows));
+        for (int i = 0; i < lines.length; i++) {
+            Object key = (i == 0 ? header[0] : rows[i-1][0]);  
+            m.put((key != null ? key.toString() : null), lines[i]);
+        } // FOR
+        return (m);
+        
     }
         
     /**

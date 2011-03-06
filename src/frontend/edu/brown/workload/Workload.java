@@ -517,11 +517,11 @@ public class Workload implements WorkloadTrace, Iterable<AbstractTraceElement<? 
                     lt.stop();
                 } // FOR
             }
-            LOG.info(String.format("Read %d lines [fast_filter=%d]", line_ctr, fast_ctr));
+            if (debug) LOG.debug(String.format("Read %d lines [fast_filter=%d]", line_ctr, fast_ctr));
         }
         public synchronized void stop() {
             if (this.stop == false) {
-                LOG.info("ReadThread Told to stop by LoadThread [queue_size=" + this.lines.size() + "]");
+                LOG.debug("ReadThread told to stop by LoadThread [queue_size=" + this.lines.size() + "]");
                 this.stop = true;
                 this.lines.clear();
                 this.self.interrupt();

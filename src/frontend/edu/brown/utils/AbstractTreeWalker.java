@@ -294,7 +294,8 @@ public abstract class AbstractTreeWalker<E> implements Poolable {
     /**
      * The callback() method can call this if it wants the walker to break out of the traversal
      */
-    protected final void stop() {
+    protected synchronized final void stop() {
+        if (this.stop == false) this.callback_stop();
         this.stop = true;
     }
     /**
@@ -468,6 +469,12 @@ public abstract class AbstractTreeWalker<E> implements Poolable {
      * @param element
      */
     protected void callback_last(E element) {
+        // Do nothing
+    }
+    /**
+     * Optional callback method when stop() is called
+     */
+    protected void callback_stop() {
         // Do nothing
     }
 }

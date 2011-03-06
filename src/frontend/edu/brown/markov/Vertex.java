@@ -93,7 +93,7 @@ public class Vertex extends AbstractVertex {
     // GLOBAL CONFIGURATION
     // ----------------------------------------------------------------------------
 
-    private static final float NULL_MARKER = -1.0f;
+    public static final float NULL_MARKER = -1.0f;
     
     /**
      * This is the partition id that is used for probabilities that are not partition specific

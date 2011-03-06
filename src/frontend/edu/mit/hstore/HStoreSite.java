@@ -46,6 +46,7 @@ import edu.brown.catalog.CatalogUtil;
 import edu.brown.catalog.QueryPlanUtil;
 import edu.brown.hashing.AbstractHasher;
 import edu.brown.markov.EstimationThresholds;
+import edu.brown.markov.MarkovEstimate;
 import edu.brown.markov.MarkovGraphsContainer;
 import edu.brown.markov.MarkovUtil;
 import edu.brown.markov.TransactionEstimator;
@@ -801,7 +802,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
                     single_partition = false;
                 } else {
                     if (t) LOG.trace("\n" + StringUtil.box(estimator_state.toString()));
-                    TransactionEstimator.Estimate estimate = estimator_state.getInitialEstimate();
+                    MarkovEstimate estimate = estimator_state.getInitialEstimate();
                     if (estimate == null) {
                         if (d) LOG.debug(String.format("No TransactionEstimator.Estimate was found for txn #%d. Executing as multi-partitioned", txn_id));
                         single_partition = false;
