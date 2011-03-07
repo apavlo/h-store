@@ -38,6 +38,7 @@ public class BenchmarkConfig {
     public final int processesPerClient;
     public final long interval;
     public final long duration;
+    public final long warmup;
     public final String sshOptions[];
     public final String remotePath;
     public final String remoteUser;
@@ -84,6 +85,7 @@ public class BenchmarkConfig {
             int processesPerClient,
             long interval,
             long duration,
+            long warmup,
             String sshOptions,
             String remotePath,
             String remoteUser,
@@ -128,6 +130,7 @@ public class BenchmarkConfig {
         this.processesPerClient = processesPerClient;
         this.interval = interval;
         this.duration = duration;
+        this.warmup = warmup;
         this.sshOptions = sshOptions.split(" "); // HACK
         this.remotePath = remotePath;
         this.remoteUser = remoteUser;

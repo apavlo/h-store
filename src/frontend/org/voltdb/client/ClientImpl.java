@@ -111,7 +111,7 @@ final class ClientImpl implements Client {
         }
         final String subProgram = (program == null) ? "" : program;
         final String subPassword = (password == null) ? "" : password;
-        m_distributer.createConnection(host, subProgram, subPassword);
+        m_distributer.createConnection(host, port, subProgram, subPassword);
     }
 
     /**

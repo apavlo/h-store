@@ -29,6 +29,7 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.lang.reflect.Constructor;
 import java.net.UnknownHostException;
+import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedList;
@@ -62,6 +63,27 @@ public abstract class ClientMain {
     static {
         // log4j hack!
         LoggerUtil.setupLogging();
+    }
+    
+    public enum Command {
+        START,
+        POLL,
+        CLEAR,
+        SHUTDOWN,
+        STOP;
+     
+        protected static final Map<Integer, Command> idx_lookup = new HashMap<Integer, Command>();
+        protected static final Map<String, Command> name_lookup = new HashMap<String, Command>();
+        static {
+            for (Command vt : EnumSet.allOf(Command.class)) {
+                Command.idx_lookup.put(vt.ordinal(), vt);
+                Command.name_lookup.put(vt.name().toUpperCase().intern(), vt);
+            } // FOR
+        }
+        
+        public static Command get(String name) {
+            return (Command.name_lookup.get(name.toUpperCase().intern()));
+        }
     }
 
     /**
@@ -200,7 +222,7 @@ public abstract class ClientMain {
     class ControlPipe implements Runnable {
 
         public void run() {
-            String command = "";
+            Command command = null;
             final InputStreamReader reader = new InputStreamReader(System.in);
             final BufferedReader in = new BufferedReader(reader);
 
@@ -216,68 +238,82 @@ public abstract class ClientMain {
 
             while (true) {
                 try {
-                    command = in.readLine();
+                    command = Command.get(in.readLine());
                 }
                 catch (final IOException e) {
                     // Hm. quit?
                     LOG.fatal("Error on standard input", e);
                     System.exit(-1);
                 }
+                if (LOG.isDebugEnabled()) LOG.debug("Command = " + command);
 
-                if (command.equalsIgnoreCase("START")) {
-                    if (m_controlState != ControlState.READY) {
-                        setState(ControlState.ERROR, "START when not READY.");
-                        answerWithError();
-                        continue;
-                    }
-                    answerStart();
-                    m_controlState = ControlState.RUNNING;
-                }
-                else if (command.equalsIgnoreCase("POLL")) {
-                    if (m_controlState != ControlState.RUNNING) {
-                        setState(ControlState.ERROR, "POLL when not RUNNING.");
-                        answerWithError();
-                        continue;
-                    }
-                    answerPoll();
-                    
-                    // Call tick on the client!
-                    // if (LOG.isDebugEnabled()) LOG.debug("Got poll message! Calling tick()!");
-                    ClientMain.this.tick();
-                }
-                else if (command.equalsIgnoreCase("SHUTDOWN")) {
-                    if (m_controlState == ControlState.RUNNING) {
-                        try {
-                            m_voltClient.callProcedure("@Shutdown");
-                        } catch (Exception ex) {
-                            ex.printStackTrace();
+                switch (command) {
+                    case START: {
+                        if (m_controlState != ControlState.READY) {
+                            setState(ControlState.ERROR, "START when not READY.");
+                            answerWithError();
+                            continue;
                         }
+                        answerStart();
+                        m_controlState = ControlState.RUNNING;
+                        break;
                     }
-                    System.exit(0);
-                } else if (command.equalsIgnoreCase("STOP")) {
-                    if (m_controlState == ControlState.RUNNING) {
-                        try {
-                            if (m_sampler != null) {
-                                m_sampler.setShouldStop();
-                                m_sampler.join();
-                            }
-                            m_voltClient.close();
-                            if (m_checkTables) {
-                                checkTables();
-                            }
-                        } catch (InterruptedException e) {
-                            System.exit(0);
-                        } finally {
-                            System.exit(0);
+                    case POLL: {
+                        if (m_controlState != ControlState.RUNNING) {
+                            setState(ControlState.ERROR, "POLL when not RUNNING.");
+                            answerWithError();
+                            continue;
                         }
+                        answerPoll();
+                        
+                        // Call tick on the client!
+                        // if (LOG.isDebugEnabled()) LOG.debug("Got poll message! Calling tick()!");
+                        ClientMain.this.tick();
+                        break;
                     }
-                    LOG.fatal("STOP when not RUNNING");
-                    System.exit(-1);
-                }
-                else {
-                    LOG.fatal("Error on standard input: unknown command " + command);
-                    System.exit(-1);
-                }
+                    case CLEAR: {
+                        for (AtomicLong cnt : m_counts) {
+                            cnt.set(0);
+                        } // FOR
+                        break;
+                    }
+                    case SHUTDOWN: {
+                        if (m_controlState == ControlState.RUNNING) {
+                            try {
+                                m_voltClient.callProcedure("@Shutdown");
+                            } catch (Exception ex) {
+                                ex.printStackTrace();
+                            }
+                        }
+                        System.exit(0);
+                        break;
+                    }
+                    case STOP: {
+                        if (m_controlState == ControlState.RUNNING) {
+                            try {
+                                if (m_sampler != null) {
+                                    m_sampler.setShouldStop();
+                                    m_sampler.join();
+                                }
+                                m_voltClient.close();
+                                if (m_checkTables) {
+                                    checkTables();
+                                }
+                            } catch (InterruptedException e) {
+                                System.exit(0);
+                            } finally {
+                                System.exit(0);
+                            }
+                        }
+                        LOG.fatal("STOP when not RUNNING");
+                        System.exit(-1);
+                        break;
+                    }
+                    default: {
+                        LOG.fatal("Error on standard input: unknown command " + command);
+                        System.exit(-1);
+                    }
+                } // SWITCH
             }
         }
 
@@ -732,6 +768,7 @@ public abstract class ClientMain {
 
     private void createConnection(final String hostname, final int port)
         throws UnknownHostException, IOException {
+        if (LOG.isDebugEnabled()) LOG.debug(String.format("Requesting connection to %s:%d", hostname, port));
         m_voltClient.createConnection(hostname, port, m_username, m_password);
     }
 

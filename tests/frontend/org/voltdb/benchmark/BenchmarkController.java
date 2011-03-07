@@ -45,6 +45,7 @@ import org.apache.log4j.Logger;
 import org.voltdb.ServerThread;
 import org.voltdb.VoltDB;
 import org.voltdb.benchmark.BenchmarkResults.Result;
+import org.voltdb.benchmark.ClientMain.Command;
 import org.voltdb.catalog.Catalog;
 import org.voltdb.catalog.Cluster;
 import org.voltdb.catalog.Host;
@@ -506,7 +507,7 @@ public class BenchmarkController {
                 String address = String.format("%s:%d", catalog_site.getHost().getIpaddr(), catalog_site.getProc_port());
                 loaderCommand.append(" HOST=" + address);
                 localArgs.add("HOST=" + address);
-                LOG.info("HStoreSite: " + address);
+                LOG.debug("HStoreSite: " + address);
             }
 
             loaderCommand.append(" NUMCLIENTS=" + numClients + " ");
@@ -705,8 +706,21 @@ public class BenchmarkController {
 
         // start up all the clients
         for (String clientName : m_clients)
-            m_clientPSM.writeToProcess(clientName, "START\n");
+            m_clientPSM.writeToProcess(clientName, Command.START + "\n");
 
+        // Warm-up
+        if (m_config.warmup > 0) {
+            LOG.info(String.format("Letting system warm-up for %.01f seconds", m_config.warmup / 1000.0));
+            
+            ThreadUtil.sleep(m_config.warmup);
+            
+            // Reset the counters
+            for (String clientName : m_clients)
+                m_clientPSM.writeToProcess(clientName, Command.CLEAR + "\n");
+            
+            LOG.info("Starting benchmark stats collection");
+        }
+        
         long startTime = System.currentTimeMillis();
         nextIntervalTime += startTime;
         long nowTime = startTime;
@@ -718,7 +732,7 @@ public class BenchmarkController {
 
                 // make all the clients poll
                 for (String clientName : m_clients)
-                    m_clientPSM.writeToProcess(clientName, "POLL\n");
+                    m_clientPSM.writeToProcess(clientName, Command.POLL + "\n");
 
                 // get ready for the next interval
                 nextIntervalTime = m_config.interval * (m_pollIndex.get() + 1) + startTime;
@@ -730,7 +744,6 @@ public class BenchmarkController {
             try {
                 Thread.sleep(100);
             } catch (InterruptedException e) {
-                // TODO Auto-generated catch block
                 e.printStackTrace();
             }
             nowTime = System.currentTimeMillis();
@@ -740,10 +753,10 @@ public class BenchmarkController {
         boolean first = true;
         for (String clientName : m_clients) {
             if (first) {
-                m_clientPSM.writeToProcess(clientName, "SHUTDOWN\n");
+                m_clientPSM.writeToProcess(clientName, Command.SHUTDOWN + "\n");
                 first = false;
             } else {
-                m_clientPSM.writeToProcess(clientName, "STOP\n");
+                m_clientPSM.writeToProcess(clientName, Command.STOP + "\n");
             }
         }
         LOG.info("Waiting for " + m_clients.size() + " clients to finish");
@@ -893,6 +906,7 @@ public class BenchmarkController {
     public static void main(final String[] vargs) {
         long interval = 10000;
         long duration = 60000;
+        long warmup = 0;
         int hostCount = 1;
         int sitesPerHost = 2;
         int k_factor = 0;
@@ -1015,9 +1029,14 @@ public class BenchmarkController {
                 interval = Integer.parseInt(parts[1]);
             } else if (parts[0].equalsIgnoreCase("DURATION")) {
                 /*
-                 * Duration of the benchmark in milliseconds
+                 * Duration of the benchmark in milliseconds (not including warmup)
                  */
                 duration = Integer.parseInt(parts[1]);
+            } else if (parts[0].equalsIgnoreCase("WARMUP")) {
+                /*
+                 * Amount of warmup time in milliseconds
+                 */
+                warmup = Integer.parseInt(parts[1]);
             } else if (parts[0].equalsIgnoreCase("CLIENT")) {
                 /*
                  * Name of the client class for this benchmark.
@@ -1224,6 +1243,7 @@ public class BenchmarkController {
                 processesPerClient, 
                 interval, 
                 duration,
+                warmup,
                 sshOptions,
                 remotePath, 
                 remoteUser, 
