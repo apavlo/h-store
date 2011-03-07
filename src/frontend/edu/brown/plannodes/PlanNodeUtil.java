@@ -25,13 +25,11 @@ import edu.brown.utils.ClassUtil;
 public abstract class PlanNodeUtil {
     private static final Logger LOG = Logger.getLogger(PlanNodeUtil.class);
 
-    private static final String INLINE_SPACER_PREFIX = "│";
-    private static final String INLINE_INNER_PREFIX = "├";
-//    private static final String INLINE_LAST_PREFIX = "└";
+    private static final String INLINE_SPACER_PREFIX = "\u2502";
+    private static final String INLINE_INNER_PREFIX = "\u251C";
     
-    private static final String SPACER_PREFIX = "┃";
-    private static final String INNER_PREFIX = "┣";    
-//    private static final String LAST_PREFIX = "┗";
+    private static final String SPACER_PREFIX = "\u2503";
+    private static final String INNER_PREFIX = "\u2523";    
 
     /**
      * Returns the root node in the tree for the given node

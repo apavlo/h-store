@@ -140,6 +140,7 @@ class Distributer {
         private final long m_connectionId;
         private Connection m_connection;
         private String m_hostname;
+        private int m_port;
         private boolean m_isConnected = true;
 
         private long m_invocationsCompleted = 0;
@@ -153,6 +154,11 @@ class Distributer {
             m_callbacks = new HashMap<Long, Object[]>();
             m_hostId = (int)ids[0];
             m_connectionId = ids[1];
+        }
+        
+        @Override
+        public String toString() {
+            return (String.format("NodeConnection[id=%d, host=%s, port=%d]", m_hostId, m_hostname, m_port));
         }
 
         public void createWork(long handle, String name, BBContainer c, ProcedureCallback callback) {
@@ -440,65 +446,66 @@ class Distributer {
 //        }.start();
     }
 
-    void createConnection(String host, String program, String password)
-        throws UnknownHostException, IOException
-    {
-        // HACK: If they stick the port # at the end of the host name, we'll extract
-        // it out because we're generally nice people
-        int port = Client.VOLTDB_SERVER_PORT;
-        if (host.contains(":")) {
-            String split[] = host.split(":");
-            host = split[0];
-            port = Integer.valueOf(split[1]);
-        }
-        createConnection(host, program, password, port);
-    }
+//    void createConnection(String host, String program, String password) throws UnknownHostException, IOException {
+//        LOG.info(String.format("Creating a new connection [host=%s, program=%s]", host, program));
+//        
+//        // HACK: If they stick the port # at the end of the host name, we'll extract
+//        // it out because we're generally nice people
+//        int port = Client.VOLTDB_SERVER_PORT;
+//        if (host.contains(":")) {
+//            String split[] = host.split(":");
+//            host = split[0];
+//            port = Integer.valueOf(split[1]);
+//        }
+//        createConnection(host, program, password, port);
+//    }
 
-    synchronized void createConnection(String host, String program, String password, int port)
-    throws UnknownHostException, IOException
-{
-    LOG.debug("Creating new connection [host=" + host + ", program=" + program + ", port=" + port + "]");
+    public synchronized void createConnection(String host, int port, String program, String password) throws UnknownHostException, IOException {
+        final boolean debug = LOG.isDebugEnabled();
         
-    LOG.debug("Trying for an authenticated connection...");
-    Object connectionStuff[] = null;
-    try {
-        connectionStuff =
-        ConnectionUtil.getAuthenticatedConnection(host, program, password, port);
-    } catch (Exception ex) {
-        LOG.error("Failed to get connection to " + host + ":" + port, ex);
-        throw new IOException(ex);
-    }
-    LOG.debug("We now have an authenticated connection. Let's grab the socket...");
-    final SocketChannel aChannel = (SocketChannel)connectionStuff[0];
-    final long numbers[] = (long[])connectionStuff[1];
-    if (m_clusterInstanceId == null) {
-        long timestamp = numbers[2];
-        int addr = (int)numbers[3];
-        m_clusterInstanceId = new Object[] { timestamp, addr };
-        if (m_statsLoader != null) {
-            try {
-                m_statsLoader.start( timestamp, addr);
-            } catch (SQLException e) {
-                throw new IOException(e);
+        if (debug) LOG.debug("Creating new connection [host=" + host + ", program=" + program + ", port=" + port + "]");
+            
+        if (debug) LOG.debug("Trying for an authenticated connection...");
+        Object connectionStuff[] = null;
+        try {
+            connectionStuff =
+            ConnectionUtil.getAuthenticatedConnection(host, program, password, port);
+        } catch (Exception ex) {
+            LOG.error("Failed to get connection to " + host + ":" + port, ex);
+            throw new IOException(ex);
+        }
+        if (debug) LOG.debug("We now have an authenticated connection. Let's grab the socket...");
+        final SocketChannel aChannel = (SocketChannel)connectionStuff[0];
+        final long numbers[] = (long[])connectionStuff[1];
+        if (m_clusterInstanceId == null) {
+            long timestamp = numbers[2];
+            int addr = (int)numbers[3];
+            m_clusterInstanceId = new Object[] { timestamp, addr };
+            if (m_statsLoader != null) {
+                try {
+                    m_statsLoader.start( timestamp, addr);
+                } catch (SQLException e) {
+                    throw new IOException(e);
+                }
+            }
+        } else {
+            if (!(((Long)m_clusterInstanceId[0]).longValue() == numbers[2]) ||
+                !(((Integer)m_clusterInstanceId[1]).longValue() == numbers[3])) {
+                aChannel.close();
+                throw new IOException(
+                        "Cluster instance id mismatch. Current is " + m_clusterInstanceId[0] + "," + m_clusterInstanceId[1]
+                        + " and server's was " + numbers[2] + "," + numbers[3]);
             }
         }
-    } else {
-        if (!(((Long)m_clusterInstanceId[0]).longValue() == numbers[2]) ||
-            !(((Integer)m_clusterInstanceId[1]).longValue() == numbers[3])) {
-            aChannel.close();
-            throw new IOException(
-                    "Cluster instance id mismatch. Current is " + m_clusterInstanceId[0] + "," + m_clusterInstanceId[1]
-                    + " and server's was " + numbers[2] + "," + numbers[3]);
-        }
+        m_buildString = (String)connectionStuff[2];
+        NodeConnection cxn = new NodeConnection(numbers);
+        m_connections.add(cxn);
+        Connection c = m_network.registerChannel(aChannel, cxn);
+        cxn.m_hostname = c.getHostname();
+        cxn.m_port = port;
+        cxn.m_connection = c;
+        if (debug) LOG.debug("From what I can tell, we have a connection: " + cxn);
     }
-    m_buildString = (String)connectionStuff[2];
-    NodeConnection cxn = new NodeConnection(numbers);
-    m_connections.add(cxn);
-    Connection c = m_network.registerChannel( aChannel, cxn);
-    cxn.m_hostname = c.getHostname();
-    cxn.m_connection = c;
-    LOG.debug("From what I can tell, we have a connection...");
-}
 
 //    private HashMap<String, Long> reportedSizes = new HashMap<String, Long>();
 
@@ -533,7 +540,9 @@ class Distributer {
 
             int queuedInvocations = 0;
             for (int i=0; i < totalConnections; ++i) {
-                cxn = m_connections.get(Math.abs(++m_nextConnection % totalConnections));
+                int idx = Math.abs(++m_nextConnection % totalConnections);
+                cxn = m_connections.get(idx);
+//                System.err.println("m_nextConnection = " + idx + " / " + totalConnections + " [" + cxn + "]");
                 queuedInvocations += cxn.m_callbacks.size();
                 if (!cxn.hadBackPressure() || ignoreBackpressure) {
                     // serialize and queue the invocation

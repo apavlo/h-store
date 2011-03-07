@@ -127,7 +127,7 @@ public abstract class StringUtil {
         
         for (int i = 0; i < strs.length; i++) {
             lines[i] = LINE_SPLIT.split(strs[i]);
-            prefixes[i] = (i == 0 ? "" : " ┃ ");
+            prefixes[i] = (i == 0 ? "" : " \u2503 ");
             for (String line : lines[i]) {
                 max_length = Math.max(max_length, line.length());
             } // FOR
