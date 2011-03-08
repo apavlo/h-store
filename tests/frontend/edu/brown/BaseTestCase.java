@@ -357,7 +357,8 @@ public abstract class BaseTestCase extends TestCase {
         if (CatalogUtil.getNumberOfHosts(catalog_db) != num_hosts ||
                 CatalogUtil.getNumberOfSites(catalog_db) != (num_hosts * num_sites) ||
                 CatalogUtil.getNumberOfPartitions(catalog_db) != (num_hosts * num_sites * num_partitions)) {
-            catalog = FixCatalog.addHostInfo(catalog, "localhost", num_hosts, num_sites, num_partitions);
+            //catalog = FixCatalog.addHostInfo(catalog, "localhost%", num_hosts, num_sites, num_partitions);
+            catalog = FixCatalog.addHostInfo(catalog, num_hosts, num_sites, num_partitions);
             this.init(this.last_type, catalog);
         }
         Cluster cluster = CatalogUtil.getCluster(catalog_db);

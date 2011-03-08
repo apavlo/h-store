@@ -95,6 +95,7 @@ public abstract class FixCatalog {
         final boolean use_format = hostname_format.contains("%");
         for (int host = 0; host < num_hosts; host++) {
             String hostname = (use_format ? String.format(hostname_format, host) : hostname_format);
+            System.out.println("hostname: " + hostname + "host num: " + host + "format: " + hostname_format);
             for (int site = 0; site < num_sites_per_host; site++) {
                 for (int partition = 0; partition < num_partitions_per_site; partition++) {
                     cc.addPartition(hostname, siteid, partitionid++);
