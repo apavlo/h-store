@@ -152,9 +152,7 @@ public abstract class AirlineBaseClient extends ClientMain {
         }
         this.m_rng = rng;
         
-        //
         // Load pre-compiled Catalog
-        //
         Catalog _catalog = null;
         try {
             _catalog = this.getCatalog();
@@ -165,13 +163,11 @@ public abstract class AirlineBaseClient extends ClientMain {
         this.catalog = _catalog;
         this.catalog_db = CatalogUtil.getDatabase(this.catalog);
         
-        //
         // Tuple Code to Tuple Id Mapping
         // For some tables, we want to store a unique code that can be used to map
         // to the id of a tuple. Any table that has a foreign key reference to this table
         // will use the unique code in the input data tables instead of the id. Thus, we need
         // to keep a table of how to map these codes to the ids when loading.
-        //
         String code_to_id_columns[][] = {
                 {"CO_CODE_3",       "CO_ID"}, // COUNTRY
                 {"AP_CODE",         "AP_ID"}, // AIRPORT
@@ -183,7 +179,6 @@ public abstract class AirlineBaseClient extends ClientMain {
             this.code_id_xref.put(xref[1], new HashMap<String, Long>());
         } // FOR
         
-        //
         // Foreign Key Code to Ids Mapping
         // In this data structure, the key will be the name of the dependent column
         // and the value will be the name of the foreign key parent column
@@ -192,7 +187,6 @@ public abstract class AirlineBaseClient extends ClientMain {
         // key reference to COUNTRY.CO_ID, then the data file for AIRPORT will have a value
         // 'USA' in the AP_CO_ID column. We can use mapping to get the id number for 'USA'.
         // Long winded and kind of screwy, but hey what else are you going to do?
-        //
         for (Table catalog_tbl : this.catalog_db.getTables()) {
             for (Column catalog_col : catalog_tbl.getColumns()) {
                 Column catalog_fkey_col = CatalogUtil.getForeignKeyParent(catalog_col);
