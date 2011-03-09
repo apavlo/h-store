@@ -35,6 +35,7 @@ import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Observable;
 import java.util.Set;
 import java.util.Map.Entry;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -48,7 +49,6 @@ import org.voltdb.benchmark.BenchmarkResults.Result;
 import org.voltdb.benchmark.ClientMain.Command;
 import org.voltdb.catalog.Catalog;
 import org.voltdb.catalog.Cluster;
-import org.voltdb.catalog.Host;
 import org.voltdb.catalog.Site;
 import org.voltdb.client.Client;
 import org.voltdb.client.ClientFactory;
@@ -65,28 +65,50 @@ import edu.brown.hstore.Hstore;
 import edu.brown.hstore.Hstore.HStoreService;
 import edu.brown.hstore.Hstore.MessageType;
 import edu.brown.utils.CollectionUtil;
+import edu.brown.utils.EventObserver;
 import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.StringUtil;
 import edu.brown.utils.ThreadUtil;
+import edu.brown.utils.LoggerUtil.LoggerBoolean;
 import edu.mit.hstore.HStoreMessenger;
 import edu.mit.hstore.HStoreSite;
 import edu.mit.hstore.callbacks.BlockingCallback;
 
 public class BenchmarkController {
-    
+    private static final Logger LOG = Logger.getLogger(BenchmarkController.class);
+    private final static LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private final static LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
     static {
         LoggerUtil.setupLogging();
+        LoggerUtil.attachObserver(LOG, debug, trace);
     }
 
-    // Dtxn.Coordinator
-    final ProcessSetManager m_coordPSM = new ProcessSetManager();
+    // ProcessSetManager Failure Callback
+    final EventObserver failure_observer = new EventObserver() {
+        @Override
+        public void update(Observable o, Object arg) {
+            assert(arg != null);
+            assert(arg instanceof String); // No generics :-(
+
+            String processName = (String)arg;
+            synchronized (BenchmarkController.this) {
+                if (BenchmarkController.this.stop == false) {
+                    LOG.fatal(String.format("Process '%s' failed. Halting benchmark!", processName));
+                    BenchmarkController.this.stop = true;
+                    BenchmarkController.this.self.interrupt();
+                }
+            } // SYNCH
+        }
+    };
     
-    // Clients
-    final ProcessSetManager m_clientPSM = new ProcessSetManager();
+    /** Dtxn.Coordinator **/
+    final ProcessSetManager m_coordPSM;
     
-    // Server Sites
-    final ProcessSetManager m_serverPSM = new ProcessSetManager();
+    /** Clients **/
+    final ProcessSetManager m_clientPSM;
     
+    /** Server Sites **/
+    final ProcessSetManager m_serverPSM;
     
     BenchmarkResults m_currentResults = null;
     Set<String> m_clients = new HashSet<String>();
@@ -94,12 +116,13 @@ public class BenchmarkController {
     Set<BenchmarkInterest> m_interested = new HashSet<BenchmarkInterest>();
     long m_maxCompletedPoll = 0;
     long m_pollCount = 0;
+    Thread self = null;
+    boolean stop = false;
     AtomicBoolean m_statusThreadShouldContinue = new AtomicBoolean(true);
     AtomicInteger m_clientsNotReady = new AtomicInteger(0);
     AtomicInteger m_pollIndex = new AtomicInteger(0);
 
-    final static String m_tpccClientClassName =
-        "org.voltdb.benchmark.tpcc.TPCCClient";
+    final static String m_tpccClientClassName = "org.voltdb.benchmark.tpcc.TPCCClient"; // DEFAULT
 
     // benchmark parameters
     final BenchmarkConfig m_config;
@@ -112,9 +135,6 @@ public class BenchmarkController {
     VoltProjectBuilder m_projectBuilder;
     String m_jarFileName = null;
     ServerThread m_localserver = null;
-
-    private static final Logger LOG = Logger.getLogger(BenchmarkController.class); // .getName(), VoltLoggerFactory.instance());
-    private static final Logger benchmarkLog = LOG; // Logger.getLogger("BENCHMARK", VoltLoggerFactory.instance());
 
     public static interface BenchmarkInterest {
         public void benchmarkHasUpdated(BenchmarkResults currentResults);
@@ -152,13 +172,13 @@ public class BenchmarkController {
                         if (line.value.startsWith("Listening for transport dt_socket at address:") ||
                                 line.value.contains("Attempting to load") ||
                                 line.value.contains("Successfully loaded native VoltDB library")) {
-                            benchmarkLog.info(line.processName + ": " + control_line + "\n");
+                            LOG.info(line.processName + ": " + control_line + "\n");
                             continue;
                         }
     //                    m_clientPSM.killProcess(line.processName);
     //                    LogKeys logkey =
     //                        LogKeys.benchmark_BenchmarkController_ProcessReturnedMalformedLine;
-    //                    benchmarkLog.l7dlog( Level.ERROR, logkey.name(),
+    //                    LOG.l7dlog( Level.ERROR, logkey.name(),
     //                            new Object[] { line.processName, line.value }, null);
                         continue;
                     }
@@ -173,17 +193,17 @@ public class BenchmarkController {
     
                     if (status.equals("READY")) {
 //                        LogKeys logkey = LogKeys.benchmark_BenchmarkController_GotReadyMessage;
-//                        benchmarkLog.l7dlog( Level.INFO, logkey.name(),
+//                        LOG.l7dlog( Level.INFO, logkey.name(),
 //                                new Object[] { line.processName }, null);
-                        benchmarkLog.debug("Got ready message.");
+                        if (debug.get()) LOG.debug("Got ready message.");
                         m_clientsNotReady.decrementAndGet();
                     }
                     else if (status.equals("ERROR")) {
                         m_clientPSM.killProcess(line.processName);
 //                        LogKeys logkey = LogKeys.benchmark_BenchmarkController_ReturnedErrorMessage;
-//                        benchmarkLog.l7dlog( Level.ERROR, logkey.name(),
+//                        LOG.l7dlog( Level.ERROR, logkey.name(),
 //                                new Object[] { line.processName, parts[2] }, null);
-                        benchmarkLog.error(
+                        LOG.error(
                                 "(" + line.processName + ") Returned error message:\n"
                                 + " \"" + parts[2] + "\"\n");
                         continue;
@@ -195,7 +215,7 @@ public class BenchmarkController {
                             m_clientPSM.killProcess(line.processName);
                             LogKeys logkey =
                                 LogKeys.benchmark_BenchmarkController_ProcessReturnedMalformedLine;
-                            benchmarkLog.l7dlog( Level.ERROR, logkey.name(),
+                            LOG.l7dlog( Level.ERROR, logkey.name(),
                                     new Object[] { line.processName, control_line }, null);
                             continue;
                         }
@@ -214,8 +234,12 @@ public class BenchmarkController {
 
     @SuppressWarnings("unchecked")
     public BenchmarkController(BenchmarkConfig config) {
-
         m_config = config;
+        
+        // Setup ProcessSetManagers...
+        m_clientPSM = new ProcessSetManager(m_config.clientLogDir, this.failure_observer);
+        m_serverPSM = new ProcessSetManager(m_config.siteLogDir, this.failure_observer);
+        m_coordPSM = new ProcessSetManager(m_config.coordLogDir, this.failure_observer);
 
         try {
             m_clientClass = (Class<? extends ClientMain>)Class.forName(m_config.benchmarkClient);
@@ -231,7 +255,7 @@ public class BenchmarkController {
 //            }
         } catch (Exception e) {
             LogKeys logkey = LogKeys.benchmark_BenchmarkController_ErrorDuringReflectionForClient;
-            benchmarkLog.l7dlog( Level.FATAL, logkey.name(),
+            LOG.l7dlog( Level.FATAL, logkey.name(),
                     new Object[] { m_config.benchmarkClient }, e);
             System.exit(-1);
         }
@@ -243,7 +267,7 @@ public class BenchmarkController {
         } catch (Exception e) {
             LogKeys logkey =
                 LogKeys.benchmark_BenchmarkController_UnableToInstantiateProjectBuilder;
-            benchmarkLog.l7dlog( Level.FATAL, logkey.name(),
+            LOG.l7dlog( Level.FATAL, logkey.name(),
                     new Object[] { m_builderClass.getSimpleName() }, e);
             System.exit(-1);
         }
@@ -301,7 +325,7 @@ public class BenchmarkController {
                 m_config.k_factor,
                 m_config.hosts[0]);
         } else {
-            LOG.debug("Skipping benchmark project compilation");
+            if (debug.get()) LOG.debug("Skipping benchmark project compilation");
         }
         if (m_config.compileOnly) {
             LOG.info("Compilation complete. Exiting.");
@@ -309,7 +333,7 @@ public class BenchmarkController {
         }
         
         // Load the catalog that we just made
-        LOG.debug("Loading catalog from '" + m_jarFileName + "'");
+        if (debug.get()) LOG.debug("Loading catalog from '" + m_jarFileName + "'");
         Catalog catalog = CatalogUtil.loadCatalogFromJar(m_jarFileName);
         assert(catalog != null);
         
@@ -317,7 +341,7 @@ public class BenchmarkController {
         List<String[]> launch_hosts = null;
         Set<String> unique_hosts = new HashSet<String>();
         if (m_config.useCatalogHosts == false) {
-            LOG.debug("Creating host information from BenchmarkConfig");
+            if (debug.get()) LOG.debug("Creating host information from BenchmarkConfig");
             launch_hosts = new ArrayList<String[]>();
             Integer site_id = VoltDB.FIRST_SITE_ID;
             for (String host : m_config.hosts) {
@@ -330,10 +354,10 @@ public class BenchmarkController {
                 site_id++;
             } // FOR
         } else {
-            LOG.debug("Collecting host information from catalog");
+            if (debug.get()) LOG.debug("Collecting host information from catalog");
             launch_hosts = CatalogUtil.getExecutionSites(catalog);
             for (String[] triplet : launch_hosts) {
-                LOG.debug("Retrieved execution node info from catalog: " + triplet[0] + ":" + triplet[1] + " - ExecutionSite #" + triplet[2]);
+                if (debug.get()) LOG.debug("Retrieved execution node info from catalog: " + triplet[0] + ":" + triplet[1] + " - ExecutionSite #" + triplet[2]);
                 unique_hosts.add(triplet[0]);
             } // FOR
         }
@@ -382,13 +406,13 @@ public class BenchmarkController {
                 ThreadUtil.runNewPool(threads);
             } catch (Exception e) {
                 LogKeys logkey = LogKeys.benchmark_BenchmarkController_UnableToRunRemoteKill;
-                benchmarkLog.l7dlog(Level.FATAL, logkey.name(), e);
-                benchmarkLog.fatal("Couldn't run remote kill operation.", e);
+                LOG.l7dlog(Level.FATAL, logkey.name(), e);
+                LOG.fatal("Couldn't run remote kill operation.", e);
                 System.exit(-1);
             }
 
             // START THE SERVERS
-            LOG.debug("Number of hosts to start: " + launch_hosts.size());
+            if (debug.get()) LOG.debug("Number of hosts to start: " + launch_hosts.size());
             int hosts_started = 0;
             for (String[] triplet : launch_hosts) {
                 String host = triplet[0];
@@ -429,7 +453,7 @@ public class BenchmarkController {
                 String exec_command[] = SSHTools.convert(m_config.remoteUser, host, m_config.remotePath, m_config.sshOptions, command.toArray(new String[]{}));
                 String fullCommand = StringUtil.join(" ", exec_command);
                 uploader.setCommandLineForHost(host, fullCommand);
-                benchmarkLog.debug(fullCommand);
+                if (debug.get()) LOG.debug(fullCommand);
                 m_serverPSM.startProcess(host_id, exec_command);
                 hosts_started++;
             } // FOR
@@ -445,7 +469,7 @@ public class BenchmarkController {
 
                 command = SSHTools.convert(m_config.remoteUser, host, m_config.remotePath, m_config.sshOptions, command);
                 String fullCommand = StringUtil.join(" ", command);
-                benchmarkLog.debug(fullCommand);
+                if (debug.get()) LOG.debug(fullCommand);
                 m_coordPSM.startProcess("dtxn-" + host, command);
                 LOG.info("Started Dtxn.Coordinator on " + host);
             }
@@ -475,7 +499,7 @@ public class BenchmarkController {
 
         final int numClients = (m_config.clients.length * m_config.processesPerClient);
         if (m_loaderClass != null && !m_config.noDataLoad) {
-            LOG.debug("Starting loader: " + m_loaderClass);
+            if (debug.get()) LOG.debug("Starting loader: " + m_loaderClass);
             ArrayList<String> localArgs = new ArrayList<String>();
 
             // set loader max heap to MAX(1M,6M) based on thread count.
@@ -486,7 +510,7 @@ public class BenchmarkController {
                 if (lthreads > 6) lthreads = 6;
             }
             int loaderheap = 1024 * lthreads;
-            benchmarkLog.debug("LOADER HEAP " + loaderheap);
+            if (debug.get()) LOG.debug("LOADER HEAP " + loaderheap);
 
             String debugString = "";
             if (m_config.listenForDebugger) {
@@ -507,7 +531,7 @@ public class BenchmarkController {
                 String address = String.format("%s:%d", catalog_site.getHost().getIpaddr(), catalog_site.getProc_port());
                 loaderCommand.append(" HOST=" + address);
                 localArgs.add("HOST=" + address);
-                LOG.debug("HStoreSite: " + address);
+                if (debug.get()) LOG.debug("HStoreSite: " + address);
             }
 
             loaderCommand.append(" NUMCLIENTS=" + numClients + " ");
@@ -539,7 +563,7 @@ public class BenchmarkController {
                 ClientMain.main(m_loaderClass, localArgs.toArray(new String[0]), true);
             }
             else {
-                benchmarkLog.debug("Loader Command: " + loaderCommand.toString());
+                if (debug.get()) LOG.debug("Loader Command: " + loaderCommand.toString());
                 String[] command = SSHTools.convert(
                         m_config.remoteUser,
                         m_config.clients[0],
@@ -550,7 +574,7 @@ public class BenchmarkController {
                 assert(status);
             }
         } else if (m_config.noDataLoad) {
-            benchmarkLog.info("Skipping data loading phase");
+            LOG.info("Skipping data loading phase");
         }
         LOG.info("Completed loading phase");
 
@@ -597,7 +621,7 @@ public class BenchmarkController {
         int clientIndex = 0;
         for (String client : m_config.clients) {
             for (int j = 0; j < m_config.processesPerClient; j++) {
-                String host_id = String.format("client-%d", clientIndex);
+                String host_id = String.format("client-%02d", clientIndex);
                 
                 if (m_config.listenForDebugger) {
                     clArgs.remove(1);
@@ -614,7 +638,7 @@ public class BenchmarkController {
                 String fullCommand = StringUtil.join(" ", args);
 
                 uploader.setCommandLineForClient(host_id, fullCommand);
-                benchmarkLog.debug("Client Commnand: " + fullCommand);
+                if (debug.get()) LOG.debug("Client Commnand: " + fullCommand);
                 m_clientPSM.startProcess(host_id, args);
             }
         }
@@ -629,62 +653,9 @@ public class BenchmarkController {
         // registerInterest(uploader);
     }
 
-    public void cleanUpBenchmark() {
-//        Client client = ClientFactory.createClient();
-//        try {
-//            if (m_config.hosts.length > 0) {
-//                System.err.println(String.format("Trying to connect to %s:%d", m_config.hosts[0], VoltDB.DEFAULT_PORT));
-//                client.createConnection(m_config.hosts[0], VoltDB.DEFAULT_PORT, "", "");
-//                NullCallback cb = new NullCallback();
-//                client.callProcedure("@Shutdown");
-//                // client.callProcedure(cb, "@Shutdown");
-//            }
-//        } catch (NoConnectionsException e) {
-//            e.printStackTrace();
-//        } catch (UnknownHostException e) {
-//            e.printStackTrace();
-//        } catch (IOException e) {
-//            // e.printStackTrace();
-//        } catch (Exception e) {
-//            e.printStackTrace();
-//        }
-
-        LOG.debug("Killing clients");
-        m_clientPSM.killAll();
-
-        LOG.debug("Killing nodes");
-        m_serverPSM.killAll();
-        
-        if (m_config.noCoordinator == false) {
-            LOG.debug("Killing Dtxn.Coordinator");
-            m_coordPSM.killAll();
-        }
-        
-//        // Kill the coordinator
-//        LOG.info("Killing " + HStoreSite.DTXN_COORDINATOR + " on host " + m_config.coordinatorHost);
-//        SSHTools.cmd(m_config.remoteUser, m_config.coordinatorHost, m_config.remotePath, 
-//                     new String[] { "killall", HStoreSite.DTXN_COORDINATOR });
-//        
-//        // And all the engines
-//        List<Thread> threads = new ArrayList<Thread>();
-//        for (final String host : CollectionUtil.toStringSet(Arrays.asList(m_config.hosts))) {
-//            threads.add(new Thread() {
-//                public void run() {
-//                    LOG.info("Killing " + HStoreSite.DTXN_ENGINE + " on host " + host);
-//                    SSHTools.cmd(m_config.remoteUser, host, m_config.remotePath, 
-//                                 new String[] { "killall", HStoreSite.DTXN_ENGINE }); 
-//                };
-//            });
-//        } // FOR
-//        try {
-//            ThreadUtil.run(threads);
-//        } catch (Exception ex) {
-//            ex.printStackTrace();
-//        }
-//        LOG.info("All DTXN processes are killed. Exiting...");
-    }
 
     public void runBenchmark() {
+        this.self = Thread.currentThread();
         LOG.info(String.format("Starting execution phase with %d clients [hosts=%d, clientsperhost=%d, txnrate=%s]",
                                 m_clients.size(),
                                 m_config.clients.length,
@@ -712,19 +683,25 @@ public class BenchmarkController {
         if (m_config.warmup > 0) {
             LOG.info(String.format("Letting system warm-up for %.01f seconds", m_config.warmup / 1000.0));
             
-            ThreadUtil.sleep(m_config.warmup);
+            try {
+                Thread.sleep(m_config.warmup);
+            } catch (InterruptedException e) {
+                LOG.info("Warm-up was interrupted!");
+            }
             
-            // Reset the counters
-            for (String clientName : m_clients)
-                m_clientPSM.writeToProcess(clientName, Command.CLEAR + "\n");
-            
-            LOG.info("Starting benchmark stats collection");
+            if (this.stop == false) {
+                // Reset the counters
+                for (String clientName : m_clients)
+                    m_clientPSM.writeToProcess(clientName, Command.CLEAR + "\n");
+                
+                LOG.info("Starting benchmark stats collection");
+            }
         }
         
         long startTime = System.currentTimeMillis();
         nextIntervalTime += startTime;
         long nowTime = startTime;
-        while(m_pollIndex.get() < m_pollCount) {
+        while(m_pollIndex.get() < m_pollCount && this.stop == false) {
 
             // check if the next interval time has arrived
             if (nowTime >= nextIntervalTime) {
@@ -742,9 +719,9 @@ public class BenchmarkController {
             // TODO this should probably be done with Thread.sleep(...), but for now
             // i'll test with this
             try {
-                Thread.sleep(100);
+                if (this.stop == false) Thread.sleep(100);
             } catch (InterruptedException e) {
-                e.printStackTrace();
+                // Ignore...
             }
             nowTime = System.currentTimeMillis();
         }
@@ -766,11 +743,27 @@ public class BenchmarkController {
         LOG.info("Waiting for status thread to finish");
         try {
             m_statusThread.join(1000);
-        }
-        catch (InterruptedException e) {
-            benchmarkLog.warn(e);
+        } catch (InterruptedException e) {
+            LOG.warn(e);
         }
     }
+    
+    /**
+     * Cleanup Benchmark
+     */
+    public void cleanUpBenchmark() {
+        if (debug.get()) LOG.debug("Killing clients");
+        m_clientPSM.killAll();
+
+        if (debug.get()) LOG.debug("Killing nodes");
+        m_serverPSM.killAll();
+        
+        if (m_config.noCoordinator == false) {
+            if (debug.get()) LOG.debug("Killing Dtxn.Coordinator");
+            m_coordPSM.killAll();
+        }
+    }
+
 
     /**
      *
@@ -944,6 +937,11 @@ public class BenchmarkController {
         // Markov Stuff
         String markov_path = null;
         String thresholds_path = null;
+        
+        // Logging
+        String clientLogDir = "/tmp";
+        String siteLogDir = "/tmp";
+        String coordLogDir = "/tmp";
         
         // List of SiteIds that we won't start because they'll be started by the profiler
         Set<Integer> profileSiteIds = new HashSet<Integer>();
@@ -1200,7 +1198,7 @@ public class BenchmarkController {
 
         if (compileOnly == false && clients.size() < clientCount) {
             LogKeys logkey = LogKeys.benchmark_BenchmarkController_NotEnoughClients;
-            benchmarkLog.l7dlog( Level.FATAL, logkey.name(),
+            LOG.l7dlog( Level.FATAL, logkey.name(),
                     new Object[] { clients.size(), clientCount }, null);
             System.exit(-1);
         }
@@ -1209,9 +1207,9 @@ public class BenchmarkController {
         if (! (useCatalogHosts || compileOnly) ) {
             if (hosts.size() < hostCount) {
                 LogKeys logkey = LogKeys.benchmark_BenchmarkController_NotEnoughHosts;
-                benchmarkLog.l7dlog( Level.FATAL, logkey.name(),
+                LOG.l7dlog( Level.FATAL, logkey.name(),
                         new Object[] { hosts.size(), hostCount }, null);
-                benchmarkLog.fatal("Don't have enough hosts(" + hosts.size()
+                LOG.fatal("Don't have enough hosts(" + hosts.size()
                         + ") for host count " + hostCount);
                 System.exit(-1);
             }
@@ -1270,7 +1268,11 @@ public class BenchmarkController {
                 workloadTrace,
                 profileSiteIds,
                 markov_path,
-                thresholds_path);
+                thresholds_path,
+                clientLogDir,
+                siteLogDir,
+                coordLogDir
+        );
         
         // Always pass these parameters
         clientParams.put("INTERVAL", Long.toString(interval));

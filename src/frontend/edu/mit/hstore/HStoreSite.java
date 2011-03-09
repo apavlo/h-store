@@ -277,6 +277,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
                 } catch (InterruptedException ex) {
                     return;
                 }
+                if (HStoreSite.this.shutdown) break;
 
                 // Out we go!
                 LOG.info("\n" + StringUtil.box(this.snapshot(true, false)));
@@ -285,8 +286,9 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
                 int completed = TxnCounter.COMPLETED.get();
                 if (this.kill_when_hanging && this.last_completed != null &&
                     this.last_completed == completed && inflight_txns.size() > 0) {
-                    LOG.fatal(String.format("HStoreSite #%d is hung! Killing the cluster!", HStoreSite.this.site_id));
-                    messenger.shutdownCluster(new RuntimeException("System is stuck! We're going down so that we can investigate!"));
+                    String msg = String.format("HStoreSite #%d is hung! Killing the cluster!", HStoreSite.this.site_id); 
+                    LOG.fatal(msg);
+                    messenger.shutdownCluster(new RuntimeException(msg));
                 }
                 this.last_completed = completed;
             } // WHILE
@@ -385,30 +387,37 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
      * Perform shutdown operations for this HStoreCoordinatorNode
      */
     public synchronized void shutdown() {
+        final boolean t = trace.get();
+        final boolean d = debug.get();
+        
         if (this.shutdown) {
-            if (debug.get()) LOG.debug("Already told to shutdown... Ignoring");
+            if (d) LOG.debug("Already told to shutdown... Ignoring");
             return;
         }
         this.shutdown = true;
-//        if (debug.get()) 
-            LOG.info("Shutting down everything at Site #" + this.site_id);
+        if (d) LOG.debug("Shutting down everything at Site #" + this.site_id);
         
         // Tell anybody that wants to know that we're going down
-//        if (trace.get()) 
-            LOG.info("Notifying " + this.shutdown_observable.countObservers() + " observers that we're shutting down");
+        if (t) LOG.trace("Notifying " + this.shutdown_observable.countObservers() + " observers that we're shutting down");
         this.shutdown_observable.notifyObservers();
         
         // Tell our local boys to go down too
         for (ExecutionSite executor : this.executors.values()) {
-            if (trace.get()) LOG.trace("Telling the ExecutionSite for Partition #" + executor.getPartitionId() + " to shutdown");
+            if (t) LOG.trace("Telling the ExecutionSite for Partition #" + executor.getPartitionId() + " to shutdown");
             executor.shutdown();
         } // FOR
         
+        // Stop the monitor thread
+        if (this.status_monitor != null) {
+            if (t) LOG.trace("Telling StatusMonitorThread to stop");
+            this.status_monitor.interrupt();
+        }
+        
         // Tell all of our event loops to stop
-        if (trace.get()) LOG.trace("Telling Dtxn.Coordinator event loop to exit");
+        if (t) LOG.trace("Telling Dtxn.Coordinator event loop to exit");
         this.coordinatorEventLoop.exitLoop();
         
-        if (debug.get()) LOG.debug("Completed shutdown process at Site #" + this.site_id);
+        if (d) LOG.debug("Completed shutdown process at Site #" + this.site_id);
     }
     
     /**

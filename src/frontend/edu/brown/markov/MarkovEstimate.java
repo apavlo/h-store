@@ -109,18 +109,18 @@ public class MarkovEstimate implements Poolable {
         this.userabort = prob;
     }
     protected void setReadOnlyPartitionProbability(int partition, double prob) {
-        assert(partition >= 0) : partition;
-        assert(partition < this.read.length) : partition;
+        assert(partition >= 0) : "Invalid Partition: " + partition;
+        assert(partition < this.read.length) : "Invalid Partition: " + partition;
         this.read[partition] = prob;
     }
     protected void setWritePartitionProbability(int partition, double prob) {
-        assert(partition >= 0) : partition;
-        assert(partition < this.write.length) : partition;
+        assert(partition >= 0) : "Invalid Partition: " + partition;
+        assert(partition < this.write.length) : "Invalid Partition: " + partition;
         this.write[partition] = prob;    
     }
     protected void setFinishPartitionProbability(int partition, double prob) {
-        assert(partition >= 0) : partition;
-        assert(partition < this.finished.length) : partition;
+        assert(partition >= 0) : "Invalid Partition: " + partition;
+        assert(partition < this.finished.length) : "Invalid Partition: " + partition;
         this.finished[partition] = prob;
     }
     

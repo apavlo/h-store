@@ -462,6 +462,7 @@ public class MarkovPathEstimator extends VertexTreeWalker<Vertex> {
             
             // Update our list of partitions touched by this transaction
             Set<Integer> next_partitions = next_vertex.getPartitions();
+            String orig = next_partitions.toString();
             double inverse_prob = 1.0 - this.confidence;
             Statement catalog_stmt = next_vertex.getCatalogItem();
             
@@ -469,7 +470,15 @@ public class MarkovPathEstimator extends VertexTreeWalker<Vertex> {
             if (catalog_stmt.getQuerytype() == QueryType.SELECT.getValue()) {
                 for (Integer p : next_partitions) {
                     if (this.read_partitions.contains(p) == false) {
-                        this.estimate.setReadOnlyPartitionProbability(p.intValue(), this.confidence);
+                        if (trace) LOG.trace(String.format("First time partition %d is read from! Setting read-only probability to %.03f", p, this.confidence));
+                        try {
+                            this.estimate.setReadOnlyPartitionProbability(p.intValue(), this.confidence);
+                        } catch (AssertionError ex) {
+                            System.err.println("BUSTED: " + next_vertex);
+                            System.err.println("NEXT PARTITIONS: " + next_partitions);
+                            System.err.println("ORIG PARTITIONS: " + orig);
+                            throw ex;
+                        }
                         if (this.touched_partitions.contains(p) == false) {
                             this.estimate.setFinishPartitionProbability(p.intValue(), inverse_prob);
                         }
@@ -481,6 +490,7 @@ public class MarkovPathEstimator extends VertexTreeWalker<Vertex> {
             } else {
                 for (Integer p : next_partitions) {
                     if (this.write_partitions.contains(p) == false) {
+                        if (trace) LOG.trace(String.format("First time partition %d is written to! Setting write probability to %.03f", p, this.confidence));
                         this.estimate.setReadOnlyPartitionProbability(p.intValue(), inverse_prob);
                         this.estimate.setWritePartitionProbability(p.intValue(), this.confidence);
                         if (this.touched_partitions.contains(p) == false) {

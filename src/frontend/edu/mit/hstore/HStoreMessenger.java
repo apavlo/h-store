@@ -46,6 +46,7 @@ import edu.brown.hstore.Hstore.MessageRequest;
 import edu.brown.hstore.Hstore.MessageAcknowledgement;
 import edu.brown.hstore.Hstore.MessageType;
 import edu.brown.utils.LoggerUtil;
+import edu.brown.utils.ThreadUtil;
 import edu.mit.hstore.callbacks.ForwardTxnResponseCallback;
 
 /**
@@ -345,7 +346,8 @@ public class HStoreMessenger {
                                                            .build();
                     // Send this now!
                     done.run(response);
-                    LOG.info("Shutting down [site=" + catalog_site.getId() + ", status=" + exit_status + "]");
+                    LOG.info(String.format("Shutting down [site=%d, status=%d]", catalog_site.getId(), exit_status));
+                    ThreadUtil.sleep(1000); // HACK
                     LogManager.shutdown();
                     System.exit(exit_status);
                     break;
@@ -361,27 +363,6 @@ public class HStoreMessenger {
                     byte serializedRequest[] = request.getData().toByteArray();
                     ForwardTxnResponseCallback callback = new ForwardTxnResponseCallback(dest, sender, done);
                     HStoreMessenger.this.hstore_site.procedureInvocation(serializedRequest, callback);
-                    break;
-                }
-                // -----------------------------------------------------------------
-                // CLIENT WANTS TO KNOW WHEN THE ENTIRE CLUSTER IS READY
-                // -----------------------------------------------------------------
-                case READY: {
-                    // TODO: Send READY_INTERNAL messages to all other sites using a 
-                    //       callback that waits for the READY_INTERNAL responses and
-                    //       sends the final callback to the client
-                    
-                    
-                    break;
-                }
-                // -----------------------------------------------------------------
-                // ONE SITE WANTS TO KNOW IF THIS SITE IS READY
-                // -----------------------------------------------------------------
-                case READY_INTERNAL: {
-                    // TODO: First check whether HStoreSite.isReady() is true. If not, then create an
-                    //       EventObserver that attaches to HStoreSite.getReadyObservable() that will
-                    //       execute the callback when the HStoreSite is up and running
-                    
                     break;
                 }
                 // -----------------------------------------------------------------
@@ -433,7 +414,7 @@ public class HStoreMessenger {
     
     /**
      * Messenger Callback
-     * This is invoked with a successful acknowledgement that we stored the dependency at the remote partition
+     * This is invoked with a successful acknowledgment that we stored the dependency at the remote partition
      */
     private class Callback implements RpcCallback<FragmentAcknowledgement> {
         
@@ -574,47 +555,58 @@ public class HStoreMessenger {
      * @param ex
      */
     public synchronized void shutdownCluster(Throwable ex) {
+        final boolean t = trace.get();
+        final boolean d = debug.get();
+        
         final int num_sites = this.channels.size();
         if (this.shutting_down) return;
         this.shutting_down = true;
-        if (debug.get()) LOG.debug("Sending shutdown request to " + num_sites + " remote sites");
-        
+        LOG.info("Shutting down cluster" + (ex != null ? ": " + ex.getMessage() : ""));
+
+        final ByteString exit_status = ByteString.copyFrom(new byte[] { (byte)(ex == null ? 0 : 1) });
         final CountDownLatch latch = new CountDownLatch(num_sites);
-        RpcCallback<MessageAcknowledgement> callback = new RpcCallback<MessageAcknowledgement>() {
-            private final Set<Integer> siteids = new HashSet<Integer>(); 
-            
-            @Override
-            public void run(MessageAcknowledgement parameter) {
-                int siteid = parameter.getSenderId();
-                assert(this.siteids.contains(siteid) == false) : "Duplicate response from Site #" + siteid;
-                this.siteids.add(siteid);
-                if (trace.get()) LOG.trace("Received " + this.siteids.size() + "/" + num_sites + " shutdown acknowledgements");
-                latch.countDown();
-            }
-        };
         
-        ByteString exit_status = ByteString.copyFrom(new byte[] { (byte)(ex == null ? 0 : 1) });
-        for (Entry<Integer, HStoreService> e: this.channels.entrySet()) {
-            Hstore.MessageRequest sm = Hstore.MessageRequest.newBuilder()
-                                            .setSenderId(catalog_site.getId())
-                                            .setDestId(e.getKey())
-                                            .setData(exit_status)
-                                            .setType(MessageType.SHUTDOWN)
-                                            .build();
-            e.getValue().sendMessage(new ProtoRpcController(), sm, callback);
-            if (trace.get()) LOG.trace("Sent SHUTDOWN to Site #" + e.getKey());
-        } // FOR
+        if (num_sites > 0) {
+            RpcCallback<MessageAcknowledgement> callback = new RpcCallback<MessageAcknowledgement>() {
+                private final Set<Integer> siteids = new HashSet<Integer>(); 
+                
+                @Override
+                public void run(MessageAcknowledgement parameter) {
+                    int siteid = parameter.getSenderId();
+                    assert(this.siteids.contains(siteid) == false) : "Duplicate response from Site #" + siteid;
+                    this.siteids.add(siteid);
+                    if (t) LOG.trace("Received " + this.siteids.size() + "/" + num_sites + " shutdown acknowledgements");
+                    latch.countDown();
+                }
+            };
+            
+            if (d) LOG.debug("Sending shutdown request to " + num_sites + " remote sites");
+            for (Entry<Integer, HStoreService> e: this.channels.entrySet()) {
+                Hstore.MessageRequest sm = Hstore.MessageRequest.newBuilder()
+                                                .setSenderId(catalog_site.getId())
+                                                .setDestId(e.getKey())
+                                                .setData(exit_status)
+                                                .setType(MessageType.SHUTDOWN)
+                                                .build();
+                e.getValue().sendMessage(new ProtoRpcController(), sm, callback);
+                if (t) LOG.trace("Sent SHUTDOWN to Site #" + e.getKey());
+            } // FOR
+        }
         
         // Tell ourselves to shutdown while we wait
+        if (d) LOG.debug("Telling local site to shutdown");
         this.hstore_site.shutdown();
         
         // Block until the latch releases us
-        try {
-            latch.await(5, TimeUnit.SECONDS);
-        } catch (Exception ex2) {
-            // IGNORE!
+        if (num_sites > 0) {
+            LOG.info(String.format("Waiting for %d sites to finish shutting down", latch.getCount()));
+            try {
+                latch.await(5, TimeUnit.SECONDS);
+            } catch (Exception ex2) {
+                // IGNORE!
+            }
         }
-        LOG.info("Shutting down [site=" + catalog_site.getId() + ", status=" + exit_status.byteAt(0) + "]");
+        LOG.info(String.format("Shutting down [site=%d, status=%d]", catalog_site.getId(), exit_status.byteAt(0)));
         LogManager.shutdown();
         System.exit(exit_status.byteAt(0));
     }
