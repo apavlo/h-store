@@ -1472,6 +1472,7 @@ BENCHMARKS
         <arg value="PROCESSESPERCLIENT=${hstore.client.processesperclient}" />
         <arg value="INTERVAL=${hstore.client.interval}" />
         <arg value="DURATION=${hstore.client.duration}" />
+        <arg value="WARMUP=${hstore.client.warmup}" />
         <arg value="BLOCKING=${hstore.client.blocking}" />
         <arg value="TRACE=${trace}" />
         <arg value="PROFILESITES=${profilesites}" />
