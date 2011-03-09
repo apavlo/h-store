@@ -50,10 +50,10 @@ public class TestMarkovCostModel extends BaseTestCase {
     private static Workload workload;
     private static MarkovGraphsContainer markovs;
     private static ParameterCorrelations correlations;
-    private static MarkovCostModel costmodel;
     private static Procedure catalog_proc;
     private static TransactionEstimator t_estimator;
 
+    private MarkovCostModel costmodel;
     private MarkovGraph markov;
     private TransactionTrace txn_trace;
     private State txn_state;
@@ -122,8 +122,9 @@ public class TestMarkovCostModel extends BaseTestCase {
             
             // And then populate the MarkovCostModel
             t_estimator = new TransactionEstimator(p_estimator, correlations, markovs);
-            costmodel = new MarkovCostModel(catalog_db, p_estimator, t_estimator, thresholds);
         }
+        
+        this.costmodel = new MarkovCostModel(catalog_db, p_estimator, t_estimator, thresholds);
         
         // Take a TransactionTrace and throw it at the estimator to get our path info
         this.txn_trace = workload.getTransactions().get(0);
@@ -161,8 +162,9 @@ public class TestMarkovCostModel extends BaseTestCase {
         this.actual_path.remove(this.actual_path.size()-1);
         
         // Now check to make sure that it catches when the read/write differ
-        clone.get(1).partitions.add(Integer.MAX_VALUE);
+        clone.get(1).getPartitions().add(Integer.MAX_VALUE);
         assertEquals(false, costmodel.comparePathsFast(clone, this.actual_path));
+        clone.get(1).getPartitions().remove(Integer.MAX_VALUE);
     }
     
     /**

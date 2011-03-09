@@ -24,6 +24,7 @@
 package org.voltdb.processtools;
 
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -37,11 +38,27 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-public class ProcessSetManager {
+import org.apache.log4j.Logger;
 
-    LinkedBlockingQueue<OutputLine> m_output = new LinkedBlockingQueue<OutputLine>();
-    Map<String, ProcessData> m_processes = new HashMap<String, ProcessData>();
-    Map<String, StreamWatcher> m_watchers = new HashMap<String, StreamWatcher>();
+import edu.brown.utils.EventObservable;
+import edu.brown.utils.EventObserver;
+import edu.brown.utils.LoggerUtil;
+import edu.brown.utils.LoggerUtil.LoggerBoolean;
+
+public class ProcessSetManager {
+    private static final Logger LOG = Logger.getLogger(ProcessSetManager.class);
+    private final static LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private final static LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    static {
+        LoggerUtil.attachObserver(LOG, debug, trace);
+    }
+    
+    
+    final File output_directory;
+    final EventObservable failure_observable = new EventObservable();
+    final LinkedBlockingQueue<OutputLine> m_output = new LinkedBlockingQueue<OutputLine>();
+    final Map<String, ProcessData> m_processes = new HashMap<String, ProcessData>();
+    final Map<String, StreamWatcher> m_watchers = new HashMap<String, StreamWatcher>();
 
     public enum Stream { STDERR, STDOUT; }
 
@@ -95,14 +112,20 @@ public class ProcessSetManager {
             m_processName = processName;
             m_stream = stream;
             
-            FileWriter fw = null;
-            try {
-                fw = new FileWriter("/tmp/hstore-" + m_processName);
-            } catch (Exception ex) {
-                ex.printStackTrace();
-                System.exit(1);
+            if (output_directory != null) {
+                FileWriter fw = null;
+                String path = output_directory.getAbsolutePath() + "/hstore-" + m_processName;
+                try {
+                    fw = new FileWriter(path);
+                } catch (Exception ex) {
+                    LOG.fatal("Failed to create output writer for " + m_processName, ex);
+                    System.exit(1);
+                }
+                if (debug.get()) LOG.debug(String.format("Logging %s output to '%s'", m_processName, path));
+                m_writer = fw;
+            } else {
+                m_writer = null;
             }
-            m_writer = fw;
         }
 
         void setExpectDeath(boolean expectDeath) {
@@ -118,9 +141,8 @@ public class ProcessSetManager {
                         line = m_reader.readLine();
                     } catch (IOException e) {
                         if (!m_expectDeath.get()) {
-                            e.printStackTrace();
-                            System.err.print("Err Stream monitoring thread exiting.");
-                            System.err.flush();
+                            LOG.error(String.format("Stream monitoring thread for '%s' is exiting", m_processName), e);
+                            failure_observable.notifyObservers(m_processName);
                         }
                         return;
                     }
@@ -129,12 +151,14 @@ public class ProcessSetManager {
                         m_output.add(ol);
                         // final long now = (System.currentTimeMillis() / 1000) - 1256158053;
                         // m_writer.write(String.format("(%d) %s: %s\n", now, m_processName, line));
-                        m_writer.write(String.format("%s\n", line));
-                        m_writer.flush();
+                        if (m_writer != null) {
+                            m_writer.write(line + "\n");
+                            m_writer.flush();
+                        }
                     }
                     else {
                         Thread.yield();
-                        m_writer.flush();
+                        if (m_writer != null) m_writer.flush();
                     }
                 }
             } catch (Exception ex) {
@@ -142,6 +166,15 @@ public class ProcessSetManager {
                 System.exit(1);
             }
         }
+    }
+    
+    public ProcessSetManager(String log_dir, EventObserver observer) {
+        this.output_directory = (log_dir != null ? new File(log_dir) : null);
+        this.failure_observable.addObserver(observer);
+    }
+    
+    public ProcessSetManager() {
+        this(null, null);
     }
 
     public String[] getProcessNames() {
@@ -152,14 +185,12 @@ public class ProcessSetManager {
         return retval;
     }
 
-    public void startProcess(String processName, String[] cmd) {
+    public synchronized void startProcess(String processName, String[] cmd) {
         ProcessBuilder pb = new ProcessBuilder(cmd);
         ProcessData pd = new ProcessData();
         try {
             pd.process = pb.start();
-            synchronized(createdProcesses) {
-                createdProcesses.add(pd.process);
-            }
+            createdProcesses.add(pd.process);
             assert(m_processes.containsKey(processName) == false) : processName + "\n" + m_processes;
             m_processes.put(processName, pd);
         } catch (IOException e) {
@@ -195,7 +226,8 @@ public class ProcessSetManager {
             out.write(data);
             out.flush();
         } catch (IOException e) {
-            e.printStackTrace();
+            LOG.fatal(String.format("Failed to write '%s' command to '%s'", data.trim(), processName), e);
+            this.failure_observable.notifyObservers(processName);
         }
     }
 

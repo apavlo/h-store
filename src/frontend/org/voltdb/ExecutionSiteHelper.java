@@ -86,12 +86,17 @@ public class ExecutionSiteHelper implements Runnable {
         if (this.enable_profiling) {
             this.prepareProfileInformation(CatalogUtil.getDatabase(executor.getCatalogSite()));
             this.hstore_site.addShutdownObservable(new EventObserver() {
+                final StringBuilder sb = new StringBuilder();
+                
                 @Override
                 public void update(Observable o, Object arg) {
                     ExecutionSiteHelper.this.shutdown();
-                    LOG.info("Got shutdown notification from HStoreSite. Dumping profile information");
-                    System.err.println("\n" + ExecutionSiteHelper.this.dumpProfileInformation() + "\n");
-                    System.err.println(ExecutionSiteHelper.this.hstore_site.statusSnapshot());
+                    LOG.debug("Got shutdown notification from HStoreSite. Dumping profile information");
+                    sb.append("\n")
+                      .append(ExecutionSiteHelper.this.dumpProfileInformation())
+                      .append("\n")
+                      .append(ExecutionSiteHelper.this.hstore_site.statusSnapshot());
+                    LOG.info("\n" + StringUtil.box(sb.toString(), "#"));
                 }
             });
         }

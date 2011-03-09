@@ -188,6 +188,8 @@ public class ExecutionSite implements Runnable {
     // DATA MEMBERS
     // ----------------------------------------------------------------------------
 
+    private Thread self;
+    
     protected int siteId;
     
     /**
@@ -567,8 +569,9 @@ public class ExecutionSite implements Runnable {
     public void run() {
         assert(this.hstore_site != null);
         assert(this.hstore_messenger != null);
-        Thread self = Thread.currentThread();
-        self.setName(this.getThreadName());
+        assert(this.self == null);
+        this.self = Thread.currentThread();
+        this.self.setName(this.getThreadName());
         this.preload();
         
         /*
@@ -636,6 +639,7 @@ public class ExecutionSite implements Runnable {
                 } catch (InterruptedException ex) {
                     if (d) LOG.debug("Interupted while polling work queue. Halting ExecutionSite...", ex);
                     stop = true;
+                    break;
                 }
 
                 // -------------------------------
@@ -1622,15 +1626,19 @@ public class ExecutionSite implements Runnable {
      */
     public synchronized void shutdown() {
         if (this.shutdown) {
-            LOG.info(String.format("Partition #%d told to shutdown again. Ignoring...", this.partitionId));
+            if (debug.get()) LOG.debug(String.format("Partition #%d told to shutdown again. Ignoring...", this.partitionId));
             return;
         }
+        
+        if (debug.get()) LOG.debug(String.format("Shutting down ExecutionSite for Partition #%d", this.partitionId));
         
         // Tell the main loop to shutdown (if it's running)
         this.shutdown = true;
         
         // Make sure we shutdown our threadpool
         this.thread_pool.shutdownNow();
+        
+        if (this.self != null) this.self.interrupt();
         
         if (this.shutdown_latch != null) {
             try {

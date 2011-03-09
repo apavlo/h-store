@@ -757,6 +757,10 @@ public class Vertex extends AbstractVertex {
         Members members[] = new Members[members_set.size()];
         members_set.toArray(members);
         super.fieldsFromJSONObject(object, catalog_db, Vertex.class, members);
+        
+        // HACK
+        this.partitions = Collections.unmodifiableSet(this.partitions);
+        this.past_partitions = Collections.unmodifiableSet(this.past_partitions);
 
         // Probabilities Map
         JSONObject json_probabilities = object.getJSONObject(Members.PROBABILITIES.name());

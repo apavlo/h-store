@@ -70,6 +70,10 @@ public class BenchmarkConfig {
     
     public final String markovPath;
     public final String thresholdsPath;
+    
+    public final String clientLogDir;
+    public final String siteLogDir;
+    public final String coordLogDir;
 
     public final Map<String, String> parameters = new HashMap<String, String>();
 
@@ -112,7 +116,10 @@ public class BenchmarkConfig {
             String workloadTrace,
             Set<Integer> profileSiteIds,
             String markovPath,
-            String thresholdsPath
+            String thresholdsPath,
+            String clientLogDir,
+            String siteLogDir,
+            String coordLogDir
         ) {
 
         this.benchmarkClient = benchmarkClient;
@@ -160,6 +167,10 @@ public class BenchmarkConfig {
         
         this.markovPath = markovPath;
         this.thresholdsPath = thresholdsPath;
+        
+        this.clientLogDir = clientLogDir;
+        this.siteLogDir = siteLogDir;
+        this.coordLogDir = coordLogDir;
     }
 
     @Override

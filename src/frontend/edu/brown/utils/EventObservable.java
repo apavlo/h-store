@@ -13,8 +13,10 @@ public class EventObservable extends Observable {
     
     @Override
     public synchronized void addObserver(Observer o) {
-        super.addObserver(o);
-        this.observer_ctr++;
+        if (o != null) {
+            super.addObserver(o);
+            this.observer_ctr++;
+        }
     }
     
     @Override
