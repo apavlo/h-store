@@ -246,7 +246,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
 
         final Map<String, Object> m0 = new ListOrderedMap<String, Object>();
         final Map<String, Object> m1 = new ListOrderedMap<String, Object>();
-        final String header = String.format("%s Status [Site #%02d]\n", HStoreSite.class.getSimpleName(), catalog_site.getId());
+        final Map<String, Object> header = new ListOrderedMap<String, Object>();
         final TreeSet<Thread> sortedThreads = new TreeSet<Thread>(new Comparator<Thread>() {
             @Override
             public int compare(Thread o1, Thread o2) {
@@ -260,6 +260,9 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
             for (Integer partition : HStoreSite.this.all_partitions) {
                 this.partition_txns.put(partition, new TreeSet<Long>());
             } // FOR
+            
+            this.header.put(String.format("%s Status", HStoreSite.class.getSimpleName()), String.format("Site #%02d", catalog_site.getId()));
+            this.header.put("Number of Partitions", HStoreSite.this.executors.size());
         }
         
         @Override
@@ -348,7 +351,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
                 } // FOR
             }
 
-            return (header + StringUtil.formatMaps(m0, m1));
+            return (StringUtil.formatMaps(header, m0, m1));
         }
     } // END CLASS
     
@@ -808,6 +811,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
                         single_partition = false;
                     } else {
                         if (d) LOG.debug(String.format("Using TransactionEstimator.Estimate for txn #%d to determine if single-partitioned", txn_id));
+                        if (d) LOG.debug("MarkovEstimate:\n" + estimate);
                         single_partition = estimate.isSinglePartition(this.thresholds);     
                     }
                 }
@@ -1054,7 +1058,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
             LOG.fatal("Failed to instantiate new LocalTransactionState for txn #" + txn_id);
             throw new RuntimeException(ex);
         }
-        if (this.enable_profiling) local_ts.total_time.start();
+        if (this.enable_profiling) ProfileMeasurement.start(local_ts.total_time, local_ts.init_time);
         local_ts.init(new_txn_id, orig_ts);
         local_ts.setPredictSinglePartitioned(false);
         
