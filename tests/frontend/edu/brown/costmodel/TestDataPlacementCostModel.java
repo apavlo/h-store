@@ -9,21 +9,12 @@ import edu.brown.benchmark.tm1.procedures.GetNewDestination;
 import edu.brown.utils.ProjectType;
 import edu.brown.workload.TransactionTrace;
 import edu.brown.workload.Workload;
+import edu.brown.workload.filters.ProcedureLimitFilter;
 import edu.brown.workload.filters.ProcedureNameFilter;
 
 public class TestDataPlacementCostModel extends BaseTestCase {
 
-    private static final int PROC_COUNT = 3;
-    private static final String TARGET_PROCEDURES[] = {
-        DeleteCallForwarding.class.getSimpleName(),
-        GetAccessData.class.getSimpleName(),
-        GetNewDestination.class.getSimpleName(),
-    };
-    private static final boolean TARGET_PROCEDURES_SINGLEPARTITION_DEFAULT[] = {
-        false,  // DeleteCallForwarding
-        true,   // GetAccessData
-        true,   // GetNewDestination
-    };
+    private static final int WORKLOAD_COUNT = 1000;
     
     private static final int NUM_HOSTS = 2;
     private static final int NUM_SITES = 2;
@@ -46,6 +37,9 @@ public class TestDataPlacementCostModel extends BaseTestCase {
             File workload_file = this.getWorkloadFile(ProjectType.LOCALITY); 
             workload = new Workload(catalog);
             
+            ProcedureLimitFilter filter = new ProcedureLimitFilter(WORKLOAD_COUNT);
+            workload.load(workload_file.getAbsolutePath(), catalog_db, filter);
+            
 //            // Workload Filter
 //            ProcedureNameFilter filter = new ProcedureNameFilter();
 //            long total = 0;
@@ -58,17 +52,15 @@ public class TestDataPlacementCostModel extends BaseTestCase {
 //            assertEquals(TARGET_PROCEDURES.length, workload.getProcedureHistogram().getValueCount());
 //            // System.err.println(workload.getProcedureHistogram());
         }
+        assert(workload.getTransactionCount() > 0);
     }
 
     /**
      * testEstimateCost
      */
     public void testEstimateCost() throws Exception {
-        for (TransactionTrace xact : workload.getTransactions()) {
-            assertNotNull(xact);
-            DataPlacementCostModel cost_model = new DataPlacementCostModel(catalog_db);
-            cost_model.estimateTransactionCost(catalog_db, xact);
-        } // FOR
-        // System.err.println(xact_trace.debug(catalog_db));
+        // Now calculate cost of touching these partitions 
+        DataPlacementCostModel cost_model = new DataPlacementCostModel(catalog_db);
+        cost_model.estimateCost(catalog_db, workload);
     }
 }

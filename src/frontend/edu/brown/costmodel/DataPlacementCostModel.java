@@ -1,12 +1,17 @@
 package edu.brown.costmodel;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
+import org.apache.log4j.Logger;
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Host;
+import org.voltdb.catalog.Partition;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Site;
 
@@ -14,9 +19,12 @@ import sun.tools.attach.HotSpotVirtualMachine;
 
 import edu.brown.catalog.CatalogKey;
 import edu.brown.catalog.CatalogUtil;
+import edu.brown.costmodel.MarkovCostModel.Penalty;
+import edu.brown.costmodel.MarkovCostModel.PenaltyGroup;
 import edu.brown.costmodel.SingleSitedCostModel.QueryCacheEntry;
 import edu.brown.costmodel.SingleSitedCostModel.TransactionCacheEntry;
 import edu.brown.utils.PartitionEstimator;
+import edu.brown.workload.QueryTrace;
 import edu.brown.workload.TransactionTrace;
 import edu.brown.workload.Workload;
 import edu.brown.workload.Workload.Filter;
@@ -32,7 +40,56 @@ import edu.brown.workload.Workload.Filter;
  *
  */
 public class DataPlacementCostModel extends AbstractCostModel {
+    private static final Logger LOG = Logger.getLogger(DataPlacementCostModel.class);
 
+    public enum PenaltyGroup {
+        DIFFERENT_PARTITION,
+        DIFFERENCE_SITE,
+        DIFFERENT_HOST;
+    }
+    
+    /**
+     * Cost Model Penalties
+     */
+    public enum Penalty {
+        // ----------------------------------------------------------------------------
+        // PENALTY #1
+        // ----------------------------------------------------------------------------
+        READ_DIFFERENT_PARTITION             (PenaltyGroup.DIFFERENT_PARTITION, 0.1d),
+        WRITE_DIFFERENT_PARTITION             (PenaltyGroup.DIFFERENT_PARTITION, 0.1d),
+        // ----------------------------------------------------------------------------
+        // PENALTY #2
+        // ----------------------------------------------------------------------------
+        READ_DIFFERENT_SITE             (PenaltyGroup.DIFFERENCE_SITE, 0.2d),
+        WRITE_DIFFERENT_SITE             (PenaltyGroup.DIFFERENCE_SITE, 0.2d),
+        // ----------------------------------------------------------------------------
+        // PENALTY #3
+        // ----------------------------------------------------------------------------
+        READ_DIFFERENT_HOST             (PenaltyGroup.DIFFERENT_HOST, 0.5d),
+        WRITE_DIFFERENT_HOST             (PenaltyGroup.DIFFERENT_HOST, 0.5d),
+        ;
+        private final double cost;
+        private final PenaltyGroup group;
+        private Penalty(PenaltyGroup group, double cost) {
+            this.group = group;
+            this.cost = cost;
+        }
+        public double getCost() {
+            return this.cost;
+        }
+        public PenaltyGroup getGroup() {
+            return this.group;
+        }
+    }
+
+    
+    
+    /** maps a partition to its site and host **/
+    Map<Integer, Object[]> partition_site_host = new HashMap<Integer, Object[]>();
+    
+    /** stores all the penalities **/
+    List<Penalty> penalties = new ArrayList<Penalty>();
+    
     /**
      * Default Constructor
      * 
@@ -66,28 +123,22 @@ public class DataPlacementCostModel extends AbstractCostModel {
          * on difference machines, then the cost is 10. Goal is to tie these numbers with actual
          * runtime behavior that measure with the locality benchmark.
          */
-        System.out.println("All partitions touched: " + p_estimator.getAllPartitions(xact));
-        // check the sites, host, or partitions that the different partitions belong to
-        Map<Integer, Integer> partition_site = new HashMap<Integer, Integer>();
-        Map<Integer, Integer> partition_host = new HashMap<Integer, Integer>();
-        for (int partition_num : p_estimator.getAllPartitions(xact)) {
-            Site site = CatalogUtil.getPartitionById(catalogDb, partition_num).getParent();
-            Host host = site.getHost();
-            int num_sites_per_host = CatalogUtil.getSitesPerHost(site).get(site.getHost()).size();
-            int num_partitions_per_site = site.getPartitions().size();
-            System.out.println("num sites per host: " + num_sites_per_host + " num partitions per site: " + num_partitions_per_site);
-            int site_num = (int)Math.floor((double)partition_num / (double)num_partitions_per_site);
-            int host_num = (int)Math.floor((double)site_num / (double)num_sites_per_host);
-            partition_site.put(partition_num, site_num);
-            partition_host.put(partition_num, host_num);
-        } 
-        for (Map.Entry<Integer, Integer> pair : partition_site.entrySet()) {
-            System.out.println("partition: " + pair.getKey() + " site: " + pair.getValue());
+        //this.prepareImpl(catalogDb);
+        //LOG.info("All partitions touched estimateTransactionCost: " + p_estimator.getAllPartitions(xact));
+        int base_partition = p_estimator.getBasePartition(xact);
+        LOG.info("base partition: " + base_partition);
+        LOG.info("batch count: " + xact.getBatchCount());
+        
+        // For each batch, get the set of partitions that the queries in the batch touch
+        Set<Integer> batch_partitions = new HashSet<Integer>();
+        for (int batch_id : xact.getBatchIds()) {
+            for (QueryTrace query : xact.getBatchQueries(batch_id)) {
+                batch_partitions.addAll(p_estimator.getAllPartitions(query, base_partition));
+            } // FOR
         }
-        for (Map.Entry<Integer, Integer> pair : partition_host.entrySet()) {
-            System.out.println("partition: " + pair.getKey() + " host: " + pair.getValue());
-        }
+        LOG.info("batch partitions: " + batch_partitions);
         // starting estimating cost        
+        
         return 0;
     }
 
@@ -99,8 +150,25 @@ public class DataPlacementCostModel extends AbstractCostModel {
 
     @Override
     public void prepareImpl(Database catalogDb) {
-        // TODO Auto-generated method stub
-
+        // FIXME: Create all host<->site<->partition maps
+        this.p_estimator.initCatalog(catalogDb);
+        LOG.info("All partitions prepareImpl: " + CatalogUtil.getAllPartitionIds(catalogDb.getCatalog()));
+        // check the sites, host, or partitions that the different partitions belong to
+        for (int partition_num : CatalogUtil.getAllPartitionIds(catalogDb.getCatalog())) {
+            Partition catalog_part = CatalogUtil.getPartitionById(catalogDb, partition_num); 
+            Site site = catalog_part.getParent();
+            // ID->site.getId();
+            Host host = site.getHost();
+            // ID->host.getName();
+            LOG.info("hostname: " + host.getName());
+            Object[] site_host = new Object[2];
+            site_host[0] = site.getId();
+            site_host[1] = host.getName();
+            partition_site_host.put(partition_num, site_host);
+        } 
+        for (Integer partition : partition_site_host.keySet()) {
+            LOG.info("partition: " + partition   + " site: " + partition_site_host.get(partition)[0] + " host: " + partition_site_host.get(partition)[1]);
+        }
     }
 
 }

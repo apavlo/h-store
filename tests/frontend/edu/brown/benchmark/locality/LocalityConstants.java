@@ -58,10 +58,10 @@ public abstract class LocalityConstants {
     // STORED PROCEDURE INFORMATION
     // ----------------------------------------------------------------
     
-    public static final int FREQUENCY_GET_LOCAL     = 100;
-    public static final int FREQUENCY_SET_LOCAL     = 0;
-    public static final int FREQUENCY_GET_REMOTE    = 0;
-    public static final int FREQUENCY_SET_REMOTE    = 0;
+    public static final int FREQUENCY_GET_LOCAL     = 25;
+    public static final int FREQUENCY_SET_LOCAL     = 25;
+    public static final int FREQUENCY_GET_REMOTE    = 25;
+    public static final int FREQUENCY_SET_REMOTE    = 25;
     
     // The number of TABLEB records to return per GetLocal/GetRemote invocation
     public static final int GET_TABLEB_LIMIT        = 10;
