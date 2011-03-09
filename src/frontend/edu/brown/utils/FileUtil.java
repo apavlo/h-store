@@ -39,6 +39,9 @@ import java.util.zip.GZIPInputStream;
 public abstract class FileUtil {
     private static final Logger LOG = Logger.getLogger(FileUtil.class);
 
+    public static boolean exists(String path) {
+        return (new File(path).exists());
+    }
     
     public static String realpath(String path) {
         File f = new File(path);

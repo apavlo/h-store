@@ -497,7 +497,7 @@ public class MarkovPathEstimator extends VertexTreeWalker<Vertex> {
             // probability to be the confidence coefficient thus far
             if (this.touched_partitions.size() > 1 && this.estimate.isSinglePartitionProbabilitySet() == false) {
                 if (trace) LOG.trace("Setting the single-partition probability to current confidence [" + this.confidence + "]");
-                this.estimate.setSinglePartitionProbability(this.confidence);
+                this.estimate.setSinglePartitionProbability(inverse_prob);
             }
             
             if (debug) {
@@ -550,9 +550,9 @@ public class MarkovPathEstimator extends VertexTreeWalker<Vertex> {
         
         // Abort Probability
         if (last_v.isAbortVertex()) {
-            
+            // TODO
         } else {
-            
+            // TODO
         }
         this.estimate.setAbortProbability(0.0); // FIXME
     }

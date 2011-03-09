@@ -122,7 +122,7 @@ public class TestMarkovPathEstimator extends BaseTestCase {
         
         MarkovEstimate estimate = estimator.getEstimate();
         assertNotNull(estimate);
-        System.err.println(StringUtil.columns(StringUtil.join("\n", estimator.getVisitPath()), estimate.toString()));
+//        System.err.println(StringUtil.columns(StringUtil.join("\n", estimator.getVisitPath()), estimate.toString()));
         
         for (int p : CatalogUtil.getAllPartitionIds(catalog_proc)) {
             assert(estimate.isReadOnlyProbabilitySet(p));

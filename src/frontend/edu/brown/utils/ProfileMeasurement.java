@@ -154,6 +154,17 @@ public class ProfileMeasurement {
     }
     
     /**
+     * Start multiple ProfileMeasurements with the same timestamp
+     * @param to_start
+     */
+    public static void start(ProfileMeasurement...to_start) {
+        long time = ProfileMeasurement.getTime();
+        for (ProfileMeasurement pm : to_start) {
+            pm.start(time);
+        } // FOR
+    }
+    
+    /**
      * Stop one of the given ProfileMeasurement handles and start the other
      * @param to_stop the handle to stop
      * @param to_start the handle to start
