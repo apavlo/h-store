@@ -14,6 +14,7 @@ import org.voltdb.catalog.Host;
 import org.voltdb.catalog.Partition;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Site;
+import org.voltdb.types.QueryType;
 
 import sun.tools.attach.HotSpotVirtualMachine;
 
@@ -126,20 +127,61 @@ public class DataPlacementCostModel extends AbstractCostModel {
         //this.prepareImpl(catalogDb);
         //LOG.info("All partitions touched estimateTransactionCost: " + p_estimator.getAllPartitions(xact));
         int base_partition = p_estimator.getBasePartition(xact);
-        LOG.info("base partition: " + base_partition);
-        LOG.info("batch count: " + xact.getBatchCount());
+        Site base_site = CatalogUtil.getPartitionById(catalogDb, base_partition).getParent();
+        Host base_host = base_site.getHost();
+//        LOG.info("base partition: " + base_partition);
+//        LOG.info("batch count: " + xact.getBatchCount());
         
         // For each batch, get the set of partitions that the queries in the batch touch
-        Set<Integer> batch_partitions = new HashSet<Integer>();
+        Map<Integer, Set<Integer>> batch_partition_queries = new HashMap<Integer, Set<Integer>>();
+        Set<Integer> batch_partitions;
         for (int batch_id : xact.getBatchIds()) {
             for (QueryTrace query : xact.getBatchQueries(batch_id)) {
+                batch_partitions = new HashSet<Integer>();
                 batch_partitions.addAll(p_estimator.getAllPartitions(query, base_partition));
+                batch_partition_queries.put(query.getCatalogItem(catalogDb).getQuerytype(), batch_partitions);
             } // FOR
         }
-        LOG.info("batch partitions: " + batch_partitions);
-        // starting estimating cost        
-        
-        return 0;
+        /** for each batch partition id, check how far the partition is from the base partition and assign penalties as necessary**/
+        for (Integer query_type : batch_partition_queries.keySet()) {
+            if (QueryType.SELECT.getValue() == query_type) {
+                for (Integer partition_id : batch_partition_queries.get(query_type)) {
+                    if (partition_id != base_partition) {
+                        Site current_partition_site = CatalogUtil.getPartitionById(catalogDb, base_partition).getParent();
+                        if (current_partition_site == base_site) {
+                            // different partitions, same site
+                            penalties.add(Penalty.READ_DIFFERENT_PARTITION);
+                        } else if (current_partition_site.getHost() == base_host) {
+                            // different sites, same host
+                            penalties.add(Penalty.READ_DIFFERENT_PARTITION);
+                        } else {
+                            // different hosts
+                            penalties.add(Penalty.READ_DIFFERENT_HOST);
+                        }
+                    }                    
+                }
+            } else if (QueryType.DELETE.getValue() == query_type) {
+                for (Integer partition_id : batch_partition_queries.get(query_type)) {
+                    if (partition_id != base_partition) {
+                        Site current_partition_site = CatalogUtil.getPartitionById(catalogDb, base_partition).getParent();
+                        if (current_partition_site == base_site) {
+                            // different partitions, same site
+                            penalties.add(Penalty.WRITE_DIFFERENT_PARTITION);
+                        } else if (current_partition_site.getHost() == base_host) {
+                            // different sites, same host
+                            penalties.add(Penalty.READ_DIFFERENT_SITE);
+                        } else {
+                            // different hosts
+                            penalties.add(Penalty.READ_DIFFERENT_HOST);
+                        }
+                    }                    
+                }                
+            }
+        }
+        double cost = 0.0d;
+        for (Penalty p : this.penalties) cost += p.getCost();
+        LOG.info("cost for transactions: " + xact.getCatalogItemName() + " is: " + cost);
+        return (cost);
     }
 
     @Override

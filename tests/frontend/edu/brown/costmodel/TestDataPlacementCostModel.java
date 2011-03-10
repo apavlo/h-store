@@ -2,6 +2,8 @@ package edu.brown.costmodel;
 
 import java.io.File;
 
+import org.apache.log4j.Logger;
+
 import edu.brown.BaseTestCase;
 import edu.brown.benchmark.tm1.procedures.DeleteCallForwarding;
 import edu.brown.benchmark.tm1.procedures.GetAccessData;
@@ -13,6 +15,7 @@ import edu.brown.workload.filters.ProcedureLimitFilter;
 import edu.brown.workload.filters.ProcedureNameFilter;
 
 public class TestDataPlacementCostModel extends BaseTestCase {
+    private static final Logger LOG = Logger.getLogger(TestDataPlacementCostModel.class);
 
     private static final int WORKLOAD_COUNT = 1000;
     
@@ -61,6 +64,6 @@ public class TestDataPlacementCostModel extends BaseTestCase {
     public void testEstimateCost() throws Exception {
         // Now calculate cost of touching these partitions 
         DataPlacementCostModel cost_model = new DataPlacementCostModel(catalog_db);
-        cost_model.estimateCost(catalog_db, workload);
+        LOG.info("total cost: " + cost_model.estimateCost(catalog_db, workload));
     }
 }
