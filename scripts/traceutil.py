@@ -154,6 +154,23 @@ if __name__ == '__main__':
                     current_txn = None
                     limit_ctr += 1
             ## ----------------------------------------------
+            ## FIX TM1 GetNewDestination
+            ## ----------------------------------------------
+            elif command == "fixgetnewdestination":
+                txn = TransactionTrace().fromJSON(json_data)
+                
+                if catalog_name == "GetNewDestination":
+                    ## Duplicate the S_ID for the only query
+                    query = txn.getQueries()[0]
+                    query.params.insert(0, query.params[0])
+                ## IF
+                    
+                if write_raw:
+                    print json.dumps(txn.toJSON())
+                else:
+                    print json.dumps(txn.toJSON(), indent=2)
+                limit_ctr += 1
+            ## ----------------------------------------------
             ## FIX TXN IDS
             ## ----------------------------------------------
             elif command == "fixtxnids":

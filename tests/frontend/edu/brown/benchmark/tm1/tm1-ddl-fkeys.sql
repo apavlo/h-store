@@ -66,3 +66,4 @@ CREATE TABLE Call_Forwarding (
    PRIMARY KEY (s_id, sf_type, start_time),
    FOREIGN KEY (s_id, sf_type) REFERENCES Special_Facility(s_id, sf_type)
 );
+CREATE INDEX IDX_CF ON Call_Forwarding (S_ID);
