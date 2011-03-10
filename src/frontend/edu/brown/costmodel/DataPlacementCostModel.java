@@ -129,8 +129,8 @@ public class DataPlacementCostModel extends AbstractCostModel {
         int base_partition = p_estimator.getBasePartition(xact);
         Site base_site = CatalogUtil.getPartitionById(catalogDb, base_partition).getParent();
         Host base_host = base_site.getHost();
-//        LOG.info("base partition: " + base_partition);
-//        LOG.info("batch count: " + xact.getBatchCount());
+        LOG.info("base partition: " + base_partition);
+        LOG.info("batch count: " + xact.getBatchCount());
         
         // For each batch, get the set of partitions that the queries in the batch touch
         Map<Integer, Set<Integer>> batch_partition_queries = new HashMap<Integer, Set<Integer>>();
@@ -179,6 +179,7 @@ public class DataPlacementCostModel extends AbstractCostModel {
             }
         }
         double cost = 0.0d;
+        LOG.info("penalties: " + this.penalties);
         for (Penalty p : this.penalties) cost += p.getCost();
         LOG.info("cost for transactions: " + xact.getCatalogItemName() + " is: " + cost);
         return (cost);
