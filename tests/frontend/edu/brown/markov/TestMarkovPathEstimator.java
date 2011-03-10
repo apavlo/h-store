@@ -113,6 +113,23 @@ public class TestMarkovPathEstimator extends BaseTestCase {
     }
     
     /**
+     * testFinish
+     */
+    public void testFinish() throws Exception {
+        MarkovPathEstimator estimator = new MarkovPathEstimator(this.graph, this.t_estimator, BASE_PARTITION, singlep_trace.getParams());
+        assert(estimator.isInitialized());
+        estimator.enableForceTraversal(true);
+        assertEquals(1.0, estimator.getConfidence());
+        estimator.traverse(this.graph.getStartVertex());
+        MarkovEstimate estimate = estimator.getEstimate();
+        assertNotNull(estimate);
+        
+        estimator.finish();
+        assertFalse(estimator.isInitialized());
+        assertEquals((float)MarkovUtil.NULL_MARKER, (float)estimator.getConfidence());
+    }
+    
+    /**
      * testMarkovEstimate
      */
     public void testMarkovEstimate() throws Exception {

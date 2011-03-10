@@ -49,6 +49,11 @@ public abstract class AbstractTreeWalker<E> implements Poolable {
         }
         
         @Override
+        public boolean isInitialized() {
+            return (this.parent != null);
+        }
+        
+        @Override
         public void finish() {
             this.parent = null;
             this.before_list.clear();
@@ -152,8 +157,13 @@ public abstract class AbstractTreeWalker<E> implements Poolable {
     private int depth_limit = -1;
     
     // ----------------------------------------------------------------------
-    // CLEANUP
+    // POOLABLE METHODS
     // ----------------------------------------------------------------------
+    
+    @Override
+    public boolean isInitialized() {
+        return (this.depth == -1);
+    }
     
     @Override
     public void finish() {

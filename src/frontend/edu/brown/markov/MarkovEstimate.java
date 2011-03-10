@@ -46,6 +46,7 @@ public class MarkovEstimate implements Poolable {
      * @param v the Vertex we are currently at in the MarkovGraph
      */
     public MarkovEstimate init(Vertex v, int batch) {
+        assert(v != null);
         this.batch = batch;
         this.vertex = v;
         
@@ -63,15 +64,21 @@ public class MarkovEstimate implements Poolable {
     }
     
     @Override
+    public boolean isInitialized() {
+        return (this.vertex != null);
+    }
+    
+    @Override
     public void finish() {
+        this.vertex = null;
         for (int i = 0; i < this.touched.length; i++) {
             this.touched[i] = 0;
-            this.finished[i] = Vertex.NULL_MARKER;
-            this.read[i] = Vertex.NULL_MARKER;
-            this.write[i] = Vertex.NULL_MARKER;
+            this.finished[i] = MarkovUtil.NULL_MARKER;
+            this.read[i] = MarkovUtil.NULL_MARKER;
+            this.write[i] = MarkovUtil.NULL_MARKER;
         } // FOR
-        this.singlepartition = Vertex.NULL_MARKER;
-        this.userabort = Vertex.NULL_MARKER;
+        this.singlepartition = MarkovUtil.NULL_MARKER;
+        this.userabort = MarkovUtil.NULL_MARKER;
         
         if (this.finished_partitions != null) this.finished_partitions.clear();
         if (this.target_partitions != null) this.target_partitions.clear();
@@ -147,19 +154,19 @@ public class MarkovEstimate implements Poolable {
     }
 
     public boolean isSinglePartitionProbabilitySet() {
-        return (this.singlepartition != Vertex.NULL_MARKER);
+        return (this.singlepartition != MarkovUtil.NULL_MARKER);
     }
     public boolean isAbortProbabilitySet() {
-        return (this.userabort != Vertex.NULL_MARKER);
+        return (this.userabort != MarkovUtil.NULL_MARKER);
     }
     public boolean isReadOnlyProbabilitySet(int partition) {
-        return (this.read[partition] != Vertex.NULL_MARKER);
+        return (this.read[partition] != MarkovUtil.NULL_MARKER);
     }
     public boolean isWriteProbabilitySet(int partition) {
-        return (this.write[partition] != Vertex.NULL_MARKER);
+        return (this.write[partition] != MarkovUtil.NULL_MARKER);
     }
     public boolean isFinishedProbabilitySet(int partition) {
-        return (this.finished[partition] != Vertex.NULL_MARKER);
+        return (this.finished[partition] != MarkovUtil.NULL_MARKER);
     }
     
     public int getTouchedCounter(int partition) {
