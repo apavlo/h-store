@@ -87,7 +87,7 @@ public class Shutdown extends VoltSystemProcedure {
                 @Override
                 public void run() {
 //                    try {
-                        m_site.getHStoreSite().shutdown();
+                        executor.getHStoreSite().shutdown();
 //                    } catch (InterruptedException e) {
 //                        Logger.getLogger("HOST", VoltLoggerFactory.instance()).error(
 //                                "Exception while attempting to shutdown VoltDB from shutdown sysproc",
@@ -104,7 +104,7 @@ public class Shutdown extends VoltSystemProcedure {
 
     public VoltTable[] run() {
         LOG.info("Got shutdown request. Notifying HStoreSite and returning to client");
-        m_site.getHStoreSite().getMessenger().shutdownCluster(false, null);
+        executor.getHStoreSite().getMessenger().shutdownCluster(false, null);
         
 //        SynthesizedPlanFragment pfs[] = new SynthesizedPlanFragment[this.all_partitions.size() + 1];
 //        for (int i = 1; i < pfs.length; i++) {

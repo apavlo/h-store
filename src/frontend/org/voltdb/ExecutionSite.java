@@ -58,6 +58,7 @@ import edu.brown.utils.PartitionEstimator;
 import edu.brown.utils.ProfileMeasurement;
 import edu.brown.utils.LoggerUtil.LoggerBoolean;
 import edu.mit.dtxn.Dtxn;
+import edu.mit.hstore.HStoreConf;
 import edu.mit.hstore.HStoreSite;
 import edu.mit.hstore.HStoreMessenger;
 import edu.mit.hstore.dtxn.DependencyInfo;
@@ -230,7 +231,6 @@ public class ExecutionSite implements Runnable {
     protected final TransactionEstimator t_estimator;
     
     protected WorkloadTrace workload_trace;
-    protected boolean enable_profiling = false;
     
     // ----------------------------------------------------------------------------
     // H-Store Transaction Stuff
@@ -238,6 +238,7 @@ public class ExecutionSite implements Runnable {
 
     protected HStoreSite hstore_site;
     protected HStoreMessenger hstore_messenger;
+    protected HStoreConf hstore_conf;
 
     // ----------------------------------------------------------------------------
     // Execution State
@@ -406,6 +407,7 @@ public class ExecutionSite implements Runnable {
         assert(site != null) : "Unable to get Site for Partition #" + partitionId;
         this.siteId = this.site.getId();
         
+        this.hstore_conf = HStoreConf.singleton();
         this.backend_target = target;
         this.cluster = CatalogUtil.getCluster(catalog);
         this.database = CatalogUtil.getDatabase(cluster);
@@ -763,7 +765,7 @@ public class ExecutionSite implements Runnable {
                     
                     local_ts = (LocalTransactionState)this.txn_states.get(txn_id);
                     assert(local_ts != null) : "The TransactionState is somehow null for txn #" + txn_id;
-                    if (this.enable_profiling) local_ts.queue_time.stop();
+                    if (hstore_conf.enable_profiling) local_ts.queue_time.stop();
                     
                     VoltProcedure volt_proc = null;
                     try {
@@ -846,6 +848,10 @@ public class ExecutionSite implements Runnable {
         return site;
     }
     
+    public HStoreConf getHStoreConf() {
+        return (this.hstore_conf);
+    }
+    
     public HStoreSite getHStoreSite() {
         return hstore_site;
     }
@@ -857,13 +863,6 @@ public class ExecutionSite implements Runnable {
     
     public int getSiteId() {
         return (this.siteId);
-    }
-    
-    public void setEnableProfiling(boolean val) {
-        this.enable_profiling = val;
-    }
-    public boolean getEnableProfiling() {
-        return (this.enable_profiling);
     }
     
     /**
@@ -1070,7 +1069,10 @@ public class ExecutionSite implements Runnable {
                 ee.stashWorkUnitDependencies(ts.ee_dependencies);
             }
             ts.setSubmittedEE();
-            if (local_ts != null && this.enable_profiling) ProfileMeasurement.swap(local_ts.coord_time, local_ts.ee_time);
+            if (local_ts != null && hstore_conf.enable_profiling) {
+//                ProfileMeasurement.swap(local_ts.coord_time, local_ts.ee_time);
+                local_ts.ee_time.start();
+            }
             result = this.ee.executeQueryPlanFragmentsAndGetDependencySet(
                         fragmentIds,
                         fragmentIdIndex,
@@ -1081,7 +1083,10 @@ public class ExecutionSite implements Runnable {
                         txn_id,
                         this.lastCommittedTxnId,
                         undoToken);
-            if (local_ts != null && this.enable_profiling) ProfileMeasurement.swap(local_ts.ee_time, local_ts.coord_time);
+            if (local_ts != null && hstore_conf.enable_profiling) {
+//                ProfileMeasurement.swap(local_ts.ee_time, local_ts.coord_time);
+                local_ts.ee_time.stop();
+            }
             if (trace.get()) LOG.trace("Executed fragments " + Arrays.toString(fragmentIds) + " and got back results: " + Arrays.toString(result.depIds)); //  + "\n" + Arrays.toString(result.dependencies));
             assert(result != null) : "The resulting DependencySet for FragmentTaskMessage " + ftask + " is null!";
         }
@@ -1615,10 +1620,16 @@ public class ExecutionSite implements Runnable {
     
     /**
      * Cause this ExecutionSite to make the entire HStore cluster shutdown
+     * This won't return!
      */
     public synchronized void crash(Throwable ex) {
+        LOG.info(String.format("ExecutionSite for Partition #%d is crashing: %s", this.partitionId, ex.getMessage()));
         assert(this.hstore_messenger != null);
         this.hstore_messenger.shutdownCluster(ex); // This won't return
+    }
+    
+    public boolean isShuttingDown() {
+        return (this.shutdown);
     }
     
     /**

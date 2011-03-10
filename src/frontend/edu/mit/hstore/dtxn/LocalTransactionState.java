@@ -402,7 +402,7 @@ public class LocalTransactionState extends TransactionState {
         this.volt_procedure = null;
         this.dependency_latch = null;
         
-        if (this.executor.getEnableProfiling()) {
+        if (this.executor.getHStoreConf().enable_profiling) {
             this.total_time.reset();
             this.init_time.reset();
             this.queue_time.reset();
@@ -990,6 +990,7 @@ public class LocalTransactionState extends TransactionState {
         m1.put("Client Callback", this.client_callback);
         m1.put("SysProc", this.sysproc);
         m1.put("Done Partitions", this.done_partitions);
+        m1.put("Estimator State", this.estimator_state);
         
         ListOrderedMap<String, Object> m2 = new ListOrderedMap<String, Object>();
         m2.put("Total Time", this.total_time);
