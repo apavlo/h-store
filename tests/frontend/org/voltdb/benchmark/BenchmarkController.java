@@ -1138,7 +1138,7 @@ public class BenchmarkController {
 
             } else if (parts[0].equalsIgnoreCase("MARKOV")) {
                 markov_path = parts[1];
-                LOG.info("MARKOV PATH = " + markov_path);
+                LOG.debug("MARKOV PATH = " + markov_path);
             } else if (parts[0].equalsIgnoreCase("THRESHOLDS")) {
                 thresholds_path = parts[1];
 

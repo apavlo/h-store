@@ -2,6 +2,7 @@ package edu.brown.utils;
 
 import java.io.BufferedInputStream;
 import java.io.IOException;
+import java.lang.reflect.Field;
 import java.util.*;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
@@ -9,6 +10,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
 
 import org.apache.log4j.Logger;
+import org.voltdb.utils.Pair;
 
 public abstract class ThreadUtil {
     private static final Logger LOG = Logger.getLogger(ThreadUtil.class);
@@ -31,6 +33,38 @@ public abstract class ThreadUtil {
         }
     }
 
+    /**
+     * Executes the given command and returns a pair containing the PID and Process handle
+     * @param command
+     * @return
+     */
+    public static Pair<Integer, Process> exec(String command[]) {
+        ProcessBuilder pb = new ProcessBuilder(command);
+        Process p = null;
+        try {
+            p = pb.start();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        assert(p != null);
+        Class<? extends Process> p_class = p.getClass();
+        assert(p_class.getName().endsWith("UNIXProcess")) : "Unexpected Process class: " + p_class;
+        
+        Integer pid = null;
+        try {
+            Field pid_field = p_class.getDeclaredField("pid");
+            pid_field.setAccessible(true);
+            pid = pid_field.getInt(p);
+        } catch (Exception ex) {
+            LOG.fatal("Faild to get pid for " + p, ex);
+            return (null);
+        }
+        assert(pid != null) : "Failed to get pid for " + p;
+        
+        LOG.info("Starting new process with PID " + pid);
+        return (Pair.of(pid, p));
+    }
+    
     /**
      * Fork the command (in the current thread)
      * @param command

@@ -39,10 +39,12 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.log4j.Logger;
+import org.voltdb.utils.Pair;
 
 import edu.brown.utils.EventObservable;
 import edu.brown.utils.EventObserver;
 import edu.brown.utils.LoggerUtil;
+import edu.brown.utils.ThreadUtil;
 import edu.brown.utils.LoggerUtil.LoggerBoolean;
 
 public class ProcessSetManager {
@@ -59,11 +61,12 @@ public class ProcessSetManager {
     final LinkedBlockingQueue<OutputLine> m_output = new LinkedBlockingQueue<OutputLine>();
     final Map<String, ProcessData> m_processes = new HashMap<String, ProcessData>();
     final Map<String, StreamWatcher> m_watchers = new HashMap<String, StreamWatcher>();
-
+    
     public enum Stream { STDERR, STDOUT; }
 
     static class ProcessData {
         Process process;
+        int pid;
         StreamWatcher out;
         StreamWatcher err;
     }
@@ -141,7 +144,8 @@ public class ProcessSetManager {
                         line = m_reader.readLine();
                     } catch (IOException e) {
                         if (!m_expectDeath.get()) {
-                            LOG.error(String.format("Stream monitoring thread for '%s' is exiting", m_processName), e);
+//                            if (failure_observable.hasChanged() == false)
+                                LOG.error(String.format("Stream monitoring thread for '%s' is exiting", m_processName), e);
                             failure_observable.notifyObservers(m_processName);
                         }
                         return;
@@ -197,10 +201,20 @@ public class ProcessSetManager {
             // TODO Auto-generated catch block
             e.printStackTrace();
         }
+        
+//        Pair<Integer, Process> pair = ThreadUtil.exec(cmd);
+//        ProcessData pd = new ProcessData();
+//        pd.pid = pair.getFirst();
+//        pd.process = pair.getSecond();
+//        createdProcesses.add(pd.process);
+//        assert(m_processes.containsKey(processName) == false) : processName + "\n" + m_processes;
+//        m_processes.put(processName, pd);
+        
         BufferedReader out = new BufferedReader(new InputStreamReader(pd.process.getInputStream()));
         BufferedReader err = new BufferedReader(new InputStreamReader(pd.process.getErrorStream()));
         pd.out = new StreamWatcher(out, processName, Stream.STDOUT);
         pd.err = new StreamWatcher(err, processName, Stream.STDERR);
+        
         pd.out.start();
         pd.err.start();
     }
@@ -226,7 +240,8 @@ public class ProcessSetManager {
             out.write(data);
             out.flush();
         } catch (IOException e) {
-            LOG.fatal(String.format("Failed to write '%s' command to '%s'", data.trim(), processName), e);
+//            if (this.failure_observable.hasChanged())
+                LOG.fatal(String.format("Failed to write '%s' command to '%s'", data.trim(), processName), e);
             this.failure_observable.notifyObservers(processName);
         }
     }

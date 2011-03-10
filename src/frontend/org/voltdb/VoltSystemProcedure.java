@@ -147,7 +147,7 @@ public abstract class VoltSystemProcedure extends VoltProcedure {
 
             LOG.debug("Creating SysProc FragmentTaskMessage for " + (pf.destPartitionId < 0 ? "coordinator" : "partition #" + pf.destPartitionId) + " in txn #" + this.getTransactionId());
             FragmentTaskMessage task = new FragmentTaskMessage(
-                    this.m_site.getPartitionId(),
+                    this.executor.getPartitionId(),
                     (int)pf.destPartitionId,
                     this.getTransactionId(),
                     -1,
@@ -162,6 +162,6 @@ public abstract class VoltSystemProcedure extends VoltProcedure {
             ftasks.add(task);
         } // FOR
         
-        return (this.m_site.waitForResponses(this.getTransactionId(), ftasks, 1));
+        return (this.executor.waitForResponses(this.getTransactionId(), ftasks, 1));
     }
 }

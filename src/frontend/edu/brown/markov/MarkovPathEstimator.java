@@ -178,6 +178,7 @@ public class MarkovPathEstimator extends VertexTreeWalker<Vertex> {
     @Override
     public void finish() {
         super.finish();
+        this.confidence = 1.0;
         this.estimate.finish();
         this.touched_partitions.clear();
         this.read_partitions.clear();

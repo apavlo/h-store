@@ -155,6 +155,7 @@ public class ArgumentsParser {
     public static final String PARAM_NODE_CLEANUP_INTERVAL = PARAM_NODE + ".cleanup_interval";
     public static final String PARAM_NODE_CLEANUP_TXN_EXPIRE = PARAM_NODE + ".cleanup_txn_expire";
     public static final String PARAM_NODE_ENABLE_PROFILING  = PARAM_NODE + ".enable_profiling";
+    public static final String PARAM_NODE_MISPREDICT_CRASH  = PARAM_NODE + ".mispredict_crash";
     
     private static final String PARAM_DTXN                  = "dtxn";
     public static final String PARAM_DTXN_CONF              = PARAM_DTXN + ".conf";

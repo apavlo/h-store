@@ -96,7 +96,7 @@ public class ExecutionSiteHelper implements Runnable {
                       .append(ExecutionSiteHelper.this.dumpProfileInformation())
                       .append("\n")
                       .append(ExecutionSiteHelper.this.hstore_site.statusSnapshot());
-                    LOG.info("\n" + StringUtil.box(sb.toString(), "#"));
+                    LOG.info("\n" + sb.toString());
                 }
             });
         }
