@@ -3,7 +3,7 @@ package edu.brown.catalog;
 import edu.brown.BaseTestCase;
 import edu.brown.utils.ProjectType;
 
-public class TestHStoreConf extends BaseTestCase {
+public class TestHStoreDtxnConf extends BaseTestCase {
 
     private static final int NUM_PARTITIONS = 10;
     
@@ -14,10 +14,10 @@ public class TestHStoreConf extends BaseTestCase {
     }
     
     /**
-     * testToHStoreConf
+     * testToHStoreDtxnConf
      */
-    public void testToHStoreConf() throws Exception {
-        String contents = HStoreConf.toHStoreConf(catalog);
+    public void testToHStoreDtxnConf() throws Exception {
+        String contents = HStoreDtxnConf.toHStoreDtxnConf(catalog);
         assertNotNull(contents);
         assertFalse(contents.isEmpty());
         
@@ -32,7 +32,7 @@ public class TestHStoreConf extends BaseTestCase {
      * testSortOrder
      */
     public void testSortOrder() throws Exception {
-        String contents = HStoreConf.toHStoreConf(catalog);
+        String contents = HStoreDtxnConf.toHStoreDtxnConf(catalog);
         assertNotNull(contents);
         assertFalse(contents.isEmpty());
         

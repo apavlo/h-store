@@ -366,6 +366,11 @@ public class LocalTransactionState extends TransactionState {
     }
     
     @Override
+    public boolean isInitialized() {
+        return (this.catalog_proc != null);
+    }
+    
+    @Override
     public void finish() {
         super.finish();
 

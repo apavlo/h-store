@@ -75,7 +75,7 @@ public class TransactionEstimator {
         private final List<MarkovEstimate> estimates = new ArrayList<MarkovEstimate>();
         private final int num_partitions;
 
-        private long txn_id;
+        private long txn_id = -1;
         private int base_partition;
         private long start_time;
         private MarkovGraph markov;
@@ -126,6 +126,11 @@ public class TransactionEstimator {
         }
         
         @Override
+        public boolean isInitialized() {
+            return (this.txn_id != -1);
+        }
+        
+        @Override
         public void finish() {
             // Return the MarkovPathEstimator
             try {
@@ -133,7 +138,8 @@ public class TransactionEstimator {
             } catch (Exception ex) {
                 throw new RuntimeException("Failed to return MarkovPathEstimator for txn" + this.txn_id, ex);
             }
-            
+         
+            this.txn_id = -1;
             this.initial_estimator = null;
             this.initial_estimate = null;
             this.actual_path.clear();

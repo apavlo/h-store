@@ -216,6 +216,11 @@ public class FeatureClusterer {
             this.clusterer = clusterer;
         }
         
+        @Override
+        public boolean isInitialized() {
+            return (this.clusterer != null);
+        }
+        
         public void finish() {
             this.clusterer = null;
             this.cluster_ids.clear();

@@ -43,6 +43,10 @@ import edu.brown.workload.filters.ProcedureNameFilter;
 public abstract class MarkovUtil {
     private static final Logger LOG = Logger.getLogger(MarkovUtil.class);
 
+    /**
+     * The value to use to indicate that a probability is null
+     */
+    public static final float NULL_MARKER = -1.0f;
     
     /**
      * 

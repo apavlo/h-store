@@ -87,7 +87,7 @@ public class MarkovPathEstimator extends VertexTreeWalker<Vertex> {
     /**
      * This is how confident we are 
      */
-    private double confidence = 1.00;
+    private double confidence = MarkovUtil.NULL_MARKER;
 
     /**
      * 
@@ -157,6 +157,7 @@ public class MarkovPathEstimator extends VertexTreeWalker<Vertex> {
     public MarkovPathEstimator init(MarkovGraph markov, TransactionEstimator t_estimator, int base_partition, Object args[]) {
         this.init(markov, TraverseOrder.DEPTH, Direction.FORWARD);
         this.estimate.init(markov.getStartVertex(), -1);
+        this.confidence = 1.0;
         this.t_estimator = t_estimator;
         this.p_estimator = this.t_estimator.getPartitionEstimator();
         this.correlations = this.t_estimator.getCorrelations();
@@ -176,9 +177,19 @@ public class MarkovPathEstimator extends VertexTreeWalker<Vertex> {
     }
     
     @Override
+    public boolean isInitialized() {
+        return (this.confidence != MarkovUtil.NULL_MARKER && super.isInitialized()); 
+    }
+    
+    @Override
     public void finish() {
         super.finish();
-        this.confidence = 1.0;
+        this.confidence = MarkovUtil.NULL_MARKER;
+        
+        this.t_estimator = null;
+        this.p_estimator = null;
+        this.correlations = null;
+        
         this.estimate.finish();
         this.touched_partitions.clear();
         this.read_partitions.clear();

@@ -307,6 +307,11 @@ public class BatchPlanner {
             return (this);
         }
         
+        @Override
+        public boolean isInitialized() {
+            return (this.ftasks.isEmpty());
+        }
+        
         /**
          * Marks this BatchPlan as completed (i.e., all of the PlanFragments have
          * been executed the and the results have been returned. This must be called before

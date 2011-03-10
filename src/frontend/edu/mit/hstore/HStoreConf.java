@@ -60,54 +60,53 @@ public final class HStoreConf {
         
     }
     
-    
     private static HStoreConf conf;
     
     public synchronized static HStoreConf init(ArgumentsParser args) {
-        assert(conf == null) : "HStoreConf has already been initialized";
+        if (conf != null) return (conf);
         conf = new HStoreConf();
         
-        // Force all transactions to be single-partitioned
-        if (args.hasBooleanParam(ArgumentsParser.PARAM_NODE_FORCE_SINGLEPARTITION)) {
-            conf.force_singlepartitioned = args.getBooleanParam(ArgumentsParser.PARAM_NODE_FORCE_SINGLEPARTITION);
-            if (conf.force_singlepartitioned) LOG.info("Forcing all transactions to execute as single-partitioned");
+        if (args != null) {
+            // Force all transactions to be single-partitioned
+            if (args.hasBooleanParam(ArgumentsParser.PARAM_NODE_FORCE_SINGLEPARTITION)) {
+                conf.force_singlepartitioned = args.getBooleanParam(ArgumentsParser.PARAM_NODE_FORCE_SINGLEPARTITION);
+                if (conf.force_singlepartitioned) LOG.info("Forcing all transactions to execute as single-partitioned");
+            }
+            // Force all transactions to be executed at the first partition that the request arrives on
+            if (args.hasBooleanParam(ArgumentsParser.PARAM_NODE_FORCE_LOCALEXECUTION)) {
+                conf.force_localexecution = args.getBooleanParam(ArgumentsParser.PARAM_NODE_FORCE_LOCALEXECUTION);
+                if (conf.force_localexecution) LOG.info("Forcing all transactions to execute at the partition they arrive on");
+            }
+            // Enable the "neworder" parameter hashing hack for the VLDB paper
+            if (args.hasBooleanParam(ArgumentsParser.PARAM_NODE_FORCE_NEWORDERINSPECT)) {
+                conf.force_neworder_hack = args.getBooleanParam(ArgumentsParser.PARAM_NODE_FORCE_NEWORDERINSPECT);
+                if (conf.force_neworder_hack) LOG.info("Enabling the inspection of incoming neworder parameters");
+            }
+            // Clean-up Interval
+            if (args.hasIntParam(ArgumentsParser.PARAM_NODE_CLEANUP_INTERVAL)) {
+                conf.helper_interval = args.getIntParam(ArgumentsParser.PARAM_NODE_CLEANUP_INTERVAL);
+                LOG.info("Setting Cleanup Interval = " + conf.helper_interval + "ms");
+            }
+            // Txn Expiration Time
+            if (args.hasIntParam(ArgumentsParser.PARAM_NODE_CLEANUP_TXN_EXPIRE)) {
+                conf.helper_txn_expire = args.getIntParam(ArgumentsParser.PARAM_NODE_CLEANUP_TXN_EXPIRE);
+                LOG.info("Setting Cleanup Txn Expiration = " + conf.helper_txn_expire + "ms");
+            }
+            // Profiling
+            if (args.hasBooleanParam(ArgumentsParser.PARAM_NODE_ENABLE_PROFILING)) {
+                conf.enable_profiling = args.getBooleanParam(ArgumentsParser.PARAM_NODE_ENABLE_PROFILING);
+                if (conf.enable_profiling) LOG.info("Enabling procedure profiling");
+            }
+            // Mispredict Crash
+            if (args.hasBooleanParam(ArgumentsParser.PARAM_NODE_MISPREDICT_CRASH)) {
+                conf.mispredict_crash = args.getBooleanParam(ArgumentsParser.PARAM_NODE_MISPREDICT_CRASH);
+                if (conf.mispredict_crash) LOG.info("Enabling crashing HStoreSite on mispredict");
+            }
         }
-        // Force all transactions to be executed at the first partition that the request arrives on
-        if (args.hasBooleanParam(ArgumentsParser.PARAM_NODE_FORCE_LOCALEXECUTION)) {
-            conf.force_localexecution = args.getBooleanParam(ArgumentsParser.PARAM_NODE_FORCE_LOCALEXECUTION);
-            if (conf.force_localexecution) LOG.info("Forcing all transactions to execute at the partition they arrive on");
-        }
-        // Enable the "neworder" parameter hashing hack for the VLDB paper
-        if (args.hasBooleanParam(ArgumentsParser.PARAM_NODE_FORCE_NEWORDERINSPECT)) {
-            conf.force_neworder_hack = args.getBooleanParam(ArgumentsParser.PARAM_NODE_FORCE_NEWORDERINSPECT);
-            if (conf.force_neworder_hack) LOG.info("Enabling the inspection of incoming neworder parameters");
-        }
-        // Clean-up Interval
-        if (args.hasIntParam(ArgumentsParser.PARAM_NODE_CLEANUP_INTERVAL)) {
-            conf.helper_interval = args.getIntParam(ArgumentsParser.PARAM_NODE_CLEANUP_INTERVAL);
-            LOG.info("Setting Cleanup Interval = " + conf.helper_interval + "ms");
-        }
-        // Txn Expiration Time
-        if (args.hasIntParam(ArgumentsParser.PARAM_NODE_CLEANUP_TXN_EXPIRE)) {
-            conf.helper_txn_expire = args.getIntParam(ArgumentsParser.PARAM_NODE_CLEANUP_TXN_EXPIRE);
-            LOG.info("Setting Cleanup Txn Expiration = " + conf.helper_txn_expire + "ms");
-        }
-        // Profiling
-        if (args.hasBooleanParam(ArgumentsParser.PARAM_NODE_ENABLE_PROFILING)) {
-            conf.enable_profiling = args.getBooleanParam(ArgumentsParser.PARAM_NODE_ENABLE_PROFILING);
-            if (conf.enable_profiling) LOG.info("Enabling procedure profiling");
-        }
-        // Mispredict Crash
-        if (args.hasBooleanParam(ArgumentsParser.PARAM_NODE_MISPREDICT_CRASH)) {
-            conf.mispredict_crash = args.getBooleanParam(ArgumentsParser.PARAM_NODE_MISPREDICT_CRASH);
-            if (conf.mispredict_crash) LOG.info("Enabling crashing HStoreSite on mispredict");
-        }
-        
         return (conf);
     }
     
     public static HStoreConf singleton() {
-        assert(conf != null) : "HStoreConf has not been initialized yet";
-        return (conf);
+        return (HStoreConf.init(null));
     }
 }

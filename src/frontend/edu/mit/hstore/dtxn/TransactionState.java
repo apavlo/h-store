@@ -83,7 +83,7 @@ public abstract class TransactionState implements Poolable {
     // INVOCATION DATA MEMBERS
     // ----------------------------------------------------------------------------
     
-    protected long txn_id;
+    protected long txn_id = -1;
     protected long client_handle;
     protected int source_partition;
     protected final Set<Integer> touched_partitions = new HashSet<Integer>();
@@ -143,12 +143,18 @@ public abstract class TransactionState implements Poolable {
         return (this);
     }
 
+    @Override
+    public boolean isInitialized() {
+        return (this.txn_id != -1);
+    }
+    
     /**
      * Should be called once the TransactionState is finished and is
      * being returned to the pool
      */
     @Override
     public void finish() {
+        this.txn_id = -1;
         this.finished_timestamp = null;
         this.submitted_to_ee = false;
         this.pending_error = null;

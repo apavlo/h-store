@@ -2181,7 +2181,7 @@ H-STORE REMIX
     <condition property="jar" value="${benchmark.jar}">
         <not><isset property="jar"/></not>
     </condition>
-   <java fork="yes" classname="edu.brown.catalog.HStoreConf">
+   <java fork="yes" classname="edu.brown.catalog.HStoreDtxnConf">
       <jvmarg value="-Dlog4j.configuration=log4j.properties"/>
       <jvmarg value="-client" />
       <arg value="catalog.jar=${jar}" />
