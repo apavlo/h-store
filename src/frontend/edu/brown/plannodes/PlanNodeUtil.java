@@ -27,7 +27,8 @@ public abstract class PlanNodeUtil {
 
     private static final String INLINE_SPACER_PREFIX = "\u2502";
     private static final String INLINE_INNER_PREFIX = "\u251C";
-    
+
+    private static final String NODE_PREFIX = "\u25B6 ";
     private static final String SPACER_PREFIX = "\u2503";
     private static final String INNER_PREFIX = "\u2523";    
 
@@ -391,7 +392,7 @@ public abstract class PlanNodeUtil {
         String line_spacer = spacer + spacer_prefix;
         
         // General Information
-        if (node.isInline() == false) sb.append(orig_spacer).append("▶ " + node.toString() + "\n");
+        if (node.isInline() == false) sb.append(orig_spacer).append(NODE_PREFIX + node.toString() + "\n");
         sb.append(inner_spacer).append("Inline[" + node.isInline() + "]\n");
         
         // AbstractJoinPlanNode

@@ -157,8 +157,10 @@ public class TestTransactionEstimator extends BaseTestCase {
         assertFalse(est.isSinglePartition(this.thresholds));
         assertFalse(est.isUserAbort(this.thresholds));
         
+        Set<Integer> partitions = p_estimator.getAllPartitions(multip_trace);
+        
         for (Integer partition : ALL_PARTITIONS) {
-            if (partition == BASE_PARTITION) {
+            if (partitions.contains(partition)) { //  == BASE_PARTITION) {
                 assertFalse("isFinishedPartition(" + partition + ")", est.isFinishedPartition(thresholds, partition));
                 assertTrue("isWritePartition(" + partition + ")", est.isWritePartition(thresholds, partition) == true);
                 assertTrue("isTargetPartition(" + partition + ")", est.isTargetPartition(thresholds, partition) == true);
