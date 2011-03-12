@@ -189,14 +189,16 @@ public class ProcessSetManager {
         return retval;
     }
 
-    public synchronized void startProcess(String processName, String[] cmd) {
+    public void startProcess(String processName, String[] cmd) {
         ProcessBuilder pb = new ProcessBuilder(cmd);
         ProcessData pd = new ProcessData();
         try {
             pd.process = pb.start();
-            createdProcesses.add(pd.process);
-            assert(m_processes.containsKey(processName) == false) : processName + "\n" + m_processes;
-            m_processes.put(processName, pd);
+            synchronized (createdProcesses) {
+                createdProcesses.add(pd.process);
+                assert(m_processes.containsKey(processName) == false) : processName + "\n" + m_processes;
+                m_processes.put(processName, pd);
+            } // SYNCH
         } catch (IOException e) {
             // TODO Auto-generated catch block
             e.printStackTrace();

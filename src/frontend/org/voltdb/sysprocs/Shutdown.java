@@ -60,10 +60,10 @@ public class Shutdown extends VoltSystemProcedure {
     static final long DEP_aggregate = SysProcFragmentId.PF_aggregate;
 
     @Override
-    public void init(ExecutionSite site, Procedure catProc,
+    public void globalInit(ExecutionSite site, Procedure catProc,
             BackendTarget eeType, HsqlBackend hsql, Cluster cluster,
             PartitionEstimator p_estimator, Integer local_partition) {
-        super.init(site, catProc, eeType, hsql, cluster, p_estimator, local_partition);
+        super.globalInit(site, catProc, eeType, hsql, cluster, p_estimator, local_partition);
         site.registerPlanFragment(SysProcFragmentId.PF_shutdownCommand, this);
         site.registerPlanFragment(SysProcFragmentId.PF_procedureDone, this);
         this.all_partitions = CatalogUtil.getAllPartitionIds(catProc);

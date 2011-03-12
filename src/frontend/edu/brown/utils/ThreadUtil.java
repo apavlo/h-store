@@ -18,7 +18,7 @@ public abstract class ThreadUtil {
     private static final Object lock = new Object();
     private static ExecutorService pool;
     
-    private static final int DEFAULT_NUM_THREADS = 2;
+    private static final int DEFAULT_NUM_THREADS = 4;
     
     
     /**

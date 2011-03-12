@@ -200,6 +200,7 @@ public class ExecutionSiteHelper implements Runnable {
             ts.ee_time,
             ts.est_time,
             ts.finish_time,
+            ts.blocked_time,
         };
         long tuple[] = new long[pms.length];
         for (int i = 0; i < pms.length; i++) {
@@ -221,12 +222,13 @@ public class ExecutionSiteHelper implements Runnable {
             "Total Time",
             "Initialization",
             "Queue Time",
-            "Java Procedure",
+            "Procedure",
             "Coordinator",
             "Planner",
-            "ExecutionEngine",
+            "EE",
             "Estimation",
             "Finish",
+            "Blocked",
             "Miscellaneous",
         };
         int num_procs = 0;

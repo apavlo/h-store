@@ -174,6 +174,7 @@ public class TestBatchPlanner extends BaseTestCase {
     public void testSingleSitedLocalPlan2() throws Exception {
         Object params[] = new Object[] {
             new Long(LOCAL_PARTITION),  // S_ID
+            new Long(LOCAL_PARTITION),  // S_ID
             new Long(0),                // SF_TYPE
             new Long(0),                // START_TIME
             new Long(0),                // END_TIME

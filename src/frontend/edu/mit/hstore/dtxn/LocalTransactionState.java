@@ -209,6 +209,10 @@ public class LocalTransactionState extends TransactionState {
      */
     public final ProfileMeasurement init_time = new ProfileMeasurement(Type.INITIALIZATION);
     /**
+     * Time spent blocked on the initialization latch
+     */
+    public final ProfileMeasurement blocked_time = new ProfileMeasurement(Type.BLOCKED);
+    /**
      * Time spent getting the response back to the client
      */
     public final ProfileMeasurement finish_time = new ProfileMeasurement(Type.CLEANUP);
@@ -245,6 +249,11 @@ public class LocalTransactionState extends TransactionState {
      * Temporary space used in ExecutionSite.waitForResponses
      */
     public final List<FragmentTaskMessage> runnable_fragment_list = new ArrayList<FragmentTaskMessage>();
+    
+    /**
+     * Temporary space used when calling removeInternalDependencies()
+     */
+    public final HashMap<Integer, List<VoltTable>> remove_dependencies_map = new HashMap<Integer, List<VoltTable>>();
     
     /**
      * This latch will block until all the Dependency results have returned
@@ -410,6 +419,7 @@ public class LocalTransactionState extends TransactionState {
         if (this.executor.getHStoreConf().enable_profiling) {
             this.total_time.reset();
             this.init_time.reset();
+            this.blocked_time.reset();
             this.queue_time.reset();
             this.finish_time.reset();
             this.java_time.reset();
@@ -943,15 +953,24 @@ public class LocalTransactionState extends TransactionState {
             }
         }
     }
-    
+
     /**
      * Retrieve the dependency results that are used for internal plan execution
      * These are not the results that should be sent to the client
      * @return
      */
-    public synchronized HashMap<Integer, List<VoltTable>> removeInternalDependencies(FragmentTaskMessage ftask) {
+    public HashMap<Integer, List<VoltTable>> removeInternalDependencies(FragmentTaskMessage ftask) {
+        return (this.removeInternalDependencies(ftask, new HashMap<Integer, List<VoltTable>>()));
+    }
+    
+    /**
+     * Fast version!
+     * Retrieve the dependency results that are used for internal plan execution
+     * These are not the results that should be sent to the client
+     * @return
+     */
+    public synchronized HashMap<Integer, List<VoltTable>> removeInternalDependencies(final FragmentTaskMessage ftask, final HashMap<Integer, List<VoltTable>> results) {
         if (d) LOG.debug("Retrieving " + this.internal_dependencies.size() + " internal dependencies for txn #" + this.txn_id);
-        HashMap<Integer, List<VoltTable>> results = new HashMap<Integer, List<VoltTable>>();
         
         for (int i = 0, cnt = ftask.getFragmentCount(); i < cnt; i++) {
             int input_d_id = ftask.getOnlyInputDepId(i);

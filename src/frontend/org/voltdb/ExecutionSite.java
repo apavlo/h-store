@@ -55,7 +55,6 @@ import edu.brown.catalog.CatalogUtil;
 import edu.brown.markov.TransactionEstimator;
 import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.PartitionEstimator;
-import edu.brown.utils.ProfileMeasurement;
 import edu.brown.utils.LoggerUtil.LoggerBoolean;
 import edu.mit.dtxn.Dtxn;
 import edu.mit.hstore.HStoreConf;
@@ -148,7 +147,7 @@ public class ExecutionSite implements Runnable {
                 } else {
                     volt_proc = new VoltProcedure.StmtProcedure();
                 }
-                volt_proc.init(ExecutionSite.this,
+                volt_proc.globalInit(ExecutionSite.this,
                                this.catalog_proc,
                                ExecutionSite.this.backend_target,
                                ExecutionSite.this.hsql,
@@ -1272,7 +1271,7 @@ public class ExecutionSite implements Runnable {
         if (callback == null) {
             throw new RuntimeException("No RPC callback to HStoreCoordinator for txn #" + txn_id);
         }
-        long client_handle   = cresponse.getClientHandle();
+        long client_handle = cresponse.getClientHandle();
         assert(client_handle != -1) : "The client handle for txn #" + txn_id + " was not set properly";
         byte status = cresponse.getStatus();
 
@@ -1397,6 +1396,7 @@ public class ExecutionSite implements Runnable {
         // sure that we don't touch any partition other than our local one. If we do, then we need abort
         // it and restart it as multi-partitioned
         boolean need_restart = false;
+        boolean predict_singlepartition = ts.isPredictSinglePartition(); 
         Set<Integer> done_partitions = ts.getDonePartitions();
         
         for (FragmentTaskMessage ftask : tasks) {
@@ -1408,7 +1408,7 @@ public class ExecutionSite implements Runnable {
             
             int target_partition = ftask.getDestinationPartitionId();
             // Make sure things are still legit for our single-partition transaction
-            if (ts.isPredictSinglePartition() && target_partition != this.partitionId) {
+            if (predict_singlepartition && target_partition != this.partitionId) {
                 if (d) LOG.debug(String.format("Txn #%d on partition %d is suppose to be single-partitioned, but it wants to execute a fragment on partition %d", txn_id, this.partitionId, target_partition));
                 need_restart = true;
                 break;
@@ -1419,27 +1419,28 @@ public class ExecutionSite implements Runnable {
             }
             
             int dependency_ids[] = ftask.getOutputDependencyIds();
-            if (trace.get()) LOG.trace("Preparing to request fragments " + Arrays.toString(ftask.getFragmentIds()) + " on partition " + target_partition + " to generate " + dependency_ids.length + " output dependencies for txn #" + txn_id);
+            if (t) LOG.trace("Preparing to request fragments " + Arrays.toString(ftask.getFragmentIds()) + " on partition " + target_partition + " to generate " + dependency_ids.length + " output dependencies for txn #" + txn_id);
             if (ftask.getFragmentCount() == 0) {
-                LOG.warn("Trying to send a FragmentTask request with 0 fragments for txn #" + ts.getTransactionId());
+                LOG.warn("Trying to send a FragmentTask request with 0 fragments for txn #" + txn_id);
                 continue;
             }
 
             // Since we know that we have to send these messages everywhere, then any internal dependencies
             // that we have stored locally here need to go out with them
             if (ftask.hasInputDependencies()) {
-                HashMap<Integer, List<VoltTable>> dependencies = ts.removeInternalDependencies(ftask);
-                if (t) LOG.trace("Attaching " + dependencies.size() + " dependencies to " + ftask);
-                for (Entry<Integer, List<VoltTable>> e : dependencies.entrySet()) {
+                ts.remove_dependencies_map.clear();
+                ts.removeInternalDependencies(ftask, ts.remove_dependencies_map);
+                if (t) LOG.trace("Attaching " + ts.remove_dependencies_map.size() + " dependencies to " + ftask);
+                for (Entry<Integer, List<VoltTable>> e : ts.remove_dependencies_map.entrySet()) {
                     ftask.attachResults(e.getKey(), e.getValue());
                 } // FOR
             }
             
             // Nasty...
             ByteString bs = null;
-            synchronized (this) { // Is this necessary??
+//            synchronized (this) { // Is this necessary??
                 bs = ByteString.copyFrom(ftask.getBufferForMessaging(buffer_pool).b.array());
-            }
+//            }
             requestBuilder.addFragment(Dtxn.CoordinatorFragment.PartitionFragment.newBuilder()
                     .setPartitionId(target_partition)
                     .setWork(bs));
@@ -1455,7 +1456,7 @@ public class ExecutionSite implements Runnable {
         
         // Bombs away!
         Dtxn.CoordinatorFragment dtxn_request = requestBuilder.build(); 
-        this.hstore_site.requestWork(txn_id, dtxn_request, this.request_work_callback);
+        this.hstore_site.requestWork(ts, dtxn_request, this.request_work_callback);
         if (d) LOG.debug(String.format("Work request is sent for txn #%d [bytes=%d, #fragments=%d]", txn_id, dtxn_request.getSerializedSize(), tasks.size()));
     }
 
@@ -1467,13 +1468,24 @@ public class ExecutionSite implements Runnable {
      * @return
      */
     public VoltTable[] waitForResponses(long txn_id, List<FragmentTaskMessage> tasks, int batch_size) {
-        final boolean t = trace.get();
-        final boolean d = debug.get();
-        
         LocalTransactionState ts = (LocalTransactionState)this.txn_states.get(txn_id);
         if (ts == null) {
             throw new RuntimeException("No transaction state for txn #" + txn_id + " at " + this.getThreadName());
         }
+        return (this.waitForResponses(ts, tasks, batch_size));
+    }
+
+    /**
+     * Execute the given tasks and then block the current thread waiting for the list of dependency_ids to come
+     * back from whatever it was we were suppose to do... 
+     * @param ts
+     * @param dependency_ids
+     * @return
+     */
+    public VoltTable[] waitForResponses(LocalTransactionState ts, List<FragmentTaskMessage> tasks, int batch_size) {
+        final boolean t = trace.get();
+        final boolean d = debug.get();
+        final long txn_id = ts.getTransactionId();
 
         // We have to store all of the tasks in the TransactionState before we start executing, otherwise
         // there is a race condition that a task with input dependencies will start running as soon as we
