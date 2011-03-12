@@ -163,7 +163,7 @@ public class DependencyInfo {
     }
     
     protected List<VoltTable> getResults() {
-        return (Collections.unmodifiableList(this.results_list));
+        return (this.results_list);
     }
     
     protected List<Integer> getResponses() {

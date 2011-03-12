@@ -58,10 +58,10 @@ public class LoadMultipartitionTable extends VoltSystemProcedure {
     private Database m_database = null;
 
     @Override
-    public void init(ExecutionSite site, Procedure catProc,
+    public void globalInit(ExecutionSite site, Procedure catProc,
             BackendTarget eeType, HsqlBackend hsql, Cluster cluster,
             PartitionEstimator p_estimator, Integer local_partition) {
-        super.init(site, catProc, eeType, hsql, cluster, p_estimator, local_partition);
+        super.globalInit(site, catProc, eeType, hsql, cluster, p_estimator, local_partition);
         m_cluster = cluster;
         m_database = CatalogUtil.getDatabase(m_cluster);
         site.registerPlanFragment(SysProcFragmentId.PF_distribute, this);
@@ -163,7 +163,7 @@ public class LoadMultipartitionTable extends VoltSystemProcedure {
             pfs[0].multipartition = false;
             pfs[0].nonExecSites = false;
             pfs[0].parameters = new ParameterSet();
-            pfs[0].destPartitionId = local_partition;
+            pfs[0].destPartitionId = base_partition;
 
             // distribute and execute the fragments providing pfs and id
             // of the aggregator's output dependency table.
@@ -232,7 +232,7 @@ public class LoadMultipartitionTable extends VoltSystemProcedure {
 
             // a final plan fragment to aggregate the results
             pfs[0] = new SynthesizedPlanFragment();
-            pfs[0].destPartitionId = local_partition;
+            pfs[0].destPartitionId = base_partition;
             pfs[0].fragmentId = SysProcFragmentId.PF_aggregate;
             pfs[0].inputDependencyIds = new int[] { (int)DEP_distribute };
             pfs[0].outputDependencyIds = new int[] { (int)DEP_aggregate };

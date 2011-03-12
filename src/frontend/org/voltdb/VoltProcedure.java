@@ -73,16 +73,24 @@ public abstract class VoltProcedure implements Poolable {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
     
+    // ----------------------------------------------------------------------------
+    // STATIC CONSTANTS
+    // ----------------------------------------------------------------------------
+    
+    private static final VoltTable[] EMPTY_RESULT = new VoltTable[0];
+    
     // Used to get around the "abstract" for StmtProcedures.
     // Path of least resistance?
-    static class StmtProcedure extends VoltProcedure {}
+    protected static class StmtProcedure extends VoltProcedure {}
 
-    // This must match MAX_BATCH_COUNT in src/ee/execution/VoltDBEngine.h
-    final static int MAX_BATCH_SIZE = 1000;
-
-    final static Double DOUBLE_NULL = new Double(-1.7976931348623157E+308);
+    private final static Double DOUBLE_NULL = new Double(-1.7976931348623157E+308);
+    
     public static final String ANON_STMT_NAME = "sql";
 
+    // ----------------------------------------------------------------------------
+    // GLOBAL MEMBERS
+    // ----------------------------------------------------------------------------
+    
     protected HsqlBackend hsql;
 
     // package scoped members used by VoltSystemProcedure
@@ -103,44 +111,22 @@ public abstract class VoltProcedure implements Poolable {
 
     // cached fake SQLStmt array for single statement non-java procs
     SQLStmt[] m_cachedSingleStmt = { null };
-    
-    // Workload Trace Handles
-    private Object m_workloadXactHandle = null;
-    private Integer m_workloadBatchId = null;
-    private Set<Object> m_workloadQueryHandles;
 
-    // data copied from EE proc wrapper
-    private Long txn_id;
-    private Long client_handle;
-    private boolean predict_singlepartition;
-    private TransactionState m_currentTxnState;  // assigned in call()
-    private LocalTransactionState m_localTxnState;  // assigned in call()
-    private final SQLStmt batchQueryStmts[] = new SQLStmt[1000];
-    private int batchQueryStmtIndex = 0;
-    private final Object[] batchQueryArgs[] = new Object[1000][];
-    private int batchQueryArgsIndex = 0;
-     
     // Used to figure out what partitions a query needs to go to
     protected Catalog catalog;
-    protected Cluster m_cluster;
     protected Procedure catProc;
     protected String procedure_name;
     protected AbstractHasher hasher;
     protected PartitionEstimator p_estimator;
+    protected TransactionEstimator t_estimator;
     protected EstimationThresholds thresholds;
     protected HStoreConf hstore_conf;
     
-    protected Integer local_partition;
-    
-    // Callback for when the VoltProcedure finishes and we need to send a ClientResponse somewhere
+    protected int base_partition = -1;
+
+    /** Callback for when the VoltProcedure finishes and we need to send a ClientResponse somewhere **/
     private final EventObservable observable = new EventObservable();
 
-    /**
-     * Status code that can be set by stored procedure upon invocation that will be returned with the response.
-     */
-    private byte m_statusCode = Byte.MIN_VALUE;
-    private String m_statusString = null;
-    
     // data from hsql wrapper
     private final ArrayList<VoltTable> queryResults = new ArrayList<VoltTable>();
 
@@ -148,14 +134,56 @@ public abstract class VoltProcedure implements Poolable {
     // a given call don't re-seed and generate the same number over and over
     private Random m_cachedRNG = null;
     
-    private VoltProcedureExecutor exec_thread = new VoltProcedureExecutor();
+    private final VoltProcedureExecutor exec_thread = new VoltProcedureExecutor();
+
+    
+    // ----------------------------------------------------------------------------
+    // WORKLOAD TRACE HANDLES
+    // ----------------------------------------------------------------------------
+    
+    private boolean enable_tracing = false;
+    private Object m_workloadXactHandle = null;
+    private Integer m_workloadBatchId = null;
+    private final Set<Object> m_workloadQueryHandles = new HashSet<Object>();
+
+    // ----------------------------------------------------------------------------
+    // INVOCATION MEMBERS
+    // ----------------------------------------------------------------------------
+    
+    private long txn_id;
+    private long client_handle;
+    private boolean predict_singlepartition;
+    private TransactionState m_currentTxnState;  // assigned in call()
+    private LocalTransactionState m_localTxnState;  // assigned in call()
+    private final SQLStmt batchQueryStmts[] = new SQLStmt[1000];
+    private int batchQueryStmtIndex = 0;
+    private final Object[] batchQueryArgs[] = new Object[1000][];
+    private int batchQueryArgsIndex = 0;
+    private VoltTable[] results = EMPTY_RESULT;
+    private byte status = ClientResponseImpl.SUCCESS;
+    private SerializableException error = null;
+    private String status_msg = "";
+
+    /**
+     * Status code that can be set by stored procedure upon invocation that will be returned with the response.
+     */
+    private byte m_statusCode = Byte.MIN_VALUE;
+    private String m_statusString = null;
+    
+    // ----------------------------------------------------------------------------
+    // BATCH EXECUTION MEMBERS
+    // ----------------------------------------------------------------------------
+    private BatchPlanner planner = null;     
+    private BatchPlanner.BatchPlan plan = null;
+    
+    // ----------------------------------------------------------------------------
+    // VOLT PROCEDURE EXECUTOR
+    // ----------------------------------------------------------------------------
     
     /**
      * Execution runnable for handling transactions
      */
-    // protected final Semaphore executor_lock = new Semaphore(1);
-//    protected final Object executor_lock = new Object();
-    protected class VoltProcedureExecutor implements Runnable {
+    private final class VoltProcedureExecutor implements Runnable {
         
         private LocalTransactionState txnState = null;
         private Object paramList[] = null;
@@ -176,7 +204,7 @@ public abstract class VoltProcedure implements Poolable {
 
             long current_txn_id = txnState.getTransactionId();
             long client_handle = txnState.getClientHandle();
-            assert(VoltProcedure.this.txn_id == null) : "Old Transaction Id: " + VoltProcedure.this.txn_id + " -> New Transaction Id: " + current_txn_id;
+            assert(VoltProcedure.this.txn_id == -1) : "Old Transaction Id: " + VoltProcedure.this.txn_id + " -> New Transaction Id: " + current_txn_id;
             VoltProcedure.this.m_currentTxnState = this.txnState;
             VoltProcedure.this.m_localTxnState = this.txnState;
             VoltProcedure.this.txn_id = current_txn_id;
@@ -260,7 +288,7 @@ public abstract class VoltProcedure implements Poolable {
      * @param p_estimator
      * @param local_partition
      */
-    public void init(ExecutionSite site, Procedure catProc, BackendTarget eeType, HsqlBackend hsql, Cluster cluster, PartitionEstimator p_estimator, Integer local_partition) {
+    public void globalInit(ExecutionSite site, Procedure catProc, BackendTarget eeType, HsqlBackend hsql, Cluster cluster, PartitionEstimator p_estimator, Integer local_partition) {
         if (m_initialized) {
             throw new IllegalStateException("VoltProcedure has already been initialized");
         } else {
@@ -275,15 +303,19 @@ public abstract class VoltProcedure implements Poolable {
         this.catalog = this.catProc.getCatalog();
         this.isNative = (eeType != BackendTarget.HSQLDB_BACKEND);
         this.hsql = hsql;
-        this.m_cluster = cluster;
-
-        this.local_partition = this.executor.getPartitionId();
+        this.base_partition = this.executor.getPartitionId();
         
+        this.enable_tracing = (ProcedureProfiler.profilingLevel == ProcedureProfiler.Level.INTRUSIVE) &&
+                              (ProcedureProfiler.workloadTrace != null);
+        
+        this.t_estimator = this.executor.getTransactionEstimator();
         this.p_estimator = p_estimator;
+        this.hasher = this.p_estimator.getHasher();
+        
         HStoreSite hstore_site = this.executor.getHStoreSite();
         if (hstore_site != null) this.thresholds = hstore_site.getThresholds();
-        this.hasher = this.p_estimator.getHasher();
-        // LOG.debug("Initialized VoltProcedure for " + catProc + " [local=" + local_partition + ",total=" + this.hasher.getNumPartitions() + "]");
+        
+        if (debug.get()) LOG.debug(String.format("Initialized VoltProcedure for %s [partition=%d]", this.procedure_name, this.base_partition));
         
         if (catProc.getHasjava()) {
             int tempParamTypesLength = 0;
@@ -392,11 +424,20 @@ public abstract class VoltProcedure implements Poolable {
         }
     }
     
+    public boolean isInitialized() {
+        return (this.m_initialized);
+    }
+    
     @Override
     public void finish() {
         this.m_currentTxnState = null;
         this.m_localTxnState = null;
-        this.txn_id = null;
+        this.txn_id = -1;
+        this.client_handle = -1;
+        this.results = EMPTY_RESULT;
+        this.status = ClientResponseImpl.SUCCESS;
+        this.error = null;
+        this.status_msg = "";
     }
         
     final void initSQLStmt(SQLStmt stmt) {
@@ -446,10 +487,6 @@ public abstract class VoltProcedure implements Poolable {
 //        this.engine = engine;
 //        init(null, catProc, BackendTarget.NATIVE_EE_JNI, null, cluster, p_estimator, local_partition);
 //    }
-    
-    public boolean isInitialized() {
-        return (this.m_initialized);
-    }
     
     public String getProcedureName() {
         return (this.procedure_name);
@@ -512,16 +549,7 @@ public abstract class VoltProcedure implements Poolable {
      * @return
      */
     public final void call(TransactionState txnState, Object... paramList) {
-//        LOG.debug("started");
-//        if (ProcedureProfiler.profilingLevel != ProcedureProfiler.Level.DISABLED)
-//            profiler.startCounter(catProc);
-//        statsCollector.beginProcedure();
-
-        // Wait to make sure that the other transaction is finished before we plow through
-//        if (trace && this.txn_id != null) LOG.trace("Txn #" + txnState.getTransactionId() + " is going to wait for txn #" + this.txn_id);
-        
         if (trace.get()) LOG.trace("Setting up internal state for txn #" + txnState.getTransactionId());
-//        assert(this.txn_id == null) : "Conflict with txn #" + this.txn_id; // This should never happen!
         
         // Bombs away!
         this.exec_thread.init(txnState, paramList);
@@ -533,6 +561,9 @@ public abstract class VoltProcedure implements Poolable {
      * @return
      */
     private final ClientResponse call() {
+        final boolean t = trace.get();
+        final boolean d = debug.get();
+        
         // in case someone queues sql but never calls execute, clear the queue here.
         batchQueryStmtIndex = 0;
         batchQueryArgsIndex = 0;
@@ -540,59 +571,49 @@ public abstract class VoltProcedure implements Poolable {
         // Select a local_partition to use if we're on the coordinator, otherwise
         // just use the real partition. We shouldn't have to do this once Evan gets it
         // so that we can have a coordinator on each node
-        assert(this.local_partition != null);
+        assert(this.base_partition != -1);
 
         //lastBatchNeedsRollback = false;
 
-        VoltTable[] results = new VoltTable[0];
-        byte status = ClientResponseImpl.SUCCESS;
-        SerializableException se = null;
-        String extra = "";
-
-        if (this.procParams.length != paramTypesLength) {
-            String msg = "PROCEDURE " + catProc.getName() + " EXPECTS " + String.valueOf(paramTypesLength) +
+        if (this.procParams.length != this.paramTypesLength) {
+            String msg = "PROCEDURE " + procedure_name + " EXPECTS " + String.valueOf(paramTypesLength) +
                 " PARAMS, BUT RECEIVED " + String.valueOf(this.procParams.length);
             LOG.fatal(msg);
             status = ClientResponseImpl.GRACEFUL_FAILURE;
-            extra = msg;
-            return new ClientResponseImpl(this.getTransactionId(), status, results, extra, this.client_handle);
+            status_msg = msg;
+            return new ClientResponseImpl(this.txn_id, status, results, status_msg, this.client_handle);
         }
 
         for (int i = 0; i < paramTypesLength; i++) {
             try {
                 this.procParams[i] = tryToMakeCompatible( i, this.procParams[i]);
             } catch (Exception e) {
-                String msg = "PROCEDURE " + catProc.getName() + " TYPE ERROR FOR PARAMETER " + i +
+                String msg = "PROCEDURE " + procedure_name + " TYPE ERROR FOR PARAMETER " + i +
                         ": " + e.getMessage();
                 LOG.fatal(msg);
                 e.printStackTrace();
                 status = ClientResponseImpl.GRACEFUL_FAILURE;
-                extra = msg;
-                return new ClientResponseImpl(this.getTransactionId(), status, results, extra, this.client_handle);
+                status_msg = msg;
+                return new ClientResponseImpl(this.txn_id, this.status, this.results, this.status_msg, this.client_handle);
             }
         }
 
         // Workload Trace
         // Create a new transaction record in the trace manager. This will give us back
         // a handle that we need to pass to the trace manager when we want to register a new query
-        if ((ProcedureProfiler.profilingLevel == ProcedureProfiler.Level.INTRUSIVE) &&
-                (ProcedureProfiler.workloadTrace != null)) {
-            m_workloadQueryHandles = new HashSet<Object>();
-            m_workloadXactHandle = ProcedureProfiler.workloadTrace.startTransaction(this, catProc, this.procParams);
+        if (this.enable_tracing) {
+            this.m_workloadQueryHandles.clear();
+            this.m_workloadXactHandle = ProcedureProfiler.workloadTrace.startTransaction(this, catProc, this.procParams);
         }
 
         if (hstore_conf.enable_profiling) this.m_localTxnState.java_time.start();
         try {
-            if (trace.get()) LOG.trace("Invoking txn #" + this.txn_id + " [" +
-                                       "procMethod=" + procMethod.getName() + ", " +
-                                       "class=" + getClass().getSimpleName() + ", " +
-                                       "partition=" + this.local_partition + 
-                                       "]");
+            if (t) LOG.trace(String.format("Invoking txn #%d [procMethod=%s, class=%s, partition=%d]",
+                                           this.txn_id, this.procedure_name, getClass().getSimpleName(), this.base_partition));
             try {
                 Object rawResult = procMethod.invoke(this, this.procParams);
-                results = getResultsFromRawResults(rawResult);
-                if (results == null)
-                    results = new VoltTable[0];
+                this.results = getResultsFromRawResults(rawResult);
+                if (this.results == null) results = EMPTY_RESULT;
             } catch (IllegalAccessException e) {
                 // If reflection fails, invoke the same error handling that other exceptions do
                 throw new InvocationTargetException(e);
@@ -600,7 +621,7 @@ public abstract class VoltProcedure implements Poolable {
                 LOG.fatal(e);
                 System.exit(1);
             }
-            if (debug.get()) LOG.debug(this.catProc + " is finished for txn #" + this.txn_id);
+            if (d) LOG.debug(this.catProc + " is finished for txn #" + this.txn_id);
             
         // -------------------------------
         // Exceptions that we can process+handle
@@ -611,7 +632,7 @@ public abstract class VoltProcedure implements Poolable {
             
             // Pass the exception back to the client if it is serializable
             if (ex instanceof SerializableException) {
-                se = (SerializableException)ex;
+                this.error = (SerializableException)ex;
             } else if (ex instanceof AssertionError) {
                 throw (AssertionError)ex;
             }
@@ -621,26 +642,25 @@ public abstract class VoltProcedure implements Poolable {
             // -------------------------------
             if (ex_class.equals(VoltAbortException.class)) {
                 //LOG.fatal("PROCEDURE "+ catProc.getName() + " USER ABORTED", ex);
-                status = ClientResponseImpl.USER_ABORT;
-                extra = "USER ABORT: " + ex.getMessage();
+                this.status = ClientResponseImpl.USER_ABORT;
+                this.status_msg = "USER ABORT: " + ex.getMessage();
                 
-                if ((ProcedureProfiler.profilingLevel == ProcedureProfiler.Level.INTRUSIVE) &&
-                    (ProcedureProfiler.workloadTrace != null && m_workloadXactHandle != null)) {
+                if (this.enable_tracing && m_workloadXactHandle != null) {
                     ProcedureProfiler.workloadTrace.abortTransaction(m_workloadXactHandle);
                 }
             // -------------------------------
             // MispredictionException
             // -------------------------------
             } else if (ex_class.equals(MispredictionException.class)) {
-                if (debug.get()) LOG.warn("Caught MispredictionException for txn #" + ((MispredictionException)ex).getTransactionId());
-                status = ClientResponse.MISPREDICTION;
+                if (d) LOG.warn("Caught MispredictionException for txn #" + this.txn_id);
+                this.status = ClientResponse.MISPREDICTION;
 
             // -------------------------------
             // ConstraintFailureException
             // -------------------------------
             } else if (ex_class.equals(org.voltdb.exceptions.ConstraintFailureException.class)) {
-                status = ClientResponseImpl.UNEXPECTED_FAILURE;
-                extra = "CONSTRAINT FAILURE: " + ex.getMessage();
+                this.status = ClientResponseImpl.UNEXPECTED_FAILURE;
+                this.status_msg = "CONSTRAINT FAILURE: " + ex.getMessage();
                 
             // -------------------------------
             // Everthing Else
@@ -656,10 +676,12 @@ public abstract class VoltProcedure implements Poolable {
                 for (int i = 0; i < batchQueryStmtIndex; i++) {
                     currentQueries += String.format("[%02d] %s\n", i, CatalogUtil.getDisplayName(batchQueryStmts[i].catStmt));
                 }
-                LOG.fatal(String.format("PROCEDURE %s UNEXPECTED ABORT: %s\n%s", catProc.getName(), msg, currentQueries), ex);
+                if (executor.isShuttingDown() == false) {
+                    LOG.fatal(String.format("PROCEDURE %s UNEXPECTED ABORT: %s\n%s", catProc.getName(), msg, currentQueries), ex);
+                }
                 
                 status = ClientResponseImpl.UNEXPECTED_FAILURE;
-                extra = "UNEXPECTED ABORT: " + msg;
+                status_msg = "UNEXPECTED ABORT: " + msg;
             }
         // -------------------------------
         // Something really bad happened. Just bomb out!
@@ -671,35 +693,24 @@ public abstract class VoltProcedure implements Poolable {
             if (hstore_conf.enable_profiling) {
                 long time = ProfileMeasurement.getTime();
                 if (this.m_localTxnState.java_time.isStarted()) this.m_localTxnState.java_time.stop(time);
-                if (this.m_localTxnState.coord_time.isStarted()) {
-//                    assert(false) : "Txn #" + this.txn_id;
-                    this.m_localTxnState.coord_time.stop(time);
-                }
-                if (this.m_localTxnState.plan_time.isStarted()) {
-//                    assert(false) : "Txn #" + this.txn_id;
-                    this.m_localTxnState.plan_time.stop(time);
-                }
+                if (this.m_localTxnState.coord_time.isStarted()) this.m_localTxnState.coord_time.stop(time);
+                if (this.m_localTxnState.plan_time.isStarted()) this.m_localTxnState.plan_time.stop(time);
             }
         }
 
-//        if (ProcedureProfiler.profilingLevel != ProcedureProfiler.Level.DISABLED)
-//            profiler.stopCounter();
-//        statsCollector.endProcedure();
-
         // Workload Trace - Stop the transaction trace record.
-        if (status == ClientResponseImpl.SUCCESS && 
-            ProcedureProfiler.profilingLevel == ProcedureProfiler.Level.INTRUSIVE && (ProcedureProfiler.workloadTrace != null && m_workloadXactHandle != null)) {
+        if (this.enable_tracing && this.status == ClientResponseImpl.SUCCESS && m_workloadXactHandle != null) {
             ProcedureProfiler.workloadTrace.stopTransaction(m_workloadXactHandle);
         }
         
-        if (results == null) {
+        if (this.results == null) {
             LOG.fatal("We got back a null result from txn #" + this.txn_id + " [proc=" + this.procedure_name + "]");
             System.exit(1);
         }
         
         ClientResponseImpl ret = null;
         try {
-            ret = new ClientResponseImpl(this.getTransactionId(), status, results, extra, se);
+            ret = new ClientResponseImpl(this.txn_id, this.status, this.results, this.status_msg, this.error);
             ret.setClientHandle(this.client_handle);
         } catch (AssertionError ex) {
             LOG.fatal("Failed to create ClientResponse for txn #" + this.txn_id + " [proc=" + this.procedure_name + "]", ex);
@@ -718,7 +729,7 @@ public abstract class VoltProcedure implements Poolable {
     }
 
     protected int getLocalPartition() {
-        return (this.local_partition);
+        return (this.base_partition);
     }
 
     protected Catalog getCatalog() {
@@ -960,34 +971,30 @@ public abstract class VoltProcedure implements Poolable {
         
         assert (batchQueryStmtIndex == batchQueryArgsIndex);
 
-        // if profiling is turned on, record the sql statements being run
-        if (ProcedureProfiler.profilingLevel == ProcedureProfiler.Level.INTRUSIVE) {
-            // Workload Trace - Start Query
-            if (ProcedureProfiler.workloadTrace != null && m_workloadXactHandle != null) {
-                m_workloadBatchId = ProcedureProfiler.workloadTrace.getNextBatchId(m_workloadXactHandle);
-                for (int i = 0; i < batchQueryStmtIndex; i++) {
-                    Object queryHandle = ProcedureProfiler.workloadTrace.startQuery(
-                            m_workloadXactHandle, batchQueryStmts[i].catStmt, batchQueryArgs[i], m_workloadBatchId);
-                    m_workloadQueryHandles.add(queryHandle);
-                }
+        // Workload Trace - Start Query
+        if (this.enable_tracing && m_workloadXactHandle != null) {
+            m_workloadBatchId = ProcedureProfiler.workloadTrace.getNextBatchId(m_workloadXactHandle);
+            for (int i = 0; i < batchQueryStmtIndex; i++) {
+                Object queryHandle = ProcedureProfiler.workloadTrace.startQuery(m_workloadXactHandle,
+                                                                                batchQueryStmts[i].catStmt,
+                                                                                batchQueryArgs[i],
+                                                                                m_workloadBatchId);
+                assert(queryHandle != null);
+                m_workloadQueryHandles.add(queryHandle);
             }
         }
 
-//      if (ProcedureProfiler.profilingLevel == ProcedureProfiler.Level.INTRUSIVE) {
-//      retval = executeQueriesInIndividualBatches(batchQueryStmtIndex, batchQueryStmts, batchQueryArgs, isFinalSQL);
-
-        VoltTable[] retval = executeQueriesInABatch(batchQueryStmtIndex, batchQueryStmts, batchQueryArgs, isFinalSQL);
+        // Execute the queries and return the VoltTable results
+        VoltTable[] retval = this.executeQueriesInABatch(batchQueryStmtIndex, batchQueryStmts, batchQueryArgs, isFinalSQL);
 
         // Workload Trace - Stop Query
-        if (ProcedureProfiler.profilingLevel == ProcedureProfiler.Level.INTRUSIVE) {
-            if (ProcedureProfiler.workloadTrace != null) {
-                for (Object handle : m_workloadQueryHandles) {
-                    if (handle != null) ProcedureProfiler.workloadTrace.stopQuery(handle);
-                }
-                // Make sure that we clear out our query handles so that the next
-                // time they queue a query they will get a new batch id
-                m_workloadQueryHandles.clear();
+        if (this.enable_tracing && m_workloadXactHandle != null) {
+            for (Object handle : m_workloadQueryHandles) {
+                if (handle != null) ProcedureProfiler.workloadTrace.stopQuery(handle);
             }
+            // Make sure that we clear out our query handles so that the next
+            // time they queue a query they will get a new batch id
+            m_workloadQueryHandles.clear();
         }
 
         batchQueryStmtIndex = 0;
@@ -1022,24 +1029,23 @@ public abstract class VoltProcedure implements Poolable {
         return retval;
     }
 
-    private VoltTable[] executeQueriesInABatch(int stmtCount, SQLStmt[] batchStmts, Object[][] batchArgs, boolean finalTask) {
+    /**
+     * 
+     * @param batchSize
+     * @param batchStmts
+     * @param batchArgs
+     * @param finalTask
+     * @return
+     */
+    private VoltTable[] executeQueriesInABatch(final int batchSize, SQLStmt[] batchStmts, Object[][] batchArgs, boolean finalTask) {
         assert(batchStmts != null);
         assert(batchArgs != null);
         assert(batchStmts.length > 0);
         assert(batchArgs.length > 0);
-
-        if (stmtCount == 0) {
-            return new VoltTable[] {};
-        }
+        if (batchSize == 0) return (EMPTY_RESULT);
         
         if (hstore_conf.enable_profiling) ProfileMeasurement.swap(this.m_localTxnState.java_time, this.m_localTxnState.plan_time);
 
-//        if (ProcedureProfiler.profilingLevel == ProcedureProfiler.Level.INTRUSIVE) {
-//            assert(batchStmts.length == 1);
-//            assert(batchStmts[0].numFragGUIDs == 1);
-//            ProcedureProfiler.startStatementCounter(batchStmts[0].fragGUIDs[0]);
-//        }
-//        else ProcedureProfiler.startStatementCounter(-1);
 
         /*if (lastBatchNeedsRollback) {
             lastBatchNeedsRollback = false;
@@ -1047,7 +1053,6 @@ public abstract class VoltProcedure implements Poolable {
         }*/
 
         // Create a list of clean parameters
-        final int batchSize = stmtCount;
         final ParameterSet params[] = new ParameterSet[batchSize];
         for (int i = 0; i < batchSize; i++) {
             params[i] = getCleanParams(batchStmts[i], batchArgs[i]);
@@ -1055,25 +1060,25 @@ public abstract class VoltProcedure implements Poolable {
         
         // Calculate the hash code for this batch to see whether we already have a planner
         final Integer batchHashCode = VoltProcedure.getBatchHashCode(batchStmts, batchSize);
-        BatchPlanner planner = ExecutionSite.batch_planners.get(batchHashCode);
-        if (planner == null) { // Assume fast case
+        this.planner = ExecutionSite.batch_planners.get(batchHashCode);
+        if (this.planner == null) { // Assume fast case
             synchronized (ExecutionSite.batch_planners) {
-                planner = ExecutionSite.batch_planners.get(batchHashCode);
-                if (planner == null) {
-                    planner = new BatchPlanner(batchStmts, batchSize, this.catProc, this.p_estimator);
+                this.planner = ExecutionSite.batch_planners.get(batchHashCode);
+                if (this.planner == null) {
+                    this.planner = new BatchPlanner(batchStmts, batchSize, this.catProc, this.p_estimator);
                     ExecutionSite.batch_planners.put(batchHashCode, planner);
                 }
-            } // SYNCHRONIZED
+            } // SYNCH
         }
-        assert(planner != null);
+        assert(this.planner != null);
 
         // At this point we have to calculate exactly what we need to do on each partition
         // for this batch. So somehow right now we need to fire this off to either our
         // local executor or to Evan's magical distributed transaction manager
-        BatchPlanner.BatchPlan plan = null;
+        this.plan = null;
         try {
-            plan = planner.plan(this.txn_id, this.client_handle, this.local_partition, params, this.predict_singlepartition);
-        } catch (RuntimeException ex) {
+            this.plan = this.planner.plan(this.txn_id, this.client_handle, this.base_partition, params, this.predict_singlepartition);
+        } catch (MispredictionException ex) {
             if (debug.get()) {
                 String msg = "Caught " + ex.getClass().getSimpleName() + "!\n" + StringUtil.SINGLE_LINE;
                 
@@ -1109,18 +1114,15 @@ public abstract class VoltProcedure implements Poolable {
             }
             throw ex;
         }
+        assert(this.plan != null);
         
         // Tell the TransactionEstimator that we're about to execute these mofos
         if (hstore_conf.enable_profiling) ProfileMeasurement.swap(this.m_localTxnState.plan_time, this.m_localTxnState.est_time);
-        TransactionEstimator t_estimator = this.executor.getTransactionEstimator();
         TransactionEstimator.State t_state = this.m_localTxnState.getEstimatorState();
         if (t_state != null) {
-            t_estimator.executeQueries(t_state, planner.getStatements(), plan.getStatementPartitions());
+            this.t_estimator.executeQueries(t_state, this.planner.getStatements(), this.plan.getStatementPartitions());
         }
-        if (hstore_conf.enable_profiling) {
-            //ProfileMeasurement.swap(this.m_localTxnState.est_time, this.m_localTxnState.coord_time);
-            this.m_localTxnState.est_time.stop();
-        }
+        if (hstore_conf.enable_profiling) this.m_localTxnState.est_time.stop();
         
         if (debug.get()) LOG.debug("BatchPlan for txn #" + this.txn_id + ":\n" + plan.toString());
         
@@ -1129,38 +1131,23 @@ public abstract class VoltProcedure implements Poolable {
         // to access the EE directly here in executeLocalBatch(). This is because we want
         // to maintain state information in TransactionState. We can probably add in the code
         // to update this txn's state object later on. For now this is just easier.
-        VoltTable result[] = this.executeBatch(plan); 
-        if (hstore_conf.enable_profiling) {
-//            ProfileMeasurement.swap(this.m_localTxnState.coord_time, this.m_localTxnState.java_time);
-            this.m_localTxnState.java_time.start();
-        }
-        return (result);
-    }
-
-    /**
-     * 
-     * @param plan
-     * @return
-     */
-    protected VoltTable[] executeBatch(BatchPlanner.BatchPlan plan) {
         // It is at this point that we just need to make a call into Evan's stuff (through the ExecutionSite)
         // I'm not sure how this is suppose to exactly work, but what the hell let's give it a shot!
-        List<FragmentTaskMessage> tasks = plan.getFragmentTaskMessages();
+        List<FragmentTaskMessage> tasks = this.plan.getFragmentTaskMessages();
         if (trace.get()) LOG.trace("Got back a set of tasks for " + tasks.size() + " partitions for txn #" + this.txn_id);
 
         // Block until we get all of our responses.
         // We can do this because our ExecutionSite is multi-threaded
-        final VoltTable results[] = this.executor.waitForResponses(this.txn_id, tasks, plan.getBatchSize());
+        final VoltTable results[] = this.executor.waitForResponses(this.m_localTxnState, tasks, plan.getBatchSize());
         assert(results != null) : "Got back a null results array for txn #" + this.txn_id + "\n" + plan.toString();
-
-        // important not to forget
-        ProcedureProfiler.stopStatementCounter();
 
         // Tell our TransactionState that we are done with this BatchPlan
         // It will dispose of it when the transaction commits/aborts
-        this.m_currentTxnState.addFinishedBatchPlan(plan);
+        this.m_currentTxnState.addFinishedBatchPlan(this.plan);
         
-        return results;
+        if (hstore_conf.enable_profiling) this.m_localTxnState.java_time.start();
+        
+        return (results);
     }
     
     // ----------------------------------------------------------------------------

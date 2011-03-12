@@ -156,6 +156,7 @@ public class TestPartitionEstimatorMultiSite extends BaseTestCase {
         Statement catalog_stmt = this.getStatement(clone_db, catalog_proc, "GetData");
         Long params[] = new Long[] {
             new Long(1111), // S_ID
+            new Long(1111), // S_ID
             new Long(2222), // SF_TYPE
             new Long(3333), // START_TIME
             new Long(4444), // END_TIME

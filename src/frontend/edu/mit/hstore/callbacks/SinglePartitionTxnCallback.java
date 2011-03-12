@@ -2,6 +2,7 @@ package edu.mit.hstore.callbacks;
 
 import org.apache.log4j.Logger;
 
+import com.google.protobuf.ByteString;
 import com.google.protobuf.RpcCallback;
 
 import edu.brown.markov.TransactionEstimator;
@@ -17,11 +18,13 @@ public class SinglePartitionTxnCallback extends AbstractTxnCallback implements R
     
     private final TransactionEstimator t_estimator;
     private final int dest_partition;
+    private final ByteString payload;
     
     public SinglePartitionTxnCallback(HStoreSite hstore_site, long txn_id, int dest_partition, TransactionEstimator t_estimator, RpcCallback<byte[]> done) {
         super(hstore_site, txn_id, done);
         this.dest_partition = dest_partition;
         this.t_estimator = t_estimator;
+        this.payload = HStoreSite.encodeTxnId(this.txn_id);
         assert(this.t_estimator != null) : "Null TransactionEstimator for txn #" + this.txn_id;
     }
 
@@ -64,7 +67,7 @@ public class SinglePartitionTxnCallback extends AbstractTxnCallback implements R
         Dtxn.FinishRequest request = Dtxn.FinishRequest.newBuilder()
                                             .setTransactionId(this.txn_id)
                                             .setCommit(commit)
-                                            .setPayload(HStoreSite.encodeTxnId(this.txn_id))
+                                            .setPayload(this.payload)
                                             .build();
         
         // We *always* need to send out the FinishRequest to the Dtxn.Coordinator (yes, even if it's a mispredict)

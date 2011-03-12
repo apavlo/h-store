@@ -14,6 +14,8 @@ public class ProfileMeasurement {
         TOTAL,
         /** Initialization time **/
         INITIALIZATION,
+        /** Blocked time **/
+        BLOCKED,
         /** Clean-up time **/
         CLEANUP,
         /** The time spent waiting in the execution queue **/

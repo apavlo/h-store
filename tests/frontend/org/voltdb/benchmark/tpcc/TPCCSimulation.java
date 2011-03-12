@@ -237,8 +237,8 @@ public class TPCCSimulation
 
     /** Executes a new order transaction. */
     public void doNewOrder() throws IOException {
-        boolean noop = false;
-        boolean allow_rollback = true;
+        boolean noop = true;
+        boolean allow_rollback = false;
         boolean allow_remote_w_id = false;
         
         short warehouse_id = generateWarehouseId();

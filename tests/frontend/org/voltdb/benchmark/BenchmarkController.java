@@ -580,7 +580,7 @@ public class BenchmarkController {
 
         //Start the clients
         // java -cp voltdbfat.jar org.voltdb.benchmark.tpcc.TPCCClient warehouses=X etc...
-        ArrayList<String> clArgs = new ArrayList<String>();
+        final ArrayList<String> clArgs = new ArrayList<String>();
         clArgs.add("java");
         if (m_config.listenForDebugger) {
             clArgs.add(""); //placeholder for agent lib
@@ -618,30 +618,38 @@ public class BenchmarkController {
             clArgs.add("HOST=" + host + ":" + port);
         } // FOR
 
-        int clientIndex = 0;
-        for (String client : m_config.clients) {
-            for (int j = 0; j < m_config.processesPerClient; j++) {
-                String host_id = String.format("client-%02d", clientIndex);
-                
-                if (m_config.listenForDebugger) {
-                    clArgs.remove(1);
-                    String arg = "-agentlib:jdwp=transport=dt_socket,address="
-                        + (8003 + j) + ",server=y,suspend=n ";
-                    clArgs.add(1, arg);
+        final AtomicInteger clientIndex = new AtomicInteger(0);
+        List<Runnable> runnables = new ArrayList<Runnable>();
+        for (final String client : m_config.clients) {
+            final List<String> client_args = new ArrayList<String>(clArgs);
+            runnables.add(new Runnable() {
+                @Override
+                public void run() {
+                    for (int j = 0; j < m_config.processesPerClient; j++) {
+                        int id = clientIndex.getAndIncrement();
+                        String host_id = String.format("%s-%02d", client, id);
+                        
+                        if (m_config.listenForDebugger) {
+                            clArgs.remove(1);
+                            String arg = "-agentlib:jdwp=transport=dt_socket,address="
+                                + (8003 + j) + ",server=y,suspend=n ";
+                            clArgs.add(1, arg);
+                        }
+                        client_args.add("ID=" + id);
+                        client_args.add("NUMCLIENTS=" + numClients);
+                        String[] args = client_args.toArray(new String[0]);
+        
+                        args = SSHTools.convert(m_config.remoteUser, client, m_config.remotePath, m_config.sshOptions, args);
+                        String fullCommand = StringUtil.join(" ", args);
+        
+                        uploader.setCommandLineForClient(host_id, fullCommand);
+                        if (debug.get()) LOG.debug("Client Commnand: " + fullCommand);
+                        m_clientPSM.startProcess(host_id, args);
+                    }
                 }
-                ArrayList<String> tempCLArgs = new ArrayList<String>(clArgs);
-                tempCLArgs.add("ID=" + clientIndex++);
-                tempCLArgs.add("NUMCLIENTS=" + numClients);
-                String[] args = tempCLArgs.toArray(new String[0]);
-
-                args = SSHTools.convert(m_config.remoteUser, client, m_config.remotePath, m_config.sshOptions, args);
-                String fullCommand = StringUtil.join(" ", args);
-
-                uploader.setCommandLineForClient(host_id, fullCommand);
-                if (debug.get()) LOG.debug("Client Commnand: " + fullCommand);
-                m_clientPSM.startProcess(host_id, args);
-            }
-        }
+            });
+        } // FOR
+        ThreadUtil.runGlobalPool(runnables);
 
         String[] clientNames = m_clientPSM.getProcessNames();
         for (String name : clientNames) {
@@ -653,7 +661,9 @@ public class BenchmarkController {
         // registerInterest(uploader);
     }
 
-
+    /**
+     * RUN BENCHMARK
+     */
     public void runBenchmark() {
         this.self = Thread.currentThread();
         LOG.info(String.format("Starting execution phase with %d clients [hosts=%d, perhost=%d, txnrate=%s, blocking=%s]",
@@ -760,6 +770,7 @@ public class BenchmarkController {
         m_serverPSM.killAll();
         
         if (m_config.noCoordinator == false) {
+            ThreadUtil.sleep(1000); // HACK
             if (debug.get()) LOG.debug("Killing Dtxn.Coordinator");
             m_coordPSM.killAll();
         }
