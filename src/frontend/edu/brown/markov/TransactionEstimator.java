@@ -1,25 +1,38 @@
 package edu.brown.markov;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.commons.collections15.map.ListOrderedMap;
-import org.apache.commons.pool.BasePoolableObjectFactory;
 import org.apache.commons.pool.ObjectPool;
 import org.apache.commons.pool.impl.StackObjectPool;
 import org.apache.log4j.Logger;
-
-import org.voltdb.catalog.*;
+import org.voltdb.catalog.Database;
+import org.voltdb.catalog.Procedure;
+import org.voltdb.catalog.Statement;
 
 import edu.brown.catalog.CatalogUtil;
-import edu.brown.correlations.*;
+import edu.brown.correlations.ParameterCorrelations;
 import edu.brown.graphs.GraphvizExport;
-import edu.brown.utils.*;
+import edu.brown.utils.ArgumentsParser;
+import edu.brown.utils.CountingPoolableObjectFactory;
+import edu.brown.utils.LoggerUtil;
+import edu.brown.utils.PartitionEstimator;
+import edu.brown.utils.Poolable;
+import edu.brown.utils.StringUtil;
 import edu.brown.utils.LoggerUtil.LoggerBoolean;
 import edu.brown.workload.QueryTrace;
 import edu.brown.workload.TransactionTrace;
+import edu.mit.hstore.HStoreConf;
 
 /**
  * 
@@ -88,22 +101,18 @@ public class TransactionEstimator {
         /**
          * State Factory
          */
-        public static class Factory extends BasePoolableObjectFactory {
+        public static class Factory extends CountingPoolableObjectFactory<State> {
             private int num_partitions;
             
             public Factory(int num_partitions) {
+                super(HStoreConf.singleton().enable_profiling);
                 this.num_partitions = num_partitions;
             }
             
             @Override
-            public Object makeObject() throws Exception {
-                State s = new State(this.num_partitions);
-                return s;
+            public State makeObjectImpl() throws Exception {
+                return (new State(this.num_partitions));
             }
-            public void passivateObject(Object obj) throws Exception {
-                State s = (State)obj;
-                s.finish();
-            };
         };
         
         /**
@@ -297,8 +306,8 @@ public class TransactionEstimator {
         // HACK: Initialize the STATE_POOL
         synchronized (LOG) {
             if (STATE_POOL == null) {
-                STATE_POOL = new StackObjectPool(new State.Factory(this.num_partitions));
-                ESTIMATOR_POOL = new StackObjectPool(new MarkovPathEstimator.Factory(this.num_partitions));
+                STATE_POOL = new StackObjectPool(new State.Factory(this.num_partitions), HStoreConf.singleton().pool_estimatorstates_idle);
+                ESTIMATOR_POOL = new StackObjectPool(new MarkovPathEstimator.Factory(this.num_partitions), HStoreConf.singleton().pool_pathestimators_idle);
             }
         } // SYNC
     }
@@ -318,6 +327,10 @@ public class TransactionEstimator {
 
     public static ObjectPool getStatePool() {
         return (STATE_POOL);
+    }
+    
+    public static ObjectPool getEstimatorPool() {
+        return (ESTIMATOR_POOL);
     }
     
     public void enableGraphRecomputes() {

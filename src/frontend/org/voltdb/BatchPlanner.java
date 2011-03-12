@@ -31,11 +31,13 @@ import edu.brown.graphs.AbstractDirectedGraph;
 import edu.brown.graphs.AbstractEdge;
 import edu.brown.graphs.AbstractVertex;
 import edu.brown.graphs.IGraph;
+import edu.brown.utils.CountingPoolableObjectFactory;
 import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.PartitionEstimator;
 import edu.brown.utils.Poolable;
 import edu.brown.utils.StringUtil;
 import edu.brown.utils.LoggerUtil.LoggerBoolean;
+import edu.mit.hstore.HStoreConf;
 import edu.mit.hstore.HStoreSite;
 
 /**
@@ -59,25 +61,21 @@ public class BatchPlanner {
     
     public static final int MAX_BATCH_SIZE = 64;
 
-    public static final int PLAN_POOL_INITIAL_SIZE = 100;
+    public static final int PLAN_POOL_INITIAL_SIZE = 200;
     
     /**
      * BatchPlan Object Factory
      */
-    private static class BatchPlanFactory extends BasePoolableObjectFactory {
+    private static class BatchPlanFactory extends CountingPoolableObjectFactory<BatchPlan> {
         private final BatchPlanner planner;
         
         public BatchPlanFactory(BatchPlanner planner) {
+            super(HStoreConf.singleton().pool_enable_tracking);
             this.planner = planner;
         }
         @Override
-        public Object makeObject() throws Exception {
+        public BatchPlan makeObjectImpl() throws Exception {
             return (this.planner.new BatchPlan());
-        }
-        @Override
-        public void passivateObject(Object obj) throws Exception {
-            BatchPlan plan = (BatchPlan)obj; 
-            plan.finish();
         }
     }
     
@@ -88,10 +86,6 @@ public class BatchPlanner {
     // Used for turning ParameterSets into ByteBuffers
 //    protected final FastSerializer fs = new FastSerializer();
     
-    // the set of dependency ids for the expected results of the batch
-    // one per sql statment
-    protected final ArrayList<Integer> depsToResume = new ArrayList<Integer>();
-
     protected final Catalog catalog;
     protected final Procedure catalog_proc;
     protected final Statement catalog_stmts[];
@@ -426,8 +420,8 @@ public class BatchPlanner {
         this.p_estimator = p_estimator;
         this.num_partitions = CatalogUtil.getNumberOfPartitions(catalog_proc);
         
-        this.plan_pool = new StackObjectPool(new BatchPlanFactory(this), PLAN_POOL_INITIAL_SIZE, PLAN_POOL_INITIAL_SIZE);
-        this.preload(PLAN_POOL_INITIAL_SIZE);
+        this.plan_pool = new StackObjectPool(new BatchPlanFactory(this), HStoreConf.singleton().pool_batchplan_idle);
+        // this.preload(PLAN_POOL_INITIAL_SIZE);
 
         this.sorted_singlep_fragments = (List<PlanFragment>[])new List<?>[this.batchSize];
         this.sorted_multip_fragments = (List<PlanFragment>[])new List<?>[this.batchSize];

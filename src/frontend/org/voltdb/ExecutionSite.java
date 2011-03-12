@@ -53,6 +53,7 @@ import com.google.protobuf.RpcCallback;
 
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.markov.TransactionEstimator;
+import edu.brown.utils.CountingPoolableObjectFactory;
 import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.PartitionEstimator;
 import edu.brown.utils.LoggerUtil.LoggerBoolean;
@@ -104,23 +105,24 @@ public class ExecutionSite implements Runnable {
     /**
      * LocalTransactionState Object Pool
      */
-    public final ObjectPool localTxnPool = new StackObjectPool(new LocalTransactionState.Factory(this));
+    public final ObjectPool localTxnPool;
 
     /**
      * RemoteTransactionState Object Pool
      */
-    public final ObjectPool remoteTxnPool = new StackObjectPool(new RemoteTransactionState.Factory(this));
+    public final ObjectPool remoteTxnPool;
     
     /**
      * Create a new instance of the corresponding VoltProcedure for the given Procedure catalog object
      */
-    public class VoltProcedureFactory extends BasePoolableObjectFactory {
+    public class VoltProcedureFactory extends CountingPoolableObjectFactory<VoltProcedure> {
         private final Procedure catalog_proc;
         private final boolean has_java;
         private final Class<? extends VoltProcedure> proc_class;
         
         @SuppressWarnings("unchecked")
         public VoltProcedureFactory(Procedure catalog_proc) {
+            super(hstore_conf.pool_enable_tracking);
             this.catalog_proc = catalog_proc;
             this.has_java = this.catalog_proc.getHasjava();
             
@@ -139,7 +141,7 @@ public class ExecutionSite implements Runnable {
 
         }
         @Override
-        public Object makeObject() throws Exception {
+        public VoltProcedure makeObjectImpl() throws Exception {
             VoltProcedure volt_proc = null;
             try {
                 if (this.has_java) {
@@ -160,18 +162,12 @@ public class ExecutionSite implements Runnable {
             }
             return (volt_proc);
         }
-        
-        @Override
-        public void passivateObject(Object obj) throws Exception {
-            VoltProcedure volt_proc = (VoltProcedure)obj;
-            volt_proc.finish();
-        }
     };
 
     /**
      * Procedure Name -> VoltProcedure Object Pool
      */
-    private final Map<String, ObjectPool> procPool = new HashMap<String, ObjectPool>();
+    public final Map<String, ObjectPool> procPool = new HashMap<String, ObjectPool>();
     
     /**
      * VoltProcedure.Executor Thread Pool 
@@ -182,7 +178,7 @@ public class ExecutionSite implements Runnable {
      * Mapping from SQLStmt batch hash codes (computed by VoltProcedure.getBatchHashCode()) to BatchPlanners
      * The idea is that we can quickly derived the partitions for each unique set of SQLStmt list
      */
-    protected static final Map<Integer, BatchPlanner> batch_planners = new ConcurrentHashMap<Integer, BatchPlanner>();
+    public static final Map<Integer, BatchPlanner> batch_planners = new ConcurrentHashMap<Integer, BatchPlanner>();
     
     // ----------------------------------------------------------------------------
     // DATA MEMBERS
@@ -386,6 +382,10 @@ public class ExecutionSite implements Runnable {
         this.thread_pool = null;
         this.siteId = 0;
         this.partitionId = 0;
+        
+        this.localTxnPool = new StackObjectPool(new LocalTransactionState.Factory(this, false));
+        this.remoteTxnPool = new StackObjectPool(new RemoteTransactionState.Factory(this, false));
+        DependencyInfo.initializePool(HStoreConf.singleton());
     }
 
     /**
@@ -407,6 +407,10 @@ public class ExecutionSite implements Runnable {
         this.siteId = this.site.getId();
         
         this.hstore_conf = HStoreConf.singleton();
+        this.localTxnPool = new StackObjectPool(new LocalTransactionState.Factory(this, hstore_conf.pool_enable_tracking), hstore_conf.pool_localtxnstate_idle);
+        this.remoteTxnPool = new StackObjectPool(new RemoteTransactionState.Factory(this, hstore_conf.pool_enable_tracking), hstore_conf.pool_remotetxnstate_idle);
+        DependencyInfo.initializePool(hstore_conf);
+        
         this.backend_target = target;
         this.cluster = CatalogUtil.getCluster(catalog);
         this.database = CatalogUtil.getDatabase(cluster);
@@ -499,7 +503,7 @@ public class ExecutionSite implements Runnable {
         final CatalogMap<Procedure> catalogProcedures = database.getProcedures();
         for (final Procedure catalog_proc : catalogProcedures) {
             String proc_name = catalog_proc.getName();
-            this.procPool.put(proc_name, new StackObjectPool(new VoltProcedureFactory(catalog_proc)));
+            this.procPool.put(proc_name, new StackObjectPool(new VoltProcedureFactory(catalog_proc), hstore_conf.pool_voltprocedure_idle));
             
             // Important: If this is a sysproc, then we need to get borrow/return 
             // one of them so that init() is at least called.
@@ -545,21 +549,20 @@ public class ExecutionSite implements Runnable {
         } // FOR
         
         // And some DependencyInfos
-        try {
-            List<DependencyInfo> infos = new ArrayList<DependencyInfo>();
-            int count = (int)Math.round(PRELOAD_DEPENDENCY_INFOS / scaleFactor);
-            for (int i = 0; i < count; i++) {
-                DependencyInfo di = (DependencyInfo)DependencyInfo.INFO_POOL.borrowObject();
-                di.init(null, 1, 1);
-                infos.add(di);
-            } // FOR
-            for (DependencyInfo di : infos) {
-                di.finished();
-//                DependencyInfo.POOL.returnObject(di);
-            } // FOR
-        } catch (Exception ex) {
-            throw new RuntimeException(ex);
-        } 
+//        try {
+//            List<DependencyInfo> infos = new ArrayList<DependencyInfo>();
+//            int count = (int)Math.round(PRELOAD_DEPENDENCY_INFOS / scaleFactor);
+//            for (int i = 0; i < count; i++) {
+//                DependencyInfo di = (DependencyInfo)DependencyInfo.INFO_POOL.borrowObject();
+//                di.init(null, 1, 1);
+//                infos.add(di);
+//            } // FOR
+//            for (DependencyInfo di : infos) {
+//                DependencyInfo.INFO_POOL.returnObject(di);
+//            } // FOR
+//        } catch (Exception ex) {
+//            throw new RuntimeException(ex);
+//        } 
     }
 
     /**

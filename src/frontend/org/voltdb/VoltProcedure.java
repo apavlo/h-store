@@ -43,6 +43,7 @@ import edu.brown.markov.TransactionEstimator.State;
 import edu.brown.utils.EventObservable;
 import edu.brown.utils.EventObserver;
 import edu.brown.utils.LoggerUtil;
+import edu.brown.utils.ParameterMangler;
 import edu.brown.utils.PartitionEstimator;
 import edu.brown.utils.Poolable;
 import edu.brown.utils.ProfileMeasurement;
@@ -233,7 +234,7 @@ public abstract class VoltProcedure implements Poolable {
                 if (VoltProcedure.this.executor.isShuttingDown() == false) {
                     LOG.fatal("Unexpected error while executing txn #" + current_txn_id + " [" + VoltProcedure.this.procedure_name + "]", ex);
                     LOG.fatal("LocalTransactionState Dump:\n" + m_localTxnState);
-                    VoltProcedure.this.executor.crash(ex.getCause());
+                    VoltProcedure.this.executor.crash(ex);
                 }
             } catch (Exception ex) {
                 LOG.fatal("Unexpected error while executing txn #" + current_txn_id + " [" + VoltProcedure.this.procedure_name + "]", ex);
@@ -1100,15 +1101,28 @@ public abstract class VoltProcedure implements Poolable {
                 LOG.fatal("\n" + msg);
             }
             if (hstore_conf.mispredict_crash) {
-                State s = this.m_localTxnState.getEstimatorState();
-                MarkovGraph markov = s.getMarkovGraph();
+                System.err.println("TXN PARAMS:");
+                ParameterMangler pm = new ParameterMangler(catProc);
                 
-                System.err.println("PARAMS: " + Arrays.toString(params));
-                try {
-                    System.err.println("PARTITION: " + this.executor.partitionId);
-                    System.err.println("GRAPH: " + MarkovUtil.exportGraphviz(markov, true, markov.getPath(s.getEstimatedPath())).writeToTempFile(procedure_name));
-                } catch (Exception ex2) {
-                    LOG.fatal("???????????????????????", ex2);
+                Object mangled[] = pm.convert(this.procParams); 
+                for (int i = 0; i < mangled.length; i++) {
+                    System.err.print(String.format("  [%02d] ", i));
+                    if (this.paramTypeIsArray[i]) {
+                        System.err.println(Arrays.toString((Object[])mangled[i]));
+                    } else {
+                        System.err.println(mangled[i]);
+                    }
+                }
+                
+                State s = this.m_localTxnState.getEstimatorState();
+                if (s != null) {
+                    MarkovGraph markov = s.getMarkovGraph();                
+                    try {
+                        System.err.println("PARTITION: " + this.executor.partitionId);
+                        System.err.println("GRAPH: " + MarkovUtil.exportGraphviz(markov, true, markov.getPath(s.getEstimatedPath())).writeToTempFile(procedure_name));
+                    } catch (Exception ex2) {
+                        LOG.fatal("???????????????????????", ex2);
+                    }
                 }
                 this.executor.crash(ex);
             }

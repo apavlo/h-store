@@ -86,7 +86,9 @@ public abstract class StringUtil {
             if (spacing) {
                 int width = header[col_idx].length();
                 for (int row_idx = 0; row_idx < rows.length; row_idx++) {
-                    width = Math.max(width, rows[row_idx][col_idx].toString().length());    
+                    if (rows[row_idx][col_idx] != null) {
+                        width = Math.max(width, rows[row_idx][col_idx].toString().length());
+                    }
                 } // FOR
                 f = "%-" + width + "s";
             } else {
@@ -107,7 +109,8 @@ public abstract class StringUtil {
             Object row[] = rows[row_idx];
             sb.append("\n");
             for (int col_idx = 0; col_idx < col_formats.length; col_idx++) {
-                sb.append(String.format(col_formats[col_idx], row[col_idx].toString()));    
+                String cell = (row[col_idx] != null ? row[col_idx].toString() : "");
+                sb.append(String.format(col_formats[col_idx], cell));    
             } // FOR
         } // FOR
         

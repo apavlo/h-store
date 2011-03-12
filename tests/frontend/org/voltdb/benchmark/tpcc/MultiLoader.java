@@ -44,24 +44,15 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.Iterator;
+import java.util.concurrent.Semaphore;
 
 import org.apache.log4j.Logger;
-import org.voltdb.VoltDB;
 import org.voltdb.VoltTable;
 import org.voltdb.VoltType;
-import org.voltdb.types.TimestampType;
 import org.voltdb.benchmark.ClientMain;
-import org.voltdb.benchmark.tpcc.procedures.GetTableCounts;
-import org.voltdb.benchmark.tpcc.procedures.neworder;
-import org.voltdb.client.ClientResponse;
-import org.voltdb.client.ProcCallException;
-import org.voltdb.client.SyncCallback;
 import org.voltdb.client.NoConnectionsException;
-import org.voltdb.client.ProcedureCallback;
-import java.util.concurrent.Semaphore;
-import org.voltdb.utils.Pair;
-import org.voltdb.utils.VoltTypeUtil;
+import org.voltdb.client.ProcCallException;
+import org.voltdb.types.TimestampType;
 
 /**
  * TPC-C database loader. Note: The methods order id parameters from "top level"
@@ -80,6 +71,8 @@ public class MultiLoader extends ClientMain {
     private final LoadThread m_loadThreads[];
     private final int m_warehouses;
 
+    private static final int MAX_BATCH_SIZE = 10000;
+    
     private static final VoltTable.ColumnInfo customerTableColumnInfo[] = new VoltTable.ColumnInfo[] {
             new VoltTable.ColumnInfo("C_ID", VoltType.INTEGER), new VoltTable.ColumnInfo("C_D_ID", VoltType.TINYINT),
             new VoltTable.ColumnInfo("C_W_ID", VoltType.SMALLINT),
@@ -198,8 +191,7 @@ public class MultiLoader extends ClientMain {
                                                                   // tables
         private volatile boolean m_doMakeReplicated = false;
 
-        public LoadThread(RandomGenerator generator, TimestampType generationDateTime, ScaleParameters parameters,
-                int index) {
+        public LoadThread(RandomGenerator generator, TimestampType generationDateTime, ScaleParameters parameters, int index) {
             super("Load Thread " + index);
             m_generator = generator;
             this.m_generationDateTime = generationDateTime;
@@ -605,7 +597,6 @@ public class MultiLoader extends ClientMain {
             // items.ensureStringCapacity(parameters.items * 96);
             // Select 10% of the rows to be marked "original"
             HashSet<Integer> originalRows = selectUniqueIds(m_parameters.items / 10, 1, m_parameters.items);
-            int max_batch = 1000;
             for (int i = 1; i <= m_parameters.items; ++i) {
                 // if we're on a 10% boundary, print out some nice status info
                 // if (i % (m_parameters.items / 10) == 0)
@@ -616,7 +607,7 @@ public class MultiLoader extends ClientMain {
                 generateItem(items, i, original);
                 
                 // Items! Sail yo ho!
-                if (items.getRowCount() == max_batch) {
+                if (items.getRowCount() == MAX_BATCH_SIZE) {
                     try {
                         LOG.info(String.format("Loading replicated ITEM table [tuples=%d/%d]", i, m_parameters.items));
                         m_voltClient.callProcedure("@LoadMultipartitionTable", "ITEM", items);
@@ -687,7 +678,7 @@ public class MultiLoader extends ClientMain {
                     try {
                         for (int i2 = 0, cnt2 = table.getRowCount(); i2 < cnt2; i2++) {
                             batch.add(table.fetchRow(i2));
-                            if (batch.getRowCount() == max_batch) {
+                            if (batch.getRowCount() == MAX_BATCH_SIZE) {
                                 LOG.debug(String.format("Loading replicated CUSTOMER_NAME table [tuples=%d/%d]", i2, cnt2));
                                 m_voltClient.callProcedure("@LoadMultipartitionTable", "CUSTOMER_NAME", batch);
                                 batch.clearRowData();
@@ -761,8 +752,10 @@ public class MultiLoader extends ClientMain {
             }
             // PAVLO: We don't want to use LoadWarehouse because we want to let
             // the system figure out where to put all of the tuples
+            final boolean debug = LOG.isDebugEnabled();
             for (int i = 0; i < data_tables.length; ++i) {
                 if (data_tables[i] != null && data_tables[i].getRowCount() > 0) {
+                    if (debug) LOG.debug(String.format("WAREHOUSE[%02d]: %s %d tuples", w_id, table_names[i], data_tables[i].getRowCount()));
                     try {
                         m_voltClient.callProcedure("@LoadMultipartitionTable", table_names[i], data_tables[i]);
                     } catch (Exception e) {

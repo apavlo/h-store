@@ -198,7 +198,7 @@ public class PartitionEstimator {
             Set<Integer> set = (Set<Integer>)obj;
             set.clear();
         };
-    });
+    }, 100);
     
     /**
      * Set<Integer>[2] pool used by calculatePartitionsForCache 
@@ -216,7 +216,7 @@ public class PartitionEstimator {
             } // FOR
             
         };
-    });
+    }, 100);
     
     // ----------------------------------------------------------------------------
     // CONSTRUCTORS
