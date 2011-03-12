@@ -4,22 +4,27 @@ import java.util.*;
 import java.util.Map.Entry;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import org.apache.commons.pool.BasePoolableObjectFactory;
 import org.apache.log4j.Logger;
-import org.voltdb.catalog.*;
+import org.voltdb.catalog.ProcParameter;
+import org.voltdb.catalog.Procedure;
+import org.voltdb.catalog.Statement;
+import org.voltdb.catalog.StmtParameter;
 import org.voltdb.types.QueryType;
 import org.voltdb.utils.Pair;
 
 import edu.brown.catalog.CatalogUtil;
-import edu.brown.correlations.*;
+import edu.brown.correlations.Correlation;
+import edu.brown.correlations.ParameterCorrelations;
 import edu.brown.graphs.VertexTreeWalker;
 import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.CollectionUtil;
+import edu.brown.utils.CountingPoolableObjectFactory;
 import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.PartitionEstimator;
 import edu.brown.utils.StringUtil;
 import edu.brown.utils.LoggerUtil.LoggerBoolean;
 import edu.brown.workload.TransactionTrace;
+import edu.mit.hstore.HStoreConf;
 
 /**
  * Path Estimator for TransactionEstimator
@@ -37,21 +42,17 @@ public class MarkovPathEstimator extends VertexTreeWalker<Vertex> {
      * 
      * @author pavlo
      */
-    public static class Factory extends BasePoolableObjectFactory {
+    public static class Factory extends CountingPoolableObjectFactory<MarkovPathEstimator> {
         private final int num_partitions;
         
         public Factory(int num_partitions) {
+            super(HStoreConf.singleton().enable_profiling);
             this.num_partitions = num_partitions;
         }
         @Override
-        public Object makeObject() throws Exception {
-            MarkovPathEstimator path_estimator = new MarkovPathEstimator(this.num_partitions);
-            return path_estimator;
+        public MarkovPathEstimator makeObjectImpl() throws Exception {
+            return (new MarkovPathEstimator(this.num_partitions));
         }
-        public void passivateObject(Object obj) throws Exception {
-            MarkovPathEstimator path_estimator = (MarkovPathEstimator)obj;
-            path_estimator.finish();
-        };
     };
 
     // ----------------------------------------------------------------------------

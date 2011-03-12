@@ -25,14 +25,15 @@
  ***************************************************************************/
 package edu.mit.hstore.dtxn;
 
-import org.apache.commons.pool.BasePoolableObjectFactory;
 import org.apache.log4j.Logger;
 import org.voltdb.ExecutionSite;
 import org.voltdb.VoltTable;
 import org.voltdb.BatchPlanner.BatchPlan;
 
+import edu.brown.utils.CountingPoolableObjectFactory;
 import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.LoggerUtil.LoggerBoolean;
+import edu.mit.hstore.HStoreConf;
 
 /**
  * 
@@ -49,20 +50,16 @@ public class RemoteTransactionState extends TransactionState {
     /**
      * RemoteTransactionState Factory
      */
-    public static class Factory extends BasePoolableObjectFactory {
+    public static class Factory extends CountingPoolableObjectFactory<RemoteTransactionState> {
         private final ExecutionSite executor;
         
-        public Factory(ExecutionSite executor) {
+        public Factory(ExecutionSite executor, boolean enable_tracking) {
+            super(enable_tracking);
             this.executor = executor;
         }
         @Override
-        public Object makeObject() throws Exception {
+        public RemoteTransactionState makeObjectImpl() throws Exception {
             return new RemoteTransactionState(this.executor);
-        }
-        @Override
-        public void passivateObject(Object obj) throws Exception {
-            RemoteTransactionState ts = (RemoteTransactionState)obj;
-            ts.finish();
         }
     };
     

@@ -1,8 +1,11 @@
 package edu.mit.hstore;
 
 import org.apache.log4j.Logger;
+import org.voltdb.BatchPlanner;
 
+import edu.brown.markov.TransactionEstimator;
 import edu.brown.utils.ArgumentsParser;
+import edu.brown.utils.CountingPoolableObjectFactory;
 
 public final class HStoreConf {
     private static final Logger LOG = Logger.getLogger(HStoreConf.class);
@@ -24,7 +27,8 @@ public final class HStoreConf {
     
     /**
      * Assume all txns are TPC-C neworder and look directly at the parameters to figure out
-     * whether it is single-partitioned or not 
+     * whether it is single-partitioned or not
+     * @see HStoreSite.procedureInvocation() 
      */
     public boolean force_neworder_hack = false;
     
@@ -52,6 +56,64 @@ public final class HStoreConf {
      * Whether the VoltProcedure should crash the HStoreSite on a mispredict
      */
     public boolean mispredict_crash = false;
+    
+    // ----------------------------------------------------------------------------
+    // OBJECT POOLS
+    // ----------------------------------------------------------------------------
+    
+    /**
+     * Whether to track the number of objects created, passivated, and destroyed from the pool
+     * @see CountingPoolableObjectFactory
+     */
+    public boolean pool_enable_tracking = false;
+    
+    /**
+     * The max number of VoltProcedure instances to keep in the pool (per ExecutionSite + per Procedure)
+     * @see ExecutionSite.VoltProcedureFactory 
+     */
+    public int pool_voltprocedure_idle = 500;
+    
+    /**
+     * The max number of BatchPlans to keep in the pool (per BatchPlanner)
+     * @see BatchPlanner.BatchPlanFactory
+     */
+    public int pool_batchplan_idle = 2000;
+    
+    /**
+     * The max number of LocalTransactionStates to keep in the pool (per ExecutionSite)
+     * @see LocalTransactionState.Factory
+     */
+    public int pool_localtxnstate_idle = 1000;
+    
+    /**
+     * The max number of RemoteTransactionStates to keep in the pool (per ExecutionSite)
+     * @see RemoteTransactionState.Factory
+     */
+    public int pool_remotetxnstate_idle = 500;
+    
+    /**
+     * The max number of MarkovPathEstimators to keep in the pool (global)
+     * @see MarkovPathEstimator.Factory
+     */
+    public int pool_pathestimators_idle = 1000;
+    
+    /**
+     * The max number of TransactionEstimator.States to keep in the pool (global)
+     * Should be the same as the number of MarkovPathEstimators
+     * @see TransactionEstimator.State.Factory
+     */
+    public int pool_estimatorstates_idle = 1000;
+    
+    /**
+     * The max number of DependencyInfos to keep in the pool (global)
+     * Should be the same as the number of MarkovPathEstimators
+     * @see DependencyInfo.State.Factory
+     */
+    public int pool_dependencyinfos_idle = 50000;
+    
+    // ----------------------------------------------------------------------------
+    // METHODS
+    // ----------------------------------------------------------------------------
     
     /**
      * Constructor

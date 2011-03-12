@@ -12,8 +12,11 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.collections15.map.ListOrderedMap;
+import org.apache.commons.pool.ObjectPool;
+import org.apache.commons.pool.impl.StackObjectPool;
 import org.apache.log4j.Logger;
 import org.voltdb.BackendTarget;
+import org.voltdb.BatchPlanner;
 import org.voltdb.ClientResponseImpl;
 import org.voltdb.ExecutionSite;
 import org.voltdb.ExecutionSiteHelper;
@@ -51,15 +54,7 @@ import edu.brown.markov.MarkovGraphsContainer;
 import edu.brown.markov.MarkovUtil;
 import edu.brown.markov.TransactionEstimator;
 import edu.brown.statistics.Histogram;
-import edu.brown.utils.ArgumentsParser;
-import edu.brown.utils.CollectionUtil;
-import edu.brown.utils.EventObservable;
-import edu.brown.utils.LoggerUtil;
-import edu.brown.utils.ParameterMangler;
-import edu.brown.utils.PartitionEstimator;
-import edu.brown.utils.ProfileMeasurement;
-import edu.brown.utils.StringUtil;
-import edu.brown.utils.ThreadUtil;
+import edu.brown.utils.*;
 import edu.brown.utils.LoggerUtil.LoggerBoolean;
 import edu.brown.workload.AbstractTraceElement;
 import edu.brown.workload.Workload;
@@ -70,6 +65,7 @@ import edu.mit.hstore.callbacks.ForwardTxnRequestCallback;
 import edu.mit.hstore.callbacks.MultiPartitionTxnCallback;
 import edu.mit.hstore.callbacks.InitiateCallback;
 import edu.mit.hstore.callbacks.SinglePartitionTxnCallback;
+import edu.mit.hstore.dtxn.DependencyInfo;
 import edu.mit.hstore.dtxn.LocalTransactionState;
 
 /**
@@ -234,6 +230,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         private final int interval; // seconds
         private final boolean kill_when_hanging;
         private final TreeMap<Integer, TreeSet<Long>> partition_txns = new TreeMap<Integer, TreeSet<Long>>();
+        private final List<ExecutionSite> executors = new ArrayList<ExecutionSite>(HStoreSite.this.executors.values());
         
         private Integer last_completed = null;
         
@@ -242,6 +239,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
 
         final Map<String, Object> m0 = new ListOrderedMap<String, Object>();
         final Map<String, Object> m1 = new ListOrderedMap<String, Object>();
+        final Map<String, Object> m2 = new ListOrderedMap<String, Object>();
         final Map<String, Object> header = new ListOrderedMap<String, Object>();
         final TreeSet<Thread> sortedThreads = new TreeSet<Thread>(new Comparator<Thread>() {
             @Override
@@ -276,7 +274,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
                 if (HStoreSite.this.shutdown) break;
 
                 // Out we go!
-                LOG.info("\n" + StringUtil.box(this.snapshot(true, false)));
+                LOG.info("\n" + StringUtil.box(this.snapshot(true, false, true)));
                 
                 // If we're not making progress, bring the whole thing down!
                 int completed = TxnCounter.COMPLETED.get();
@@ -290,7 +288,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
             } // WHILE
         }
         
-        public synchronized String snapshot(boolean show_txns, boolean show_threads) {
+        public synchronized String snapshot(boolean show_txns, boolean show_threads, boolean show_poolinfo) {
             int inflight_cur = inflight_txns.size();
             if (inflight_min == null || inflight_cur < inflight_min) inflight_min = inflight_cur;
             if (inflight_max == null || inflight_cur > inflight_max) inflight_max = inflight_cur;
@@ -349,7 +347,89 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
                 } // FOR
             }
 
-            return (StringUtil.formatMaps(header, m0, m1));
+            // ----------------------------------------------------------------------------
+            // Object Pool Information
+            // ----------------------------------------------------------------------------
+            m2.clear();
+            if (show_poolinfo) {
+                final String f = "Active:%-5d / Idle:%-5d / Created:%-5d / Destroyed:%-5d";
+
+                // BatchPlanners
+                m2.put("BatchPlanners", ExecutionSite.batch_planners.size());
+
+                // MarkovPathEstimators
+                StackObjectPool pool = (StackObjectPool)TransactionEstimator.getEstimatorPool();
+                CountingPoolableObjectFactory<?> factory = (CountingPoolableObjectFactory<?>)pool.getFactory();
+                m2.put("Estimators", String.format(f, pool.getNumActive(), pool.getNumIdle(), factory.getCreatedCount(), factory.getDestroyedCount()));
+
+                // TransactionEstimator.States
+                pool = (StackObjectPool)TransactionEstimator.getStatePool();
+                factory = (CountingPoolableObjectFactory<?>)pool.getFactory();
+                m2.put("EstimationStates", String.format(f, pool.getNumActive(), pool.getNumIdle(), factory.getCreatedCount(), factory.getDestroyedCount()));
+                
+                // DependencyInfos
+                pool = (StackObjectPool)DependencyInfo.INFO_POOL;
+                factory = (CountingPoolableObjectFactory<?>)pool.getFactory();
+                m2.put("DependencyInfos", String.format(f, pool.getNumActive(), pool.getNumIdle(), factory.getCreatedCount(), factory.getDestroyedCount()));
+                
+                // BatchPlans
+                int active = 0;
+                int idle = 0;
+                int created = 0;
+                int destroyed = 0;
+                for (BatchPlanner bp : ExecutionSite.batch_planners.values()) {
+                    pool = (StackObjectPool)bp.getBatchPlanPool();
+                    factory = (CountingPoolableObjectFactory<?>)pool.getFactory();
+                    
+                    active += pool.getNumActive();
+                    idle += pool.getNumIdle();
+                    created += factory.getCreatedCount();
+                    destroyed += factory.getDestroyedCount();
+                } // FOR
+                m2.put("BatchPlans", String.format(f, active, idle, created, destroyed));
+                
+                // Partition Specific
+                String labels[] = new String[] {
+                    "LocalTxnState",
+                    "RemoteTxnState",
+                    "Procedures"
+                };
+                int total_active[] = new int[labels.length];
+                int total_idle[] = new int[labels.length];
+                int total_created[] = new int[labels.length];
+                int total_destroyed[] = new int[labels.length];
+                for (int i = 0, cnt = labels.length; i < cnt; i++) {
+                    total_active[i] = total_idle[i] = total_created[i] = total_destroyed[i] = 0;
+                }
+                
+                for (ExecutionSite e : executors) {
+                    int i = 0;
+                    for (ObjectPool p : new ObjectPool[] { e.localTxnPool, e.remoteTxnPool }) {
+                        pool = (StackObjectPool)p;
+                        factory = (CountingPoolableObjectFactory<?>)pool.getFactory();
+                        
+                        total_active[i] += p.getNumActive();
+                        total_idle[i] += p.getNumIdle(); 
+                        total_created[i] += factory.getCreatedCount();
+                        total_destroyed[i] += factory.getDestroyedCount();
+                        i += 1;
+                    } // FOR
+
+                    for (ObjectPool p : e.procPool.values()) {
+                        pool = (StackObjectPool)p;
+                        factory = (CountingPoolableObjectFactory<?>)pool.getFactory();
+                        total_active[i] += p.getNumActive();
+                        total_idle[i] += p.getNumIdle();
+                        total_created[i] += factory.getCreatedCount();
+                        total_destroyed[i] += factory.getDestroyedCount();
+                    } // FOR
+                } // FOR
+                
+                for (int i = 0, cnt = labels.length; i < cnt; i++) {
+                    m2.put(labels[i], String.format(f, total_active[i], total_idle[i], total_created[i], total_destroyed[i]));
+                } // FOR
+            }
+            return (StringUtil.formatMaps(header, m0, m1, m2));
         }
     } // END CLASS
     
@@ -358,7 +438,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
      * @return
      */
     public String statusSnapshot() {
-        return new StatusMonitorThread(0, false).snapshot(true, false);
+        return new StatusMonitorThread(0, false).snapshot(true, false, false);
     }
     
     // ----------------------------------------------------------------------------
