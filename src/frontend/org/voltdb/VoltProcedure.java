@@ -150,7 +150,7 @@ public abstract class VoltProcedure implements Poolable {
     // INVOCATION MEMBERS
     // ----------------------------------------------------------------------------
     
-    private long txn_id;
+    private long txn_id = -1;
     private long client_handle;
     private boolean predict_singlepartition;
     private TransactionState m_currentTxnState;  // assigned in call()
