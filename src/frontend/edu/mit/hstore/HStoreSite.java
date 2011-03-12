@@ -3,7 +3,14 @@ package edu.mit.hstore;
 import java.io.File;
 import java.io.IOException;
 import java.net.InetSocketAddress;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Observer;
+import java.util.Set;
 import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
@@ -11,12 +18,8 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
-import org.apache.commons.collections15.map.ListOrderedMap;
-import org.apache.commons.pool.ObjectPool;
-import org.apache.commons.pool.impl.StackObjectPool;
 import org.apache.log4j.Logger;
 import org.voltdb.BackendTarget;
-import org.voltdb.BatchPlanner;
 import org.voltdb.ClientResponseImpl;
 import org.voltdb.ExecutionSite;
 import org.voltdb.ExecutionSiteHelper;
@@ -54,7 +57,15 @@ import edu.brown.markov.MarkovGraphsContainer;
 import edu.brown.markov.MarkovUtil;
 import edu.brown.markov.TransactionEstimator;
 import edu.brown.statistics.Histogram;
-import edu.brown.utils.*;
+import edu.brown.utils.ArgumentsParser;
+import edu.brown.utils.CollectionUtil;
+import edu.brown.utils.EventObservable;
+import edu.brown.utils.LoggerUtil;
+import edu.brown.utils.ParameterMangler;
+import edu.brown.utils.PartitionEstimator;
+import edu.brown.utils.ProfileMeasurement;
+import edu.brown.utils.StringUtil;
+import edu.brown.utils.ThreadUtil;
 import edu.brown.utils.LoggerUtil.LoggerBoolean;
 import edu.brown.workload.AbstractTraceElement;
 import edu.brown.workload.Workload;
@@ -62,10 +73,9 @@ import edu.mit.dtxn.Dtxn;
 import edu.mit.dtxn.Dtxn.FragmentResponse.Status;
 import edu.mit.hstore.callbacks.ClientResponseFinalCallback;
 import edu.mit.hstore.callbacks.ForwardTxnRequestCallback;
-import edu.mit.hstore.callbacks.MultiPartitionTxnCallback;
 import edu.mit.hstore.callbacks.InitiateCallback;
+import edu.mit.hstore.callbacks.MultiPartitionTxnCallback;
 import edu.mit.hstore.callbacks.SinglePartitionTxnCallback;
-import edu.mit.hstore.dtxn.DependencyInfo;
 import edu.mit.hstore.dtxn.LocalTransactionState;
 
 /**
@@ -176,12 +186,12 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
     private boolean shutdown = false;
     private final EventObservable shutdown_observable = new EventObservable();
     
-    private final Site catalog_site;
-    private final List<Integer> all_partitions;
-    private final int site_id;
-    private final Map<Integer, ExecutionSite> executors;
-    private final Database catalog_db;
-    private final PartitionEstimator p_estimator;
+    protected final Site catalog_site;
+    protected final List<Integer> all_partitions;
+    protected final int site_id;
+    protected final Map<Integer, ExecutionSite> executors;
+    protected final Database catalog_db;
+    protected final PartitionEstimator p_estimator;
 
     private final HStoreConf hstore_conf;
     
@@ -197,14 +207,9 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
     private final Map<Procedure, ParameterMangler> param_manglers = new HashMap<Procedure, ParameterMangler>();
     
     /**
-     * Status Monitor
-     */
-    private Thread status_monitor;
-    
-    /**
      * Keep track of which txns that we have in-flight right now
      */
-    private final Map<Long, LocalTransactionState> inflight_txns = new ConcurrentHashMap<Long, LocalTransactionState>();
+    protected final Map<Long, LocalTransactionState> inflight_txns = new ConcurrentHashMap<Long, LocalTransactionState>();
 
     /**
      * This is a mapping for the transactions that were restarted because of a misprediction from the second
@@ -224,221 +229,16 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
     // ----------------------------------------------------------------------------
     
     /**
-     * Simple Status Printer
+     * Status Monitor
      */
-    protected class StatusMonitorThread implements Runnable {
-        private final int interval; // seconds
-        private final boolean kill_when_hanging;
-        private final TreeMap<Integer, TreeSet<Long>> partition_txns = new TreeMap<Integer, TreeSet<Long>>();
-        private final List<ExecutionSite> executors = new ArrayList<ExecutionSite>(HStoreSite.this.executors.values());
-        
-        private Integer last_completed = null;
-        
-        private Integer inflight_min = null;
-        private Integer inflight_max = null;
-
-        final Map<String, Object> m0 = new ListOrderedMap<String, Object>();
-        final Map<String, Object> m1 = new ListOrderedMap<String, Object>();
-        final Map<String, Object> m2 = new ListOrderedMap<String, Object>();
-        final Map<String, Object> header = new ListOrderedMap<String, Object>();
-        final TreeSet<Thread> sortedThreads = new TreeSet<Thread>(new Comparator<Thread>() {
-            @Override
-            public int compare(Thread o1, Thread o2) {
-                return o1.getName().compareToIgnoreCase(o2.getName());
-            }
-        });
-        
-        public StatusMonitorThread(int interval, boolean kill_when_hanging) {
-            this.interval = interval;
-            this.kill_when_hanging = kill_when_hanging;
-            for (Integer partition : HStoreSite.this.all_partitions) {
-                this.partition_txns.put(partition, new TreeSet<Long>());
-            } // FOR
-            
-            this.header.put(String.format("%s Status", HStoreSite.class.getSimpleName()), String.format("Site #%02d", catalog_site.getId()));
-            this.header.put("Number of Partitions", HStoreSite.this.executors.size());
-        }
-        
-        @Override
-        public void run() {
-            final Thread self = Thread.currentThread();
-            self.setName(HStoreSite.this.getThreadName("mon"));
-
-            if (debug.get()) LOG.debug("Starting HStoreCoordinator status monitor thread [interval=" + interval + " secs]");
-            while (!self.isInterrupted() && HStoreSite.this.shutdown == false) {
-                try {
-                    Thread.sleep(interval * 1000);
-                } catch (InterruptedException ex) {
-                    return;
-                }
-                if (HStoreSite.this.shutdown) break;
-
-                // Out we go!
-                LOG.info("\n" + StringUtil.box(this.snapshot(true, false, true)));
-                
-                // If we're not making progress, bring the whole thing down!
-                int completed = TxnCounter.COMPLETED.get();
-                if (this.kill_when_hanging && this.last_completed != null &&
-                    this.last_completed == completed && inflight_txns.size() > 0) {
-                    String msg = String.format("HStoreSite #%d is hung! Killing the cluster!", HStoreSite.this.site_id); 
-                    LOG.fatal(msg);
-                    messenger.shutdownCluster(new RuntimeException(msg));
-                }
-                this.last_completed = completed;
-            } // WHILE
-        }
-        
-        public synchronized String snapshot(boolean show_txns, boolean show_threads, boolean show_poolinfo) {
-            int inflight_cur = inflight_txns.size();
-            if (inflight_min == null || inflight_cur < inflight_min) inflight_min = inflight_cur;
-            if (inflight_max == null || inflight_cur > inflight_max) inflight_max = inflight_cur;
-            
-            for (Integer partition : this.partition_txns.keySet()) {
-                this.partition_txns.get(partition).clear();
-            } // FOR
-            for (Entry<Long, LocalTransactionState> e : inflight_txns.entrySet()) {
-                this.partition_txns.get(e.getValue().getSourcePartition()).add(e.getKey());
-            } // FOR
-            
-            // ----------------------------------------------------------------------------
-            // Transaction Information
-            // ----------------------------------------------------------------------------
-            m0.clear();
-            if (show_txns) {
-                for (TxnCounter tc : TxnCounter.values()) {
-                    int cnt = tc.get();
-                    String val = Integer.toString(cnt);
-                    if (tc != TxnCounter.COMPLETED && tc != TxnCounter.EXECUTED) {
-                        val += String.format(" [%.03f]", tc.ratio());
-                    }
-                    if (cnt > 0) val += "\n" + tc.getHistogram().toString(50);
-                    m0.put(tc.toString(), val + "\n");
-                } // FOR
-    
-                m0.put("InFlight Txn Ids", String.format("%d [min=%d, max=%d]", inflight_cur, inflight_min, inflight_max));
-                for (Integer partition : this.partition_txns.keySet()) {
-                    int cnt = this.partition_txns.get(partition).size();
-                    if (cnt > 0) {
-                        m0.put(String.format("  Partition[%02d]", partition), this.partition_txns.get(partition).size() + " txns");
-                    }
-                } // FOR
-            }
-
-            // ----------------------------------------------------------------------------
-            // Thread Information
-            // ----------------------------------------------------------------------------
-            m1.clear();
-            if (show_threads) {
-                final Map<Thread, StackTraceElement[]> threads = Thread.getAllStackTraces();
-                sortedThreads.clear();
-                sortedThreads.addAll(threads.keySet());
-                m1.put("Number of Threads", threads.size());
-                for (Thread t : sortedThreads) {
-                    StackTraceElement stack[] = threads.get(t);
-                    String trace = null;
-                    if (stack.length == 0) {
-                        trace = "<NONE>";
-//                    } else if (t.getName().startsWith("Thread-")) {
-//                        trace = Arrays.toString(stack);
-                    } else {
-                        trace = stack[0].toString();
-                    }
-                    m1.put(StringUtil.abbrv(t.getName(), 24, true), trace);
-                } // FOR
-            }
-
-            // ----------------------------------------------------------------------------
-            // Object Pool Information
-            // ----------------------------------------------------------------------------
-            m2.clear();
-            if (show_poolinfo) {
-                final String f = "Active:%-5d / Idle:%-5d / Created:%-5d / Destroyed:%-5d";
-
-                // BatchPlanners
-                m2.put("BatchPlanners", ExecutionSite.batch_planners.size());
-
-                // MarkovPathEstimators
-                StackObjectPool pool = (StackObjectPool)TransactionEstimator.getEstimatorPool();
-                CountingPoolableObjectFactory<?> factory = (CountingPoolableObjectFactory<?>)pool.getFactory();
-                m2.put("Estimators", String.format(f, pool.getNumActive(), pool.getNumIdle(), factory.getCreatedCount(), factory.getDestroyedCount()));
-
-                // TransactionEstimator.States
-                pool = (StackObjectPool)TransactionEstimator.getStatePool();
-                factory = (CountingPoolableObjectFactory<?>)pool.getFactory();
-                m2.put("EstimationStates", String.format(f, pool.getNumActive(), pool.getNumIdle(), factory.getCreatedCount(), factory.getDestroyedCount()));
-                
-                // DependencyInfos
-                pool = (StackObjectPool)DependencyInfo.INFO_POOL;
-                factory = (CountingPoolableObjectFactory<?>)pool.getFactory();
-                m2.put("DependencyInfos", String.format(f, pool.getNumActive(), pool.getNumIdle(), factory.getCreatedCount(), factory.getDestroyedCount()));
-                
-                // BatchPlans
-                int active = 0;
-                int idle = 0;
-                int created = 0;
-                int destroyed = 0;
-                for (BatchPlanner bp : ExecutionSite.batch_planners.values()) {
-                    pool = (StackObjectPool)bp.getBatchPlanPool();
-                    factory = (CountingPoolableObjectFactory<?>)pool.getFactory();
-                    
-                    active += pool.getNumActive();
-                    idle += pool.getNumIdle();
-                    created += factory.getCreatedCount();
-                    destroyed += factory.getDestroyedCount();
-                } // FOR
-                m2.put("BatchPlans", String.format(f, active, idle, created, destroyed));
-                
-                // Partition Specific
-                String labels[] = new String[] {
-                    "LocalTxnState",
-                    "RemoteTxnState",
-                    "Procedures"
-                };
-                int total_active[] = new int[labels.length];
-                int total_idle[] = new int[labels.length];
-                int total_created[] = new int[labels.length];
-                int total_destroyed[] = new int[labels.length];
-                for (int i = 0, cnt = labels.length; i < cnt; i++) {
-                    total_active[i] = total_idle[i] = total_created[i] = total_destroyed[i] = 0;
-                }
-                
-                for (ExecutionSite e : executors) {
-                    int i = 0;
-                    for (ObjectPool p : new ObjectPool[] { e.localTxnPool, e.remoteTxnPool }) {
-                        pool = (StackObjectPool)p;
-                        factory = (CountingPoolableObjectFactory<?>)pool.getFactory();
-                        
-                        total_active[i] += p.getNumActive();
-                        total_idle[i] += p.getNumIdle(); 
-                        total_created[i] += factory.getCreatedCount();
-                        total_destroyed[i] += factory.getDestroyedCount();
-                        i += 1;
-                    } // FOR
-
-                    for (ObjectPool p : e.procPool.values()) {
-                        pool = (StackObjectPool)p;
-                        factory = (CountingPoolableObjectFactory<?>)pool.getFactory();
-                        total_active[i] += p.getNumActive();
-                        total_idle[i] += p.getNumIdle();
-                        total_created[i] += factory.getCreatedCount();
-                        total_destroyed[i] += factory.getDestroyedCount();
-                    } // FOR
-                } // FOR
-                
-                for (int i = 0, cnt = labels.length; i < cnt; i++) {
-                    m2.put(labels[i], String.format(f, total_active[i], total_idle[i], total_created[i], total_destroyed[i]));
-                } // FOR
-            }
-            return (StringUtil.formatMaps(header, m0, m1, m2));
-        }
-    } // END CLASS
+    private Thread status_monitor;
     
     /**
      * Convenience method to dump out status of this HStoreSite
      * @return
      */
     public String statusSnapshot() {
-        return new StatusMonitorThread(0, false).snapshot(true, false, false);
+        return new HStoreSiteStatus(this, 0, false).snapshot(true, false, false);
     }
     
     // ----------------------------------------------------------------------------
@@ -641,7 +441,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
      */
     public void enableStatusMonitor(int interval, boolean kill_when_hanging) {
         if (interval > 0) {
-            this.status_monitor = new Thread(new StatusMonitorThread(interval, kill_when_hanging));
+            this.status_monitor = new Thread(new HStoreSiteStatus(this, interval, kill_when_hanging));
             this.status_monitor.setPriority(Thread.MIN_PRIORITY);
             this.status_monitor.setDaemon(true);
         }
@@ -691,6 +491,10 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         return (this.site_id);
     }
 
+    public int getInflightTxnCount() {
+        return (this.inflight_txns.size());
+    }
+    
     /**
      * 
      * @param suffix
@@ -1026,7 +830,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
             }
             Dtxn.CoordinatorFragment dtxn_request = requestBuilder.build();
             if (hstore_conf.enable_profiling) ProfileMeasurement.swap(txn_info.init_time, txn_info.coord_time);
-            this.coordinator.execute(new ProtoRpcController(), dtxn_request, callback);
+            this.coordinator.execute(txn_info.rpc_request_init, dtxn_request, callback);
             if (d) LOG.debug(String.format("Sent Dtxn.CoordinatorFragment for txn #%d [bytes=%d]", txn_id, dtxn_request.getSerializedSize()));
         }
     }
@@ -1186,7 +990,8 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
     public void requestWork(LocalTransactionState ts, Dtxn.CoordinatorFragment fragment, RpcCallback<Dtxn.CoordinatorResponse> callback) {
         this.initializationBlock(ts);
         if (debug.get()) LOG.debug(String.format("Asking the Dtxn.Coordinator to execute fragment for txn #%d [bytes=%d, last=%s]", ts.getTransactionId(), fragment.getSerializedSize(), fragment.getLastFragment()));
-        this.coordinator.execute(new ProtoRpcController(), fragment, callback);
+        ts.rpc_request_work.reset();
+        this.coordinator.execute(ts.rpc_request_work, fragment, callback);
     }
 
     /**
@@ -1201,11 +1006,11 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         this.initializationBlock(local_ts);
         if (hstore_conf.ignore_dtxn) {
             assert(callback instanceof ClientResponseFinalCallback);
-            this.finish(new ProtoRpcController(), request, callback);
+            this.finish(local_ts.rpc_request_finish, request, callback);
         } else {
             if (local_ts.sysproc == false && hstore_conf.enable_profiling) ProfileMeasurement.stop(local_ts.finish_time, local_ts.total_time);
             if (debug.get()) LOG.debug(String.format("Telling the Dtxn.Coordinator to finish txn #%d [commit=%s]", txn_id, request.getCommit()));
-            this.coordinator.finish(new ProtoRpcController(), request, callback);
+            this.coordinator.finish(local_ts.rpc_request_finish, request, callback);
         }
     }
 

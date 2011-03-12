@@ -52,6 +52,8 @@ import org.voltdb.catalog.Procedure;
 import org.voltdb.exceptions.MispredictionException;
 import org.voltdb.messaging.FragmentTaskMessage;
 
+import ca.evanjones.protorpc.ProtoRpcController;
+
 import com.google.protobuf.RpcCallback;
 
 import edu.brown.markov.TransactionEstimator;
@@ -62,7 +64,6 @@ import edu.brown.utils.StringUtil;
 import edu.brown.utils.LoggerUtil.LoggerBoolean;
 import edu.brown.utils.ProfileMeasurement.Type;
 import edu.mit.dtxn.Dtxn;
-import edu.mit.hstore.HStoreConf;
 
 /**
  * 
@@ -191,6 +192,10 @@ public class LocalTransactionState extends TransactionState {
      * Final RpcCallback to the client
      */
     public RpcCallback<byte[]> client_callback;
+    
+    public final ProtoRpcController rpc_request_init = new ProtoRpcController();
+    public final ProtoRpcController rpc_request_work = new ProtoRpcController();
+    public final ProtoRpcController rpc_request_finish = new ProtoRpcController();
     
     // ----------------------------------------------------------------------------
     // ROUND DATA MEMBERS
@@ -414,6 +419,11 @@ public class LocalTransactionState extends TransactionState {
         // Important! Call clearRound() before we clear out our other junk, otherwise
         // are are going to have leftover DependencyInfos
         this.clearRound();
+        
+        this.rpc_request_init.reset();
+        this.rpc_request_work.reset();
+        this.rpc_request_finish.reset();
+        
         
         this.orig_txn_id = null;
         this.catalog_proc = null;
