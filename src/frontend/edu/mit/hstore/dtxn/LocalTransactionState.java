@@ -1018,7 +1018,7 @@ public class LocalTransactionState extends TransactionState {
             assert(d.getPartitions().size() == num_tables) :
                 "Number of results retrieved for <Stmt #" + stmt_index + ", DependencyId #" + input_d_id + "> is " + num_tables +
                 " but we were expecting " + d.getPartitions().size() + " in txn #" + this.txn_id +
-                " [" + this.executor.getRunningVoltProcedure(this.txn_id).getClass().getSimpleName() + "]\n" + 
+                " [" + this.executor.getRunningVoltProcedure(this.txn_id).getProcedureName() + "]\n" + 
                 this.toString() + "\n" +
                 ftask.toString();
             results.put(input_d_id, d.getResults());

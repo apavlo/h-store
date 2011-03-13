@@ -270,6 +270,9 @@ public class ExecutionSite implements Runnable {
      */
     private final LinkedBlockingDeque<TransactionInfoBaseMessage> work_queue = new LinkedBlockingDeque<TransactionInfoBaseMessage>();
 
+
+    private LocalTransactionState current_txn = null;
+    
     
     // ----------------------------------------------------------------------------
     // Coordinator Callback
@@ -874,6 +877,10 @@ public class ExecutionSite implements Runnable {
         return (this.partitionId);
     }
 
+    public LocalTransactionState getRunningTransaction() {
+        return (this.current_txn);
+    }
+    
     public VoltProcedure getRunningVoltProcedure(long txn_id) {
         // assert(this.running_xacts.containsKey(txn_id)) : "No running VoltProcedure exists for txn #" + txn_id;
         LocalTransactionState ts = (LocalTransactionState)this.txn_states.get(txn_id);
@@ -929,6 +936,7 @@ public class ExecutionSite implements Runnable {
 //            this.running_xacts.put(txn_id, volt_proc);
 //            assert(this.running_xacts.containsKey(txn_id));
 //        }
+        this.current_txn = (LocalTransactionState)ts;
         volt_proc.call(ts, init_work.getParameters());
     }
 
