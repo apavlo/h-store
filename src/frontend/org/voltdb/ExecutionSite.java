@@ -781,8 +781,8 @@ public class ExecutionSite implements Runnable {
                     }
                     local_ts.setVoltProcedure(volt_proc);
                     if (t) LOG.trace(String.format("Starting execution of txn #%d [proc=%s]", txn_id, proc_name));
+                    this.current_txn = local_ts;
                     volt_proc.call(local_ts, init_work.getParameters()); // Non-blocking...
-                    // this.startTransaction(local_ts, volt_proc, init_work);
                     
                 // -------------------------------
                 // BAD MOJO!
@@ -910,35 +910,6 @@ public class ExecutionSite implements Runnable {
     // ---------------------------------------------------------------
     // VOLTPROCEDURE EXECUTION METHODS
     // ---------------------------------------------------------------
-
-    /**
-     * This method tells the VoltProcedure to start executing  
-     * @param init_work
-     * @param volt_proc
-     */
-    protected void startTransaction(TransactionState ts, VoltProcedure volt_proc, InitiateTaskMessage init_work) {
-        long txn_id = init_work.getTxnId();
-        if (debug.get()) LOG.debug("Initializing the execution of " + volt_proc.procedure_name + " for txn #" + txn_id + " on partition " + this.getPartitionId());
-        
-        // Tell the TransactionEstimator to begin following this transaction
-        // TODO(pavlo+svelgap): We need figure out what is going to do the query estimations at the beginning
-        //                      of the transaction in order to get what partitions this thing will touch.
-        // TODO(pavlo+evanj): Once we get back these estimations, I need to know who to tell about them.
-        
-//        TransactionEstimator.Estimate estimate = this.t_estimator.startTransaction(txn_id, volt_proc.getProcedure(), init_work.getParameters());
-//        if (estimate != null) {
-//            // Do something!!
-//        }
-        
-        // Invoke the VoltProcedure thread to start the transaction
-//        synchronized (this.running_xacts) {
-//            assert(!this.running_xacts.values().contains(volt_proc));
-//            this.running_xacts.put(txn_id, volt_proc);
-//            assert(this.running_xacts.containsKey(txn_id));
-//        }
-        this.current_txn = (LocalTransactionState)ts;
-        volt_proc.call(ts, init_work.getParameters());
-    }
 
     /**
      * Process a FragmentResponseMessage and update the TransactionState accordingly
