@@ -91,6 +91,41 @@ public class HStoreMessenger {
     private boolean shutting_down = false;
     private MessengerState state = MessengerState.INITIALIZED;
     
+    private class Listener implements Runnable {
+        @Override
+        public void run() {
+            try {
+                HStoreMessenger.this.eventLoop.run();
+            } catch (Exception ex) {
+                if (hstore_site.isShuttingDown() == false) {
+                    LOG.error("HStoreMessenger.Listener stopped!", ex);
+                }
+                
+                Throwable cause = null;
+                if (ex instanceof RuntimeException && ex.getCause() != null) {
+                    if (ex.getCause().getMessage() != null && ex.getCause().getMessage().isEmpty() == false) {
+                        cause = ex.getCause();
+                    }
+                }
+                if (cause == null) cause = ex;
+                
+                // These errors are ok if we're actually stopping...
+                if (HStoreMessenger.this.state == MessengerState.STOPPED ||
+                    HStoreMessenger.this.state == MessengerState.PREPARE_STOP) {
+                    // IGNORE
+                } else {
+                    LOG.fatal("Unexpected error in messenger listener thread", cause);
+                    HStoreMessenger.this.shutdownCluster(ex);
+                }
+            } finally {
+                // if (HStoreMessenger.this.state != MessengerState.STOPPED) HStoreMessenger.this.stop();
+            }
+            if (trace.get()) {
+                LOG.trace("Messenger Thread for Site #" + catalog_site.getId() + " has stopped!");
+            }
+        }
+    }
+    
     /**
      * Constructor
      * @param site
@@ -111,39 +146,7 @@ public class HStoreMessenger {
         this.callback = new Callback();
         
         // Wrap the listener in a daemon thread
-        this.listener_thread = new Thread() {
-            @Override
-            public void run() {
-                Thread.currentThread().setName(HStoreMessenger.this.hstore_site.getThreadName("msg"));
-                try {
-                    HStoreMessenger.this.eventLoop.run();
-                } catch (Exception ex) {
-                    ex.printStackTrace();
-                    
-                    Throwable cause = null;
-                    if (ex instanceof RuntimeException && ex.getCause() != null) {
-                        if (ex.getCause().getMessage() != null && ex.getCause().getMessage().isEmpty() == false) {
-                            cause = ex.getCause();
-                        }
-                    }
-                    if (cause == null) cause = ex;
-                    
-                    // These errors are ok if we're actually stopping...
-                    if (HStoreMessenger.this.state == MessengerState.STOPPED ||
-                        HStoreMessenger.this.state == MessengerState.PREPARE_STOP) {
-                        // IGNORE
-                    } else {
-                        LOG.fatal("Unexpected error in messenger listener thread", cause);
-                        HStoreMessenger.this.shutdownCluster(ex);
-                    }
-                } finally {
-                    // if (HStoreMessenger.this.state != MessengerState.STOPPED) HStoreMessenger.this.stop();
-                }
-                if (trace.get()) {
-                    LOG.trace("Messenger Thread for Site #" + catalog_site.getId() + " has stopped!");
-                }
-            }
-        };
+        this.listener_thread = new Thread(new Listener(), this.hstore_site.getThreadName("msg"));
         this.listener_thread.setDaemon(true);
         this.eventLoop.setExitOnSigInt(true);
     }

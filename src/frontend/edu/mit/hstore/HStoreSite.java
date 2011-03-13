@@ -280,6 +280,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         // Tell our local boys to go down too
         for (ExecutionSite executor : this.executors.values()) {
             if (t) LOG.trace("Telling the ExecutionSite for Partition #" + executor.getPartitionId() + " to shutdown");
+            LOG.info(String.format("Partition #%02d Current Txn:\n%s\n", executor.getPartitionId(), executor.getRunningTransaction())); 
             executor.shutdown();
         } // FOR
         
