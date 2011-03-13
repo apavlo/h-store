@@ -474,11 +474,11 @@ public class HStoreMessenger {
                 //             to read data from another EE.
                 VoltTable copy = null;
                 try {
-                    if (sender_partition_id == dest_partition_id) {
-                        copy = dset.dependencies[i];
-                    } else {
+//                    if (sender_partition_id == dest_partition_id) {
+//                        copy = dset.dependencies[i];
+//                    } else {
                         copy = this.copyVoltTable(dset.dependencies[i]);
-                    }
+//                    }
                 } catch (Exception ex) {
                     LOG.fatal("Failed to copy DependencyId #" + dset.depIds[i]);
                     this.shutdownCluster(ex);
