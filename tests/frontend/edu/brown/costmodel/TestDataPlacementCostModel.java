@@ -4,14 +4,19 @@ import java.io.File;
 import java.util.List;
 
 import org.apache.log4j.Logger;
+import org.hsqldb.Database;
 
 import edu.brown.BaseTestCase;
 
 import org.voltdb.VoltProcedure;
 import org.voltdb.benchmark.tpcc.procedures.neworder;
+import org.voltdb.catalog.CatalogType;
+import org.voltdb.catalog.Cluster;
 import org.voltdb.catalog.ProcParameter;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.types.ExpressionType;
+
+import sun.security.acl.WorldGroupImpl;
 
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.utils.ProjectType;
@@ -27,12 +32,12 @@ import edu.brown.workload.filters.ProcedureNameFilter;
 public class TestDataPlacementCostModel extends BaseTestCase {
     private static final Logger LOG = Logger.getLogger(TestDataPlacementCostModel.class);
 
-    private static final int WORKLOAD_XACT_LIMIT = 500;
+    private static final int WORKLOAD_XACT_LIMIT = 1;
     private static final int PROC_COUNT = 1;
     
-    private static final int NUM_HOSTS = 2;
-    private static final int NUM_SITES = 2;
-    private static final int NUM_PARTITIONS = 4;
+    private static final int NUM_HOSTS = 1;
+    private static final int NUM_SITES = 1;
+    private static final int NUM_PARTITIONS = 1;
     private static final int BASE_PARTITION = 1;
     private static TransactionTrace multip_trace;
     private static Procedure catalog_proc;
@@ -46,11 +51,17 @@ public class TestDataPlacementCostModel extends BaseTestCase {
     protected void setUp() throws Exception {
         //super.setUp(ProjectType.LOCALITY);
         super.setUp(ProjectType.TPCC);
-        LOG.info("number of clusters before: " + catalog_db.getCatalog().getClusters().size());
-        LOG.info("number of hosts before: " + this.getCluster().getHosts().size());
+        
+        LOG.info("BEFORE HOSTS: " + CatalogUtil.getNumberOfHosts(catalog_db));
+        LOG.info("BEFORE SITES: " + CatalogUtil.getNumberOfSites(catalog_db));
+        LOG.info("BEFORE PARTITIONS: " + CatalogUtil.getNumberOfPartitions(catalog_db));
+        
         this.initializeCluster(NUM_HOSTS, NUM_SITES, NUM_PARTITIONS);
-        LOG.info("number of hosts after: " + this.getCluster().getHosts().size());
-        LOG.info("number of clusters after: " + catalog_db.getCatalog().getClusters().size());
+        
+        LOG.info("AFTER HOSTS: " + CatalogUtil.getNumberOfHosts(catalog_db));
+        LOG.info("AFTER SITES: " + CatalogUtil.getNumberOfSites(catalog_db));
+        LOG.info("AFTER PARTITIONS: " + CatalogUtil.getNumberOfPartitions(catalog_db));
+        
         //this.addPartitions(NUM_PARTITIONS);
         // Super hack! Walk back the directories and find out workload directory
         if (workload == null) {
@@ -68,49 +79,16 @@ public class TestDataPlacementCostModel extends BaseTestCase {
             // (3) Filter to only include multi-partition txns
             // (4) Another limit to stop after allowing ### txns
             // Where is your god now???
+            LOG.info("filter starting to apply filter");
             Workload.Filter filter = new ProcedureNameFilter()
                     .include(TARGET_PROCEDURE.getSimpleName())
-                    .attach(new ProcParameterValueFilter().include(1, new Long(5))) // D_ID
-                    .attach(new ProcParameterArraySizeFilter(CatalogUtil.getArrayProcParameters(catalog_proc).get(0), 10, ExpressionType.COMPARE_EQUAL))
+//                    .attach(new ProcParameterValueFilter().include(1, new Long(5))) // D_ID
+//                    .attach(new ProcParameterArraySizeFilter(CatalogUtil.getArrayProcParameters(catalog_proc).get(0), 10, ExpressionType.COMPARE_EQUAL))
                     .attach(new BasePartitionTxnFilter(p_estimator, BASE_PARTITION))
                     .attach(new MultiPartitionTxnFilter(p_estimator))
                     .attach(new ProcedureLimitFilter(WORKLOAD_XACT_LIMIT));
+            LOG.info("filter: " + filter + " catalogdb: " + (catalog_db));
             workload.load(file.getAbsolutePath(), catalog_db, filter);
-            
-//            // Workload Filter
-//            ProcedureNameFilter name_filter = new ProcedureNameFilter();
-//            long total = 0;
-//            for (String proc_name : TARGET_PROCEDURES) {
-//                name_filter.include(proc_name, PROC_COUNT);
-//                total += PROC_COUNT;
-//            }
-//            ((Workload)workload).load(workload_file.getAbsolutePath(), catalog_db, name_filter);
-
-            
-            for (TransactionTrace xact : workload.getTransactions()) {
-                Object ol_supply_w_ids[] = (Object[])xact.getParam(5);
-                assert(ol_supply_w_ids != null);
-                boolean same_partition = true;
-                for (Object i : ol_supply_w_ids) {
-                    Integer partition = p_estimator.getHasher().hash(Integer.valueOf(i.toString()));
-                    // why compare against base partition (1) every time?
-                    same_partition = same_partition && (partition == BASE_PARTITION);
-                    if (same_partition == false && multip_trace == null) {
-                        LOG.info("multi transaction");
-                    }
-                } // FOR
-                if (same_partition == false && multip_trace == null) {
-                    multip_trace = xact;
-                }
-            } // FOR
-            
-            
-            
-            
-            
-//            assertEquals(total, workload.getTransactionCount());
-//            assertEquals(TARGET_PROCEDURES.length, workload.getProcedureHistogram().getValueCount());
-            // System.err.println(workload.getProcedureHistogram());
         }
         assert(workload.getTransactionCount() > 0);
     }
@@ -118,9 +96,17 @@ public class TestDataPlacementCostModel extends BaseTestCase {
     /**
      * testEstimateCost
      */
-    public void testEstimateCost() throws Exception {
-        // Now calculate cost of touching these partitions 
+    public void testEstimateCostMultiPartition() throws Exception {
+        LOG.info("num of transactions: " + workload.getTransactionCount());
+        System.err.println(workload.getTransactions().get(0).debug(catalog_db));
+        
+        // Now calculate cost of touching these partitions
+        TransactionTrace txn_trace = workload.getTransactions().get(0);
+        assertNotNull(txn_trace);
         DataPlacementCostModel cost_model = new DataPlacementCostModel(catalog_db);
-        LOG.info("total cost: " + cost_model.estimateCost(catalog_db, workload));
+        cost_model.prepare(catalog_db);
+        double cost = cost_model.estimateTransactionCost(catalog_db, txn_trace);
+        LOG.info("total cost for transaction " + txn_trace.getCatalogItemName() + " cost: " + cost);
+        assert(cost > 0);
     }
 }

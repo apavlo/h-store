@@ -42,7 +42,9 @@ import edu.brown.workload.Workload.Filter;
  */
 public class DataPlacementCostModel extends AbstractCostModel {
     private static final Logger LOG = Logger.getLogger(DataPlacementCostModel.class);
+    private final CachedPartitionEstimator cache_estimator;
 
+    
     public enum PenaltyGroup {
         DIFFERENT_PARTITION,
         DIFFERENCE_SITE,
@@ -82,6 +84,25 @@ public class DataPlacementCostModel extends AbstractCostModel {
             return this.group;
         }
     }
+    
+    private class CachedPartitionEstimator extends PartitionEstimator {
+        private final PartitionEstimator p_estimator;
+        private final Map<QueryTrace, Set<Integer>> cache = new HashMap<QueryTrace, Set<Integer>>();
+        
+        public CachedPartitionEstimator(PartitionEstimator p_estimator) {
+            super(p_estimator.getDatabase(), p_estimator.getHasher());
+            this.p_estimator = p_estimator;
+        }
+        
+        public Set<Integer> getAllPartitions(final QueryTrace query, Integer base_partition) throws Exception {
+            Set<Integer> ret = this.cache.get(query);
+            if (ret == null) {
+                ret = this.p_estimator.getAllPartitions(query, base_partition);
+                this.cache.put(query, ret);
+            }
+            return (ret);
+        }
+    }
 
     
     
@@ -90,6 +111,10 @@ public class DataPlacementCostModel extends AbstractCostModel {
     
     /** stores all the penalities **/
     List<Penalty> penalties = new ArrayList<Penalty>();
+    
+    
+    final Set<Integer> read_partitions = new HashSet<Integer>();
+    final Set<Integer> write_partitions = new HashSet<Integer>();
     
     /**
      * Default Constructor
@@ -104,7 +129,8 @@ public class DataPlacementCostModel extends AbstractCostModel {
      * I forget why we need this...
      */
     public DataPlacementCostModel(Database catalog_db, PartitionEstimator p_estimator) {
-        super(SingleSitedCostModel.class, catalog_db, p_estimator);
+        super(DataPlacementCostModel.class, catalog_db, p_estimator);
+        cache_estimator = new CachedPartitionEstimator(p_estimator);
     }
     
     @Override
@@ -133,49 +159,46 @@ public class DataPlacementCostModel extends AbstractCostModel {
         LOG.info("batch count: " + xact.getBatchCount());
         
         // For each batch, get the set of partitions that the queries in the batch touch
-        Map<Integer, Set<Integer>> batch_partition_queries = new HashMap<Integer, Set<Integer>>();
-        Set<Integer> batch_partitions;
+        
         for (int batch_id : xact.getBatchIds()) {
+            read_partitions.clear();
+            write_partitions.clear();
             for (QueryTrace query : xact.getBatchQueries(batch_id)) {
-                batch_partitions = new HashSet<Integer>();
-                batch_partitions.addAll(p_estimator.getAllPartitions(query, base_partition));
-                batch_partition_queries.put(query.getCatalogItem(catalogDb).getQuerytype(), batch_partitions);
-            } // FOR
-        }
-        /** for each batch partition id, check how far the partition is from the base partition and assign penalties as necessary**/
-        for (Integer query_type : batch_partition_queries.keySet()) {
-            if (QueryType.SELECT.getValue() == query_type) {
-                for (Integer partition_id : batch_partition_queries.get(query_type)) {
-                    if (partition_id != base_partition) {
-                        Site current_partition_site = CatalogUtil.getPartitionById(catalogDb, base_partition).getParent();
-                        if (current_partition_site == base_site) {
-                            // different partitions, same site
-                            penalties.add(Penalty.READ_DIFFERENT_PARTITION);
-                        } else if (current_partition_site.getHost() == base_host) {
-                            // different sites, same host
-                            penalties.add(Penalty.READ_DIFFERENT_PARTITION);
-                        } else {
-                            // different hosts
-                            penalties.add(Penalty.READ_DIFFERENT_HOST);
-                        }
-                    }                    
+                if (QueryType.SELECT.getValue() == query.getCatalogItem(catalogDb).getQuerytype()) {
+                    read_partitions.addAll(cache_estimator.getAllPartitions(query, base_partition));
+                } else {
+                    write_partitions.addAll(cache_estimator.getAllPartitions(query, base_partition));
                 }
-            } else if (QueryType.DELETE.getValue() == query_type) {
-                for (Integer partition_id : batch_partition_queries.get(query_type)) {
-                    if (partition_id != base_partition) {
-                        Site current_partition_site = CatalogUtil.getPartitionById(catalogDb, base_partition).getParent();
-                        if (current_partition_site == base_site) {
-                            // different partitions, same site
-                            penalties.add(Penalty.WRITE_DIFFERENT_PARTITION);
-                        } else if (current_partition_site.getHost() == base_host) {
-                            // different sites, same host
-                            penalties.add(Penalty.READ_DIFFERENT_SITE);
-                        } else {
-                            // different hosts
-                            penalties.add(Penalty.READ_DIFFERENT_HOST);
-                        }
-                    }                    
+            } // FOR
+            for (Integer partition_id : read_partitions) {
+                if (partition_id != base_partition) {
+                    Site current_partition_site = CatalogUtil.getPartitionById(catalogDb, base_partition).getParent();
+                    if (current_partition_site == base_site) {
+                        // different partitions, same site
+                        penalties.add(Penalty.READ_DIFFERENT_PARTITION);
+                    } else if (current_partition_site.getHost() == base_host) {
+                        // different sites, same host
+                        penalties.add(Penalty.READ_DIFFERENT_PARTITION);
+                    } else {
+                        // different hosts
+                        penalties.add(Penalty.READ_DIFFERENT_HOST);
+                    }
                 }                
+            }
+            for (Integer partition_id : write_partitions) {
+                if (partition_id != base_partition) {
+                    Site current_partition_site = CatalogUtil.getPartitionById(catalogDb, base_partition).getParent();
+                    if (current_partition_site == base_site) {
+                        // different partitions, same site
+                        penalties.add(Penalty.WRITE_DIFFERENT_PARTITION);
+                    } else if (current_partition_site.getHost() == base_host) {
+                        // different sites, same host
+                        penalties.add(Penalty.WRITE_DIFFERENT_SITE);
+                    } else {
+                        // different hosts
+                        penalties.add(Penalty.WRITE_DIFFERENT_HOST);
+                    }
+                }                                    
             }
         }
         double cost = 0.0d;
@@ -203,14 +226,14 @@ public class DataPlacementCostModel extends AbstractCostModel {
             // ID->site.getId();
             Host host = site.getHost();
             // ID->host.getName();
-            LOG.info("hostname: " + host.getName());
+            LOG.debug("hostname: " + host.getName());
             Object[] site_host = new Object[2];
             site_host[0] = site.getId();
             site_host[1] = host.getName();
             partition_site_host.put(partition_num, site_host);
         } 
         for (Integer partition : partition_site_host.keySet()) {
-            LOG.info("partition: " + partition   + " site: " + partition_site_host.get(partition)[0] + " host: " + partition_site_host.get(partition)[1]);
+            LOG.debug("partition: " + partition   + " site: " + partition_site_host.get(partition)[0] + " host: " + partition_site_host.get(partition)[1]);
         }
     }
 
