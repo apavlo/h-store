@@ -112,7 +112,7 @@ ProtoDtxnCoordinator::ProtoDtxnCoordinator(dtxn::DtxnManager* dtxn_manager, int 
         num_partitions_(num_partitions) {
     CHECK(dtxn_manager_ != NULL);
     CHECK(num_partitions_ > 0);
-    LOG_INFO("Evan's magic has started");
+    LOG_DEBUG("Evan's magic has started");
 }
 
 ProtoDtxnCoordinator::~ProtoDtxnCoordinator() {
@@ -137,7 +137,12 @@ void ProtoDtxnCoordinator::Execute(RpcController* controller,
         CHECK(result.second);
     } else {
         state = it->second;
-        CHECK(state->transaction()->multiple_partitions());
+        bool multiple_partitions = state->transaction()->multiple_partitions();
+        if (multiple_partitions == false) {
+            std::string payload = (state->transaction()->has_payload() ? state->transaction()->payload() : request->payload());
+            LOG_ERROR("Txn #%s wants multiple partitions when it was suppose to be single-partitioned", payload.c_str());
+        }
+        CHECK(multiple_partitions);
     }
     state->setResponse(controller, response, done);
 

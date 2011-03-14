@@ -41,7 +41,6 @@ import org.voltdb.utils.DBBPool;
 
 import ca.evanjones.protorpc.NIOEventLoop;
 import ca.evanjones.protorpc.ProtoRpcChannel;
-import ca.evanjones.protorpc.ProtoRpcController;
 import ca.evanjones.protorpc.ProtoServer;
 
 import com.google.protobuf.ByteString;
@@ -171,7 +170,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
     /**
      * This is the thing that we will actually use to generate txn ids used by our H-Store specific code
      */
-    private final TransactionIdManager txnid_manager;
+    private final Map<Integer, TransactionIdManager> txnid_managers = new HashMap<Integer, TransactionIdManager>();
     
     private final DBBPool buffer_pool = new DBBPool(true, false);
     private final Map<Integer, Thread> executor_threads = new HashMap<Integer, Thread>();
@@ -271,8 +270,13 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
             return;
         }
         this.shutdown = true;
-        if (d) LOG.debug("Shutting down everything at Site #" + this.site_id);
-        
+//        if (d)
+            LOG.info("Shutting down everything at Site #" + this.site_id);
+
+//        for (LocalTransactionState ts : this.inflight_txns.values()) {
+//            LOG.info(String.format("INFLIGHT TXN #%d\n%s", ts.getTransactionId(), this.dumpTransaction(ts)));
+//        }
+            
         // Tell anybody that wants to know that we're going down
         if (t) LOG.trace("Notifying " + this.shutdown_observable.countObservers() + " observers that we're shutting down");
         this.shutdown_observable.notifyObservers();
@@ -280,24 +284,6 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         // Tell our local boys to go down too
         for (ExecutionSite executor : this.executors.values()) {
             if (t) LOG.trace("Telling the ExecutionSite for Partition #" + executor.getPartitionId() + " to shutdown");
-            
-            LocalTransactionState ts = executor.getRunningTransaction();
-            if (ts != null) {
-                final Object args[] = ts.getInvocation().getParams().toArray();
-                Procedure catalog_proc = ts.getProcedure();
-                Object cast_args[] = this.param_manglers.get(catalog_proc).convert(args);
-                String temp = "";
-                for (int i = 0; i < cast_args.length; i++) {
-                    temp += "[" + i + "] ";
-                    if (catalog_proc.getParameters().get(i).getIsarray()) {
-                        temp += Arrays.toString((Object[])cast_args[i]);
-                    } else {
-                        temp += cast_args[i];
-                    }
-                    temp += "\n";
-                } // FOR
-                LOG.info(String.format("Partition #%02d Current Txn:\n%s\n", executor.getPartitionId(), temp));
-            }
             executor.shutdown();
         } // FOR
         
@@ -312,6 +298,25 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         this.coordinatorEventLoop.exitLoop();
         
         if (d) LOG.debug("Completed shutdown process at Site #" + this.site_id);
+    }
+    
+    private String dumpTransaction(LocalTransactionState ts) {
+        final Object args[] = ts.getInvocation().getParams().toArray();
+        Procedure catalog_proc = ts.getProcedure();
+        Object cast_args[] = this.param_manglers.get(catalog_proc).convert(args);
+        
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < cast_args.length; i++) {
+            sb.append("[" + i + "] ");
+            if (catalog_proc.getParameters().get(i).getIsarray()) {
+                sb.append(Arrays.toString((Object[])cast_args[i]));
+            } else {
+                sb.append(cast_args[i]);
+            }
+            sb.append("\n");
+        } // FOR
+        sb.append(ts.toString());
+        return (sb.toString());
     }
     
     /**
@@ -341,6 +346,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
      */
     public HStoreSite(Site catalog_site, Map<Integer, ExecutionSite> executors, PartitionEstimator p_estimator) {
         // General Stuff
+        this.hstore_conf = HStoreConf.singleton();
         this.catalog_site = catalog_site;
         this.site_id = this.catalog_site.getId();
         this.catalog_db = CatalogUtil.getDatabase(this.catalog_site);
@@ -349,8 +355,10 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         this.thresholds = new EstimationThresholds(); // default values
         this.executors = Collections.unmodifiableMap(new HashMap<Integer, ExecutionSite>(executors));
         this.messenger = new HStoreMessenger(this);
-        this.txnid_manager = new TransactionIdManager(this.site_id);
-        this.hstore_conf = HStoreConf.singleton();
+        
+        for (Integer partition : this.executors.keySet()) {
+            this.txnid_managers.put(partition, new TransactionIdManager(partition.intValue()));
+        }
         
         this.helper_pool = Executors.newScheduledThreadPool(1);
         
@@ -646,7 +654,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         // IMPORTANT: We have two txn ids here. We have the real one that we're going to use internally
         // and the fake one that we pass to Evan. We don't care about the fake one and will always ignore the
         // txn ids found in any Dtxn.Coordinator messages. 
-        long txn_id = this.txnid_manager.getNextUniqueTransactionId();
+        long txn_id = this.txnid_managers.get(dest_partition).getNextUniqueTransactionId();
                 
         // Grab the TransactionEstimator for the destination partition and figure out whether
         // this mofo is likely to be single-partition or not. Anything that we can't estimate
@@ -773,7 +781,13 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
                                     txn_info.invocation.getProcName(), (singled_partitioned ? "single" : "multi"), txn_id, base_partition));
         }
         
-        this.inflight_txns.put(txn_id, txn_info);
+        LocalTransactionState orig_ts = this.inflight_txns.put(txn_id, txn_info);
+        if (orig_ts != null) {
+            String msg = "Duplicate transaction id #" + txn_id;
+            LOG.fatal("ORIG TRANSACTION:\n" + orig_ts);
+            LOG.fatal("NEW TRANSACTION:\n" + txn_info);
+            this.messenger.shutdownCluster(true, new Exception(msg));
+        }
         if (this.status_monitor != null) {
             if (txn_info.sysproc) {
                 TxnCounter.SYSPROCS.inc(txn_info.getProcedure());
@@ -956,7 +970,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         
         if (d) LOG.debug("Txn #" + txn_id + " was mispredicted! Going to clean-up our mess and re-execute");
         
-        long new_txn_id = this.txnid_manager.getNextUniqueTransactionId();
+        long new_txn_id = this.txnid_managers.get(base_partition).getNextUniqueTransactionId();
         this.restarted_txns.put(new_txn_id, txn_id);
         
         if (d) LOG.debug(String.format("Re-executing mispredicted txn #%d as new txn #%d", txn_id, new_txn_id));
@@ -1191,10 +1205,10 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
                         "0"                             // ??
                     };
                     ThreadUtil.fork(command, hstore_site.shutdown_observable,
-                                    String.format("[%s] ", hstore_site.getThreadName("protodtxnengine")), true);
+                                    String.format("[%s] ", hstore_site.getThreadName("protodtxnengine", partition)), true);
                     if (hstore_site.shutdown == false) { 
                         String msg = "ProtoDtxnEngine for Partition #" + partition + " is stopping!"; 
-                        LOG.warn(msg);
+                        LOG.error(msg);
                         hstore_site.messenger.shutdownCluster(new Exception(msg));
                     }
                 }
