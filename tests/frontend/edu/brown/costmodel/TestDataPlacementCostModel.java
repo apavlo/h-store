@@ -33,7 +33,7 @@ import edu.brown.workload.filters.ProcedureNameFilter;
 public class TestDataPlacementCostModel extends BaseTestCase {
     private static final Logger LOG = Logger.getLogger(TestDataPlacementCostModel.class);
 
-    private static final int WORKLOAD_XACT_LIMIT = 500;
+    private static final int WORKLOAD_XACT_LIMIT = 10;
     private static final int PROC_COUNT = 1;
     
     private static final int NUM_HOSTS = 100;
@@ -74,7 +74,7 @@ public class TestDataPlacementCostModel extends BaseTestCase {
         this.initializeCluster(100, 1, 1);
         if (workload == null) {
             //File workload_file = this.getWorkloadFile(ProjectType.LOCALITY); 
-            File file = this.getWorkloadFile(ProjectType.TPCC); 
+            File file = this.getWorkloadFile(ProjectType.TPCC, "100w.large"); 
             workload = new Workload(catalog);
             catalog_proc = this.getProcedure(TARGET_PROCEDURE);
             
@@ -88,9 +88,9 @@ public class TestDataPlacementCostModel extends BaseTestCase {
             LOG.info("filter starting to apply filter");
             Workload.Filter filter = new ProcedureNameFilter()
                     .include(TARGET_PROCEDURE.getSimpleName())
-                    .attach(new BasePartitionTxnFilter(p_estimator, BASE_PARTITION));
-//                    .attach(new MultiPartitionTxnFilter(p_estimator));
-//                    .attach(new ProcedureLimitFilter(WORKLOAD_XACT_LIMIT));
+                    .attach(new BasePartitionTxnFilter(p_estimator, BASE_PARTITION))
+                   .attach(new MultiPartitionTxnFilter(p_estimator))
+                    .attach(new ProcedureLimitFilter(WORKLOAD_XACT_LIMIT));
             LOG.info("filter: " + filter + " catalogdb: " + (catalog_db));
             workload.load(file.getAbsolutePath(), catalog_db, filter);
         }

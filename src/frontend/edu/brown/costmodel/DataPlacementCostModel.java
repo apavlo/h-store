@@ -87,10 +87,12 @@ public class DataPlacementCostModel extends AbstractCostModel {
     
     private class CachedPartitionEstimator extends PartitionEstimator {
         private final PartitionEstimator p_estimator;
+        private final Database catalog_db;
         private final Map<QueryTrace, Set<Integer>> cache = new HashMap<QueryTrace, Set<Integer>>();
         
-        public CachedPartitionEstimator(PartitionEstimator p_estimator) {
+        public CachedPartitionEstimator(PartitionEstimator p_estimator, Database catalog_db) {
             super(p_estimator.getDatabase(), p_estimator.getHasher());
+            this.catalog_db = catalog_db;
             this.p_estimator = p_estimator;
         }
         
@@ -98,6 +100,10 @@ public class DataPlacementCostModel extends AbstractCostModel {
             Set<Integer> ret = this.cache.get(query);
             if (ret == null) {
                 ret = this.p_estimator.getAllPartitions(query, base_partition);
+                for (Integer partition_num : ret) {
+                    Partition p = new Partition();
+                    LOG.info("partition objects: " + partition_num + " host: " + ((Site)CatalogUtil.getPartitionById(catalog_db, partition_num).getParent()).getHost());
+                }
                 this.cache.put(query, ret);
             }
             return (ret);
@@ -130,7 +136,7 @@ public class DataPlacementCostModel extends AbstractCostModel {
      */
     public DataPlacementCostModel(Database catalog_db, PartitionEstimator p_estimator) {
         super(DataPlacementCostModel.class, catalog_db, p_estimator);
-        cache_estimator = new CachedPartitionEstimator(p_estimator);
+        cache_estimator = new CachedPartitionEstimator(p_estimator, catalog_db);
     }
     
     @Override
