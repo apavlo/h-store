@@ -1565,6 +1565,7 @@ public class ExecutionSite implements Runnable {
         this.lastCommittedTxnId = txn_id;
         ts.markAsFinished();
         this.finished_txn_states.add(ts);
+        if (this.current_txn == ts) this.current_txn = null;
     }
 
     /**
@@ -1609,6 +1610,7 @@ public class ExecutionSite implements Runnable {
         }
         ts.markAsFinished();
         this.finished_txn_states.add(ts);
+        if (this.current_txn == ts) this.current_txn = null;
     }
     
     /**
