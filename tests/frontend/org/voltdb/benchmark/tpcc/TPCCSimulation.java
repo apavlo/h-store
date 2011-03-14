@@ -239,7 +239,7 @@ public class TPCCSimulation
     public void doNewOrder() throws IOException {
         boolean noop = true;
         boolean allow_rollback = false;
-        boolean allow_remote_w_id = true;
+        boolean allow_remote_w_id = false;
         
         short warehouse_id = generateWarehouseId();
         int ol_cnt = generator.number(Constants.MIN_OL_CNT,

@@ -257,26 +257,26 @@ public class LocalTransactionState extends TransactionState {
      * Number of SQLStmts in the current batch
      */
     private int batch_size = 0;
-    
     /**
      * The total # of dependencies this Transaction is waiting for in the current round
      */
     private int dependency_ctr = 0;
-    
     /**
      * The total # of dependencies received thus far in the current round
      */
     private int received_ctr = 0;
-    
     /**
      * TransctionEstimator State Handle
      */
     private TransactionEstimator.State estimator_state;
-
     /**
      * 
      */
     private final ConcurrentLinkedQueue<DependencyInfo> reusable_dependencies = new ConcurrentLinkedQueue<DependencyInfo>(); 
+    /**
+     * 
+     */
+    private final Set<Integer> touched_partitions = new HashSet<Integer>();
 
     
     // ----------------------------------------------------------------------------
@@ -429,6 +429,7 @@ public class LocalTransactionState extends TransactionState {
         this.catalog_proc = null;
         this.sysproc = false;
         this.done_partitions.clear();
+        this.touched_partitions.clear();
         this.coordinator_callback = null;
         this.volt_procedure = null;
         this.dependency_latch = null;
@@ -594,6 +595,9 @@ public class LocalTransactionState extends TransactionState {
      */
     public Set<Integer> getDonePartitions() {
         return done_partitions;
+    }
+    public Set<Integer> getTouchedPartitions() {
+        return (this.touched_partitions);
     }
     
     /**
@@ -1049,6 +1053,7 @@ public class LocalTransactionState extends TransactionState {
         m1.put("Client Callback", this.client_callback);
         m1.put("SysProc", this.sysproc);
         m1.put("Done Partitions", this.done_partitions);
+        m1.put("Predict Single-Partitioned", this.single_partitioned);
         m1.put("Estimator State", this.estimator_state);
         
         ListOrderedMap<String, Object> m2 = new ListOrderedMap<String, Object>();

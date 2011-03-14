@@ -15,7 +15,7 @@ using std::vector;
 
 int main(int argc, const char* argv[]) {
     if (argc != 3) {
-        fprintf(stderr, "protodtxncoordinator [listen port] [configuration file]\n");
+        LOG_ERROR("protodtxncoordinator [listen port] [configuration file]");
         return 1;
     }
     int port = atoi(argv[1]);
@@ -26,17 +26,17 @@ int main(int argc, const char* argv[]) {
 
     io::LibEventLoop event_loop;
 
-    fprintf(stderr, "Preparing to launch Dtxn.Coordinator...\n");
+    LOG_INFO("Preparing to launch Dtxn.Coordinator...");
     
     // Connect to the backends
     vector<TCPConnection*> tcp_connections = net::createConnectionsWithRetry(
             &event_loop, primaryAddresses(partitions));
     if (tcp_connections.empty()) {
-        fprintf(stderr, "some connections failed\n");
+        LOG_ERROR("Some connections failed");
         return 1;
     }
     
-    fprintf(stderr, "All connections established. Ready to work with our lovers\n");
+    LOG_DEBUG("All connections established. Ready to work with our lovers");
     
     ASSERT(tcp_connections.size() == partitions.size());
     vector<MessageConnection*> msg_connections(tcp_connections.size());
@@ -57,7 +57,7 @@ int main(int argc, const char* argv[]) {
     protorpc::ProtoServer rpc_server(&event_loop);
     rpc_server.registerService(&coordinator);
     rpc_server.listen(port);
-    printf("listening on port %d\n", port);
+    LOG_INFO("Ready for requests [port=%d]", port);
 
     event_loop.exitOnSigInt(true);
     event_loop.run();

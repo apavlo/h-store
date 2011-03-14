@@ -1419,7 +1419,7 @@ DTXN BINARIES + LIBRARIES
       <arg value="PROTOBUF_SRC=${src.protobuf.dir}" />
       <arg value="PROTOBUF_BIN=${build.protobuf.dir}" />
       <arg value="PROTORPC_PATH=${src.protorpc.dir}" />
-<!--       <arg value="LOG_LEVEL=100" /> -->
+      <arg value="LOG_LEVEL=300" />
    </exec>
 </target>
 
@@ -2250,7 +2250,7 @@ H-STORE REMIX
         <arg value="workload.output=${workload.output}" />
         <arg value="workload.procexclude=${benchmark.workload.ignore}" />
         <classpath refid='project.classpath' />
-<!--         <assertions><enable /></assertions> -->
+        <assertions><enable /></assertions>
     </java>
 </target>
 
