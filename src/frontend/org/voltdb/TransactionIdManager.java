@@ -135,7 +135,7 @@ public class TransactionIdManager {
         }
 
         long id = makeIdFromComponents(currentTime, counterValue, initiatorId);
-        assert(id != lastTxnId) : String.format("Repeated Txn Id #%d [newTime=%s, time=%d, counter=%d, id=%d]", id, new_time, currentTime, counterValue, initiatorId);
+        // assert(id != lastTxnId) : String.format("Repeated Txn Id #%d [newTime=%s, time=%d, counter=%d, id=%d]", id, new_time, currentTime, counterValue, initiatorId);
         lastTxnId = id;
 
         return lastTxnId;
