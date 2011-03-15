@@ -97,6 +97,7 @@ public class TPCCSimulation
     private final boolean useWarehouseAffinity;
     private final long affineWarehouse;
     private final double m_skewFactor;
+    private final boolean noop;
     private final int max_w_id;
     static long lastAssignedWarehouseId = 1;
     
@@ -104,7 +105,7 @@ public class TPCCSimulation
 
     public TPCCSimulation(TPCCSimulation.ProcCaller client, RandomGenerator generator,
                           Clock clock, ScaleParameters parameters, boolean useWarehouseAffinity,
-                          double skewFactor)
+                          double skewFactor, boolean noop)
     {
         assert parameters != null;
         this.client = client;
@@ -114,6 +115,7 @@ public class TPCCSimulation
         this.useWarehouseAffinity = useWarehouseAffinity;
         this.affineWarehouse = lastAssignedWarehouseId;
         this.m_skewFactor = skewFactor;
+        this.noop = noop;
         this.max_w_id = (parameters.warehouses + parameters.starting_warehouse - 1);
         if (this.m_skewFactor > 0) {
             System.err.println("Enabling W_ID Zipfian Skew: " + m_skewFactor);
@@ -237,13 +239,11 @@ public class TPCCSimulation
 
     /** Executes a new order transaction. */
     public void doNewOrder() throws IOException {
-        boolean noop = true;
         boolean allow_rollback = false;
         boolean allow_remote_w_id = false;
         
         short warehouse_id = generateWarehouseId();
-        int ol_cnt = generator.number(Constants.MIN_OL_CNT,
-                Constants.MAX_OL_CNT);
+        int ol_cnt = generator.number(Constants.MIN_OL_CNT, Constants.MAX_OL_CNT);
 
         // 1% of transactions roll back
         boolean rollback = (allow_rollback && generator.number(1, 100) == 1);
@@ -282,7 +282,7 @@ public class TPCCSimulation
 //        }
 
         TimestampType now = clock.getDateTime();
-        client.callNewOrder(rollback, noop, warehouse_id, generateDistrict(), generateCID(),
+        client.callNewOrder(rollback, this.noop, warehouse_id, generateDistrict(), generateCID(),
                             now, item_id, supply_w_id, quantity);
     }
 
@@ -297,7 +297,7 @@ public class TPCCSimulation
         // This is not strictly accurate: The requirement is for certain
         // *minimum* percentages to be maintained. This is close to the right
         // thing, but not precisely correct. See TPC-C 5.2.4 (page 68).
-       if (true) {
+       if (this.noop) {
            doNewOrder();
            return Transaction.NEW_ORDER.ordinal();
        }

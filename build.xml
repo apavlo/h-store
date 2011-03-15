@@ -1491,6 +1491,7 @@ BENCHMARKS
         <!-- tpcc parameters -->
         <arg value="warehouses=${benchmark.warehouses}" />
         <arg value="loadthreads=${benchmark.loadthreads}" />
+        <arg value="noop=${benchmark.noop}" />
         
         <!-- These are currently ignored (I think...) -->
         <arg value="HOST=${manualhost1}" />

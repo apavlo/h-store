@@ -88,11 +88,11 @@ public class TransactionIdManager {
      * to this method will return strictly larger long values.
      * @return The newly generated transaction id.
      */
-    public long getNextUniqueTransactionId() {
+    public synchronized long getNextUniqueTransactionId() {
         long currentTime = System.currentTimeMillis();
-        boolean new_time = true;
+//        boolean new_time = true;
         if (currentTime == lastUsedTime) {
-            new_time = false;
+//            new_time = false;
             // increment the counter for this millisecond
             counterValue++;
 
