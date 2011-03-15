@@ -775,19 +775,30 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         Long orig_txn_id = txn_info.getOriginalTransactionId();
         int base_partition = txn_info.getSourcePartition();
         boolean singled_partitioned = (orig_txn_id == null && txn_info.isPredictSinglePartition());
+                
+        LocalTransactionState orig_ts = this.inflight_txns.put(txn_id, txn_info);
+        if (orig_ts != null) {
+            // HACK!
+            this.inflight_txns.put(txn_id, orig_ts);
+            long new_txn_id = this.txnid_managers.get(base_partition).getNextUniqueTransactionId();
+            if (new_txn_id == txn_id) {
+                String msg = "Duplicate transaction id #" + txn_id;
+                LOG.fatal("ORIG TRANSACTION:\n" + orig_ts);
+                LOG.fatal("NEW TRANSACTION:\n" + txn_info);
+                this.messenger.shutdownCluster(true, new Exception(msg));
+            }
+            LOG.warn(String.format("Had to fix duplicate txn id: %d -> %d", txn_id, new_txn_id));
+            txn_id = new_txn_id;
+            txn_info.setTransactionId(txn_id);
+            this.inflight_txns.put(txn_id, txn_info);
+        }
         
         if (d) {
             LOG.debug(String.format("Passing %s to Dtxn.Coordinator as %s-partition txn #%d for partition %d",
                                     txn_info.invocation.getProcName(), (singled_partitioned ? "single" : "multi"), txn_id, base_partition));
         }
+
         
-        LocalTransactionState orig_ts = this.inflight_txns.put(txn_id, txn_info);
-        if (orig_ts != null) {
-            String msg = "Duplicate transaction id #" + txn_id;
-            LOG.fatal("ORIG TRANSACTION:\n" + orig_ts);
-            LOG.fatal("NEW TRANSACTION:\n" + txn_info);
-            this.messenger.shutdownCluster(true, new Exception(msg));
-        }
         if (this.status_monitor != null) {
             if (txn_info.sysproc) {
                 TxnCounter.SYSPROCS.inc(txn_info.getProcedure());
@@ -947,7 +958,10 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
             if (hstore_conf.enable_profiling) txn_info.queue_time.start();
             executor.doWork(msg, callback, txn_info);
             
-            if (this.status_monitor != null) TxnCounter.EXECUTED.inc(txn_info.getProcedure());
+            if (this.status_monitor != null) {
+                assert(txn_info.getProcedure() != null) : "Null Procedure for txn #" + txn_id;
+                TxnCounter.EXECUTED.inc(txn_info.getProcedure());
+            }
         } else {
             if (t) LOG.trace("Executing fragment for already started txn #" + txn_id);
             executor.doWork(msg, done);

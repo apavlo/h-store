@@ -476,6 +476,10 @@ public class LocalTransactionState extends TransactionState {
     }
     
     
+    public void setTransactionId(long txn_id) { 
+        this.txn_id = txn_id;
+    }
+    
     @Override
     public synchronized void setPendingError(RuntimeException error) {
         boolean spin_latch = (this.pending_error == null);
