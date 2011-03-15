@@ -13,7 +13,7 @@ public final class HStoreConf {
     /**
      * Whether to not use the Dtxn.Coordinator
      */
-    public boolean ignore_dtxn = false;
+    public boolean ignore_dtxn = true;
 
     /**
      * Whether to force all transactions to be executed as single-partitioned
@@ -31,6 +31,12 @@ public final class HStoreConf {
      * @see HStoreSite.procedureInvocation() 
      */
     public boolean force_neworder_hack = false;
+    
+    /**
+     * If this is set to true, allow the HStoreSite to set the done partitions for multi-partition txns
+     * @see HStoreSite.procedureInvocation()
+     */
+    public boolean force_neworder_hack_done = true;
     
     /**
      * Enable txn profiling
@@ -143,6 +149,11 @@ public final class HStoreConf {
             if (args.hasBooleanParam(ArgumentsParser.PARAM_NODE_FORCE_NEWORDERINSPECT)) {
                 conf.force_neworder_hack = args.getBooleanParam(ArgumentsParser.PARAM_NODE_FORCE_NEWORDERINSPECT);
                 if (conf.force_neworder_hack) LOG.info("Enabling the inspection of incoming neworder parameters");
+            }
+            // Enable setting the done partitions for the "neworder" parameter hashing hack for the VLDB paper
+            if (args.hasBooleanParam(ArgumentsParser.PARAM_NODE_FORCE_NEWORDERINSPECT_DONE)) {
+                conf.force_neworder_hack_done = args.getBooleanParam(ArgumentsParser.PARAM_NODE_FORCE_NEWORDERINSPECT_DONE);
+                if (conf.force_neworder_hack_done) LOG.info("Enabling the setting of done partitions for neworder inspection");
             }
             // Clean-up Interval
             if (args.hasIntParam(ArgumentsParser.PARAM_NODE_CLEANUP_INTERVAL)) {
