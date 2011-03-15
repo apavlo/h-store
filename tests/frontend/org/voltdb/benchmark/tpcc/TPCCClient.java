@@ -211,7 +211,7 @@ public class TPCCClient extends org.voltdb.benchmark.ClientMain implements TPCCS
             Clock clock,
             ScaleParameters params)
     {
-        this(client, generator, clock, params, 0.0d);
+        this(client, generator, clock, params, 0.0d, false);
     }
 
     public TPCCClient(
@@ -219,12 +219,13 @@ public class TPCCClient extends org.voltdb.benchmark.ClientMain implements TPCCS
             RandomGenerator generator,
             Clock clock,
             ScaleParameters params,
-            double skewFactor)
+            double skewFactor,
+            boolean noop)
     {
         super(client);
         m_scaleParams = params;
-        m_tpccSim = new TPCCSimulation(this, generator, clock, m_scaleParams, false, skewFactor);
-        m_tpccSim2 = new TPCCSimulation(this, generator, clock, m_scaleParams, false, skewFactor);
+        m_tpccSim = new TPCCSimulation(this, generator, clock, m_scaleParams, false, skewFactor, noop);
+        m_tpccSim2 = new TPCCSimulation(this, generator, clock, m_scaleParams, false, skewFactor, noop);
     }
 
     /** Complies with our benchmark client remote controller scheme */
@@ -241,6 +242,7 @@ public class TPCCClient extends org.voltdb.benchmark.ClientMain implements TPCCS
         int warehouses = 1;
         double scalefactor = 1.0;
         double skewfactor = 0.0;
+        boolean noop = false;
 
         // scan the inputs once to read everything but host names
         for (String arg : args) {
@@ -259,6 +261,10 @@ public class TPCCClient extends org.voltdb.benchmark.ClientMain implements TPCCS
             }
             else if (parts[0].equalsIgnoreCase("skewfactor") && !parts[1].isEmpty()) {
                 skewfactor = Double.parseDouble(parts[1]);
+            }
+            else if (parts[0].equalsIgnoreCase("noop") && !parts[1].isEmpty()) {
+                noop = Boolean.parseBoolean(parts[1]);
+
             }
         }
 
@@ -280,9 +286,9 @@ public class TPCCClient extends org.voltdb.benchmark.ClientMain implements TPCCS
         m_scaleParams =
             ScaleParameters.makeWithScaleFactor(warehouses, scalefactor);
         m_tpccSim =
-            new TPCCSimulation(this, rng, new Clock.RealTime(), m_scaleParams, false, skewfactor);
+            new TPCCSimulation(this, rng, new Clock.RealTime(), m_scaleParams, false, skewfactor, noop);
         m_tpccSim2 =
-            new TPCCSimulation(this, rng2, new Clock.RealTime(), m_scaleParams, false, skewfactor);
+            new TPCCSimulation(this, rng2, new Clock.RealTime(), m_scaleParams, false, skewfactor, noop);
 
         // Set up checking
         buildConstraints();
