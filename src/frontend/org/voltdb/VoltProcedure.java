@@ -36,6 +36,7 @@ import org.voltdb.types.TimestampType;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.hashing.AbstractHasher;
 import edu.brown.markov.EstimationThresholds;
+import edu.brown.markov.MarkovEstimate;
 import edu.brown.markov.MarkovGraph;
 import edu.brown.markov.MarkovUtil;
 import edu.brown.markov.TransactionEstimator;
@@ -122,7 +123,6 @@ public abstract class VoltProcedure implements Poolable {
     protected AbstractHasher hasher;
     protected PartitionEstimator p_estimator;
     protected TransactionEstimator t_estimator;
-    protected EstimationThresholds thresholds;
     protected HStoreConf hstore_conf;
     
     protected int base_partition = -1;
@@ -314,9 +314,6 @@ public abstract class VoltProcedure implements Poolable {
         this.t_estimator = this.executor.getTransactionEstimator();
         this.p_estimator = p_estimator;
         this.hasher = this.p_estimator.getHasher();
-        
-        HStoreSite hstore_site = this.executor.getHStoreSite();
-        if (hstore_site != null) this.thresholds = hstore_site.getThresholds();
         
         if (d) LOG.debug(String.format("Initialized VoltProcedure for %s [partition=%d]", this.procedure_name, this.base_partition));
         
@@ -677,7 +674,7 @@ public abstract class VoltProcedure implements Poolable {
                     currentQueries += String.format("[%02d] %s\n", i, CatalogUtil.getDisplayName(batchQueryStmts[i].catStmt));
                 }
                 if (executor.isShuttingDown() == false) {
-                    LOG.fatal(String.format("PROCEDURE %s UNEXPECTED ABORT: %s\n%s", catProc.getName(), msg, currentQueries), ex);
+                    LOG.fatal(String.format("PROCEDURE %s UNEXPECTED ABORT TXN #%d: %s\n%s", procedure_name, this.txn_id, msg, currentQueries), ex);
                 }
                 
                 status = ClientResponseImpl.UNEXPECTED_FAILURE;
@@ -1141,7 +1138,7 @@ public abstract class VoltProcedure implements Poolable {
 
         VoltTable results[] = null;
         
-        if (this.plan.isSingleSited()) {
+        if (this.plan.isSingledPartitionedAndLocal()) {
             if  (d) LOG.debug("Executing BatchPlan directly with ExecutionSite");
             results = this.executor.executeLocalPlan(m_localTxnState, this.plan);
             

@@ -239,8 +239,8 @@ public class TPCCSimulation
 
     /** Executes a new order transaction. */
     public void doNewOrder() throws IOException {
-        boolean allow_rollback = false;
-        boolean allow_remote_w_id = false;
+        boolean allow_rollback = true;
+        boolean allow_remote_w_id = true;
         
         short warehouse_id = generateWarehouseId();
         int ol_cnt = generator.number(Constants.MIN_OL_CNT, Constants.MAX_OL_CNT);
@@ -297,10 +297,10 @@ public class TPCCSimulation
         // This is not strictly accurate: The requirement is for certain
         // *minimum* percentages to be maintained. This is close to the right
         // thing, but not precisely correct. See TPC-C 5.2.4 (page 68).
-       if (true || this.noop) {
+        if (this.noop) {
            doNewOrder();
            return Transaction.NEW_ORDER.ordinal();
-       }
+        }
         
         int x = generator.number(1, 100);
         if (x <= 4) { // 4%

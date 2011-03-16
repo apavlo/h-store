@@ -89,6 +89,8 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
     static {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
+    private static boolean d = debug.get();
+    private static boolean t = trace.get();
     
     public static final String DTXN_COORDINATOR = "protodtxncoordinator";
     public static final String DTXN_ENGINE = "protodtxnengine";
@@ -402,10 +404,10 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
      * Initializes all the pieces that we need to start this HStore site up
      */
     public void start() {
-        if (debug.get()) LOG.debug("Initializing HStoreSite...");
+        if (d) LOG.debug("Initializing HStoreSite...");
 
         // First we need to tell the HStoreMessenger to start-up and initialize its connections
-        if (debug.get()) LOG.debug("Starting HStoreMessenger for Site #" + this.site_id);
+        if (d) LOG.debug("Starting HStoreMessenger for Site #" + this.site_id);
         this.messenger.start();
 
         // Preparation Thread
@@ -417,7 +419,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         }.start();
         
         // Then we need to start all of the ExecutionSites in threads
-        if (debug.get()) LOG.debug("Starting ExecutionSite threads for " + this.executors.size() + " partitions on Site #" + this.site_id);
+        if (d) LOG.debug("Starting ExecutionSite threads for " + this.executors.size() + " partitions on Site #" + this.site_id);
         for (Entry<Integer, ExecutionSite> e : this.executors.entrySet()) {
             ExecutionSite executor = e.getValue();
             executor.setHStoreCoordinatorSite(this);
@@ -522,6 +524,11 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         return (this.inflight_txns.size());
     }
     
+    public void updateLogging() {
+        d = debug.get();
+        t = trace.get();
+    }
+    
     /**
      * 
      * @param suffix
@@ -567,8 +574,6 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
     
     @Override
     public void procedureInvocation(byte[] serializedRequest, RpcCallback<byte[]> done) {
-        final boolean t = trace.get();
-        final boolean d = debug.get();
         long timestamp = (hstore_conf.enable_profiling ? ProfileMeasurement.getTime() : -1);
         
         // The serializedRequest is a ProcedureInvocation object
@@ -642,7 +647,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         
         // If the dest_partition isn't local, then we need to ship it off to the right location
         if (hstore_conf.force_localexecution == false && this.executors.containsKey(dest_partition) == false) {
-            if (debug.get()) LOG.debug("StoredProcedureInvocation request for " +  catalog_proc + " needs to be forwarded to Partition #" + dest_partition);
+            if (d) LOG.debug("StoredProcedureInvocation request for " +  catalog_proc + " needs to be forwarded to Partition #" + dest_partition);
             
             // Make a wrapper for the original callback so that when the result comes back frm the remote partition
             // we will just forward it back to the client. How sweet is that??
@@ -775,9 +780,6 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
      * @param done
      */
     private void initializeInvocation(LocalTransactionState txn_info) {
-        final boolean d = debug.get();
-        final boolean t = trace.get();
-        
         long txn_id = txn_info.getTransactionId();
         Long orig_txn_id = txn_info.getOriginalTransactionId();
         int base_partition = txn_info.getSourcePartition();
@@ -905,8 +907,6 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
      */
     @Override
     public void execute(RpcController controller, Dtxn.Fragment request, RpcCallback<Dtxn.FragmentResponse> done) {
-        final boolean t = trace.get();
-        final boolean d = debug.get();
         long timestamp = (hstore_conf.enable_profiling ? ProfileMeasurement.getTime() : -1);
         
         // Decode the procedure request
@@ -995,8 +995,6 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
      * @param txn_id
      */
     public void misprediction(long txn_id, RpcCallback<byte[]> orig_callback) {
-        final boolean d = debug.get();
-        
         LocalTransactionState orig_ts = this.inflight_txns.get(txn_id);
         // XXX assert(txn_info.orig_txn_id == null) : "Trying to restart a mispredicted transaction more than once!";
         int base_partition = orig_ts.getSourcePartition();
@@ -1056,7 +1054,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
      */
     public void requestWork(LocalTransactionState ts, Dtxn.CoordinatorFragment fragment, RpcCallback<Dtxn.CoordinatorResponse> callback) {
         this.initializationBlock(ts);
-        if (debug.get()) LOG.debug(String.format("Asking the Dtxn.Coordinator to execute fragment for txn #%d [bytes=%d, last=%s]", ts.getTransactionId(), fragment.getSerializedSize(), fragment.getLastFragment()));
+        if (d) LOG.debug(String.format("Asking the Dtxn.Coordinator to execute fragment for txn #%d [bytes=%d, last=%s]", ts.getTransactionId(), fragment.getSerializedSize(), fragment.getLastFragment()));
         ts.rpc_request_work.reset();
         this.coordinator.execute(ts.rpc_request_work, fragment, callback);
     }
@@ -1072,7 +1070,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         if (this.status_monitor != null && request.getCommit() == false) TxnCounter.ABORTED.inc(local_ts.getProcedure());
         this.initializationBlock(local_ts);
         if (local_ts.sysproc == false && hstore_conf.enable_profiling) ProfileMeasurement.stop(local_ts.finish_time, local_ts.total_time);
-        if (debug.get()) LOG.debug(String.format("Telling the Dtxn.Coordinator to finish txn #%d [commit=%s]", txn_id, request.getCommit()));
+        if (d) LOG.debug(String.format("Telling the Dtxn.Coordinator to finish txn #%d [commit=%s]", txn_id, request.getCommit()));
         this.coordinator.finish(local_ts.rpc_request_finish, request, callback);
     }
 
@@ -1092,7 +1090,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         }
         Long txn_id = HStoreSite.decodeTxnId(request.getPayload());
         assert(txn_id != null) : "Null txn id in Dtxn.FinishRequest payload";
-        if (debug.get()) LOG.debug("Got Dtxn.FinishRequest for txn #" + txn_id + " [commit=" + request.getCommit() + "]");
+        if (d) LOG.debug("Got Dtxn.FinishRequest for txn #" + txn_id + " [commit=" + request.getCommit() + "]");
         
         // We only need to call commit/abort if this wasn't a single-partition transaction
         LocalTransactionState local_ts = this.inflight_txns.get(txn_id);
@@ -1113,7 +1111,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         if (done != null) {
             Dtxn.FinishResponse.Builder builder = Dtxn.FinishResponse.newBuilder();
             done.run(builder.build());
-            if (trace.get()) LOG.trace("Sent back Dtxn.FinishResponse for txn #" + txn_id);
+            if (t) LOG.trace("Sent back Dtxn.FinishResponse for txn #" + txn_id);
         } 
     }
 
@@ -1122,7 +1120,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
      * @param txn_id
      */
     public void completeTransaction(long txn_id) {
-        if (debug.get()) LOG.debug("Cleaning up internal info for Txn #" + txn_id);
+        if (d) LOG.debug("Cleaning up internal info for Txn #" + txn_id);
         LocalTransactionState txn_info = this.inflight_txns.remove(txn_id);
         assert(txn_info != null) : "No LocalTransactionState for txn #" + txn_id;
         txn_info.setHStoreSiteDone(true);
@@ -1158,13 +1156,13 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         // ----------------------------------------------------------------------------
         // (1) ProtoServer Thread (one per site)
         // ----------------------------------------------------------------------------
-        if (debug.get()) LOG.debug(String.format("Starting HStoreSite [site=%d]", hstore_site.getSiteId()));
+        if (d) LOG.debug(String.format("Starting HStoreSite [site=%d]", hstore_site.getSiteId()));
         hstore_site.start();
         
         // ----------------------------------------------------------------------------
         // (1) ProtoServer Thread (one per site)
         // ----------------------------------------------------------------------------
-        if (debug.get()) LOG.debug(String.format("Launching ProtoServer [site=%d, port=%d]", hstore_site.getSiteId(), catalog_site.getDtxn_port()));
+        if (d) LOG.debug(String.format("Launching ProtoServer [site=%d, port=%d]", hstore_site.getSiteId(), catalog_site.getDtxn_port()));
         final NIOEventLoop execEventLoop = new NIOEventLoop();
         final CountDownLatch execLatch = new CountDownLatch(1);
         execEventLoop.setExitOnSigInt(true);
@@ -1202,7 +1200,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         // ----------------------------------------------------------------------------
         // (2) DTXN Engine Threads (one per partition)
         // ----------------------------------------------------------------------------
-        if (debug.get()) LOG.debug(String.format("Launching DTXN Engines for %d partitions", num_partitions));
+        if (d) LOG.debug(String.format("Launching DTXN Engines for %d partitions", num_partitions));
         for (final Partition catalog_part : catalog_site.getPartitions()) {
             // TODO: There should be a single thread that forks all the processes and then joins on them
             threads.add(new Runnable() {
@@ -1212,7 +1210,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
                     
                     int partition = catalog_part.getId();
                     if (execLatch.getCount() > 0) {
-                        if (debug.get()) LOG.debug("Waiting for ProtoServer to finish start up for Partition #" + partition);
+                        if (d) LOG.debug("Waiting for ProtoServer to finish start up for Partition #" + partition);
                         try {
                             execLatch.await();
                         } catch (InterruptedException ex) {
@@ -1222,7 +1220,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
                     }
                     
                     int port = catalog_site.getDtxn_port();
-                    if (debug.get()) LOG.debug("Forking off ProtoDtxnEngine for Partition #" + partition + " [outbound_port=" + port + "]");
+                    if (d) LOG.debug("Forking off ProtoDtxnEngine for Partition #" + partition + " [outbound_port=" + port + "]");
                     String[] command = new String[]{
                         dtxnengine_path,                // protodtxnengine
                         site_host + ":" + port,         // host:port (ProtoServer)
@@ -1249,7 +1247,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
                 final Thread self = Thread.currentThread();
                 self.setName(hstore_site.getThreadName("coord"));
                 
-                if (debug.get()) LOG.debug("Creating connection to coordinator at " + coordinatorHost + ":" + coordinatorPort + " [site=" + hstore_site.getSiteId() + "]");
+                if (d) LOG.debug("Creating connection to coordinator at " + coordinatorHost + ":" + coordinatorPort + " [site=" + hstore_site.getSiteId() + "]");
                 
                 hstore_site.coordinatorEventLoop.setExitOnSigInt(true);
                 InetSocketAddress[] addresses = {

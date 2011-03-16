@@ -415,6 +415,10 @@ public class BatchPlanner {
             return (this.all_singlepartitioned);
         }
         
+        public boolean isSingledPartitionedAndLocal() {
+            return (this.all_singlepartitioned && this.all_local);
+        }
+        
         @Override
         public String toString() {
             StringBuilder b = new StringBuilder();
