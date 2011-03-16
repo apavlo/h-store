@@ -73,6 +73,8 @@ public abstract class VoltProcedure implements Poolable {
     static {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
+    private boolean t = trace.get();
+    private boolean d = debug.get();
     
     // ----------------------------------------------------------------------------
     // STATIC CONSTANTS
@@ -198,8 +200,8 @@ public abstract class VoltProcedure implements Poolable {
         }
         @Override
         public void run() {
-            final boolean t = trace.get();
-            final boolean d = debug.get();
+            t = trace.get();
+            d = debug.get();
             
             if (d) Thread.currentThread().setName(VoltProcedure.this.executor.getThreadName() + "-" + VoltProcedure.this.procedure_name);
 
@@ -316,7 +318,7 @@ public abstract class VoltProcedure implements Poolable {
         HStoreSite hstore_site = this.executor.getHStoreSite();
         if (hstore_site != null) this.thresholds = hstore_site.getThresholds();
         
-        if (debug.get()) LOG.debug(String.format("Initialized VoltProcedure for %s [partition=%d]", this.procedure_name, this.base_partition));
+        if (d) LOG.debug(String.format("Initialized VoltProcedure for %s [partition=%d]", this.procedure_name, this.base_partition));
         
         if (catProc.getHasjava()) {
             int tempParamTypesLength = 0;
@@ -550,7 +552,7 @@ public abstract class VoltProcedure implements Poolable {
      * @return
      */
     public final void call(TransactionState txnState, Object... paramList) {
-        if (trace.get()) LOG.trace("Setting up internal state for txn #" + txnState.getTransactionId());
+        if (t) LOG.trace("Setting up internal state for txn #" + txnState.getTransactionId());
         
         // Bombs away!
         this.exec_thread.init(txnState, paramList);
@@ -562,9 +564,6 @@ public abstract class VoltProcedure implements Poolable {
      * @return
      */
     private final ClientResponse call() {
-        final boolean t = trace.get();
-        final boolean d = debug.get();
-        
         // in case someone queues sql but never calls execute, clear the queue here.
         batchQueryStmtIndex = 0;
         batchQueryArgsIndex = 0;
@@ -1080,7 +1079,7 @@ public abstract class VoltProcedure implements Poolable {
         try {
             this.plan = this.planner.plan(this.txn_id, this.client_handle, this.base_partition, params, this.predict_singlepartition);
         } catch (MispredictionException ex) {
-            if (debug.get()) {
+            if (d) {
                 String msg = "Caught " + ex.getClass().getSimpleName() + "!\n" + StringUtil.SINGLE_LINE;
                 
                 msg += "CURRENT BATCH\n";
@@ -1138,21 +1137,22 @@ public abstract class VoltProcedure implements Poolable {
         }
         if (hstore_conf.enable_profiling) this.m_localTxnState.est_time.stop();
         
-        if (debug.get()) LOG.debug("BatchPlan for txn #" + this.txn_id + ":\n" + plan.toString());
-        
-        // IMPORTANT: Regardless of whether the BatchPlan is local or remote, we are always
-        // going to use the ExecutionSite to execute our tasks, rather than use the short-cut
-        // to access the EE directly here in executeLocalBatch(). This is because we want
-        // to maintain state information in TransactionState. We can probably add in the code
-        // to update this txn's state object later on. For now this is just easier.
-        // It is at this point that we just need to make a call into Evan's stuff (through the ExecutionSite)
-        // I'm not sure how this is suppose to exactly work, but what the hell let's give it a shot!
-        List<FragmentTaskMessage> tasks = this.plan.getFragmentTaskMessages();
-        if (trace.get()) LOG.trace("Got back a set of tasks for " + tasks.size() + " partitions for txn #" + this.txn_id);
+        if (d) LOG.debug("BatchPlan for txn #" + this.txn_id + ":\n" + plan.toString());
 
-        // Block until we get all of our responses.
-        // We can do this because our ExecutionSite is multi-threaded
-        final VoltTable results[] = this.executor.waitForResponses(this.m_localTxnState, tasks, plan.getBatchSize());
+        VoltTable results[] = null;
+        
+        if (this.plan.isSingleSited()) {
+            if  (d) LOG.debug("Executing BatchPlan directly with ExecutionSite");
+            results = this.executor.executeLocalPlan(m_localTxnState, this.plan);
+            
+        } else {
+            List<FragmentTaskMessage> tasks = this.plan.getFragmentTaskMessages();
+            if (t) LOG.trace("Got back a set of tasks for " + tasks.size() + " partitions for txn #" + this.txn_id);
+    
+            // Block until we get all of our responses.
+            // We can do this because our ExecutionSite is multi-threaded
+            results = this.executor.waitForResponses(this.m_localTxnState, tasks, plan.getBatchSize());
+        }
         assert(results != null) : "Got back a null results array for txn #" + this.txn_id + "\n" + plan.toString();
 
         // Tell our TransactionState that we are done with this BatchPlan

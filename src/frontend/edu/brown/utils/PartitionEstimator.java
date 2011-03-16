@@ -55,6 +55,7 @@ public class PartitionEstimator {
     private int num_partitions;
     
     private final Map<Procedure, ProcParameter> cache_procparam = new HashMap<Procedure, ProcParameter>();
+    private final Map<Table, Column> cache_tblpartitioncol = new HashMap<Table, Column>();
     
     /**
      * PlanFragment Key -> CacheEntry(Column Key -> StmtParameter Indexes)
@@ -85,7 +86,8 @@ public class PartitionEstimator {
         private final HashSet<String> broadcast_tables = new HashSet<String>();
         
         private final transient ListOrderedSet<Table> tables = new ListOrderedSet<Table>();
-        private transient boolean is_replicated[];
+        private transient boolean is_replicated[]; // tables
+        private transient boolean is_array[]; // parameters
         private transient boolean is_valid = true;
         private transient Integer last_catalog_hashcode = null;
         
@@ -294,6 +296,11 @@ public class PartitionEstimator {
                 int param_idx = catalog_proc.getPartitionparameter();
                 this.cache_procparam.put(catalog_proc, catalog_proc.getParameters().get(param_idx));
             }
+        } // FOR
+        
+        this.cache_tblpartitioncol.clear();
+        for (Table catalog_tbl : this.catalog_db.getTables()) {
+            this.cache_tblpartitioncol.put(catalog_tbl, catalog_tbl.getPartitioncolumn());
         } // FOR
         
         // Generate a list of all the partition ids, so that we can quickly
@@ -970,9 +977,20 @@ public class PartitionEstimator {
     private void calculatePartitionsForCache(final Map<String, Set<Integer>> entry_table_partitions,
                                              final Set<Integer> entry_all_partitions,
                                              PartitionEstimator.CacheEntry cache_entry, Object params[], Integer base_partition) throws Exception {
+        final boolean t = trace.get();
+        final boolean d = debug.get();
+        
         // Hash the input parameters to determine what partitions we're headed to
         QueryType stmt_type = cache_entry.query_type;
 
+        // Update cache
+        if (cache_entry.is_array == null) {
+            cache_entry.is_array = new boolean[params.length];
+            for (int i = 0; i < cache_entry.is_array.length; i++) {
+                cache_entry.is_array[i] = ClassUtil.isArray(params[i]);
+            } // FOR
+        }
+        
         // Go through each table referenced in this CacheEntry and look-up the parameters that the partitioning
         // columns are referenced against to determine what partitions we need to go to
         // IMPORTANT: If there are no tables (meaning it's some PlanFragment that combines data output 
@@ -994,10 +1012,10 @@ public class PartitionEstimator {
             // delete, then we know it's not single-sited.
             if (is_replicated) {
                 if (stmt_type == QueryType.SELECT) {
-                    if (trace.get()) LOG.trace("Cache entry " + cache_entry + " will execute on the local partition");
+                    if (t) LOG.trace("Cache entry " + cache_entry + " will execute on the local partition");
                     if (base_partition != null) table_partitions.add(base_partition);
                 } else if (stmt_type == QueryType.INSERT || stmt_type == QueryType.UPDATE || stmt_type == QueryType.DELETE) {
-                    if (trace.get()) LOG.trace("Cache entry " + cache_entry + " must be broadcast to all partitions");
+                    if (t) LOG.trace("Cache entry " + cache_entry + " must be broadcast to all partitions");
                     table_partitions.addAll(this.all_partitions);
                 } else {
                     assert(false) : "Unexpected query type: " + stmt_type;
@@ -1005,9 +1023,9 @@ public class PartitionEstimator {
             // Otherwise calculate the partition value based on this table's partitioning column 
             } else {
                 // Grab the parameter mapping for this column
-                Column catalog_col = catalog_tbl.getPartitioncolumn();
+                Column catalog_col = cache_tblpartitioncol.get(catalog_tbl);
                 String column_key = CatalogKey.createKey(catalog_col);
-                if (trace.get()) LOG.trace("Partitioning Column: " + CatalogUtil.getDisplayName(catalog_col));
+                if (t) LOG.trace("Partitioning Column: " + CatalogUtil.getDisplayName(catalog_col));
                 
                 // Special Case: Multi-Column Partitioning
                 // Strap on your seatbelts, we're going in!!!
@@ -1029,17 +1047,17 @@ public class PartitionEstimator {
                             String mc_column_key = CatalogKey.createKey(mc_column);
                             // assert(cache_entry.get(mc_column_key) != null) : "Null CacheEntry: " + mc_column_key;
                             if (cache_entry.get(mc_column_key) != null) {
-                                this.calculatePartitions(mc_partitions[i], params, cache_entry.get(mc_column_key), mc_column);
+                                this.calculatePartitions(mc_partitions[i], params, cache_entry.is_array, cache_entry.get(mc_column_key), mc_column);
                             }
                             
                             // Unless we have partition values for both keys, then it has to be a broadcast 
                             if (mc_partitions[i].isEmpty()) {
-                                if (debug.get()) LOG.warn("No partitions for " + mc_column + " from " + mc + ". Cache entry " + cache_entry + " must be broadcast to all partitions");
+                                if (d) LOG.warn("No partitions for " + mc_column + " from " + mc + ". Cache entry " + cache_entry + " must be broadcast to all partitions");
                                 table_partitions.addAll(this.all_partitions);
                                 is_valid = false;
                                 break;
                             }
-                            if (trace.get()) LOG.trace(CatalogUtil.getDisplayName(mc_column) + ": " + mc_partitions[i]);
+                            if (t) LOG.trace(CatalogUtil.getDisplayName(mc_column) + ": " + mc_partitions[i]);
                         } // FOR
                         
                         // Now if we're here, then we have partitions for both of the columns and we're legit
@@ -1049,7 +1067,7 @@ public class PartitionEstimator {
                                 for (int part1 : mc_partitions[1]) {
                                     int partition = this.hasher.multiValueHash(part0, part1);
                                     table_partitions.add(partition);
-                                    if (trace.get()) LOG.trace("MultiColumn Partitions[" + part0 + ", " + part1 + "] => " + partition);
+                                    if (t) LOG.trace("MultiColumn Partitions[" + part0 + ", " + part1 + "] => " + partition);
                                 } // FOR
                             } // FOR
                         }
@@ -1057,18 +1075,18 @@ public class PartitionEstimator {
                     }
                 } else {
                     Set<Integer> param_idxs = cache_entry.get(column_key);
-                    if (trace.get()) LOG.trace("Param Indexes: " + param_idxs);
+                    if (t) LOG.trace("Param Indexes: " + param_idxs);
     
                     // Important: If there is no entry for this partitioning column, then we have to broadcast this mofo
                     if (param_idxs == null || param_idxs.isEmpty()) {
-                        if (debug.get()) LOG.debug("No parameter mapping for " + CatalogUtil.getDisplayName(catalog_col) + ". " +
-                                             "Fragment must be broadcast to all partitions");
+                        if (d) LOG.debug("No parameter mapping for " + CatalogUtil.getDisplayName(catalog_col) + ". " +
+                                         "Fragment must be broadcast to all partitions");
                         table_partitions.addAll(this.all_partitions);
     
                     // If there is nothing special, just shove off and have this method figure things out for us
                     } else {
-                        if (trace.get()) LOG.trace("Calculating partitions normally for " + cache_entry);
-                        this.calculatePartitions(table_partitions, params, param_idxs, catalog_col);
+                        if (t) LOG.trace("Calculating partitions normally for " + cache_entry);
+                        this.calculatePartitions(table_partitions, params, cache_entry.is_array, param_idxs, catalog_col);
                     }
                 }
             } // ELSE
@@ -1076,12 +1094,12 @@ public class PartitionEstimator {
             
             if (entry_table_partitions != null) {
                 String table_key = CatalogKey.createKey(catalog_tbl);
-                Set<Integer> t = entry_table_partitions.get(table_key);
-                if (t == null) {
+                Set<Integer> table_p = entry_table_partitions.get(table_key);
+                if (table_p == null) {
                     entry_table_partitions.put(table_key, new HashSet<Integer>(table_partitions));    
                 } else {
-                    t.clear();
-                    t.addAll(table_partitions);
+                    table_p.clear();
+                    table_p.addAll(table_partitions);
                 }
             }
             if (entry_all_partitions != null) {
@@ -1101,13 +1119,14 @@ public class PartitionEstimator {
      * @param catalog_col
      */
     private Set<Integer> calculatePartitions(final Set<Integer> partitions,
-                                             Object params[], Set<Integer> param_idxs, Column catalog_col) {
+                                             Object params[], boolean is_array[], 
+                                             Set<Integer> param_idxs, Column catalog_col) {
         // Note that we have to go through all of the mappings from the partitioning column
         // to parameters. This can occur when the partitioning column is referenced multiple times
         for (Integer param_idx : param_idxs) {
             // IMPORTANT: Check if the parameter is an array. If it is, then we have to 
             // loop through and get the hash of all of the values
-            if (ClassUtil.isArray(params[param_idx])) {
+            if (is_array[param_idx]) {
                 int num_elements = Array.getLength(params[param_idx]);
                 if (trace.get()) LOG.trace("Parameter #" + param_idx + " is an array. Calculating multiple partitions...");
                 for (int i = 0; i < num_elements; i++) {

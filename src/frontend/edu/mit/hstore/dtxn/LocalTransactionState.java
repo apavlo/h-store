@@ -571,6 +571,14 @@ public class LocalTransactionState extends TransactionState {
         } // SYNCHRONIZED
     }
     
+    /**
+     * Quickly finish this round. Assumes that everything executed locally
+     */
+    public void fastFinishRound() {
+        this.round_state = RoundState.STARTED;
+        super.finishRound();
+    }
+    
     public void setBatchSize(int batchSize) {
         this.batch_size = batchSize;
     }
@@ -907,6 +915,7 @@ public class LocalTransactionState extends TransactionState {
             "Trying to store " + type + " for txn #" + this.txn_id + " but it is not executing locally!";
 
         DependencyInfo d = null;
+        Map<Integer, Queue<Integer>> stmt_ctr = (result != null ? this.results_dependency_stmt_ctr : this.responses_dependency_stmt_ctr);
         
         // If the txn is still in the INITIALIZED state, then we just want to queue up the results
         // for now. They will get released when we switch to STARTED 
@@ -925,7 +934,6 @@ public class LocalTransactionState extends TransactionState {
 
             // Each partition+dependency_id should be unique for a Statement batch.
             // So as the results come back to us, we have to figure out which Statement it belongs to
-            Map<Integer, Queue<Integer>> stmt_ctr = (result != null ? this.results_dependency_stmt_ctr : this.responses_dependency_stmt_ctr);
             if (t) LOG.trace("Storing new " + type + " for key " + key + " in txn #" + this.txn_id);
             Queue<Integer> queue = stmt_ctr.get(key);
             if (t) LOG.trace(type + " stmt_ctr(key=" + key + "): " + queue);
