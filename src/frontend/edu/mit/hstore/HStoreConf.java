@@ -13,7 +13,7 @@ public final class HStoreConf {
     /**
      * Whether to not use the Dtxn.Coordinator
      */
-    public boolean ignore_dtxn = true;
+    public boolean ignore_dtxn = false;
 
     /**
      * Whether to force all transactions to be executed as single-partitioned

@@ -33,11 +33,9 @@ import edu.brown.graphs.AbstractEdge;
 import edu.brown.graphs.AbstractVertex;
 import edu.brown.graphs.IGraph;
 import edu.brown.utils.CountingPoolableObjectFactory;
-import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.PartitionEstimator;
 import edu.brown.utils.Poolable;
 import edu.brown.utils.StringUtil;
-import edu.brown.utils.LoggerUtil.LoggerBoolean;
 import edu.mit.hstore.HStoreConf;
 
 /**
@@ -45,11 +43,8 @@ import edu.mit.hstore.HStoreConf;
  */
 public class BatchPlanner {
     private static final Logger LOG = Logger.getLogger(BatchPlanner.class);
-    private final static LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
-    private final static LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
-    static {
-        LoggerUtil.attachObserver(LOG, debug, trace);
-    }
+    private final static boolean d = LOG.isDebugEnabled();
+    private final static boolean t = LOG.isTraceEnabled();
 
     // ----------------------------------------------------------------------------
     // STATIC DATA MEMBERS
@@ -509,9 +504,6 @@ public class BatchPlanner {
      * @return
      */
     public BatchPlan plan(long txn_id, long client_handle, int base_partition, ParameterSet[] batchArgs, boolean predict_singlepartitioned) {
-        final boolean t = trace.get();
-        final boolean d = debug.get();
-        
         if (d) LOG.debug(String.format("Constructing a new %s BatchPlan for txn #%d", this.catalog_proc.getName(), txn_id));
         
         BatchPlan plan = null;
@@ -560,15 +552,18 @@ public class BatchPlanner {
                 // whether the query should be single-partitioned or not. This is because a query may actually just want
                 // to execute on just one partition (note that it could be a local partition or the remote partition).
                 // We'll assume that it's single-partition <<--- Can we cache that??
+                boolean first = true;
                 while (true) {
-                    stmt_all_partitions.clear();
+                    if (first == false) stmt_all_partitions.clear();
+                    first = false;
                     
                     fragments = (is_singlepartition ? catalog_stmt.getFragments() : catalog_stmt.getMs_fragments());
                     this.p_estimator.getAllFragmentPartitions(frag_partitions,
                                                               stmt_all_partitions,
                                                               fragments, params, plan.base_partition);
-                    is_local = (stmt_all_partitions.size() == 1 && stmt_all_partitions.contains(plan.base_partition));
-                    if (is_singlepartition && stmt_all_partitions.size() > 1) {
+                    int stmt_all_partitions_size = stmt_all_partitions.size();
+                    is_local = (stmt_all_partitions_size == 1 && stmt_all_partitions.contains(plan.base_partition));
+                    if (is_singlepartition && stmt_all_partitions_size > 1) {
                         // If this was suppose to be multi-partitioned, then we want to stop right here!!
                         if (predict_singlepartitioned) {
                             if (t) LOG.trace(String.format("Mispredicted txn #%d - Multiple Partitions"));
@@ -680,9 +675,6 @@ public class BatchPlanner {
      * @return
      */
     private void buildFragmentTaskMessages(final BatchPlanner.BatchPlan plan, final PlanGraph graph, final ParameterSet[] batchArgs) {
-        final boolean t = trace.get();
-        final boolean d = debug.get();
-        
         long txn_id = plan.txn_id;
         long client_handle = plan.client_handle;
         if (d) LOG.debug("Constructing list of FragmentTaskMessages to execute [txn_id=#" + txn_id + ", base_partition=" + plan.base_partition + "]");
