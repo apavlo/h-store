@@ -89,7 +89,7 @@ public class PartitionEstimator {
         private transient boolean is_replicated[]; // tables
         private transient boolean is_array[]; // parameters
         private transient boolean is_valid = true;
-        private transient Integer last_catalog_hashcode = null;
+        private transient boolean cache_valid = false;
         
         public CacheEntry(QueryType query_type) {
             this.query_type = query_type;
@@ -142,22 +142,23 @@ public class PartitionEstimator {
          * @return
          */
         public ListOrderedSet<Table> getTables() {
-            int cur_catalog_hashcode = catalog_db.hashCode();
-            // We have to update the cache set if don't have all of the entries we need or the catalog has changed
-            if (this.last_catalog_hashcode == null ||
-                this.last_catalog_hashcode != cur_catalog_hashcode || 
-                this.tables.size() < this.table_keys.size()) {
-                LOG.trace("Generating list of tables used by cache entry");
-                this.tables.clear();
-                
-                this.is_replicated = new boolean[this.table_keys.size()];
-                int i = 0;
-                for (String table_key : this.table_keys) {
-                    Table catalog_tbl = CatalogKey.getFromKey(catalog_db, table_key, Table.class); 
-                    this.tables.add(catalog_tbl);
-                    this.is_replicated[i++] = catalog_tbl.getIsreplicated();
-                } // FOR
-                this.last_catalog_hashcode = cur_catalog_hashcode;
+            if (this.cache_valid == false) {
+                // We have to update the cache set if don't have all of the entries we need or the catalog has changed
+                synchronized (this) {
+                    if (this.cache_valid == false) {
+                        LOG.trace("Generating list of tables used by cache entry");
+                        this.tables.clear();
+                        
+                        this.is_replicated = new boolean[this.table_keys.size()];
+                        int i = 0;
+                        for (String table_key : this.table_keys) {
+                            Table catalog_tbl = CatalogKey.getFromKey(catalog_db, table_key, Table.class); 
+                            this.tables.add(catalog_tbl);
+                            this.is_replicated[i++] = catalog_tbl.getIsreplicated();
+                        } // FOR
+                    }
+                    this.cache_valid = true;
+                } // SYNCH
             }
             return (this.tables);
         }
@@ -302,6 +303,13 @@ public class PartitionEstimator {
         for (Table catalog_tbl : this.catalog_db.getTables()) {
             this.cache_tblpartitioncol.put(catalog_tbl, catalog_tbl.getPartitioncolumn());
         } // FOR
+        
+        for (CacheEntry entry : this.frag_cache_entries.values()) {
+            entry.cache_valid = false;
+        }
+        for (CacheEntry entry : this.stmt_cache_entries.values()) {
+            entry.cache_valid = false;
+        }
         
         // Generate a list of all the partition ids, so that we can quickly
         // add them to the output when estimating later on
@@ -990,6 +998,10 @@ public class PartitionEstimator {
                 cache_entry.is_array[i] = ClassUtil.isArray(params[i]);
             } // FOR
         }
+
+        @SuppressWarnings("unchecked")
+        final Set<Integer> table_partitions = (Set<Integer>)this.partitionSetPool.borrowObject();
+        assert(table_partitions != null);
         
         // Go through each table referenced in this CacheEntry and look-up the parameters that the partitioning
         // columns are referenced against to determine what partitions we need to go to
@@ -1000,11 +1012,8 @@ public class PartitionEstimator {
         for (int table_idx = 0, cnt = cache_entry.is_replicated.length; table_idx < cnt; table_idx++) {
             final Table catalog_tbl = tables.get(table_idx);
             final boolean is_replicated = cache_entry.is_replicated[table_idx];
+            if (table_idx > 0) table_partitions.clear();
             
-            @SuppressWarnings("unchecked")
-            Set<Integer> table_partitions = (Set<Integer>)this.partitionSetPool.borrowObject();
-            assert(table_partitions != null);
-
             // Easy Case: If this table is replicated and this query is a scan, then
             // we're in the clear and there's nothing else we need to do here for the
             // current table (but we still need to check the other guys).
@@ -1033,7 +1042,7 @@ public class PartitionEstimator {
                     
                     // HACK: All multi-column look-ups on queries with an OR must be broadcast
                     if (cache_entry.isContainsOr()) {
-                        if (debug.get()) LOG.warn("Trying to use multi-column partitioning [" + catalog_col + "] on query that contains an 'OR': " + cache_entry);
+                        if (d) LOG.warn("Trying to use multi-column partitioning [" + catalog_col + "] on query that contains an 'OR': " + cache_entry);
                         table_partitions.addAll(this.all_partitions);
                     } else {
                         MultiColumn mc = (MultiColumn)catalog_col;
@@ -1105,9 +1114,9 @@ public class PartitionEstimator {
             if (entry_all_partitions != null) {
                 entry_all_partitions.addAll(table_partitions);
             }
-            this.partitionSetPool.returnObject(table_partitions);
             if (entry_table_partitions == null && entry_all_partitions.size() == this.num_partitions) break;
         } // FOR
+        this.partitionSetPool.returnObject(table_partitions);
         return;
     }
     
