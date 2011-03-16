@@ -51,10 +51,13 @@ import com.google.protobuf.ByteString;
 import com.google.protobuf.RpcCallback;
 
 import edu.brown.catalog.CatalogUtil;
+import edu.brown.markov.EstimationThresholds;
+import edu.brown.markov.MarkovEstimate;
 import edu.brown.markov.TransactionEstimator;
 import edu.brown.utils.CountingPoolableObjectFactory;
 import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.PartitionEstimator;
+import edu.brown.utils.StringUtil;
 import edu.brown.utils.LoggerUtil.LoggerBoolean;
 import edu.mit.dtxn.Dtxn;
 import edu.mit.hstore.HStoreConf;
@@ -225,6 +228,7 @@ public class ExecutionSite implements Runnable {
      */
     protected final PartitionEstimator p_estimator;
     protected final TransactionEstimator t_estimator;
+    protected final EstimationThresholds thresholds;
     
     protected WorkloadTrace workload_trace;
     
@@ -375,6 +379,7 @@ public class ExecutionSite implements Runnable {
         this.hsql = null;
         this.p_estimator = null;
         this.t_estimator = null;
+        this.thresholds = null;
         this.catalog = null;
         this.cluster = null;
         this.site = null;
@@ -441,6 +446,7 @@ public class ExecutionSite implements Runnable {
         } else {
             this.t_estimator = t_estimator; 
         }
+        this.thresholds = (hstore_site != null ? hstore_site.getThresholds() : null);
         
         // Don't bother with creating the EE if we're on the coordinator
         if (true) { //  || !this.coordinator) {
@@ -1022,7 +1028,7 @@ public class ExecutionSite implements Runnable {
         // -------------------------------
         } else {
             if (local_ts != null && hstore_conf.enable_profiling) local_ts.ee_time.start();
-            result = this.executePlanFragments(local_ts, undoToken, fragmentIdIndex, fragmentIds, parameterSets, output_depIds, input_depIds);
+            result = this.executePlanFragments(ts, undoToken, fragmentIdIndex, fragmentIds, parameterSets, output_depIds, input_depIds);
             if (local_ts != null && hstore_conf.enable_profiling) local_ts.ee_time.stop();
         }
         return (result);
@@ -1037,7 +1043,7 @@ public class ExecutionSite implements Runnable {
      */
     protected VoltTable[] executeLocalPlan(LocalTransactionState local_ts, BatchPlanner.BatchPlan plan) {
         long undoToken = this.getNextUndoToken();
-        local_ts.initRound(undoToken);
+        local_ts.fastInitRound(undoToken);
       
         long fragmentIds[] = plan.getFragmentIds();
         int fragmentIdIndex = plan.getFragmentCount();
@@ -1045,17 +1051,38 @@ public class ExecutionSite implements Runnable {
         int input_depIds[] = plan.getInputDependencyIds();
         ParameterSet parameterSets[] = plan.getParameterSets();
 
-//      LOG.info(String.format("BATCHPLAN:\n" +
-//             "  fragmentIds:     %s\n" + 
-//             "  fragmentIdIndex: %s\n" +
-//             "  output_depIds:   %s\n" +
-//             "  input_depIds:    %s\n",
-//             Arrays.toString(plan.getFragmentIds()), plan.getFragmentCount(), Arrays.toString(plan.getOutputDependencyIds()), Arrays.toString(plan.getInputDependencyIds())));
+        if (t) {
+            StringBuilder sb = new StringBuilder();
+            sb.append("Parameters:");
+            for (int i = 0; i < parameterSets.length; i++) {
+                sb.append(String.format("\n [%02d] %s", i, parameterSets[i].toString()));
+            }
+            LOG.trace(sb.toString());
+
+//        FragmentTaskMessage ftask = plan.getFragmentTaskMessages().get(0);
+//        LOG.info(String.format("Txn #%d - FTASK:\n" +
+//                "  fragmentIds:     %s\n" + 
+//                "  fragmentIdIndex: %s\n" +
+//                "  output_depIds:   %s\n" +
+//                "  input_depIds:    %s",
+//                local_ts.getTransactionId(),
+//                Arrays.toString(ftask.getFragmentIds()), ftask.getFragmentCount(), Arrays.toString(ftask.getOutputDependencyIds()), Arrays.toString(ftask.getAllUnorderedInputDepIds())));
+
+            LOG.trace(String.format("Txn #%d - BATCHPLAN:\n" +
+                     "  fragmentIds:     %s\n" + 
+                     "  fragmentIdIndex: %s\n" +
+                     "  output_depIds:   %s\n" +
+                     "  input_depIds:    %s",
+                     local_ts.getTransactionId(),
+                     Arrays.toString(plan.getFragmentIds()), plan.getFragmentCount(), Arrays.toString(plan.getOutputDependencyIds()), Arrays.toString(plan.getInputDependencyIds())));
+        }
 
         if (local_ts != null && hstore_conf.enable_profiling) local_ts.ee_time.start();
         DependencySet result = this.executePlanFragments(local_ts, undoToken, fragmentIdIndex, fragmentIds, parameterSets, output_depIds, input_depIds);
         if (local_ts != null && hstore_conf.enable_profiling) local_ts.ee_time.stop();
       
+        if (t) LOG.trace("Output:\n" + StringUtil.join("\n", result.dependencies));
+        
         local_ts.fastFinishRound();
         return (result.dependencies);
     }
@@ -1277,9 +1304,6 @@ public class ExecutionSite implements Runnable {
      * Send a ClientResponseImpl message back to the coordinator
      */
     public void sendClientResponse(LocalTransactionState ts, ClientResponseImpl cresponse) {
-        final boolean d = debug.get();
-        final boolean t = trace.get();
-        
         long txn_id = cresponse.getTransactionId();
         RpcCallback<Dtxn.FragmentResponse> callback = ts.getCoordinatorCallback();
         if (callback == null) {
@@ -1390,9 +1414,6 @@ public class ExecutionSite implements Runnable {
      * @param ftasks
      */
     public void requestWork(LocalTransactionState ts, List<FragmentTaskMessage> tasks) {
-        final boolean t = trace.get();
-        final boolean d = debug.get();
-        
         assert(!tasks.isEmpty());
         assert(ts != null);
         long txn_id = ts.getTransactionId();
@@ -1412,6 +1433,14 @@ public class ExecutionSite implements Runnable {
         boolean need_restart = false;
         boolean predict_singlepartition = ts.isPredictSinglePartition(); 
         Set<Integer> done_partitions = ts.getDonePartitions();
+        Set<Integer> new_done = null;
+
+        TransactionEstimator.State t_state = ts.getEstimatorState();
+        if (t_state != null) {
+            MarkovEstimate estimate = t_state.getLastEstimate();
+            assert(estimate != null) : "Got back null MarkovEstimate for txn #" + txn_id;
+            new_done = estimate.getFinishedPartitions(this.thresholds);
+        }
         
         for (FragmentTaskMessage ftask : tasks) {
             assert(!ts.isBlocked(ftask));
@@ -1433,7 +1462,8 @@ public class ExecutionSite implements Runnable {
             }
             
             int dependency_ids[] = ftask.getOutputDependencyIds();
-            if (t) LOG.trace("Preparing to request fragments " + Arrays.toString(ftask.getFragmentIds()) + " on partition " + target_partition + " to generate " + dependency_ids.length + " output dependencies for txn #" + txn_id);
+            if (t) LOG.trace(String.format("Preparing to request fragments %s on partition %d to generate %d output dependencies for txn #%d",
+                                           Arrays.toString(ftask.getFragmentIds()), target_partition, dependency_ids.length, txn_id));
             if (ftask.getFragmentCount() == 0) {
                 LOG.warn("Trying to send a FragmentTask request with 0 fragments for txn #" + txn_id);
                 continue;
@@ -1451,14 +1481,18 @@ public class ExecutionSite implements Runnable {
             }
             
             // Nasty...
-            ByteString bs = null;
-//            synchronized (this) { // Is this necessary??
-                bs = ByteString.copyFrom(ftask.getBufferForMessaging(buffer_pool).b.array());
-//            }
+            ByteString bs = ByteString.copyFrom(ftask.getBufferForMessaging(buffer_pool).b.array());
             requestBuilder.addFragment(Dtxn.CoordinatorFragment.PartitionFragment.newBuilder()
                     .setPartitionId(target_partition)
-                    .setWork(bs));
-            // requestBuilder.setLastFragment(false); // Why doesn't this work right? ftask.isFinalTask());
+                    .setWork(bs)
+            );
+            
+            // Mark the txn done at this partition if the MarkovEstimate said we were done
+            if (new_done != null && new_done.contains(target_partition)) {
+                if (t) LOG.trace(String.format("Marking partition %d as done for txn #%d", target_partition, txn_id));
+                requestBuilder.addDonePartition(target_partition);
+                done_partitions.add(target_partition);
+            }
         } // FOR (tasks)
 
         // Bad mojo! We need to throw a MispredictionException so that the VoltProcedure
@@ -1497,8 +1531,6 @@ public class ExecutionSite implements Runnable {
      * @return
      */
     public VoltTable[] waitForResponses(LocalTransactionState ts, List<FragmentTaskMessage> tasks, int batch_size) {
-        final boolean t = trace.get();
-        final boolean d = debug.get();
         final long txn_id = ts.getTransactionId();
 
         // We have to store all of the tasks in the TransactionState before we start executing, otherwise

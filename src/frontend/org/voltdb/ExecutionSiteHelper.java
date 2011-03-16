@@ -117,12 +117,12 @@ public class ExecutionSiteHelper implements Runnable {
         
         if (this.first) {
             Thread self = Thread.currentThread();
-            HStoreSite hstore_site = CollectionUtil.getFirst(this.sites).hstore_site;
-            self.setName(hstore_site.getThreadName("help"));
+            self.setName(this.hstore_site.getThreadName("help"));
             this.first = false;
         }
         if (t) LOG.trace("New invocation of the ExecutionSiteHelper. Let's clean-up some txns!");
-        
+
+        this.hstore_site.updateLogging();
         for (ExecutionSite es : this.sites) {
             if (t) LOG.trace(String.format("Partition %d has %d finished transactions", es.partitionId, es.finished_txn_states.size()));
             long to_remove = System.currentTimeMillis() - this.txn_expire;

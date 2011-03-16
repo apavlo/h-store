@@ -507,6 +507,10 @@ public class LocalTransactionState extends TransactionState {
         } // SYNCHRONIZED
     }
     
+    public void fastInitRound(long undoToken) {
+        super.initRound(undoToken);
+    }
+    
     @Override
     public void startRound() {
         assert(this.output_order.isEmpty());

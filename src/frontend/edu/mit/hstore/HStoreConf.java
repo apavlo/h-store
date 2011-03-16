@@ -135,6 +135,11 @@ public final class HStoreConf {
         conf = new HStoreConf();
         
         if (args != null) {
+            // Ignore the Dtxn.Coordinator
+            if (args.hasBooleanParam(ArgumentsParser.PARAM_NODE_IGNORE_DTXN)) {
+                conf.ignore_dtxn = args.getBooleanParam(ArgumentsParser.PARAM_NODE_IGNORE_DTXN);
+                if (conf.ignore_dtxn) LOG.info("Ignoring the Dtxn.Coordinator for all single-partition transactions");
+            }
             // Force all transactions to be single-partitioned
             if (args.hasBooleanParam(ArgumentsParser.PARAM_NODE_FORCE_SINGLEPARTITION)) {
                 conf.force_singlepartitioned = args.getBooleanParam(ArgumentsParser.PARAM_NODE_FORCE_SINGLEPARTITION);
