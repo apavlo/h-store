@@ -112,10 +112,10 @@ public class ProcessSetManager {
         
         @Override
         public void run() {
-            LOG.info("Starting ProcessSetPoller");
+            LOG.debug("Starting ProcessSetPoller");
             while (true) {
                 try {
-                    Thread.sleep(5000);
+                    Thread.sleep(2500);
                 } catch (InterruptedException ex) {
                     ex.printStackTrace();
                     break;
@@ -123,7 +123,7 @@ public class ProcessSetManager {
                 for (Entry<String, ProcessData> e : m_processes.entrySet()) {
                     ProcessData pd = e.getValue();
                     if (pd.err.isAlive()) {
-                        LOG.info("Polling " + e.getKey());
+                        LOG.debug("Polling " + e.getKey());
                         writeToProcess(e.getKey(), " ");
                     }
                 } // FOR
@@ -274,7 +274,7 @@ public class ProcessSetManager {
             out.write(data);
             out.flush();
         } catch (IOException e) {
-//            if (this.failure_observable.hasChanged())
+            if (this.failure_observable.hasChanged())
                 LOG.fatal(String.format("Failed to write '%s' command to '%s'", data.trim(), processName), e);
             this.failure_observable.notifyObservers(processName);
         }
@@ -330,6 +330,7 @@ public class ProcessSetManager {
     }
 
     public void killAll() {
+        poller.interrupt();
         for (String name : m_processes.keySet()) {
             killProcess(name);
         }

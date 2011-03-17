@@ -98,7 +98,10 @@ public class BenchmarkController {
                 if (BenchmarkController.this.stop == false) {
                     LOG.fatal(String.format("Process '%s' failed. Halting benchmark!", processName));
                     BenchmarkController.this.stop = true;
-                    if (self != null) BenchmarkController.this.self.interrupt();
+                    if (self != null) {
+                        BenchmarkController.this.self.interrupt();
+                    }
+                    cleanUpBenchmark();
                 }
             } // SYNCH
         }
@@ -121,6 +124,7 @@ public class BenchmarkController {
     long m_pollCount = 0;
     Thread self = null;
     boolean stop = false;
+    boolean cleaned = false;
     AtomicBoolean m_statusThreadShouldContinue = new AtomicBoolean(true);
     AtomicInteger m_clientsNotReady = new AtomicInteger(0);
     AtomicInteger m_pollIndex = new AtomicInteger(0);
@@ -238,6 +242,7 @@ public class BenchmarkController {
     @SuppressWarnings("unchecked")
     public BenchmarkController(BenchmarkConfig config) {
         m_config = config;
+        self = Thread.currentThread();
         
         // Setup ProcessSetManagers...
         m_clientPSM = new ProcessSetManager(m_config.clientLogDir, this.failure_observer);
@@ -670,7 +675,6 @@ public class BenchmarkController {
      * RUN BENCHMARK
      */
     public void runBenchmark() {
-        this.self = Thread.currentThread();
         LOG.info(String.format("Starting execution phase with %d clients [hosts=%d, perhost=%d, txnrate=%s, blocking=%s]",
                                 m_clients.size(),
                                 m_config.clients.length,
@@ -767,7 +771,9 @@ public class BenchmarkController {
     /**
      * Cleanup Benchmark
      */
-    public void cleanUpBenchmark() {
+    public synchronized void cleanUpBenchmark() {
+        if (this.cleaned) return;
+        
         if (debug.get()) LOG.debug("Killing clients");
         m_clientPSM.killAll();
 
@@ -779,6 +785,7 @@ public class BenchmarkController {
             if (debug.get()) LOG.debug("Killing Dtxn.Coordinator");
             m_coordPSM.killAll();
         }
+        this.cleaned = true;
     }
 
 
@@ -1052,7 +1059,7 @@ public class BenchmarkController {
                  * Amount of warmup time in milliseconds
                  */
                 warmup = Integer.parseInt(parts[1]);
-            } else if (parts[0].equalsIgnoreCase("CLIENT")) {
+            } else if (parts[0].equalsIgnoreCase(BENCHMARK_PARAM_PREFIX +  "CLIENT")) {
                 /*
                  * Name of the client class for this benchmark.
                  *

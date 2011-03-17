@@ -2202,8 +2202,6 @@ H-STORE REMIX
         <param name="compileonly"   value="true" />
         <param name="compile"       value="true" />
         <param name="host1"         value="${hstore.defaulthost}" />
-        <param name="loadthreads"   value="${hstore.loadthreads}" />
-        <param name="client"        value="${benchmark.client}" />
     </antcall>
     
     <!-- Sets up host/site/partition information in system catalogs -->

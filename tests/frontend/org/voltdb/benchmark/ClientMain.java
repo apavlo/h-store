@@ -245,6 +245,7 @@ public abstract class ClientMain {
                     LOG.fatal("Error on standard input", e);
                     System.exit(-1);
                 }
+                if (command == null) continue;
                 if (LOG.isDebugEnabled()) LOG.debug("Command = " + command);
 
                 switch (command) {
