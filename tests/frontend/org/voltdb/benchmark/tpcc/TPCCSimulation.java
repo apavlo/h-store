@@ -150,7 +150,7 @@ public class TPCCSimulation {
             m0.put("Skew Factor", this.m_skewFactor);
             m0.put("Enable NOOP", this.noop);
             m0.put("NewOrder Only", this.neworder_only);
-            m0.put("NewOrder Abort", this.neworder_only);
+            m0.put("NewOrder Abort", this.neworder_abort);
             m0.put("NewOrder Remote Warehouses", this.neworder_multip);
             
             Map<String, Object> m1 = new ListOrderedMap<String, Object>();

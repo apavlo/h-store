@@ -1485,16 +1485,16 @@ BENCHMARKS
         <arg value="temporaltotal=${hstore.client.temporaltotal}" />
 
         <!-- Benchmark Parameters -->
-        <arg value="CLIENT=${benchmark.client}" />
-        <arg value="datadir=${benchmark.datadir}"/>
+        <arg value="benchmark.client=${benchmark.client}" />
+        <arg value="benchmark.datadir=${benchmark.datadir}"/>
 
         <!-- TPC-C parameters -->
-        <arg value="warehouses=${benchmark.warehouses}" />
-        <arg value="loadthreads=${benchmark.loadthreads}" />
-        <arg value="noop=${benchmark.noop}" />
-        <arg value="neworder_only=${benchmark.neworder_only}" />
-        <arg value="neworder_abort=${benchmark.neworder_abort}" />
-        <arg value="neworder_multip=${benchmark.neworder_multip}" />
+        <arg value="benchmark.warehouses=${benchmark.warehouses}" />
+        <arg value="benchmark.loadthreads=${benchmark.loadthreads}" />
+        <arg value="benchmark.noop=${benchmark.noop}" />
+        <arg value="benchmark.neworder_only=${benchmark.neworder_only}" />
+        <arg value="benchmark.neworder_abort=${benchmark.neworder_abort}" />
+        <arg value="benchmark.neworder_multip=${benchmark.neworder_multip}" />
         
         <!-- These are currently ignored (I think...) -->
         <arg value="HOST=${manualhost1}" />
@@ -2232,12 +2232,8 @@ H-STORE REMIX
         <jvmarg value="-Dhstore.preload=${hstore.node.preload}" />
         <arg value="catalog.jar=${benchmark.jar}" />
         <arg value="node.site=${node.site}" />
-        
-        <!-- HStoreConf Parameters -->
-        <arg value="node.ignore_dtxn=${hstore.node.ignore_dtxn}" />
         <arg value="node.statusinterval=${hstore.node.statusinterval}" />
         <arg value="node.statusinterval_kill=${hstore.node.statusinterval_kill}" />
-        <arg value="node.force_singlepartition=${hstore.node.force_singlepartition}" />
         <arg value="node.force_singlepartition=${hstore.node.force_singlepartition}" />
         <arg value="node.force_localexecution=${hstore.node.force_localexecution}" />
         <arg value="node.force_neworderinspect=${hstore.node.force_neworderinspect}" />
@@ -2246,7 +2242,6 @@ H-STORE REMIX
         <arg value="node.cleanup_txn_expire=${hstore.node.cleanup_txn_expire}" />
         <arg value="node.enable_profiling=${hstore.node.enable_profiling}" />
         <arg value="node.mispredict_crash=${hstore.node.mispredict_crash}" />
-        
         <arg value="coordinator.host=${hstore.coordinator.host}" />
         <arg value="coordinator.port=${hstore.coordinator.port}" />
         <arg value="dtxn.conf=${build.dtxn.dir}/hstore.conf" />
