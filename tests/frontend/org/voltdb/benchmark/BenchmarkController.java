@@ -66,6 +66,7 @@ import edu.brown.hstore.Hstore.HStoreService;
 import edu.brown.hstore.Hstore.MessageType;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.EventObserver;
+import edu.brown.utils.FileUtil;
 import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.StringUtil;
 import edu.brown.utils.ThreadUtil;
@@ -97,7 +98,7 @@ public class BenchmarkController {
                 if (BenchmarkController.this.stop == false) {
                     LOG.fatal(String.format("Process '%s' failed. Halting benchmark!", processName));
                     BenchmarkController.this.stop = true;
-                    BenchmarkController.this.self.interrupt();
+                    if (self != null) BenchmarkController.this.self.interrupt();
                 }
             } // SYNCH
         }
@@ -330,7 +331,8 @@ public class BenchmarkController {
             if (debug.get()) LOG.debug("Skipping benchmark project compilation");
         }
         if (m_config.compileOnly) {
-            LOG.info("Compilation complete. Exiting.");
+            assert(FileUtil.exists(m_jarFileName)) : "Failed to create jar file '" + m_jarFileName + "'";
+            LOG.info("Compilation complete. Exiting [" + m_jarFileName + "]");
             System.exit(0);
         }
         
@@ -404,6 +406,7 @@ public class BenchmarkController {
             } // FOR
 
             
+            if (debug.get()) LOG.debug("Killing stragglers on " + threads.size() + " hosts");
             try {
                 ThreadUtil.runNewPool(threads);
             } catch (Exception e) {

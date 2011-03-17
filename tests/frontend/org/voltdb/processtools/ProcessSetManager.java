@@ -33,6 +33,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import java.util.Map.Entry;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
@@ -61,6 +62,7 @@ public class ProcessSetManager {
     final LinkedBlockingQueue<OutputLine> m_output = new LinkedBlockingQueue<OutputLine>();
     final Map<String, ProcessData> m_processes = new HashMap<String, ProcessData>();
     final Map<String, StreamWatcher> m_watchers = new HashMap<String, StreamWatcher>();
+    final ProcessSetPoller poller = new ProcessSetPoller();
     
     public enum Stream { STDERR, STDOUT; }
 
@@ -102,6 +104,33 @@ public class ProcessSetManager {
         Runtime.getRuntime().addShutdownHook(new ShutdownThread());
     }
 
+    class ProcessSetPoller extends Thread {
+        {
+            this.setDaemon(true);
+            this.setPriority(MIN_PRIORITY);
+        }
+        
+        @Override
+        public void run() {
+            LOG.info("Starting ProcessSetPoller");
+            while (true) {
+                try {
+                    Thread.sleep(5000);
+                } catch (InterruptedException ex) {
+                    ex.printStackTrace();
+                    break;
+                }
+                for (Entry<String, ProcessData> e : m_processes.entrySet()) {
+                    ProcessData pd = e.getValue();
+                    if (pd.err.isAlive()) {
+                        LOG.info("Polling " + e.getKey());
+                        writeToProcess(e.getKey(), " ");
+                    }
+                } // FOR
+            } // WHILE
+        }
+    }
+    
     class StreamWatcher extends Thread {
         final BufferedReader m_reader;
         final String m_processName;
@@ -111,6 +140,7 @@ public class ProcessSetManager {
 
         StreamWatcher(BufferedReader reader, String processName, Stream stream) {
             assert(reader != null);
+            this.setDaemon(true);
             m_reader = reader;
             m_processName = processName;
             m_stream = stream;
@@ -198,6 +228,8 @@ public class ProcessSetManager {
                 createdProcesses.add(pd.process);
                 assert(m_processes.containsKey(processName) == false) : processName + "\n" + m_processes;
                 m_processes.put(processName, pd);
+                
+                if (this.poller.isAlive() == false) this.poller.start();
             } // SYNCH
         } catch (IOException e) {
             // TODO Auto-generated catch block

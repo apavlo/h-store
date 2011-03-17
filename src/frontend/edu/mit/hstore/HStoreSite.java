@@ -1148,7 +1148,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
     public static void launch(final HStoreSite hstore_site,
                               final String hstore_conf_path, final String dtxnengine_path, final String dtxncoordinator_path,
                               final String coordinatorHost, final int coordinatorPort) throws Exception {
-        List<Runnable> threads = new ArrayList<Runnable>();
+        List<Runnable> runnables = new ArrayList<Runnable>();
         final Site catalog_site = hstore_site.getSite();
         final int num_partitions = catalog_site.getPartitions().size();
         final String site_host = catalog_site.getHost().getIpaddr();
@@ -1165,8 +1165,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         if (d) LOG.debug(String.format("Launching ProtoServer [site=%d, port=%d]", hstore_site.getSiteId(), catalog_site.getDtxn_port()));
         final NIOEventLoop execEventLoop = new NIOEventLoop();
         final CountDownLatch execLatch = new CountDownLatch(1);
-        execEventLoop.setExitOnSigInt(true);
-        threads.add(new Runnable() {
+        runnables.add(new Runnable() {
             public void run() {
                 final Thread self = Thread.currentThread();
                 self.setName(hstore_site.getThreadName("proto"));
@@ -1179,6 +1178,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
                 boolean should_shutdown = false;
                 Exception error = null;
                 try {
+                    execEventLoop.setExitOnSigInt(true);
                     execEventLoop.run();
                 } catch (AssertionError ex) {
                     LOG.fatal("ProtoServer thread failed", ex);
@@ -1203,7 +1203,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         if (d) LOG.debug(String.format("Launching DTXN Engines for %d partitions", num_partitions));
         for (final Partition catalog_part : catalog_site.getPartitions()) {
             // TODO: There should be a single thread that forks all the processes and then joins on them
-            threads.add(new Runnable() {
+            runnables.add(new Runnable() {
                 public void run() {
                     final Thread self = Thread.currentThread();
                     self.setName(hstore_site.getThreadName("eng", catalog_part.getId()));
@@ -1242,7 +1242,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         // ----------------------------------------------------------------------------
         // (3) Procedure Request Listener Thread
         // ----------------------------------------------------------------------------
-        threads.add(new Runnable() {
+        runnables.add(new Runnable() {
             public void run() {
                 final Thread self = Thread.currentThread();
                 self.setName(hstore_site.getThreadName("coord"));
@@ -1293,7 +1293,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         });
         
         // Blocks!
-        ThreadUtil.runNewPool(threads);
+        ThreadUtil.runNewPool(runnables);
     }
     
     /**
