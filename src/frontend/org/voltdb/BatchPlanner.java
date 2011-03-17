@@ -354,6 +354,7 @@ public class BatchPlanner {
         }
 
         protected int getLocalFragmentCount(int base_partition) {
+            getFragmentTaskMessages();
             int cnt = 0;
             for (FragmentTaskMessage ftask : this.ftasks) {
                 if (ftask.getDestinationPartitionId() == base_partition) cnt++;
@@ -361,6 +362,7 @@ public class BatchPlanner {
             return (cnt);
         }
         protected int getRemoteFragmentCount(int base_partition) {
+            getFragmentTaskMessages();
             int cnt = 0;
             for (FragmentTaskMessage ftask : this.ftasks) {
                 if (ftask.getDestinationPartitionId() != base_partition) cnt++;
