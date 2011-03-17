@@ -543,17 +543,23 @@ public abstract class ClientMain {
         File catalogPath = null;
 
         // scan the inputs once to read everything but host names
-        for (final String arg : args) {
+        for (int i = 0; i < args.length; i++) {
+            final String arg = args[i];
             final String[] parts = arg.split("=", 2);
             if (parts.length == 1) {
                 state = ControlState.ERROR;
                 reason = "Invalid parameter: " + arg;
                 break;
-            }
-            else if (parts[1].startsWith("${")) {
+            } else if (parts[1].startsWith("${")) {
                 continue;
+                
+            // Strip out benchmark prefix  
+            } else if (parts[0].toLowerCase().startsWith(BenchmarkController.BENCHMARK_PARAM_PREFIX)) {
+                parts[0] = parts[0].substring(BenchmarkController.BENCHMARK_PARAM_PREFIX.length());
+                args[i] = parts[0] + "=" + parts[1]; // HACK
             }
-            else if (parts[0].equalsIgnoreCase("CATALOG")) {
+            
+            if (parts[0].equalsIgnoreCase("CATALOG")) {
                 catalogPath = new File(parts[1]);
                 assert(catalogPath.exists()) : "The catalog file '" + catalogPath.getAbsolutePath() + " does not exist";
             }

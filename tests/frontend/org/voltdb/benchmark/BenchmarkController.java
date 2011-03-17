@@ -82,6 +82,8 @@ public class BenchmarkController {
         LoggerUtil.setupLogging();
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
+    
+    public static final String BENCHMARK_PARAM_PREFIX = "benchmark.";
 
     // ProcessSetManager Failure Callback
     final EventObserver failure_observer = new EventObserver() {
@@ -1165,14 +1167,6 @@ public class BenchmarkController {
         if (duration < 1000) {
             System.err.println("Duration is specified in milliseconds");
             System.exit(-1);
-        }
-
-        // hack for defaults
-        if (clientClassname.equals(m_tpccClientClassName)) {
-            if (clientParams.containsKey("warehouses") == false)
-                clientParams.put("warehouses", "4");
-            if (clientParams.containsKey("loadthreads") == false)
-                clientParams.put("loadthreads", "4");
         }
 
         ArrayList<String> hosts = new ArrayList<String>();
