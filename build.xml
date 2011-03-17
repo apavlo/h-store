@@ -1447,7 +1447,7 @@ BENCHMARKS
         classname="org.voltdb.benchmark.BenchmarkController">
         <classpath refid='project.classpath' />
         <jvmarg value="-server" />
-        <jvmarg value="-Xmx2048m" />
+        <jvmarg value="-Xmx512m" />
         <jvmarg value="-Xcheck:jni"/>
         <jvmarg value="-Djava.library.path=${build.dir}/nativelibs" />
         <jvmarg value="-Dlog4j.configuration=${basedir}/log4j.properties"/>
@@ -1488,10 +1488,13 @@ BENCHMARKS
         <arg value="CLIENT=${benchmark.client}" />
         <arg value="datadir=${benchmark.datadir}"/>
 
-        <!-- tpcc parameters -->
+        <!-- TPC-C parameters -->
         <arg value="warehouses=${benchmark.warehouses}" />
         <arg value="loadthreads=${benchmark.loadthreads}" />
         <arg value="noop=${benchmark.noop}" />
+        <arg value="neworder_only=${benchmark.neworder_only}" />
+        <arg value="neworder_abort=${benchmark.neworder_abort}" />
+        <arg value="neworder_multip=${benchmark.neworder_multip}" />
         
         <!-- These are currently ignored (I think...) -->
         <arg value="HOST=${manualhost1}" />
