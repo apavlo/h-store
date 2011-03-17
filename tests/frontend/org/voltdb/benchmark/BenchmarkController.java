@@ -413,7 +413,7 @@ public class BenchmarkController {
             
             if (debug.get()) LOG.debug("Killing stragglers on " + threads.size() + " hosts");
             try {
-                ThreadUtil.runNewPool(threads);
+                ThreadUtil.runNewPool(threads, Math.min(10, threads.size())); 
             } catch (Exception e) {
                 LogKeys logkey = LogKeys.benchmark_BenchmarkController_UnableToRunRemoteKill;
                 LOG.l7dlog(Level.FATAL, logkey.name(), e);

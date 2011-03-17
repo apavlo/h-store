@@ -163,14 +163,7 @@ public abstract class ThreadUtil {
             if (ThreadUtil.pool == null) {
                 int max_threads = ThreadUtil.getMaxGlobalThreads();
                 if (d) LOG.debug("Creating new fixed thread pool [num_threads=" + max_threads + "]");
-                ThreadUtil.pool = Executors.newFixedThreadPool(max_threads, new ThreadFactory() {
-                    @Override
-                    public Thread newThread(Runnable r) {
-                        Thread t = new Thread(r);
-                        t.setDaemon(true);
-                        return (t);
-                    }
-                });
+                ThreadUtil.pool = Executors.newFixedThreadPool(max_threads, factory);
             }
         } // SYNCHRONIZED
         
@@ -183,7 +176,17 @@ public abstract class ThreadUtil {
      * @param threads
      */
     public static <R extends Runnable> void runNewPool(final Collection<R> threads) {
-        ExecutorService pool = Executors.newCachedThreadPool();
+        ExecutorService pool = Executors.newCachedThreadPool(factory);
+        ThreadUtil.run(threads, pool, true);
+    }
+    
+    /**
+     * 
+     * @param <R>
+     * @param threads
+     */
+    public static <R extends Runnable> void runNewPool(final Collection<R> threads, int max_concurrent) {
+        ExecutorService pool = Executors.newFixedThreadPool(max_concurrent, factory);
         ThreadUtil.run(threads, pool, true);
     }
     
@@ -219,6 +222,15 @@ public abstract class ThreadUtil {
         }
         return;
     }
+    
+    private static final ThreadFactory factory = new ThreadFactory() {
+        @Override
+        public Thread newThread(Runnable r) {
+            Thread t = new Thread(r);
+            t.setDaemon(true);
+            return (t);
+        }
+    };
     
     private static class LatchRunnable implements Runnable {
         private final Runnable r;
