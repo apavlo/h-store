@@ -51,15 +51,20 @@
 package org.voltdb.benchmark.tpcc;
 
 import java.io.IOException;
+import java.util.Map;
 import java.util.Random;
 
+import org.apache.commons.collections15.map.ListOrderedMap;
+import org.apache.log4j.Logger;
 import org.voltdb.benchmark.Clock;
 import org.voltdb.types.TimestampType;
 
 import edu.brown.rand.RandomDistribution;
+import edu.brown.utils.StringUtil;
 
-public class TPCCSimulation
-{
+public class TPCCSimulation {
+    private static final Logger LOG = Logger.getLogger(TPCCSimulation.class);
+    
     // type used by at least VoltDBClient and JDBCClient
     public static enum Transaction {
         STOCK_LEVEL("Stock Level"),
@@ -98,6 +103,11 @@ public class TPCCSimulation
     private final long affineWarehouse;
     private final double m_skewFactor;
     private final boolean noop;
+    
+    private final boolean neworder_only;
+    private final boolean neworder_abort;
+    private final boolean neworder_multip;
+    
     private final int max_w_id;
     static long lastAssignedWarehouseId = 1;
     
@@ -105,8 +115,9 @@ public class TPCCSimulation
 
     public TPCCSimulation(TPCCSimulation.ProcCaller client, RandomGenerator generator,
                           Clock clock, ScaleParameters parameters, boolean useWarehouseAffinity,
-                          double skewFactor, boolean noop)
-    {
+                          double skewFactor, boolean noop,
+                          boolean neworder_only, boolean neworder_abort, boolean neworder_multip
+    ) {
         assert parameters != null;
         this.client = client;
         this.generator = generator;
@@ -116,9 +127,14 @@ public class TPCCSimulation
         this.affineWarehouse = lastAssignedWarehouseId;
         this.m_skewFactor = skewFactor;
         this.noop = noop;
+        
+        this.neworder_only = neworder_only;
+        this.neworder_abort = neworder_abort;
+        this.neworder_multip = neworder_multip;
+        
         this.max_w_id = (parameters.warehouses + parameters.starting_warehouse - 1);
         if (this.m_skewFactor > 0) {
-            System.err.println("Enabling W_ID Zipfian Skew: " + m_skewFactor);
+            LOG.info("Enabling W_ID Zipfian Skew: " + m_skewFactor);
             this.zipf = new RandomDistribution.Zipf(new Random(), parameters.starting_warehouse, max_w_id+1, m_skewFactor);
             this.zipf.enableHistory();
         }
@@ -126,6 +142,27 @@ public class TPCCSimulation
         lastAssignedWarehouseId += 1;
         if (lastAssignedWarehouseId > max_w_id)
             lastAssignedWarehouseId = 1;
+        
+        if (LOG.isDebugEnabled()) {
+            Map<String, Object> m0 = new ListOrderedMap<String, Object>();
+            m0.put("Use Warehouse Affinity", this.useWarehouseAffinity);
+            m0.put("Affine Warehouse", lastAssignedWarehouseId);
+            m0.put("Skew Factor", this.m_skewFactor);
+            m0.put("Enable NOOP", this.noop);
+            m0.put("NewOrder Only", this.neworder_only);
+            m0.put("NewOrder Abort", this.neworder_only);
+            m0.put("NewOrder Remote Warehouses", this.neworder_multip);
+            
+            Map<String, Object> m1 = new ListOrderedMap<String, Object>();
+            m1.put("Warehouses", parameters.warehouses);
+            m1.put("W_ID Range", String.format("[%d, %d]", parameters.starting_warehouse, this.max_w_id));
+            m1.put("Districts per Warehouse", parameters.districtsPerWarehouse);
+            m1.put("Custers per District", parameters.customersPerDistrict);
+            m1.put("Initial Orders per District", parameters.newOrdersPerDistrict);
+            m1.put("Items", parameters.items);
+        
+            LOG.debug(String.format("TPCC Simulator Options\n%s", StringUtil.formatMaps(m0, m1)));
+        }
     }
 
     private short generateWarehouseId() {
@@ -239,8 +276,8 @@ public class TPCCSimulation
 
     /** Executes a new order transaction. */
     public void doNewOrder() throws IOException {
-        boolean allow_rollback = true;
-        boolean allow_remote_w_id = true;
+        boolean allow_rollback = this.neworder_abort;
+        boolean allow_remote_w_id = this.neworder_multip;
         
         short warehouse_id = generateWarehouseId();
         int ol_cnt = generator.number(Constants.MIN_OL_CNT, Constants.MAX_OL_CNT);
@@ -262,7 +299,7 @@ public class TPCCSimulation
                 item_id[i] = generateItemID();
             }
 
-            // XXX: 1% of items are from a remote warehouse
+            // 1% of items are from a remote warehouse
             boolean remote = (allow_remote_w_id && generator.number(1, 100) == 1);
             if (parameters.warehouses > 1 && remote) {
                 supply_w_id[i] = (short)generator.numberExcluding(parameters.starting_warehouse, this.max_w_id, (int) warehouse_id);
@@ -297,7 +334,7 @@ public class TPCCSimulation
         // This is not strictly accurate: The requirement is for certain
         // *minimum* percentages to be maintained. This is close to the right
         // thing, but not precisely correct. See TPC-C 5.2.4 (page 68).
-        if (this.noop) {
+       if (this.noop || this.neworder_only) {
            doNewOrder();
            return Transaction.NEW_ORDER.ordinal();
         }
