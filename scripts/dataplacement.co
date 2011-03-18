@@ -1,0 +1,52 @@
+string[] args = System.getArgs();
+ifstream file(args[1]);
+int batch_count = file.getInt(); // number of batches
+int xact_count = file.getInt(); // number of transactions
+int base_partition = 0; // base partition
+range batch_range = 0..batch_count - 1;
+range xact_range = 0..xact_count - 1;
+forall (t : xact_range) {
+  forall (b : batch_range) {
+    if (b != null) {
+      
+    } else {
+      // read base partition
+      base_partition = file.getInt();
+    }
+  }
+}
+float costs[vertices,vertices];
+float d;
+float t;
+for (int i = 0; i < vertex_count; i++) {
+   for (int j = 0; j < vertex_count; j++) {
+      if (i == j) {
+        costs[i,j] = 0;
+      } else {
+        costs[i,j] = sqrt((x[i] - x[j]) * (x[i] - x[j]) + (y[i] - y[j]) * (y[i] - y[j]));
+      }
+   }
+}
+range another_range = 0..vertex_count - 2;
+import cotfd;
+Solver<CP> cp();
+cp.limitTime(10);
+var<CP>{int} solution[vertices](cp, vertices);
+minimize<cp>
+  sum (v in another_range) costs[solution[v], solution[v+1]] + costs[solution[0], solution[vertex_count - 1]]
+subject to {
+  cp.post(alldifferent((all(i in vertices)(solution[i]))));
+}
+using {
+  if (!bound(solution)) {
+    forall (i in vertices)
+      tryall<cp> (j in vertices) by (costs[i,j]) {
+          cp.label(solution[j], i);
+        }
+  }
+}
+cout << "VERNACULAR VERNACULAR VERNACULAR VERNACULAR VERNACULAR !!!!!" << endl;
+cout << cp.getObjective().getValue() << " 1" << endl;
+for (int i = 0; i < vertex_count; i++) {
+  cout << solution[i].getValue() << endl;
+}
