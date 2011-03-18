@@ -210,6 +210,7 @@ public class MultiLoader extends ClientMain {
                 makeWarehouse(warehouseId);
                 for (int i = 0; i < data_tables.length; ++i)
                     data_tables[i] = null;
+                LOG.info("Finished Loading Warehouse " + warehouseId);
             }
             if (m_doMakeReplicated) {
                 try {

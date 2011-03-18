@@ -174,7 +174,7 @@ public class ProcessSetManager {
                         line = m_reader.readLine();
                     } catch (IOException e) {
                         if (!m_expectDeath.get()) {
-//                            if (failure_observable.hasChanged() == false)
+                            if (failure_observable.hasChanged() == false)
                                 LOG.error(String.format("Stream monitoring thread for '%s' is exiting", m_processName), e);
                             failure_observable.notifyObservers(m_processName);
                         }
