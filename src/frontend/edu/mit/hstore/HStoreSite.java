@@ -194,6 +194,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
     protected final Map<Integer, ExecutionSite> executors;
     protected final Database catalog_db;
     protected final PartitionEstimator p_estimator;
+    protected final AbstractHasher hasher;
 
     private final HStoreConf hstore_conf;
     
@@ -224,6 +225,12 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
      * Helper Thread Stuff
      */
     private final ScheduledExecutorService helper_pool;
+    
+    /**
+     * NewOrder Hack
+     */
+    private final Map<String, Short> hack_w_id;
+    private final Map<Short, Integer> hack_hashes;
     
     
     // ----------------------------------------------------------------------------
@@ -348,6 +355,9 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
      * @param p_estimator
      */
     public HStoreSite(Site catalog_site, Map<Integer, ExecutionSite> executors, PartitionEstimator p_estimator) {
+        assert(catalog_site != null);
+        assert(p_estimator != null);
+        
         // General Stuff
         this.hstore_conf = HStoreConf.singleton();
         this.catalog_site = catalog_site;
@@ -355,6 +365,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         this.catalog_db = CatalogUtil.getDatabase(this.catalog_site);
         this.all_partitions = CatalogUtil.getAllPartitionIds(this.catalog_db);
         this.p_estimator = p_estimator;
+        this.hasher = this.p_estimator.getHasher();
         this.thresholds = new EstimationThresholds(); // default values
         this.executors = Collections.unmodifiableMap(new HashMap<Integer, ExecutionSite>(executors));
         this.messenger = new HStoreMessenger(this);
@@ -365,8 +376,18 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         
         this.helper_pool = Executors.newScheduledThreadPool(1);
         
-        assert(this.catalog_db != null);
-        assert(this.p_estimator != null);
+        // NewOrder Hack
+        if (hstore_conf.force_neworder_hack) {
+            this.hack_hashes = new HashMap<Short, Integer>();
+            this.hack_w_id = new HashMap<String, Short>();
+            for (Short w_id = 0; w_id < 256; w_id++) {
+                this.hack_w_id.put(w_id.toString(), w_id);
+                this.hack_hashes.put(w_id, hasher.hash(w_id.intValue()));
+            } // FOR
+        } else {
+            this.hack_hashes = null;
+            this.hack_w_id = null;
+        }
     }
 
     /**
@@ -693,24 +714,25 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         // out what partitions it's going to need to touch
         } else if (hstore_conf.force_neworder_hack) {
             if (t) LOG.trace("Executing neworder argument hack for VLDB paper");
-            AbstractHasher hasher = this.p_estimator.getHasher();
             single_partition = true;
-            short w_id = Short.parseShort(args[0].toString()); // HACK
-            int w_id_partition = hasher.hash(w_id);
+            Short w_id = this.hack_w_id.get(args[0].toString());
+            assert(w_id != null);
+            Integer w_id_partition = this.hack_hashes.get(w_id);
+            assert(w_id_partition != null);
             short inner[] = (short[])args[5];
             
             Set<Integer> done_partitions = local_ts.getDonePartitions();
-            done_partitions.addAll(this.all_partitions);
+            if (hstore_conf.force_neworder_hack_done) done_partitions.addAll(this.all_partitions);
             
-            short last_w_id = w_id;
-            int last_partition = w_id_partition;
+            short last_w_id = w_id.shortValue();
+            Integer last_partition = w_id_partition;
             if (hstore_conf.force_neworder_hack_done) done_partitions.remove(w_id_partition);
             for (short s_w_id : inner) {
                 if (s_w_id != last_w_id) {
-                    last_partition = hasher.hash(s_w_id);
+                    last_partition = this.hack_hashes.get(s_w_id);
                     last_w_id = s_w_id;
                 }
-                if (w_id_partition != last_partition) {
+                if (w_id_partition.equals(last_partition) == false) {
                     single_partition = false;
                     if (hstore_conf.force_neworder_hack_done) {
                         done_partitions.remove(last_partition);
