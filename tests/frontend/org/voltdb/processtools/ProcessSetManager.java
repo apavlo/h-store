@@ -63,6 +63,7 @@ public class ProcessSetManager {
     final Map<String, ProcessData> m_processes = new HashMap<String, ProcessData>();
     final Map<String, StreamWatcher> m_watchers = new HashMap<String, StreamWatcher>();
     final ProcessSetPoller poller = new ProcessSetPoller();
+    boolean shutting_down = false;
     
     public enum Stream { STDERR, STDOUT; }
 
@@ -117,7 +118,7 @@ public class ProcessSetManager {
                 try {
                     Thread.sleep(2500);
                 } catch (InterruptedException ex) {
-                    ex.printStackTrace();
+                    if (shutting_down == false) ex.printStackTrace();
                     break;
                 }
                 for (Entry<String, ProcessData> e : m_processes.entrySet()) {
@@ -330,6 +331,7 @@ public class ProcessSetManager {
     }
 
     public void killAll() {
+        this.shutting_down = true;
         poller.interrupt();
         for (String name : m_processes.keySet()) {
             killProcess(name);

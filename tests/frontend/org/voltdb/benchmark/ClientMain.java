@@ -82,7 +82,7 @@ public abstract class ClientMain {
         }
         
         public static Command get(String name) {
-            return (Command.name_lookup.get(name.toUpperCase().intern()));
+            return (Command.name_lookup.get(name.trim().toUpperCase().intern()));
         }
     }
 
@@ -222,31 +222,36 @@ public abstract class ClientMain {
     class ControlPipe implements Runnable {
 
         public void run() {
-            Command command = null;
+            final Thread self = Thread.currentThread();
+            self.setName(String.format("client-%02d", m_id));
+            
             final InputStreamReader reader = new InputStreamReader(System.in);
             final BufferedReader in = new BufferedReader(reader);
 
+            Command command = null;
+            
             // transition to ready and send ready message
             if (m_controlState == ControlState.PREPARING) {
                 printControlMessage(ControlState.READY);
                 m_controlState = ControlState.READY;
-            }
-            else {
+            } else {
                 LOG.error("Not starting prepared!");
                 LOG.error(m_controlState.display + " " + m_reason);
             }
 
             while (true) {
+                final boolean debug = LOG.isDebugEnabled(); 
+                
                 try {
                     command = Command.get(in.readLine());
-                }
-                catch (final IOException e) {
+                    if (debug) LOG.debug(String.format("Recieved Command: '%s'", command));
+                } catch (final IOException e) {
                     // Hm. quit?
                     LOG.fatal("Error on standard input", e);
                     System.exit(-1);
                 }
                 if (command == null) continue;
-                if (LOG.isDebugEnabled()) LOG.debug("Command = " + command);
+                if (debug) LOG.debug("Command = " + command);
 
                 switch (command) {
                     case START: {

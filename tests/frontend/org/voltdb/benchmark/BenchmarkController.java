@@ -197,6 +197,8 @@ public class BenchmarkController {
                         continue; // IGNORE
                     }
                     String status = parts[1];
+                    
+                    if (debug.get()) LOG.debug(String.format("Client '%s' Status: %s", line.processName, status));
     
                     if (status.equals("READY")) {
 //                        LogKeys logkey = LogKeys.benchmark_BenchmarkController_GotReadyMessage;
@@ -721,13 +723,14 @@ public class BenchmarkController {
         long startTime = System.currentTimeMillis();
         nextIntervalTime += startTime;
         long nowTime = startTime;
-        while(m_pollIndex.get() < m_pollCount && this.stop == false) {
+        while (m_pollIndex.get() < m_pollCount && this.stop == false) {
 
             // check if the next interval time has arrived
             if (nowTime >= nextIntervalTime) {
                 m_pollIndex.incrementAndGet();
 
                 // make all the clients poll
+                if (debug.get()) LOG.debug(String.format("Sending %s to %d clients", Command.POLL, m_clients.size()));
                 for (String clientName : m_clients)
                     m_clientPSM.writeToProcess(clientName, Command.POLL + "\n");
 
@@ -736,15 +739,17 @@ public class BenchmarkController {
             }
 
             // wait some time
-            // TODO this should probably be done with Thread.sleep(...), but for now
-            // i'll test with this
+            long sleep = nextIntervalTime - nowTime;
             try {
-                if (this.stop == false) Thread.sleep(100);
+                if (this.stop == false && sleep > 0) {
+                    if (debug.get()) LOG.debug("Sleeping for " + sleep + " ms");
+                    Thread.sleep(sleep);
+                }
             } catch (InterruptedException e) {
                 // Ignore...
             }
             nowTime = System.currentTimeMillis();
-        }
+        } // WHILE
 
         // shut down all the clients
         boolean first = true;
