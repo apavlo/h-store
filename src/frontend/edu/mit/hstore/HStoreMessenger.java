@@ -469,8 +469,10 @@ public class HStoreMessenger {
         // Local Transfer
         if (this.local_partitions.contains(dest_partition_id)) {
             if (d) LOG.debug("Transfering " + dset.size() + " dependencies directly from partition #" + sender_partition_id + " to partition #" + dest_partition_id);
+            
+            final Map<Integer, ExecutionSite> executors = this.hstore_site.getExecutors(); 
             for (int i = 0, cnt = dset.size(); i < cnt; i++) {
-                ExecutionSite executor = this.hstore_site.getExecutors().get(dest_partition_id);
+                ExecutionSite executor = executors.get(dest_partition_id);
                 assert(executor != null) : "Unexpected null ExecutionSite for Partition #" + dest_partition_id + " on Site #" + catalog_site.getId();
                 
                 // 2010-11-12: We have to copy each VoltTable, otherwise we get an error down in the EE when it tries

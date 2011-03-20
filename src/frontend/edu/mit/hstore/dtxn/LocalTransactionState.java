@@ -177,6 +177,11 @@ public class LocalTransactionState extends TransactionState {
      */
     public boolean sysproc;
     /**
+     * Whether this txn isn't use the Dtxn.Coordinator
+     */
+    public boolean ignore_dtxn = false;
+    
+    /**
      * The original StoredProcedureInvocation request that was sent to the HStoreSite
      */
     public StoredProcedureInvocation invocation;
@@ -380,7 +385,7 @@ public class LocalTransactionState extends TransactionState {
 //            this.est_time.appendTime(orig.est_time);
 //        }
         
-        return (this.init(txnId, orig.client_handle, orig.source_partition));
+        return (this.init(txnId, orig.client_handle, orig.base_partition));
     }
     
     @Override
@@ -428,6 +433,7 @@ public class LocalTransactionState extends TransactionState {
         this.orig_txn_id = null;
         this.catalog_proc = null;
         this.sysproc = false;
+        this.ignore_dtxn = false;
         this.done_partitions.clear();
         this.touched_partitions.clear();
         this.coordinator_callback = null;
@@ -1054,6 +1060,7 @@ public class LocalTransactionState extends TransactionState {
         ListOrderedMap<String, Object> m0 = new ListOrderedMap<String, Object>();
         m0.put("Procedure", proc_name);
         m0.put("Dtxn.Coordinator Callback", this.coordinator_callback);
+        m0.put("Ignore Dtxn.Coordinator", this.ignore_dtxn);
         m0.put("Dependency Ctr", this.dependency_ctr);
         m0.put("Internal Ctr", this.internal_dependencies.size());
         m0.put("Received Ctr", this.received_ctr);

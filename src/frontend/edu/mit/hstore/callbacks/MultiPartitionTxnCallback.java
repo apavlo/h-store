@@ -1,10 +1,9 @@
 package edu.mit.hstore.callbacks;
 
-import org.apache.log4j.Logger;
+//import org.apache.log4j.Logger;
 
 import com.google.protobuf.RpcCallback;
 
-import edu.brown.markov.TransactionEstimator;
 import edu.mit.dtxn.Dtxn;
 import edu.mit.hstore.HStoreSite;
 
@@ -14,13 +13,13 @@ import edu.mit.hstore.HStoreSite;
  * @author pavlo
  */
 public class MultiPartitionTxnCallback extends AbstractTxnCallback implements RpcCallback<Dtxn.FragmentResponse> {
-    private static final Logger LOG = Logger.getLogger(MultiPartitionTxnCallback.class);
+//    private static final Logger LOG = Logger.getLogger(MultiPartitionTxnCallback.class);
     
     private final SinglePartitionTxnCallback inner;
     
-    public MultiPartitionTxnCallback(HStoreSite hstore_site, long txn_id, int dest_partition, TransactionEstimator t_estimator, RpcCallback<byte[]> done) {
+    public MultiPartitionTxnCallback(HStoreSite hstore_site, long txn_id, int dest_partition, RpcCallback<byte[]> done) {
         super(hstore_site, txn_id, done);
-        this.inner = new SinglePartitionTxnCallback(hstore_site, txn_id, dest_partition, t_estimator, done);
+        this.inner = new SinglePartitionTxnCallback(hstore_site, txn_id, dest_partition, done);
     }
     
     /**

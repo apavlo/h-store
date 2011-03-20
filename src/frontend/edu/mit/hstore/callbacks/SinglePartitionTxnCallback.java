@@ -5,7 +5,6 @@ import org.apache.log4j.Logger;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.RpcCallback;
 
-import edu.brown.markov.TransactionEstimator;
 import edu.mit.dtxn.Dtxn;
 import edu.mit.hstore.HStoreSite;
 
@@ -16,16 +15,13 @@ import edu.mit.hstore.HStoreSite;
 public class SinglePartitionTxnCallback extends AbstractTxnCallback implements RpcCallback<Dtxn.CoordinatorResponse> {
     private static final Logger LOG = Logger.getLogger(SinglePartitionTxnCallback.class);
     
-    private final TransactionEstimator t_estimator;
     private final int dest_partition;
     private final ByteString payload;
     
-    public SinglePartitionTxnCallback(HStoreSite hstore_site, long txn_id, int dest_partition, TransactionEstimator t_estimator, RpcCallback<byte[]> done) {
+    public SinglePartitionTxnCallback(HStoreSite hstore_site, long txn_id, int dest_partition, RpcCallback<byte[]> done) {
         super(hstore_site, txn_id, done);
         this.dest_partition = dest_partition;
-        this.t_estimator = t_estimator;
         this.payload = HStoreSite.encodeTxnId(this.txn_id);
-        assert(this.t_estimator != null) : "Null TransactionEstimator for txn #" + this.txn_id;
     }
 
     /**
@@ -72,25 +68,13 @@ public class SinglePartitionTxnCallback extends AbstractTxnCallback implements R
         
         // We *always* need to send out the FinishRequest to the Dtxn.Coordinator (yes, even if it's a mispredict)
         // because we want to make sure that Dtxn.Coordinator cleans up the internal state for this busted transaction
-        ClientResponseFinalCallback callback = new ClientResponseFinalCallback(this.hstore_site, this.txn_id, output, status, this.done);
+        RpcCallback<Dtxn.FinishResponse> callback = null;
+        if (mispredict) {
+            callback = new MispredictCleanupCallback(this.hstore_site, this.txn_id, status);
+        } else {
+            callback = new ClientResponseFinalCallback(this.hstore_site, this.txn_id, output, status, this.done);   
+        }
         if (t) LOG.trace(String.format("Calling Dtxn.Coordinator.finish() for txn #%d [commit=%s, payload=%s]",  this.txn_id, commit, request.hasPayload()));
         this.hstore_site.requestFinish(this.txn_id, request, callback);
-        
-        // Then clean-up any extra information that we may have for the txn
-        if (this.t_estimator != null) {
-            if (commit) {
-                if (t) LOG.trace("Telling the TransactionEstimator to COMMIT txn #" + this.txn_id);
-                this.t_estimator.commit(this.txn_id);
-            } else if (mispredict) {
-                if (t) LOG.trace("Telling the TransactionEstimator to IGNORE txn #" + this.txn_id);
-                this.t_estimator.ignore(this.txn_id);
-            } else {
-                if (t) LOG.trace("Telling the TransactionEstimator to ABORT txn #" + this.txn_id);
-                this.t_estimator.abort(this.txn_id);
-            }
-        }
     }
-    
-    
-
 }

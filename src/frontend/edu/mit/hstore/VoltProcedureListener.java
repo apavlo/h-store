@@ -22,6 +22,7 @@ import ca.evanjones.protorpc.EventLoop;
 import ca.evanjones.protorpc.NIOEventLoop;
 
 import com.google.protobuf.RpcCallback;
+import com.google.protobuf.RpcUtil;
 
 import edu.mit.net.MessageConnection;
 import edu.mit.net.NIOMessageConnection;
@@ -108,7 +109,7 @@ public class VoltProcedureListener extends AbstractEventHandler {
         }
 
         @Override
-        public void run(byte[] serializedResult) {
+        public synchronized void run(byte[] serializedResult) {
             boolean blocked = connection.write(serializedResult);
             // Only register the write if being blocked is "new"
             // TODO: Use NonBlockingConnection which avoids attempting to write when blocked
@@ -129,6 +130,7 @@ public class VoltProcedureListener extends AbstractEventHandler {
     }
 
     private void read(ClientConnectionHandler eventLoopCallback) {
+        final boolean d = LOG.isDebugEnabled();
         byte[] output;
         while ((output = eventLoopCallback.connection.tryRead()) != null) {
             if (output.length == 0) {
@@ -161,10 +163,11 @@ public class VoltProcedureListener extends AbstractEventHandler {
                 // write to say "okay": BIG HACK
                 eventLoopCallback.hackWritePasswordOk();
             } else {
-                if (LOG.isDebugEnabled()) LOG.debug("got request " + output.length);
+                if (d) LOG.debug("got request " + output.length);
 
                 try {
-                    handler.procedureInvocation(output, eventLoopCallback);
+                    RpcCallback<byte[]> callback = RpcUtil.newOneTimeCallback(eventLoopCallback);
+                    handler.procedureInvocation(output, callback); // eventLoopCallback);
                 } catch (Exception ex) {
                     LOG.fatal("Unexpected error when calling procedureInvocation!", ex);
                     throw new RuntimeException(ex);

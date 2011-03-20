@@ -107,6 +107,7 @@ public class TPCCSimulation {
     private final boolean neworder_only;
     private final boolean neworder_abort;
     private final boolean neworder_multip;
+    private final boolean neworder_all_multip;
     
     private final int max_w_id;
     static long lastAssignedWarehouseId = 1;
@@ -116,7 +117,7 @@ public class TPCCSimulation {
     public TPCCSimulation(TPCCSimulation.ProcCaller client, RandomGenerator generator,
                           Clock clock, ScaleParameters parameters, boolean useWarehouseAffinity,
                           double skewFactor, boolean noop,
-                          boolean neworder_only, boolean neworder_abort, boolean neworder_multip
+                          boolean neworder_only, boolean neworder_abort, boolean neworder_multip, boolean neworder_all_multip
     ) {
         assert parameters != null;
         this.client = client;
@@ -131,6 +132,7 @@ public class TPCCSimulation {
         this.neworder_only = neworder_only;
         this.neworder_abort = neworder_abort;
         this.neworder_multip = neworder_multip;
+        this.neworder_all_multip = neworder_all_multip;
         
         this.max_w_id = (parameters.warehouses + parameters.starting_warehouse - 1);
         if (this.m_skewFactor > 0) {
@@ -143,26 +145,30 @@ public class TPCCSimulation {
         if (lastAssignedWarehouseId > max_w_id)
             lastAssignedWarehouseId = 1;
         
-        if (LOG.isDebugEnabled()) {
-            Map<String, Object> m0 = new ListOrderedMap<String, Object>();
-            m0.put("Use Warehouse Affinity", this.useWarehouseAffinity);
-            m0.put("Affine Warehouse", lastAssignedWarehouseId);
-            m0.put("Skew Factor", this.m_skewFactor);
-            m0.put("Enable NOOP", this.noop);
-            m0.put("NewOrder Only", this.neworder_only);
-            m0.put("NewOrder Abort", this.neworder_abort);
-            m0.put("NewOrder Remote Warehouses", this.neworder_multip);
-            
-            Map<String, Object> m1 = new ListOrderedMap<String, Object>();
-            m1.put("Warehouses", parameters.warehouses);
-            m1.put("W_ID Range", String.format("[%d, %d]", parameters.starting_warehouse, this.max_w_id));
-            m1.put("Districts per Warehouse", parameters.districtsPerWarehouse);
-            m1.put("Custers per District", parameters.customersPerDistrict);
-            m1.put("Initial Orders per District", parameters.newOrdersPerDistrict);
-            m1.put("Items", parameters.items);
+        if (LOG.isDebugEnabled()) LOG.debug(this.toString());
+    }
+    
+    @Override
+    public String toString() {
+        Map<String, Object> m0 = new ListOrderedMap<String, Object>();
+        m0.put("Use Warehouse Affinity", this.useWarehouseAffinity);
+        m0.put("Affine Warehouse", lastAssignedWarehouseId);
+        m0.put("Skew Factor", this.m_skewFactor);
+        m0.put("Enable NOOP", this.noop);
+        m0.put("NewOrder Only", this.neworder_only);
+        m0.put("NewOrder Abort", this.neworder_abort);
+        m0.put("NewOrder Remote Warehouses", this.neworder_multip);
+        m0.put("NewOrder Only Warehouses", this.neworder_all_multip);
         
-            LOG.debug(String.format("TPCC Simulator Options\n%s", StringUtil.formatMaps(m0, m1)));
-        }
+        Map<String, Object> m1 = new ListOrderedMap<String, Object>();
+        m1.put("Warehouses", parameters.warehouses);
+        m1.put("W_ID Range", String.format("[%d, %d]", parameters.starting_warehouse, this.max_w_id));
+        m1.put("Districts per Warehouse", parameters.districtsPerWarehouse);
+        m1.put("Custers per District", parameters.customersPerDistrict);
+        m1.put("Initial Orders per District", parameters.newOrdersPerDistrict);
+        m1.put("Items", parameters.items);
+    
+        return (String.format("TPCC Simulator Options\n%s", StringUtil.formatMaps(m0, m1)));
     }
 
     private short generateWarehouseId() {
@@ -277,7 +283,6 @@ public class TPCCSimulation {
     /** Executes a new order transaction. */
     public void doNewOrder() throws IOException {
         boolean allow_rollback = this.neworder_abort;
-        boolean allow_remote_w_id = this.neworder_multip;
         
         short warehouse_id = generateWarehouseId();
         int ol_cnt = generator.number(Constants.MIN_OL_CNT, Constants.MAX_OL_CNT);
@@ -300,7 +305,7 @@ public class TPCCSimulation {
             }
 
             // 1% of items are from a remote warehouse
-            boolean remote = (allow_remote_w_id && generator.number(1, 100) == 1);
+            boolean remote = (this.neworder_all_multip) || (this.neworder_multip && generator.number(1, 100) == 1);
             if (parameters.warehouses > 1 && remote) {
                 supply_w_id[i] = (short)generator.numberExcluding(parameters.starting_warehouse, this.max_w_id, (int) warehouse_id);
                 if (supply_w_id[i] != warehouse_id) remote_warehouses++;

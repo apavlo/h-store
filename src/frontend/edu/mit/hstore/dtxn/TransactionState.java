@@ -85,7 +85,7 @@ public abstract class TransactionState implements Poolable {
     
     protected long txn_id = -1;
     protected long client_handle;
-    protected int source_partition;
+    protected int base_partition;
     protected final Set<Integer> touched_partitions = new HashSet<Integer>();
     protected boolean exec_local;
     protected boolean single_partitioned = false;
@@ -134,10 +134,10 @@ public abstract class TransactionState implements Poolable {
      * @param client_handle
      * @param exec_local
      */
-    protected final TransactionState init(long txn_id, long client_handle, int source_partition, boolean exec_local) {
+    protected final TransactionState init(long txn_id, long client_handle, int base_partition, boolean exec_local) {
         this.txn_id = txn_id;
         this.client_handle = client_handle;
-        this.source_partition = source_partition;
+        this.base_partition = base_partition;
         this.exec_local = exec_local;
         this.round_state = RoundState.NULL;
         return (this);
@@ -331,11 +331,11 @@ public abstract class TransactionState implements Poolable {
     }
     
     /**
-     * 
+     * Get the base PartitionId where this txn's Java code is executing on
      * @return
      */
-    public int getSourcePartition() {
-        return source_partition;
+    public int getBasePartition() {
+        return base_partition;
     }
     
     /**

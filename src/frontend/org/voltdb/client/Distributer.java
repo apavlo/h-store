@@ -219,24 +219,28 @@ class Distributer {
             ProcedureCallback cb = null;
             long callTime = 0;
             int delta = 0;
+            long clientHandle = response.getClientHandle();
             synchronized (this) {
-                Object stuff[] = m_callbacks.remove(response.getClientHandle());
-
-                callTime = (Long)stuff[0];
-                delta = (int)(now - callTime);
-                cb = (ProcedureCallback)stuff[1];
-                m_invocationsCompleted++;
-                final byte status = response.getStatus();
-                boolean abort = false;
-                boolean error = false;
-                if (status == ClientResponse.USER_ABORT || status == ClientResponse.GRACEFUL_FAILURE) {
-                    m_invocationAborts++;
-                    abort = true;
-                } else if (status != ClientResponse.SUCCESS) {
-                    m_invocationErrors++;
-                    error = true;
+                Object stuff[] = m_callbacks.remove(clientHandle);
+                if (stuff != null && stuff.length > 0) {
+                    callTime = (Long)stuff[0];
+                    delta = (int)(now - callTime);
+                    cb = (ProcedureCallback)stuff[1];
+                    m_invocationsCompleted++;
+                    final byte status = response.getStatus();
+                    boolean abort = false;
+                    boolean error = false;
+                    if (status == ClientResponse.USER_ABORT || status == ClientResponse.GRACEFUL_FAILURE) {
+                        m_invocationAborts++;
+                        abort = true;
+                    } else if (status != ClientResponse.SUCCESS) {
+                        m_invocationErrors++;
+                        error = true;
+                    }
+                    updateStats((String)stuff[2], delta, response.getClusterRoundtrip(), abort, error);
+                } else {
+                    LOG.warn("Failed to get callback for client handle #" + clientHandle);
                 }
-                updateStats((String)stuff[2], delta, response.getClusterRoundtrip(), abort, error);
             }
 
             if (cb != null) {

@@ -751,6 +751,10 @@ public class BenchmarkController {
             nowTime = System.currentTimeMillis();
         } // WHILE
 
+        m_clientPSM.prepareToShutdown();
+        m_serverPSM.prepareToShutdown();
+        m_coordPSM.prepareToShutdown();
+        
         // shut down all the clients
         boolean first = true;
         for (String clientName : m_clients) {

@@ -286,7 +286,8 @@ public class PartitionEstimator {
             } // FOR
         } */
         this.catalog_db = new_catalog_db;
-//        System.err.println("++++ CATALOG HASH: " + this.catalog_db.hashCode());
+        
+        this.hasher.init(new_catalog_db);
 
         this.cache_procparam.clear();
         for (Procedure catalog_proc : this.catalog_db.getProcedures()) {

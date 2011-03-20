@@ -211,6 +211,10 @@ public class ProcessSetManager {
     public ProcessSetManager() {
         this(null, null);
     }
+    
+    public void prepareToShutdown() {
+        this.shutting_down = true;
+    }
 
     public String[] getProcessNames() {
         String[] retval = new String[m_processes.size()];

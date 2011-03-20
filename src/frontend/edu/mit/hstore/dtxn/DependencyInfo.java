@@ -145,7 +145,7 @@ public class DependencyInfo implements Poolable {
      */
     public void addBlockedFragmentTaskMessage(FragmentTaskMessage ftask) {
         this.blocked_tasks.add(ftask);
-        this.blocked_all_local = this.blocked_all_local && (ftask.getDestinationPartitionId() == this.ts.source_partition);
+        this.blocked_all_local = this.blocked_all_local && (ftask.getDestinationPartitionId() == this.ts.base_partition);
     }
     
     /**
