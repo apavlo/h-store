@@ -1,19 +1,24 @@
 package edu.mit.hstore;
 
+import java.lang.reflect.Field;
+import java.util.Map;
+
+import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.log4j.Logger;
 import org.voltdb.BatchPlanner;
 
 import edu.brown.markov.TransactionEstimator;
 import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.CountingPoolableObjectFactory;
+import edu.brown.utils.StringUtil;
 
 public final class HStoreConf {
     private static final Logger LOG = Logger.getLogger(HStoreConf.class);
 
     /**
-     * Whether to not use the Dtxn.Coordinator
+     * Whether to not use the Dtxn.Coordinator for single-partition transactions
      */
-    public boolean ignore_dtxn = false;
+    public boolean ignore_dtxn = true;
 
     /**
      * Whether to force all transactions to be executed as single-partitioned
@@ -77,7 +82,7 @@ public final class HStoreConf {
      * The max number of VoltProcedure instances to keep in the pool (per ExecutionSite + per Procedure)
      * @see ExecutionSite.VoltProcedureFactory 
      */
-    public int pool_voltprocedure_idle = 500;
+    public int pool_voltprocedure_idle = 10000;
     
     /**
      * The max number of BatchPlans to keep in the pool (per BatchPlanner)
@@ -186,5 +191,20 @@ public final class HStoreConf {
     
     public static HStoreConf singleton() {
         return (HStoreConf.init(null));
+    }
+    
+    @Override
+    public String toString() {
+        Class<?> confClass = this.getClass();
+        final Map<String, Object> m = new ListOrderedMap<String, Object>();
+        for (Field f : confClass.getFields()) {
+            String key = f.getName().toUpperCase();
+            try {
+                m.put(key, f.get(this));
+            } catch (IllegalAccessException ex) {
+                m.put(key, ex.getMessage());
+            }
+        }
+        return (StringUtil.formatMaps(m));
     }
 }

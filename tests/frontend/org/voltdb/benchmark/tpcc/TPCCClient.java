@@ -211,7 +211,7 @@ public class TPCCClient extends org.voltdb.benchmark.ClientMain implements TPCCS
             Clock clock,
             ScaleParameters params)
     {
-        this(client, generator, clock, params, 0.0d, false, false, false, false);
+        this(client, generator, clock, params, 0.0d, false, false, false, false, false);
     }
 
     public TPCCClient(
@@ -223,12 +223,13 @@ public class TPCCClient extends org.voltdb.benchmark.ClientMain implements TPCCS
             boolean noop,
             boolean neworder_only,
             boolean neworder_abort,
-            boolean neworder_multip
+            boolean neworder_multip,
+            boolean neworder_all_multip
     ) {
         super(client);
         m_scaleParams = params;
-        m_tpccSim = new TPCCSimulation(this, generator, clock, m_scaleParams, false, skewFactor, noop, neworder_only, neworder_abort, neworder_multip);
-        m_tpccSim2 = new TPCCSimulation(this, generator, clock, m_scaleParams, false, skewFactor, noop, neworder_only, neworder_abort, neworder_multip);
+        m_tpccSim = new TPCCSimulation(this, generator, clock, m_scaleParams, false, skewFactor, noop, neworder_only, neworder_abort, neworder_multip, neworder_all_multip);
+        m_tpccSim2 = new TPCCSimulation(this, generator, clock, m_scaleParams, false, skewFactor, noop, neworder_only, neworder_abort, neworder_multip, neworder_all_multip);
     }
 
     /** Complies with our benchmark client remote controller scheme */
@@ -249,7 +250,7 @@ public class TPCCClient extends org.voltdb.benchmark.ClientMain implements TPCCS
         boolean neworder_only = false;
         boolean neworder_abort = false;
         boolean neworder_multip = false;
-
+        boolean neworder_all_multip = false;
 
         // scan the inputs once to read everything but host names
         for (String arg : args) {
@@ -281,6 +282,9 @@ public class TPCCClient extends org.voltdb.benchmark.ClientMain implements TPCCS
             else if (parts[0].equalsIgnoreCase("neworder_multip") && !parts[1].isEmpty()) {
                 neworder_multip = Boolean.parseBoolean(parts[1]);
             }
+            else if (parts[0].equalsIgnoreCase("neworder_all_multip") && !parts[1].isEmpty()) {
+                neworder_all_multip = Boolean.parseBoolean(parts[1]);
+            }
         }
 
         // makeForRun requires the value cLast from the load generator in
@@ -301,9 +305,9 @@ public class TPCCClient extends org.voltdb.benchmark.ClientMain implements TPCCS
         m_scaleParams =
             ScaleParameters.makeWithScaleFactor(warehouses, scalefactor);
         m_tpccSim =
-            new TPCCSimulation(this, rng, new Clock.RealTime(), m_scaleParams, false, skewfactor, noop, neworder_only, neworder_abort, neworder_multip);
+            new TPCCSimulation(this, rng, new Clock.RealTime(), m_scaleParams, false, skewfactor, noop, neworder_only, neworder_abort, neworder_multip, neworder_all_multip);
         m_tpccSim2 =
-            new TPCCSimulation(this, rng2, new Clock.RealTime(), m_scaleParams, false, skewfactor, noop, neworder_only, neworder_abort, neworder_multip);
+            new TPCCSimulation(this, rng2, new Clock.RealTime(), m_scaleParams, false, skewfactor, noop, neworder_only, neworder_abort, neworder_multip, neworder_all_multip);
 
         // Set up checking
         buildConstraints();

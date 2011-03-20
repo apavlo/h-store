@@ -103,7 +103,7 @@ public class HStoreSiteStatus implements Runnable {
             this.partition_txns.get(partition).clear();
         } // FOR
         for (Entry<Long, LocalTransactionState> e : hstore_site.inflight_txns.entrySet()) {
-            this.partition_txns.get(e.getValue().getSourcePartition()).add(e.getKey());
+            this.partition_txns.get(e.getValue().getBasePartition()).add(e.getKey());
         } // FOR
         
         // ----------------------------------------------------------------------------

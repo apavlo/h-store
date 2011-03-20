@@ -2,7 +2,6 @@ package edu.mit.hstore.callbacks;
 
 import org.apache.log4j.Logger;
 
-import com.google.protobuf.ByteString;
 import com.google.protobuf.RpcCallback;
 
 import edu.mit.dtxn.Dtxn;
@@ -15,21 +14,11 @@ import edu.mit.hstore.HStoreSite;
 public class NoDtxnCallback extends AbstractTxnCallback implements RpcCallback<Dtxn.FragmentResponse> {
     private static final Logger LOG = Logger.getLogger(NoDtxnCallback.class);
     
-    private final int dest_partition;
-    private final ByteString payload;
+//    private final int dest_partition;
     
     public NoDtxnCallback(HStoreSite hstore_site, long txn_id, int dest_partition, RpcCallback<byte[]> done) {
         super(hstore_site, txn_id, done);
-        this.dest_partition = dest_partition;
-        this.payload = HStoreSite.encodeTxnId(this.txn_id);
-    }
-
-    /**
-     * The original partition id that this txn's control code executed on
-     * @return
-     */
-    public int getOriginalPartitionId() {
-        return this.dest_partition;
+//        this.dest_partition = dest_partition;
     }
     
     @Override
@@ -43,23 +32,21 @@ public class NoDtxnCallback extends AbstractTxnCallback implements RpcCallback<D
         
         if (t) LOG.trace(String.format("Got callback for txn #%d [bytes=%d, commit=%s, status=%s]", this.txn_id, output.length, commit, status));
 
-        assert(mispredict == false);
+        // If the txn was mispredicted, then we will pass the information over to the HStoreSite
+        // so that it can re-execute the transaction. We want to do this first so that the txn gets re-executed
+        // as soon as possible...
+        if (mispredict) {
+            this.hstore_site.misprediction(this.txn_id, this.done);
+        // If the txn committed/aborted, then we can send the response directly back to the client here
+        // Note that we don't even need to call HStoreSite.finishTransaction() since that doesn't do anything
+        // that we haven't already done!
+        } else {
+            if (t) LOG.trace("Sending back ClientResponse to txn #" + this.txn_id);
+            this.done.run(output);   
+        }
 
-        // According to the where ever the VoltProcedure was running, our transaction is
-        // now complete (either aborted or committed). So we need to tell Dtxn.Coordinator
-        // to go fuck itself and send the final messages to everyone that was involved
-        // We have to pack in our txn id in the payload
-        Dtxn.FinishRequest request = Dtxn.FinishRequest.newBuilder()
-                                            .setTransactionId(this.txn_id)
-                                            .setCommit(commit)
-                                            .setPayload(this.payload)
-                                            .build();
-        if (t) LOG.trace(String.format("Calling Dtxn.Coordinator.finish() for txn #%d [commit=%s, payload=%s]",  this.txn_id, commit, request.hasPayload()));
-        this.hstore_site.finish(null, request, null);
-        this.done.run(output);
-        this.hstore_site.completeTransaction(this.txn_id);
+        // But make sure we always call HStoreSite.completeTransaction() so that we cleanup whatever internal
+        // state that we may have for this txn regardless of how it finished
+        this.hstore_site.completeTransaction(this.txn_id, status);
     }
-    
-    
-
 }

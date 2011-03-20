@@ -430,6 +430,7 @@ public class ExecutionSite implements Runnable {
                 Thread t = new Thread(r);
                 t.setDaemon(true);
                 t.setName(String.format("%s-%02d", ExecutionSite.this.getThreadName(), this.cnt.getAndIncrement()));
+                if (d) LOG.debug("Creating new executor thread: " + t.getName());
                 return (t);
             }
         });
@@ -1118,16 +1119,23 @@ public class ExecutionSite implements Runnable {
         }
         ts.setSubmittedEE();
         
-        DependencySet result = this.ee.executeQueryPlanFragmentsAndGetDependencySet(
-                    fragmentIds,
-                    fragmentIdIndex,
-                    input_depIds,
-                    output_depIds,
-                    parameterSets,
-                    fragmentIdIndex,
-                    txn_id,
-                    this.lastCommittedTxnId,
-                    undoToken);
+        DependencySet result = null;
+        try {
+            if (t) LOG.trace(String.format("Partition %d: %s", this.partitionId, Thread.currentThread().getName()));
+            result = this.ee.executeQueryPlanFragmentsAndGetDependencySet(
+                            fragmentIds,
+                            fragmentIdIndex,
+                            input_depIds,
+                            output_depIds,
+                            parameterSets,
+                            fragmentIdIndex,
+                            txn_id,
+                            this.lastCommittedTxnId,
+                            undoToken);
+        } catch (RuntimeException ex) {
+            LOG.fatal(String.format("Failed to execute PlanFragments for txn #%d", txn_id));
+            throw ex;
+        }
         
         if (t) LOG.trace("Executed fragments " + Arrays.toString(fragmentIds) + " and got back results: " + Arrays.toString(result.depIds)); //  + "\n" + Arrays.toString(result.dependencies));
         return (result);
@@ -1313,7 +1321,7 @@ public class ExecutionSite implements Runnable {
         assert(client_handle != -1) : "The client handle for txn #" + txn_id + " was not set properly";
         byte status = cresponse.getStatus();
 
-        if (d) LOG.debug(String.format("Sending ClientResponseImpl back for txn #%d [status=%s]", txn_id, cresponse.getStatusName()));
+        if (d) LOG.debug(String.format("Sending ClientResponseImpl back for txn #%d [clientHandle=%s, status=%s]", txn_id, cresponse.getClientHandle(), cresponse.getStatusName()));
         Dtxn.FragmentResponse.Builder builder = Dtxn.FragmentResponse.newBuilder();
 
         // Don't send anything back if it's a mispredict because it's as waste of time...
