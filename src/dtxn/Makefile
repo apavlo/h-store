@@ -40,7 +40,8 @@ $(PREFIX)/protodtxn/protodtxnengine \
 $(PREFIX)/stupidunit/stupidunit.o \
 $(PREFIX)/dtxn2/common.o \
 $(PREFIX)/dtxn2/blockingscheduler.o \
-$(PREFIX)/dtxn2/partitionserver.o
+$(PREFIX)/dtxn2/partitionserver.o \
+$(PREFIX)/dtxn2/protopartitionserver.o
 
 $(PREFIX):
 	mkdir -p $(PREFIX)/dtxn2
@@ -227,7 +228,7 @@ $(PREFIX)/logging/crc32cbench.o: logging/crc32cbench.cc
 ## ------------------------------------------------------------------
 ## BASE TEST FILES
 ## ------------------------------------------------------------------
-tests:	$(PREFIX)/stupidunit/stupidunit_test $(PREFIX)/replication/primarybackup_test $(PREFIX)/logging/logfile_test $(PREFIX)/io/memoryinputstream_test $(PREFIX)/dtxn/dtxndistributor_test $(PREFIX)/dtxn/transactionstate_test $(PREFIX)/logging/crc32c_test $(PREFIX)/dtxn/distributedtransaction_test $(PREFIX)/protorpc/protoserver_test $(PREFIX)/dtxn/transaction_test $(PREFIX)/strings/utils_test $(PREFIX)/dtxn/dtxnserver_test $(PREFIX)/dtxn2/blockingscheduler_test $(PREFIX)/protorpc/protoconnectionbuffer_test $(PREFIX)/protodtxn/protodtxncoordinator_test $(PREFIX)/dtxn2/partitionserver_test $(PREFIX)/protorpc/protorpcchannel_test $(PREFIX)/logging/sequencefile_test $(PREFIX)/replication/primarybackuplistener_test $(PREFIX)/io/libeventloop_test $(PREFIX)/replication/nulllog_test $(PREFIX)/net/messageserver_test $(PREFIX)/protorpc/serviceregistry_test $(PREFIX)/protodtxn/protodtxnengine_test $(PREFIX)/strings/json_test $(PREFIX)/io/buffer_test $(PREFIX)/dtxn/configparser_test $(PREFIX)/replication/cachedslidingarray_test $(PREFIX)/serialization_test $(PREFIX)/dtxn/locks/lockscheduler_test $(PREFIX)/dtxn/occ/occtransaction_test $(PREFIX)/tcplistener_test $(PREFIX)/networkaddress_test $(PREFIX)/dtxn/occ/occscheduler_test 
+tests:	$(PREFIX)/stupidunit/stupidunit_test $(PREFIX)/replication/primarybackup_test $(PREFIX)/logging/logfile_test $(PREFIX)/io/memoryinputstream_test $(PREFIX)/dtxn/dtxndistributor_test $(PREFIX)/dtxn/transactionstate_test $(PREFIX)/logging/crc32c_test $(PREFIX)/dtxn/distributedtransaction_test $(PREFIX)/protorpc/protoserver_test $(PREFIX)/dtxn/transaction_test $(PREFIX)/strings/utils_test $(PREFIX)/dtxn/dtxnserver_test $(PREFIX)/dtxn2/blockingscheduler_test $(PREFIX)/protorpc/protoconnectionbuffer_test $(PREFIX)/protodtxn/protodtxncoordinator_test $(PREFIX)/dtxn2/partitionserver_test $(PREFIX)/dtxn2/protopartitionserver_test $(PREFIX)/protorpc/protorpcchannel_test $(PREFIX)/logging/sequencefile_test $(PREFIX)/replication/primarybackuplistener_test $(PREFIX)/io/libeventloop_test $(PREFIX)/replication/nulllog_test $(PREFIX)/net/messageserver_test $(PREFIX)/protorpc/serviceregistry_test $(PREFIX)/protodtxn/protodtxnengine_test $(PREFIX)/strings/json_test $(PREFIX)/io/buffer_test $(PREFIX)/dtxn/configparser_test $(PREFIX)/replication/cachedslidingarray_test $(PREFIX)/serialization_test $(PREFIX)/dtxn/locks/lockscheduler_test $(PREFIX)/dtxn/occ/occtransaction_test $(PREFIX)/tcplistener_test $(PREFIX)/networkaddress_test $(PREFIX)/dtxn/occ/occscheduler_test 
 
 $(PREFIX)/base/chunkedarray_test.o: base/chunkedarray_test.cc
 	$(CC_COMPILE)
@@ -313,6 +314,8 @@ $(PREFIX)/protorpc/protorpcchannel_test.o: protorpc/protorpcchannel_test.cc
 $(PREFIX)/protodtxn/protodtxnengine.o: protodtxn/protodtxnengine.cc
 	$(CC_COMPILE)
 $(PREFIX)/dtxn2/partitionserver_test.o: dtxn2/partitionserver_test.cc
+	$(CC_COMPILE)
+$(PREFIX)/dtxn2/protopartitionserver_test.o: dtxn2/protopartitionserver_test.cc
 	$(CC_COMPILE)
 $(PREFIX)/base/cast_test.o: base/cast_test.cc
 	$(CC_COMPILE)
@@ -422,6 +425,8 @@ $(PREFIX)/dtxn/locks/lockscheduler_test.o: dtxn/locks/lockscheduler_test.cc
 	$(CC_COMPILE)
 $(PREFIX)/dtxn2/partitionserver_test: $(PREFIX)/dtxn2/partitionserver_test.o $(PREFIX)/dtxn2/partitionserver.o $(PREFIX)/io/buffer.o $(PREFIX)/net/messageserver.o $(PREFIX)/replication/nulllog.o $(PREFIX)/serialization.o $(PREFIX)/stupidunit/stupidunit.o
 	$(CC_BINARY)
+$(PREFIX)/dtxn2/protopartitionserver_test: $(PREFIX)/dtxn2/protopartitionserver_test.o $(PREFIX)/dtxn2/partitionserver.o $(PREFIX)/dtxn2/protopartitionserver.o $(PREFIX)/io/buffer.o $(PREFIX)/net/messageserver.o $(PREFIX)/replication/nulllog.o $(PREFIX)/serialization.o $(PREFIX)/stupidunit/stupidunit.o
+	$(CC_BINARY)
 $(PREFIX)/coordinatorworker.o: coordinatorworker.cc
 	$(CC_COMPILE)
 $(PREFIX)/net/messageserver.o: net/messageserver.cc
@@ -500,6 +505,8 @@ $(PREFIX)/io/buffer_test: $(PREFIX)/io/buffer_test.o $(PREFIX)/io/buffer.o $(PRE
 	$(CC_BINARY)
 $(PREFIX)/dtxn2/partitionserver.o: dtxn2/partitionserver.cc
 	$(CC_COMPILE)
+$(PREFIX)/dtxn2/protopartitionserver.o: dtxn2/protopartitionserver.cc
+	$(CC_COMPILE)
 $(PREFIX)/dtxn/dtxnclient.o: dtxn/dtxnclient.cc
 	$(CC_COMPILE)
 $(PREFIX)/dtxn/dtxndistributor_test.o: dtxn/dtxndistributor_test.cc
@@ -514,7 +521,7 @@ $(PREFIX)/strings/json_test.o: strings/json_test.cc
 	$(CC_COMPILE)
 $(PREFIX)/dtxn/ordered/ordereddtxnmanager.o: dtxn/ordered/ordereddtxnmanager.cc
 	$(CC_COMPILE)
-$(PREFIX)/protodtxn/protodtxnengine: $(PREFIX)/protodtxn/protodtxnengine_main.o $(PREFIX)/$(DTXN_PROTO_NAME).pb.o $(PREFIX)/protodtxn/protodtxnengine.o $(PREFIX)/buffer.o $(PREFIX)/dtxn/configparser.o $(PREFIX)/dtxn2/blockingscheduler.o $(PREFIX)/dtxn2/common.o $(PREFIX)/dtxn2/partitionserver.o $(PREFIX)/io/buffer.o $(PREFIX)/io/libeventloop.o $(PREFIX)/libevent/libevent_core.a $(PREFIX)/messageconnection.o $(PREFIX)/net/messageconnectionutil.o $(PREFIX)/net/messageserver.o $(PREFIX)/networkaddress.o $(PREFIX)/protorpc/Protocol.pb.o $(PREFIX)/protorpc/protoconnectionbuffer.o $(PREFIX)/protorpc/protorpccontroller.o $(PREFIX)/protorpc/protorpcchannel.o $(PREFIX)/replication/primarybackup.o $(PREFIX)/replication/primarybackuplistener.o $(PREFIX)/replication/nulllog.o $(PREFIX)/serialization.o $(PREFIX)/strings/utils.o $(PREFIX)/tcplistener.o
+$(PREFIX)/protodtxn/protodtxnengine: $(PREFIX)/protodtxn/protodtxnengine_main.o $(PREFIX)/$(DTXN_PROTO_NAME).pb.o $(PREFIX)/protodtxn/protodtxnengine.o $(PREFIX)/buffer.o $(PREFIX)/dtxn/configparser.o $(PREFIX)/dtxn2/blockingscheduler.o $(PREFIX)/dtxn2/common.o $(PREFIX)/dtxn2/partitionserver.o $(PREFIX)/dtxn2/protopartitionserver.o $(PREFIX)/io/buffer.o $(PREFIX)/io/libeventloop.o $(PREFIX)/libevent/libevent_core.a $(PREFIX)/messageconnection.o $(PREFIX)/net/messageconnectionutil.o $(PREFIX)/net/messageserver.o $(PREFIX)/networkaddress.o $(PREFIX)/protorpc/Protocol.pb.o $(PREFIX)/protorpc/protoconnectionbuffer.o $(PREFIX)/protorpc/protorpccontroller.o $(PREFIX)/protorpc/protorpcchannel.o $(PREFIX)/protorpc/serviceregistry.o $(PREFIX)/protorpc/protoserver.o $(PREFIX)/replication/primarybackup.o $(PREFIX)/replication/primarybackuplistener.o $(PREFIX)/replication/nulllog.o $(PREFIX)/serialization.o $(PREFIX)/strings/utils.o $(PREFIX)/tcplistener.o
 	$(CC_BINARY)
 $(PREFIX)/networkaddress.o: networkaddress.cc
 	$(CC_COMPILE)
