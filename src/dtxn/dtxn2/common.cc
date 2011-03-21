@@ -6,9 +6,11 @@
 
 #include "dtxn/configparser.h"
 #include "dtxn2/partitionserver.h"
+#include "dtxn2/protopartitionserver.h"
 #include "io/libeventloop.h"
 #include "net/messageconnectionutil.h"
 #include "net/messageserver.h"
+#include "protorpc/protoserver.h"
 #include "replication/nulllog.h"
 #include "replication/primarybackuplistener.h"
 
@@ -44,7 +46,6 @@ void runServer(io::EventLoop* event_loop, Scheduler* scheduler, const dtxn::Part
     // Create the server
     PartitionServer replica(scheduler, event_loop, &msg_server, log);
 
-    // Allocated dynamically so we can destroy it before event_loop
     MessageListener listener(((io::LibEventLoop*) event_loop)->base(), &msg_server);
     if (!listener.listen(partition.replica(replica_index).port())) {
         // TODO: How to deal with errors?
@@ -52,6 +53,13 @@ void runServer(io::EventLoop* event_loop, Scheduler* scheduler, const dtxn::Part
         return;
     }
     printf("listening on port %d\n", listener.port());
+
+    // TODO: Eventually convert to this RPC protocol
+    int proto_port = partition.replica(replica_index).port() + 1;
+    ProtoPartitionServer proto_partition(&replica, &msg_server);
+    protorpc::ProtoServer proto_server(event_loop);
+    proto_server.registerService(&proto_partition);
+    proto_server.listen(proto_port);
 
     // Exit when SIGINT is caught
     ((io::LibEventLoop*) event_loop)->exitOnSigInt(true);
