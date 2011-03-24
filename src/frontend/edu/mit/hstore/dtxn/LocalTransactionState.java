@@ -725,13 +725,11 @@ public class LocalTransactionState extends TransactionState {
     }
     
     /**
-     * Retrieves and removes the coordinator callback
+     * Retrieves the coordinator callback
      * @return the coordinator_callback
      */
     public RpcCallback<Dtxn.FragmentResponse> getCoordinatorCallback() {
-        RpcCallback<Dtxn.FragmentResponse> ret = this.coordinator_callback;
-        this.coordinator_callback = null;
-        return (ret);
+        return (this.coordinator_callback);
     }
     
     /**
