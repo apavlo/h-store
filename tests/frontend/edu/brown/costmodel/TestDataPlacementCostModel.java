@@ -53,7 +53,7 @@ public class TestDataPlacementCostModel extends BaseTestCase {
         super.setUp(ProjectType.TPCC);
         
         // set the cluster configuration
-        this.initializeCluster(100, 1, 1);
+        this.initializeCluster(2, 5, 4);
         if (workload == null) {
             // File workload_file = this.getWorkloadFile(ProjectType.LOCALITY);
             File file = this.getWorkloadFile(ProjectType.TPCC, "100w.large");
@@ -108,4 +108,12 @@ public class TestDataPlacementCostModel extends BaseTestCase {
     public void testTransformTransactionTraces() throws Exception {
         TransformTransactionTraces.transform(workload.getTraces(catalog_proc), p_estimator, catalog_db);
     }
+
+    /**
+     * testTransformCatalog
+     */
+    public void testTransformCatalog() throws Exception {
+        TransformCatalog.transform(catalog_db);
+    }
+
 }
