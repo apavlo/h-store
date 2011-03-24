@@ -1,8 +1,8 @@
 package edu.brown.catalog;
 
 import java.io.*;
+import java.net.InetSocketAddress;
 import java.util.*;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.log4j.Logger;
@@ -29,14 +29,15 @@ import edu.brown.utils.AbstractTreeWalker;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.FileUtil;
 import edu.brown.utils.LoggerUtil;
+import edu.brown.utils.LoggerUtil.LoggerBoolean;
 
 /**
  * @author pavlo
  */
 public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
     static final Logger LOG = Logger.getLogger(CatalogUtil.class);
-    private final static AtomicBoolean debug = new AtomicBoolean(LOG.isDebugEnabled());
-    private final static AtomicBoolean trace = new AtomicBoolean(LOG.isTraceEnabled());
+    private final static LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private final static LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
     static {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
@@ -284,6 +285,29 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
         if (cache.PARTITION_XREF.isEmpty()) CatalogUtil.buildPartitionCache(cache, catalog_item);
         Partition catalog_part = cache.PARTITION_XREF.get(id);
         return (catalog_part);
+    }
+    
+    /**
+     * Return the InetSocketAddress used by the Dtxn.Engine for the given PartitionId
+     * @param catalog_item
+     * @param id
+     * @param engine - Whether to use the direct engine port number 
+     * @return
+     */
+    public static InetSocketAddress getPartitionAddressById(CatalogType catalog_item, Integer id, boolean engine) {
+        final CatalogUtil.Cache cache = CatalogUtil.getCache(catalog_item);
+        if (cache.PARTITION_XREF.isEmpty()) CatalogUtil.buildPartitionCache(cache, catalog_item);
+        Partition catalog_part = cache.PARTITION_XREF.get(id);
+        if (catalog_part == null) {
+            LOG.warn(String.format("Invalid partition id '%d'", id));
+            return (null);
+        }
+        Site catalog_site = catalog_part.getParent();
+        assert(catalog_site != null) : "No site for " + catalog_part; 
+        Host catalog_host = catalog_site.getHost();
+        assert(catalog_host != null) : "No host for " + catalog_site;
+        int port = (engine ? catalog_part.getEngine_port() : catalog_part.getDtxn_port());
+        return (new InetSocketAddress(catalog_host.getIpaddr(), port));
     }
     
     /**

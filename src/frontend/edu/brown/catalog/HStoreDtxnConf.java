@@ -35,6 +35,9 @@ public abstract class HStoreDtxnConf {
             } // FOR
         } // FOR
         
+        // FORMAT
+        // <PartitionId>
+        // <Hostname> <EnginePort?>
         StringBuilder buffer = new StringBuilder();
         String add = "";
         for (Entry<Integer, String> e : sorted_output.entrySet()) {

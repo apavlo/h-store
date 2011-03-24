@@ -41,7 +41,8 @@ end
 
 begin Partition       "A logical, replicate-able partition"
    int id             "Partition id"
-   int dtxn_port      "Port used by DTXN ProtoEngine"
+   int dtxn_port      "Port used for DTXN.Coordinator to communicate to the ProtoEngine"
+   int engine_port    "Port used for HStoreSite to communicate to the ProtoEngine"
 end
 
 begin Site             "A physical execution context for the system"

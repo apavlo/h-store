@@ -76,6 +76,8 @@ public class LocalTransactionState extends TransactionState {
     static {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
+    private static boolean d = debug.get();
+    private static boolean t = trace.get();
 
     // ----------------------------------------------------------------------------
     // INTERNAL PARTITION+DEPENDENCY KEY
@@ -113,9 +115,6 @@ public class LocalTransactionState extends TransactionState {
     // GLOBAL DATA MEMBERS
     // ----------------------------------------------------------------------------
 
-    private boolean d = debug.get();
-    private boolean t = trace.get();
-    
     /**
      * 
      */
@@ -352,8 +351,8 @@ public class LocalTransactionState extends TransactionState {
     public LocalTransactionState init(long txnId, long clientHandle, int source_partition) {
         // We'll use these to reduce the number of calls to the LoggerBooleans
         // Probably doesn't make a difference but I'll take anything I can get now...
-        this.t = trace.get();
-        this.d = debug.get();
+//        t = trace.get();
+//        d = debug.get();
         return ((LocalTransactionState)super.init(txnId, clientHandle, source_partition, true));
     }
     

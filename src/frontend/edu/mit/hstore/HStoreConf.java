@@ -47,6 +47,20 @@ public final class HStoreConf {
      * Enable txn profiling
      */
     public boolean enable_profiling = false;
+
+    /**
+     * Whether the VoltProcedure should crash the HStoreSite on a mispredict
+     */
+    public boolean mispredict_crash = false;
+    
+    // ----------------------------------------------------------------------------
+    // ExecutionSiteHelper
+    // ----------------------------------------------------------------------------
+
+    /**
+     * How many ms to wait initially before starting the ExecutionSiteHelper
+     */
+    public int helper_initial_delay = 2000;
     
     /**
      * How many ms to wait before the ExecutionSiteHelper executes again to clean up txns
@@ -55,6 +69,7 @@ public final class HStoreConf {
     
     /**
      * How many txns can the ExecutionSiteHelper clean-up per Partition per Round
+     * Any value less than zero means that it will clean-up all txns it can per round
      */
     public int helper_txn_per_round = -1;
     
@@ -62,11 +77,6 @@ public final class HStoreConf {
      * How long should the ExecutionSiteHelper wait before cleaning up a txn's state
      */
     public int helper_txn_expire = 1000;
-    
-    /**
-     * Whether the VoltProcedure should crash the HStoreSite on a mispredict
-     */
-    public boolean mispredict_crash = false;
     
     // ----------------------------------------------------------------------------
     // OBJECT POOLS
