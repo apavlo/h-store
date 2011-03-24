@@ -12,7 +12,6 @@ import java.util.Set;
 import java.util.Map.Entry;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.log4j.LogManager;
 import org.apache.log4j.Logger;
@@ -47,6 +46,7 @@ import edu.brown.hstore.Hstore.MessageAcknowledgement;
 import edu.brown.hstore.Hstore.MessageType;
 import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.ThreadUtil;
+import edu.brown.utils.LoggerUtil.LoggerBoolean;
 import edu.mit.hstore.callbacks.ForwardTxnResponseCallback;
 
 /**
@@ -55,11 +55,13 @@ import edu.mit.hstore.callbacks.ForwardTxnResponseCallback;
  */
 public class HStoreMessenger {
     public static final Logger LOG = Logger.getLogger(HStoreMessenger.class);
-    private final static AtomicBoolean debug = new AtomicBoolean(LOG.isDebugEnabled());
-    private final static AtomicBoolean trace = new AtomicBoolean(LOG.isTraceEnabled());
+    private final static LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private final static LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
     static {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
+    private static boolean d = debug.get();
+    private static boolean t = trace.get();
     
     enum MessengerState {
         INITIALIZED,
@@ -120,7 +122,7 @@ public class HStoreMessenger {
             } finally {
                 // if (HStoreMessenger.this.state != MessengerState.STOPPED) HStoreMessenger.this.stop();
             }
-            if (trace.get()) {
+            if (t) {
                 LOG.trace("Messenger Thread for Site #" + catalog_site.getId() + " has stopped!");
             }
         }
@@ -139,7 +141,7 @@ public class HStoreMessenger {
             partitions.add(catalog_part.getId());
         } // FOR
         this.local_partitions = Collections.unmodifiableSet(partitions);
-        if (LOG.isDebugEnabled()) LOG.debug("Local Partitions for Site #" + site.getSiteId() + ": " + this.local_partitions);
+        if (d) LOG.debug("Local Partitions for Site #" + site.getSiteId() + ": " + this.local_partitions);
         
         this.listener = new ProtoServer(eventLoop);
         this.handler = new Handler();
@@ -160,10 +162,10 @@ public class HStoreMessenger {
         
         this.state = MessengerState.STARTED;
         
-        LOG.debug("Initializing connections");
+        if (d) LOG.debug("Initializing connections");
         this.initConnections();
 
-        LOG.debug("Starting listener thread");
+        if (d) LOG.debug("Starting listener thread");
         this.listener_thread.start();
     }
 
@@ -193,20 +195,20 @@ public class HStoreMessenger {
         this.state = MessengerState.STOPPED;
         
         try {
-            if (trace.get()) LOG.trace("Stopping eventLoop for Site #" + this.getLocalSiteId());
+            if (t) LOG.trace("Stopping eventLoop for Site #" + this.getLocalSiteId());
             this.eventLoop.exitLoop();
 
-            if (trace.get()) LOG.trace("Stopping listener thread for Site #" + this.getLocalSiteId());
+            if (t) LOG.trace("Stopping listener thread for Site #" + this.getLocalSiteId());
             this.listener_thread.interrupt();
             
-            if (trace.get()) LOG.trace("Joining on listener thread for Site #" + this.getLocalSiteId());
+            if (t) LOG.trace("Joining on listener thread for Site #" + this.getLocalSiteId());
             this.listener_thread.join();
         } catch (InterruptedException ex) {
             // IGNORE
         } catch (Exception ex) {
             LOG.error("Unexpected error when trying to stop messenger for Site #" + this.getLocalSiteId(), ex);
         } finally {
-            if (trace.get()) LOG.trace("Closing listener socket for Site #" + this.getLocalSiteId());
+            if (t) LOG.trace("Closing listener socket for Site #" + this.getLocalSiteId());
             this.listener.close();
         }
         assert(this.isStopped());
@@ -244,7 +246,7 @@ public class HStoreMessenger {
         Database catalog_db = CatalogUtil.getDatabase(this.catalog_site);
         
         // Find all the destinations we need to connect to
-        if (debug.get()) LOG.debug("Configuring outbound network connections for Site #" + this.catalog_site.getId());
+        if (d) LOG.debug("Configuring outbound network connections for Site #" + this.catalog_site.getId());
         Map<Host, Set<Site>> host_partitions = CatalogUtil.getSitesPerHost(catalog_db);
         Integer local_port = this.catalog_site.getMessenger_port();
         
@@ -256,7 +258,7 @@ public class HStoreMessenger {
                 int site_id = catalog_site.getId();
                 int port = catalog_site.getMessenger_port();
                 if (site_id != this.catalog_site.getId()) {
-                    if (debug.get()) LOG.debug("Creating RpcChannel to " + host + ":" + port + " for site #" + site_id);
+                    if (d) LOG.debug("Creating RpcChannel to " + host + ":" + port + " for site #" + site_id);
                     destinations.add(new InetSocketAddress(host, port));
                     site_ids.add(site_id);
                     
@@ -269,15 +271,15 @@ public class HStoreMessenger {
         
         // Initialize inbound channel
         assert(local_port != null);
-        if (debug.get()) LOG.debug("Binding listener to port " + local_port + " for Site #" + this.catalog_site.getId());
+        if (d) LOG.debug("Binding listener to port " + local_port + " for Site #" + this.catalog_site.getId());
         this.listener.register(this.handler);
         this.listener.bind(local_port);
 
         // Make the outbound connections
         if (destinations.isEmpty()) {
-            if (debug.get()) LOG.debug("There are no remote sites so we are skipping creating connections");
+            if (d) LOG.debug("There are no remote sites so we are skipping creating connections");
         } else {
-            if (debug.get()) LOG.debug("Connecting to " + destinations.size() + " remote site messengers");
+            if (d) LOG.debug("Connecting to " + destinations.size() + " remote site messengers");
             ProtoRpcChannel[] channels = null;
             try {
                 channels = ProtoRpcChannel.connectParallel(this.eventLoop, destinations.toArray(new InetSocketAddress[]{}), 15000);
@@ -293,12 +295,12 @@ public class HStoreMessenger {
                 }
             }
             assert channels.length == site_ids.size();
-            for (int i = 0; i < site_ids.size(); i++) {
+            for (int i = 0; i < channels.length; i++) {
                 this.channels.put(site_ids.get(i), HStoreService.newStub(channels[i]));
             } // FOR
 
             
-            if (debug.get()) LOG.debug("Site #" + this.getLocalSiteId() + " is fully connected to all sites");
+            if (d) LOG.debug("Site #" + this.getLocalSiteId() + " is fully connected to all sites");
         }
     }
     
@@ -313,7 +315,7 @@ public class HStoreMessenger {
             int sender = request.getSenderId();
             int dest = request.getDestId();
             MessageType type = request.getType();
-            if (debug.get()) LOG.debug("Received " + type.name() + " request from Site #" + sender);
+            if (d) LOG.debug("Received " + type.name() + " request from Site #" + sender);
             
             Hstore.MessageAcknowledgement response = null;
             switch (type) {
@@ -362,7 +364,7 @@ public class HStoreMessenger {
                     // We need to create a wrapper callback so that we can get the output that
                     // HStoreCoordinatorNode wants to send to the client and forward 
                     // it back to whomever told us about this txn
-                    if (trace.get()) LOG.trace("Passing " + type.name() + " information to HStoreCoordinatorNode");
+                    if (t) LOG.trace("Passing " + type.name() + " information to HStoreCoordinatorNode");
                     byte serializedRequest[] = request.getData().toByteArray();
                     ForwardTxnResponseCallback callback = new ForwardTxnResponseCallback(dest, sender, done);
                     HStoreMessenger.this.hstore_site.procedureInvocation(serializedRequest, callback);
@@ -384,7 +386,7 @@ public class HStoreMessenger {
             long txn_id = request.getTxnId();
             int sender_partition_id = request.getSenderPartitionId();
             int dest_partition_id = request.getDestPartitionId();
-            if (trace.get()) LOG.trace("Incoming data from Partition #" + sender_partition_id + " to Partition #" + dest_partition_id +
+            if (t) LOG.trace("Incoming data from Partition #" + sender_partition_id + " to Partition #" + dest_partition_id +
                                  " for Txn #" + txn_id + " with " + request.getDependenciesCount() + " dependencies");
 
             for (Hstore.FragmentDependency fd : request.getDependenciesList()) {
@@ -400,12 +402,12 @@ public class HStoreMessenger {
                 assert(data != null) : "Null data table from " + request;
                 
                 // Store the VoltTable in the ExecutionSite
-                if (trace.get()) LOG.trace("Storing Depedency #" + dependency_id + " for Txn #" + txn_id + " at Partition #" + dest_partition_id);
+                if (t) LOG.trace("Storing Depedency #" + dependency_id + " for Txn #" + txn_id + " at Partition #" + dest_partition_id);
                 HStoreMessenger.this.hstore_site.getExecutors().get(dest_partition_id).storeDependency(txn_id, sender_partition_id, dependency_id, data);
             } // FOR
             
             // Send back a response
-            if (trace.get()) LOG.trace("Sending back FragmentAcknowledgement to Partition #" + sender_partition_id + " for Txn #" + txn_id);
+            if (t) LOG.trace("Sending back FragmentAcknowledgement to Partition #" + sender_partition_id + " for Txn #" + txn_id);
             Hstore.FragmentAcknowledgement ack = Hstore.FragmentAcknowledgement.newBuilder()
                                                         .setTxnId(txn_id)
                                                         .setSenderPartitionId(dest_partition_id)
@@ -423,7 +425,7 @@ public class HStoreMessenger {
         
         @Override
         public void run(FragmentAcknowledgement parameter) {
-            if (trace.get())
+            if (t)
                 LOG.trace("Received sendFragment callback from remote Partition #" + parameter.getSenderPartitionId() +
                           " for Txn #" + parameter.getTxnId());
         }
@@ -464,7 +466,6 @@ public class HStoreMessenger {
      */
     public void sendDependencySet(long txn_id, int sender_partition_id, int dest_partition_id, DependencySet dset) {
         assert(dset != null);
-        final boolean d = debug.get();
         
         // Local Transfer
         if (this.local_partitions.contains(dest_partition_id)) {
@@ -563,9 +564,6 @@ public class HStoreMessenger {
      * @param ex
      */
     public synchronized void shutdownCluster(Throwable ex) {
-        final boolean t = trace.get();
-        final boolean d = debug.get();
-        
         final int num_sites = this.channels.size();
         if (this.shutting_down) return;
         this.shutting_down = true;
@@ -627,7 +625,7 @@ public class HStoreMessenger {
      */
     public void forwardTransaction(byte[] serializedRequest, RpcCallback<MessageAcknowledgement> done, int partition) {
         int dest_site_id = this.partition_site_xref.get(partition);
-        if (debug.get()) LOG.debug("Forwarding a transaction request to Partition #" + partition + " on Site #" + dest_site_id);
+        if (d) LOG.debug("Forwarding a transaction request to Partition #" + partition + " on Site #" + dest_site_id);
         Hstore.MessageRequest mr = Hstore.MessageRequest.newBuilder()
                                         .setSenderId(this.catalog_site.getId())
                                         .setDestId(dest_site_id)
@@ -635,7 +633,7 @@ public class HStoreMessenger {
                                         .setData(ByteString.copyFrom(serializedRequest))
                                         .build();
         this.channels.get(dest_site_id).sendMessage(new ProtoRpcController(), mr, done);
-        if (trace.get()) LOG.debug("Sent " + MessageType.FORWARD_TXN.name() + " to Site #" + dest_site_id);
+        if (t) LOG.debug("Sent " + MessageType.FORWARD_TXN.name() + " to Site #" + dest_site_id);
     }
 
     /**

@@ -30,7 +30,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.log4j.Logger;
@@ -42,7 +41,6 @@ import org.voltdb.messaging.FragmentTaskMessage;
 import com.google.protobuf.RpcCallback;
 
 import edu.brown.utils.Poolable;
-import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.StringUtil;
 import edu.mit.dtxn.Dtxn;
 
@@ -50,13 +48,13 @@ import edu.mit.dtxn.Dtxn;
  * @author pavlo
  */
 public abstract class TransactionState implements Poolable {
-    protected static final Logger LOG = Logger.getLogger(TransactionState.class);
-    private final static AtomicBoolean debug = new AtomicBoolean(LOG.isDebugEnabled());
-    private final static AtomicBoolean trace = new AtomicBoolean(LOG.isTraceEnabled());
-    static {
-        LoggerUtil.attachObserver(LOG, debug, trace);
-    }
-    
+    private static final Logger LOG = Logger.getLogger(TransactionState.class);
+    private static final boolean d = LOG.isDebugEnabled();
+    private static final boolean t = LOG.isTraceEnabled();
+
+    /**
+     * Internal state for the transaction
+     */
     protected enum RoundState {
         NULL,
         INITIALIZED,
@@ -199,8 +197,8 @@ public abstract class TransactionState implements Poolable {
         this.round_state = RoundState.INITIALIZED;
         this.pending_error = null;
         
-        if (debug.get()) LOG.debug(String.format("Initializing new round information for %s local txn #%d [undoToken=%d]",
-                                                 (this.exec_local ? "" : "non-"), this.txn_id, undoToken));
+        if (d) LOG.debug(String.format("Initializing new round information for %s local txn #%d [undoToken=%d]",
+                                       (this.exec_local ? "" : "non-"), this.txn_id, undoToken));
     }
     
     /**
@@ -213,7 +211,7 @@ public abstract class TransactionState implements Poolable {
         
         this.round_state = RoundState.STARTED;
         
-        if (debug.get()) LOG.debug("Starting round for local txn #" + this.txn_id);
+        if (d) LOG.debug("Starting round for local txn #" + this.txn_id);
     }
     
     /**
@@ -252,7 +250,7 @@ public abstract class TransactionState implements Poolable {
     public synchronized void setPendingError(RuntimeException error) {
         assert(error != null) : "Trying to set a null error for txn #" + this.txn_id;
         if (this.pending_error == null) {
-            if (debug.get()) LOG.debug("Got error for txn #" + this.txn_id + ". Aborting...");
+            if (d) LOG.debug("Got error for txn #" + this.txn_id + ". Aborting...");
             this.pending_error = error;
         }
     }
@@ -322,12 +320,12 @@ public abstract class TransactionState implements Poolable {
         return this.client_handle;
     }
     public boolean getHStoreSiteDone() {
-        if (trace.get()) LOG.trace(String.format("Txn #%d - Returning HStoreSite done [val=%s, hash=%d]", this.txn_id, this.hstore_site_done, this.hashCode()));
+        if (t) LOG.trace(String.format("Txn #%d - Returning HStoreSite done [val=%s, hash=%d]", this.txn_id, this.hstore_site_done, this.hashCode()));
         return (this.hstore_site_done);
     }
     public void setHStoreSiteDone(boolean val) {
         this.hstore_site_done = val;
-        if (trace.get()) LOG.trace(String.format("Txn #%d - Setting HStoreSite done [val=%s, hash=%d]", this.txn_id, this.hstore_site_done, this.hashCode()));
+        if (t) LOG.trace(String.format("Txn #%d - Setting HStoreSite done [val=%s, hash=%d]", this.txn_id, this.hstore_site_done, this.hashCode()));
     }
     
     /**
@@ -362,7 +360,7 @@ public abstract class TransactionState implements Poolable {
      */
     public void setFragmentTaskCallback(FragmentTaskMessage ftask, RpcCallback<Dtxn.FragmentResponse> callback) {
         assert(callback != null) : "Null callback for txn #" + this.txn_id;
-        if (trace.get()) LOG.trace("Storing FragmentTask callback for txn #" + this.txn_id);
+        if (t) LOG.trace("Storing FragmentTask callback for txn #" + this.txn_id);
         this.fragment_callbacks.put(ftask, callback);
     }
 

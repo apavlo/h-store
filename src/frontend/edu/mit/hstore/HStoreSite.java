@@ -1,3 +1,28 @@
+/***************************************************************************
+ *   Copyright (C) 2011 by H-Store Project                                 *
+ *   Brown University                                                      *
+ *   Massachusetts Institute of Technology                                 *
+ *   Yale University                                                       *
+ *                                                                         *
+ *   Permission is hereby granted, free of charge, to any person obtaining *
+ *   a copy of this software and associated documentation files (the       *
+ *   "Software"), to deal in the Software without restriction, including   *
+ *   without limitation the rights to use, copy, modify, merge, publish,   *
+ *   distribute, sublicense, and/or sell copies of the Software, and to    *
+ *   permit persons to whom the Software is furnished to do so, subject to *
+ *   the following conditions:                                             *
+ *                                                                         *
+ *   The above copyright notice and this permission notice shall be        *
+ *   included in all copies or substantial portions of the Software.       *
+ *                                                                         *
+ *   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,       *
+ *   EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF    *
+ *   MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.*
+ *   IN NO EVENT SHALL THE AUTHORS BE LIABLE FOR ANY CLAIM, DAMAGES OR     *
+ *   OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, *
+ *   ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR *
+ *   OTHER DEALINGS IN THE SOFTWARE.                                       *
+ ***************************************************************************/
 package edu.mit.hstore;
 
 import java.io.File;
@@ -94,7 +119,29 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
     public static final String DTXN_COORDINATOR = "protodtxncoordinator";
     public static final String DTXN_ENGINE = "protodtxnengine";
     public static final String SITE_READY_MSG = "Site is ready for action";
+    
+    private static final double PRELOAD_SCALE_FACTOR = Double.valueOf(System.getProperty("hstore.preload", "1.0")); 
+    public static double getPreloadScaleFactor() {
+        return (PRELOAD_SCALE_FACTOR);
+    }
+    
+    private static final Map<Long, ByteString> CACHE_ENCODED_TXNIDS = new ConcurrentHashMap<Long, ByteString>();
+    public static ByteString encodeTxnId(long txn_id) {
+        ByteString bs = CACHE_ENCODED_TXNIDS.get(txn_id);
+        if (bs == null) {
+            bs = ByteString.copyFrom(Long.toString(txn_id).getBytes());
+            CACHE_ENCODED_TXNIDS.put(txn_id, bs);
+        }
+        return (bs);
+    }
+    public static long decodeTxnId(ByteString bs) {
+        return (Long.valueOf(bs.toStringUtf8()));
+    }
 
+    // ----------------------------------------------------------------------------
+    // TRANSACTION COUNTERS
+    // ----------------------------------------------------------------------------
+    
     public enum TxnCounter {
         /** The number of txns that we executed locally */
         EXECUTED,
@@ -163,12 +210,6 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
             return (this.get() / (double)total);
         }
     }
-    
-    
-    private static final double PRELOAD_SCALE_FACTOR = Double.valueOf(System.getProperty("hstore.preload", "1.0")); 
-    public static double getPreloadScaleFactor() {
-        return (PRELOAD_SCALE_FACTOR);
-    }
 
     // ----------------------------------------------------------------------------
     // DATA MEMBERS
@@ -188,7 +229,13 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
     private final NIOEventLoop coordinatorEventLoop = new NIOEventLoop();
     
     /**
-     * 
+     * PartitionId -> Dtxn.ExecutionEngine
+     */
+    private final Dtxn.ExecutionEngine engine_channels[];
+    private final NIOEventLoop engineLoop = new NIOEventLoop();
+    
+    /**
+     * PartitionId -> Set<TransactionId> 
      */
     private final Set<Long> coordinator_txns[]; 
 
@@ -272,15 +319,17 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         this.hasher = this.p_estimator.getHasher();
         this.thresholds = new EstimationThresholds(); // default values
 
+        final int num_partitions = this.all_partitions.size(); 
         this.executors = Collections.unmodifiableMap(new HashMap<Integer, ExecutionSite>(executors));
-        this.txnid_managers = new TransactionIdManager[this.all_partitions.size()];
-        this.coordinator_txns = (Set<Long>[])new Set<?>[this.all_partitions.size()];
+        this.engine_channels = new Dtxn.ExecutionEngine[num_partitions];
+        this.txnid_managers = new TransactionIdManager[num_partitions];
+        this.coordinator_txns = (Set<Long>[])new Set<?>[num_partitions];
         this.local_partitions = new int[this.executors.size()];
-        int i = 0;
+        int local_idx = 0;
         for (int partition : this.executors.keySet()) {
             this.txnid_managers[partition] = new TransactionIdManager(partition);
             this.coordinator_txns[partition] = Collections.newSetFromMap(new ConcurrentHashMap<Long, Boolean>());
-            this.local_partitions[i++] = partition;
+            this.local_partitions[local_idx++] = partition;
         } // FOR
         
         this.messenger = new HStoreMessenger(this);
@@ -301,201 +350,9 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
     }
     
     // ----------------------------------------------------------------------------
-    // HSTORESTITE SHUTDOWN STUFF
+    // UTILITY METHODS
     // ----------------------------------------------------------------------------
-    
-    /**
-     * Shutdown Hook Thread
-     */
-    protected class ShutdownHookThread implements Runnable {
-        @Override
-        public void run() {
-            // Dump out our status
-            int num_inflight = inflight_txns.size();
-            if (num_inflight > 0) {
-                System.err.println("Shutdown [" + num_inflight + " txns inflight]");
-            }
-        }
-    } // END CLASS
 
-    /**
-     * Perform shutdown operations for this HStoreCoordinatorNode
-     */
-    public synchronized void shutdown() {
-        final boolean t = trace.get();
-        final boolean d = debug.get();
-        
-        if (this.shutdown) {
-            if (d) LOG.debug("Already told to shutdown... Ignoring");
-            return;
-        }
-        this.shutdown = true;
-//        if (d)
-            LOG.info("Shutting down everything at Site #" + this.site_id);
-
-//        for (LocalTransactionState ts : this.inflight_txns.values()) {
-//            LOG.info(String.format("INFLIGHT TXN #%d\n%s", ts.getTransactionId(), this.dumpTransaction(ts)));
-//        }
-            
-        // Tell anybody that wants to know that we're going down
-        if (t) LOG.trace("Notifying " + this.shutdown_observable.countObservers() + " observers that we're shutting down");
-        this.shutdown_observable.notifyObservers();
-        
-        // Tell our local boys to go down too
-        for (ExecutionSite executor : this.executors.values()) {
-            if (t) LOG.trace("Telling the ExecutionSite for Partition #" + executor.getPartitionId() + " to shutdown");
-            executor.shutdown();
-        } // FOR
-        
-        // Stop the monitor thread
-        if (this.status_monitor != null) {
-            if (t) LOG.trace("Telling StatusMonitorThread to stop");
-            this.status_monitor.interrupt();
-        }
-        
-        // Tell all of our event loops to stop
-        if (t) LOG.trace("Telling Dtxn.Coordinator event loop to exit");
-        this.coordinatorEventLoop.exitLoop();
-        
-        if (d) LOG.debug("Completed shutdown process at Site #" + this.site_id);
-    }
-    
-    private String dumpTransaction(LocalTransactionState ts) {
-        final Object args[] = ts.getInvocation().getParams().toArray();
-        Procedure catalog_proc = ts.getProcedure();
-        Object cast_args[] = this.param_manglers.get(catalog_proc).convert(args);
-        
-        StringBuilder sb = new StringBuilder();
-        for (int i = 0; i < cast_args.length; i++) {
-            sb.append("[" + i + "] ");
-            if (catalog_proc.getParameters().get(i).getIsarray()) {
-                sb.append(Arrays.toString((Object[])cast_args[i]));
-            } else {
-                sb.append(cast_args[i]);
-            }
-            sb.append("\n");
-        } // FOR
-        sb.append(ts.toString());
-        return (sb.toString());
-    }
-    
-    /**
-     * Returns true if HStoreSite is in the process of shutting down
-     * @return
-     */
-    public boolean isShuttingDown() {
-        return (this.shutdown);
-    }
-    
-    /**
-     * Get the Oberservable handle for this HStoreSite that can alert others when the party is ending
-     * @return
-     */
-    public void addShutdownObservable(Observer observer) {
-        this.shutdown_observable.addObserver(observer);
-    }
-
-    // ----------------------------------------------------------------------------
-    // INITIALIZATION STUFF
-    // ----------------------------------------------------------------------------
-    
-
-
-    /**
-     * SetupThread
-     */
-    protected class SetupThread implements Runnable {
-        public void run() {
-            // Create all of our parameter manglers
-            for (Procedure catalog_proc : HStoreSite.this.catalog_db.getProcedures()) {
-                HStoreSite.this.param_manglers.put(catalog_proc, new ParameterMangler(catalog_proc));
-            } // FOR
-            
-            try {
-                // Load up everything the QueryPlanUtil
-                QueryPlanUtil.preload(HStoreSite.this.catalog_db);
-                
-                // Then load up everything in the PartitionEstimator
-                HStoreSite.this.p_estimator.preload();
-                
-            } catch (Exception ex) {
-                LOG.fatal("Failed to prepare HStoreSite", ex);
-                System.exit(1);
-            }
-            
-            // Schedule the ExecutionSiteHelper
-            ExecutionSiteHelper esh = new ExecutionSiteHelper(HStoreSite.this.executors.values(), hstore_conf.helper_txn_per_round, hstore_conf.helper_txn_expire, hstore_conf.enable_profiling);
-            HStoreSite.this.helper_pool.scheduleAtFixedRate(esh, 2000, hstore_conf.helper_interval, TimeUnit.MILLISECONDS);
-            
-            // Start Monitor Thread
-            if (HStoreSite.this.status_monitor != null) HStoreSite.this.status_monitor.start(); 
-        }
-    }
-
-    /**
-     * Initializes all the pieces that we need to start this HStore site up
-     */
-    public void start() {
-        if (d) LOG.debug("Initializing HStoreSite...");
-
-        // First we need to tell the HStoreMessenger to start-up and initialize its connections
-        if (d) LOG.debug("Starting HStoreMessenger for Site #" + this.site_id);
-        this.messenger.start();
-
-        // Preparation Thread
-        new Thread(new SetupThread()) {
-            {
-                this.setName(HStoreSite.this.getThreadName("prep"));
-                this.setDaemon(true);
-            }
-        }.start();
-        
-        // Then we need to start all of the ExecutionSites in threads
-        if (d) LOG.debug("Starting ExecutionSite threads for " + this.executors.size() + " partitions on Site #" + this.site_id);
-        for (Entry<Integer, ExecutionSite> e : this.executors.entrySet()) {
-            ExecutionSite executor = e.getValue();
-            executor.setHStoreCoordinatorSite(this);
-            executor.setHStoreMessenger(this.messenger);
-
-            Thread t = new Thread(executor);
-            t.setDaemon(true);
-            this.executor_threads.put(e.getKey(), t);
-            t.start();
-        } // FOR
-        
-        // Add in our shutdown hook
-        Runtime.getRuntime().addShutdownHook(new Thread(new ShutdownHookThread()));
-    }
-    
-    /**
-     * Mark this HStoreSite as ready for action!
-     */
-    private synchronized void ready() {
-        if (this.ready) {
-            LOG.warn("Already told that we were ready... Ignoring");
-            return;
-        }
-        this.ready = true;
-        this.ready_observable.notifyObservers();
-    }
-    
-    /**
-     * Returns true if this HStoreSite is ready
-     * @return
-     */
-    public boolean isReady() {
-        return (this.ready);
-    }
-    
-    /**
-     * Get the Observable handle for this HStoreSite that can alert others when the party is
-     * getting started
-     * @return
-     */
-    public EventObservable getReadyObservable() {
-        return (this.ready_observable);
-    }
-    
     /**
      * Enable the HStoreCoordinator's status monitor
      * @param interval
@@ -595,17 +452,228 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         return (this.getThreadName(suffix, null));
     }
     
-    private static final Map<Long, ByteString> cache_encoded = new ConcurrentHashMap<Long, ByteString>();
-    public static ByteString encodeTxnId(long txn_id) {
-        ByteString bs = cache_encoded.get(txn_id);
-        if (bs == null) {
-            bs = ByteString.copyFrom(Long.toString(txn_id).getBytes());
-            cache_encoded.put(txn_id, bs);
+    // ----------------------------------------------------------------------------
+    // INITIALIZATION STUFF
+    // ----------------------------------------------------------------------------
+
+    /**
+     * SetupThread
+     */
+    protected class SetupThread implements Runnable {
+        public void run() {
+            // Create all of our parameter manglers
+            for (Procedure catalog_proc : HStoreSite.this.catalog_db.getProcedures()) {
+                if (catalog_proc.getSystemproc()) continue;
+                HStoreSite.this.param_manglers.put(catalog_proc, new ParameterMangler(catalog_proc));
+            } // FOR
+            if (d) LOG.debug(String.format("Created ParameterManglers for %d procedures", HStoreSite.this.param_manglers.size()));
+            
+            try {
+                // Load up everything the QueryPlanUtil
+                QueryPlanUtil.preload(HStoreSite.this.catalog_db);
+                
+                // Then load up everything in the PartitionEstimator
+                HStoreSite.this.p_estimator.preload();
+                
+            } catch (Exception ex) {
+                LOG.fatal("Failed to prepare HStoreSite", ex);
+                System.exit(1);
+            }
+            
+            // Connect directly to all of our local engines
+            final InetSocketAddress destinations[] = new InetSocketAddress[HStoreSite.this.local_partitions.length];
+            ProtoRpcChannel[] channels = null;
+            for (int i = 0; i < destinations.length; i++) {
+                int partition = HStoreSite.this.local_partitions[i];
+                destinations[i] = CatalogUtil.getPartitionAddressById(catalog_db, partition, true);
+                assert(destinations[i] != null) : "Failed to socket address for partition " + partition;
+            } // FOR
+            LOG.info(String.format("Connecting directly to %d local Dtxn.Engines for CANANDIAN mode support!", destinations.length));
+            try {
+                HStoreSite.this.engineLoop.setExitOnSigInt(true);
+                channels = ProtoRpcChannel.connectParallel(HStoreSite.this.engineLoop, destinations, 15000);
+            } catch (RuntimeException ex) {
+                LOG.fatal("Failed to connect to local Dtxn.Engines", ex);
+                HStoreSite.this.messenger.shutdownCluster(true, ex); // Blocking
+            }
+            assert(channels.length == destinations.length);
+            for (int i = 0; i < channels.length; i++) {
+                int partition = HStoreSite.this.local_partitions[i];
+                HStoreSite.this.engine_channels[partition] = Dtxn.ExecutionEngine.newStub(channels[i]);
+            } // FOR
+            LOG.info("Established connections to all Dtxn.Engines");
+            
+            // Schedule the ExecutionSiteHelper
+            ExecutionSiteHelper helper = new ExecutionSiteHelper(HStoreSite.this.executors.values(),
+                                                                 hstore_conf.helper_txn_per_round,
+                                                                 hstore_conf.helper_txn_expire,
+                                                                 hstore_conf.enable_profiling);
+            HStoreSite.this.helper_pool.scheduleAtFixedRate(helper, hstore_conf.helper_initial_delay,
+                                                                    hstore_conf.helper_interval,
+                                                                    TimeUnit.MILLISECONDS);
+            
+            // Start Monitor Thread
+            if (HStoreSite.this.status_monitor != null) HStoreSite.this.status_monitor.start(); 
         }
-        return (bs);
     }
-    public static long decodeTxnId(ByteString bs) {
-        return (Long.valueOf(bs.toStringUtf8()));
+
+    /**
+     * Initializes all the pieces that we need to start this HStore site up
+     */
+    public void start() {
+        if (d) LOG.debug("Initializing HStoreSite...");
+
+        // First we need to tell the HStoreMessenger to start-up and initialize its connections
+        if (d) LOG.debug("Starting HStoreMessenger for Site #" + this.site_id);
+        this.messenger.start();
+
+        // Preparation Thread
+        new Thread(new SetupThread()) {
+            {
+                this.setName(HStoreSite.this.getThreadName("prep"));
+                this.setDaemon(true);
+            }
+        }.start();
+        
+        // Then we need to start all of the ExecutionSites in threads
+        if (d) LOG.debug("Starting ExecutionSite threads for " + this.executors.size() + " partitions on Site #" + this.site_id);
+        for (Entry<Integer, ExecutionSite> e : this.executors.entrySet()) {
+            ExecutionSite executor = e.getValue();
+            executor.setHStoreCoordinatorSite(this);
+            executor.setHStoreMessenger(this.messenger);
+
+            Thread t = new Thread(executor);
+            t.setDaemon(true);
+            this.executor_threads.put(e.getKey(), t);
+            t.start();
+        } // FOR
+        
+        // Add in our shutdown hook
+        Runtime.getRuntime().addShutdownHook(new Thread(new ShutdownHookThread()));
+    }
+    
+    /**
+     * Mark this HStoreSite as ready for action!
+     */
+    private synchronized void ready() {
+        if (this.ready) {
+            LOG.warn("Already told that we were ready... Ignoring");
+            return;
+        }
+        this.ready = true;
+        this.ready_observable.notifyObservers();
+    }
+    
+    /**
+     * Returns true if this HStoreSite is ready
+     * @return
+     */
+    public boolean isReady() {
+        return (this.ready);
+    }
+    
+    /**
+     * Get the Observable handle for this HStoreSite that can alert others when the party is
+     * getting started
+     * @return
+     */
+    public EventObservable getReadyObservable() {
+        return (this.ready_observable);
+    }
+    
+    // ----------------------------------------------------------------------------
+    // HSTORESTITE SHUTDOWN STUFF
+    // ----------------------------------------------------------------------------
+    
+    /**
+     * Shutdown Hook Thread
+     */
+    private final class ShutdownHookThread implements Runnable {
+        @Override
+        public void run() {
+            // Dump out our status
+            int num_inflight = inflight_txns.size();
+            if (num_inflight > 0) {
+                System.err.println("Shutdown [" + num_inflight + " txns inflight]");
+            }
+        }
+    } // END CLASS
+
+    /**
+     * Perform shutdown operations for this HStoreCoordinatorNode
+     * This should only be called by HStoreMessenger 
+     */
+    public synchronized void shutdown() {
+        if (this.shutdown) {
+            if (d) LOG.debug("Already told to shutdown... Ignoring");
+            return;
+        }
+        this.shutdown = true;
+//        if (d)
+            LOG.info("Shutting down everything at Site #" + this.site_id);
+
+//        for (LocalTransactionState ts : this.inflight_txns.values()) {
+//            LOG.info(String.format("INFLIGHT TXN #%d\n%s", ts.getTransactionId(), this.dumpTransaction(ts)));
+//        }
+            
+        // Tell anybody that wants to know that we're going down
+        if (t) LOG.trace("Notifying " + this.shutdown_observable.countObservers() + " observers that we're shutting down");
+        this.shutdown_observable.notifyObservers();
+        
+        // Tell our local boys to go down too
+        for (ExecutionSite executor : this.executors.values()) {
+            if (t) LOG.trace("Telling the ExecutionSite for Partition #" + executor.getPartitionId() + " to shutdown");
+            executor.shutdown();
+        } // FOR
+        
+        // Stop the monitor thread
+        if (this.status_monitor != null) {
+            if (t) LOG.trace("Telling StatusMonitorThread to stop");
+            this.status_monitor.interrupt();
+        }
+        
+        // Tell all of our event loops to stop
+        if (t) LOG.trace("Telling Dtxn.Coordinator event loop to exit");
+        this.coordinatorEventLoop.exitLoop();
+        if (t) LOG.trace("Telling Dtxn.Engine event loop to exit");
+        this.engineLoop.exitLoop();
+        
+        if (d) LOG.debug("Completed shutdown process at Site #" + this.site_id);
+    }
+    
+//    private String dumpTransaction(LocalTransactionState ts) {
+//        final Object args[] = ts.getInvocation().getParams().toArray();
+//        Procedure catalog_proc = ts.getProcedure();
+//        Object cast_args[] = this.param_manglers.get(catalog_proc).convert(args);
+//        
+//        StringBuilder sb = new StringBuilder();
+//        for (int i = 0; i < cast_args.length; i++) {
+//            sb.append("[" + i + "] ");
+//            if (catalog_proc.getParameters().get(i).getIsarray()) {
+//                sb.append(Arrays.toString((Object[])cast_args[i]));
+//            } else {
+//                sb.append(cast_args[i]);
+//            }
+//            sb.append("\n");
+//        } // FOR
+//        sb.append(ts.toString());
+//        return (sb.toString());
+//    }
+    
+    /**
+     * Returns true if HStoreSite is in the process of shutting down
+     * @return
+     */
+    public boolean isShuttingDown() {
+        return (this.shutdown);
+    }
+    
+    /**
+     * Get the Oberservable handle for this HStoreSite that can alert others when the party is ending
+     * @return
+     */
+    public void addShutdownObservable(Observer observer) {
+        this.shutdown_observable.addObserver(observer);
     }
 
     // ----------------------------------------------------------------------------
@@ -650,7 +718,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
             
             // HACK: Check if we should shutdown. This allows us to kill things even if the
             // DTXN coordinator is stuck.
-            if (catalog_proc.getName().equals("@Shutdown")) {
+            if (catalog_proc.getName().equalsIgnoreCase("@Shutdown")) {
                 ClientResponseImpl cresponse = new ClientResponseImpl(1, ClientResponse.SUCCESS, new VoltTable[0], "");
                 FastSerializer out = new FastSerializer();
                 try {
@@ -1227,7 +1295,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         }
         
         ts.setHStoreSiteDone(true);
-        cache_encoded.remove(txn_id);
+        CACHE_ENCODED_TXNIDS.remove(txn_id);
         if (this.status_monitor != null) TxnCounter.COMPLETED.inc(ts.getProcedure());
     }
 

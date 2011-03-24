@@ -33,7 +33,6 @@ import org.voltdb.BatchPlanner.BatchPlan;
 import edu.brown.utils.CountingPoolableObjectFactory;
 import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.LoggerUtil.LoggerBoolean;
-import edu.mit.hstore.HStoreConf;
 
 /**
  * 
@@ -41,8 +40,8 @@ import edu.mit.hstore.HStoreConf;
  */
 public class RemoteTransactionState extends TransactionState {
     protected static final Logger LOG = Logger.getLogger(RemoteTransactionState.class);
-    private final static LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
-    private final static LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
     static {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }

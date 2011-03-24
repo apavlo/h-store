@@ -71,7 +71,13 @@ public abstract class FixCatalog {
                     Partition catalog_part = catalog_site.getPartitions().add(partition_id.toString());
                     assert(catalog_part != null);
                     catalog_part.setId(partition_id);
+                    
+                    // 2011-03-24
+                    // The Dtxn.Engine will now bind to the partition port plus the port number
+                    // one above. This second one is the one that the HStoreSite
                     catalog_part.setDtxn_port(partition_port++);
+                    catalog_part.setEngine_port(partition_port++);
+                    
                     partition_ctr++;
                 } // FOR
                 
