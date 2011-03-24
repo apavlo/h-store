@@ -1,25 +1,32 @@
+import cotfd; 
+Solver<CP> cp();
+
 // parse transaction trace
-function void processTransactionTrace(string trace_file) {
+function void calculateTransactionTraceCost(string trace_file, var<CP>{int}[] partition_site) {
   ifstream file(trace_file);
   int batch_count = file.getInt();
   int xact_count = file.getInt();
   int base_partition = 0;
-  int curr_batch_partition = 0;
-  range batch_range = 0..batch_count - 1;
-  range xact_range = 0..xact_count - 1;
-  forall (t in xact_range) {
-    forall (b in batch_range) {
-      if (b != 0) {
-        curr_batch_partition = file.getInt();
+  string[] batch_partitions;
+  for (int i = 0; i < xact_count; i++) {
+    for (int j = 0; j < batch_count; j++) {
+      if (j != 0) {
+        batch_partitions = file.getLine().split(" ");
+        for (int k = 0; k < batch_partitions.getSize(); k++) {
+          if (batch_partitions[k] != " ") {
+           cout << "batch id: " << j << " partition: " << batch_partitions[k] << endl;
+          }
+        }
       } else {
         // read base partition
         base_partition = file.getInt();
+        cout << "xact id: " << i << " base id: " << base_partition << endl;
       }
     }
   }
 }
 
-// parse transaction trace
+// parse system information
 function string[] processSystemInfo(string system_file) {
   ifstream file(system_file);
   int site_count = file.getInt();
@@ -29,14 +36,32 @@ function string[] processSystemInfo(string system_file) {
     string[] data = file.getLine().split(":");
     //cout << data[0] << endl;
     site_to_host[i] = data[0];
-    cout << "partition: " << i << " host " << site_to_host[i] << endl;
+    cout << "site: " << i << " host " << site_to_host[i] << endl;
   }
   return site_to_host;
 }
-//range partition_range = 0..10;
-import cotfd;
-//Solver<CP> cp();
-//var<CP>{int} partition_to_site(cp, partition_range);
+
+// start function calls
+range partition_range = 0..39;
+int total_sites = 9;
 string[] args = System.getArgs();
-processSystemInfo(args[3]);
-//processTransactionTrace(args[args.length - 2]);
+string[] host_site = processSystemInfo(args[args.getSize() - 1]);
+
+// CP Solver - create and move to different class?
+var<CP>{int} partition_to_site[partition_range](cp,
+0..total_sites);
+solveall<cp> {
+  forall (p in partition_range) {
+    if (p != 0 && p % 9 == 0) {
+      cp.post(alldifferent(all(i in (p-9 .. p)) partition_to_site[i]));
+      }
+    }
+    //cp.post(partition_to_site[p] != 0);
+}
+using {
+  labelFF(partition_to_site);
+  cout << partition_to_site << endl;
+  cp.exit();
+}
+
+calculateTransactionTraceCost(args[args.getSize() - 2], partition_to_site);
