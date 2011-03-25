@@ -20,8 +20,6 @@ import edu.mit.net.MessageConnection;
 import edu.mit.net.NIOMessageConnection;
 
 public class ProtoServer extends AbstractEventHandler {
-    private static final Logger LOG = Logger.getLogger(ProtoServer.class);
-    
     public ProtoServer(EventLoop eventLoop) {
         this.eventLoop = eventLoop;
     }
@@ -185,7 +183,6 @@ public class ProtoServer extends AbstractEventHandler {
             byte[] output = responseMessage.build().toByteArray();
             // TODO: Rethink the thread safety carefully. Maybe this should be a method on
             // eventLoopCallback?
-            LOG.info("Sending response back: " + response);
             synchronized (eventLoopCallback) {
                 boolean blocked = eventLoopCallback.connection.write(output);
                 if (blocked) {

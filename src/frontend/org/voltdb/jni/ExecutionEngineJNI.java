@@ -304,7 +304,7 @@ public class ExecutionEngineJNI extends ExecutionEngine {
      * Wrapper for {@link #nativeExecuteQueryPlanFragmentsAndGetResults(long, int[], int, long, long, long)}.
      */
     @Override
-    public synchronized DependencySet executeQueryPlanFragmentsAndGetDependencySet(
+    public DependencySet executeQueryPlanFragmentsAndGetDependencySet(
             long[] planFragmentIds,
             int numFragmentIds,
             int[] input_depIds,

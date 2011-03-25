@@ -1367,7 +1367,6 @@ public class ExecutionSite implements Runnable {
                 break;
         } // SWITCH
         if (d) LOG.debug("Invoking Dtxn.FragmentResponse callback for txn #" + txn_id);
-        System.err.println("CALLBACK: " + callback);
         callback.run(builder.build());
     }
 
