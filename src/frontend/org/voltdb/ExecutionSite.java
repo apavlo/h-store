@@ -831,7 +831,7 @@ public class ExecutionSite implements Runnable {
         this.hstore_messenger = hstore_messenger;
     }
     
-    public void setHStoreCoordinatorSite(HStoreSite hstore_coordinator) {
+    public void setHStoreSite(HStoreSite hstore_coordinator) {
         this.hstore_site = hstore_coordinator;
     }
     

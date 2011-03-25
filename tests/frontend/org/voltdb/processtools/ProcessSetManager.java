@@ -324,7 +324,7 @@ public class ProcessSetManager {
             pd.process.waitFor();
             retval = pd.process.exitValue();
         } catch (InterruptedException e) {
-            e.printStackTrace();
+            if (this.shutting_down == false) e.printStackTrace();
         }
 
         synchronized(createdProcesses) {

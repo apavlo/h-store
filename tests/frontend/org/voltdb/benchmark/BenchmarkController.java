@@ -493,10 +493,15 @@ public class BenchmarkController {
                 
                 do {
                     ProcessSetManager.OutputLine line = m_serverPSM.nextBlocking();
+                    if (line == null) break;
                     if (line.value.contains(HStoreSite.SITE_READY_MSG)) {
                         waiting--;
                     }
                 } while (waiting > 0);
+                if (waiting > 0) {
+                    LOG.fatal("Failed to start all HStoreSites. Halting benchmark");
+                    return;
+                }
             }
             LOG.info("All remote HStoreSites are initialized");
         }
@@ -751,6 +756,7 @@ public class BenchmarkController {
             nowTime = System.currentTimeMillis();
         } // WHILE
 
+        this.stop = true;
         m_clientPSM.prepareToShutdown();
         m_serverPSM.prepareToShutdown();
         m_coordPSM.prepareToShutdown();
