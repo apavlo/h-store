@@ -222,6 +222,9 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
     private final DBBPool buffer_pool = new DBBPool(true, false);
     private final Map<Integer, Thread> executor_threads = new HashMap<Integer, Thread>();
     private final HStoreMessenger messenger;
+
+    /** ProtoServer EventLoop **/
+    private final NIOEventLoop protoEventLoop = new NIOEventLoop();
     
     // Dtxn Stuff
     private Dtxn.Coordinator coordinator;
@@ -231,13 +234,14 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
      * PartitionId -> Dtxn.ExecutionEngine
      */
     private final Dtxn.Partition engine_channels[];
-    private final NIOEventLoop engineLoop = new NIOEventLoop();
+    private final NIOEventLoop engineEventLoop = new NIOEventLoop();
     
     /**
      * PartitionId -> Set<TransactionId> 
      */
     private final Set<Long> coordinator_txns[]; 
 
+    private CountDownLatch ready_latch;
     private boolean ready = false;
     private final EventObservable ready_observable = new EventObservable();
     private boolean shutdown = false;
@@ -456,83 +460,30 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
     // ----------------------------------------------------------------------------
 
     /**
-     * SetupThread
-     */
-    protected class SetupThread implements Runnable {
-        public void run() {
-            // Create all of our parameter manglers
-            for (Procedure catalog_proc : HStoreSite.this.catalog_db.getProcedures()) {
-                if (catalog_proc.getSystemproc()) continue;
-                HStoreSite.this.param_manglers.put(catalog_proc, new ParameterMangler(catalog_proc));
-            } // FOR
-            if (d) LOG.debug(String.format("Created ParameterManglers for %d procedures", HStoreSite.this.param_manglers.size()));
-            
-            try {
-                // Load up everything the QueryPlanUtil
-                QueryPlanUtil.preload(HStoreSite.this.catalog_db);
-                
-                // Then load up everything in the PartitionEstimator
-                HStoreSite.this.p_estimator.preload();
-                
-            } catch (Exception ex) {
-                LOG.fatal("Failed to prepare HStoreSite", ex);
-                System.exit(1);
-            }
-            
-            // Connect directly to all of our local engines
-            final InetSocketAddress destinations[] = new InetSocketAddress[HStoreSite.this.local_partitions.length];
-            ProtoRpcChannel[] channels = null;
-            for (int i = 0; i < destinations.length; i++) {
-                int partition = HStoreSite.this.local_partitions[i];
-                destinations[i] = CatalogUtil.getPartitionAddressById(catalog_db, partition, true);
-                assert(destinations[i] != null) : "Failed to socket address for partition " + partition;
-            } // FOR
-            LOG.info(String.format("Connecting directly to %d local Dtxn.Engines for CANADIAN mode support!", destinations.length));
-            try {
-                HStoreSite.this.engineLoop.setExitOnSigInt(true);
-                channels = ProtoRpcChannel.connectParallel(HStoreSite.this.engineLoop, destinations, 15000);
-            } catch (RuntimeException ex) {
-                LOG.fatal("Failed to connect to local Dtxn.Engines", ex);
-                HStoreSite.this.messenger.shutdownCluster(true, ex); // Blocking
-            }
-            assert(channels.length == destinations.length);
-            for (int i = 0; i < channels.length; i++) {
-                int partition = HStoreSite.this.local_partitions[i];
-                HStoreSite.this.engine_channels[partition] = Dtxn.Partition.newStub(channels[i]);
-            } // FOR
-            LOG.info("Established connections to all Dtxn.Engines");
-            
-            // Schedule the ExecutionSiteHelper
-            ExecutionSiteHelper helper = new ExecutionSiteHelper(HStoreSite.this.executors.values(),
-                                                                 hstore_conf.helper_txn_per_round,
-                                                                 hstore_conf.helper_txn_expire,
-                                                                 hstore_conf.enable_profiling);
-            HStoreSite.this.helper_pool.scheduleAtFixedRate(helper, hstore_conf.helper_initial_delay,
-                                                                    hstore_conf.helper_interval,
-                                                                    TimeUnit.MILLISECONDS);
-            
-            // Start Monitor Thread
-            if (HStoreSite.this.status_monitor != null) HStoreSite.this.status_monitor.start(); 
-        }
-    }
-
-    /**
      * Initializes all the pieces that we need to start this HStore site up
      */
-    public void start() {
+    public void init() {
         if (d) LOG.debug("Initializing HStoreSite...");
 
         // First we need to tell the HStoreMessenger to start-up and initialize its connections
         if (d) LOG.debug("Starting HStoreMessenger for Site #" + this.site_id);
         this.messenger.start();
 
-        // Preparation Thread
-        new Thread(new SetupThread()) {
-            {
-                this.setName(HStoreSite.this.getThreadName("prep"));
-                this.setDaemon(true);
-            }
-        }.start();
+        // Create all of our parameter manglers
+        for (Procedure catalog_proc : this.catalog_db.getProcedures()) {
+            if (catalog_proc.getSystemproc()) continue;
+            this.param_manglers.put(catalog_proc, new ParameterMangler(catalog_proc));
+        } // FOR
+        if (d) LOG.debug(String.format("Created ParameterManglers for %d procedures", this.param_manglers.size()));
+        
+        // Schedule the ExecutionSiteHelper
+        ExecutionSiteHelper helper = new ExecutionSiteHelper(this.executors.values(),
+                                                             hstore_conf.helper_txn_per_round,
+                                                             hstore_conf.helper_txn_expire,
+                                                             hstore_conf.enable_profiling);
+        this.helper_pool.scheduleAtFixedRate(helper, hstore_conf.helper_initial_delay,
+                                                     hstore_conf.helper_interval,
+                                                     TimeUnit.MILLISECONDS);
         
         // Then we need to start all of the ExecutionSites in threads
         if (d) LOG.debug("Starting ExecutionSite threads for " + this.executors.size() + " partitions on Site #" + this.site_id);
@@ -547,6 +498,21 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
             t.start();
         } // FOR
         
+        // Start Monitor Thread
+        if (this.status_monitor != null) this.status_monitor.start(); 
+        
+        try {
+            // Load up everything the QueryPlanUtil
+            QueryPlanUtil.preload(this.catalog_db);
+            
+            // Then load up everything in the PartitionEstimator
+            this.p_estimator.preload();
+            
+        } catch (Exception ex) {
+            LOG.fatal("Failed to prepare HStoreSite", ex);
+            System.exit(1);
+        }
+        
         // Add in our shutdown hook
         Runtime.getRuntime().addShutdownHook(new Thread(new ShutdownHookThread()));
     }
@@ -559,6 +525,11 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
             LOG.warn("Already told that we were ready... Ignoring");
             return;
         }
+        LOG.info(String.format("%s [site=%d, port=%d, #partitions=%d]",
+                               HStoreSite.SITE_READY_MSG,
+                               this.site_id,
+                               this.catalog_site.getProc_port(),
+                               this.getExecutorCount()));
         this.ready = true;
         this.ready_observable.notifyObservers();
     }
@@ -635,7 +606,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         if (t) LOG.trace("Telling Dtxn.Coordinator event loop to exit");
         this.coordinatorEventLoop.exitLoop();
         if (t) LOG.trace("Telling Dtxn.Engine event loop to exit");
-        this.engineLoop.exitLoop();
+        this.engineEventLoop.exitLoop();
         
         if (d) LOG.debug("Completed shutdown process at Site #" + this.site_id);
     }
@@ -1342,23 +1313,16 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         final String site_host = catalog_site.getHost().getIpaddr();
         
         // ----------------------------------------------------------------------------
-        // (1) ProtoServer Thread (one per site)
-        // ----------------------------------------------------------------------------
-        if (d) LOG.debug(String.format("Starting HStoreSite [site=%d]", hstore_site.getSiteId()));
-        hstore_site.start();
-        
-        // ----------------------------------------------------------------------------
-        // (1) ProtoServer Thread (one per site)
+        // (1) ProtoServer Thread (one per HStoreSite)
         // ----------------------------------------------------------------------------
         if (d) LOG.debug(String.format("Launching ProtoServer [site=%d, port=%d]", hstore_site.getSiteId(), catalog_site.getDtxn_port()));
-        final NIOEventLoop execEventLoop = new NIOEventLoop();
         final CountDownLatch execLatch = new CountDownLatch(1);
         runnables.add(new Runnable() {
             public void run() {
                 final Thread self = Thread.currentThread();
                 self.setName(hstore_site.getThreadName("proto"));
                 
-                ProtoServer execServer = new ProtoServer(execEventLoop);
+                ProtoServer execServer = new ProtoServer(hstore_site.protoEventLoop);
                 execServer.register(hstore_site);
                 execServer.bind(catalog_site.getDtxn_port());
                 execLatch.countDown();
@@ -1366,8 +1330,9 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
                 boolean should_shutdown = false;
                 Exception error = null;
                 try {
-                    execEventLoop.setExitOnSigInt(true);
-                    execEventLoop.run();
+                    hstore_site.protoEventLoop.setExitOnSigInt(true);
+                    hstore_site.ready_latch.countDown();
+                    hstore_site.protoEventLoop.run();
                 } catch (AssertionError ex) {
                     LOG.fatal("ProtoServer thread failed", ex);
                     error = new Exception(ex);
@@ -1389,6 +1354,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         // (2) DTXN Engine Threads (one per partition)
         // ----------------------------------------------------------------------------
         if (d) LOG.debug(String.format("Launching DTXN Engines for %d partitions", num_partitions));
+        final CountDownLatch engineLatch = new CountDownLatch(hstore_site.local_partitions.length);
         for (final Partition catalog_part : catalog_site.getPartitions()) {
             // TODO: There should be a single thread that forks all the processes and then joins on them
             runnables.add(new Runnable() {
@@ -1397,17 +1363,19 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
                     self.setName(hstore_site.getThreadName("eng", catalog_part.getId()));
                     
                     int partition = catalog_part.getId();
+                    int port = catalog_site.getDtxn_port();
+                    
+                    // This needs to wait for the ProtoServer to start first
                     if (execLatch.getCount() > 0) {
                         if (d) LOG.debug("Waiting for ProtoServer to finish start up for Partition #" + partition);
                         try {
                             execLatch.await();
                         } catch (InterruptedException ex) {
-                            LOG.error(ex);
-                            return;
+                            LOG.error("Unexpected interuption while waiting for Partition #" + partition, ex);
+                            hstore_site.messenger.shutdownCluster(ex);
                         }
                     }
                     
-                    int port = catalog_site.getDtxn_port();
                     if (d) LOG.debug("Forking off ProtoDtxnEngine for Partition #" + partition + " [outbound_port=" + port + "]");
                     String[] command = new String[]{
                         dtxnengine_path,                // protodtxnengine
@@ -1416,6 +1384,8 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
                         Integer.toString(partition),    // partition #
                         "0"                             // ??
                     };
+                    engineLatch.countDown();
+                    hstore_site.ready_latch.countDown();
                     ThreadUtil.fork(command, hstore_site.shutdown_observable,
                                     String.format("[%s] ", hstore_site.getThreadName("protodtxnengine", partition)), true);
                     if (hstore_site.shutdown == false) { 
@@ -1426,18 +1396,81 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
                 }
             });
         } // FOR (partition)
+
+        // ----------------------------------------------------------------------------
+        // (3) Engine EventLoop Thread (one per HStoreSite)
+        // ----------------------------------------------------------------------------
+        if (d) LOG.debug(String.format("Launching Engine EventLoop [site=%d]", hstore_site.getSiteId()));
+        runnables.add(new Runnable() {
+            public void run() {
+                final Thread self = Thread.currentThread();
+                self.setName(hstore_site.getThreadName("eng"));
+                
+                // Wait for all of our engines to start first
+                try {
+                    engineLatch.await();
+                } catch (Exception ex) {
+                    LOG.error("Unexpected interuption while waiting for engines to start", ex);
+                    hstore_site.messenger.shutdownCluster(ex);
+                }
+                
+                // Connect directly to all of our local engines
+                final InetSocketAddress destinations[] = new InetSocketAddress[hstore_site.local_partitions.length];
+                ProtoRpcChannel[] channels = null;
+                for (int i = 0; i < destinations.length; i++) {
+                    int partition = hstore_site.local_partitions[i];
+                    destinations[i] = CatalogUtil.getPartitionAddressById(hstore_site.catalog_db, partition, true);
+                    assert(destinations[i] != null) : "Failed to socket address for partition " + partition;
+                } // FOR
+                LOG.info(String.format("Connecting directly to %d local Dtxn.Engines for CANADIAN mode support!", destinations.length));
+                try {
+                    channels = ProtoRpcChannel.connectParallel(hstore_site.engineEventLoop, destinations, 15000);
+                } catch (RuntimeException ex) {
+                    LOG.fatal("Failed to connect to local Dtxn.Engines", ex);
+                    hstore_site.messenger.shutdownCluster(true, ex); // Blocking
+                }
+                assert(channels.length == destinations.length);
+                for (int i = 0; i < channels.length; i++) {
+                    int partition = hstore_site.local_partitions[i];
+                    hstore_site.engine_channels[partition] = Dtxn.Partition.newStub(channels[i]);
+                    LOG.info("Creating direct Dtxn.Engine connection for partition " + partition);
+                } // FOR
+                LOG.info("Established connections to all Dtxn.Engines");
+                
+                boolean should_shutdown = false;
+                Exception error = null;
+                try {
+                    hstore_site.engineEventLoop.setExitOnSigInt(true);
+                    hstore_site.ready_latch.countDown();
+                    hstore_site.engineEventLoop.run();
+                } catch (AssertionError ex) {
+                    LOG.fatal("Engine EventLoop thread failed", ex);
+                    error = new Exception(ex);
+                    should_shutdown = true;
+                } catch (Exception ex) {
+                    LOG.fatal("Engine EventLoop thread failed", ex);
+                    error = ex;
+                    should_shutdown = true;
+                }
+                if (hstore_site.shutdown == false) {
+                    LOG.warn(String.format("Engine EventLoop thread is stopping! [error=%s, should_shutdown=%s, hstore_shutdown=%s]",
+                                           (error != null ? error.getMessage() : null), should_shutdown, hstore_site.shutdown));
+                    if (should_shutdown) hstore_site.messenger.shutdownCluster(error);
+                }
+            };
+        });
         
         // ----------------------------------------------------------------------------
-        // (3) Procedure Request Listener Thread
+        // (4) Procedure Request Listener Thread (one per HStoreSite)
         // ----------------------------------------------------------------------------
         runnables.add(new Runnable() {
             public void run() {
                 final Thread self = Thread.currentThread();
                 self.setName(hstore_site.getThreadName("coord"));
                 
-                if (d) LOG.debug("Creating connection to coordinator at " + coordinatorHost + ":" + coordinatorPort + " [site=" + hstore_site.getSiteId() + "]");
+                if (d) LOG.debug(String.format("Creating connection to coordinator at %s:%d [site=%d]",
+                                               coordinatorHost, coordinatorPort, hstore_site.getSiteId()));
                 
-                hstore_site.coordinatorEventLoop.setExitOnSigInt(true);
                 InetSocketAddress[] addresses = {
                         new InetSocketAddress(coordinatorHost, coordinatorPort),
                 };
@@ -1446,16 +1479,12 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
                 hstore_site.setDtxnCoordinator(stub);
                 VoltProcedureListener voltListener = new VoltProcedureListener(hstore_site.coordinatorEventLoop, hstore_site);
                 voltListener.bind(catalog_site.getProc_port());
-                LOG.info(String.format("%s [site=%d, port=%d, #partitions=%d]",
-                                       HStoreSite.SITE_READY_MSG,
-                                       hstore_site.getSiteId(),
-                                       catalog_site.getProc_port(),
-                                       hstore_site.getExecutorCount()));
-                hstore_site.ready();
                 
                 boolean should_shutdown = false;
                 Exception error = null;
                 try {
+                    hstore_site.coordinatorEventLoop.setExitOnSigInt(true);
+                    hstore_site.ready_latch.countDown();
                     hstore_site.coordinatorEventLoop.run();
                 } catch (AssertionError ex) {
                     LOG.fatal("Dtxn.Coordinator thread failed", ex);
@@ -1478,6 +1507,33 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
                     if (should_shutdown) hstore_site.messenger.shutdownCluster(error);
                 }
             };
+        });
+        
+        // ----------------------------------------------------------------------------
+        // (5) HStoreSite Setup Thread
+        // ----------------------------------------------------------------------------
+        if (d) LOG.debug(String.format("Starting HStoreSite [site=%d]", hstore_site.getSiteId()));
+        hstore_site.ready_latch = new CountDownLatch(runnables.size());
+        runnables.add(new Runnable() {
+            public void run() {
+                final Thread self = Thread.currentThread();
+                self.setName(hstore_site.getThreadName("setup"));
+                
+                // Always invoke HStoreSite.start() right away, since it doesn't depend on any
+                // of the stuff being setup yet
+                hstore_site.init();
+                
+                // But then wait for all of the threads to be finished with their initializations
+                // before we tell the world that we're ready!
+                if (d) LOG.info(String.format("Waiting for %d threads to complete initialization tasks", hstore_site.ready_latch.getCount()));
+                try {
+                    hstore_site.ready_latch.await();
+                } catch (Exception ex) {
+                    LOG.error("Unexpected interuption while waiting for engines to start", ex);
+                    hstore_site.messenger.shutdownCluster(ex);
+                }
+                hstore_site.ready();
+            }
         });
         
         // Blocks!
