@@ -29,6 +29,8 @@ import edu.mit.hstore.dtxn.LocalTransactionState;
 public class HStoreSiteStatus implements Runnable {
     private static final Logger LOG = Logger.getLogger(HStoreSiteStatus.class);
     
+    private static final String POOL_FORMAT = "Active:%-5d / Idle:%-5d / Created:%-5d / Passivated:%-5d / Destroyed:%-5d";
+    
     private final HStoreSite hstore_site;
     private final int interval; // seconds
     private final boolean kill_when_hanging;
@@ -158,30 +160,29 @@ public class HStoreSiteStatus implements Runnable {
         // ----------------------------------------------------------------------------
         m2.clear();
         if (show_poolinfo) {
-            final String f = "Active:%-5d / Idle:%-5d / Created:%-5d / Destroyed:%-5d";
-
             // BatchPlanners
             m2.put("BatchPlanners", ExecutionSite.batch_planners.size());
 
             // MarkovPathEstimators
             StackObjectPool pool = (StackObjectPool)TransactionEstimator.getEstimatorPool();
             CountingPoolableObjectFactory<?> factory = (CountingPoolableObjectFactory<?>)pool.getFactory();
-            m2.put("Estimators", String.format(f, pool.getNumActive(), pool.getNumIdle(), factory.getCreatedCount(), factory.getDestroyedCount()));
+            m2.put("Estimators", this.formatPoolCounts(pool, factory));
 
             // TransactionEstimator.States
             pool = (StackObjectPool)TransactionEstimator.getStatePool();
             factory = (CountingPoolableObjectFactory<?>)pool.getFactory();
-            m2.put("EstimationStates", String.format(f, pool.getNumActive(), pool.getNumIdle(), factory.getCreatedCount(), factory.getDestroyedCount()));
+            m2.put("EstimationStates", this.formatPoolCounts(pool, factory));
             
             // DependencyInfos
             pool = (StackObjectPool)DependencyInfo.INFO_POOL;
             factory = (CountingPoolableObjectFactory<?>)pool.getFactory();
-            m2.put("DependencyInfos", String.format(f, pool.getNumActive(), pool.getNumIdle(), factory.getCreatedCount(), factory.getDestroyedCount()));
+            m2.put("DependencyInfos", this.formatPoolCounts(pool, factory));
             
             // BatchPlans
             int active = 0;
             int idle = 0;
             int created = 0;
+            int passivated = 0;
             int destroyed = 0;
             for (BatchPlanner bp : ExecutionSite.batch_planners.values()) {
                 pool = (StackObjectPool)bp.getBatchPlanPool();
@@ -190,9 +191,10 @@ public class HStoreSiteStatus implements Runnable {
                 active += pool.getNumActive();
                 idle += pool.getNumIdle();
                 created += factory.getCreatedCount();
+                passivated += factory.getPassivatedCount();
                 destroyed += factory.getDestroyedCount();
             } // FOR
-            m2.put("BatchPlans", String.format(f, active, idle, created, destroyed));
+            m2.put("BatchPlans", String.format(POOL_FORMAT, active, idle, created, passivated, destroyed));
             
             // Partition Specific
             String labels[] = new String[] {
@@ -203,9 +205,10 @@ public class HStoreSiteStatus implements Runnable {
             int total_active[] = new int[labels.length];
             int total_idle[] = new int[labels.length];
             int total_created[] = new int[labels.length];
+            int total_passivated[] = new int[labels.length];
             int total_destroyed[] = new int[labels.length];
             for (int i = 0, cnt = labels.length; i < cnt; i++) {
-                total_active[i] = total_idle[i] = total_created[i] = total_destroyed[i] = 0;
+                total_active[i] = total_idle[i] = total_created[i] = total_passivated[i] = total_destroyed[i] = 0;
             }
             
             for (ExecutionSite e : executors) {
@@ -217,6 +220,7 @@ public class HStoreSiteStatus implements Runnable {
                     total_active[i] += p.getNumActive();
                     total_idle[i] += p.getNumIdle(); 
                     total_created[i] += factory.getCreatedCount();
+                    total_passivated[i] += factory.getPassivatedCount();
                     total_destroyed[i] += factory.getDestroyedCount();
                     i += 1;
                 } // FOR
@@ -227,14 +231,23 @@ public class HStoreSiteStatus implements Runnable {
                     total_active[i] += p.getNumActive();
                     total_idle[i] += p.getNumIdle();
                     total_created[i] += factory.getCreatedCount();
+                    total_passivated[i] += factory.getPassivatedCount();
                     total_destroyed[i] += factory.getDestroyedCount();
                 } // FOR
             } // FOR
             
             for (int i = 0, cnt = labels.length; i < cnt; i++) {
-                m2.put(labels[i], String.format(f, total_active[i], total_idle[i], total_created[i], total_destroyed[i]));
+                m2.put(labels[i], String.format(POOL_FORMAT, total_active[i], total_idle[i], total_created[i], total_passivated[i], total_destroyed[i]));
             } // FOR
         }
         return (StringUtil.formatMaps(header, m0, m1, m2));
+    }
+    
+    private String formatPoolCounts(StackObjectPool pool, CountingPoolableObjectFactory<?> factory) {
+        return (String.format(POOL_FORMAT, pool.getNumActive(),
+                                           pool.getNumIdle(),
+                                           factory.getCreatedCount(),
+                                           factory.getPassivatedCount(),
+                                           factory.getDestroyedCount()));
     }
 } // END CLASS
