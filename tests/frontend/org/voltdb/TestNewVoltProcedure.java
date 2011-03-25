@@ -46,7 +46,7 @@ public class TestNewVoltProcedure extends BaseTestCase {
             p_estimator = new PartitionEstimator(catalog_db);
             site = new MockExecutionSite(PARTITION_ID, catalog, p_estimator);
         }
-        volt_proc = site.getNewVoltProcedure(TARGET_PROCEDURE);
+        volt_proc = site.getVoltProcedure(TARGET_PROCEDURE);
         assertNotNull(volt_proc);
     }
         

@@ -91,7 +91,7 @@ public class DependencyInfo implements Poolable {
      */
     protected final Set<FragmentTaskMessage> blocked_tasks = new HashSet<FragmentTaskMessage>();
     protected boolean blocked_tasks_released = false;
-    protected boolean blocked_all_local = true;
+    // protected boolean blocked_all_local = true;
     
     /**
      * Constructor
@@ -124,7 +124,7 @@ public class DependencyInfo implements Poolable {
         this.responses.clear();
         this.blocked_tasks.clear();
         this.blocked_tasks_released = false;
-        this.blocked_all_local = true;
+//        this.blocked_all_local = true;
     }
     
     
@@ -145,7 +145,7 @@ public class DependencyInfo implements Poolable {
      */
     public void addBlockedFragmentTaskMessage(FragmentTaskMessage ftask) {
         this.blocked_tasks.add(ftask);
-        this.blocked_all_local = this.blocked_all_local && (ftask.getDestinationPartitionId() == this.ts.base_partition);
+//        this.blocked_all_local = this.blocked_all_local && (ftask.getDestinationPartitionId() == this.ts.base_partition);
     }
     
     /**

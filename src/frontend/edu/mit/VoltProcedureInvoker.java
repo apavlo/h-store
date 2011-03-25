@@ -27,7 +27,7 @@ public class VoltProcedureInvoker {
         
         // setup the EE
         ExecutionSite executor = new ExecutionSite(local_partition, args.catalog, BackendTarget.NATIVE_EE_JNI, p_estimator, null);
-        VoltProcedure procedure = executor.getNewVoltProcedure("EmptyProcedure");
+        VoltProcedure procedure = executor.getVoltProcedure("EmptyProcedure");
 
         // Error: EmptyProcedure is supposed to take one argument
         ClientResponse result = null; // procedure.call(EMPTY_ARRAY);
@@ -38,7 +38,7 @@ public class VoltProcedureInvoker {
 //        System.out.println("status = " + result.getStatus());
 //        System.out.println("result length = " + result.getResults().length);
 
-        procedure = executor.getNewVoltProcedure("InsertProcedure");
+        procedure = executor.getVoltProcedure("InsertProcedure");
         for (long i = 0; i < 10; i++) {
             TransactionState txnState = new LocalTransactionState(executor);
             txnState.init(i, 123, 0);

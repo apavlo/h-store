@@ -38,6 +38,7 @@ import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.LinkedBlockingDeque;
 
 import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.commons.collections15.set.ListOrderedSet;
@@ -49,7 +50,6 @@ import org.voltdb.VoltProcedure;
 import org.voltdb.VoltTable;
 import org.voltdb.BatchPlanner.BatchPlan;
 import org.voltdb.catalog.Procedure;
-import org.voltdb.exceptions.MispredictionException;
 import org.voltdb.messaging.FragmentTaskMessage;
 
 import ca.evanjones.protorpc.ProtoRpcController;
@@ -208,7 +208,8 @@ public class LocalTransactionState extends TransactionState {
     /**
      * Temporary space used in ExecutionSite.waitForResponses
      */
-    public final List<FragmentTaskMessage> runnable_fragment_list = new ArrayList<FragmentTaskMessage>();
+    public final List<FragmentTaskMessage> remote_fragment_list = new ArrayList<FragmentTaskMessage>();
+    public final List<FragmentTaskMessage> local_fragment_list = new ArrayList<FragmentTaskMessage>();
     
     /**
      * Temporary space used when calling removeInternalDependencies()
@@ -251,6 +252,11 @@ public class LocalTransactionState extends TransactionState {
      * Blocked FragmentTaskMessages
      */
     private final Set<FragmentTaskMessage> blocked_tasks = new HashSet<FragmentTaskMessage>();
+    
+    /**
+     * Unblocked FragmentTaskMessages
+     */
+    private final LinkedBlockingDeque<FragmentTaskMessage> unblocked_tasks = new LinkedBlockingDeque<FragmentTaskMessage>(); 
     
     /**
      * These are the DependencyIds that we don't bother returning to the ExecutionSite
@@ -461,7 +467,8 @@ public class LocalTransactionState extends TransactionState {
         this.queued_results.clear();
         this.blocked_tasks.clear();
         this.internal_dependencies.clear();
-        this.runnable_fragment_list.clear();
+        this.remote_fragment_list.clear();
+        this.local_fragment_list.clear();
 
         // Note that we only want to clear the queues and not the whole maps
         for (Queue<Integer> q : this.results_dependency_stmt_ctr.values()) {
@@ -649,6 +656,9 @@ public class LocalTransactionState extends TransactionState {
     protected Set<FragmentTaskMessage> getBlockedFragmentTaskMessages() {
         return (this.blocked_tasks);
     }
+    public LinkedBlockingDeque<FragmentTaskMessage> getUnblockedFragmentTaskMessageQueue() {
+        return (this.unblocked_tasks);
+    }
     
     public TransactionEstimator.State getEstimatorState() {
         return (this.estimator_state);
@@ -802,7 +812,8 @@ public class LocalTransactionState extends TransactionState {
     
     /**
      * Queues up a FragmentTaskMessage for this txn
-     * Returns true if the FragmentTaskMessage can be executed immediately (either locally or on at a remote partition)
+     * If the return value is true, then the FragmentTaskMessage is blocked waiting for dependencies
+     * If the return value is false, then the FragmentTaskMessage can be executed immediately (either locally or on at a remote partition)
      * @param ftask
      */
     public boolean addFragmentTaskMessage(FragmentTaskMessage ftask) {
@@ -843,7 +854,7 @@ public class LocalTransactionState extends TransactionState {
                     }
                     rest_stmt_ctr.add(stmt_index);
                     resp_stmt_ctr.add(stmt_index);
-                    if (t) LOG.trace(String.format("Set Dependency Statement Counters for <%d %d>: %d", partition, dependency_id, rest_stmt_ctr));
+                    if (t) LOG.trace(String.format("Set Dependency Statement Counters for <%d %d>: %s", partition, dependency_id, rest_stmt_ctr));
                     assert(resp_stmt_ctr.size() == rest_stmt_ctr.size());
                 } // FOR
             } // SYNCH
@@ -980,36 +991,39 @@ public class LocalTransactionState extends TransactionState {
         // Always double check whether somebody beat us to the punch
         if (this.blocked_tasks.isEmpty() || d.blocked_tasks_released) return;
         
-        List<FragmentTaskMessage> to_execute = new ArrayList<FragmentTaskMessage>();
+//        List<FragmentTaskMessage> to_execute = new ArrayList<FragmentTaskMessage>();
         Set<FragmentTaskMessage> tasks = d.getAndReleaseBlockedFragmentTaskMessages();
         for (FragmentTaskMessage unblocked : tasks) {
             assert(unblocked != null);
             assert(this.blocked_tasks.contains(unblocked));
-            this.blocked_tasks.remove(unblocked);
             if (t) LOG.trace("Unblocking FragmentTaskMessage that was waiting for DependencyId #" + d.getDependencyId() + " in txn #" + this.txn_id);
+            this.unblocked_tasks.add(unblocked);
+            this.blocked_tasks.remove(unblocked);
             
-            // If this task needs to execute locally, then we'll just queue up with the Executor
-            if (d.blocked_all_local) {
-                if (t) LOG.trace("Sending unblocked task to local ExecutionSite for txn #" + this.txn_id);
-                this.executor.doWork(unblocked);
-            // Otherwise we will push out to the coordinator to handle for us
-            // But we have to make sure that we attach the dependencies that they need 
-            // so that the other partition can get to them
-            } else {
-                if (t) LOG.trace("Sending unblocked task to partition #" + unblocked.getDestinationPartitionId() + " with attached results for txn #" + this.txn_id);
-                to_execute.add(unblocked);
-            }
+//            // If this task needs to execute locally, then we'll just queue up with the Executor
+//            if (d.blocked_all_local) {
+//                if (t) LOG.info("Sending unblocked task to local ExecutionSite for txn #" + this.txn_id);
+//                this.unblocked_tasks.add(unblocked);
+//                
+//            // Otherwise we will push out to the coordinator to handle for us
+//            // But we have to make sure that we attach the dependencies that they need 
+//            // so that the other partition can get to them
+//            } else {
+//                if (t) LOG.trace("Sending unblocked task to partition #" + unblocked.getDestinationPartitionId() + " with attached results for txn #" + this.txn_id);
+//                to_execute.add(unblocked);
+//            }
         } // FOR
-        if (!to_execute.isEmpty()) {
-            try {
-                this.executor.requestWork(this, to_execute);
-            } catch (MispredictionException ex) {
-                this.setPendingError(ex);
-                if (this.dependency_latch != null) {
-                    while (this.dependency_latch.getCount() > 0) this.dependency_latch.countDown();
-                }
-            }
-        }
+//        if (!to_execute.isEmpty()) {
+//            if (t) LOG.info(String.format("Txn #%d is requesting %d unblocked tasks to be executed", this.txn_id, to_execute.size()));
+//            try {
+//                this.executor.requestWork(this, to_execute);
+//            } catch (MispredictionException ex) {
+//                this.setPendingError(ex);
+//                if (this.dependency_latch != null) {
+//                    while (this.dependency_latch.getCount() > 0) this.dependency_latch.countDown();
+//                }
+//            }
+//        }
     }
 
     /**
