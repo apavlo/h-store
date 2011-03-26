@@ -55,6 +55,10 @@ public class KillStragglers implements Runnable {
     public void setSiteId(int siteid) {
          m_siteid = siteid;
     }
+    
+    public KillStragglers enableKillAll() {
+        return (this.enableKillClient().enableKillCoordinator().enableKillSite());
+    }
     public KillStragglers enableKillSite() {
         m_killSite = true;
         return (this);

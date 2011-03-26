@@ -198,13 +198,13 @@ public class BenchmarkController {
                     }
                     String status = parts[1];
                     
-                    if (debug.get()) LOG.debug(String.format("Client '%s' Status: %s", line.processName, status));
+                    if (trace.get()) LOG.trace(String.format("Client '%s' Status: %s", line.processName, status));
     
                     if (status.equals("READY")) {
 //                        LogKeys logkey = LogKeys.benchmark_BenchmarkController_GotReadyMessage;
 //                        LOG.l7dlog( Level.INFO, logkey.name(),
 //                                new Object[] { line.processName }, null);
-                        if (debug.get()) LOG.debug("Got ready message.");
+                        if (debug.get()) LOG.debug(String.format("Got ready message for '%s'.", line.processName));
                         m_clientsNotReady.decrementAndGet();
                     }
                     else if (status.equals("ERROR")) {
@@ -368,7 +368,7 @@ public class BenchmarkController {
             if (debug.get()) LOG.debug("Collecting host information from catalog");
             launch_hosts = CatalogUtil.getExecutionSites(catalog);
             for (String[] triplet : launch_hosts) {
-                if (debug.get()) LOG.debug("Retrieved execution node info from catalog: " + triplet[0] + ":" + triplet[1] + " - ExecutionSite #" + triplet[2]);
+                if (trace.get()) LOG.trace("Retrieved execution node info from catalog: " + triplet[0] + ":" + triplet[1] + " - ExecutionSite #" + triplet[2]);
                 unique_hosts.add(triplet[0]);
             } // FOR
         }
@@ -389,6 +389,7 @@ public class BenchmarkController {
             // Dtxn.Coordinator
             if (m_config.noCoordinator == false) {
                 KillStragglers ks = new KillStragglers(m_config.remoteUser, m_config.coordinatorHost, m_config.remotePath, m_config.sshOptions)
+                                            .enableKillClient()
                                             .enableKillCoordinator();
                 threads.add(new Thread(ks));
                 Runtime.getRuntime().addShutdownHook(new Thread(ks));
@@ -397,17 +398,14 @@ public class BenchmarkController {
             // IMPORTANT: Don't try to kill things if we're going to profile... for obvious reasons... duh!
             if (m_config.profileSiteIds.isEmpty()) {
                 for (String host : unique_hosts) {
-                    KillStragglers ks = new KillStragglers(m_config.remoteUser, host, m_config.remotePath, m_config.sshOptions)
-                                                .enableKillSite()
-                                                .enableKillEngine();
+                    KillStragglers ks = new KillStragglers(m_config.remoteUser, host, m_config.remotePath, m_config.sshOptions).enableKillAll();
                     threads.add(new Thread(ks));
                     Runtime.getRuntime().addShutdownHook(new Thread(ks));
                 } // FOR
             }
             // Client
             for (String host : m_config.clients) {
-                KillStragglers ks = new KillStragglers(m_config.remoteUser, host, m_config.remotePath, m_config.sshOptions)
-                                            .enableKillClient();
+                KillStragglers ks = new KillStragglers(m_config.remoteUser, host, m_config.remotePath, m_config.sshOptions).enableKillClient();
                 threads.add(new Thread(ks));
                 Runtime.getRuntime().addShutdownHook(new Thread(ks));
             } // FOR
@@ -415,7 +413,7 @@ public class BenchmarkController {
             
             if (debug.get()) LOG.debug("Killing stragglers on " + threads.size() + " hosts");
             try {
-                ThreadUtil.runNewPool(threads, Math.min(10, threads.size())); 
+                ThreadUtil.runNewPool(threads, Math.min(25, threads.size())); 
             } catch (Exception e) {
                 LogKeys logkey = LogKeys.benchmark_BenchmarkController_UnableToRunRemoteKill;
                 LOG.l7dlog(Level.FATAL, logkey.name(), e);
@@ -465,7 +463,7 @@ public class BenchmarkController {
                 String exec_command[] = SSHTools.convert(m_config.remoteUser, host, m_config.remotePath, m_config.sshOptions, command.toArray(new String[]{}));
                 String fullCommand = StringUtil.join(" ", exec_command);
                 uploader.setCommandLineForHost(host, fullCommand);
-                if (debug.get()) LOG.debug(fullCommand);
+                if (trace.get()) LOG.trace(fullCommand);
                 m_serverPSM.startProcess(host_id, exec_command);
                 hosts_started++;
             } // FOR
@@ -481,7 +479,7 @@ public class BenchmarkController {
 
                 command = SSHTools.convert(m_config.remoteUser, host, m_config.remotePath, m_config.sshOptions, command);
                 String fullCommand = StringUtil.join(" ", command);
-                if (debug.get()) LOG.debug(fullCommand);
+                if (trace.get()) LOG.trace(fullCommand);
                 m_coordPSM.startProcess("dtxn-" + host, command);
                 LOG.info("Started Dtxn.Coordinator on " + host);
             }
@@ -527,7 +525,7 @@ public class BenchmarkController {
                 if (lthreads > 6) lthreads = 6;
             }
             int loaderheap = 1024 * lthreads;
-            if (debug.get()) LOG.debug("LOADER HEAP " + loaderheap);
+            if (trace.get()) LOG.trace("LOADER HEAP " + loaderheap);
 
             String debugString = "";
             if (m_config.listenForDebugger) {
@@ -548,7 +546,7 @@ public class BenchmarkController {
                 String address = String.format("%s:%d", catalog_site.getHost().getIpaddr(), catalog_site.getProc_port());
                 loaderCommand.append(" HOST=" + address);
                 localArgs.add("HOST=" + address);
-                if (debug.get()) LOG.debug("HStoreSite: " + address);
+                if (trace.get()) LOG.trace("HStoreSite: " + address);
             }
 
             loaderCommand.append(" NUMCLIENTS=" + numClients + " ");
@@ -660,7 +658,7 @@ public class BenchmarkController {
                         String fullCommand = StringUtil.join(" ", args);
         
                         uploader.setCommandLineForClient(host_id, fullCommand);
-                        if (debug.get()) LOG.debug("Client Commnand: " + fullCommand);
+                        if (trace.get()) LOG.trace("Client Commnand: " + fullCommand);
                         m_clientPSM.startProcess(host_id, args);
                     }
                 }
@@ -1318,6 +1316,8 @@ public class BenchmarkController {
             config.parameters.put(e.getKey().toUpperCase(), e.getValue());    
         } // FOR
 
+        if (debug.get()) LOG.debug("Benchmark Configuration\n" + config.toString());
+        
         // ACTUALLY RUN THE BENCHMARK
         BenchmarkController controller = new BenchmarkController(config);
         controller.setupBenchmark();
