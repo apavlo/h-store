@@ -39,7 +39,10 @@ public class MarkovGraphvizExport {
         }
         assert(markov != null);
         assert(markov.isValid()) : "The graph for " + catalog_proc + " is not initialized!";
-        GraphvizExport<Vertex, Edge> gv = MarkovUtil.exportGraphviz(markov, true, null);
+        
+        boolean full_output = false;
+        boolean vldb_output = true;
+        GraphvizExport<Vertex, Edge> gv = MarkovUtil.exportGraphviz(markov, full_output, vldb_output, null);
         System.err.println("WROTE FILE: " + gv.writeToTempFile(catalog_proc.getName()));
 
     }

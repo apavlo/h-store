@@ -483,6 +483,20 @@ public abstract class MarkovUtil {
      * @throws Exception
      */
     public static GraphvizExport<Vertex, Edge> exportGraphviz(MarkovGraph markov, boolean use_full_output, List<Edge> path) {
+        return MarkovUtil.exportGraphviz(markov, use_full_output, false, path);
+    }
+    
+    /**
+     * Return a GraphvizExport handle for the given MarkovGraph.
+     * This will highlight all of the special vertices
+     * @param markov
+     * @param use_full_output - Whether to use the full debug information for vertex labels
+     * @param use_vldb_output - Whether to use labels for paper figures
+     * @param path - A path to highlight (can be null)
+     * @return
+     * @throws Exception
+     */
+    public static GraphvizExport<Vertex, Edge> exportGraphviz(MarkovGraph markov, boolean use_full_output, boolean use_vldb_output, List<Edge> path) {
         GraphvizExport<Vertex, Edge> graphviz = new GraphvizExport<Vertex, Edge>(markov);
         graphviz.setEdgeLabels(true);
         graphviz.getGlobalGraphAttributes().put(Attributes.PACK, "true");
@@ -509,51 +523,53 @@ public abstract class MarkovUtil {
         // Highlight Path
         if (path != null) graphviz.highlightPath(path, "red");
         
-        // Full Debug Output
-        if (use_full_output) {
+        if (use_vldb_output || use_full_output) {
             final String empty_set = "\u2205";
-            
             for (Vertex v0 : markov.getVertices()) {
                 String label = "";
-                
-                if (v0.isAbortVertex()) {
-                    label = "abort";
-                } else if (v0.isStartVertex()) {
-                    label = "begin";
-                } else if (v0.isCommitVertex()) {
-                    label = "commit";
+            
+                // VLDB Figure Output
+                if (use_vldb_output) {
+                    if (v0.isAbortVertex()) {
+                        label = "abort";
+                    } else if (v0.isStartVertex()) {
+                        label = "begin";
+                    } else if (v0.isCommitVertex()) {
+                        label = "commit";
+                    } else {
+                        label = v0.getCatalogItem().getName() + "\n";
+                        label += "Counter: " + v0.getQueryInstanceIndex() + "\n";
+                        
+                        label += "Partitions: ";
+                        if (v0.getPartitions().isEmpty()) {
+                            label += empty_set;
+                        } else {
+                            label += "{ ";
+                            String add = "";
+                            for (Integer p : v0.getPartitions()) {
+                                label += add + p;
+                                add = ", ";
+                            } // FOR
+                            label += " }";
+                        }
+                        label += "\n";
+                        
+                        label += "Previous: ";
+                        if (v0.getPastPartitions().isEmpty()) {
+                            label += empty_set;
+                        } else {
+                            label += "{ ";
+                            String add = "";
+                            for (Integer p : v0.getPastPartitions()) {
+                                label += add + p;
+                                add = ", ";
+                            } // FOR
+                            label += " }";
+                        }
+                    }
                 } else {
-                    label = v0.getCatalogItem().getName() + "\n";
-                    label += "Counter: " + v0.getQueryInstanceIndex() + "\n";
-                    
-                    label += "Partitions: ";
-                    if (v0.getPartitions().isEmpty()) {
-                        label += empty_set;
-                    } else {
-                        label += "{ ";
-                        String add = "";
-                        for (Integer p : v0.getPartitions()) {
-                            label += add + p;
-                            add = ", ";
-                        } // FOR
-                        label += " }";
-                    }
-                    label += "\n";
-                    
-                    label += "Previous: ";
-                    if (v0.getPastPartitions().isEmpty()) {
-                        label += empty_set;
-                    } else {
-                        label += "{ ";
-                        String add = "";
-                        for (Integer p : v0.getPastPartitions()) {
-                            label += add + p;
-                            add = ", ";
-                        } // FOR
-                        label += " }";
-                    }
+                    label = v0.debug();
                 }
-                label = v0.debug();
                 graphviz.getAttributes(v0).put(Attributes.LABEL, label.replace("\n", "\\n"));
             } // FOR
         }

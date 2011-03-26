@@ -123,7 +123,7 @@ public class ProcessSetManager {
                 }
                 for (Entry<String, ProcessData> e : m_processes.entrySet()) {
                     ProcessData pd = e.getValue();
-                    if (pd.err.isAlive()) {
+                    if (pd.err != null && pd.err.isAlive()) {
                         LOG.debug("Polling " + e.getKey());
                         writeToProcess(e.getKey(), " ");
                     }
