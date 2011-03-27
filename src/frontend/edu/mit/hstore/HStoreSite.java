@@ -1206,7 +1206,6 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
      */
     public void requestFinish(long txn_id, Dtxn.FinishRequest request, RpcCallback<Dtxn.FinishResponse> callback) {
         LocalTransactionState ts = this.inflight_txns.get(txn_id); 
-        if (this.status_monitor != null && request.getCommit() == false) TxnCounter.ABORTED.inc(ts.getProcedure());
         this.initializationBlock(ts);
         if (ts.sysproc == false && hstore_conf.enable_profiling) ProfileMeasurement.stop(ts.finish_time, ts.total_time);
         if (d) LOG.debug(String.format("Telling the Dtxn.Coordinator to finish txn #%d [commit=%s]", txn_id, request.getCommit()));
@@ -1272,7 +1271,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         if (d) LOG.debug("Cleaning up internal info for Txn #" + txn_id);
         LocalTransactionState ts = this.inflight_txns.remove(txn_id);
         assert(ts != null) : "No LocalTransactionState for txn #" + txn_id;
-        
+
         int base_partition = ts.getBasePartition();
         boolean removed = this.canadian_txns[base_partition].remove(txn_id);
         if (d) {
@@ -1307,7 +1306,10 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         
         ts.setHStoreSiteDone(true);
         CACHE_ENCODED_TXNIDS.remove(txn_id);
-        if (this.status_monitor != null) TxnCounter.COMPLETED.inc(ts.getProcedure());
+        if (this.status_monitor != null) {
+            TxnCounter.COMPLETED.inc(ts.getProcedure());
+            if (status != Dtxn.FragmentResponse.Status.OK) TxnCounter.ABORTED.inc(ts.getProcedure());
+        }
     }
 
     // ----------------------------------------------------------------------------

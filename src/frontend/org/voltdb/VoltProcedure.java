@@ -617,7 +617,7 @@ public abstract class VoltProcedure implements Poolable {
             // VoltAbortException
             // -------------------------------
             if (ex_class.equals(VoltAbortException.class)) {
-                //LOG.fatal("PROCEDURE "+ catProc.getName() + " USER ABORTED", ex);
+                if (d) LOG.debug("Caught VoltAbortException for txn #" + this.txn_id, ex);
                 this.status = ClientResponseImpl.USER_ABORT;
                 this.status_msg = "USER ABORT: " + ex.getMessage();
                 
