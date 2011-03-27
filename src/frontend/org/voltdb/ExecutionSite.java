@@ -871,7 +871,8 @@ public class ExecutionSite implements Runnable {
             result = this.executeFragmentTaskMessage(ftask, ts.getLastUndoToken());
             fresponse.setStatus(FragmentResponseMessage.SUCCESS, null);
         } catch (EEException ex) {
-            LOG.warn("Hit an EE Error for txn #" + txn_id, ex);
+            LOG.fatal("Hit an EE Error for txn #" + txn_id, ex);
+            this.crash(ex);
             fresponse.setStatus(FragmentResponseMessage.UNEXPECTED_ERROR, ex);
         } catch (SQLException ex) {
             String extra = "";
@@ -1592,51 +1593,50 @@ public class ExecutionSite implements Runnable {
         }
         
         // Now if we have some work sent out to other partitions, we need to wait until they come back
-        if (all_local == false) {
-            // In the first part, we wait until all of our blocked FragmentTaskMessages become unblocked
-            LinkedBlockingDeque<FragmentTaskMessage> queue = ts.getUnblockedFragmentTaskMessageQueue();
-            FragmentTaskMessage ftask = null;
-            while (ts.getBlockedFragmentTaskMessageCount() > 0 || queue.size() > 0) {
-                try {
-                    ftask = queue.takeFirst(); // BLOCKING
-                } catch (InterruptedException ex) {
-                    if (this.hstore_site.isShuttingDown() == false) LOG.error("We were interrupted while waiting for blocked tasks for txn #" + txn_id, ex);
-                    return (null);
-                }
-                assert(ftask != null);
-                assert(ftask.getTxnId() == txn_id);
-                
-                // Local
-                if (ftask.getDestinationPartitionId() == this.partitionId) {
-                    if (t) LOG.trace(String.format("Got unblocked FragmentTaskMessage for txn #%d. Executing locally...", txn_id));
-                    this.processFragmentTaskMessage(ftask);
-                // Remote
-                } else {
-                    if (t) LOG.trace(String.format("Got unblocked FragmentTaskMessage for txn #%d. Requesting that it be executed remotely...", txn_id));
-                    ts.remote_fragment_list.clear();
-                    ts.remote_fragment_list.add(ftask);
-                    this.requestWork(ts, ts.remote_fragment_list);
-                }
-            } // WHILE
+        // In the first part, we wait until all of our blocked FragmentTaskMessages become unblocked
+        LinkedBlockingDeque<FragmentTaskMessage> queue = ts.getUnblockedFragmentTaskMessageQueue();
+        FragmentTaskMessage ftask = null;
+        while (ts.getBlockedFragmentTaskMessageCount() > 0 || queue.size() > 0) {
+            try {
+                ftask = queue.takeFirst(); // BLOCKING
+            } catch (InterruptedException ex) {
+                if (this.hstore_site.isShuttingDown() == false) LOG.error("We were interrupted while waiting for blocked tasks for txn #" + txn_id, ex);
+                return (null);
+            }
+            assert(ftask != null);
+            assert(ftask.getTxnId() == txn_id);
+            
+            // Local
+            if (ftask.getDestinationPartitionId() == this.partitionId) {
+                if (t) LOG.trace(String.format("Got unblocked FragmentTaskMessage for txn #%d. Executing locally...", txn_id));
+                this.processFragmentTaskMessage(ftask);
+            // Remote
+            } else {
+                if (t) LOG.trace(String.format("Got unblocked FragmentTaskMessage for txn #%d. Requesting that it be executed remotely...", txn_id));
+                ts.remote_fragment_list.clear();
+                ts.remote_fragment_list.add(ftask);
+                this.requestWork(ts, ts.remote_fragment_list);
+            }
+        } // WHILE
 
-            // Now that we know all of our FragmentTaskMessages have been dispatched, we can then
-            // wait for all of the results to come back in.
-            CountDownLatch latch = ts.getDependencyLatch();
-            if (d) LOG.debug(String.format("All blocked messages dispatched for txn #%d. Waiting for %d dependencies", txn_id, latch.getCount()));
-            if (t) LOG.trace(ts.toString());
-            if (latch.getCount() > 0) {
-                try {
-                    latch.await();
-                } catch (InterruptedException ex) {
-                    if (this.hstore_site.isShuttingDown() == false) LOG.error("We were interrupted while waiting for results for txn #" + txn_id, ex);
-                    return (null);
-                } catch (Exception ex) {
-                    LOG.fatal("Fatal error for txn #" + txn_id + " while waiting for results", ex);
-                    System.exit(1);
-                }
+        // Now that we know all of our FragmentTaskMessages have been dispatched, we can then
+        // wait for all of the results to come back in.
+        CountDownLatch latch = ts.getDependencyLatch();
+        if (d) LOG.debug(String.format("All blocked messages dispatched for txn #%d. Waiting for %d dependencies", txn_id, latch.getCount()));
+        if (t) LOG.trace(ts.toString());
+        if (latch.getCount() > 0) {
+            try {
+                latch.await();
+            } catch (InterruptedException ex) {
+                if (this.hstore_site.isShuttingDown() == false) LOG.error("We were interrupted while waiting for results for txn #" + txn_id, ex);
+                return (null);
+            } catch (Exception ex) {
+                LOG.fatal("Fatal error for txn #" + txn_id + " while waiting for results", ex);
+                System.exit(1);
             }
         }
 
+        
         // IMPORTANT: Check whether the fragments failed somewhere and we got a response with an error
         // We will rethrow this so that it pops the stack all the way back to VoltProcedure.call()
         // where we can generate a message to the client 
@@ -1780,6 +1780,8 @@ public class ExecutionSite implements Runnable {
         if (this.shutdown_latch != null) {
             try {
                 this.shutdown_latch.await();
+            } catch (InterruptedException ex) {
+                // Ignore
             } catch (Exception ex) {
                 LOG.fatal("Unexpected error while shutting down", ex);
             }

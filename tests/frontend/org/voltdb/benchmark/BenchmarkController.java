@@ -680,6 +680,7 @@ public class BenchmarkController {
      * RUN BENCHMARK
      */
     public void runBenchmark() {
+        if (this.stop) return;
         LOG.info(String.format("Starting execution phase with %d clients [hosts=%d, perhost=%d, txnrate=%s, blocking=%s]",
                                 m_clients.size(),
                                 m_config.clients.length,

@@ -80,13 +80,15 @@ public class InsertCallForwarding extends VoltProcedure{
              voltQueueSQL(check, s_id, sf_type, start_time);
              result = voltExecuteSQL();
          }
-         if (result == null || result.length == 0) {
+         if (result == null || result.length == 0 || result[0].getRowCount() == 0) {
              voltQueueSQL(update, s_id, sf_type, start_time, end_time, numberx);
              result = voltExecuteSQL();
              assert result.length == 1;
              return result[0].asScalarLong();
          }
-         if (NO_CONSTRAINT_ABORT) throw new VoltAbortException("Call_Forwarding entry already exists");
+         if (NO_CONSTRAINT_ABORT) {
+             throw new VoltAbortException("Call_Forwarding entry already exists");
+         }
          return (0l);
      }
 }

@@ -175,7 +175,7 @@ public class ProcessSetManager {
                         line = m_reader.readLine();
                     } catch (IOException e) {
                         if (!m_expectDeath.get()) {
-                            if (failure_observable.hasChanged() == false)
+                            if (shutting_down == false)
                                 LOG.error(String.format("Stream monitoring thread for '%s' is exiting", m_processName), e);
                             failure_observable.notifyObservers(m_processName);
                         }
@@ -262,7 +262,7 @@ public class ProcessSetManager {
         try {
             return m_output.take();
         } catch (InterruptedException e) {
-            e.printStackTrace();
+            if (this.shutting_down == false) e.printStackTrace();
         }
         return null;
     }
@@ -279,7 +279,7 @@ public class ProcessSetManager {
             out.write(data);
             out.flush();
         } catch (IOException e) {
-            if (this.failure_observable.hasChanged())
+            if (this.shutting_down == false)
                 LOG.fatal(String.format("Failed to write '%s' command to '%s'", data.trim(), processName), e);
             this.failure_observable.notifyObservers(processName);
         }
@@ -297,7 +297,7 @@ public class ProcessSetManager {
                 try {
                     pd.process.waitFor();
                 } catch (InterruptedException e) {
-                    e.printStackTrace();
+                    if (shutting_down == false) e.printStackTrace();
                 }
                 latch.countDown();
             }
