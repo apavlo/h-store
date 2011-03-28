@@ -487,6 +487,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
 
             Thread t = new Thread(executor);
             t.setDaemon(true);
+            t.setPriority(Thread.MAX_PRIORITY); // Probably does nothing...
             this.executor_threads.put(e.getKey(), t);
             t.start();
         } // FOR

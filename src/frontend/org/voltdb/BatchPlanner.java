@@ -50,7 +50,7 @@ public class BatchPlanner {
     // STATIC DATA MEMBERS
     // ----------------------------------------------------------------------------
     
-    protected static final AtomicInteger NEXT_DEPENDENCY_ID = new AtomicInteger(1000);
+    private static final AtomicInteger NEXT_DEPENDENCY_ID = new AtomicInteger(9000);
 
     public static final int MAX_ROUND_SIZE = 10;
     
@@ -735,7 +735,16 @@ public class BatchPlanner {
                     stmt_indexes[i] = v.stmt_index;
                     
                     // Parameters
-                    params[i] = plan.param_buffers[v.stmt_index];
+                     params[i] = plan.param_buffers[v.stmt_index];
+//                    try {
+//                        FastSerializer fs = new FastSerializer();
+//                        batchArgs[v.stmt_index].writeExternal(fs);
+//                        params[i] = fs.getBuffer();
+//                    } catch (Exception ex) {
+//                        LOG.fatal("Failed to serialize parameters for Statement #" + v.stmt_index, ex);
+//                        throw new RuntimeException(ex);
+//                    }
+                    
                     
                     if (t) LOG.trace("Fragment Grouping " + i + " => [" +
                                      "txn_id=#" + txn_id + ", " +

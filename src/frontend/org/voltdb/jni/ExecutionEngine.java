@@ -19,6 +19,7 @@ package org.voltdb.jni;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayDeque;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -46,8 +47,10 @@ import org.voltdb.utils.DBBPool.BBContainer;
  * for these implementations to the ExecutionSite.
  */
 public abstract class ExecutionEngine implements FastDeserializer.DeserializationMonitor {
+    private static final Logger LOG = Logger.getLogger(ExecutionEngine.class);
+    private static final boolean t = LOG.isTraceEnabled();
+    private static final boolean d = LOG.isDebugEnabled();
 
-    protected static final Logger LOG = Logger.getLogger(ExecutionEngine.class.getName(), VoltLoggerFactory.instance());
 //    private static boolean voltSharedLibraryLoaded = false;
     protected ExecutionSite site;
 
@@ -126,10 +129,6 @@ public abstract class ExecutionEngine implements FastDeserializer.Deserializatio
         private final Logger hostLog =
             Logger.getLogger("HOST", VoltLoggerFactory.instance());
 
-        private final Logger log =
-            Logger.getLogger(ExecutionSite.class.getName(), VoltLoggerFactory.instance());
-
-
         /**
          * Add a single dependency. Exists only for test cases.
          * @param depId
@@ -151,7 +150,7 @@ public abstract class ExecutionEngine implements FastDeserializer.Deserializatio
         void trackNewWorkUnit(final Map<Integer, List<VoltTable>> dependencies) {
             for (final Entry<Integer, List<VoltTable>> e : dependencies.entrySet()) {
                 // could do this optionally - debug only.
-                verifyDependencySanity(e.getKey(), e.getValue());
+                if (d) verifyDependencySanity(e.getKey(), e.getValue());
                 // create a new list of references to the workunit's table
                 // to avoid any changes to the WorkUnit's list. But do not
                 // copy the table data.
@@ -200,17 +199,13 @@ public abstract class ExecutionEngine implements FastDeserializer.Deserializatio
                             null);
                     VoltDB.crashVoltDB();
                 }
-                if (log.isTraceEnabled()) {
-                    log.l7dlog(Level.TRACE, LogKeys.org_voltdb_ExecutionSite_ImportingDependency.name(),
-                               new Object[] { dependencyId, dependency.getClass().getName(), dependency.toString() },
-                               null);
-                }
                 if (!(dependency instanceof VoltTable)) {
                     hostLog.l7dlog(Level.FATAL, LogKeys.host_ExecutionSite_DependencyNotVoltTable.name(),
                                    new Object[] { dependencyId }, null);
                     VoltDB.crashVoltDB();
                 }
-            }
+                if (t) LOG.trace(String.format("Storing Dependency %d\n:%s", dependencyId, dependency));
+            } // FOR
 
         }
 
@@ -244,8 +239,14 @@ public abstract class ExecutionEngine implements FastDeserializer.Deserializatio
     public byte[] nextDependencyAsBytes(final int dependencyId) {
         final VoltTable vt =  m_dependencyTracker.nextDependency(dependencyId);
         if (vt != null) {
-            final byte[]  bytes = vt.getTableDataReference().array();
-            return bytes;
+            ByteBuffer buffer = vt.getTableDataReference();
+            if (d) {
+                int size = vt.getUnderlyingBufferSize();
+                LOG.debug(String.format("Passing Dependency %d to EE [rows=%d, cols=%d, bytes=%d/%d]",
+                                        dependencyId, vt.getRowCount(), vt.getColumnCount(), size, buffer.array().length));
+            }
+            assert(buffer.hasArray());
+            return (buffer.array());
         }
         else {
             return null;
