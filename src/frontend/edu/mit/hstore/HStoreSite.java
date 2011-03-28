@@ -970,35 +970,27 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
             
             Set<Integer> done_partitions = txn_info.getDonePartitions();
             
-            // NewOrder Hack
-            if (hstore_conf.force_neworder_hack_done) {
-                if (d) LOG.debug(String.format("NewOrder Hack: Setting %d partitions as done for txn #%d", done_partitions.size(), txn_id));
-                for (Integer p : done_partitions) {
-                    requestBuilder.addDonePartition(p.intValue());
-                } // FOR
-                
             // TransactionEstimator
-            } else {
-                // If we know we're single-partitioned, then we *don't* want to tell the Dtxn.Coordinator
-                // that we're done at any partitions because it will throw an error
-                // Instead, if we're not single-partitioned then that's that only time that 
-                // we Tell the Dtxn.Coordinator that we are finished with partitions if we have an estimate
-                TransactionEstimator.State estimator_state = txn_info.getEstimatorState(); 
-                if (orig_txn_id == null && estimator_state != null && estimator_state.getInitialEstimate() != null) {
-                    // TODO: How do we want to come up with estimates per partition?
-                    Set<Integer> touched_partitions = estimator_state.getEstimatedPartitions();
-                    for (Integer p : this.all_partitions) {
-                        if (touched_partitions.contains(p) == false) {
-                            requestBuilder.addDonePartition(p.intValue());
-                            done_partitions.add(p);
-                        }
-                    } // FOR
-                    if (d && requestBuilder.getDonePartitionCount() > 0) {
-                        LOG.debug(String.format("Marked txn #%d as done at %d partitions: %s", txn_id, requestBuilder.getDonePartitionCount(), requestBuilder.getDonePartitionList()));
-                    }
-                }
+            // If we know we're single-partitioned, then we *don't* want to tell the Dtxn.Coordinator
+            // that we're done at any partitions because it will throw an error
+            // Instead, if we're not single-partitioned then that's that only time that 
+            // we Tell the Dtxn.Coordinator that we are finished with partitions if we have an estimate
+            TransactionEstimator.State estimator_state = txn_info.getEstimatorState(); 
+            if (orig_txn_id == null && estimator_state != null && estimator_state.getInitialEstimate() != null) {
+                // TODO: How do we want to come up with estimates per partition?
+                Set<Integer> touched_partitions = estimator_state.getEstimatedPartitions();
+                for (Integer p : this.all_partitions) {
+                    if (touched_partitions.contains(p) == false) done_partitions.add(p);
+                } // FOR
             }
             
+            for (Integer p : done_partitions) {
+                requestBuilder.addDonePartition(p.intValue());
+            } // FOR
+            if (d && requestBuilder.getDonePartitionCount() > 0) {
+                LOG.info(String.format("Marked txn #%d as done at %d partitions: %s", txn_id, requestBuilder.getDonePartitionCount(), requestBuilder.getDonePartitionList()));
+            }
+
             // NOTE: Evan betrayed our love so we can't use his txn ids because they are meaningless to us
             // So we're going to pack in our txn id in the payload. Any message they we get from Evan
             // will have this payload so that we can figure out what the hell is going on...
@@ -1158,6 +1150,11 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         if (hstore_conf.enable_profiling) ProfileMeasurement.start(new_ts.total_time, new_ts.init_time);
         new_ts.init(new_txn_id, orig_ts);
         new_ts.setPredictSinglePartitioned(false);
+        Set<Integer> new_done = new_ts.getDonePartitions();
+        new_done.addAll(this.all_partitions);
+        new_done.removeAll(orig_ts.getTouchedPartitions());
+        if (t) LOG.trace(String.format("Txn #%d Mispredicted partitions %s", txn_id, orig_ts.getTouchedPartitions()));
+        
         this.initializeInvocation(new_ts);
         
         if (this.status_monitor != null) TxnCounter.MISPREDICTED.inc(orig_ts.getProcedure());

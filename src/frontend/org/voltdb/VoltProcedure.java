@@ -630,6 +630,8 @@ public abstract class VoltProcedure implements Poolable {
             } else if (ex_class.equals(MispredictionException.class)) {
                 if (d) LOG.warn("Caught MispredictionException for txn #" + this.txn_id);
                 this.status = ClientResponse.MISPREDICTION;
+                this.m_localTxnState.getTouchedPartitions().add(this.executor.partitionId);
+                this.m_localTxnState.getTouchedPartitions().addAll(((MispredictionException)ex).getPartitions());
 
             // -------------------------------
             // ConstraintFailureException
@@ -675,7 +677,7 @@ public abstract class VoltProcedure implements Poolable {
         }
 
         // Workload Trace - Stop the transaction trace record.
-        if (this.enable_tracing && this.status == ClientResponseImpl.SUCCESS && m_workloadXactHandle != null) {
+        if (this.enable_tracing && m_workloadXactHandle != null && this.status == ClientResponseImpl.SUCCESS) {
             ProcedureProfiler.workloadTrace.stopTransaction(m_workloadXactHandle);
         }
         

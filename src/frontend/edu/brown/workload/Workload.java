@@ -54,8 +54,10 @@ import edu.brown.catalog.CatalogUtil;
 import edu.brown.statistics.*;
 import edu.brown.utils.ClassUtil;
 import edu.brown.utils.FileUtil;
+import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.StringUtil;
 import edu.brown.utils.ThreadUtil;
+import edu.brown.utils.LoggerUtil.LoggerBoolean;
 import edu.brown.workload.Workload.Filter.FilterResult;
 import edu.brown.workload.filters.ProcedureNameFilter;
 
@@ -65,7 +67,12 @@ import edu.brown.workload.filters.ProcedureNameFilter;
  *
  */
 public class Workload implements WorkloadTrace, Iterable<AbstractTraceElement<? extends CatalogType>> {
-    private static final Logger LOG = Logger.getLogger(Workload.class.getName());
+    private static final Logger LOG = Logger.getLogger(Workload.class);
+    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    static {
+        LoggerUtil.attachObserver(LOG, debug, trace);
+    }
 
     // The output stream that we're going to write our traces to
     private FileOutputStream out;
@@ -278,7 +285,7 @@ public class Workload implements WorkloadTrace, Iterable<AbstractTraceElement<? 
     public Workload() {
         // Create a shutdown hook to make sure that always call finalize()
         if (ENABLE_SHUTDOWN_HOOKS) {
-            if (LOG.isDebugEnabled()) LOG.debug("Created shutdown hook for " + Workload.class.getName());
+            if (LOG.isDebugEnabled()) if (debug.get()) LOG.debug("Created shutdown hook for " + Workload.class.getName());
             Runtime.getRuntime().addShutdownHook(new Thread() {
                 @Override
                 public void run() {
@@ -347,7 +354,7 @@ public class Workload implements WorkloadTrace, Iterable<AbstractTraceElement<? 
      * 
      */
     protected void validate() {
-        LOG.debug("Checking to make sure there are no duplicate trace objects in workload");
+        if (debug.get()) LOG.debug("Checking to make sure there are no duplicate trace objects in workload");
         Set<Long> trace_ids = new HashSet<Long>();
         for (AbstractTraceElement<?> element : this) {
             long trace_id = element.getId();
@@ -364,7 +371,7 @@ public class Workload implements WorkloadTrace, Iterable<AbstractTraceElement<? 
         this.output_path = new File(path);
         try {
             this.out = new FileOutputStream(path);
-            LOG.debug("Opened file '" + path + "' for logging workload trace");
+            if (debug.get()) LOG.debug("Opened file '" + path + "' for logging workload trace");
         } catch (Exception ex) {
             LOG.fatal("Failed to open trace output file: " + path);
             ex.printStackTrace();
@@ -407,10 +414,7 @@ public class Workload implements WorkloadTrace, Iterable<AbstractTraceElement<? 
      * @throws Exception
      */
     public void load(String input_path, Database catalog_db, Filter filter) throws Exception {
-//        final boolean trace = LOG.isTraceEnabled();
-        final boolean debug = LOG.isDebugEnabled();
-        
-        if (debug) LOG.debug("Reading workload trace from file '" + input_path + "'");
+        if (debug.get()) LOG.debug("Reading workload trace from file '" + input_path + "'");
         this.input_path = new File(input_path);
 
         
@@ -427,7 +431,7 @@ public class Workload implements WorkloadTrace, Iterable<AbstractTraceElement<? 
                 } // FOR
                 if (names.isEmpty() == false) {
                     temp_pattern = Pattern.compile(String.format("\"NAME\":[\\s]*\"(%s)\"", StringUtil.join("|", names)), Pattern.CASE_INSENSITIVE);
-                    if (debug) {
+                    if (debug.get()) {
                         LOG.debug(String.format("Fast filter for %d procedure names", names.size()));
                         LOG.debug("PATTERN: " + temp_pattern.pattern());
                     }
@@ -456,7 +460,7 @@ public class Workload implements WorkloadTrace, Iterable<AbstractTraceElement<? 
             all_runnables.add(lt);
         } // FOR
         
-        if (debug) LOG.debug(String.format("Loading workload trace using %d LoadThreads", rt.load_threads.size())); 
+        if (debug.get()) LOG.debug(String.format("Loading workload trace using %d LoadThreads", rt.load_threads.size())); 
         ThreadUtil.runGlobalPool(all_runnables);
         this.validate();
         LOG.info("Loaded in " + this.xact_trace.size() + " txns with " + counters[1].get() + " queries from '" + this.input_path.getName() + "'");
@@ -482,7 +486,6 @@ public class Workload implements WorkloadTrace, Iterable<AbstractTraceElement<? 
         
         @Override
         public void run() {
-            boolean debug = LOG.isDebugEnabled();
             self = Thread.currentThread();
             
             BufferedReader in = null;
@@ -506,7 +509,7 @@ public class Workload implements WorkloadTrace, Iterable<AbstractTraceElement<? 
                     line_ctr++;
                 } // WHILE
                 in.close();
-                if (debug) LOG.debug("Finished reading file. Telling all LoadThreads to stop when their queue is empty");
+                if (debug.get()) LOG.debug("Finished reading file. Telling all LoadThreads to stop when their queue is empty");
             } catch (InterruptedException ex) {
                 if (this.stop == false) throw new RuntimeException(ex);
             } catch (Exception ex) {
@@ -517,11 +520,11 @@ public class Workload implements WorkloadTrace, Iterable<AbstractTraceElement<? 
                     lt.stop();
                 } // FOR
             }
-            if (debug) LOG.debug(String.format("Read %d lines [fast_filter=%d]", line_ctr, fast_ctr));
+            if (debug.get()) LOG.debug(String.format("Read %d lines [fast_filter=%d]", line_ctr, fast_ctr));
         }
         public synchronized void stop() {
             if (this.stop == false) {
-                LOG.debug("ReadThread told to stop by LoadThread [queue_size=" + this.lines.size() + "]");
+                if (debug.get()) LOG.debug("ReadThread told to stop by LoadThread [queue_size=" + this.lines.size() + "]");
                 this.stop = true;
                 this.lines.clear();
                 this.self.interrupt();
@@ -1051,7 +1054,7 @@ public class Workload implements WorkloadTrace, Iterable<AbstractTraceElement<? 
         // Ignored/Sysproc Procedures
         //
         } else if (this.ignored_procedures.contains(proc_name) || catalog_proc.getSystemproc()) {
-            LOG.debug("Ignoring start transaction call for procedure '" + proc_name + "'");
+            if (debug.get()) LOG.debug("Ignoring start transaction call for procedure '" + proc_name + "'");
             this.ignored_xact_ids.add(xact_id);
         //
         // Procedures we want to trace
@@ -1061,7 +1064,7 @@ public class Workload implements WorkloadTrace, Iterable<AbstractTraceElement<? 
             this.addTransaction(catalog_proc, xact_handle);
             this.element_ids.add(xact_handle.getId());
             this.element_id_xref.put(xact_handle.getId(), xact_handle);
-            LOG.debug("Created '" + catalog_proc.getName() + "' transaction trace record with " + xact_handle.getParams().length + " parameters");
+            if (debug.get()) LOG.debug("Created '" + catalog_proc.getName() + "' transaction trace record with " + xact_handle.getParams().length + " parameters");
         }
 
         if (xact_handle != null) {
@@ -1087,8 +1090,6 @@ public class Workload implements WorkloadTrace, Iterable<AbstractTraceElement<? 
      */
     @Override
     public void stopTransaction(Object xact_handle) {
-        final boolean debug = LOG.isDebugEnabled();
-        
         if (xact_handle instanceof TransactionTrace) {
             TransactionTrace xact = (TransactionTrace)xact_handle;
             
@@ -1096,7 +1097,7 @@ public class Workload implements WorkloadTrace, Iterable<AbstractTraceElement<? 
             boolean unclean = false;
             for (QueryTrace query : xact.getQueries()) {
                 if (!query.isStopped()) {
-                    if (debug) LOG.warn("Trace for '" + query + "' was not stopped before the transaction. Assuming it was aborted");
+                    if (debug.get()) LOG.warn("Trace for '" + query + "' was not stopped before the transaction. Assuming it was aborted");
                     query.aborted = true;
                     unclean = true;
                 }
@@ -1108,7 +1109,7 @@ public class Workload implements WorkloadTrace, Iterable<AbstractTraceElement<? 
             // Remove from internal cache data structures
             this.removeTransaction(xact);
             
-            if (debug) LOG.debug("Stopping trace for transaction " + xact);
+            if (debug.get()) LOG.debug("Stopping trace for transaction " + xact);
         } else {
             LOG.fatal("Unable to stop transaction trace: Invalid transaction handle");
         }
@@ -1122,7 +1123,7 @@ public class Workload implements WorkloadTrace, Iterable<AbstractTraceElement<? 
                 LOG.warn("The database catalog handle is null: " + xact);
             } else {
                 if (this.out == null) {
-                    if (debug) LOG.warn("No output path is set. Unable to log trace information to file");
+                    if (debug.get()) LOG.warn("No output path is set. Unable to log trace information to file");
                 } else {
                     writeTransactionToStream(catalog_db, xact, this.out);
                 }
@@ -1137,7 +1138,7 @@ public class Workload implements WorkloadTrace, Iterable<AbstractTraceElement<? 
             output.write(xact.toJSONString(catalog_db).getBytes());
             output.write("\n".getBytes());
             output.flush();
-            LOG.debug("Wrote out new trace record for " + xact + " with " + xact.getQueries().size() + " queries");
+            if (debug.get()) LOG.debug("Wrote out new trace record for " + xact + " with " + xact.getQueries().size() + " queries");
         } catch (Exception ex) {
             LOG.fatal(ex.getMessage());
             ex.printStackTrace();
@@ -1157,7 +1158,20 @@ public class Workload implements WorkloadTrace, Iterable<AbstractTraceElement<? 
                 }
             } // FOR
             xact.abort();
-            LOG.debug("Aborted trace for transaction " + xact);
+            if (debug.get()) LOG.debug("Aborted trace for transaction " + xact);
+            
+            // Write the trace object out to our file if it is not null
+            Database catalog_db = this.xact_db_xref.remove(xact);
+            if (catalog_db == null) {
+                LOG.warn("The database catalog handle is null: " + xact);
+            } else {
+                if (this.out == null) {
+                    if (debug.get()) LOG.warn("No output path is set. Unable to log trace information to file");
+                } else {
+                    writeTransactionToStream(catalog_db, xact, this.out);
+                }
+            }
+            
         } else {
             LOG.fatal("Unable to abort transaction trace: Invalid transaction handle");
         }
@@ -1209,7 +1223,7 @@ public class Workload implements WorkloadTrace, Iterable<AbstractTraceElement<? 
             }
             batch_ctr.incrementAndGet();
             
-            LOG.debug("Created '" + catalog_statement.getName() + "' query trace record for xact '" + txn_id + "'");
+            if (debug.get()) LOG.debug("Created '" + catalog_statement.getName() + "' query trace record for xact '" + txn_id + "'");
         } else {
             LOG.fatal("Unable to create new query trace: Invalid transaction handle");
         }
@@ -1229,7 +1243,7 @@ public class Workload implements WorkloadTrace, Iterable<AbstractTraceElement<? 
             int count = batch_ctr.decrementAndGet();
             assert(count >= 0) : "Invalid open query counter for batch #" + query.getBatchId() + " in Txn #" + txn_id;
             
-            LOG.debug("Stopping trace for query " + query);
+            if (debug.get()) LOG.debug("Stopping trace for query " + query);
         } else {
             LOG.fatal("Unable to stop query trace: Invalid query handle");
         }
@@ -1254,7 +1268,7 @@ public class Workload implements WorkloadTrace, Iterable<AbstractTraceElement<? 
                     this.out.write(xact.toJSONString(catalog_db).getBytes());
                     this.out.write("\n".getBytes());
                     this.out.flush();
-                    LOG.debug("Wrote out new trace record for " + xact + " with " + xact.getQueries().size() + " queries");
+                    if (debug.get()) LOG.debug("Wrote out new trace record for " + xact + " with " + xact.getQueries().size() + " queries");
                 } catch (Exception ex) {
                     LOG.fatal(ex.getMessage());
                     ex.printStackTrace();

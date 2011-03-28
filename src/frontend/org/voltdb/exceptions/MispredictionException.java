@@ -1,6 +1,8 @@
 package org.voltdb.exceptions;
 
 import java.nio.ByteBuffer;
+import java.util.HashSet;
+import java.util.Set;
 
 /**
  * Thrown internally when we mispredicted a transaction as being single-partitioned
@@ -14,13 +16,20 @@ public class MispredictionException extends SerializableException {
      * The transaction id that caused this exception
      */
     private long txn_id;
-    
     /**
-     * 
-     * @param txn_id
+     * The partitions that the transaction was about to touch or had touched
+     * before it was aborted
      */
-    public MispredictionException(long txn_id) {
+    private final Set<Integer> partitions = new HashSet<Integer>();
+
+    /**
+     * Constructor
+     * @param txn_id
+     * @param partitions
+     */
+    public MispredictionException(long txn_id, Set<Integer> partitions) {
         this.txn_id = txn_id;
+        this.partitions.addAll(partitions);
     }
     
     /**
@@ -40,9 +49,17 @@ public class MispredictionException extends SerializableException {
         return this.txn_id;
     }
     
+    /**
+     * Partitions that this txn touched before it aborted
+     * @return
+     */
+    public Set<Integer> getPartitions() {
+        return partitions;
+    }
+    
     @Override
     public String getMessage() {
-        return ("Mispredicted txn #" + this.txn_id);
+        return ("Mispredicted txn #" + this.txn_id + " " + this.partitions);
     }
     
 }

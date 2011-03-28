@@ -23,6 +23,7 @@ import edu.brown.graphs.GraphvizExport.Attributes;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.FileUtil;
 import edu.brown.utils.PartitionEstimator;
+import edu.brown.utils.StringUtil;
 import edu.brown.utils.ThreadUtil;
 import edu.brown.workload.AbstractTraceElement;
 import edu.brown.workload.TransactionTrace;
@@ -537,7 +538,10 @@ public abstract class MarkovUtil {
                     } else if (v0.isCommitVertex()) {
                         label = "commit";
                     } else {
-                        label = v0.getCatalogItem().getName() + "\n";
+                        String name = v0.getCatalogItem().getName();
+                        name = StringUtil.title(name.replace("_", " "), true).replace(" ", "");
+                        
+                        label = name + "\n";
                         label += "Counter: " + v0.getQueryInstanceIndex() + "\n";
                         
                         label += "Partitions: ";
