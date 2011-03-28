@@ -871,7 +871,7 @@ public class ExecutionSite implements Runnable {
             result = this.executeFragmentTaskMessage(ftask, ts.getLastUndoToken());
             fresponse.setStatus(FragmentResponseMessage.SUCCESS, null);
         } catch (EEException ex) {
-            LOG.fatal("Hit an EE Error for txn #" + txn_id, ex);
+            LOG.fatal(String.format("Hit an EE Error for txn #%d", txn_id));
             this.crash(ex);
             fresponse.setStatus(FragmentResponseMessage.UNEXPECTED_ERROR, ex);
         } catch (SQLException ex) {
@@ -1512,7 +1512,7 @@ public class ExecutionSite implements Runnable {
         // will catch it and we can propagate the error message all the way back to the HStoreSite
         if (need_restart) {
             if (t) LOG.trace(String.format("Aborting txn #%d because it was mispredicted", txn_id));
-            throw new MispredictionException(txn_id);
+            throw new MispredictionException(txn_id, ts.getTouchedPartitions());
         }
         
         // Bombs away!

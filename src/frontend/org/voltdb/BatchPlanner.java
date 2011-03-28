@@ -600,7 +600,7 @@ public class BatchPlanner {
             }
             
             // Misprediction!!
-            if (mispredict) throw new MispredictionException(txn_id);
+            if (mispredict) throw new MispredictionException(txn_id, stmt_all_partitions);
 
             // Get a sorted list of the PlanFragments that we need to execute for this query
             if (is_singlepartition) {

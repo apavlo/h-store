@@ -786,7 +786,7 @@ public class BenchmarkController {
      * Cleanup Benchmark
      */
     public synchronized void cleanUpBenchmark() {
-        if (this.cleaned) return;
+        // if (this.cleaned) return;
         
         if (debug.get()) LOG.debug("Killing clients");
         m_clientPSM.killAll();

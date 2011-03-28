@@ -24,6 +24,7 @@ public abstract class StringUtil {
     private static String CACHE_REPEAT_RESULT = null;
     
     private static Pattern LINE_SPLIT = Pattern.compile("\n");
+    private static Pattern SPACE_SPLIT = Pattern.compile(" ");
     
     /**
      * Format the header + rows into a CSV
@@ -379,11 +380,32 @@ public abstract class StringUtil {
      * @return
      */
     public static String title(String string) {
+        return (StringUtil.title(string, false));
+    }
+    
+    /**
+     * Converts a string to title case (ala Python)
+     * @param string
+     * @param keep_upper If true, then any non-first character that is uppercase stays uppercase
+     * @return
+     */
+    public static String title(String string, boolean keep_upper) {
         StringBuilder sb = new StringBuilder();
         String add = "";
-        for (String part : string.split(" ")) {
+        for (String part : SPACE_SPLIT.split(string)) {
             sb.append(add).append(part.substring(0, 1).toUpperCase());
-            if (part.length() > 1) sb.append(part.substring(1).toLowerCase());
+            int len = part.length();
+            if (len > 1) {
+                if (keep_upper) {
+                    for (int i = 1; i < len; i++) {
+                        String c = part.substring(i, i+1);
+                        String up = c.toUpperCase();
+                        sb.append(c.equals(up) ? c : c.toLowerCase()); 
+                    } // FOR
+                } else {
+                    sb.append(part.substring(1).toLowerCase());    
+                }
+            }
             add = " ";
         } // FOR
         return (sb.toString());

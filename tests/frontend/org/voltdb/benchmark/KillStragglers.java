@@ -57,7 +57,7 @@ public class KillStragglers implements Runnable {
     }
     
     public KillStragglers enableKillAll() {
-        return (this.enableKillClient().enableKillCoordinator().enableKillSite());
+        return (this.enableKillClient().enableKillCoordinator().enableKillSite().enableKillEngine());
     }
     public KillStragglers enableKillSite() {
         m_killSite = true;
