@@ -1,6 +1,8 @@
 package edu.mit.hstore.dtxn;
 
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -23,11 +25,13 @@ import edu.mit.hstore.HStoreConf;
  */
 public class DependencyInfo implements Poolable {
     protected static final Logger LOG = Logger.getLogger(DependencyInfo.class);
-    private final static LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
-    private final static LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
     static {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
+    private static boolean d = debug.get();
+    private static boolean t = trace.get();
     
     /**
      * Object Pool Factory
@@ -144,6 +148,7 @@ public class DependencyInfo implements Poolable {
      * @param ftask
      */
     public void addBlockedFragmentTaskMessage(FragmentTaskMessage ftask) {
+        if (t) LOG.trace("Adding block FragmentTaskMessage for txn #" + this.ts.getTransactionId());
         this.blocked_tasks.add(ftask);
 //        this.blocked_all_local = this.blocked_all_local && (ftask.getDestinationPartitionId() == this.ts.base_partition);
     }
@@ -163,6 +168,7 @@ public class DependencyInfo implements Poolable {
      */
     public synchronized Set<FragmentTaskMessage> getAndReleaseBlockedFragmentTaskMessages() {
         assert(this.blocked_tasks_released == false) : "Trying to unblock tasks more than once for txn #" + this.ts.txn_id;
+        if (t) LOG.trace(String.format("Unblocking %d FragmentTaskMessages for txn #%d", this.blocked_tasks.size(), this.ts.getTransactionId()));
         this.blocked_tasks_released = true;
         return (this.blocked_tasks);
     }
@@ -182,7 +188,7 @@ public class DependencyInfo implements Poolable {
      * @return
      */
     public synchronized boolean addResponse(int partition) {
-        if (trace.get()) LOG.trace("Storing RESPONSE for DependencyId #" + this.dependency_id + " from Partition #" + partition + " in txn #" + this.ts.txn_id);
+        if (t) LOG.trace("Storing RESPONSE for DependencyId #" + this.dependency_id + " from Partition #" + partition + " in txn #" + this.ts.txn_id);
         assert(this.responses.contains(partition) == false);
         this.responses.add(partition);
         return (this.results.contains(partition));
@@ -196,7 +202,7 @@ public class DependencyInfo implements Poolable {
      * @return
      */
     public synchronized boolean addResult(int partition, VoltTable result) {
-        if (trace.get()) LOG.trace("Storing RESULT for DependencyId #" + this.dependency_id + " from Partition #" + partition + " in txn #" + this.ts.txn_id + " with " + result.getRowCount() + " tuples");
+        if (t) LOG.trace("Storing RESULT for DependencyId #" + this.dependency_id + " from Partition #" + partition + " in txn #" + this.ts.txn_id + " with " + result.getRowCount() + " tuples");
         assert(this.results.contains(partition) == false);
         this.results.add(partition);
         this.results_list.add(result);
@@ -204,6 +210,23 @@ public class DependencyInfo implements Poolable {
     }
     
     protected List<VoltTable> getResults() {
+        return (this.results_list);
+    }
+    
+    protected List<VoltTable> getResults(int local_partition, boolean flip_local_partition) {
+        if (flip_local_partition) {
+            int idx = this.results.indexOf(local_partition);
+            if (idx != -1) {
+                if (d) LOG.debug(String.format("Copying BytBuffer for DependencyId %d from Partition %d", this.dependency_id, local_partition));
+                VoltTable vt = this.results_list.get(idx);
+                assert(vt != null);
+                ByteBuffer buffer = vt.getTableDataReference();
+                byte arr[] = new byte[vt.getUnderlyingBufferSize()];
+                buffer.get(arr, 0, arr.length);
+                // LOG.info("FLIP: " + Arrays.toString(newBuffer.array()));
+                this.results_list.set(idx, new VoltTable(ByteBuffer.wrap(arr), true));
+            }
+        }
         return (this.results_list);
     }
     
@@ -218,7 +241,7 @@ public class DependencyInfo implements Poolable {
      */
     public VoltTable getResult() {
         assert(this.results.isEmpty() == false) : "There are no result available for " + this;
-        assert(this.results.size() == 1) : "There are " + this.results.size() + " results for " + this + "\n-------\n" + this.getResults();
+        assert(this.results.size() == 1) : "There are " + this.results.size() + " results for " + this + "\n-------\n" + this.results_list;
         return (this.results_list.get(0));
     }
     
@@ -228,7 +251,7 @@ public class DependencyInfo implements Poolable {
      */
     public boolean hasTasksReady() {
         int num_partitions = this.partitions.size();
-        if (trace.get()) {
+        if (t) {
             LOG.trace("Block Tasks Not Empty? " + !this.blocked_tasks.isEmpty());
             LOG.trace("# of Results:   " + this.results.size());
             LOG.trace("# of Responses: " + this.responses.size());

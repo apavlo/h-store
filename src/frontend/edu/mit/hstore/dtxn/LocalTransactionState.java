@@ -763,27 +763,27 @@ public class LocalTransactionState extends TransactionState {
             stmt_dinfos = new ConcurrentHashMap<Integer, DependencyInfo>();
             this.dependencies[stmt_index] = stmt_dinfos;
         }
-        DependencyInfo d = stmt_dinfos.get(d_id);
-        if (d == null) {
+        DependencyInfo dinfo = stmt_dinfos.get(d_id);
+        if (dinfo == null) {
             // First try to get one that we have used before in a previous round for this txn
-            d = this.reusable_dependencies.poll();
-            if (d != null) {
-                d.finish();
+            dinfo = this.reusable_dependencies.poll();
+            if (dinfo != null) {
+                dinfo.finish();
             // If there is nothing local, then we have to go get an object from the global pool
             } else {
                 try {
-                    d = (DependencyInfo)DependencyInfo.INFO_POOL.borrowObject();
-                    this.all_dependencies.add(d);
+                    dinfo = (DependencyInfo)DependencyInfo.INFO_POOL.borrowObject();
+                    this.all_dependencies.add(dinfo);
                 } catch (Exception ex) {
                     throw new RuntimeException(ex);
                 }
             }
             
             // Always initialize the DependencyInfo regardless of how we got it 
-            d.init(this, stmt_index, d_id.intValue());
-            stmt_dinfos.put(d_id, d);
+            dinfo.init(this, stmt_index, d_id.intValue());
+            stmt_dinfos.put(d_id, dinfo);
         }
-        return (d);
+        return (dinfo);
     }
     
     /**
@@ -907,12 +907,12 @@ public class LocalTransactionState extends TransactionState {
     }
 
     /**
-     * Add a result with a response (this is slow and should only be used fo testing);
+     * Add a result with a response (this is slow and should only be used for testing);
      * @param partition
      * @param dependency_id
      * @param result
      */
-    protected void addResultWithResponse(int partition, int dependency_id, VoltTable result) {
+    public void addResultWithResponse(int partition, int dependency_id, VoltTable result) {
         int key = this.createPartitionDependencyKey(partition, dependency_id);
         this.processResultResponse(partition, dependency_id, key, null);
         this.processResultResponse(partition, dependency_id, key, result);
@@ -932,7 +932,7 @@ public class LocalTransactionState extends TransactionState {
         assert(this.exec_local) :
             "Trying to store " + type + " for txn #" + this.txn_id + " but it is not executing locally!";
 
-        DependencyInfo d = null;
+        DependencyInfo dinfo = null;
         Map<Integer, Queue<Integer>> stmt_ctr = (result != null ? this.results_dependency_stmt_ctr : this.responses_dependency_stmt_ctr);
         
         // If the txn is still in the INITIALIZED state, then we just want to queue up the results
@@ -961,11 +961,11 @@ public class LocalTransactionState extends TransactionState {
                 "No more statements for partition/dependency " + type + " pair " + key + " in txn #" + this.txn_id + "\n" + this;
             
             int stmt_index = queue.remove().intValue();
-            d = this.getDependencyInfo(stmt_index, dependency_id);
-            assert(d != null) :
+            dinfo = this.getDependencyInfo(stmt_index, dependency_id);
+            assert(dinfo != null) :
                 "Unexpected DependencyId " + dependency_id + " from partition " + partition + " for txn #" + this.txn_id + " [stmt_index=" + stmt_index + "]\n" + result;
 
-            final boolean complete = (result != null ? d.addResult(partition, result) : d.addResponse(partition));
+            final boolean complete = (result != null ? dinfo.addResult(partition, result) : dinfo.addResponse(partition));
             if (complete) {
                 if (t) LOG.trace("Received all RESULTS + RESPONSES for [stmt#" + stmt_index + ", dep#=" + dependency_id + "] for txn #" + this.txn_id);
                 this.received_ctr++;
@@ -976,8 +976,8 @@ public class LocalTransactionState extends TransactionState {
             }
         } // SYNC
         // Check whether we need to start running stuff now
-        if (!this.blocked_tasks.isEmpty() && d.hasTasksReady()) {
-            this.executeBlockedTasks(d);
+        if (!this.blocked_tasks.isEmpty() && dinfo.hasTasksReady()) {
+            this.executeBlockedTasks(dinfo);
         }
     }
 
@@ -1042,23 +1042,24 @@ public class LocalTransactionState extends TransactionState {
      * @return
      */
     public synchronized HashMap<Integer, List<VoltTable>> removeInternalDependencies(final FragmentTaskMessage ftask, final HashMap<Integer, List<VoltTable>> results) {
-        if (d) LOG.debug("Retrieving " + this.internal_dependencies.size() + " internal dependencies for txn #" + this.txn_id);
+        if (d) LOG.debug(String.format("Retrieving %d internal dependencies for txn #%d", this.internal_dependencies.size(), this.txn_id));
         
         for (int i = 0, cnt = ftask.getFragmentCount(); i < cnt; i++) {
             int input_d_id = ftask.getOnlyInputDepId(i);
             if (input_d_id == ExecutionSite.NULL_DEPENDENCY_ID) continue;
             int stmt_index = ftask.getFragmentStmtIndexes()[i];
 
-            DependencyInfo d = this.getDependencyInfo(stmt_index, input_d_id);
-            assert(d != null);
-            int num_tables = d.results.size();
-            assert(d.getPartitions().size() == num_tables) :
+            DependencyInfo dinfo = this.getDependencyInfo(stmt_index, input_d_id);
+            assert(dinfo != null);
+            int num_tables = dinfo.results.size();
+            assert(dinfo.getPartitions().size() == num_tables) :
                 "Number of results retrieved for <Stmt #" + stmt_index + ", DependencyId #" + input_d_id + "> is " + num_tables +
-                " but we were expecting " + d.getPartitions().size() + " in txn #" + this.txn_id +
+                " but we were expecting " + dinfo.getPartitions().size() + " in txn #" + this.txn_id +
                 " [" + this.executor.getRunningVoltProcedure(this.txn_id).getProcedureName() + "]\n" + 
                 this.toString() + "\n" +
                 ftask.toString();
-            results.put(input_d_id, d.getResults());
+            results.put(input_d_id, dinfo.getResults(this.base_partition, true));
+            if (d) LOG.debug(String.format("<Stmt#%d, DependencyId#%d> -> %d VoltTables", stmt_index, input_d_id, results.get(input_d_id).size()));
         } // FOR
         return (results);
     }

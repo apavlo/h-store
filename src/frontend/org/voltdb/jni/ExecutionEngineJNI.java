@@ -59,8 +59,8 @@ public class ExecutionEngineJNI extends ExecutionEngine {
     static {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
-    private boolean t = trace.get();
-    private boolean d = debug.get();
+    private static boolean t = trace.get();
+    private static boolean d = debug.get();
 
 
     private final ArrayList<VoltTable> temp_tables = new ArrayList<VoltTable>();

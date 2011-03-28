@@ -689,6 +689,13 @@ public class BenchmarkController {
                                 m_config.parameters.get("BLOCKING")
         ));
         
+        // HACK
+        int gdb_sleep = 0;
+        if (gdb_sleep > 0) {
+            LOG.info("Sleeping for " + gdb_sleep + " waiting for GDB");
+            ThreadUtil.sleep(gdb_sleep*1000);
+        }
+        
         m_currentResults = new BenchmarkResults(m_config.interval, m_config.duration, m_clients.size());
         m_statusThread = new ClientStatusThread();
         m_statusThread.setDaemon(true);

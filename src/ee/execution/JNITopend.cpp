@@ -83,12 +83,13 @@ int JNITopend::loadNextDependency(int32_t dependencyId, voltdb::Pool *stringPool
     jbyteArray jbuf = (jbyteArray)(m_jniEnv->CallObjectMethod(m_javaExecutionEngine,
                                                               m_nextDependencyMID,
                                                               dependencyId));
-
     if (!jbuf) {
+        VOLT_DEBUG("No table returned for dependency id %d", dependencyId);
         return 0;
     }
 
     jsize length = m_jniEnv->GetArrayLength(jbuf);
+    VOLT_DEBUG("Dependency Id %d Length: %d", dependencyId, length);
     if (length > 0) {
         jbyte *bytes = m_jniEnv->GetByteArrayElements(jbuf, NULL);
         ReferenceSerializeInput serialize_in(bytes, length);
