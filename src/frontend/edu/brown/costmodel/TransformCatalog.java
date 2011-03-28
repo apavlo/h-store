@@ -59,7 +59,7 @@ public class TransformCatalog {
         Writer writer;
         try {
             writer = new FileWriter("/home/sw47/Desktop/system.info");
-            writer.append(String.valueOf(total_sites) + "\n");
+            writer.append(CatalogUtil.getNumberOfPartitions(catalogDb) + " " + CatalogUtil.getNumberOfSites(catalogDb) + "\n");
             writer.append(sb.toString());
             writer.flush();
         } catch (IOException e) {

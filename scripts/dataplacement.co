@@ -1,83 +1,163 @@
 import cotfd; 
 Solver<CP> cp();
 
-// parse transaction trace
-function int calculateTransactionTraceCost(string trace_file, int[] partition_site) {
-  enum PENALTY = {SAME_HOST,REMOTE_HOST};
-  int penalty[PENALTY] = [1,4];
+class BatchPartition {
+  set{int} partitions;
+
+  BatchPartition() {
+    partitions = new set{int}();
+  }
+
+  set{int} getPartitions() {
+    return partitions;
+  }
+}
+
+class TxnPartition {
+  int basePartition;
+  set{BatchPartition} partitions;
+
+  TxnPartition(int init_basePartition) {
+    basePartition = init_basePartition;
+    partitions = new set{BatchPartition}();
+  }
+
+  set{BatchPartition} getBatchPartitions() {
+    return partitions;
+  }
+
+  int getbasePartition() {
+    return basePartition;
+  }
+}
+
+class SystemInfo {
+  int num_partitions;
+  int num_sites;
+  int[] site_to_host;
+
+  SystemInfo(int partition, int site, int[] s_to_h) {
+    num_partitions = partition;
+    num_sites = site;
+    site_to_host = s_to_h;
+  }
+
+  int getNumPartitions() {
+    return num_partitions;
+  }
+
+  int getNumSites() {
+    return num_sites;
+  }
+
+  int[] getSiteToHost() {
+    return site_to_host;
+  }
+}
+
+// parse transaction trace file
+function dict{int->TxnPartition} calculateTransaction(string trace_file) {
   ifstream file(trace_file);
   int batch_count = file.getInt();
   int xact_count = file.getInt();
-  int base_partition = -1;
-  string[] batch_partitions;
-  int total_cost = 0;
+  dict{int->TxnPartition} partitions();
+  string [] batch_partitions;
+  TxnPartition xact_partition;
+  BatchPartition batch_partition;
   for (int i = 0; i < xact_count; i++) {
+    batch_partition = new BatchPartition();
     for (int j = 0; j < batch_count; j++) {
       if (j != 0) {
         batch_partitions = file.getLine().split(" ");
 	for (int k = 0; k < batch_partitions.getSize(); k++) {
-          if (batch_partitions[k] != " ") {
-            // check batch partition against base partition
-            if (batch_partitions[k].toInt() != base_partition) {
-              // lookup partition_site to determine whether its the same host or remote host
-              if (partition_site[batch_partitions[k].toInt()] == partition_site[base_partition]) {
-		total_cost += penalty[SAME_HOST];
-              } else {
-		total_cost += penalty[REMOTE_HOST];
-	      }	
-            }
-	    cout << "batch id: " << j << " partition: " << batch_partitions[k] << endl;
+          //cout << "partition: " << batch_partitions[k] << endl;
+          if (batch_partitions[k] != " " && batch_partitions[k] != "") {
+            batch_partition.getPartitions().insert(batch_partitions[k].toInt()); 
+	    //cout << "inserted partition: " << batch_partitions[k].toInt() << endl;
           }
         }
       } else {
-        // read base partition
-        base_partition = file.getInt();
-        //cout << "xact id: " << i << " base id: " << base_partition << endl;
+        // read base partition + instantiate transaction partition
+        xact_partition = new TxnPartition(file.getInt());
       }
     }
+    xact_partition.getBatchPartitions().insert(batch_partition);
+    partitions{i} = xact_partition;
   }
-  return total_cost;
+  return partitions;
+}
+
+// calculate transaction cost based on parsed transaction structure and partition to site decision variable
+function int calculateTransactionTraceCost(dict{int->TxnPartition} transactions, var<CP>{int}[] partition_site) {
+    enum PENALTY = {SAME_HOST,REMOTE_HOST};
+    int penalty[PENALTY] = [1,4];
+    int total_cost = 0;
+    for (int i = 0; i < transactions.getSize(); i++) {
+      TxnPartition xact_part = transactions{i};
+      int basePartition = xact_part.getbasePartition();
+      //cout << "base: " << xact_part.getbasePartition() << endl;
+      forall (batch in xact_part.getBatchPartitions()) {
+        forall (partition in batch.getPartitions()) {
+          //cout << "partition: " << partition << endl;
+          if (partition != basePartition) {
+            if (partition_site[partition].bound() && partition_site[basePartition].bound()) {
+	      if (partition_site[partition] == partition_site[basePartition]) {
+	        // Same site
+	        total_cost += penalty[SAME_HOST];
+                } else {
+	        total_cost += penalty[REMOTE_HOST];
+              }
+	    }
+          }
+        }
+      }
+    }
+    return total_cost;
 }
 
 // parse system information
-function int[] processSystemInfo(string system_file) {
+function SystemInfo processSystemInfo(string system_file) {
   ifstream file(system_file);
-  int site_count = file.getInt();
-  cout << "site count: " << site_count << endl;
+  string[] line = file.getLine().split(" ");
+  int partition_count = line[0].toInt();
+  int site_count = line[1].toInt();
+  //cout << "site count: " << site_count << endl;
   int site_to_host[0..site_count-1] = -1;
   for (int i = 0; i < site_count; i++) {
     string[] data = file.getLine().split(":");
     //cout << data[0] << endl;
     site_to_host[i] = data[0].toInt();
-    cout << "site: " << i << " host " << site_to_host[i] << endl;
+    //cout << "site: " << i << " host " << site_to_host[i] << endl;
   }
-  return site_to_host;
+  SystemInfo si = new SystemInfo(partition_count, site_count, site_to_host);
+  return si;
 }
 
 // start function calls
-range partition_range = 0..39;
-int total_sites = 9;
 string[] args = System.getArgs();
-int[] host_site = processSystemInfo(args[args.getSize() - 1]);
+int partition_count = 0;
+int site_count = 0;
+SystemInfo sys_info = processSystemInfo(args[args.getSize() - 1]);
+range partition_range = 0..sys_info.getNumPartitions();
+int total_sites = sys_info.getNumSites();
+dict{int->TxnPartition} transactions = calculateTransaction(args[args.getSize() - 2]);
 
 // CP Solver - create and move to different class?
 var<CP>{int} partition_to_site[partition_range](cp,
 0..total_sites);
 int partition_mapping[partition_range];
-solveall<cp> {
+minimize<cp>
+  calculateTransactionTraceCost(transactions, partition_to_site)
+subject to {
   forall (p in partition_range) {
     if (p != 0 && p % 8 == 0) {
       cp.post(alldifferent(all(i in (p-8 .. p)) partition_to_site[i]));
-      }
     }
-    //cp.post(partition_to_site[p] != 0);
+    cp.post(partition_to_site[p] != 0);
+  }
 }
 using {
   labelFF(partition_to_site);
-  cout << partition_to_site << endl;
-  forall (i in partition_range) {
-    partition_mapping[i] = partition_to_site[i];
-  }
-  cp.exit();
+  cout << "total cost: " << calculateTransactionTraceCost(transactions, partition_to_site) << endl;
+  //cp.exit();
 }
-cout << "total cost: " << calculateTransactionTraceCost(args[args.getSize() - 2], partition_mapping) << endl;
