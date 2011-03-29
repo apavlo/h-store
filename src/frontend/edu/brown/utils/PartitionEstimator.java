@@ -293,7 +293,7 @@ public class PartitionEstimator {
             if (catalog_proc.getSystemproc() == false && catalog_proc.getParameters().size() > 0) {
                 int param_idx = catalog_proc.getPartitionparameter();
                 ProcParameter catalog_param = null;
-                if (param_idx >= 0) catalog_param = catalog_proc.getParameters().get(param_idx);
+                if (param_idx != NullProcParameter.PARAM_IDX) catalog_param = catalog_proc.getParameters().get(param_idx);
                 this.cache_procparam.put(catalog_proc, catalog_param);
                 if (d) LOG.debug("ProcParameter Cache: " + (catalog_param != null ? catalog_param.fullName() : catalog_param));
             }
@@ -696,7 +696,7 @@ public class PartitionEstimator {
         if (catalog_param == null) { 
             if (force) {
                 int idx = catalog_proc.getPartitionparameter();
-                catalog_param = catalog_proc.getParameters().get(idx); 
+                if (idx != NullProcParameter.PARAM_IDX) catalog_param = catalog_proc.getParameters().get(idx); 
             } else {
                 if (d) LOG.debug(catalog_proc + " has no parameters. No base partition!");
                 return (null);    
