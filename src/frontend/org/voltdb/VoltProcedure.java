@@ -630,8 +630,8 @@ public abstract class VoltProcedure implements Poolable {
             } else if (ex_class.equals(MispredictionException.class)) {
                 if (d) LOG.warn("Caught MispredictionException for txn #" + this.txn_id);
                 this.status = ClientResponse.MISPREDICTION;
-                this.m_localTxnState.getTouchedPartitions().add(this.executor.partitionId);
-                this.m_localTxnState.getTouchedPartitions().addAll(((MispredictionException)ex).getPartitions());
+                this.m_localTxnState.getTouchedPartitions().put(this.executor.partitionId);
+                this.m_localTxnState.getTouchedPartitions().putAll(((MispredictionException)ex).getPartitions());
 
             // -------------------------------
             // ConstraintFailureException

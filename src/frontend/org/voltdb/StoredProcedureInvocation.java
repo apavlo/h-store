@@ -36,6 +36,9 @@ public class StoredProcedureInvocation implements FastSerializable {
     /** A descriptor provided by the client, opaque to the server,
         returned to the client in the ClientResponse */
     long clientHandle = -1;
+    
+    /** Whether this invocation has been redirected **/
+    int redirected_partition = -1;
 
     public StoredProcedureInvocation() {
         super();
@@ -89,6 +92,18 @@ public class StoredProcedureInvocation implements FastSerializable {
     public void setClientHandle(int aHandle) {
         clientHandle = aHandle;
     }
+    
+    public boolean hasRedirectedPartition() {
+        return (this.redirected_partition != -1);
+    }
+    
+    public int getRedirectedPartition() {
+        return (this.redirected_partition);
+    }
+    
+    public void setRedirectedPartition(int partition) {
+        this.redirected_partition = (short)partition;
+    }
 
     public long getClientHandle() {
         return clientHandle;
@@ -130,6 +145,7 @@ public class StoredProcedureInvocation implements FastSerializable {
     @Override
     public void readExternal(FastDeserializer in) throws IOException {
         in.readByte();//skip version
+        redirected_partition = (int)in.readShort();
         procName = in.readString();
         clientHandle = in.readLong();
         // do not deserialize parameters in ClientInterface context
@@ -142,6 +158,7 @@ public class StoredProcedureInvocation implements FastSerializable {
         assert(!((params == null) && (unserializedParams == null)));
         assert((params != null) || (unserializedParams != null));
         out.write(0);//version
+        out.writeShort(redirected_partition);
         out.writeString(procName);
         out.writeLong(clientHandle);
         if (params != null)
@@ -150,6 +167,17 @@ public class StoredProcedureInvocation implements FastSerializable {
             out.write(unserializedParams.array(),
                       unserializedParams.position() + unserializedParams.arrayOffset(),
                       unserializedParams.remaining());
+    }
+    
+    /**
+     * Mark a serialized byte array of a StoredProcedureInvocation as being redirected to
+     * the given partition id without having to serialize it first.
+     * @param partition
+     * @param serialized
+     */
+    public static void markRawBytesAsRedirected(int partition, byte serialized[]) {
+        ByteBuffer buffer = ByteBuffer.wrap(serialized);
+        buffer.putShort(1, (short)partition);
     }
 
     @Override

@@ -57,6 +57,7 @@ import ca.evanjones.protorpc.ProtoRpcController;
 import com.google.protobuf.RpcCallback;
 
 import edu.brown.markov.TransactionEstimator;
+import edu.brown.statistics.Histogram;
 import edu.brown.utils.CountingPoolableObjectFactory;
 import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.ProfileMeasurement;
@@ -170,7 +171,10 @@ public class LocalTransactionState extends TransactionState {
      * The partitions that we told the Dtxn.Coordinator that we were done with
      */
     private final Set<Integer> done_partitions = new HashSet<Integer>();
-    
+    /**
+     * What partitions has this txn touched
+     */
+    private final Histogram<Integer> touched_partitions = new Histogram<Integer>();
     /**
      * Whether this is a sysproc
      */
@@ -293,10 +297,6 @@ public class LocalTransactionState extends TransactionState {
      * 
      */
     private final ConcurrentLinkedQueue<DependencyInfo> reusable_dependencies = new ConcurrentLinkedQueue<DependencyInfo>(); 
-    /**
-     * 
-     */
-    private final Set<Integer> touched_partitions = new HashSet<Integer>();
 
     
     // ----------------------------------------------------------------------------
@@ -643,7 +643,7 @@ public class LocalTransactionState extends TransactionState {
     public Set<Integer> getDonePartitions() {
         return done_partitions;
     }
-    public Set<Integer> getTouchedPartitions() {
+    public Histogram<Integer> getTouchedPartitions() {
         return (this.touched_partitions);
     }
     
@@ -757,7 +757,7 @@ public class LocalTransactionState extends TransactionState {
      * @return
      */
     public boolean isExecSinglePartition() {
-        return (this.touched_partitions.size() <= 1);
+        return (this.touched_partitions.getValueCount() <= 1);
     }
     
     /**
@@ -857,7 +857,7 @@ public class LocalTransactionState extends TransactionState {
         // The partition that this task is being sent to for execution
         boolean blocked = false;
         int partition = ftask.getDestinationPartitionId();
-        this.touched_partitions.add(partition);
+        this.touched_partitions.put(partition);
         int num_fragments = ftask.getFragmentCount();
         
         // If this task produces output dependencies, then we need to make 

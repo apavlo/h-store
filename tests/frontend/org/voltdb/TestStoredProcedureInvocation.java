@@ -24,6 +24,25 @@ public class TestStoredProcedureInvocation extends BaseTestCase {
     protected void setUp() throws Exception {
         super.setUp(ProjectType.TM1);
     }
+
+    /**
+     * testMarkRawBytesAsRedirected
+     */
+    public void testMarkRawBytesAsRedirected() throws Exception {
+        StoredProcedureInvocation invocation = new StoredProcedureInvocation(CLIENT_HANDLE, TARGET_PROCEDURE, PARAMS);
+        assertFalse(invocation.hasRedirectedPartition());
+        byte[] invocation_bytes = FastSerializer.serialize(invocation);
+        assertNotNull(invocation_bytes);
+        
+        for (int partition = 0; partition < 100; partition+=3) {
+            StoredProcedureInvocation.markRawBytesAsRedirected(partition, invocation_bytes);
+            FastDeserializer fds = new FastDeserializer(invocation_bytes);
+            StoredProcedureInvocation clone = fds.readObject(StoredProcedureInvocation.class);
+            assertNotNull(clone);
+            assert(clone.hasRedirectedPartition());
+            assertEquals(partition, clone.getRedirectedPartition());
+        } // FOR
+    }
     
     /**
      * testSerialization

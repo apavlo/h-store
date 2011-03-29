@@ -331,7 +331,7 @@ public class TestSingleSitedCostModel extends BaseTestCase {
                     assert(query_entry.getAllPartitions().isEmpty());
                 } else {
                     assertFalse(query_entry.getAllPartitions().isEmpty());
-                    expected_touched.putValues(query_entry.getAllPartitions());
+                    expected_touched.putAll(query_entry.getAllPartitions());
                 }
             } // FOR
             
