@@ -123,7 +123,7 @@ void ProtoDtxnCoordinator::Execute(RpcController* controller,
         CoordinatorResponse* response,
         Closure* done) {
     LOG_DEBUG("Execute %ld", request->transaction_id());
-    fprintf(stderr, "Execute %ld fragments: %d last fragment? %d done partitions: %d\n",
+    LOG_DEBUG("Execute %ld fragments: %d last fragment? %d done partitions: %d\n",
             request->transaction_id(), request->fragment_size(),
             request->last_fragment(), request->done_partition_size());
     CHECK(request->fragment_size() > 0);
@@ -179,7 +179,7 @@ void ProtoDtxnCoordinator::Finish(RpcController* controller,
         FinishResponse* response,
         Closure* done) {
     LOG_DEBUG("Finish %ld [payload=%s]", request->transaction_id(), request->payload().c_str());
-    fprintf(stderr, "Finish %ld commit = %d\n",
+    LOG_DEBUG("Finish %ld commit = %d\n",
             request->transaction_id(), request->commit());
     
     // Finish this transaction

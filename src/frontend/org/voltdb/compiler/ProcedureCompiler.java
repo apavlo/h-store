@@ -247,7 +247,7 @@ public abstract class ProcedureCompiler {
 
         // parse the procinfo
         procedure.setSinglepartition(info.singlePartition);
-        if (info.singlePartition) {
+        if (info.partitionInfo != null && info.partitionInfo.isEmpty() == false) {
             parsePartitionInfo(compiler, db, procedure, info.partitionInfo);
             if (procedure.getPartitionparameter() >= paramTypes.length) {
                 String msg = "PartitionInfo parameter not a valid parameter for procedure: " + procedure.getClassname();
@@ -271,8 +271,10 @@ public abstract class ProcedureCompiler {
                 String msg = "PartitionInfo parameter must be a String or Number for procedure: " + procedure.getClassname();
                 throw compiler.new VoltCompilerException(msg);
             }
+        } else {
+            procedure.setPartitionparameter(-1);
         }
-
+        
         // put the compiled code for this procedure into the jarfile
         VoltCompiler.addClassToJar(procClass, compiler);
     }
@@ -376,7 +378,7 @@ public abstract class ProcedureCompiler {
     static void parsePartitionInfo(VoltCompiler compiler, Database db,
             Procedure procedure, String info) throws VoltCompilerException {
 
-        assert(procedure.getSinglepartition() == true);
+        // assert(procedure.getSinglepartition() == true);
 
         // check this isn't empty
         if (info.length() == 0) {

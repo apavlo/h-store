@@ -72,6 +72,6 @@ public class DeleteCallForwarding extends VoltProcedure {
              throw new VoltAbortException("Failed to delete a row in " + TM1Constants.TABLENAME_CALL_FORWARDING);
          }
          
-         return (results[0].asScalarLong());
+         return (rows_updated);
      }
 }
