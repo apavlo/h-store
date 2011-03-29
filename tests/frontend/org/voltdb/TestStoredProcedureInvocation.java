@@ -2,6 +2,9 @@ package org.voltdb;
 
 import static org.junit.Assert.*;
 
+import java.util.HashSet;
+import java.util.Set;
+
 import org.voltdb.messaging.FastDeserializer;
 import org.voltdb.messaging.FastSerializer;
 
@@ -30,7 +33,7 @@ public class TestStoredProcedureInvocation extends BaseTestCase {
      */
     public void testMarkRawBytesAsRedirected() throws Exception {
         StoredProcedureInvocation invocation = new StoredProcedureInvocation(CLIENT_HANDLE, TARGET_PROCEDURE, PARAMS);
-        assertFalse(invocation.hasRedirectedPartition());
+        assertFalse(invocation.hasBasePartition());
         byte[] invocation_bytes = FastSerializer.serialize(invocation);
         assertNotNull(invocation_bytes);
         
@@ -39,8 +42,8 @@ public class TestStoredProcedureInvocation extends BaseTestCase {
             FastDeserializer fds = new FastDeserializer(invocation_bytes);
             StoredProcedureInvocation clone = fds.readObject(StoredProcedureInvocation.class);
             assertNotNull(clone);
-            assert(clone.hasRedirectedPartition());
-            assertEquals(partition, clone.getRedirectedPartition());
+            assert(clone.hasBasePartition());
+            assertEquals(partition, clone.getBasePartition());
         } // FOR
     }
     
@@ -66,6 +69,12 @@ public class TestStoredProcedureInvocation extends BaseTestCase {
     public void testDeserialization() throws Exception {
         // Try with referencing the params directly
         StoredProcedureInvocation invocation = new StoredProcedureInvocation(CLIENT_HANDLE, TARGET_PROCEDURE, PARAMS);
+        final Set<Integer> partitions = new HashSet<Integer>();
+        partitions.add(19);
+        partitions.add(85);
+        partitions.add(-1);
+        invocation.addPartitions(partitions);
+        
         byte[] invocation_bytes = FastSerializer.serialize(invocation);
         assertNotNull(invocation_bytes);
 
@@ -79,5 +88,9 @@ public class TestStoredProcedureInvocation extends BaseTestCase {
         assertEquals(invocation.getProcName(), clone.getProcName());
         assertNotNull(clone.getParams());
         assertArrayEquals(invocation.getParams().toArray(), clone.getParams().toArray());
+        assert(clone.hasPartitions());
+        assertEquals(partitions.size(), clone.getPartitions().size());
+        assert(partitions.containsAll(clone.getPartitions()));
+        
     }
 }

@@ -569,7 +569,7 @@ class Distributer {
          */
         if (cxn != null) {
             if (m_useMultipleThreads) {
-                cxn.createWork(invocation.getHandle(), invocation.getProcName(), invocation, cb);
+                cxn.createWork(invocation.getClientHandle(), invocation.getProcName(), invocation, cb);
             } else {
                 final FastSerializer fs = new FastSerializer(m_pool, expectedSerializedSize);
                 BBContainer c = null;
@@ -579,7 +579,7 @@ class Distributer {
                     fs.getBBContainer().discard();
                     throw new RuntimeException(e);
                 }
-                cxn.createWork(invocation.getHandle(), invocation.getProcName(), c, cb);
+                cxn.createWork(invocation.getClientHandle(), invocation.getProcName(), c, cb);
             }
 //            final String invocationName = invocation.getProcName();
 //            if (reportedSizes.containsKey(invocationName)) {

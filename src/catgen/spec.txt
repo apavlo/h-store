@@ -152,6 +152,7 @@ begin Statement             "A parameterized SQL statement embedded in a stored 
   bool readonly             "Can the statement modify any data?"
   bool singlepartition      "Does the statement only use data on one partition?"
   bool replicatedtabledml   "Should the result of this statememt be divided by partition count before returned"
+  bool replicatedonly       "Does this statement only access replicated tables?"
   bool batched              ""
   int paramnum              ""
   StmtParameter* parameters "The set of parameters to this SQL statement"

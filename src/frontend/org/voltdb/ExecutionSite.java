@@ -1065,6 +1065,9 @@ public class ExecutionSite implements Runnable {
         int output_depIds[] = plan.getOutputDependencyIds();
         int input_depIds[] = plan.getInputDependencyIds();
         ParameterSet parameterSets[] = plan.getParameterSets();
+        
+        // Mark that we touched the local partition once for each query in the batch
+        local_ts.getTouchedPartitions().put(this.partitionId, plan.getBatchSize());
 
         if (t) {
             StringBuilder sb = new StringBuilder();
@@ -1526,8 +1529,9 @@ public class ExecutionSite implements Runnable {
         // will catch it and we can propagate the error message all the way back to the HStoreSite
         if (need_restart) {
             if (t) LOG.trace(String.format("Aborting txn #%d because it was mispredicted", txn_id));
-            Set<Integer> touched = ts.getTouchedPartitions().values();
-            throw new MispredictionException(txn_id, touched);
+            // XXX: This is kind of screwy because we don't actually want to send the touched partitions
+            // histogram because VoltProcedure will just do it for us...
+            throw new MispredictionException(txn_id, null);
         }
         
         // Bombs away!

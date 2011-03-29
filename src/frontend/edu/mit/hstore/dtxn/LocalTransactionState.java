@@ -389,7 +389,7 @@ public class LocalTransactionState extends TransactionState {
         return (this.init(txnId, clientHandle, source_partition));
     }
     
-    public LocalTransactionState init(long txnId, LocalTransactionState orig) {
+    public LocalTransactionState init(long txnId, int base_partition, LocalTransactionState orig) {
         this.orig_txn_id = orig.getTransactionId();
         this.catalog_proc = orig.catalog_proc;
         this.sysproc = orig.sysproc;
@@ -407,7 +407,7 @@ public class LocalTransactionState extends TransactionState {
 //            this.est_time.appendTime(orig.est_time);
 //        }
         
-        return (this.init(txnId, orig.client_handle, orig.base_partition));
+        return (this.init(txnId, orig.client_handle, base_partition));
     }
     
     @Override
@@ -857,8 +857,8 @@ public class LocalTransactionState extends TransactionState {
         // The partition that this task is being sent to for execution
         boolean blocked = false;
         int partition = ftask.getDestinationPartitionId();
-        this.touched_partitions.put(partition);
         int num_fragments = ftask.getFragmentCount();
+        this.touched_partitions.put(partition, num_fragments);
         
         // If this task produces output dependencies, then we need to make 
         // sure that the txn wait for it to arrive first

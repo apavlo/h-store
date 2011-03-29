@@ -46,6 +46,7 @@ protected:
     bool m_readonly;
     bool m_singlepartition;
     bool m_replicatedtabledml;
+    bool m_replicatedonly;
     bool m_batched;
     int32_t m_paramnum;
     CatalogMap<StmtParameter> m_parameters;
@@ -76,6 +77,8 @@ public:
     bool singlepartition() const;
     /** GETTER: Should the result of this statememt be divided by partition count before returned */
     bool replicatedtabledml() const;
+    /** GETTER: Does this statement only access replicated tables? */
+    bool replicatedonly() const;
     bool batched() const;
     int32_t paramnum() const;
     /** GETTER: The set of parameters to this SQL statement */
