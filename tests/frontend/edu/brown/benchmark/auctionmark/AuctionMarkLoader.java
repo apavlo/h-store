@@ -106,11 +106,8 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
     public AuctionMarkLoader(String[] args) {
         super(AuctionMarkLoader.class, args);
 
-        //numClients = getNumClients();
-        numClients = 1;
-        
+        numClients = this.getNumClients();
         assert(AuctionMarkConstants.MAXIMUM_NUM_CLIENTS > numClients);
-        
         LOG.debug("AuctionMarkLoader::: numClients = " + numClients);
         
         // Data Generators
@@ -1635,7 +1632,7 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
      * @param tableName
      * @param table
      */
-    protected void loadTable(String tableName, VoltTable table) {
+    protected synchronized void loadTable(String tableName, VoltTable table) {
         long count = table.getRowCount();
         long total = this.profile.getTableSize(tableName);
         long last_reported = this.load_table_count.get(tableName);

@@ -1323,6 +1323,7 @@ public class BenchmarkController {
         for (Entry<String, String> e : clientParams.entrySet()) {
             config.parameters.put(e.getKey().toUpperCase(), e.getValue());    
         } // FOR
+        config.parameters.put("NUMCLIENTS", Integer.toString(clientCount * processesPerClient));
 
         if (debug.get()) LOG.debug("Benchmark Configuration\n" + config.toString());
         
