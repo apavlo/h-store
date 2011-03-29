@@ -66,7 +66,7 @@ import org.voltdb.types.TimestampType;
 //1) var_name, represented as a NxN table representing typeFOOBAR.
 
 @ProcInfo (
-    //partitionInfo = "WAREHOUSE.W_ID: 0",
+    partitionInfo = "WAREHOUSE.W_ID: 0",
     singlePartition = false
 )
 public class paymentByCustomerId extends VoltProcedure {

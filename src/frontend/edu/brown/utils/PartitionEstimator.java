@@ -29,7 +29,6 @@ import edu.brown.hashing.AbstractHasher;
 import edu.brown.hashing.DefaultHasher;
 import edu.brown.plannodes.PlanNodeUtil;
 import edu.brown.statistics.Histogram;
-import edu.brown.utils.LoggerUtil.LoggerBoolean;
 import edu.brown.workload.QueryTrace;
 import edu.brown.workload.TransactionTrace;
 import edu.brown.workload.Workload;
@@ -293,7 +292,10 @@ public class PartitionEstimator {
         for (Procedure catalog_proc : this.catalog_db.getProcedures()) {
             if (catalog_proc.getSystemproc() == false && catalog_proc.getParameters().size() > 0) {
                 int param_idx = catalog_proc.getPartitionparameter();
-                this.cache_procparam.put(catalog_proc, catalog_proc.getParameters().get(param_idx));
+                ProcParameter catalog_param = null;
+                if (param_idx >= 0) catalog_param = catalog_proc.getParameters().get(param_idx);
+                this.cache_procparam.put(catalog_proc, catalog_param);
+                if (d) LOG.debug("ProcParameter Cache: " + (catalog_param != null ? catalog_param.fullName() : catalog_param));
             }
         } // FOR
         
@@ -727,6 +729,7 @@ public class PartitionEstimator {
             if (d) LOG.debug(Arrays.toString(hashes) + " => " + partition);
         // Single ProcParameter
         } else {
+            if (d) LOG.debug("Partitioning on " + catalog_param.fullName());
             partition = this.calculatePartition(catalog_proc, params[catalog_param.getIndex()], is_array);
         }
         return (partition);
