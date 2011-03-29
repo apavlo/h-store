@@ -609,27 +609,23 @@ public class ExecutionSite implements Runnable {
 
         // Things that we will need in the loop below
         TransactionInfoBaseMessage work = null;
-        long txn_id;
-        String proc_name;
-        LocalTransactionState local_ts;
-
         boolean stop = false;
-        int poll_ctr = 0;
+//        int poll_ctr = 0;
         try {
             if (d) LOG.debug("Starting ExecutionSite run loop...");
             while (stop == false && this.shutdown == false) {
                 work = null;
-                if (poll_ctr++ > 10000000) {
-                    d = debug.get();
-                    t = trace.get();
-
-                    if (t) LOG.trace("Polling work queue [" + poll_ctr + "]: " + this.work_queue + "");
-                    if (this.error_counter.get() > 0) {
-                        LOG.warn("There were " + error_counter.get() + " errors since the last time we checked. You might want to enable debugging");
-                        this.error_counter.set(0);
-                    }
-                    poll_ctr = 0;
-                }
+//                if (poll_ctr++ > 10000000) {
+//                    d = debug.get();
+//                    t = trace.get();
+//
+//                    if (t) LOG.trace("Polling work queue [" + poll_ctr + "]: " + this.work_queue + "");
+//                    if (this.error_counter.get() > 0) {
+//                        LOG.warn("There were " + error_counter.get() + " errors since the last time we checked. You might want to enable debugging");
+//                        this.error_counter.set(0);
+//                    }
+//                    poll_ctr = 0;
+//                }
                 
                 // -------------------------------
                 // Poll Work Queue
@@ -653,25 +649,8 @@ public class ExecutionSite implements Runnable {
                 // Invoke Stored Procedure
                 // -------------------------------
                 } else if (work instanceof InitiateTaskMessage) {
-                    InitiateTaskMessage init_work = (InitiateTaskMessage)work;
-                    txn_id = init_work.getTxnId();
-                    proc_name = init_work.getStoredProcedureName();
-                    
-                    local_ts = (LocalTransactionState)this.txn_states.get(txn_id);
-                    assert(local_ts != null) : "The TransactionState is somehow null for txn #" + txn_id;
-                    if (hstore_conf.enable_profiling) local_ts.queue_time.stop();
-                    
-                    VoltProcedure volt_proc = null;
-                    try {
-                        volt_proc = this.getVoltProcedure(proc_name);
-                    } catch (AssertionError ex) {
-                        LOG.error("Unrecoverable error for txn #" + txn_id);
-                        LOG.error("InitiateTaskMessage= " + init_work.getDumpContents().toString());
-                        throw ex;
-                    }
-                    local_ts.setVoltProcedure(volt_proc);
-                    if (t) LOG.trace(String.format("Starting execution of txn #%d [proc=%s]", txn_id, proc_name));
-                    volt_proc.call(local_ts, init_work.getParameters()); // Non-blocking...
+                    InitiateTaskMessage itask = (InitiateTaskMessage)work;
+                    this.processInitiateTaskMessage(itask);
                     
                 // -------------------------------
                 // BAD MOJO!
@@ -831,6 +810,32 @@ public class ExecutionSite implements Runnable {
         //ts.addResult(partition, dependency_id, table);
         //} // FOR
         //} // FOR
+    }
+    
+    /**
+     * Execute a new transaction based on an InitiateTaskMessage
+     * @param itask
+     */
+    protected void processInitiateTaskMessage(InitiateTaskMessage itask) {
+        long txn_id = itask.getTxnId();
+        String proc_name = itask.getStoredProcedureName();
+        
+        LocalTransactionState local_ts = (LocalTransactionState)this.txn_states.get(txn_id);
+        assert(local_ts != null) : "The TransactionState is somehow null for txn #" + txn_id;
+        if (hstore_conf.enable_profiling) local_ts.queue_time.stop();
+        
+        VoltProcedure volt_proc = null;
+        try {
+            volt_proc = this.getVoltProcedure(proc_name);
+        } catch (AssertionError ex) {
+            LOG.error("Unrecoverable error for txn #" + txn_id);
+            LOG.error("InitiateTaskMessage= " + itask.getDumpContents().toString());
+            throw ex;
+        }
+        local_ts.setVoltProcedure(volt_proc);
+        if (t) LOG.trace(String.format("Starting execution of txn #%d [proc=%s]", txn_id, proc_name));
+        volt_proc.call(local_ts, itask.getParameters()); // Blocking...
+
     }
 
     /**
@@ -1045,7 +1050,13 @@ public class ExecutionSite implements Runnable {
      * @return
      */
     protected VoltTable[] executeLocalPlan(LocalTransactionState local_ts, BatchPlanner.BatchPlan plan) {
-        long undoToken = this.getNextUndoToken();
+        long undoToken;
+        if (local_ts.isPredictAbortable()) {
+            undoToken = this.getNextUndoToken();
+        } else {
+            if (t) LOG.trace(String.format("Bold! Not using undo buffers for %s txn #%d", local_ts.getProcedureName(), local_ts.getTransactionId()));
+            undoToken = Long.MAX_VALUE;
+        }
         local_ts.fastInitRound(undoToken);
       
         long fragmentIds[] = plan.getFragmentIds();
@@ -1687,11 +1698,9 @@ public class ExecutionSite implements Runnable {
         }
         
         Long undoToken = ts.getLastUndoToken();
-        if (d) LOG.debug(String.format("Committing txn #%d [partition=%d, lastCommittedTxnId=%d, undoToken=%d, submittedEE=%s]", txn_id, this.partitionId, this.lastCommittedTxnId, undoToken, ts.hasSubmittedEE()));
-
         // Blah blah blah...
-        if (this.ee != null && undoToken != null && ts.hasSubmittedEE()) {
-            if (t) LOG.trace("Releasing undoToken '" + undoToken + "' for txn #" + txn_id);
+        if (this.ee != null && undoToken != null && undoToken != Long.MAX_VALUE && ts.hasSubmittedEE()) {
+            if (d) LOG.debug(String.format("Committing txn #%d [partition=%d, lastCommittedTxnId=%d, undoToken=%d, submittedEE=%s]", txn_id, this.partitionId, this.lastCommittedTxnId, undoToken, ts.hasSubmittedEE()));
             this.ee.releaseUndoToken(undoToken); 
         }
 
@@ -1728,18 +1737,19 @@ public class ExecutionSite implements Runnable {
             return;
         }
         
+        // This can be null if they haven't submitted anything
         Long undoToken = ts.getLastUndoToken();
-        if (d) LOG.debug(String.format("Aborting txn #%d [partition=%d, lastCommittedTxnId=%d, undoToken=%d, submittedEE=%s]", txn_id, this.partitionId, this.lastCommittedTxnId, undoToken, ts.hasSubmittedEE()));
-
+            
         // Evan says that txns will be aborted LIFO. This means the first txn that
         // we get in abortWork() will have a the greatest undoToken, which means that 
         // it will automagically rollback all other outstanding txns.
         // I'm lazy/tired, so for now I'll just rollback everything I get, but in theory
         // we should be able to check whether our undoToken has already been rolled back
-        if (this.ee != null && undoToken != null && ts.hasSubmittedEE()) {
-            if (t) LOG.trace("Rolling back work for txn #" + txn_id + " starting at undoToken " + undoToken);
+        if (this.ee != null && undoToken != null && undoToken != Long.MAX_VALUE && ts.hasSubmittedEE()) {
+            if (d) LOG.debug(String.format("Aborting txn #%d [partition=%d, lastCommittedTxnId=%d, undoToken=%d, submittedEE=%s]", txn_id, this.partitionId, this.lastCommittedTxnId, undoToken, ts.hasSubmittedEE()));
             this.ee.undoUndoToken(undoToken);
         }
+        
         ts.markAsFinished();
         this.finished_txn_states.add(ts);
     }

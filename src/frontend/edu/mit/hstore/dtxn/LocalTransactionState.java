@@ -179,6 +179,16 @@ public class LocalTransactionState extends TransactionState {
      * Whether this txn isn't use the Dtxn.Coordinator
      */
     public boolean ignore_dtxn = false;
+
+    /**
+     * Whether this txn is suppose to be single-partitioned
+     */
+    protected boolean single_partitioned = false;
+    
+    /**
+     * Whether this txn can abort
+     */
+    protected boolean can_abort = true;
     
     /**
      * The original StoredProcedureInvocation request that was sent to the HStoreSite
@@ -362,7 +372,14 @@ public class LocalTransactionState extends TransactionState {
         return ((LocalTransactionState)super.init(txnId, clientHandle, source_partition, true));
     }
     
-    public LocalTransactionState init(long txnId, long clientHandle, int source_partition, Procedure catalog_proc, StoredProcedureInvocation invocation, RpcCallback<byte[]> client_callback) {
+    public LocalTransactionState init(long txnId, long clientHandle, int source_partition,
+                                      boolean single_partitioned, boolean can_abort, TransactionEstimator.State estimator_state,
+                                      Procedure catalog_proc, StoredProcedureInvocation invocation, RpcCallback<byte[]> client_callback) {
+        
+        this.single_partitioned = single_partitioned;
+        this.can_abort = can_abort;
+        this.estimator_state = estimator_state;
+        
         this.catalog_proc = catalog_proc;
         this.sysproc = catalog_proc.getSystemproc();
         this.invocation = invocation;
@@ -438,6 +455,8 @@ public class LocalTransactionState extends TransactionState {
         this.orig_txn_id = null;
         this.catalog_proc = null;
         this.sysproc = false;
+        this.single_partitioned = false;
+        this.can_abort = true;
         this.ignore_dtxn = false;
         this.done_partitions.clear();
         this.touched_partitions.clear();
@@ -628,6 +647,10 @@ public class LocalTransactionState extends TransactionState {
         return (this.touched_partitions);
     }
     
+    public String getProcedureName() {
+        return (this.catalog_proc.getName());
+    }
+    
     /**
      * Return the underlying procedure catalog object
      * The VoltProcedure must have already been set
@@ -708,6 +731,9 @@ public class LocalTransactionState extends TransactionState {
     public void setPredictSinglePartitioned(boolean singlePartitioned) {
         this.single_partitioned = singlePartitioned;
     }
+    public void setPredictAbortable(boolean canAbort) {
+        this.can_abort = canAbort;
+    }
     
     /**
      * Returns true if this Transaction was originally predicted to be single-partitioned
@@ -715,6 +741,15 @@ public class LocalTransactionState extends TransactionState {
      */
     public boolean isPredictSinglePartition() {
         return (this.single_partitioned);
+    }
+    
+    
+    /**
+     * Returns true if this Transaction was originally predicted as being able to abort
+     * @return
+     */
+    public boolean isPredictAbortable() {
+        return can_abort;
     }
     
     /**

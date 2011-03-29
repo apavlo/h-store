@@ -86,7 +86,6 @@ public abstract class TransactionState implements Poolable {
     protected int base_partition;
     protected final Set<Integer> touched_partitions = new HashSet<Integer>();
     protected boolean exec_local;
-    protected boolean single_partitioned = false;
     protected Long last_undo_token;
     protected RoundState round_state;
     protected int round_ctr = 0;

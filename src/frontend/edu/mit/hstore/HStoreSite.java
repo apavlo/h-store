@@ -146,6 +146,8 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         EXECUTED,
         /** Fast single-partition execution */
         FAST,
+        /** No undo buffers! Naked transactions! */
+        NO_UNDO_BUFFER,
         /** Of the locally executed transactions, how many were single-partitioned */
         SINGLE_PARTITION,
         /** Of the locally executed transactions, how many were multi-partitioned */
@@ -189,6 +191,9 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
                 case SINGLE_PARTITION:
                 case MULTI_PARTITION:
                     total = SINGLE_PARTITION.get() + MULTI_PARTITION.get();
+                    break;
+                case NO_UNDO_BUFFER:
+                    total = EXECUTED.get();
                     break;
                 case FAST:
                     total = SINGLE_PARTITION.get();
@@ -759,6 +764,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         TransactionEstimator t_estimator = executor.getTransactionEstimator();
         
         Boolean single_partition = null;
+        boolean can_abort = true;
         TransactionEstimator.State estimator_state = null; 
 
         LocalTransactionState local_ts = null;
@@ -841,7 +847,9 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
                     } else {
                         if (d) LOG.debug(String.format("Using TransactionEstimator.Estimate for txn #%d to determine if single-partitioned", txn_id));
                         if (d) LOG.debug("MarkovEstimate:\n" + estimate);
-                        single_partition = estimate.isSinglePartition(this.thresholds);     
+                        single_partition = estimate.isSinglePartition(this.thresholds);
+                        can_abort = estimate.isUserAbort(this.thresholds);
+                        if (this.status_monitor != null && can_abort) TxnCounter.NO_UNDO_BUFFER.inc(catalog_proc);
                     }
                 }
                 if (hstore_conf.enable_profiling) local_ts.est_time.stop();
@@ -859,9 +867,9 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         assert (single_partition != null);
         if (d) LOG.debug(String.format("Executing %s txn #%d on partition %d [single-partitioned=%s]", catalog_proc.getName(), txn_id, dest_partition, single_partition));
 
-        local_ts.init(txn_id, request.getClientHandle(), dest_partition.intValue(), catalog_proc, request, done);
-        local_ts.setPredictSinglePartitioned(single_partition);
-        local_ts.setEstimatorState(estimator_state);        
+        local_ts.init(txn_id, request.getClientHandle(), dest_partition.intValue(),
+                      single_partition, can_abort, estimator_state,
+                      catalog_proc, request, done);
         if (hstore_conf.enable_profiling) {
             local_ts.total_time.start(timestamp);
             local_ts.init_time.start(timestamp);
