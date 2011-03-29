@@ -166,7 +166,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         REDIRECTED,
         ;
         
-        private final Histogram h = new Histogram();
+        private final Histogram<Integer> h = new Histogram<Integer>();
         private final String name;
         private TxnCounter() {
             this.name = StringUtil.title(this.name()).replace("_", "-");
@@ -175,7 +175,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         public String toString() {
             return (this.name);
         }
-        public Histogram getHistogram() {
+        public Histogram<Integer> getHistogram() {
             return (this.h);
         }
         public int get() {
@@ -263,8 +263,8 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
 
     /** All of the partitions in the cluster */
     protected final List<Integer> all_partitions;
-    /** Array of local partitions at this HStoreSite */
-    protected final int local_partitions[];
+    /** List of local partitions at this HStoreSite */
+    protected final List<Integer> local_partitions = new ArrayList<Integer>();
     
     private final HStoreConf hstore_conf;
     
@@ -334,12 +334,10 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         this.engine_channels = new Dtxn.Partition[num_partitions];
         this.txnid_managers = new TransactionIdManager[num_partitions];
         this.canadian_txns = (Set<Long>[])new Set<?>[num_partitions];
-        this.local_partitions = new int[this.executors.size()];
-        int local_idx = 0;
         for (int partition : this.executors.keySet()) {
             this.txnid_managers[partition] = new TransactionIdManager(partition);
             this.canadian_txns[partition] = Collections.newSetFromMap(new ConcurrentHashMap<Long, Boolean>());
-            this.local_partitions[local_idx++] = partition;
+            this.local_partitions.add(partition);
         } // FOR
         
         this.messenger = new HStoreMessenger(this);
@@ -700,9 +698,6 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         
         // If it's a sysproc, then it doesn't need to go to a specific partition
         if (sysproc) {
-            // Just pick the first one for now
-            dest_partition = CollectionUtil.getFirst(this.executors.keySet());
-            
             // HACK: Check if we should shutdown. This allows us to kill things even if the
             // DTXN coordinator is stuck.
             if (catalog_proc.getName().equalsIgnoreCase("@Shutdown")) {
@@ -718,8 +713,14 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
                 this.messenger.shutdownCluster(false, new Exception("Shutdown command received at site #" + this.site_id));
                 return;
             }
-        // Otherwise we use the PartitionEstimator to know where it is going
+        // DB2-style Transaction Redirection
+        } else if (hstore_conf.enable_db2_redirecting && request.hasRedirectedPartition()) {
+            if (t) LOG.trace(String.format("Using PartitionEstimator for %s request", request.getProcName()));
+            dest_partition = request.getRedirectedPartition();
+            
+        // Otherwise we use the PartitionEstimator to figure out where this thing needs to go
         } else if (hstore_conf.force_localexecution == false) {
+            if (t) LOG.trace(String.format("Using PartitionEstimator for %s request", request.getProcName()));
             try {
                 dest_partition = this.p_estimator.getBasePartition(catalog_proc, args, false);
             } catch (Exception ex) {
@@ -730,23 +731,24 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         // one our partitions at random. This can happen if we're forcing txns to execute locally
         // or if there are no input parameters <-- this should be in the paper!!!
         if (dest_partition == null) {
-            if (t && hstore_conf.force_localexecution) LOG.debug("Forcing all transaction requests to execute locally");
-            dest_partition = CollectionUtil.getRandomValue(this.executors.keySet());
+            if (t) LOG.trace(String.format("Selecting a random local partition to execute %s request [force_local=%s]", request.getProcName(), hstore_conf.force_localexecution));
+            dest_partition = CollectionUtil.getRandomValue(this.local_partitions);
         }
         
-        // assert(dest_partition >= 0);
-        if (t) {
-            LOG.trace("Client Handle = " + request.getClientHandle());
-            LOG.trace("Destination Partition = " + dest_partition);
-        }
+        if (t) LOG.trace(String.format("%s Invocation [handle=%d, partition=%d]", request.getClientHandle(), dest_partition));
         
         // If the dest_partition isn't local, then we need to ship it off to the right location
-        if (hstore_conf.force_localexecution == false && this.executors.containsKey(dest_partition) == false) {
+        if (this.local_partitions.contains(dest_partition) == false) {
             if (d) LOG.debug("StoredProcedureInvocation request for " +  catalog_proc + " needs to be forwarded to Partition #" + dest_partition);
             
             // Make a wrapper for the original callback so that when the result comes back frm the remote partition
             // we will just forward it back to the client. How sweet is that??
             ForwardTxnRequestCallback callback = new ForwardTxnRequestCallback(done);
+            
+            // Mark this request as having been redirected
+            assert(request.hasRedirectedPartition() == false) : "Trying to redirect " + request.getProcName() + " transaction more than once!";
+            StoredProcedureInvocation.markRawBytesAsRedirected(dest_partition.intValue(), serializedRequest);
+            
             this.messenger.forwardTransaction(serializedRequest, callback, dest_partition);
             if (this.status_monitor != null) TxnCounter.REDIRECTED.inc(catalog_proc);
             return;
@@ -763,7 +765,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         ExecutionSite executor = this.executors.get(dest_partition);
         TransactionEstimator t_estimator = executor.getTransactionEstimator();
         
-        Boolean single_partition = null;
+        boolean single_partition = false;
         boolean can_abort = true;
         TransactionEstimator.State estimator_state = null; 
 
@@ -864,7 +866,6 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
                 throw new RuntimeException(ex);
             }
         }
-        assert (single_partition != null);
         if (d) LOG.debug(String.format("Executing %s txn #%d on partition %d [single-partitioned=%s]", catalog_proc.getName(), txn_id, dest_partition, single_partition));
 
         local_ts.init(txn_id, request.getClientHandle(), dest_partition.intValue(),
@@ -1141,6 +1142,44 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         StoredProcedureInvocation spi = orig_ts.invocation;
         assert(spi != null) : "Missing StoredProcedureInvocation for txn #" + txn_id;
         
+        // Figure out whether this transaction should be redirected based on what partitions it
+        // tried to touch before it was aborted 
+        if (hstore_conf.enable_db2_redirecting) {
+            Histogram<Integer> touched = orig_ts.getTouchedPartitions();
+            Set<Integer> most_touched = touched.getMaxCountValues();
+            Integer redirect_partition = null;
+            if (most_touched.size() == 1) {
+                redirect_partition = CollectionUtil.getFirst(most_touched);
+            } else if (most_touched.isEmpty() == false) {
+                redirect_partition = CollectionUtil.getRandomValue(most_touched);
+            } else {
+                redirect_partition = CollectionUtil.getRandomValue(this.all_partitions);
+            }
+            LOG.info(String.format("Touched partitions for mispredicted txn #%d\n%s", txn_id, touched));
+            
+            if (this.local_partitions.contains(redirect_partition) == false) {
+                ForwardTxnRequestCallback callback = new ForwardTxnRequestCallback(orig_callback);
+                
+                // Mark this request as having been redirected
+                assert(spi.hasRedirectedPartition() == false) : "Trying to redirect " + spi.getProcName() + " transaction more than once!";
+                spi.setRedirectedPartition(redirect_partition.intValue());
+                
+                byte serializedRequest[] = null;
+                try {
+                    FastSerializer.serialize(spi);
+                } catch (IOException ex) {
+                    LOG.fatal("Failed to serialize StoredProcedureInvocation to redirect txn #" + txn_id);
+                    this.messenger.shutdownCluster(false, ex);
+                    return;
+                }
+                
+                LOG.info(String.format("Redirecting mispredicted txn #%d to partition %d", txn_id, redirect_partition));
+                this.messenger.forwardTransaction(serializedRequest, callback, redirect_partition);
+                if (this.status_monitor != null) TxnCounter.REDIRECTED.inc(orig_ts.getProcedure());
+                return;
+            }
+        }
+
         long new_txn_id = this.txnid_managers[base_partition].getNextUniqueTransactionId();
         if (d) LOG.debug(String.format("Re-executing mispredicted txn #%d as new txn #%d", txn_id, new_txn_id));
         LocalTransactionState new_ts = null;
@@ -1151,14 +1190,14 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
             LOG.fatal("Failed to instantiate new LocalTransactionState for txn #" + txn_id);
             throw new RuntimeException(ex);
         }
-
+        
         // Restart the new transaction
         if (hstore_conf.enable_profiling) ProfileMeasurement.start(new_ts.total_time, new_ts.init_time);
         new_ts.init(new_txn_id, orig_ts);
         new_ts.setPredictSinglePartitioned(false);
         Set<Integer> new_done = new_ts.getDonePartitions();
         new_done.addAll(this.all_partitions);
-        new_done.removeAll(orig_ts.getTouchedPartitions());
+        new_done.removeAll(orig_ts.getTouchedPartitions().values());
         if (t) LOG.trace(String.format("Txn #%d Mispredicted partitions %s", txn_id, orig_ts.getTouchedPartitions()));
         
         this.initializeInvocation(new_ts);
@@ -1239,7 +1278,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         // We only need to call commit/abort if this wasn't a single-partition transaction
         boolean invoke_executor = (ts == null || ts.isPredictSinglePartition() == false); 
         // Tell each partition to either commit or abort the txn in the FinishRequest
-        for (int p : this.local_partitions) {
+        for (Integer p : this.local_partitions) {
             if (invoke_executor) {
                 ExecutionSite executor = this.executors.get(p);
                 if (commit) {
@@ -1382,7 +1421,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         // (2) DTXN Engine Threads (one per partition)
         // ----------------------------------------------------------------------------
         if (d) LOG.debug(String.format("Launching DTXN Engines for %d partitions", num_partitions));
-        final CountDownLatch engineLatch = new CountDownLatch(hstore_site.local_partitions.length);
+        final CountDownLatch engineLatch = new CountDownLatch(hstore_site.local_partitions.size());
         for (final Partition catalog_part : catalog_site.getPartitions()) {
             // TODO: There should be a single thread that forks all the processes and then joins on them
             runnables.add(new Runnable() {
@@ -1443,10 +1482,10 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
                 }
                 
                 // Connect directly to all of our local engines
-                final InetSocketAddress destinations[] = new InetSocketAddress[hstore_site.local_partitions.length];
+                final InetSocketAddress destinations[] = new InetSocketAddress[hstore_site.local_partitions.size()];
                 ProtoRpcChannel[] channels = null;
                 for (int i = 0; i < destinations.length; i++) {
-                    int partition = hstore_site.local_partitions[i];
+                    int partition = hstore_site.local_partitions.get(i).intValue();
                     destinations[i] = CatalogUtil.getPartitionAddressById(hstore_site.catalog_db, partition, true);
                     assert(destinations[i] != null) : "Failed to socket address for partition " + partition;
                 } // FOR
@@ -1459,7 +1498,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
                 }
                 assert(channels.length == destinations.length);
                 for (int i = 0; i < channels.length; i++) {
-                    int partition = hstore_site.local_partitions[i];
+                    int partition = hstore_site.local_partitions.get(i).intValue();
                     hstore_site.engine_channels[partition] = Dtxn.Partition.newStub(channels[i]);
                     if (d) LOG.debug("Creating direct Dtxn.Engine connection for partition " + partition);
                 } // FOR

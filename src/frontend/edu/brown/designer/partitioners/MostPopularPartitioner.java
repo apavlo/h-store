@@ -173,7 +173,7 @@ public class MostPopularPartitioner extends AbstractPartitioner {
                 
                 total_memory_ratio += (size_ratio / (double)info.getNumPartitions());
                 total_memory_bytes += (ts.tuple_size_total / (double)info.getNumPartitions());
-                Column most_popular = column_histogram.getMaxCountValue();
+                Column most_popular = (Column)column_histogram.getMaxCountValue();
                 pentry = new PartitionEntry(PartitionMethodType.HASH, most_popular);
                 if (debug) LOG.debug(String.format("PARTITION %-25s%s", catalog_tbl.getName(), most_popular.getName()));
             }

@@ -1186,11 +1186,10 @@ public class ExecutionSite implements Runnable {
         if (cluster == null) {
             throw new VoltProcedure.VoltAbortException("cluster '" + clusterName + "' does not exist");
         }
-        Database db = cluster.getDatabases().get(databaseName);
-        if (db == null) {
+        if (this.database.getName().equalsIgnoreCase(databaseName) == false) {
             throw new VoltAbortException("database '" + databaseName + "' does not exist in cluster " + clusterName);
         }
-        Table table = db.getTables().getIgnoreCase(tableName);
+        Table table = this.database.getTables().getIgnoreCase(tableName);
         if (table == null) {
             throw new VoltAbortException("table '" + tableName + "' does not exist in database " + clusterName + "." + databaseName);
         }
@@ -1527,7 +1526,8 @@ public class ExecutionSite implements Runnable {
         // will catch it and we can propagate the error message all the way back to the HStoreSite
         if (need_restart) {
             if (t) LOG.trace(String.format("Aborting txn #%d because it was mispredicted", txn_id));
-            throw new MispredictionException(txn_id, ts.getTouchedPartitions());
+            Set<Integer> touched = ts.getTouchedPartitions().values();
+            throw new MispredictionException(txn_id, touched);
         }
         
         // Bombs away!
