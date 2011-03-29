@@ -1,8 +1,8 @@
 package org.voltdb.exceptions;
 
 import java.nio.ByteBuffer;
-import java.util.HashSet;
-import java.util.Set;
+
+import edu.brown.statistics.Histogram;
 
 /**
  * Thrown internally when we mispredicted a transaction as being single-partitioned
@@ -20,16 +20,16 @@ public class MispredictionException extends SerializableException {
      * The partitions that the transaction was about to touch or had touched
      * before it was aborted
      */
-    private final Set<Integer> partitions = new HashSet<Integer>();
+    private final Histogram<Integer> partitions = new Histogram<Integer>();
 
     /**
      * Constructor
      * @param txn_id
      * @param partitions
      */
-    public MispredictionException(long txn_id, Set<Integer> partitions) {
+    public MispredictionException(long txn_id, Histogram<Integer> partitions) {
         this.txn_id = txn_id;
-        this.partitions.addAll(partitions);
+        if (partitions != null) this.partitions.putHistogram(partitions);
     }
     
     /**
@@ -53,7 +53,7 @@ public class MispredictionException extends SerializableException {
      * Partitions that this txn touched before it aborted
      * @return
      */
-    public Set<Integer> getPartitions() {
+    public Histogram<Integer> getPartitions() {
         return partitions;
     }
     

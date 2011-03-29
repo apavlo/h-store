@@ -19,6 +19,7 @@ package org.voltdb.compiler;
 
 import java.io.PrintStream;
 import java.util.Collections;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.hsqldb.HSQLInterface;
@@ -30,13 +31,13 @@ import org.voltdb.catalog.Database;
 import org.voltdb.catalog.PlanFragment;
 import org.voltdb.catalog.Statement;
 import org.voltdb.catalog.StmtParameter;
+import org.voltdb.catalog.Table;
 import org.voltdb.messaging.FastSerializer;
 import org.voltdb.planner.CompiledPlan;
 import org.voltdb.planner.ParameterInfo;
 import org.voltdb.planner.PlanColumn;
 import org.voltdb.planner.QueryPlanner;
 import org.voltdb.planner.TrivialCostModel;
-import org.voltdb.planner.CompiledPlan.Fragment;
 import org.voltdb.plannodes.AbstractPlanNode;
 import org.voltdb.plannodes.AbstractScanPlanNode;
 import org.voltdb.plannodes.DeletePlanNode;
@@ -47,6 +48,8 @@ import org.voltdb.types.QueryType;
 import org.voltdb.utils.BuildDirectoryUtils;
 import org.voltdb.utils.Encoder;
 
+import edu.brown.catalog.CatalogUtil;
+import edu.brown.catalog.QueryPlanUtil;
 import edu.brown.plannodes.PlanNodeUtil;
 
 /**
@@ -110,7 +113,7 @@ public abstract class StatementCompiler {
         CompiledPlan plan = null;
         CompiledPlan last_plan = null;
         PlanNodeList node_list = null;
-
+        
         QueryPlanner planner = new QueryPlanner(catalog.getClusters().get("cluster"), db, hsql, estimates, true, false);
 
         Exception first_exception = null;
@@ -279,6 +282,25 @@ public abstract class StatementCompiler {
             throw compiler.new VoltCompilerException("Bad news! We don't have a last plan!!");
         }
         plan = last_plan;
+        
+        // HACK
+        AbstractPlanNode root = null;
+        try {
+            root = QueryPlanUtil.deserializeStatement(catalogStmt, true);
+        } catch (Exception ex) {
+            throw new RuntimeException(ex);
+        }
+        assert(root != null);
+        Set<Table> tables_accessed = CatalogUtil.getReferencedTables(db, root);
+        assert(tables_accessed.isEmpty() == false) : "Failed to find accessed tables for " + catalogStmt + "-- Plan:\n" + PlanNodeUtil.debug(plan.fullWinnerPlan);
+        boolean all_replicated = true;
+        for (Table catalog_tbl : tables_accessed) {
+            if (catalog_tbl.getIsreplicated() == false) {
+                all_replicated = false;
+                break;
+            }
+        } // FOR
+        catalogStmt.setReplicatedonly(all_replicated);
         
         // Input Parameters
         // We will need to update the system catalogs with this new information

@@ -26,7 +26,7 @@ public final class HStoreConf {
      * partition at the node where the request was originally sent. Then when it executes a query,
      * it will be aborted/restarted and redirected to the correct partition.
      */
-    public boolean enable_db2_redirecting = true;
+    public boolean enable_db2_redirecting = false;
     
     /**
      * Whether to force all transactions to be executed as single-partitioned

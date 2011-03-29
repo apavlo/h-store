@@ -20,6 +20,10 @@ package org.voltdb;
 import java.io.IOException;
 
 import java.nio.ByteBuffer;
+import java.util.Collection;
+import java.util.HashSet;
+import java.util.Set;
+
 import org.voltdb.messaging.*;
 
 /**
@@ -37,9 +41,12 @@ public class StoredProcedureInvocation implements FastSerializable {
         returned to the client in the ClientResponse */
     long clientHandle = -1;
     
-    /** Whether this invocation has been redirected **/
-    int redirected_partition = -1;
-
+    /** Whether this invocation should be specifically executed at a particular partition **/
+    int base_partition = -1;
+    
+    /** What partitions this invocation will touch **/
+    Set<Integer> partitions = null;
+    
     public StoredProcedureInvocation() {
         super();
     }
@@ -92,25 +99,31 @@ public class StoredProcedureInvocation implements FastSerializable {
     public void setClientHandle(int aHandle) {
         clientHandle = aHandle;
     }
-    
-    public boolean hasRedirectedPartition() {
-        return (this.redirected_partition != -1);
-    }
-    
-    public int getRedirectedPartition() {
-        return (this.redirected_partition);
-    }
-    
-    public void setRedirectedPartition(int partition) {
-        this.redirected_partition = (short)partition;
-    }
-
     public long getClientHandle() {
         return clientHandle;
     }
-    public long getHandle() {
-        return clientHandle;
+    
+    public boolean hasBasePartition() {
+        return (this.base_partition != -1);
     }
+    public int getBasePartition() {
+        return (this.base_partition);
+    }
+    public void setBasePartition(int partition) {
+        this.base_partition = (short)partition;
+    }
+    
+    public boolean hasPartitions() {
+        return (this.partitions != null);
+    }
+    public Set<Integer> getPartitions() {
+        return (this.partitions);
+    }
+    public void addPartitions(Collection<Integer> partitions) {
+        if (this.partitions == null) this.partitions = new HashSet<Integer>();
+        this.partitions.addAll(partitions);
+    }
+
 
     /**
      * If created from ClientInterface within a single host,
@@ -145,7 +158,16 @@ public class StoredProcedureInvocation implements FastSerializable {
     @Override
     public void readExternal(FastDeserializer in) throws IOException {
         in.readByte();//skip version
-        redirected_partition = (int)in.readShort();
+        base_partition = (int)in.readShort();
+        
+        int num_partitions = in.readShort();
+        if (num_partitions > 0) {
+            this.partitions = new HashSet<Integer>();
+            for (int i = 0; i < num_partitions; i++) {
+                this.partitions.add((int)in.readShort());
+            } // FOR
+        }
+        
         procName = in.readString();
         clientHandle = in.readLong();
         // do not deserialize parameters in ClientInterface context
@@ -158,7 +180,17 @@ public class StoredProcedureInvocation implements FastSerializable {
         assert(!((params == null) && (unserializedParams == null)));
         assert((params != null) || (unserializedParams != null));
         out.write(0);//version
-        out.writeShort(redirected_partition);
+        out.writeShort(base_partition);
+        
+        if (this.partitions == null) {
+            out.writeShort(0);
+        } else {
+            out.writeShort(this.partitions.size());
+            for (Integer p : this.partitions) {
+                out.writeShort(p.intValue());
+            } // FOR
+        }
+        
         out.writeString(procName);
         out.writeLong(clientHandle);
         if (params != null)

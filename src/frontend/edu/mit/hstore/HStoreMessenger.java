@@ -626,11 +626,12 @@ public class HStoreMessenger {
     public void forwardTransaction(byte[] serializedRequest, RpcCallback<MessageAcknowledgement> done, int partition) {
         int dest_site_id = this.partition_site_xref.get(partition);
         if (d) LOG.debug("Forwarding a transaction request to Partition #" + partition + " on Site #" + dest_site_id);
+        ByteString bs = ByteString.copyFrom(serializedRequest);
         Hstore.MessageRequest mr = Hstore.MessageRequest.newBuilder()
                                         .setSenderId(this.catalog_site.getId())
                                         .setDestId(dest_site_id)
                                         .setType(MessageType.FORWARD_TXN)
-                                        .setData(ByteString.copyFrom(serializedRequest))
+                                        .setData(bs)
                                         .build();
         this.channels.get(dest_site_id).sendMessage(new ProtoRpcController(), mr, done);
         if (t) LOG.debug("Sent " + MessageType.FORWARD_TXN.name() + " to Site #" + dest_site_id);

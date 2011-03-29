@@ -691,7 +691,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         if (this.status_monitor != null) TxnCounter.RECEIVED.inc(catalog_proc);
         
         if (catalog_proc == null) throw new RuntimeException("Unknown procedure '" + request.getProcName() + "'");
-        if (d) LOG.debug(String.format("Received new stored procedure invocation request for %s [bytes=%d]", catalog_proc.getName(), serializedRequest.length));
+        if (d) LOG.debug(String.format("Received new stored procedure invocation request for %s [handle=%d, bytes=%d]", catalog_proc.getName(), request.getClientHandle(), serializedRequest.length));
         
         // First figure out where this sucker needs to go
         Integer dest_partition = null;
@@ -714,13 +714,18 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
                 return;
             }
         // DB2-style Transaction Redirection
-        } else if (hstore_conf.enable_db2_redirecting && request.hasRedirectedPartition()) {
-            if (t) LOG.trace(String.format("Using PartitionEstimator for %s request", request.getProcName()));
-            dest_partition = request.getRedirectedPartition();
+        } else if (hstore_conf.enable_db2_redirecting) {
+            if (request.hasBasePartition()) {
+                if (d) LOG.debug(String.format("Using embedded base partition from %s request", request.getProcName()));
+                dest_partition = request.getBasePartition();    
+            } else if (d) {
+                LOG.debug(String.format("There is no embedded base partition for %s request", request.getProcName()));
+            }
+            
             
         // Otherwise we use the PartitionEstimator to figure out where this thing needs to go
         } else if (hstore_conf.force_localexecution == false) {
-            if (t) LOG.trace(String.format("Using PartitionEstimator for %s request", request.getProcName()));
+            if (d) LOG.debug(String.format("Using PartitionEstimator for %s request", request.getProcName()));
             try {
                 dest_partition = this.p_estimator.getBasePartition(catalog_proc, args, false);
             } catch (Exception ex) {
@@ -739,14 +744,14 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         
         // If the dest_partition isn't local, then we need to ship it off to the right location
         if (this.local_partitions.contains(dest_partition) == false) {
-            if (d) LOG.debug("StoredProcedureInvocation request for " +  catalog_proc + " needs to be forwarded to Partition #" + dest_partition);
+            if (d) LOG.debug(String.format("StoredProcedureInvocation request for %s needs to be forwarded to partition #%d", request.getProcName(), dest_partition));
             
             // Make a wrapper for the original callback so that when the result comes back frm the remote partition
             // we will just forward it back to the client. How sweet is that??
             ForwardTxnRequestCallback callback = new ForwardTxnRequestCallback(done);
             
             // Mark this request as having been redirected
-            assert(request.hasRedirectedPartition() == false) : "Trying to redirect " + request.getProcName() + " transaction more than once!";
+            assert(request.hasBasePartition() == false) : "Trying to redirect " + request.getProcName() + " transaction more than once!";
             StoredProcedureInvocation.markRawBytesAsRedirected(dest_partition.intValue(), serializedRequest);
             
             this.messenger.forwardTransaction(serializedRequest, callback, dest_partition);
@@ -892,16 +897,16 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         long txn_id = txn_info.getTransactionId();
         Long orig_txn_id = txn_info.getOriginalTransactionId();
         int base_partition = txn_info.getBasePartition();
-        boolean single_partitioned = (orig_txn_id == null && txn_info.isPredictSinglePartition());
+        boolean single_partitioned = txn_info.isPredictSinglePartition();
                 
-        LocalTransactionState orig_ts = this.inflight_txns.put(txn_id, txn_info);
-        if (orig_ts != null) {
+        LocalTransactionState dupe = this.inflight_txns.put(txn_id, txn_info);
+        if (dupe != null) {
             // HACK!
-            this.inflight_txns.put(txn_id, orig_ts);
+            this.inflight_txns.put(txn_id, dupe);
             long new_txn_id = this.txnid_managers[base_partition].getNextUniqueTransactionId();
             if (new_txn_id == txn_id) {
                 String msg = "Duplicate transaction id #" + txn_id;
-                LOG.fatal("ORIG TRANSACTION:\n" + orig_ts);
+                LOG.fatal("ORIG TRANSACTION:\n" + dupe);
                 LOG.fatal("NEW TRANSACTION:\n" + txn_info);
                 this.messenger.shutdownCluster(true, new Exception(msg));
             }
@@ -928,7 +933,8 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         // -------------------------------
         if (hstore_conf.ignore_dtxn && single_partitioned && dtxn_txns.isEmpty()) {
             txn_info.ignore_dtxn = true;
-            if (d) LOG.debug(String.format("Ignoring the Dtxn.Coordinator for %s txn #%d", txn_info.invocation.getProcName(), txn_id));
+            if (d) LOG.debug(String.format("Fast path execution for %s txn #%d on partition %d [handle=%d]",
+                                           txn_info.getProcedureName(), txn_id, base_partition, txn_info.getClientHandle()));
             RpcCallback<Dtxn.FragmentResponse> callback = new SinglePartitionTxnCallback(this, txn_id, base_partition, txn_info.client_callback);
             if (hstore_conf.enable_profiling) ProfileMeasurement.swap(txn_info.init_time, txn_info.coord_time);
             this.executeTransaction(txn_info, wrapper, callback);
@@ -939,8 +945,8 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         // -------------------------------
         } else if (single_partitioned) {
             // Construct a message that goes directly to the Dtxn.Engine for the destination partition
-            if (d) LOG.debug(String.format("Passing %s to Dtxn.Engine as single-partition txn #%d for partition %d",
-                                           txn_info.invocation.getProcName(), txn_id, base_partition));
+            if (d) LOG.debug(String.format("Passing %s to Dtxn.Engine as single-partition txn #%d for partition %d [handle=%d]",
+                                           txn_info.getProcedureName(), txn_id, base_partition, txn_info.getClientHandle()));
 
             Dtxn.DtxnPartitionFragment.Builder requestBuilder = Dtxn.DtxnPartitionFragment.newBuilder();
             requestBuilder.setTransactionId(txn_id);
@@ -958,8 +964,8 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         // -------------------------------
         } else {
             // Construct the message for the Dtxn.Coordinator
-            if (d) LOG.debug(String.format("Passing %s to Dtxn.Coordinator as multi-partition txn #%d for partition %d",
-                                           txn_info.invocation.getProcName(), txn_id, base_partition));
+            if (d) LOG.debug(String.format("Passing %s to Dtxn.Coordinator as multi-partition txn #%d for partition %d [handle=%d]",
+                                           txn_info.getProcedureName(), txn_id, base_partition, txn_info.getClientHandle()));
             
             // Since we know that this txn came over from the Dtxn.Coordinator, we'll throw it in
             // our set of coordinator txns. This way we can prevent ourselves from executing
@@ -1136,17 +1142,21 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
      */
     public void misprediction(long txn_id, RpcCallback<byte[]> orig_callback) {
         if (d) LOG.debug("Txn #" + txn_id + " was mispredicted! Going to clean-up our mess and re-execute");
+        
         LocalTransactionState orig_ts = this.inflight_txns.get(txn_id);
         // XXX assert(txn_info.orig_txn_id == null) : "Trying to restart a mispredicted transaction more than once!";
         int base_partition = orig_ts.getBasePartition();
         StoredProcedureInvocation spi = orig_ts.invocation;
         assert(spi != null) : "Missing StoredProcedureInvocation for txn #" + txn_id;
+        if (this.status_monitor != null) TxnCounter.MISPREDICTED.inc(orig_ts.getProcedure());
+        
+        final Histogram<Integer> touched = orig_ts.getTouchedPartitions();
         
         // Figure out whether this transaction should be redirected based on what partitions it
         // tried to touch before it was aborted 
         if (hstore_conf.enable_db2_redirecting) {
-            Histogram<Integer> touched = orig_ts.getTouchedPartitions();
             Set<Integer> most_touched = touched.getMaxCountValues();
+            if (d) LOG.debug(String.format("Touched partitions for mispredicted txn #%d\n%s", txn_id, touched));
             Integer redirect_partition = null;
             if (most_touched.size() == 1) {
                 redirect_partition = CollectionUtil.getFirst(most_touched);
@@ -1155,33 +1165,44 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
             } else {
                 redirect_partition = CollectionUtil.getRandomValue(this.all_partitions);
             }
-            LOG.info(String.format("Touched partitions for mispredicted txn #%d\n%s", txn_id, touched));
             
-            if (this.local_partitions.contains(redirect_partition) == false) {
-                ForwardTxnRequestCallback callback = new ForwardTxnRequestCallback(orig_callback);
+            // If the txn wants to execute on another node, then we'll send them off *only* if this txn wasn't
+            // already redirected at least once. If this txn was already redirected, then it's going to just
+            // execute on the same partition, but this time as a multi-partition txn that locks all partitions.
+            // That's what you get for messing up!!
+            if (this.local_partitions.contains(redirect_partition) == false && spi.hasBasePartition() == false) {
+                if (d) LOG.debug(String.format("Redirecting mispredicted %s txn #%d to partition %d", orig_ts.getProcedureName(), txn_id, redirect_partition));
                 
-                // Mark this request as having been redirected
-                assert(spi.hasRedirectedPartition() == false) : "Trying to redirect " + spi.getProcName() + " transaction more than once!";
-                spi.setRedirectedPartition(redirect_partition.intValue());
+                spi.setBasePartition(redirect_partition.intValue());
+                
+                // Add all the partitions that the txn touched before it got aborted
+                spi.addPartitions(touched.values());
                 
                 byte serializedRequest[] = null;
                 try {
-                    FastSerializer.serialize(spi);
+                    serializedRequest = FastSerializer.serialize(spi);
                 } catch (IOException ex) {
                     LOG.fatal("Failed to serialize StoredProcedureInvocation to redirect txn #" + txn_id);
                     this.messenger.shutdownCluster(false, ex);
                     return;
                 }
+                assert(serializedRequest != null);
                 
-                LOG.info(String.format("Redirecting mispredicted txn #%d to partition %d", txn_id, redirect_partition));
-                this.messenger.forwardTransaction(serializedRequest, callback, redirect_partition);
+                this.messenger.forwardTransaction(serializedRequest, new ForwardTxnRequestCallback(orig_callback), redirect_partition);
                 if (this.status_monitor != null) TxnCounter.REDIRECTED.inc(orig_ts.getProcedure());
                 return;
+                
+            // Allow local redirect
+            } else if (spi.hasBasePartition() == false) {    
+                base_partition = redirect_partition.intValue();
+                spi.setBasePartition(base_partition);
+            } else {
+                if (d) LOG.debug(String.format("Mispredicted %s txn #%d has already been aborted once before. Restarting as all partition txn", orig_ts.getProcedureName(), txn_id));
+                touched.putAll(this.local_partitions);
             }
         }
 
         long new_txn_id = this.txnid_managers[base_partition].getNextUniqueTransactionId();
-        if (d) LOG.debug(String.format("Re-executing mispredicted txn #%d as new txn #%d", txn_id, new_txn_id));
         LocalTransactionState new_ts = null;
         try {
             ExecutionSite executor = this.executors.get(base_partition);
@@ -1193,16 +1214,18 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         
         // Restart the new transaction
         if (hstore_conf.enable_profiling) ProfileMeasurement.start(new_ts.total_time, new_ts.init_time);
-        new_ts.init(new_txn_id, orig_ts);
-        new_ts.setPredictSinglePartitioned(false);
+        boolean single_partitioned = (touched.getValueCount() == 1);
+        
+        if (d) LOG.debug(String.format("Re-executing mispredicted txn #%d as new %s-partition txn #%d on partition %d",
+                                       txn_id, (single_partitioned ? "single" : "multi"), new_txn_id, base_partition));
+        new_ts.init(new_txn_id, base_partition, orig_ts);
+        new_ts.setPredictSinglePartitioned(single_partitioned);
         Set<Integer> new_done = new_ts.getDonePartitions();
         new_done.addAll(this.all_partitions);
-        new_done.removeAll(orig_ts.getTouchedPartitions().values());
+        new_done.removeAll(touched.values());
         if (t) LOG.trace(String.format("Txn #%d Mispredicted partitions %s", txn_id, orig_ts.getTouchedPartitions()));
         
         this.initializeInvocation(new_ts);
-        
-        if (this.status_monitor != null) TxnCounter.MISPREDICTED.inc(orig_ts.getProcedure());
     }
     
     /**

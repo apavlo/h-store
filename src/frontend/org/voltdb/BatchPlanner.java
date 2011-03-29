@@ -10,6 +10,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.commons.collections15.map.ListOrderedMap;
@@ -32,6 +33,7 @@ import edu.brown.graphs.AbstractDirectedGraph;
 import edu.brown.graphs.AbstractEdge;
 import edu.brown.graphs.AbstractVertex;
 import edu.brown.graphs.IGraph;
+import edu.brown.statistics.Histogram;
 import edu.brown.utils.CountingPoolableObjectFactory;
 import edu.brown.utils.PartitionEstimator;
 import edu.brown.utils.Poolable;
@@ -57,6 +59,10 @@ public class BatchPlanner {
     public static final int MAX_BATCH_SIZE = 64;
 
     public static final int PLAN_POOL_INITIAL_SIZE = 200;
+
+    private static Set<Integer> SINGLE_PARTITION_SETS[];
+    
+    private static final AtomicBoolean INITIALIZED = new AtomicBoolean(false);
     
     /**
      * BatchPlan Object Factory
@@ -84,6 +90,8 @@ public class BatchPlanner {
     protected final Catalog catalog;
     protected final Procedure catalog_proc;
     protected final Statement catalog_stmts[];
+    protected final boolean stmt_is_readonly[];
+    protected final boolean stmt_is_replicatedonly[];
     protected final List<PlanFragment> sorted_singlep_fragments[];
     protected final List<PlanFragment> sorted_multip_fragments[];
     protected final int batchSize;
@@ -461,14 +469,22 @@ public class BatchPlanner {
         this.num_partitions = CatalogUtil.getNumberOfPartitions(catalog_proc);
         
         this.plan_pool = new StackObjectPool(new BatchPlanFactory(this), HStoreConf.singleton().pool_batchplan_idle);
-        // this.preload(PLAN_POOL_INITIAL_SIZE);
+        
+        // Initialize static members
+        if (BatchPlanner.INITIALIZED.compareAndSet(false, true)) {
+            BatchPlanner.preload(CatalogUtil.getDatabase(catalog_proc));
+        }
 
         this.sorted_singlep_fragments = (List<PlanFragment>[])new List<?>[this.batchSize];
         this.sorted_multip_fragments = (List<PlanFragment>[])new List<?>[this.batchSize];
         
         this.catalog_stmts = new Statement[this.batchSize];
+        this.stmt_is_readonly = new boolean[this.batchSize];
+        this.stmt_is_replicatedonly = new boolean[this.batchSize];
         for (int i = 0; i < this.batchSize; i++) {
             this.catalog_stmts[i] = batchStmts[i].catStmt;
+            this.stmt_is_readonly[i] = batchStmts[i].catStmt.getReadonly();
+            this.stmt_is_replicatedonly[i] = batchStmts[i].catStmt.getReplicatedonly();
         } // FOR
     }
 
@@ -532,6 +548,10 @@ public class BatchPlanner {
             LOG.trace("\n" + StringUtil.formatMapsBoxed(m));
         }
        
+        // Only maintain the histogram of what partitions were touched if we know that we're going to
+        // throw a MispredictionException
+        Histogram<Integer> mispredict_h = null;
+        
         for (int stmt_index = 0; stmt_index < this.batchSize; stmt_index++) {
             final Statement catalog_stmt = this.catalog_stmts[stmt_index];
             assert(catalog_stmt != null) : "The Statement at index " + stmt_index + " is null for " + this.catalog_proc;
@@ -543,6 +563,8 @@ public class BatchPlanner {
             final Set<Integer> stmt_all_partitions = plan.stmt_partitions[stmt_index];
 
             boolean has_singlepartition_plan = catalog_stmt.getHas_singlesited();
+            boolean is_replicated_only = this.stmt_is_replicatedonly[stmt_index];
+            boolean is_read_only = this.stmt_is_readonly[stmt_index];
             boolean stmt_localFragsAreNonTransactional = plan.localFragsAreNonTransactional;
             boolean mispredict = false;
             boolean is_singlepartition = has_singlepartition_plan;
@@ -550,45 +572,58 @@ public class BatchPlanner {
             CatalogMap<PlanFragment> fragments = null;
             
             try {
-                // Optimization: If we were told that the transaction is suppose to be single-partitioned, then we will
-                // throw the single-partitioned PlanFragments at the PartitionEstimator to get back what partitions
-                // each PlanFragment will need to go to. If we get multiple partitions, then we know that we mispredicted and
-                // we should throw a MispredictionException
-                // If we originally didn't predict that it was single-partitioned, then we actually still need to check
-                // whether the query should be single-partitioned or not. This is because a query may actually just want
-                // to execute on just one partition (note that it could be a local partition or the remote partition).
-                // We'll assume that it's single-partition <<--- Can we cache that??
-                boolean first = true;
-                while (true) {
-                    if (first == false) stmt_all_partitions.clear();
-                    first = false;
-                    
-                    fragments = (is_singlepartition ? catalog_stmt.getFragments() : catalog_stmt.getMs_fragments());
-                    this.p_estimator.getAllFragmentPartitions(frag_partitions,
-                                                              stmt_all_partitions,
-                                                              fragments, params, plan.base_partition);
-                    int stmt_all_partitions_size = stmt_all_partitions.size();
-                    is_local = (stmt_all_partitions_size == 1 && stmt_all_partitions.contains(plan.base_partition));
-                    if (is_singlepartition && stmt_all_partitions_size > 1) {
-                        // If this was suppose to be multi-partitioned, then we want to stop right here!!
-                        if (predict_singlepartitioned) {
-                            if (t) LOG.trace(String.format("Mispredicted txn #%d - Multiple Partitions"));
+                // Optimization: Read-only queries on replicated tables always just go to the local partition
+                if (is_replicated_only && is_read_only) {
+                    if (t) LOG.trace(String.format("[%02d] %s is read-only and replicate-only. Skipping PartitionEstimator", stmt_index, catalog_stmt.fullName()));
+                    assert(has_singlepartition_plan);
+                    fragments = catalog_stmt.getFragments();
+                    for (PlanFragment catalog_frag : fragments) {
+                        frag_partitions.put(catalog_frag, SINGLE_PARTITION_SETS[base_partition]);
+                    } // FOR
+                    stmt_all_partitions.add(base_partition);
+
+                // Otherwise figure out whether the query can execute as single-partitioned or not
+                } else {
+                    // Optimization: If we were told that the transaction is suppose to be single-partitioned, then we will
+                    // throw the single-partitioned PlanFragments at the PartitionEstimator to get back what partitions
+                    // each PlanFragment will need to go to. If we get multiple partitions, then we know that we mispredicted and
+                    // we should throw a MispredictionException
+                    // If we originally didn't predict that it was single-partitioned, then we actually still need to check
+                    // whether the query should be single-partitioned or not. This is because a query may actually just want
+                    // to execute on just one partition (note that it could be a local partition or the remote partition).
+                    // We'll assume that it's single-partition <<--- Can we cache that??
+                    boolean first = true;
+                    while (true) {
+                        if (first == false) stmt_all_partitions.clear();
+                        first = false;
+                        
+                        fragments = (is_singlepartition ? catalog_stmt.getFragments() : catalog_stmt.getMs_fragments());
+                        this.p_estimator.getAllFragmentPartitions(frag_partitions,
+                                                                  stmt_all_partitions,
+                                                                  fragments, params, plan.base_partition);
+                        int stmt_all_partitions_size = stmt_all_partitions.size();
+                        is_local = (stmt_all_partitions_size == 1 && stmt_all_partitions.contains(plan.base_partition));
+                        if (is_singlepartition && stmt_all_partitions_size > 1) {
+                            // If this was suppose to be multi-partitioned, then we want to stop right here!!
+                            if (predict_singlepartitioned) {
+                                if (t) LOG.trace(String.format("Mispredicted txn #%d - Multiple Partitions"));
+                                mispredict = true;
+                                break;
+                            }
+                            // Otherwise we can let it wrap back around and construct the fragment mapping for the
+                            // multi-partition PlanFragments
+                            is_singlepartition = false;
+                            continue;
+                        } else if (is_local == false && predict_singlepartitioned) {
+                            // Again, this is not what was suppose to happen!
+                            if (t) LOG.trace(String.format("Mispredicted txn #%d - Remote Partitions"));
                             mispredict = true;
                             break;
                         }
-                        // Otherwise we can let it wrap back around and construct the fragment mapping for the
-                        // multi-partition PlanFragments
-                        is_singlepartition = false;
-                        continue;
-                    } else if (is_local == false && predict_singlepartitioned) {
-                        // Again, this is not what was suppose to happen!
-                        if (t) LOG.trace(String.format("Mispredicted txn #%d - Remote Partitions"));
-                        mispredict = true;
+                        // Score! We have a plan that works!
                         break;
-                    }
-                    // Score! We have a plan that works!
-                    break;
-                } // WHILE
+                    } // WHILE
+                }
             // Bad Mojo!
             } catch (Exception ex) {
                 String msg = "";
@@ -600,7 +635,27 @@ public class BatchPlanner {
             }
             
             // Misprediction!!
-            if (mispredict) throw new MispredictionException(txn_id, stmt_all_partitions);
+            if (mispredict) {
+                // If this is the first Statement in the batch that hits the mispredict,
+                // then we need to create the histogram and populate it with the partitions from the previous queries
+                int start_idx = stmt_index;
+                if (mispredict_h == null) {
+                    mispredict_h = new Histogram<Integer>();
+                    start_idx = 0;
+                }
+                for (int i = start_idx; i <= stmt_index; i++) {
+                    if (d) LOG.debug(String.format("Pending mispredict for txn #%d. Checking whether to add partitions for batch statement %02d", txn_id, i));
+                    
+                    // Make sure that we don't count the local partition if it was reading
+                    // a replicated table.
+                    if (this.stmt_is_replicatedonly[i] == false || (this.stmt_is_replicatedonly[i] && this.stmt_is_readonly[i] == false)) {
+                        if (t) LOG.trace(String.format("%s touches non-replicated table. Including %d partitions in mispredict histogram for txn #%d",
+                                                       this.catalog_stmts[i].fullName(), plan.stmt_partitions[i].size(), txn_id));
+                        mispredict_h.putAll(plan.stmt_partitions[i]);
+                    }
+                } // FOR
+                continue;
+            }
 
             // Get a sorted list of the PlanFragments that we need to execute for this query
             if (is_singlepartition) {
@@ -656,6 +711,9 @@ public class BatchPlanner {
                 LOG.debug("\n" + StringUtil.formatMapsBoxed(maps));
             }
         } // FOR
+        
+        // Throw the MispredictException if any Statement in the loop above hit it
+        if (mispredict_h != null) throw new MispredictionException(txn_id, mispredict_h);
         
         // Check whether we have an existing graph exists for this batch configuration
         PlanGraph graph = null;
@@ -860,6 +918,18 @@ public class BatchPlanner {
         } // FOR
         
         return (graph);
+    }
+    
+    @SuppressWarnings("unchecked")
+    private static void preload(Database catalog_db) {
+        assert(catalog_db != null);
+        
+        int num_partitions = CatalogUtil.getNumberOfPartitions(catalog_db);
+        SINGLE_PARTITION_SETS = (Set<Integer>[])new Set<?>[num_partitions];
+        for (int i = 0; i < num_partitions; i++) {
+            SINGLE_PARTITION_SETS[i] = new HashSet<Integer>();
+            SINGLE_PARTITION_SETS[i].add(i);
+        } // FOR        
     }
     
     private static Comparator<PlanVertex> PLANVERTEX_COMPARATOR = new Comparator<PlanVertex>() {

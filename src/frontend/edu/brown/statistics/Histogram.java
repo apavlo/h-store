@@ -316,9 +316,8 @@ public class Histogram<X> implements JSONSerializable {
      * Return all the values stored in the histogram
      * @return
      */
-    @SuppressWarnings("unchecked")
-    public <T> Set<T> values() {
-        return (Collections.unmodifiableSet((Set<T>)this.histogram.keySet()));
+    public Set<X> values() {
+        return (Collections.unmodifiableSet((Set<X>)this.histogram.keySet()));
     }
     
     /**
