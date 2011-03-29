@@ -209,6 +209,7 @@ public class MarkovEstimate implements Poolable {
      * @return
      */
     public Set<Integer> getReadOnlyPartitions(EstimationThresholds t) {
+        assert(t != null);
         if (this.read_partitions == null) this.read_partitions = new HashSet<Integer>();
         this.getPartitions(this.read_partitions, this.read, t.getReadThreshold(), false);
         return (this.read_partitions);
@@ -219,6 +220,7 @@ public class MarkovEstimate implements Poolable {
      * @return
      */
     public Set<Integer> getWritePartitions(EstimationThresholds t) {
+        assert(t != null);
         if (this.write_partitions == null) this.write_partitions = new HashSet<Integer>();
         this.getPartitions(this.write_partitions, this.write, t.getWriteThreshold(), false);
         return (this.write_partitions);
@@ -229,6 +231,7 @@ public class MarkovEstimate implements Poolable {
      * @return
      */
     public Set<Integer> getFinishedPartitions(EstimationThresholds t) {
+        assert(t != null);
         if (this.finished_partitions == null) this.finished_partitions = new HashSet<Integer>();
         this.getPartitions(this.finished_partitions, this.finished, t.getDoneThreshold(), false);
         return (this.finished_partitions);
@@ -239,6 +242,7 @@ public class MarkovEstimate implements Poolable {
      * @return
      */
     public Set<Integer> getTargetPartitions(EstimationThresholds t) {
+        assert(t != null);
         if (this.target_partitions == null) this.target_partitions = new HashSet<Integer>();
         this.getPartitions(this.target_partitions, this.finished, t.getDoneThreshold(), true);
         return (this.target_partitions);

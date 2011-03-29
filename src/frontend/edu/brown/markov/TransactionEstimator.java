@@ -40,11 +40,13 @@ import edu.mit.hstore.HStoreConf;
  */
 public class TransactionEstimator {
     private static final Logger LOG = Logger.getLogger(TransactionEstimator.class);
-    private final static LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
-    private final static LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
     static {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
+    private static boolean d = debug.get();
+    private static boolean t = trace.get();
     
     // ----------------------------------------------------------------------------
     // STATIC DATA MEMBERS
@@ -306,7 +308,10 @@ public class TransactionEstimator {
         // HACK: Initialize the STATE_POOL
         synchronized (LOG) {
             if (STATE_POOL == null) {
+                if (d) LOG.debug("Creating TransactionEstimator.State Object Pool");
                 STATE_POOL = new StackObjectPool(new State.Factory(this.num_partitions), HStoreConf.singleton().pool_estimatorstates_idle);
+                
+                if (d) LOG.debug("Creating MarkovPathEstimator Object Pool");
                 ESTIMATOR_POOL = new StackObjectPool(new MarkovPathEstimator.Factory(this.num_partitions), HStoreConf.singleton().pool_pathestimators_idle);
             }
         } // SYNC
@@ -430,7 +435,7 @@ public class TransactionEstimator {
         if (this.markovs == null) return (null);
         MarkovGraph markov = this.markovs.getFromParams(txn_id, base_partition, args, catalog_proc);
         if (markov == null) {
-            if (debug.get()) LOG.debug(String.format("No %s MarkovGraph exists for txn #%d", catalog_proc.getName(), txn_id));
+            if (d) LOG.debug(String.format("No %s MarkovGraph exists for txn #%d", catalog_proc.getName(), txn_id));
             return (null);
         }
         
@@ -445,7 +450,7 @@ public class TransactionEstimator {
         }
 
         // Calculate initial path estimate
-        if (trace.get()) LOG.trace("Estimating initial execution path for txn #" + txn_id);
+        if (t) LOG.trace("Estimating initial execution path for txn #" + txn_id);
         synchronized (markov) {
             start.addInstanceTime(txn_id, start_time);
             try {
@@ -463,8 +468,14 @@ public class TransactionEstimator {
             }
         } // SYNCH
         assert(estimator != null);
+        if (t) {
+            List<Vertex> path = estimator.getVisitPath();
+            LOG.trace(String.format("Estimated Path for txn #%d [length=%d]\n%s",
+                                    txn_id, path.size(), StringUtil.join("\n----------------------\n", path, "debug")));
+            LOG.trace(String.format("MarkovEstimate for txn #%d\n%s", txn_id, estimator.getEstimate()));
+        }
 
-        if (trace.get()) LOG.trace("Creating new State txn #" + txn_id);
+        if (t) LOG.trace("Creating new State txn #" + txn_id);
         State state = null;
         try {
             state = (State)STATE_POOL.borrowObject();
@@ -483,17 +494,17 @@ public class TransactionEstimator {
     /**
      * Takes a series of queries and executes them in order given the partition
      * information. Provides an estimate of where the transaction might go next.
-     * @param xact_id
+     * @param txn_id
      * @param catalog_stmts
      * @param partitions
      * @return
      */
-    public MarkovEstimate executeQueries(long xact_id, Statement catalog_stmts[], Set<Integer> partitions[]) {
+    public MarkovEstimate executeQueries(long txn_id, Statement catalog_stmts[], Set<Integer> partitions[]) {
         assert (catalog_stmts.length == partitions.length);       
-        State state = this.txn_states.get(xact_id);
+        State state = this.txn_states.get(txn_id);
         if (state == null) {
-            if (debug.get()) {
-                String msg = "No state information exists for txn #" + xact_id;
+            if (d) {
+                String msg = "No state information exists for txn #" + txn_id;
                 LOG.debug(msg);
             }
             return (null);
@@ -509,6 +520,8 @@ public class TransactionEstimator {
      * @return
      */
     public MarkovEstimate executeQueries(State state, Statement catalog_stmts[], Set<Integer> partitions[]) {
+        if (d) LOG.debug(String.format("Processing %d queries for txn #%d", catalog_stmts.length, state.txn_id));
+        
         // Roll through the Statements in this batch and move the current vertex
         // for the txn's State handle along the path in the MarkovGraph
         synchronized (state.getMarkovGraph()) {
@@ -519,6 +532,7 @@ public class TransactionEstimator {
         
         MarkovEstimate estimate = state.getNextEstimate(state.current);
         assert(estimate != null);
+        if (d) LOG.debug(String.format("Next MarkovEstimate for txn #%d\n%s", state.txn_id, estimate));
         
         // Once the workload shifts we detect it and trigger this method. Recomputes
         // the graph with the data we collected with the current workload method.
@@ -530,30 +544,32 @@ public class TransactionEstimator {
     }
 
     /**
-     * The transaction with provided xact_id is finished
-     * @param xact_id finished transaction
+     * The transaction with provided txn_id is finished
+     * @param txn_id finished transaction
      */
-    public State commit(long xact_id) {
-        return (this.completeTransaction(xact_id, Vertex.Type.COMMIT));
+    public State commit(long txn_id) {
+        return (this.completeTransaction(txn_id, Vertex.Type.COMMIT));
     }
 
     /**
-     * The transaction with provided xact_id has aborted
-     * @param xact_id
+     * The transaction with provided txn_id has aborted
+     * @param txn_id
      */
-    public State abort(long xact_id) {
-        return (this.completeTransaction(xact_id, Vertex.Type.ABORT));
+    public State abort(long txn_id) {
+        return (this.completeTransaction(txn_id, Vertex.Type.ABORT));
     }
 
     /**
-     * The transaction for the given xact_id is in limbo, so we just want to remove it
-     * @param xact_id
+     * The transaction for the given txn_id is in limbo, so we just want to remove it
+     * Removes the transaction State without doing any final processing
+     * @param txn_id
      * @return
      */
-    public State ignore(long xact_id) {
+    public State ignore(long txn_id) {
+        if (d) LOG.debug(String.format("Removing State info for txn #%d", txn_id));
         // We can just remove its state and pass it back
         // We don't care if it's valid or not
-        return (this.txn_states.remove(xact_id));
+        return (this.txn_states.remove(txn_id));
     }
     
     /**
@@ -565,10 +581,11 @@ public class TransactionEstimator {
     private State completeTransaction(long txn_id, Vertex.Type vtype) {
         State s = this.txn_states.remove(txn_id);
         if (s == null) {
-            if (trace.get()) LOG.warn("No state information exists for txn #" + txn_id);
+            if (t) LOG.warn("No state information exists for txn #" + txn_id);
             return (null);
         }
         long start_time = System.currentTimeMillis();
+        if (d) LOG.debug(String.format("Cleaning up state info for txn #%d [type=%s]", txn_id, vtype));
         
         // We need to update the counter information in our MarkovGraph so that we know
         // that the procedure may transition to the ABORT vertex from where ever it was before 
@@ -594,10 +611,6 @@ public class TransactionEstimator {
         return (s);
     }
 
-    public void removeTransaction(long txn_id) {
-        this.txn_states.remove(txn_id);
-    }
-    
     // ----------------------------------------------------------------------------
     // INTERNAL ESTIMATION METHODS
     // ----------------------------------------------------------------------------
@@ -606,7 +619,7 @@ public class TransactionEstimator {
      * Figure out the next vertex that the txn will transition to for the give Statement catalog object
      * and the partitions that it will touch when it is executed. If no vertex exists, we will create
      * it and dynamically add it to our MarkovGraph
-     * @param xact_id
+     * @param txn_id
      * @param state
      * @param catalog_stmt
      * @param partitions
@@ -627,11 +640,11 @@ public class TransactionEstimator {
 
         // Synchronize on the single vertex so that it's more fine-grained than the entire graph
         Collection<Edge> edges = g.getOutEdges(current); 
-        if (trace.get()) LOG.trace("Examining " + edges.size() + " edges from " + current + " for Txn #" + state.txn_id);
+        if (t) LOG.trace("Examining " + edges.size() + " edges from " + current + " for Txn #" + state.txn_id);
         for (Edge e : edges) {
             Vertex v = g.getDest(e);
             if (v.isEqual(catalog_stmt, partitions, state.getTouchedPartitions(), queryInstanceIndex)) {
-                if (trace.get()) LOG.trace("Found next vertex " + v + " for Txn #" + state.txn_id);
+                if (t) LOG.trace("Found next vertex " + v + " for Txn #" + state.txn_id);
                 next_v = v;
                 next_e = e;
                 break;
@@ -649,7 +662,7 @@ public class TransactionEstimator {
                                 state.getTouchedPartitions());
             g.addVertex(next_v);
             next_e = g.addToEdge(current, next_v);
-            if (trace.get()) LOG.trace("Created new edge/vertex from " + state.getCurrent() + " for Txn #" + state.txn_id);
+            if (t) LOG.trace("Created new edge/vertex from " + state.getCurrent() + " for Txn #" + state.txn_id);
         }
 
         // Update the counters and other info for the next vertex and edge
@@ -660,7 +673,7 @@ public class TransactionEstimator {
         // Update the state information
         state.setCurrent(next_v);
         state.addTouchedPartitions(partitions);
-        if (trace.get()) LOG.trace("Updated State Information for Txn #" + state.txn_id + ":\n" + state);
+        if (t) LOG.trace("Updated State Information for Txn #" + state.txn_id + ":\n" + state);
     }
 
     // ----------------------------------------------------------------------------
@@ -669,12 +682,11 @@ public class TransactionEstimator {
     
     @SuppressWarnings("unchecked")
     public State processTransactionTrace(TransactionTrace txn_trace) throws Exception {
-        final boolean t = trace.get();
-        final boolean d = debug.get();
-        
         long txn_id = txn_trace.getTransactionId();
-        if (d) LOG.debug("Processing TransactionTrace #" + txn_id);
-        if (t) LOG.trace(txn_trace.debug(this.catalog_db));
+        if (d) {
+            LOG.debug("Processing TransactionTrace #" + txn_id);
+            if (t) LOG.trace(txn_trace.debug(this.catalog_db));
+        }
         State s = this.startTransaction(txn_id, txn_trace.getCatalogItem(this.catalog_db), txn_trace.getParams());
         assert(s != null) : "Null TransactionEstimator.State for txn #" + txn_id;
         

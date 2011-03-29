@@ -1,5 +1,6 @@
 package edu.brown.utils;
 
+import java.lang.reflect.Method;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
@@ -442,11 +443,45 @@ public abstract class StringUtil {
      * @return
      */
     public static String join(String delimiter, Collection<?> items) {
+        return (join(delimiter, items, null));
+    }
+    
+    /**
+     * Python join()
+     * You can pass in the name of the method to use if you don't want to use toString()
+     * @param delimiter
+     * @param items
+     * @param debugMethod
+     * @return
+     */
+    public static String join(String delimiter, Collection<?> items, String debugMethod) {
         if (items.isEmpty()) return ("");
      
         StringBuilder sb = new StringBuilder();
-        for (Object x : items)
-            sb.append(x != null ? x.toString() : x).append(delimiter);
+        Method method = null;
+        for (Object x : items) {
+            if (x == null) {
+                sb.append(x);
+            } else if (debugMethod == null) {
+                sb.append(x.toString());
+            } else {
+                if (method == null) {
+                    Class<?> cls = x.getClass();
+                    try {
+                        method = cls.getMethod(debugMethod);
+                    } catch (NoSuchMethodException ex) {
+                        throw new RuntimeException(ex);
+                    }
+                }
+                assert(method != null);
+                try {
+                    sb.append(method.invoke(x));
+                } catch (Exception ex) {
+                    throw new RuntimeException(ex);
+                }
+            }
+            sb.append(delimiter);
+        } // FOR
         sb.delete(sb.length() - delimiter.length(), sb.length());
      
         return sb.toString();
