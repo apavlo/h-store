@@ -8,6 +8,8 @@ import edu.brown.BaseTestCase;
 import edu.brown.benchmark.tm1.TM1Constants;
 import edu.brown.benchmark.tm1.procedures.GetAccessData;
 import edu.brown.benchmark.tm1.procedures.GetNewDestination;
+import edu.brown.benchmark.tm1.procedures.UpdateLocation;
+import edu.brown.benchmark.tm1.procedures.UpdateSubscriberData;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.catalog.special.MultiColumn;
 import edu.brown.catalog.special.MultiProcParameter;
@@ -37,14 +39,13 @@ public class TestPartitionEstimatorMultiSite extends BaseTestCase {
      * testGetPartitionsProcedure
      */
     public void testGetPartitionsProcedure() throws Exception {
-        Procedure catalog_proc = this.getProcedure("UpdateLocation");
+        Procedure catalog_proc = this.getProcedure(UpdateSubscriberData.class);
         Object params[] = new Object[] {
-            new Long(1000),     // LOCATION
-            "Doesn't Matter",   // SUB_NBR
+            new Long(1000),     // S_ID
+            0l,                 // BIT_1
+            0l,                 // DATA_A
+            0l,                 // SF_TYPE
         };
-        // Note that this used to return a null whenever we got a null partition, but
-        // now actually need to know what partition to go to because we are going to 
-        // be able to determine whether it is a multi-partition or not on the fly
         assertNotNull(p_estimator.getBasePartition(catalog_proc, params));
     }
     

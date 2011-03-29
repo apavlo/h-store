@@ -44,6 +44,8 @@ import org.voltdb.compiler.VoltCompiler.ProcedureDescriptor;
 import org.voltdb.compiler.VoltCompiler.VoltCompilerException;
 import org.voltdb.utils.CatalogUtil;
 
+import edu.brown.catalog.special.NullProcParameter;
+
 /**
  * Compiles stored procedures into a given catalog,
  * invoking the StatementCompiler as needed.
@@ -272,7 +274,7 @@ public abstract class ProcedureCompiler {
                 throw compiler.new VoltCompilerException(msg);
             }
         } else {
-            procedure.setPartitionparameter(-1);
+            procedure.setPartitionparameter(NullProcParameter.PARAM_IDX);
         }
         
         // put the compiled code for this procedure into the jarfile

@@ -87,7 +87,7 @@ public class InsertCallForwarding extends VoltProcedure{
              return result[0].asScalarLong();
          }
          if (NO_CONSTRAINT_ABORT) {
-             // throw new VoltAbortException("Call_Forwarding entry already exists");
+              throw new VoltAbortException("Call_Forwarding entry already exists");
          }
          return (0l);
      }

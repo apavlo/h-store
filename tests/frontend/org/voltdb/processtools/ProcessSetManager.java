@@ -279,8 +279,15 @@ public class ProcessSetManager {
             out.write(data);
             out.flush();
         } catch (IOException e) {
-            if (this.shutting_down == false)
-                LOG.fatal(String.format("Failed to write '%s' command to '%s'", data.trim(), processName), e);
+            if (this.shutting_down == false) {
+                String msg = "";
+                if (data.isEmpty()) {
+                    msg = String.format("Failed to poll '%s'", processName);
+                } else {
+                    msg = String.format("Failed to write '%s' command to '%s'", data.trim(), processName);
+                }
+                LOG.fatal(msg, e);
+            }
             this.failure_observable.notifyObservers(processName);
         }
     }
