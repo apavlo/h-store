@@ -21,12 +21,12 @@ public final class HStoreConf {
     public boolean ignore_dtxn = true;
 
     /**
-     * Whether to use DB2 transaction redirecting
+     * Whether to use DB2-style transaction redirecting
      * When this is enabled, all txns will always start executing on a random
      * partition at the node where the request was originally sent. Then when it executes a query,
      * it will be aborted/restarted and redirected to the correct partition.
      */
-    public boolean enable_db2_redirecting = false;
+    public boolean enable_db2_redirects = false;
     
     /**
      * Whether to force all transactions to be executed as single-partitioned
@@ -164,9 +164,9 @@ public final class HStoreConf {
                 if (conf.ignore_dtxn) LOG.info("Ignoring the Dtxn.Coordinator for all single-partition transactions");
             }
             // Enable DB2-style txn redirecting
-            if (args.hasBooleanParam(ArgumentsParser.PARAM_NODE_ENABLE_DB2_REDIRECT)) {
-                conf.enable_db2_redirecting = args.getBooleanParam(ArgumentsParser.PARAM_NODE_ENABLE_DB2_REDIRECT);
-                if (conf.enable_db2_redirecting) LOG.info("Enabling DB2-style transaction redirects");
+            if (args.hasBooleanParam(ArgumentsParser.PARAM_NODE_ENABLE_DB2_REDIRECTS)) {
+                conf.enable_db2_redirects = args.getBooleanParam(ArgumentsParser.PARAM_NODE_ENABLE_DB2_REDIRECTS);
+                if (conf.enable_db2_redirects) LOG.info("Enabling DB2-style transaction redirects");
             }
             // Force all transactions to be single-partitioned
             if (args.hasBooleanParam(ArgumentsParser.PARAM_NODE_FORCE_SINGLEPARTITION)) {

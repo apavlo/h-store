@@ -714,7 +714,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
                 return;
             }
         // DB2-style Transaction Redirection
-        } else if (hstore_conf.enable_db2_redirecting) {
+        } else if (hstore_conf.enable_db2_redirects) {
             if (request.hasBasePartition()) {
                 if (d) LOG.debug(String.format("Using embedded base partition from %s request", request.getProcName()));
                 dest_partition = request.getBasePartition();    
@@ -1154,7 +1154,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         
         // Figure out whether this transaction should be redirected based on what partitions it
         // tried to touch before it was aborted 
-        if (hstore_conf.enable_db2_redirecting) {
+        if (hstore_conf.enable_db2_redirects) {
             Set<Integer> most_touched = touched.getMaxCountValues();
             if (d) LOG.debug(String.format("Touched partitions for mispredicted txn #%d\n%s", txn_id, touched));
             Integer redirect_partition = null;
