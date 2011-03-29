@@ -148,7 +148,7 @@ public class ArgumentsParser {
     public static final String PARAM_NODE_PARTITION         = PARAM_NODE + ".partition";
     public static final String PARAM_NODE_SITE              = PARAM_NODE + ".site";
     public static final String PARAM_NODE_IGNORE_DTXN       = PARAM_NODE + ".ignore_dtxn";
-    public static final String PARAM_NODE_ENABLE_DB2_REDIRECT = PARAM_NODE + ".enable_db2_redirect";
+    public static final String PARAM_NODE_ENABLE_DB2_REDIRECTS = PARAM_NODE + ".enable_db2_redirects";
     public static final String PARAM_NODE_FORCE_SINGLEPARTITION = PARAM_NODE + ".force_singlepartition";
     public static final String PARAM_NODE_FORCE_LOCALEXECUTION = PARAM_NODE + ".force_localexecution";
     public static final String PARAM_NODE_FORCE_NEWORDERINSPECT = PARAM_NODE + ".force_neworderinspect";
