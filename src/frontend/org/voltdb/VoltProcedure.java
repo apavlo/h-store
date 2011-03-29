@@ -864,20 +864,19 @@ public abstract class VoltProcedure implements Poolable {
      * @throws VoltAbortException
      */
     public void voltLoadTable(String clusterName, String databaseName,
-                              String tableName, VoltTable data, int allowELT)
-    throws VoltAbortException
-    {
-        if (data == null || data.getRowCount() == 0) {
-            return;
-        }
+                              String tableName, VoltTable data, int allowELT) throws VoltAbortException {
+        if (data == null || data.getRowCount() == 0) return;
+        assert(m_currentTxnState != null);
+        voltLoadTable(m_currentTxnState.getTransactionId(), clusterName, databaseName, tableName, data, allowELT);
+    }
+    
+    public void voltLoadTable(long txn_id, String clusterName, String databaseName,
+                              String tableName, VoltTable data, int allowELT) throws VoltAbortException {
+        if (data == null || data.getRowCount() == 0) return;
         try {
             assert(executor != null);
-            assert(m_currentTxnState != null);
-            executor.loadTable(m_currentTxnState.getTransactionId(),
-                             clusterName, databaseName,
-                             tableName, data, allowELT);
-        }
-        catch (EEException e) {
+            executor.loadTable(txn_id, clusterName, databaseName, tableName, data, allowELT);
+        } catch (EEException e) {
             throw new VoltAbortException("Failed to load table: " + tableName);
         }
     }

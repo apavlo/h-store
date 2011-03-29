@@ -1000,6 +1000,7 @@ public class ExecutionSite implements Runnable {
         
         // TODO(pavlo): Can this always be empty?
         TransactionState ts = this.txn_states.get(txn_id);
+        assert(ts != null) : "Missing TransactionState for txn #" + txn_id;
         LocalTransactionState local_ts = (ts instanceof LocalTransactionState ? (LocalTransactionState)ts : null);
         ts.ee_dependencies.clear();
         if (ftask.hasAttachedResults()) {
