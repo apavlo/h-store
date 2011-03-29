@@ -40,12 +40,10 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.log4j.Logger;
-import org.voltdb.utils.Pair;
 
 import edu.brown.utils.EventObservable;
 import edu.brown.utils.EventObserver;
 import edu.brown.utils.LoggerUtil;
-import edu.brown.utils.ThreadUtil;
 import edu.brown.utils.LoggerUtil.LoggerBoolean;
 
 public class ProcessSetManager {
@@ -281,7 +279,7 @@ public class ProcessSetManager {
         } catch (IOException e) {
             if (this.shutting_down == false) {
                 String msg = "";
-                if (data.isEmpty()) {
+                if (data.trim().isEmpty()) {
                     msg = String.format("Failed to poll '%s'", processName);
                 } else {
                     msg = String.format("Failed to write '%s' command to '%s'", data.trim(), processName);

@@ -228,7 +228,7 @@ public class ExecutionSite implements Runnable {
      */
     protected final PartitionEstimator p_estimator;
     protected final TransactionEstimator t_estimator;
-    protected final EstimationThresholds thresholds;
+    protected EstimationThresholds thresholds;
     
     protected WorkloadTrace workload_trace;
     
@@ -447,7 +447,6 @@ public class ExecutionSite implements Runnable {
         } else {
             this.t_estimator = t_estimator; 
         }
-        this.thresholds = (hstore_site != null ? hstore_site.getThresholds() : null);
         
         // Don't bother with creating the EE if we're on the coordinator
         if (true) { //  || !this.coordinator) {
@@ -719,8 +718,9 @@ public class ExecutionSite implements Runnable {
         this.hstore_messenger = hstore_messenger;
     }
     
-    public void setHStoreSite(HStoreSite hstore_coordinator) {
-        this.hstore_site = hstore_coordinator;
+    public void setHStoreSite(HStoreSite hstore_site) {
+        this.hstore_site = hstore_site;
+        this.thresholds = (hstore_site != null ? hstore_site.getThresholds() : null);
     }
     
     public BackendTarget getBackendTarget() {
@@ -1450,7 +1450,18 @@ public class ExecutionSite implements Runnable {
             MarkovEstimate estimate = t_state.getLastEstimate();
             assert(estimate != null) : "Got back null MarkovEstimate for txn #" + txn_id;
             new_done = estimate.getFinishedPartitions(this.thresholds);
-            if (d) LOG.debug(String.format("Marking %d partitions as done after this fragment for txn #%d", new_done.size(), txn_id));
+
+            if (t && new_done.isEmpty() == false) 
+                LOG.trace(String.format("Marking %d partitions as done after this fragment for txn #%d %s", new_done.size(), txn_id, new_done));
+                
+            // Mark the txn done at this partition if the MarkovEstimate said we were done
+            for (Integer p : new_done) {
+                if (done_partitions.contains(p) == false) {
+                    if (t) LOG.trace(String.format("Marking partition %d as done for txn #%d", p, txn_id));
+                    requestBuilder.addDonePartition(p.intValue());
+                    done_partitions.add(p);
+                }
+            } // FOR
         }
         
         for (FragmentTaskMessage ftask : tasks) {
@@ -1498,12 +1509,6 @@ public class ExecutionSite implements Runnable {
                     .setWork(bs)
             );
             
-            // Mark the txn done at this partition if the MarkovEstimate said we were done
-            if (new_done != null && new_done.contains(target_partition)) {
-                if (t) LOG.trace(String.format("Marking partition %d as done for txn #%d", target_partition, txn_id));
-                requestBuilder.addDonePartition(target_partition);
-                done_partitions.add(target_partition);
-            }
         } // FOR (tasks)
 
         // Bad mojo! We need to throw a MispredictionException so that the VoltProcedure

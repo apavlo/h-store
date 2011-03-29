@@ -694,16 +694,16 @@ public class PartitionEstimator {
         ProcParameter catalog_param = this.cache_procparam.get(catalog_proc);
         
         if (catalog_param == null) { 
-            if (force) {
+            if (force && catalog_proc.getParameters().size() > 0) {
                 int idx = catalog_proc.getPartitionparameter();
-                if (idx != NullProcParameter.PARAM_IDX) catalog_param = catalog_proc.getParameters().get(idx); 
+                catalog_param = catalog_proc.getParameters().get(idx != NullProcParameter.PARAM_IDX ? idx : 0);
             } else {
                 if (d) LOG.debug(catalog_proc + " has no parameters. No base partition!");
                 return (null);    
             }
         }
         
-        if (!force && catalog_param instanceof NullProcParameter) {
+        if (force == false && (catalog_param == null || catalog_param instanceof NullProcParameter)) {
             if (d) LOG.debug(catalog_proc + " does not have a pre-defined partition parameter. No base partition!");
             return (null);
 //        } else if (!force && !catalog_proc.getSinglepartition()) {

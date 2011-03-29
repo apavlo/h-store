@@ -37,7 +37,9 @@ public class MarkovPathEstimator extends VertexTreeWalker<Vertex> {
     static {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
-
+    private static boolean d = debug.get();
+    private static boolean t = trace.get();
+    
     /**
      * 
      * @author pavlo
@@ -65,6 +67,7 @@ public class MarkovPathEstimator extends VertexTreeWalker<Vertex> {
     private PartitionEstimator p_estimator;
     private int base_partition;
     private Object args[];
+    private float greatest_abort = MarkovUtil.NULL_MARKER;
 
     private final List<Integer> all_partitions;
     private final Set<Integer> touched_partitions = new HashSet<Integer>();
@@ -186,6 +189,7 @@ public class MarkovPathEstimator extends VertexTreeWalker<Vertex> {
     public void finish() {
         super.finish();
         this.confidence = MarkovUtil.NULL_MARKER;
+        this.greatest_abort = MarkovUtil.NULL_MARKER;
         
         this.t_estimator = null;
         this.p_estimator = null;
@@ -265,9 +269,6 @@ public class MarkovPathEstimator extends VertexTreeWalker<Vertex> {
      * This is the main part of where we figure out the path that this transaction will take
      */
     protected void populate_children(Children<Vertex> children, Vertex element) {
-        final boolean trace = LOG.isTraceEnabled();
-        final boolean debug = LOG.isDebugEnabled();
-        
         if (element.isAbortVertex() || element.isCommitVertex()) {
             return;
         }
@@ -277,7 +278,7 @@ public class MarkovPathEstimator extends VertexTreeWalker<Vertex> {
         this.next_statements.clear();
         this.past_partitions.addAll(element.getPartitions());
         
-        if (trace) LOG.trace("Current Vertex: " + element);
+        if (t) LOG.trace("Current Vertex: " + element);
         Statement cur_catalog_stmt = element.getCatalogItem();
         int cur_catalog_stmt_index = element.getQueryInstanceIndex();
         MarkovGraph markov = (MarkovGraph)this.getGraph();
@@ -285,7 +286,7 @@ public class MarkovPathEstimator extends VertexTreeWalker<Vertex> {
         // At our current vertex we need to gather all of our neighbors
         // and get unique Statements that we could be executing next
         Collection<Vertex> next_vertices = markov.getSuccessors(element);
-        if (trace) LOG.trace("Successors: " + next_vertices);
+        if (t) LOG.trace("Successors: " + next_vertices);
         if (next_vertices == null) {
             this.stop();
             return;
@@ -324,13 +325,13 @@ public class MarkovPathEstimator extends VertexTreeWalker<Vertex> {
         for (Pair<Statement, Integer> pair : this.next_statements) {
             Statement catalog_stmt = pair.getFirst();
             Integer catalog_stmt_index = pair.getSecond();
-            if (trace) LOG.trace("Examining " + pair);
+            if (t) LOG.trace("Examining " + pair);
             
             // Get the correlation objects (if any) for next
             // This is the only way we can predict what partitions we will touch
             SortedMap<StmtParameter, SortedSet<Correlation>> param_correlations = this.correlations.get(catalog_stmt, catalog_stmt_index);
             if (param_correlations == null) {
-                if (trace) {
+                if (t) {
                     LOG.warn("No parameter correlations for " + pair);
                     LOG.trace(this.correlations.debug(catalog_stmt));
                 }
@@ -344,14 +345,14 @@ public class MarkovPathEstimator extends VertexTreeWalker<Vertex> {
             for (int i = 0; i < stmt_args.length; i++) {
                 StmtParameter catalog_stmt_param = stmt_params[i];
                 assert(catalog_stmt_param != null);
-                if (trace) LOG.trace("Examining " + CatalogUtil.getDisplayName(catalog_stmt_param, true));
+                if (t) LOG.trace("Examining " + CatalogUtil.getDisplayName(catalog_stmt_param, true));
                 
                 SortedSet<Correlation> correlations = param_correlations.get(catalog_stmt_param);
                 if (correlations == null || correlations.isEmpty()) {
-                    if (trace) LOG.trace("No parameter correlations for " + CatalogUtil.getDisplayName(catalog_stmt_param, true) + " from " + pair);
+                    if (t) LOG.trace("No parameter correlations for " + CatalogUtil.getDisplayName(catalog_stmt_param, true) + " from " + pair);
                     continue;
                 }
-                if (trace) LOG.trace("Found " + correlations.size() + " correlation(s) for " + CatalogUtil.getDisplayName(catalog_stmt_param, true));
+                if (t) LOG.trace("Found " + correlations.size() + " correlation(s) for " + CatalogUtil.getDisplayName(catalog_stmt_param, true));
         
                 // Special Case:
                 // If the number of possible Statements we could execute next is greater than one,
@@ -362,8 +363,8 @@ public class MarkovPathEstimator extends VertexTreeWalker<Vertex> {
                 // that comes back. Is there any choice that we would need to make in order
                 // to have a better prediction about what the transaction might do?
                 if (correlations.size() > 1) {
-                    if (debug) LOG.warn("Multiple parameter correlations for " + CatalogUtil.getDisplayName(catalog_stmt_param, true));
-                    if (trace) {
+                    if (d) LOG.warn("Multiple parameter correlations for " + CatalogUtil.getDisplayName(catalog_stmt_param, true));
+                    if (t) {
                         int ctr = 0;
                         for (Correlation c : correlations) {
                             LOG.trace("[" + (ctr++) + "] Correlation: " + c);
@@ -371,28 +372,28 @@ public class MarkovPathEstimator extends VertexTreeWalker<Vertex> {
                     }
                 }
                 for (Correlation c : correlations) {
-                    if (trace) LOG.trace("Correlation: " + c);
+                    if (t) LOG.trace("Correlation: " + c);
                     ProcParameter catalog_proc_param = c.getProcParameter();
                     if (catalog_proc_param.getIsarray()) {
                         Object proc_inner_args[] = (Object[])args[c.getProcParameter().getIndex()];
-                        if (trace) LOG.trace(CatalogUtil.getDisplayName(c.getProcParameter(), true) + " is an array: " + Arrays.toString(proc_inner_args));
+                        if (t) LOG.trace(CatalogUtil.getDisplayName(c.getProcParameter(), true) + " is an array: " + Arrays.toString(proc_inner_args));
                         
                         // TODO: If this Correlation references an array element that is not available for this
                         // current transaction, should we just skip this correlation or skip the entire query?
                         if (proc_inner_args.length <= c.getProcParameterIndex()) {
-                            if (trace) LOG.trace("Unable to map parameters: " +
+                            if (t) LOG.trace("Unable to map parameters: " +
                                                  "proc_inner_args.length[" + proc_inner_args.length + "] <= " +
                                                  "c.getProcParameterIndex[" + c.getProcParameterIndex() + "]"); 
                             continue;
                         }
                         stmt_args[i] = proc_inner_args[c.getProcParameterIndex()];
                         stmt_args_set = true;
-                        if (trace) LOG.trace("Mapped " + CatalogUtil.getDisplayName(c.getProcParameter()) + "[" + c.getProcParameterIndex() + "] to " +
+                        if (t) LOG.trace("Mapped " + CatalogUtil.getDisplayName(c.getProcParameter()) + "[" + c.getProcParameterIndex() + "] to " +
                                              CatalogUtil.getDisplayName(catalog_stmt_param) + " [value=" + stmt_args[i] + "]");
                     } else {
                         stmt_args[i] = args[c.getProcParameter().getIndex()];
                         stmt_args_set = true;
-                        if (trace) LOG.trace("Mapped " + CatalogUtil.getDisplayName(c.getProcParameter()) + " to " +
+                        if (t) LOG.trace("Mapped " + CatalogUtil.getDisplayName(c.getProcParameter()) + " to " +
                                              CatalogUtil.getDisplayName(catalog_stmt_param) + " [value=" + stmt_args[i] + "]"); 
                     }
                     break;
@@ -403,7 +404,7 @@ public class MarkovPathEstimator extends VertexTreeWalker<Vertex> {
             // to our good old friend the PartitionEstimator and see whether we can figure
             // things out for this Statement
             if (stmt_args_set) {
-                if (trace) LOG.trace("Mapped StmtParameters: " + Arrays.toString(stmt_args));
+                if (t) LOG.trace("Mapped StmtParameters: " + Arrays.toString(stmt_args));
                 this.stmt_partitions.clear();
                 try {
                     this.p_estimator.getAllPartitions(this.stmt_partitions, catalog_stmt, stmt_args, this.base_partition);
@@ -413,7 +414,7 @@ public class MarkovPathEstimator extends VertexTreeWalker<Vertex> {
                     this.stop();
                     return;
                 }
-                if (trace) LOG.trace("Estimated Partitions for " + catalog_stmt + ": " + this.stmt_partitions);
+                if (t) LOG.trace("Estimated Partitions for " + catalog_stmt + ": " + this.stmt_partitions);
                 
                 // Now for this given list of partitions, find a Vertex in our next set
                 // that has the same partitions
@@ -427,15 +428,15 @@ public class MarkovPathEstimator extends VertexTreeWalker<Vertex> {
                             assert(this.candidate_edge != null);
 
                             this.candidates.add(this.candidate_edge);
-                            if (trace) LOG.trace("Found candidate edge to " + next + " [" + this.candidate_edge + "]");
+                            if (t) LOG.trace("Found candidate edge to " + next + " [" + this.candidate_edge + "]");
                             break; // ???
                         }
                     } // FOR (Vertex
-                    if (candidate_edge == null && trace) LOG.trace("Failed to find candidate edge from " + element + " to " + pair);
+                    if (candidate_edge == null && t) LOG.trace("Failed to find candidate edge from " + element + " to " + pair);
                 }
             // Without any stmt_args, there's nothing we can do here...
             } else {
-                if (trace) LOG.trace("No stmt_args for " + pair + ". Skipping...");
+                if (t) LOG.trace("No stmt_args for " + pair + ". Skipping...");
             } // IF
         } // FOR
         
@@ -444,7 +445,7 @@ public class MarkovPathEstimator extends VertexTreeWalker<Vertex> {
         int num_candidates = this.candidates.size();
         boolean was_forced = false;
         if (num_candidates == 0 && this.force_traversal) {
-            if (trace) LOG.trace("No candidate edges were found. Force travesal flag is set, so taking all");
+            if (t) LOG.trace("No candidate edges were found. Force travesal flag is set, so taking all");
             this.candidates.addAll(markov.getOutEdges(element));
             num_candidates = this.candidates.size();
             was_forced = true;
@@ -452,7 +453,7 @@ public class MarkovPathEstimator extends VertexTreeWalker<Vertex> {
         
         // So now we have our list of candidate edges. We can pick the first one
         // since they will be sorted by their probability
-        if (trace) LOG.trace("Candidate Edges: " + this.candidates);
+        if (t) LOG.trace("Candidate Edges: " + this.candidates);
         if (num_candidates > 0) {
             Edge next_edge = CollectionUtil.getFirst(this.candidates);
             Vertex next_vertex = markov.getOpposite(element, next_edge);
@@ -462,11 +463,11 @@ public class MarkovPathEstimator extends VertexTreeWalker<Vertex> {
             // Our confidence is based on the total sum of the probabilities for all of the
             // edges that we could have taken in comparison to the one that we did take
             double total_probability = 0.0;
-            if (debug) LOG.debug("CANDIDATES:");
+            if (d) LOG.debug("CANDIDATES:");
             for (Edge e : this.candidates) {
                 Vertex v = markov.getOpposite(element, e);
                 total_probability += e.getProbability();
-                if (debug) {
+                if (d) {
                     LOG.debug("  " + element + " --[" + e + "]--> " + v + (next_vertex.equals(v) ? " *******" : ""));
                     if (this.candidates.size() > 1) LOG.debug(StringUtil.addSpacers(v.debug()));
                 }
@@ -483,7 +484,7 @@ public class MarkovPathEstimator extends VertexTreeWalker<Vertex> {
             if (catalog_stmt.getQuerytype() == QueryType.SELECT.getValue()) {
                 for (Integer p : next_partitions) {
                     if (this.read_partitions.contains(p) == false) {
-                        if (trace) LOG.trace(String.format("First time partition %d is read from! Setting read-only probability to %.03f", p, this.confidence));
+                        if (t) LOG.trace(String.format("First time partition %d is read from! Setting read-only probability to %.03f", p, this.confidence));
                         try {
                             this.estimate.setReadOnlyPartitionProbability(p.intValue(), this.confidence);
                         } catch (AssertionError ex) {
@@ -503,7 +504,7 @@ public class MarkovPathEstimator extends VertexTreeWalker<Vertex> {
             } else {
                 for (Integer p : next_partitions) {
                     if (this.write_partitions.contains(p) == false) {
-                        if (trace) LOG.trace(String.format("First time partition %d is written to! Setting write probability to %.03f", p, this.confidence));
+                        if (t) LOG.trace(String.format("First time partition %d is written to! Setting write probability to %.03f", p, this.confidence));
                         this.estimate.setReadOnlyPartitionProbability(p.intValue(), inverse_prob);
                         this.estimate.setWritePartitionProbability(p.intValue(), this.confidence);
                         if (this.touched_partitions.contains(p) == false) {
@@ -519,29 +520,33 @@ public class MarkovPathEstimator extends VertexTreeWalker<Vertex> {
             // If this is the first time that the path touched more than one partition, then we need to set the single-partition
             // probability to be the confidence coefficient thus far
             if (this.touched_partitions.size() > 1 && this.estimate.isSinglePartitionProbabilitySet() == false) {
-                if (trace) LOG.trace("Setting the single-partition probability to current confidence [" + this.confidence + "]");
+                if (t) LOG.trace("Setting the single-partition probability to current confidence [" + this.confidence + "]");
                 this.estimate.setSinglePartitionProbability(inverse_prob);
             }
             
-            if (debug) {
+            // Keep track of the highest abort probability that we've seen thus far
+            if (next_vertex.isQueryVertex() && next_vertex.getAbortProbability() > this.greatest_abort) {
+                this.greatest_abort = next_vertex.getAbortProbability();
+            }
+            
+            if (d) {
                 LOG.debug("TOTAL:    " + total_probability);
                 LOG.debug("SELECTED: " + next_vertex + " [confidence=" + this.confidence + "]");
             }
         } else {
-            if (trace) LOG.trace("No matching children found. We have to stop...");
+            if (t) LOG.trace("No matching children found. We have to stop...");
         }
-        if (debug) LOG.debug(StringUtil.repeat("-", 100));
+        if (d) LOG.debug(StringUtil.repeat("-", 100));
     }
     
     @Override
     protected void callback(Vertex element) {
         if (element.isQueryVertex() == false) {
-            final boolean trace = LOG.isTraceEnabled();
             if (element.isCommitVertex()) {
-                if (trace) LOG.trace("Reached COMMIT. Stopping...");
+                if (t) LOG.trace("Reached COMMIT. Stopping...");
                 this.stop();
             } else if (element.isAbortVertex()) {
-                if (trace) LOG.trace("Reached ABORT. Stopping...");
+                if (t) LOG.trace("Reached ABORT. Stopping...");
                 this.stop();
             }
         }
@@ -549,35 +554,31 @@ public class MarkovPathEstimator extends VertexTreeWalker<Vertex> {
     
     @Override
     protected void callback_stop() {
-        final boolean trace = LOG.isTraceEnabled();
-        final boolean debug = LOG.isDebugEnabled();
-        
         Vertex last_v = this.getVisitPath().get(this.getVisitPath().size()-1);
-        if (debug) LOG.debug("Callback Stop! Last Element = " + last_v);
+        if (d) LOG.debug("Callback Stop! Last Element = " + last_v);
         
         // Finished Probability
-        for (Integer p : this.all_partitions) {
+        for (int p : this.all_partitions) {
             if (this.touched_partitions.contains(p) == false) {
-                this.estimate.setReadOnlyPartitionProbability(p.intValue(), 0.0);
-                this.estimate.setWritePartitionProbability(p.intValue(), 0.0);
-                this.estimate.setFinishPartitionProbability(p.intValue(), 1.0);
-                if (trace) LOG.trace(String.format("Partition #%d was not touched. Setting finished probability to 1.0", p));
+                this.estimate.setReadOnlyPartitionProbability(p, 0.0);
+                this.estimate.setWritePartitionProbability(p, 0.0);
+                this.estimate.setFinishPartitionProbability(p, 1.0);
+                if (t) LOG.trace(String.format("Partition #%d was not touched. Setting finished probability to 1.0", p));
+            } else {
+                if (this.estimate.isWriteProbabilitySet(p) == false) {
+                    this.estimate.setWritePartitionProbability(p, 1.0 - this.confidence);
+                }
             }
         } // FOR
         
         // Single-Partition Probability
         if (this.touched_partitions.size() == 1) {
-            if (trace) LOG.trace(String.format("Only one partition was touched %s. Setting single-partition probability to ???", this.touched_partitions)); 
+            if (t) LOG.trace(String.format("Only one partition was touched %s. Setting single-partition probability to ???", this.touched_partitions)); 
             this.estimate.setSinglePartitionProbability(1.0);
         }
         
         // Abort Probability
-        if (last_v.isAbortVertex()) {
-            // TODO
-        } else {
-            // TODO
-        }
-        this.estimate.setAbortProbability(0.0); // FIXME
+        this.estimate.setAbortProbability(this.greatest_abort);
     }
     
     
