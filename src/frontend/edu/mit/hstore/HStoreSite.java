@@ -941,9 +941,6 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
             if (d) LOG.debug(String.format("Passing %s to Dtxn.Engine as single-partition txn #%d for partition %d",
                                            txn_info.invocation.getProcName(), txn_id, base_partition));
 
-            if (d && dtxn_txns.isEmpty()) LOG.debug(String.format("Enabling CANADIAN mode [txn=#%d]", txn_id));
-            dtxn_txns.add(txn_id);
-            
             Dtxn.DtxnPartitionFragment.Builder requestBuilder = Dtxn.DtxnPartitionFragment.newBuilder();
             requestBuilder.setTransactionId(txn_id);
             requestBuilder.setCommit(Dtxn.DtxnPartitionFragment.CommitState.LOCAL_COMMIT);
@@ -966,8 +963,8 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
             // Since we know that this txn came over from the Dtxn.Coordinator, we'll throw it in
             // our set of coordinator txns. This way we can prevent ourselves from executing
             // single-partition txns straight at the ExecutionSite
-            if (d && dtxn_txns.isEmpty()) LOG.debug(String.format("Enabling CANADIAN mode [txn=#%d]", txn_id));
-            dtxn_txns.add(txn_id);
+//            if (d && dtxn_txns.isEmpty()) LOG.debug(String.format("Enabling CANADIAN mode [txn=#%d]", txn_id));
+//            dtxn_txns.add(txn_id);
             
             Dtxn.CoordinatorFragment.Builder requestBuilder = Dtxn.CoordinatorFragment.newBuilder();
             
@@ -1060,6 +1057,11 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         //      to send back whatever response it needs to on its own.
         //
         
+        Set<Long> multip_txns = this.canadian_txns[partition];
+        assert(multip_txns != null) : "Missing multi-partition txn id set at partition " + partition;
+        if (d && multip_txns.isEmpty()) LOG.debug(String.format("Enabling Dtxn.Coordinator CANADIAN mode [txn=#%d]", txn_id));
+        multip_txns.add(txn_id);
+        
         if (msg instanceof InitiateTaskMessage) {
             LocalTransactionState txn_info = this.inflight_txns.get(txn_id);
             assert(txn_info != null) : "Missing TransactionInfo for txn #" + txn_id;
@@ -1074,11 +1076,6 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
 
         } else {
             if (t) LOG.trace("Executing remote fragment for txn #" + txn_id);
-            
-            Set<Long> multip_txns = this.canadian_txns[partition];
-            assert(multip_txns != null) : "Missing multi-partition txn id set at partition " + partition;
-            if (d && multip_txns.isEmpty()) LOG.debug(String.format("Enabling Dtxn.Coordinator CANADIAN mode [txn=#%d]", txn_id));
-            multip_txns.add(txn_id);
             
             this.executors.get(partition).doWork(msg, done);
         }
