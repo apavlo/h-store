@@ -190,6 +190,11 @@ public class LocalTransactionState extends TransactionState {
     protected boolean single_partitioned = false;
     
     /**
+     * Whether this txn is being executed specutatively
+     */
+    protected boolean speculative = false;
+    
+    /**
      * Whether this txn can abort
      */
     protected boolean can_abort = true;
@@ -456,6 +461,7 @@ public class LocalTransactionState extends TransactionState {
         this.catalog_proc = null;
         this.sysproc = false;
         this.single_partitioned = false;
+        this.speculative = false;
         this.can_abort = true;
         this.ignore_dtxn = false;
         this.done_partitions.clear();
@@ -734,6 +740,9 @@ public class LocalTransactionState extends TransactionState {
     public void setPredictAbortable(boolean canAbort) {
         this.can_abort = canAbort;
     }
+    public void setSpeculative(boolean speculative) {
+        this.speculative = speculative;
+    }
     
     /**
      * Returns true if this Transaction was originally predicted to be single-partitioned
@@ -743,6 +752,13 @@ public class LocalTransactionState extends TransactionState {
         return (this.single_partitioned);
     }
     
+    /**
+     * Returns true if this transaction is being executed speculatively
+     * @return
+     */
+    public boolean isSpeculative() {
+        return (this.speculative);
+    }
     
     /**
      * Returns true if this Transaction was originally predicted as being able to abort
@@ -1124,6 +1140,7 @@ public class LocalTransactionState extends TransactionState {
         m1.put("SysProc", this.sysproc);
         m1.put("Done Partitions", this.done_partitions);
         m1.put("Predict Single-Partitioned", this.single_partitioned);
+        m1.put("Speculative Execution", this.speculative);
         m1.put("Estimator State", this.estimator_state);
         
         ListOrderedMap<String, Object> m2 = new ListOrderedMap<String, Object>();

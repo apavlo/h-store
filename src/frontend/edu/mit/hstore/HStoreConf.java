@@ -16,6 +16,11 @@ public final class HStoreConf {
     private static final Logger LOG = Logger.getLogger(HStoreConf.class);
 
     /**
+     * Whether to enable speculative execution of single-partition transactions
+     */
+    public boolean enable_speculative_execution = true;
+    
+    /**
      * Whether to not use the Dtxn.Coordinator for single-partition transactions
      */
     public boolean ignore_dtxn = true;

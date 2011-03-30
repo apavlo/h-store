@@ -2,7 +2,9 @@ package edu.mit.hstore;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -72,8 +74,10 @@ public class HStoreMessenger {
     
     private final HStoreSite hstore_site;
     private final Site catalog_site;
+    private final int local_site_id;
     private final Set<Integer> local_partitions;
     private final NIOEventLoop eventLoop = new NIOEventLoop();
+    private final int num_sites;
     private static final DBBPool buffer_pool = new DBBPool(true, false);
 
     /**
@@ -89,7 +93,8 @@ public class HStoreMessenger {
     private final Thread listener_thread;
     private final ProtoServer listener;
     private final Handler handler;
-    private final Callback callback;
+    private final FragmentCallback fragment_callback;
+    private final MessageCallback message_callback;
     private boolean shutting_down = false;
     private MessengerState state = MessengerState.INITIALIZED;
     
@@ -135,6 +140,8 @@ public class HStoreMessenger {
     public HStoreMessenger(HStoreSite site) {
         this.hstore_site = site;
         this.catalog_site = site.getSite();
+        this.local_site_id = this.catalog_site.getId();
+        this.num_sites = CatalogUtil.getNumberOfSites(this.catalog_site);
         
         Set<Integer> partitions = new HashSet<Integer>();
         for (Partition catalog_part : this.catalog_site.getPartitions()) {
@@ -142,10 +149,15 @@ public class HStoreMessenger {
         } // FOR
         this.local_partitions = Collections.unmodifiableSet(partitions);
         if (d) LOG.debug("Local Partitions for Site #" + site.getSiteId() + ": " + this.local_partitions);
+
+        for (Partition catalog_part : CatalogUtil.getAllPartitions(catalog_site)) {
+            this.partition_site_xref.put(catalog_part.getId(), ((Site)catalog_part.getParent()).getId());
+        } // FOR
         
         this.listener = new ProtoServer(eventLoop);
         this.handler = new Handler();
-        this.callback = new Callback();
+        this.fragment_callback = new FragmentCallback();
+        this.message_callback = new MessageCallback();
         
         // Wrap the listener in a daemon thread
         this.listener_thread = new Thread(new Listener(), this.hstore_site.getThreadName("msg"));
@@ -223,7 +235,7 @@ public class HStoreMessenger {
     }
     
     protected int getLocalSiteId() {
-        return (this.hstore_site.getSiteId());
+        return (this.local_site_id);
     }
     protected int getLocalMessengerPort() {
         return (this.hstore_site.getSite().getMessenger_port());
@@ -237,6 +249,18 @@ public class HStoreMessenger {
     }
     protected final Set<Integer> getLocalPartitionIds() {
         return (this.local_partitions);
+    }
+    
+    private VoltTable copyVoltTable(VoltTable vt) throws Exception {
+        FastSerializer fs = new FastSerializer(buffer_pool);
+        fs.writeObject(vt);
+        BBContainer bc = fs.getBBContainer();
+        assert(bc.b.hasArray());
+        ByteString bs = ByteString.copyFrom(bc.b);
+        
+        FastDeserializer fds = new FastDeserializer(bs.asReadOnlyByteBuffer());
+        VoltTable copy = fds.readObject(VoltTable.class);
+        return (copy);
     }
     
     /**
@@ -261,10 +285,6 @@ public class HStoreMessenger {
                     if (d) LOG.debug("Creating RpcChannel to " + host + ":" + port + " for site #" + site_id);
                     destinations.add(new InetSocketAddress(host, port));
                     site_ids.add(site_id);
-                    
-                    for (Partition catalog_part : catalog_site.getPartitions()) {
-                        this.partition_site_xref.put(catalog_part.getId(), site_id);
-                    } // FOR
                 } // FOR
             } // FOR 
         } // FOR
@@ -309,7 +329,9 @@ public class HStoreMessenger {
      * This takes in a new FragmentTransfer message and stores it in the ExecutionSite
      */
     private class Handler extends HStoreService {
-
+        
+        final ByteString ok = ByteString.copyFrom("OK".getBytes()); 
+        
         @Override
         public void sendMessage(RpcController controller, MessageRequest request, RpcCallback<MessageAcknowledgement> done) {
             int sender = request.getSenderId();
@@ -346,8 +368,8 @@ public class HStoreMessenger {
                     // Then send back the acknowledgment
                     response = Hstore.MessageAcknowledgement.newBuilder()
                                                            .setDestId(sender)
-                                                           .setSenderId(catalog_site.getId())
-                                                           .setData(ByteString.copyFrom("OK".getBytes())) // TODO
+                                                           .setSenderId(local_site_id)
+                                                           .setData(ok)
                                                            .build();
                     // Send this now!
                     done.run(response);
@@ -368,6 +390,23 @@ public class HStoreMessenger {
                     byte serializedRequest[] = request.getData().toByteArray();
                     ForwardTxnResponseCallback callback = new ForwardTxnResponseCallback(dest, sender, done);
                     HStoreMessenger.this.hstore_site.procedureInvocation(serializedRequest, callback);
+                    break;
+                }
+                // -----------------------------------------------------------------
+                // MARK A TXN AS DONE FROM A REMOTE SITE
+                // -----------------------------------------------------------------
+                case DONE_PARTITIONS: {
+                    // Tell our HStoreSite that this txn is done at the given partitions
+                    ByteBuffer buffer = request.getData().asReadOnlyByteBuffer();
+                    long txn_id = buffer.getLong();
+                    HStoreMessenger.this.hstore_site.doneAtPartitions(txn_id, request.getPartitionsList());
+
+                    Hstore.MessageAcknowledgement done_ack = Hstore.MessageAcknowledgement.newBuilder()
+                                                                    .setDestId(sender)
+                                                                    .setSenderId(dest)
+                                                                    .setData(ok)
+                                                                    .build();
+                    done.run(done_ack);
                     break;
                 }
                 // -----------------------------------------------------------------
@@ -421,7 +460,7 @@ public class HStoreMessenger {
      * Messenger Callback
      * This is invoked with a successful acknowledgment that we stored the dependency at the remote partition
      */
-    private class Callback implements RpcCallback<FragmentAcknowledgement> {
+    private class FragmentCallback implements RpcCallback<FragmentAcknowledgement> {
         
         @Override
         public void run(FragmentAcknowledgement parameter) {
@@ -430,7 +469,18 @@ public class HStoreMessenger {
                           " for Txn #" + parameter.getTxnId());
         }
     }
+    
+    private class MessageCallback implements RpcCallback<MessageAcknowledgement> {
+        @Override
+        public void run(MessageAcknowledgement parameter) {
+            if (t) LOG.trace("Received sendMessage callback from remote Partition #" + parameter.getSenderId());
+        }
+    }
  
+
+    // ----------------------------------------------------------------------------
+    // CONVIENCE METHODS
+    // ----------------------------------------------------------------------------
     
     /**
      * Send an individual dependency to a remote partition for a given transaction
@@ -445,17 +495,7 @@ public class HStoreMessenger {
         this.sendDependencySet(txn_id, sender_partition_id, dest_partition_id, dset);
     }
     
-    private VoltTable copyVoltTable(VoltTable vt) throws Exception {
-        FastSerializer fs = new FastSerializer(buffer_pool);
-        fs.writeObject(vt);
-        BBContainer bc = fs.getBBContainer();
-        assert(bc.b.hasArray());
-        ByteString bs = ByteString.copyFrom(bc.b);
-        
-        FastDeserializer fds = new FastDeserializer(bs.asReadOnlyByteBuffer());
-        VoltTable copy = fds.readObject(VoltTable.class);
-        return (copy);
-    }
+
     
     /**
      * Send a DependencySet to a remote partition for a given transaction
@@ -525,10 +565,51 @@ public class HStoreMessenger {
                                                     .setDestPartitionId(dest_partition_id)
                                                     .addAllDependencies(dependencies)
                                                     .build();
-            channel.sendFragment(rpc, ft, this.callback);
+            channel.sendFragment(rpc, ft, this.fragment_callback);
         }
     }
+    
+    /**
+     * Notify remote HStoreSites that the multi-partition transaction is done with data
+     * at the given partitions 
+     * @param txn_id
+     * @param partitions
+     */
+    public void sendDoneAtPartitions(long txn_id, Collection<Integer> partitions) {
+        // Try to combine the messages per destination site
+        Hstore.MessageRequest request = Hstore.MessageRequest.newBuilder()
+                                                             .setType(MessageType.DONE_PARTITIONS)
+                                                             .setSenderId(local_site_id)
+                                                             .setDestId(-1) // doesn't matter
+                                                             .addAllPartitions(partitions)
+                                                             .setData(HStoreSite.encodeTxnId(txn_id))
+                                                             .build();
+        boolean site_sent[] = new boolean[this.num_sites];
+        int cnt = 0;
+        for (Integer p : partitions) {
+            int site_id = this.partition_site_xref.get(p).intValue();
+            if (site_sent[site_id]) continue;
+            
+            if (d) LOG.debug(String.format("Sending DoneAtPartitions message to site %d for txn #%d", site_id, txn_id));
+            
+            if (this.local_site_id == site_id) {
+                this.hstore_site.doneAtPartitions(txn_id, partitions);
+            } else {
+                HStoreService channel = this.channels.get(site_id);
+                assert(channel != null) : "Invalid partition id '" + p + "'";
+                channel.sendMessage(new ProtoRpcController(), request, this.message_callback);
+            }
+                
+            site_sent[site_id] = true;
+            cnt++;
+        } // FOR
+        if (d) LOG.debug(String.format("Notified %d sites that txn #%d is done at %d partitions", cnt, txn_id, partitions.size()));
+    }
 
+    // ----------------------------------------------------------------------------
+    // SHUTDOWN METHODS
+    // ----------------------------------------------------------------------------
+    
     /**
      * Take down the cluster. If the blocking flag is true, then this call will never return
      * @param blocking

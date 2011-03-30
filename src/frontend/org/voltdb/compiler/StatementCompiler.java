@@ -235,6 +235,7 @@ public abstract class StatementCompiler {
     
                 // mark a fragment as non-transactional if it never touches a persistent table
                 planFragment.setNontransactional(!fragmentReferencesPersistentTable(fragment.planGraph));
+                planFragment.setReadonly(fragmentReadOnly(fragment.planGraph));
                 planFragment.setHasdependencies(fragment.hasDependencies);
                 planFragment.setMultipartition(fragment.multiPartition);
                 planFragment.setId(id);
@@ -363,5 +364,28 @@ public abstract class StatementCompiler {
 
         // if nothing found, return false
         return false;
+    }
+    
+    /**
+     * Check through a plan graph and return true if it is read only
+     */
+    static boolean fragmentReadOnly(AbstractPlanNode node) {
+        if (node == null)
+            return true;
+
+        if (node instanceof InsertPlanNode)
+            return false;
+        if (node instanceof DeletePlanNode)
+            return false;
+        if (node instanceof UpdatePlanNode)
+            return false;
+
+        // recursively check out children
+        for (int i = 0; i < node.getChildCount(); i++) {
+            if (fragmentReadOnly(node.getChild(i)) == false) return (false);
+        }
+
+        // if nothing found, return true
+        return true;
     }
 }
