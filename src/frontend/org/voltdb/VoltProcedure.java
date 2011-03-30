@@ -1075,30 +1075,38 @@ public abstract class VoltProcedure implements Poolable {
                 
                 LOG.fatal("\n" + msg);
             }
+            
+            // Crash on Misprediction!
             if (hstore_conf.mispredict_crash) {
-                System.err.println("TXN PARAMS:");
-                ParameterMangler pm = new ParameterMangler(catProc);
                 
+                ParameterMangler pm = new ParameterMangler(catProc);
+                StringBuilder sb = new StringBuilder();
                 Object mangled[] = pm.convert(this.procParams); 
                 for (int i = 0; i < mangled.length; i++) {
-                    System.err.print(String.format("  [%02d] ", i));
+                    sb.append(String.format("  [%02d] ", i));
                     if (this.paramTypeIsArray[i]) {
-                        System.err.println(Arrays.toString((Object[])mangled[i]));
+                        sb.append(Arrays.toString((Object[])mangled[i]));
                     } else {
-                        System.err.println(mangled[i]);
+                        sb.append(mangled[i]);
                     }
-                }
+                    sb.append("\n");
+                } // FOR
+                LOG.info(String.format("TXN #%d PARAMS:\n%s", this.txn_id, sb.toString()));
                 
                 State s = this.m_localTxnState.getEstimatorState();
                 if (s != null) {
                     MarkovGraph markov = s.getMarkovGraph();                
                     try {
-                        System.err.println("PARTITION: " + this.executor.partitionId);
-                        System.err.println("GRAPH: " + MarkovUtil.exportGraphviz(markov, true, markov.getPath(s.getEstimatedPath())).writeToTempFile(procedure_name));
+                        LOG.info("PARTITION: " + this.executor.partitionId);
+                        LOG.info("GRAPH: " + MarkovUtil.exportGraphviz(markov, true, markov.getPath(s.getEstimatedPath())).writeToTempFile(procedure_name));
                     } catch (Exception ex2) {
                         LOG.fatal("???????????????????????", ex2);
                     }
+                } else {
+                    LOG.warn("No TransactionEstimator.State! Can't dump out MarkovGraph!");
                 }
+                LOG.info(this.m_localTxnState);
+                
                 this.executor.crash(ex);
             }
             throw ex;

@@ -438,6 +438,7 @@ public class TransactionEstimator {
             if (d) LOG.debug(String.format("No %s MarkovGraph exists for txn #%d", catalog_proc.getName(), txn_id));
             return (null);
         }
+        // assert(markov.isValid()) : "The MarkovGraph for txn #" + txn_id + " is not valid!";
         
         Vertex start = markov.getStartVertex();
         MarkovPathEstimator estimator = null;
@@ -448,7 +449,7 @@ public class TransactionEstimator {
         } catch (Exception ex) {
             throw new RuntimeException(ex);
         }
-
+        
         // Calculate initial path estimate
         if (t) LOG.trace("Estimating initial execution path for txn #" + txn_id);
         synchronized (markov) {
@@ -474,8 +475,8 @@ public class TransactionEstimator {
                                     txn_id, path.size(), StringUtil.join("\n----------------------\n", path, "debug")));
             LOG.trace(String.format("MarkovEstimate for txn #%d\n%s", txn_id, estimator.getEstimate()));
         }
-
-        if (t) LOG.trace("Creating new State txn #" + txn_id);
+        
+        if (t) LOG.trace(String.format("Creating new State txn #%d [touched=%s]", txn_id, estimator.getTouchedPartitions()));
         State state = null;
         try {
             state = (State)STATE_POOL.borrowObject();

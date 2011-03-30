@@ -59,7 +59,7 @@ public class MispredictionException extends SerializableException {
     
     @Override
     public String getMessage() {
-        return ("Mispredicted txn #" + this.txn_id + " " + this.partitions);
+        return ("Mispredicted txn #" + this.txn_id + " " + this.partitions.values());
     }
     
 }
