@@ -302,27 +302,8 @@ public class BenchmarkController {
     }
 
     /**
-     * Blocking call that waits until the cluster says it is ready to execute stuff
+     * SETUP BENCHMARK 
      */
-    public void blockUntilClusterReady(Catalog catalog) {
-        // Randomly pick a host to send our request to
-        Cluster cluster = CatalogUtil.getCluster(catalog);
-        Site catalog_site = CollectionUtil.getRandomValue(cluster.getSites());
-        assert(catalog_site != null);
-        
-        HStoreService channel = HStoreMessenger.getHStoreService(catalog_site);
-        assert(channel != null);
-        
-        Hstore.MessageRequest mr = Hstore.MessageRequest.newBuilder()
-                                         .setSenderId(-1)
-                                         .setDestId(catalog_site.getId())
-                                         .setType(MessageType.READY)
-                                         .build();
-        BlockingCallback<Hstore.MessageAcknowledgement> done = new BlockingCallback<Hstore.MessageAcknowledgement>();
-        channel.sendMessage(new ProtoRpcController(), mr, done);
-        done.block();
-    }
-    
     public void setupBenchmark() {
         // actually compile and write the catalog to disk
         if (m_config.compileBenchmark) {

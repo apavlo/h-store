@@ -121,6 +121,50 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
         return (ret);
     }
     
+    public static void preload(CatalogType catalog_obj) {
+        assert(catalog_obj != null);
+        
+        Database catalog_db = CatalogUtil.getDatabase(catalog_obj);
+        List<PlanFragment> stmt_frags = new ArrayList<PlanFragment>();
+        for (Procedure catalog_proc : catalog_db.getProcedures()) {
+            
+            for (Statement catalog_stmt : catalog_proc.getStatements()) {
+                stmt_frags.clear();
+                CollectionUtil.addAll(stmt_frags, catalog_stmt.getFragments());
+                CollectionUtil.addAll(stmt_frags, catalog_stmt.getMs_fragments());
+                
+                if (catalog_stmt.getReadonly()) {
+                    for (PlanFragment catalog_frag : stmt_frags) {
+                        assert(catalog_frag.getReadonly());
+                        FRAGMENT_READONLY.put((long)catalog_frag.getId(), true);
+                    } // FOR
+                } else {
+                    for (PlanFragment catalog_frag : stmt_frags) {
+                        long id = (long)catalog_frag.getId();
+                        FRAGMENT_READONLY.put(id, catalog_frag.getReadonly());
+                    } // FOR
+                }
+            } // STATEMENT
+        } // PROCEDURE 
+    }
+
+    private static final Map<Long, Boolean> FRAGMENT_READONLY = new HashMap<Long, Boolean>();
+
+    /**
+     * Returns true if all of the fragments in the array are read-only
+     * @param catalog_obj
+     * @param fragments
+     * @param cnt
+     * @return
+     */
+    public static boolean areFragmentsReadOnly(CatalogType catalog_obj, long fragments[], int cnt) {
+        if (FRAGMENT_READONLY.isEmpty()) preload(catalog_obj);
+        for (int i = 0; i < cnt; i++) {
+            if (FRAGMENT_READONLY.get(fragments[i]).booleanValue() == false) return (false);
+        } // FOR
+        return (true);
+    }
+    
 
     /**
      * 

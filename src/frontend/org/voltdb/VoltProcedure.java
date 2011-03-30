@@ -493,10 +493,12 @@ public abstract class VoltProcedure implements Poolable {
      * @param paramList
      * @return
      */
-    public final void call(TransactionState txnState, Object... paramList) {
+    public final ClientResponse call(TransactionState txnState, Object... paramList) {
         if (t) LOG.trace("Setting up internal state for txn #" + txnState.getTransactionId());
         if (d) Thread.currentThread().setName(this.executor.getThreadName() + "-" + this.procedure_name);
 
+        ClientResponse response = null;
+        
         long current_txn_id = txnState.getTransactionId();
         assert(this.txn_id == -1) : "Old Transaction Id: " + this.txn_id + " -> New Transaction Id: " + current_txn_id;
         this.m_currentTxnState = txnState;
@@ -511,14 +513,10 @@ public abstract class VoltProcedure implements Poolable {
         try {
             // Execute the txn (this blocks until we return)
             if (t) LOG.trace("Invoking VoltProcedure.call for txn #" + current_txn_id);
-            ClientResponse response = this.call(); // Bombs away!
+            response = this.call(); // Bombs away!
             assert(response != null);
             if (hstore_conf.enable_profiling) this.m_localTxnState.finish_time.start();
 
-            // Send the response back immediately!
-            if (t) LOG.trace("Sending ClientResponse back for txn #" + current_txn_id + " [status=" + response.getStatusName() + "]");
-            this.executor.sendClientResponse(this.m_localTxnState, (ClientResponseImpl)response);
-            
             // Notify anybody who cares that we're finished (used in testing)
             if (t) LOG.trace("Notifying observers that txn #" + current_txn_id + " is finished");
             this.observable.notifyObservers(response);
@@ -533,6 +531,7 @@ public abstract class VoltProcedure implements Poolable {
             LOG.fatal("Unexpected error while executing txn #" + current_txn_id + " [" + this.procedure_name + "]", ex);
             this.executor.crash(ex);
         }
+        return (response);
     }
 
     /**

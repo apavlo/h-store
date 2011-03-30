@@ -132,6 +132,10 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
         m_exception = e;
         setResults(status, results, extra);
     }
+    
+    public void setStatus(byte status) {
+        this.status = status;
+    }
 
     @Override
     public boolean isSinglePartition() {

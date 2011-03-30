@@ -442,8 +442,8 @@ public abstract class MarkovUtil {
                     String className = MarkovGraphsContainer.class.getCanonicalName();
                     if (json_object.has(MarkovGraphsContainer.Members.CLASSNAME.name())) {
                         className = json_object.getString(MarkovGraphsContainer.Members.CLASSNAME.name());    
-                    } else {
-                        assert(false) : "Missing class name: " + CollectionUtil.toList(json_object.keys());
+//                    } else {
+//                        assert(false) : "Missing class name: " + CollectionUtil.toList(json_object.keys());
                     }
                     MarkovGraphsContainer markovs = ClassUtil.newInstance(className,
                                                                           new Object[]{ procedures},
