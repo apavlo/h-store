@@ -446,7 +446,17 @@ public class MarkovPathEstimator extends VertexTreeWalker<Vertex> {
         boolean was_forced = false;
         if (num_candidates == 0 && this.force_traversal) {
             if (t) LOG.trace("No candidate edges were found. Force travesal flag is set, so taking all");
-            this.candidates.addAll(markov.getOutEdges(element));
+//            if (this.next_statements.size() == 1) {
+//                Pair<Statement, Integer> p = CollectionUtil.getFirst(this.next_statements);
+//                Vertex v = new Vertex(p.getFirst(), Vertex.Type.QUERY, p.getSecond(), this.stmt_partitions, this.past_partitions);
+//                markov.addVertex(v);
+//                this.candidate_edge = new Edge(markov);
+//                markov.addEdge(this.candidate_edge, element, v, EdgeType.DIRECTED);
+//                this.candidates.add(candidate_edge);
+//                LOG.info("Created a new vertex " + v);
+//            } else {
+                this.candidates.addAll(markov.getOutEdges(element));
+//            }
             num_candidates = this.candidates.size();
             was_forced = true;
         }
@@ -536,7 +546,7 @@ public class MarkovPathEstimator extends VertexTreeWalker<Vertex> {
         } else {
             if (t) LOG.trace("No matching children found. We have to stop...");
         }
-        if (d) LOG.debug(StringUtil.repeat("-", 100));
+        if (t) LOG.trace(StringUtil.repeat("-", 100));
     }
     
     @Override

@@ -16,6 +16,7 @@ import org.voltdb.messaging.FastSerializer;
 import org.voltdb.utils.Encoder;
 
 import edu.brown.catalog.CatalogKey;
+import edu.brown.hashing.AbstractHasher;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.JSONSerializable;
 import edu.brown.utils.JSONUtil;
@@ -35,15 +36,18 @@ public class MarkovGraphsContainer implements JSONSerializable {
         MARKOVS,
         FEATURES,
         GLOBAL,
+        CLASSNAME,
         ;
     }
+    
+    protected AbstractHasher hasher;
     
     private boolean global;
     
     /**
      * 
      */
-    private final SortedMap<Integer, Map<Procedure,MarkovGraph>> markovs = new TreeMap<Integer, Map<Procedure,MarkovGraph>>();
+    private final SortedMap<Integer, Map<Procedure, MarkovGraph>> markovs = new TreeMap<Integer, Map<Procedure, MarkovGraph>>();
     
     /**
      * 
@@ -98,6 +102,10 @@ public class MarkovGraphsContainer implements JSONSerializable {
     // -----------------------------------------------------------------
     // PSEUDO-MAP METHODS
     // -----------------------------------------------------------------
+    
+    public void setHasher(AbstractHasher hasher) {
+        this.hasher = hasher;
+    }
     
     public boolean isGlobal() {
         return global;
@@ -225,6 +233,15 @@ public class MarkovGraphsContainer implements JSONSerializable {
         return (this.markovs.get(id));
     }
     
+    public Map<Integer, MarkovGraph> getAll(Procedure catalog_proc) {
+        Map<Integer, MarkovGraph> markovs = new HashMap<Integer, MarkovGraph>();
+        for (Integer id : this.markovs.keySet()) {
+            MarkovGraph m = this.markovs.get(id).get(catalog_proc);
+            if (m != null) markovs.put(id, m);
+        } // FOR
+        return (markovs);
+    }
+    
     public void copy(MarkovGraphsContainer other) {
         this.features.putAll(other.features);
         this.markovs.putAll(other.markovs);
@@ -289,6 +306,9 @@ public class MarkovGraphsContainer implements JSONSerializable {
 
     @Override
     public void toJSON(JSONStringer stringer) throws JSONException {
+        // CLASSNAME
+        stringer.key(Members.CLASSNAME.name()).value(this.getClass().getCanonicalName());
+        
         // IS GLOBAL
         stringer.key(Members.GLOBAL.name()).value(this.global);
         

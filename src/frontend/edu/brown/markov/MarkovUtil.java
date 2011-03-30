@@ -20,6 +20,8 @@ import org.voltdb.utils.Pair;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.graphs.GraphvizExport;
 import edu.brown.graphs.GraphvizExport.Attributes;
+import edu.brown.hashing.AbstractHasher;
+import edu.brown.utils.ClassUtil;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.FileUtil;
 import edu.brown.utils.PartitionEstimator;
@@ -331,6 +333,31 @@ public abstract class MarkovUtil {
         ThreadUtil.runGlobalPool(runnables);
         return (markovs);
     }
+
+    /**
+     * Utility method to calculate the probabilities at all of the MarkovGraphsContainers
+     * @param markovs
+     */
+    public static void calculateProbabilities(Map<Integer, ? extends MarkovGraphsContainer> markovs) {
+        if (LOG.isDebugEnabled()) LOG.debug(String.format("Calculating probabilities for %d ids", markovs.size()));
+        for (MarkovGraphsContainer m : markovs.values()) {
+            m.calculateProbabilities();
+        }
+        return;
+    }
+    
+    /**
+     * Utility method
+     * @param markovs
+     * @param hasher
+     */
+    public static void setHasher(Map<Integer, ? extends MarkovGraphsContainer> markovs, AbstractHasher hasher) {
+        if (LOG.isDebugEnabled()) LOG.debug(String.format("Setting hasher for for %d ids", markovs.size()));
+        for (MarkovGraphsContainer m : markovs.values()) {
+            m.setHasher(hasher);
+        }
+        return;
+    }
     
     /**
      * Load a list of Markov objects from a serialized for a particular id
@@ -372,9 +399,8 @@ public abstract class MarkovUtil {
         final boolean d = LOG.isDebugEnabled();
         
         final Map<Integer, MarkovGraphsContainer> ret = new HashMap<Integer, MarkovGraphsContainer>();
-        final String className = MarkovGraphsContainer.class.getSimpleName();
         final File file = new File(input_path);
-        LOG.info(String.format("Loading in serialized %s from '%s' [procedures=%s, ids=%s]", className, file.getName(), procedures, ids));
+        LOG.info(String.format("Loading in serialized MarkovGraphContainers from '%s' [procedures=%s, ids=%s]", file.getName(), procedures, ids));
         
         try {
             // File Format: One PartitionId per line, each with its own MarkovGraphsContainer 
@@ -410,23 +436,35 @@ public abstract class MarkovUtil {
                 // Otherwise check whether this is a line number that we care about
                 } else if (line_xref.containsKey(Integer.valueOf(line_ctr))) {
                     final Integer partition = line_xref.remove(Integer.valueOf(line_ctr));
-                    MarkovGraphsContainer markovs = new MarkovGraphsContainer(procedures);
-                    JSONObject json_object = new JSONObject(line);
-                    if (d) LOG.debug("Populating MarkovGraphsContainer for partition " + partition);
-                    markovs.fromJSON(json_object.getJSONObject(partition.toString()), catalog_db);
+                    final JSONObject json_object = new JSONObject(line).getJSONObject(partition.toString());
+                    
+                    // We should be able to get the classname of the container from JSON
+                    String className = MarkovGraphsContainer.class.getCanonicalName();
+                    if (json_object.has(MarkovGraphsContainer.Members.CLASSNAME.name())) {
+                        className = json_object.getString(MarkovGraphsContainer.Members.CLASSNAME.name());    
+                    } else {
+                        assert(false) : "Missing class name: " + CollectionUtil.toList(json_object.keys());
+                    }
+                    MarkovGraphsContainer markovs = ClassUtil.newInstance(className,
+                                                                          new Object[]{ procedures},
+                                                                          new Class<?>[]{ Collection.class }); 
+                    assert(markovs != null);
+                    
+                    if (d) LOG.debug(String.format("Populating %s for partition %d", className, partition));
+                    markovs.fromJSON(json_object, catalog_db);
                     ret.put(partition, markovs);        
                     
                     if (line_xref.isEmpty()) break;
                 }
                 line_ctr++;
             } // WHILE
-            if (line_ctr == 0) throw new IOException("The " + className + " file '" + input_path + "' is empty");
+            if (line_ctr == 0) throw new IOException("The MarkovGraphsContainer file '" + input_path + "' is empty");
             
         } catch (Exception ex) {
-            LOG.error("Failed to deserialize the " + className + " from file '" + input_path + "'", ex);
+            LOG.error("Failed to deserialize the MarkovGraphsContainer from file '" + input_path + "'", ex);
             throw new IOException(ex);
         }
-        if (d) LOG.debug("The loading of the " + className + " is complete");
+        if (d) LOG.debug("The loading of the MarkovGraphsContainer is complete");
         return (ret);
     }
     
@@ -436,7 +474,7 @@ public abstract class MarkovUtil {
      * @param output_path
      * @throws Exception
      */
-    public static void save(Map<Integer, MarkovGraphsContainer> markovs, String output_path) throws Exception {
+    public static void save(Map<Integer, ? extends MarkovGraphsContainer> markovs, String output_path) throws Exception {
         final String className = MarkovGraphsContainer.class.getSimpleName();
         LOG.info("Writing out graphs of " + className + " to '" + output_path + "'");
         

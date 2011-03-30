@@ -160,13 +160,13 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         COMPLETED,
         /** The number of transactions that were mispredicted (and thus re-executed) */
         MISPREDICTED,
-        /** The number of tranasction requests that have arrived at this site */
+        /** The number of transaction requests that have arrived at this site */
         RECEIVED,
-        /** Of the the receieved transactions, the number that we had to send somewhere else */
+        /** Of the the received transactions, the number that we had to send somewhere else */
         REDIRECTED,
         ;
         
-        private final Histogram<Integer> h = new Histogram<Integer>();
+        private final Histogram<String> h = new Histogram<String>();
         private final String name;
         private TxnCounter() {
             this.name = StringUtil.title(this.name()).replace("_", "-");
@@ -175,7 +175,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         public String toString() {
             return (this.name);
         }
-        public Histogram<Integer> getHistogram() {
+        public Histogram<String> getHistogram() {
             return (this.h);
         }
         public int get() {
@@ -740,7 +740,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
             dest_partition = CollectionUtil.getRandomValue(this.local_partitions);
         }
         
-        if (t) LOG.trace(String.format("%s Invocation [handle=%d, partition=%d]", request.getClientHandle(), dest_partition));
+        if (d) LOG.debug(String.format("%s Invocation [handle=%d, partition=%d]", request.getProcName(), request.getClientHandle(), dest_partition));
         
         // If the dest_partition isn't local, then we need to ship it off to the right location
         if (this.local_partitions.contains(dest_partition) == false) {
@@ -830,6 +830,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
             try {
                 // HACK: Convert the array parameters to object arrays...
                 Object cast_args[] = this.param_manglers.get(catalog_proc).convert(args);
+                if (d) LOG.debug(String.format("Txn #%d Parameters:\n%s", txn_id, this.param_manglers.get(catalog_proc).toString(cast_args)));
                 
                 if (hstore_conf.enable_profiling) local_ts.est_time.start();
                 estimator_state = t_estimator.startTransaction(txn_id, dest_partition, catalog_proc, cast_args);
@@ -855,7 +856,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
                         if (d) LOG.debug(String.format("Using TransactionEstimator.Estimate for txn #%d to determine if single-partitioned", txn_id));
                         if (d) LOG.debug("MarkovEstimate:\n" + estimate);
                         single_partition = estimate.isSinglePartition(this.thresholds);
-                        can_abort = estimate.isUserAbort(this.thresholds);
+                        // can_abort = estimate.isUserAbort(this.thresholds);
                         if (this.status_monitor != null && can_abort) TxnCounter.NO_UNDO_BUFFER.inc(catalog_proc);
                     }
                 }
@@ -1000,8 +1001,9 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
             for (Integer p : done_partitions) {
                 requestBuilder.addDonePartition(p.intValue());
             } // FOR
+            assert(done_partitions.size() != this.all_partitions.size()) : "Trying to mark txn #" + txn_id + " as done at EVERY partition!";
             if (d && requestBuilder.getDonePartitionCount() > 0) {
-                LOG.info(String.format("Marked txn #%d as done at %d partitions: %s", txn_id, requestBuilder.getDonePartitionCount(), requestBuilder.getDonePartitionList()));
+                LOG.debug(String.format("Marked txn #%d as done at %d partitions: %s", txn_id, requestBuilder.getDonePartitionCount(), requestBuilder.getDonePartitionList()));
             }
 
             // NOTE: Evan betrayed our love so we can't use his txn ids because they are meaningless to us
@@ -1685,6 +1687,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
             File path = new File(args.getParam(ArgumentsParser.PARAM_MARKOV));
             if (path.exists()) {
                 markovs = MarkovUtil.loadIds(args.catalog_db, path.getAbsolutePath(), CatalogUtil.getLocalPartitionIds(catalog_site));
+                MarkovUtil.setHasher(markovs, p_estimator.getHasher());
                 LOG.info("Finished loading MarkovGraphsContainer '" + path + "'");
             } else {
                 if (LOG.isDebugEnabled()) LOG.warn("The Markov Graphs file '" + path + "' does not exist");

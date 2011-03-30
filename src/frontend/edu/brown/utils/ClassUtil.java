@@ -105,8 +105,9 @@ public abstract class ClassUtil {
         return (ret);
     }
     
-    public static Object newInstance(String class_name, Object params[], Class<?> classes[]) {
-        return (ClassUtil.newInstance(ClassUtil.getClass(class_name), params, classes));
+    @SuppressWarnings("unchecked")
+    public static <T> T newInstance(String class_name, Object params[], Class<?> classes[]) {
+        return ((T)ClassUtil.newInstance(ClassUtil.getClass(class_name), params, classes));
     }
 
     
@@ -122,8 +123,7 @@ public abstract class ClassUtil {
         try {
             ret = constructor.newInstance(params);
         } catch (Exception ex) {
-            ex.printStackTrace();
-            System.exit(1);
+            throw new RuntimeException(ex);
         }
         return (ret);
     }

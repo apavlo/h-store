@@ -1244,8 +1244,8 @@ public class PartitionEstimator {
      * @return
      * @throws Exception
      */
-    public Histogram buildBasePartitionHistogram(Workload workload) throws Exception {
-        final Histogram h = new Histogram();
+    public Histogram<Integer> buildBasePartitionHistogram(Workload workload) throws Exception {
+        final Histogram<Integer> h = new Histogram<Integer>();
         for (TransactionTrace txn_trace : workload.getTransactions()) {
             int base_partition = this.getBasePartition(txn_trace);
             h.put(base_partition);
