@@ -90,13 +90,13 @@ public class ExecutionSite implements Runnable {
     // SPECULATIVE EXECUTION TYPES
     // ----------------------------------------------------------------------------
 
-    public enum SpeculateType {
+    protected enum SpeculateType {
         /** No speculative execution **/
         DISABLED,
         /** Allow read-only txns to return results **/
-        ALLOW_READONLY,
+        COMMIT_READONLY,
         /** All txn responses must wait until the multi-p txn is commited **/ 
-        ALLOW_NONE,
+        COMMIT_NONE,
     };
     
     // ----------------------------------------------------------------------------
@@ -725,7 +725,7 @@ public class ExecutionSite implements Runnable {
         
         // Check whether the txn that we're waiting for is read-only.
         // If it is, then that means all read-only transactions can commit right away
-        this.speculative_execution = (this.isReadOnly(txn_id) ? SpeculateType.ALLOW_READONLY : SpeculateType.ALLOW_NONE);
+        this.speculative_execution = (this.isReadOnly(txn_id) ? SpeculateType.COMMIT_READONLY : SpeculateType.COMMIT_NONE);
         if (d) LOG.debug(String.format("Enabled %s speculative execution at partition %d [txn=#%d]", this.speculative_execution, partitionId, txn_id));  
     }
 
@@ -781,6 +781,10 @@ public class ExecutionSite implements Runnable {
         return (this.partitionId);
     }
     
+    public int getQueueSize() {
+        return (this.work_queue.size());
+    }
+    
     public VoltProcedure getRunningVoltProcedure(long txn_id) {
         // assert(this.running_xacts.containsKey(txn_id)) : "No running VoltProcedure exists for txn #" + txn_id;
         LocalTransactionState ts = (LocalTransactionState)this.txn_states.get(txn_id);
@@ -794,7 +798,11 @@ public class ExecutionSite implements Runnable {
      */
     public boolean isReadOnly(long txn_id) {
         TransactionState ts = this.txn_states.get(txn_id);
+        
+        // This is an important check because it means that we got a done message from
+        // a transaction that we never actually executed!
         assert(ts != null) : "The TransactionState is somehow null for txn #" + txn_id;
+        
         return (ts.isReadOnly());
     }
     
@@ -901,12 +909,12 @@ public class ExecutionSite implements Runnable {
         
         if (t) LOG.trace(String.format("Starting execution of txn #%d [proc=%s]", txn_id, proc_name));
         ClientResponseImpl cresponse = (ClientResponseImpl)volt_proc.call(local_ts, itask.getParameters()); // Blocking...
-        assert(cresponse != null);
+        assert(cresponse != null && this.isShuttingDown() == false) : String.format("No ClientResponse for %s txn #%d???", local_ts.getProcedureName(), txn_id);
         
         // If this transaction was speculatively executed, then see whether we are still waiting for a response 
         // from the remote transaction. We can send back the response if we know that the txn was read-only.
         // How nice!
-        if (spec_exec == SpeculateType.ALLOW_NONE) {
+        if (spec_exec == SpeculateType.COMMIT_NONE) {
             // Always queue our response, since we know that whatever thread is out there
             // is waiting for us to finish before it drains the queued responses
             if (t) LOG.trace(String.format("Queuing ClientResponse for txn #%d [status=%s]", txn_id, cresponse.getStatusName()));
@@ -1452,7 +1460,7 @@ public class ExecutionSite implements Runnable {
 //        LOG.info("Serialized FragmentResponseMessage [size=" + serialized.capacity() + ",id=" + serialized.get(VoltMessage.HEADER_SIZE) + "]");
 //        assert(serialized.get(VoltMessage.HEADER_SIZE) == VoltMessage.FRAGMENT_RESPONSE_ID);
         
-        if (d) LOG.debug("Sending FragmentResponseMessage for txn #" + txn_id + " [size=" + bs.size() + "]");
+        if (d) LOG.debug(String.format("Sending FragmentResponseMessage for txn #%d [partition=%d, size%d]", txn_id, this.partitionId, bs.size()));
         Dtxn.FragmentResponse.Builder builder = Dtxn.FragmentResponse.newBuilder().setOutput(bs);
         
         switch (fresponse.getStatusCode()) {
@@ -1497,11 +1505,15 @@ public class ExecutionSite implements Runnable {
             // execution thread is going to be blocked. So we always do this so that we're not sending a 
             // useless message
             new_done.remove(this.partitionId);
+            
+            // Make sure that we only tell partitions that we actually touched, otherwise they will
+            // be stuck waiting for a finish request that will never come!
+            Set<Integer> ts_touched = ts.getTouchedPartitions().values();
 
             // Mark the txn done at this partition if the MarkovEstimate said we were done
             this.done_partitions.clear();
             for (Integer p : new_done) {
-                if (ts_done_partitions.contains(p) == false) {
+                if (ts_done_partitions.contains(p) == false && ts_touched.contains(p)) {
                     if (t) LOG.trace(String.format("Marking partition %d as done for txn #%d", p, txn_id));
                     ts_done_partitions.add(p);
                     this.done_partitions.add(p);
@@ -1748,8 +1760,8 @@ public class ExecutionSite implements Runnable {
      */
     protected void queueClientResponse(LocalTransactionState ts, ClientResponseImpl cresponse) {
 //        if (d) 
-            LOG.info(String.format("Queuing ClientResponseImpl for txn #%d [clientHandle=%s, status=%s]",
-                                ts.getTransactionId(), ts.getClientHandle(), cresponse.getStatusName()));
+            LOG.info(String.format("Queuing ClientResponseImpl for %s txn #%d [clientHandle=%s, status=%s]",
+                                ts.getProcedureName(), ts.getTransactionId(), ts.getClientHandle(), cresponse.getStatusName()));
         assert(ts.isExecSinglePartition()) : "Specutatively executed multi-partition txn #" + ts.getTransactionId();
         assert(ts.isSpeculative()) : "Queueing non-specutative txn #" + ts.getTransactionId();
         assert(this.speculative_execution != SpeculateType.DISABLED) : "Queueing when not in speculative execution mode for txn #" + ts.getTransactionId();
@@ -1771,7 +1783,8 @@ public class ExecutionSite implements Runnable {
         assert(client_handle != -1) : "The client handle for txn #" + txn_id + " was not set properly";
         byte status = cresponse.getStatus();
 
-        if (d) LOG.debug(String.format("Sending ClientResponseImpl back for txn #%d [clientHandle=%s, status=%s]", txn_id, cresponse.getClientHandle(), cresponse.getStatusName()));
+        if (d) LOG.debug(String.format("Sending ClientResponseImpl back for %s txn #%d [clientHandle=%s, status=%s]",
+                                       ts.getProcedureName(), txn_id, cresponse.getClientHandle(), cresponse.getStatusName()));
         Dtxn.FragmentResponse.Builder builder = Dtxn.FragmentResponse.newBuilder();
 
         // IMPORTANT: If we executed this locally and only touched our partition, then we need to commit/abort right here
@@ -1978,18 +1991,15 @@ public class ExecutionSite implements Runnable {
             if (d) LOG.debug(String.format("Partition #%d told to shutdown again. Ignoring...", this.partitionId));
             return;
         }
+        this.shutdown = true;
         
         if (d) LOG.debug(String.format("Shutting down ExecutionSite for Partition #%d", this.partitionId));
         
         // Clear the queue
         this.work_queue.clear();
         
-        // Tell the main loop to shutdown (if it's running)
-        this.shutdown = true;
-        
         // Make sure we shutdown our threadpool
         // this.thread_pool.shutdownNow();
-        
         if (this.self != null) this.self.interrupt();
         
         if (this.shutdown_latch != null) {

@@ -35,7 +35,7 @@ public class HStoreSiteStatus implements Runnable {
     private final int interval; // seconds
     private final boolean kill_when_hanging;
     private final TreeMap<Integer, TreeSet<Long>> partition_txns = new TreeMap<Integer, TreeSet<Long>>();
-    private final List<ExecutionSite> executors;
+    private final TreeMap<Integer, ExecutionSite> executors;
     
     private Integer last_completed = null;
     
@@ -57,7 +57,7 @@ public class HStoreSiteStatus implements Runnable {
         this.hstore_site = hstore_site;
         this.interval = interval;
         this.kill_when_hanging = kill_when_hanging;
-        this.executors = new ArrayList<ExecutionSite>(hstore_site.executors.values());
+        this.executors = new TreeMap<Integer, ExecutionSite>(hstore_site.executors);
         
         for (Integer partition : hstore_site.all_partitions) {
             this.partition_txns.put(partition, new TreeSet<Long>());
@@ -82,7 +82,7 @@ public class HStoreSiteStatus implements Runnable {
             if (this.hstore_site.isShuttingDown()) break;
 
             // Out we go!
-            LOG.info("\n" + StringUtil.box(this.snapshot(true, false, true)));
+            LOG.info("\n" + StringUtil.box(this.snapshot(true, true, true)));
             
             // If we're not making progress, bring the whole thing down!
             int completed = TxnCounter.COMPLETED.get();
@@ -124,11 +124,11 @@ public class HStoreSiteStatus implements Runnable {
             } // FOR
 
             m0.put("InFlight Txn Ids", String.format("%d [min=%d, max=%d]", inflight_cur, inflight_min, inflight_max));
-            for (Integer partition : this.partition_txns.keySet()) {
-                int cnt = this.partition_txns.get(partition).size();
-                if (cnt > 0) {
-                    m0.put(String.format("  Partition[%02d]", partition), this.partition_txns.get(partition).size() + " txns");
-                }
+            for (Entry<Integer, ExecutionSite> e : this.executors.entrySet()) {
+                int partition = e.getKey().intValue();
+                String key = String.format("  Partition[%02d]", partition); 
+                String val = String.format("%2d txns / %2d queue", this.partition_txns.get(partition).size(), e.getValue().getQueueSize());
+                m0.put(key, val);
             } // FOR
         }
 
@@ -211,7 +211,7 @@ public class HStoreSiteStatus implements Runnable {
                 total_active[i] = total_idle[i] = total_created[i] = total_passivated[i] = total_destroyed[i] = 0;
             }
             
-            for (ExecutionSite e : executors) {
+            for (ExecutionSite e : executors.values()) {
                 int i = 0;
                 for (ObjectPool p : new ObjectPool[] { e.localTxnPool, e.remoteTxnPool }) {
                     pool = (StackObjectPool)p;

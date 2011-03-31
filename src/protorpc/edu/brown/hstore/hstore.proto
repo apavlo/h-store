@@ -18,13 +18,15 @@ message MessageRequest {
     required int32 dest_id = 2;
     required MessageType type = 3;
     optional bytes data = 4;
-    repeated int32 partitions = 5;
+    optional int64 txn_id = 5;
+    repeated int32 partitions = 6;
 }
 
 message MessageAcknowledgement {
     required int32 sender_id = 1;
     required int32 dest_id = 2;
     optional bytes data = 3;
+    optional int64 txn_id = 4;
 }
 
 // -----------------------------------

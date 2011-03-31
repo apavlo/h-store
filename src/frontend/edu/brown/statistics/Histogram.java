@@ -317,7 +317,7 @@ public class Histogram<X> implements JSONSerializable {
      * @return
      */
     public Set<X> values() {
-        return (Collections.unmodifiableSet((Set<X>)this.histogram.keySet()));
+        return (Collections.unmodifiableSet(this.histogram.keySet()));
     }
     
     /**
