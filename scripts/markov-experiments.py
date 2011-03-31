@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+# -*- coding: utf-8 -*-
 from __future__ import with_statement
 import os
 import sys
@@ -21,60 +22,82 @@ logging.basicConfig(level = logging.INFO,
 ## CONFIGURATION PARAMETERS
 ## ==============================================
 
-BENCHMARK = "tpcc"
+NODE_MAX = 199
+NODES_TO_SKIP = [ 20, 21, 45, 77, 114, 101 ]
+NODE_FORMAT = "d-%02d.cs.wisc.edu"
 
 NUM_TRIALS_PER_EXP = 3
-
-CLIENT_NODES_START = 3
-CLIENT_COUNT = 4
+COORDINATOR_NODE = 1
+SITE_NODE_START = COORDINATOR_NODE + 1
+SITES_PER_NODE = 1
+SITE_ALL_NODES = range(SITE_NODE_START, NODE_MAX)
 CLIENT_PER_NODE = 4
 CLIENT_BLOCKING = True
 
-SITE_NODE_START = CLIENT_NODES_START + CLIENT_COUNT
-SITE_NODE_MAX = 199
-SITE_ALL_NODES = range(SITE_NODE_START, SITE_NODE_MAX)
-SITES_PER_NODE = 1
-
-PARTITIONS = [ 8, 16, 32, 64, 128 ]
+PARTITIONS = [ 4, 8, 16, 32, 64 ] # , 128 ]
 PARTITIONS_PER_SITE = 2
-NODES_TO_SKIP = [ 20, 21, 45, 77, 114 ]
-NODE_FORMAT = "d-%02d.cs.wisc.edu"
 
-COORDINATOR_NODE = 2
-
-TRIAL_PARAMETERS = [
-    ## Trial #1
+EXPERIMENT_PARAMS = [
+    ## Trial #0 - Always single-partition, DB2 redirects
     {
-        "node.force_singlepartition":       True,
-        "node.force_neworderinspect":       False,
-        "node.force_neworderinspect_done":  False,
+        "node.force_singlepartition":        True,
+        "node.force_neworderinspect":        False,
+        "node.force_neworderinspect_done":   False,
+        "node.enable_db2_redirects":         True,
+        "node.enable_speculative_execution": False,
     },
-    ## Trial #1
+    ## Trial #1 - NewOrder Only, Only determines whether multi-p or not
     {
-        "node.force_singlepartition":       False,
-        "node.force_neworderinspect":       True,
-        "node.force_neworderinspect_done":  False,
+        "node.force_singlepartition":        False,
+        "node.force_neworderinspect":        True,
+        "node.force_neworderinspect_done":   False,
+        "node.enable_db2_redirects":         False,
+        "node.enable_speculative_execution": False,
     },
-    ## Trial #1
+    ## Trial #2 - NewOrder Only, Pick partitions, Mark Done
     {
-        "node.force_singlepartition":       False,
-        "node.force_neworderinspect":       True,
-        "node.force_neworderinspect_done":  True,
+        "node.force_singlepartition":        False,
+        "node.force_neworderinspect":        True,
+        "node.force_neworderinspect_done":   True,
+        "node.enable_db2_redirects":         False,
+        "node.enable_speculative_execution": False,
+    },
+    ## Trial #3 - Always multi-partition (worst case scenario)
+    {
+        "node.force_singlepartition":        False,
+        "node.force_neworderinspect":        False,
+        "node.force_neworderinspect_done":   False,
+        "node.enable_db2_redirects":         False,
+        "node.enable_speculative_execution": False,
+    },
+    ## Trial #4 - Markov Models
+    {
+        "node.force_singlepartition":        False,
+        "node.force_neworderinspect":        False,
+        "node.force_neworderinspect_done":   False,
+        "node.enable_db2_redirects":         False,
+        "node.enable_speculative_execution": True,
     },
 ]
-OPT_TRIAL = 0
+OPT_BENCHMARK = "tpcc"
+OPT_EXPERIMENT = 0
 OPT_LOAD_THREADS = 8
 OPT_SCALE_FACTOR = 10
+OPT_TRACE = False
 
 ## ==============================================
 ## main
 ## ==============================================
 if __name__ == '__main__':
     _options, args = getopt.gnu_getopt(sys.argv[1:], '', [
-        ## Which trial to execute
-        "trial=",
+        ## Benchmark
+        "benchmark=",
+        ## Which experiment to execute
+        "experiment=",
         ## How many partitiosn to use in the experiment
         "partitions=",
+        ## Enable workload trace dumps
+        "trace",
         ## Enable debug logging
         "debug",
     ])
@@ -101,9 +124,9 @@ if __name__ == '__main__':
             logging.debug("%s = %s" % (varname, str(globals()[varname])))
     ## FOR
     
-    if not os.path.exists("%s.jar" % BENCHMARK):
-        logging.info("Building %s project jar" % BENCHMARK.upper())
-        cmd = "ant compile hstore-prepare -Dproject=%s" % BENCHMARK
+    if not os.path.exists("%s.jar" % OPT_BENCHMARK):
+        logging.info("Building %s project jar" % OPT_BENCHMARK.upper())
+        cmd = "ant compile hstore-prepare -Dproject=%s" % OPT_BENCHMARK
         logging.debug(cmd)
         (result, output) = commands.getstatusoutput(cmd)
         assert result == 0, cmd + "\n" + output
@@ -138,8 +161,19 @@ if __name__ == '__main__':
         ## WITH
         logging.info("Wrote cluster configuration to '%s'" % cluster_file)
         
+        ## Clients
+        CLIENT_COUNT = num_partitions / 2
+        CLIENT_NODES = [ ]
+        while len(CLIENT_NODES) < CLIENT_COUNT:
+            node_id = SITE_ALL_NODES[node_idx]
+            if not node_id in NODES_TO_SKIP:
+                CLIENT_NODES.append(node_id)
+            node_idx += 1
+        ## WHILE
+        logging.debug("CLIENT_NODES = %s" % CLIENT_NODES)
+        
         base_opts = {
-            "project":      BENCHMARK,
+            "project":      OPT_BENCHMARK,
             "cluster":      cluster_file,
         }
         base_opts_cmd = " ".join(map(lambda x: "-D%s=%s" % (x, base_opts[x]), base_opts.keys()))
@@ -147,17 +181,26 @@ if __name__ == '__main__':
         logging.debug(cmd)
         (result, output) = commands.getstatusoutput(cmd)
         assert result == 0, cmd + "\n" + output
-        logging.info("Initialized %s project jar [hosts=%d, sites=%d, partitions=%d]" % (BENCHMARK.upper(), num_nodes, num_sites, num_partitions))
+        logging.info("Initialized %s project jar [hosts=%d, sites=%d, partitions=%d]" % (OPT_BENCHMARK.upper(), num_nodes, num_sites, num_partitions))
+    
+        CLIENT_TXNRATE = 500
+        if num_partitions == 32:
+            CLIENT_TXNRATE = 250
+        elif num_partitions == 64:
+            CLIENT_TXNRATE = 200
+        #elif num_partitions == 4:
+            #CLIENT_TXNRATE = 250
     
         hstore_opts = {
             "coordinator.host":             NODE_FORMAT % COORDINATOR_NODE,
             "coordinator.delay":            10,
-            "client.warmup":                20000,
-            "client.host":                  ",".join(map(lambda x: NODE_FORMAT % x, range(CLIENT_NODES_START, CLIENT_NODES_START+CLIENT_COUNT))),
+            "client.duration":              120000,
+            "client.warmup":                60000,
+            "client.host":                  ",".join(map(lambda x: NODE_FORMAT % x, CLIENT_NODES)),
             "client.count":                 CLIENT_COUNT,
             "client.processesperclient":    CLIENT_PER_NODE,
-            "client.txnrate":               10000,
-            "client.blocking":              True,
+            "client.txnrate":               CLIENT_TXNRATE,
+            "client.blocking":              False,
             "client.scalefactor":           OPT_SCALE_FACTOR,
         }
         benchmark_opts = {
@@ -167,14 +210,26 @@ if __name__ == '__main__':
             "benchmark.warehouses":         num_partitions,
             "benchmark.loadthreads":        OPT_LOAD_THREADS,
         }
-        hstore_opts = dict(hstore_opts.items() + TRIAL_PARAMETERS[OPT_TRIAL].items())
+        hstore_opts = dict(hstore_opts.items() + EXPERIMENT_PARAMS[OPT_EXPERIMENT].items())
         hstore_opts_cmd = " ".join(map(lambda x: "-Dhstore.%s=%s" % (x, hstore_opts[x]), hstore_opts.keys()))
         benchmark_opts_cmd = " ".join(map(lambda x: "-D%s=%s" % (x, benchmark_opts[x]), benchmark_opts.keys()))
         ant_opts_cmd = " ".join([base_opts_cmd, hstore_opts_cmd, benchmark_opts_cmd])
+
+        ## Markov Models!
+        if OPT_EXPERIMENT == 4:
+            markov = "files/markovs/vldb-feb2011/%s.%dp.markovs.gz" % (OPT_BENCHMARK.lower(), num_partitions)
+            assert os.path.exists(markov), "Missing: " + markov
+            ant_opts_cmd += " -Dmarkov=%s" % markov
+            hstore_opts['markov'] = markov
+        ## IF
+
+        pprint(hstore_opts)
         
-        print "TRIAL #%d - PARTITIONS %d" % (OPT_TRIAL, num_partitions)
+        print "%s EXP #%d - PARTITIONS %d" % (OPT_BENCHMARK.upper(), OPT_EXPERIMENT, num_partitions)
         for trial in range(0, NUM_TRIALS_PER_EXP):
-            cmd = "ant hstore-benchmark " + ant_opts_cmd + " | tee client.log"
+            cmd = "ant hstore-benchmark " + ant_opts_cmd
+            if OPT_TRACE: cmd += " -Dtrace=traces/%s-%dp-%d" % (OPT_BENCHMARK.lower(), num_partitions, trial)
+            cmd += " | tee client.log"
             if trial == 0: logging.debug(cmd)
             #sys.exit(1)
             (result, output) = commands.getstatusoutput(cmd)
@@ -182,8 +237,25 @@ if __name__ == '__main__':
             
             ## Get the throughput rate from the output
             match = re.search("Transactions per second: ([\d]+\.[\d]+)", output)
-            assert match, "Failed to get throughput:\n" + output
-            print "  Trial #%d: %s" % (trial, match.group(1))
+            if not match:
+                logging.warn("Failed to complete full execution time")
+                regex = re.compile("Completed [\d]+ txns at a rate of ([\d]+\.[\d]+) txns/s")
+                lines = output.split("\n")
+                lines.reverse()
+                for line in lines:
+                    match = regex.search(line)
+                    if match: break
+                ## FOR
+            txnrate = "XXX"
+            if match: txnrate = match.group(1)
+            # assert match, "Failed to get throughput:\n" + output
+            print "  Trial #%d: %s" % (trial, txnrate)
+            
+            ## Make sure we kill everything
+            cmd = "pusher --show-host 'pskill java' ./allhosts.txt"
+            print cmd
+            (result, output) = commands.getstatusoutput(cmd)
+            assert result == 0, cmd + "\n" + output
         ## FOR (TRIAL)
         print
     ## FOR (PARTITIONS)
