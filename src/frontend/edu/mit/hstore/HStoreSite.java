@@ -794,7 +794,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         
         boolean single_partition = false;
         boolean predict_can_abort = true;
-        boolean predict_readonly = catalog_proc.getReadonly();
+        boolean predict_readonly = false;
         TransactionEstimator.State estimator_state = null; 
 
         LocalTransactionState local_ts = null;
@@ -881,6 +881,8 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
                         assert(estimate.isValid()) : String.format("Invalid MarkovEstimate for txn #%d\n%s", txn_id, estimate);
                         if (d) LOG.debug("MarkovEstimate:\n" + estimate);
                         single_partition = estimate.isSinglePartition(this.thresholds);
+                        predict_readonly = catalog_proc.getReadonly(); // FIXME
+                        
                         // can_abort = estimate.isUserAbort(this.thresholds);
                         if (this.status_monitor != null && predict_can_abort == false) TxnCounter.NO_UNDO_BUFFER.inc(catalog_proc);
                     }
