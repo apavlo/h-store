@@ -82,7 +82,7 @@ public class HStoreSiteStatus implements Runnable {
             if (this.hstore_site.isShuttingDown()) break;
 
             // Out we go!
-            LOG.info("\n" + StringUtil.box(this.snapshot(true, true, true)));
+            LOG.info("\n" + StringUtil.box(this.snapshot(true, false, false)));
             
             // If we're not making progress, bring the whole thing down!
             int completed = TxnCounter.COMPLETED.get();

@@ -84,7 +84,7 @@ public class Histogram<X> implements JSONSerializable {
      * Copy Constructor
      * @param other
      */
-    public Histogram(Histogram other) {
+    public Histogram(Histogram<X> other) {
         assert(other != null);
         this.putHistogram(other);
     }

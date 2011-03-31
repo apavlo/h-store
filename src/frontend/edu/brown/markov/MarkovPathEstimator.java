@@ -207,6 +207,11 @@ public class MarkovPathEstimator extends VertexTreeWalker<Vertex> {
         return estimate;
     }
     
+    public void updateLogging() {
+        d = debug.get();
+        t = trace.get();
+    }
+    
     /**
      * 
      * @param flag
@@ -269,9 +274,9 @@ public class MarkovPathEstimator extends VertexTreeWalker<Vertex> {
      * This is the main part of where we figure out the path that this transaction will take
      */
     protected void populate_children(Children<Vertex> children, Vertex element) {
-        if (element.isAbortVertex() || element.isCommitVertex()) {
-            return;
-        }
+//        if (element.isAbortVertex() || element.isCommitVertex()) {
+//            return;
+//        }
         
         // Initialize temporary data
         this.candidates.clear();
@@ -599,7 +604,7 @@ public class MarkovPathEstimator extends VertexTreeWalker<Vertex> {
      * @param args
      * @return
      */
-    public static List<Vertex> predictPath(MarkovGraph markov, TransactionEstimator t_estimator, Object args[]) {
+    public static MarkovPathEstimator predictPath(MarkovGraph markov, TransactionEstimator t_estimator, Object args[]) {
         Integer base_partition = null; 
         try {
             base_partition = t_estimator.getPartitionEstimator().getBasePartition(markov.getProcedure(), args);
@@ -610,8 +615,9 @@ public class MarkovPathEstimator extends VertexTreeWalker<Vertex> {
         assert(base_partition != null);
         
         MarkovPathEstimator estimator = new MarkovPathEstimator(markov, t_estimator, base_partition, args);
+        estimator.updateLogging();
         estimator.traverse(markov.getStartVertex());
-        return (new Vector<Vertex>(estimator.getVisitPath()));
+        return (estimator);
     }
     
     public static void main(String[] vargs) throws Exception {
@@ -619,24 +625,22 @@ public class MarkovPathEstimator extends VertexTreeWalker<Vertex> {
         args.require(
             ArgumentsParser.PARAM_CATALOG,
             ArgumentsParser.PARAM_WORKLOAD,
-            ArgumentsParser.PARAM_CORRELATIONS
+            ArgumentsParser.PARAM_CORRELATIONS,
+            ArgumentsParser.PARAM_MARKOV
         );
         
         // Word up
         PartitionEstimator p_estimator = new PartitionEstimator(args.catalog_db);
         
         // Create MarkovGraphsContainer
-        MarkovGraphsContainer markovs = null;
-        
-        if (args.hasParam(ArgumentsParser.PARAM_MARKOV)) {
-            markovs = new MarkovGraphsContainer();
-            markovs.load(args.getParam(ArgumentsParser.PARAM_MARKOV), args.catalog_db);
-        } else {
-            markovs = MarkovUtil.createBasePartitionGraphs(args.catalog_db, args.workload, p_estimator);
-        }
+        String input_path = args.getParam(ArgumentsParser.PARAM_MARKOV);
+        Map<Integer, MarkovGraphsContainer> m = MarkovUtil.load(args.catalog_db, input_path);
         
         // Blah blah blah...
-        TransactionEstimator t_estimator = new TransactionEstimator(p_estimator, args.param_correlations, markovs);
+        Map<Integer, TransactionEstimator> t_estimators = new HashMap<Integer, TransactionEstimator>();
+        for (Integer id : m.keySet()) {
+            t_estimators.put(id, new TransactionEstimator(p_estimator, args.param_correlations, m.get(id)));
+        } // FOR
         
         final Set<String> skip = new HashSet<String>();
         
@@ -655,6 +659,8 @@ public class MarkovPathEstimator extends VertexTreeWalker<Vertex> {
         
         // Loop through each of the procedures and measure how accurate we are in our predictions
         for (TransactionTrace xact : args.workload.getTransactions()) {
+            LOG.info(xact.debug(args.catalog_db));
+            
             Procedure catalog_proc = xact.getCatalogItem(args.catalog_db);
             if (skip.contains(catalog_proc.getName())) continue;
             
@@ -668,13 +674,20 @@ public class MarkovPathEstimator extends VertexTreeWalker<Vertex> {
             assert(partition >= 0);
             totals.get(catalog_proc).incrementAndGet();
             
-            MarkovGraph markov = markovs.get(partition, catalog_proc);
-            if (markov == null) continue;
+            MarkovGraph markov = m.get(partition).getFromParams(xact.getTransactionId(), partition, xact.getParams(), catalog_proc);
+            if (markov == null) {
+                LOG.warn(String.format("No MarkovGraph for %s at partition %d", catalog_proc.getName(), partition));
+                continue;
+            }
             
             // Check whether we predict the same path
             List<Vertex> actual_path = markov.processTransaction(xact, p_estimator);
-            List<Vertex> predicted_path = MarkovPathEstimator.predictPath(markov, t_estimator, xact.getParams());
+            MarkovPathEstimator m_estimator = MarkovPathEstimator.predictPath(markov, t_estimators.get(partition), xact.getParams());
+            assert(m_estimator != null);
+            List<Vertex> predicted_path = m_estimator.getVisitPath();
             if (actual_path.equals(predicted_path)) correct_path_txns.get(catalog_proc).incrementAndGet();
+            
+            LOG.info("MarkovEstimate:\n" + m_estimator.getEstimate());
             
             // Check whether we predict the same partitions
             Set<Integer> actual_partitions = MarkovUtil.getTouchedPartitions(actual_path); 
@@ -694,9 +707,9 @@ public class MarkovPathEstimator extends VertexTreeWalker<Vertex> {
 //                System.err.println("\n\n");
         } // FOR
         
-        if (args.hasParam(ArgumentsParser.PARAM_MARKOV_OUTPUT)) {
-            markovs.save(args.getParam(ArgumentsParser.PARAM_MARKOV_OUTPUT));
-        }
+//        if (args.hasParam(ArgumentsParser.PARAM_MARKOV_OUTPUT)) {
+//            markovs.save(args.getParam(ArgumentsParser.PARAM_MARKOV_OUTPUT));
+//        }
         
         System.err.println("Procedure\t\tTotal\tSingleP\tPartitions\tPaths");
         for (Entry<Procedure, AtomicInteger> entry : totals.entrySet()) {
