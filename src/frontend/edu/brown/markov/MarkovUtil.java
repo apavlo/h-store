@@ -5,6 +5,7 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.log4j.Logger;
 import org.json.JSONObject;
@@ -309,14 +310,17 @@ public abstract class MarkovUtil {
         
         MarkovGraphsContainer markovs = new MarkovGraphsContainer(true);
         List<Runnable> runnables = new ArrayList<Runnable>();
-        for (final Procedure catalog_proc : workload.getProcedures(catalog_db)) {
+        final Set<Procedure> procedures = workload.getProcedures(catalog_db);
+        final AtomicInteger ctr = new AtomicInteger(0);
+        for (final Procedure catalog_proc : procedures) {
             final MarkovGraph g = markovs.getOrCreate(GLOBAL_MARKOV_CONTAINER_ID, catalog_proc, true);
             assert(g != null) : "Failed to create global MarkovGraph for " + catalog_proc;
             
             runnables.add(new Runnable() {
                 public void run() {
-                    LOG.info("Populating global MarkovGraph for " + catalog_proc);
-                    for (TransactionTrace xact : workload.getTraces(catalog_proc)) {
+                    List<TransactionTrace> traces = workload.getTraces(catalog_proc); 
+                    LOG.info(String.format("Populating global MarkovGraph for %s [#traces=%d]", catalog_proc.getName(), traces.size()));
+                    for (TransactionTrace xact : traces) {
                         try {
                             g.processTransaction(xact, p_estimator);
                         } catch (Exception ex) {
@@ -325,7 +329,7 @@ public abstract class MarkovUtil {
                         }
                     } // FOR
                     g.calculateProbabilities();
-                    LOG.info("Finished creating MarkovGraph for " + catalog_proc);
+                    LOG.info(String.format("Finished creating MarkovGraph for %s [%d/%d]", catalog_proc.getName(), ctr.incrementAndGet(), procedures.size()));
                 }
             });
         } // FOR
