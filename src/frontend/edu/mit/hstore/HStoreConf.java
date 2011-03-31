@@ -168,6 +168,11 @@ public final class HStoreConf {
                 conf.ignore_dtxn = args.getBooleanParam(ArgumentsParser.PARAM_NODE_IGNORE_DTXN);
                 if (conf.ignore_dtxn) LOG.info("Ignoring the Dtxn.Coordinator for all single-partition transactions");
             }
+            // Enable speculative execution
+            if (args.hasBooleanParam(ArgumentsParser.PARAM_NODE_ENABLE_SPECULATIVE_EXECUTION)) {
+                conf.enable_speculative_execution = args.getBooleanParam(ArgumentsParser.PARAM_NODE_ENABLE_SPECULATIVE_EXECUTION);
+                if (conf.enable_speculative_execution) LOG.info("Enabling speculative execution");
+            }
             // Enable DB2-style txn redirecting
             if (args.hasBooleanParam(ArgumentsParser.PARAM_NODE_ENABLE_DB2_REDIRECTS)) {
                 conf.enable_db2_redirects = args.getBooleanParam(ArgumentsParser.PARAM_NODE_ENABLE_DB2_REDIRECTS);

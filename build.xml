@@ -2237,6 +2237,7 @@ H-STORE REMIX
         <arg value="node.force_localexecution=${hstore.node.force_localexecution}" />
         <arg value="node.force_neworderinspect=${hstore.node.force_neworderinspect}" />
         <arg value="node.force_neworderinspect_done=${hstore.node.force_neworderinspect_done}" />
+        <arg value="node.enable_speculative_execution=${hstore.node.enable_speculative_execution}" />
         <arg value="node.enable_db2_redirects=${hstore.node.enable_db2_redirects}" />
         <arg value="node.cleanup_interval=${hstore.node.cleanup_interval}" />
         <arg value="node.cleanup_txn_expire=${hstore.node.cleanup_txn_expire}" />
