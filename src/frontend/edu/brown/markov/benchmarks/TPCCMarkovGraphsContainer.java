@@ -57,8 +57,8 @@ public class TPCCMarkovGraphsContainer extends MarkovGraphsContainer {
     }
     
     public int processNeworder(long txn_id, int base_partition, Object[] params, Procedure catalog_proc) {
-        // HASH(D_ID) 
-        int hash_d_id = this.hasher.hash(params[1]);
+        // VALUE(D_ID) 
+        int d_id = ((Long)params[1]).intValue();
         
         // ARRAYLENGTH[S_W_IDS]
         int arr_len = ((Object[])params[5]).length;
@@ -69,11 +69,11 @@ public class TPCCMarkovGraphsContainer extends MarkovGraphsContainer {
             for (int i = 0; i < hashes.length; i++) {
                 hashes[i] = this.hasher.hash(arr[i]);
             }
-            LOG.trace(String.format("NEWORDER Txn #%d\n  ARRAYLENGTH[S_W_IDS] = %d / %s\n  HASH(D_ID) = %d ", txn_id, arr_len, Arrays.toString(hashes), hash_d_id));
+            LOG.trace(String.format("NEWORDER Txn #%d\n  ARRAYLENGTH[S_W_IDS] = %d / %s\n  VALUE(D_ID) = %d ", txn_id, arr_len, Arrays.toString(hashes), d_id));
         }
         
         // return (arr_len);
-        return (hash_d_id | arr_len<<16);
+        return (d_id | arr_len<<16);
     }
     
     public int processPayment(long txn_id, int base_partition, Object[] params, Procedure catalog_proc) {
