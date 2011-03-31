@@ -1521,7 +1521,8 @@ public class ExecutionSite implements Runnable {
             } // FOR
             
             if (this.done_partitions.size() > 0) {
-                if (d) LOG.debug(String.format("Marking %d partitions as done after this fragment for txn #%d %s", this.done_partitions.size(), txn_id, this.done_partitions));
+                if (d) LOG.debug(String.format("Marking %d partitions as done after this fragment for txn #%d %s\n%s",
+                                 this.done_partitions.size(), txn_id, this.done_partitions, estimate));
                 this.hstore_messenger.sendDoneAtPartitions(txn_id, this.done_partitions);
             }
         }

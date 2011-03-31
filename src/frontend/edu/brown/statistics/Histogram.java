@@ -91,8 +91,8 @@ public class Histogram<X> implements JSONSerializable {
 
     @Override
     public boolean equals(Object obj) {
-        if (obj instanceof Histogram) {
-            Histogram other = (Histogram)obj;
+        if (obj instanceof Histogram<?>) {
+            Histogram<?> other = (Histogram<?>)obj;
             return (this.histogram.equals(other.histogram));
         }
         return (false);
@@ -102,7 +102,7 @@ public class Histogram<X> implements JSONSerializable {
      * Helper method used for replacing the object's toString() output with labels
      * @param names_map
      */
-    public Histogram setDebugLabels(Map<Object, String> names_map) {
+    public Histogram<X> setDebugLabels(Map<Object, String> names_map) {
         this.debug_names.putAll(names_map);
         return (this);
     }
@@ -422,7 +422,7 @@ public class Histogram<X> implements JSONSerializable {
      * @param <T>
      * @param values
      */
-    public <T> void putAll(Collection<T> values) {
+    public void putAll(Collection<X> values) {
         this.putAll(values, 1);
     }
     
@@ -432,9 +432,9 @@ public class Histogram<X> implements JSONSerializable {
      * @param values
      * @param count
      */
-    public synchronized <U> void putAll(Collection<U> values, long count) {
-        for (U v : values) {
-            this._put((X)v, count);
+    public synchronized void putAll(Collection<X> values, long count) {
+        for (X v : values) {
+            this._put(v, count);
         } // FOR
     }
     
@@ -442,9 +442,9 @@ public class Histogram<X> implements JSONSerializable {
      * Add all the entries from the provided Histogram into this objects totals
      * @param other
      */
-    public synchronized void putHistogram(Histogram<?> other) {
-        for (Entry<?, Long> e : other.histogram.entrySet()) {
-            if (e.getValue() > 0) this._put((X)e.getKey(), e.getValue());
+    public synchronized void putHistogram(Histogram<X> other) {
+        for (Entry<X, Long> e : other.histogram.entrySet()) {
+            if (e.getValue() > 0) this._put(e.getKey(), e.getValue());
         } // FOR
     }
     
@@ -485,9 +485,9 @@ public class Histogram<X> implements JSONSerializable {
      * @param <T>
      * @param values
      */
-    public synchronized <T> void removeValues(Collection<T> values) {
-        for (T v : values) {
-            this._put((X)v, -1);
+    public synchronized void removeValues(Collection<X> values) {
+        for (X v : values) {
+            this._put(v, -1);
         } // FOR
 //        this.calculateInternalValues();
     }
@@ -497,9 +497,9 @@ public class Histogram<X> implements JSONSerializable {
      * @param <T>
      * @param values
      */
-    public synchronized void removeHistogram(Histogram<?> other) {
-        for (Entry<?, Long> e : other.histogram.entrySet()) {
-            if (e.getValue() > 0) this._put((X)e.getKey(), -1 * e.getValue());
+    public synchronized void removeHistogram(Histogram<X> other) {
+        for (Entry<X, Long> e : other.histogram.entrySet()) {
+            if (e.getValue() > 0) this._put(e.getKey(), -1 * e.getValue());
         } // FOR
 //        this.calculateInternalValues();
     }

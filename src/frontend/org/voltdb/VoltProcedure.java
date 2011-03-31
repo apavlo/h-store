@@ -51,10 +51,13 @@ import org.voltdb.messaging.FragmentTaskMessage;
 import org.voltdb.types.TimestampType;
 
 import edu.brown.catalog.CatalogUtil;
+import edu.brown.graphs.GraphvizExport;
 import edu.brown.hashing.AbstractHasher;
+import edu.brown.markov.Edge;
 import edu.brown.markov.MarkovGraph;
 import edu.brown.markov.MarkovUtil;
 import edu.brown.markov.TransactionEstimator;
+import edu.brown.markov.Vertex;
 import edu.brown.markov.TransactionEstimator.State;
 import edu.brown.utils.EventObservable;
 import edu.brown.utils.EventObserver;
@@ -1050,11 +1053,24 @@ public abstract class VoltProcedure implements Poolable {
         // At this point we have to calculate exactly what we need to do on each partition
         // for this batch. So somehow right now we need to fire this off to either our
         // local executor or to Evan's magical distributed transaction manager
-        this.plan = null;
-        try {
-            this.plan = this.planner.plan(this.txn_id, this.client_handle, this.base_partition, params, this.predict_singlepartition);
-        } catch (MispredictionException ex) {
-            if (d) {
+        this.plan = this.planner.plan(this.txn_id, this.client_handle, this.base_partition, params, this.predict_singlepartition);
+        assert(this.plan != null);
+        if (d) LOG.debug("BatchPlan for txn #" + this.txn_id + ":\n" + plan.toString());
+        
+        // Tell the TransactionEstimator that we're about to execute these mofos
+        if (hstore_conf.enable_profiling) ProfileMeasurement.swap(this.m_localTxnState.plan_time, this.m_localTxnState.est_time);
+        TransactionEstimator.State t_state = this.m_localTxnState.getEstimatorState();
+        if (t_state != null) {
+            this.t_estimator.executeQueries(t_state, this.planner.getStatements(), this.plan.getStatementPartitions());
+        }
+        if (hstore_conf.enable_profiling) this.m_localTxnState.est_time.stop();
+
+        // Check whether our plan was caused a mispredict
+        // Doing it this way allows us to update the TransactionEstimator before we abort the txn
+        if (this.plan.getMisprediction() != null) {
+            MispredictionException ex = this.plan.getMisprediction(); 
+            
+            if (d || hstore_conf.mispredict_crash) {
                 String msg = "Caught " + ex.getClass().getSimpleName() + "!\n" + StringUtil.SINGLE_LINE;
                 
                 msg += "CURRENT BATCH\n";
@@ -1096,8 +1112,11 @@ public abstract class VoltProcedure implements Poolable {
                 if (s != null) {
                     MarkovGraph markov = s.getMarkovGraph();                
                     try {
+                        GraphvizExport<Vertex, Edge> gv = MarkovUtil.exportGraphviz(markov, true, markov.getPath(s.getEstimatedPath()));
+                        gv.highlightPath(markov.getPath(s.getActualPath()), "blue");
+                        
                         LOG.info("PARTITION: " + this.executor.partitionId);
-                        LOG.info("GRAPH: " + MarkovUtil.exportGraphviz(markov, true, markov.getPath(s.getEstimatedPath())).writeToTempFile(procedure_name));
+                        LOG.info("GRAPH: " + gv.writeToTempFile(procedure_name));
                     } catch (Exception ex2) {
                         LOG.fatal("???????????????????????", ex2);
                     }
@@ -1110,17 +1129,6 @@ public abstract class VoltProcedure implements Poolable {
             }
             throw ex;
         }
-        assert(this.plan != null);
-        
-        // Tell the TransactionEstimator that we're about to execute these mofos
-        if (hstore_conf.enable_profiling) ProfileMeasurement.swap(this.m_localTxnState.plan_time, this.m_localTxnState.est_time);
-        TransactionEstimator.State t_state = this.m_localTxnState.getEstimatorState();
-        if (t_state != null) {
-            this.t_estimator.executeQueries(t_state, this.planner.getStatements(), this.plan.getStatementPartitions());
-        }
-        if (hstore_conf.enable_profiling) this.m_localTxnState.est_time.stop();
-        
-        if (d) LOG.debug("BatchPlan for txn #" + this.txn_id + ":\n" + plan.toString());
 
         VoltTable results[] = null;
         if (this.plan.isSingledPartitionedAndLocal()) {

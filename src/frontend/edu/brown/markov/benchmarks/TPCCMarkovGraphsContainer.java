@@ -1,10 +1,14 @@
 package edu.brown.markov.benchmarks;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.log4j.Logger;
 import org.voltdb.catalog.Procedure;
@@ -16,6 +20,7 @@ import edu.brown.markov.MarkovUtil;
 import edu.brown.statistics.Histogram;
 import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.PartitionEstimator;
+import edu.brown.utils.ThreadUtil;
 import edu.brown.workload.TransactionTrace;
 
 public class TPCCMarkovGraphsContainer extends MarkovGraphsContainer {
@@ -92,6 +97,15 @@ public class TPCCMarkovGraphsContainer extends MarkovGraphsContainer {
      */
     public static void main(String[] vargs) throws Exception {
         ArgumentsParser args = ArgumentsParser.load(vargs);
+        create(args);
+    }
+    
+    /**
+     * Create the MarkovGraphsContainers for the given workload
+     * @param args
+     * @throws Exception
+     */
+    public static void create(final ArgumentsParser args) throws Exception {
         args.require(
             ArgumentsParser.PARAM_CATALOG,
             ArgumentsParser.PARAM_WORKLOAD,
@@ -99,30 +113,52 @@ public class TPCCMarkovGraphsContainer extends MarkovGraphsContainer {
         );
         LOG.info("Calculating TPC-C MarkovGraphsContainer for " + CatalogUtil.getNumberOfPartitions(args.catalog_db) + " partitions");
         
-        PartitionEstimator p_estimator = new PartitionEstimator(args.catalog_db);
-        Set<Procedure> all_procs = args.workload.getProcedures(args.catalog_db);
+        final PartitionEstimator p_estimator = new PartitionEstimator(args.catalog_db);
+        final Map<Integer, TPCCMarkovGraphsContainer> markovs_map = new ConcurrentHashMap<Integer, TPCCMarkovGraphsContainer>();
         
-        Map<Integer, TPCCMarkovGraphsContainer> markovs_map = new HashMap<Integer, TPCCMarkovGraphsContainer>();
+        List<Runnable> runnables = new ArrayList<Runnable>();
+        final Set<Procedure> procedures = args.workload.getProcedures(args.catalog_db);
+        final AtomicInteger ctr = new AtomicInteger(0);
+        final Histogram<Procedure> proc_h = new Histogram<Procedure>();
         
-        // Iterate through each TransactionTrace and build the MarkovGraphs
-        Histogram<Procedure> proc_h = new Histogram<Procedure>();
-        for (TransactionTrace txn_trace : args.workload.getTransactions()) {
-            long txn_id = txn_trace.getTransactionId();
-            int base_partition = p_estimator.getBasePartition(txn_trace);
-            Object params[] = txn_trace.getParams();
-            Procedure catalog_proc = txn_trace.getCatalogItem(args.catalog_db);
-            
-            TPCCMarkovGraphsContainer markovs = markovs_map.get(base_partition);
-            if (markovs == null) {
-                markovs = new TPCCMarkovGraphsContainer(all_procs);
-                markovs.setHasher(p_estimator.getHasher());
-                markovs_map.put(base_partition, markovs);
-            }
-            
-            MarkovGraph markov = markovs.getFromParams(txn_id, base_partition, params, catalog_proc);
-            markov.processTransaction(txn_trace, p_estimator);
-            proc_h.put(catalog_proc);
+        for (final Procedure catalog_proc : procedures) {
+            runnables.add(new Runnable() {
+                public void run() {
+                    List<TransactionTrace> traces = args.workload.getTraces(catalog_proc); 
+                    LOG.info(String.format("Populating global MarkovGraph for %s [#traces=%d]", catalog_proc.getName(), traces.size()));
+                    for (TransactionTrace txn_trace : traces) {
+                        long txn_id = txn_trace.getTransactionId();
+                        try {
+                            int base_partition = p_estimator.getBasePartition(txn_trace);
+                            Object params[] = txn_trace.getParams();
+                            Procedure catalog_proc = txn_trace.getCatalogItem(args.catalog_db);
+                            
+                            TPCCMarkovGraphsContainer markovs = markovs_map.get(base_partition);
+                            if (markovs == null) {
+                                synchronized (markovs_map) {
+                                    markovs = markovs_map.get(base_partition);
+                                    if (markovs == null) {
+                                        markovs = new TPCCMarkovGraphsContainer(procedures);
+                                        markovs.setHasher(p_estimator.getHasher());
+                                        markovs_map.put(base_partition, markovs);
+                                    }
+                                } // SYNCH
+                            }
+                            
+                            MarkovGraph markov = markovs.getFromParams(txn_id, base_partition, params, catalog_proc);
+                            markov.processTransaction(txn_trace, p_estimator);
+                        } catch (Exception ex) {
+                            LOG.fatal("Failed to process " + txn_trace, ex);
+                            throw new RuntimeException(ex);
+                        }
+                        proc_h.put(catalog_proc);
+                    } // FOR
+                    LOG.info(String.format("Finished creating MarkovGraphs for %s [%d/%d]", catalog_proc.getName(), ctr.incrementAndGet(), procedures.size()));
+                }
+            });
         } // FOR
+        ThreadUtil.runGlobalPool(runnables);
+
         LOG.info("Procedure Histogram:\n" + proc_h);
         MarkovUtil.calculateProbabilities(markovs_map);
         

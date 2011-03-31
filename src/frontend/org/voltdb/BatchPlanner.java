@@ -220,6 +220,7 @@ public class BatchPlanner {
         private ParameterSet batchArgs[];
         private Integer base_partition;
         private PlanGraph graph;
+        private MispredictionException mispredict;
 
         /** The serialized ByteBuffers for each Statement in the batch */ 
         private final ByteBuffer param_buffers[];
@@ -329,6 +330,7 @@ public class BatchPlanner {
          */
         @Override
         public void finish() {
+            this.mispredict = null;
             this.batchArgs = null;
             this.ftasks.clear();
             for (int i = 0; i < this.frag_list.length; i++) {
@@ -348,6 +350,10 @@ public class BatchPlanner {
 
         public BatchPlanner getPlanner() {
             return (BatchPlanner.this);
+        }
+        
+        public MispredictionException getMisprediction() {
+            return (this.mispredict);
         }
         
         /**
@@ -634,6 +640,27 @@ public class BatchPlanner {
                 throw new RuntimeException("Unexpected error when planning " + catalog_stmt.fullName(), ex);
             }
             
+            // Get a sorted list of the PlanFragments that we need to execute for this query
+            if (is_singlepartition) {
+                if (this.sorted_singlep_fragments[stmt_index] == null) {
+                    this.sorted_singlep_fragments[stmt_index] = QueryPlanUtil.getSortedPlanFragments(catalog_stmt, true); 
+                }
+                plan.frag_list[stmt_index] = this.sorted_singlep_fragments[stmt_index];
+            } else {
+                if (this.sorted_multip_fragments[stmt_index] == null) {
+                    this.sorted_multip_fragments[stmt_index] = QueryPlanUtil.getSortedPlanFragments(catalog_stmt, false); 
+                }
+                plan.frag_list[stmt_index] = this.sorted_multip_fragments[stmt_index];
+            }
+            
+            plan.readonly = plan.readonly && catalog_stmt.getReadonly();
+            plan.localFragsAreNonTransactional = plan.localFragsAreNonTransactional || stmt_localFragsAreNonTransactional;
+            plan.all_singlepartitioned = plan.all_singlepartitioned && is_singlepartition;
+            plan.all_local = plan.all_local && is_local;
+
+            // Keep track of whether the current query in the batch was single-partitioned or not
+            plan.singlepartition_bitmap[stmt_index] = is_singlepartition;
+            
             // Misprediction!!
             if (mispredict) {
                 // If this is the first Statement in the batch that hits the mispredict,
@@ -656,27 +683,6 @@ public class BatchPlanner {
                 } // FOR
                 continue;
             }
-
-            // Get a sorted list of the PlanFragments that we need to execute for this query
-            if (is_singlepartition) {
-                if (this.sorted_singlep_fragments[stmt_index] == null) {
-                    this.sorted_singlep_fragments[stmt_index] = QueryPlanUtil.getSortedPlanFragments(catalog_stmt, true); 
-                }
-                plan.frag_list[stmt_index] = this.sorted_singlep_fragments[stmt_index];
-            } else {
-                if (this.sorted_multip_fragments[stmt_index] == null) {
-                    this.sorted_multip_fragments[stmt_index] = QueryPlanUtil.getSortedPlanFragments(catalog_stmt, false); 
-                }
-                plan.frag_list[stmt_index] = this.sorted_multip_fragments[stmt_index];
-            }
-            
-            plan.readonly = plan.readonly && catalog_stmt.getReadonly();
-            plan.localFragsAreNonTransactional = plan.localFragsAreNonTransactional || stmt_localFragsAreNonTransactional;
-            plan.all_singlepartitioned = plan.all_singlepartitioned && is_singlepartition;
-            plan.all_local = plan.all_local && is_local;
-
-            // Keep track of whether the current query in the batch was single-partitioned or not
-            plan.singlepartition_bitmap[stmt_index] = is_singlepartition;
             
             // ----------------------
             // DEBUG DUMP
@@ -712,9 +718,6 @@ public class BatchPlanner {
             }
         } // FOR
         
-        // Throw the MispredictException if any Statement in the loop above hit it
-        if (mispredict_h != null) throw new MispredictionException(txn_id, mispredict_h);
-        
         // Check whether we have an existing graph exists for this batch configuration
         PlanGraph graph = null;
         int bitmap_hash = Arrays.hashCode(plan.singlepartition_bitmap);
@@ -727,6 +730,13 @@ public class BatchPlanner {
         } // SYNCHRONIZED
         plan.graph = graph;
         plan.rounds_length = graph.max_rounds;
+
+        // Create the MispredictException if any Statement in the loop above hit it
+        // We don't want to throw it because whoever called us may want to look at the plan first 
+        if (mispredict_h != null) {
+            plan.mispredict = new MispredictionException(txn_id, mispredict_h);
+        }
+
         
         if (d) LOG.debug("Created BatchPlan:\n" + plan.toString());
         return (plan);

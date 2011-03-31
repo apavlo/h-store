@@ -71,7 +71,7 @@ public class MultiLoader extends ClientMain {
     private final LoadThread m_loadThreads[];
     private final int m_warehouses;
 
-    private static final int MAX_BATCH_SIZE = 10000;
+    private int MAX_BATCH_SIZE = 10000;
     
     private static final VoltTable.ColumnInfo customerTableColumnInfo[] = new VoltTable.ColumnInfo[] {
             new VoltTable.ColumnInfo("C_ID", VoltType.INTEGER), new VoltTable.ColumnInfo("C_D_ID", VoltType.TINYINT),
@@ -106,6 +106,9 @@ public class MultiLoader extends ClientMain {
 
         m_warehouses = warehouses;
         m_loadThreads = new LoadThread[loadThreads];
+        
+        // HACK
+        MAX_BATCH_SIZE *= (10 / m_warehouses);
 
         for (int ii = 0; ii < loadThreads; ii++) {
             ScaleParameters parameters = ScaleParameters.makeWithScaleFactor(warehouses, scaleFactor);

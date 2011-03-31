@@ -24,9 +24,11 @@ import edu.brown.graphs.VertexTreeWalker;
 import edu.brown.graphs.VertexTreeWalker.Direction;
 import edu.brown.graphs.VertexTreeWalker.TraverseOrder;
 import edu.brown.markov.Vertex.Type;
+import edu.brown.markov.benchmarks.TPCCMarkovGraphsContainer;
 import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.PartitionEstimator;
+import edu.brown.utils.ProjectType;
 import edu.brown.utils.StringUtil;
 import edu.brown.utils.LoggerUtil.LoggerBoolean;
 import edu.brown.workload.QueryTrace;
@@ -687,6 +689,10 @@ public class MarkovGraph extends AbstractDirectedGraph<Vertex, Edge> implements 
         if (global != null && global == true) {
             markovs = MarkovUtil.createProcedureGraphs(args.catalog_db, args.workload, p_estimator);
 
+        // HACK
+        } else if (args.catalog_type == ProjectType.TPCC) {
+            TPCCMarkovGraphsContainer.create(args);
+            return;
         // Or whether we should divide the transactions by their base partition 
         } else {
             markovs = MarkovUtil.createBasePartitionGraphs(args.catalog_db, args.workload, p_estimator);
