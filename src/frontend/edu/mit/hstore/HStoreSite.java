@@ -1353,7 +1353,8 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
                     
                     // We can always commit our boys no matter what if we know that the txn was read-only 
                     // at the given partition
-                    executor.drainQueueResponses(executor.isReadOnly(txn_id) ? true : commit);
+                    Boolean readonly = executor.isReadOnly(txn_id);
+                    executor.drainQueueResponses(readonly != null && readonly == true ? true : commit);
                     this.speculative_txn[p.intValue()] = NULL_SPECULATIVE_EXEC_ID;
                 }
             }
@@ -1454,10 +1455,11 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
             ExecutionSite executor = this.executors.get(p); 
                 
             // Make sure that we tell the ExecutionSite first before we allow txns to get fired off
-            executor.enableSpeculativeExecution(txn_id);
-            this.speculative_txn[p.intValue()] = txn_id;
-            spec_cnt++;
-            if (d) LOG.debug(String.format("Partition %d - Speculative Execution!", p));
+            if (executor.enableSpeculativeExecution(txn_id)) {
+                this.speculative_txn[p.intValue()] = txn_id;
+                spec_cnt++;
+                if (d) LOG.debug(String.format("Partition %d - Speculative Execution!", p));
+            }
         } // FOR
         if (d) LOG.debug(String.format("Enabled speculative execution at %d partitions because of waiting for txn #%d", spec_cnt, txn_id));
     }

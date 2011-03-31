@@ -720,13 +720,18 @@ public class ExecutionSite implements Runnable {
     /**
      * Enable speculative execution mode for this partition
      */
-    public synchronized void enableSpeculativeExecution(long txn_id) {
+    public synchronized boolean enableSpeculativeExecution(long txn_id) {
         // assert(this.speculative_execution == SpeculateType.DISABLED) : "Trying to enable spec exec twice because of txn #" + txn_id;
         
         // Check whether the txn that we're waiting for is read-only.
         // If it is, then that means all read-only transactions can commit right away
-        this.speculative_execution = (this.isReadOnly(txn_id) ? SpeculateType.COMMIT_READONLY : SpeculateType.COMMIT_NONE);
-        if (d) LOG.debug(String.format("Enabled %s speculative execution at partition %d [txn=#%d]", this.speculative_execution, partitionId, txn_id));  
+        Boolean readonly = this.isReadOnly(txn_id);
+        if (readonly != null) {
+            this.speculative_execution = (readonly ? SpeculateType.COMMIT_READONLY : SpeculateType.COMMIT_NONE);
+            if (d) LOG.debug(String.format("Enabled %s speculative execution at partition %d [txn=#%d]", this.speculative_execution, partitionId, txn_id));
+            return (true);
+        }
+        return (false);
     }
 
     public void setHStoreMessenger(HStoreMessenger hstore_messenger) {
@@ -796,14 +801,9 @@ public class ExecutionSite implements Runnable {
      * @param txn_id
      * @return
      */
-    public boolean isReadOnly(long txn_id) {
+    public Boolean isReadOnly(long txn_id) {
         TransactionState ts = this.txn_states.get(txn_id);
-        
-        // This is an important check because it means that we got a done message from
-        // a transaction that we never actually executed!
-        assert(ts != null) : "The TransactionState is somehow null for txn #" + txn_id;
-        
-        return (ts.isExecReadOnly());
+        return (ts == null ? null : ts.isExecReadOnly());
     }
     
     /**
