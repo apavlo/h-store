@@ -35,11 +35,15 @@ class SystemInfo {
   int num_partitions;
   int num_sites;
   int[] site_to_host;
+  int [] partition_size;
+  int site_capacity;
 
   SystemInfo(int partition, int site, int[] s_to_h) {
     num_partitions = partition;
     num_sites = site;
     site_to_host = s_to_h;
+    site_capacity = 4;
+    partition_size = new int[i in 0..num_partitions-1] = 1;
   }
 
   int getNumPartitions() {
@@ -52,6 +56,14 @@ class SystemInfo {
 
   int[] getSiteToHost() {
     return site_to_host;
+  }
+
+  int[] getPartitionSize() {
+    return partition_size;
+  }
+  
+  int getSiteCapacity() {
+    return site_capacity;
   }
 }
 
@@ -115,6 +127,27 @@ function int calculateTransactionTraceCost(dict{int->TxnPartition} transactions,
     return total_cost;
 }
 
+// checks whether the given configuration satisifies the system memory requirements for each site
+function boolean satisfySystemRequirements(SystemInfo sys_info, var<CP>{int}[] partition_to_site) {
+  int capacity = sys_info.getSiteCapacity();
+  for (int site = 0; site < sys_info.getNumSites(); site++) {
+    cout << "current size is: " << site << endl;
+    int site_size = 0;
+    forall (i in partition_to_site.getRange()) {
+      if (partition_to_site[i] == site) {
+        cout << "site size: " << site_size << endl;
+        site_size = site_size + sys_info.getPartitionSize()[i];
+        cout << "partition " << i << " size: " << sys_info.getPartitionSize()[i] << endl;
+      }
+    }
+    if (site_size > capacity) {
+      return false;
+    }
+   }
+   return true;
+}
+
+
 // parse system information
 function SystemInfo processSystemInfo(string system_file) {
   ifstream file(system_file);
@@ -145,7 +178,6 @@ dict{int->TxnPartition} transactions = calculateTransaction(args[args.getSize() 
 // CP Solver - create and move to different class?
 var<CP>{int} partition_to_site[partition_range](cp,
 0..total_sites);
-int partition_mapping[partition_range];
 minimize<cp>
   calculateTransactionTraceCost(transactions, partition_to_site)
 subject to {
@@ -158,6 +190,10 @@ subject to {
 }
 using {
   labelFF(partition_to_site);
+  cout << "partition to site mapping " << partition_to_site << endl;
   cout << "total cost: " << calculateTransactionTraceCost(transactions, partition_to_site) << endl;
+  // calls a function to check whether the current configuration is OK memory wise
+  // TODO: how to tell Comet to reassign if its not valid
+  cout << "Satisfys memory requirement: " << satisfySystemRequirements(sys_info, partition_to_site) << endl;
   //cp.exit();
 }
