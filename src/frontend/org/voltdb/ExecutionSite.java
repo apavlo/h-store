@@ -721,7 +721,7 @@ public class ExecutionSite implements Runnable {
      * Enable speculative execution mode for this partition
      */
     public synchronized void enableSpeculativeExecution(long txn_id) {
-        assert(this.speculative_execution == SpeculateType.DISABLED) : "Trying to enable spec exec twice because of txn #" + txn_id;
+        // assert(this.speculative_execution == SpeculateType.DISABLED) : "Trying to enable spec exec twice because of txn #" + txn_id;
         
         // Check whether the txn that we're waiting for is read-only.
         // If it is, then that means all read-only transactions can commit right away
@@ -803,7 +803,7 @@ public class ExecutionSite implements Runnable {
         // a transaction that we never actually executed!
         assert(ts != null) : "The TransactionState is somehow null for txn #" + txn_id;
         
-        return (ts.isReadOnly());
+        return (ts.isExecReadOnly());
     }
     
     /**
@@ -1124,7 +1124,7 @@ public class ExecutionSite implements Runnable {
             
             // HACK: We have to set the TransactionState for sysprocs manually
             volt_proc.setTransactionState(ts);
-            ts.setReadOnly(false);
+            ts.setExecReadOnly(false);
             result = volt_proc.executePlanFragment(txn_id, ts.ee_dependencies, (int)fragmentIds[0], parameterSets[0], this.m_systemProcedureContext);
             if (t) LOG.trace("Finished executing sysproc fragments for " + volt_proc.getClass().getSimpleName());
         // -------------------------------
@@ -1237,11 +1237,11 @@ public class ExecutionSite implements Runnable {
         ts.setSubmittedEE();
         
         // Check whether this fragments are read-only
-        if (ts.isReadOnly()) {
+        if (ts.isExecReadOnly()) {
             boolean readonly = CatalogUtil.areFragmentsReadOnly(this.database, fragmentIds, fragmentIdIndex); 
             if (readonly == false) {
                 if (t) LOG.trace(String.format("Marking txn #%d as not read-only %s", txn_id, Arrays.toString(fragmentIds))); 
-                ts.setReadOnly(false);
+                ts.setExecReadOnly(false);
             }
         }
         
@@ -1865,7 +1865,7 @@ public class ExecutionSite implements Runnable {
         
         Long undoToken = ts.getLastUndoToken();
         // Blah blah blah...
-        if (this.ee != null && undoToken != null && undoToken != Long.MAX_VALUE && ts.hasSubmittedEE() && ts.isReadOnly() == false) {
+        if (this.ee != null && undoToken != null && undoToken != Long.MAX_VALUE && ts.hasSubmittedEE() && ts.isExecReadOnly() == false) {
             if (d) LOG.debug(String.format("Committing txn #%d [partition=%d, lastCommittedTxnId=%d, undoToken=%d, submittedEE=%s]", txn_id, this.partitionId, this.lastCommittedTxnId, undoToken, ts.hasSubmittedEE()));
             this.ee.releaseUndoToken(undoToken); 
         }
@@ -1911,7 +1911,7 @@ public class ExecutionSite implements Runnable {
         // it will automagically rollback all other outstanding txns.
         // I'm lazy/tired, so for now I'll just rollback everything I get, but in theory
         // we should be able to check whether our undoToken has already been rolled back
-        if (this.ee != null && undoToken != null && undoToken != Long.MAX_VALUE && ts.hasSubmittedEE() && ts.isReadOnly() == false) {
+        if (this.ee != null && undoToken != null && undoToken != Long.MAX_VALUE && ts.hasSubmittedEE() && ts.isExecReadOnly() == false) {
             if (d) LOG.debug(String.format("Aborting txn #%d [partition=%d, lastCommittedTxnId=%d, undoToken=%d, submittedEE=%s]", txn_id, this.partitionId, this.lastCommittedTxnId, undoToken, ts.hasSubmittedEE()));
             this.ee.undoUndoToken(undoToken);
         }

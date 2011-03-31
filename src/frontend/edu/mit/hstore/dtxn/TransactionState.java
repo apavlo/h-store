@@ -93,9 +93,14 @@ public abstract class TransactionState implements Poolable {
     protected Long finished_timestamp;
     
     /**
+     * Whether we predict that this txn will be read-only
+     */
+    protected boolean predict_read_only = false;
+    
+    /**
      * Whether this transaction has been read-only so far
      */
-    protected boolean read_only = true;
+    protected boolean exec_read_only = true;
 
     /**
      * Whether this Transaction has submitted work to the EE that needs to be rolled back
@@ -157,7 +162,8 @@ public abstract class TransactionState implements Poolable {
     @Override
     public void finish() {
         this.txn_id = -1;
-        this.read_only = true;
+        this.predict_read_only = false;
+        this.exec_read_only = true;
         this.finished_timestamp = null;
         this.submitted_to_ee = false;
         this.pending_error = null;
@@ -322,12 +328,18 @@ public abstract class TransactionState implements Poolable {
         return this.last_undo_token;
     }
     
-    public void setReadOnly(boolean read_only) {
-        this.read_only = read_only;
+    public void setPredictReadOnly(boolean read_only) {
+        this.predict_read_only = read_only;
+    }
+    public boolean isPredictReadOnly() {
+        return (this.predict_read_only);
     }
     
-    public boolean isReadOnly() {
-        return (this.read_only);
+    public void setExecReadOnly(boolean read_only) {
+        this.exec_read_only = read_only;
+    }
+    public boolean isExecReadOnly() {
+        return (this.exec_read_only);
     }
     
     /**
@@ -390,7 +402,7 @@ public abstract class TransactionState implements Poolable {
         Map<String, Object> m = new ListOrderedMap<String, Object>();
         m.put("Transaction #", this.txn_id);
         m.put("Current Round State", this.round_state);
-        m.put("Read-Only", this.read_only);
+        m.put("Read-Only", this.exec_read_only);
         m.put("FragmentTask Callbacks", this.fragment_callbacks.size());
         m.put("Executing Locally", this.exec_local);
         m.put("Local Partition", this.executor.getPartitionId());

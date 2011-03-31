@@ -87,6 +87,25 @@ public class MarkovEstimate implements Poolable {
     }
     
     /**
+     * Returns true if this estimate is valid and can be used by the runtime system
+     * @return
+     */
+    public boolean isValid() {
+        if (this.vertex == null) return (false);
+        
+        for (int i = 0; i < this.touched.length; i++) {
+            if (this.finished[i] == MarkovUtil.NULL_MARKER ||
+                this.read[i] == MarkovUtil.NULL_MARKER ||
+                this.write[i] == MarkovUtil.NULL_MARKER) {
+                return (false);
+            }
+        } // FOR
+        if (this.singlepartition == MarkovUtil.NULL_MARKER) return (false);
+        if (this.userabort == MarkovUtil.NULL_MARKER) return (false);
+        return (true);
+    }
+    
+    /**
      * The last vertex in this batch
      * @return
      */

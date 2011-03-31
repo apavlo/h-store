@@ -793,7 +793,8 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         TransactionEstimator t_estimator = executor.getTransactionEstimator();
         
         boolean single_partition = false;
-        boolean can_abort = true;
+        boolean predict_can_abort = true;
+        boolean predict_readonly = catalog_proc.getReadonly();
         TransactionEstimator.State estimator_state = null; 
 
         LocalTransactionState local_ts = null;
@@ -876,10 +877,12 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
                     // Check whether the probability that we're single-partitioned is above our threshold
                     } else {
                         if (d) LOG.debug(String.format("Using TransactionEstimator.Estimate for txn #%d to determine if single-partitioned", txn_id));
+                        
+                        assert(estimate.isValid()) : String.format("Invalid MarkovEstimate for txn #%d\n%s", txn_id, estimate);
                         if (d) LOG.debug("MarkovEstimate:\n" + estimate);
                         single_partition = estimate.isSinglePartition(this.thresholds);
                         // can_abort = estimate.isUserAbort(this.thresholds);
-                        if (this.status_monitor != null && can_abort == false) TxnCounter.NO_UNDO_BUFFER.inc(catalog_proc);
+                        if (this.status_monitor != null && predict_can_abort == false) TxnCounter.NO_UNDO_BUFFER.inc(catalog_proc);
                     }
                 }
                 if (hstore_conf.enable_profiling) local_ts.est_time.stop();
@@ -897,8 +900,9 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         if (d) LOG.debug(String.format("Executing %s txn #%d on partition %d [single-partitioned=%s]", catalog_proc.getName(), txn_id, dest_partition, single_partition));
 
         local_ts.init(txn_id, request.getClientHandle(), dest_partition.intValue(),
-                      single_partition, can_abort, estimator_state,
+                      single_partition, predict_can_abort, estimator_state,
                       catalog_proc, request, done);
+        local_ts.setPredictReadOnly(predict_readonly);
         if (hstore_conf.enable_profiling) {
             local_ts.total_time.start(timestamp);
             local_ts.init_time.start(timestamp);
@@ -921,6 +925,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         Long orig_txn_id = txn_info.getOriginalTransactionId();
         int base_partition = txn_info.getBasePartition();
         boolean single_partitioned = txn_info.isPredictSinglePartition();
+        boolean read_only = txn_info.isPredictReadOnly();
                 
         LocalTransactionState dupe = this.inflight_txns.put(txn_id, txn_info);
         if (dupe != null) {
@@ -955,7 +960,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         // -------------------------------
         // FAST MODE: Skip the Dtxn.Coordinator
         // -------------------------------
-        if (hstore_conf.ignore_dtxn && single_partitioned && (dtxn_txns.isEmpty() || spec_exec)) {
+        if (hstore_conf.ignore_dtxn && single_partitioned && (dtxn_txns.isEmpty() || spec_exec || read_only)) {
             txn_info.ignore_dtxn = true;
             if (d) LOG.debug(String.format("Fast path execution for %s txn #%d on partition %d [speculative=%s, handle=%d]",
                                            txn_info.getProcedureName(), txn_id, base_partition, spec_exec, txn_info.getClientHandle()));
@@ -1020,7 +1025,8 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
                 // TODO: How do we want to come up with estimates per partition?
                 Set<Integer> touched_partitions = estimator_state.getEstimatedPartitions();
                 for (Integer p : this.all_partitions) {
-                    if (touched_partitions.contains(p) == false) done_partitions.add(p);
+                    // Make sure that we don't try to mark ourselves as being done at our own partition
+                    if (touched_partitions.contains(p) == false && p.intValue() != base_partition) done_partitions.add(p);
                 } // FOR
             }
             
@@ -1436,8 +1442,13 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         int spec_cnt = 0;
         for (Integer p : partitions) {
             if (this.txnid_managers[p.intValue()] == null) continue;
-            assert(this.speculative_txn[p] == NULL_SPECULATIVE_EXEC_ID ||
-                   this.speculative_txn[p] == txn_id) : "Trying to enable speculative execution twice at partition " + p;
+            
+            // We'll let multiple tell us to speculatively execute, but we only let them go when hte latest
+            // one finishes. We should really have multiple queues of speculatively execute txns, but for now
+            // this is fine
+            
+//            assert(this.speculative_txn[p] == NULL_SPECULATIVE_EXEC_ID ||
+//                   this.speculative_txn[p] == txn_id) : String.format("Trying to enable speculative execution twice at partition %d [current=#%d, new=#%d]", p, this.speculative_txn[p], txn_id); 
             ExecutionSite executor = this.executors.get(p); 
                 
             // Make sure that we tell the ExecutionSite first before we allow txns to get fired off
