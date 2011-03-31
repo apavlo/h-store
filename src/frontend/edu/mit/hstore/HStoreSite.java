@@ -537,6 +537,9 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
             
             // Then load up everything in the PartitionEstimator
             this.p_estimator.preload();
+         
+            // Don't forget our CatalogUtil friend!
+            CatalogUtil.preload(this.catalog_db);
             
         } catch (Exception ex) {
             LOG.fatal("Failed to prepare HStoreSite", ex);
@@ -1239,7 +1242,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         
         // Restart the new transaction
         if (hstore_conf.enable_profiling) ProfileMeasurement.start(new_ts.total_time, new_ts.init_time);
-        boolean single_partitioned = (touched.getValueCount() == 1);
+        boolean single_partitioned = (orig_ts.getOriginalTransactionId() == null && touched.getValueCount() == 1);
         
         if (d) LOG.debug(String.format("Re-executing mispredicted txn #%d as new %s-partition txn #%d on partition %d",
                                        txn_id, (single_partitioned ? "single" : "multi"), new_txn_id, base_partition));

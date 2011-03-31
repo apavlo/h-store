@@ -160,7 +160,9 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
     public static boolean areFragmentsReadOnly(CatalogType catalog_obj, long fragments[], int cnt) {
         if (FRAGMENT_READONLY.isEmpty()) preload(catalog_obj);
         for (int i = 0; i < cnt; i++) {
-            if (FRAGMENT_READONLY.get(fragments[i]).booleanValue() == false) return (false);
+            Boolean b = FRAGMENT_READONLY.get(fragments[i]);
+            assert(b != null) : "Unexpected PlanFragment id #" + fragments[i];
+            if (b.booleanValue() == false) return (false);
         } // FOR
         return (true);
     }

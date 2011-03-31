@@ -2,7 +2,6 @@ package edu.mit.hstore;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
-import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -101,20 +100,29 @@ public class HStoreMessenger {
     private class Listener implements Runnable {
         @Override
         public void run() {
+            Throwable error = null;
             try {
                 HStoreMessenger.this.eventLoop.run();
+            } catch (RuntimeException ex) {
+                error = ex;
+            } catch (AssertionError ex) {
+                error = ex;
             } catch (Exception ex) {
+                error = ex;
+            }
+            
+            if (error != null) {
                 if (hstore_site.isShuttingDown() == false) {
-                    LOG.error("HStoreMessenger.Listener stopped!", ex);
+                    LOG.error("HStoreMessenger.Listener stopped!", error);
                 }
                 
                 Throwable cause = null;
-                if (ex instanceof RuntimeException && ex.getCause() != null) {
-                    if (ex.getCause().getMessage() != null && ex.getCause().getMessage().isEmpty() == false) {
-                        cause = ex.getCause();
+                if (error instanceof RuntimeException && error.getCause() != null) {
+                    if (error.getCause().getMessage() != null && error.getCause().getMessage().isEmpty() == false) {
+                        cause = error.getCause();
                     }
                 }
-                if (cause == null) cause = ex;
+                if (cause == null) cause = error;
                 
                 // These errors are ok if we're actually stopping...
                 if (HStoreMessenger.this.state == MessengerState.STOPPED ||
@@ -122,14 +130,10 @@ public class HStoreMessenger {
                     // IGNORE
                 } else {
                     LOG.fatal("Unexpected error in messenger listener thread", cause);
-                    HStoreMessenger.this.shutdownCluster(ex);
+                    HStoreMessenger.this.shutdownCluster(error);
                 }
-            } finally {
-                // if (HStoreMessenger.this.state != MessengerState.STOPPED) HStoreMessenger.this.stop();
             }
-            if (t) {
-                LOG.trace("Messenger Thread for Site #" + catalog_site.getId() + " has stopped!");
-            }
+            if (t) LOG.trace("Messenger Thread for Site #" + catalog_site.getId() + " has stopped!");
         }
     }
     
@@ -342,13 +346,31 @@ public class HStoreMessenger {
             Hstore.MessageAcknowledgement response = null;
             switch (type) {
                 // -----------------------------------------------------------------
+                // MARK A TXN AS DONE FROM A REMOTE SITE
+                // -----------------------------------------------------------------
+                case DONE_PARTITIONS: {
+                    // Tell our HStoreSite that this txn is done at the given partitions
+                    assert(request.hasTxnId());
+                    long txn_id = request.getTxnId();
+                    if (d) LOG.debug(String.format("Processing %s message for txn #%d", type, txn_id));
+                    HStoreMessenger.this.hstore_site.doneAtPartitions(txn_id, request.getPartitionsList());
+
+                    Hstore.MessageAcknowledgement done_ack = Hstore.MessageAcknowledgement.newBuilder()
+                                                                    .setDestId(sender)
+                                                                    .setSenderId(dest)
+                                                                    .setTxnId(txn_id)
+                                                                    .build();
+                    done.run(done_ack);
+                    break;
+                }
+                // -----------------------------------------------------------------
                 // STATUS REQUEST
                 // ----------------------------------------------------------------- 
                 case STATUS: {
                     response = Hstore.MessageAcknowledgement.newBuilder()
                                                             .setDestId(sender)
                                                             .setSenderId(dest)
-                                                            .setData(ByteString.copyFrom("OK".getBytes())) // TODO
+                                                            .setData(ok)
                                                             .build();
                     done.run(response);
                     break;
@@ -390,23 +412,6 @@ public class HStoreMessenger {
                     byte serializedRequest[] = request.getData().toByteArray();
                     ForwardTxnResponseCallback callback = new ForwardTxnResponseCallback(dest, sender, done);
                     HStoreMessenger.this.hstore_site.procedureInvocation(serializedRequest, callback);
-                    break;
-                }
-                // -----------------------------------------------------------------
-                // MARK A TXN AS DONE FROM A REMOTE SITE
-                // -----------------------------------------------------------------
-                case DONE_PARTITIONS: {
-                    // Tell our HStoreSite that this txn is done at the given partitions
-                    ByteBuffer buffer = request.getData().asReadOnlyByteBuffer();
-                    long txn_id = buffer.getLong();
-                    HStoreMessenger.this.hstore_site.doneAtPartitions(txn_id, request.getPartitionsList());
-
-                    Hstore.MessageAcknowledgement done_ack = Hstore.MessageAcknowledgement.newBuilder()
-                                                                    .setDestId(sender)
-                                                                    .setSenderId(dest)
-                                                                    .setData(ok)
-                                                                    .build();
-                    done.run(done_ack);
                     break;
                 }
                 // -----------------------------------------------------------------
@@ -581,9 +586,10 @@ public class HStoreMessenger {
                                                              .setType(MessageType.DONE_PARTITIONS)
                                                              .setSenderId(local_site_id)
                                                              .setDestId(-1) // doesn't matter
+                                                             .setTxnId(txn_id)
                                                              .addAllPartitions(partitions)
-                                                             .setData(HStoreSite.encodeTxnId(txn_id))
                                                              .build();
+        assert(request.hasTxnId());
         boolean site_sent[] = new boolean[this.num_sites];
         int cnt = 0;
         for (Integer p : partitions) {
