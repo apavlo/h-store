@@ -29,7 +29,7 @@ import edu.brown.statistics.Histogram;
  *
  */
 public abstract class AirlineBaseClient extends ClientMain {
-    protected static final Logger LOG = Logger.getLogger(AirlineBaseClient.class.getName());
+    protected static final Logger LOG = Logger.getLogger(AirlineBaseClient.class);
     
     protected int m_days_past = 7;
     protected int m_days_future = 14;
@@ -41,7 +41,9 @@ public abstract class AirlineBaseClient extends ClientMain {
     
     protected final String AIRLINE_DATA_DIR;
    
-    protected final Map<String, Histogram> histograms = new HashMap<String, Histogram>();
+    protected final Map<String, Histogram<String>> histograms = new HashMap<String, Histogram<String>>();
+    
+    protected final Map<String, Histogram<String>> airport_histograms = new HashMap<String, Histogram<String>>();
     
     /**
      * The airports that we actually care about
@@ -152,9 +154,7 @@ public abstract class AirlineBaseClient extends ClientMain {
         }
         this.m_rng = rng;
         
-        //
         // Load pre-compiled Catalog
-        //
         Catalog _catalog = null;
         try {
             _catalog = this.getCatalog();
@@ -165,13 +165,11 @@ public abstract class AirlineBaseClient extends ClientMain {
         this.catalog = _catalog;
         this.catalog_db = CatalogUtil.getDatabase(this.catalog);
         
-        //
         // Tuple Code to Tuple Id Mapping
         // For some tables, we want to store a unique code that can be used to map
         // to the id of a tuple. Any table that has a foreign key reference to this table
         // will use the unique code in the input data tables instead of the id. Thus, we need
         // to keep a table of how to map these codes to the ids when loading.
-        //
         String code_to_id_columns[][] = {
                 {"CO_CODE_3",       "CO_ID"}, // COUNTRY
                 {"AP_CODE",         "AP_ID"}, // AIRPORT
@@ -183,7 +181,6 @@ public abstract class AirlineBaseClient extends ClientMain {
             this.code_id_xref.put(xref[1], new HashMap<String, Long>());
         } // FOR
         
-        //
         // Foreign Key Code to Ids Mapping
         // In this data structure, the key will be the name of the dependent column
         // and the value will be the name of the foreign key parent column
@@ -192,7 +189,6 @@ public abstract class AirlineBaseClient extends ClientMain {
         // key reference to COUNTRY.CO_ID, then the data file for AIRPORT will have a value
         // 'USA' in the AP_CO_ID column. We can use mapping to get the id number for 'USA'.
         // Long winded and kind of screwy, but hey what else are you going to do?
-        //
         for (Table catalog_tbl : this.catalog_db.getTables()) {
             for (Column catalog_col : catalog_tbl.getColumns()) {
                 Column catalog_fkey_col = CatalogUtil.getForeignKeyParent(catalog_col);
@@ -208,7 +204,7 @@ public abstract class AirlineBaseClient extends ClientMain {
      * @param name
      * @return
      */
-    public Histogram getHistogram(String name) {
+    public Histogram<String> getHistogram(String name) {
         return (this.histograms.get(name));
     }
     
@@ -248,15 +244,24 @@ public abstract class AirlineBaseClient extends ClientMain {
      * Load all the histograms used in the benchmark
      */
     protected void loadHistograms() {
-        //
         // Now load in the histograms that we will need for generating the flight data
-        //
         try {
             for (String histogram_name : AirlineConstants.HISTOGRAM_DATA_FILES) {
                 LOG.debug("Loading in histogam data file for '" + histogram_name + "'");
-                Histogram histogram = HistogramUtil.loadHistogram(histogram_name, AIRLINE_DATA_DIR, true);
-                assert(histogram != null);
-                this.histograms.put(histogram_name, histogram);
+                
+                if (histogram_name.equals(AirlineConstants.HISTOGRAM_FLIGHTS_PER_AIRPORT)) {
+                    Map<String, Histogram<String>> m = HistogramUtil.loadAirportFlights(AIRLINE_DATA_DIR);
+                    assert(m != null);
+                    
+                    // Store the airport codes set
+                    this.airport_histograms.putAll(m);
+                    this.airport_codes.addAll(m.keySet());
+                    
+                } else {
+                    Histogram<String> histogram = HistogramUtil.loadHistogram(histogram_name, AIRLINE_DATA_DIR, true);
+                    assert(histogram != null);
+                    this.histograms.put(histogram_name, histogram);
+                }
 
 //                if (!histogram_name.equals(AirlineConstants.HISTOGRAM_POPULATIONS)) {
 //                    System.out.println(histogram_name);
@@ -264,19 +269,6 @@ public abstract class AirlineBaseClient extends ClientMain {
 //                    System.out.println("--------------------------------------------");
 //                }
                 
-                //
-                // Store the airport codes ahead of time, since they will actually be
-                // a combination of two airports
-                //
-                if (histogram_name.equals(AirlineConstants.HISTOGRAM_FLIGHTS_PER_AIRPORT)) {
-                    for (Object airport_pair : histogram.values()) {
-                        Pair<String, String> codes = this.getAirportCodes(airport_pair.toString());
-                        // this.code_id_xref.get("AP_ID").put(codes.getFirst(), 0l);
-                        // this.code_id_xref.get("AP_ID").put(codes.getSecond(), 0l);
-                        this.airport_codes.add(codes.getFirst());
-                        this.airport_codes.add(codes.getSecond());
-                    }
-                } // IF
             } // FOR
         } catch (Exception ex) {
             LOG.error("Failed to load data files for histograms", ex);

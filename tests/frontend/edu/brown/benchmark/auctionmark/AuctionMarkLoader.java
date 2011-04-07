@@ -483,8 +483,7 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
             super(AuctionMarkLoader.this.getTableCatalog(AuctionMarkConstants.TABLENAME_CATEGORY));
             this.data_file = data_file;
 
-            assert (this.data_file.exists()) : "The data file for the category generator does not exist: "
-                    + this.data_file;
+            assert (this.data_file.exists()) : "The data file for the category generator does not exist: " + this.data_file;
 
             this.categoryMap = (new AuctionMarkCategoryParser(data_file)).getCategoryMap();
             this.categoryKeyItr = this.categoryMap.keySet().iterator();
@@ -652,9 +651,6 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
     /**
      * USER_ATTRIBUTES Generator
      */
-    /**
-     * ITEM_IMAGE Generator
-     */
     protected class UserAttributesGenerator extends AbstractTableGenerator {
 
         private Iterator<Map.Entry<Integer, Short>> userAttributeItr;
@@ -737,7 +733,7 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
      */
     protected class ItemGenerator extends AbstractTableGenerator {
 
-        private FlatHistogram randomCategory;
+        private FlatHistogram<String> randomCategory;
 
         private Iterator<Map.Entry<Integer, Integer>> sellerItemsItr;
         // Entry for <user id index in the profiler, number of items this user sell>
