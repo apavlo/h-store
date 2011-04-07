@@ -35,6 +35,7 @@ package edu.brown.benchmark.tm1.procedures;
 import org.voltdb.*;
 
 import edu.brown.benchmark.tm1.TM1Constants;
+import edu.brown.utils.ThreadUtil;
 
 @ProcInfo(
     singlePartition = false
@@ -71,6 +72,9 @@ public class InsertCallForwarding extends VoltProcedure{
          
          voltQueueSQL(query2, s_id);
          voltExecuteSQL();
+         
+//         System.err.println("INSERT CALL FORWARD SLEEP!");
+//         ThreadUtil.sleep(10000);
          
          // Inserting a new Call_Forwarding record only succeeds 30% of the time
          // Check whether the record that we want to insert already exists in Call_Forwarding

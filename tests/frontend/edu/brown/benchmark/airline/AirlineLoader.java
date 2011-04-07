@@ -442,25 +442,20 @@ public class AirlineLoader extends AirlineBaseClient {
                         Column catalog_col = catalog_tbl.getColumns().get(i);
                         assert(catalog_col != null) : "The column at position " + i + " for " + catalog_tbl + " is null";
                         
-                        //
                         // Special Value Column
-                        //
                         if (special[i]) {
                             data[i] = specialValue(last_id, i);
-                        //
+
                         // Id column (always first unless overridden in special) 
-                        //
                         } else if (i == 0) {
                             data[i] = new Long(last_id);
-                        //
+
                         // Strings
-                        //
                         } else if (types[i] == VoltType.STRING) {
                             int size = catalog_col.getSize();
                             data[i] = m_rng.astring(m_rng.nextInt(size - 1), size);
-                        //
+                        
                         // Ints/Longs
-                        //
                         } else {
                             data[i] = m_rng.number(0, 1<<30);
                         }
@@ -482,15 +477,15 @@ public class AirlineLoader extends AirlineBaseClient {
     // CUSTOMERS
     // ----------------------------------------------------------------
     protected class CustomerIterable extends ScalingDataIterable {
-        private final RandomDistribution.FlatHistogram rand;
+        private final RandomDistribution.FlatHistogram<String> rand;
         private String airport_code = null;
         
         public CustomerIterable(Table catalog_tbl, long total) {
             super(catalog_tbl, total, new int[]{ 0, 1 });
             
             // Use the population histogram to select where people are located
-            Histogram histogram = AirlineLoader.this.getHistogram(AirlineConstants.HISTOGRAM_POPULATION_PER_AIRPORT);  
-            this.rand = new RandomDistribution.FlatHistogram(m_rng, histogram);
+            Histogram<String> histogram = AirlineLoader.this.getHistogram(AirlineConstants.HISTOGRAM_POPULATION_PER_AIRPORT);  
+            this.rand = new RandomDistribution.FlatHistogram<String>(m_rng, histogram);
         }
         
         @Override
@@ -525,11 +520,11 @@ public class AirlineLoader extends AirlineBaseClient {
     protected class FrequentFlyerIterable extends ScalingDataIterable {
         private final Iterator<CustomerId> customer_id_iterator;
         private final short ff_per_customer[];
-        private final RandomDistribution.FlatHistogram airline_rand;
+        private final RandomDistribution.FlatHistogram<String> airline_rand;
         private int customer_idx = 0;
         private CustomerId last_customer_id = null;
         private Set<Object> customer_airlines = new HashSet<Object>();
-        private Set<Object> all_airlines = new HashSet<Object>();
+        private Set<String> all_airlines = new HashSet<String>();
         
         public FrequentFlyerIterable(Table catalog_tbl, long total, int max_per_customer) {
             super(catalog_tbl, total, new int[]{ 0, 1 });
@@ -537,17 +532,13 @@ public class AirlineLoader extends AirlineBaseClient {
             this.customer_id_iterator = AirlineLoader.this.m_profile.getCustomerIds().iterator();
             this.last_customer_id = this.customer_id_iterator.next();
 
-            //
             // Flights per Airline
-            //
-            Histogram histogram = AirlineLoader.this.getHistogram(AirlineConstants.HISTOGRAM_FLIGHTS_PER_AIRLINE);
+            Histogram<String> histogram = AirlineLoader.this.getHistogram(AirlineConstants.HISTOGRAM_FLIGHTS_PER_AIRLINE);
             this.all_airlines = histogram.values();
-            this.airline_rand = new RandomDistribution.FlatHistogram(m_rng, histogram);
+            this.airline_rand = new RandomDistribution.FlatHistogram<String>(m_rng, histogram);
             
-            //
             // Loop through for the total customers and figure out how many entries we 
             // should have for each one. This will be our new total;
-            //
             this.ff_per_customer = new short[(int)total];
             RandomDistribution.Zipf zipf = new RandomDistribution.Zipf(m_rng, 0, this.all_airlines.size(), 1.1);
             long new_total = 0; 
@@ -686,9 +677,9 @@ public class AirlineLoader extends AirlineBaseClient {
     // FLIGHTS
     // ----------------------------------------------------------------
     protected class FlightIterable extends ScalingDataIterable {
-        private final RandomDistribution.FlatHistogram airlines;
-        private final RandomDistribution.FlatHistogram airports;
-        private final RandomDistribution.FlatHistogram flight_times;
+        private final RandomDistribution.FlatHistogram<String> airlines;
+        private final RandomDistribution.FlatHistogram<String> airports;
+        private final RandomDistribution.FlatHistogram<String> flight_times;
         private final Pattern time_pattern = Pattern.compile("([\\d]{2,2}):([\\d]{2,2})");
         private final ListOrderedMap<Date, Integer> flights_per_day = new ListOrderedMap<Date, Integer>();
         private final Map<Long, AtomicInteger> airport_flight_ids = new HashMap<Long, AtomicInteger>();
@@ -711,27 +702,23 @@ public class AirlineLoader extends AirlineBaseClient {
             assert(days_past >= 0);
             assert(days_future >= 0);
             
-            //
             // Histograms that we need:
             // (1) # of flights per airport
             // (2) # of flights per airline
             // (3) # of flights per time of day
-            //
-            Histogram histogram = AirlineLoader.this.getHistogram(AirlineConstants.HISTOGRAM_FLIGHTS_PER_AIRLINE);  
-            this.airlines = new RandomDistribution.FlatHistogram(m_rng, histogram);
+            Histogram<String> histogram = AirlineLoader.this.getHistogram(AirlineConstants.HISTOGRAM_FLIGHTS_PER_AIRLINE);  
+            this.airlines = new RandomDistribution.FlatHistogram<String>(m_rng, histogram);
             
             histogram = AirlineLoader.this.getHistogram(AirlineConstants.HISTOGRAM_FLIGHTS_PER_AIRPORT);  
-            this.airports = new RandomDistribution.FlatHistogram(m_rng, histogram);
+            this.airports = new RandomDistribution.FlatHistogram<String>(m_rng, histogram);
             for (long airport_id : AirlineLoader.this.getAirportIds()) {
                 this.airport_flight_ids.put(airport_id, new AtomicInteger(0));
             } // FOR
             
             histogram = AirlineLoader.this.getHistogram(AirlineConstants.HISTOGRAM_FLIGHT_DEPART_TIMES);  
-            this.flight_times = new RandomDistribution.FlatHistogram(m_rng, histogram);
+            this.flight_times = new RandomDistribution.FlatHistogram<String>(m_rng, histogram);
             
-            //
             // Figure out how many flights that we want for each day
-            //
             Calendar cal = Calendar.getInstance();
             int year = cal.get(Calendar.YEAR);
             int month= cal.get(Calendar.MONTH);
@@ -1050,9 +1037,7 @@ public class AirlineLoader extends AirlineBaseClient {
         
         @Override
         protected boolean hasNext() {
-            //
             // Release the data generation thread in order to populate our global data structures
-            //
             LOG.debug("hasNext() called");
             if (!this.gen_thread_done) {
                 LOG.debug("Releasing gen_latch!");

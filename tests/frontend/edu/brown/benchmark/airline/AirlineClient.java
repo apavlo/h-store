@@ -46,13 +46,13 @@ public class AirlineClient extends AirlineBaseClient {
      * Airline Benchmark Transactions
      */
     public static enum Transaction {
-        CHANGE_SEAT(10),
-        FIND_FLIGHT_BY_AIRPORT(10),
-        FIND_FLIGHT_BY_NEARBY_AIRPORT(10),
-        FIND_OPEN_SEATS(10),
-        NEW_RESERVATION(10),
-        UPDATE_FREQUENT_FLYER(10),
-        UPDATE_RESERVATION(10);
+        CHANGE_SEAT                     (AirlineConstants.FREQUENCY_CHANGE_SEAT),
+        FIND_FLIGHT_BY_AIRPORT          (AirlineConstants.FREQUENCY_FIND_FLIGHT_BY_AIRPORT),
+        FIND_FLIGHT_BY_NEARBY_AIRPORT   (AirlineConstants.FREQUENCY_FIND_FLIGHT_BY_NEARBY_AIRPORT),
+        FIND_OPEN_SEATS                 (AirlineConstants.FREQUENCY_FIND_OPEN_SEATS),
+        NEW_RESERVATION                 (AirlineConstants.FREQUENCY_NEW_RESERVATION),
+        UPDATE_FREQUENT_FLYER           (AirlineConstants.FREQUENCY_UPDATE_FREQUENT_FLYER),
+        UPDATE_RESERVATION              (AirlineConstants.FREQUENCY_UPDATE_RESERVATION);
         
         private Transaction(int weight) {
             this.default_weight = weight;
@@ -163,9 +163,7 @@ public class AirlineClient extends AirlineBaseClient {
             }
         } // FOR
         
-        //
         // Make sure we have the information we need in the BenchmarkProfile
-        //
         String error_msg = null;
         if (this.m_profile.getFlightIdCount() == 0) {
             error_msg = "The benchmark profile does not have any flight ids.";
@@ -194,8 +192,8 @@ public class AirlineClient extends AirlineBaseClient {
         LOG.info("Loading data files for histograms");
         this.loadHistograms();
         
-        Histogram histogram = this.getHistogram(AirlineConstants.HISTOGRAM_POPULATION_PER_AIRPORT);
-        this.airport_rand = new RandomDistribution.FlatHistogram(m_rng, histogram);
+        Histogram<String> histogram = this.getHistogram(AirlineConstants.HISTOGRAM_POPULATION_PER_AIRPORT);
+        this.airport_rand = new RandomDistribution.FlatHistogram<String>(m_rng, histogram);
     }
 
     @Override

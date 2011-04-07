@@ -4,9 +4,18 @@ public abstract class AirlineConstants {
     
     public static final int DISTANCES[] = { 5 }; // , 10, 25, 50, 100 };
     
-    //
+    // ----------------------------------------------------------------
+    // STORED PROCEDURE EXECUTION FREQUENCIES (0-100)
+    // ----------------------------------------------------------------
+    public static final int FREQUENCY_CHANGE_SEAT                   = 10;
+    public static final int FREQUENCY_FIND_FLIGHT_BY_AIRPORT        = 10;
+    public static final int FREQUENCY_FIND_FLIGHT_BY_NEARBY_AIRPORT = 10;
+    public static final int FREQUENCY_FIND_OPEN_SEATS               = 10;
+    public static final int FREQUENCY_NEW_RESERVATION               = 10;
+    public static final int FREQUENCY_UPDATE_FREQUENT_FLYER         = 10;
+    public static final int FREQUENCY_UPDATE_RESERVATION            = 10;
+
     // Initial Data Sizes
-    //
     public static final int NUM_CUSTOMERS = 1000000;
     public static final int DEFAULT_SCALE_FACTOR = 1;
     
