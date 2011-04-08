@@ -222,6 +222,16 @@ class QueryTrace(AbstractTraceElement):
             #sys.exit(1)
     ## DEF
     
+    def populateSQL(self, sql):
+        new_sql = ""
+        split = sql.split("?")
+        for i in range(0, len(split)-1):
+            new_sql += str(split[i]) + str(self.params[i])
+        ## FOR
+        new_sql += str(split[-1])
+        return (new_sql)
+    ## DEF
+    
     def toJSON(self):
         data = AbstractTraceElement.toJSON(self)
         data["PROC_NAME"] = self.proc_name
