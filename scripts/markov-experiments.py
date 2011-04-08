@@ -26,13 +26,10 @@ NODE_MAX = 199
 NODES_TO_SKIP = [ 20, 21, 45, 77, 114, 101 ]
 NODE_FORMAT = "d-%02d.cs.wisc.edu"
 
-NUM_TRIALS_PER_EXP = 3
 COORDINATOR_NODE = 1
 SITE_NODE_START = COORDINATOR_NODE + 1
 SITES_PER_NODE = 1
 SITE_ALL_NODES = range(SITE_NODE_START, NODE_MAX)
-CLIENT_PER_NODE = 4
-CLIENT_BLOCKING = True
 
 PARTITIONS = [ 4, 8, 16, 32, 64 ] # , 128 ]
 PARTITIONS_PER_SITE = 2
@@ -43,7 +40,7 @@ EXPERIMENT_PARAMS = [
         "node.force_singlepartition":        True,
         "node.force_neworderinspect":        False,
         "node.force_neworderinspect_done":   False,
-        "node.enable_db2_redirects":         True,
+        "node.enable_db2_redirects":         False,
         "node.enable_speculative_execution": False,
     },
     ## Trial #1 - NewOrder Only, Only determines whether multi-p or not
@@ -79,17 +76,38 @@ EXPERIMENT_PARAMS = [
         "node.enable_speculative_execution": True,
     },
 ]
+OPT_TRIALS = 3
 OPT_BENCHMARK = "tpcc"
 OPT_EXPERIMENT = 0
 OPT_LOAD_THREADS = 8
 OPT_SCALE_FACTOR = 10
 OPT_TRACE = False
+OPT_BLOCKING = True
+OPT_TXNRATE = -1
+OPT_DURATION = 120000
+OPT_WARMUP = 60000
+OPT_CLIENT_PER_NODE = 4
+OPT_NEWORDER_ONLY = False
+
+## This is needed until I get proper throttling in the clients working...
+BASE_TXNRATE = {
+    "tpcc": 200,
+    "tm1":  500,
+    "auctionmark": 200,
+}
 
 ## ==============================================
 ## main
 ## ==============================================
 if __name__ == '__main__':
     _options, args = getopt.gnu_getopt(sys.argv[1:], '', [
+        "trials=",
+        "blocking=",
+        "txnrate=",
+        "duration=",
+        "warmup=",
+        "client-per-node=",
+        "neworder-only=",
         ## Benchmark
         "benchmark=",
         ## Which experiment to execute
@@ -120,7 +138,11 @@ if __name__ == '__main__':
         varname = "OPT_" + key.replace("-", "_").upper()
         if varname in globals() and len(options[key]) == 1:
             orig_type = type(globals()[varname])
-            globals()[varname] = orig_type(True if type(globals()[varname]) == bool else options[key][0])
+            if orig_type == bool:
+                val = (options[key][0].lower == "true")
+            else: 
+                val = orig_type(options[key][0])
+            globals()[varname] = val
             logging.debug("%s = %s" % (varname, str(globals()[varname])))
     ## FOR
     
@@ -183,34 +205,50 @@ if __name__ == '__main__':
         assert result == 0, cmd + "\n" + output
         logging.info("Initialized %s project jar [hosts=%d, sites=%d, partitions=%d]" % (OPT_BENCHMARK.upper(), num_nodes, num_sites, num_partitions))
     
-        CLIENT_TXNRATE = 500
-        if num_partitions == 32:
-            CLIENT_TXNRATE = 250
-        elif num_partitions == 64:
-            CLIENT_TXNRATE = 200
-        #elif num_partitions == 4:
-            #CLIENT_TXNRATE = 250
+        if OPT_TXNRATE == -1:
+            CLIENT_TXNRATE = BASE_TXNRATE[OPT_BENCHMARK.lower()]
+            if num_partitions == 8:
+                CLIENT_TXNRATE *= 0.80
+            elif num_partitions == 16:
+                CLIENT_TXNRATE *= 0.70
+            elif num_partitions == 32:
+                CLIENT_TXNRATE *= 0.60
+            elif num_partitions == 64:
+                CLIENT_TXNRATE *= 0.50
+            if OPT_EXPERIMENT == 0:
+                if num_partitions >= 8:
+                    CLIENT_TXNRATE *= 0.80
+        else:
+            CLIENT_TXNRATE = OPT_TXNRATE
+        CLIENT_TXNRATE = int(CLIENT_TXNRATE)
     
         hstore_opts = {
             "coordinator.host":             NODE_FORMAT % COORDINATOR_NODE,
             "coordinator.delay":            10,
-            "client.duration":              120000,
-            "client.warmup":                60000,
+            "client.duration":              OPT_DURATION,
+            "client.warmup":                OPT_WARMUP,
             "client.host":                  ",".join(map(lambda x: NODE_FORMAT % x, CLIENT_NODES)),
             "client.count":                 CLIENT_COUNT,
-            "client.processesperclient":    CLIENT_PER_NODE,
+            "client.processesperclient":    OPT_CLIENT_PER_NODE,
             "client.txnrate":               CLIENT_TXNRATE,
-            "client.blocking":              False,
+            "client.blocking":              OPT_BLOCKING,
             "client.scalefactor":           OPT_SCALE_FACTOR,
         }
         benchmark_opts = {
-            "benchmark.neworder_only":      True,
+            "benchmark.neworder_only":      False,
             "benchmark.neworder_abort":     True,
             "benchmark.neworder_multip":    True,
             "benchmark.warehouses":         num_partitions,
             "benchmark.loadthreads":        OPT_LOAD_THREADS,
         }
-        hstore_opts = dict(hstore_opts.items() + EXPERIMENT_PARAMS[OPT_EXPERIMENT].items())
+        if OPT_EXPERIMENT in [1, 2, 3]:
+            benchmark_opts["benchmark.neworder_only"] = True
+
+        exp_opts = EXPERIMENT_PARAMS[OPT_EXPERIMENT]
+        exp_opts["node.mispredict_crash"] = False
+        exp_opts["node.statusinterval"] = 20
+
+        hstore_opts = dict(hstore_opts.items() + exp_opts.items())
         hstore_opts_cmd = " ".join(map(lambda x: "-Dhstore.%s=%s" % (x, hstore_opts[x]), hstore_opts.keys()))
         benchmark_opts_cmd = " ".join(map(lambda x: "-D%s=%s" % (x, benchmark_opts[x]), benchmark_opts.keys()))
         ant_opts_cmd = " ".join([base_opts_cmd, hstore_opts_cmd, benchmark_opts_cmd])
@@ -225,8 +263,19 @@ if __name__ == '__main__':
 
         pprint(hstore_opts)
         
+        ## HACK
+        with open("properties/default.properties", "r") as f:
+            contents = f.read()
+        ## WITH
+        for e in exp_opts.items():
+            k, v = e
+            contents = re.sub("%s[\s]+=.*" % re.escape(k), "%s = %s" % (k, v), contents)
+        with open("properties/default.properties", "w") as f:
+            f.write(contents)
+        ## WITH
+        
         print "%s EXP #%d - PARTITIONS %d" % (OPT_BENCHMARK.upper(), OPT_EXPERIMENT, num_partitions)
-        for trial in range(0, NUM_TRIALS_PER_EXP):
+        for trial in range(0, OPT_TRIALS):
             cmd = "ant hstore-benchmark " + ant_opts_cmd
             if OPT_TRACE: cmd += " -Dtrace=traces/%s-%dp-%d" % (OPT_BENCHMARK.lower(), num_partitions, trial)
             cmd += " | tee client.log"
@@ -253,7 +302,6 @@ if __name__ == '__main__':
             
             ## Make sure we kill everything
             cmd = "pusher --show-host 'pskill java' ./allhosts.txt"
-            print cmd
             (result, output) = commands.getstatusoutput(cmd)
             assert result == 0, cmd + "\n" + output
         ## FOR (TRIAL)
