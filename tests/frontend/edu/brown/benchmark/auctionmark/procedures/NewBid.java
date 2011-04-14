@@ -261,15 +261,14 @@ VALUES ($bidId, $itemId, $sellerId, $buyerId,  $qty, 0, $bid, $maxBid, '$now');
         	voltExecuteSQL();
         	
             // check whether the item has been watched, if not add it to the watch list
-            GetWatchedItems get_watched_items = new GetWatchedItems();
-            VoltTable[] watched_items = get_watched_items.run(i_buyer_id);
+            voltQueueSQL(getUserWatch, u_id, i_id, i_buyer_id, new TimestampType(currentTime.getTime()));
+            VoltTable[] watched_items = voltExecuteSQL();
             if (watched_items.length == 0) {
                 // insert into the watched_items
                 voltQueueSQL(insertUserWatch, u_id, i_id, i_buyer_id, new TimestampType(currentTime.getTime()));
-                System.out.println("inserting new watched item for user: " + i_buyer_id);
+                voltExecuteSQL();
             } else {
                 assert (1 == watched_items.length) : "The current item is present more than once in the watched items table";
-                System.out.println("user id: " + i_buyer_id + " watched: " + watched_items.toString());
             }
         }
         
