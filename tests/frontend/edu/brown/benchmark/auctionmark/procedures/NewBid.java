@@ -237,6 +237,8 @@ VALUES ($bidId, $itemId, $sellerId, $buyerId,  $qty, 0, $bid, $maxBid, '$now');
         	
         	voltQueueSQL(insertItemMaxBid, i_id, u_id, ib_id, i_id, u_id, currentTimestamp, currentTimestamp);
         	voltExecuteSQL();
+        	
+        	// insert into item_watch
         }
         
         // Return new ib_id
