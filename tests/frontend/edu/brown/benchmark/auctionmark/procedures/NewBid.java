@@ -143,28 +143,25 @@ VALUES ($bidId, $itemId, $sellerId, $buyerId,  $qty, 0, $bid, $maxBid, '$now');
         ")"
     );
  
-    public final SQLStmt getUserWatch = new SQLStmt(
-            "SELECT uw_u_id FROM " + AuctionMarkConstants.TABLENAME_USER_WATCH + " " +
-            " WHERE uw_u_id = ?"
-    );
-   
     public final SQLStmt insertUserWatch = new SQLStmt(
             "INSERT INTO " + AuctionMarkConstants.TABLENAME_USER_WATCH + "(" +
             "uw_u_id, " +
             "uw_i_id, " +
             "uw_i_u_id, " +
-            "imb_ib_i_id, " +
-            "uw_created, " +
+            "uw_created " +
             ") VALUES (" +
             "?, " + // uw_u_id
             "?, " + // uw_i_id
             "?, " + // uw_i_u_id
-            "?, " + // imb_ib_i_id
-            "?, " + // imb_ib_u_id
-            "?, " + // uw_created
+            "? " + // uw_created
             ")"
         );    
  
+    public final SQLStmt getUserWatch = new SQLStmt(
+            "SELECT uw_u_id FROM " + AuctionMarkConstants.TABLENAME_USER_WATCH + " " +
+            " WHERE uw_u_id = ?"
+    );
+   
     /**
      * 
      * @param i_id
@@ -261,11 +258,11 @@ VALUES ($bidId, $itemId, $sellerId, $buyerId,  $qty, 0, $bid, $maxBid, '$now');
         	voltExecuteSQL();
         	
             // check whether the item has been watched, if not add it to the watch list
-            voltQueueSQL(getUserWatch, u_id, i_id, i_buyer_id, new TimestampType(currentTime.getTime()));
+            voltQueueSQL(getUserWatch, i_buyer_id);
             VoltTable[] watched_items = voltExecuteSQL();
             if (watched_items.length == 0) {
                 // insert into the watched_items
-                voltQueueSQL(insertUserWatch, u_id, i_id, i_buyer_id, new TimestampType(currentTime.getTime()));
+                voltQueueSQL(insertUserWatch, i_buyer_id, i_id, u_id, new TimestampType(currentTime.getTime()));
                 voltExecuteSQL();
             } else {
                 assert (1 == watched_items.length) : "The current item is present more than once in the watched items table";
