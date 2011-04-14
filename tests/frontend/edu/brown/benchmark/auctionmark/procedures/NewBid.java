@@ -142,7 +142,29 @@ VALUES ($bidId, $itemId, $sellerId, $buyerId,  $qty, 0, $bid, $maxBid, '$now');
         "? "  + // imb_updated
         ")"
     );
-    
+ 
+    public final SQLStmt getUserWatch = new SQLStmt(
+            "SELECT uw_u_id FROM " + AuctionMarkConstants.TABLENAME_USER_WATCH + " " +
+            " WHERE uw_u_id = ?"
+    );
+   
+    public final SQLStmt insertUserWatch = new SQLStmt(
+            "INSERT INTO " + AuctionMarkConstants.TABLENAME_USER_WATCH + "(" +
+            "uw_u_id, " +
+            "uw_i_id, " +
+            "uw_i_u_id, " +
+            "imb_ib_i_id, " +
+            "uw_created, " +
+            ") VALUES (" +
+            "?, " + // uw_u_id
+            "?, " + // uw_i_id
+            "?, " + // uw_i_u_id
+            "?, " + // imb_ib_i_id
+            "?, " + // imb_ib_u_id
+            "?, " + // uw_created
+            ")"
+        );    
+ 
     /**
      * 
      * @param i_id
@@ -238,7 +260,17 @@ VALUES ($bidId, $itemId, $sellerId, $buyerId,  $qty, 0, $bid, $maxBid, '$now');
         	voltQueueSQL(insertItemMaxBid, i_id, u_id, ib_id, i_id, u_id, currentTimestamp, currentTimestamp);
         	voltExecuteSQL();
         	
-        	// insert into item_watch
+            // check whether the item has been watched, if not add it to the watch list
+            GetWatchedItems get_watched_items = new GetWatchedItems();
+            VoltTable[] watched_items = get_watched_items.run(i_buyer_id);
+            if (watched_items.length == 0) {
+                // insert into the watched_items
+                voltQueueSQL(insertUserWatch, u_id, i_id, i_buyer_id, new TimestampType(currentTime.getTime()));
+                System.out.println("inserting new watched item for user: " + i_buyer_id);
+            } else {
+                assert (1 == watched_items.length) : "The current item is present more than once in the watched items table";
+                System.out.println("user id: " + i_buyer_id + " watched: " + watched_items.toString());
+            }
         }
         
         // Return new ib_id
