@@ -119,9 +119,6 @@ public class AuctionMarkClient extends AuctionMarkBaseClient {
         NEW_BID(AuctionMarkConstants.FREQUENCY_NEW_BID, true, new AuctionMarkParamGenerator() {
             @Override
             public Object[] generate(AbstractRandomGenerator rng, AuctionMarkClientBenchmarkProfile profile, VoltTable voltTable) {
-            	Long buyerId = profile.getRandomBuyerId(rng);
-            	assert(buyerId != null);
-
             	voltTable.resetRowPosition();
             	assert(1 == voltTable.getRowCount());
         		
@@ -136,6 +133,18 @@ public class AuctionMarkClient extends AuctionMarkBaseClient {
         		}
         		
         		long sellerId = voltTable.getLong(1);
+            	
+            	Long buyerId;
+            	System.out.println("new bid sellerid: " + sellerId);
+            	if (AuctionMarkBaseClient.zipf) {
+            		buyerId = profile.getZipfBuyerId(rng, sellerId);
+            	} else {
+            		buyerId = profile.getRandomBuyerId(rng);
+            	}
+            	
+            	assert(buyerId != null);
+            	
+            	//System.out.println("new Bid sellerid: " + sellerId);
         		double initialPrice = voltTable.getDouble(2);
         		double currentPrice = voltTable.getDouble(3);
         		
@@ -161,7 +170,13 @@ public class AuctionMarkClient extends AuctionMarkBaseClient {
             @Override
             public Object[] generate(AbstractRandomGenerator rng, AuctionMarkClientBenchmarkProfile profile, VoltTable voltTable) {
             	Long[] itemIdSellerIdPair = profile.getRandomCompleteItemIdSellerIdPair(rng);
-            	Long buyerId = profile.getRandomBuyerId(rng);
+            	Long buyerId;
+            	System.out.println("new comment sellerid: " + itemIdSellerIdPair[1]);
+            	if (AuctionMarkBaseClient.zipf) {
+            		buyerId = profile.getZipfBuyerId(rng, itemIdSellerIdPair[1]);
+            	} else {
+            		buyerId = profile.getRandomBuyerId(rng);
+            	}
             	assert(buyerId != null);
             	String question = rng.astring(10, 128);
                 return new Object[]{itemIdSellerIdPair[0], itemIdSellerIdPair[1], buyerId, question};

@@ -49,6 +49,7 @@ import org.json.JSONStringer;
 import org.voltdb.TheHashinator;
 import org.voltdb.catalog.Database;
 
+import edu.brown.hashing.DefaultHasher;
 import edu.brown.rand.AbstractRandomGenerator;
 import edu.brown.rand.RandomDistribution;
 import edu.brown.rand.RandomDistribution.FlatHistogram;
@@ -341,6 +342,17 @@ public class AuctionMarkBenchmarkProfile implements JSONSerializable {
         return (this.getRandomUserId(rng));
     }
     
+    /**
+     * Gets a random buyer ID based on the sellerid in a zipf distribution
+     * @param rng
+     * @return
+     */
+    public Long getZipfBuyerId(AbstractRandomGenerator rng, long sellerid) {
+    	// first determine which partition id the sellerid belongs to
+    	
+        return (this.getRandomUserId(rng));
+    }
+
     /**
      * Gets a random seller ID within the client.
      * @param rng
