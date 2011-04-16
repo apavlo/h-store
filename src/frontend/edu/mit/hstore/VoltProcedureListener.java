@@ -22,7 +22,6 @@ import ca.evanjones.protorpc.EventLoop;
 import ca.evanjones.protorpc.NIOEventLoop;
 
 import com.google.protobuf.RpcCallback;
-import com.google.protobuf.RpcUtil;
 
 import edu.mit.net.MessageConnection;
 import edu.mit.net.NIOMessageConnection;
@@ -34,6 +33,8 @@ public class VoltProcedureListener extends AbstractEventHandler {
     private final EventLoop eventLoop;
     private final Handler handler;
     private ServerSocketChannel serverSocket;
+    private boolean throttle = false;
+    private static final VoltTable empty_result[] = new VoltTable[0];
 
     public VoltProcedureListener(EventLoop eventLoop, Handler handler) {
         this.eventLoop = eventLoop;
@@ -162,18 +163,36 @@ public class VoltProcedureListener extends AbstractEventHandler {
 
                 // write to say "okay": BIG HACK
                 eventLoopCallback.hackWritePasswordOk();
-            } else {
-                if (d) LOG.debug("got request " + output.length);
-
+                
+            // If we're in throttle mode, then reject this txn
+            } else if (this.throttle) {
+                long clientHandle = StoredProcedureInvocation.getClientHandle(output); 
+                ClientResponseImpl cresponse = new ClientResponseImpl(-1, ClientResponse.SUCCESS, empty_result, "", clientHandle);
+                
+                FastSerializer serializer = new FastSerializer();
                 try {
-                    RpcCallback<byte[]> callback = RpcUtil.newOneTimeCallback(eventLoopCallback);
-                    handler.procedureInvocation(output, callback); // eventLoopCallback);
+                    serializer.writeObject(cresponse);
+                } catch (Exception ex) {
+                    throw new RuntimeException(ex);
+                }
+                eventLoopCallback.run(serializer.getBytes());
+                
+            // Execute store procedure!
+            } else {
+                if (d) LOG.debug("Got request " + output.length);
+                try {
+                    // RpcCallback<byte[]> callback = RpcUtil.newOneTimeCallback(eventLoopCallback);
+                    handler.procedureInvocation(output, eventLoopCallback);
                 } catch (Exception ex) {
                     LOG.fatal("Unexpected error when calling procedureInvocation!", ex);
                     throw new RuntimeException(ex);
                 }
             }
         }
+    }
+    
+    public void setThrottleFlag(boolean val) {
+        this.throttle = val;
     }
 
     public static StoredProcedureInvocation decodeRequest(byte[] bytes) {

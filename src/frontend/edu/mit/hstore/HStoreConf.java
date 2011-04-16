@@ -15,6 +15,16 @@ import edu.brown.utils.StringUtil;
 public final class HStoreConf {
     private static final Logger LOG = Logger.getLogger(HStoreConf.class);
 
+    // ----------------------------------------------------------------------------
+    // HStoreSite
+    // ----------------------------------------------------------------------------
+    
+    /**
+     * Max size of queued transactions before we stop accepting new requests
+     */
+    public int txn_queue_max = 2;
+    public int txn_queue_release = txn_queue_max / 2;  
+    
     /**
      * Whether to enable speculative execution of single-partition transactions
      */

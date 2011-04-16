@@ -50,7 +50,9 @@ import org.voltdb.utils.Pair;
  *   to synchronized on the distributer and then an individual connection.
  */
 class Distributer {
-    public static final Logger LOG = Logger.getLogger(Distributer.class);
+    private static final Logger LOG = Logger.getLogger(Distributer.class);
+    private final static boolean d = LOG.isDebugEnabled();
+    private final static boolean t = LOG.isTraceEnabled();
     
     // collection of connections to the cluster
     private final ArrayList<NodeConnection> m_connections = new ArrayList<NodeConnection>();
@@ -270,6 +272,7 @@ class Distributer {
         }
 
         public boolean hadBackPressure() {
+            if (t) LOG.trace(String.format("Checking whether %s has backup pressure", m_connection));
             return m_connection.writeStream().hadBackPressure();
         }
 
