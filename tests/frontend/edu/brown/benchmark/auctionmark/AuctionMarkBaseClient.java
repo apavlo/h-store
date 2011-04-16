@@ -79,7 +79,7 @@ public abstract class AuctionMarkBaseClient extends ClientMain {
     /**
      * Whether to use the zipf distribution
      */
-    protected final static boolean zipf = true;
+    protected final boolean zipf = true;
 
     /**
      * Path to directory with data files needed by the loader 

@@ -41,6 +41,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 
 import org.voltdb.VoltTable;
 import org.voltdb.benchmark.ClientMain;
+import org.voltdb.catalog.Catalog;
 import org.voltdb.client.ClientResponse;
 import org.voltdb.client.NoConnectionsException;
 import org.voltdb.client.ProcCallException;
@@ -54,7 +55,6 @@ import edu.brown.rand.RandomDistribution.Zipf;
 import edu.brown.utils.StringUtil;
 
 public class AuctionMarkClient extends AuctionMarkBaseClient {
-
     // --------------------------------------------------------------------
     // TXN PARAMETER GENERATOR
     // --------------------------------------------------------------------
@@ -77,7 +77,7 @@ public class AuctionMarkClient extends AuctionMarkBaseClient {
     	 * @param voltTable
     	 * @return
     	 */
-    	public Object[] generate(AbstractRandomGenerator rng, AuctionMarkClientBenchmarkProfile profile, VoltTable voltTable);
+    	public Object[] generate(AbstractRandomGenerator rng, AuctionMarkClientBenchmarkProfile profile, VoltTable voltTable, Catalog catalog_db, boolean zipf);
     }
     
     // --------------------------------------------------------------------
@@ -89,7 +89,7 @@ public class AuctionMarkClient extends AuctionMarkBaseClient {
         // ====================================================================
         CHECK_WINNING_BIDS(AuctionMarkConstants.FREQUENCY_CHECK_WINNING_BIDS, false, new AuctionMarkParamGenerator() {
             @Override
-            public Object[] generate(AbstractRandomGenerator rng, AuctionMarkClientBenchmarkProfile profile, VoltTable voltTable) {
+            public Object[] generate(AbstractRandomGenerator rng, AuctionMarkClientBenchmarkProfile profile, VoltTable voltTable, Catalog catalog_db, boolean zipf) {
             	return null;
             }
 
@@ -103,7 +103,7 @@ public class AuctionMarkClient extends AuctionMarkBaseClient {
         // ====================================================================
         GET_ITEM(AuctionMarkConstants.FREQUENCY_GET_ITEM, false, new AuctionMarkParamGenerator() {
             @Override
-            public Object[] generate(AbstractRandomGenerator rng, AuctionMarkClientBenchmarkProfile clientProfile, VoltTable voltTable) {
+            public Object[] generate(AbstractRandomGenerator rng, AuctionMarkClientBenchmarkProfile clientProfile, VoltTable voltTable, Catalog catalog_db, boolean zipf) {
             	Long[] itemIdSellerIdPair = clientProfile.getRandomAvailableItemIdSellerIdPair(rng);
                 return new Object[]{itemIdSellerIdPair[0],itemIdSellerIdPair[1]};
             }
@@ -118,7 +118,7 @@ public class AuctionMarkClient extends AuctionMarkBaseClient {
         // ====================================================================
         NEW_BID(AuctionMarkConstants.FREQUENCY_NEW_BID, true, new AuctionMarkParamGenerator() {
             @Override
-            public Object[] generate(AbstractRandomGenerator rng, AuctionMarkClientBenchmarkProfile profile, VoltTable voltTable) {
+            public Object[] generate(AbstractRandomGenerator rng, AuctionMarkClientBenchmarkProfile profile, VoltTable voltTable, Catalog catalog_db, boolean zipf) {
             	voltTable.resetRowPosition();
             	assert(1 == voltTable.getRowCount());
         		
@@ -136,8 +136,8 @@ public class AuctionMarkClient extends AuctionMarkBaseClient {
             	
             	Long buyerId;
             	System.out.println("new bid sellerid: " + sellerId);
-            	if (AuctionMarkBaseClient.zipf) {
-            		buyerId = profile.getZipfBuyerId(rng, sellerId);
+            	if (zipf) {
+            		buyerId = profile.getZipfBuyerId(rng, sellerId, catalog_db);
             	} else {
             		buyerId = profile.getRandomBuyerId(rng);
             	}
@@ -168,12 +168,12 @@ public class AuctionMarkClient extends AuctionMarkBaseClient {
         // ====================================================================
         NEW_COMMENT(AuctionMarkConstants.FREQUENCY_NEW_COMMENT, true, new AuctionMarkParamGenerator() {
             @Override
-            public Object[] generate(AbstractRandomGenerator rng, AuctionMarkClientBenchmarkProfile profile, VoltTable voltTable) {
+            public Object[] generate(AbstractRandomGenerator rng, AuctionMarkClientBenchmarkProfile profile, VoltTable voltTable, Catalog catalog_db, boolean zipf) {
             	Long[] itemIdSellerIdPair = profile.getRandomCompleteItemIdSellerIdPair(rng);
             	Long buyerId;
             	System.out.println("new comment sellerid: " + itemIdSellerIdPair[1]);
-            	if (AuctionMarkBaseClient.zipf) {
-            		buyerId = profile.getZipfBuyerId(rng, itemIdSellerIdPair[1]);
+            	if (zipf) {
+            		buyerId = profile.getZipfBuyerId(rng, itemIdSellerIdPair[1], catalog_db);
             	} else {
             		buyerId = profile.getRandomBuyerId(rng);
             	}
@@ -193,7 +193,7 @@ public class AuctionMarkClient extends AuctionMarkBaseClient {
         // ====================================================================
         GET_COMMENT(AuctionMarkConstants.FREQUENCY_GET_COMMENT, true, new AuctionMarkParamGenerator() {
             @Override
-            public Object[] generate(AbstractRandomGenerator rng, AuctionMarkClientBenchmarkProfile profile, VoltTable voltTable) {
+            public Object[] generate(AbstractRandomGenerator rng, AuctionMarkClientBenchmarkProfile profile, VoltTable voltTable, Catalog catalog_db, boolean zipf) {
             	Long[] itemIdSellerIdPair = profile.getRandomCompleteItemIdSellerIdPair(rng);
                 return new Object[]{itemIdSellerIdPair[1]};
             }
@@ -208,7 +208,7 @@ public class AuctionMarkClient extends AuctionMarkBaseClient {
         // ====================================================================
         NEW_COMMENT_RESPONSE(AuctionMarkConstants.FREQUENCY_NEW_COMMENT_RESPONSE, true, new AuctionMarkParamGenerator() {
             @Override
-            public Object[] generate(AbstractRandomGenerator rng, AuctionMarkClientBenchmarkProfile profile, VoltTable voltTable) {
+            public Object[] generate(AbstractRandomGenerator rng, AuctionMarkClientBenchmarkProfile profile, VoltTable voltTable, Catalog catalog_db, boolean zipf) {
             	
             	int randomCommentIndex;
             	
@@ -239,7 +239,7 @@ public class AuctionMarkClient extends AuctionMarkBaseClient {
         // ====================================================================
         NEW_FEEDBACK(AuctionMarkConstants.FREQUENCY_NEW_FEEDBACK, true, new AuctionMarkParamGenerator() {
             @Override
-            public Object[] generate(AbstractRandomGenerator rng, AuctionMarkClientBenchmarkProfile profile, VoltTable voltTable) {
+            public Object[] generate(AbstractRandomGenerator rng, AuctionMarkClientBenchmarkProfile profile, VoltTable voltTable, Catalog catalog_db, boolean zipf) {
             	Long[] itemIdSellerIdPair = profile.getRandomCompleteItemIdSellerIdPair(rng);
             	Long buyerId = profile.getRandomBuyerId(rng);
             	assert(buyerId != null);
@@ -259,7 +259,7 @@ public class AuctionMarkClient extends AuctionMarkBaseClient {
         // ====================================================================
         NEW_ITEM(AuctionMarkConstants.FREQUENCY_NEW_ITEM, false, new AuctionMarkParamGenerator() {
             @Override
-            public Object[] generate(AbstractRandomGenerator rng, AuctionMarkClientBenchmarkProfile profile, VoltTable voltTable) {
+            public Object[] generate(AbstractRandomGenerator rng, AuctionMarkClientBenchmarkProfile profile, VoltTable voltTable, Catalog catalog_db, boolean zipf) {
             	Long sellerId = profile.getRandomSellerId(rng);
             	assert(sellerId != null);
             	
@@ -322,7 +322,7 @@ public class AuctionMarkClient extends AuctionMarkBaseClient {
         // ====================================================================
         NEW_PURCHASE(AuctionMarkConstants.FREQUENCY_NEW_PURCHASE, true, new AuctionMarkParamGenerator() {
             @Override
-            public Object[] generate(AbstractRandomGenerator rng, AuctionMarkClientBenchmarkProfile clientProfile, VoltTable voltTable) {
+            public Object[] generate(AbstractRandomGenerator rng, AuctionMarkClientBenchmarkProfile clientProfile, VoltTable voltTable, Catalog catalog_db, boolean zipf) {
             	Long[] itemIdSellerIdPair = clientProfile.getRandomWaitForPurchaseItemIdSellerIdPair(rng);
             	long bidId = clientProfile.getBidId(itemIdSellerIdPair[0]);
             	long buyerId = clientProfile.getBuyerId(itemIdSellerIdPair[0]);
@@ -343,7 +343,7 @@ public class AuctionMarkClient extends AuctionMarkBaseClient {
         // ====================================================================
         NEW_USER(AuctionMarkConstants.FREQUENCY_NEW_USER, false, new AuctionMarkParamGenerator() {
             @Override
-            public Object[] generate(AbstractRandomGenerator rng, AuctionMarkClientBenchmarkProfile profile, VoltTable voltTable) {
+            public Object[] generate(AbstractRandomGenerator rng, AuctionMarkClientBenchmarkProfile profile, VoltTable voltTable, Catalog catalog_db, boolean zipf) {
             	long u_id = profile.getNextUserId();
             	
             	Flat randomRegion = new Flat(rng, 0, (int) AuctionMarkConstants.TABLESIZE_REGION); 	
@@ -368,7 +368,7 @@ public class AuctionMarkClient extends AuctionMarkBaseClient {
         // ====================================================================
         POST_AUCTION(AuctionMarkConstants.FREQUENCY_POST_AUCTION, true, new AuctionMarkParamGenerator() {
             @Override
-            public Object[] generate(AbstractRandomGenerator rng, AuctionMarkClientBenchmarkProfile profile, VoltTable voltTable) {
+            public Object[] generate(AbstractRandomGenerator rng, AuctionMarkClientBenchmarkProfile profile, VoltTable voltTable, Catalog catalog_db, boolean zipf) {
             	voltTable.resetRowPosition();
             	
             	final int num_rows = voltTable.getRowCount();
@@ -408,7 +408,7 @@ public class AuctionMarkClient extends AuctionMarkBaseClient {
         // ====================================================================
         UPDATE_ITEM(AuctionMarkConstants.FREQUENCY_UPDATE_ITEM, true, new AuctionMarkParamGenerator() {
             @Override
-            public Object[] generate(AbstractRandomGenerator rng, AuctionMarkClientBenchmarkProfile profile, VoltTable voltTable) {
+            public Object[] generate(AbstractRandomGenerator rng, AuctionMarkClientBenchmarkProfile profile, VoltTable voltTable, Catalog catalog_db, boolean zipf) {
             	Long[] itemIdSellerIdPair = profile.getRandomAvailableItemIdSellerIdPair(rng);
             	String description = rng.astring(50, 255);
                 return new Object[]{
@@ -426,7 +426,7 @@ public class AuctionMarkClient extends AuctionMarkBaseClient {
         // ====================================================================
         GET_USER_INFO(AuctionMarkConstants.FREQUENCY_GET_USER_INFO, true, new AuctionMarkParamGenerator() {
             @Override
-            public Object[] generate(AbstractRandomGenerator rng, AuctionMarkClientBenchmarkProfile profile, VoltTable voltTable) {
+            public Object[] generate(AbstractRandomGenerator rng, AuctionMarkClientBenchmarkProfile profile, VoltTable voltTable, Catalog catalog_db, boolean zipf) {
             	long userId = profile.getRandomAvailableItemIdSellerIdPair(rng)[1];
             	long get_seller_items = 0;
             	long get_buyer_items = 0;
@@ -460,7 +460,7 @@ public class AuctionMarkClient extends AuctionMarkBaseClient {
         // ====================================================================
         GET_WATCHED_ITEMS(AuctionMarkConstants.FREQUENCY_GET_WATCHED_ITEMS, true, new AuctionMarkParamGenerator() {
             @Override
-            public Object[] generate(AbstractRandomGenerator rng, AuctionMarkClientBenchmarkProfile profile, VoltTable voltTable) {
+            public Object[] generate(AbstractRandomGenerator rng, AuctionMarkClientBenchmarkProfile profile, VoltTable voltTable, Catalog catalog_db, boolean zipf) {
             	Long userId = profile.getRandomBuyerId(rng);
             	assert(userId != null);
                 return new Object[]{
@@ -548,13 +548,13 @@ public class AuctionMarkClient extends AuctionMarkBaseClient {
          * @param profile
          * @return
          */
-        public Object[] params(AbstractRandomGenerator rng, AuctionMarkClientBenchmarkProfile profile, VoltTable voltTable) {
+        public Object[] params(AbstractRandomGenerator rng, AuctionMarkClientBenchmarkProfile profile, VoltTable voltTable, Catalog catalog_db, boolean zipf) {
         	/*
         	if(!next_params.isEmpty()){
         		voltTable = next_params.remove();
         	}
         	*/
-        	return (this.generator.generate(rng, profile, voltTable));
+        	return (this.generator.generate(rng, profile, voltTable, catalog_db, zipf));
         }
     }
     
@@ -703,7 +703,7 @@ public class AuctionMarkClient extends AuctionMarkBaseClient {
         	if (this.debug) LOG.trace("Executing new invocation of transaction " + txn);
         	
         	if(txn.next_params.peek().getRowCount() > 0){
-        	    params = txn.params(this.rng, this.clientProfile, txn.next_params.remove());
+        	    params = txn.params(this.rng, this.clientProfile, txn.next_params.remove(), catalog, zipf);
 	        	if (this.debug) LOG.debug("EXECUTING POST_AUCTION ------------------------");
 	            m_voltClient.callProcedure(new AuctionMarkCallback(txn, this.rng, this.clientProfile), txn.getCallName(), params);
 	            return;
@@ -752,7 +752,7 @@ public class AuctionMarkClient extends AuctionMarkBaseClient {
     				if (debug) LOG.trace("can execute");
     				try {
         				txn = this.xacts[idx];
-        				params = txn.params(rng, clientProfile, txn.next_params.peek());
+        				params = txn.params(rng, clientProfile, txn.next_params.peek(), catalog, zipf);
     				} catch (AssertionError ex) {
     				    LOG.error("Failed to generate parameters for " + txn, ex);
     				}

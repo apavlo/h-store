@@ -47,8 +47,11 @@ import org.json.JSONException;
 import org.json.JSONObject;
 import org.json.JSONStringer;
 import org.voltdb.TheHashinator;
+import org.voltdb.catalog.Catalog;
+import org.voltdb.catalog.Cluster;
 import org.voltdb.catalog.Database;
 
+import edu.brown.catalog.CatalogUtil;
 import edu.brown.hashing.DefaultHasher;
 import edu.brown.rand.AbstractRandomGenerator;
 import edu.brown.rand.RandomDistribution;
@@ -347,8 +350,10 @@ public class AuctionMarkBenchmarkProfile implements JSONSerializable {
      * @param rng
      * @return
      */
-    public Long getZipfBuyerId(AbstractRandomGenerator rng, long sellerid) {
+    public Long getZipfBuyerId(AbstractRandomGenerator rng, long sellerid, Catalog catalog_db) {
     	// first determine which partition id the sellerid belongs to
+        Cluster catalog_clus = CatalogUtil.getCluster(catalog_db);
+        int partition_num = TheHashinator.hashToPartition(sellerid, catalog_clus.getNum_partitions());        
     	
         return (this.getRandomUserId(rng));
     }
