@@ -65,6 +65,13 @@ public interface ClientResponse {
      */
     public long getClientHandle();
     public void setClientHandle(long handle); // HACK
+    
+    /**
+     * Throttle Flag
+     * @return
+     */
+    public boolean getThrottle();
+    public void setThrottle(boolean val);
 
     /**
      * Returns true if this transaction executed as a single-partition txn

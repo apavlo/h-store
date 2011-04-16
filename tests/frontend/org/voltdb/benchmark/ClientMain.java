@@ -189,8 +189,10 @@ public abstract class ClientMain {
 
     /** The states important to the remote controller */
     public static enum ControlState {
-        PREPARING("PREPARING"), READY("READY"), RUNNING("RUNNING"), ERROR(
-            "ERROR");
+        PREPARING("PREPARING"),
+        READY("READY"),
+        RUNNING("RUNNING"),
+        ERROR("ERROR");
 
         ControlState(final String displayname) {
             display = displayname;
@@ -655,7 +657,8 @@ public abstract class ClientMain {
 
         if (m_blocking) {
             LOG.debug("Using BlockingClient!");
-            m_voltClient = new BlockingClient(new_client);
+            m_voltClient = new ThrottlingClient(new_client);
+            // m_voltClient = new BlockingClient(new_client);
         } else {
             m_voltClient = new_client;
         }

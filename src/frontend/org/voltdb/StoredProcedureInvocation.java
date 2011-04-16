@@ -180,6 +180,7 @@ public class StoredProcedureInvocation implements FastSerializable {
         assert(!((params == null) && (unserializedParams == null)));
         assert((params != null) || (unserializedParams != null));
         out.write(0);//version
+        out.writeLong(clientHandle);
         out.writeShort(base_partition);
         
         if (this.partitions == null) {
@@ -192,7 +193,6 @@ public class StoredProcedureInvocation implements FastSerializable {
         }
         
         out.writeString(procName);
-        out.writeLong(clientHandle);
         if (params != null)
             out.writeObject(params);
         else if (unserializedParams != null)
@@ -209,7 +209,18 @@ public class StoredProcedureInvocation implements FastSerializable {
      */
     public static void markRawBytesAsRedirected(int partition, byte serialized[]) {
         ByteBuffer buffer = ByteBuffer.wrap(serialized);
-        buffer.putShort(1, (short)partition);
+        buffer.putShort(9, (short)partition);
+    }
+    
+    /**
+     * Return the client handle from the serialized StoredProcedureInvocation without having to 
+     * deserialize it first
+     * @param serialized
+     * @return
+     */
+    public static long getClientHandle(byte serialized[]) {
+        ByteBuffer buffer = ByteBuffer.wrap(serialized);
+        return (buffer.getLong(1));
     }
 
     @Override

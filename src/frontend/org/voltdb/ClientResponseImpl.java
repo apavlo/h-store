@@ -42,8 +42,8 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
     private SerializableException m_exception = null;
     
     // PAVLO
-    // TODO: Need to pass in txn_id
     private long txn_id;
+    private boolean throttle = false;
     
     private boolean singlepartition = false;
 
@@ -135,6 +135,15 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
     
     public void setStatus(byte status) {
         this.status = status;
+    }
+    
+    @Override
+    public boolean getThrottle() {
+        return this.throttle;
+    }
+    @Override
+    public void setThrottle(boolean val) {
+        this.throttle = val;
     }
 
     @Override

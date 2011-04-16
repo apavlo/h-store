@@ -130,7 +130,8 @@ public class NewItem extends VoltProcedure{
         VoltTable results[] = voltExecuteSQL();
         assert(results.length == gag_ids.length);
         for (int i = 0; i < gag_ids.length; i++) {
-            assert(results[i].advanceRow());
+            boolean adv = results[i].advanceRow();
+            assert(adv);
             names[i] = results[i].getString(0) + results[i].getString(0);
         }
         description += "\n" + Arrays.toString(names);

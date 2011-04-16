@@ -239,6 +239,9 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
     /** ProtoServer EventLoop **/
     private final NIOEventLoop protoEventLoop = new NIOEventLoop();
     
+    private VoltProcedureListener voltListener;
+    private boolean throttle = false;
+    
     // Dtxn Stuff
     private Dtxn.Coordinator coordinator;
     private final NIOEventLoop coordinatorEventLoop = new NIOEventLoop();
@@ -910,6 +913,14 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
             local_ts.init_time.start(timestamp);
         }
         this.initializeInvocation(local_ts);
+        
+        // Look at the number of inflight transactions and see whether we should block and wait for the 
+        // queue to drain for a bit
+        if (this.throttle == false && this.inflight_txns.size() > hstore_conf.txn_queue_max) {
+            LOG.info(String.format("HStoreSite is overloaded. Waiting for queue to drain [size=%d, trigger=%d]", this.inflight_txns.size(), hstore_conf.txn_queue_release));
+            this.throttle = true;
+            this.voltListener.setThrottleFlag(true);
+        }
     }
     
     /**
@@ -1393,6 +1404,12 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         LocalTransactionState ts = this.inflight_txns.remove(txn_id);
         assert(ts != null) : "No LocalTransactionState for txn #" + txn_id;
 
+        if (this.throttle && this.inflight_txns.size() < hstore_conf.txn_queue_release) {
+            this.throttle = false;
+            this.voltListener.setThrottleFlag(false);
+            LOG.info("Disabling throttling");
+        }
+        
         int base_partition = ts.getBasePartition();
         boolean removed = this.canadian_txns[base_partition].remove(txn_id);
         if (d) {
@@ -1660,8 +1677,8 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
                 ProtoRpcChannel[] channels = ProtoRpcChannel.connectParallel(hstore_site.coordinatorEventLoop, addresses);
                 Dtxn.Coordinator stub = Dtxn.Coordinator.newStub(channels[0]);
                 hstore_site.setDtxnCoordinator(stub);
-                VoltProcedureListener voltListener = new VoltProcedureListener(hstore_site.coordinatorEventLoop, hstore_site);
-                voltListener.bind(catalog_site.getProc_port());
+                hstore_site.voltListener = new VoltProcedureListener(hstore_site.coordinatorEventLoop, hstore_site);
+                hstore_site.voltListener.bind(catalog_site.getProc_port());
                 
                 boolean should_shutdown = false;
                 Exception error = null;
