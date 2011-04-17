@@ -111,4 +111,8 @@ public class SysProcFragmentId
     public static final long PF_retrieveInstanceIdAggregator = 161;
     public static final long PF_setInstanceId = 162;
     public static final long PF_setInstanceIdAggregator = 163;
+    
+    // @DatabaseDump
+    public static final long PF_dumpScan = 170;
+    public static final long PF_dumpAggregate = 171;
 }
