@@ -352,6 +352,10 @@ public class BatchPlanner {
             return (BatchPlanner.this);
         }
         
+        public boolean hasMisprediction() {
+            return (this.mispredict != null);
+        }
+        
         public MispredictionException getMisprediction() {
             return (this.mispredict);
         }

@@ -38,14 +38,14 @@ public class TestRandomDistribution extends TestCase {
         RandomDistribution.Zipf zipf = new RandomDistribution.Zipf(this.rand, min, max, sigma);
         zipf.enableHistory();
         
-        Histogram hist = new Histogram();
+        Histogram<Long> hist = new Histogram<Long>();
         for (int i = 0; i < num_records; i++) {
-            hist.put(zipf.nextInt());
+            hist.put((long)zipf.nextInt());
         } // FOR
         
-        Histogram tracking_hist = zipf.getHistory();
+        Histogram<Long> tracking_hist = zipf.getHistory();
         assertEquals(hist.getSampleCount(), tracking_hist.getSampleCount());
-        for (Object value : hist.values()) {
+        for (Long value : hist.values()) {
             assert(tracking_hist.contains(value));
             assertEquals(hist.get(value), tracking_hist.get(value));
         } // FOR
