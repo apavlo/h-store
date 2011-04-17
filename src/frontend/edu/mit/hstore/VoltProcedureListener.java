@@ -166,8 +166,12 @@ public class VoltProcedureListener extends AbstractEventHandler {
                 
             // If we're in throttle mode, then reject this txn
             } else if (this.throttle) {
-                long clientHandle = StoredProcedureInvocation.getClientHandle(output); 
+                if (d) LOG.debug("Throttling is enabled. Rejecting transaction and asking client to wait...");
+                
+                ByteBuffer buffer = ByteBuffer.wrap(output);
+                long clientHandle = StoredProcedureInvocation.getClientHandle(buffer); 
                 ClientResponseImpl cresponse = new ClientResponseImpl(-1, ClientResponse.SUCCESS, empty_result, "", clientHandle);
+                cresponse.setThrottleFlag(true);
                 
                 FastSerializer serializer = new FastSerializer();
                 try {
@@ -179,7 +183,7 @@ public class VoltProcedureListener extends AbstractEventHandler {
                 
             // Execute store procedure!
             } else {
-                if (d) LOG.debug("Got request " + output.length);
+                if (d) LOG.debug("Got request [bytes=" + output.length + "]");
                 try {
                     // RpcCallback<byte[]> callback = RpcUtil.newOneTimeCallback(eventLoopCallback);
                     handler.procedureInvocation(output, eventLoopCallback);
@@ -192,6 +196,7 @@ public class VoltProcedureListener extends AbstractEventHandler {
     }
     
     public void setThrottleFlag(boolean val) {
+        if (LOG.isDebugEnabled()) LOG.debug("Setting throttle flag: " + val);
         this.throttle = val;
     }
 

@@ -48,7 +48,6 @@ import org.voltdb.VoltDB;
 import org.voltdb.benchmark.BenchmarkResults.Result;
 import org.voltdb.benchmark.ClientMain.Command;
 import org.voltdb.catalog.Catalog;
-import org.voltdb.catalog.Cluster;
 import org.voltdb.catalog.Site;
 import org.voltdb.client.Client;
 import org.voltdb.client.ClientFactory;
@@ -59,11 +58,7 @@ import org.voltdb.processtools.SSHTools;
 import org.voltdb.processtools.ShellTools;
 import org.voltdb.utils.LogKeys;
 
-import ca.evanjones.protorpc.ProtoRpcController;
 import edu.brown.catalog.CatalogUtil;
-import edu.brown.hstore.Hstore;
-import edu.brown.hstore.Hstore.HStoreService;
-import edu.brown.hstore.Hstore.MessageType;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.EventObserver;
 import edu.brown.utils.FileUtil;
@@ -71,9 +66,7 @@ import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.StringUtil;
 import edu.brown.utils.ThreadUtil;
 import edu.brown.utils.LoggerUtil.LoggerBoolean;
-import edu.mit.hstore.HStoreMessenger;
 import edu.mit.hstore.HStoreSite;
-import edu.mit.hstore.callbacks.BlockingCallback;
 
 public class BenchmarkController {
     private static final Logger LOG = Logger.getLogger(BenchmarkController.class);
@@ -662,12 +655,13 @@ public class BenchmarkController {
      */
     public void runBenchmark() {
         if (this.stop) return;
-        LOG.info(String.format("Starting execution phase with %d clients [hosts=%d, perhost=%d, txnrate=%s, blocking=%s]",
+        LOG.info(String.format("Starting execution phase with %d clients [hosts=%d, perhost=%d, txnrate=%s, blocking=%s, throttling=%s]",
                                 m_clients.size(),
                                 m_config.clients.length,
                                 m_config.processesPerClient,
                                 m_config.parameters.get("TXNRATE"),
-                                m_config.parameters.get("BLOCKING")
+                                m_config.parameters.get("BLOCKING"),
+                                m_config.parameters.get("THROTTLING")
         ));
         
         // HACK
@@ -1103,6 +1097,8 @@ public class BenchmarkController {
             } else if (parts[0].equalsIgnoreCase("TXNRATE")) {
                 clientParams.put(parts[0], parts[1]);
             } else if (parts[0].equalsIgnoreCase("BLOCKING")) {
+                clientParams.put(parts[0], parts[1]);
+            } else if (parts[0].equalsIgnoreCase("THROTTLING")) {
                 clientParams.put(parts[0], parts[1]);
             } else if (parts[0].equalsIgnoreCase("NUMCONNECTIONS")) {
                 clientParams.put(parts[0], parts[1]);

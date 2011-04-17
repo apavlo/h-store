@@ -221,6 +221,7 @@ public class TM1Loader extends TM1BaseClient {
         VoltTable table = initSubscriberTable();
         Object row[] = new Object[table.getColumnCount()];
 
+        long total = 0;
         while (s_id++ < subscriberSize) {
             int col = 0;
             row[col++] = new Long(s_id);
@@ -244,15 +245,16 @@ public class TM1Loader extends TM1BaseClient {
             }
             assert col == table.getColumnCount();
             table.addRow(row);
+            total++;
             
             if (table.getRowCount() >= TM1Constants.BATCH_SIZE) {
-                if (d) LOG.debug(String.format("%s: %6d / %d", TM1Constants.TABLENAME_SUBSCRIBER, s_id, subscriberSize));
+                if (d) LOG.debug(String.format("%s: %6d / %d", TM1Constants.TABLENAME_SUBSCRIBER, total, subscriberSize));
                 loadTable(TM1Constants.TABLENAME_SUBSCRIBER, table);
                 table.clearRowData();
             }
         } // WHILE
         if (table.getRowCount() > 0) {
-            if (d) LOG.debug(String.format("%s: %6d / %d", TM1Constants.TABLENAME_SUBSCRIBER, s_id, subscriberSize));
+            if (d) LOG.debug(String.format("%s: %6d / %d", TM1Constants.TABLENAME_SUBSCRIBER, total, subscriberSize));
             loadTable(TM1Constants.TABLENAME_SUBSCRIBER, table);
             table.clearRowData();
         }

@@ -159,6 +159,8 @@ public class StoredProcedureInvocation implements FastSerializable {
     public void readExternal(FastDeserializer in) throws IOException {
         in.readByte();//skip version
         base_partition = (int)in.readShort();
+        clientHandle = in.readLong();
+        procName = in.readString();
         
         int num_partitions = in.readShort();
         if (num_partitions > 0) {
@@ -168,8 +170,6 @@ public class StoredProcedureInvocation implements FastSerializable {
             } // FOR
         }
         
-        procName = in.readString();
-        clientHandle = in.readLong();
         // do not deserialize parameters in ClientInterface context
         unserializedParams = in.remainder();
         params = null;
@@ -179,9 +179,10 @@ public class StoredProcedureInvocation implements FastSerializable {
     public void writeExternal(FastSerializer out) throws IOException {
         assert(!((params == null) && (unserializedParams == null)));
         assert((params != null) || (unserializedParams != null));
-        out.write(0);//version
-        out.writeLong(clientHandle);
-        out.writeShort(base_partition);
+        out.write(0);   // version (1)
+        out.writeShort(base_partition); // (2)
+        out.writeLong(clientHandle);    // (8) 
+        out.writeString(procName);
         
         if (this.partitions == null) {
             out.writeShort(0);
@@ -192,7 +193,6 @@ public class StoredProcedureInvocation implements FastSerializable {
             } // FOR
         }
         
-        out.writeString(procName);
         if (params != null)
             out.writeObject(params);
         else if (unserializedParams != null)
@@ -209,7 +209,34 @@ public class StoredProcedureInvocation implements FastSerializable {
      */
     public static void markRawBytesAsRedirected(int partition, byte serialized[]) {
         ByteBuffer buffer = ByteBuffer.wrap(serialized);
-        buffer.putShort(9, (short)partition);
+        buffer.putShort(1, (short)partition);
+    }
+    
+    /**
+     * Returns the base partition of this invocation
+     * If the base partition is not set, the return value will be -1
+     * @param serialized
+     * @return
+     */
+    public static int getBasePartition(ByteBuffer buffer) {
+        buffer.rewind();
+        return (buffer.getShort(1));
+    }
+
+    /**
+     * 
+     * @param buffer
+     * @return
+     */
+    public static String getProcedureName(ByteBuffer buffer) {
+        buffer.rewind();
+        FastDeserializer in = new FastDeserializer(buffer);
+        try {
+            in.skipBytes(11);
+            return (in.readString());
+        } catch (IOException ex) {
+            throw new RuntimeException(ex);
+        }
     }
     
     /**
@@ -218,9 +245,9 @@ public class StoredProcedureInvocation implements FastSerializable {
      * @param serialized
      * @return
      */
-    public static long getClientHandle(byte serialized[]) {
-        ByteBuffer buffer = ByteBuffer.wrap(serialized);
-        return (buffer.getLong(1));
+    public static long getClientHandle(ByteBuffer buffer) {
+        buffer.rewind();
+        return (buffer.getLong(3));
     }
 
     @Override

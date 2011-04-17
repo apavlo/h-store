@@ -70,8 +70,9 @@ public interface ClientResponse {
      * Throttle Flag
      * @return
      */
-    public boolean getThrottle();
-    public void setThrottle(boolean val);
+    public boolean hasThrottleFlag();
+    public boolean getThrottleFlag();
+    public void setThrottleFlag(boolean val);
 
     /**
      * Returns true if this transaction executed as a single-partition txn

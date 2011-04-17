@@ -501,19 +501,24 @@ public class MultiLoader extends ClientMain {
         public void makeStock(int w_id) {
             // Select 10% of the stock to be marked "original"
 
-            final int BATCH = 5;
-            final int BATCH_SIZE = (m_parameters.items / BATCH);
-            data_tables[IDX_STOCKS] = new VoltTable(new VoltTable.ColumnInfo("S_I_ID", VoltType.INTEGER),
-                    new VoltTable.ColumnInfo("S_W_ID", VoltType.SMALLINT), new VoltTable.ColumnInfo("S_QUANTITY",
-                            VoltType.INTEGER), new VoltTable.ColumnInfo("S_DIST_01", VoltType.STRING),
-                    new VoltTable.ColumnInfo("S_DIST_02", VoltType.STRING), new VoltTable.ColumnInfo("S_DIST_03",
-                            VoltType.STRING), new VoltTable.ColumnInfo("S_DIST_04", VoltType.STRING),
-                    new VoltTable.ColumnInfo("S_DIST_05", VoltType.STRING), new VoltTable.ColumnInfo("S_DIST_06",
-                            VoltType.STRING), new VoltTable.ColumnInfo("S_DIST_07", VoltType.STRING),
-                    new VoltTable.ColumnInfo("S_DIST_08", VoltType.STRING), new VoltTable.ColumnInfo("S_DIST_09",
-                            VoltType.STRING), new VoltTable.ColumnInfo("S_DIST_10", VoltType.STRING),
-                    new VoltTable.ColumnInfo("S_YTD", VoltType.INTEGER), new VoltTable.ColumnInfo("S_ORDER_CNT",
-                            VoltType.INTEGER), new VoltTable.ColumnInfo("S_REMOTE_CNT", VoltType.INTEGER),
+            final int BATCH_SIZE = (m_parameters.items / MAX_BATCH_SIZE);
+            data_tables[IDX_STOCKS] = new VoltTable(
+                    new VoltTable.ColumnInfo("S_I_ID", VoltType.INTEGER),
+                    new VoltTable.ColumnInfo("S_W_ID", VoltType.SMALLINT),
+                    new VoltTable.ColumnInfo("S_QUANTITY", VoltType.INTEGER),
+                    new VoltTable.ColumnInfo("S_DIST_01", VoltType.STRING),
+                    new VoltTable.ColumnInfo("S_DIST_02", VoltType.STRING),
+                    new VoltTable.ColumnInfo("S_DIST_03", VoltType.STRING),
+                    new VoltTable.ColumnInfo("S_DIST_04", VoltType.STRING),
+                    new VoltTable.ColumnInfo("S_DIST_05", VoltType.STRING),
+                    new VoltTable.ColumnInfo("S_DIST_06", VoltType.STRING),
+                    new VoltTable.ColumnInfo("S_DIST_07", VoltType.STRING),
+                    new VoltTable.ColumnInfo("S_DIST_08", VoltType.STRING),
+                    new VoltTable.ColumnInfo("S_DIST_09", VoltType.STRING),
+                    new VoltTable.ColumnInfo("S_DIST_10", VoltType.STRING),
+                    new VoltTable.ColumnInfo("S_YTD", VoltType.INTEGER),
+                    new VoltTable.ColumnInfo("S_ORDER_CNT", VoltType.INTEGER),
+                    new VoltTable.ColumnInfo("S_REMOTE_CNT", VoltType.INTEGER),
                     new VoltTable.ColumnInfo("S_DATA", VoltType.STRING));
             // t.ensureRowCapacity(parameters.items / BATCH);
             // t.ensureStringCapacity(parameters.items * (32 * 10 + 64) /
