@@ -158,15 +158,9 @@ public class TestBatchPlannerComplex extends BaseTestCase {
         
         // Ask the planner to plan a multi-partition transaction where we have predicted it
         // as single-partitioned. It should throw a nice MispredictionException
-        BatchPlanner.BatchPlan plan = null;
-        boolean caught = false;
-        try {
-            plan = batchPlan.plan(TXN_ID, CLIENT_HANDLE, BASE_PARTITION+1, args[TARGET_BATCH], true);
-        } catch (MispredictionException ex) {
-            caught = true;
-        }
+        BatchPlanner.BatchPlan plan = batchPlan.plan(TXN_ID, CLIENT_HANDLE, BASE_PARTITION+1, args[TARGET_BATCH], true);
+        assert(plan.hasMisprediction());
         if (plan != null) System.err.println(plan.toString());
-        assert(caught);
     }
     
     /**
