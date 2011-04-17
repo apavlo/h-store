@@ -26,46 +26,61 @@ import edu.brown.utils.LoggerUtil;
  */
 public class ThrottlingClient extends Semaphore implements Client {
     static final Logger LOG = Logger.getLogger(ThrottlingClient.class);
+    private static boolean d = LOG.isDebugEnabled();
+    private static boolean t = LOG.isTraceEnabled();
+
+    private static final int THROTTLE_WAIT = 5000; // ms
     
     private static final long serialVersionUID = 1L;
     private final Client inner;
     private final AtomicBoolean throttle = new AtomicBoolean(false);
-    
     
     private class ThrottleCallback implements ProcedureCallback {
         private final ProcedureCallback inner_callback;
         private final String proc_name;
         
         public ThrottleCallback(String proc_name, ProcedureCallback inner_callback) {
-            final boolean debug = LOG.isDebugEnabled(); 
             assert(inner_callback != null);
             this.inner_callback = inner_callback;
             this.proc_name = proc_name;
             
-            if (debug) LOG.debug("Created a new ThrottlingCallback around " + inner_callback.getClass().getSimpleName() + " for '" + proc_name + "'");
+            if (t) LOG.trace("Created a new ThrottlingCallback around " + inner_callback.getClass().getSimpleName() + " for '" + proc_name + "'");
             try {
-                if (debug) LOG.debug("Trying to acquire procedure invocation lock");
-                if (throttle.get()) ThrottlingClient.this.tryAcquire(1000, TimeUnit.MILLISECONDS); // To prevent starvation
-                if (debug) LOG.debug("We got it! Let's get it on! [proc_name=" + this.proc_name + "]");
+                if (t) LOG.trace("Trying to acquire procedure invocation lock");
+                if (throttle.get()) ThrottlingClient.this.tryAcquire(THROTTLE_WAIT, TimeUnit.MILLISECONDS); // To prevent starvation
+                if (t) LOG.trace(String.format("We got it! Let's get it on! [proc_name=%s]", this.proc_name));
             } catch (InterruptedException ex) {
                 LOG.fatal("Got interrupted while waiting for lock", ex);
                 System.exit(1);
             }
-            
         }
         
         @Override
         public void clientCallback(ClientResponse clientResponse) {
-            final boolean debug = LOG.isDebugEnabled();
-            boolean should_throttle = clientResponse.getThrottle();
-            if (debug) LOG.debug(String.format("ThrottlingCallback is forwarding the client callback for to inner callback [txn=%d, proc=%s, throttle=%s]",
-                                               clientResponse.getTransactionId(), this.proc_name, should_throttle));
-            this.inner_callback.clientCallback(clientResponse);
-             
-            if (throttle.compareAndSet(true, should_throttle) && should_throttle == false) {
-                ThrottlingClient.this.release();
-            }
+            boolean has_throttle = clientResponse.hasThrottleFlag();
+            if (t) LOG.trace(String.format("ThrottlingCallback is forwarding the client callback for to inner callback [txn=%d, proc=%s, hasThrottle=%s]",
+                    clientResponse.getTransactionId(), this.proc_name, has_throttle));
             
+            if (has_throttle) {
+                boolean should_throttle = clientResponse.getThrottleFlag();
+                if (should_throttle == false) {
+                    if (throttle.compareAndSet(true, should_throttle)) {
+                        if (d) LOG.debug("Disabling throttling mode");
+                        ThrottlingClient.this.release();
+                    }
+                    
+                    // Only invoke the callback if the transaction wasn't throttled.
+                    // Otherwise it will be counted as a successful completion, which is not true
+                    this.inner_callback.clientCallback(clientResponse);
+                    
+                } else if (should_throttle == true && throttle.compareAndSet(false, true)) {
+                    if (d) LOG.debug("Enabling throttling mode");
+                }
+                
+            // If the response doesn't know anything about throttling, just pass the response along
+            } else {
+                this.inner_callback.clientCallback(clientResponse);
+            }
         }
     }
     

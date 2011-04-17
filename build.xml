@@ -1474,6 +1474,7 @@ BENCHMARKS
         <arg value="DURATION=${hstore.client.duration}" />
         <arg value="WARMUP=${hstore.client.warmup}" />
         <arg value="BLOCKING=${hstore.client.blocking}" />
+        <arg value="THROTTLING=${hstore.client.throttling}" />
         <arg value="TRACE=${trace}" />
         <arg value="PROFILESITES=${profilesites}" />
         <arg value="NOCOORDINATOR=${nocoordinator}" />
@@ -1738,8 +1739,10 @@ DESIGNER
     </java>
 </target>
 
-<target name='catalog-export'
-        description="Export catalog procs/stmts to JSON file">
+<target name='catalog-export' description="Export catalog procs/stmts to JSON file">
+    <condition property="output" value="${project}.json">
+        <not><isset property="output"/></not>
+    </condition>
     <java fork="yes" failonerror="true" classname="edu.brown.catalog.CatalogExporter">
         <jvmarg value="-Dlog4j.configuration=${basedir}/log4j.properties"/>
         <arg value="catalog.jar=${jar}" />
@@ -1747,12 +1750,10 @@ DESIGNER
         <classpath refid='project.classpath' />
         <assertions><enable /></assertions>
     </java>
+    <echo>Wrote catalog file to ${output}</echo>
 </target>
 
 <target name='catalog-viewer' description="Catalog Viewer">
-    <condition property="jar" value="${benchmark.jar}">
-        <not><isset property="jar"/></not>
-    </condition>
     <java fork="yes" classname="edu.brown.gui.CatalogViewer">
         <jvmarg value="-Xmx512m" />
         <jvmarg value="-Dlog4j.configuration=${basedir}/log4j.properties"/>

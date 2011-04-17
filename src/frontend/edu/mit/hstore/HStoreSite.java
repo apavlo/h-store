@@ -586,6 +586,14 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
     public EventObservable getReadyObservable() {
         return (this.ready_observable);
     }
+
+    /**
+     * Returns true if this HStoreSite is throttling transactions
+     * @return
+     */
+    public boolean isThrottlingEnabled() {
+        return (this.throttle);
+    }
     
     // ----------------------------------------------------------------------------
     // HSTORESTITE SHUTDOWN STUFF
@@ -917,7 +925,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         // Look at the number of inflight transactions and see whether we should block and wait for the 
         // queue to drain for a bit
         if (this.throttle == false && this.inflight_txns.size() > hstore_conf.txn_queue_max) {
-            LOG.info(String.format("HStoreSite is overloaded. Waiting for queue to drain [size=%d, trigger=%d]", this.inflight_txns.size(), hstore_conf.txn_queue_release));
+            if (d) LOG.debug(String.format("HStoreSite is overloaded. Waiting for queue to drain [size=%d, trigger=%d]", this.inflight_txns.size(), hstore_conf.txn_queue_release));
             this.throttle = true;
             this.voltListener.setThrottleFlag(true);
         }
@@ -1407,7 +1415,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         if (this.throttle && this.inflight_txns.size() < hstore_conf.txn_queue_release) {
             this.throttle = false;
             this.voltListener.setThrottleFlag(false);
-            LOG.info("Disabling throttling");
+            if (d) LOG.debug(String.format("Disabling throttling because txn #%d finished", txn_id));
         }
         
         int base_partition = ts.getBasePartition();

@@ -43,7 +43,7 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
     
     // PAVLO
     private long txn_id;
-    private boolean throttle = false;
+    private byte throttle = -1;
     
     private boolean singlepartition = false;
 
@@ -138,12 +138,18 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
     }
     
     @Override
-    public boolean getThrottle() {
-        return this.throttle;
+    public boolean hasThrottleFlag() {
+        return this.throttle != -1;
+    }
+    
+    @Override
+    public boolean getThrottleFlag() {
+        assert(this.throttle != -1);
+        return (this.throttle == 1);
     }
     @Override
-    public void setThrottle(boolean val) {
-        this.throttle = val;
+    public void setThrottleFlag(boolean val) {
+        this.throttle = (byte)(val ? 1 : 0);
     }
 
     @Override
@@ -191,6 +197,8 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
         txn_id = in.readLong();
         clientHandle = in.readLong();
         singlepartition = in.readBoolean();
+        throttle = in.readByte();
+        
         byte presentFields = in.readByte();
         status = in.readByte();
         if ((presentFields & (1 << 5)) != 0) {
@@ -221,6 +229,7 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
         out.writeLong(txn_id);
         out.writeLong(clientHandle);
         out.writeBoolean(singlepartition);
+        out.writeByte(throttle);
         byte presentFields = 0;
         if (appStatusString != null) {
             presentFields |= 1 << 7;

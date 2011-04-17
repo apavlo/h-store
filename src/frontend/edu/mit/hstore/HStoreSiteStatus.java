@@ -1,8 +1,6 @@
 package edu.mit.hstore;
 
-import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.TreeSet;
@@ -130,6 +128,7 @@ public class HStoreSiteStatus implements Runnable {
                 String val = String.format("%2d txns / %2d queue", this.partition_txns.get(partition).size(), e.getValue().getQueueSize());
                 m0.put(key, val);
             } // FOR
+            m0.put("Throttling Mode", this.hstore_site.isThrottlingEnabled());
         }
 
         // ----------------------------------------------------------------------------

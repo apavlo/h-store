@@ -1783,11 +1783,15 @@ public class ExecutionSite implements Runnable {
         long client_handle = cresponse.getClientHandle();
         assert(client_handle != -1) : "The client handle for txn #" + txn_id + " was not set properly";
         byte status = cresponse.getStatus();
-
+        
         if (d) LOG.debug(String.format("Sending ClientResponseImpl back for %s txn #%d [clientHandle=%s, status=%s]",
                                        ts.getProcedureName(), txn_id, cresponse.getClientHandle(), cresponse.getStatusName()));
         Dtxn.FragmentResponse.Builder builder = Dtxn.FragmentResponse.newBuilder();
 
+        // Always mark the throttling flag so that the clients know whether they are allowed to keep
+        // coming at us and make requests
+        cresponse.setThrottleFlag(this.hstore_site.isThrottlingEnabled());
+        
         // IMPORTANT: If we executed this locally and only touched our partition, then we need to commit/abort right here
         // 2010-11-14: The reason why we can do this is because we will just ignore the commit
         // message when it shows from the Dtxn.Coordinator. We should probably double check with Evan on this...
