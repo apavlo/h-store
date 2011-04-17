@@ -218,6 +218,10 @@ public abstract class VoltTableRow {
         return true;
     }
 
+    public final Object get(int columnIndex) {
+        return (this.get(columnIndex, this.getColumnType(columnIndex)));
+    }
+    
     /**
      * Retrieve a value from the row by specifying the column index and the {@link VoltType type}.
      * This method is slower then linking directly against the type specific getter. Prefer the
