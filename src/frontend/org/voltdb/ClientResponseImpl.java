@@ -43,7 +43,7 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
     
     // PAVLO
     private long txn_id;
-    private byte throttle = -1;
+    private boolean throttle = false;
     
     private boolean singlepartition = false;
 
@@ -138,18 +138,12 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
     }
     
     @Override
-    public boolean hasThrottleFlag() {
-        return this.throttle != -1;
-    }
-    
-    @Override
     public boolean getThrottleFlag() {
-        assert(this.throttle != -1);
-        return (this.throttle == 1);
+        return (this.throttle);
     }
     @Override
     public void setThrottleFlag(boolean val) {
-        this.throttle = (byte)(val ? 1 : 0);
+        this.throttle = val;
     }
 
     @Override
@@ -197,7 +191,7 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
         txn_id = in.readLong();
         clientHandle = in.readLong();
         singlepartition = in.readBoolean();
-        throttle = in.readByte();
+        throttle = in.readBoolean();
         
         byte presentFields = in.readByte();
         status = in.readByte();
@@ -229,7 +223,7 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
         out.writeLong(txn_id);
         out.writeLong(clientHandle);
         out.writeBoolean(singlepartition);
-        out.writeByte(throttle);
+        out.writeBoolean(throttle);
         byte presentFields = 0;
         if (appStatusString != null) {
             presentFields |= 1 << 7;
@@ -307,6 +301,9 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
                 break;
             case ClientResponseImpl.MISPREDICTION:
                 ret = "MISPREDICTION";
+                break;
+            case ClientResponseImpl.REJECTED:
+                ret = "REJECTED";
                 break;
             default:
                 assert(false) : "Unknown ClientResponse status '" + this.status + "'";

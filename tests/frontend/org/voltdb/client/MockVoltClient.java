@@ -168,13 +168,6 @@ public class MockVoltClient implements Client {
                 // TODO Auto-generated method stub
                 
             }
-
-            @Override
-            public boolean hasThrottleFlag() {
-                // TODO Auto-generated method stub
-                return false;
-            }
-
         };
     }
 

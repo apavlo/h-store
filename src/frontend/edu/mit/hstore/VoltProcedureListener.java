@@ -170,7 +170,7 @@ public class VoltProcedureListener extends AbstractEventHandler {
                 
                 ByteBuffer buffer = ByteBuffer.wrap(output);
                 long clientHandle = StoredProcedureInvocation.getClientHandle(buffer); 
-                ClientResponseImpl cresponse = new ClientResponseImpl(-1, ClientResponse.SUCCESS, empty_result, "", clientHandle);
+                ClientResponseImpl cresponse = new ClientResponseImpl(-1, ClientResponse.REJECTED, empty_result, "", clientHandle);
                 cresponse.setThrottleFlag(true);
                 
                 FastSerializer serializer = new FastSerializer();
