@@ -50,7 +50,7 @@ public class TPCCClient extends org.voltdb.benchmark.ClientMain implements TPCCS
     final TPCCSimulation m_tpccSim2;
     private final ScaleParameters m_scaleParams;
 
-    private final boolean crash_on_error = false;
+    private final boolean crash_on_error = true;
     
     private static class ForeignKeyConstraints implements Expression {
         private final String m_table;

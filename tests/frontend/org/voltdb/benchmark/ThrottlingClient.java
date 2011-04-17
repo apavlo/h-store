@@ -57,30 +57,20 @@ public class ThrottlingClient extends Semaphore implements Client {
         
         @Override
         public void clientCallback(ClientResponse clientResponse) {
-            boolean has_throttle = clientResponse.hasThrottleFlag();
-            if (t) LOG.trace(String.format("ThrottlingCallback is forwarding the client callback for to inner callback [txn=%d, proc=%s, hasThrottle=%s]",
-                    clientResponse.getTransactionId(), this.proc_name, has_throttle));
+            boolean should_throttle = clientResponse.getThrottleFlag();
+            if (t) LOG.trace(String.format("ThrottlingCallback is forwarding the client callback for to inner callback [txn=%d, proc=%s, rejected=%s, throttle=%s]",
+                                            clientResponse.getTransactionId(), this.proc_name, clientResponse.getStatusName(), should_throttle));
             
-            if (has_throttle) {
-                boolean should_throttle = clientResponse.getThrottleFlag();
-                if (should_throttle == false) {
-                    if (throttle.compareAndSet(true, should_throttle)) {
-                        if (d) LOG.debug("Disabling throttling mode");
-                        ThrottlingClient.this.release();
-                    }
-                    
-                    // Only invoke the callback if the transaction wasn't throttled.
-                    // Otherwise it will be counted as a successful completion, which is not true
-                    this.inner_callback.clientCallback(clientResponse);
-                    
-                } else if (should_throttle == true && throttle.compareAndSet(false, true)) {
-                    if (d) LOG.debug("Enabling throttling mode");
-                }
-                
-            // If the response doesn't know anything about throttling, just pass the response along
-            } else {
-                this.inner_callback.clientCallback(clientResponse);
+            if (should_throttle == false && throttle.compareAndSet(true, should_throttle)) {
+                if (d) LOG.debug("Disabling throttling mode");
+                ThrottlingClient.this.release();
+            } else if (should_throttle == true && throttle.compareAndSet(false, true)) {
+                if (d) LOG.debug("Enabling throttling mode");
             }
+                
+            // Only invoke the callback if the transaction wasn't rejected.
+            // Otherwise it will be counted as a successful completion, which is not true
+            if (clientResponse.getStatus() != ClientResponse.REJECTED) this.inner_callback.clientCallback(clientResponse);
         }
     }
     

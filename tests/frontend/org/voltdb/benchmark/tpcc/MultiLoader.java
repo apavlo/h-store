@@ -501,7 +501,6 @@ public class MultiLoader extends ClientMain {
         public void makeStock(int w_id) {
             // Select 10% of the stock to be marked "original"
 
-            final int BATCH_SIZE = (m_parameters.items / MAX_BATCH_SIZE);
             data_tables[IDX_STOCKS] = new VoltTable(
                     new VoltTable.ColumnInfo("S_I_ID", VoltType.INTEGER),
                     new VoltTable.ColumnInfo("S_W_ID", VoltType.SMALLINT),
@@ -529,7 +528,7 @@ public class MultiLoader extends ClientMain {
             for (int i_id = 1; i_id <= m_parameters.items; ++i_id) {
                 boolean original = selectedRows.contains(i_id);
                 generateStock(w_id, i_id, original);
-                if (i_id % BATCH_SIZE == 0) {
+                if (i_id % MAX_BATCH_SIZE == 0) {
                     commitDataTables(w_id);
                     LOG.debug(String.format("%d/%d", i_id, m_parameters.items));
                 }
