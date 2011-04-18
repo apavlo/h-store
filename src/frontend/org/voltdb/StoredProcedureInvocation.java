@@ -34,6 +34,7 @@ import org.voltdb.messaging.*;
 public class StoredProcedureInvocation implements FastSerializable {
 
     String procName = null;
+    boolean sysproc = false;
     ParameterSet params = null;
     ByteBuffer unserializedParams = null;
 
@@ -55,6 +56,7 @@ public class StoredProcedureInvocation implements FastSerializable {
         super();
         this.clientHandle = handle;
         this.procName = procName;
+        this.sysproc = (procName.startsWith("@"));
         this.params = new ParameterSet();
         this.params.setParameters(parameters);
     }
@@ -157,7 +159,8 @@ public class StoredProcedureInvocation implements FastSerializable {
 
     @Override
     public void readExternal(FastDeserializer in) throws IOException {
-        in.readByte();//skip version
+//        in.readByte();//skip version
+        sysproc = in.readBoolean();
         base_partition = (int)in.readShort();
         clientHandle = in.readLong();
         procName = in.readString();
@@ -179,7 +182,8 @@ public class StoredProcedureInvocation implements FastSerializable {
     public void writeExternal(FastSerializer out) throws IOException {
         assert(!((params == null) && (unserializedParams == null)));
         assert((params != null) || (unserializedParams != null));
-        out.write(0);   // version (1)
+//        out.write(0);   // version (1)
+        out.writeBoolean(sysproc); // (1)
         out.writeShort(base_partition); // (2)
         out.writeLong(clientHandle);    // (8) 
         out.writeString(procName);
@@ -199,6 +203,15 @@ public class StoredProcedureInvocation implements FastSerializable {
             out.write(unserializedParams.array(),
                       unserializedParams.position() + unserializedParams.arrayOffset(),
                       unserializedParams.remaining());
+    }
+    
+    /**
+     * Returns true if the raw bytes for this invocation indicate that it's a sysproc request
+     * @param buffer
+     * @return
+     */
+    public static boolean isSysProc(ByteBuffer buffer) {
+        return (buffer.get(0) == 1);
     }
     
     /**

@@ -30,6 +30,19 @@ public class TestStoredProcedureInvocation extends BaseTestCase {
     }
 
     /**
+     * testIsSysProc
+     */
+    public void testIsSysProc() throws Exception {
+        StoredProcedureInvocation invocation = new StoredProcedureInvocation(CLIENT_HANDLE, "@DatabaseDump", PARAMS);
+        byte[] invocation_bytes = FastSerializer.serialize(invocation);
+        assertNotNull(invocation_bytes);
+        
+        ByteBuffer buffer = ByteBuffer.wrap(invocation_bytes);
+        boolean sysproc = StoredProcedureInvocation.isSysProc(buffer);
+        assertEquals(true, sysproc);
+    }
+
+    /**
      * testGetProcedureName
      */
     public void testGetProcedureName() throws Exception {

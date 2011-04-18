@@ -36,6 +36,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
+import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicLong;
 
 import org.apache.log4j.Logger;
@@ -69,6 +70,7 @@ public abstract class ClientMain {
         START,
         POLL,
         CLEAR,
+        PAUSE,
         SHUTDOWN,
         STOP;
      
@@ -85,6 +87,21 @@ public abstract class ClientMain {
             return (Command.name_lookup.get(name.trim().toUpperCase().intern()));
         }
     }
+    
+    /** The states important to the remote controller */
+    public static enum ControlState {
+        PREPARING("PREPARING"),
+        READY("READY"),
+        RUNNING("RUNNING"),
+        PAUSED("PAUSED"),
+        ERROR("ERROR");
+
+        ControlState(final String displayname) {
+            display = displayname;
+        }
+
+        public final String display;
+    };
 
     /**
      * Client initialized here and made available for use in derived classes
@@ -177,6 +194,11 @@ public abstract class ClientMain {
     protected Catalog m_catalog;
     
     private final boolean m_exitOnCompletion;
+    
+    /**
+     * Pause Lock
+     */
+    private final Semaphore m_pauseLock = new Semaphore(1);
 
     /**
      * Data verification.
@@ -187,20 +209,6 @@ public abstract class ClientMain {
     private final LinkedHashMap<Pair<String, Integer>, Expression> m_constraints;
     private final List<String> m_tableCheckOrder = new LinkedList<String>();
     protected VoltSampler m_sampler = null;
-
-    /** The states important to the remote controller */
-    public static enum ControlState {
-        PREPARING("PREPARING"),
-        READY("READY"),
-        RUNNING("RUNNING"),
-        ERROR("ERROR");
-
-        ControlState(final String displayname) {
-            display = displayname;
-        }
-
-        public final String display;
-    };
     
     public static String CONTROL_PREFIX = "{HSTORE} ";
 
@@ -286,8 +294,23 @@ public abstract class ClientMain {
                         } // FOR
                         break;
                     }
+                    case PAUSE: {
+                        assert(m_controlState == ControlState.RUNNING) : "Unexpected " + m_controlState;
+                        
+                        LOG.info("Pausing client");
+                        
+                        // Enable the lock and then change our state
+                        try {
+                            m_pauseLock.acquire();
+                        } catch (InterruptedException ex) {
+                            LOG.fatal("Unexpected interuption!", ex);
+                            System.exit(1);
+                        }
+                        m_controlState = ControlState.PAUSED;
+                        break;
+                    }
                     case SHUTDOWN: {
-                        if (m_controlState == ControlState.RUNNING) {
+                        if (m_controlState == ControlState.RUNNING || m_controlState == ControlState.PAUSED) {
                             try {
                                 m_voltClient.callProcedure("@Shutdown");
                             } catch (Exception ex) {
@@ -298,7 +321,7 @@ public abstract class ClientMain {
                         break;
                     }
                     case STOP: {
-                        if (m_controlState == ControlState.RUNNING) {
+                        if (m_controlState == ControlState.RUNNING || m_controlState == ControlState.PAUSED) {
                             try {
                                 if (m_sampler != null) {
                                     m_sampler.setShouldStop();
@@ -389,14 +412,20 @@ public abstract class ClientMain {
             m_lastRequestTime = System.currentTimeMillis();
             while (true) {
                 boolean bp = false;
-                /*
-                 * If there is back pressure don't send any requests. Update the
-                 * last request time so that a large number of requests won't
-                 * queue up to be sent when there is no longer any back
-                 * pressure.
-                 */
                 try {
+                    // If there is back pressure don't send any requests. Update the
+                    // last request time so that a large number of requests won't
+                    // queue up to be sent when there is no longer any back
+                    // pressure.
                     m_voltClient.backpressureBarrier();
+                    
+                    // Check whether we are currently being paused
+                    // We will block until we're allowed to go again
+                    if (m_controlState == ControlState.PAUSED) {
+                        m_pauseLock.acquire();
+                    }
+                    assert(m_controlState != ControlState.PAUSED) : "Unexpected " + m_controlState;
+                    
                 } catch (InterruptedException e1) {
                     throw new RuntimeException();
                 }

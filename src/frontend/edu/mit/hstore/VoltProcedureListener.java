@@ -132,9 +132,9 @@ public class VoltProcedureListener extends AbstractEventHandler {
 
     private void read(ClientConnectionHandler eventLoopCallback) {
         final boolean d = LOG.isDebugEnabled();
-        byte[] output;
-        while ((output = eventLoopCallback.connection.tryRead()) != null) {
-            if (output.length == 0) {
+        byte[] request;
+        while ((request = eventLoopCallback.connection.tryRead()) != null) {
+            if (request.length == 0) {
                 // connection closed
                 LOG.debug("Connection closed");
                 eventLoopCallback.connection.close();
@@ -142,7 +142,7 @@ public class VoltProcedureListener extends AbstractEventHandler {
             }
 
             if (eventLoopCallback.user == null) {
-                ByteBuffer input = ByteBuffer.wrap(output);
+                ByteBuffer input = ByteBuffer.wrap(request);
                 input.order(ByteOrder.BIG_ENDIAN);
                 try {
                     @SuppressWarnings("unused")
@@ -163,12 +163,16 @@ public class VoltProcedureListener extends AbstractEventHandler {
 
                 // write to say "okay": BIG HACK
                 eventLoopCallback.hackWritePasswordOk();
-                
-            // If we're in throttle mode, then reject this txn
-            } else if (this.throttle) {
+                return;
+            }
+            
+            // If we're in throttle mode and this is not a sysproc, then reject this txn
+            ByteBuffer buffer = ByteBuffer.wrap(request);
+            boolean is_sysproc = StoredProcedureInvocation.isSysProc(buffer);
+            
+            if (this.throttle && is_sysproc == false) {
                 if (d) LOG.debug("Throttling is enabled. Rejecting transaction and asking client to wait...");
                 
-                ByteBuffer buffer = ByteBuffer.wrap(output);
                 long clientHandle = StoredProcedureInvocation.getClientHandle(buffer); 
                 ClientResponseImpl cresponse = new ClientResponseImpl(-1, ClientResponse.REJECTED, empty_result, "", clientHandle);
                 cresponse.setThrottleFlag(true);
@@ -183,10 +187,10 @@ public class VoltProcedureListener extends AbstractEventHandler {
                 
             // Execute store procedure!
             } else {
-                if (d) LOG.debug("Got request [bytes=" + output.length + "]");
+                if (d) LOG.debug(String.format("Got request [sysproc=%s, bytes=%d]", is_sysproc, request.length));
                 try {
                     // RpcCallback<byte[]> callback = RpcUtil.newOneTimeCallback(eventLoopCallback);
-                    handler.procedureInvocation(output, eventLoopCallback);
+                    handler.procedureInvocation(request, eventLoopCallback);
                 } catch (Exception ex) {
                     LOG.fatal("Unexpected error when calling procedureInvocation!", ex);
                     throw new RuntimeException(ex);

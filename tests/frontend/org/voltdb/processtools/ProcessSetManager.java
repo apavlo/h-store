@@ -40,6 +40,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.log4j.Logger;
+import org.voltdb.benchmark.ClientMain.Command;
 
 import edu.brown.utils.EventObservable;
 import edu.brown.utils.EventObserver;
@@ -269,6 +270,17 @@ public class ProcessSetManager {
         return m_output.poll();
     }
 
+    public void writeToAll(Command cmd) {
+        LOG.debug(String.format("Sending %s to all processes", cmd));
+        for (String processName : m_processes.keySet()) {
+            this.writeToProcess(processName, cmd + "\n");
+        }
+    }
+    
+    public void writeToProcess(String processName, Command cmd) {
+        this.writeToProcess(processName, cmd + "\n");
+    }
+    
     public void writeToProcess(String processName, String data) {
         ProcessData pd = m_processes.get(processName);
         assert(pd != null);

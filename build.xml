@@ -1478,6 +1478,8 @@ BENCHMARKS
         <arg value="TRACE=${trace}" />
         <arg value="PROFILESITES=${profilesites}" />
         <arg value="NOCOORDINATOR=${nocoordinator}" />
+        <arg value="DUMPDATABASE=${hstore.client.dump_database}" />
+        <arg value="DUMPDATABASEDIR=${hstore.client.dump_database_dir}" />
 
         <!-- Global Parameters -->
         <arg value="scalefactor=${hstore.client.scalefactor}" />

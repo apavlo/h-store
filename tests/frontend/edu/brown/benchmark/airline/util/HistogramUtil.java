@@ -2,7 +2,6 @@ package edu.brown.benchmark.airline.util;
 
 import java.io.BufferedReader;
 import java.io.File;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
