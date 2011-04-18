@@ -37,7 +37,6 @@ import java.util.concurrent.LinkedBlockingDeque;
 
 import org.apache.log4j.Logger;
 import org.voltdb.catalog.Catalog;
-import org.voltdb.catalog.Cluster;
 import org.voltdb.catalog.PlanFragment;
 import org.voltdb.catalog.ProcParameter;
 import org.voltdb.catalog.Procedure;
@@ -229,14 +228,13 @@ public abstract class VoltProcedure implements Poolable {
     /**
      * Main initialization method
      * @param site
-     * @param catProc
+     * @param catalog_proc
      * @param eeType
      * @param hsql
-     * @param cluster
      * @param p_estimator
      * @param local_partition
      */
-    public void globalInit(ExecutionSite site, Procedure catProc, BackendTarget eeType, HsqlBackend hsql, Cluster cluster, PartitionEstimator p_estimator, Integer local_partition) {
+    public void globalInit(ExecutionSite site, Procedure catalog_proc, BackendTarget eeType, HsqlBackend hsql, PartitionEstimator p_estimator, Integer local_partition) {
         if (m_initialized) {
             throw new IllegalStateException("VoltProcedure has already been initialized");
         } else {
@@ -246,7 +244,7 @@ public abstract class VoltProcedure implements Poolable {
 
         this.executor = site;
         this.hstore_conf = HStoreConf.singleton();
-        this.catProc = catProc;
+        this.catProc = catalog_proc;
         this.procedure_name = this.catProc.getName();
         this.catalog = this.catProc.getCatalog();
         this.isNative = (eeType != BackendTarget.HSQLDB_BACKEND);
@@ -262,7 +260,7 @@ public abstract class VoltProcedure implements Poolable {
         
         if (d) LOG.debug(String.format("Initialized VoltProcedure for %s [partition=%d]", this.procedure_name, this.base_partition));
         
-        if (catProc.getHasjava()) {
+        if (catalog_proc.getHasjava()) {
             int tempParamTypesLength = 0;
             Method tempProcMethod = null;
             Method[] methods = getClass().getMethods();
@@ -302,7 +300,7 @@ public abstract class VoltProcedure implements Poolable {
             for (final Field f : fields) {
                 if (f.getType() == SQLStmt.class) {
                     String name = f.getName();
-                    Statement s = catProc.getStatements().get(name);
+                    Statement s = catalog_proc.getStatements().get(name);
                     if (s != null) {
                         try {
                             /*
@@ -341,7 +339,7 @@ public abstract class VoltProcedure implements Poolable {
         }
         // has no java
         else {
-            Statement catStmt = catProc.getStatements().get(ANON_STMT_NAME);
+            Statement catStmt = catalog_proc.getStatements().get(ANON_STMT_NAME);
             SQLStmt stmt = new SQLStmt(catStmt.getSqltext());
             stmt.catStmt = catStmt;
             initSQLStmt(stmt);
@@ -349,13 +347,13 @@ public abstract class VoltProcedure implements Poolable {
 
             procMethod = null;
 
-            paramTypesLength = catProc.getParameters().size();
+            paramTypesLength = catalog_proc.getParameters().size();
 
             paramTypes = new Class<?>[paramTypesLength];
             paramTypeIsPrimitive = new boolean[paramTypesLength];
             paramTypeIsArray = new boolean[paramTypesLength];
             paramTypeComponentType = new Class<?>[paramTypesLength];
-            for (ProcParameter param : catProc.getParameters()) {
+            for (ProcParameter param : catalog_proc.getParameters()) {
                 VoltType type = VoltType.get((byte) param.getType());
                 if (type == VoltType.INTEGER) type = VoltType.BIGINT;
                 if (type == VoltType.SMALLINT) type = VoltType.BIGINT;

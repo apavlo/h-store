@@ -172,7 +172,6 @@ public class ExecutionSite implements Runnable {
                                this.catalog_proc,
                                ExecutionSite.this.backend_target,
                                ExecutionSite.this.hsql,
-                               ExecutionSite.this.cluster,
                                ExecutionSite.this.p_estimator,
                                ExecutionSite.this.getPartitionId());
             } catch (Exception e) {

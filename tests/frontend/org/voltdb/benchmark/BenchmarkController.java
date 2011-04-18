@@ -30,6 +30,7 @@ import java.io.IOException;
 import java.lang.reflect.Field;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -55,7 +56,6 @@ import org.voltdb.client.ProcCallException;
 import org.voltdb.compiler.VoltProjectBuilder;
 import org.voltdb.processtools.ProcessSetManager;
 import org.voltdb.processtools.SSHTools;
-import org.voltdb.processtools.ShellTools;
 import org.voltdb.utils.LogKeys;
 
 import edu.brown.catalog.CatalogUtil;
@@ -135,6 +135,11 @@ public class BenchmarkController {
     VoltProjectBuilder m_projectBuilder;
     String m_jarFileName = null;
     ServerThread m_localserver = null;
+    
+    /**
+     * Triplets: <Host>, <Port>, <SiteId>
+     */
+    List<String[]> launch_hosts = null;
 
     public static interface BenchmarkInterest {
         public void benchmarkHasUpdated(BenchmarkResults currentResults);
@@ -323,7 +328,6 @@ public class BenchmarkController {
         assert(catalog != null);
         
         // Now figure out which hosts we really want to launch this mofo on
-        List<String[]> launch_hosts = null;
         Set<String> unique_hosts = new HashSet<String>();
         if (m_config.useCatalogHosts == false) {
             if (debug.get()) LOG.debug("Creating host information from BenchmarkConfig");
@@ -348,7 +352,7 @@ public class BenchmarkController {
         }
 
         // copy the catalog to the servers, but don't bother in local mode
-        boolean status;
+//        boolean status;
         if (m_config.localmode == false) {
             // HACK
             m_config.hosts = new String[unique_hosts.size()];
@@ -547,21 +551,21 @@ public class BenchmarkController {
             loaderCommand.append(userParams);
 
             // RUN THE LOADER
-            if (true || m_config.localmode) {
+//            if (true || m_config.localmode) {
                 localArgs.add("EXITONCOMPLETION=false");
                 ClientMain.main(m_loaderClass, localArgs.toArray(new String[0]), true);
-            }
-            else {
-                if (debug.get()) LOG.debug("Loader Command: " + loaderCommand.toString());
-                String[] command = SSHTools.convert(
-                        m_config.remoteUser,
-                        m_config.clients[0],
-                        m_config.remotePath,
-                        m_config.sshOptions,
-                        loaderCommand.toString());
-                status = ShellTools.cmdToStdOut(command);
-                assert(status);
-            }
+//            }
+//            else {
+//                if (debug.get()) LOG.debug("Loader Command: " + loaderCommand.toString());
+//                String[] command = SSHTools.convert(
+//                        m_config.remoteUser,
+//                        m_config.clients[0],
+//                        m_config.remotePath,
+//                        m_config.sshOptions,
+//                        loaderCommand.toString());
+//                status = ShellTools.cmdToStdOut(command);
+//                assert(status);
+//            }
         } else if (m_config.noDataLoad) {
             LOG.info("Skipping data loading phase");
         }
@@ -685,7 +689,7 @@ public class BenchmarkController {
 
         // start up all the clients
         for (String clientName : m_clients)
-            m_clientPSM.writeToProcess(clientName, Command.START + "\n");
+            m_clientPSM.writeToProcess(clientName, Command.START);
 
         // Warm-up
         if (m_config.warmup > 0) {
@@ -700,7 +704,7 @@ public class BenchmarkController {
             if (this.stop == false) {
                 // Reset the counters
                 for (String clientName : m_clients)
-                    m_clientPSM.writeToProcess(clientName, Command.CLEAR + "\n");
+                    m_clientPSM.writeToProcess(clientName, Command.CLEAR);
                 
                 LOG.info("Starting benchmark stats collection");
             }
@@ -718,7 +722,7 @@ public class BenchmarkController {
                 // make all the clients poll
                 if (debug.get()) LOG.debug(String.format("Sending %s to %d clients", Command.POLL, m_clients.size()));
                 for (String clientName : m_clients)
-                    m_clientPSM.writeToProcess(clientName, Command.POLL + "\n");
+                    m_clientPSM.writeToProcess(clientName, Command.POLL);
 
                 // get ready for the next interval
                 nextIntervalTime = m_config.interval * (m_pollIndex.get() + 1) + startTime;
@@ -736,6 +740,27 @@ public class BenchmarkController {
             }
             nowTime = System.currentTimeMillis();
         } // WHILE
+        
+        // Dump database
+        if (m_config.dumpDatabase) {
+            assert(m_config.dumpDatabaseDir != null);
+            
+            // We have to tell all our clients to pause first
+            m_clientPSM.writeToAll(Command.PAUSE);
+            
+            // Connect to the first host and tell them to dump out the database contents
+            String triplet[] = CollectionUtil.getRandomValue(this.launch_hosts);
+            assert(triplet != null);
+            LOG.info(String.format("Requesting HStoreSite #%02d to dump database contents", Integer.parseInt(triplet[2])));
+            
+            Client new_client = ClientFactory.createClient(128, null, false, null);
+            try {
+                new_client.createConnection(triplet[0], Integer.parseInt(triplet[1]), "user", "password");
+                new_client.callProcedure("@DatabaseDump", m_config.dumpDatabaseDir);
+            } catch (Exception ex) {
+                LOG.error(String.format("Failed to dump database contents using '%s'", Arrays.toString(triplet)), ex);
+            }
+        }
 
         this.stop = true;
         m_clientPSM.prepareToShutdown();
@@ -746,10 +771,10 @@ public class BenchmarkController {
         boolean first = true;
         for (String clientName : m_clients) {
             if (first) {
-                m_clientPSM.writeToProcess(clientName, Command.SHUTDOWN + "\n");
+                m_clientPSM.writeToProcess(clientName, Command.SHUTDOWN);
                 first = false;
             } else {
-                m_clientPSM.writeToProcess(clientName, Command.STOP + "\n");
+                m_clientPSM.writeToProcess(clientName, Command.STOP);
             }
         }
         LOG.info("Waiting for " + m_clients.size() + " clients to finish");
@@ -963,6 +988,9 @@ public class BenchmarkController {
         String siteLogDir = "/tmp";
         String coordLogDir = "/tmp";
         
+        boolean dumpDatabase = false;
+        String dumpDatabaseDir = null;
+        
         // List of SiteIds that we won't start because they'll be started by the profiler
         Set<Integer> profileSiteIds = new HashSet<Integer>();
 
@@ -1164,6 +1192,11 @@ public class BenchmarkController {
             } else if (parts[0].equalsIgnoreCase("THRESHOLDS")) {
                 thresholds_path = parts[1];
 
+            } else if (parts[0].equalsIgnoreCase("DUMPDATABASE")) {
+                dumpDatabase = Boolean.parseBoolean(parts[1]);                
+            } else if (parts[0].equalsIgnoreCase("DUMPDATABASEDIR")) {
+                dumpDatabaseDir = parts[1];
+
             /** PAVLO **/
                 
             } else {
@@ -1285,7 +1318,9 @@ public class BenchmarkController {
                 thresholds_path,
                 clientLogDir,
                 siteLogDir,
-                coordLogDir
+                coordLogDir,
+                dumpDatabase,
+                dumpDatabaseDir
         );
         
         // Always pass these parameters

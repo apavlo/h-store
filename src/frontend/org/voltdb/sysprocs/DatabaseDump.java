@@ -11,63 +11,88 @@ import org.voltdb.DependencySet;
 import org.voltdb.ExecutionSite;
 import org.voltdb.HsqlBackend;
 import org.voltdb.ParameterSet;
+import org.voltdb.ProcInfo;
 import org.voltdb.VoltSystemProcedure;
 import org.voltdb.VoltTable;
+import org.voltdb.VoltType;
 import org.voltdb.ExecutionSite.SystemProcedureExecutionContext;
-import org.voltdb.catalog.Cluster;
-import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Table;
 
 import au.com.bytecode.opencsv.CSVWriter;
 
-import edu.brown.catalog.CatalogUtil;
 import edu.brown.utils.PartitionEstimator;
 
+@ProcInfo(singlePartition = false)
 public class DatabaseDump extends VoltSystemProcedure {
     
     private static final Logger LOG = Logger.getLogger(DatabaseDump.class);
 
-    private Cluster m_cluster = null;
-    private Database m_database = null;
-    
     @Override
-    public void globalInit(ExecutionSite site, Procedure catProc,
-            BackendTarget eeType, HsqlBackend hsql, Cluster cluster,
-            PartitionEstimator p_estimator, Integer local_partition) {
-        super.globalInit(site, catProc, eeType, hsql, cluster, p_estimator, local_partition);
-        m_cluster = cluster;
-        m_database = CatalogUtil.getDatabase(m_cluster);
-        site.registerPlanFragment(SysProcFragmentId.PF_distribute, this);
-        site.registerPlanFragment(SysProcFragmentId.PF_aggregate, this);
+    public void globalInit(ExecutionSite site, Procedure catalog_proc,
+            BackendTarget eeType, HsqlBackend hsql, PartitionEstimator p_estimator,
+            Integer local_partition) {
+        super.globalInit(site, catalog_proc, eeType, hsql, p_estimator, local_partition);
+        site.registerPlanFragment(SysProcFragmentId.PF_dumpDistribute, this);
+        site.registerPlanFragment(SysProcFragmentId.PF_dumpAggregate, this);
     }
     
     @Override
-    public DependencySet executePlanFragment(long txnId, Map<Integer, List<VoltTable>> dependencies, int fragmentId, ParameterSet params, SystemProcedureExecutionContext context) {
-        // The first parameter should be the directory
-        String directory = params.toArray()[0].toString();
-        LOG.debug(String.format("Dumping out database contents for partition %d to '%s'", this.executor.getPartitionId(), directory));
+    public DependencySet executePlanFragment(long txn_id, Map<Integer, List<VoltTable>> dependencies, int fragmentId, ParameterSet params, SystemProcedureExecutionContext context) {
+        final boolean debug = LOG.isDebugEnabled();
         
-        for (Table catalog_tbl : m_database.getTables()) {
-            VoltTable vt = this.executor.getExecutionEngine().serializeTable(catalog_tbl.getRelativeIndex());
-            assert(vt != null) : "Failed to get serialized table for " + catalog_tbl;
+        // need to return something ..
+        VoltTable[] result = new VoltTable[1];
+        result[0] = new VoltTable(new VoltTable.ColumnInfo("TxnId", VoltType.BIGINT));
+        result[0].addRow(txn_id);
+        
+        if (fragmentId == SysProcFragmentId.PF_dumpDistribute) {
+            // The first parameter should be the directory
+            File directory = new File(params.toArray()[0].toString());
+            LOG.debug(String.format("Dumping out database contents for partition %d to '%s'", this.executor.getPartitionId(), directory));
             
-            File csv_file = new File(String.format("%s/%s.%02d.csv", directory, catalog_tbl.getName(), this.executor.getPartitionId()));
-            LOG.debug(String.format("Writing %d tuples to '%s'", vt.getRowCount(), csv_file.getName()));
-            try {
-                CSVWriter writer = new CSVWriter(new FileWriter(csv_file));
-                while (vt.advanceRow()) {
-                    String row[] = vt.getRowStringArray();
-                    assert(row != null);
-                    assert(row.length == vt.getColumnCount());
-                    writer.writeNext(row);
-                } // WHILE
-                writer.close();
-            } catch (Exception ex) {
-                LOG.fatal(String.format("Failed to write data to '%s'", csv_file), ex);
-                throw new RuntimeException(ex);
+            if (directory.exists() == false) {
+                LOG.debug("Creating dump directory '" + directory + "'");
+                directory.mkdir();
             }
+            assert(directory.isDirectory());
+            
+            for (Table catalog_tbl : this.database.getTables()) {
+                VoltTable vt = this.executor.getExecutionEngine().serializeTable(catalog_tbl.getRelativeIndex());
+                assert(vt != null) : "Failed to get serialized table for " + catalog_tbl;
+                
+                File csv_file = new File(String.format("%s/%s.%02d.csv", directory, catalog_tbl.getName(), this.executor.getPartitionId()));
+                LOG.debug(String.format("Writing %d tuples to '%s'", vt.getRowCount(), csv_file.getName()));
+                try {
+                    CSVWriter writer = new CSVWriter(new FileWriter(csv_file));
+                    
+                    // Write column names
+                    String cols[] = new String[catalog_tbl.getColumns().size()];
+                    for (int i = 0; i < cols.length; i++) {
+                        cols[i] = catalog_tbl.getColumns().get(i).getName();
+                    } // FOR
+                    writer.writeNext(cols);
+                    
+                    // Dump table contents
+                    while (vt.advanceRow()) {
+                        String row[] = vt.getRowStringArray();
+                        assert(row != null);
+                        assert(row.length == vt.getColumnCount());
+                        writer.writeNext(row);
+                    } // WHILE
+                    writer.close();
+                } catch (Exception ex) {
+                    LOG.fatal(String.format("Failed to write data to '%s'", csv_file), ex);
+                    throw new RuntimeException(ex);
+                }
+            } // FOR
+            return new DependencySet(new int[] { (int)SysProcFragmentId.PF_dumpDistribute }, result);
+            
+        } else if (fragmentId == SysProcFragmentId.PF_dumpAggregate) {
+            if (debug) LOG.debug("Aggregating results from loading fragments in txn #" + txn_id);
+            return new DependencySet(new int[] { (int)SysProcFragmentId.PF_dumpAggregate }, result);
         }
+        assert(false) : "Unexpected FragmentId " + fragmentId;
         return null;
     }
     
@@ -79,23 +104,22 @@ public class DatabaseDump extends VoltSystemProcedure {
      * @throws VoltAbortException
      */
     public VoltTable[] run(String directory) throws VoltAbortException {
-        final boolean trace = LOG.isTraceEnabled();
+//        final boolean trace = LOG.isTraceEnabled();
         final boolean debug = LOG.isDebugEnabled();
         
         VoltTable[] results;
         SynthesizedPlanFragment pfs[];
-        int numPartitions = m_cluster.getNum_partitions();
 
         // Generate a plan fragment for each site using the sub-tables
-        pfs = new SynthesizedPlanFragment[numPartitions  + 1];
-        for (int i = 1; i <= numPartitions; ++i) {
+        pfs = new SynthesizedPlanFragment[num_partitions  + 1];
+        for (int i = 1; i <= num_partitions; ++i) {
             int partition = i - 1;
             ParameterSet params = new ParameterSet();
             params.setParameters(directory);
             pfs[i] = new SynthesizedPlanFragment();
-            pfs[i].fragmentId = SysProcFragmentId.PF_dumpScan;
+            pfs[i].fragmentId = SysProcFragmentId.PF_dumpDistribute;
             pfs[i].inputDependencyIds = new int[] { };
-            pfs[i].outputDependencyIds = new int[] { (int)SysProcFragmentId.PF_dumpScan };
+            pfs[i].outputDependencyIds = new int[] { (int)SysProcFragmentId.PF_dumpDistribute };
             pfs[i].multipartition = false;
             pfs[i].nonExecSites = false;
             pfs[i].destPartitionId = partition;
@@ -107,7 +131,7 @@ public class DatabaseDump extends VoltSystemProcedure {
         pfs[0] = new SynthesizedPlanFragment();
         pfs[0].destPartitionId = base_partition;
         pfs[0].fragmentId = SysProcFragmentId.PF_dumpAggregate;
-        pfs[0].inputDependencyIds = new int[] { (int)SysProcFragmentId.PF_dumpScan };
+        pfs[0].inputDependencyIds = new int[] { (int)SysProcFragmentId.PF_dumpDistribute };
         pfs[0].outputDependencyIds = new int[] { (int)SysProcFragmentId.PF_dumpAggregate };
         pfs[0].multipartition = false;
         pfs[0].nonExecSites = false;

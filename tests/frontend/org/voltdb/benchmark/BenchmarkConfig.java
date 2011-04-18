@@ -79,6 +79,9 @@ public class BenchmarkConfig {
     public final String clientLogDir;
     public final String siteLogDir;
     public final String coordLogDir;
+    
+    public final boolean dumpDatabase;
+    public final String dumpDatabaseDir;
 
     public final Map<String, String> parameters = new HashMap<String, String>();
 
@@ -124,7 +127,9 @@ public class BenchmarkConfig {
             String thresholdsPath,
             String clientLogDir,
             String siteLogDir,
-            String coordLogDir
+            String coordLogDir,
+            boolean dumpDatabase,
+            String dumpDatabaseDir
         ) {
 
         this.benchmarkClient = benchmarkClient;
@@ -176,6 +181,9 @@ public class BenchmarkConfig {
         this.clientLogDir = clientLogDir;
         this.siteLogDir = siteLogDir;
         this.coordLogDir = coordLogDir;
+        
+        this.dumpDatabase = dumpDatabase;
+        this.dumpDatabaseDir = dumpDatabaseDir;
     }
 
     @Override
