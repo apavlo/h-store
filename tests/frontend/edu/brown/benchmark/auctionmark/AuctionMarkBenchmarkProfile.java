@@ -51,12 +51,17 @@ import org.voltdb.catalog.Catalog;
 import org.voltdb.catalog.Cluster;
 import org.voltdb.catalog.Database;
 
+import edu.brown.benchmark.locality.LocalityConstants;
+import edu.brown.benchmark.markov.MarkovConstants;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.hashing.DefaultHasher;
 import edu.brown.rand.AbstractRandomGenerator;
 import edu.brown.rand.RandomDistribution;
+import edu.brown.rand.WrappingRandomDistribution;
+import edu.brown.rand.RandomDistribution.DiscreteRNG;
 import edu.brown.rand.RandomDistribution.FlatHistogram;
 import edu.brown.rand.RandomDistribution.Gaussian;
+import edu.brown.rand.RandomDistribution.Zipf;
 import edu.brown.statistics.Histogram;
 import edu.brown.utils.JSONSerializable;
 import edu.brown.utils.JSONUtil;
@@ -350,12 +355,16 @@ public class AuctionMarkBenchmarkProfile implements JSONSerializable {
      * @param rng
      * @return
      */
-    public Long getZipfBuyerId(AbstractRandomGenerator rng, long sellerid, Catalog catalog_db) {
-    	// first determine which partition id the sellerid belongs to
+    public Long getZipfBuyerId(AuctionMarkClientBenchmarkProfile profile, long sellerid, Catalog catalog_db) {
         Cluster catalog_clus = CatalogUtil.getCluster(catalog_db);
-        int partition_num = TheHashinator.hashToPartition(sellerid, catalog_clus.getNum_partitions());        
-    	
-        return (this.getRandomUserId(rng));
+        long ids_per_partition = AuctionMarkConstants.TABLESIZE_ITEM / catalog_clus.getNum_partitions();
+        // first determine which partition id the sellerid belongs to
+        int partition_num = TheHashinator.hashToPartition(sellerid, catalog_clus.getNum_partitions());
+        // select buyer ids with a zipfian distribution that is in the partition that is one greater than the partition of the seller id
+        if (profile.getZipfDistribution().getHistory().getSampleCount() % 100 == 0) {
+            System.out.println("Zipf histograph for buyerids:\n" + profile.getZipfDistribution().getHistory().toString());
+        }
+        return profile.getZipfDistribution().nextLong() * catalog_clus.getNum_partitions() + (partition_num + 1);
     }
 
     /**

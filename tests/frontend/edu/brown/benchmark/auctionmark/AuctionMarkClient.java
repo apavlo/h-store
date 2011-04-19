@@ -135,9 +135,9 @@ public class AuctionMarkClient extends AuctionMarkBaseClient {
         		long sellerId = voltTable.getLong(1);
             	
             	Long buyerId;
-            	System.out.println("new bid sellerid: " + sellerId);
+            	//System.out.println("new bid sellerid: " + sellerId);
             	if (zipf) {
-            		buyerId = profile.getZipfBuyerId(rng, sellerId, catalog_db);
+                    buyerId = profile.getZipfBuyerId(profile, sellerId, catalog_db);
             	} else {
             		buyerId = profile.getRandomBuyerId(rng);
             	}
@@ -171,9 +171,9 @@ public class AuctionMarkClient extends AuctionMarkBaseClient {
             public Object[] generate(AbstractRandomGenerator rng, AuctionMarkClientBenchmarkProfile profile, VoltTable voltTable, Catalog catalog_db, boolean zipf) {
             	Long[] itemIdSellerIdPair = profile.getRandomCompleteItemIdSellerIdPair(rng);
             	Long buyerId;
-            	System.out.println("new comment sellerid: " + itemIdSellerIdPair[1]);
+            	//System.out.println("new comment sellerid: " + itemIdSellerIdPair[1]);
             	if (zipf) {
-            		buyerId = profile.getZipfBuyerId(rng, itemIdSellerIdPair[1], catalog_db);
+            		buyerId = profile.getZipfBuyerId(profile, itemIdSellerIdPair[1], catalog_db);
             	} else {
             		buyerId = profile.getRandomBuyerId(rng);
             	}
@@ -598,7 +598,7 @@ public class AuctionMarkClient extends AuctionMarkBaseClient {
         
         _clientId = getClientId();
         
-        clientProfile = new AuctionMarkClientBenchmarkProfile(profile, getClientId(), AuctionMarkConstants.MAXIMUM_CLIENT_IDS);
+        clientProfile = new AuctionMarkClientBenchmarkProfile(profile, getClientId(), AuctionMarkConstants.MAXIMUM_CLIENT_IDS, m_catalog, rng);
         if (LOG.isTraceEnabled()) LOG.trace("constructor : histogram size = " + this.clientProfile.user_available_items_histogram.getSampleCount());
                
         // Enable temporal skew

@@ -4,8 +4,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
 
+import org.voltdb.catalog.Catalog;
+import org.voltdb.catalog.Cluster;
 import org.voltdb.types.TimestampType;
 
+import edu.brown.catalog.CatalogUtil;
+import edu.brown.catalog.ClusterConfiguration;
+import edu.brown.rand.AbstractRandomGenerator;
+import edu.brown.rand.RandomDistribution;
 import edu.brown.statistics.Histogram;
 
 public class AuctionMarkClientBenchmarkProfile extends AuctionMarkBenchmarkProfile {
@@ -18,6 +24,8 @@ public class AuctionMarkClientBenchmarkProfile extends AuctionMarkBenchmarkProfi
 
     private transient final AtomicLong _nextUserId = new AtomicLong();
     private transient final AtomicLong _nextItemId = new AtomicLong();
+
+    private RandomDistribution.Zipf Zipf_distribution;
 
     /**
      * Current Timestamp
@@ -35,8 +43,12 @@ public class AuctionMarkClientBenchmarkProfile extends AuctionMarkBenchmarkProfi
      * @param clientId
      * @param partitionRange
      */
-    public AuctionMarkClientBenchmarkProfile(AuctionMarkBenchmarkProfile profile, int clientId, long partitionRange) {
+    public AuctionMarkClientBenchmarkProfile(AuctionMarkBenchmarkProfile profile, int clientId, long partitionRange, Catalog catalog_db, AbstractRandomGenerator rng) {
         super();
+        
+        Cluster cluster = CatalogUtil.getCluster(catalog_db);
+        Zipf_distribution = new RandomDistribution.Zipf(rng, 0, cluster.getNum_partitions(), 1.001d);
+        Zipf_distribution.enableHistory();
 
         if (clientId < 0) {
             throw new IllegalArgumentException("ClientId must be more than 0 : " + clientId);
@@ -153,4 +165,7 @@ public class AuctionMarkClientBenchmarkProfile extends AuctionMarkBenchmarkProfi
         return (this.lastCheckWinningBidTime);
     }
 
+    public RandomDistribution.Zipf getZipfDistribution() {
+        return Zipf_distribution;
+    }
 }
