@@ -112,7 +112,9 @@ public class NIOMessageConnection implements MessageConnection {
         return rawWrite(message);
     }
 
-    /** Writes message directly to the connection, without prepending a length. */
+    /** Writes message directly to the connection, without prepending a length. Useful for
+    communicating with other protocols. */
+    // TODO: Add this to MessageConnection? Make an non-blocking stream interface?
     public boolean rawWrite(byte[] message) {
         // Copy the message
         int offset = 0;
