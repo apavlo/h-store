@@ -1624,7 +1624,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
                     destinations[i] = CatalogUtil.getPartitionAddressById(hstore_site.catalog_db, partition, true);
                     assert(destinations[i] != null) : "Failed to socket address for partition " + partition;
                 } // FOR
-                LOG.info(String.format("Connecting directly to %d local Dtxn.Engines for CANADIAN mode support!", destinations.length));
+                if (d) LOG.debug(String.format("Connecting directly to %d local Dtxn.Engines for CANADIAN mode support!", destinations.length));
                 try {
                     channels = ProtoRpcChannel.connectParallel(hstore_site.engineEventLoop, destinations, 15000);
                 } catch (RuntimeException ex) {

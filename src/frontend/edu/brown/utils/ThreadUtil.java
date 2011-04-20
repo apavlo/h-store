@@ -83,7 +83,6 @@ public abstract class ThreadUtil {
     public static void fork(String command[], final EventObservable stop_observable, final String prefix, final boolean print_output) {
         final boolean debug = LOG.isDebugEnabled(); 
         
-        final String prog_name = FileUtil.basename(command[0]);
         if (debug) LOG.debug("Forking off process: " + Arrays.toString(command));
 
         // Copied from ShellTools
@@ -101,6 +100,7 @@ public abstract class ThreadUtil {
         
         // Register a observer if we have a stop observable
         if (stop_observable != null) {
+            final String prog_name = FileUtil.basename(command[0]);
             stop_observable.addObserver(new EventObserver() {
                 boolean first = true;
                 @Override
