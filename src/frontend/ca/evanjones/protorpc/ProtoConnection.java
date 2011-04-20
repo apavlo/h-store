@@ -8,6 +8,7 @@ import com.google.protobuf.CodedInputStream;
 import com.google.protobuf.CodedOutputStream;
 import com.google.protobuf.MessageLite;
 
+import edu.mit.net.NIOReadStream;
 import edu.mit.net.NonBlockingConnection;
 
 /**
@@ -31,20 +32,31 @@ public class ProtoConnection {
         codedOutput = CodedOutputStream.newInstance(output);
     }
 
-    public enum Status {
-        NO_MESSAGE,
-        MESSAGE,
-        CLOSED,
+    /** See {@link NIOReadStream#readAllAvailable()}.
+     * @see NIOReadStream#readAllAvailable()
+     */
+    public boolean readAllAvailable() {
+        return  connection.readAllAvailable();
     }
 
-    public Status tryRead(MessageLite.Builder builder) {
+    /** Attempts to read a buffered message from the underlying connection. This is more efficient
+     * than attempting to actually read from the underlying connection for each message, when ends
+     * up making a final "empty" read from the non-blocking connection, rather than simply
+     * consuming all buffered data.
+     * 
+     * TODO: It would be ideal if there was a way to consume data as we go, instead of buffering
+     * it all then consuming it. However, this only matters for streams of medium-sized messages
+     * with a huge backlog, which should be rare? The C++ implementation has a similar issue.
+     * 
+     * @param builder message builder to be parsed
+     * @return true if a message was read, false if there is not enough buffered data to read a
+     *      message.
+     */
+    public boolean readBufferedMessage(MessageLite.Builder builder) {
         try {
             if (nextMessageLength == -1) {
-                int available = connection.readAvailable(4);
-                if (available < 4) {
-                    if (available == -1) return Status.CLOSED;
-                    assert 0 <= available && available < 4;
-                    return Status.NO_MESSAGE;
+                if (connection.available() < 4) {
+                    return false;
                 }
     
                 input.setLimit(4);
@@ -52,20 +64,20 @@ public class ProtoConnection {
             }
             assert nextMessageLength >= 0;
     
-            int available = connection.readAvailable(nextMessageLength);
-            if (available < nextMessageLength) {
-                if (available == -1) return Status.CLOSED;
-                assert 0 <= available && available < nextMessageLength;
-                return Status.NO_MESSAGE;
+            if (connection.available() < nextMessageLength) {
+                assert 0 <= connection.available() && connection.available() < nextMessageLength;
+                return false;
             }
     
             // Parse the response for the next RPC
+            // TODO: Add .available() to CodedInputStream to avoid many copies to internal buffer?
+            // or make CodedInputStream wrap a non-blocking interface like C++?
             input.setLimit(nextMessageLength);
             builder.mergeFrom(codedInput);
             assert codedInput.isAtEnd();
             codedInput.resetSizeCounter();
             nextMessageLength = -1;
-            return Status.MESSAGE;
+            return true;
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
