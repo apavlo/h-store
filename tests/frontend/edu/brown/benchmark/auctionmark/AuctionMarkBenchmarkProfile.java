@@ -51,8 +51,6 @@ import org.voltdb.catalog.Catalog;
 import org.voltdb.catalog.Cluster;
 import org.voltdb.catalog.Database;
 
-import edu.brown.benchmark.locality.LocalityConstants;
-import edu.brown.benchmark.markov.MarkovConstants;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.hashing.DefaultHasher;
 import edu.brown.rand.AbstractRandomGenerator;
@@ -72,17 +70,7 @@ public class AuctionMarkBenchmarkProfile implements JSONSerializable {
     public List<Long> user_ids;
 
     public enum Members {
-        SCALE_FACTOR,
-        TABLE_SIZES, 
-        ITEM_CATEGORY_HISTOGRAM,
-        USER_IDS,
-        USER_AVAILABLE_ITEMS,
-        USER_WAIT_FOR_PURCHASE_ITEMS,
-        USER_COMPLETE_ITEMS,
-        ITEM_BID_MAP,
-        ITEM_BUYER_MAP,
-        GAG_GAV_MAP,
-        GAG_GAV_HISTOGRAM
+        SCALE_FACTOR, TABLE_SIZES, ITEM_CATEGORY_HISTOGRAM, USER_IDS, USER_AVAILABLE_ITEMS, USER_WAIT_FOR_PURCHASE_ITEMS, USER_COMPLETE_ITEMS, ITEM_BID_MAP, ITEM_BUYER_MAP, GAG_GAV_MAP, GAG_GAV_HISTOGRAM
     };
 
     /**
@@ -280,7 +268,7 @@ public class AuctionMarkBenchmarkProfile implements JSONSerializable {
     public List<Long> getUserIds() {
         return this.user_ids;
     }
-    
+
     public int getUserIdCount() {
         return (this.user_ids.size());
     }
@@ -323,7 +311,7 @@ public class AuctionMarkBenchmarkProfile implements JSONSerializable {
      */
     private Long getRandomUserId(AbstractRandomGenerator rng) {
         Long user_id = null;
-        assert(this.user_ids.isEmpty() == false) : "The list of user ids is empty!";
+        assert (this.user_ids.isEmpty() == false) : "The list of user ids is empty!";
         synchronized (this.user_ids) {
             int num_user_ids = this.user_ids.size();
             if (num_user_ids > 0) {
@@ -338,54 +326,62 @@ public class AuctionMarkBenchmarkProfile implements JSONSerializable {
         }
         return (user_id);
     }
+
     private final Map<AbstractRandomGenerator, RandomDistribution.DiscreteRNG> CACHE_getRandomUserId = new HashMap<AbstractRandomGenerator, RandomDistribution.DiscreteRNG>();
 
     /**
      * Gets a random buyer ID within the client.
+     * 
      * @param rng
      * @return
      */
     public Long getRandomBuyerId(AbstractRandomGenerator rng) {
-        // We don't care about skewing the buyerIds at this point, so just get one from getRandomUserId
+        // We don't care about skewing the buyerIds at this point, so just get
+        // one from getRandomUserId
         return (this.getRandomUserId(rng));
     }
-    
+
     /**
      * Gets a random buyer ID based on the sellerid in a zipf distribution
+     * 
      * @param rng
      * @return
      */
-    public Long getZipfBuyerId(AuctionMarkClientBenchmarkProfile profile, long sellerid, Catalog catalog_db) {
+    public Long getZipfBuyerId(long sellerid, Catalog catalog_db) {
         Cluster catalog_clus = CatalogUtil.getCluster(catalog_db);
         long ids_per_partition = AuctionMarkConstants.TABLESIZE_ITEM / catalog_clus.getNum_partitions();
         // first determine which partition id the sellerid belongs to
         int partition_num = TheHashinator.hashToPartition(sellerid, catalog_clus.getNum_partitions());
-        // select buyer ids with a zipfian distribution that is in the partition that is one greater than the partition of the seller id
-        if (profile.getZipfDistribution().getHistory().getSampleCount() % 100 == 0) {
-            System.out.println("Zipf histograph for buyerids:\n" + profile.getZipfDistribution().getHistory().toString());
+        // select buyer ids with a zipfian distribution that is in the partition
+        // that is one greater than the partition of the seller id
+        if (((AuctionMarkClientBenchmarkProfile) this).getBuyerAffinityPartitionDistribution().getHistory().getSampleCount() % 100 == 0) {
+            System.out.println("Zipf histograph for buyerids:\n" + ((AuctionMarkClientBenchmarkProfile) this).getBuyerAffinityPartitionDistribution().getHistory().toString());
         }
-        return profile.getZipfDistribution().nextLong() * catalog_clus.getNum_partitions() + (partition_num + 1);
+        return ((AuctionMarkClientBenchmarkProfile) this).getBuyerAffinityPartitionDistribution().nextLong() * ids_per_partition + (partition_num + 1);
     }
 
     /**
      * Gets a random seller ID within the client.
+     * 
      * @param rng
      * @return
      */
     public Long getRandomSellerId(AbstractRandomGenerator rng) {
         Long seller_id = null;
         Integer partition = null;
-        
+
         while (true) {
             partition = null;
             seller_id = this.getRandomUserId(rng);
-            
+
             // Bad mojo!
-            if (seller_id == null) break;
-            
+            if (seller_id == null)
+                break;
+
             // If there is no skew, then we can just jump out right here!
-            if (this.window_size == null) break;
-            
+            if (this.window_size == null)
+                break;
+
             // Otherwise we need to skew this mother trucker..
             partition = this.getPartition(seller_id);
             if (this.window_partitions.contains(partition)) {
@@ -397,7 +393,7 @@ public class AuctionMarkBenchmarkProfile implements JSONSerializable {
         }
         return (seller_id);
     }
-    
+
     /**
      * @param rng
      * @return
@@ -452,6 +448,7 @@ public class AuctionMarkBenchmarkProfile implements JSONSerializable {
 
     /**
      * Returns a pair containing <ItemId, SellerId>
+     * 
      * @param rng
      * @return
      */

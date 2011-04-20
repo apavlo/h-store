@@ -25,7 +25,12 @@ public class AuctionMarkClientBenchmarkProfile extends AuctionMarkBenchmarkProfi
     private transient final AtomicLong _nextUserId = new AtomicLong();
     private transient final AtomicLong _nextItemId = new AtomicLong();
 
-    private RandomDistribution.Zipf Zipf_distribution;
+    /**
+     * Whether to use the zipf distribution
+     */
+    public static final boolean zipf = true;
+
+    private RandomDistribution.Zipf zipf_distribution;
 
     /**
      * Current Timestamp
@@ -39,16 +44,17 @@ public class AuctionMarkClientBenchmarkProfile extends AuctionMarkBenchmarkProfi
 
     /**
      * Constructor
+     * 
      * @param profile
      * @param clientId
      * @param partitionRange
      */
     public AuctionMarkClientBenchmarkProfile(AuctionMarkBenchmarkProfile profile, int clientId, long partitionRange, Catalog catalog_db, AbstractRandomGenerator rng) {
         super();
-        
+
         Cluster cluster = CatalogUtil.getCluster(catalog_db);
-        Zipf_distribution = new RandomDistribution.Zipf(rng, 0, cluster.getNum_partitions(), 1.001d);
-        Zipf_distribution.enableHistory();
+        zipf_distribution = new RandomDistribution.Zipf(rng, 0, cluster.getNum_partitions(), 1.001d);
+        zipf_distribution.enableHistory();
 
         if (clientId < 0) {
             throw new IllegalArgumentException("ClientId must be more than 0 : " + clientId);
@@ -92,7 +98,7 @@ public class AuctionMarkClientBenchmarkProfile extends AuctionMarkBenchmarkProfi
         long count = 0;
         for (Map.Entry<Long, List<Long>> entry : sourceMap.entrySet()) {
             if (this.isOffsetInRange(entry.getKey())) {
-                targetHistogram.put(entry.getKey(), entry.getValue().size()); 
+                targetHistogram.put(entry.getKey(), entry.getValue().size());
                 count += entry.getValue().size();
                 targetMap.put(entry.getKey(), entry.getValue());
             }
@@ -165,7 +171,7 @@ public class AuctionMarkClientBenchmarkProfile extends AuctionMarkBenchmarkProfi
         return (this.lastCheckWinningBidTime);
     }
 
-    public RandomDistribution.Zipf getZipfDistribution() {
-        return Zipf_distribution;
+    public RandomDistribution.Zipf getBuyerAffinityPartitionDistribution() {
+        return zipf_distribution;
     }
 }
