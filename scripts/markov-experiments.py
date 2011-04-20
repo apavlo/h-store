@@ -11,7 +11,7 @@ import shutil
 import logging
 import getopt
 import string
-from pprint import pprint
+from pprint import pprint, pformat
 
 logging.basicConfig(level = logging.INFO,
                     format="%(asctime)s [%(funcName)s:%(lineno)03d] %(levelname)-5s: %(message)s",
@@ -23,16 +23,13 @@ logging.basicConfig(level = logging.INFO,
 ## ==============================================
 
 NODE_MAX = 199
-NODES_TO_SKIP = [ 20, 21, 45, 77, 114, 101 ]
-NODE_FORMAT = "d-%02d.cs.wisc.edu"
+NODES_TO_SKIP = [ 20, 21, 45, 77, 114, 101 ] # Busted nodes @ UW-Madison
 
 COORDINATOR_NODE = 1
 SITE_NODE_START = COORDINATOR_NODE + 1
-SITES_PER_NODE = 1
 SITE_ALL_NODES = range(SITE_NODE_START, NODE_MAX)
 
 PARTITIONS = [ 4, 8, 16, 32, 64 ] # , 128 ]
-PARTITIONS_PER_SITE = 2
 
 EXPERIMENT_PARAMS = [
     ## Trial #0 - Always single-partition, DB2 redirects
@@ -76,17 +73,23 @@ EXPERIMENT_PARAMS = [
         "node.enable_speculative_execution": True,
     },
 ]
+OPT_NODE_FORMAT = "d-%02d.cs.wisc.edu"
+OPT_CLIENT_FORMAT = OPT_NODE_FORMAT
+OPT_SITES_PER_NODE = 1
+OPT_PARTITIONS_PER_SITE = 2
 OPT_TRIALS = 3
 OPT_BENCHMARK = "tpcc"
 OPT_EXPERIMENT = 0
 OPT_LOAD_THREADS = 8
-OPT_SCALE_FACTOR = 10
+OPT_SCALE_FACTOR = 10.0
 OPT_TRACE = False
-OPT_BLOCKING = True
+OPT_BLOCKING = False
+OPT_THROTTLING = True
 OPT_TXNRATE = -1
 OPT_DURATION = 120000
 OPT_WARMUP = 60000
 OPT_CLIENT_PER_NODE = 4
+OPT_CLIENT_COUNT = -1
 OPT_NEWORDER_ONLY = False
 
 ## This is needed until I get proper throttling in the clients working...
@@ -96,6 +99,13 @@ BASE_TXNRATE = {
     "auctionmark": 200,
 }
 
+def formatHostName(f, id):
+    name = f
+    if f.find('%') != -1:
+        name = f % id
+    return name
+## DEF
+
 ## ==============================================
 ## main
 ## ==============================================
@@ -103,11 +113,20 @@ if __name__ == '__main__':
     _options, args = getopt.gnu_getopt(sys.argv[1:], '', [
         "trials=",
         "blocking=",
+        "throttling=",
         "txnrate=",
         "duration=",
         "warmup=",
+        "scale-factor=",
         "client-per-node=",
+        "client-count=",
         "neworder-only=",
+        "sites-per-node=",
+        "partitions-per-site=",
+        ## Node Hostname Format
+        "node-format=",
+        ## Client Hostname Format
+        "client-format=",
         ## Benchmark
         "benchmark=",
         ## Which experiment to execute
@@ -139,7 +158,7 @@ if __name__ == '__main__':
         if varname in globals() and len(options[key]) == 1:
             orig_type = type(globals()[varname])
             if orig_type == bool:
-                val = (options[key][0].lower == "true")
+                val = (len(options[key][0]) == 0 or options[key][0].lower() == "true")
             else: 
                 val = orig_type(options[key][0])
             globals()[varname] = val
@@ -156,8 +175,8 @@ if __name__ == '__main__':
     
     for num_partitions in PARTITIONS:
         ## Build Cluster Configuration
-        num_sites = num_partitions / PARTITIONS_PER_SITE
-        num_nodes = num_sites / SITES_PER_NODE
+        num_sites = num_partitions / OPT_PARTITIONS_PER_SITE
+        num_nodes = num_sites / OPT_SITES_PER_NODE
         partition_id = 0
         nodes_added = 0
         site_id = 0
@@ -168,9 +187,9 @@ if __name__ == '__main__':
             while nodes_added < num_nodes:
                 node_id = SITE_ALL_NODES[node_idx]
                 if not node_id in NODES_TO_SKIP:
-                    host = NODE_FORMAT % node_id 
-                    for i in range(0, SITES_PER_NODE):
-                        for j in range(0, PARTITIONS_PER_SITE):
+                    host = formatHostName(OPT_NODE_FORMAT, node_id)
+                    for i in range(0, OPT_SITES_PER_NODE):
+                        for j in range(0, OPT_PARTITIONS_PER_SITE):
                             fd.write("%s:%d:%d\n" % (host, site_id, partition_id))
                             partition_id += 1
                         ## FOR
@@ -184,7 +203,7 @@ if __name__ == '__main__':
         logging.info("Wrote cluster configuration to '%s'" % cluster_file)
         
         ## Clients
-        CLIENT_COUNT = num_partitions / 2
+        CLIENT_COUNT = num_partitions / 2 if OPT_CLIENT_COUNT == -1 else OPT_CLIENT_COUNT
         CLIENT_NODES = [ ]
         while len(CLIENT_NODES) < CLIENT_COUNT:
             node_id = SITE_ALL_NODES[node_idx]
@@ -223,15 +242,16 @@ if __name__ == '__main__':
         CLIENT_TXNRATE = int(CLIENT_TXNRATE)
     
         hstore_opts = {
-            "coordinator.host":             NODE_FORMAT % COORDINATOR_NODE,
+            "coordinator.host":             formatHostName(OPT_NODE_FORMAT, COORDINATOR_NODE),
             "coordinator.delay":            10,
             "client.duration":              OPT_DURATION,
             "client.warmup":                OPT_WARMUP,
-            "client.host":                  ",".join(map(lambda x: NODE_FORMAT % x, CLIENT_NODES)),
+            "client.host":                  ",".join(map(lambda x: formatHostName(OPT_CLIENT_FORMAT, x), CLIENT_NODES)),
             "client.count":                 CLIENT_COUNT,
             "client.processesperclient":    OPT_CLIENT_PER_NODE,
             "client.txnrate":               CLIENT_TXNRATE,
             "client.blocking":              OPT_BLOCKING,
+            "client.throttling":            OPT_THROTTLING,
             "client.scalefactor":           OPT_SCALE_FACTOR,
         }
         benchmark_opts = {
@@ -269,7 +289,7 @@ if __name__ == '__main__':
         ## WITH
         for e in exp_opts.items():
             k, v = e
-            contents = re.sub("%s[\s]+=.*" % re.escape(k), "%s = %s" % (k, v), contents)
+            contents = re.sub("%s[\s]+=.*" % re.escape(k), "%s = %s" % (k, str(v).lower()), contents)
         with open("properties/default.properties", "w") as f:
             f.write(contents)
         ## WITH

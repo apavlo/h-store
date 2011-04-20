@@ -698,7 +698,7 @@ public class BenchmarkController {
             try {
                 Thread.sleep(m_config.warmup);
             } catch (InterruptedException e) {
-                LOG.info("Warm-up was interrupted!");
+                if (debug.get()) LOG.debug("Warm-up was interrupted!");
             }
             
             if (this.stop == false) {
@@ -742,7 +742,7 @@ public class BenchmarkController {
         } // WHILE
         
         // Dump database
-        if (m_config.dumpDatabase) {
+        if (m_config.dumpDatabase && this.stop == false) {
             assert(m_config.dumpDatabaseDir != null);
             
             // We have to tell all our clients to pause first
