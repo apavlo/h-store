@@ -2,8 +2,10 @@ package edu.brown.benchmark.auctionmark;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 import java.util.concurrent.atomic.AtomicLong;
 
+import org.voltdb.TheHashinator;
 import org.voltdb.catalog.Catalog;
 import org.voltdb.catalog.Cluster;
 import org.voltdb.types.TimestampType;
@@ -25,6 +27,9 @@ public class AuctionMarkClientBenchmarkProfile extends AuctionMarkBenchmarkProfi
     private transient final AtomicLong _nextUserId = new AtomicLong();
     private transient final AtomicLong _nextItemId = new AtomicLong();
 
+    // Random variable
+    Random r = new Random();
+    
     /**
      * Whether to use the zipf distribution
      */
@@ -173,5 +178,25 @@ public class AuctionMarkClientBenchmarkProfile extends AuctionMarkBenchmarkProfi
 
     public RandomDistribution.Zipf getBuyerAffinityPartitionDistribution() {
         return zipf_distribution;
+    }
+
+    /** 
+     * select buyer ids with a zipfian distribution that is in the partition
+     * that is one greater than the partition of the seller id
+     *  
+     * @param rng
+     * @return
+     */
+    public Long getZipfBuyerId(long sellerid, Catalog catalog_db) {
+        Cluster catalog_clus = CatalogUtil.getCluster(catalog_db);
+        long ids_per_partition = AuctionMarkConstants.TABLESIZE_ITEM / catalog_clus.getNum_partitions();
+        int partition_num = TheHashinator.hashToPartition(sellerid, catalog_clus.getNum_partitions());
+        if (zipf_distribution.getHistory().getSampleCount() % 100 == 0) {
+            System.out.println("Zipf histograph for buyerids:\n" + zipf_distribution.getHistory().toString());
+        }
+        int specific_partition_id = (int)r.nextInt((int) ids_per_partition);
+        long buyer_id = zipf_distribution.nextLong() * ids_per_partition + (partition_num + 1) + specific_partition_id;
+        long total_partition_ids = catalog_clus.getNum_partitions() * ids_per_partition;
+        return buyer_id < total_partition_ids ? buyer_id : buyer_id - total_partition_ids;
     }
 }

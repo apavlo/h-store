@@ -342,25 +342,6 @@ public class AuctionMarkBenchmarkProfile implements JSONSerializable {
     }
 
     /**
-     * Gets a random buyer ID based on the sellerid in a zipf distribution
-     * 
-     * @param rng
-     * @return
-     */
-    public Long getZipfBuyerId(long sellerid, Catalog catalog_db) {
-        Cluster catalog_clus = CatalogUtil.getCluster(catalog_db);
-        long ids_per_partition = AuctionMarkConstants.TABLESIZE_ITEM / catalog_clus.getNum_partitions();
-        // first determine which partition id the sellerid belongs to
-        int partition_num = TheHashinator.hashToPartition(sellerid, catalog_clus.getNum_partitions());
-        // select buyer ids with a zipfian distribution that is in the partition
-        // that is one greater than the partition of the seller id
-        if (((AuctionMarkClientBenchmarkProfile) this).getBuyerAffinityPartitionDistribution().getHistory().getSampleCount() % 100 == 0) {
-            System.out.println("Zipf histograph for buyerids:\n" + ((AuctionMarkClientBenchmarkProfile) this).getBuyerAffinityPartitionDistribution().getHistory().toString());
-        }
-        return ((AuctionMarkClientBenchmarkProfile) this).getBuyerAffinityPartitionDistribution().nextLong() * ids_per_partition + (partition_num + 1);
-    }
-
-    /**
      * Gets a random seller ID within the client.
      * 
      * @param rng
