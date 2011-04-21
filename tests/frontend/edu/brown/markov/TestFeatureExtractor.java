@@ -60,7 +60,7 @@ public class TestFeatureExtractor extends BaseTestCase {
     public void testTransactionLookup() throws Exception {
         int txn_id_idx = FeatureExtractor.TXNID_ATTRIBUTE_IDX;
         assertEquals(workload.getTransactionCount(), data.numInstances());
-        List<TransactionTrace> txns = workload.getTransactions().asList();
+        List<TransactionTrace> txns = workload.getTransactions();
 //        System.err.println(StringUtil.join("\n", txns));
 //        System.err.println();
         for (int i = 0, cnt = data.numInstances(); i < cnt; i++) {

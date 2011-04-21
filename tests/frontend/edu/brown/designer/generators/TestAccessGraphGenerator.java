@@ -191,8 +191,8 @@ public class TestAccessGraphGenerator extends BaseTestCase {
             this.generator.createExplicitEdges(this.agraph, catalog_stmt);
         } // FOR
         
-        ListOrderedSet<TransactionTrace> traces = workload.getTransactions();
-        Histogram hist = new Histogram();
+        List<TransactionTrace> traces = workload.getTransactions();
+        Histogram<Integer> hist = new Histogram<Integer>();
 //        TransactionTrace middle = traces.get(traces.size() / 2);
         for (TransactionTrace xact : traces) {
             // int time = (xact.getStartTimestamp() < middle.getStartTimestamp() ? 0 : 1);
