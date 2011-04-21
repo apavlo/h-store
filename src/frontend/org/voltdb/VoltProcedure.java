@@ -579,7 +579,7 @@ public abstract class VoltProcedure implements Poolable {
         // a handle that we need to pass to the trace manager when we want to register a new query
         if (this.enable_tracing) {
             this.m_workloadQueryHandles.clear();
-            this.m_workloadXactHandle = ProcedureProfiler.workloadTrace.startTransaction(this, catProc, this.procParams);
+            this.m_workloadXactHandle = ProcedureProfiler.workloadTrace.startTransaction(this.txn_id, catProc, this.procParams);
         }
 
         if (hstore_conf.enable_profiling) this.m_localTxnState.java_time.start();
@@ -976,32 +976,6 @@ public abstract class VoltProcedure implements Poolable {
         batchQueryStmtIndex = 0;
         batchQueryArgsIndex = 0;
         
-        return retval;
-    }
-
-    private VoltTable[] executeQueriesInIndividualBatches(int stmtCount, SQLStmt[] batchStmts, Object[][] batchArgs, boolean finalTask) {
-        assert(batchStmts != null) : "Got a null batch statements from " + this.procedure_name + " when we're suppose to have " + stmtCount;
-        assert(batchArgs != null);
-
-        VoltTable[] retval = new VoltTable[stmtCount];
-
-        for (int i = 0; i < stmtCount; i++) {
-            assert(batchStmts[i] != null);
-            assert(batchArgs[i] != null);
-
-            SQLStmt[] subBatchStmts = new SQLStmt[1];
-            Object[][] subBatchArgs = new Object[1][];
-
-            subBatchStmts[0] = batchStmts[i];
-            subBatchArgs[0] = batchArgs[i];
-
-            boolean isThisLoopFinalTask = finalTask && (i == (stmtCount - 1));
-            VoltTable[] results = executeQueriesInABatch(1, subBatchStmts, subBatchArgs, isThisLoopFinalTask);
-            assert(results != null);
-            assert(results.length == 1);
-            retval[i] = results[0];
-        }
-
         return retval;
     }
 

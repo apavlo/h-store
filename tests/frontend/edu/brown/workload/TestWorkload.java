@@ -91,7 +91,7 @@ public class TestWorkload extends BaseTestCase {
     }
     
     protected TransactionTrace startTransaction(Object args[]) {
-        TransactionTrace xact = this.workload.startTransaction(CALLER, this.catalog_proc, args);
+        TransactionTrace xact = this.workload.startTransaction(CALLER.getTransactionId(), this.catalog_proc, args);
         assertNotNull(xact);
         assertNotNull(xact.getId());
         assertTrue(xact.getId() >= 0);
