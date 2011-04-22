@@ -232,13 +232,13 @@ Table* VoltDBEngine::getTable(std::string name) const {
     return NULL;
 }
 
-bool VoltDBEngine::serializeTable(int32_t tableId, SerializeOutput* out) const {
+bool VoltDBEngine::serializeTable(int32_t tableId, int32_t offset, int32_t limit, SerializeOutput* out) const {
     // Just look in our list of tables
     std::map<int32_t, Table*>::const_iterator lookup =
         m_tables.find(tableId);
     if (lookup != m_tables.end()) {
         Table* table = lookup->second;
-        table->serializeTo(*out);
+        table->serializeTo(offset, limit, *out);
         return true;
     } else {
         throwFatalException( "Unable to find table for TableId '%d'", (int) tableId);

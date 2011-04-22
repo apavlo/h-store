@@ -53,25 +53,41 @@ public class DatabaseDump extends VoltSystemProcedure {
             
             if (directory.exists() == false) {
                 LOG.debug("Creating dump directory '" + directory + "'");
-                directory.mkdir();
+                directory.mkdirs();
             }
             assert(directory.isDirectory());
             
+            int batch_size = 1000;
+            
+            // Only write column names if it's the first partition (hack)
+            boolean write_header = (this.executor.getPartitionId() == 0);
+            
             for (Table catalog_tbl : this.database.getTables()) {
-                VoltTable vt = this.executor.getExecutionEngine().serializeTable(catalog_tbl.getRelativeIndex());
-                assert(vt != null) : "Failed to get serialized table for " + catalog_tbl;
-                
                 File csv_file = new File(String.format("%s/%s.%02d.csv", directory, catalog_tbl.getName(), this.executor.getPartitionId()));
-                LOG.debug(String.format("Writing %d tuples to '%s'", vt.getRowCount(), csv_file.getName()));
+                CSVWriter writer = null;
                 try {
-                    CSVWriter writer = new CSVWriter(new FileWriter(csv_file));
-                    
-                    // Write column names
+                    writer = new CSVWriter(new FileWriter(csv_file));
+                } catch (Exception ex) {
+                    LOG.fatal(String.format("Failed to create CSVWriter for '%s'", csv_file), ex);
+                    throw new RuntimeException(ex);
+                }
+                
+                if (write_header) {
                     String cols[] = new String[catalog_tbl.getColumns().size()];
                     for (int i = 0; i < cols.length; i++) {
                         cols[i] = catalog_tbl.getColumns().get(i).getName();
                     } // FOR
                     writer.writeNext(cols);
+                }
+
+                int total = 0;
+                while (true) {
+                    LOG.debug(String.format("%s: offset=%d, limit=%d", catalog_tbl.getName(), total, batch_size));
+                    VoltTable vt = this.executor.getExecutionEngine().serializeTable(catalog_tbl, total, batch_size);
+                    assert(vt != null) : "Failed to get serialized table for " + catalog_tbl;
+                    if (vt.getRowCount() == 0) break;
+                    total += vt.getRowCount();
+                    LOG.debug(String.format("Writing %d / %d tuples to '%s'", vt.getRowCount(), total, csv_file.getName()));
                     
                     // Dump table contents
                     while (vt.advanceRow()) {
@@ -80,9 +96,11 @@ public class DatabaseDump extends VoltSystemProcedure {
                         assert(row.length == vt.getColumnCount());
                         writer.writeNext(row);
                     } // WHILE
+                } // WHILE
+                
+                try {
                     writer.close();
                 } catch (Exception ex) {
-                    LOG.fatal(String.format("Failed to write data to '%s'", csv_file), ex);
                     throw new RuntimeException(ex);
                 }
             } // FOR

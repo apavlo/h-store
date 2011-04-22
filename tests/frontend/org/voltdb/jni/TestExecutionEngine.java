@@ -31,6 +31,7 @@ import org.voltdb.VoltTable;
 import org.voltdb.VoltType;
 import org.voltdb.catalog.Catalog;
 import org.voltdb.catalog.LoadCatalogToString;
+import org.voltdb.catalog.Table;
 import org.voltdb.exceptions.EEException;
 
 /**
@@ -97,13 +98,13 @@ public class TestExecutionEngine extends TestCase {
         catalog.execute(LoadCatalogToString.THE_CATALOG);
         engine.loadCatalog(catalog.serialize());
 
-        int WAREHOUSE_TABLEID = catalog.getClusters().get("cluster").getDatabases().get("database").getTables().get("WAREHOUSE").getRelativeIndex();
-        int STOCK_TABLEID = catalog.getClusters().get("cluster").getDatabases().get("database").getTables().get("STOCK").getRelativeIndex();
+        Table WAREHOUSE = catalog.getClusters().get("cluster").getDatabases().get("database").getTables().get("WAREHOUSE");
+        Table STOCK = catalog.getClusters().get("cluster").getDatabases().get("database").getTables().get("STOCK");
 
         loadTestTables(catalog);
 
-        assertEquals(200, engine.serializeTable(WAREHOUSE_TABLEID).getRowCount());
-        assertEquals(1000, engine.serializeTable(STOCK_TABLEID).getRowCount());
+        assertEquals(200, engine.serializeTable(WAREHOUSE).getRowCount());
+        assertEquals(1000, engine.serializeTable(STOCK).getRowCount());
     }
 
     public void testGetStats() throws Exception {

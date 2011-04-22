@@ -30,6 +30,7 @@ import org.voltdb.ParameterSet;
 import org.voltdb.PrivateVoltTableFactory;
 import org.voltdb.SysProcSelector;
 import org.voltdb.VoltTable;
+import org.voltdb.catalog.Table;
 import org.voltdb.elt.ELTProtoMessage;
 import org.voltdb.exceptions.EEException;
 import org.voltdb.exceptions.SerializableException;
@@ -405,17 +406,17 @@ public class ExecutionEngineJNI extends ExecutionEngine {
      * Wrapper for {@link #nativeSerializeTable(long, int, ByteBuffer, int)}.
      */
     @Override
-    public VoltTable serializeTable(final int tableId) throws EEException {
-        if (t) LOG.trace("Retrieving VoltTable:" + tableId);
+    public VoltTable serializeTable(final Table catalog_tbl, int offset, int limit) throws EEException {
+        if (t) LOG.trace(String.format("Serializing %s [offset=%d, limit=%d]", catalog_tbl, offset, limit));
         deserializer.clear();
-        final int errorCode = nativeSerializeTable(pointer, tableId, deserializer.buffer(),
+        final int errorCode = nativeSerializeTable(pointer, catalog_tbl.getRelativeIndex(), offset, limit, deserializer.buffer(),
                 deserializer.buffer().capacity());
         checkErrorCode(errorCode);
 
         try {
             return deserializer.readObject(VoltTable.class);
         } catch (final IOException ex) {
-            LOG.error("Failed to retrieve table:" + tableId + ex);
+            LOG.error("Failed to retrieve table:" + catalog_tbl.getName() + ex);
             throw new EEException(ERRORCODE_WRONG_SERIALIZED_BYTES);
         }
     }

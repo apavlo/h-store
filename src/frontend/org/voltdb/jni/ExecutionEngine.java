@@ -34,6 +34,7 @@ import org.voltdb.ParameterSet;
 import org.voltdb.SysProcSelector;
 import org.voltdb.VoltDB;
 import org.voltdb.VoltTable;
+import org.voltdb.catalog.Table;
 import org.voltdb.elt.ELTProtoMessage;
 import org.voltdb.exceptions.EEException;
 import org.voltdb.messaging.FastDeserializer;
@@ -318,7 +319,11 @@ public abstract class ExecutionEngine implements FastDeserializer.Deserializatio
         return (dset.dependencies);
     }
 
-    abstract public VoltTable serializeTable(int tableId) throws EEException;
+    abstract public VoltTable serializeTable(Table catalog_tbl, int offset, int limit) throws EEException;
+    
+    public final VoltTable serializeTable(Table catalog_tbl) throws EEException {
+        return this.serializeTable(catalog_tbl, -1, -1);
+    }
 
     abstract public void loadTable(
         int tableId, VoltTable table, long txnId,
@@ -510,7 +515,7 @@ public abstract class ExecutionEngine implements FastDeserializer.Deserializatio
      * @param outputCapacity maximum number of bytes to write to buffer.
      * @return serialized temporary table
      */
-    protected native int nativeSerializeTable(long pointer, int table_id,
+    protected native int nativeSerializeTable(long pointer, int table_id, int offset, int limit,
                                               ByteBuffer outputBuffer, int outputCapacity);
 
     /**

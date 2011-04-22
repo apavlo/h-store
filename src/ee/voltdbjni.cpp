@@ -777,6 +777,8 @@ SHAREDLIB_JNIEXPORT jint JNICALL Java_org_voltdb_jni_ExecutionEngine_nativeSeria
         jobject obj,
         jlong engine_ptr,
         jint table_id,
+        jint offset,
+        jint limit,
         jobject output_buffer,
         jint output_capacity) {
     //VOLT_DEBUG("nativeSerializeTable() start");
@@ -791,7 +793,7 @@ SHAREDLIB_JNIEXPORT jint JNICALL Java_org_voltdb_jni_ExecutionEngine_nativeSeria
         void* data = env->GetDirectBufferAddress(output_buffer);
         ReferenceSerializeOutput out(data, output_capacity);
 
-        bool success = engine->serializeTable(table_id, &out);
+        bool success = engine->serializeTable(table_id, offset, limit, &out);
 
         if (!success) return org_voltdb_jni_ExecutionEngine_ERRORCODE_ERROR;
         else return org_voltdb_jni_ExecutionEngine_ERRORCODE_SUCCESS;
