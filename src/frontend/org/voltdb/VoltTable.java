@@ -500,7 +500,8 @@ public final class VoltTable extends VoltTableRow implements FastSerializable {
         VoltTableRow row = this.getRow();
         String arr[] = new String[row.getColumnCount()];
         for (int i = 0; i < arr.length; i++) {
-            arr[i] = row.get(i).toString();
+            Object v = row.get(i);
+            if (v != null) arr[i] = v.toString();
         } // FOR
         return (arr);
     }

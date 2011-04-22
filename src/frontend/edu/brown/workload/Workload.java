@@ -37,6 +37,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -114,11 +115,11 @@ public class Workload implements WorkloadTrace, Iterable<AbstractTraceElement<? 
     private final transient Map<TransactionTrace, Integer> trace_bach_id = new HashMap<TransactionTrace, Integer>();
 
     // Reverse mapping from QueryTraces to TxnIds
-    private final transient Map<QueryTrace, Long> query_txn_xref = new HashMap<QueryTrace, Long>();
+    private final transient Map<QueryTrace, Long> query_txn_xref = new ConcurrentHashMap<QueryTrace, Long>();
    
     // List of running queries in each batch per transaction
     // TXN_ID -> <BATCHID, COUNTER>
-    private final transient Map<Long, Map<Integer, AtomicInteger>> xact_open_queries = new HashMap<Long, Map<Integer,AtomicInteger>>();
+    private final transient Map<Long, Map<Integer, AtomicInteger>> xact_open_queries = new ConcurrentHashMap<Long, Map<Integer,AtomicInteger>>();
     
     // A mapping from a particular procedure to a list
     // Procedure Catalog Key -> List of Txns
@@ -1221,6 +1222,12 @@ public class Workload implements WorkloadTrace, Iterable<AbstractTraceElement<? 
             if (this.ignored_xact_ids.contains(txn_id)) return (null);
             
             Map<Integer, AtomicInteger> open_queries = this.xact_open_queries.get(txn_id);
+            // HACK
+            if (open_queries == null) {
+                open_queries = new HashMap<Integer, AtomicInteger>();
+                this.xact_open_queries.put(txn_id, open_queries);
+            }
+            
             assert(open_queries != null) : "Starting a query before starting the txn?? [" + txn_id + "]";
             
             query_handle = new QueryTrace(catalog_statement, args, batch_id);

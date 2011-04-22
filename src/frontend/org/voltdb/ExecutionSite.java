@@ -978,6 +978,9 @@ public class ExecutionSite implements Runnable {
             }
             LOG.warn("Hit a SQL Error for txn #" + txn_id + extra, ex);
             fresponse.setStatus(FragmentResponseMessage.UNEXPECTED_ERROR, ex);
+        } catch (RuntimeException ex) {
+            LOG.warn("Something unexpected and bad happended for txn #" + txn_id, ex);
+            fresponse.setStatus(FragmentResponseMessage.UNEXPECTED_ERROR, new SerializableException(ex));
         } catch (Exception ex) {
             LOG.warn("Something unexpected and bad happended for txn #" + txn_id, ex);
             fresponse.setStatus(FragmentResponseMessage.UNEXPECTED_ERROR, new SerializableException(ex));
