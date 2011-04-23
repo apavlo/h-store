@@ -211,12 +211,12 @@ public final class HStoreConf {
             // Clean-up Interval
             if (args.hasIntParam(ArgumentsParser.PARAM_NODE_CLEANUP_INTERVAL)) {
                 conf.helper_interval = args.getIntParam(ArgumentsParser.PARAM_NODE_CLEANUP_INTERVAL);
-                LOG.info("Setting Cleanup Interval = " + conf.helper_interval + "ms");
+                LOG.debug("Setting Cleanup Interval = " + conf.helper_interval + "ms");
             }
             // Txn Expiration Time
             if (args.hasIntParam(ArgumentsParser.PARAM_NODE_CLEANUP_TXN_EXPIRE)) {
                 conf.helper_txn_expire = args.getIntParam(ArgumentsParser.PARAM_NODE_CLEANUP_TXN_EXPIRE);
-                LOG.info("Setting Cleanup Txn Expiration = " + conf.helper_txn_expire + "ms");
+                LOG.debug("Setting Cleanup Txn Expiration = " + conf.helper_txn_expire + "ms");
             }
             // Profiling
             if (args.hasBooleanParam(ArgumentsParser.PARAM_NODE_ENABLE_PROFILING)) {

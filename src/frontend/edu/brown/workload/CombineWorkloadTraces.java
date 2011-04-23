@@ -79,7 +79,7 @@ public class CombineWorkloadTraces {
                 if (query_trace.stop_timestamp == null) query_trace.stop_timestamp = query_trace.start_timestamp;
                 query_trace.stop_timestamp -= relative_starts[min_idx];
             } // FOR
-            Workload.writeTransactionToStream(catalog_db, xact, output);
+            Workload.writeTransactionToStream(catalog_db, xact, output, false);
             proc_histogram.put(xact.getCatalogItemName());
             
             // And increment the counter for the next txn we could use from this workload
@@ -90,7 +90,7 @@ public class CombineWorkloadTraces {
             }
             ctr++;
         } // WHILE
-        LOG.info("Successfull merged all " + ctr + " txns");
+        LOG.info("Successful merged all " + ctr + " txns");
         LOG.info("Procedures Histogram:\n" + proc_histogram);
         return;
     }

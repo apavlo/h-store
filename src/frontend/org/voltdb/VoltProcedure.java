@@ -593,6 +593,9 @@ public abstract class VoltProcedure implements Poolable {
             } catch (IllegalAccessException e) {
                 // If reflection fails, invoke the same error handling that other exceptions do
                 throw new InvocationTargetException(e);
+            } catch (RuntimeException e) {
+                LOG.fatal(String.format("Unexpected error when executing %s txn #%d", this.procedure_name, this.txn_id));
+                throw new InvocationTargetException(e);
             } catch (AssertionError e) {
                 LOG.fatal(e);
                 System.exit(1);

@@ -11,7 +11,6 @@ import java.util.Set;
 import org.voltdb.benchmark.tpcc.procedures.neworder;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Statement;
-import org.voltdb.exceptions.MispredictionException;
 
 import edu.brown.BaseTestCase;
 import edu.brown.utils.ClassUtil;
@@ -118,7 +117,7 @@ public class TestBatchPlannerComplex extends BaseTestCase {
                 batches[i][ii] = statements.get(ii);
             } // FOR
             hashes[i] = VoltProcedure.getBatchHashCode(batches[i], batch_size);
-            this.executor.batch_planners.put(hashes[i], new BatchPlanner(batches[i], catalog_proc, p_estimator));
+            ExecutionSite.batch_planners.put(hashes[i], new BatchPlanner(batches[i], catalog_proc, p_estimator));
         } // FOR
         
         for (int i = 0; i < batches.length; i++) {
@@ -136,7 +135,7 @@ public class TestBatchPlannerComplex extends BaseTestCase {
             
             int hash = VoltProcedure.getBatchHashCode(batches[i], batches[i].length-1);
             assert(hashes[i] != hash);
-            assertNull(this.executor.batch_planners.get(hash));
+            assertNull(ExecutionSite.batch_planners.get(hash));
         } // FOR
     }
     

@@ -974,7 +974,7 @@ public class ExecutionSite implements Runnable {
         } catch (SQLException ex) {
             String extra = "";
             if (ts instanceof LocalTransactionState) {
-                extra = "[" + ((LocalTransactionState)ts).getProcedure().getName() + "]";
+                extra = " [" + ((LocalTransactionState)ts).getProcedure().getName() + "]";
             }
             LOG.warn("Hit a SQL Error for txn #" + txn_id + extra, ex);
             fresponse.setStatus(FragmentResponseMessage.UNEXPECTED_ERROR, ex);
@@ -1261,7 +1261,7 @@ public class ExecutionSite implements Runnable {
                             this.lastCommittedTxnId,
                             undoToken);
         } catch (RuntimeException ex) {
-            LOG.fatal(String.format("Failed to execute PlanFragments for txn #%d", txn_id));
+            LOG.fatal(String.format("Failed to execute PlanFragments for txn #%d: %s", txn_id, Arrays.toString(fragmentIds)));
             throw ex;
         }
         
