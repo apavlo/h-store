@@ -1,9 +1,9 @@
 /*
  * Legal Notice
  *
- * This document and associated source code (the "Work") is a preliminary
- * version of a benchmark specification being developed by the TPC. The
- * Work is being made available to the public for review and comment only.
+ * This document and associated source code (the "Work") is a part of a
+ * benchmark specification maintained by the TPC.
+ *
  * The TPC reserves all right, title, and interest to the Work as provided
  * under U.S. and international laws, including without limitation all patent
  * and trademark rights therein.
@@ -160,18 +160,18 @@ private:
     void ZeroInputBuffer(int iTxnType);
 
 public:
-    const static INT32 INVALID_TRANSACTION_TYPE = CCETxnMixGenerator::INVALID_TRANSACTION_TYPE;
-    const static INT32 SECURITY_DETAIL          = CCETxnMixGenerator::SECURITY_DETAIL;
-    const static INT32 BROKER_VOLUME            = CCETxnMixGenerator::BROKER_VOLUME;
-    const static INT32 CUSTOMER_POSITION        = CCETxnMixGenerator::CUSTOMER_POSITION;
-    const static INT32 MARKET_WATCH             = CCETxnMixGenerator::MARKET_WATCH;
-    const static INT32 TRADE_STATUS             = CCETxnMixGenerator::TRADE_STATUS;
-    const static INT32 TRADE_LOOKUP             = CCETxnMixGenerator::TRADE_LOOKUP;
-    const static INT32 TRADE_ORDER              = CCETxnMixGenerator::TRADE_ORDER;
-    const static INT32 TRADE_UPDATE             = CCETxnMixGenerator::TRADE_UPDATE;
+    static const INT32 INVALID_TRANSACTION_TYPE = CCETxnMixGenerator::INVALID_TRANSACTION_TYPE;
+    static const INT32 SECURITY_DETAIL          = CCETxnMixGenerator::SECURITY_DETAIL;
+    static const INT32 BROKER_VOLUME            = CCETxnMixGenerator::BROKER_VOLUME;
+    static const INT32 CUSTOMER_POSITION        = CCETxnMixGenerator::CUSTOMER_POSITION;
+    static const INT32 MARKET_WATCH             = CCETxnMixGenerator::MARKET_WATCH;
+    static const INT32 TRADE_STATUS             = CCETxnMixGenerator::TRADE_STATUS;
+    static const INT32 TRADE_LOOKUP             = CCETxnMixGenerator::TRADE_LOOKUP;
+    static const INT32 TRADE_ORDER              = CCETxnMixGenerator::TRADE_ORDER;
+    static const INT32 TRADE_UPDATE             = CCETxnMixGenerator::TRADE_UPDATE;
     //Trade-Result and Market-Feed are included for completness.
-    const static INT32 MARKET_FEED              = CCETxnMixGenerator::MARKET_FEED;
-    const static INT32 TRADE_RESULT             = CCETxnMixGenerator::TRADE_RESULT;
+    static const INT32 MARKET_FEED              = CCETxnMixGenerator::MARKET_FEED;
+    static const INT32 TRADE_RESULT             = CCETxnMixGenerator::TRADE_RESULT;
 
     // Constructor - no partitioning by C_ID, automatic RNG seed generation (requires unique input)
     CCE( CCESUTInterface *pSUT, CBaseLogger *pLogger, const CInputFiles &inputFiles,

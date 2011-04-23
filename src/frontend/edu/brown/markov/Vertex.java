@@ -93,8 +93,6 @@ public class Vertex extends AbstractVertex {
     // GLOBAL CONFIGURATION
     // ----------------------------------------------------------------------------
 
-    private static final float NULL_MARKER = -1.0f;
-    
     /**
      * This is the partition id that is used for probabilities that are not partition specific
      * For example, the ABORT probability is global to all partitions, so we only need to store one
@@ -419,7 +417,7 @@ public class Vertex extends AbstractVertex {
             
             if (type.single_value) {
                 float val = this.probabilities[i][DEFAULT_PARTITION_ID];
-                String val_str = (val == NULL_MARKER ? "<NONE>" : formatter.format(val));
+                String val_str = (val == MarkovUtil.NULL_MARKER ? "<NONE>" : formatter.format(val));
                 top.append(String.format("+%-14s %s\n", type.toString() + ":", val_str));
             } else {
                 bot.append(String.format(f, StringUtil.abbrv(type.name(), 6, false)));    
@@ -434,7 +432,7 @@ public class Vertex extends AbstractVertex {
             for (int i = 0; i < ptypes.length; i++) {
                 if (ptypes[i].single_value) continue;
                 float val = this.probabilities[i][j];
-                bot.append(String.format(f, (val != NULL_MARKER ? formatter.format(val) : "<NONE>")));
+                bot.append(String.format(f, (val != MarkovUtil.NULL_MARKER ? formatter.format(val) : "<NONE>")));
             } // FOR
             bot.append("\n");
         } // FOR
@@ -486,7 +484,7 @@ public class Vertex extends AbstractVertex {
      */
     private float getSpecificProbability(Vertex.Probability ptype, int partition) {
         float value = this.probabilities[ptype.ordinal()][partition];
-        if (value == NULL_MARKER) value = ptype.default_value;
+        if (value == MarkovUtil.NULL_MARKER) value = ptype.default_value;
         
         // Handle funky rounding error that I think is due to casting
         // Note that we only round when we hand out the number. If we try to round it before we 
@@ -503,7 +501,7 @@ public class Vertex extends AbstractVertex {
         // Important: If the probability is unset, then we need to set its initial value
         // to zero and to the default value
         float previous = this.probabilities[ptype.ordinal()][partition];
-        if (previous == NULL_MARKER) previous = 0.0f;
+        if (previous == MarkovUtil.NULL_MARKER) previous = 0.0f;
         this.setProbability(ptype, partition, previous + probability);
     }
 
@@ -528,7 +526,7 @@ public class Vertex extends AbstractVertex {
             int i = ptype.ordinal();
             if (this.probabilities[i] == null) continue;
             for (int j = 0; j < this.probabilities[i].length; j++) {
-                this.probabilities[i][j] = NULL_MARKER;
+                this.probabilities[i][j] = MarkovUtil.NULL_MARKER;
             } // FOR
         } // FOR
     }
@@ -547,7 +545,7 @@ public class Vertex extends AbstractVertex {
         return (this.getSpecificProbability(Probability.SINGLE_SITED, DEFAULT_PARTITION_ID));
     }
     public boolean isSingleSitedProbabilitySet() {
-        return (this.getSpecificProbability(Probability.SINGLE_SITED, DEFAULT_PARTITION_ID) != NULL_MARKER);
+        return (this.getSpecificProbability(Probability.SINGLE_SITED, DEFAULT_PARTITION_ID) != MarkovUtil.NULL_MARKER);
     }
 
     // ----------------------------------------------------------------------------
@@ -564,7 +562,7 @@ public class Vertex extends AbstractVertex {
         return (this.getSpecificProbability(Probability.READ_ONLY, partition));
     }
     public boolean isReadOnlyProbabilitySet(int partition) {
-        return (this.getSpecificProbability(Probability.READ_ONLY, partition) != NULL_MARKER);
+        return (this.getSpecificProbability(Probability.READ_ONLY, partition) != MarkovUtil.NULL_MARKER);
     }
     
     // ----------------------------------------------------------------------------
@@ -581,7 +579,7 @@ public class Vertex extends AbstractVertex {
         return (this.getSpecificProbability(Probability.WRITE, partition));
     }
     public boolean isWriteProbabilitySet(int partition) {
-        return (this.getSpecificProbability(Probability.WRITE, partition) != NULL_MARKER);
+        return (this.getSpecificProbability(Probability.WRITE, partition) != MarkovUtil.NULL_MARKER);
     }
     
     // ----------------------------------------------------------------------------
@@ -598,7 +596,7 @@ public class Vertex extends AbstractVertex {
         return (this.getSpecificProbability(Probability.DONE, partition));
     }
     public boolean isDoneProbabilitySet(int partition) {
-        return (this.getSpecificProbability(Probability.DONE, partition) != NULL_MARKER);
+        return (this.getSpecificProbability(Probability.DONE, partition) != MarkovUtil.NULL_MARKER);
     }
 
     // ----------------------------------------------------------------------------
@@ -615,7 +613,7 @@ public class Vertex extends AbstractVertex {
         return (this.getSpecificProbability(Probability.ABORT, DEFAULT_PARTITION_ID));
     }
     public boolean isAbortProbabilitySet() {
-        return (this.getSpecificProbability(Probability.DONE, DEFAULT_PARTITION_ID) != NULL_MARKER);
+        return (this.getSpecificProbability(Probability.DONE, DEFAULT_PARTITION_ID) != MarkovUtil.NULL_MARKER);
     }
 
     /**
@@ -757,6 +755,10 @@ public class Vertex extends AbstractVertex {
         Members members[] = new Members[members_set.size()];
         members_set.toArray(members);
         super.fieldsFromJSONObject(object, catalog_db, Vertex.class, members);
+        
+        // HACK
+        this.partitions = Collections.unmodifiableSet(this.partitions);
+        this.past_partitions = Collections.unmodifiableSet(this.past_partitions);
 
         // Probabilities Map
         JSONObject json_probabilities = object.getJSONObject(Members.PROBABILITIES.name());

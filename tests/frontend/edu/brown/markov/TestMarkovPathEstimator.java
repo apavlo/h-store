@@ -17,6 +17,7 @@ import edu.brown.BaseTestCase;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.correlations.ParameterCorrelations;
 import edu.brown.utils.ProjectType;
+import edu.brown.utils.StringUtil;
 import edu.brown.workload.TransactionTrace;
 import edu.brown.workload.Workload;
 import edu.brown.workload.filters.BasePartitionTxnFilter;
@@ -109,6 +110,54 @@ public class TestMarkovPathEstimator extends BaseTestCase {
         this.graph = markovs.get(BASE_PARTITION, this.catalog_proc);
         assertNotNull("No graph exists for " + this.catalog_proc + " on Partition #" + BASE_PARTITION, this.graph);
         this.t_estimator = new TransactionEstimator(p_estimator, correlations, markovs);
+    }
+    
+    /**
+     * testFinish
+     */
+    public void testFinish() throws Exception {
+        MarkovPathEstimator estimator = new MarkovPathEstimator(this.graph, this.t_estimator, BASE_PARTITION, singlep_trace.getParams());
+        assert(estimator.isInitialized());
+        estimator.enableForceTraversal(true);
+        assertEquals(1.0, estimator.getConfidence());
+        estimator.traverse(this.graph.getStartVertex());
+        MarkovEstimate estimate = estimator.getEstimate();
+        assertNotNull(estimate);
+        
+        estimator.finish();
+        assertFalse(estimator.isInitialized());
+        assertEquals((float)MarkovUtil.NULL_MARKER, (float)estimator.getConfidence());
+    }
+    
+    /**
+     * testMarkovEstimate
+     */
+    public void testMarkovEstimate() throws Exception {
+        MarkovPathEstimator estimator = new MarkovPathEstimator(this.graph, this.t_estimator, BASE_PARTITION, singlep_trace.getParams());
+        estimator.enableForceTraversal(true);
+        estimator.traverse(this.graph.getStartVertex());
+        
+        MarkovEstimate estimate = estimator.getEstimate();
+        assertNotNull(estimate);
+//        System.err.println(StringUtil.columns(StringUtil.join("\n", estimator.getVisitPath()), estimate.toString()));
+        
+        for (int p : CatalogUtil.getAllPartitionIds(catalog_proc)) {
+            assert(estimate.isReadOnlyProbabilitySet(p));
+            assert(estimate.isWriteProbabilitySet(p));
+            assert(estimate.isFinishedProbabilitySet(p));
+            
+            if (estimate.getFinishedProbability(p) < 1.0) {
+                assert(estimate.getTouchedCounter(p) > 0);
+                assert(estimate.getWriteProbability(p) > 0.0);
+            } else {
+                assertEquals(0, estimate.getTouchedCounter(p));
+                assert(estimate.getWriteProbability(p) == 0.0);
+            }
+        } // FOR
+        assert(estimate.isSinglePartitionProbabilitySet());
+        assert(estimate.isAbortProbabilitySet());
+        
+        assertEquals(1.0, estimate.getSinglePartitionProbability());
     }
     
     /**

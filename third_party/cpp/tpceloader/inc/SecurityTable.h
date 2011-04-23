@@ -1,9 +1,9 @@
 /*
  * Legal Notice
  *
- * This document and associated source code (the "Work") is a preliminary
- * version of a benchmark specification being developed by the TPC. The
- * Work is being made available to the public for review and comment only.
+ * This document and associated source code (the "Work") is a part of a
+ * benchmark specification maintained by the TPC.
+ *
  * The TPC reserves all right, title, and interest to the Work as provided
  * under U.S. and international laws, including without limitation all patent
  * and trademark rights therein.
@@ -40,7 +40,7 @@
 #ifndef SECURITY_TABLE_H
 #define SECURITY_TABLE_H
 
-#include <stdio.h>	// for snprintf which is not part of the C++ headers
+#include <stdio.h>  // for snprintf which is not part of the C++ headers
 #include "EGenTables_common.h"
 #include "CompanyFile.h"
 #include "SecurityFile.h"
@@ -49,8 +49,8 @@
 namespace TPCE
 {
 
-const double    fS_NUM_OUTMin = 4000000.0;
-const double    fS_NUM_OUTMax = 9500000000.0;
+const INT64     iS_NUM_OUTMin = INT64_CONST(4000000);
+const INT64     iS_NUM_OUTMax = INT64_CONST(9500000000);
 
 const double    fS_PEMin = 1.0;
 const double    fS_PEMax = 120.0;
@@ -87,15 +87,15 @@ class CSecurityTable : public TableTemplate<SECURITY_ROW>
     {
         int iStartDayNo, iExchangeDayNo, i52HighDayNo, i52LowDayNo;
 
-        strncpy(m_row.S_ST_ID, m_SecurityFile->GetRecord(m_iLastRowNumber)->S_ST_ID, sizeof(m_row.S_ST_ID)-1);
-        strncpy(m_row.S_ISSUE, m_SecurityFile->GetRecord(m_iLastRowNumber)->S_ISSUE, sizeof(m_row.S_ISSUE)-1);
+        strncpy(m_row.S_ST_ID, m_SecurityFile->GetRecord(m_iLastRowNumber)->S_ST_ID, sizeof(m_row.S_ST_ID));
+        strncpy(m_row.S_ISSUE, m_SecurityFile->GetRecord(m_iLastRowNumber)->S_ISSUE, sizeof(m_row.S_ISSUE));
 
         CreateName(m_iLastRowNumber, m_row.S_NAME, static_cast<int>(sizeof(m_row.S_NAME)));
 
         m_SecurityFile->CreateSymbol(m_iLastRowNumber, m_row.S_SYMB, static_cast<int>(sizeof(m_row.S_SYMB)));
-        strncpy(m_row.S_EX_ID, m_SecurityFile->GetRecord(m_iLastRowNumber)->S_EX_ID, sizeof(m_row.S_EX_ID)-1);
+        strncpy(m_row.S_EX_ID, m_SecurityFile->GetRecord(m_iLastRowNumber)->S_EX_ID, sizeof(m_row.S_EX_ID));
         m_row.S_CO_ID = m_SecurityFile->GetCompanyId(m_iLastRowNumber);
-        m_row.S_NUM_OUT = m_rnd.RndDoubleIncrRange(fS_NUM_OUTMin, fS_NUM_OUTMax, 1.0);
+        m_row.S_NUM_OUT = m_rnd.RndInt64Range(iS_NUM_OUTMin, iS_NUM_OUTMax);
 
         iStartDayNo = m_rnd.RndIntRange(m_iJan1_1900DayNo, m_iJan2_2000DayNo);  //generate random date
         m_row.S_START_DATE.Set(iStartDayNo);
@@ -105,16 +105,14 @@ class CSecurityTable : public TableTemplate<SECURITY_ROW>
         //iExchangeDayNo contains S_EXCH_DATE date in days.
 
         //52 week high  - selected from upper half of security price range
-        m_row.S_52WK.HIGH = (float)m_rnd.RndDoubleIncrRange( fMinSecPrice + (( fMaxSecPrice - fMinSecPrice) / 2 ), fMaxSecPrice, 0.01);
+        m_row.S_52WK_HIGH = (float)m_rnd.RndDoubleIncrRange( fMinSecPrice + (( fMaxSecPrice - fMinSecPrice) / 2 ), fMaxSecPrice, 0.01);
         i52HighDayNo = m_rnd.RndIntRange(m_iCurrentDayNo - iDaysPerWeek * iWeeksPerYear, m_iCurrentDayNo);
-        m_row.S_52WK.HIGH_DATE.Set(i52HighDayNo);
+        m_row.S_52WK_HIGH_DATE.Set(i52HighDayNo);
 
         //52 week low - selected from the minimum security price up to the 52wk high
-        m_row.S_52WK.LOW = (float)m_rnd.RndDoubleIncrRange( fMinSecPrice, m_row.S_52WK.HIGH, 0.01 );
+        m_row.S_52WK_LOW = (float)m_rnd.RndDoubleIncrRange( fMinSecPrice, m_row.S_52WK_HIGH, 0.01 );
         i52LowDayNo = m_rnd.RndIntRange(m_iCurrentDayNo - iDaysPerWeek * iWeeksPerYear, m_iCurrentDayNo);
-        m_row.S_52WK.LOW_DATE.Set(i52LowDayNo);
-
-        m_row.S_52WK.iIndicator = OLTP_VALUE_IS_NOT_NULL;
+        m_row.S_52WK_LOW_DATE.Set(i52LowDayNo);
 
         if (m_rnd.RndPercent( iPercentCompaniesWithNonZeroDividend ))
         {
@@ -140,7 +138,7 @@ class CSecurityTable : public TableTemplate<SECURITY_ROW>
     void InitNextLoadUnit()
     {
         m_rnd.SetSeed(m_rnd.RndNthElement(RNGSeedTableDefault,
-            m_iLastRowNumber * iRNGSkipOneRowSecurity));
+            (RNGSEED)m_iLastRowNumber * iRNGSkipOneRowSecurity));
 
         ClearRecord();  // this is needed for EGenTest to work
     }
@@ -188,7 +186,7 @@ public:
 
     void CreateName(    TIdent  iIndex,     // row number
                         char*   szOutput,   // output buffer
-                        int     iOutputLen) // size of the output buffer (including null)
+                        size_t  iOutputLen) // size of the output buffer (including null)
     {
         char    CompanyName[cCO_NAME_len+1];
 

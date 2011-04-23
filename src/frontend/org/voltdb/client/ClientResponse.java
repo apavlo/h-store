@@ -58,6 +58,11 @@ public interface ClientResponse {
      * Internal status code indicating that the the transaction was mispredicted as single-partitioned
      */
     public static final byte MISPREDICTION = -5;
+    
+    /**
+     * Rejected because the HStoreSite's queue is full
+     */
+    public static final byte REJECTED = -6;
 
     /**
      * Client Handle
@@ -65,6 +70,13 @@ public interface ClientResponse {
      */
     public long getClientHandle();
     public void setClientHandle(long handle); // HACK
+    
+    /**
+     * Throttle Flag
+     * @return
+     */
+    public boolean getThrottleFlag();
+    public void setThrottleFlag(boolean val);
 
     /**
      * Returns true if this transaction executed as a single-partition txn

@@ -42,8 +42,8 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
     private SerializableException m_exception = null;
     
     // PAVLO
-    // TODO: Need to pass in txn_id
     private long txn_id;
+    private boolean throttle = false;
     
     private boolean singlepartition = false;
 
@@ -132,6 +132,19 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
         m_exception = e;
         setResults(status, results, extra);
     }
+    
+    public void setStatus(byte status) {
+        this.status = status;
+    }
+    
+    @Override
+    public boolean getThrottleFlag() {
+        return (this.throttle);
+    }
+    @Override
+    public void setThrottleFlag(boolean val) {
+        this.throttle = val;
+    }
 
     @Override
     public boolean isSinglePartition() {
@@ -178,6 +191,8 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
         txn_id = in.readLong();
         clientHandle = in.readLong();
         singlepartition = in.readBoolean();
+        throttle = in.readBoolean();
+        
         byte presentFields = in.readByte();
         status = in.readByte();
         if ((presentFields & (1 << 5)) != 0) {
@@ -208,6 +223,7 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
         out.writeLong(txn_id);
         out.writeLong(clientHandle);
         out.writeBoolean(singlepartition);
+        out.writeBoolean(throttle);
         byte presentFields = 0;
         if (appStatusString != null) {
             presentFields |= 1 << 7;
@@ -285,6 +301,9 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
                 break;
             case ClientResponseImpl.MISPREDICTION:
                 ret = "MISPREDICTION";
+                break;
+            case ClientResponseImpl.REJECTED:
+                ret = "REJECTED";
                 break;
             default:
                 assert(false) : "Unknown ClientResponse status '" + this.status + "'";

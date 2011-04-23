@@ -1,9 +1,9 @@
 /*
  * Legal Notice
  *
- * This document and associated source code (the "Work") is a preliminary
- * version of a benchmark specification being developed by the TPC. The
- * Work is being made available to the public for review and comment only.
+ * This document and associated source code (the "Work") is a part of a
+ * benchmark specification maintained by the TPC.
+ *
  * The TPC reserves all right, title, and interest to the Work as provided
  * under U.S. and international laws, including without limitation all patent
  * and trademark rights therein.
@@ -65,10 +65,6 @@ using namespace std;
 #include "EGenTables_stdafx.h"
 #include "EGenBaseLoader_stdafx.h"
 #include "EGenGenerateAndLoad_stdafx.h"
-#ifdef COMPILE_PGSQL_LOAD
-#include <pqxx/pqxx>
-using namespace pqxx;
-#endif //COMPILE_PGSQL_LOAD
 
 // Include one or more load types.
 #include "NullLoad_stdafx.h"
@@ -77,9 +73,6 @@ using namespace pqxx;
 #endif
 #ifdef COMPILE_ODBC_LOAD
 #include "win/ODBCLoad_stdafx.h"
-#endif
-#ifdef COMPILE_PGSQL_LOAD
-#include "pgsql/PGSQLLoad.h"
 #endif
 #ifdef COMPILE_CUSTOM_LOAD
 #include "custom/CustomLoad_stdafx.h"

@@ -5,6 +5,8 @@ import static org.junit.Assert.assertArrayEquals;
 import java.nio.channels.SocketChannel;
 import java.util.Arrays;
 import java.util.Random;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicLong;
 
 import junit.framework.TestCase;
 
@@ -12,7 +14,9 @@ import org.voltdb.StoredProcedureInvocation;
 import org.voltdb.VoltTable;
 import org.voltdb.client.Client;
 import org.voltdb.client.ClientFactory;
+import org.voltdb.client.ClientResponse;
 import org.voltdb.client.ConnectionUtil;
+import org.voltdb.client.ProcedureCallback;
 
 import ca.evanjones.protorpc.MockEventLoop;
 import ca.evanjones.protorpc.MockServerSocketChannel;
@@ -20,6 +24,7 @@ import ca.evanjones.protorpc.NIOEventLoop;
 
 import com.google.protobuf.RpcCallback;
 
+import edu.brown.utils.LoggerUtil;
 import edu.mit.hstore.VoltProcedureListener.ClientConnectionHandler;
 import edu.mit.net.MockSocketChannel;
 
@@ -28,6 +33,10 @@ import edu.mit.net.MockSocketChannel;
  * @author pavlo
  */
 public class TestVoltProcedureListener extends TestCase {
+    
+    static {
+        LoggerUtil.setupLogging(); // HACK
+    }
 
     private static final String HOST = "localhost";
     private static final String USERNAME = "user";
@@ -117,6 +126,34 @@ public class TestVoltProcedureListener extends TestCase {
         }
         // I guess we can check a bunch of stuff that we want to get back
         assert(props[0] instanceof SocketChannel);
+    }
+    
+    /**
+     * testBackupPressure
+     */
+    public void testBackupPressure() throws Exception {
+        // Connect to listener and try to invoke something...
+        Client client = ClientFactory.createClient();
+        client.createConnection(HOST, Client.VOLTDB_SERVER_PORT, USERNAME, PASSWORD);
+
+        final CountDownLatch latch = new CountDownLatch(1);
+        final Long expected = rand.nextLong();
+        final AtomicLong received = new AtomicLong(-1); 
+        
+        ProcedureCallback callback = new ProcedureCallback() {
+            @Override
+            public void clientCallback(ClientResponse clientResponse) {
+                assertNotNull(clientResponse.getResults());
+                received.set(handler.getParameter());
+                latch.countDown();
+            }
+        };
+        
+        boolean ret = client.callProcedure(callback, PROC_NAME, expected);
+        assert(ret);
+        latch.await();
+        assertNotNull(this.handler.getParameter());
+        assertEquals(expected, this.handler.getParameter());
     }
     
     /**

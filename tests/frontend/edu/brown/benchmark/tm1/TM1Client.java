@@ -225,7 +225,7 @@ public class TM1Client extends TM1BaseClient {
      * Return a transaction randomly selected per TM1 probability specs
      */
     private Transaction selectTransaction() {
-        Transaction force = null; // Transaction.UPDATE_LOCATION;
+        Transaction force = null; // (this.getClientId() == 0 ? Transaction.INSERT_CALL_FORWARDING : Transaction.GET_SUBSCRIBER_DATA); // Transaction.INSERT_CALL_FORWARDING;
         if (force != null) return (force);
         return Transaction.values()[SAMPLE_TABLE[TM1Util.number(0,99).intValue()]];
     }

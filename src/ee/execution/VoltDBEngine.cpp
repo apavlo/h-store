@@ -232,13 +232,13 @@ Table* VoltDBEngine::getTable(std::string name) const {
     return NULL;
 }
 
-bool VoltDBEngine::serializeTable(int32_t tableId, SerializeOutput* out) const {
+bool VoltDBEngine::serializeTable(int32_t tableId, int32_t offset, int32_t limit, SerializeOutput* out) const {
     // Just look in our list of tables
     std::map<int32_t, Table*>::const_iterator lookup =
         m_tables.find(tableId);
     if (lookup != m_tables.end()) {
         Table* table = lookup->second;
-        table->serializeTo(*out);
+        table->serializeTo(offset, limit, *out);
         return true;
     } else {
         throwFatalException( "Unable to find table for TableId '%d'", (int) tableId);
@@ -258,6 +258,7 @@ int VoltDBEngine::executeQuery(int64_t planfragmentId,
     Table *cleanUpTable = NULL;
     m_currentOutputDepId = outputDependencyId;
     m_currentInputDepId = inputDependencyId;
+    VOLT_DEBUG("Executing PlanFragment [fragId=%ld, inputId=%d, outputId=%d]", planfragmentId, outputDependencyId, inputDependencyId);
     
     /*
      * Reserve space in the result output buffer for the number of
@@ -330,38 +331,38 @@ int VoltDBEngine::executeQuery(int64_t planfragmentId,
         // send back the number of tuples modified
         if (executor->forceTupleCount()) {
             send_tuple_count = true;
-//             fprintf(stderr, "PAVLO: Forcing tuple count [txn_id=%jd, planfragmentId=%jd, output_depId=%d, ctr=%d]\n",
-//                     (intmax_t)txnId, (intmax_t)planfragmentId, m_currentOutputDepId, ctr);
+            VOLT_DEBUG("PAVLO: Forcing tuple count [txn_id=%jd, planfragmentId=%jd, output_depId=%d, ctr=%d]",
+                       (intmax_t)txnId, (intmax_t)planfragmentId, m_currentOutputDepId, ctr);
         } else {
-
-        try {
-            // Now call the execute method to actually perform whatever action
-            // it is that the node is supposed to do...
-            if (!executor->execute(params)) {
+            VOLT_DEBUG("PAVLO: Let's try to actually execute a PlanFragment...");
+            try {
+                // Now call the execute method to actually perform whatever action
+                // it is that the node is supposed to do...
+                if (!executor->execute(params)) {
+                    VOLT_TRACE("The Executor's execution at position '%d'"
+                            " failed for PlanFragment '%jd'",
+                            ctr, (intmax_t)planfragmentId);
+                    if (cleanUpTable != NULL)
+                        cleanUpTable->deleteAllTuples(false);
+                    // set these back to -1 for error handling
+                    m_currentOutputDepId = -1;
+                    m_currentInputDepId = -1;
+                    return ENGINE_ERRORCODE_ERROR;
+                }
+            } catch (SerializableEEException &e) {
                 VOLT_TRACE("The Executor's execution at position '%d'"
-                           " failed for PlanFragment '%jd'",
-                           ctr, (intmax_t)planfragmentId);
+                        " failed for PlanFragment '%jd'",
+                        ctr, (intmax_t)planfragmentId);
                 if (cleanUpTable != NULL)
                     cleanUpTable->deleteAllTuples(false);
+                resetReusedResultOutputBuffer();
+                e.serialize(getExceptionOutputSerializer());
+    
                 // set these back to -1 for error handling
                 m_currentOutputDepId = -1;
                 m_currentInputDepId = -1;
                 return ENGINE_ERRORCODE_ERROR;
             }
-        } catch (SerializableEEException &e) {
-            VOLT_TRACE("The Executor's execution at position '%d'"
-                       " failed for PlanFragment '%jd'",
-                       ctr, (intmax_t)planfragmentId);
-            if (cleanUpTable != NULL)
-                cleanUpTable->deleteAllTuples(false);
-            resetReusedResultOutputBuffer();
-            e.serialize(getExceptionOutputSerializer());
-
-            // set these back to -1 for error handling
-            m_currentOutputDepId = -1;
-            m_currentInputDepId = -1;
-            return ENGINE_ERRORCODE_ERROR;
-        }
         }
     }
     if (cleanUpTable != NULL)

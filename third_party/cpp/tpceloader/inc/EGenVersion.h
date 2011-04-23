@@ -1,9 +1,9 @@
 /*
  * Legal Notice
  *
- * This document and associated source code (the "Work") is a preliminary
- * version of a benchmark specification being developed by the TPC. The
- * Work is being made available to the public for review and comment only.
+ * This document and associated source code (the "Work") is a part of a
+ * benchmark specification maintained by the TPC.
+ *
  * The TPC reserves all right, title, and interest to the Work as provided
  * under U.S. and international laws, including without limitation all patent
  * and trademark rights therein.
@@ -49,8 +49,13 @@ namespace TPCE
 
 extern "C"
 {
+void GetEGenVersion_C(INT32 &iMajorVersion, INT32 &iMinorVersion, INT32 &iRevisionNumber, INT32 &iBetaLevel);
+void GetEGenVersionString_C(char* szOutput, size_t iOutputBufferLen);
+void PrintEGenVersion_C();
+void GetEGenVersionUpdateTimestamp_C(char* szOutput, size_t iOutputBufferLen);
+}
 
-    // Retrieve major, minor, revision, and beta level numbers for EGen.
+// Retrieve major, minor, revision, and beta level numbers for EGen.
 // For example, v3.10 beta 1 has:
 //  major       3
 //  minor       10
@@ -68,7 +73,7 @@ void GetEGenVersion(INT32 &iMajorVersion, INT32 &iMinorVersion, INT32 &iRevision
 //
 // Note: requires output buffer at least 64 characters long, or nothing will be returned.
 //
-void GetEGenVersionString(char* szOutput, INT32 iOutputBufferLen);
+void GetEGenVersionString(char* szOutput, size_t iOutputBufferLen);
 
 // Output EGen versioning information on stdout
 //
@@ -76,9 +81,7 @@ void PrintEGenVersion();
 
 // Return the date/time when the EGen versioning information was last updated.
 //
-void GetEGenVersionUpdateTimestamp(char* szOutput, INT32 iOutputBufferLen);
-
-}
+void GetEGenVersionUpdateTimestamp(char* szOutput, size_t iOutputBufferLen);
 
 }
 

@@ -67,7 +67,9 @@
 #define VOLT_LEVEL_TRACE  100
 #define VOLT_LEVEL_ALL    0
 
-#define VOLT_LOG_TIME_FORMAT "%Y-%m-%d %H:%M:%S"
+// #define VOLT_LOG_TIME_FORMAT "%Y-%m-%d %H:%M:%S"
+#define VOLT_LOG_TIME_FORMAT "%X"
+#define VOLT_LOG_OUTPUT_STREAM stdout
 
 // Compile Option
 #ifndef VOLT_LOG_LEVEL
@@ -176,7 +178,8 @@ inline void outputLogHeader_(const char *file, int line, const char *func, int l
         default:
             type = "UNKWN";
     }
-    printf("[%s] [%s:%d:%s()] %s - ", type, file, line, func, time_str);
+//     printf("[%s] [%s:%d:%s()] %s - ", type, file, line, func, time_str);
+    fprintf(VOLT_LOG_OUTPUT_STREAM, "EE %s [%s:%d] %s - ", time_str, file, line, type);
 }
 
 #endif

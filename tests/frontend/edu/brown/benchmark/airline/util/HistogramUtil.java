@@ -2,7 +2,6 @@ package edu.brown.benchmark.airline.util;
 
 import java.io.BufferedReader;
 import java.io.File;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
@@ -19,10 +18,16 @@ public abstract class HistogramUtil {
 
     private static final Pattern p = Pattern.compile("\\|");
     
-    public static Map<String, Histogram> loadAirportFlights(String data_path) throws Exception {
-        Map<String, Histogram> m = new TreeMap<String, Histogram>();
+    /**
+     * Returns the Flights Per Airport Histogram
+     * @param data_path
+     * @return
+     * @throws Exception
+     */
+    public static Map<String, Histogram<String>> loadAirportFlights(String data_path) throws Exception {
+        Map<String, Histogram<String>> m = new TreeMap<String, Histogram<String>>();
         
-        Histogram h = new Histogram();
+        Histogram<String> h = new Histogram<String>();
         String filename = data_path + File.separator + "histogram." + AirlineConstants.HISTOGRAM_FLIGHTS_PER_AIRPORT.toLowerCase() + ".csv";
         if (FileUtil.exists(filename) == false) filename += ".gz";
         h.load(filename, null);
@@ -31,9 +36,9 @@ public abstract class HistogramUtil {
         Set<String> values = h.values();
         for (String value : values) {
             String split[] = pattern.split(value);
-            Histogram src_h = m.get(split[0]);
+            Histogram<String> src_h = m.get(split[0]);
             if (src_h == null) {
-                src_h = new Histogram();
+                src_h = new Histogram<String>();
                 m.put(split[0], src_h);
             }
             src_h.put(split[1], h.get(value));
@@ -50,11 +55,11 @@ public abstract class HistogramUtil {
      * @return
      * @throws Exception
      */
-    public static Histogram loadHistogram(String name, String data_path, boolean has_header) throws Exception {
+    public static Histogram<String> loadHistogram(String name, String data_path, boolean has_header) throws Exception {
         String filename = data_path + File.separator + "histogram." + name.toLowerCase() + ".csv";
         if (!(new File(filename)).exists()) filename += ".gz";
         
-        Histogram histogram = new Histogram();
+        Histogram<String> histogram = new Histogram<String>();
         BufferedReader reader = FileUtil.getReader(filename);
         boolean first = true;
         int ctr = -1;

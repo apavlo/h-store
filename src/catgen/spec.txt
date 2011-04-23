@@ -41,7 +41,8 @@ end
 
 begin Partition       "A logical, replicate-able partition"
    int id             "Partition id"
-   int dtxn_port      "Port used by DTXN ProtoEngine"
+   int dtxn_port      "Port used for DTXN.Coordinator to communicate to the ProtoEngine"
+   int engine_port    "Port used for HStoreSite to communicate to the ProtoEngine"
 end
 
 begin Site             "A physical execution context for the system"
@@ -151,6 +152,7 @@ begin Statement             "A parameterized SQL statement embedded in a stored 
   bool readonly             "Can the statement modify any data?"
   bool singlepartition      "Does the statement only use data on one partition?"
   bool replicatedtabledml   "Should the result of this statememt be divided by partition count before returned"
+  bool replicatedonly       "Does this statement only access replicated tables?"
   bool batched              ""
   int paramnum              ""
   StmtParameter* parameters "The set of parameters to this SQL statement"
@@ -178,6 +180,7 @@ begin PlanFragment               "Instructions to the executor to execute part o
   int id                         "Unique Id for this PlanFragment"
   bool hasdependencies           "Dependencies must be received before this plan fragment can execute"
   bool multipartition            "Should this plan fragment be sent to all partitions"
+  bool readonly                  "Whether this PlanFragment is read only"
   string plannodetree            "A serialized representation of the plan-graph/plan-pipeline"
   bool nontransactional          "True if this fragment doesn't read from or write to any persistent tables"
 end

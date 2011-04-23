@@ -1,9 +1,9 @@
 /*
  * Legal Notice
  *
- * This document and associated source code (the "Work") is a preliminary
- * version of a benchmark specification being developed by the TPC. The
- * Work is being made available to the public for review and comment only.
+ * This document and associated source code (the "Work") is a part of a
+ * benchmark specification maintained by the TPC.
+ *
  * The TPC reserves all right, title, and interest to the Work as provided
  * under U.S. and international laws, including without limitation all patent
  * and trademark rights therein.
@@ -54,7 +54,14 @@ public:
 
     void DoTxn(PMarketWatchTxnInput pTxnInput, PMarketWatchTxnOutput pTxnOutput)
     {
-        m_db->DoMarketWatchFrame1(pTxnInput, pTxnOutput);
+        if ( pTxnInput->acct_id != 0  ||
+             pTxnInput->c_id != 0     ||
+             pTxnInput->industry_name[0] != '\0')
+        {
+            m_db->DoMarketWatchFrame1(pTxnInput, pTxnOutput);
+        } else {
+            pTxnOutput->status = -411;
+        }
     }
 };
 

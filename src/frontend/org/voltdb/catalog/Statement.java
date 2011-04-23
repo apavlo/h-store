@@ -31,6 +31,7 @@ public class Statement extends CatalogType {
     boolean m_readonly;
     boolean m_singlepartition;
     boolean m_replicatedtabledml;
+    boolean m_replicatedonly;
     boolean m_batched;
     int m_paramnum;
     CatalogMap<StmtParameter> m_parameters;
@@ -52,6 +53,7 @@ public class Statement extends CatalogType {
         this.addField("readonly", m_readonly);
         this.addField("singlepartition", m_singlepartition);
         this.addField("replicatedtabledml", m_replicatedtabledml);
+        this.addField("replicatedonly", m_replicatedonly);
         this.addField("batched", m_batched);
         this.addField("paramnum", m_paramnum);
         m_parameters = new CatalogMap<StmtParameter>(catalog, this, path + "/" + "parameters", StmtParameter.class);
@@ -77,6 +79,7 @@ public class Statement extends CatalogType {
         m_readonly = (Boolean) m_fields.get("readonly");
         m_singlepartition = (Boolean) m_fields.get("singlepartition");
         m_replicatedtabledml = (Boolean) m_fields.get("replicatedtabledml");
+        m_replicatedonly = (Boolean) m_fields.get("replicatedonly");
         m_batched = (Boolean) m_fields.get("batched");
         m_paramnum = (Integer) m_fields.get("paramnum");
         m_has_singlesited = (Boolean) m_fields.get("has_singlesited");
@@ -110,6 +113,11 @@ public class Statement extends CatalogType {
     /** GETTER: Should the result of this statememt be divided by partition count before returned */
     public boolean getReplicatedtabledml() {
         return m_replicatedtabledml;
+    }
+
+    /** GETTER: Does this statement only access replicated tables? */
+    public boolean getReplicatedonly() {
+        return m_replicatedonly;
     }
 
     public boolean getBatched() {
@@ -197,6 +205,11 @@ public class Statement extends CatalogType {
     /** SETTER: Should the result of this statememt be divided by partition count before returned */
     public void setReplicatedtabledml(boolean value) {
         m_replicatedtabledml = value; m_fields.put("replicatedtabledml", value);
+    }
+
+    /** SETTER: Does this statement only access replicated tables? */
+    public void setReplicatedonly(boolean value) {
+        m_replicatedonly = value; m_fields.put("replicatedonly", value);
     }
 
     public void setBatched(boolean value) {

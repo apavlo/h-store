@@ -1,9 +1,9 @@
 /*
  * Legal Notice
  *
- * This document and associated source code (the "Work") is a preliminary
- * version of a benchmark specification being developed by the TPC. The
- * Work is being made available to the public for review and comment only.
+ * This document and associated source code (the "Work") is a part of a
+ * benchmark specification maintained by the TPC.
+ *
  * The TPC reserves all right, title, and interest to the Work as provided
  * under U.S. and international laws, including without limitation all patent
  * and trademark rights therein.
@@ -59,6 +59,7 @@ class CBrokersTable : public TableTemplate<BROKER_ROW>
 {
     TIdent              m_iTotalBrokers;    //total number of brokers rows to generate
     TIdent              m_iStartFromBroker;
+    TIdent              m_iStartFromCustomer;
     CPerson             m_person;
     TStatusTypeFile*    m_StatusTypeFile;   // STATUS_TYPE table from the flat file
     int*                m_pNumTrades;       // array of B_NUM_TRADES values
@@ -81,7 +82,8 @@ public:
         : TableTemplate<BROKER_ROW>()
         , m_iTotalBrokers(iCustomerCount / iBrokersDiv)
         , m_iStartFromBroker((iStartFromCustomer / iBrokersDiv) + iStartingBrokerID + iTIdentShift)
-        , m_person(inputFiles)
+        , m_iStartFromCustomer(iStartFromCustomer)
+        , m_person(inputFiles, iBrokerNameIDShift, true)
         , m_StatusTypeFile(inputFiles.StatusType)
         , m_pNumTrades(NULL)
         , m_pCommTotal(NULL)
@@ -186,6 +188,12 @@ public:
         m_iLastRowNumber = 0;
 
         ClearRecord();  // this is needed for EGenTest to work
+
+        // Don't re-initialize the cache for the first load unit
+        if (m_iStartFromCustomer != iStartFromCustomer)
+        {
+            m_person.InitNextLoadUnit(iDefaultLoadUnitSize/iBrokersDiv);
+        }
     };
 
     /*
@@ -239,7 +247,7 @@ public:
     *   RETURNS:
     *           none.
     */
-    void GenerateBrokerName(TIdent B_ID, char *B_NAME, int B_NAME_len)
+    void GenerateBrokerName(TIdent B_ID, char *B_NAME, size_t B_NAME_len)
     {
         snprintf(B_NAME, B_NAME_len, "%s %c. %s",
                 m_person.GetFirstName(B_ID + iBrokerNameIDShift),
@@ -276,7 +284,7 @@ public:
     bool GenerateNextRecord()
     {
         m_row.B_ID = m_iStartFromBroker + m_iLastRowNumber;
-        strncpy(m_row.B_ST_ID, m_StatusTypeFile->GetRecord(eActive)->ST_ID, sizeof(m_row.B_ST_ID)-1);
+        strncpy(m_row.B_ST_ID, m_StatusTypeFile->GetRecord(eActive)->ST_ID, sizeof(m_row.B_ST_ID));
 
         GenerateBrokerName(m_row.B_ID, m_row.B_NAME, static_cast<int>(sizeof(m_row.B_NAME)));
 

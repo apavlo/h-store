@@ -290,7 +290,7 @@ public class TimeIntervalCostModel<T extends AbstractCostModel> extends Abstract
                     if (base_partition != null) {
                         exec_histogram[i].put(base_partition);
                     } else {
-                        exec_histogram[i].putValues(all_partitions);
+                        exec_histogram[i].putAll(all_partitions);
                     }
                     if (trace) LOG.trace(txn_trace + ": " + (txn_entry.isSingleSited() ? "Single" : "Multi") + "-Sited [" +
                                          "singlep_ctrs=" + singlepartition_ctrs[i] + ", " +
@@ -308,7 +308,7 @@ public class TimeIntervalCostModel<T extends AbstractCostModel> extends Abstract
                         missing_partitions.removeAll(txn_entry.getTouchedPartitions());
                         // Update the histogram for this interval to keep track of how many times we need to
                         // increase the partition access histogram
-                        incomplete_txn_histogram[i].putValues(missing_partitions);
+                        incomplete_txn_histogram[i].putAll(missing_partitions);
                     }
                 } catch (Exception ex) {
                     LOG.error("Failed to estimate cost for " + txn_trace.getCatalogItemName() + " at interval " + i);
@@ -358,7 +358,7 @@ public class TimeIntervalCostModel<T extends AbstractCostModel> extends Abstract
             if (num_txns < total_txns_in_interval) {
                 if (trace) LOG.trace("Adding " + (total_txns_in_interval - num_txns) + " entries to the incomplete histogram for interval #" + i);
                 for (long ii = num_txns; ii < total_txns_in_interval; ii++) {
-                    missing_txn_histogram[i].putValues(all_partitions);
+                    missing_txn_histogram[i].putAll(all_partitions);
                 } // WHILE
             }
             
@@ -420,7 +420,7 @@ public class TimeIntervalCostModel<T extends AbstractCostModel> extends Abstract
                 
                 Histogram check = new Histogram();
                 for (TransactionCacheEntry tce : singlesited_cost_model.getTransactionCacheEntries()) {
-                    check.putValues(tce.getTouchedPartitions());
+                    check.putAll(tce.getTouchedPartitions());
                     System.err.println(tce.debug() + "\n");
                 }
                 System.err.println("Check Touched Partitions: sample=" + check.getSampleCount() + ", value=" + check.getValueCount());

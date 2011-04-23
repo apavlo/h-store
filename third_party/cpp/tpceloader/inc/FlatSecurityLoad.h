@@ -1,9 +1,9 @@
 /*
  * Legal Notice
  *
- * This document and associated source code (the "Work") is a preliminary
- * version of a benchmark specification being developed by the TPC. The
- * Work is being made available to the public for review and comment only.
+ * This document and associated source code (the "Work") is a part of a
+ * benchmark specification maintained by the TPC.
+ *
  * The TPC reserves all right, title, and interest to the Work as provided
  * under U.S. and international laws, including without limitation all patent
  * and trademark rights therein.
@@ -62,7 +62,9 @@ public:
     {
         Flat_S_START_DATE = next_record->S_START_DATE;
         Flat_S_EXCH_DATE = next_record->S_EXCH_DATE;
-        int rc = fprintf( hOutFile, SecurityRowFmt_1,
+        Flat_S_52WK_HIGH_DATE = next_record->S_52WK_HIGH_DATE;
+        Flat_S_52WK_LOW_DATE = next_record->S_52WK_LOW_DATE;
+        int rc = fprintf( hOutFile, SecurityRowFmt,
                   next_record->S_SYMB,
                   next_record->S_ISSUE,
                   next_record->S_ST_ID,
@@ -72,26 +74,11 @@ public:
                   next_record->S_NUM_OUT,
                   Flat_S_START_DATE.ToStr(FlatFileDateFormat),
                   Flat_S_EXCH_DATE.ToStr(FlatFileDateFormat),
-                  next_record->S_PE
-                );
-
-        if( OLTP_VALUE_IS_NULL == next_record->S_52WK.iIndicator )
-        {
-            rc = fprintf( hOutFile, "||||" );
-        }
-        else
-        {
-            Flat_S_52WK_HIGH_DATE = next_record->S_52WK.HIGH_DATE;
-            Flat_S_52WK_LOW_DATE = next_record->S_52WK.LOW_DATE;
-            rc = fprintf( hOutFile, SecurityRowFmt_2,
-                      next_record->S_52WK.HIGH,
-                      Flat_S_52WK_HIGH_DATE.ToStr(FlatFileDateFormat),
-                      next_record->S_52WK.LOW,
-                      Flat_S_52WK_LOW_DATE.ToStr(FlatFileDateFormat)
-                    );
-        }
-
-        rc = fprintf( hOutFile, SecurityRowFmt_3,
+                  next_record->S_PE,
+                  next_record->S_52WK_HIGH,
+                  Flat_S_52WK_HIGH_DATE.ToStr(FlatFileDateFormat),
+                  next_record->S_52WK_LOW,
+                  Flat_S_52WK_LOW_DATE.ToStr(FlatFileDateFormat),
                   next_record->S_DIVIDEND,
                   next_record->S_YIELD
                 );
@@ -99,7 +86,6 @@ public:
         if (rc < 0) {
             throw CSystemErr(CSystemErr::eWriteFile, "CFlatSecurityLoad::WriteNextRecord");
         }
-        this->iNumRecords++;
     }
 };
 

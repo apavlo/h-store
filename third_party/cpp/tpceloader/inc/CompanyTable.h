@@ -1,9 +1,9 @@
 /*
  * Legal Notice
  *
- * This document and associated source code (the "Work") is a preliminary
- * version of a benchmark specification being developed by the TPC. The
- * Work is being made available to the public for review and comment only.
+ * This document and associated source code (the "Work") is a part of a
+ * benchmark specification maintained by the TPC.
+ *
  * The TPC reserves all right, title, and interest to the Work as provided
  * under U.S. and international laws, including without limitation all patent
  * and trademark rights therein.
@@ -82,7 +82,8 @@ class CCompanyTable : public TableTemplate<COMPANY_ROW>
         int     iCompanySPRateThreshold;
 
         OldSeed = m_rnd.GetSeed();
-        m_rnd.SetSeed( m_rnd.RndNthElement( RNGSeedBaseSPRate, m_row.CO_ID ));
+        m_rnd.SetSeed( m_rnd.RndNthElement( RNGSeedBaseSPRate, 
+                       (RNGSEED) m_row.CO_ID ));
         iCompanySPRateThreshold = m_rnd.RndIntRange(0, m_CompanySPRateFile->GetGreatestKey()-1);
         m_rnd.SetSeed( OldSeed );
         return( iCompanySPRateThreshold );
@@ -119,7 +120,7 @@ class CCompanyTable : public TableTemplate<COMPANY_ROW>
     void InitNextLoadUnit()
     {
         m_rnd.SetSeed(m_rnd.RndNthElement(RNGSeedTableDefault,
-            m_iLastRowNumber * iRNGSkipOneRowCompany));
+            (RNGSEED) m_iLastRowNumber * iRNGSkipOneRowCompany));
 
         ClearRecord();  // this is needed for EGenTest to work
     }
@@ -142,7 +143,7 @@ public:
         : TableTemplate<COMPANY_ROW>()
         , m_CompanyFile(inputFiles.Company)
         , m_CompanySPRateFile(inputFiles.CompanySPRate)
-        , m_person(inputFiles)
+        , m_person(inputFiles, 0, false)
     {
         m_iJan1_1800_DayNo = CDateTime::YMDtoDayno(1800, 1, 1); //days number for Jan 1, 1800
         m_iJan2_2000_DayNo = CDateTime::YMDtoDayno(2000, 1, 2); //days number for Jan 2, 2000
@@ -219,7 +220,7 @@ public:
 
         strncpy(m_row.CO_ST_ID,
                 m_CompanyFile->GetRecord(m_iLastRowNumber)->CO_ST_ID,
-                sizeof(m_row.CO_ST_ID)-1);
+                sizeof(m_row.CO_ST_ID));
 
         m_CompanyFile->CreateName(  m_iLastRowNumber,
                                     m_row.CO_NAME,
@@ -227,17 +228,17 @@ public:
 
         strncpy(m_row.CO_IN_ID,
                 m_CompanyFile->GetRecord(m_iLastRowNumber)->CO_IN_ID,
-                sizeof(m_row.CO_IN_ID)-1);
+                sizeof(m_row.CO_IN_ID));
 
         GenerateCompanySPRate();
 
-        sprintf(m_row.CO_CEO, "%s %s",
+        snprintf(m_row.CO_CEO, sizeof(m_row.CO_CEO), "%s %s",
             m_person.GetFirstName(iCEOMult*m_row.CO_ID),
             m_person.GetLastName(iCEOMult*m_row.CO_ID));
 
         strncpy(m_row.CO_DESC,
                 m_CompanyFile->GetRecord(m_iLastRowNumber)->CO_DESC,
-                sizeof(m_row.CO_DESC)-1);
+                sizeof(m_row.CO_DESC));
 
         m_row.CO_AD_ID = ++m_iCO_AD_ID_START;
 

@@ -1,9 +1,9 @@
 /*
  * Legal Notice
  *
- * This document and associated source code (the "Work") is a preliminary
- * version of a benchmark specification being developed by the TPC. The
- * Work is being made available to the public for review and comment only.
+ * This document and associated source code (the "Work") is a part of a
+ * benchmark specification maintained by the TPC.
+ *
  * The TPC reserves all right, title, and interest to the Work as provided
  * under U.S. and international laws, including without limitation all patent
  * and trademark rights therein.
@@ -114,7 +114,7 @@ class CNewsItemAndXRefTable : public TableTemplate<NEWS_ITEM_AND_XREF_ROW>
     void InitNextLoadUnit()
     {
         m_rnd.SetSeed(m_rnd.RndNthElement(RNGSeedTableDefault,
-            m_iLastRowNumber * iRNGSkipOneRowNews));
+            (RNGSEED)m_iLastRowNumber * iRNGSkipOneRowNews));
 
         ClearRecord();  // this is needed for EGenTest to work
     }
@@ -167,11 +167,11 @@ public:
 
         iThreshold = m_rnd.RndIntRange(0, m_pLastNames->GetGreatestKey() - 1);
         strncpy(m_row.news_item.NI_AUTHOR, (m_pLastNames->GetRecord(iThreshold))->LAST_NAME,
-            sizeof(m_row.news_item.NI_AUTHOR)-1);
+            sizeof(m_row.news_item.NI_AUTHOR));
 
         iThreshold = m_rnd.RndIntRange(0, m_pLastNames->GetGreatestKey() - 1);
         strncpy(m_row.news_item.NI_SOURCE, (m_pLastNames->GetRecord(iThreshold))->LAST_NAME,
-            sizeof(m_row.news_item.NI_SOURCE)-1);
+            sizeof(m_row.news_item.NI_SOURCE));
 
         // Generate NEWS_XREF row
         m_row.news_xref.NX_NI_ID = m_row.news_item.NI_ID;

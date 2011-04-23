@@ -1,9 +1,9 @@
 /*
  * Legal Notice
  *
- * This document and associated source code (the "Work") is a preliminary
- * version of a benchmark specification being developed by the TPC. The
- * Work is being made available to the public for review and comment only.
+ * This document and associated source code (the "Work") is a part of a
+ * benchmark specification maintained by the TPC.
+ *
  * The TPC reserves all right, title, and interest to the Work as provided
  * under U.S. and international laws, including without limitation all patent
  * and trademark rights therein.
@@ -58,13 +58,12 @@ public:
         int rc = fprintf( hOutFile, TradeTypeRowFmt,
                   next_record->TT_ID,
                   next_record->TT_NAME,
-                  next_record->TT_IS_SELL,
-                  next_record->TT_IS_MRKT
+                  (next_record->TT_IS_SELL ? FlatFileBoolTrue : FlatFileBoolFalse),
+                  (next_record->TT_IS_MRKT ? FlatFileBoolTrue : FlatFileBoolFalse)
                 );
         if (rc < 0) {
             throw CSystemErr(CSystemErr::eWriteFile, "CFlatTradeTypeLoad::WriteNextRecord");
         }
-        this->iNumRecords++;
     }
 };
 

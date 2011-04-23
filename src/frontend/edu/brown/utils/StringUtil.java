@@ -7,6 +7,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.regex.Pattern;
 
+import org.apache.commons.collections15.map.ListOrderedMap;
 import org.voltdb.client.Client;
 import org.voltdb.utils.Pair;
 
@@ -23,6 +24,7 @@ public abstract class StringUtil {
     private static String CACHE_REPEAT_RESULT = null;
     
     private static Pattern LINE_SPLIT = Pattern.compile("\n");
+    private static Pattern SPACE_SPLIT = Pattern.compile(" ");
     
     /**
      * Format the header + rows into a CSV
@@ -43,6 +45,30 @@ public abstract class StringUtil {
     public static String table(String header[], Object[]...rows) {
         return (StringUtil.table("  ", true, false, header, rows));
     }
+    
+    public static Map<String, String> tableMap(String header[], Object[]...rows) {
+        String new_header[] = new String[header.length-1];
+        for (int i = 0; i < new_header.length; i++) {
+            new_header[i] = header[i+1];
+        } // FOR
+        Object new_rows[][] = new String[rows.length][];
+        for (int i = 0; i < new_rows.length; i++) {
+            Object row[] = rows[i];
+            new_rows[i] = new String[row.length - 1];
+            for (int j = 0; j < new_rows[i].length; j++) {
+                new_rows[i][j] = row[j+1].toString();
+            } // FOR
+        }
+        
+        Map<String, String> m = new ListOrderedMap<String, String>();
+        String lines[] = LINE_SPLIT.split(StringUtil.table(new_header, new_rows));
+        for (int i = 0; i < lines.length; i++) {
+            Object key = (i == 0 ? header[0] : rows[i-1][0]);  
+            m.put((key != null ? key.toString() : null), lines[i]);
+        } // FOR
+        return (m);
+        
+    }
         
     /**
      * Format the header+rows into a table
@@ -61,7 +87,9 @@ public abstract class StringUtil {
             if (spacing) {
                 int width = header[col_idx].length();
                 for (int row_idx = 0; row_idx < rows.length; row_idx++) {
-                    width = Math.max(width, rows[row_idx][col_idx].toString().length());    
+                    if (rows[row_idx][col_idx] != null) {
+                        width = Math.max(width, rows[row_idx][col_idx].toString().length());
+                    }
                 } // FOR
                 f = "%-" + width + "s";
             } else {
@@ -82,7 +110,8 @@ public abstract class StringUtil {
             Object row[] = rows[row_idx];
             sb.append("\n");
             for (int col_idx = 0; col_idx < col_formats.length; col_idx++) {
-                sb.append(String.format(col_formats[col_idx], row[col_idx].toString()));    
+                String cell = (row[col_idx] != null ? row[col_idx].toString() : "");
+                sb.append(String.format(col_formats[col_idx], cell));    
             } // FOR
         } // FOR
         
@@ -102,7 +131,7 @@ public abstract class StringUtil {
         
         for (int i = 0; i < strs.length; i++) {
             lines[i] = LINE_SPLIT.split(strs[i]);
-            prefixes[i] = (i == 0 ? "" : " ┃ ");
+            prefixes[i] = (i == 0 ? "" : " \u2503 ");
             for (String line : lines[i]) {
                 max_length = Math.max(max_length, line.length());
             } // FOR
@@ -351,11 +380,32 @@ public abstract class StringUtil {
      * @return
      */
     public static String title(String string) {
+        return (StringUtil.title(string, false));
+    }
+    
+    /**
+     * Converts a string to title case (ala Python)
+     * @param string
+     * @param keep_upper If true, then any non-first character that is uppercase stays uppercase
+     * @return
+     */
+    public static String title(String string, boolean keep_upper) {
         StringBuilder sb = new StringBuilder();
         String add = "";
-        for (String part : string.split(" ")) {
+        for (String part : SPACE_SPLIT.split(string)) {
             sb.append(add).append(part.substring(0, 1).toUpperCase());
-            if (part.length() > 1) sb.append(part.substring(1).toLowerCase());
+            int len = part.length();
+            if (len > 1) {
+                if (keep_upper) {
+                    for (int i = 1; i < len; i++) {
+                        String c = part.substring(i, i+1);
+                        String up = c.toUpperCase();
+                        sb.append(c.equals(up) ? c : c.toLowerCase()); 
+                    } // FOR
+                } else {
+                    sb.append(part.substring(1).toLowerCase());    
+                }
+            }
             add = " ";
         } // FOR
         return (sb.toString());

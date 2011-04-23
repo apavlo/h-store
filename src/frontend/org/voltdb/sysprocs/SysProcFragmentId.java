@@ -63,8 +63,8 @@ public class SysProcFragmentId
     public static final long PF_createSnapshotTargetsResults = 43;
 
     // @LoadMultipartitionTable
-    public static final long PF_distribute = 50;
-    public static final long PF_aggregate = 51;
+    public static final long PF_loadDistribute = 50;
+    public static final long PF_loadAggregate = 51;
 
     // @SnapshotRestore
     public static final long PF_restoreScan = 60;
@@ -111,4 +111,9 @@ public class SysProcFragmentId
     public static final long PF_retrieveInstanceIdAggregator = 161;
     public static final long PF_setInstanceId = 162;
     public static final long PF_setInstanceIdAggregator = 163;
+    
+    // @DatabaseDump
+    public static final long PF_dumpDistribute = 170;
+    public static final long PF_dumpAggregate = 171;
+    
 }

@@ -250,8 +250,8 @@ public class TestDistributer extends TestCase {
         // And a distributer
         Distributer dist = new Distributer();
         try {
-            dist.createConnection("localhost", "", "", 20000);
-            dist.createConnection("localhost", "", "", 20001);
+            dist.createConnection("localhost", 20000, "", "");
+            dist.createConnection("localhost", 20001, "", "");
         } catch (UnknownHostException e) {
             e.printStackTrace();
             fail();
@@ -291,9 +291,9 @@ public class TestDistributer extends TestCase {
 
             Distributer dist = new Distributer();
             try {
-                dist.createConnection("localhost", "", "", 20000);
-                dist.createConnection("localhost", "", "", 20001);
-                dist.createConnection("localhost", "", "", 20002);
+                dist.createConnection("localhost", 20000, "", "");
+                dist.createConnection("localhost", 20001, "", "");
+                dist.createConnection("localhost", 20002, "", "");
             } catch (UnknownHostException e) {
                 e.printStackTrace();
                 fail();

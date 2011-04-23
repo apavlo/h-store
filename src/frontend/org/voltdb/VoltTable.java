@@ -473,6 +473,39 @@ public final class VoltTable extends VoltTableRow implements FastSerializable {
         retval.m_activeRowIndex = index;
         return retval;
     }
+    
+    public final VoltTableRow getRow() {
+        int idx = this.getActiveRowIndex();
+        return (this.fetchRow(idx));
+    }
+
+    /**
+     * Returns the active row as a read-only array
+     * @return
+     */
+    public final Object[] getRowArray() {
+        VoltTableRow row = this.getRow();
+        Object arr[] = new Object[row.getColumnCount()];
+        for (int i = 0; i < arr.length; i++) {
+            arr[i] = row.get(i);
+        } // FOR
+        return (arr);
+    }
+    
+    /**
+     * Returns the active row as a read-only string array
+     * @return
+     */
+    public final String[] getRowStringArray() {
+        VoltTableRow row = this.getRow();
+        String arr[] = new String[row.getColumnCount()];
+        for (int i = 0; i < arr.length; i++) {
+            Object v = row.get(i);
+            if (v != null) arr[i] = v.toString();
+        } // FOR
+        return (arr);
+    }
+    
 
     /**
      * Append a {@link VoltTableRow row} from another <tt>VoltTable</tt>

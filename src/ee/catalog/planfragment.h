@@ -41,6 +41,7 @@ protected:
     int32_t m_id;
     bool m_hasdependencies;
     bool m_multipartition;
+    bool m_readonly;
     std::string m_plannodetree;
     bool m_nontransactional;
 
@@ -57,6 +58,8 @@ public:
     bool hasdependencies() const;
     /** GETTER: Should this plan fragment be sent to all partitions */
     bool multipartition() const;
+    /** GETTER: Whether this PlanFragment is read only */
+    bool readonly() const;
     /** GETTER: A serialized representation of the plan-graph/plan-pipeline */
     const std::string & plannodetree() const;
     /** GETTER: True if this fragment doesn't read from or write to any persistent tables */

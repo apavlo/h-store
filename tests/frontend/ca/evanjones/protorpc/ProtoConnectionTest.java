@@ -50,9 +50,10 @@ public class ProtoConnectionTest {
     
     
     @Test
-    public void testTryRead() throws IOException {
+    public void testReadBufferedMessage() throws IOException {
         Counter.Value.Builder builder = Counter.Value.newBuilder();
-        assertEquals(ProtoConnection.Status.NO_MESSAGE, connection.tryRead(builder));
+        assertTrue(connection.readAllAvailable());
+        assertFalse(connection.readBufferedMessage(builder));
 
         Counter.Value v = Counter.Value.newBuilder().setValue(42).build();
         byte[] all = makeConnectionMessage(v);
@@ -61,13 +62,16 @@ public class ProtoConnectionTest {
         byte[] fragment2 = new byte[all.length - fragment1.length];
         System.arraycopy(all, fragment1.length, fragment2, 0, fragment2.length);
         channel.setNextRead(fragment1);
-        assertEquals(ProtoConnection.Status.NO_MESSAGE, connection.tryRead(builder));
+        assertTrue(connection.readAllAvailable());
+        assertTrue(connection.readAllAvailable());
+        assertFalse(connection.readBufferedMessage(builder));
         channel.setNextRead(fragment2);
-        assertEquals(ProtoConnection.Status.MESSAGE, connection.tryRead(builder));
+        assertTrue(connection.readAllAvailable());
+        assertTrue(connection.readBufferedMessage(builder));
         assertEquals(v, builder.build());
 
         channel.end = true;
-        assertEquals(ProtoConnection.Status.CLOSED, connection.tryRead(builder));
+        assertFalse(connection.readBufferedMessage(builder));
         connection.close();
         assertTrue(channel.closed);
     }
@@ -104,7 +108,8 @@ public class ProtoConnectionTest {
         Counter.Value.Builder builder = Counter.Value.newBuilder();
         for (int i = 0; i < CODED_INPUT_LIMIT * 2; ++i) {
             channel.setNextRead(all);
-            assertEquals(ProtoConnection.Status.MESSAGE, connection.tryRead(builder));
+            assertTrue(connection.readAllAvailable());
+            assertTrue(connection.readBufferedMessage(builder));
             builder.clear();
         }
     }

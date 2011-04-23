@@ -35,6 +35,7 @@ package edu.brown.benchmark.tm1.procedures;
 import org.voltdb.*;
 
 import edu.brown.benchmark.tm1.TM1Constants;
+import edu.brown.utils.ThreadUtil;
 
 @ProcInfo(
     singlePartition = false
@@ -53,10 +54,10 @@ public class InsertCallForwarding extends VoltProcedure{
          "SELECT s_id FROM " + TM1Constants.TABLENAME_CALL_FORWARDING +
          " WHERE s_id = ? AND sf_type = ? AND start_time = ?");
      
-     //
-     // If this is set to true, then we will use the "check" query to look whether our
-     // Call_Forwarding record already exists before we try to insert it.
-     //
+     /**
+      * If this is set to true, then we will use the "check" query to look whether our
+      * Call_Forwarding record already exists before we try to insert it.
+      */
      public static final boolean NO_CONSTRAINT_ABORT = true;
      
      public long run(String sub_nbr, long sf_type, long start_time, long end_time, String numberx) throws VoltAbortException{
@@ -72,23 +73,26 @@ public class InsertCallForwarding extends VoltProcedure{
          voltQueueSQL(query2, s_id);
          voltExecuteSQL();
          
-         //
+//         System.err.println("INSERT CALL FORWARD SLEEP!");
+//         ThreadUtil.sleep(10000);
+         
          // Inserting a new Call_Forwarding record only succeeds 30% of the time
          // Check whether the record that we want to insert already exists in Call_Forwarding
          // This is *not* how it's suppose to be done, but there is current no way to check
          // whether the insert failed from inside of the xact
-         //
          if (NO_CONSTRAINT_ABORT) {
              voltQueueSQL(check, s_id, sf_type, start_time);
              result = voltExecuteSQL();
          }
-         if (result == null || result.length == 0) {
+         if (result == null || result.length == 0 || result[0].getRowCount() == 0) {
              voltQueueSQL(update, s_id, sf_type, start_time, end_time, numberx);
              result = voltExecuteSQL();
              assert result.length == 1;
              return result[0].asScalarLong();
          }
-         if (NO_CONSTRAINT_ABORT) throw new VoltAbortException("Call_Forwarding entry already exists");
+         if (NO_CONSTRAINT_ABORT) {
+              throw new VoltAbortException("Call_Forwarding entry already exists");
+         }
          return (0l);
      }
 }

@@ -1,9 +1,9 @@
 /*
  * Legal Notice
  *
- * This document and associated source code (the "Work") is a preliminary
- * version of a benchmark specification being developed by the TPC. The
- * Work is being made available to the public for review and comment only.
+ * This document and associated source code (the "Work") is a part of a
+ * benchmark specification maintained by the TPC.
+ *
  * The TPC reserves all right, title, and interest to the Work as provided
  * under U.S. and international laws, including without limitation all patent
  * and trademark rights therein.
@@ -107,7 +107,7 @@ template <typename T> class CInputFileNoWeight
                             iLastIndex = iIndex;
                         }
                         //Indices in the file start with 1 => substract 1.
-                        m_list[iIndex-1]->push_back(row);   //insert into the container
+                        m_list[(UINT)(iIndex-1)]->push_back(row);   //insert into the container
                     }
                 }
     }
@@ -133,7 +133,7 @@ public:
     }
 
     //Returns the element at a specific index
-    PVectorT    GetRecord(int index) { return m_list[index]; };
+    PVectorT    GetRecord(UINT index) { return m_list[index]; };
 
     //Returns the number of records in the file (needed for TaxRates table
     UINT        GetSize() { return (UINT)m_list.size(); }

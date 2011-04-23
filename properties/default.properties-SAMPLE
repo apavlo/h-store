@@ -6,89 +6,117 @@
 # We assume that there will be no spaces in paths or options listed here
 global.sshoptions = -x
 
+global.defaulthost = localhost
+
 ## ------------------------------------------------------------
 ## Client Parameters
 ## ------------------------------------------------------------
 
-client.host                 = ${hstore.defaulthost}
+client.host = ${global.defaulthost}
 
 # The number of txns that each client submits (per ms)
 # Actual TXN rate sent to cluster will be:
 #   TXNRATE * CLIENTCOUNT * PROCESSESPERCLIENT
-client.txnrate              = 1000
+client.txnrate = 10000
 
 # Number of processes to use per client
-client.processesperclient   = 1
+client.processesperclient = 1
 
 # Number of clients
-client.count                = 1
+client.count = 1
 
 # How long should the client run (in ms)
-client.duration             = 60000
+client.duration = 60000
+
+# How long should the system be allowed to warmup?
+# Any stats collected during this period are not counted.
+client.warmup = 00000
 
 # Polling interval (ms)
-client.interval             = 10000
+client.interval = 10000
 
 # Whether to use the BlockingClient
-client.blocking             = true
+client.blocking = true
+
+# Whether to use the ThrottlingClient
+client.throttling = false
 
 # Scale Factor
-client.scalefactor          = 1000
+client.scalefactor = 10
 
 # Skew Factor
-client.skewfactor           = 0.0
+client.skewfactor = 0.0
 
 # Temporal Skew
 # Define the number of partitions used in a skew block
-client.temporalwindow       = 0
-client.temporaltotal        = 100
+client.temporalwindow = 0
+client.temporaltotal = 100
+
+# If this is set to true, then the BenchmarkController will
+# request all of the partitions to dump their tables to CSV files
+# in the given directory
+client.dump_database = false
+client.dump_database_dir = /tmp/dumps
 
 ## ------------------------------------------------------------
 ## Coordinator Parameters
 ## ------------------------------------------------------------
 
 # Coordinator Host:Port
-coordinator.host            = ${hstore.defaulthost}
-coordinator.port            = 12348
+coordinator.host = ${global.defaulthost}
+coordinator.port = 12348
 
 # How long should we wait before starting the dtxn coordinator (in seconds)
-coordinator.delay           = 0
+coordinator.delay = 0
 
 ## ------------------------------------------------------------
 ## Node/Site Parameters
 ## ------------------------------------------------------------
 
 # ???
-node.useprofile                  = DISABLED
+node.useprofile = DISABLED
 
 # The amount of memory to allocate for each site (in MB)
-node.memory                 = 4096
+node.memory = 2048
 
 # Pre-loading Scale Factor (for HStoreSite's object pools)
-node.preload                = 10
+node.preload = 10
 
 # Enable HStoreSite's StatusThread (# of seconds to print update)
 # Set this to be -1 if you want to disable the status messages
-node.statusinterval         = 10
+node.statusinterval = 20
 
 # Allow the HStoreSite StatusThread to kill the cluster if it looks hung
-node.statusinterval_kill    = true
+node.statusinterval_kill = false
+
+# Ignore the Dtxn.Coordinator
+node.ignore_dtxn = true
+
+# Enable speculative execution
+node.enable_speculative_execution = false
+
+# Enable DB2 style redirects
+node.enable_db2_redirects = false
 
 # Always execute transactions as single-partitioned (excludes sysprocs)
-node.force_singlepartition  = false
+node.force_singlepartition = true
 
 # Always execute transactions on the partition that the client submitted them to
-node.force_localexecution   = false
+node.force_localexecution = false
 
 # Enable VLDB paper hack where we inspect the arguments of the TPC-C neworder transaction and
 # figure out what partitions it needs without having to use the TransactionEstimator
-node.force_neworderinspect  = false
+node.force_neworderinspect = false
+node.force_neworderinspect_done = false
 
 # How often in miliseconds should the clean-up thread be invoked and clear out finished transactions
-node.cleanup_interval       = 500
+node.cleanup_interval = 500
 
 # How many miliseconds before the cleanup thread will clean-up a transaction's state
-node.cleanup_txn_expire     = 500
+node.cleanup_txn_expire = 100
 
 # Whether to enable profiling collection
-node.enable_profiling       = false
+node.enable_profiling = false
+
+# Whether to the HStoreSite on a mispredict
+node.mispredict_crash = false

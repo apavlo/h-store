@@ -1,8 +1,8 @@
 package edu.brown.catalog;
 
 import java.io.*;
+import java.net.InetSocketAddress;
 import java.util.*;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.log4j.Logger;
@@ -29,14 +29,15 @@ import edu.brown.utils.AbstractTreeWalker;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.FileUtil;
 import edu.brown.utils.LoggerUtil;
+import edu.brown.utils.LoggerUtil.LoggerBoolean;
 
 /**
  * @author pavlo
  */
 public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
     static final Logger LOG = Logger.getLogger(CatalogUtil.class);
-    private final static AtomicBoolean debug = new AtomicBoolean(LOG.isDebugEnabled());
-    private final static AtomicBoolean trace = new AtomicBoolean(LOG.isTraceEnabled());
+    private final static LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private final static LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
     static {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
@@ -93,6 +94,12 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
          * Column -> Foreign Key Parent Column
          */
         public final Map<Column, Column> FOREIGNKEY_PARENT = new HashMap<Column, Column>();
+        
+        /**
+         * Execution Site Triplets
+         * [Host IP Address, Port #, Site ID]
+         */
+        public final List<String[]> EXECUTION_SITES = new ArrayList<String[]>();
     }
     
     private static final Map<Database, CatalogUtil.Cache> CACHE = new HashMap<Database, CatalogUtil.Cache>();
@@ -112,6 +119,52 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
         }
         assert(ret != null) : "Failed to cache for " + catalog_item.fullName();
         return (ret);
+    }
+    
+    public static void preload(CatalogType catalog_obj) {
+        assert(catalog_obj != null);
+        
+        Database catalog_db = CatalogUtil.getDatabase(catalog_obj);
+        List<PlanFragment> stmt_frags = new ArrayList<PlanFragment>();
+        for (Procedure catalog_proc : catalog_db.getProcedures()) {
+            
+            for (Statement catalog_stmt : catalog_proc.getStatements()) {
+                stmt_frags.clear();
+                CollectionUtil.addAll(stmt_frags, catalog_stmt.getFragments());
+                CollectionUtil.addAll(stmt_frags, catalog_stmt.getMs_fragments());
+                
+                if (catalog_stmt.getReadonly()) {
+                    for (PlanFragment catalog_frag : stmt_frags) {
+                        assert(catalog_frag.getReadonly());
+                        FRAGMENT_READONLY.put((long)catalog_frag.getId(), true);
+                    } // FOR
+                } else {
+                    for (PlanFragment catalog_frag : stmt_frags) {
+                        long id = (long)catalog_frag.getId();
+                        FRAGMENT_READONLY.put(id, catalog_frag.getReadonly());
+                    } // FOR
+                }
+            } // STATEMENT
+        } // PROCEDURE 
+    }
+
+    private static final Map<Long, Boolean> FRAGMENT_READONLY = new HashMap<Long, Boolean>();
+
+    /**
+     * Returns true if all of the fragments in the array are read-only
+     * @param catalog_obj
+     * @param fragments
+     * @param cnt
+     * @return
+     */
+    public static boolean areFragmentsReadOnly(CatalogType catalog_obj, long fragments[], int cnt) {
+        if (FRAGMENT_READONLY.isEmpty()) preload(catalog_obj);
+        for (int i = 0; i < cnt; i++) {
+            Boolean b = FRAGMENT_READONLY.get(fragments[i]);
+            assert(b != null) : "Unexpected PlanFragment id #" + fragments[i];
+            if (b.booleanValue() == false) return (false);
+        } // FOR
+        return (true);
     }
     
 
@@ -281,6 +334,29 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
     }
     
     /**
+     * Return the InetSocketAddress used by the Dtxn.Engine for the given PartitionId
+     * @param catalog_item
+     * @param id
+     * @param engine - Whether to use the direct engine port number 
+     * @return
+     */
+    public static InetSocketAddress getPartitionAddressById(CatalogType catalog_item, Integer id, boolean engine) {
+        final CatalogUtil.Cache cache = CatalogUtil.getCache(catalog_item);
+        if (cache.PARTITION_XREF.isEmpty()) CatalogUtil.buildPartitionCache(cache, catalog_item);
+        Partition catalog_part = cache.PARTITION_XREF.get(id);
+        if (catalog_part == null) {
+            LOG.warn(String.format("Invalid partition id '%d'", id));
+            return (null);
+        }
+        Site catalog_site = catalog_part.getParent();
+        assert(catalog_site != null) : "No site for " + catalog_part; 
+        Host catalog_host = catalog_site.getHost();
+        assert(catalog_host != null) : "No host for " + catalog_site;
+        int port = (engine ? catalog_part.getEngine_port() : catalog_part.getDtxn_port());
+        return (new InetSocketAddress(catalog_host.getIpaddr(), port));
+    }
+    
+    /**
      * Return a Collection of all the Partition catalog objects
      * @param catalog_item
      * @return
@@ -369,18 +445,22 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
      * @return
      */
     public static List<String[]> getExecutionSites(CatalogType catalog_item) {
-        Cluster catalog_clus = CatalogUtil.getCluster(catalog_item);
-        ArrayList<String[]> ret = new ArrayList<String[]>();
-        for (Host catalog_host : catalog_clus.getHosts()) {
-            assert (catalog_host != null);
-            for (Site catalog_site : CatalogUtil.getSitesForHost(catalog_host)) {
-                ret.add(new String[] {
-                        catalog_host.getIpaddr(),
-                        Integer.toString(catalog_site.getProc_port()),
-                        catalog_site.getName() });
+        final CatalogUtil.Cache cache = CatalogUtil.getCache(catalog_item);
+        final List<String[]> sites = cache.EXECUTION_SITES;
+        
+        if (sites.isEmpty()) {
+            Cluster catalog_clus = CatalogUtil.getCluster(catalog_item);
+            for (Site catalog_site : CatalogUtil.getSortedCatalogItems(catalog_clus.getSites(), "id")) {
+                Host catalog_host = catalog_site.getHost();
+                assert (catalog_host != null);
+                sites.add(new String[] {
+                    catalog_host.getIpaddr(),
+                    Integer.toString(catalog_site.getProc_port()),
+                    Integer.toString(catalog_site.getId()), 
+                });
             } // FOR
-        } // FOR
-        return (ret);
+        }
+        return (sites);
     }
 
     /**

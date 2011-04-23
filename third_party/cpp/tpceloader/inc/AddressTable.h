@@ -1,9 +1,9 @@
 /*
  * Legal Notice
  *
- * This document and associated source code (the "Work") is a preliminary
- * version of a benchmark specification being developed by the TPC. The
- * Work is being made available to the public for review and comment only.
+ * This document and associated source code (the "Work") is a part of a
+ * benchmark specification maintained by the TPC.
+ *
  * The TPC reserves all right, title, and interest to the Work as provided
  * under U.S. and international laws, including without limitation all patent
  * and trademark rights therein.
@@ -49,7 +49,6 @@ namespace TPCE
 class CAddressTable : public TableTemplate<ADDRESS_ROW>
 {
 private:
-    CPerson                 m_person;
     CDateTime               m_date_time;
     CCompanyFile*           m_companies;
     TStreetNamesFile*       m_Street;
@@ -62,6 +61,10 @@ private:
     TIdent                  m_iCompanyCount;    //total # of companies for which to generate addresses
     UINT                    m_iExchangeCount;   //total # of exchanges for which to generate addresses
     TIdent                  m_iTotalAddressCount;   // total # of address rows to generate
+    bool                    m_bCacheEnabled;
+    int                     m_iCacheSize;
+    TIdent                  m_iCacheOffset;
+    const TZipCodeInputRow** m_CacheZipCode;
 
     /*
     *   Generate AD_LINE_1 and store it in the record structure.
@@ -106,7 +109,7 @@ private:
     *   RETURNS:
     *           country code.
     */
-    int GetCountryCode( const char *pZipCode );
+    UINT GetCountryCode( const char *pZipCode );
     /*
     *   Generate zip code and country for the current address id
     *   and store them in the record structure.
@@ -148,9 +151,33 @@ public:
     *       not applicable.
     */
     CAddressTable(CInputFiles   inputFiles,
-                TIdent          iCustomerCount,
-                TIdent          iStartFromCustomer,
-                bool            bCustomerAddressesOnly = false);
+                  TIdent          iCustomerCount,
+                  TIdent          iStartFromCustomer,
+                  bool            bCustomerAddressesOnly = false,
+                  bool            bCacheEnabled = false
+                 );
+
+    /*
+    *  Destructor for the ADDRESS table class.
+    *
+    *   PARAMETERS:
+    *           none.
+    *
+    *  RETURNS:
+    *       not applicable.
+    */
+    ~CAddressTable();
+
+    /*
+    *   Reset the state for the next load unit.
+    *
+    *   PARAMETERS:
+    *           none.
+    *
+    *   RETURNS:
+    *           none.
+    */
+    void InitNextLoadUnit();
 
     /*
     *   Generates the next A_ID value.
@@ -189,7 +216,7 @@ public:
     *   RETURNS:
     *           none.
     */
-    void GetDivisionAndCountryCodesForAddress(TIdent AD_ID, int &iDivCode, int &iCtryCode);
+    void GetDivisionAndCountryCodesForAddress(TIdent AD_ID, UINT &iDivCode, UINT &iCtryCode);
 
     /*
     *   Return division and country codes for current address.
@@ -202,7 +229,7 @@ public:
     *   RETURNS:
     *           none.
     */
-    void GetDivisionAndCountryCodes(int &iDivCode, int &iCtryCode)
+    void GetDivisionAndCountryCodes(UINT &iDivCode, UINT &iCtryCode)
     {
         GetDivisionAndCountryCodesForAddress(m_row.AD_ID, iDivCode, iCtryCode);
     }

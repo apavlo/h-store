@@ -1,5 +1,7 @@
 package edu.brown.utils;
 
+import java.util.Arrays;
+
 import org.voltdb.VoltType;
 import org.voltdb.catalog.ProcParameter;
 import org.voltdb.catalog.Procedure;
@@ -34,6 +36,21 @@ public class ParameterMangler {
         this.has_arrays = found_array;
     }
     
+    public String toString(Object mangled[]) {
+//        Object mangled[] = this.convert(args);
+        
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < mangled.length; i++) {
+            sb.append(String.format("  [%02d] ", i));
+            if (this.param_isarray[i]) {
+                sb.append(Arrays.toString((Object[])mangled[i]));
+            } else {
+                sb.append(mangled[i]);
+            }
+            sb.append("\n");
+        } // FOR
+        return (sb.toString());
+    }
     
     public Object[] convert(Object orig[]) {
         // Nothing!

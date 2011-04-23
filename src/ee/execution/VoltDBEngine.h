@@ -142,7 +142,7 @@ class __attribute__((visibility("default"))) VoltDBEngine {
         Table* getTable(int32_t tableId) const;
         Table* getTable(std::string name) const;
         // Serializes table_id to out. Returns true if successful.
-        bool serializeTable(int32_t tableId, SerializeOutput* out) const;
+        bool serializeTable(int32_t tableId, int32_t offset, int32_t limit, SerializeOutput* out) const;
 
         // -------------------------------------------------
         // Execution Functions

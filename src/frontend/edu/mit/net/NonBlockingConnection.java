@@ -79,6 +79,13 @@ public class NonBlockingConnection {
         return writeBlocked;
     }
 
+    /** See {@link NIOReadStream#readAllAvailable()}.
+     * @see NIOReadStream#readAllAvailable()
+     */
+    public boolean readAllAvailable() {
+        return read.readAllAvailable();
+    }
+
     /** Read up to desired bytes of data into the internal buffer.
      * @return the number of bytes available, or -1 if the connection is closed. */
     public int readAvailable(int desired) {

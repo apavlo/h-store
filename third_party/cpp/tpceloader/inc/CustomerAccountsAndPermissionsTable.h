@@ -1,9 +1,9 @@
 /*
  * Legal Notice
  *
- * This document and associated source code (the "Work") is a preliminary
- * version of a benchmark specification being developed by the TPC. The
- * Work is being made available to the public for review and comment only.
+ * This document and associated source code (the "Work") is a part of a
+ * benchmark specification maintained by the TPC.
+ *
  * The TPC reserves all right, title, and interest to the Work as provided
  * under U.S. and international laws, including without limitation all patent
  * and trademark rights therein.
@@ -46,10 +46,10 @@
 
 namespace TPCE
 {
-const int       iMaxCAPerms=3;  //maximum # of customers having permissions to the same account
-const int       iMinAccountsPerCustRange[3] = {1, 2, 5};
-const int       iMaxAccountsPerCustRange[3] = {4, 8, 10};
-const int       iMaxAccountsPerCust = 10;   // must be the biggest number in iMaxAccountsPerCustRange array
+const UINT      iMaxCAPerms=3;  //maximum # of customers having permissions to the same account
+const UINT      iMinAccountsPerCustRange[3] = {1, 2, 5};
+const UINT      iMaxAccountsPerCustRange[3] = {4, 8, 10};
+const UINT      iMaxAccountsPerCust = 10;   // must be the biggest number in iMaxAccountsPerCustRange array
 const TIdent    iStartingBrokerID = 1;
 
 //  This is the fixed range from which person ids (like CIDs) are selected
@@ -62,25 +62,26 @@ const TIdent    iStartingBrokerID = 1;
 //
 const TIdent    iAccountPermissionIDRange = INT64_CONST(4024) * 1024 * 1024 - iDefaultStartFromCustomer;
 
-const int       iPercentAccountsWithPositiveInitialBalance = 80;
+const UINT      iPercentAccountsWithPositiveInitialBalance = 80;
 
 const double    fAccountInitialPositiveBalanceMax = 9999999.99;
 const double    fAccountInitialNegativeBalanceMin = -9999999.99;
 
-const int       iPercentAccountAdditionalPermissions_0 = 60;
-const int       iPercentAccountAdditionalPermissions_1 = 38;
-const int       iPercentAccountAdditionalPermissions_2 = 2;
+const UINT      iPercentAccountAdditionalPermissions_0 = 60;
+const UINT      iPercentAccountAdditionalPermissions_1 = 38;
+const UINT      iPercentAccountAdditionalPermissions_2 = 2;
 
-const int       iPercentAccountTaxStatusNonTaxable = 20;
-const int       iPercentAccountTaxStatusTaxableAndWithhold = 50;
-const int       iPercentAccountTaxStatusTaxableAndDontWithhold = 30;
+const UINT      iPercentAccountTaxStatusNonTaxable = 20;
+const UINT      iPercentAccountTaxStatusTaxableAndWithhold = 50;
+const UINT      iPercentAccountTaxStatusTaxableAndDontWithhold = 30;
 
 // Number of RNG calls to skip for one row in order
 // to not use any of the random values from the previous row.
-const int iRNGSkipOneRowCustomerAccount = 10;   // real max count in v3.5: 7
+const UINT iRNGSkipOneRowCustomerAccount = 10;   // real max count in v3.5: 7
 
 enum eTaxStatus
 {
+    eNone = -1,
     eNonTaxable = 0,
     eTaxableAndWithhold,
     eTaxableAndDontWithhold
@@ -108,24 +109,13 @@ class CCustomerAccountsAndPermissionsTable : public TableTemplate<CUSTOMER_ACCOU
     CAddressTable               m_addr;     //ADDRESS table - to calculate tax for TRADE
     UINT                        m_iLoadUnitSize;
     CCustomerSelection          m_CustomerSelection;
-
-    /*
-    *   Reset the state for the next load unit.
-    *
-    *   PARAMETERS:
-    *           none.
-    *
-    *   RETURNS:
-    *           none.
-    */
-    void InitNextLoadUnit()
-    {
-        m_rnd.SetSeed(m_rnd.RndNthElement(RNGSeedTableDefault,
-                                          GetCurrentC_ID() * iMaxAccountsPerCust *
-                                          iRNGSkipOneRowCustomerAccount));
-
-        ClearRecord();  // this is needed for EGenTest to work
-    }
+    bool                        m_bCacheEnabled;
+    int                         m_iCacheSizeNA;
+    TIdent                      m_iCacheOffsetNA;
+    UINT*                       m_CacheNA;
+    int                         m_iCacheSizeTS;
+    TIdent                      m_iCacheOffsetTS;
+    eTaxStatus*                 m_CacheTS;
 
     /*
     *   Generate only the Customer Account row.
@@ -150,11 +140,12 @@ class CCustomerAccountsAndPermissionsTable : public TableTemplate<CUSTOMER_ACCOU
         m_row.m_ca.CA_B_ID = GenerateBrokerIdForAccount(m_row.m_ca.CA_ID);
 
         // Generate tax status and account name.
-        if ((m_row.m_ca.CA_TAX_ST = GetAccountTaxStatus(m_row.m_ca.CA_ID)) == eNonTaxable)
+        if ((m_row.m_ca.CA_TAX_ST = (char)GetAccountTaxStatus(m_row.m_ca.CA_ID)) == eNonTaxable)
         {   // non-taxable account
             iAcctType = (int) m_row.m_ca.CA_ID % m_pNonTaxableAccountName->GetSize();   // select account type
 
-            sprintf (m_row.m_ca.CA_NAME,
+            snprintf(m_row.m_ca.CA_NAME,
+                    sizeof(m_row.m_ca.CA_NAME),
                     "%s %s %s",
                     m_person.GetFirstName(m_row.m_ca.CA_C_ID),
                     m_person.GetLastName(m_row.m_ca.CA_C_ID),
@@ -164,7 +155,8 @@ class CCustomerAccountsAndPermissionsTable : public TableTemplate<CUSTOMER_ACCOU
         {   // taxable account
             iAcctType = (int) m_row.m_ca.CA_ID % m_pTaxableAccountName->GetSize();  // select account type
 
-            sprintf (m_row.m_ca.CA_NAME,
+            snprintf(m_row.m_ca.CA_NAME,
+                    sizeof(m_row.m_ca.CA_NAME),
                     "%s %s %s",
                     m_person.GetFirstName(m_row.m_ca.CA_C_ID),
                     m_person.GetLastName(m_row.m_ca.CA_C_ID),
@@ -191,7 +183,7 @@ class CCustomerAccountsAndPermissionsTable : public TableTemplate<CUSTOMER_ACCOU
     *           OUT row         - ACCOUNT_PERMISSION row structure to fill
     *
     *   RETURNS:
-    *           none.
+    *             none.
     */
     void FillAPRow(TIdent CA_ID, TIdent C_ID, const char *szACL, ACCOUNT_PERMISSION_ROW &row)
     {
@@ -224,7 +216,8 @@ class CCustomerAccountsAndPermissionsTable : public TableTemplate<CUSTOMER_ACCOU
         iAdditionalPerms = GetNumPermsForCA(m_row.m_ca.CA_ID);
         switch (iAdditionalPerms)
         {
-        case 0: m_iPermsForCA = 1;  //60%
+        case 0:
+            m_iPermsForCA = 1;  //60%
             break;
         case 1:
             GetCIDsForPermissions(m_row.m_ca.CA_ID, m_row.m_ca.CA_C_ID, &CID_1, NULL);
@@ -258,9 +251,11 @@ public:
     *       not applicable.
     */
     CCustomerAccountsAndPermissionsTable(CInputFiles    inputFiles,
-                                        UINT            iLoadUnitSize,  // # of customers in one load unit
-                                        TIdent          iCustomerCount,
-                                        TIdent          iStartFromCustomer)
+                                         UINT            iLoadUnitSize,  // # of customers in one load unit
+                                         TIdent          iCustomerCount,
+                                         TIdent          iStartFromCustomer,
+                                         bool            bCacheEnabled = false
+                                        )
         : TableTemplate<CUSTOMER_ACCOUNT_AND_PERMISSION_ROW>()
         , m_pTaxableAccountName(inputFiles.TaxableAccountName)
         , m_pNonTaxableAccountName(inputFiles.NonTaxableAccountName)
@@ -268,13 +263,76 @@ public:
         , m_iCustomerCount(iCustomerCount)
         , m_iRowsToGenForCust(0), m_iRowsGeneratedForCust(0)
         , m_cust(inputFiles, iCustomerCount, iStartFromCustomer)
-        , m_person(inputFiles)
+        , m_person(inputFiles, iStartFromCustomer, bCacheEnabled)
         , m_iPermsForCA(0)
         , m_iBrokersCount(iLoadUnitSize / iBrokersDiv)
-        , m_addr(inputFiles, iCustomerCount, iStartFromCustomer)
+        , m_addr(inputFiles, iCustomerCount, iStartFromCustomer, bCacheEnabled)
         , m_iLoadUnitSize(iLoadUnitSize)
+        , m_bCacheEnabled(bCacheEnabled)
     {
+        if (m_bCacheEnabled)
+        {
+            m_iCacheSizeNA = iDefaultLoadUnitSize;
+            m_iCacheOffsetNA = iStartFromCustomer + iTIdentShift;
+            m_CacheNA = new UINT[m_iCacheSizeNA];
+            for (int i=0; i<m_iCacheSizeNA; i++)
+            {
+                m_CacheNA[i] = 0;
+            }
+
+            m_iCacheSizeTS = iDefaultLoadUnitSize * iMaxAccountsPerCust;
+            m_iCacheOffsetTS = ((iStartFromCustomer-1) + iTIdentShift) * iMaxAccountsPerCust;
+            m_CacheTS = new eTaxStatus[m_iCacheSizeTS];
+            for (int i=0; i<m_iCacheSizeTS; i++)
+            {
+                m_CacheTS[i] = eNone;
+            }
+        }
     };
+
+    /*
+    *  Destructor.
+    */
+    ~CCustomerAccountsAndPermissionsTable()
+    {
+        if (m_bCacheEnabled)
+        {
+            delete[] m_CacheNA;
+            delete[] m_CacheTS;
+        }
+    };
+
+    /*
+    *   Reset the state for the next load unit.
+    *
+    *   PARAMETERS:
+    *           none.
+    *
+    *   RETURNS:
+    *           none.
+    */
+    void InitNextLoadUnit()
+    {
+        m_rnd.SetSeed(m_rnd.RndNthElement(RNGSeedTableDefault,
+                                          (RNGSEED)(GetCurrentC_ID() * iMaxAccountsPerCust *
+                                          iRNGSkipOneRowCustomerAccount)));
+
+        ClearRecord();  // this is needed for EGenTest to work
+
+        if (m_bCacheEnabled)
+        {
+            m_iCacheOffsetNA += iDefaultLoadUnitSize;
+            for (int i=0; i<m_iCacheSizeNA; i++)
+            {
+                m_CacheNA[i] = 0;
+            }
+            m_iCacheOffsetTS += iDefaultLoadUnitSize * iMaxAccountsPerCust;
+            for (int i=0; i<m_iCacheSizeTS; i++)
+            {
+                m_CacheTS[i] = eNone;
+            }
+        }
+    }
 
     /*
     *   Generate the number of accounts for a given customer id.
@@ -286,33 +344,54 @@ public:
     *   RETURNS:
     *       number of accounts
     */
-    int GetNumberOfAccounts(TIdent CID, eCustomerTier iCustomerTier)
+    UINT GetNumberOfAccounts(TIdent CID, eCustomerTier iCustomerTier)
     {
-        int iMinAccountCount;
-        int iMod;
-        int iInverseCID;
+        UINT iNumAccounts = 0;
 
-        iMinAccountCount = iMinAccountsPerCustRange[iCustomerTier - eCustomerTierOne];
-        iMod = iMaxAccountsPerCustRange[iCustomerTier - eCustomerTierOne] - iMinAccountCount + 1;
-        iInverseCID = m_CustomerSelection.GetInverseCID(CID);
+        // We will sometimes get CID values that are outside the current
+        // load unit (cached range).  We need to check for this case
+        // and avoid the lookup (as we will segfault or get bogus data.)
+        TIdent index = CID - m_iCacheOffsetNA;
+        bool bCheckCache = (index >= 0 && index < m_iCacheSizeNA);
+        if (m_bCacheEnabled && bCheckCache)
+        {
+            iNumAccounts = m_CacheNA[index];
+        }
 
-        // Note: the calculations below assume load unit contains 1000 customers.
-        //
-        if (iInverseCID < 200)      // Tier 1
+        if (iNumAccounts == 0)
         {
-            return ((iInverseCID % iMod) + iMinAccountCount);
-        }
-        else
-        {
-            if (iInverseCID < 800)  // Tier 2
+            UINT iMinAccountCount;
+            UINT iMod;
+            UINT iInverseCID;
+
+            iMinAccountCount = iMinAccountsPerCustRange[iCustomerTier - eCustomerTierOne];
+            iMod = iMaxAccountsPerCustRange[iCustomerTier - eCustomerTierOne] - iMinAccountCount + 1;
+            iInverseCID = m_CustomerSelection.GetInverseCID(CID);
+
+            // Note: the calculations below assume load unit contains 1000 customers.
+            //
+            if (iInverseCID < 200)      // Tier 1
             {
-                return (((iInverseCID - 200 + 1) % iMod) + iMinAccountCount);
+                iNumAccounts = (iInverseCID % iMod) + iMinAccountCount;
             }
-        else                        // Tier 3
+            else
             {
-                return (((iInverseCID - 800 + 2) % iMod) + iMinAccountCount);
+                if (iInverseCID < 800)  // Tier 2
+                {
+                    iNumAccounts = ((iInverseCID - 200 + 1) % iMod) + iMinAccountCount;
+                }
+                else                    // Tier 3
+                {
+                    iNumAccounts = ((iInverseCID - 800 + 2) % iMod) + iMinAccountCount;
+                }
+            }
+
+            if (m_bCacheEnabled && bCheckCache)
+            {
+                m_CacheNA[index] = iNumAccounts;
             }
         }
+        return iNumAccounts;
     }
 
     /*
@@ -381,7 +460,8 @@ public:
 
         iStartingAccount = GetStartingCA_ID(iCustomerId);
 
-        iAccountOffset = (TIdent) RND.RndInt64Range( 0, iAccountCount - 1 );
+        iAccountOffset = (TIdent) RND.RndInt64Range( 0,
+                              (INT64) iAccountCount - 1 );
 
         return( iStartingAccount + iAccountOffset );
     }
@@ -473,12 +553,13 @@ public:
     int GetNumPermsForCA(TIdent CA_ID)
     {
         RNGSEED OldSeed;
-        int     iThreshold;
-        int     iNumberOfPermissions;
+        UINT    iThreshold;
+        UINT    iNumberOfPermissions;
 
         OldSeed = m_rnd.GetSeed();
 
-        m_rnd.SetSeed( m_rnd.RndNthElement( RNGSeedBaseNumberOfAccountPermissions, CA_ID ));
+        m_rnd.SetSeed( m_rnd.RndNthElement( 
+                       RNGSeedBaseNumberOfAccountPermissions, (RNGSEED)CA_ID ));
 
         iThreshold = m_rnd.RndGenerateIntegerPercentage();
 
@@ -524,7 +605,7 @@ public:
             return;
 
         OldSeed = m_rnd.GetSeed();
-        m_rnd.SetSeed( m_rnd.RndNthElement( RNGSeedBaseCIDForPermission1, CA_ID ));
+        m_rnd.SetSeed( m_rnd.RndNthElement( RNGSeedBaseCIDForPermission1, (RNGSEED) CA_ID ));
 
         // Select from a fixed range that doesn't depend on the number of customers in the database.
         // This allows not to specify the total number of customers to EGenLoader, only how many
@@ -541,7 +622,7 @@ public:
             // CA_ID, but also the CID value chosen above for the first permission. Using a
             // different sequence here may help prevent potential overlaps that might occur if
             // the same sequence from above were used.
-            m_rnd.SetSeed( m_rnd.RndNthElement( RNGSeedBaseCIDForPermission2, CA_ID ));
+            m_rnd.SetSeed( m_rnd.RndNthElement( RNGSeedBaseCIDForPermission2, (RNGSEED) CA_ID ));
             do  //make sure the second id is different from the first
             {
                 *CID_2 = m_rnd.RndInt64RangeExclude(iDefaultStartFromCustomer,
@@ -566,34 +647,51 @@ public:
     */
     eTaxStatus GetAccountTaxStatus(TIdent iCA_ID)
     {
-        RNGSEED OldSeed;
-        eTaxStatus  eCATaxStatus;
-        int     iThreshold;
+        eTaxStatus eCATaxStatus = eNone;
 
-        OldSeed = m_rnd.GetSeed();
-
-        m_rnd.SetSeed( m_rnd.RndNthElement( RNGSeedBaseAccountTaxStatus, iCA_ID ));
-
-        iThreshold = m_rnd.RndGenerateIntegerPercentage();
-        if (iThreshold <= iPercentAccountTaxStatusNonTaxable)
+        // We will sometimes get CA values that are outside the current
+        // load unit (cached range).  We need to check for this case
+        // and avoid the lookup (as we will segfault or get bogus data.)
+        TIdent index = iCA_ID - m_iCacheOffsetTS;
+        bool bCheckCache = (index >= 0 && index < m_iCacheSizeTS);
+        if (m_bCacheEnabled && bCheckCache)
         {
-            eCATaxStatus = eNonTaxable;
+            eCATaxStatus = m_CacheTS[index];
         }
-        else
+
+        if (eCATaxStatus == eNone)
         {
-            if (iThreshold <= iPercentAccountTaxStatusNonTaxable + iPercentAccountTaxStatusTaxableAndWithhold)
+            RNGSEED OldSeed;
+            UINT    iThreshold;
+
+            OldSeed = m_rnd.GetSeed();
+
+            m_rnd.SetSeed( m_rnd.RndNthElement( RNGSeedBaseAccountTaxStatus, (RNGSEED) iCA_ID ));
+
+            iThreshold = m_rnd.RndGenerateIntegerPercentage();
+            if (iThreshold <= iPercentAccountTaxStatusNonTaxable)
             {
-                eCATaxStatus = eTaxableAndWithhold;
+                eCATaxStatus = eNonTaxable;
             }
             else
             {
-                eCATaxStatus = eTaxableAndDontWithhold;
+                if (iThreshold <= iPercentAccountTaxStatusNonTaxable + iPercentAccountTaxStatusTaxableAndWithhold)
+                {
+                    eCATaxStatus = eTaxableAndWithhold;
+                }
+                else
+                {
+                    eCATaxStatus = eTaxableAndDontWithhold;
+                }
+            }
+            m_rnd.SetSeed( OldSeed );
+
+            if (m_bCacheEnabled && bCheckCache)
+            {
+                m_CacheTS[index] = eCATaxStatus;
             }
         }
-
-        m_rnd.SetSeed( OldSeed );
-
-        return eCATaxStatus ;
+        return eCATaxStatus;
     }
 
     /*
@@ -609,7 +707,7 @@ public:
     *   RETURNS:
     *           none.
     */
-    void GetDivisionAndCountryCodesForCurrentAccount(int &iDivCode, int &iCtryCode)
+    void GetDivisionAndCountryCodesForCurrentAccount(UINT &iDivCode, UINT &iCtryCode)
     {
         m_addr.GetDivisionAndCountryCodes(iDivCode, iCtryCode);
     }
@@ -636,7 +734,7 @@ public:
 
         // Note: this depends on broker ids being integer numbers from contiguous range.
         // The method of generating broker ids should be in sync with the CBrokerTable.
-        return m_rnd.RndNthInt64Range(RNGSeedBaseBrokerId, iCA_ID - (10 * iTIdentShift),
+        return m_rnd.RndNthInt64Range(RNGSeedBaseBrokerId, (RNGSEED) iCA_ID - (10 * iTIdentShift),
                                       iStartFromBroker,
                                       iStartFromBroker + m_iBrokersCount - 1);
     }
@@ -697,7 +795,7 @@ public:
     *   RETURNS:
     *           the number of permissions for the account.
     */
-    int GetCAPermsCount() {return m_iPermsForCA;}
+    UINT GetCAPermsCount() {return m_iPermsForCA;}
 
     /*
     *   Return the customer ID for the currently generated CA_ID id.

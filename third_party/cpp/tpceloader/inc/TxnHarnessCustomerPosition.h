@@ -1,9 +1,9 @@
 /*
  * Legal Notice
  *
- * This document and associated source code (the "Work") is a preliminary
- * version of a benchmark specification being developed by the TPC. The
- * Work is being made available to the public for review and comment only.
+ * This document and associated source code (the "Work") is a part of a
+ * benchmark specification maintained by the TPC.
+ *
  * The TPC reserves all right, title, and interest to the Work as provided
  * under U.S. and international laws, including without limitation all patent
  * and trademark rights therein.
@@ -75,34 +75,42 @@ public:
         memset(&CustomerPositionFrame3Output, 0, sizeof(CustomerPositionFrame3Output));
 
         CustomerPositionFrame1Input.cust_id = pTxnInput->cust_id;
-        strncpy(CustomerPositionFrame1Input.tax_id, pTxnInput->tax_id, sizeof(CustomerPositionFrame1Input.tax_id)-1);
+        strncpy(CustomerPositionFrame1Input.tax_id, pTxnInput->tax_id, sizeof(CustomerPositionFrame1Input.tax_id));
 
         m_db->DoCustomerPositionFrame1(&CustomerPositionFrame1Input, &CustomerPositionFrame1Output);
 
         // Copy Frame 1 outputs to transaction level outputs.
 
+        pTxnOutput->status = CustomerPositionFrame1Output.status;
         pTxnOutput->acct_len = CustomerPositionFrame1Output.acct_len;
+
+        if ((pTxnOutput->acct_len < 1) ||
+            (pTxnOutput->acct_len > max_acct_len))
+        {
+            pTxnOutput->status = -211;
+        }
+
         pTxnOutput->c_ad_id = CustomerPositionFrame1Output.c_ad_id;
-        strncpy(pTxnOutput->c_area_1, CustomerPositionFrame1Output.c_area_1, sizeof(pTxnOutput->c_area_1) - 1);
-        strncpy(pTxnOutput->c_area_2, CustomerPositionFrame1Output.c_area_2, sizeof(pTxnOutput->c_area_2) - 1);
-        strncpy(pTxnOutput->c_area_3, CustomerPositionFrame1Output.c_area_3, sizeof(pTxnOutput->c_area_3) - 1);
-        strncpy(pTxnOutput->c_ctry_1, CustomerPositionFrame1Output.c_ctry_1, sizeof(pTxnOutput->c_ctry_1) - 1);
-        strncpy(pTxnOutput->c_ctry_2, CustomerPositionFrame1Output.c_ctry_2, sizeof(pTxnOutput->c_ctry_2) - 1);
-        strncpy(pTxnOutput->c_ctry_3, CustomerPositionFrame1Output.c_ctry_3, sizeof(pTxnOutput->c_ctry_3) - 1);
+        strncpy(pTxnOutput->c_area_1, CustomerPositionFrame1Output.c_area_1, sizeof(pTxnOutput->c_area_1));
+        strncpy(pTxnOutput->c_area_2, CustomerPositionFrame1Output.c_area_2, sizeof(pTxnOutput->c_area_2));
+        strncpy(pTxnOutput->c_area_3, CustomerPositionFrame1Output.c_area_3, sizeof(pTxnOutput->c_area_3));
+        strncpy(pTxnOutput->c_ctry_1, CustomerPositionFrame1Output.c_ctry_1, sizeof(pTxnOutput->c_ctry_1));
+        strncpy(pTxnOutput->c_ctry_2, CustomerPositionFrame1Output.c_ctry_2, sizeof(pTxnOutput->c_ctry_2));
+        strncpy(pTxnOutput->c_ctry_3, CustomerPositionFrame1Output.c_ctry_3, sizeof(pTxnOutput->c_ctry_3));
         pTxnOutput->c_dob = CustomerPositionFrame1Output.c_dob;
-        strncpy(pTxnOutput->c_email_1, CustomerPositionFrame1Output.c_email_1, sizeof(pTxnOutput->c_email_1) - 1);
-        strncpy(pTxnOutput->c_email_2, CustomerPositionFrame1Output.c_email_2, sizeof(pTxnOutput->c_email_2) - 1);
-        strncpy(pTxnOutput->c_ext_1, CustomerPositionFrame1Output.c_ext_1, sizeof(pTxnOutput->c_ext_1) - 1);
-        strncpy(pTxnOutput->c_ext_2, CustomerPositionFrame1Output.c_ext_2, sizeof(pTxnOutput->c_ext_2) - 1);
-        strncpy(pTxnOutput->c_ext_3, CustomerPositionFrame1Output.c_ext_3, sizeof(pTxnOutput->c_ext_3) - 1);
-        strncpy(pTxnOutput->c_f_name, CustomerPositionFrame1Output.c_f_name, sizeof(pTxnOutput->c_f_name) - 1);
-        strncpy(pTxnOutput->c_gndr, CustomerPositionFrame1Output.c_gndr, sizeof(pTxnOutput->c_gndr) - 1);
-        strncpy(pTxnOutput->c_l_name, CustomerPositionFrame1Output.c_l_name, sizeof(pTxnOutput->c_l_name) - 1);
-        strncpy(pTxnOutput->c_local_1, CustomerPositionFrame1Output.c_local_1, sizeof(pTxnOutput->c_local_1) - 1);
-        strncpy(pTxnOutput->c_local_2, CustomerPositionFrame1Output.c_local_2, sizeof(pTxnOutput->c_local_2) - 1);
-        strncpy(pTxnOutput->c_local_3, CustomerPositionFrame1Output.c_local_3, sizeof(pTxnOutput->c_local_3) - 1);
-        strncpy(pTxnOutput->c_m_name, CustomerPositionFrame1Output.c_m_name, sizeof(pTxnOutput->c_m_name) - 1);
-        strncpy(pTxnOutput->c_st_id, CustomerPositionFrame1Output.c_st_id, sizeof(pTxnOutput->c_st_id) - 1);
+        strncpy(pTxnOutput->c_email_1, CustomerPositionFrame1Output.c_email_1, sizeof(pTxnOutput->c_email_1));
+        strncpy(pTxnOutput->c_email_2, CustomerPositionFrame1Output.c_email_2, sizeof(pTxnOutput->c_email_2));
+        strncpy(pTxnOutput->c_ext_1, CustomerPositionFrame1Output.c_ext_1, sizeof(pTxnOutput->c_ext_1));
+        strncpy(pTxnOutput->c_ext_2, CustomerPositionFrame1Output.c_ext_2, sizeof(pTxnOutput->c_ext_2));
+        strncpy(pTxnOutput->c_ext_3, CustomerPositionFrame1Output.c_ext_3, sizeof(pTxnOutput->c_ext_3));
+        strncpy(pTxnOutput->c_f_name, CustomerPositionFrame1Output.c_f_name, sizeof(pTxnOutput->c_f_name));
+        strncpy(pTxnOutput->c_gndr, CustomerPositionFrame1Output.c_gndr, sizeof(pTxnOutput->c_gndr));
+        strncpy(pTxnOutput->c_l_name, CustomerPositionFrame1Output.c_l_name, sizeof(pTxnOutput->c_l_name));
+        strncpy(pTxnOutput->c_local_1, CustomerPositionFrame1Output.c_local_1, sizeof(pTxnOutput->c_local_1));
+        strncpy(pTxnOutput->c_local_2, CustomerPositionFrame1Output.c_local_2, sizeof(pTxnOutput->c_local_2));
+        strncpy(pTxnOutput->c_local_3, CustomerPositionFrame1Output.c_local_3, sizeof(pTxnOutput->c_local_3));
+        strncpy(pTxnOutput->c_m_name, CustomerPositionFrame1Output.c_m_name, sizeof(pTxnOutput->c_m_name));
+        strncpy(pTxnOutput->c_st_id, CustomerPositionFrame1Output.c_st_id, sizeof(pTxnOutput->c_st_id));
         pTxnOutput->c_tier = CustomerPositionFrame1Output.c_tier;
         //pTxnOutput->cust_id = CustomerPositionFrame1Output.cust_id;
 
@@ -118,17 +126,22 @@ public:
             CustomerPositionFrame2Input.acct_id = CustomerPositionFrame1Output.acct_id[ pTxnInput->acct_id_idx ];
             m_db->DoCustomerPositionFrame2(&CustomerPositionFrame2Input, &CustomerPositionFrame2Output);
 
-            pTxnOutput->status = CustomerPositionFrame2Output.status;
             // Copy Frame 2 outputs to transaction level outputs.
-
             pTxnOutput->hist_len = CustomerPositionFrame2Output.hist_len;
+            pTxnOutput->status = CustomerPositionFrame2Output.status;
             for (int i=0; i<pTxnOutput->hist_len; i++)
             {
                 pTxnOutput->hist_dts[i] = CustomerPositionFrame2Output.hist_dts[i];
                 pTxnOutput->qty[i] = CustomerPositionFrame2Output.qty[i];
-                strncpy(pTxnOutput->symbol[i], CustomerPositionFrame2Output.symbol[i], sizeof(pTxnOutput->symbol[i]) - 1);
+                strncpy(pTxnOutput->symbol[i], CustomerPositionFrame2Output.symbol[i], sizeof(pTxnOutput->symbol[i]));
                 pTxnOutput->trade_id[i] = CustomerPositionFrame2Output.trade_id[i];
-                strncpy(pTxnOutput->trade_status[i], CustomerPositionFrame2Output.trade_status[i], sizeof(pTxnOutput->trade_status[i]) - 1);
+                strncpy(pTxnOutput->trade_status[i], CustomerPositionFrame2Output.trade_status[i], sizeof(pTxnOutput->trade_status[i]));
+            }
+
+            if ((pTxnOutput->hist_len < 10) || 
+                (pTxnOutput->hist_len > max_hist_len))
+            {
+                pTxnOutput->status = -221;
             }
         }
         else
@@ -136,6 +149,7 @@ public:
             //commit here
             m_db->DoCustomerPositionFrame3(&CustomerPositionFrame3Output);
 
+            pTxnOutput->hist_len = 0;
             pTxnOutput->status = CustomerPositionFrame3Output.status;
         }
     }

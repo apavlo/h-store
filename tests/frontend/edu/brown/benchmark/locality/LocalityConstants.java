@@ -41,12 +41,12 @@ public abstract class LocalityConstants {
     
 	public static final String TABLENAME_TABLEA = "TABLEA";
 	public static final long TABLESIZE_TABLEA = 1000000l;
-	public static final long BATCHSIZE_TABLEA = 50l;
+	public static final long BATCHSIZE_TABLEA = 1000l;
 
 	public static final String TABLENAME_TABLEB = "TABLEB";
 	public static final double TABLESIZE_TABLEB_MULTIPLIER = 100.0d;
 	public static final long TABLESIZE_TABLEB = Math.round(LocalityConstants.TABLESIZE_TABLEA * TABLESIZE_TABLEB_MULTIPLIER);
-	public static final long BATCHSIZE_TABLEB = 50l;
+	public static final long BATCHSIZE_TABLEB = 1000l;
 
 
     public static final String[] TABLENAMES = {

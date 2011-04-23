@@ -282,7 +282,6 @@ public class PlanOptimizer {
 
         // Get all of the AbstractExpression roots for this node
         final Set<AbstractExpression> exps = PlanNodeUtil.getExpressions(node);
-        final Set<AbstractExpression> temp_exps = new HashSet<AbstractExpression>();
         // If this is the root node, then include the output columns + also include output columns if its a projection or limit node
         if (is_root || node instanceof ProjectionPlanNode | node instanceof LimitPlanNode) {
             for (Integer col_guid : node.m_outputColumns) {
@@ -534,8 +533,8 @@ public class PlanOptimizer {
                 new_idx++;
             } // FOR
             if (new_pc == null) {
-                System.err.println(sql);
-                System.err.println(String.format("[%02d] Failed to find %s", i, orig_pc));
+                LOG.error(sql);
+                LOG.error(String.format("[%02d] Failed to find %s", i, orig_pc));
             }
             assert (new_pc != null);
             node.getSortColumnGuids().set(i, new_pc.guid());
@@ -1282,16 +1281,14 @@ public class PlanOptimizer {
 
         new_root = rootNode;
         if (join_tbl_mapping.size() > 0) {
-            if (join_tbl_mapping.size() == 2) {
-                System.out.println();
-            }
+//            if (join_tbl_mapping.size() == 2) {
+//                System.out.println();
+//            }
             assert (join_node_index.size() == join_tbl_mapping.size()) : "join_node_index and join_tbl_mapping have different number of elements!";
             // Add projection when right above joins
             // clear the "dirty" nodes lists
             dirtyPlanNodes.clear();
-            if (rootNode.getPlanNodeId() == 73) {
-                System.out.println();
-            }
+
             updateColumnInfo(rootNode);
             new PlanNodeTreeWalker(false) {
                 @Override
@@ -1381,7 +1378,7 @@ public class PlanOptimizer {
                                     }
                                 }
                                 if (!exists) {
-                                    System.out.println("Trouble plan column name: " + plan_col.m_displayName);
+                                    LOG.warn("Trouble plan column name: " + plan_col.m_displayName);
                                 } else {
                                     assert (orig_col_exp != null);
                                     AbstractExpression new_col_exp = null;

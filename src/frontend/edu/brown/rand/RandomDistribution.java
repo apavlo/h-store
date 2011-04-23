@@ -38,7 +38,7 @@ public class RandomDistribution {
         protected final Random random;
         protected final double mean;
         protected final long range_size;
-        private Histogram history;
+        private Histogram<Long> history;
       
         public DiscreteRNG(Random random, long min, long max) {
             if (min >= max) throw new IllegalArgumentException("Invalid range [" + min + " >= " + max + "]");
@@ -54,14 +54,14 @@ public class RandomDistribution {
          */
         public void enableHistory() {
             assert(this.history == null) : "Trying to enable history tracking more than once";
-            this.history = new Histogram();
+            this.history = new Histogram<Long>();
         }
         
         /**
          * Return the histogram of the values that have been generated
          * @return
          */
-        public Histogram getHistory() {
+        public Histogram<Long> getHistory() {
             assert(this.history != null) : "Trying to get value history but tracking wasn't enabled";
             return (this.history);
         }
@@ -126,9 +126,9 @@ public class RandomDistribution {
          * @return the next random number.
          */
         public final int nextInt() {
-            int val = (int)this.nextLongImpl();
+            long val = (int)this.nextLongImpl();
             if (this.history != null) this.history.put(val);
-            return (val);
+            return ((int)val);
         }
 
         /**
@@ -199,29 +199,29 @@ public class RandomDistribution {
     /**
      * P(i)=1/(max-min)
      */
-    public static class FlatHistogram extends DiscreteRNG {
+    public static class FlatHistogram<T> extends DiscreteRNG {
         private final Flat inner;
-        private final Histogram histogram;
-        private final SortedMap<Long, Object> value_rle = new TreeMap<Long, Object>(); 
+        private final Histogram<T> histogram;
+        private final SortedMap<Long, T> value_rle = new TreeMap<Long, T>(); 
         
         /**
          * Generate a run-length of the values of the histogram
          * 
          */
-        public FlatHistogram(Random random, Histogram histogram) {
+        public FlatHistogram(Random random, Histogram<T> histogram) {
             super(random, 0, (int)histogram.getSampleCount());
             this.histogram = histogram;
             this.inner = new Flat(random, 0, (int)histogram.getSampleCount());
             
             long total = 0;
-            for (Object k : this.histogram.values()) {
+            for (T k : this.histogram.values()) {
                 long v = this.histogram.get(k);
                 total += v;
                 this.value_rle.put(total, k);
             } // FOR
         }
         
-        public Object nextValue() {
+        public T nextValue() {
             int idx = this.inner.nextInt();
             for (long total : this.value_rle.keySet()) {
                 if (total >= idx) {

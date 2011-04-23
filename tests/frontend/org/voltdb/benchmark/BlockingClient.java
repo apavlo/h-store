@@ -151,7 +151,7 @@ public class BlockingClient extends Semaphore implements Client {
     @Override
     public void createConnection(String host, int port, String username, String password) throws UnknownHostException,
             IOException {
-        this.inner.createConnection(host, Client.VOLTDB_SERVER_PORT, username, password);
+        this.inner.createConnection(host, port, username, password);
     }
 
     /* (non-Javadoc)

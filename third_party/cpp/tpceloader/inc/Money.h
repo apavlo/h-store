@@ -1,9 +1,9 @@
 /*
  * Legal Notice
  *
- * This document and associated source code (the "Work") is a preliminary
- * version of a benchmark specification being developed by the TPC. The
- * Work is being made available to the public for review and comment only.
+ * This document and associated source code (the "Work") is a part of a
+ * benchmark specification maintained by the TPC.
+ *
  * The TPC reserves all right, title, and interest to the Work as provided
  * under U.S. and international laws, including without limitation all patent
  * and trademark rights therein.
@@ -43,12 +43,14 @@
 #ifndef MONEY_H
 #define MONEY_H
 
+#include "EGenStandardTypes.h"
+
 namespace TPCE
 {
 
 class CMoney
 {
-    int     m_iAmountInCents;       // dollar amount * 100
+    INT64   m_iAmountInCents;       // dollar amount * 100
 
     // Define binary operators when CMoney is the right operand
     //
@@ -74,7 +76,7 @@ public:
     // Initialize CMoney from double
     //
     CMoney(double fAmount)
-    : m_iAmountInCents((int)(100.0 * fAmount + 0.5))    // round floating-point number correctly
+    : m_iAmountInCents((INT64)(100.0 * fAmount + 0.5))    // round floating-point number correctly
     {
     }
 
@@ -83,6 +85,12 @@ public:
     double DollarAmount()
     {
         return m_iAmountInCents / 100.0;
+    }
+
+    // Return amount in integer cents e.g. 12399
+    INT64 CentsAmount()
+    {
+        return m_iAmountInCents;
     }
 
     // Define arithmetic operations on CMoney and CMoney
@@ -154,7 +162,7 @@ public:
     {
         CMoney  ret(this);
 
-        ret.m_iAmountInCents += (int)(100.0 * f + 0.5);
+        ret.m_iAmountInCents += (INT64)(100.0 * f + 0.5);
 
         return ret;
     }
@@ -163,14 +171,14 @@ public:
     {
         CMoney  ret(this);
 
-        ret.m_iAmountInCents -= (int)(100.0 * f + 0.5);
+        ret.m_iAmountInCents -= (INT64)(100.0 * f + 0.5);
 
         return ret;
     }
 
     CMoney& operator -=(double f)
     {
-        m_iAmountInCents -= (int)(100.0 * f + 0.5);
+        m_iAmountInCents -= (INT64)(100.0 * f + 0.5);
 
         return *this;
     }
@@ -184,11 +192,11 @@ public:
         //
         if (ret.m_iAmountInCents > 0)
         {
-            ret.m_iAmountInCents = (int)(ret.m_iAmountInCents * f + 0.5);
+            ret.m_iAmountInCents = (INT64)(ret.m_iAmountInCents * f + 0.5);
         }
         else
         {
-            ret.m_iAmountInCents = (int)(ret.m_iAmountInCents * f - 0.5);
+            ret.m_iAmountInCents = (INT64)(ret.m_iAmountInCents * f - 0.5);
         }
 
         return ret;
@@ -200,11 +208,11 @@ public:
 
         if (ret.m_iAmountInCents > 0)
         {
-            ret.m_iAmountInCents = (int)(ret.m_iAmountInCents / f + 0.5);
+            ret.m_iAmountInCents = (INT64)(ret.m_iAmountInCents / f + 0.5);
         }
         else
         {
-            ret.m_iAmountInCents = (int)(ret.m_iAmountInCents / f - 0.5);
+            ret.m_iAmountInCents = (INT64)(ret.m_iAmountInCents / f - 0.5);
         }
 
         return ret;
@@ -214,7 +222,7 @@ public:
     //
     CMoney& operator=(double f)
     {
-        m_iAmountInCents = (int)(100.0 * f + 0.5);
+        m_iAmountInCents = (INT64)(100.0 * f + 0.5);
 
         return *this;
     }

@@ -1,9 +1,9 @@
 /*
  * Legal Notice
  *
- * This document and associated source code (the "Work") is a preliminary
- * version of a benchmark specification being developed by the TPC. The
- * Work is being made available to the public for review and comment only.
+ * This document and associated source code (the "Work") is a part of a
+ * benchmark specification maintained by the TPC.
+ *
  * The TPC reserves all right, title, and interest to the Work as provided
  * under U.S. and international laws, including without limitation all patent
  * and trademark rights therein.
@@ -101,9 +101,9 @@ class CFixedMap
     //the size of the container (total number of data elements)
     TKeyAndElementsLimits   m_sLimits;
     int     m_iHighestKey;      //Highest key value from limits; taken once in constructor for performance
-    int     m_iCurrentElements; //current number of elements (cannot be greater than m_iTotalElements)
+    UINT    m_iCurrentElements; //current number of elements (cannot be greater than m_iTotalElements)
     TData   *m_pData;           //array of data elements
-    int     *m_keys;            //An array that maps key values to indices of the corresponding
+    UINT    *m_keys;            //An array that maps key values to indices of the corresponding
                                 //data values in m_pData array.
                                 //Key value is an index in m_keys array and data value index is the
                                 //value in m_keys array.
@@ -117,7 +117,7 @@ public:
     {
         m_iHighestKey = m_sLimits.HighestKey();
 
-        m_keys = new int[m_iHighestKey];
+        m_keys = new UINT[m_iHighestKey];
 
         m_pData = new TData[m_sLimits.TotalElements()];
     }
@@ -171,14 +171,14 @@ public:
     }
 
     // Provide reference to the next unique element.
-    TData* GetElementByPassKey( int ElementID )
+    TData* GetElementByPassKey( UINT ElementID )
     {
-        assert( ElementID >=0 && ElementID < m_iCurrentElements );
+        assert( ElementID < m_iCurrentElements );
         return( &m_pData[ElementID] );
     }
 
     // Return current element count.
-    int ElementCount( )
+    UINT ElementCount( )
     {
         return m_iCurrentElements;
     }

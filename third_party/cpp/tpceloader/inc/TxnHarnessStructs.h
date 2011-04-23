@@ -1,9 +1,9 @@
 /*
  * Legal Notice
  *
- * This document and associated source code (the "Work") is a preliminary
- * version of a benchmark specification being developed by the TPC. The
- * Work is being made available to the public for review and comment only.
+ * This document and associated source code (the "Work") is a part of a
+ * benchmark specification maintained by the TPC.
+ *
  * The TPC reserves all right, title, and interest to the Work as provided
  * under U.S. and international laws, including without limitation all patent
  * and trademark rights therein.
@@ -45,6 +45,7 @@
 #include "MiscConsts.h"
 #include "TableConsts.h"
 #include "MEETradeRequestActions.h"
+#include "CustomerAccountsAndPermissionsTable.h"     // for iMaxAccountsPerCustomer
 
 namespace TPCE
 {
@@ -59,10 +60,10 @@ const INT32 iMaxNews = 10;
 
 const INT32 min_broker_list_len = 20;   // for Broker-Volume
 const INT32 max_broker_list_len = 40;   // for Broker-Volume
-const INT32 max_acct_len = 20;      // for Customer-Position
-const INT32 max_hist_len = 30;      // for Customer-Position
+const INT32 max_acct_len = iMaxAccountsPerCust; // for Customer-Position
+const INT32 max_hist_len = max_acct_len * 3;    // for Customer-Position
 const INT32 max_feed_len = 20;      // for Market-Feed
-const INT32 max_send_len = 40;      // for Market-Feed
+const INT32 min_day_len = 5;        // for Security-Detail
 const INT32 max_day_len = 20;       // for Security-Detail
 const INT32 max_fin_len = 20;       // for Security-Detail
 const INT32 max_news_len = 2;       // for Security-Detail
@@ -219,7 +220,7 @@ typedef struct TDataMaintenanceTxnInput
     INT32   vol_incr;
     char    symbol[cSYMBOL_len+1];
     char    table_name[max_table_name+1];
-    char    tx_id[cTAX_ID_len+1];
+    char    tx_id[cTX_ID_len+1];
 }   *PDataMaintenanceTxnInput,
      TDataMaintenanceFrame1Input,   // Single-Frame transaction
     *PDataMaintenanceFrame1Input;   // Single-Frame transaction
@@ -244,7 +245,7 @@ typedef struct TStatusAndTradeType
     char    type_stop_loss[cTT_ID_len+1];
 } *PTStatusAndTradeType;
 
-//Incomming order from SendToMarket interface.
+//Incoming order from SendToMarket interface.
 typedef struct TTradeRequest
 {
     double              price_quote;
@@ -356,16 +357,6 @@ typedef struct TDailyHistory
     DB_INDICATOR        low_ind;
     DB_INDICATOR        vol_ind;
 } *PDailyHistory;
-
-typedef struct TLastPrice
-{
-    double          open_price;
-    double          price;
-    INT64           vol_today;
-    DB_INDICATOR    open_price_ind;
-    DB_INDICATOR    price_ind;
-    DB_INDICATOR    vol_today_ind;
-} *PLastPrice;
 
 typedef struct TNews
 {
@@ -794,7 +785,7 @@ typedef struct TTradeResultTxnOutput
 {
     double      acct_bal;
     TIdent      acct_id;
-    INT32	load_unit;
+    INT32       load_unit;
     INT32       status;
 } *PTradeResultTxnOutput;
 

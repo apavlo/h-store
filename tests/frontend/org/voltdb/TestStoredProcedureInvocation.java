@@ -2,6 +2,10 @@ package org.voltdb;
 
 import static org.junit.Assert.*;
 
+import java.nio.ByteBuffer;
+import java.util.HashSet;
+import java.util.Set;
+
 import org.voltdb.messaging.FastDeserializer;
 import org.voltdb.messaging.FastSerializer;
 
@@ -24,6 +28,80 @@ public class TestStoredProcedureInvocation extends BaseTestCase {
     protected void setUp() throws Exception {
         super.setUp(ProjectType.TM1);
     }
+
+    /**
+     * testIsSysProc
+     */
+    public void testIsSysProc() throws Exception {
+        StoredProcedureInvocation invocation = new StoredProcedureInvocation(CLIENT_HANDLE, "@DatabaseDump", PARAMS);
+        byte[] invocation_bytes = FastSerializer.serialize(invocation);
+        assertNotNull(invocation_bytes);
+        
+        ByteBuffer buffer = ByteBuffer.wrap(invocation_bytes);
+        boolean sysproc = StoredProcedureInvocation.isSysProc(buffer);
+        assertEquals(true, sysproc);
+    }
+
+    /**
+     * testGetProcedureName
+     */
+    public void testGetProcedureName() throws Exception {
+        StoredProcedureInvocation invocation = new StoredProcedureInvocation(CLIENT_HANDLE, TARGET_PROCEDURE, PARAMS);
+        byte[] invocation_bytes = FastSerializer.serialize(invocation);
+        assertNotNull(invocation_bytes);
+        
+        ByteBuffer buffer = ByteBuffer.wrap(invocation_bytes);
+        String proc_name = StoredProcedureInvocation.getProcedureName(buffer);
+        assertEquals(TARGET_PROCEDURE, proc_name);
+    }
+    
+    /**
+     * testGetClientHandle
+     */
+    public void testGetClientHandle() throws Exception {
+        StoredProcedureInvocation invocation = new StoredProcedureInvocation(CLIENT_HANDLE, TARGET_PROCEDURE, PARAMS);
+        byte[] invocation_bytes = FastSerializer.serialize(invocation);
+        assertNotNull(invocation_bytes);
+        
+        ByteBuffer buffer = ByteBuffer.wrap(invocation_bytes);
+        long handle = StoredProcedureInvocation.getClientHandle(buffer);
+        assertEquals(CLIENT_HANDLE, handle);
+    }
+    
+    /**
+     * testGetBasePartition
+     */
+    public void testGetBasePartition() throws Exception {
+        int expected = 25;
+        StoredProcedureInvocation invocation = new StoredProcedureInvocation(CLIENT_HANDLE, TARGET_PROCEDURE, PARAMS);
+        invocation.setBasePartition(expected);
+        assert(invocation.hasBasePartition());
+        byte[] invocation_bytes = FastSerializer.serialize(invocation);
+        assertNotNull(invocation_bytes);
+        
+        ByteBuffer buffer = ByteBuffer.wrap(invocation_bytes);
+        int partition = StoredProcedureInvocation.getBasePartition(buffer);
+        assertEquals(expected, partition);
+    }
+    
+    /**
+     * testMarkRawBytesAsRedirected
+     */
+    public void testMarkRawBytesAsRedirected() throws Exception {
+        StoredProcedureInvocation invocation = new StoredProcedureInvocation(CLIENT_HANDLE, TARGET_PROCEDURE, PARAMS);
+        assertFalse(invocation.hasBasePartition());
+        byte[] invocation_bytes = FastSerializer.serialize(invocation);
+        assertNotNull(invocation_bytes);
+        
+        for (int partition = 0; partition < 100; partition+=3) {
+            StoredProcedureInvocation.markRawBytesAsRedirected(partition, invocation_bytes);
+            FastDeserializer fds = new FastDeserializer(invocation_bytes);
+            StoredProcedureInvocation clone = fds.readObject(StoredProcedureInvocation.class);
+            assertNotNull(clone);
+            assert(clone.hasBasePartition());
+            assertEquals(partition, clone.getBasePartition());
+        } // FOR
+    }
     
     /**
      * testSerialization
@@ -42,9 +120,9 @@ public class TestStoredProcedureInvocation extends BaseTestCase {
     }
     
     /**
-     * testDeserialization
+     * testDeserializationBase
      */
-    public void testDeserialization() throws Exception {
+    public void testDeserializationBase() throws Exception {
         // Try with referencing the params directly
         StoredProcedureInvocation invocation = new StoredProcedureInvocation(CLIENT_HANDLE, TARGET_PROCEDURE, PARAMS);
         byte[] invocation_bytes = FastSerializer.serialize(invocation);
@@ -60,5 +138,37 @@ public class TestStoredProcedureInvocation extends BaseTestCase {
         assertEquals(invocation.getProcName(), clone.getProcName());
         assertNotNull(clone.getParams());
         assertArrayEquals(invocation.getParams().toArray(), clone.getParams().toArray());
+        assertFalse(clone.hasPartitions());
+    }
+    
+    /**
+     * testDeserializationWithPartitions
+     */
+    public void testDeserializationWithPartitions() throws Exception {
+        // Try with referencing the params directly
+        StoredProcedureInvocation invocation = new StoredProcedureInvocation(CLIENT_HANDLE, TARGET_PROCEDURE, PARAMS);
+        final Set<Integer> partitions = new HashSet<Integer>();
+        partitions.add(19);
+        partitions.add(85);
+        partitions.add(-1);
+        invocation.addPartitions(partitions);
+        
+        byte[] invocation_bytes = FastSerializer.serialize(invocation);
+        assertNotNull(invocation_bytes);
+
+        // Let 'er rip!
+        FastDeserializer fds = new FastDeserializer(invocation_bytes);
+        StoredProcedureInvocation clone = fds.readObject(StoredProcedureInvocation.class);
+        assertNotNull(clone);
+        clone.buildParameterSet();
+        
+        assertEquals(invocation.getClientHandle(), clone.getClientHandle());
+        assertEquals(invocation.getProcName(), clone.getProcName());
+        assertNotNull(clone.getParams());
+        assertArrayEquals(invocation.getParams().toArray(), clone.getParams().toArray());
+        assert(clone.hasPartitions());
+        assertEquals(partitions.size(), clone.getPartitions().size());
+        assert(partitions.containsAll(clone.getPartitions()));
+        
     }
 }

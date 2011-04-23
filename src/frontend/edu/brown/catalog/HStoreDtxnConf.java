@@ -9,8 +9,8 @@ import org.voltdb.catalog.*;
 import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.FileUtil;
 
-public abstract class HStoreConf {
-    private static final Logger LOG = Logger.getLogger(HStoreConf.class);
+public abstract class HStoreDtxnConf {
+    private static final Logger LOG = Logger.getLogger(HStoreDtxnConf.class);
     
     /**
      * Converts a host/site/partition information stored in a catalog object to 
@@ -19,22 +19,25 @@ public abstract class HStoreConf {
      * @return
      * @throws Exception
      */
-    public static String toHStoreConf(Catalog catalog) throws Exception {
+    public static String toHStoreDtxnConf(Catalog catalog) throws Exception {
         final boolean debug = LOG.isDebugEnabled();
         Map<Host, Set<Site>> host_sites = CatalogUtil.getSitesPerHost(catalog);
         
         TreeMap<Integer, String> sorted_output = new TreeMap<Integer, String>();
         for (Host catalog_host : host_sites.keySet()) {
-            if (debug) LOG.debug(catalog_host + ": " + host_sites.get(catalog_host));
+            if (debug) LOG.debug(String.format("%s: %s", catalog_host, host_sites.get(catalog_host)));
             for (Site catalog_site : host_sites.get(catalog_host)) {
-                if (debug) LOG.debug("  " + catalog_site + ": " + CatalogUtil.debug(catalog_site.getPartitions()));
+                if (debug) LOG.debug(String.format("  %s: %s", catalog_site, CatalogUtil.debug(catalog_site.getPartitions())));
                 for (Partition catalog_part : catalog_site.getPartitions()) {
-                    String hostinfo = catalog_host.getIpaddr() + " " + catalog_part.getDtxn_port();
-                    sorted_output.put(catalog_part.getId(), hostinfo);    
+                    sorted_output.put(catalog_part.getId(),
+                                      String.format("%s %d", catalog_host.getIpaddr(), catalog_part.getDtxn_port()));    
                 }
             } // FOR
         } // FOR
         
+        // FORMAT
+        // <PartitionId>
+        // <Hostname> <EnginePort?>
         StringBuilder buffer = new StringBuilder();
         String add = "";
         for (Entry<Integer, String> e : sorted_output.entrySet()) {
@@ -50,7 +53,7 @@ public abstract class HStoreConf {
         ArgumentsParser args = ArgumentsParser.load(vargs);
         args.require(ArgumentsParser.PARAM_CATALOG, ArgumentsParser.PARAM_SIMULATOR_CONF_OUTPUT);
         
-        String contents = HStoreConf.toHStoreConf(args.catalog);
+        String contents = HStoreDtxnConf.toHStoreDtxnConf(args.catalog);
         assert(!contents.isEmpty());
         
         String output_path = args.getParam(ArgumentsParser.PARAM_SIMULATOR_CONF_OUTPUT);
