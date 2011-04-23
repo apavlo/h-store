@@ -603,7 +603,7 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
     protected class UserGenerator extends AbstractTableGenerator {
 
         private Zipf randomBalance;
-        private Flat flat;
+        private Flat randomRegion;
         private Gaussian randomRating;
         private PartitionIdGenerator idGenerator;
         
@@ -611,7 +611,7 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
             super(AuctionMarkLoader.this.getTableCatalog(AuctionMarkConstants.TABLENAME_USER));
             this.addDependency(AuctionMarkConstants.TABLENAME_REGION);
             this.idGenerator = new PartitionIdGenerator(numClients, 0, AuctionMarkConstants.MAXIMUM_CLIENT_IDS);
-            this.flat = new Flat(AuctionMarkLoader.this.rng, 0, (int) AuctionMarkConstants.TABLESIZE_REGION);
+            this.randomRegion = new Flat(AuctionMarkLoader.this.rng, 0, (int) AuctionMarkConstants.TABLESIZE_REGION);
             this.randomRating = new Gaussian(AuctionMarkLoader.this.rng, 0, 6);
             this.randomBalance = new Zipf(AuctionMarkLoader.this.rng, 0, 501, 1.001);
         }
@@ -637,7 +637,7 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
             // U_CREATED
             this.row[col++] = VoltTypeUtil.getRandomValue(VoltType.TIMESTAMP);
             // U_R_ID
-            this.row[col++] = this.flat.nextInt();
+            this.row[col++] = this.randomRegion.nextInt();
             // U_SATTR##
             for (int i = 0; i < 8; i++) {
                 this.row[col++] = AuctionMarkLoader.this.rng.astring(16, 64);
@@ -1628,7 +1628,7 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
      * @param tableName
      * @param table
      */
-    protected synchronized void loadTable(String tableName, VoltTable table) {
+    protected void loadTable(String tableName, VoltTable table) {
         long count = table.getRowCount();
         long total = this.profile.getTableSize(tableName);
         long last_reported = this.load_table_count.get(tableName);

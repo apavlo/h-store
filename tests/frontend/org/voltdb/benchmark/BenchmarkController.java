@@ -427,7 +427,7 @@ public class BenchmarkController {
                 List<String> command = new ArrayList<String>();
                 command.add("ant");
                 command.add("hstore-site");
-                command.add("-Dhstore.coordinator.host=" + m_config.coordinatorHost);
+                command.add("-Dcoordinator.host=" + m_config.coordinatorHost);
                 command.add("-Dproject=" + m_projectBuilder.getProjectName());
                 command.add("-Dnode.site=" + site_id);
                 if (m_config.markovPath != null) command.add("-Dmarkov=" + m_config.markovPath);
@@ -751,7 +751,7 @@ public class BenchmarkController {
             // Connect to the first host and tell them to dump out the database contents
             String triplet[] = CollectionUtil.getRandomValue(this.launch_hosts);
             assert(triplet != null);
-            LOG.info(String.format("Requesting HStoreSite #%02d to dump database contents", Integer.parseInt(triplet[2])));
+            LOG.info(String.format("Requesting HStoreSite #%02d to dump database contents [dir=%s]", Integer.parseInt(triplet[2]), m_config.dumpDatabaseDir));
             
             Client new_client = ClientFactory.createClient(128, null, false, null);
             try {

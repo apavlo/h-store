@@ -413,8 +413,6 @@ public class ArgumentsParser {
     public void process(String[] args) throws Exception {
         final boolean debug = LOG.isDebugEnabled();
         
-        final String hstore_prefix = "hstore.";
-        
         if (debug) LOG.debug("Processing " + args.length + " parameters...");
         final Pattern p = Pattern.compile("=");
         for (int i = 0, cnt = args.length; i < cnt; i++) {
@@ -422,7 +420,6 @@ public class ArgumentsParser {
             final String[] parts = p.split(arg, 2);
             if (parts[0].startsWith("-")) parts[0] = parts[0].substring(1);
             parts[0] = parts[0].toLowerCase();
-            if (parts[0].startsWith(hstore_prefix)) parts[0] = parts[0].substring(hstore_prefix.length());
             
             if (parts.length == 1) {
                 if (parts[0].startsWith("${") == false) this.opt_params.add(parts[0]);

@@ -28,6 +28,7 @@ package edu.brown.workload;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileOutputStream;
+import java.io.IOException;
 import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -159,40 +160,57 @@ public class Workload implements WorkloadTrace, Iterable<AbstractTraceElement<? 
         public WriteThread(Database catalog_db, OutputStream output) {
             this.catalog_db = catalog_db;
             this.output = output;
+            assert(this.output != null);
         }
         
         @Override
         public void run() {
+            TransactionTrace xact = null;
             while (true) {
                 try {
-                    TransactionTrace xact = this.traces.take();
+                    xact = this.traces.take();
                     assert(xact != null);
-                   
-                    output.write(xact.toJSONString(this.catalog_db).getBytes());
-                    output.write("\n".getBytes());
-                    output.flush();
-                    if (debug.get()) LOG.debug("Wrote out new trace record for " + xact + " with " + xact.getQueries().size() + " queries");
-                } catch (Exception ex) {
-                    LOG.fatal(ex.getMessage());
-                    ex.printStackTrace();
+                    write(this.catalog_db, xact, this.output);
+                } catch (InterruptedException ex) {
+                    // IGNORE
+                    break;
                 }
             } // WHILE
+        }
+        
+        public static void write(Database catalog_db, TransactionTrace xact, OutputStream output) {
+            try {
+                output.write(xact.toJSONString(catalog_db).getBytes());
+                output.write("\n".getBytes());
+                output.flush();
+                if (debug.get()) LOG.debug("Wrote out new trace record for " + xact + " with " + xact.getQueries().size() + " queries");
+            } catch (IOException ex) {
+                LOG.fatal("Failed to write " + xact + " out to file", ex);
+                System.exit(1);
+            }
         }
     } // END CLASS
     
     private static WriteThread writerThread = null; 
     public static void writeTransactionToStream(Database catalog_db, TransactionTrace xact, OutputStream output) {
-        if (writerThread == null) {
-            synchronized (Workload.class) {
-                if (writerThread == null) {
-                    writerThread = new WriteThread(catalog_db, output);
-                    Thread t = new Thread(writerThread);
-                    t.setDaemon(true);
-                    t.start();
-                }
-            } // SYNCH
+        writeTransactionToStream(catalog_db, xact, output, false);
+    }
+    public static void writeTransactionToStream(Database catalog_db, TransactionTrace xact, OutputStream output, boolean multithreaded) {
+        if (multithreaded) {
+            if (writerThread == null) {
+                synchronized (Workload.class) {
+                    if (writerThread == null) {
+                        writerThread = new WriteThread(catalog_db, output);
+                        Thread t = new Thread(writerThread);
+                        t.setDaemon(true);
+                        t.start();
+                    }
+                } // SYNCH
+            }
+            writerThread.traces.offer(xact);
+        } else {
+            WriteThread.write(catalog_db, xact, output);
         }
-        writerThread.traces.offer(xact);
     }
     
     /**

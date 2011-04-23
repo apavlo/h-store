@@ -29,7 +29,7 @@ public class ThrottlingClient extends Semaphore implements Client {
     private static boolean d = LOG.isDebugEnabled();
     private static boolean t = LOG.isTraceEnabled();
 
-    private static final int THROTTLE_WAIT = 5000; // ms
+    private static final int THROTTLE_WAIT = 1000; // ms
     
     private static final long serialVersionUID = 1L;
     private final Client inner;
