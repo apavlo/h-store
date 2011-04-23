@@ -58,7 +58,7 @@ public class TestAuctionMarkBenchmarkProfile extends BaseTestCase {
             assertEquals(this.profile.getTableSize(table_name), clone.getTableSize(table_name));
         } // FOR
         
-        for (Object value : this.profile.item_category_histogram.values()) {
+        for (Long value : this.profile.item_category_histogram.values()) {
             assert(clone.item_category_histogram.contains(value));
             assertEquals(this.profile.item_category_histogram.get(value), clone.item_category_histogram.get(value));
         } // FOR

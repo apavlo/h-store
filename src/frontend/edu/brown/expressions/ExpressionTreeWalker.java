@@ -31,7 +31,7 @@ import edu.brown.utils.AbstractTreeWalker;
 public abstract class ExpressionTreeWalker extends AbstractTreeWalker<AbstractExpression> {
 
     @Override
-    protected final void populate_children(ExpressionTreeWalker.Children children, AbstractExpression element) {
+    protected final void populate_children(ExpressionTreeWalker.Children<AbstractExpression> children, AbstractExpression element) {
         //
         // This is kind of screwy, so bare with me here for second...
         // We actually want to do a real depth first search, and not visit all the children

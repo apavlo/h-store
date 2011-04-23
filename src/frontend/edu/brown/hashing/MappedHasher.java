@@ -37,6 +37,12 @@ public class MappedHasher extends AbstractHasher {
         super(catalog_db, num_partitions);
     }
     
+    @Override
+    public void init(Database catalogDb) {
+        // TODO Auto-generated method stub
+        
+    }
+    
     /**
      * Map a hash value to particular partition
      * @param hash

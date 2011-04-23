@@ -191,7 +191,7 @@ public class BulkTPCCClient extends BulkClient {
             RandomGenerator rng = new RandomGenerator.Implementation(0);
             rng.setC(base_runC);
             m_tpccSim =
-                new TPCCSimulation(this, rng, new Clock.RealTime(), m_scaleParams, false, skewfactor);
+                new TPCCSimulation(this, rng, new Clock.RealTime(), m_scaleParams, false, skewfactor, false, false, false, false, false);
         }
         @Override
         protected void generateInvocation(Connection c) throws IOException {

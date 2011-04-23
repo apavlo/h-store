@@ -1,9 +1,9 @@
 /*
  * Legal Notice
  *
- * This document and associated source code (the "Work") is a preliminary
- * version of a benchmark specification being developed by the TPC. The
- * Work is being made available to the public for review and comment only.
+ * This document and associated source code (the "Work") is a part of a
+ * benchmark specification maintained by the TPC.
+ *
  * The TPC reserves all right, title, and interest to the Work as provided
  * under U.S. and international laws, including without limitation all patent
  * and trademark rights therein.
@@ -60,7 +60,6 @@ public:
     {
         int i;
 
-        memset( pTxnOutput, 0, sizeof( *pTxnOutput ));
         switch( pTxnInput->frame_to_execute )
         {
         case 1:
@@ -84,6 +83,11 @@ public:
             pTxnOutput->num_found = Frame1Output.num_found;
             pTxnOutput->num_updated = Frame1Output.num_updated;
             pTxnOutput->status = Frame1Output.status;
+            if (   Frame1Output.num_found != pTxnInput->max_trades
+                || Frame1Output.num_updated != pTxnInput->max_updates)
+            {
+                pTxnOutput->status = -1011;
+            }
             break;
 
         case 2:
@@ -109,6 +113,28 @@ public:
             pTxnOutput->num_found = Frame2Output.num_found;
             pTxnOutput->num_updated = Frame2Output.num_updated;
             pTxnOutput->status = Frame2Output.status;
+
+            /* valid relationships           */
+            /* 1) num_found   <= max_trades  */
+            /* 2) num_updated <= max_updates */
+            /* 3) max_updates <= max_trades  */
+            /* expected limits               */
+            /* 4) max_trades   = 20          */
+            /* 5  max_updates  = 20          */
+            /* 6) num_found   >=  0          */
+            /* 7) num_updated  = num_found   */
+
+            // Do we want to check the rest of those relationships?
+            // The num_found < 0 test in the draft spec disagrees between the pseudo code and the comments
+            if (   Frame2Output.num_updated != Frame2Output.num_found
+                || Frame2Output.num_found < 0)
+            {
+                pTxnOutput->status = -1021;
+            }
+            else if (Frame2Output.num_updated == 0)
+            {
+                pTxnOutput->status =  1021;
+            }
             break;
 
         case 3:
@@ -119,7 +145,7 @@ public:
 
             Frame3Input.max_trades = pTxnInput->max_trades;
             Frame3Input.max_updates = pTxnInput->max_updates;
-            strncpy( Frame3Input.symbol, pTxnInput->symbol, sizeof( Frame3Input.symbol ) -1 );
+            strncpy( Frame3Input.symbol, pTxnInput->symbol, sizeof( Frame3Input.symbol ));
             Frame3Input.start_trade_dts = pTxnInput->start_trade_dts;
             Frame3Input.end_trade_dts = pTxnInput->end_trade_dts;
             Frame3Input.max_acct_id = pTxnInput->max_acct_id;
@@ -132,7 +158,24 @@ public:
             pTxnOutput->status = Frame3Output.status;
             for (i = 0; i < Frame3Output.num_found; ++i)
             {
+                pTxnOutput->is_cash[i] = Frame3Output.trade_info[i].is_cash;
                 pTxnOutput->trade_list[i] = Frame3Output.trade_info[i].trade_id;
+            }
+
+            /* valid relationships           */
+            /* 1) num_found   <= max_trades  */
+            /* 2) num_updated <= max_updates */
+            /* 3) max_updates <= max_trades  */
+            /* expected limits               */
+            /* 4) max_trades   = 20          */
+            /* 5  max_updates  = 20          */
+            /* 6) num_found   >=  1          */
+            /* 7) num_updated <= num_found   */
+            /* 8) num_updated >=  0          */
+
+            if (Frame3Output.num_found == 0)
+            {
+                pTxnOutput->status =  1031;
             }
             break;
 

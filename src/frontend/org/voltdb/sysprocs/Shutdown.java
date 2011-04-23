@@ -17,29 +17,23 @@
 
 package org.voltdb.sysprocs;
 
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.voltdb.HsqlBackend;
+import org.apache.log4j.Logger;
 import org.voltdb.BackendTarget;
 import org.voltdb.DependencySet;
 import org.voltdb.ExecutionSite;
-import org.voltdb.VoltDB;
+import org.voltdb.HsqlBackend;
 import org.voltdb.ParameterSet;
 import org.voltdb.ProcInfo;
 import org.voltdb.ProcedureProfiler;
 import org.voltdb.VoltSystemProcedure;
 import org.voltdb.VoltTable;
-import org.voltdb.catalog.Cluster;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.dtxn.DtxnConstants;
-import org.voltdb.utils.VoltLoggerFactory;
-import org.apache.log4j.Logger;
 
-import edu.brown.catalog.CatalogUtil;
 import edu.brown.utils.PartitionEstimator;
-import edu.brown.utils.ThreadUtil;
 
 /** A wholly improper shutdown. The only guarantee is that a transaction
  * is committed or not committed - never partially committed. However, no
@@ -55,18 +49,16 @@ import edu.brown.utils.ThreadUtil;
 public class Shutdown extends VoltSystemProcedure {
     private static final Logger LOG = Logger.getLogger(Shutdown.class);
 
-    private List<Integer> all_partitions;
-    static final long DEP_distribute = SysProcFragmentId.PF_distribute | DtxnConstants.MULTIPARTITION_DEPENDENCY;
-    static final long DEP_aggregate = SysProcFragmentId.PF_aggregate;
+    static final long DEP_distribute = SysProcFragmentId.PF_loadDistribute | DtxnConstants.MULTIPARTITION_DEPENDENCY;
+    static final long DEP_aggregate = SysProcFragmentId.PF_loadAggregate;
 
     @Override
-    public void init(ExecutionSite site, Procedure catProc,
-            BackendTarget eeType, HsqlBackend hsql, Cluster cluster,
-            PartitionEstimator p_estimator, Integer local_partition) {
-        super.init(site, catProc, eeType, hsql, cluster, p_estimator, local_partition);
+    public void globalInit(ExecutionSite site, Procedure catalog_proc,
+            BackendTarget eeType, HsqlBackend hsql, PartitionEstimator p_estimator,
+            Integer local_partition) {
+        super.globalInit(site, catalog_proc, eeType, hsql, p_estimator, local_partition);
         site.registerPlanFragment(SysProcFragmentId.PF_shutdownCommand, this);
         site.registerPlanFragment(SysProcFragmentId.PF_procedureDone, this);
-        this.all_partitions = CatalogUtil.getAllPartitionIds(catProc);
     }
 
     @Override
@@ -87,7 +79,7 @@ public class Shutdown extends VoltSystemProcedure {
                 @Override
                 public void run() {
 //                    try {
-                        m_site.getHStoreSite().shutdown();
+                        executor.getHStoreSite().shutdown();
 //                    } catch (InterruptedException e) {
 //                        Logger.getLogger("HOST", VoltLoggerFactory.instance()).error(
 //                                "Exception while attempting to shutdown VoltDB from shutdown sysproc",
@@ -104,7 +96,7 @@ public class Shutdown extends VoltSystemProcedure {
 
     public VoltTable[] run() {
         LOG.info("Got shutdown request. Notifying HStoreSite and returning to client");
-        m_site.getHStoreSite().getMessenger().shutdownCluster(false, null);
+        executor.getHStoreSite().getMessenger().shutdownCluster(false, null);
         
 //        SynthesizedPlanFragment pfs[] = new SynthesizedPlanFragment[this.all_partitions.size() + 1];
 //        for (int i = 1; i < pfs.length; i++) {

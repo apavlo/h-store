@@ -19,6 +19,7 @@ package org.voltdb.client;
 
 import java.io.IOException;
 import java.net.UnknownHostException;
+import java.util.Random;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.logging.Logger;
 
@@ -34,7 +35,7 @@ import org.voltdb.utils.DBBPool.BBContainer;
  */
 final class ClientImpl implements Client {
 
-    private final AtomicLong m_handle = new AtomicLong(Long.MIN_VALUE);
+    private final AtomicLong m_handle = new AtomicLong(new Random().nextLong() * -1l); // Long.MAX_VALUE
 
     private final int m_expectedOutgoingMessageSize;
 
@@ -111,7 +112,7 @@ final class ClientImpl implements Client {
         }
         final String subProgram = (program == null) ? "" : program;
         final String subPassword = (password == null) ? "" : password;
-        m_distributer.createConnection(host, subProgram, subPassword);
+        m_distributer.createConnection(host, port, subProgram, subPassword);
     }
 
     /**

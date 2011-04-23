@@ -109,7 +109,7 @@ class BenchmarkResults {
     }
 
     public Set<String> getClientNames() {
-        Set<String> retval = new HashSet<String>();
+        Set<String> retval = new TreeSet<String>();
         retval.addAll(m_data.keySet());
         return retval;
     }

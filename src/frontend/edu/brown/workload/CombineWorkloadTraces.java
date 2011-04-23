@@ -33,13 +33,17 @@ public class CombineWorkloadTraces {
         List<TransactionTrace> txns[] = new List[workloads.length];
         long relative_starts[] = new long[workloads.length];
         for (int i = 0; i < workloads.length; i++) {
-            txns[i] = workloads[i].getTransactions().asList();
-            next_idxs[i] = 0;
+            txns[i] = workloads[i].getTransactions();
             max_idxs[i] = txns[i].size();
-            relative_starts[i] = txns[i].get(0).getStartTimestamp();
+            if (max_idxs[i] > 0) {
+                relative_starts[i] = txns[i].get(0).getStartTimestamp();
+                next_idxs[i] = 0;
+            } else {
+                next_idxs[i] = null;
+            }
             LOG.info(String.format("Workload #%02d: %d txns", i, txns[i].size()));
         }
-        Histogram proc_histogram = new Histogram(); 
+        Histogram<String> proc_histogram = new Histogram<String>(); 
         
         // This is basically a crappy merge sort...
         long ctr = 0;
@@ -75,7 +79,7 @@ public class CombineWorkloadTraces {
                 if (query_trace.stop_timestamp == null) query_trace.stop_timestamp = query_trace.start_timestamp;
                 query_trace.stop_timestamp -= relative_starts[min_idx];
             } // FOR
-            Workload.writeTransactionToStream(catalog_db, xact, output);
+            Workload.writeTransactionToStream(catalog_db, xact, output, false);
             proc_histogram.put(xact.getCatalogItemName());
             
             // And increment the counter for the next txn we could use from this workload
@@ -86,7 +90,7 @@ public class CombineWorkloadTraces {
             }
             ctr++;
         } // WHILE
-        LOG.info("Successfull merged all " + ctr + " txns");
+        LOG.info("Successful merged all " + ctr + " txns");
         LOG.info("Procedures Histogram:\n" + proc_histogram);
         return;
     }

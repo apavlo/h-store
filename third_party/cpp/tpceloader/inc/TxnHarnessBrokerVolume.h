@@ -1,9 +1,9 @@
 /*
  * Legal Notice
  *
- * This document and associated source code (the "Work") is a preliminary
- * version of a benchmark specification being developed by the TPC. The
- * Work is being made available to the public for review and comment only.
+ * This document and associated source code (the "Work") is a part of a
+ * benchmark specification maintained by the TPC.
+ *
  * The TPC reserves all right, title, and interest to the Work as provided
  * under U.S. and international laws, including without limitation all patent
  * and trademark rights therein.
@@ -64,6 +64,11 @@ public:
         for( INT32 ii=0; ii < Frame1Output.list_len; ii++ )
         {
             pTxnOutput->volume[ii] = Frame1Output.volume[ii];
+        }
+
+        if (pTxnOutput->list_len < 0)
+        {
+            pTxnOutput->status = -111;
         }
     }
 };

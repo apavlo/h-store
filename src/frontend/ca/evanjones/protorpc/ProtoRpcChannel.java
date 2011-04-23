@@ -149,17 +149,19 @@ public class ProtoRpcChannel extends AbstractEventHandler implements RpcChannel 
 
     @Override
     public void readCallback(SelectableChannel channel) {
+        boolean isOpen = connection.readAllAvailable();
+        if (!isOpen) {
+            // TODO: Fail any subsequent RPCs
+            throw new UnsupportedOperationException("Connection closed: not handled (for now).");
+        }
+
         while (true) {
-            // TODO: Cache this builder object?
             RpcResponse.Builder builder = RpcResponse.newBuilder();
-            ProtoConnection.Status status = connection.tryRead(builder);
-            if (status == ProtoConnection.Status.CLOSED) {
-                // TODO: Fail any subsequent RPCs
-                throw new UnsupportedOperationException("Connection closed: not handled (for now).");
-            } else if (status == ProtoConnection.Status.NO_MESSAGE) {
+            boolean success = connection.readBufferedMessage(builder);
+            if (!success) {
+                // TODO: Cache the builder object to reduce garbage?
                 break;
             }
-            assert status == ProtoConnection.Status.MESSAGE;
 
             // Set the appropriate flags on the RPC object
             // TODO: Handle bad sequence number by ignoring/logging?

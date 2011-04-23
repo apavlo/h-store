@@ -1,9 +1,9 @@
 /*
  * Legal Notice
  *
- * This document and associated source code (the "Work") is a preliminary
- * version of a benchmark specification being developed by the TPC. The
- * Work is being made available to the public for review and comment only.
+ * This document and associated source code (the "Work") is a part of a
+ * benchmark specification maintained by the TPC.
+ *
  * The TPC reserves all right, title, and interest to the Work as provided
  * under U.S. and international laws, including without limitation all patent
  * and trademark rights therein.
@@ -91,14 +91,14 @@ typedef struct TTradeInfo
     double          SubmissionTime; // seconds from StartTime
     double          CompletionTime; // seconds from StartTime
     TIdent          iSymbolIndex;   // stock symbol index in the input flat file
-    int             iSymbolIndexInAccount;  // stock symbol index in the account basket
+    UINT            iSymbolIndexInAccount;  // stock symbol index in the account basket
     int             iTradeQty;  // number of shares in the trade
     CMoney          fBidPrice;  // bid price for market orders or limit price for limit ones
     CMoney          fTradePrice;// price that the trade completed at
     TIdent          iCustomer;  // customer executing this trade
     eCustomerTier   iCustomerTier; // customer tier for the customer executing this trade
     TIdent          iCustomerAccount; // customer account in which the trade executes
-    int             iIsLifo;    // needed to update holdings
+    bool            bIsLifo;    // needed to update holdings
 } *PTradeInfo;
 
 // Information about completed trade that is generated once
@@ -207,10 +207,11 @@ class CTradeGen
     //
     CCompanyFile*                   m_CompanyFile;
     CSecurityFile*                  m_SecurityFile;
-    TChargeFile*                    m_ChargeFile;   //CHARGE table from the flat file
-    TCommissionRateFile*            m_CommissionRateFile;   //COMMISSION_RATE table from the flat file
-    TStatusTypeFile*                m_StatusTypeFile;   // STATUS_TYPE table from the flat file
-    TTradeTypeFile*                 m_TradeTypeFile;    // TRADE_TYPE table from the flat file
+    TChargeFile*                    m_ChargeFile;          // CHARGE table from the flat file
+    TCommissionRateFile*            m_CommissionRateFile;  // COMMISSION_RATE table from the flat file
+    TStatusTypeFile*                m_StatusTypeFile;      // STATUS_TYPE table from the flat file
+    TTradeTypeFile*                 m_TradeTypeFile;       // TRADE_TYPE table from the flat file
+    TExchangeFile*                  m_ExchangeFile;        // EXCHANGE table from the flat file
 
     //  The first customer to generate for this class instance
     //
@@ -498,7 +499,7 @@ class CTradeGen
     // Helper function to get the current security symbol index
     TIdent GetCurrentSecurityIndex() { return m_NewTrade.iSymbolIndex; }
     // Helper function to get the current security index in the account's basket (1-25)
-    int GetCurrentSecurityAccountIndex() { return m_NewTrade.iSymbolIndexInAccount; }
+    UINT GetCurrentSecurityAccountIndex() { return m_NewTrade.iSymbolIndexInAccount; }
     // Helper function to get the current trade pending time
     CDateTime GetCurrentTradePendingTime() {
         CDateTime   ReturnTime = m_StartTime;
@@ -540,7 +541,7 @@ class CTradeGen
         return ReturnTime;
     }
     // Helper function to get the current trade's is_lifo flag
-    int GetCurrentTradeIsLifo() { return m_NewTrade.iIsLifo; }
+    bool GetCurrentTradeIsLifo() { return m_NewTrade.bIsLifo; }
     // Helper function to get the current trade's sell value
     CMoney GetCurrentTradeSellValue() { return m_CompletedTradeInfo.fSellValue; }
     // Helper function to get the current trade's buy value
@@ -566,9 +567,10 @@ public:
         TIdent              iCustomerCount,
         TIdent              iStartFromCustomer,
         TIdent              iTotalCustomers,
-        int                 iLoadUnitSize,
-        int                 iScaleFactor,
-        int                 iHoursOfInitialTrades
+        UINT                iLoadUnitSize,
+        UINT                iScaleFactor,
+        UINT                iHoursOfInitialTrades,
+        bool                bCacheEnabled = false
         );
 
     // Destructor
@@ -617,13 +619,13 @@ public:
     PSETTLEMENT_ROW             GetSettlementRow() { return &m_TradeRow.m_Settlement; }
     int                         GetCashTransactionRowCount() { return m_iCashTransactionRowCount; }
     PCASH_TRANSACTION_ROW       GetCashTransactionRow() { return &m_TradeRow.m_CashTransaction; }
-    PHOLDING_ROW                GetHoldingRow() { return &m_HoldingRow; }
+    HOLDING_ROW const          *GetHoldingRow() { return &m_HoldingRow; }
     int                         GetHoldingHistoryRowCount() { return m_iHoldingHistoryRowCount; }
     PHOLDING_HISTORY_ROW        GetHoldingHistoryRow(int i) { return &m_TradeRow.m_HoldingHistory[i]; }
-    PHOLDING_SUMMARY_ROW        GetHoldingSummaryRow() { return &m_HoldingSummaryRow; }
+    HOLDING_SUMMARY_ROW const  *GetHoldingSummaryRow() { return &m_HoldingSummaryRow; }
 
     bool                        GenerateNextBrokerRecord() { return m_BrokerTable.GenerateNextRecord(); }
-    BROKER_ROW*                 GetBrokerRow() { return m_BrokerTable.GetRow(); }
+    BROKER_ROW const *          GetBrokerRow() { return m_BrokerTable.GetRow(); }
 };
 
 }   // namespace TPCE

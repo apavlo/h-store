@@ -35,12 +35,21 @@ def writeJSON(json_data, output):
 ## ==============================================
 ## loadCatalog
 ## ==============================================
-def loadCatalog(json_file):
+def loadCatalog(json_file, cleanSQL = False):
     with open(json_file, "r") as fd:
         json_data = json.load(fd)
         procs = json_data["PROCEDURES"]
         tables = json_data["TABLES"]
     logging.debug("Read in %d procedures and %d tables from catalog json file '%s'" % (len(procs), len(tables), json_file))
+    
+    if cleanSQL:
+        regex = re.compile("([\s][\s]+)")
+        for catalog_proc in procs.values():
+            for stmt_name in catalog_proc.keys():
+                catalog_proc[stmt_name] = regex.sub(" ", catalog_proc[stmt_name])
+            ##
+        ## FOR
+    ## IF
     return (procs, tables)
 ## DEF
 

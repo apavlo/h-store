@@ -8,6 +8,8 @@ import edu.brown.BaseTestCase;
 import edu.brown.benchmark.tm1.TM1Constants;
 import edu.brown.benchmark.tm1.procedures.GetAccessData;
 import edu.brown.benchmark.tm1.procedures.GetNewDestination;
+import edu.brown.benchmark.tm1.procedures.UpdateLocation;
+import edu.brown.benchmark.tm1.procedures.UpdateSubscriberData;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.catalog.special.MultiColumn;
 import edu.brown.catalog.special.MultiProcParameter;
@@ -37,14 +39,13 @@ public class TestPartitionEstimatorMultiSite extends BaseTestCase {
      * testGetPartitionsProcedure
      */
     public void testGetPartitionsProcedure() throws Exception {
-        Procedure catalog_proc = this.getProcedure("UpdateLocation");
+        Procedure catalog_proc = this.getProcedure(UpdateSubscriberData.class);
         Object params[] = new Object[] {
-            new Long(1000),     // LOCATION
-            "Doesn't Matter",   // SUB_NBR
+            new Long(1000),     // S_ID
+            0l,                 // BIT_1
+            0l,                 // DATA_A
+            0l,                 // SF_TYPE
         };
-        // Note that this used to return a null whenever we got a null partition, but
-        // now actually need to know what partition to go to because we are going to 
-        // be able to determine whether it is a multi-partition or not on the fly
         assertNotNull(p_estimator.getBasePartition(catalog_proc, params));
     }
     
@@ -152,9 +153,11 @@ public class TestPartitionEstimatorMultiSite extends BaseTestCase {
         MultiColumn mc = MultiColumn.get(catalog_cols);
         assertNotNull(mc);
         catalog_tbl.setPartitioncolumn(mc);
+        p_estimator.initCatalog(clone_db);
         
         Statement catalog_stmt = this.getStatement(clone_db, catalog_proc, "GetData");
         Long params[] = new Long[] {
+            new Long(1111), // S_ID
             new Long(1111), // S_ID
             new Long(2222), // SF_TYPE
             new Long(3333), // START_TIME
@@ -182,6 +185,7 @@ public class TestPartitionEstimatorMultiSite extends BaseTestCase {
         mc = MultiColumn.get(catalog_cols);
         assertNotNull(mc);
         catalog_tbl.setPartitioncolumn(mc);
+        p_estimator.initCatalog(clone_db);
 
         partitions = p_estimator.getTablePartitions(catalog_stmt, params, base_partition);
         assertNotNull(partitions);
@@ -211,6 +215,7 @@ public class TestPartitionEstimatorMultiSite extends BaseTestCase {
         assertNotNull(mpp);
         assert(mpp.getIndex() >= 0);
         catalog_proc.setPartitionparameter(mpp.getIndex());
+        p_estimator.initCatalog(clone_db);
         
         Table catalog_tbl = this.getTable(clone_db, TM1Constants.TABLENAME_ACCESS_INFO);
         Column catalog_cols[] = new Column[] {
@@ -220,6 +225,7 @@ public class TestPartitionEstimatorMultiSite extends BaseTestCase {
         MultiColumn mc = MultiColumn.get(catalog_cols);
         assertNotNull(mc);
         catalog_tbl.setPartitioncolumn(mc);
+        p_estimator.initCatalog(clone_db);
         
         Statement catalog_stmt = this.getStatement(clone_db, catalog_proc, "GetData");
         Long params[] = new Long[] {

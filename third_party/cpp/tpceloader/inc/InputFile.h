@@ -1,9 +1,9 @@
 /*
  * Legal Notice
  *
- * This document and associated source code (the "Work") is a preliminary
- * version of a benchmark specification being developed by the TPC. The
- * Work is being made available to the public for review and comment only.
+ * This document and associated source code (the "Work") is a part of a
+ * benchmark specification maintained by the TPC.
+ *
  * The TPC reserves all right, title, and interest to the Work as provided
  * under U.S. and international laws, including without limitation all patent
  * and trademark rights therein.
@@ -123,13 +123,13 @@ public:
     T*  GetRecord(int key) { return m_list.GetElement(key); }
 
     //Get the next unique record in the set.
-    T* GetRecordByPassKey( int iElementID )
+    T* GetRecordByPassKey( UINT iElementID )
     {
         return( m_list.GetElementByPassKey( iElementID ));
     }
 
     // Return current record count
-    int RecordCount( )
+    UINT RecordCount( )
     {
         return m_list.ElementCount();
     }

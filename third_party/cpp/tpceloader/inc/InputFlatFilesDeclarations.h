@@ -1,9 +1,9 @@
 /*
  * Legal Notice
  *
- * This document and associated source code (the "Work") is a preliminary
- * version of a benchmark specification being developed by the TPC. The
- * Work is being made available to the public for review and comment only.
+ * This document and associated source code (the "Work") is a part of a
+ * benchmark specification maintained by the TPC.
+ *
  * The TPC reserves all right, title, and interest to the Work as provided
  * under U.S. and international laws, including without limitation all patent
  * and trademark rights therein.
@@ -57,16 +57,16 @@ namespace TPCE
 {
 const int cWORD_len = 30;   // for NEWS input file
 
-//TAXABLEACCOUNTNAME.txt and NONTAXABLEACCOUNTNAME.txt
-typedef struct TAccountNameInputRow : TBaseInputRow
+//TaxableAccountName.txt and NonTaxableAccountName.txt
+typedef struct TAccountNameInputRow : public TBaseInputRow
 {
     char    NAME[ cCA_NAME_len+1 ];
 
     void Load(istream &file);   //loads itself (one row) from the input stream
 } *PAccountNameInputRow;
 
-//AREACODES.txt
-typedef struct TAreaCodeInputRow : TBaseInputRow
+//AreaCodes.txt
+typedef struct TAreaCodeInputRow : public TBaseInputRow
 {
     //Phone number area
     char        AREA_CODE[ cAREA_len+1 ];
@@ -74,8 +74,8 @@ typedef struct TAreaCodeInputRow : TBaseInputRow
     void Load(istream &file);   //loads itself (one row) from the input stream
 } *PAreaCodeInputRow;
 
-//COMPANY.txt
-typedef struct TCompanyInputRow : TBaseInputRow
+//Company.txt
+typedef struct TCompanyInputRow : public TBaseInputRow
 {
     TIdent      CO_ID;
     char    CO_ST_ID[ cST_ID_len+1 ];
@@ -86,8 +86,8 @@ typedef struct TCompanyInputRow : TBaseInputRow
     void Load(istream &file);   //loads itself (one row) from the input stream
 } *PCompanyInputRow;
 
-//COMPANY_COMPETITOR.txt
-typedef struct TCompanyCompetitorInputRow : TBaseInputRow
+//CompanyCompetitor.txt
+typedef struct TCompanyCompetitorInputRow : public TBaseInputRow
 {
     TIdent      CP_CO_ID;
     TIdent      CP_COMP_CO_ID;
@@ -96,8 +96,8 @@ typedef struct TCompanyCompetitorInputRow : TBaseInputRow
     void Load(istream &file);   //loads itself (one row) from the input stream
 } *PCompanyCompetitorInputRow;
 
-//COMPANYSPRATE.txt
-typedef struct TCompanySPRateInputRow : TBaseInputRow
+//CompanySPRate.txt
+typedef struct TCompanySPRateInputRow : public TBaseInputRow
 {
     //Company SP Rating
     char        CO_SP_RATE[ cCO_SP_RATE_len+1 ];
@@ -105,8 +105,8 @@ typedef struct TCompanySPRateInputRow : TBaseInputRow
     void Load(istream &file);   //loads itself (one row) from the input stream
 } *PCompanySPRateInputRow;
 
-//MALEFIRSTNAMES.txt and FEMALEFIRSTNAMES.txt
-typedef struct TFirstNameInputRow : TBaseInputRow
+//MaleFirstNames.txt and FemaleFirstNames.txt
+typedef struct TFirstNameInputRow : public TBaseInputRow
 {
     char    FIRST_NAME[cF_NAME_len+1];
 
@@ -114,40 +114,40 @@ typedef struct TFirstNameInputRow : TBaseInputRow
 } *PFirstNameInputRow;
 
 
-//LASTNAMES.txt
-typedef struct TLastNameInputRow : TBaseInputRow
+//LastNames.txt
+typedef struct TLastNameInputRow : public TBaseInputRow
 {
     char    LAST_NAME[cL_NAME_len+1];
 
     void Load(istream &file);   //loads itself (one row) from the input stream
 } *PLastNameInputRow;
 
-//NEWS_ITEM.txt
-typedef struct TNewsInputRow : TBaseInputRow
+//NewsItem.txt
+typedef struct TNewsInputRow : public TBaseInputRow
 {
     char    WORD[cWORD_len+1];
 
     void Load(istream &file);   //loads itself (one row) from the input stream
 } *PNewsInputRow;
 
-//Street NAMES.txt
-typedef struct TStreetNameInputRow : TBaseInputRow
+//Street Names.txt
+typedef struct TStreetNameInputRow : public TBaseInputRow
 {
     char        STREET[ cAD_LINE_len+1 ];
 
     void Load(istream &file);   //loads itself (one row) from the input stream
 } *PStreetNameInputRow;
 
-//STREETSUFFIX.txt
-typedef struct TStreetSuffixInputRow : TBaseInputRow
+//StreetSuffix.txt
+typedef struct TStreetSuffixInputRow : public TBaseInputRow
 {
     char        SUFFIX[ cAD_LINE_len+1 ];
 
     void Load(istream &file);   //loads itself (one row) from the input stream
 } *PStreetSuffixInputRow;
 
-//SECURITY.txt
-typedef struct TSecurityInputRow : TBaseInputRow
+//Security.txt
+typedef struct TSecurityInputRow : public TBaseInputRow
 {
     TIdent      S_ID;
     char    S_ISSUE[ cS_ISSUE_len+1 ];
@@ -159,8 +159,8 @@ typedef struct TSecurityInputRow : TBaseInputRow
     void Load(istream &file);   //loads itself (one row) from the input stream
 } *PSecuritiesInputRow;
 
-//TAXRATESDIVISION.txt and TAXRATESCOUNTRY.txt
-typedef struct TTaxRateInputRow : TBaseInputRow
+//TaxRatesDivision.txt and TaxRatesCountry.txt
+typedef struct TTaxRateInputRow : public TBaseInputRow
 {
     char    TAX_ID[ cTX_ID_len+1 ];
     char    TAX_NAME[ cTX_NAME_len+1 ];
@@ -169,10 +169,10 @@ typedef struct TTaxRateInputRow : TBaseInputRow
     void Load(istream &file);   //loads itself (one row) from the input stream
 } *PTaxRateInputRow;
 
-//ZIP_CODE.txt
-typedef struct TZipCodeInputRow : TBaseInputRow
+//ZipCode.txt
+typedef struct TZipCodeInputRow : public TBaseInputRow
 {
-    int     iDivisionTaxKey;
+    UINT    iDivisionTaxKey;
     char    ZC_CODE[cZC_CODE_len+1];
     char    ZC_TOWN[cZC_TOWN_len+1];
     char    ZC_DIV[cZC_DIV_len+1];
@@ -192,7 +192,7 @@ typedef struct TZipCodeInputRow : TBaseInputRow
 //Base structure for only the total number of elements
 typedef struct TBaseElementsLimits
 {
-    int     m_iTotalElements;
+    UINT   m_iTotalElements;
 
     //Constructor
     TBaseElementsLimits()
@@ -200,11 +200,11 @@ typedef struct TBaseElementsLimits
     {
     };
 
-    int     TotalElements() {return m_iTotalElements;}
+    UINT   TotalElements() {return m_iTotalElements;}
     virtual ~TBaseElementsLimits() {}
 } *PBaseElementsLimits;
 //Base structure for the highest key and the total number of elements
-typedef struct TBaseKeyElementsLimits : TBaseElementsLimits
+typedef struct TBaseKeyElementsLimits : public TBaseElementsLimits
 {
     int     m_iHighestKey;
 
@@ -218,7 +218,7 @@ typedef struct TBaseKeyElementsLimits : TBaseElementsLimits
 } *PBaseKeyElementsLimits;
 
 //Area Codes input file limits
-typedef struct TAreaCodesLimits : TBaseKeyElementsLimits
+typedef struct TAreaCodesLimits : public TBaseKeyElementsLimits
 {
     TAreaCodesLimits()
     {
@@ -228,7 +228,7 @@ typedef struct TAreaCodesLimits : TBaseKeyElementsLimits
 } *PAreaCodesLimits;
 
 //Charge input file limits
-typedef struct TChargeLimits : TBaseElementsLimits
+typedef struct TChargeLimits : public TBaseElementsLimits
 {
     TChargeLimits()
     {
@@ -237,7 +237,7 @@ typedef struct TChargeLimits : TBaseElementsLimits
 } *PChargeLimits;
 
 //Commission rate input file limits
-typedef struct TCommissionRateLimits : TBaseElementsLimits
+typedef struct TCommissionRateLimits : public TBaseElementsLimits
 {
     TCommissionRateLimits()
     {
@@ -246,7 +246,7 @@ typedef struct TCommissionRateLimits : TBaseElementsLimits
 } *PCommissionRateLimits;
 
 //Company input file limits
-typedef struct TCompanyLimits : TBaseElementsLimits
+typedef struct TCompanyLimits : public TBaseElementsLimits
 {
     TCompanyLimits()
     {
@@ -255,7 +255,7 @@ typedef struct TCompanyLimits : TBaseElementsLimits
 } *PCompanyLimits;
 
 //Company Competitor input file limits
-typedef struct TCompanyCompetitorLimits : TBaseElementsLimits
+typedef struct TCompanyCompetitorLimits : public TBaseElementsLimits
 {
     TCompanyCompetitorLimits()
     {
@@ -264,7 +264,7 @@ typedef struct TCompanyCompetitorLimits : TBaseElementsLimits
 } *PCompanyCompetitorLimits;
 
 //CompanySPRate input file limits
-typedef struct TCompanySPRateLimits : TBaseKeyElementsLimits
+typedef struct TCompanySPRateLimits : public TBaseKeyElementsLimits
 {
     TCompanySPRateLimits()
     {
@@ -274,7 +274,7 @@ typedef struct TCompanySPRateLimits : TBaseKeyElementsLimits
 } *PCompanySPRateLimits;
 
 //Exchange input file limits
-typedef struct TExchangeLimits : TBaseElementsLimits
+typedef struct TExchangeLimits : public TBaseElementsLimits
 {
     TExchangeLimits()
     {
@@ -283,7 +283,7 @@ typedef struct TExchangeLimits : TBaseElementsLimits
 } *PExchangeLimits;
 
 //Female First Names input file limits
-typedef struct TFemaleFirstNamesLimits : TBaseKeyElementsLimits
+typedef struct TFemaleFirstNamesLimits : public TBaseKeyElementsLimits
 {
     TFemaleFirstNamesLimits()
     {
@@ -293,7 +293,7 @@ typedef struct TFemaleFirstNamesLimits : TBaseKeyElementsLimits
 } *PFemaleFirstNamesLimits;
 
 //Industry input file limits
-typedef struct TIndustryLimits : TBaseElementsLimits
+typedef struct TIndustryLimits : public TBaseElementsLimits
 {
     TIndustryLimits()
     {
@@ -302,7 +302,7 @@ typedef struct TIndustryLimits : TBaseElementsLimits
 } *PIndustryLimits;
 
 //Last Names input file limits
-typedef struct TLastNamesLimits : TBaseKeyElementsLimits
+typedef struct TLastNamesLimits : public TBaseKeyElementsLimits
 {
     TLastNamesLimits()
     {
@@ -312,7 +312,7 @@ typedef struct TLastNamesLimits : TBaseKeyElementsLimits
 } *PLastNamesLimits;
 
 //Male First Names input file limits
-typedef struct TMaleFirstNamesLimits : TBaseKeyElementsLimits
+typedef struct TMaleFirstNamesLimits : public TBaseKeyElementsLimits
 {
     TMaleFirstNamesLimits()
     {
@@ -322,7 +322,7 @@ typedef struct TMaleFirstNamesLimits : TBaseKeyElementsLimits
 } *PMaleFirstNamesLimits;
 
 //News input file limits
-typedef struct TNewsLimits : TBaseKeyElementsLimits
+typedef struct TNewsLimits : public TBaseKeyElementsLimits
 {
     TNewsLimits()
     {
@@ -332,7 +332,7 @@ typedef struct TNewsLimits : TBaseKeyElementsLimits
 } *PNewsLimits;
 
 //Sector input file limits
-typedef struct TSectorLimits : TBaseElementsLimits
+typedef struct TSectorLimits : public TBaseElementsLimits
 {
     TSectorLimits()
     {
@@ -341,7 +341,7 @@ typedef struct TSectorLimits : TBaseElementsLimits
 } *PSectorLimits;
 
 //Security input file limits
-typedef struct TSecurityLimits : TBaseElementsLimits
+typedef struct TSecurityLimits : public TBaseElementsLimits
 {
     TSecurityLimits()
     {
@@ -350,7 +350,7 @@ typedef struct TSecurityLimits : TBaseElementsLimits
 } *PSecurityLimits;
 
 //StatusType input file limits
-typedef struct TStatusTypeLimits : TBaseElementsLimits
+typedef struct TStatusTypeLimits : public TBaseElementsLimits
 {
     TStatusTypeLimits()
     {
@@ -360,7 +360,7 @@ typedef struct TStatusTypeLimits : TBaseElementsLimits
 
 
 //Street Names input file limits
-typedef struct TStreetNamesLimits : TBaseKeyElementsLimits
+typedef struct TStreetNamesLimits : public TBaseKeyElementsLimits
 {
     TStreetNamesLimits()
     {
@@ -370,7 +370,7 @@ typedef struct TStreetNamesLimits : TBaseKeyElementsLimits
 } *PStreetNamesLimits;
 
 //Street Names input file limits
-typedef struct TStreetSuffixLimits : TBaseKeyElementsLimits
+typedef struct TStreetSuffixLimits : public TBaseKeyElementsLimits
 {
     TStreetSuffixLimits()
     {
@@ -380,7 +380,7 @@ typedef struct TStreetSuffixLimits : TBaseKeyElementsLimits
 } *PStreetSuffixLimits;
 
 //TaxableAccountName input file limits
-typedef struct TTaxableAccountNameLimits : TBaseElementsLimits
+typedef struct TTaxableAccountNameLimits : public TBaseElementsLimits
 {
     TTaxableAccountNameLimits()
     {
@@ -389,7 +389,7 @@ typedef struct TTaxableAccountNameLimits : TBaseElementsLimits
 } *PTaxableAccountNameLimits;
 
 //NonTaxableAccountName input file limits
-typedef struct TNonTaxableAccountNameLimits : TBaseElementsLimits
+typedef struct TNonTaxableAccountNameLimits : public TBaseElementsLimits
 {
     TNonTaxableAccountNameLimits()
     {
@@ -398,7 +398,7 @@ typedef struct TNonTaxableAccountNameLimits : TBaseElementsLimits
 } *PNonTaxableAccountNameLimits;
 
 //Taxrate input file limits
-typedef struct TTaxrateLimits : TBaseElementsLimits
+typedef struct TTaxrateLimits : public TBaseElementsLimits
 {
     TTaxrateLimits()
     {
@@ -407,7 +407,7 @@ typedef struct TTaxrateLimits : TBaseElementsLimits
 } *PTaxrateLimits;
 
 //TradeType input file limits
-typedef struct TTradeTypeLimits : TBaseElementsLimits
+typedef struct TTradeTypeLimits : public TBaseElementsLimits
 {
     TTradeTypeLimits()
     {
@@ -416,7 +416,7 @@ typedef struct TTradeTypeLimits : TBaseElementsLimits
 } *PTradeTypeLimits;
 
 //ZipCode input file limits
-typedef struct TZipCodeLimits : TBaseKeyElementsLimits
+typedef struct TZipCodeLimits : public TBaseKeyElementsLimits
 {
     TZipCodeLimits()
     {
@@ -428,9 +428,9 @@ typedef struct TZipCodeLimits : TBaseKeyElementsLimits
 // Trade Type IDs moved to a separate file (TradeTypeIDs.h)
 //
 
-// Status Type IDs corresponding to the STATUS_TYPE.txt flat file.
+// Status Type IDs corresponding to the StatusType.txt flat file.
 // Note: The order of enumeration members must match the order
-// of rows in the STATUS_TYPE.txt flat file.
+// of rows in the StatusType.txt flat file.
 enum eStatusTypeID
 {
     eCompleted = 0,
@@ -440,6 +440,17 @@ enum eStatusTypeID
     eCanceled,
 
     eMaxStatusTypeID    // should be the last - contains the number of items in the enumeration
+};
+
+// Exchange IDs corresponding to the Exchange.txt flat file.
+// Note: The order of enumeration members must match the order
+// of rows in the Exchange.txt flat file.
+enum eExchangeID
+{
+    eNYSE = 0,
+    eNASDAQ,
+    eAMEX,
+    ePCX
 };
 
 // These constants are used by security/company scaling code.

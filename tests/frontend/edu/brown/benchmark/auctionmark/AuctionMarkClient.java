@@ -694,7 +694,7 @@ public class AuctionMarkClient extends AuctionMarkBaseClient {
         if (this.debug)
             LOG.debug("Execute Transaction [client_id=" + this.getClientId() + "]");
 
-        if (Transaction.POST_AUCTION.canExecute(clientProfile)) {
+        if (Transaction.POST_AUCTION.canExecute(clientProfile) && this.getClientId() == 0) {
             txn = Transaction.POST_AUCTION;
             if (this.debug)
                 LOG.trace("Executing new invocation of transaction " + txn);

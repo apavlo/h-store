@@ -36,11 +36,12 @@ import java.util.Queue;
 import java.util.Set;
 import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.LinkedBlockingDeque;
 
 import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.commons.collections15.set.ListOrderedSet;
-import org.apache.commons.pool.BasePoolableObjectFactory;
 import org.apache.log4j.Logger;
 import org.voltdb.BatchPlanner;
 import org.voltdb.ExecutionSite;
@@ -49,12 +50,15 @@ import org.voltdb.VoltProcedure;
 import org.voltdb.VoltTable;
 import org.voltdb.BatchPlanner.BatchPlan;
 import org.voltdb.catalog.Procedure;
-import org.voltdb.exceptions.MispredictionException;
 import org.voltdb.messaging.FragmentTaskMessage;
+
+import ca.evanjones.protorpc.ProtoRpcController;
 
 import com.google.protobuf.RpcCallback;
 
 import edu.brown.markov.TransactionEstimator;
+import edu.brown.statistics.Histogram;
+import edu.brown.utils.CountingPoolableObjectFactory;
 import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.ProfileMeasurement;
 import edu.brown.utils.StringUtil;
@@ -73,6 +77,8 @@ public class LocalTransactionState extends TransactionState {
     static {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
+    private static boolean d = debug.get();
+    private static boolean t = trace.get();
 
     // ----------------------------------------------------------------------------
     // INTERNAL PARTITION+DEPENDENCY KEY
@@ -94,15 +100,16 @@ public class LocalTransactionState extends TransactionState {
     }
     
     /**
-     * Break out the 
+     * For the given encoded Partition+DependencyInfo key, populate the given array
+     * with the partitionid first, then the dependencyid second
      * @param key
      * @param values
      */
     protected void getPartitionDependencyFromKey(int idx, int values[]) {
         assert(values.length == 2);
         int key = this.partition_dependency_keys.get(idx).intValue();
-        values[0] = key>>0 & KEY_MAX_VALUE;
-        values[1] = key>>16 & KEY_MAX_VALUE;
+        values[0] = key>>0 & KEY_MAX_VALUE;     // PartitionId
+        values[1] = key>>16 & KEY_MAX_VALUE;    // DependencyId
     }
     
     // ----------------------------------------------------------------------------
@@ -112,35 +119,25 @@ public class LocalTransactionState extends TransactionState {
     /**
      * 
      */
-    private boolean d = debug.get();
-    private boolean t = trace.get();
-    
-    /**
-     * 
-     */
     private final Object lock = new Object();
 
     private final List<BatchPlanner.BatchPlan> batch_plans = new ArrayList<BatchPlanner.BatchPlan>();
 
-    private final List<DependencyInfo> all_dependencies = new ArrayList<DependencyInfo>();
+    private final Set<DependencyInfo> all_dependencies = new HashSet<DependencyInfo>();
     
     /**
      * LocalTransactionState Factory
      */
-    public static class Factory extends BasePoolableObjectFactory {
+    public static class Factory extends CountingPoolableObjectFactory<LocalTransactionState> {
         private final ExecutionSite executor;
         
-        public Factory(ExecutionSite executor) {
+        public Factory(ExecutionSite executor, boolean enable_tracking) {
+            super(enable_tracking);
             this.executor = executor;
         }
         @Override
-        public Object makeObject() throws Exception {
+        public LocalTransactionState makeObjectImpl() throws Exception {
             return new LocalTransactionState(this.executor);
-        }
-        @Override
-        public void passivateObject(Object obj) throws Exception {
-            LocalTransactionState ts = (LocalTransactionState)obj;
-            ts.finish();
         }
     };
     
@@ -174,13 +171,36 @@ public class LocalTransactionState extends TransactionState {
      * The partitions that we told the Dtxn.Coordinator that we were done with
      */
     private final Set<Integer> done_partitions = new HashSet<Integer>();
-    
+    /**
+     * What partitions has this txn touched
+     */
+    private final Histogram<Integer> touched_partitions = new Histogram<Integer>();
     /**
      * Whether this is a sysproc
      */
     public boolean sysproc;
     /**
-     * 
+     * Whether this txn isn't use the Dtxn.Coordinator
+     */
+    public boolean ignore_dtxn = false;
+
+    /**
+     * Whether this txn is suppose to be single-partitioned
+     */
+    protected boolean single_partitioned = false;
+    
+    /**
+     * Whether this txn is being executed specutatively
+     */
+    protected boolean speculative = false;
+    
+    /**
+     * Whether this txn can abort
+     */
+    protected boolean can_abort = true;
+    
+    /**
+     * The original StoredProcedureInvocation request that was sent to the HStoreSite
      */
     public StoredProcedureInvocation invocation;
     /**
@@ -196,46 +216,9 @@ public class LocalTransactionState extends TransactionState {
      */
     public RpcCallback<byte[]> client_callback;
     
-    // ----------------------------------------------------------------------------
-    // PROFILE MEASUREMENTS
-    // ----------------------------------------------------------------------------
-
-    /**
-     * Total time spent executing the transaction
-     */
-    public final ProfileMeasurement total_time = new ProfileMeasurement(Type.TOTAL);
-    /**
-     * Time spent in HStoreSite procedureInitialization
-     */
-    public final ProfileMeasurement init_time = new ProfileMeasurement(Type.INITIALIZATION);
-    /**
-     * Time spent getting the response back to the client
-     */
-    public final ProfileMeasurement finish_time = new ProfileMeasurement(Type.CLEANUP);
-    /**
-     * Time spent waiting in queue
-     */
-    public final ProfileMeasurement queue_time = new ProfileMeasurement(Type.QUEUE);
-    /**
-     * The amount of time spent executing the Java-portion of the stored procedure
-     */
-    public final ProfileMeasurement java_time = new ProfileMeasurement(Type.JAVA);
-    /**
-     * The amount of time spent coordinating the transaction
-     */
-    public final ProfileMeasurement coord_time = new ProfileMeasurement(Type.COORDINATOR);
-    /**
-     * The amount of time spent planning the transaction
-     */
-    public final ProfileMeasurement plan_time = new ProfileMeasurement(Type.PLANNER);
-    /**
-     * The amount of time spent executing in the plan fragments
-     */
-    public final ProfileMeasurement ee_time = new ProfileMeasurement(Type.EE);
-    /**
-     * The amount of time spent estimating what the transaction will do
-     */
-    public final ProfileMeasurement est_time = new ProfileMeasurement(Type.ESTIMATION);
+    public final ProtoRpcController rpc_request_init = new ProtoRpcController();
+    public final ProtoRpcController rpc_request_work = new ProtoRpcController();
+    public final ProtoRpcController rpc_request_finish = new ProtoRpcController();
     
     // ----------------------------------------------------------------------------
     // ROUND DATA MEMBERS
@@ -244,7 +227,13 @@ public class LocalTransactionState extends TransactionState {
     /**
      * Temporary space used in ExecutionSite.waitForResponses
      */
-    public final List<FragmentTaskMessage> runnable_fragment_list = new ArrayList<FragmentTaskMessage>();
+    public final List<FragmentTaskMessage> remote_fragment_list = new ArrayList<FragmentTaskMessage>();
+    public final List<FragmentTaskMessage> local_fragment_list = new ArrayList<FragmentTaskMessage>();
+    
+    /**
+     * Temporary space used when calling removeInternalDependencies()
+     */
+    public final HashMap<Integer, List<VoltTable>> remove_dependencies_map = new HashMap<Integer, List<VoltTable>>();
     
     /**
      * This latch will block until all the Dependency results have returned
@@ -284,6 +273,11 @@ public class LocalTransactionState extends TransactionState {
     private final Set<FragmentTaskMessage> blocked_tasks = new HashSet<FragmentTaskMessage>();
     
     /**
+     * Unblocked FragmentTaskMessages
+     */
+    private final LinkedBlockingDeque<FragmentTaskMessage> unblocked_tasks = new LinkedBlockingDeque<FragmentTaskMessage>(); 
+    
+    /**
      * These are the DependencyIds that we don't bother returning to the ExecutionSite
      */
     private final Set<Integer> internal_dependencies = new HashSet<Integer>();
@@ -292,21 +286,70 @@ public class LocalTransactionState extends TransactionState {
      * Number of SQLStmts in the current batch
      */
     private int batch_size = 0;
-    
     /**
      * The total # of dependencies this Transaction is waiting for in the current round
      */
     private int dependency_ctr = 0;
-    
     /**
      * The total # of dependencies received thus far in the current round
      */
     private int received_ctr = 0;
-    
     /**
      * TransctionEstimator State Handle
      */
     private TransactionEstimator.State estimator_state;
+    /**
+     * 
+     */
+    private final ConcurrentLinkedQueue<DependencyInfo> reusable_dependencies = new ConcurrentLinkedQueue<DependencyInfo>(); 
+
+    
+    // ----------------------------------------------------------------------------
+    // PROFILE MEASUREMENTS
+    // ----------------------------------------------------------------------------
+
+    /**
+     * Total time spent executing the transaction
+     */
+    public final ProfileMeasurement total_time = new ProfileMeasurement(Type.TOTAL);
+    /**
+     * Time spent in HStoreSite procedureInitialization
+     */
+    public final ProfileMeasurement init_time = new ProfileMeasurement(Type.INITIALIZATION);
+    /**
+     * Time spent blocked on the initialization latch
+     */
+    public final ProfileMeasurement blocked_time = new ProfileMeasurement(Type.BLOCKED);
+    /**
+     * Time spent getting the response back to the client
+     */
+    public final ProfileMeasurement finish_time = new ProfileMeasurement(Type.CLEANUP);
+    /**
+     * Time spent waiting in queue
+     */
+    public final ProfileMeasurement queue_time = new ProfileMeasurement(Type.QUEUE);
+    /**
+     * The amount of time spent executing the Java-portion of the stored procedure
+     */
+    public final ProfileMeasurement java_time = new ProfileMeasurement(Type.JAVA);
+    /**
+     * The amount of time spent coordinating the transaction
+     */
+    public final ProfileMeasurement coord_time = new ProfileMeasurement(Type.COORDINATOR);
+    /**
+     * The amount of time spent planning the transaction
+     */
+    public final ProfileMeasurement plan_time = new ProfileMeasurement(Type.PLANNER);
+    /**
+     * The amount of time spent executing in the plan fragments
+     */
+    public final ProfileMeasurement ee_time = new ProfileMeasurement(Type.EE);
+    /**
+     * The amount of time spent estimating what the transaction will do
+     */
+    public final ProfileMeasurement est_time = new ProfileMeasurement(Type.ESTIMATION);
+    
+
     
     // ----------------------------------------------------------------------------
     // INITIALIZATION
@@ -329,12 +372,19 @@ public class LocalTransactionState extends TransactionState {
     public LocalTransactionState init(long txnId, long clientHandle, int source_partition) {
         // We'll use these to reduce the number of calls to the LoggerBooleans
         // Probably doesn't make a difference but I'll take anything I can get now...
-        this.t = trace.get();
-        this.d = debug.get();
+//        t = trace.get();
+//        d = debug.get();
         return ((LocalTransactionState)super.init(txnId, clientHandle, source_partition, true));
     }
     
-    public LocalTransactionState init(long txnId, long clientHandle, int source_partition, Procedure catalog_proc, StoredProcedureInvocation invocation, RpcCallback<byte[]> client_callback) {
+    public LocalTransactionState init(long txnId, long clientHandle, int source_partition,
+                                      boolean single_partitioned, boolean can_abort, TransactionEstimator.State estimator_state,
+                                      Procedure catalog_proc, StoredProcedureInvocation invocation, RpcCallback<byte[]> client_callback) {
+        
+        this.single_partitioned = single_partitioned;
+        this.can_abort = can_abort;
+        this.estimator_state = estimator_state;
+        
         this.catalog_proc = catalog_proc;
         this.sysproc = catalog_proc.getSystemproc();
         this.invocation = invocation;
@@ -344,7 +394,7 @@ public class LocalTransactionState extends TransactionState {
         return (this.init(txnId, clientHandle, source_partition));
     }
     
-    public LocalTransactionState init(long txnId, LocalTransactionState orig) {
+    public LocalTransactionState init(long txnId, int base_partition, LocalTransactionState orig) {
         this.orig_txn_id = orig.getTransactionId();
         this.catalog_proc = orig.catalog_proc;
         this.sysproc = orig.sysproc;
@@ -362,7 +412,12 @@ public class LocalTransactionState extends TransactionState {
 //            this.est_time.appendTime(orig.est_time);
 //        }
         
-        return (this.init(txnId, orig.client_handle, orig.source_partition));
+        return (this.init(txnId, orig.client_handle, base_partition));
+    }
+    
+    @Override
+    public boolean isInitialized() {
+        return (this.catalog_proc != null);
     }
     
     @Override
@@ -382,7 +437,6 @@ public class LocalTransactionState extends TransactionState {
             for (DependencyInfo d : this.all_dependencies) {
                 DependencyInfo.INFO_POOL.returnObject(d);
             } // FOR
-            this.all_dependencies.clear();
         
             // Return our TransactionEstimator.State handle
             if (this.estimator_state != null) {
@@ -394,17 +448,34 @@ public class LocalTransactionState extends TransactionState {
             throw new RuntimeException(ex);
         }
 
+        // Important! Call clearRound() before we clear out our other junk, otherwise
+        // are are going to have leftover DependencyInfos
+        this.clearRound();
+        
+        this.rpc_request_init.reset();
+        this.rpc_request_work.reset();
+        this.rpc_request_finish.reset();
+        
+        
         this.orig_txn_id = null;
         this.catalog_proc = null;
         this.sysproc = false;
+        this.single_partitioned = false;
+        this.speculative = false;
+        this.can_abort = true;
+        this.ignore_dtxn = false;
         this.done_partitions.clear();
+        this.touched_partitions.clear();
         this.coordinator_callback = null;
         this.volt_procedure = null;
         this.dependency_latch = null;
+        this.all_dependencies.clear();
+        this.reusable_dependencies.clear();
         
-        if (this.executor.getEnableProfiling()) {
+        if (this.executor.getHStoreConf().enable_profiling) {
             this.total_time.reset();
             this.init_time.reset();
+            this.blocked_time.reset();
             this.queue_time.reset();
             this.finish_time.reset();
             this.java_time.reset();
@@ -412,8 +483,6 @@ public class LocalTransactionState extends TransactionState {
             this.ee_time.reset();
             this.est_time.reset();
         }
-        
-        this.clearRound();
     }
     
     private void clearRound() {
@@ -423,7 +492,8 @@ public class LocalTransactionState extends TransactionState {
         this.queued_results.clear();
         this.blocked_tasks.clear();
         this.internal_dependencies.clear();
-        this.runnable_fragment_list.clear();
+        this.remote_fragment_list.clear();
+        this.local_fragment_list.clear();
 
         // Note that we only want to clear the queues and not the whole maps
         for (Queue<Integer> q : this.results_dependency_stmt_ctr.values()) {
@@ -434,6 +504,7 @@ public class LocalTransactionState extends TransactionState {
         } // FOR
         
         for (int i = 0; i < this.batch_size; i++) {
+            this.reusable_dependencies.addAll(this.dependencies[i].values());
             this.dependencies[i].clear();
         } // FOR
         this.batch_size = 0;
@@ -441,6 +512,10 @@ public class LocalTransactionState extends TransactionState {
         this.received_ctr = 0;
     }
     
+    
+    public void setTransactionId(long txn_id) { 
+        this.txn_id = txn_id;
+    }
     
     @Override
     public synchronized void setPendingError(RuntimeException error) {
@@ -457,14 +532,20 @@ public class LocalTransactionState extends TransactionState {
     
     @Override
     public void initRound(long undoToken) {
-        assert(this.queued_responses.isEmpty()) : "Trying to initialize round for txn #" + this.txn_id + " but there are " + this.queued_responses.size() + " queued responses";
-        assert(this.queued_results.isEmpty()) : "Trying to initialize round for txn #" + this.txn_id + " but there are " + this.queued_results.size() + " queued results";
+        assert(this.queued_responses.isEmpty()) : String.format("Trying to initialize round for txn #%d but there are %d queued responses",
+                                                                this.txn_id, this.queued_responses.size());
+        assert(this.queued_results.isEmpty()) : String.format("Trying to initialize round for txn #%d but there are %d queued results",
+                                                              this.txn_id, this.queued_results.size());
         
         synchronized (this.lock) {
             super.initRound(undoToken);
             // Reset these guys here so that we don't waste time in the last round
             if (this.last_undo_token != null) this.clearRound();
         } // SYNCHRONIZED
+    }
+    
+    public void fastInitRound(long undoToken) {
+        super.initRound(undoToken);
     }
     
     @Override
@@ -489,13 +570,13 @@ public class LocalTransactionState extends TransactionState {
             if (t) LOG.trace("Releasing " + this.queued_responses.size() + " queued responses");
             int key[] = new int[2];
             for (Integer response : this.queued_responses) {
-                getPartitionDependencyFromKey(response.intValue(), key);
+                this.getPartitionDependencyFromKey(response.intValue(), key);
                 this.processResultResponse(key[0], key[1], response.intValue(), null);
             } // FOR
             if (t) LOG.trace("Releasing " + this.queued_results.size() + " queued results");
             
             for (Entry<Integer, VoltTable> e : this.queued_results.entrySet()) {
-                getPartitionDependencyFromKey(e.getKey().intValue(), key);
+                this.getPartitionDependencyFromKey(e.getKey().intValue(), key);
                 this.processResultResponse(key[0], key[1], e.getKey().intValue(), e.getValue());
             } // FOR
             this.queued_responses.clear();
@@ -531,6 +612,14 @@ public class LocalTransactionState extends TransactionState {
         } // SYNCHRONIZED
     }
     
+    /**
+     * Quickly finish this round. Assumes that everything executed locally
+     */
+    public void fastFinishRound() {
+        this.round_state = RoundState.STARTED;
+        super.finishRound();
+    }
+    
     public void setBatchSize(int batchSize) {
         this.batch_size = batchSize;
     }
@@ -560,6 +649,13 @@ public class LocalTransactionState extends TransactionState {
     public Set<Integer> getDonePartitions() {
         return done_partitions;
     }
+    public Histogram<Integer> getTouchedPartitions() {
+        return (this.touched_partitions);
+    }
+    
+    public String getProcedureName() {
+        return (this.catalog_proc.getName());
+    }
     
     /**
      * Return the underlying procedure catalog object
@@ -588,6 +684,9 @@ public class LocalTransactionState extends TransactionState {
     }
     protected Set<FragmentTaskMessage> getBlockedFragmentTaskMessages() {
         return (this.blocked_tasks);
+    }
+    public LinkedBlockingDeque<FragmentTaskMessage> getUnblockedFragmentTaskMessageQueue() {
+        return (this.unblocked_tasks);
     }
     
     public TransactionEstimator.State getEstimatorState() {
@@ -638,6 +737,12 @@ public class LocalTransactionState extends TransactionState {
     public void setPredictSinglePartitioned(boolean singlePartitioned) {
         this.single_partitioned = singlePartitioned;
     }
+    public void setPredictAbortable(boolean canAbort) {
+        this.can_abort = canAbort;
+    }
+    public void setSpeculative(boolean speculative) {
+        this.speculative = speculative;
+    }
     
     /**
      * Returns true if this Transaction was originally predicted to be single-partitioned
@@ -648,11 +753,27 @@ public class LocalTransactionState extends TransactionState {
     }
     
     /**
+     * Returns true if this transaction is being executed speculatively
+     * @return
+     */
+    public boolean isSpeculative() {
+        return (this.speculative);
+    }
+    
+    /**
+     * Returns true if this Transaction was originally predicted as being able to abort
+     * @return
+     */
+    public boolean isPredictAbortable() {
+        return can_abort;
+    }
+    
+    /**
      * Returns true if this Transaction has executed only on a single-partition
      * @return
      */
     public boolean isExecSinglePartition() {
-        return (this.touched_partitions.size() <= 1);
+        return (this.touched_partitions.getValueCount() <= 1);
     }
     
     /**
@@ -665,13 +786,11 @@ public class LocalTransactionState extends TransactionState {
     }
     
     /**
-     * Retrieves and removes the coordinator callback
+     * Retrieves the coordinator callback
      * @return the coordinator_callback
      */
     public RpcCallback<Dtxn.FragmentResponse> getCoordinatorCallback() {
-        RpcCallback<Dtxn.FragmentResponse> ret = this.coordinator_callback;
-        this.coordinator_callback = null;
-        return (ret);
+        return (this.coordinator_callback);
     }
     
     /**
@@ -695,18 +814,27 @@ public class LocalTransactionState extends TransactionState {
             stmt_dinfos = new ConcurrentHashMap<Integer, DependencyInfo>();
             this.dependencies[stmt_index] = stmt_dinfos;
         }
-        DependencyInfo d = stmt_dinfos.get(d_id);
-        if (d == null) {
-            try {
-                d = (DependencyInfo)DependencyInfo.INFO_POOL.borrowObject();
-                this.all_dependencies.add(d);
-            } catch (Exception ex) {
-                throw new RuntimeException(ex);
+        DependencyInfo dinfo = stmt_dinfos.get(d_id);
+        if (dinfo == null) {
+            // First try to get one that we have used before in a previous round for this txn
+            dinfo = this.reusable_dependencies.poll();
+            if (dinfo != null) {
+                dinfo.finish();
+            // If there is nothing local, then we have to go get an object from the global pool
+            } else {
+                try {
+                    dinfo = (DependencyInfo)DependencyInfo.INFO_POOL.borrowObject();
+                    this.all_dependencies.add(dinfo);
+                } catch (Exception ex) {
+                    throw new RuntimeException(ex);
+                }
             }
-            d.init(this, stmt_index, d_id.intValue());
-            stmt_dinfos.put(d_id, d);
+            
+            // Always initialize the DependencyInfo regardless of how we got it 
+            dinfo.init(this, stmt_index, d_id.intValue());
+            stmt_dinfos.put(d_id, dinfo);
         }
-        return (d);
+        return (dinfo);
     }
     
     /**
@@ -716,8 +844,8 @@ public class LocalTransactionState extends TransactionState {
     @Override
     public VoltTable[] getResults() {
         final VoltTable results[] = new VoltTable[this.output_order.size()];
-        LOG.debug("Generating output results with " + results.length + " tables for txn #" + this.txn_id);
-        for (int stmt_index = 0, cnt = this.output_order.size(); stmt_index < cnt; stmt_index++) {
+        if (d) LOG.debug("Generating output results with " + results.length + " tables for txn #" + this.txn_id);
+        for (int stmt_index = 0; stmt_index < results.length; stmt_index++) {
             Integer dependency_id = this.output_order.get(stmt_index);
             assert(dependency_id != null) :
                 "Null output dependency id for Statement index " + stmt_index + " in txn #" + this.txn_id;
@@ -725,6 +853,7 @@ public class LocalTransactionState extends TransactionState {
                 "Missing dependency set for stmt_index #" + stmt_index + " in txn #" + this.txn_id;
             assert(this.dependencies[stmt_index].containsKey(dependency_id)) :
                 "Missing info for DependencyId " + dependency_id + " for Statement index " + stmt_index + " in txn #" + this.txn_id;
+            
             results[stmt_index] = this.dependencies[stmt_index].get(dependency_id).getResult();
             assert(results[stmt_index] != null) :
                 "Null output result for Statement index " + stmt_index + " in txn #" + this.txn_id;
@@ -734,7 +863,8 @@ public class LocalTransactionState extends TransactionState {
     
     /**
      * Queues up a FragmentTaskMessage for this txn
-     * Returns true if the FragmentTaskMessage can be executed immediately (either locally or on at a remote partition)
+     * If the return value is true, then the FragmentTaskMessage is blocked waiting for dependencies
+     * If the return value is false, then the FragmentTaskMessage can be executed immediately (either locally or on at a remote partition)
      * @param ftask
      */
     public boolean addFragmentTaskMessage(FragmentTaskMessage ftask) {
@@ -743,51 +873,56 @@ public class LocalTransactionState extends TransactionState {
         // The partition that this task is being sent to for execution
         boolean blocked = false;
         int partition = ftask.getDestinationPartitionId();
-        this.touched_partitions.add(partition);
         int num_fragments = ftask.getFragmentCount();
+        this.touched_partitions.put(partition, num_fragments);
         
         // If this task produces output dependencies, then we need to make 
         // sure that the txn wait for it to arrive first
         if (ftask.hasOutputDependencies()) {
             int output_dependencies[] = ftask.getOutputDependencyIds();
             int stmt_indexes[] = ftask.getFragmentStmtIndexes();
-            for (int i = 0; i < num_fragments; i++) {
-                Integer dependency_id = output_dependencies[i];
-                Integer stmt_index = stmt_indexes[i];
-                
-                if (t) LOG.trace("Adding new Dependency [stmt_index=" + stmt_index + ", id=" + dependency_id + ", partition=" + partition + "] for txn #" + this.txn_id);
-                this.getOrCreateDependencyInfo(stmt_index.intValue(), dependency_id).addPartition(partition);
-                this.dependency_ctr++;
-
-                // Store the stmt_index of when this dependency will show up
-                Integer key_idx = createPartitionDependencyKey(partition, dependency_id.intValue());
-
-                Queue<Integer> rest_stmt_ctr = this.results_dependency_stmt_ctr.get(key_idx);
-                Queue<Integer> resp_stmt_ctr = this.responses_dependency_stmt_ctr.get(key_idx);
-                if (rest_stmt_ctr == null) {
-                    assert(resp_stmt_ctr == null);
-                    rest_stmt_ctr = new LinkedList<Integer>();
-                    resp_stmt_ctr = new LinkedList<Integer>();
-                    this.results_dependency_stmt_ctr.put(key_idx, rest_stmt_ctr);
-                    this.responses_dependency_stmt_ctr.put(key_idx, resp_stmt_ctr);
-                }
-                rest_stmt_ctr.add(stmt_index);
-                resp_stmt_ctr.add(stmt_index);
-                if (t) LOG.trace(String.format("Set Dependency Statement Counters for <%d %d>: %d", partition, dependency_id, rest_stmt_ctr));
-                assert(resp_stmt_ctr.size() == rest_stmt_ctr.size());
-            } // FOR
+            
+            synchronized (this.lock) {
+                for (int i = 0; i < num_fragments; i++) {
+                    Integer dependency_id = output_dependencies[i];
+                    Integer stmt_index = stmt_indexes[i];
+                    
+                    if (t) LOG.trace("Adding new Dependency [stmt_index=" + stmt_index + ", id=" + dependency_id + ", partition=" + partition + "] for txn #" + this.txn_id);
+                    this.getOrCreateDependencyInfo(stmt_index.intValue(), dependency_id).addPartition(partition);
+                    this.dependency_ctr++;
+    
+                    // Store the stmt_index of when this dependency will show up
+                    Integer key_idx = createPartitionDependencyKey(partition, dependency_id.intValue());
+    
+                    Queue<Integer> rest_stmt_ctr = this.results_dependency_stmt_ctr.get(key_idx);
+                    Queue<Integer> resp_stmt_ctr = this.responses_dependency_stmt_ctr.get(key_idx);
+                    if (rest_stmt_ctr == null) {
+                        assert(resp_stmt_ctr == null);
+                        rest_stmt_ctr = new LinkedList<Integer>();
+                        resp_stmt_ctr = new LinkedList<Integer>();
+                        this.results_dependency_stmt_ctr.put(key_idx, rest_stmt_ctr);
+                        this.responses_dependency_stmt_ctr.put(key_idx, resp_stmt_ctr);
+                    }
+                    rest_stmt_ctr.add(stmt_index);
+                    resp_stmt_ctr.add(stmt_index);
+                    if (t) LOG.trace(String.format("Set Dependency Statement Counters for <%d %d>: %s", partition, dependency_id, rest_stmt_ctr));
+                    assert(resp_stmt_ctr.size() == rest_stmt_ctr.size());
+                } // FOR
+            } // SYNCH
         }
         
         // If this task needs an input dependency, then we need to make sure it arrives at
         // the executor before it is allowed to start executing
         if (ftask.hasInputDependencies()) {
             if (t) LOG.trace("Blocking fragments " + Arrays.toString(ftask.getFragmentIds()) + " waiting for " + ftask.getInputDependencyCount() + " dependencies in txn #" + this.txn_id + ": " + Arrays.toString(ftask.getAllUnorderedInputDepIds()));
-            for (int i = 0; i < num_fragments; i++) {
-                int dependency_id = ftask.getOnlyInputDepId(i);
-                int stmt_index = ftask.getFragmentStmtIndexes()[i];
-                this.getOrCreateDependencyInfo(stmt_index, dependency_id).addBlockedFragmentTaskMessage(ftask);
-                this.internal_dependencies.add(dependency_id);
-            } // FOR
+            synchronized (this.lock) {
+                for (int i = 0; i < num_fragments; i++) {
+                    int dependency_id = ftask.getOnlyInputDepId(i);
+                    int stmt_index = ftask.getFragmentStmtIndexes()[i];
+                    this.getOrCreateDependencyInfo(stmt_index, dependency_id).addBlockedFragmentTaskMessage(ftask);
+                    this.internal_dependencies.add(dependency_id);
+                } // FOR
+            } // SYNCH
             this.blocked_tasks.add(ftask);
             blocked = true;
         }
@@ -823,12 +958,12 @@ public class LocalTransactionState extends TransactionState {
     }
 
     /**
-     * Add a result with a response (this is slow and should only be used fo testing);
+     * Add a result with a response (this is slow and should only be used for testing);
      * @param partition
      * @param dependency_id
      * @param result
      */
-    protected void addResultWithResponse(int partition, int dependency_id, VoltTable result) {
+    public void addResultWithResponse(int partition, int dependency_id, VoltTable result) {
         int key = this.createPartitionDependencyKey(partition, dependency_id);
         this.processResultResponse(partition, dependency_id, key, null);
         this.processResultResponse(partition, dependency_id, key, result);
@@ -848,7 +983,8 @@ public class LocalTransactionState extends TransactionState {
         assert(this.exec_local) :
             "Trying to store " + type + " for txn #" + this.txn_id + " but it is not executing locally!";
 
-        DependencyInfo d = null;
+        DependencyInfo dinfo = null;
+        Map<Integer, Queue<Integer>> stmt_ctr = (result != null ? this.results_dependency_stmt_ctr : this.responses_dependency_stmt_ctr);
         
         // If the txn is still in the INITIALIZED state, then we just want to queue up the results
         // for now. They will get released when we switch to STARTED 
@@ -867,7 +1003,6 @@ public class LocalTransactionState extends TransactionState {
 
             // Each partition+dependency_id should be unique for a Statement batch.
             // So as the results come back to us, we have to figure out which Statement it belongs to
-            Map<Integer, Queue<Integer>> stmt_ctr = (result != null ? this.results_dependency_stmt_ctr : this.responses_dependency_stmt_ctr);
             if (t) LOG.trace("Storing new " + type + " for key " + key + " in txn #" + this.txn_id);
             Queue<Integer> queue = stmt_ctr.get(key);
             if (t) LOG.trace(type + " stmt_ctr(key=" + key + "): " + queue);
@@ -877,11 +1012,11 @@ public class LocalTransactionState extends TransactionState {
                 "No more statements for partition/dependency " + type + " pair " + key + " in txn #" + this.txn_id + "\n" + this;
             
             int stmt_index = queue.remove().intValue();
-            d = this.getDependencyInfo(stmt_index, dependency_id);
-            assert(d != null) :
+            dinfo = this.getDependencyInfo(stmt_index, dependency_id);
+            assert(dinfo != null) :
                 "Unexpected DependencyId " + dependency_id + " from partition " + partition + " for txn #" + this.txn_id + " [stmt_index=" + stmt_index + "]\n" + result;
 
-            final boolean complete = (result != null ? d.addResult(partition, result) : d.addResponse(partition));
+            final boolean complete = (result != null ? dinfo.addResult(partition, result) : dinfo.addResponse(partition));
             if (complete) {
                 if (t) LOG.trace("Received all RESULTS + RESPONSES for [stmt#" + stmt_index + ", dep#=" + dependency_id + "] for txn #" + this.txn_id);
                 this.received_ctr++;
@@ -892,8 +1027,8 @@ public class LocalTransactionState extends TransactionState {
             }
         } // SYNC
         // Check whether we need to start running stuff now
-        if (!this.blocked_tasks.isEmpty() && d.hasTasksReady()) {
-            this.executeBlockedTasks(d);
+        if (!this.blocked_tasks.isEmpty() && dinfo.hasTasksReady()) {
+            this.executeBlockedTasks(dinfo);
         }
     }
 
@@ -907,62 +1042,75 @@ public class LocalTransactionState extends TransactionState {
         // Always double check whether somebody beat us to the punch
         if (this.blocked_tasks.isEmpty() || d.blocked_tasks_released) return;
         
-        List<FragmentTaskMessage> to_execute = new ArrayList<FragmentTaskMessage>();
+//        List<FragmentTaskMessage> to_execute = new ArrayList<FragmentTaskMessage>();
         Set<FragmentTaskMessage> tasks = d.getAndReleaseBlockedFragmentTaskMessages();
         for (FragmentTaskMessage unblocked : tasks) {
             assert(unblocked != null);
             assert(this.blocked_tasks.contains(unblocked));
-            this.blocked_tasks.remove(unblocked);
             if (t) LOG.trace("Unblocking FragmentTaskMessage that was waiting for DependencyId #" + d.getDependencyId() + " in txn #" + this.txn_id);
+            this.unblocked_tasks.add(unblocked);
+            this.blocked_tasks.remove(unblocked);
             
-            // If this task needs to execute locally, then we'll just queue up with the Executor
-            if (d.blocked_all_local) {
-                if (t) LOG.trace("Sending unblocked task to local ExecutionSite for txn #" + this.txn_id);
-                this.executor.doWork(unblocked);
-            // Otherwise we will push out to the coordinator to handle for us
-            // But we have to make sure that we attach the dependencies that they need 
-            // so that the other partition can get to them
-            } else {
-                if (t) LOG.trace("Sending unblocked task to partition #" + unblocked.getDestinationPartitionId() + " with attached results for txn #" + this.txn_id);
-                to_execute.add(unblocked);
-            }
+//            // If this task needs to execute locally, then we'll just queue up with the Executor
+//            if (d.blocked_all_local) {
+//                if (t) LOG.info("Sending unblocked task to local ExecutionSite for txn #" + this.txn_id);
+//                this.unblocked_tasks.add(unblocked);
+//                
+//            // Otherwise we will push out to the coordinator to handle for us
+//            // But we have to make sure that we attach the dependencies that they need 
+//            // so that the other partition can get to them
+//            } else {
+//                if (t) LOG.trace("Sending unblocked task to partition #" + unblocked.getDestinationPartitionId() + " with attached results for txn #" + this.txn_id);
+//                to_execute.add(unblocked);
+//            }
         } // FOR
-        if (!to_execute.isEmpty()) {
-            try {
-                this.executor.requestWork(this, to_execute);
-            } catch (MispredictionException ex) {
-                this.setPendingError(ex);
-                if (this.dependency_latch != null) {
-                    while (this.dependency_latch.getCount() > 0) this.dependency_latch.countDown();
-                }
-            }
-        }
+//        if (!to_execute.isEmpty()) {
+//            if (t) LOG.info(String.format("Txn #%d is requesting %d unblocked tasks to be executed", this.txn_id, to_execute.size()));
+//            try {
+//                this.executor.requestWork(this, to_execute);
+//            } catch (MispredictionException ex) {
+//                this.setPendingError(ex);
+//                if (this.dependency_latch != null) {
+//                    while (this.dependency_latch.getCount() > 0) this.dependency_latch.countDown();
+//                }
+//            }
+//        }
     }
-    
+
     /**
      * Retrieve the dependency results that are used for internal plan execution
      * These are not the results that should be sent to the client
      * @return
      */
-    public synchronized HashMap<Integer, List<VoltTable>> removeInternalDependencies(FragmentTaskMessage ftask) {
-        if (d) LOG.debug("Retrieving " + this.internal_dependencies.size() + " internal dependencies for txn #" + this.txn_id);
-        HashMap<Integer, List<VoltTable>> results = new HashMap<Integer, List<VoltTable>>();
+    public HashMap<Integer, List<VoltTable>> removeInternalDependencies(FragmentTaskMessage ftask) {
+        return (this.removeInternalDependencies(ftask, new HashMap<Integer, List<VoltTable>>()));
+    }
+    
+    /**
+     * Fast version!
+     * Retrieve the dependency results that are used for internal plan execution
+     * These are not the results that should be sent to the client
+     * @return
+     */
+    public synchronized HashMap<Integer, List<VoltTable>> removeInternalDependencies(final FragmentTaskMessage ftask, final HashMap<Integer, List<VoltTable>> results) {
+        if (d) LOG.debug(String.format("Retrieving %d internal dependencies for txn #%d", this.internal_dependencies.size(), this.txn_id));
         
         for (int i = 0, cnt = ftask.getFragmentCount(); i < cnt; i++) {
             int input_d_id = ftask.getOnlyInputDepId(i);
             if (input_d_id == ExecutionSite.NULL_DEPENDENCY_ID) continue;
             int stmt_index = ftask.getFragmentStmtIndexes()[i];
 
-            DependencyInfo d = this.getDependencyInfo(stmt_index, input_d_id);
-            assert(d != null);
-            int num_tables = d.results.size();
-            assert(d.getPartitions().size() == num_tables) :
+            DependencyInfo dinfo = this.getDependencyInfo(stmt_index, input_d_id);
+            assert(dinfo != null);
+            int num_tables = dinfo.results.size();
+            assert(dinfo.getPartitions().size() == num_tables) :
                 "Number of results retrieved for <Stmt #" + stmt_index + ", DependencyId #" + input_d_id + "> is " + num_tables +
-                " but we were expecting " + d.getPartitions().size() + " in txn #" + this.txn_id +
-                " [" + this.executor.getRunningVoltProcedure(this.txn_id).getClass().getSimpleName() + "]\n" + 
+                " but we were expecting " + dinfo.getPartitions().size() + " in txn #" + this.txn_id +
+                " [" + this.executor.getRunningVoltProcedure(this.txn_id).getProcedureName() + "]\n" + 
                 this.toString() + "\n" +
                 ftask.toString();
-            results.put(input_d_id, d.getResults());
+            results.put(input_d_id, dinfo.getResults(this.base_partition, true));
+            if (d) LOG.debug(String.format("<Stmt#%d, DependencyId#%d> -> %d VoltTables", stmt_index, input_d_id, results.get(input_d_id).size()));
         } // FOR
         return (results);
     }
@@ -975,6 +1123,7 @@ public class LocalTransactionState extends TransactionState {
         ListOrderedMap<String, Object> m0 = new ListOrderedMap<String, Object>();
         m0.put("Procedure", proc_name);
         m0.put("Dtxn.Coordinator Callback", this.coordinator_callback);
+        m0.put("Ignore Dtxn.Coordinator", this.ignore_dtxn);
         m0.put("Dependency Ctr", this.dependency_ctr);
         m0.put("Internal Ctr", this.internal_dependencies.size());
         m0.put("Received Ctr", this.received_ctr);
@@ -990,6 +1139,9 @@ public class LocalTransactionState extends TransactionState {
         m1.put("Client Callback", this.client_callback);
         m1.put("SysProc", this.sysproc);
         m1.put("Done Partitions", this.done_partitions);
+        m1.put("Predict Single-Partitioned", this.single_partitioned);
+        m1.put("Speculative Execution", this.speculative);
+        m1.put("Estimator State", this.estimator_state);
         
         ListOrderedMap<String, Object> m2 = new ListOrderedMap<String, Object>();
         m2.put("Total Time", this.total_time);

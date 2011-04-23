@@ -1,9 +1,9 @@
 /*
  * Legal Notice
  *
- * This document and associated source code (the "Work") is a preliminary
- * version of a benchmark specification being developed by the TPC. The
- * Work is being made available to the public for review and comment only.
+ * This document and associated source code (the "Work") is a part of a
+ * benchmark specification maintained by the TPC.
+ *
  * The TPC reserves all right, title, and interest to the Work as provided
  * under U.S. and international laws, including without limitation all patent
  * and trademark rights therein.
@@ -46,18 +46,15 @@
 namespace TPCE
 {
 
-// length of character columns used in both ADDRESS and ZIP_CODE tables
+// ADDRESS / ZIP_CODE tables
 const int cTOWN_len = 80;
 const int cDIV_len  = 80;
 const int cCODE_len = 12;
 
-//BROKER table
-const int cB_NAME_len = 100;
-
 //ACCOUNT_PERMISSION table
 const int cACL_len = 4;
 
-//length of character columns in ADDRESS table
+//ADDRESS table
 const int cAD_NAME_len  = 80;
 const int cAD_LINE_len = 80;
 const int cAD_TOWN_len  = cTOWN_len;
@@ -68,16 +65,9 @@ const int cAD_CTRY_len = 80;
 //CASH_TRANSACTION table
 const int cCT_NAME_len = 100;
 
-//COMPANY table
-const int cCO_NAME_len = 60;
-const int cSP_RATE_len = 4;
-const int cCEO_NAME_len = 100;
-const int cCO_DESC_len = 150;
-const int cCO_SP_RATE_len = 4;
-
 //CUSTOMER table
-const int cL_NAME_len       = 30;
-const int cF_NAME_len       = 30;
+const int cL_NAME_len       = 25;
+const int cF_NAME_len       = 20;
 const int cM_NAME_len       = 1;
 const int cDOB_len      = 30;
 const int cTAX_ID_len       = 20;
@@ -87,6 +77,16 @@ const int cAREA_len = 3;
 const int cLOCAL_len    = 10;
 const int cEXT_len  = 5;
 const int cEMAIL_len    = 50;
+
+//BROKER table
+const int cB_NAME_len = cF_NAME_len + cM_NAME_len + cL_NAME_len + 3;    // two spaces and one period
+
+//COMPANY table
+const int cCO_NAME_len = 60;
+const int cSP_RATE_len = 4;
+const int cCEO_NAME_len = cF_NAME_len + cL_NAME_len + 1;        // one space
+const int cCO_DESC_len = 150;
+const int cCO_SP_RATE_len = 4;
 
 //CUSTOMER_ACCOUNT table
 const int cCA_NAME_len      = 50;
@@ -133,7 +133,7 @@ const int cTX_ID_len = 4;
 const int cTX_NAME_len = 50;
 
 //TRADE table
-const int cEXEC_NAME_len = cF_NAME_len + cM_NAME_len + cL_NAME_len + 3;
+const int cEXEC_NAME_len = cF_NAME_len + cM_NAME_len + cL_NAME_len + 3; // two spaces and one extra
 
 //TRADE_HISTORY table
 const int cTH_ST_ID_len = cST_ID_len;

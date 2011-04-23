@@ -10,6 +10,7 @@ import getopt
 
 PS_REGEX = re.compile("([\d]+)[\s]+(.*)")
 
+OPT_DRYRUN      = False
 OPT_HSTORESITE  = False
 OPT_PROTOENGINE = False
 OPT_PROTOCOORD  = False
@@ -20,6 +21,7 @@ OPT_CLIENT      = False
 ## ==============================================
 if __name__ == '__main__':
     _options, args = getopt.gnu_getopt(sys.argv[1:], '', [
+        "dryrun",
         "siteid=",
         "hstoresite",
         "protoengine",
@@ -86,15 +88,18 @@ if __name__ == '__main__':
         ## IF
         
         ## Kill client stuff
-        if OPT_CLIENT:
-            test = None
-            #to_kill.add(pid)
+        if OPT_CLIENT and \
+            (cmd.find("BLOCKING=true") != -1 or cmd.find("BLOCKING=false") != -1) and \
+            cmd.find(".benchmark.") != -1:
+            to_kill.add(pid)
     ## FOR
     
     ## Kill, pussy cat! Kill!
     for pid in to_kill:
         cmd = "kill -9 %d" % pid
-        #print cmd
-        commands.getstatusoutput(cmd)
+        if OPT_DRYRUN:
+            print cmd
+        else:
+            commands.getstatusoutput(cmd)
     ##
 ## IF

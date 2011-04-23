@@ -86,7 +86,7 @@ public class AuctionMarkBenchmarkProfile implements JSONSerializable {
     /**
      * Histogram for number of items per category (stored as category_id)
      */
-    public Histogram item_category_histogram = new Histogram();
+    public Histogram<Long> item_category_histogram = new Histogram<Long>();
 
     /**
      * Three status types for an item 1. Available (The auction of this item is
@@ -95,9 +95,9 @@ public class AuctionMarkBenchmarkProfile implements JSONSerializable {
      * item. 3. Complete (The auction is closed and (There is no bid winner or
      * The bid winner has already purchased the itme))
      */
-    public Histogram user_available_items_histogram;
-    public Histogram user_wait_for_purchase_items_histogram;
-    public Histogram user_complete_items_histogram;
+    public Histogram<Long> user_available_items_histogram;
+    public Histogram<Long> user_wait_for_purchase_items_histogram;
+    public Histogram<Long> user_complete_items_histogram;
 
     public Map<Long, List<Long>> user_available_items;
     public Map<Long, List<Long>> user_wait_for_purchase_items;
@@ -107,7 +107,7 @@ public class AuctionMarkBenchmarkProfile implements JSONSerializable {
 
     // Map from global attribute group to list of global attribute value
     public Map<Long, List<Long>> gag_gav_map;
-    public Histogram gag_gav_histogram;
+    public Histogram<Long> gag_gav_histogram;
 
     // Map from user ID to total number of items that user sell
     // public Map<Long, Integer> user_total_items = new ConcurrentHashMap<Long,
@@ -134,19 +134,19 @@ public class AuctionMarkBenchmarkProfile implements JSONSerializable {
         this.user_ids = new ArrayList<Long>();
 
         this.user_available_items = new ConcurrentHashMap<Long, List<Long>>();
-        this.user_available_items_histogram = new Histogram();
+        this.user_available_items_histogram = new Histogram<Long>();
 
         this.user_wait_for_purchase_items = new ConcurrentHashMap<Long, List<Long>>();
-        this.user_wait_for_purchase_items_histogram = new Histogram();
+        this.user_wait_for_purchase_items_histogram = new Histogram<Long>();
 
         this.user_complete_items = new ConcurrentHashMap<Long, List<Long>>();
-        this.user_complete_items_histogram = new Histogram();
+        this.user_complete_items_histogram = new Histogram<Long>();
 
         this.item_bid_map = new ConcurrentHashMap<Long, Long>();
         this.item_buyer_map = new ConcurrentHashMap<Long, Long>();
 
         this.gag_gav_map = new ConcurrentHashMap<Long, List<Long>>();
-        this.gag_gav_histogram = new Histogram();
+        this.gag_gav_histogram = new Histogram<Long>();
     }
 
     // -----------------------------------------------------------------
@@ -156,7 +156,7 @@ public class AuctionMarkBenchmarkProfile implements JSONSerializable {
     private Integer current_tick = -1;
     private Integer window_total = null;
     private Integer window_size = null;
-    private final Histogram window_histogram = new Histogram();
+    private final Histogram<Integer> window_histogram = new Histogram<Integer>();
     private final Vector<Integer> window_partitions = new Vector<Integer>();
     {
         this.window_histogram.setKeepZeroEntries(true);
@@ -383,7 +383,7 @@ public class AuctionMarkBenchmarkProfile implements JSONSerializable {
         Long sellerId = null;
         Long itemId = null;
         synchronized (this.user_available_items) {
-            FlatHistogram randomSeller = new FlatHistogram(rng, this.user_available_items_histogram);
+            FlatHistogram<Long> randomSeller = new FlatHistogram<Long>(rng, this.user_available_items_histogram);
             Integer partition = null;
             while (true) {
                 partition = null;
@@ -435,7 +435,7 @@ public class AuctionMarkBenchmarkProfile implements JSONSerializable {
      */
     public Long[] getRandomCompleteItemIdSellerIdPair(AbstractRandomGenerator rng) {
         synchronized (this.user_complete_items) {
-            FlatHistogram randomSeller = new FlatHistogram(rng, this.user_complete_items_histogram);
+            FlatHistogram<Long> randomSeller = new FlatHistogram<Long>(rng, this.user_complete_items_histogram);
             Long sellerId = randomSeller.nextLong();
             long numCompleteItems = this.user_complete_items_histogram.get(sellerId);
             Long itemId = this.user_complete_items.get(sellerId).get(rng.number(0, (int) numCompleteItems - 1));
@@ -477,7 +477,7 @@ public class AuctionMarkBenchmarkProfile implements JSONSerializable {
 
     public Long[] getRandomWaitForPurchaseItemIdSellerIdPair(AbstractRandomGenerator rng) {
         synchronized (this.user_wait_for_purchase_items) {
-            FlatHistogram randomSeller = new FlatHistogram(rng, this.user_wait_for_purchase_items_histogram);
+            FlatHistogram<Long> randomSeller = new FlatHistogram<Long>(rng, this.user_wait_for_purchase_items_histogram);
             Long sellerId = randomSeller.nextLong();
             long numWaitForPurchaseItems = this.user_wait_for_purchase_items.get(sellerId).size();
             Long itemId = this.user_wait_for_purchase_items.get(sellerId).get(rng.number(0, (int) numWaitForPurchaseItems - 1));
@@ -542,7 +542,7 @@ public class AuctionMarkBenchmarkProfile implements JSONSerializable {
 
     public Long[] getRandomGAGIdGAVIdPair(AbstractRandomGenerator rng) {
 
-        FlatHistogram randomGAGId = new FlatHistogram(rng, this.gag_gav_histogram);
+        FlatHistogram<Long> randomGAGId = new FlatHistogram<Long>(rng, this.gag_gav_histogram);
         Long GAGId = randomGAGId.nextLong();
 
         List<Long> GAVIds = this.gag_gav_map.get(GAGId);
@@ -550,9 +550,9 @@ public class AuctionMarkBenchmarkProfile implements JSONSerializable {
 
         return new Long[] { GAGId, GAVId };
     }
-
+    
     public long getRandomCategoryId(AbstractRandomGenerator rng) {
-        FlatHistogram randomCategory = new FlatHistogram(rng, this.item_category_histogram);
+        FlatHistogram<Long> randomCategory = new FlatHistogram<Long>(rng, this.item_category_histogram);
         return randomCategory.nextLong();
     }
 

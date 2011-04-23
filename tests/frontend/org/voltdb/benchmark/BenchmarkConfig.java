@@ -23,9 +23,14 @@
 
 package org.voltdb.benchmark;
 
+import java.lang.reflect.Field;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
+
+import org.apache.commons.collections15.map.ListOrderedMap;
+
+import edu.brown.utils.StringUtil;
 
 public class BenchmarkConfig {
 
@@ -38,6 +43,7 @@ public class BenchmarkConfig {
     public final int processesPerClient;
     public final long interval;
     public final long duration;
+    public final long warmup;
     public final String sshOptions[];
     public final String remotePath;
     public final String remoteUser;
@@ -69,6 +75,13 @@ public class BenchmarkConfig {
     
     public final String markovPath;
     public final String thresholdsPath;
+    
+    public final String clientLogDir;
+    public final String siteLogDir;
+    public final String coordLogDir;
+    
+    public final boolean dumpDatabase;
+    public final String dumpDatabaseDir;
 
     public final Map<String, String> parameters = new HashMap<String, String>();
 
@@ -84,6 +97,7 @@ public class BenchmarkConfig {
             int processesPerClient,
             long interval,
             long duration,
+            long warmup,
             String sshOptions,
             String remotePath,
             String remoteUser,
@@ -110,7 +124,12 @@ public class BenchmarkConfig {
             String workloadTrace,
             Set<Integer> profileSiteIds,
             String markovPath,
-            String thresholdsPath
+            String thresholdsPath,
+            String clientLogDir,
+            String siteLogDir,
+            String coordLogDir,
+            boolean dumpDatabase,
+            String dumpDatabaseDir
         ) {
 
         this.benchmarkClient = benchmarkClient;
@@ -128,6 +147,7 @@ public class BenchmarkConfig {
         this.processesPerClient = processesPerClient;
         this.interval = interval;
         this.duration = duration;
+        this.warmup = warmup;
         this.sshOptions = sshOptions.split(" "); // HACK
         this.remotePath = remotePath;
         this.remoteUser = remoteUser;
@@ -157,22 +177,42 @@ public class BenchmarkConfig {
         
         this.markovPath = markovPath;
         this.thresholdsPath = thresholdsPath;
+        
+        this.clientLogDir = clientLogDir;
+        this.siteLogDir = siteLogDir;
+        this.coordLogDir = coordLogDir;
+        
+        this.dumpDatabase = dumpDatabase;
+        this.dumpDatabaseDir = dumpDatabaseDir;
     }
 
     @Override
     public String toString() {
-        StringBuilder sb = new StringBuilder();
-        sb.append("HOSTS:");
-        for (String host : hosts)
-            sb.append(" ").append(host);
-        sb.append("\n");
-        sb.append("SITES PER HOST: ").append(sitesPerHost).append("\n");
-        sb.append("K-FACTOR: ").append(k_factor).append("\n");
-        sb.append("CLIENTS:");
-        for (String client : clients)
-            sb.append(" ").append(client);
-        sb.append("\n");
-
-        return sb.toString();
+        Class<?> confClass = this.getClass();
+        final Map<String, Object> m0 = new ListOrderedMap<String, Object>();
+        final Map<String, Object> m1 = new ListOrderedMap<String, Object>();
+        final Map<String, Object> m2 = new ListOrderedMap<String, Object>();
+        
+        for (Field f : confClass.getFields()) {
+            String key = f.getName().toUpperCase();
+            if (key.equalsIgnoreCase("hosts")) {
+                m0.put("Number of Hosts", this.hosts.length);
+                m0.put("Hosts", StringUtil.join("\n", this.hosts));
+            } else if (key.equalsIgnoreCase("clients")) {
+                m1.put("Number of Clients", this.clients.length);
+                m1.put("Clients", StringUtil.join("\n", this.clients));
+            } else if (key.equalsIgnoreCase("parameters")) {
+                // Skip
+            } else {
+                Object val = null;
+                try {
+                    val = f.get(this);
+                } catch (IllegalAccessException ex) {
+                    val = ex.getMessage();
+                }
+                m2.put(key, val);
+            }
+        } // FOR
+        return (StringUtil.formatMaps(m0, m1, this.parameters, m2));
     }
 }

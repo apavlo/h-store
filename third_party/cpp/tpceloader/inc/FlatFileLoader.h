@@ -1,9 +1,9 @@
 /*
  * Legal Notice
  *
- * This document and associated source code (the "Work") is a preliminary
- * version of a benchmark specification being developed by the TPC. The
- * Work is being made available to the public for review and comment only.
+ * This document and associated source code (the "Work") is a part of a
+ * benchmark specification maintained by the TPC.
+ *
  * The TPC reserves all right, title, and interest to the Work as provided
  * under U.S. and international laws, including without limitation all patent
  * and trademark rights therein.
@@ -48,21 +48,41 @@ using namespace std;
 
 namespace TPCE
 {
-#ifdef DATETIME_FORMAT
-const int   FlatFileDateTimeFormat = DATETIME_FORMAT;   // user-defined
-#else
-const int   FlatFileDateTimeFormat = 12;        // YYYY-MM-DD HH:MM:SS.mmm
+
+// EGen Formatting Defaults
+#ifndef DATETIME_FORMAT
+#define DATETIME_FORMAT 12      // YYYY-MM-DD HH:MM:SS.mmm
 #endif
-#ifdef TIME_FORMAT
-const int   FlatFileTimeFormat = TIME_FORMAT;   // user-defined
-#else
-const int   FlatFileTimeFormat = 01;        // hh:mm:ss
+
+#ifndef TIME_FORMAT
+#define TIME_FORMAT 01          // hh:mm:ss
 #endif
-#ifdef DATE_FORMAT
-const int   FlatFileDateFormat = DATE_FORMAT;   // user-defined
-#else
-const int   FlatFileDateFormat = 10;        // YYYY-MM-DD
+
+#ifndef DATE_FORMAT
+#define DATE_FORMAT 10          // YYYY-MM-DD
 #endif
+
+#ifndef BOOLEAN_TRUE
+#define BOOLEAN_TRUE "1"
+#endif
+
+#ifndef BOOLEAN_FALSE
+#define BOOLEAN_FALSE "0"
+#endif
+
+#ifndef BUFFER_SIZE
+#define BUFFER_SIZE 0
+#endif
+
+// EGen Formatting
+const int           FlatFileDateTimeFormat  = DATETIME_FORMAT;
+const int           FlatFileTimeFormat      = TIME_FORMAT;
+const int           FlatFileDateFormat      = DATE_FORMAT;
+const char* const   FlatFileBoolTrue        = BOOLEAN_TRUE;
+const char* const   FlatFileBoolFalse       = BOOLEAN_FALSE;
+
+// EGen Buffering
+const int           FlatFileBufferSize      = BUFFER_SIZE;
 
 // Overwrite vs. append functionality for output flat files.
 enum FlatFileOutputModes {
@@ -77,14 +97,13 @@ template <typename T> class CFlatFileLoader : public CBaseLoader<T>
 {
 protected:
     FILE            *hOutFile;
-    UINT64           iNumRecords;
 
 public:
 
     CFlatFileLoader(char *szFileName, FlatFileOutputModes FlatFileOutputMode);
     ~CFlatFileLoader(void);
 
-    virtual void WriteNextRecord(const T* next_record UNUSED) {};
+    virtual void WriteNextRecord(const T* next_record UNUSED) = 0;
     void FinishLoad();  //finish load
 
 };
@@ -108,7 +127,14 @@ CFlatFileLoader<T>::CFlatFileLoader(char *szFileName, FlatFileOutputModes flatFi
         {
                 throw CSystemErr(CSystemErr::eCreateFile, "CFlatFileLoader<T>::CFlatFileLoader");
         }
-        this->iNumRecords = 0;
+
+        if (FlatFileBufferSize > 0)
+        {
+                if (setvbuf(hOutFile, NULL, _IOFBF, FlatFileBufferSize))
+                {
+                        throw CSystemErr(CSystemErr::eCreateFile, "CFlatFileLoader<T>::CFlatFileLoader");
+                }
+        }
 }
 
 /*
@@ -128,7 +154,6 @@ template <typename T>
 void CFlatFileLoader<T>::FinishLoad()
 {
         fflush(hOutFile);
-        cout << "[" << this->iNumRecords << "] ";
 }
 
 }   // namespace TPCE

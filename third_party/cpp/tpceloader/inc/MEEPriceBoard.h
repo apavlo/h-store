@@ -1,9 +1,9 @@
 /*
  * Legal Notice
  *
- * This document and associated source code (the "Work") is a preliminary
- * version of a benchmark specification being developed by the TPC. The
- * Work is being made available to the public for review and comment only.
+ * This document and associated source code (the "Work") is a part of a
+ * benchmark specification maintained by the TPC.
+ *
  * The TPC reserves all right, title, and interest to the Work as provided
  * under U.S. and international laws, including without limitation all patent
  * and trademark rights therein.
@@ -68,13 +68,13 @@ public:
     CMEEPriceBoard( INT32           TradingTimeSoFar,
                     CDateTime*      pBaseTime,
                     CDateTime*      pCurrentTime,
-                    CSecurityFile*  pSecurityFile
+                    const CInputFiles& inputFiles
                     );
     ~CMEEPriceBoard( void );
 
     void    GetSymbol(  TIdent  SecurityIndex,
                         char*   szOutput,       // output buffer
-                        INT32   iOutputLen);    // size of the output buffer (including null));
+                        size_t  iOutputLen);    // size of the output buffer (including null));
 
     CMoney  GetMinPrice();
 

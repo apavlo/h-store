@@ -2,6 +2,7 @@ package edu.brown.utils;
 
 import java.io.BufferedInputStream;
 import java.io.IOException;
+import java.lang.reflect.Field;
 import java.util.*;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
@@ -9,6 +10,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
 
 import org.apache.log4j.Logger;
+import org.voltdb.utils.Pair;
 
 public abstract class ThreadUtil {
     private static final Logger LOG = Logger.getLogger(ThreadUtil.class);
@@ -16,7 +18,7 @@ public abstract class ThreadUtil {
     private static final Object lock = new Object();
     private static ExecutorService pool;
     
-    private static final int DEFAULT_NUM_THREADS = 2;
+    private static final int DEFAULT_NUM_THREADS = 4;
     
     
     /**
@@ -31,6 +33,38 @@ public abstract class ThreadUtil {
         }
     }
 
+    /**
+     * Executes the given command and returns a pair containing the PID and Process handle
+     * @param command
+     * @return
+     */
+    public static Pair<Integer, Process> exec(String command[]) {
+        ProcessBuilder pb = new ProcessBuilder(command);
+        Process p = null;
+        try {
+            p = pb.start();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        assert(p != null);
+        Class<? extends Process> p_class = p.getClass();
+        assert(p_class.getName().endsWith("UNIXProcess")) : "Unexpected Process class: " + p_class;
+        
+        Integer pid = null;
+        try {
+            Field pid_field = p_class.getDeclaredField("pid");
+            pid_field.setAccessible(true);
+            pid = pid_field.getInt(p);
+        } catch (Exception ex) {
+            LOG.fatal("Faild to get pid for " + p, ex);
+            return (null);
+        }
+        assert(pid != null) : "Failed to get pid for " + p;
+        
+        LOG.info("Starting new process with PID " + pid);
+        return (Pair.of(pid, p));
+    }
+    
     /**
      * Fork the command (in the current thread)
      * @param command
@@ -49,7 +83,6 @@ public abstract class ThreadUtil {
     public static void fork(String command[], final EventObservable stop_observable, final String prefix, final boolean print_output) {
         final boolean debug = LOG.isDebugEnabled(); 
         
-        final String prog_name = FileUtil.basename(command[0]);
         if (debug) LOG.debug("Forking off process: " + Arrays.toString(command));
 
         // Copied from ShellTools
@@ -67,6 +100,7 @@ public abstract class ThreadUtil {
         
         // Register a observer if we have a stop observable
         if (stop_observable != null) {
+            final String prog_name = FileUtil.basename(command[0]);
             stop_observable.addObserver(new EventObserver() {
                 boolean first = true;
                 @Override
@@ -129,14 +163,7 @@ public abstract class ThreadUtil {
             if (ThreadUtil.pool == null) {
                 int max_threads = ThreadUtil.getMaxGlobalThreads();
                 if (d) LOG.debug("Creating new fixed thread pool [num_threads=" + max_threads + "]");
-                ThreadUtil.pool = Executors.newFixedThreadPool(max_threads, new ThreadFactory() {
-                    @Override
-                    public Thread newThread(Runnable r) {
-                        Thread t = new Thread(r);
-                        t.setDaemon(true);
-                        return (t);
-                    }
-                });
+                ThreadUtil.pool = Executors.newFixedThreadPool(max_threads, factory);
             }
         } // SYNCHRONIZED
         
@@ -149,7 +176,17 @@ public abstract class ThreadUtil {
      * @param threads
      */
     public static <R extends Runnable> void runNewPool(final Collection<R> threads) {
-        ExecutorService pool = Executors.newCachedThreadPool();
+        ExecutorService pool = Executors.newCachedThreadPool(factory);
+        ThreadUtil.run(threads, pool, true);
+    }
+    
+    /**
+     * 
+     * @param <R>
+     * @param threads
+     */
+    public static <R extends Runnable> void runNewPool(final Collection<R> threads, int max_concurrent) {
+        ExecutorService pool = Executors.newFixedThreadPool(max_concurrent, factory);
         ThreadUtil.run(threads, pool, true);
     }
     
@@ -185,6 +222,15 @@ public abstract class ThreadUtil {
         }
         return;
     }
+    
+    private static final ThreadFactory factory = new ThreadFactory() {
+        @Override
+        public Thread newThread(Runnable r) {
+            Thread t = new Thread(r);
+            t.setDaemon(true);
+            return (t);
+        }
+    };
     
     private static class LatchRunnable implements Runnable {
         private final Runnable r;

@@ -1,9 +1,9 @@
 /*
  * Legal Notice
  *
- * This document and associated source code (the "Work") is a preliminary
- * version of a benchmark specification being developed by the TPC. The
- * Work is being made available to the public for review and comment only.
+ * This document and associated source code (the "Work") is a part of a
+ * benchmark specification maintained by the TPC.
+ *
  * The TPC reserves all right, title, and interest to the Work as provided
  * under U.S. and international laws, including without limitation all patent
  * and trademark rights therein.
@@ -101,6 +101,16 @@ typedef unsigned int UINT;
 #define INT64_CONST(x)  x ## I64
 #define UINT64_CONST(x) x ## uI64
 
+/////////////////////////////////////////////
+// mutex and thread types                  //
+/////////////////////////////////////////////
+
+typedef HANDLE              TThread;
+typedef CRITICAL_SECTION    TMutex;
+
+/////////////////////////////////////////////
+// function remapping                      //
+/////////////////////////////////////////////
 #define snprintf    _snprintf
 
 #endif // WIN32
@@ -130,6 +140,15 @@ typedef uint64_t        UINT64, *PUINT64;
 /////////////////////////////////////////////
 #define INT64_CONST(x)  INT64_C(x)
 #define UINT64_CONST(x) UINT64_C(x)
+
+/////////////////////////////////////////////
+// mutex and thread types                  //
+/////////////////////////////////////////////
+
+#include <pthread.h>
+
+typedef pthread_t       TThread;
+typedef pthread_mutex_t TMutex;
 
 #endif // (__unix) || (_AIX)
 
@@ -163,6 +182,7 @@ typedef uint64_t        UINT64, *PUINT64;
 // Corresponds to IDENT_T metatype in TPC-E spec.      //
 /////////////////////////////////////////////////////////
 typedef INT64   TIdent;
+
 /////////////////////////////////////////////////////////
 // Identifier type for all trade id primary key fields.//
 // Corresponds to TRADE_T metatype in TPC-E spec.      //

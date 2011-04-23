@@ -1,9 +1,9 @@
 /*
  * Legal Notice
  *
- * This document and associated source code (the "Work") is a preliminary
- * version of a benchmark specification being developed by the TPC. The
- * Work is being made available to the public for review and comment only.
+ * This document and associated source code (the "Work") is a part of a
+ * benchmark specification maintained by the TPC.
+ *
  * The TPC reserves all right, title, and interest to the Work as provided
  * under U.S. and international laws, including without limitation all patent
  * and trademark rights therein.
@@ -60,10 +60,19 @@ private:
     TMaleFirstNamesFile     *m_MaleFirstNames;
     TFemaleFirstNamesFile   *m_FemaleFirstNames;
 
-    CRandom         m_rnd;
+    CRandom                 m_rnd;
+    bool                    m_bCacheEnabled;
+    int                     m_iCacheSize;
+    TIdent                  m_iCacheOffset;
+    char**                  m_CacheFirstName;
+    char**                  m_CacheLastName;
 
 public:
-    CPerson(CInputFiles inputFiles);
+    CPerson(CInputFiles inputFiles, TIdent iStartFromCustomer, bool bCacheEnabled = false);
+
+    ~CPerson();
+    void InitNextLoadUnit(TIdent iCacheOffsetIncrement = iDefaultLoadUnitSize);
+
     char* GetLastName(TIdent CID);
     char* GetFirstName(TIdent CID);
     char GetMiddleName(TIdent CID);
@@ -73,7 +82,6 @@ public:
 
     //get first name, last name, and tax id
     void GetFirstLastAndTaxID(TIdent C_ID, char *szFirstName, char *szLastName, char *szTaxID);
-
 };
 
 }   // namespace TPCE

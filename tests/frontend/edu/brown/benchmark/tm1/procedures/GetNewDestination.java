@@ -46,13 +46,18 @@ public class GetNewDestination extends VoltProcedure{
          "SELECT cf.numberx " +
          "  FROM " + TM1Constants.TABLENAME_SPECIAL_FACILITY + " AS sf, " +
          "       " + TM1Constants.TABLENAME_CALL_FORWARDING + " AS cf " +
-         " WHERE (sf.s_id = ? AND sf.sf_type = ? AND sf.is_active = 1) " +
-         "   AND (cf.s_id = sf.s_id AND cf.sf_type = sf.sf_type) " +
-         "   AND (cf.start_time <= ? AND ? < cf.end_time)"
+         " WHERE sf.s_id = ? " +
+         "   AND cf.s_id = ? " +
+         "   AND sf.sf_type = ? " +
+         "   AND sf.is_active = 1 " +
+         "   AND cf.s_id = sf.s_id " +
+         "   AND cf.sf_type = sf.sf_type " +
+         "   AND cf.start_time <= ? " +
+         "   AND cf.end_time > ?"
      );
 
      public VoltTable[] run(long s_id, long sf_type, long start_time, long end_time) throws VoltAbortException{
-         voltQueueSQL(GetData, s_id, sf_type, start_time, end_time);     
+         voltQueueSQL(GetData, s_id, s_id, sf_type, start_time, end_time);     
          return voltExecuteSQL();
      }
 }

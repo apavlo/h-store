@@ -7,6 +7,7 @@ import java.util.*;
 import org.json.*;
 
 import edu.brown.BaseTestCase;
+import edu.brown.utils.CollectionUtil;
 
 /**
  * 
@@ -31,6 +32,65 @@ public class TestHistogram extends BaseTestCase {
         for (int i = 0; i < NUM_SAMPLES; i++) {
             h.put((long)(rand.nextInt(RANGE)));
         }
+    }
+    
+    /**
+     * testMinCountValues
+     */
+    public void testMinCountValues() throws Exception {
+        Histogram h = new Histogram();
+        long expected = -1981;
+        h.put(expected);
+        for (int i = 0; i < 1000; i++) {
+            h.put((long)99999);
+        } // FOR
+        Set<Long> min_values = h.getMinCountValues();
+        assertNotNull(min_values);
+        assertEquals(1, min_values.size());
+        
+        Long min_value = CollectionUtil.getFirst(min_values);
+        assertNotNull(min_value);
+        assertEquals(expected, min_value.longValue());
+        
+        // Test whether we can get both in a set
+        long expected2 = -99999;
+        h.put(expected2);
+        
+        min_values = h.getMinCountValues();
+        assertNotNull(min_values);
+        assertEquals(2, min_values.size());
+        assert(min_values.contains(expected));
+        assert(min_values.contains(expected2));
+    }
+    
+    /**
+     * testMaxCountValues
+     */
+    public void testMaxCountValues() throws Exception {
+        long expected = -1981;
+        int count = 1000;
+        for (int i = 0; i < count; i++) {
+            h.put(expected);
+        } // FOR
+        Set<Long> max_values = h.getMaxCountValues();
+        assertNotNull(max_values);
+        assertEquals(1, max_values.size());
+        
+        Long max_value = CollectionUtil.getFirst(max_values);
+        assertNotNull(max_value);
+        assertEquals(expected, max_value.longValue());
+        
+        // Test whether we can get both in a set
+        long expected2 = -99999;
+        for (int i = 0; i < count; i++) {
+            h.put(expected2);
+        } // FOR
+        
+        max_values = h.getMaxCountValues();
+        assertNotNull(max_values);
+        assertEquals(2, max_values.size());
+        assert(max_values.contains(expected));
+        assert(max_values.contains(expected2));
     }
     
     /**
@@ -154,7 +214,7 @@ public class TestHistogram extends BaseTestCase {
         for (int i = 0; i < NUM_PARTITIONS; i++)
             partitions.add(i);
         
-        hist.putValues(partitions);
+        hist.putAll(partitions);
         assertEquals(partitions.size(), hist.getValueCount());
         assertTrue(hist.values().containsAll(partitions));
         

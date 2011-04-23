@@ -65,16 +65,11 @@
 <!-- emma build instrumentation location -->
 <property name='build.instr.dir'             location='${build.dir}/instr' />
 
-<!-- Default hostname -->
-<condition property="hstore.defaulthost" value="localhost">
-    <not><isset property="hstore.defaulthost"/></not>
-</condition>
-
 <!-- Default H-Store Properties File  -->
-<condition property="hstore.properties" value="${properties.dir}/default.properties">
-    <not><isset property="hstore.properties"/></not>
+<condition property="properties" value="${properties.dir}/default.properties">
+    <not><isset property="properties"/></not>
 </condition>
-<property file="${hstore.properties}" prefix="hstore" />
+<property file="${properties}"/>
 
 <!-- Benchmarks Properties File -->
 <condition property="project" value="tpcc">
@@ -145,7 +140,7 @@ PRIMARY ENTRY POINTS
     description="Compile Java classes and C++ JNI library."
 />
 <target name="default"
-    depends="protobuf, protorpc, dtxn, tpceloader, compile, ee"
+    depends="protobuf, protorpc, dtxn, compile, ee"
     description="Compile Java classes and C++ JNI library."
 />
 <target name="check"
@@ -1420,15 +1415,15 @@ DTXN BINARIES + LIBRARIES
       <arg value="PROTOBUF_SRC=${src.protobuf.dir}" />
       <arg value="PROTOBUF_BIN=${build.protobuf.dir}" />
       <arg value="PROTORPC_PATH=${src.protorpc.dir}" />
-<!--       <arg value="LOG_LEVEL=100" /> -->
+      <arg value="LOG_LEVEL=300" />
    </exec>
 </target>
 
 <target name="dtxn-coordinator" description="H-Store DTXN Coordinator">
-    <condition property="port" value="${hstore.coordinator.port}">
+    <condition property="port" value="${coordinator.port}">
         <not><isset property="port"/></not>
     </condition>
-    <sleep seconds="${hstore.coordinator.delay}" />
+    <sleep seconds="${coordinator.delay}" />
     <exec executable="${build.dtxn.dir}/protodtxn/protodtxncoordinator">
         <arg line="${port}"/>
         <arg line="${build.dtxn.dir}/hstore.conf"/>
@@ -1448,7 +1443,7 @@ BENCHMARKS
         classname="org.voltdb.benchmark.BenchmarkController">
         <classpath refid='project.classpath' />
         <jvmarg value="-server" />
-        <jvmarg value="-Xmx2048m" />
+        <jvmarg value="-Xmx512m" />
         <jvmarg value="-Xcheck:jni"/>
         <jvmarg value="-Djava.library.path=${build.dir}/nativelibs" />
         <jvmarg value="-Dlog4j.configuration=${basedir}/log4j.properties"/>
@@ -1460,44 +1455,53 @@ BENCHMARKS
         <arg value="HOSTCOUNT=${hostcount}" />
         <arg value="SITESPERHOST=${sitesperhost}"/>
         <arg value="KFACTOR=${kfactor}"/>
-        <arg value="SSHOPTIONS=${hstore.global.sshoptions}" />
+        <arg value="SSHOPTIONS=${global.sshoptions}" />
         <arg value="REMOTEPATH=${basedir}" />
         <arg value="REMOTEUSER=${remoteuser}"/>
         <arg value="CATALOG=${catalog}" />
-        <arg value="COORDINATORHOST=${hstore.coordinator.host}" />
+        <arg value="COORDINATORHOST=${coordinator.host}" />
         <arg value="MARKOV=${markov}" />
 
         <!-- Execution Options -->
-        <arg value="TXNRATE=${hstore.client.txnrate}" />
-        <arg value="CLIENTCOUNT=${hstore.client.count}" />
-        <arg value="PROCESSESPERCLIENT=${hstore.client.processesperclient}" />
-        <arg value="INTERVAL=${hstore.client.interval}" />
-        <arg value="DURATION=${hstore.client.duration}" />
-        <arg value="BLOCKING=${hstore.client.blocking}" />
+        <arg value="TXNRATE=${client.txnrate}" />
+        <arg value="CLIENTCOUNT=${client.count}" />
+        <arg value="PROCESSESPERCLIENT=${client.processesperclient}" />
+        <arg value="INTERVAL=${client.interval}" />
+        <arg value="DURATION=${client.duration}" />
+        <arg value="WARMUP=${client.warmup}" />
+        <arg value="BLOCKING=${client.blocking}" />
+        <arg value="THROTTLING=${client.throttling}" />
         <arg value="TRACE=${trace}" />
         <arg value="PROFILESITES=${profilesites}" />
         <arg value="NOCOORDINATOR=${nocoordinator}" />
+        <arg value="DUMPDATABASE=${client.dump_database}" />
+        <arg value="DUMPDATABASEDIR=${client.dump_database_dir}" />
 
         <!-- Global Parameters -->
-        <arg value="scalefactor=${hstore.client.scalefactor}" />
-        <arg value="skewfactor=${hstore.client.skewfactor}" />
-        <arg value="temporalwindow=${hstore.client.temporalwindow}" />
-        <arg value="temporaltotal=${hstore.client.temporaltotal}" />
+        <arg value="scalefactor=${client.scalefactor}" />
+        <arg value="skewfactor=${client.skewfactor}" />
+        <arg value="temporalwindow=${client.temporalwindow}" />
+        <arg value="temporaltotal=${client.temporaltotal}" />
 
         <!-- Benchmark Parameters -->
-        <arg value="CLIENT=${benchmark.client}" />
-        <arg value="datadir=${benchmark.datadir}"/>
+        <arg value="benchmark.client=${benchmark.client}" />
+        <arg value="benchmark.datadir=${benchmark.datadir}"/>
 
-        <!-- tpcc parameters -->
-        <arg value="warehouses=${benchmark.warehouses}" />
-        <arg value="loadthreads=${benchmark.loadthreads}" />
+        <!-- TPC-C parameters -->
+        <arg value="benchmark.warehouses=${benchmark.warehouses}" />
+        <arg value="benchmark.loadthreads=${benchmark.loadthreads}" />
+        <arg value="benchmark.noop=${benchmark.noop}" />
+        <arg value="benchmark.neworder_only=${benchmark.neworder_only}" />
+        <arg value="benchmark.neworder_abort=${benchmark.neworder_abort}" />
+        <arg value="benchmark.neworder_multip=${benchmark.neworder_multip}" />
+        <arg value="benchmark.neworder_all_multip=${benchmark.neworder_all_multip}" />
         
         <!-- These are currently ignored (I think...) -->
         <arg value="HOST=${manualhost1}" />
         <arg value="HOST=${host1}" />
-        <arg value="CLIENTHOST=${hstore.client.host}" />
+        <arg value="CLIENTHOST=${client.host}" />
         <arg value="LISTENFORDEBUGGER=${debug}" />
-        <arg value="USEPROFILE=${hstore.node.useprofile}" />
+        <arg value="USEPROFILE=${node.useprofile}" />
         <arg value="CHECKTRANSACTION=${checktransaction}" />
         <arg value="CHECKTABLES=${checktables}" />
         <arg value="LOCAL=${local}" />
@@ -1733,8 +1737,10 @@ DESIGNER
     </java>
 </target>
 
-<target name='catalog-export'
-        description="Export catalog procs/stmts to JSON file">
+<target name='catalog-export' description="Export catalog procs/stmts to JSON file">
+    <condition property="output" value="${project}.json">
+        <not><isset property="output"/></not>
+    </condition>
     <java fork="yes" failonerror="true" classname="edu.brown.catalog.CatalogExporter">
         <jvmarg value="-Dlog4j.configuration=${basedir}/log4j.properties"/>
         <arg value="catalog.jar=${jar}" />
@@ -1742,12 +1748,10 @@ DESIGNER
         <classpath refid='project.classpath' />
         <assertions><enable /></assertions>
     </java>
+    <echo>Wrote catalog file to ${output}</echo>
 </target>
 
 <target name='catalog-viewer' description="Catalog Viewer">
-    <condition property="jar" value="${benchmark.jar}">
-        <not><isset property="jar"/></not>
-    </condition>
     <java fork="yes" classname="edu.brown.gui.CatalogViewer">
         <jvmarg value="-Xmx512m" />
         <jvmarg value="-Dlog4j.configuration=${basedir}/log4j.properties"/>
@@ -1825,7 +1829,7 @@ DESIGNER
 <target name='markov' description="Generate Markov Graphs">
     <java fork="yes" classname="edu.brown.markov.MarkovGraph" failonerror='true'>
         <jvmarg value="-Xmx${volt.client.memory}m" />
-        <jvmarg value="-Dhstore.max_threads=${hstore.max_threads}" />
+        <jvmarg value="-Dhstore.max_threads=${max_threads}" />
         <arg value="catalog.jar=${jar}" />
         <arg value="workload=${workload}" />
         <arg value="workload.xactlimit=${limit}" />
@@ -1843,7 +1847,7 @@ DESIGNER
 <target name='markov-cost' description="Estimate MarkovGraph Costs">
     <java fork="yes" classname="edu.brown.costmodel.MarkovCostModel" failonerror='true'>
         <jvmarg value="-Xmx${volt.client.memory}m" />
-        <jvmarg value="-Dhstore.max_threads=${hstore.max_threads}" />
+        <jvmarg value="-Dhstore.max_threads=${max_threads}" />
         <arg value="catalog.jar=${jar}" />
         <arg value="workload=${workload}" />
         <arg value="workload.xactlimit=${limit}" />
@@ -1951,7 +1955,7 @@ DESIGNER
         <jvmarg value="-Xmx${volt.client.memory}m" />
         <jvmarg value="-Dlog4j.configuration=${basedir}/log4j.properties"/>
         <arg value="catalog.jar=${benchmark.jar}" />
-        <arg value="stats.scalefactor=${hstore.scalefactor}" />
+        <arg value="stats.scalefactor=${scalefactor}" />
         <arg value="stats.output=${benchmark.tablestats}" />
         <classpath refid='project.classpath' />
         <assertions><enable /></assertions>
@@ -2181,7 +2185,7 @@ H-STORE REMIX
     <condition property="jar" value="${benchmark.jar}">
         <not><isset property="jar"/></not>
     </condition>
-   <java fork="yes" classname="edu.brown.catalog.HStoreConf">
+   <java fork="yes" classname="edu.brown.catalog.HStoreDtxnConf">
       <jvmarg value="-Dlog4j.configuration=log4j.properties"/>
       <jvmarg value="-client" />
       <arg value="catalog.jar=${jar}" />
@@ -2197,9 +2201,7 @@ H-STORE REMIX
     <antcall target="benchmark">
         <param name="compileonly"   value="true" />
         <param name="compile"       value="true" />
-        <param name="host1"         value="${hstore.defaulthost}" />
-        <param name="loadthreads"   value="${hstore.loadthreads}" />
-        <param name="client"        value="${benchmark.client}" />
+        <param name="host1"         value="${global.defaulthost}" />
     </antcall>
     
     <!-- Sets up host/site/partition information in system catalogs -->
@@ -2221,27 +2223,31 @@ H-STORE REMIX
     </condition>
 
     <java fork="yes" classname="edu.mit.hstore.HStoreSite">
-        <jvmarg value="-Xmx${hstore.node.memory}m" />
+        <jvmarg value="-Xmx${node.memory}m" />
         <jvmarg value="-Dlog4j.configuration=${basedir}/log4j.properties"/>
         <jvmarg value="-server" />
         <jvmarg value="-Djava.library.path=${build.dir}/nativelibs" />
         <jvmarg value="-Xcheck:jni" />
 <!--        <jvmarg value="-XX:+UseParNewGC" /> -->
-        <jvmarg value="-XX:+UseConcMarkSweepGC" />
+<!--         <jvmarg value="-XX:+UseConcMarkSweepGC" /> -->
 
-        <jvmarg value="-Dhstore.preload=${hstore.node.preload}" />
+        <jvmarg value="-Dhstore.preload=${node.preload}" />
         <arg value="catalog.jar=${benchmark.jar}" />
         <arg value="node.site=${node.site}" />
-        <arg value="node.statusinterval=${hstore.node.statusinterval}" />
-        <arg value="node.statusinterval_kill=${hstore.node.statusinterval_kill}" />
-        <arg value="node.force_singlepartition=${hstore.node.force_singlepartition}" />
-        <arg value="node.force_localexecution=${hstore.node.force_localexecution}" />
-        <arg value="node.force_neworderinspect=${hstore.node.force_neworderinspect}" />
-        <arg value="node.cleanup_interval=${hstore.node.cleanup_interval}" />
-        <arg value="node.cleanup_txn_expire=${hstore.node.cleanup_txn_expire}" />
-        <arg value="node.enable_profiling=${hstore.node.enable_profiling}" />
-        <arg value="coordinator.host=${hstore.coordinator.host}" />
-        <arg value="coordinator.port=${hstore.coordinator.port}" />
+        <arg value="node.statusinterval=${node.statusinterval}" />
+        <arg value="node.statusinterval_kill=${node.statusinterval_kill}" />
+        <arg value="node.force_singlepartition=${node.force_singlepartition}" />
+        <arg value="node.force_localexecution=${node.force_localexecution}" />
+        <arg value="node.force_neworderinspect=${node.force_neworderinspect}" />
+        <arg value="node.force_neworderinspect_done=${node.force_neworderinspect_done}" />
+        <arg value="node.enable_speculative_execution=${node.enable_speculative_execution}" />
+        <arg value="node.enable_db2_redirects=${node.enable_db2_redirects}" />
+        <arg value="node.cleanup_interval=${node.cleanup_interval}" />
+        <arg value="node.cleanup_txn_expire=${node.cleanup_txn_expire}" />
+        <arg value="node.enable_profiling=${node.enable_profiling}" />
+        <arg value="node.mispredict_crash=${node.mispredict_crash}" />
+        <arg value="coordinator.host=${coordinator.host}" />
+        <arg value="coordinator.port=${coordinator.port}" />
         <arg value="dtxn.conf=${build.dtxn.dir}/hstore.conf" />
         <arg value="dtxn.engine=${build.dtxn.dir}/protodtxn/protodtxnengine" />
         <arg value="hasher.class=${hasher}" />
@@ -2272,10 +2278,10 @@ H-STORE REMIX
         <param name="correlations" value="./files/correlations/${project}.correlations" />
         
         <!-- FORMAT: <hostname>:<site#>:<partition#> -->
-<!--         <param name="hosts" value="${hstore.defaulthost}:0:0,${hstore.defaulthost}:1:1" /> -->
-<!--         <param name="hosts" value="${hstore.defaulthost}:0:0,${hstore.defaulthost}:0:1,${hstore.defaulthost}:0:2,${hstore.defaulthost}:0:3,${hstore.defaulthost}:0:4" /> -->
-<!--         <param name="hosts" value="${hstore.defaulthost}:0:0,${hstore.defaulthost}:0:1" /> -->
-        <param name="hosts" value="${hstore.defaulthost}:0:0,${hstore.defaulthost}:0:1,${hstore.defaulthost}:1:2,${hstore.defaulthost}:1:3" />
+<!--         <param name="hosts" value="${global.defaulthost}:0:0,${global.defaulthost}:1:1" /> -->
+<!--         <param name="hosts" value="${global.defaulthost}:0:0,${global.defaulthost}:0:1,${global.defaulthost}:0:2,${global.defaulthost}:0:3,${global.defaulthost}:0:4" /> -->
+<!--         <param name="hosts" value="${global.defaulthost}:0:0,${global.defaulthost}:0:1" /> -->
+        <param name="hosts" value="${global.defaulthost}:0:0,${global.defaulthost}:0:1,${global.defaulthost}:1:2,${global.defaulthost}:1:3" />
     </antcall>
 </target>
 

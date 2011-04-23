@@ -1,9 +1,9 @@
 /*
  * Legal Notice
  *
- * This document and associated source code (the "Work") is a preliminary
- * version of a benchmark specification being developed by the TPC. The
- * Work is being made available to the public for review and comment only.
+ * This document and associated source code (the "Work") is a part of a
+ * benchmark specification maintained by the TPC.
+ *
  * The TPC reserves all right, title, and interest to the Work as provided
  * under U.S. and international laws, including without limitation all patent
  * and trademark rights therein.
@@ -57,8 +57,8 @@ const double    fDailyMarketCloseMax = fMaxSecPrice;
 const double    fDailyMarketHighRelativeToClose = 1.05;
 const double    fDailyMarketLowRelativeToClose = 0.92;
 
-const int       iDailyMarketVolumeMax = 10000;
-const int       iDailyMarketVolumeMin = 1000;
+const INT64     iDailyMarketVolumeMax = 10000;
+const INT64     iDailyMarketVolumeMin = 1000;
 
 const int       iRNGSkipOneRowDailyMarket = 2;    // number of RNG calls for one row
 
@@ -99,7 +99,7 @@ class CDailyMarketTable : public TableTemplate<DAILY_MARKET_GEN_ROW>
         for (i = 0; i < m_iDailyMarketTotalRows; ++i)
         {
             //copy the symbol
-            strncpy(m_row.m_daily_market[i].DM_S_SYMB, szSymbol, sizeof(m_row.m_daily_market[i].DM_S_SYMB)-1);
+            strncpy(m_row.m_daily_market[i].DM_S_SYMB, szSymbol, sizeof(m_row.m_daily_market[i].DM_S_SYMB));
 
             //generate trade date
             m_row.m_daily_market[i].DM_DATE = m_StartFromDate;
@@ -111,7 +111,7 @@ class CDailyMarketTable : public TableTemplate<DAILY_MARKET_GEN_ROW>
             m_row.m_daily_market[i].DM_LOW = m_row.m_daily_market[i].DM_CLOSE * fDailyMarketLowRelativeToClose;
 
             //generate volume
-            m_row.m_daily_market[i].DM_VOL = m_rnd.RndIntRange(iDailyMarketVolumeMin, iDailyMarketVolumeMax);
+            m_row.m_daily_market[i].DM_VOL = m_rnd.RndInt64Range(iDailyMarketVolumeMin, iDailyMarketVolumeMax);
 
             ++iDayNo;   //go one day forward for the next row
 
@@ -131,7 +131,7 @@ class CDailyMarketTable : public TableTemplate<DAILY_MARKET_GEN_ROW>
     void InitNextLoadUnit()
     {
         m_rnd.SetSeed(m_rnd.RndNthElement(RNGSeedTableDefault,
-            m_iLastRowNumber * iRNGSkipOneRowDailyMarket));
+            (RNGSEED)m_iLastRowNumber * iRNGSkipOneRowDailyMarket));
 
         ClearRecord();  // this is needed for EGenTest to work
     }

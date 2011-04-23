@@ -1,7 +1,5 @@
 package edu.brown.benchmark.auctionmark.procedures;
 
-import java.util.Date;
-
 import org.voltdb.ProcInfo;
 import org.voltdb.SQLStmt;
 import org.voltdb.VoltProcedure;

@@ -5,6 +5,9 @@ import java.net.InetSocketAddress;
 import java.nio.channels.SelectableChannel;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
+
+import org.apache.log4j.Logger;
+
 import ca.evanjones.protorpc.Protocol.RpcRequest;
 import ca.evanjones.protorpc.Protocol.RpcResponse;
 
@@ -13,8 +16,8 @@ import com.google.protobuf.Message;
 import com.google.protobuf.RpcCallback;
 import com.google.protobuf.RpcController;
 import com.google.protobuf.Service;
-import edu.mit.net.MessageConnection;
-import edu.mit.net.NIOMessageConnection;
+
+import edu.mit.net.NonBlockingConnection;
 
 public class ProtoServer extends AbstractEventHandler {
     public ProtoServer(EventLoop eventLoop) {
@@ -34,7 +37,7 @@ public class ProtoServer extends AbstractEventHandler {
         assert client != null;
 
         // wrap it in a message connection and register with event loop
-        MessageConnection connection = new NIOMessageConnection(client);
+        ProtoConnection connection = new ProtoConnection(new NonBlockingConnection(client));
 
         eventLoop.registerRead(client, new EventCallbackWrapper(connection));
 //        SelectionKey clientKey = connection.register(selector);
@@ -43,7 +46,7 @@ public class ProtoServer extends AbstractEventHandler {
     }
 
     private class EventCallbackWrapper extends AbstractEventHandler {
-        public EventCallbackWrapper(MessageConnection connection) {
+        public EventCallbackWrapper(ProtoConnection connection) {
             this.connection = connection;
         }
 
@@ -54,33 +57,32 @@ public class ProtoServer extends AbstractEventHandler {
 
         @Override
         public boolean writeCallback(SelectableChannel channel) {
-            return connection.tryWrite();
+            return connection.writeAvailable();
         }
 
         public void registerWrite() {
             eventLoop.registerWrite(connection.getChannel(), this);
         }
 
-        private final MessageConnection connection;
+        private final ProtoConnection connection;
     }
 
     private void read(EventCallbackWrapper eventLoopCallback) {
-        byte[] output;
-        while ((output = eventLoopCallback.connection.tryRead()) != null) {
-            if (output.length == 0) {
-                // connection closed
-                System.out.println("connection closed");
-                eventLoopCallback.connection.close();
-                return;
+        boolean isOpen = eventLoopCallback.connection.readAllAvailable();
+        if (!isOpen) {
+            // connection closed
+            System.out.println("connection closed");
+            eventLoopCallback.connection.close();
+            return;
+        }
+
+        while (true) {
+            RpcRequest.Builder requestBuilder = RpcRequest.newBuilder();
+            boolean hasMessage = eventLoopCallback.connection.readBufferedMessage(requestBuilder);
+            if (!hasMessage) {
+                break;
             }
 
-            // Parse the request
-            RpcRequest.Builder requestBuilder;
-            try {
-                requestBuilder = RpcRequest.newBuilder().mergeFrom(output);
-            } catch (InvalidProtocolBufferException e) {
-                throw new RuntimeException(e);
-            }
             RpcRequest request = requestBuilder.build();
     //        System.out.println(request.getMethodName() + " " + request.getRequest().size());
 
@@ -177,11 +179,11 @@ public class ProtoServer extends AbstractEventHandler {
                 assert controller.status != Protocol.Status.OK;
                 responseMessage.setErrorReason(controller.errorReason);
             }
-            byte[] output = responseMessage.build().toByteArray();
+            Message output = responseMessage.build();
             // TODO: Rethink the thread safety carefully. Maybe this should be a method on
             // eventLoopCallback?
             synchronized (eventLoopCallback) {
-                boolean blocked = eventLoopCallback.connection.write(output);
+                boolean blocked = eventLoopCallback.connection.tryWrite(output);
                 if (blocked) {
                     // write blocked: wait for the write callback
                     eventLoopCallback.registerWrite();

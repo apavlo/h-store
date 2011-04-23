@@ -1,3 +1,143 @@
+Change 1.8.0 => 1.9.0 by M.E.
+* Wed Sep 16, 2009
+  Update legal text. (199)
+
+Change 1.8.0b1 => 1.8.0 by M.E.
+* Thu Jun 11, 2009
+  Remove +734 status check from Trade-Order harness code. (TPCE-76)
+  Replace some tabs with spaces.
+  Bless as 1.8.0
+
+Change 1.7.0 => 1.8.0b1 by M.E.
+* Fri May 15, 2009
+  Use INT64 in EGenLoader to represent values with type S_COUNT_T. (TPCE-61)
+  Eliminate duplicate code in the flat file loader to generate filenames. (TPCE-62)
+  Change CAddressTable to not cache address IDs for exchanges or companies. (TPCE-67)
+  Fix improper constant in Data-Maintenance input structure. (TPCE-68)
+  Fix CDM::DoCleanupTxn() input generation for start_trade_id. (TPCE-71)
+  Restructure locking/threading classes and implement threading on Windows. (TPCE-72)
+  Correct type of 734 and 1031 status checks (warnings, not errors). (TPCE-75)
+
+Change 1.6.1b2 => 1.7.0 by M.E.
+* Thu Nov 20, 2008
+  Add new VS2008 project files. (TPCE-69)
+  Bless as 1.7.0
+
+Change 1.6.1b1 => 1.6.1b2 by M.E.
+* Wed Oct 29, 2008
+   Change Customer-Position structures to use a single #define for the number of accounts. (TPCE-49)
+   Change Customer-Position harness code to correct error in hist_len status check. (TPCE-59)
+   Remove max_send_len from TxnHarnessStructs.h. (TPCE-60)
+
+Change 1.6.0 => 1.6.1b1 by M.E.
+* Tue Oct 21, 2008
+   Resolve CSecurityFile bug with extended securities. (TPCE-64)
+   Add unit test for CSecurityFile. (TPCE-64)
+   Resolve ReadRowFunctions_sscanf.cpp bug with TRADE_TYPE table. (TPCE-65)
+
+Change 1.6.0b3 => 1.6.0 by M.E.
+* Thu Sep 11, 2008
+   Resolve Windows portability issue in 64-bit integer conversions. (TPCE-43)
+   Partially resolve C/C++ language issues on some platforms. (TPCE-24)
+   Bless 1.6.0b3 as 1.6.0
+
+Change 1.6.0b2 => 1.6.0b3 by M.E.
+* Wed Aug 6, 2008
+    Reduce max_acct_len from 20 to 10.  (TPCE-48)
+    Reduce the size of various name-related strings. (TPCE-57)
+    Zero out time portion of settlement cash due dates. (TPCE-58)
+
+Change 1.6.0b1 => 1.6.0b2 by M.E.
+* Fri Jul 11, 2008
+    Numerous improvements and fixes to status checking code. (TPCE-51)
+    Elimiate "list_len == 0" status check from Broker-Volume. (TPCE-56)
+
+Changes 1.5.1 => 1.6.0b1 by M.E.
+* Tue Jun 10, 2008
+    Fix portability problems with integer random number generation. (TPCE-45)
+    Fix portability problems with floating-point random number generation. (TPCE-52)
+    Cleanup CRandom by removing float methods and adding negative exponential
+      distribution code.  (TPCE-53)
+    Cleanup CMoney by upgrading base type from 'int' to 'INT64' (TPCE-54)
+    Cleanup CDateTime by adding RoundToNearestNsec method and move various
+      constants from MiscConsts.h to here.  (TPCE-55)
+    Add status checking code to EGenTxnHarness. (TPCE-51)
+
+Changes 1.5.1b1 => 1.5.1 by M.E.
+* Thu Apr 17, 2008
+    Bless 1.5.1b1 as 1.5.1
+
+Changes 1.5.0 => 1.5.1b1 by M.E.
+* Thu Mar 20, 2008
+    Fix compile error in ODBC Loader code introduced by TPCE-44. (TPCE-46)
+    Fix scaling security bug introduced by TPCE-37. (TPCE-47)
+    Add VS2008 project/solution files in prj/VS2008.
+
+Changes 1.5.0b2 => 1.5.0 by M.E.
+* Fri Feb 29, 2008
+   Bless 1.5.0b2 as 1.5.0
+
+Changes 1.5.0b1 => 1.5.0b2 by M.E.
+* Mon Feb 10, 2008
+    Last set of compiler warning cleanups (TPCE-28, TPCE-35)
+    Enable caching code by default (TPCE-40)
+    Make C_DOB generation repeatable.  (TPCE-41)
+    Fix segfault in ReadRowFunctions_sscanf on Solaris. (TPCE-42)
+    Remove obsolete code for NULL security high/low values (TPCE-44)
+
+Changes 1.4.0 => 1.5.0b1 by M.E.
+* Wed Jan 30, 2008
+    Merge in all changes from 1.3.1b3, including bug fixes 25, 26, 28, 29, 30, 31, 33, 34, 35
+    Optimize GenerateTradeCommission().  (TPCE-37)
+    Eliminate redundant generation of C_TAX_ID in CCustomerTable.  (TPCE-37) 
+    Add buffering support to the flat file loader.  (TPCE-39)
+    Remove compile-time knob to enable caching code.  (TPCE-40)
+    Fix comment typo in TxnHarnessStructs.h.
+
+Changes 1.3.1b4 => 1.4.0 by M.E.
+* Mon Dec 10, 2007
+    Bless 1.3.1b4 as 1.4.0
+
+Changes 1.3.1b3 => 1.3.1b4 by M.E.
+* Fri Nov 16, 2007
+    Revert to 1.3.0 plus bug fixes 19, 23, 27 and 36.
+    Remainder of changes done in this cycle will be
+        carried-forward into the next release cycle.
+
+Changes 1.3.1b2 => 1.3.1b3 by M.E.
+* Fri Nov 16, 2007
+    Fix bugs introduced in 1.3.1b2:
+        Unhandled exception in ODBC loader code.  (TPCE-27)
+        Segfault in caching code.  (TPCE-29)
+        Improper DateTime::ToString() output.  (TPCE-33)
+
+Changes 1.3.1b1 => 1.3.1b2 by M.E.
+* Wed Nov 8, 2007
+    Change how #ifdefs are handled in EGenLoader when overriding default
+       values for boolean (and date/time) formatting.  (TPCE-27)
+    Numerous cleanups for compiler warnings.  (TPCE-28, TPCE-35)
+    Add caching support to EGenLoader for growing tables.  (TPCE-29)
+    Replace unsafe string operations (strcat, strcpy, sprintf) with
+       safe versions (strncat, strncpy, snprintf).  (TPCE-33)
+    Remove unused TLastPrice structure from TxnHarnessStructs.h. (TPCE-34)
+    Update transaction harness to pass is_cash[] back to the driver
+       from Trade-Lookup and Trade-Update. (TPCE-36)
+
+Changes 1.3.0 => 1.3.1b1 by M.E.
+* Fri Sep 14, 2007
+    Update flat_in/ZipCodes.txt to add missing leading zero for east-coast
+       US Zipcodes (TPCE-19)
+    Initialize hist_len to 0 in Customer-Position Frame 3.  (TPCE-23)
+    Ensure that all instances of strncpy copy the full string, including
+        any terminating NULL that may exist.  (TPCE-25)
+    Provide a #define to toggle between the istream and sscanf versions
+        of ReadRowFunctions.  (TPCE-26)
+    Provide #defines for EGenLoader to specify tokens to use for TRUE and
+        FALSE boolean values in the flat file loader.  (TPCE-27)
+    Fix extern "C" linkage for EGenVersion.cpp. (TPCE-30)
+    Replace hard-coded status/trade type constants with references to
+       appropriate flat-file rows in CMEETickerTape. (TPCE-31)
+
 Changes 1.3.0b3 => 1.3.0 by C.R.
 * Mon Sep 10, 2007
     Bless 1.3.0b3 as 1.3.0

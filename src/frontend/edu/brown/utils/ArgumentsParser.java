@@ -147,14 +147,19 @@ public class ArgumentsParser {
     public static final String PARAM_NODE_PORT              = PARAM_NODE + ".port";
     public static final String PARAM_NODE_PARTITION         = PARAM_NODE + ".partition";
     public static final String PARAM_NODE_SITE              = PARAM_NODE + ".site";
+    public static final String PARAM_NODE_IGNORE_DTXN       = PARAM_NODE + ".ignore_dtxn";
+    public static final String PARAM_NODE_ENABLE_SPECULATIVE_EXECUTION = PARAM_NODE + ".enable_speculative_execution";
+    public static final String PARAM_NODE_ENABLE_DB2_REDIRECTS = PARAM_NODE + ".enable_db2_redirects";
     public static final String PARAM_NODE_FORCE_SINGLEPARTITION = PARAM_NODE + ".force_singlepartition";
     public static final String PARAM_NODE_FORCE_LOCALEXECUTION = PARAM_NODE + ".force_localexecution";
     public static final String PARAM_NODE_FORCE_NEWORDERINSPECT = PARAM_NODE + ".force_neworderinspect";
+    public static final String PARAM_NODE_FORCE_NEWORDERINSPECT_DONE = PARAM_NODE + ".force_neworderinspect_done";
     public static final String PARAM_NODE_STATUS_INTERVAL   = PARAM_NODE + ".statusinterval";
     public static final String PARAM_NODE_STATUS_INTERVAL_KILL   = PARAM_NODE + ".statusinterval_kill";
     public static final String PARAM_NODE_CLEANUP_INTERVAL = PARAM_NODE + ".cleanup_interval";
     public static final String PARAM_NODE_CLEANUP_TXN_EXPIRE = PARAM_NODE + ".cleanup_txn_expire";
     public static final String PARAM_NODE_ENABLE_PROFILING  = PARAM_NODE + ".enable_profiling";
+    public static final String PARAM_NODE_MISPREDICT_CRASH  = PARAM_NODE + ".mispredict_crash";
     
     private static final String PARAM_DTXN                  = "dtxn";
     public static final String PARAM_DTXN_CONF              = PARAM_DTXN + ".conf";
@@ -410,8 +415,9 @@ public class ArgumentsParser {
         
         if (debug) LOG.debug("Processing " + args.length + " parameters...");
         final Pattern p = Pattern.compile("=");
-        for (String arg : args) {
-            String[] parts = p.split(arg, 2);
+        for (int i = 0, cnt = args.length; i < cnt; i++) {
+            final String arg = args[i];
+            final String[] parts = p.split(arg, 2);
             if (parts[0].startsWith("-")) parts[0] = parts[0].substring(1);
             parts[0] = parts[0].toLowerCase();
             

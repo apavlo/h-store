@@ -273,6 +273,14 @@ public class GraphvizExport<V extends AbstractVertex, E extends AbstractEdge> {
     public String writeToTempFile(String name) throws Exception {
         return (this.writeToTempFile(name, null));
     }
+    
+    /**
+     * Export the graph to a temp file
+     * @param name
+     * @param suffix
+     * @return
+     * @throws Exception
+     */
     public String writeToTempFile(String name, String suffix) throws Exception {
         if (suffix != null && suffix.length() > 0) suffix = "-" + suffix;
         else if (suffix == null) suffix = "";

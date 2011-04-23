@@ -346,6 +346,10 @@ bool Table::serializeColumnHeaderTo(SerializeOutput &serialize_io) {
 }
 
 bool Table::serializeTo(SerializeOutput &serialize_io) {
+    return this->serializeTo(-1, -1, serialize_io);
+}
+
+bool Table::serializeTo(int32_t offset, int32_t limit, SerializeOutput &serialize_io) {
     // The table is serialized as:
     // [(int) total size]
     // [(int) header size] [num columns] [column types] [column names]
@@ -365,15 +369,32 @@ bool Table::serializeTo(SerializeOutput &serialize_io) {
         return false;
 
     // active tuple counts
-    serialize_io.writeInt(static_cast<int32_t>(m_tupleCount));
+    uint32_t output_size = m_tupleCount;
+    if (limit != -1 || offset != -1) {
+        if (offset == -1) {
+            output_size = (limit < m_tupleCount ? limit : m_tupleCount);
+        } else if (offset > m_tupleCount) {
+            output_size = 0;
+        } else {
+            output_size = m_tupleCount - offset;
+            if (limit != -1 && limit < output_size) output_size = limit;
+        }
+    }
+    serialize_io.writeInt(static_cast<int32_t>(output_size));
+//     fprintf(stderr, "SERIALIZE(output=%d, offset=%d, limit=%d, total=%d)\n", output_size, offset, limit, m_tupleCount);
+    
     int64_t written_count = 0;
+    int64_t read_count = 0;
     TableIterator titer(this);
     TableTuple tuple(m_schema);
     while (titer.next(tuple)) {
-        tuple.serializeTo(serialize_io);
-        ++written_count;
+        if (offset == -1 || read_count >= offset) {
+            tuple.serializeTo(serialize_io);
+            if (limit != -1 && ++written_count == limit) break;
+        }
+        read_count++;
     }
-    assert(written_count == m_tupleCount);
+    // assert(written_count == m_tupleCount);
 
     // length prefix is non-inclusive
     int32_t sz = static_cast<int32_t>(serialize_io.position() - pos - sizeof(int32_t));

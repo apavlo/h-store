@@ -29,7 +29,7 @@ import edu.brown.statistics.Histogram;
  *
  */
 public abstract class AirlineBaseClient extends ClientMain {
-    protected static final Logger LOG = Logger.getLogger(AirlineBaseClient.class.getName());
+    protected static final Logger LOG = Logger.getLogger(AirlineBaseClient.class);
     
     protected int m_days_past = 7;
     protected int m_days_future = 14;
@@ -41,7 +41,9 @@ public abstract class AirlineBaseClient extends ClientMain {
     
     protected final String AIRLINE_DATA_DIR;
    
-    protected final Map<String, Histogram> histograms = new HashMap<String, Histogram>();
+    protected final Map<String, Histogram<String>> histograms = new HashMap<String, Histogram<String>>();
+    
+    protected final Map<String, Histogram<String>> airport_histograms = new HashMap<String, Histogram<String>>();
     
     /**
      * The airports that we actually care about
@@ -202,7 +204,7 @@ public abstract class AirlineBaseClient extends ClientMain {
      * @param name
      * @return
      */
-    public Histogram getHistogram(String name) {
+    public Histogram<String> getHistogram(String name) {
         return (this.histograms.get(name));
     }
     
@@ -242,15 +244,24 @@ public abstract class AirlineBaseClient extends ClientMain {
      * Load all the histograms used in the benchmark
      */
     protected void loadHistograms() {
-        //
         // Now load in the histograms that we will need for generating the flight data
-        //
         try {
             for (String histogram_name : AirlineConstants.HISTOGRAM_DATA_FILES) {
                 LOG.debug("Loading in histogam data file for '" + histogram_name + "'");
-                Histogram histogram = HistogramUtil.loadHistogram(histogram_name, AIRLINE_DATA_DIR, true);
-                assert(histogram != null);
-                this.histograms.put(histogram_name, histogram);
+                
+                if (histogram_name.equals(AirlineConstants.HISTOGRAM_FLIGHTS_PER_AIRPORT)) {
+                    Map<String, Histogram<String>> m = HistogramUtil.loadAirportFlights(AIRLINE_DATA_DIR);
+                    assert(m != null);
+                    
+                    // Store the airport codes set
+                    this.airport_histograms.putAll(m);
+                    this.airport_codes.addAll(m.keySet());
+                    
+                } else {
+                    Histogram<String> histogram = HistogramUtil.loadHistogram(histogram_name, AIRLINE_DATA_DIR, true);
+                    assert(histogram != null);
+                    this.histograms.put(histogram_name, histogram);
+                }
 
 //                if (!histogram_name.equals(AirlineConstants.HISTOGRAM_POPULATIONS)) {
 //                    System.out.println(histogram_name);
@@ -258,19 +269,6 @@ public abstract class AirlineBaseClient extends ClientMain {
 //                    System.out.println("--------------------------------------------");
 //                }
                 
-                //
-                // Store the airport codes ahead of time, since they will actually be
-                // a combination of two airports
-                //
-                if (histogram_name.equals(AirlineConstants.HISTOGRAM_FLIGHTS_PER_AIRPORT)) {
-                    for (Object airport_pair : histogram.values()) {
-                        Pair<String, String> codes = this.getAirportCodes(airport_pair.toString());
-                        // this.code_id_xref.get("AP_ID").put(codes.getFirst(), 0l);
-                        // this.code_id_xref.get("AP_ID").put(codes.getSecond(), 0l);
-                        this.airport_codes.add(codes.getFirst());
-                        this.airport_codes.add(codes.getSecond());
-                    }
-                } // IF
             } // FOR
         } catch (Exception ex) {
             LOG.error("Failed to load data files for histograms", ex);

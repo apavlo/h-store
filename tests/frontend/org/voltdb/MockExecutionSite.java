@@ -29,11 +29,6 @@ public class MockExecutionSite extends ExecutionSite {
     }
 
     @Override
-    public void requestWork(LocalTransactionState ts, List<FragmentTaskMessage> tasks) {
-        // Nothing
-    }
-    
-    @Override
     public void sendClientResponse(LocalTransactionState ts, ClientResponseImpl cresponse) {
         // Nothing!
     }

@@ -14,6 +14,8 @@ public class ProfileMeasurement {
         TOTAL,
         /** Initialization time **/
         INITIALIZATION,
+        /** Blocked time **/
+        BLOCKED,
         /** Clean-up time **/
         CLEANUP,
         /** The time spent waiting in the execution queue **/
@@ -151,6 +153,28 @@ public class ProfileMeasurement {
     public static long getTime() {
 //      return System.currentTimeMillis();
       return System.nanoTime();
+    }
+    
+    /**
+     * Start multiple ProfileMeasurements with the same timestamp
+     * @param to_start
+     */
+    public static void start(ProfileMeasurement...to_start) {
+        long time = ProfileMeasurement.getTime();
+        for (ProfileMeasurement pm : to_start) {
+            pm.start(time);
+        } // FOR
+    }
+    
+    /**
+     * Stop multiple ProfileMeasurements with the same timestamp
+     * @param to_stop
+     */
+    public static void stop(ProfileMeasurement...to_stop) {
+        long time = ProfileMeasurement.getTime();
+        for (ProfileMeasurement pm : to_stop) {
+            pm.stop(time);
+        } // FOR
     }
     
     /**

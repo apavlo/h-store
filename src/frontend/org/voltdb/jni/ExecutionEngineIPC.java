@@ -42,6 +42,7 @@ import org.voltdb.PrivateVoltTableFactory;
 import org.voltdb.SysProcSelector;
 import org.voltdb.VoltDB;
 import org.voltdb.VoltTable;
+import org.voltdb.catalog.Table;
 import org.voltdb.elt.ELTProtoMessage;
 import org.voltdb.exceptions.EEException;
 import org.voltdb.exceptions.SerializableException;
@@ -996,7 +997,7 @@ public class ExecutionEngineIPC extends ExecutionEngine {
     }
 
     @Override
-    public VoltTable serializeTable(final int tableId) throws EEException {
+    public VoltTable serializeTable(final Table catalog_tbl, int offset, int limit) throws EEException {
         throw new UnsupportedOperationException("Not supported yet.");
     }
 
