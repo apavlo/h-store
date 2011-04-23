@@ -1,9 +1,9 @@
 /*
  * Legal Notice
  *
- * This document and associated source code (the "Work") is a preliminary
- * version of a benchmark specification being developed by the TPC. The
- * Work is being made available to the public for review and comment only.
+ * This document and associated source code (the "Work") is a part of a
+ * benchmark specification maintained by the TPC.
+ *
  * The TPC reserves all right, title, and interest to the Work as provided
  * under U.S. and international laws, including without limitation all patent
  * and trademark rights therein.
@@ -56,7 +56,6 @@ public:
     {
         int i;
 
-        memset( pTxnOutput, 0, sizeof( *pTxnOutput ));
         switch( pTxnInput->frame_to_execute )
         {
         case 1:
@@ -78,6 +77,10 @@ public:
             }
             pTxnOutput->num_found = Frame1Output.num_found;
             pTxnOutput->status = Frame1Output.status;
+            if (pTxnOutput->num_found != pTxnInput->max_trades)
+            {
+                pTxnOutput->status = -611;
+            }
             break;
 
         case 2:
@@ -101,6 +104,14 @@ public:
             }
             pTxnOutput->num_found = Frame2Output.num_found;
             pTxnOutput->status = Frame2Output.status;
+            if (Frame2Output.num_found < 0)
+            {
+                pTxnOutput->status = -621;
+            }
+            else if (Frame2Output.num_found == 0)
+            {
+                pTxnOutput->status =  621;
+            }
             break;
 
         case 3:
@@ -110,7 +121,7 @@ public:
             memset(&Frame3Output, 0, sizeof( Frame3Output ));
 
             Frame3Input.max_trades = pTxnInput->max_trades;
-            strncpy( Frame3Input.symbol, pTxnInput->symbol, sizeof( Frame3Input.symbol ) -1 );
+            strncpy( Frame3Input.symbol, pTxnInput->symbol, sizeof( Frame3Input.symbol ));
             Frame3Input.start_trade_dts = pTxnInput->start_trade_dts;
             Frame3Input.end_trade_dts = pTxnInput->end_trade_dts;
             Frame3Input.max_acct_id = pTxnInput->max_acct_id;
@@ -122,7 +133,16 @@ public:
             pTxnOutput->status = Frame3Output.status;
             for (i = 0; i < Frame3Output.num_found; ++i)
             {
+                pTxnOutput->is_cash[i] = Frame3Output.trade_info[i].is_cash;
                 pTxnOutput->trade_list[i] = Frame3Output.trade_info[i].trade_id;
+            }
+            if (Frame3Output.num_found <= 0)
+            {
+                pTxnOutput->status = -631;
+            }
+            else if (Frame3Output.num_found == 0)
+            {
+                pTxnOutput->status =  631;
             }
             break;
 

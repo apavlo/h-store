@@ -33,6 +33,7 @@ PlanFragment::PlanFragment(Catalog *catalog, CatalogType *parent, const string &
     m_fields["id"] = value;
     m_fields["hasdependencies"] = value;
     m_fields["multipartition"] = value;
+    m_fields["readonly"] = value;
     m_fields["plannodetree"] = value;
     m_fields["nontransactional"] = value;
 }
@@ -41,6 +42,7 @@ void PlanFragment::update() {
     m_id = m_fields["id"].intValue;
     m_hasdependencies = m_fields["hasdependencies"].intValue;
     m_multipartition = m_fields["multipartition"].intValue;
+    m_readonly = m_fields["readonly"].intValue;
     m_plannodetree = m_fields["plannodetree"].strValue.c_str();
     m_nontransactional = m_fields["nontransactional"].intValue;
 }
@@ -67,6 +69,10 @@ bool PlanFragment::hasdependencies() const {
 
 bool PlanFragment::multipartition() const {
     return m_multipartition;
+}
+
+bool PlanFragment::readonly() const {
+    return m_readonly;
 }
 
 const string & PlanFragment::plannodetree() const {

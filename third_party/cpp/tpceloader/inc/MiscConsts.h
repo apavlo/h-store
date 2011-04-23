@@ -1,9 +1,9 @@
 /*
  * Legal Notice
  *
- * This document and associated source code (the "Work") is a preliminary
- * version of a benchmark specification being developed by the TPC. The
- * Work is being made available to the public for review and comment only.
+ * This document and associated source code (the "Work") is a part of a
+ * benchmark specification maintained by the TPC.
+ *
  * The TPC reserves all right, title, and interest to the Work as provided
  * under U.S. and international laws, including without limitation all patent
  * and trademark rights therein.
@@ -51,35 +51,27 @@ static const TIdent iDefaultStartFromCustomer = 1;
 // Broker-Volume transations requires 40 broker names as input,
 // which translates into minimum 4000 customers in a database.
 //
-const UINT          iDefaultCustomerCount = 5000;
+const TIdent        iDefaultCustomerCount = 5000;
 
-const int           iBrokersDiv = 100; // PAVLO:100  // by what number to divide the customer count to get the broker count
+const TIdent        iBrokersDiv = 100;  // by what number to divide the customer count to get the broker count
 
 // Number of customers in default load unit.
 // Note: this value must not be changed. EGen code depends
 // on load unit consisting of exactly 1000 customers.
 //
-const UINT          iDefaultLoadUnitSize = 1000; // PAVLO:1000
+const TIdent        iDefaultLoadUnitSize = 1000;
 
 // Number by which all IDENT_T columns (C_ID, CA_ID, etc.) are shifted.
 //
-const TIdent iTIdentShift = UINT64_CONST(4300000000);       // 4.3 billion
-//const TIdent iTIdentShift = UINT64_CONST(0);
+const TIdent iTIdentShift = INT64_CONST(4300000000);       // 4.3 billion
 
 // Number by which all TRADE_T columns (T_ID, TH_T_ID, etc.) are shifted.
 //
-const TTrade iTTradeShift = UINT64_CONST(200000000000000);  // 200 trillion (2 * 10^14)
-//const TTrade iTTradeShift = UINT64_CONST(0);
+const TTrade iTTradeShift = INT64_CONST(200000000000000);  // 200 trillion (2 * 10^14)
 
 const int       iMaxHostname = 64;
 const int       iMaxDBName = 64;
 const int       iMaxPath = 512;
-#ifdef COMPILE_PGSQL_LOAD
-const int       iMaxPGHost = 128;
-const int       iMaxPGDBName = 32;
-const int       iMaxPGPort = 32;
-const int       iDateTimeFmt = 11;
-#endif
 
 // NOTE: Changing the initial trade populate base date
 // can break code used in CCETxnInputGenerator for generating
@@ -112,21 +104,6 @@ const int       iDailyMarketBaseHour    = 0;
 const int       iDailyMarketBaseMinute  = 0;
 const int       iDailyMarketBaseSecond  = 0;
 const int       iDailyMarketBaseMsec    = 0;
-
-const double    MsPerSecondDivisor      = 1000.000;
-const INT32     MsPerSecond             = 1000;
-const INT32     SecondsPerMinute        = 60;
-const INT32     MinutesPerHour          = 60;
-const INT32     HoursPerDay             = 24;
-const INT32     HoursPerWorkDay         = 8;
-const INT32     DaysPerWorkWeek         = 5;
-const INT32     DaysPerWeek             = 7;
-
-const INT32     SecondsPerHour      = SecondsPerMinute * MinutesPerHour;
-const INT32     SecondsPerDay       = SecondsPerMinute * MinutesPerHour * HoursPerDay;
-const INT32     SecondsPerWorkDay   = SecondsPerMinute * MinutesPerHour * HoursPerWorkDay;
-const INT32     MsPerDay            = SecondsPerDay * MsPerSecond;
-const INT32     MsPerWorkDay        = SecondsPerWorkDay * MsPerSecond;
 
 // Range of financial rows to return from Security Detail
 const int       iSecurityDetailMinRows = 5;

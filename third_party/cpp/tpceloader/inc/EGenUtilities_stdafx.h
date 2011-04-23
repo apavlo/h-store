@@ -1,9 +1,9 @@
 /*
  * Legal Notice
  *
- * This document and associated source code (the "Work") is a preliminary
- * version of a benchmark specification being developed by the TPC. The
- * Work is being made available to the public for review and comment only.
+ * This document and associated source code (the "Work") is a part of a
+ * benchmark specification maintained by the TPC.
+ *
  * The TPC reserves all right, title, and interest to the Work as provided
  * under U.S. and international laws, including without limitation all patent
  * and trademark rights therein.
@@ -41,10 +41,10 @@
 
 #include <cstddef>
 #include <cstdio>
-#ifdef WIN32        //for Windows platform
+#ifdef WIN32            //for Windows platform
 #include <windows.h>
 #else
-#include <cerrno>  		//for Unix
+#include <cerrno>       //for Unix
 #include <sys/time.h>   //for gettimeofday() on Linux
 #endif
 #include <ctime>
@@ -56,6 +56,10 @@
 #include <string>
 #include <vector>
 
+#ifdef NEED_STDIO_H
+#include <stdio.h>
+#endif
+ 
 using namespace std;
 
 // TODO: reference additional headers your program requires here
@@ -68,16 +72,7 @@ using namespace std;
 #include "FixedMap.h"
 #include "FixedArray.h"
 
-// Include platform-dependent syncronization lock object
-#ifdef WIN32
-#include "win/SyncLock.h"   // Windows implementation
-#include "win/error.h"
-//#elif DEFINED( LINUX )
-//#include "linux/SyncLock.h"   // Linux implementation
-#else
-#include "SyncLockInterface.h"  //empty stub
-#endif
-
+#include "locking.h"
 #include "RNGSeeds.h"
 #include "EGenVersion.h"
 #include "Money.h"

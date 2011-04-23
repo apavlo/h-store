@@ -181,6 +181,7 @@ public:
     // ------------------------------------------------------------------
     int getApproximateSizeToSerialize() const;
     bool serializeTo(SerializeOutput &serialize_out);
+    bool serializeTo(int32_t offset, int32_t limit, SerializeOutput &serialize_out);
     bool serializeColumnHeaderTo(SerializeOutput &serialize_io);
 
     /*

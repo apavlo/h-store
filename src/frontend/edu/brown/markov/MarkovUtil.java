@@ -5,6 +5,7 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.log4j.Logger;
 import org.json.JSONObject;
@@ -20,9 +21,12 @@ import org.voltdb.utils.Pair;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.graphs.GraphvizExport;
 import edu.brown.graphs.GraphvizExport.Attributes;
+import edu.brown.hashing.AbstractHasher;
+import edu.brown.utils.ClassUtil;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.FileUtil;
 import edu.brown.utils.PartitionEstimator;
+import edu.brown.utils.StringUtil;
 import edu.brown.utils.ThreadUtil;
 import edu.brown.workload.AbstractTraceElement;
 import edu.brown.workload.TransactionTrace;
@@ -43,6 +47,10 @@ import edu.brown.workload.filters.ProcedureNameFilter;
 public abstract class MarkovUtil {
     private static final Logger LOG = Logger.getLogger(MarkovUtil.class);
 
+    /**
+     * The value to use to indicate that a probability is null
+     */
+    public static final float NULL_MARKER = -1.0f;
     
     /**
      * 
@@ -302,14 +310,17 @@ public abstract class MarkovUtil {
         
         MarkovGraphsContainer markovs = new MarkovGraphsContainer(true);
         List<Runnable> runnables = new ArrayList<Runnable>();
-        for (final Procedure catalog_proc : workload.getProcedures(catalog_db)) {
+        final Set<Procedure> procedures = workload.getProcedures(catalog_db);
+        final AtomicInteger ctr = new AtomicInteger(0);
+        for (final Procedure catalog_proc : procedures) {
             final MarkovGraph g = markovs.getOrCreate(GLOBAL_MARKOV_CONTAINER_ID, catalog_proc, true);
             assert(g != null) : "Failed to create global MarkovGraph for " + catalog_proc;
             
             runnables.add(new Runnable() {
                 public void run() {
-                    LOG.info("Populating global MarkovGraph for " + catalog_proc);
-                    for (TransactionTrace xact : workload.getTraces(catalog_proc)) {
+                    List<TransactionTrace> traces = workload.getTraces(catalog_proc); 
+                    LOG.info(String.format("Populating global MarkovGraph for %s [#traces=%d]", catalog_proc.getName(), traces.size()));
+                    for (TransactionTrace xact : traces) {
                         try {
                             g.processTransaction(xact, p_estimator);
                         } catch (Exception ex) {
@@ -318,13 +329,38 @@ public abstract class MarkovUtil {
                         }
                     } // FOR
                     g.calculateProbabilities();
-                    LOG.info("Finished creating MarkovGraph for " + catalog_proc);
+                    LOG.info(String.format("Finished creating MarkovGraph for %s [%d/%d]", catalog_proc.getName(), ctr.incrementAndGet(), procedures.size()));
                 }
             });
         } // FOR
         LOG.info(String.format("Waiting for %d MarkovGraphs to get populated", runnables.size()));
         ThreadUtil.runGlobalPool(runnables);
         return (markovs);
+    }
+
+    /**
+     * Utility method to calculate the probabilities at all of the MarkovGraphsContainers
+     * @param markovs
+     */
+    public static void calculateProbabilities(Map<Integer, ? extends MarkovGraphsContainer> markovs) {
+        if (LOG.isDebugEnabled()) LOG.debug(String.format("Calculating probabilities for %d ids", markovs.size()));
+        for (MarkovGraphsContainer m : markovs.values()) {
+            m.calculateProbabilities();
+        }
+        return;
+    }
+    
+    /**
+     * Utility method
+     * @param markovs
+     * @param hasher
+     */
+    public static void setHasher(Map<Integer, ? extends MarkovGraphsContainer> markovs, AbstractHasher hasher) {
+        if (LOG.isDebugEnabled()) LOG.debug(String.format("Setting hasher for for %d ids", markovs.size()));
+        for (MarkovGraphsContainer m : markovs.values()) {
+            m.setHasher(hasher);
+        }
+        return;
     }
     
     /**
@@ -367,9 +403,8 @@ public abstract class MarkovUtil {
         final boolean d = LOG.isDebugEnabled();
         
         final Map<Integer, MarkovGraphsContainer> ret = new HashMap<Integer, MarkovGraphsContainer>();
-        final String className = MarkovGraphsContainer.class.getSimpleName();
         final File file = new File(input_path);
-        LOG.info(String.format("Loading in serialized %s from '%s' [procedures=%s, ids=%s]", className, file.getName(), procedures, ids));
+        LOG.info(String.format("Loading in serialized MarkovGraphContainers from '%s' [procedures=%s, ids=%s]", file.getName(), procedures, ids));
         
         try {
             // File Format: One PartitionId per line, each with its own MarkovGraphsContainer 
@@ -405,23 +440,35 @@ public abstract class MarkovUtil {
                 // Otherwise check whether this is a line number that we care about
                 } else if (line_xref.containsKey(Integer.valueOf(line_ctr))) {
                     final Integer partition = line_xref.remove(Integer.valueOf(line_ctr));
-                    MarkovGraphsContainer markovs = new MarkovGraphsContainer(procedures);
-                    JSONObject json_object = new JSONObject(line);
-                    if (d) LOG.debug("Populating MarkovGraphsContainer for partition " + partition);
-                    markovs.fromJSON(json_object.getJSONObject(partition.toString()), catalog_db);
+                    final JSONObject json_object = new JSONObject(line).getJSONObject(partition.toString());
+                    
+                    // We should be able to get the classname of the container from JSON
+                    String className = MarkovGraphsContainer.class.getCanonicalName();
+                    if (json_object.has(MarkovGraphsContainer.Members.CLASSNAME.name())) {
+                        className = json_object.getString(MarkovGraphsContainer.Members.CLASSNAME.name());    
+//                    } else {
+//                        assert(false) : "Missing class name: " + CollectionUtil.toList(json_object.keys());
+                    }
+                    MarkovGraphsContainer markovs = ClassUtil.newInstance(className,
+                                                                          new Object[]{ procedures},
+                                                                          new Class<?>[]{ Collection.class }); 
+                    assert(markovs != null);
+                    
+                    if (d) LOG.debug(String.format("Populating %s for partition %d", className, partition));
+                    markovs.fromJSON(json_object, catalog_db);
                     ret.put(partition, markovs);        
                     
                     if (line_xref.isEmpty()) break;
                 }
                 line_ctr++;
             } // WHILE
-            if (line_ctr == 0) throw new IOException("The " + className + " file '" + input_path + "' is empty");
+            if (line_ctr == 0) throw new IOException("The MarkovGraphsContainer file '" + input_path + "' is empty");
             
         } catch (Exception ex) {
-            LOG.error("Failed to deserialize the " + className + " from file '" + input_path + "'", ex);
+            LOG.error("Failed to deserialize the MarkovGraphsContainer from file '" + input_path + "'", ex);
             throw new IOException(ex);
         }
-        if (d) LOG.debug("The loading of the " + className + " is complete");
+        if (d) LOG.debug("The loading of the MarkovGraphsContainer is complete");
         return (ret);
     }
     
@@ -431,7 +478,7 @@ public abstract class MarkovUtil {
      * @param output_path
      * @throws Exception
      */
-    public static void save(Map<Integer, MarkovGraphsContainer> markovs, String output_path) throws Exception {
+    public static void save(Map<Integer, ? extends MarkovGraphsContainer> markovs, String output_path) throws Exception {
         final String className = MarkovGraphsContainer.class.getSimpleName();
         LOG.info("Writing out graphs of " + className + " to '" + output_path + "'");
         
@@ -479,6 +526,20 @@ public abstract class MarkovUtil {
      * @throws Exception
      */
     public static GraphvizExport<Vertex, Edge> exportGraphviz(MarkovGraph markov, boolean use_full_output, List<Edge> path) {
+        return MarkovUtil.exportGraphviz(markov, use_full_output, false, path);
+    }
+    
+    /**
+     * Return a GraphvizExport handle for the given MarkovGraph.
+     * This will highlight all of the special vertices
+     * @param markov
+     * @param use_full_output - Whether to use the full debug information for vertex labels
+     * @param use_vldb_output - Whether to use labels for paper figures
+     * @param path - A path to highlight (can be null)
+     * @return
+     * @throws Exception
+     */
+    public static GraphvizExport<Vertex, Edge> exportGraphviz(MarkovGraph markov, boolean use_full_output, boolean use_vldb_output, List<Edge> path) {
         GraphvizExport<Vertex, Edge> graphviz = new GraphvizExport<Vertex, Edge>(markov);
         graphviz.setEdgeLabels(true);
         graphviz.getGlobalGraphAttributes().put(Attributes.PACK, "true");
@@ -505,51 +566,56 @@ public abstract class MarkovUtil {
         // Highlight Path
         if (path != null) graphviz.highlightPath(path, "red");
         
-        // Full Debug Output
-        if (use_full_output) {
+        if (use_vldb_output || use_full_output) {
             final String empty_set = "\u2205";
-            
             for (Vertex v0 : markov.getVertices()) {
                 String label = "";
-                
-                if (v0.isAbortVertex()) {
-                    label = "abort";
-                } else if (v0.isStartVertex()) {
-                    label = "begin";
-                } else if (v0.isCommitVertex()) {
-                    label = "commit";
+            
+                // VLDB Figure Output
+                if (use_vldb_output) {
+                    if (v0.isAbortVertex()) {
+                        label = "abort";
+                    } else if (v0.isStartVertex()) {
+                        label = "begin";
+                    } else if (v0.isCommitVertex()) {
+                        label = "commit";
+                    } else {
+                        String name = v0.getCatalogItem().getName();
+                        name = StringUtil.title(name.replace("_", " "), true).replace(" ", "");
+                        
+                        label = name + "\n";
+                        label += "Counter: " + v0.getQueryInstanceIndex() + "\n";
+                        
+                        label += "Partitions: ";
+                        if (v0.getPartitions().isEmpty()) {
+                            label += empty_set;
+                        } else {
+                            label += "{ ";
+                            String add = "";
+                            for (Integer p : v0.getPartitions()) {
+                                label += add + p;
+                                add = ", ";
+                            } // FOR
+                            label += " }";
+                        }
+                        label += "\n";
+                        
+                        label += "Previous: ";
+                        if (v0.getPastPartitions().isEmpty()) {
+                            label += empty_set;
+                        } else {
+                            label += "{ ";
+                            String add = "";
+                            for (Integer p : v0.getPastPartitions()) {
+                                label += add + p;
+                                add = ", ";
+                            } // FOR
+                            label += " }";
+                        }
+                    }
                 } else {
-                    label = v0.getCatalogItem().getName() + "\n";
-                    label += "Counter: " + v0.getQueryInstanceIndex() + "\n";
-                    
-                    label += "Partitions: ";
-                    if (v0.getPartitions().isEmpty()) {
-                        label += empty_set;
-                    } else {
-                        label += "{ ";
-                        String add = "";
-                        for (Integer p : v0.getPartitions()) {
-                            label += add + p;
-                            add = ", ";
-                        } // FOR
-                        label += " }";
-                    }
-                    label += "\n";
-                    
-                    label += "Previous: ";
-                    if (v0.getPastPartitions().isEmpty()) {
-                        label += empty_set;
-                    } else {
-                        label += "{ ";
-                        String add = "";
-                        for (Integer p : v0.getPastPartitions()) {
-                            label += add + p;
-                            add = ", ";
-                        } // FOR
-                        label += " }";
-                    }
+                    label = v0.debug();
                 }
-                label = v0.debug();
                 graphviz.getAttributes(v0).put(Attributes.LABEL, label.replace("\n", "\\n"));
             } // FOR
         }

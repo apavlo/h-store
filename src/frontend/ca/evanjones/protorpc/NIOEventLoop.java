@@ -138,6 +138,10 @@ public class NIOEventLoop implements EventLoop {
                 assert callback == key.attachment();
             }
             key.interestOps(key.interestOps() | operation);
+            // TODO: This fixes a synchronization issue where one thread changes the interest set
+            // of a thread while another thread is blocked in select(), because the Selector
+            // documentation states that it waits for events registered "as of the moment that the
+            // selection operation began. Is there a better fix?
             selector.wakeup();
         } else {
             register(channel, operation, callback);

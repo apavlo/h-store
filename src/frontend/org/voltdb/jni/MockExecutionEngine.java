@@ -19,6 +19,7 @@ package org.voltdb.jni;
 
 import org.voltdb.*;
 import org.voltdb.VoltTable.ColumnInfo;
+import org.voltdb.catalog.Table;
 import org.voltdb.elt.ELTProtoMessage;
 import org.voltdb.exceptions.EEException;
 import org.voltdb.utils.DBBPool.BBContainer;
@@ -110,7 +111,7 @@ public class MockExecutionEngine extends ExecutionEngine {
     }
 
     @Override
-    public VoltTable serializeTable(final int tableId) throws EEException {
+    public VoltTable serializeTable(final Table catalog_tbl, int offset, int limit) throws EEException {
         // TODO Auto-generated method stub
         return null;
     }

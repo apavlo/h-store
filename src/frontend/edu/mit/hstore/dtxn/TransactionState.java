@@ -30,7 +30,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.log4j.Logger;
@@ -42,7 +41,6 @@ import org.voltdb.messaging.FragmentTaskMessage;
 import com.google.protobuf.RpcCallback;
 
 import edu.brown.utils.Poolable;
-import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.StringUtil;
 import edu.mit.dtxn.Dtxn;
 
@@ -50,13 +48,13 @@ import edu.mit.dtxn.Dtxn;
  * @author pavlo
  */
 public abstract class TransactionState implements Poolable {
-    protected static final Logger LOG = Logger.getLogger(TransactionState.class);
-    private final static AtomicBoolean debug = new AtomicBoolean(LOG.isDebugEnabled());
-    private final static AtomicBoolean trace = new AtomicBoolean(LOG.isTraceEnabled());
-    static {
-        LoggerUtil.attachObserver(LOG, debug, trace);
-    }
-    
+    private static final Logger LOG = Logger.getLogger(TransactionState.class);
+    private static final boolean d = LOG.isDebugEnabled();
+    private static final boolean t = LOG.isTraceEnabled();
+
+    /**
+     * Internal state for the transaction
+     */
     protected enum RoundState {
         NULL,
         INITIALIZED,
@@ -83,17 +81,26 @@ public abstract class TransactionState implements Poolable {
     // INVOCATION DATA MEMBERS
     // ----------------------------------------------------------------------------
     
-    protected long txn_id;
+    protected long txn_id = -1;
     protected long client_handle;
-    protected int source_partition;
+    protected int base_partition;
     protected final Set<Integer> touched_partitions = new HashSet<Integer>();
     protected boolean exec_local;
-    protected boolean single_partitioned;
     protected Long last_undo_token;
     protected RoundState round_state;
     protected int round_ctr = 0;
     protected RuntimeException pending_error;
     protected Long finished_timestamp;
+    
+    /**
+     * Whether we predict that this txn will be read-only
+     */
+    protected boolean predict_read_only = false;
+    
+    /**
+     * Whether this transaction has been read-only so far
+     */
+    protected boolean exec_read_only = true;
 
     /**
      * Whether this Transaction has submitted work to the EE that needs to be rolled back
@@ -134,21 +141,29 @@ public abstract class TransactionState implements Poolable {
      * @param client_handle
      * @param exec_local
      */
-    protected final TransactionState init(long txn_id, long client_handle, int source_partition, boolean exec_local) {
+    protected final TransactionState init(long txn_id, long client_handle, int base_partition, boolean exec_local) {
         this.txn_id = txn_id;
         this.client_handle = client_handle;
-        this.source_partition = source_partition;
+        this.base_partition = base_partition;
         this.exec_local = exec_local;
         this.round_state = RoundState.NULL;
         return (this);
     }
 
+    @Override
+    public boolean isInitialized() {
+        return (this.txn_id != -1);
+    }
+    
     /**
      * Should be called once the TransactionState is finished and is
      * being returned to the pool
      */
     @Override
     public void finish() {
+        this.txn_id = -1;
+        this.predict_read_only = false;
+        this.exec_read_only = true;
         this.finished_timestamp = null;
         this.submitted_to_ee = false;
         this.pending_error = null;
@@ -193,8 +208,8 @@ public abstract class TransactionState implements Poolable {
         this.round_state = RoundState.INITIALIZED;
         this.pending_error = null;
         
-        if (debug.get()) LOG.debug(String.format("Initializing new round information for %s local txn #%d [undoToken=%d]",
-                                                 (this.exec_local ? "" : "non-"), this.txn_id, undoToken));
+        if (d) LOG.debug(String.format("Initializing new round information for %s local txn #%d [undoToken=%d]",
+                                       (this.exec_local ? "" : "non-"), this.txn_id, undoToken));
     }
     
     /**
@@ -207,7 +222,7 @@ public abstract class TransactionState implements Poolable {
         
         this.round_state = RoundState.STARTED;
         
-        if (debug.get()) LOG.debug("Starting round for local txn #" + this.txn_id);
+        if (d) LOG.debug("Starting round for local txn #" + this.txn_id);
     }
     
     /**
@@ -226,6 +241,10 @@ public abstract class TransactionState implements Poolable {
     // GENERAL METHODS
     // ----------------------------------------------------------------------------
 
+    public int getCurrentRound() {
+        return (this.round_ctr);
+    }
+    
     /**
      * 
      */
@@ -246,7 +265,7 @@ public abstract class TransactionState implements Poolable {
     public synchronized void setPendingError(RuntimeException error) {
         assert(error != null) : "Trying to set a null error for txn #" + this.txn_id;
         if (this.pending_error == null) {
-            if (debug.get()) LOG.debug("Got error for txn #" + this.txn_id + ". Aborting...");
+            if (d) LOG.debug("Got error for txn #" + this.txn_id + ". Aborting...");
             this.pending_error = error;
         }
     }
@@ -309,6 +328,20 @@ public abstract class TransactionState implements Poolable {
         return this.last_undo_token;
     }
     
+    public void setPredictReadOnly(boolean read_only) {
+        this.predict_read_only = read_only;
+    }
+    public boolean isPredictReadOnly() {
+        return (this.predict_read_only);
+    }
+    
+    public void setExecReadOnly(boolean read_only) {
+        this.exec_read_only = read_only;
+    }
+    public boolean isExecReadOnly() {
+        return (this.exec_read_only);
+    }
+    
     /**
      * @return the client_handle
      */
@@ -316,20 +349,20 @@ public abstract class TransactionState implements Poolable {
         return this.client_handle;
     }
     public boolean getHStoreSiteDone() {
-        if (trace.get()) LOG.trace(String.format("Txn #%d - Returning HStoreSite done [val=%s, hash=%d]", this.txn_id, this.hstore_site_done, this.hashCode()));
+        if (t) LOG.trace(String.format("Txn #%d - Returning HStoreSite done [val=%s, hash=%d]", this.txn_id, this.hstore_site_done, this.hashCode()));
         return (this.hstore_site_done);
     }
     public void setHStoreSiteDone(boolean val) {
         this.hstore_site_done = val;
-        if (trace.get()) LOG.trace(String.format("Txn #%d - Setting HStoreSite done [val=%s, hash=%d]", this.txn_id, this.hstore_site_done, this.hashCode()));
+        if (t) LOG.trace(String.format("Txn #%d - Setting HStoreSite done [val=%s, hash=%d]", this.txn_id, this.hstore_site_done, this.hashCode()));
     }
     
     /**
-     * 
+     * Get the base PartitionId where this txn's Java code is executing on
      * @return
      */
-    public int getSourcePartition() {
-        return source_partition;
+    public int getBasePartition() {
+        return base_partition;
     }
     
     /**
@@ -356,7 +389,7 @@ public abstract class TransactionState implements Poolable {
      */
     public void setFragmentTaskCallback(FragmentTaskMessage ftask, RpcCallback<Dtxn.FragmentResponse> callback) {
         assert(callback != null) : "Null callback for txn #" + this.txn_id;
-        if (trace.get()) LOG.trace("Storing FragmentTask callback for txn #" + this.txn_id);
+        if (t) LOG.trace("Storing FragmentTask callback for txn #" + this.txn_id);
         this.fragment_callbacks.put(ftask, callback);
     }
 
@@ -369,6 +402,7 @@ public abstract class TransactionState implements Poolable {
         Map<String, Object> m = new ListOrderedMap<String, Object>();
         m.put("Transaction #", this.txn_id);
         m.put("Current Round State", this.round_state);
+        m.put("Read-Only", this.exec_read_only);
         m.put("FragmentTask Callbacks", this.fragment_callbacks.size());
         m.put("Executing Locally", this.exec_local);
         m.put("Local Partition", this.executor.getPartitionId());

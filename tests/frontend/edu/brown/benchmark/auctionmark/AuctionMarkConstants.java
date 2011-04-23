@@ -149,42 +149,42 @@ public abstract class AuctionMarkConstants {
     // ----------------------------------------------------------------
     // DEFAULT BATCH SIZES
     // ----------------------------------------------------------------
-    public static final long BATCHSIZE_REGION = 50;
-    public static final long BATCHSIZE_GLOBAL_ATTRIBUTE_GROUP = 50;
-    public static final long BATCHSIZE_GLOBAL_ATTRIBUTE_VALUE = 50;
-    public static final long BATCHSIZE_CATEGORY = 50;
-    public static final long BATCHSIZE_USER = 50;
-    public static final long BATCHSIZE_USER_ATTRIBUTES = 50;
-    public static final long BATCHSIZE_ITEM = 50;
-    public static final long BATCHSIZE_ITEM_ATTRIBUTE = 50;
-    public static final long BATCHSIZE_ITEM_IMAGE = 50;
-    public static final long BATCHSIZE_ITEM_COMMENT = 50;
-    public static final long BATCHSIZE_ITEM_FEEDBACK = 50;
-    public static final long BATCHSIZE_ITEM_BID = 50;
-    public static final long BATCHSIZE_ITEM_MAX_BID = 50;
-    public static final long BATCHSIZE_ITEM_PURCHASE = 50;
-    public static final long BATCHSIZE_USER_ITEM = 50;
-    public static final long BATCHSIZE_USER_WATCH = 50;
+    public static final long BATCHSIZE_REGION                   = 5000;
+    public static final long BATCHSIZE_GLOBAL_ATTRIBUTE_GROUP   = 5000;
+    public static final long BATCHSIZE_GLOBAL_ATTRIBUTE_VALUE   = 5000;
+    public static final long BATCHSIZE_CATEGORY                 = 5000;
+    public static final long BATCHSIZE_USER                     = 1000;
+    public static final long BATCHSIZE_USER_ATTRIBUTES          = 5000;
+    public static final long BATCHSIZE_ITEM                     = 1000;
+    public static final long BATCHSIZE_ITEM_ATTRIBUTE           = 5000;
+    public static final long BATCHSIZE_ITEM_IMAGE               = 5000;
+    public static final long BATCHSIZE_ITEM_COMMENT             = 1000;
+    public static final long BATCHSIZE_ITEM_FEEDBACK            = 1000;
+    public static final long BATCHSIZE_ITEM_BID                 = 5000;
+    public static final long BATCHSIZE_ITEM_MAX_BID             = 5000;
+    public static final long BATCHSIZE_ITEM_PURCHASE            = 5000;
+    public static final long BATCHSIZE_USER_ITEM                = 5000;
+    public static final long BATCHSIZE_USER_WATCH               = 5000;
     
     // ----------------------------------------------------------------
     // TABLE NAMES
     // ----------------------------------------------------------------
-    public static final String TABLENAME_REGION = "REGION";
-    public static final String TABLENAME_USER = "USER";
-    public static final String TABLENAME_USER_ATTRIBUTES = "USER_ATTRIBUTES";
-    public static final String TABLENAME_USER_ITEM = "USER_ITEM";
-    public static final String TABLENAME_USER_WATCH = "USER_WATCH";
-    public static final String TABLENAME_CATEGORY = "CATEGORY";
+    public static final String TABLENAME_REGION                 = "REGION";
+    public static final String TABLENAME_USER                   = "USER";
+    public static final String TABLENAME_USER_ATTRIBUTES        = "USER_ATTRIBUTES";
+    public static final String TABLENAME_USER_ITEM              = "USER_ITEM";
+    public static final String TABLENAME_USER_WATCH             = "USER_WATCH";
+    public static final String TABLENAME_CATEGORY               = "CATEGORY";
     public static final String TABLENAME_GLOBAL_ATTRIBUTE_GROUP = "GLOBAL_ATTRIBUTE_GROUP";
     public static final String TABLENAME_GLOBAL_ATTRIBUTE_VALUE = "GLOBAL_ATTRIBUTE_VALUE";
-    public static final String TABLENAME_ITEM = "ITEM";
-    public static final String TABLENAME_ITEM_ATTRIBUTE = "ITEM_ATTRIBUTE";
-    public static final String TABLENAME_ITEM_IMAGE = "ITEM_IMAGE";
-    public static final String TABLENAME_ITEM_COMMENT = "ITEM_COMMENT";
-    public static final String TABLENAME_ITEM_FEEDBACK = "ITEM_FEEDBACK";
-    public static final String TABLENAME_ITEM_BID = "ITEM_BID";
-    public static final String TABLENAME_ITEM_MAX_BID = "ITEM_MAX_BID";
-    public static final String TABLENAME_ITEM_PURCHASE = "ITEM_PURCHASE";
+    public static final String TABLENAME_ITEM                   = "ITEM";
+    public static final String TABLENAME_ITEM_ATTRIBUTE         = "ITEM_ATTRIBUTE";
+    public static final String TABLENAME_ITEM_IMAGE             = "ITEM_IMAGE";
+    public static final String TABLENAME_ITEM_COMMENT           = "ITEM_COMMENT";
+    public static final String TABLENAME_ITEM_FEEDBACK          = "ITEM_FEEDBACK";
+    public static final String TABLENAME_ITEM_BID               = "ITEM_BID";
+    public static final String TABLENAME_ITEM_MAX_BID           = "ITEM_MAX_BID";
+    public static final String TABLENAME_ITEM_PURCHASE          = "ITEM_PURCHASE";
 
     public static final String TABLENAMES[] = {
         AuctionMarkConstants.TABLENAME_REGION,

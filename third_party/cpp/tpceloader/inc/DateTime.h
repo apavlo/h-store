@@ -1,9 +1,9 @@
 /*
  * Legal Notice
  *
- * This document and associated source code (the "Work") is a preliminary
- * version of a benchmark specification being developed by the TPC. The
- * Work is being made available to the public for review and comment only.
+ * This document and associated source code (the "Work") is a part of a
+ * benchmark specification maintained by the TPC.
+ *
  * The TPC reserves all right, title, and interest to the Work as provided
  * under U.S. and international laws, including without limitation all patent
  * and trademark rights therein.
@@ -63,6 +63,26 @@ typedef struct tagTIMESTAMP_STRUCT
         UINT32   fraction;
 } TIMESTAMP_STRUCT;
 
+// Date/Time constants
+const double    NsPerSecondDivisor      = 1000000000.0;
+const INT32     NsPerSecond             = 1000000000;
+const double    MsPerSecondDivisor      = 1000.000;
+const INT32     MsPerSecond             = 1000;
+const INT32     SecondsPerMinute        = 60;
+const INT32     MinutesPerHour          = 60;
+const INT32     HoursPerDay             = 24;
+const INT32     HoursPerWorkDay         = 8;
+const INT32     DaysPerWorkWeek         = 5;
+const INT32     DaysPerWeek             = 7;
+
+const INT32     SecondsPerHour      = SecondsPerMinute * MinutesPerHour;
+const INT32     SecondsPerDay       = SecondsPerMinute * MinutesPerHour * HoursPerDay;
+const INT32     SecondsPerWorkDay   = SecondsPerMinute * MinutesPerHour * HoursPerWorkDay;
+const INT32     MsPerDay            = SecondsPerDay * MsPerSecond;
+const INT32     MsPerWorkDay        = SecondsPerWorkDay * MsPerSecond;
+
+#define RoundToNearestNsec(d_Seconds)     (( (INT64)( ( (d_Seconds) * NsPerSecond) + 0.5)) / NsPerSecondDivisor)
+
 class CDateTime
 {
 private:
@@ -89,8 +109,8 @@ public:
     void Set(INT32 year, INT32 month, INT32 day, INT32 hour, INT32 minute, INT32 second, INT32 msec);
     void SetHMS(INT32 hour, INT32 minute, INT32 second, INT32 msec);
 
-    inline INT32 DayNo(void) { return m_dayno; };
-    inline INT32 MSec(void) { return m_msec; };
+    inline UINT32 DayNo(void) { return (UINT32)m_dayno; };
+    inline UINT32 MSec(void) { return (UINT32)m_msec; };
     void GetYMD(INT32* year, INT32* month, INT32* day);
     void GetYMDHMS(INT32* year, INT32* month, INT32* day, INT32* hour, INT32* minute, INT32* second, INT32* msec);
     void GetHMS(INT32* hour, INT32* minute, INT32* second, INT32* msec);

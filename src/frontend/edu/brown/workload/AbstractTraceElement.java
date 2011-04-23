@@ -67,7 +67,7 @@ public abstract class AbstractTraceElement<T extends CatalogType> implements JSO
     protected Long stop_timestamp; 
     protected Object params[];
     protected String catalog_item_name;
-    protected Boolean aborted = false;
+    protected boolean aborted = false;
     
     public static void setStartingId(long id) {
         AbstractTraceElement.NEXT_ID.set(id);

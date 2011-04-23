@@ -1,9 +1,9 @@
 /*
  * Legal Notice
  *
- * This document and associated source code (the "Work") is a preliminary
- * version of a benchmark specification being developed by the TPC. The
- * Work is being made available to the public for review and comment only.
+ * This document and associated source code (the "Work") is a part of a
+ * benchmark specification maintained by the TPC.
+ *
  * The TPC reserves all right, title, and interest to the Work as provided
  * under U.S. and international laws, including without limitation all patent
  * and trademark rights therein.
@@ -104,6 +104,7 @@ public:
             strncpy(Frame2Input.exec_tax_id, pTxnInput->exec_tax_id, sizeof(Frame2Input.exec_tax_id));
 
             m_db->DoTradeOrderFrame2(&Frame2Input, &Frame2Output);
+            pTxnOutput->status = Frame2Output.status;
 
             if (Frame2Output.ap_acl[0] == '\0')
             {   //Frame 2 found unauthorized executor
@@ -112,7 +113,6 @@ public:
                 return;
             }
 
-            pTxnOutput->status = Frame2Output.status;
         }
 
         //Init Frame 3 input params
@@ -147,7 +147,7 @@ public:
         // round up for correct precision (cents only)
         Frame4Input.comm_amount = (double)((int)(100.00 * Frame4Input.comm_amount + 0.5)) / 100.00;
 
-        sprintf(Frame4Input.exec_name, "%s %s", pTxnInput->exec_f_name, pTxnInput->exec_l_name);
+        snprintf(Frame4Input.exec_name, sizeof(Frame4Input.exec_name), "%s %s", pTxnInput->exec_f_name, pTxnInput->exec_l_name);
         Frame4Input.is_cash = !Frame3Input.type_is_margin;
         Frame4Input.is_lifo = pTxnInput->is_lifo;
         Frame4Input.requested_price = Frame3Output.requested_price;
@@ -193,6 +193,20 @@ public:
             m_pSendToMarket->SendToMarketFromHarness(TradeRequestForMEE); // maybe should check the return code here
         }
 
+        if (   Frame3Output.sell_value > Frame3Output.buy_value
+            && ((Frame3Input.tax_status == 1) || (Frame3Input.tax_status == 2))
+            && Frame3Output.tax_amount == 0.00)
+        {
+            pTxnOutput->status = -731;
+        }
+        else if (Frame3Output.comm_rate == 0.0000)
+        {
+            pTxnOutput->status = -732;
+        }
+        else if (Frame3Output.charge_amount == 0.00)
+        {
+            pTxnOutput->status = -733;
+        }
     }
 };
 

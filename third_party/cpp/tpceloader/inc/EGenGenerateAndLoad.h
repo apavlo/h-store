@@ -1,9 +1,9 @@
 /*
  * Legal Notice
  *
- * This document and associated source code (the "Work") is a preliminary
- * version of a benchmark specification being developed by the TPC. The
- * Work is being made available to the public for review and comment only.
+ * This document and associated source code (the "Work") is a part of a
+ * benchmark specification maintained by the TPC.
+ *
  * The TPC reserves all right, title, and interest to the Work as provided
  * under U.S. and international laws, including without limitation all patent
  * and trademark rights therein.
@@ -64,11 +64,11 @@ class CGenerateAndLoad
     // Total number of customers in the database
     TIdent                      m_iTotalCustomers;
     // Number of customers in one load unit for generating initial trades
-    int                         m_iLoadUnitSize;
+    UINT                        m_iLoadUnitSize;
     // Number of customers per 1 tpsE
-    int                         m_iScaleFactor;
+    UINT                        m_iScaleFactor;
     // Time period for which to generate initial trades
-    int                         m_iHoursOfInitialTrades;
+    UINT                        m_iHoursOfInitialTrades;
     // External loader factory to create table loaders
     CBaseLoaderFactory*         m_pLoaderFactory;
     // External class used to output load progress
@@ -79,10 +79,8 @@ class CGenerateAndLoad
     CBaseLogger*                m_pLogger;
     // Parameter instance
     CLoaderSettings             m_LoaderSettings;
-    
-    // Mapping from table name to Generate method
-    typedef void(CGenerateAndLoad::* func_ptr)();
-    map<string, func_ptr>       m_generators;
+    // Whether to use cache when generating initial population
+    bool                        m_bCacheEnabled;
 
 public:
     /*
@@ -100,32 +98,24 @@ public:
     *           IN  pLogger             - parameter logging interface
     *           IN  pOutput             - interface to output information to a user during the build process
     *           IN  szInDir             - input flat file directory needed for tables loaded from flat files
+    *           IN  bCacheEnabled           - whether or not to use caching during data generation
     *
     *  RETURNS:
     *           not applicable.
     */
     CGenerateAndLoad(CInputFiles                inputFiles,
-                    TIdent                      iCustomerCount,
-                    TIdent                      iStartFromCustomer,
-                    TIdent                      iTotalCustomers,
-                    int                         iLoadUnitSize,
-                    int                         iScaleFactor,
-                    int                         iDaysOfInitialTrades,
-                    CBaseLoaderFactory*         pLoaderFactory,
-                    CBaseLogger*                pLogger,
-                    CGenerateAndLoadBaseOutput* pOutput,
-                    char*                       szInDir);   // directory for input flat files
-
-
-    /*
-     *
-     *
-     *
-     */
-    func_ptr getGenerateFunction(const string table) {
-        func_ptr ptr = m_generators[table];
-        return (ptr);
-    }
+                     TIdent                      iCustomerCount,
+                     TIdent                      iStartFromCustomer,
+                     TIdent                      iTotalCustomers,
+                     UINT                        iLoadUnitSize,
+                     UINT                        iScaleFactor,
+                     UINT                        iDaysOfInitialTrades,
+                     CBaseLoaderFactory*         pLoaderFactory,
+                     CBaseLogger*                pLogger,
+                     CGenerateAndLoadBaseOutput* pOutput,
+                     char*                       szInDir,
+                     bool                        bCacheEnabled = false
+                    );
 
     /*
     *   Generate and load ADDRESS table.
@@ -246,7 +236,7 @@ public:
     *   RETURNS:
     *           none.
     */
-    void GenerateAndLoadHoldingAndTrade(set<string> targetTables);
+    void GenerateAndLoadHoldingAndTrade();
     /*
     *   Generate and load INDUSTRY table.
     *
@@ -347,86 +337,6 @@ public:
     *           none.
     */
     void GenerateAndLoadZipCode();
-        /*
-    *   Generate and load HOLDING table.
-    *
-    *   PARAMETERS:
-    *           none.
-    *
-    *   RETURNS:
-    *           none.
-    */
-    void GenerateAndLoadHolding();
-    /*
-    *   Generate and load HOLDING_HISTORY table.
-    *
-    *   PARAMETERS:
-    *           none.
-    *
-    *   RETURNS:
-    *           none.
-    */
-    void GenerateAndLoadHoldingHistory();
-    /*
-    *   Generate and load HOLDING_SUMMARY table.
-    *
-    *   PARAMETERS:
-    *           none.
-    *
-    *   RETURNS:
-    *           none.
-    */
-    void GenerateAndLoadHoldingSummary();
-    /*
-    *   Generate and load TRADE table.
-    *
-    *   PARAMETERS:
-    *           none.
-    *
-    *   RETURNS:
-    *           none.
-    */
-    void GenerateAndLoadTrade();
-    /*
-    *   Generate and load TRADE_HISTORY table.
-    *
-    *   PARAMETERS:
-    *           none.
-    *
-    *   RETURNS:
-    *           none.
-    */
-    void GenerateAndLoadTradeHistory();
-    /*
-    *   Generate and load SETTLEMENT table.
-    *
-    *   PARAMETERS:
-    *           none.
-    *
-    *   RETURNS:
-    *           none.
-    */
-    void GenerateAndLoadSettlement();
-    /*
-    *   Generate and load CASH_TRANSACTION table.
-    *
-    *   PARAMETERS:
-    *           none.
-    *
-    *   RETURNS:
-    *           none.
-    */
-    void GenerateAndLoadCashTransaction();
-    /*
-    *   Generate and load BROKER table.
-    *
-    *   PARAMETERS:
-    *           none.
-    *
-    *   RETURNS:
-    *           none.
-    */
-    void GenerateAndLoadBroker();
 
     /*
     *   Generate and load All tables that are constant in size.

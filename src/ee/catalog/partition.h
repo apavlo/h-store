@@ -40,6 +40,7 @@ protected:
 
     int32_t m_id;
     int32_t m_dtxn_port;
+    int32_t m_engine_port;
 
     virtual void update();
 
@@ -50,8 +51,10 @@ protected:
 public:
     /** GETTER: Partition id */
     int32_t id() const;
-    /** GETTER: Port used by DTXN ProtoEngine */
+    /** GETTER: Port used for DTXN.Coordinator to communicate to the ProtoEngine */
     int32_t dtxn_port() const;
+    /** GETTER: Port used for HStoreSite to communicate to the ProtoEngine */
+    int32_t engine_port() const;
 };
 
 } // namespace catalog

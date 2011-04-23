@@ -29,6 +29,7 @@ public class PlanFragment extends CatalogType {
     int m_id;
     boolean m_hasdependencies;
     boolean m_multipartition;
+    boolean m_readonly;
     String m_plannodetree = new String();
     boolean m_nontransactional;
 
@@ -37,6 +38,7 @@ public class PlanFragment extends CatalogType {
         this.addField("id", m_id);
         this.addField("hasdependencies", m_hasdependencies);
         this.addField("multipartition", m_multipartition);
+        this.addField("readonly", m_readonly);
         this.addField("plannodetree", m_plannodetree);
         this.addField("nontransactional", m_nontransactional);
     }
@@ -45,6 +47,7 @@ public class PlanFragment extends CatalogType {
         m_id = (Integer) m_fields.get("id");
         m_hasdependencies = (Boolean) m_fields.get("hasdependencies");
         m_multipartition = (Boolean) m_fields.get("multipartition");
+        m_readonly = (Boolean) m_fields.get("readonly");
         m_plannodetree = (String) m_fields.get("plannodetree");
         m_nontransactional = (Boolean) m_fields.get("nontransactional");
     }
@@ -62,6 +65,11 @@ public class PlanFragment extends CatalogType {
     /** GETTER: Should this plan fragment be sent to all partitions */
     public boolean getMultipartition() {
         return m_multipartition;
+    }
+
+    /** GETTER: Whether this PlanFragment is read only */
+    public boolean getReadonly() {
+        return m_readonly;
     }
 
     /** GETTER: A serialized representation of the plan-graph/plan-pipeline */
@@ -87,6 +95,11 @@ public class PlanFragment extends CatalogType {
     /** SETTER: Should this plan fragment be sent to all partitions */
     public void setMultipartition(boolean value) {
         m_multipartition = value; m_fields.put("multipartition", value);
+    }
+
+    /** SETTER: Whether this PlanFragment is read only */
+    public void setReadonly(boolean value) {
+        m_readonly = value; m_fields.put("readonly", value);
     }
 
     /** SETTER: A serialized representation of the plan-graph/plan-pipeline */

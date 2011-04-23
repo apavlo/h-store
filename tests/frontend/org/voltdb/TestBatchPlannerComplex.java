@@ -11,10 +11,8 @@ import java.util.Set;
 import org.voltdb.benchmark.tpcc.procedures.neworder;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Statement;
-import org.voltdb.exceptions.MispredictionException;
 
 import edu.brown.BaseTestCase;
-import edu.brown.catalog.CatalogUtil;
 import edu.brown.utils.ClassUtil;
 import edu.brown.utils.ProjectType;
 import edu.brown.workload.QueryTrace;
@@ -94,7 +92,7 @@ public class TestBatchPlannerComplex extends BaseTestCase {
         VoltProcedure volt_proc = ClassUtil.newInstance(TARGET_PROCEDURE, new Object[0], new Class<?>[0]);
         assert(volt_proc != null);
         this.executor = new MockExecutionSite(BASE_PARTITION, catalog, p_estimator);
-        volt_proc.init(this.executor, catalog_proc, BackendTarget.NONE, null, CatalogUtil.getCluster(catalog_proc), p_estimator, BASE_PARTITION);
+        volt_proc.globalInit(this.executor, catalog_proc, BackendTarget.NONE, null, p_estimator, BASE_PARTITION);
     }
     
     /**
@@ -119,7 +117,7 @@ public class TestBatchPlannerComplex extends BaseTestCase {
                 batches[i][ii] = statements.get(ii);
             } // FOR
             hashes[i] = VoltProcedure.getBatchHashCode(batches[i], batch_size);
-            this.executor.batch_planners.put(hashes[i], new BatchPlanner(batches[i], catalog_proc, p_estimator));
+            ExecutionSite.batch_planners.put(hashes[i], new BatchPlanner(batches[i], catalog_proc, p_estimator));
         } // FOR
         
         for (int i = 0; i < batches.length; i++) {
@@ -137,7 +135,7 @@ public class TestBatchPlannerComplex extends BaseTestCase {
             
             int hash = VoltProcedure.getBatchHashCode(batches[i], batches[i].length-1);
             assert(hashes[i] != hash);
-            assertNull(this.executor.batch_planners.get(hash));
+            assertNull(ExecutionSite.batch_planners.get(hash));
         } // FOR
     }
     
@@ -158,15 +156,9 @@ public class TestBatchPlannerComplex extends BaseTestCase {
         
         // Ask the planner to plan a multi-partition transaction where we have predicted it
         // as single-partitioned. It should throw a nice MispredictionException
-        BatchPlanner.BatchPlan plan = null;
-        boolean caught = false;
-        try {
-            plan = batchPlan.plan(TXN_ID, CLIENT_HANDLE, BASE_PARTITION+1, args[TARGET_BATCH], true);
-        } catch (MispredictionException ex) {
-            caught = true;
-        }
+        BatchPlanner.BatchPlan plan = batchPlan.plan(TXN_ID, CLIENT_HANDLE, BASE_PARTITION+1, args[TARGET_BATCH], true);
+        assert(plan.hasMisprediction());
         if (plan != null) System.err.println(plan.toString());
-        assert(caught);
     }
     
     /**

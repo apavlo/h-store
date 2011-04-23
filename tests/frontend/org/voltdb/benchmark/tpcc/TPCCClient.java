@@ -50,6 +50,8 @@ public class TPCCClient extends org.voltdb.benchmark.ClientMain implements TPCCS
     final TPCCSimulation m_tpccSim2;
     private final ScaleParameters m_scaleParams;
 
+    private final boolean crash_on_error = true;
+    
     private static class ForeignKeyConstraints implements Expression {
         private final String m_table;
 
@@ -211,7 +213,7 @@ public class TPCCClient extends org.voltdb.benchmark.ClientMain implements TPCCS
             Clock clock,
             ScaleParameters params)
     {
-        this(client, generator, clock, params, 0.0d);
+        this(client, generator, clock, params, 0.0d, false, false, false, false, false);
     }
 
     public TPCCClient(
@@ -219,12 +221,17 @@ public class TPCCClient extends org.voltdb.benchmark.ClientMain implements TPCCS
             RandomGenerator generator,
             Clock clock,
             ScaleParameters params,
-            double skewFactor)
-    {
+            double skewFactor,
+            boolean noop,
+            boolean neworder_only,
+            boolean neworder_abort,
+            boolean neworder_multip,
+            boolean neworder_all_multip
+    ) {
         super(client);
         m_scaleParams = params;
-        m_tpccSim = new TPCCSimulation(this, generator, clock, m_scaleParams, false, skewFactor);
-        m_tpccSim2 = new TPCCSimulation(this, generator, clock, m_scaleParams, false, skewFactor);
+        m_tpccSim = new TPCCSimulation(this, generator, clock, m_scaleParams, false, skewFactor, noop, neworder_only, neworder_abort, neworder_multip, neworder_all_multip);
+        m_tpccSim2 = new TPCCSimulation(this, generator, clock, m_scaleParams, false, skewFactor, noop, neworder_only, neworder_abort, neworder_multip, neworder_all_multip);
     }
 
     /** Complies with our benchmark client remote controller scheme */
@@ -241,6 +248,11 @@ public class TPCCClient extends org.voltdb.benchmark.ClientMain implements TPCCS
         int warehouses = 1;
         double scalefactor = 1.0;
         double skewfactor = 0.0;
+        boolean noop = false;
+        boolean neworder_only = false;
+        boolean neworder_abort = false;
+        boolean neworder_multip = false;
+        boolean neworder_all_multip = false;
 
         // scan the inputs once to read everything but host names
         for (String arg : args) {
@@ -259,6 +271,21 @@ public class TPCCClient extends org.voltdb.benchmark.ClientMain implements TPCCS
             }
             else if (parts[0].equalsIgnoreCase("skewfactor") && !parts[1].isEmpty()) {
                 skewfactor = Double.parseDouble(parts[1]);
+            }
+            else if (parts[0].equalsIgnoreCase("noop") && !parts[1].isEmpty()) {
+                noop = Boolean.parseBoolean(parts[1]);
+            }
+            else if (parts[0].equalsIgnoreCase("neworder_only") && !parts[1].isEmpty()) {
+                neworder_only = Boolean.parseBoolean(parts[1]);
+            }
+            else if (parts[0].equalsIgnoreCase("neworder_abort") && !parts[1].isEmpty()) {
+                neworder_abort = Boolean.parseBoolean(parts[1]);
+            }
+            else if (parts[0].equalsIgnoreCase("neworder_multip") && !parts[1].isEmpty()) {
+                neworder_multip = Boolean.parseBoolean(parts[1]);
+            }
+            else if (parts[0].equalsIgnoreCase("neworder_all_multip") && !parts[1].isEmpty()) {
+                neworder_all_multip = Boolean.parseBoolean(parts[1]);
             }
         }
 
@@ -280,9 +307,9 @@ public class TPCCClient extends org.voltdb.benchmark.ClientMain implements TPCCS
         m_scaleParams =
             ScaleParameters.makeWithScaleFactor(warehouses, scalefactor);
         m_tpccSim =
-            new TPCCSimulation(this, rng, new Clock.RealTime(), m_scaleParams, false, skewfactor);
+            new TPCCSimulation(this, rng, new Clock.RealTime(), m_scaleParams, false, skewfactor, noop, neworder_only, neworder_abort, neworder_multip, neworder_all_multip);
         m_tpccSim2 =
-            new TPCCSimulation(this, rng2, new Clock.RealTime(), m_scaleParams, false, skewfactor);
+            new TPCCSimulation(this, rng2, new Clock.RealTime(), m_scaleParams, false, skewfactor, noop, neworder_only, neworder_abort, neworder_multip, neworder_all_multip);
 
         // Set up checking
         buildConstraints();
@@ -571,16 +598,18 @@ public class TPCCClient extends org.voltdb.benchmark.ClientMain implements TPCCS
     class DeliveryCallback implements ProcedureCallback {
         @Override
         public void clientCallback(ClientResponse clientResponse) {
-            boolean status = checkTransaction(Constants.DELIVERY, clientResponse, false, false);
-            assert status;
-            if (status && clientResponse.getResults()[0].getRowCount()
-                    != m_scaleParams.districtsPerWarehouse) {
-                    /* FIXME
-                System.err.println(
-                        "Only delivered from "
-                        + clientResponse.getResults()[0].getRowCount()
-                        + " districts.");
-                    */
+            if (crash_on_error) {
+                boolean status = checkTransaction(Constants.DELIVERY, clientResponse, false, false);
+                assert status;
+                if (status && clientResponse.getResults()[0].getRowCount()
+                        != m_scaleParams.districtsPerWarehouse) {
+                        /* FIXME
+                    System.err.println(
+                            "Only delivered from "
+                            + clientResponse.getResults()[0].getRowCount()
+                            + " districts.");
+                        */
+                }
             }
             m_counts[TPCCSimulation.Transaction.DELIVERY.ordinal()].incrementAndGet();
         }
@@ -619,8 +648,10 @@ public class TPCCClient extends org.voltdb.benchmark.ClientMain implements TPCCS
         public void clientCallback(ClientResponse clientResponse) {
             if (LOG.isDebugEnabled()) LOG.debug("clientResponse.getStatus() = " + clientResponse.getStatusName());
             
-            boolean status = checkTransaction(Constants.NEWORDER, clientResponse, cbRollback, false);
-            assert (this.cbRollback || status) : "Rollback=" + this.cbRollback + ", Status=" + clientResponse.getStatusName();
+            if (crash_on_error) {
+                boolean status = checkTransaction(Constants.NEWORDER, clientResponse, cbRollback, false);
+                assert (this.cbRollback || status) : "Rollback=" + this.cbRollback + ", Status=" + clientResponse.getStatusName();
+            }
             m_counts[TPCCSimulation.Transaction.NEW_ORDER.ordinal()].incrementAndGet();
         }
 
@@ -674,11 +705,13 @@ public class TPCCClient extends org.voltdb.benchmark.ClientMain implements TPCCS
             if (m_procedureName != null && (m_procedureName.equals(Constants.ORDER_STATUS_BY_NAME)
                 || m_procedureName.equals(Constants.ORDER_STATUS_BY_ID)))
                 abortExpected = true;
-            boolean status = checkTransaction(m_procedureName,
-                                              clientResponse,
-                                              abortExpected,
-                                              false);
-            assert status;
+            if (crash_on_error) {
+                boolean status = checkTransaction(m_procedureName,
+                                                  clientResponse,
+                                                  abortExpected,
+                                                  false);
+                assert status;
+            }
             if (m_transactionType != null) {
                 m_counts[m_transactionType.ordinal()].incrementAndGet();
             }
@@ -837,11 +870,13 @@ public class TPCCClient extends org.voltdb.benchmark.ClientMain implements TPCCS
     class StockLevelCallback implements ProcedureCallback {
         @Override
         public void clientCallback(ClientResponse clientResponse) {
-            boolean status = checkTransaction(Constants.STOCK_LEVEL,
-                                              clientResponse,
-                                              false,
-                                              false);
-            assert status;
+            if (crash_on_error) {
+                boolean status = checkTransaction(Constants.STOCK_LEVEL,
+                                                  clientResponse,
+                                                  false,
+                                                  false);
+                assert status;
+            }
             m_counts[TPCCSimulation.Transaction.STOCK_LEVEL.ordinal()].incrementAndGet();
         }
       }

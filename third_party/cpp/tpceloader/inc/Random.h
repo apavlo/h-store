@@ -1,9 +1,9 @@
 /*
  * Legal Notice
  *
- * This document and associated source code (the "Work") is a preliminary
- * version of a benchmark specification being developed by the TPC. The
- * Work is being made available to the public for review and comment only.
+ * This document and associated source code (the "Work") is a part of a
+ * benchmark specification maintained by the TPC.
+ *
  * The TPC reserves all right, title, and interest to the Work as provided
  * under U.S. and international laws, including without limitation all patent
  * and trademark rights therein.
@@ -31,13 +31,45 @@
  *     ADVANCE NOTICE OF THE POSSIBILITY OF SUCH DAMAGES.
  *
  * Contributors
- * - Sergey Vasilevskiy
+ * - Sergey Vasilevskiy, Cecil Reames, Matt Emmerton
  */
 
 #ifndef RANDOM_H
 #define RANDOM_H
 
 #include "EGenStandardTypes.h"
+#include "BigMath.h"
+#include <cmath>
+
+/*
+* Notes to Future EGen Coders:
+*
+* The Random routines have been rewritten to eliminate all uses of floating-point
+* operations, so as to improve portability of EGen across platforms and compilers.
+*
+* All Random routines now generate a random range of integer values, even if
+* those values are later converted back to floating-point for the caller.
+*
+* The same rules apply in the Random code as in the CMoney class:
+*   - It is OK to store and transport a value in a double.
+*   - It is not OK to perform calculations directly on a value in a double.
+*
+* Performing calculations directly on doubles can cause EGen subtle problems:
+*   - Rounding differences between 80-bit and 64-bit double operands.
+*   - Precision loss for large integers stored into 64-bit doubles.
+*   - Integer range operations that rarely return an output one too large.
+*   - Differences between initial database population and runtime inputs
+*     when executed on two different platforms / compilers.
+*
+* The RndDouble() and RndDoubleRange() routines are now deprecated.  The
+* RndDoubleIncrRange() routine is the replacement for these deprecated routines.
+* This routine takes a pair of range parameters, plus an increment argument.
+* It produces a range of integer values, which are converted to a discrete (not
+* continuous) range of double values.
+*
+* All integer range routines now perform 96-bit or 128-bit integer multiplication
+* with integer truncation of the lower 64 bits, thus avoiding use of RndDouble().
+*/
 
 namespace TPCE
 {
@@ -50,8 +82,12 @@ namespace TPCE
 // Independent RNG seed type.
 typedef UINT64  RNGSEED;
 
+#ifdef EGEN_USE_DEPRECATED_CODE
+
 // For efficiency, use a constant for 1/2^64.
 #define UInt64Rand_RECIPROCAL_2_POWER_64 (5.421010862427522e-20)
+
+#endif // EGEN_USE_DEPRECATED_CODE
 
 class CRandom
 {
@@ -67,14 +103,6 @@ public:
     void SetSeed(RNGSEED seed);
     inline RNGSEED GetSeed(void) { return m_seed; };
     RNGSEED RndNthElement( RNGSEED nSeed, RNGSEED nCount);
-
-    // returns a random value in the range [0 .. 0.99999999999999999994578989137572]
-    // care should be taken in casting the result as a float because of the
-    // potential loss of precision.
-    double RndDouble(void);
-
-    //return Nth element in the sequence converted to double
-    double RndNthDouble(RNGSEED Seed, RNGSEED N);
 
     // returns a random integer value in the range [min .. max]
     int RndIntRange(int min, int max);
@@ -94,8 +122,17 @@ public:
     // returns a random integer value in the range [low .. high] excluding the value (exclude)
     int RndIntRangeExclude(int low, int high, int exclude);
 
-    // returns a random float value in the range of [min .. max]
-    float RndFloatRange(float min, float max);
+#ifdef EGEN_USE_DEPRECATED_CODE
+
+    // returns a random value in the range [0 .. 0.99999999999999999994578989137572]
+    // care should be taken in casting the result as a float because of the
+    // potential loss of precision.
+    double RndDouble(void);
+
+    //return Nth element in the sequence converted to double
+    double RndNthDouble(RNGSEED Seed, RNGSEED N);
+
+#endif // EGEN_USE_DEPRECATED_CODE
 
     // returns a random double value in the range of [min .. max]
     double RndDoubleRange(double min, double max);
@@ -103,14 +140,17 @@ public:
     // returns a random double value in the range of [min .. max] with incr precision
     double RndDoubleIncrRange(double min, double max, double incr);
 
+    // returns a random double value from a negative exponential distribution with the given mean
+    double RndDoubleNegExp(double mean);
+
     // returns TRUE or FALSE, with the chance of TRUE being as specified by (percent)
     inline bool RndPercent(int percent)
         { return (RndIntRange(1, 100) <= percent); };
 
     // Returns a random integer percentage (i.e. whole number between 1 and 100, inclusive)
-    inline int RndGenerateIntegerPercentage( )
+    inline UINT RndGenerateIntegerPercentage( )
     {
-        return( RndIntRange( 1, 100 ));
+        return( (UINT) RndIntRange( 1, 100 ));
     }
 
     /* Returns a non-uniform random 64-bit integer in range of [P .. Q].
@@ -141,7 +181,6 @@ public:
     //                a - given character must be alphabetical
     //Example: "nnnaannnnaannn"
     void RndAlphaNumFormatted(char *szReturnString, const char *szFormat);
-
 };
 
 }   // namespace TPCE

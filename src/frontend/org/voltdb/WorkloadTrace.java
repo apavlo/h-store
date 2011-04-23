@@ -36,7 +36,7 @@ public interface WorkloadTrace {
      * @param args - the input parameters for this stored procedure
      * @return a unique handle to use in further tracing operations for this xact
      */
-    public Object startTransaction(Object caller, Procedure catalog_proc, Object args[]);
+    public Object startTransaction(long txn_id, Procedure catalog_proc, Object args[]);
 
     /**
      * For the given transaction trace handle, the trace manager will close the tracing record

@@ -1,9 +1,9 @@
 /*
  * Legal Notice
  *
- * This document and associated source code (the "Work") is a preliminary
- * version of a benchmark specification being developed by the TPC. The
- * Work is being made available to the public for review and comment only.
+ * This document and associated source code (the "Work") is a part of a
+ * benchmark specification maintained by the TPC.
+ *
  * The TPC reserves all right, title, and interest to the Work as provided
  * under U.S. and international laws, including without limitation all patent
  * and trademark rights therein.
@@ -145,7 +145,8 @@ public:
         pTxnOutput->status = Frame5Output.status;
 
         CDateTime   due_date_time( &Frame2Output.trade_dts );
-        due_date_time.Add(2, 0);    //add 2 days
+        due_date_time.Add(2, 0);        // add 2 days
+        due_date_time.SetHMS(0,0,0,0);  // zero out time portion
 
         if (Frame1Output.type_is_sell)
         {
@@ -181,9 +182,17 @@ public:
 
         pTxnOutput->acct_id = Frame1Output.acct_id;
         pTxnOutput->acct_bal = Frame6Output.acct_bal;
-	pTxnOutput->load_unit = (INT32)((Frame2Output.cust_id -
-		iTIdentShift - 1)/ iDefaultLoadUnitSize) + 1;
+        pTxnOutput->load_unit = (INT32)((Frame2Output.cust_id - iTIdentShift - 1) / iDefaultLoadUnitSize) + 1;
         pTxnOutput->status = Frame6Output.status;
+
+        if (Frame3Output.tax_amount < 0.00)
+        {
+            pTxnOutput->status = -831;
+        }
+        else if (Frame4Output.comm_rate <= 0.0000)
+        {
+            pTxnOutput->status = -841;
+        }
     }
 };
 

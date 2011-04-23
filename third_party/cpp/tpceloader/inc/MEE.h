@@ -1,9 +1,9 @@
 /*
  * Legal Notice
  *
- * This document and associated source code (the "Work") is a preliminary
- * version of a benchmark specification being developed by the TPC. The
- * Work is being made available to the public for review and comment only.
+ * This document and associated source code (the "Work") is a part of a
+ * benchmark specification maintained by the TPC.
+ *
  * The TPC reserves all right, title, and interest to the Work as provided
  * under U.S. and international laws, including without limitation all patent
  * and trademark rights therein.
@@ -114,7 +114,7 @@ private:
     CDateTime           m_BaseTime;
     CDateTime           m_CurrentTime;
 
-    CSyncLock           m_MEELock;
+    CMutex              m_MEELock;
 
     // Automatically generate unique RNG seeds
     void AutoSetRNGSeeds( UINT32 UniqueId );
@@ -123,10 +123,10 @@ public:
     static const INT32  NO_OUTSTANDING_TRADES = CMEETradingFloor::NO_OUTSTANDING_TRADES;
 
     // Constructor - automatic RNG seed generation
-    CMEE( INT32 TradingTimeSoFar, CMEESUTInterface *pSUT, CBaseLogger *pLogger, CSecurityFile *pSecurityFile, UINT32 UniqueId );
+    CMEE( INT32 TradingTimeSoFar, CMEESUTInterface *pSUT, CBaseLogger *pLogger, const CInputFiles &inputFiles, UINT32 UniqueId );
 
     // Constructor - RNG seed provided
-    CMEE( INT32 TradingTimeSoFar, CMEESUTInterface *pSUT, CBaseLogger *pLogger, CSecurityFile *pSecurityFile, UINT32 UniqueId, RNGSEED TickerTapeRNGSeed, RNGSEED TradingFloorRNGSeed );
+    CMEE( INT32 TradingTimeSoFar, CMEESUTInterface *pSUT, CBaseLogger *pLogger, const CInputFiles &inputFiles, UINT32 UniqueId, RNGSEED TickerTapeRNGSeed, RNGSEED TradingFloorRNGSeed );
 
     ~CMEE(void);
 

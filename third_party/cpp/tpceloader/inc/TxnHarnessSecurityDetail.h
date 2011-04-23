@@ -1,9 +1,9 @@
 /*
  * Legal Notice
  *
- * This document and associated source code (the "Work") is a preliminary
- * version of a benchmark specification being developed by the TPC. The
- * Work is being made available to the public for review and comment only.
+ * This document and associated source code (the "Work") is a part of a
+ * benchmark specification maintained by the TPC.
+ *
  * The TPC reserves all right, title, and interest to the Work as provided
  * under U.S. and international laws, including without limitation all patent
  * and trademark rights therein.
@@ -68,6 +68,20 @@ public:
         pTxnOutput->last_vol = Frame1Output.last_vol;
         pTxnOutput->news_len = Frame1Output.news_len;
         pTxnOutput->status = Frame1Output.status;
+
+        if ((Frame1Output.day_len < min_day_len) || 
+            (Frame1Output.day_len > max_day_len))
+        {
+            pTxnOutput->status = -511;
+        }
+        else if (Frame1Output.fin_len != max_fin_len)
+        {
+            pTxnOutput->status = -512;
+        }
+        else if (Frame1Output.news_len != max_news_len)
+        {
+            pTxnOutput->status = -513;
+        }
     }
 };
 

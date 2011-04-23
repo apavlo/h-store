@@ -1,9 +1,9 @@
 /*
  * Legal Notice
  *
- * This document and associated source code (the "Work") is a preliminary
- * version of a benchmark specification being developed by the TPC. The
- * Work is being made available to the public for review and comment only.
+ * This document and associated source code (the "Work") is a part of a
+ * benchmark specification maintained by the TPC.
+ *
  * The TPC reserves all right, title, and interest to the Work as provided
  * under U.S. and international laws, including without limitation all patent
  * and trademark rights therein.
@@ -47,7 +47,7 @@
 namespace TPCE
 {
 
-const int iTaxRatesPerCust = 2; //number of tax rates per customer
+const UINT iTaxRatesPerCust = 2; //number of tax rates per customer
 const int iMaxDivOrCtryName = 6;
 
 // Number of RNG calls to skip for one row in order
@@ -72,28 +72,30 @@ class CCustomerTaxratesTable : public TableTemplate<CUSTOMER_TAXRATE_ROWS>
     void InitNextLoadUnit()
     {
         m_rnd.SetSeed(m_rnd.RndNthElement(RNGSeedTableDefault,
-                                          m_cust.GetCurrentC_ID() * iRNGSkipOneRowCustomerTaxrate));
+                                          (RNGSEED) m_cust.GetCurrentC_ID() * 
+                                           iRNGSkipOneRowCustomerTaxrate));
 
         ClearRecord();  // this is needed for EGenTest to work
     }
 
     //generate the tax row deterministically for a given customer and country or division code
-    TTaxRateInputRow    GetTaxRow(TIdent C_ID, int iCode, bool bCtry)
+    TTaxRateInputRow    GetTaxRow(TIdent C_ID, UINT iCode, bool bCtry)
     {
         RNGSEED                         OldSeed;
-        int                             iThreshold;
+        UINT                             iThreshold;
         const vector<TTaxRateInputRow>  *pRates;
 
         OldSeed = m_rnd.GetSeed();
 
-        m_rnd.SetSeed( m_rnd.RndNthElement( RNGSeedBaseTaxRateRow, C_ID ));
+        m_rnd.SetSeed( m_rnd.RndNthElement( RNGSeedBaseTaxRateRow, 
+                       (RNGSEED)C_ID ));
 
         if (bCtry)  //return country tax row?
             pRates = m_country_rates->GetRecord(iCode-1);
         else        //return division tax row
             pRates = m_division_rates->GetRecord(iCode-1);
 
-        iThreshold = m_rnd.RndIntRange(0, (int)pRates->size()-1);
+        iThreshold = (UINT) m_rnd.RndIntRange(0, (int)pRates->size()-1);
 
         m_rnd.SetSeed( OldSeed );
 
@@ -101,10 +103,14 @@ class CCustomerTaxratesTable : public TableTemplate<CUSTOMER_TAXRATE_ROWS>
     }
 
 public:
-        CCustomerTaxratesTable(CInputFiles inputFiles, TIdent iCustomerCount, TIdent iStartFromCustomer)
+        CCustomerTaxratesTable(CInputFiles inputFiles,
+                               TIdent iCustomerCount,
+                               TIdent iStartFromCustomer,
+                               bool bCacheEnabled = false
+                              )
             : TableTemplate<CUSTOMER_TAXRATE_ROWS>(),
             m_cust(inputFiles, iCustomerCount, iStartFromCustomer),
-            m_addr(inputFiles, iCustomerCount, iStartFromCustomer, true),
+            m_addr(inputFiles, iCustomerCount, iStartFromCustomer, true, bCacheEnabled),
             m_division_rates(inputFiles.TaxRatesDivision),
             m_country_rates(inputFiles.TaxRatesCountry)
         {
@@ -115,7 +121,7 @@ public:
         */
         bool GenerateNextRecord()
         {
-            int iDivCode, iCtryCode;
+            UINT iDivCode, iCtryCode;
 
             if (m_cust.GetCurrentC_ID() % iDefaultLoadUnitSize == 0)
             {
@@ -145,22 +151,22 @@ public:
         }
 
         PCUSTOMER_TAXRATE_ROW   GetRowByIndex(UINT i) {
-            if (static_cast<int>(i)<iTaxRatesPerCust)
+            if (i<iTaxRatesPerCust)
                 return &m_row.m_row[i];
             else
                 return NULL;
         }
 
-        int GetTaxRatesCount() {return iTaxRatesPerCust;}   //tax rates per customer
+        UINT GetTaxRatesCount() {return iTaxRatesPerCust;}   //tax rates per customer
 
         //generate country tax row for a given customer
-        TTaxRateInputRow    GetCountryTaxRow(TIdent C_ID, int iCtryCode)
+        TTaxRateInputRow    GetCountryTaxRow(TIdent C_ID, UINT iCtryCode)
         {
             return GetTaxRow(C_ID, iCtryCode, true);
         }
 
         //generate division tax row for a given customer
-        TTaxRateInputRow    GetDivisionTaxRow(TIdent C_ID, int iDivCode)
+        TTaxRateInputRow    GetDivisionTaxRow(TIdent C_ID, UINT iDivCode)
         {
             return GetTaxRow(C_ID, iDivCode, false);
         }

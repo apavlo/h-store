@@ -23,8 +23,13 @@ import java.util.*;
 
 import org.apache.log4j.Logger;
 import org.voltdb.VoltTable.ColumnInfo;
+import org.voltdb.catalog.Database;
+import org.voltdb.catalog.Procedure;
 import org.voltdb.messaging.FastSerializer;
 import org.voltdb.messaging.FragmentTaskMessage;
+
+import edu.brown.catalog.CatalogUtil;
+import edu.brown.utils.PartitionEstimator;
 
 /**
  * System procedures extend VoltSystemProcedure and use its utility methods to
@@ -52,6 +57,17 @@ public abstract class VoltSystemProcedure extends VoltProcedure {
 
     /** Standard success return value for sysprocs returning STATUS_SCHEMA */
     protected static long STATUS_OK = 0L;
+    
+    protected Database database = null;
+    protected int num_partitions;
+
+    
+    @Override
+    public void globalInit(ExecutionSite site, Procedure catalog_proc, BackendTarget eeType, HsqlBackend hsql, PartitionEstimator pEstimator, Integer localPartition) {
+        super.globalInit(site, catalog_proc, eeType, hsql, pEstimator, localPartition);
+        this.database = CatalogUtil.getDatabase(catalog_proc);
+        this.num_partitions = CatalogUtil.getNumberOfPartitions(catalog_proc);
+    }
 
     /**
      * Utility to aggregate a list of tables sharing a schema. Common for
@@ -147,7 +163,7 @@ public abstract class VoltSystemProcedure extends VoltProcedure {
 
             LOG.debug("Creating SysProc FragmentTaskMessage for " + (pf.destPartitionId < 0 ? "coordinator" : "partition #" + pf.destPartitionId) + " in txn #" + this.getTransactionId());
             FragmentTaskMessage task = new FragmentTaskMessage(
-                    this.m_site.getPartitionId(),
+                    this.executor.getPartitionId(),
                     (int)pf.destPartitionId,
                     this.getTransactionId(),
                     -1,
@@ -162,6 +178,6 @@ public abstract class VoltSystemProcedure extends VoltProcedure {
             ftasks.add(task);
         } // FOR
         
-        return (this.m_site.waitForResponses(this.getTransactionId(), ftasks, 1));
+        return (this.executor.waitForResponses(this.getTransactionId(), ftasks, 1));
     }
 }

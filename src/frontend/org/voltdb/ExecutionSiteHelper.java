@@ -1,3 +1,28 @@
+/***************************************************************************
+ *   Copyright (C) 2011 by H-Store Project                                 *
+ *   Brown University                                                      *
+ *   Massachusetts Institute of Technology                                 *
+ *   Yale University                                                       *
+ *                                                                         *
+ *   Permission is hereby granted, free of charge, to any person obtaining *
+ *   a copy of this software and associated documentation files (the       *
+ *   "Software"), to deal in the Software without restriction, including   *
+ *   without limitation the rights to use, copy, modify, merge, publish,   *
+ *   distribute, sublicense, and/or sell copies of the Software, and to    *
+ *   permit persons to whom the Software is furnished to do so, subject to *
+ *   the following conditions:                                             *
+ *                                                                         *
+ *   The above copyright notice and this permission notice shall be        *
+ *   included in all copies or substantial portions of the Software.       *
+ *                                                                         *
+ *   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,       *
+ *   EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF    *
+ *   MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.*
+ *   IN NO EVENT SHALL THE AUTHORS BE LIABLE FOR ANY CLAIM, DAMAGES OR     *
+ *   OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, *
+ *   ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR *
+ *   OTHER DEALINGS IN THE SOFTWARE.                                       *
+ ***************************************************************************/
 package org.voltdb;
 
 import java.util.ArrayList;
@@ -55,7 +80,7 @@ public class ExecutionSiteHelper implements Runnable {
     /**
      * The sites we need to invoke cleanupTransaction() + tick() for
      */
-    private final Collection<ExecutionSite> sites;
+    private final Collection<ExecutionSite> executors;
     /**
      * HStoreSite Handle
      */
@@ -68,41 +93,52 @@ public class ExecutionSiteHelper implements Runnable {
     private int total_cleaned = 0;
     
     /**
-     * 
-     * @param sites
+     * Shutdown Observer
+     * This gets invoked when the HStoreSite is shutting down
      */
-    public ExecutionSiteHelper(Collection<ExecutionSite> sites, int max_txn_per_round, int txn_expire, boolean enable_profiling) {
-        assert(sites != null);
-        assert(sites.isEmpty() == false);
-        this.sites = sites;
+    private final EventObserver shutdown_observer = new EventObserver() {
+        final StringBuilder sb = new StringBuilder();
+        
+        @Override
+        public void update(Observable o, Object arg) {
+            ExecutionSiteHelper.this.shutdown();
+            LOG.debug("Got shutdown notification from HStoreSite. Dumping profile information");
+            sb.append("\n")
+              .append(ExecutionSiteHelper.this.dumpProfileInformation())
+              .append("\n")
+              .append(ExecutionSiteHelper.this.hstore_site.statusSnapshot());
+            LOG.info("\n" + sb.toString());
+        }
+    };
+    
+    /**
+     * Constructor
+     * @param executors
+     * @param max_txn_per_round
+     * @param txn_expire
+     * @param enable_profiling
+     */
+    public ExecutionSiteHelper(Collection<ExecutionSite> executors, int max_txn_per_round, int txn_expire, boolean enable_profiling) {
+        assert(executors != null);
+        assert(executors.isEmpty() == false);
+        this.executors = executors;
         this.txn_expire = txn_expire;
         this.txn_per_round = max_txn_per_round;
         this.enable_profiling = enable_profiling;
 
-        ExecutionSite executor = CollectionUtil.getFirst(this.sites);
+        assert(this.executors.size() > 0) : "No ExecutionSites for helper";
+        ExecutionSite executor = CollectionUtil.getFirst(this.executors);
         assert(executor != null);
         this.hstore_site = executor.getHStoreSite();
+        assert(this.hstore_site != null) : "Missing HStoreSite!";
         
         if (this.enable_profiling) {
             this.prepareProfileInformation(CatalogUtil.getDatabase(executor.getCatalogSite()));
-            this.hstore_site.addShutdownObservable(new EventObserver() {
-                @Override
-                public void update(Observable o, Object arg) {
-                    ExecutionSiteHelper.this.shutdown();
-                    LOG.info("Got shutdown notification from HStoreSite. Dumping profile information");
-                    System.err.println("\n" + ExecutionSiteHelper.this.dumpProfileInformation() + "\n");
-                    System.err.println(ExecutionSiteHelper.this.hstore_site.statusSnapshot());
-                }
-            });
+            this.hstore_site.addShutdownObservable(this.shutdown_observer);
         }
-    }
-    
-    /**
-     * 
-     * @param sites
-     */
-    public ExecutionSiteHelper(Collection<ExecutionSite> sites, int max_txn_per_round, int txn_expire) {
-        this(sites, max_txn_per_round, txn_expire, false);
+        
+        if (debug.get()) LOG.debug(String.format("Instantiated new ExecutionSiteHelper [txn_expire=%d, per_round=%d, profiling=%s]",
+                                                 this.txn_expire, this.txn_per_round, this.enable_profiling));
     }
     
     @Override
@@ -112,13 +148,13 @@ public class ExecutionSiteHelper implements Runnable {
         
         if (this.first) {
             Thread self = Thread.currentThread();
-            HStoreSite hstore_site = CollectionUtil.getFirst(this.sites).hstore_site;
-            self.setName(hstore_site.getThreadName("help"));
+            self.setName(this.hstore_site.getThreadName("help"));
             this.first = false;
         }
         if (t) LOG.trace("New invocation of the ExecutionSiteHelper. Let's clean-up some txns!");
-        
-        for (ExecutionSite es : this.sites) {
+
+        this.hstore_site.updateLogging();
+        for (ExecutionSite es : this.executors) {
             if (t) LOG.trace(String.format("Partition %d has %d finished transactions", es.partitionId, es.finished_txn_states.size()));
             long to_remove = System.currentTimeMillis() - this.txn_expire;
             
@@ -149,19 +185,26 @@ public class ExecutionSiteHelper implements Runnable {
     }
     
     /**
-     * 
+     * Final clean-up of the TransactionStates at our sites
+     * This is only really necessary if profiling is enabled  
      */
     private synchronized void shutdown() {
         LOG.info("Shutdown event received. Cleaning all transactions");
         TransactionState ts = null;
-        for (ExecutionSite es : this.sites) {
+        
+        for (ExecutionSite es : this.executors) {
             int cleaned = 0;
-            while ((ts = es.finished_txn_states.poll()) != null) {
-                if (this.enable_profiling && ts instanceof LocalTransactionState) {
-                    this.calculateProfileInformation((LocalTransactionState)ts);
-                }
-                cleaned++;
-            } // WHILE
+            if (this.enable_profiling) {
+                while ((ts = es.finished_txn_states.poll()) != null) {
+                    if (ts instanceof LocalTransactionState) {
+                        this.calculateProfileInformation((LocalTransactionState)ts);
+                    }
+                    cleaned++;
+                } // WHILE
+            } else {
+                cleaned += es.finished_txn_states.size();
+                es.finished_txn_states.clear();
+            }
             assert(es.finished_txn_states.isEmpty());
             if (debug.get()) LOG.debug(String.format("Cleaned %d TransactionStates at partition %d", cleaned, es.partitionId));
         } // FOR
@@ -195,6 +238,7 @@ public class ExecutionSiteHelper implements Runnable {
             ts.ee_time,
             ts.est_time,
             ts.finish_time,
+            ts.blocked_time,
         };
         long tuple[] = new long[pms.length];
         for (int i = 0; i < pms.length; i++) {
@@ -216,12 +260,13 @@ public class ExecutionSiteHelper implements Runnable {
             "Total Time",
             "Initialization",
             "Queue Time",
-            "Java Procedure",
+            "Procedure",
             "Coordinator",
             "Planner",
-            "ExecutionEngine",
+            "EE",
             "Estimation",
             "Finish",
+            "Blocked",
             "Miscellaneous",
         };
         int num_procs = 0;

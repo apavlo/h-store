@@ -180,7 +180,7 @@ public class FeatureClusterer {
         /**
          * Histogram of Clusters Per Partition
          */
-        final Histogram clusters_per_partition[];
+        final Histogram<Integer> clusters_per_partition[];
         
         int c_counters[] = new int[] {
             0,      // Single-P
@@ -196,16 +196,17 @@ public class FeatureClusterer {
         /**
          * Constructor
          */
+        @SuppressWarnings("unchecked")
         private ExecutionState() {
             // We allocate a complete array for all of the partitions in the catalog
             this.markovs_per_partition = new TxnToClusterMarkovGraphsContainer[FeatureClusterer.this.total_num_partitions];
             this.costmodels_per_partition = new MarkovCostModel[FeatureClusterer.this.total_num_partitions];
             this.t_estimators_per_partition = new TransactionEstimator[FeatureClusterer.this.total_num_partitions];
-            this.clusters_per_partition = new Histogram[FeatureClusterer.this.total_num_partitions];
+            this.clusters_per_partition = (Histogram<Integer>[])new Histogram<?>[FeatureClusterer.this.total_num_partitions];
             
             // But then only initialize the partition-specific data structures
             for (int p : FeatureClusterer.this.all_partitions) {
-                this.clusters_per_partition[p] = new Histogram();
+                this.clusters_per_partition[p] = new Histogram<Integer>();
                 this.markovs_per_partition[p] = new TxnToClusterMarkovGraphsContainer();
                 this.t_estimators_per_partition[p] = new TransactionEstimator(FeatureClusterer.this.p_estimator, FeatureClusterer.this.correlations, this.markovs_per_partition[p]);
                 this.costmodels_per_partition[p] = new MarkovCostModel(catalog_db, p_estimator, this.t_estimators_per_partition[p], thresholds);
@@ -214,6 +215,11 @@ public class FeatureClusterer {
         
         public void init(AbstractClusterer clusterer) {
             this.clusterer = clusterer;
+        }
+        
+        @Override
+        public boolean isInitialized() {
+            return (this.clusterer != null);
         }
         
         public void finish() {
@@ -844,8 +850,8 @@ public class FeatureClusterer {
         int trainingCnt = trainingData.numInstances(); 
         if (t) LOG.trace(String.format("Training MarkovGraphs using %d instances", trainingCnt));
         
-        Histogram cluster_h = new Histogram();
-        Histogram partition_h = new Histogram();
+        Histogram<Integer> cluster_h = new Histogram<Integer>();
+        Histogram<Integer> partition_h = new Histogram<Integer>();
         for (int i = 0; i < trainingCnt; i++) {
             // Grab the Instance and throw it at the the clusterer to get the target cluster
             // The original data set is going to have the txn id that we need to grab 
@@ -963,7 +969,7 @@ public class FeatureClusterer {
         newData.setClass(cluster_attr);
         
         // We will then tell the Classifier to predict that ClusterId based on the MarkovAttributeSet
-        Histogram cluster_h = new Histogram();
+        Histogram<Integer> cluster_h = new Histogram<Integer>();
         for (int i = 0, cnt = newData.numInstances(); i < cnt; i++) {
             // Grab the Instance and throw it at the the clusterer to get the target cluster
             Instance inst = newData.instance(i);
@@ -1120,7 +1126,7 @@ public class FeatureClusterer {
         
         FeatureClusterer fclusterer = null;
         if (args.hasParam(ArgumentsParser.PARAM_WORKLOAD_RANDOM_PARTITIONS)) {
-            Histogram h = new PartitionEstimator(args.catalog_db).buildBasePartitionHistogram(args.workload);
+            Histogram<Integer> h = new PartitionEstimator(args.catalog_db).buildBasePartitionHistogram(args.workload);
 //            System.err.println("# OF PARTITIONS: " + h.getValueCount());
 //            h.setKeepZeroEntries(true);
 //            for (Integer p : CatalogUtil.getAllPartitionIds(args.catalog_db)) {

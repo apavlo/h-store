@@ -1,9 +1,9 @@
 /*
  * Legal Notice
  *
- * This document and associated source code (the "Work") is a preliminary
- * version of a benchmark specification being developed by the TPC. The
- * Work is being made available to the public for review and comment only.
+ * This document and associated source code (the "Work") is a part of a
+ * benchmark specification maintained by the TPC.
+ *
  * The TPC reserves all right, title, and interest to the Work as provided
  * under U.S. and international laws, including without limitation all patent
  * and trademark rights therein.
@@ -31,7 +31,7 @@
  *     ADVANCE NOTICE OF THE POSSIBILITY OF SUCH DAMAGES.
  *
  * Contributors
- * - Sergey Vasilevskiy
+ * - Sergey Vasilevskiy, Cecil Reames, Matt Emmerton
  */
 
 /*
@@ -42,6 +42,7 @@
 
 #include "EGenTables_common.h"
 #include "CompanyTable.h"
+#include "Money.h"
 
 namespace TPCE
 {
@@ -56,24 +57,25 @@ const double fDilutedSharesMultiplier = 1.1;
 // Multipliers for previous quarter to get the current quarter data
 const double fFinDataDownMult = 0.9;
 const double fFinDataUpMult = 1.15;
+const double fFinDataIncr = 0.00000000000001;
 
-const double    fFinancialRevenueMin = 100000.0;
-const double    fFinancialRevenueMax = 16000000000.0;
+const double fFinancialRevenueMin = 100000.00;
+const double fFinancialRevenueMax = 16000000000.00;
 
-const double    fFinancialEarningsMin = -300000000.0;
-const double    fFinancialEarningsMax = 3000000000.0;
+const double fFinancialEarningsMin = -300000000.00;
+const double fFinancialEarningsMax = 3000000000.00;
 
-const double    fFinancialOutBasicMin = 400000.0;
-const double    fFinancialOutBasicMax = 9500000000.0;
+const INT64 iFinancialOutBasicMin = 400000;
+const INT64 iFinancialOutBasicMax = 9500000000;
 
-const double    fFinancialInventMin = 0.0;
-const double    fFinancialInventMax = 2000000000.0;
+const double fFinancialInventMin = 0.00;
+const double fFinancialInventMax = 2000000000.00;
 
-const double    fFinancialAssetsMin = 100000.0;
-const double    fFinancialAssetsMax = 65000000000.0;
+const double fFinancialAssetsMin = 100000.00;
+const double fFinancialAssetsMax = 65000000000.00;
 
-const double    fFinancialLiabMin = 100000.0;
-const double    fFinancialLiabMax = 35000000000.0;
+const double fFinancialLiabMin = 100000.00;
+const double fFinancialLiabMax = 35000000000.00;
 
 // Number of RNG calls to skip for one row in order
 // to not use any of the random values from the previous row.
@@ -105,69 +107,70 @@ class CFinancialTable : public TableTemplate<FINANCIAL_GEN_ROW>
     //
     bool GenerateFinancialRows()
     {
+        TIdent FI_CO_ID;
         int iFinYear, iFinQuarter;
         int i;
-        double fRev, fEarn, fInvent, fAssets, fLiab, fOutBasic;
+        CMoney fRev, fEarn, fInvent, fAssets, fLiab, fBasicEPS, fDilutEPS, fMargin;
+        INT64 iOutBasic, iOutDilut;
 
-        // Generate financials
-        fRev = m_rnd.RndDoubleIncrRange( fFinancialRevenueMin, fFinancialRevenueMax, 0.01 );
-        // Generate earnings no greater than the revenue
-        fEarn = m_rnd.RndDoubleIncrRange( fFinancialEarningsMin, fRev < fFinancialEarningsMax ? fRev : fFinancialEarningsMax, 0.01 );
-        fOutBasic = m_rnd.RndDoubleIncrRange( fFinancialOutBasicMin, fFinancialOutBasicMax, 0.01 );
-        fInvent = m_rnd.RndDoubleIncrRange( fFinancialInventMin, fFinancialInventMax, 0.01 );
-        fAssets = m_rnd.RndDoubleIncrRange( fFinancialAssetsMin, fFinancialAssetsMax, 0.01 );
-        fLiab = m_rnd.RndDoubleIncrRange( fFinancialLiabMin, fFinancialLiabMax, 0.01 );
-
+        // Set starting values for financial values
+        FI_CO_ID = m_CompanyTable.GetCurrentCO_ID();
         iFinYear = m_iFinYear;
         iFinQuarter = m_iFinQuarter;
 
+        fRev = m_rnd.RndDoubleIncrRange( fFinancialRevenueMin, fFinancialRevenueMax, 0.01 );
+        fEarn = m_rnd.RndDoubleIncrRange( fFinancialEarningsMin, 
+                                          fRev < fFinancialEarningsMax ? fRev.DollarAmount() : fFinancialEarningsMax, 
+                                          0.01 );
+        iOutBasic = m_rnd.RndInt64Range( iFinancialOutBasicMin, iFinancialOutBasicMax );
+        iOutDilut = 0;
+        fInvent = m_rnd.RndDoubleIncrRange( fFinancialInventMin, fFinancialInventMax, 0.01 );
+        fAssets = m_rnd.RndDoubleIncrRange( fFinancialAssetsMin, fFinancialAssetsMax, 0.01 );
+        fLiab = m_rnd.RndDoubleIncrRange( fFinancialLiabMin, fFinancialLiabMax, 0.01 );
+        fBasicEPS = 0.00;
+        fDilutEPS = 0.00;
+        fMargin = 0.00;
+
         for (i = 0; i<iFinsPerCompany; ++i)
         {
-            m_row.m_financials[i].FI_CO_ID = m_CompanyTable.GetCurrentCO_ID();
+            // Compute values for this quarter
+            fRev = fRev * m_rnd.RndDoubleIncrRange(fFinDataDownMult, fFinDataUpMult, fFinDataIncr);
+            fEarn = fEarn * m_rnd.RndDoubleIncrRange(fFinDataDownMult, fFinDataUpMult, fFinDataIncr);
+            if (fEarn >= fRev)
+            {   // earnings cannot be greater than the revenue
+                fEarn = fEarn * fFinDataDownMult;
+            }
+            iOutBasic = (INT64)((double)iOutBasic * m_rnd.RndDoubleIncrRange(fFinDataDownMult, fFinDataUpMult, fFinDataIncr));
+            iOutDilut = (INT64)((double)iOutBasic * fDilutedSharesMultiplier);
+            fInvent = fInvent * m_rnd.RndDoubleIncrRange(fFinDataDownMult, fFinDataUpMult, fFinDataIncr);
+            fAssets = fAssets * m_rnd.RndDoubleIncrRange(fFinDataDownMult, fFinDataUpMult, fFinDataIncr);
+            fLiab = fLiab * m_rnd.RndDoubleIncrRange(fFinDataDownMult, fFinDataUpMult, fFinDataIncr);
+            fBasicEPS = fEarn / (double)iOutBasic;
+            fDilutEPS = fEarn / (double)iOutDilut;
+            fMargin = fEarn / fRev.DollarAmount();
+
+            // Assign values for this quarter
+            m_row.m_financials[i].FI_CO_ID = FI_CO_ID;
             m_row.m_financials[i].FI_YEAR = iFinYear;
             m_row.m_financials[i].FI_QTR = iFinQuarter + 1;
-
             m_row.m_financials[i].FI_QTR_START_DATE.Set(iFinYear, iFinQuarter * 3 + 1, 1);
+            m_row.m_financials[i].FI_REVENUE = fRev.DollarAmount();
+            m_row.m_financials[i].FI_NET_EARN = fEarn.DollarAmount();
+            m_row.m_financials[i].FI_OUT_BASIC = iOutBasic;
+            m_row.m_financials[i].FI_OUT_DILUT = iOutDilut;
+            m_row.m_financials[i].FI_INVENTORY = fInvent.DollarAmount();
+            m_row.m_financials[i].FI_ASSETS = fAssets.DollarAmount();
+            m_row.m_financials[i].FI_LIABILITY = fLiab.DollarAmount();
+            m_row.m_financials[i].FI_BASIC_EPS = fBasicEPS.DollarAmount();
+            m_row.m_financials[i].FI_DILUT_EPS = fDilutEPS.DollarAmount();
+            m_row.m_financials[i].FI_MARGIN = fMargin.DollarAmount();
 
-            m_row.m_financials[i].FI_REVENUE = fRev * m_rnd.RndDoubleRange(fFinDataDownMult, fFinDataUpMult);
-            fRev = m_row.m_financials[i].FI_REVENUE;
-
-            m_row.m_financials[i].FI_NET_EARN = fEarn * m_rnd.RndDoubleRange(fFinDataDownMult, fFinDataUpMult);
-            if (m_row.m_financials[i].FI_NET_EARN >= m_row.m_financials[i].FI_REVENUE)
-            {   // earnings cannot be greater than the revenue
-                m_row.m_financials[i].FI_NET_EARN = 0.9 * m_row.m_financials[i].FI_REVENUE;
-            }
-            fEarn = m_row.m_financials[i].FI_NET_EARN;
-
-            m_row.m_financials[i].FI_OUT_BASIC = fOutBasic * m_rnd.RndDoubleRange(fFinDataDownMult, fFinDataUpMult);
-            fOutBasic = m_row.m_financials[i].FI_OUT_BASIC;
-
-            m_row.m_financials[i].FI_OUT_DILUT =
-                m_row.m_financials[i].FI_OUT_BASIC * fDilutedSharesMultiplier;
-
-            m_row.m_financials[i].FI_INVENTORY = fInvent * m_rnd.RndDoubleRange(fFinDataDownMult, fFinDataUpMult);
-            fInvent = m_row.m_financials[i].FI_INVENTORY;
-
-            m_row.m_financials[i].FI_ASSETS = fAssets * m_rnd.RndDoubleRange(fFinDataDownMult, fFinDataUpMult);
-            fAssets = m_row.m_financials[i].FI_ASSETS;
-
-            m_row.m_financials[i].FI_LIABILITY = fLiab * m_rnd.RndDoubleRange(fFinDataDownMult, fFinDataUpMult);
-            fLiab = m_row.m_financials[i].FI_LIABILITY;
-
-            m_row.m_financials[i].FI_BASIC_EPS = fEarn / fOutBasic;
-
-            m_row.m_financials[i].FI_DILUT_EPS = fEarn / (fOutBasic * fDilutedSharesMultiplier);
-
-            m_row.m_financials[i].FI_MARGIN = // profit margin can be negative
-                    m_row.m_financials[i].FI_NET_EARN /
-                    m_row.m_financials[i].FI_REVENUE;
-
-            // increment quarter
-            iFinQuarter = iFinQuarter + 1;
+            // Increment quarter
+            iFinQuarter++;
             if (iFinQuarter == iQuartersInYear)
             {   // reached the last quarter in the year
                 iFinQuarter = 0;    // start from the first quarter
-                ++iFinYear; //increment year
+                ++iFinYear;         //increment year
             }
         }
 
@@ -186,7 +189,7 @@ class CFinancialTable : public TableTemplate<FINANCIAL_GEN_ROW>
     void InitNextLoadUnit()
     {
         m_rnd.SetSeed(m_rnd.RndNthElement(RNGSeedTableDefault,
-            m_iLastRowNumber * iRNGSkipOneRowFinancial));
+            (RNGSEED)m_iLastRowNumber * iRNGSkipOneRowFinancial));
 
         ClearRecord();  // this is needed for EGenTest to work
     }

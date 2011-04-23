@@ -12,7 +12,6 @@ import org.voltdb.types.ExpressionType;
 import edu.brown.BaseTestCase;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.correlations.ParameterCorrelations;
-import edu.brown.markov.TransactionEstimator.Estimate;
 import edu.brown.markov.TransactionEstimator.State;
 import edu.brown.utils.*;
 import edu.brown.workload.QueryTrace;
@@ -111,6 +110,21 @@ public class TestTransactionEstimator extends BaseTestCase {
         this.t_estimator = new TransactionEstimator(p_estimator, correlations, markovs);
         this.thresholds = new EstimationThresholds();
     }
+
+    /**
+     * testMultipleStartTransaction
+     */
+    @Test
+    public void testMultipleStartTransaction() throws Exception {
+        Set<State> all_states = new HashSet<State>();
+        
+        for (int i = 0; i < 20; i++) {
+            State state = t_estimator.startTransaction(XACT_ID++, this.catalog_proc, multip_trace.getParams());
+            assertNotNull(state);
+            assertFalse(all_states.contains(state));
+            all_states.add(state);
+        } // FOR
+    }
     
     /**
      * testStartTransaction
@@ -120,14 +134,15 @@ public class TestTransactionEstimator extends BaseTestCase {
         long txn_id = XACT_ID++;
         State state = t_estimator.startTransaction(txn_id, this.catalog_proc, multip_trace.getParams());
         assertNotNull(state);
-        Estimate est = state.getInitialEstimate();
+        MarkovEstimate est = state.getInitialEstimate();
         assertNotNull(est);
-        assertEquals(est, state.getLastEstimate());
+        assertNull(state.getLastEstimate());
         System.err.println(est.toString());
         
         MarkovGraph markov = markovs.get(BASE_PARTITION, this.catalog_proc);
         List<Vertex> initial_path = state.getEstimatedPath();
         assertFalse(initial_path.isEmpty());
+        
         System.err.println("# of Vertices: " + markov.getVertexCount());
         System.err.println("# of Edges:    " + markov.getEdgeCount());
         System.err.println("Confidence:    " + String.format("%.4f", t_estimator.getConfidence(txn_id)));
@@ -142,8 +157,10 @@ public class TestTransactionEstimator extends BaseTestCase {
         assertFalse(est.isSinglePartition(this.thresholds));
         assertFalse(est.isUserAbort(this.thresholds));
         
+        Set<Integer> partitions = p_estimator.getAllPartitions(multip_trace);
+        
         for (Integer partition : ALL_PARTITIONS) {
-            if (partition == BASE_PARTITION) {
+            if (partitions.contains(partition)) { //  == BASE_PARTITION) {
                 assertFalse("isFinishedPartition(" + partition + ")", est.isFinishedPartition(thresholds, partition));
                 assertTrue("isWritePartition(" + partition + ")", est.isWritePartition(thresholds, partition) == true);
                 assertTrue("isTargetPartition(" + partition + ")", est.isTargetPartition(thresholds, partition) == true);
@@ -165,17 +182,17 @@ public class TestTransactionEstimator extends BaseTestCase {
         State s = this.t_estimator.processTransactionTrace(txn_trace);
         assertNotNull(s);
         
-        // We should have an Estimate for each batch, plus one for the initial Estimate
-        assertEquals(txn_trace.getBatchCount()+1, s.getEstimateCount());
-        List<Estimate> estimates = s.getEstimates();
+        // We should have an MarkovEstimate for each batch
+        assertEquals(txn_trace.getBatchCount(), s.getEstimateCount());
+        List<MarkovEstimate> estimates = s.getEstimates();
         for (int i = 0, cnt = txn_trace.getBatchCount(); i < cnt; i++) {
             List<QueryTrace> queries = txn_trace.getBatchQueries(i);
             assertFalse(queries.isEmpty());
             
-            Estimate est = estimates.get(i + 1);
+            MarkovEstimate est = estimates.get(i);
             assertNotNull(est);
             
-            // The last vertex in each Estimate should correspond to the last query in each batch
+            // The last vertex in each MarkovEstimate should correspond to the last query in each batch
             Vertex last_v = est.getVertex();
             assertNotNull(last_v);
             assertEquals(CollectionUtil.getLast(queries).getCatalogItem(catalog_db), last_v.getCatalogItem());

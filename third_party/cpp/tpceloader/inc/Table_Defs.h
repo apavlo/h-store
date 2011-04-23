@@ -1,9 +1,9 @@
 /*
  * Legal Notice
  *
- * This document and associated source code (the "Work") is a preliminary
- * version of a benchmark specification being developed by the TPC. The
- * Work is being made available to the public for review and comment only.
+ * This document and associated source code (the "Work") is a part of a
+ * benchmark specification maintained by the TPC.
+ *
  * The TPC reserves all right, title, and interest to the Work as provided
  * under U.S. and international laws, including without limitation all patent
  * and trademark rights therein.
@@ -59,34 +59,6 @@ typedef struct TBaseInputRow
     virtual ~TBaseInputRow() {}
 } *PBaseInputRow;
 
-
-//For nullable columns
-enum OLTPNullValueIndicator {
-    OLTP_VALUE_IS_NULL =0,
-    OLTP_VALUE_IS_NOT_NULL
-};
-
-typedef struct OLTPNullableFloat
-{
-    OLTPNullValueIndicator  iIndicator;
-    float                   value;
-} *POLTPNullableFloat;
-
-typedef struct OLTPNullableDateTime
-{
-    OLTPNullValueIndicator  iIndicator;
-    CDateTime               value;
-} *POLTPNullableDateTime;
-
-typedef struct OLTPNullable52WkHighLow
-{
-    OLTPNullValueIndicator  iIndicator;
-    float                   HIGH;
-    CDateTime               HIGH_DATE;
-    float                   LOW;
-    CDateTime               LOW_DATE;
-} *POLTPNullable52WkHighLow;
-
 // ACCOUNT_PERMISSION table
 typedef struct ACCOUNT_PERMISSION_ROW
 {
@@ -131,7 +103,7 @@ typedef struct CASH_TRANSACTION_ROW
 const char CashTransactionRowFmt[] = "%" PRId64 "|%s|%.2f|%s\n";
 
 // CHARGE table
-typedef struct CHARGE_ROW : TBaseInputRow
+typedef struct CHARGE_ROW : public TBaseInputRow
 {
     char                    CH_TT_ID[cTT_ID_len+1];
     int                     CH_C_TIER;
@@ -142,7 +114,7 @@ typedef struct CHARGE_ROW : TBaseInputRow
 const char ChargeRowFmt[] = "%s|%d|%.2f\n";
 
 // COMMISSION_RATE table
-typedef struct COMMISSION_RATE_ROW : TBaseInputRow
+typedef struct COMMISSION_RATE_ROW : public TBaseInputRow
 {
     int                     CR_C_TIER;
     char                    CR_TT_ID[cTT_ID_len+1];
@@ -171,7 +143,7 @@ typedef struct COMPANY_ROW
 const char CompanyRowFmt[] = "%" PRId64 "|%s|%s|%s|%s|%s|%" PRId64 "|%s|%s\n";
 
 // COMPANY_COMPETITOR table
-typedef struct COMPANY_COMPETITOR_ROW : TBaseInputRow
+typedef struct COMPANY_COMPETITOR_ROW : public TBaseInputRow
 {
     TIdent                  CP_CO_ID;
     TIdent                  CP_COMP_CO_ID;
@@ -242,9 +214,9 @@ typedef struct DAILY_MARKET_ROW
     double                  DM_CLOSE;
     double                  DM_HIGH;
     double                  DM_LOW;
-    int                     DM_VOL;
+    INT64                   DM_VOL;
 } *PDAILY_MARKET_ROW;
-const char DailyMarketRowFmt[] = "%s|%s|%.2f|%.2f|%.2f|%d\n";
+const char DailyMarketRowFmt[] = "%s|%s|%.2f|%.2f|%.2f|%" PRId64 "\n";
 
 // EXCHANGE table
 typedef struct EXCHANGE_ROW
@@ -276,10 +248,10 @@ typedef struct FINANCIAL_ROW
     double                  FI_INVENTORY;
     double                  FI_ASSETS;
     double                  FI_LIABILITY;
-    double                  FI_OUT_BASIC;
-    double                  FI_OUT_DILUT;
+    INT64                   FI_OUT_BASIC;
+    INT64                   FI_OUT_DILUT;
 } *PFINANCIAL_ROW;
-const char FinancialRowFmt[] = "%" PRId64 "|%d|%d|%s|%.2f|%.2f|%.2f|%.2f|%.2f|%.2f|%.2f|%.2f|%.0f|%.0f\n";
+const char FinancialRowFmt[] = "%" PRId64 "|%d|%d|%s|%.2f|%.2f|%.2f|%.2f|%.2f|%.2f|%.2f|%.2f|%" PRId64 "|%" PRId64 "\n";
 
 // HOLDING table
 typedef struct HOLDING_ROW
@@ -313,7 +285,7 @@ typedef struct HOLDING_SUMMARY_ROW
 const char HoldingSummaryRowFmt[] = "%" PRId64 "|%s|%d\n";
 
 // INDUSTRY table
-typedef struct INDUSTRY_ROW : TBaseInputRow
+typedef struct INDUSTRY_ROW : public TBaseInputRow
 {
     char                    IN_ID[cIN_ID_len+1];
     char                    IN_NAME[cIN_NAME_len+1];
@@ -330,9 +302,9 @@ typedef struct LAST_TRADE_ROW
     CDateTime               LT_DTS;
     double                  LT_PRICE;
     double                  LT_OPEN_PRICE;
-    int                     LT_VOL;
+    INT64                   LT_VOL;
 } *PLAST_TRADE_ROW;
-const char LastTradeRowFmt[] = "%s|%s|%.2f|%.2f|%d\n";
+const char LastTradeRowFmt[] = "%s|%s|%.2f|%.2f|%" PRId64 "\n";
 
 // NEWS_ITEM table
 typedef struct NEWS_ITEM_ROW
@@ -356,7 +328,7 @@ typedef struct NEWS_XREF_ROW
 const char NewsXRefRowFmt[] = "%" PRId64 "|%" PRId64 "\n";
 
 // SECTOR table
-typedef struct SECTOR_ROW : TBaseInputRow
+typedef struct SECTOR_ROW : public TBaseInputRow
 {
     char                    SC_ID[cSC_ID_len+1];
     char                    SC_NAME[cSC_NAME_len+1];
@@ -374,17 +346,18 @@ typedef struct SECURITY_ROW
     char                    S_NAME[ cS_NAME_len+1 ];
     char                    S_EX_ID[ cEX_ID_len+1 ];
     TIdent                  S_CO_ID;
-    double                  S_NUM_OUT;
+    INT64                   S_NUM_OUT;
     CDateTime               S_START_DATE;
     CDateTime               S_EXCH_DATE;
     double                  S_PE;
-    OLTPNullable52WkHighLow S_52WK; // S_52WK_HIGH, S_52WK_HIGH_DATE, S_52WK_LOW and S_52WK_LOW_DATE
+    float                   S_52WK_HIGH;
+    CDateTime               S_52WK_HIGH_DATE;
+    float                   S_52WK_LOW;
+    CDateTime               S_52WK_LOW_DATE;
     double                  S_DIVIDEND;
     double                  S_YIELD;
 }   *PSECURITY_ROW;
-const char SecurityRowFmt_1[] = "%s|%s|%s|%s|%s|%" PRId64 "|%.0f|%s|%s|%.2f|";
-const char SecurityRowFmt_2[] = "%.2f|%s|%.2f|%s|"; // Used for (S_52WK_HIGH, S_52WK_HIGH_DATE) and (S_52WK_LOW, S_52WK_LOW_DATE) when not null.
-const char SecurityRowFmt_3[] = "%.2f|%.2f\n";
+const char SecurityRowFmt[] = "%s|%s|%s|%s|%s|%" PRId64 "|%" PRId64 "|%s|%s|%.2f|%.2f|%s|%.2f|%s|%.2f|%.2f\n";
 
 // SETTLEMENT table
 typedef struct SETTLEMENT_ROW
@@ -397,7 +370,7 @@ typedef struct SETTLEMENT_ROW
 const char SettlementRowFmt[] = "%" PRId64 "|%s|%s|%.2f\n";
 
 // STATUS_TYPE table
-typedef struct STATUS_TYPE_ROW : TBaseInputRow
+typedef struct STATUS_TYPE_ROW : public TBaseInputRow
 {
     char                    ST_ID[cST_ID_len+1];
     char                    ST_NAME[cST_NAME_len+1];
@@ -422,7 +395,7 @@ typedef struct TRADE_ROW
     CDateTime               T_DTS;
     char                    T_ST_ID[ cST_ID_len+1 ];
     char                    T_TT_ID[ cTT_ID_len+1 ];
-    int                     T_IS_CASH;
+    bool                    T_IS_CASH;
     char                    T_S_SYMB[ cSYMBOL_len+1 ];
     int                     T_QTY;
     double                  T_BID_PRICE;
@@ -432,9 +405,9 @@ typedef struct TRADE_ROW
     double                  T_CHRG;
     double                  T_COMM;
     double                  T_TAX;
-    int                     T_LIFO;
+    bool                    T_LIFO;
 } *PTRADE_ROW;
-const char TradeRowFmt[] = "%" PRId64 "|%s|%s|%s|%d|%s|%d|%.2f|%" PRId64 "|%s|%.2f|%.2f|%.2f|%.2f|%d\n";
+const char TradeRowFmt[] = "%" PRId64 "|%s|%s|%s|%s|%s|%d|%.2f|%" PRId64 "|%s|%.2f|%.2f|%.2f|%.2f|%s\n";
 
 // TRADE_HISTORY table
 typedef struct TRADE_HISTORY_ROW
@@ -462,12 +435,12 @@ typedef struct TRADE_TYPE_ROW
 {
     char                    TT_ID[ cTT_ID_len+1 ];
     char                    TT_NAME[ cTT_NAME_len+1 ];
-    int                     TT_IS_SELL;
-    int                     TT_IS_MRKT;
+    bool                    TT_IS_SELL;
+    bool                    TT_IS_MRKT;
 
     void                    Load(istream &file);    //loads itself (one row) from the input stream
 } *PTRADE_TYPE_ROW;
-const char TradeTypeRowFmt[] = "%s|%s|%d|%d\n";
+const char TradeTypeRowFmt[] = "%s|%s|%s|%s\n";
 
 // WATCH_ITEM table
 typedef struct WATCH_ITEM_ROW

@@ -112,7 +112,7 @@ ProtoDtxnCoordinator::ProtoDtxnCoordinator(dtxn::DtxnManager* dtxn_manager, int 
         num_partitions_(num_partitions) {
     CHECK(dtxn_manager_ != NULL);
     CHECK(num_partitions_ > 0);
-    LOG_INFO("Evan's magic has started");
+    LOG_DEBUG("Evan's magic has started");
 }
 
 ProtoDtxnCoordinator::~ProtoDtxnCoordinator() {
@@ -123,6 +123,9 @@ void ProtoDtxnCoordinator::Execute(RpcController* controller,
         CoordinatorResponse* response,
         Closure* done) {
     LOG_DEBUG("Execute %ld", request->transaction_id());
+    LOG_DEBUG("Execute %ld fragments: %d last fragment? %d done partitions: %d\n",
+            request->transaction_id(), request->fragment_size(),
+            request->last_fragment(), request->done_partition_size());
     CHECK(request->fragment_size() > 0);
     assert(!response->IsInitialized());
 
@@ -137,7 +140,12 @@ void ProtoDtxnCoordinator::Execute(RpcController* controller,
         CHECK(result.second);
     } else {
         state = it->second;
-        CHECK(state->transaction()->multiple_partitions());
+        bool multiple_partitions = state->transaction()->multiple_partitions();
+        if (multiple_partitions == false) {
+            std::string payload = (state->transaction()->has_payload() ? state->transaction()->payload() : request->payload());
+            LOG_ERROR("Txn #%s wants multiple partitions when it was suppose to be single-partitioned", payload.c_str());
+        }
+        CHECK(multiple_partitions);
     }
     state->setResponse(controller, response, done);
 
@@ -171,6 +179,8 @@ void ProtoDtxnCoordinator::Finish(RpcController* controller,
         FinishResponse* response,
         Closure* done) {
     LOG_DEBUG("Finish %ld [payload=%s]", request->transaction_id(), request->payload().c_str());
+    LOG_DEBUG("Finish %ld commit = %d\n",
+            request->transaction_id(), request->commit());
     
     // Finish this transaction
     TransactionMap::iterator it = transactions_.find(request->transaction_id());

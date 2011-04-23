@@ -25,12 +25,12 @@
  ***************************************************************************/
 package edu.mit.hstore.dtxn;
 
-import org.apache.commons.pool.BasePoolableObjectFactory;
 import org.apache.log4j.Logger;
 import org.voltdb.ExecutionSite;
 import org.voltdb.VoltTable;
 import org.voltdb.BatchPlanner.BatchPlan;
 
+import edu.brown.utils.CountingPoolableObjectFactory;
 import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.LoggerUtil.LoggerBoolean;
 
@@ -40,8 +40,8 @@ import edu.brown.utils.LoggerUtil.LoggerBoolean;
  */
 public class RemoteTransactionState extends TransactionState {
     protected static final Logger LOG = Logger.getLogger(RemoteTransactionState.class);
-    private final static LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
-    private final static LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
     static {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
@@ -49,20 +49,16 @@ public class RemoteTransactionState extends TransactionState {
     /**
      * RemoteTransactionState Factory
      */
-    public static class Factory extends BasePoolableObjectFactory {
+    public static class Factory extends CountingPoolableObjectFactory<RemoteTransactionState> {
         private final ExecutionSite executor;
         
-        public Factory(ExecutionSite executor) {
+        public Factory(ExecutionSite executor, boolean enable_tracking) {
+            super(enable_tracking);
             this.executor = executor;
         }
         @Override
-        public Object makeObject() throws Exception {
+        public RemoteTransactionState makeObjectImpl() throws Exception {
             return new RemoteTransactionState(this.executor);
-        }
-        @Override
-        public void passivateObject(Object obj) throws Exception {
-            RemoteTransactionState ts = (RemoteTransactionState)obj;
-            ts.finish();
         }
     };
     

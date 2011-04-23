@@ -7,7 +7,7 @@ import org.voltdb.client.Client;
 
 public abstract class TM1BaseClient extends ClientMain {
 
-    protected int scaleFactor = 1;
+    protected double scaleFactor = 1.0;
     protected long subscriberSize = 100000l;
     protected final Random rand = new Random();
     
@@ -32,8 +32,8 @@ public abstract class TM1BaseClient extends ClientMain {
             if (parts[1].startsWith("${"))
                 continue;
             if (parts[0].equalsIgnoreCase("scalefactor")) {
-                scaleFactor = Integer.parseInt(parts[1]);
-                subscriberSize = subscriberSize / scaleFactor;
+                scaleFactor = Double.parseDouble(parts[1]);
+                subscriberSize = (int)(subscriberSize / scaleFactor);
             }
         } // FOR
         
@@ -43,7 +43,7 @@ public abstract class TM1BaseClient extends ClientMain {
         return subscriberSize;
     }
     
-    public int getScaleFactor() {
+    public double getScaleFactor() {
         return scaleFactor;
     }
 

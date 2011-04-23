@@ -1,9 +1,9 @@
 /*
  * Legal Notice
  *
- * This document and associated source code (the "Work") is a preliminary
- * version of a benchmark specification being developed by the TPC. The
- * Work is being made available to the public for review and comment only.
+ * This document and associated source code (the "Work") is a part of a
+ * benchmark specification maintained by the TPC.
+ *
  * The TPC reserves all right, title, and interest to the Work as provided
  * under U.S. and international laws, including without limitation all patent
  * and trademark rights therein.
@@ -52,10 +52,10 @@ namespace TPCE
 
 // We use a small set of values for 26 raised to a power, so store them in
 // a constant array to save doing calls to pow( 26.0, ? )
-static const int    Power26[] = { 1, 26, 676, 17576, 456976, 11881376, 308915776 };
+static const UINT  Power26[] = { 1, 26, 676, 17576, 456976, 11881376, 308915776 };
 
 // For index i > 0, this array holds the sum of 26^0 ... 26^(i-1)
-static const INT64  Power26Sum[] = { 0, 1, 27, 703, 18279, 475255, 12356631, 321272407, INT64_CONST(8353082583) };
+static const UINT64  Power26Sum[] = { 0, 1, 27, 703, 18279, 475255, 12356631, 321272407, UINT64_CONST(8353082583) };
 
 class CSecurityFile : public CFlatFile<TSecurityInputRow, TSecurityLimits>
 {
@@ -65,7 +65,7 @@ class CSecurityFile : public CFlatFile<TSecurityInputRow, TSecurityLimits>
     TIdent  m_iConfiguredSecurityCount;
     TIdent  m_iActiveSecurityCount;
 
-    // Number of base companies (=rows in COMPANY.txt input file).
+    // Number of base companies (=rows in Company.txt input file).
     //
     UINT    m_iBaseCompanyCount;
 
@@ -75,13 +75,13 @@ class CSecurityFile : public CFlatFile<TSecurityInputRow, TSecurityLimits>
     map< char, int >        m_LowerCaseLetterToIntMap;
     char                    m_SUFFIX_SEPARATOR;
 
-    void CreateSuffix( TIdent Multiplier, char* pBuf, int BufSize )
+    void CreateSuffix( TIdent Multiplier, char* pBuf, size_t BufSize )
     {
-        int CharCount( 0 );
+        size_t CharCount( 0 );
         INT64 Offset( 0 );
         INT64 LCLIndex( 0 );    // LowerCaseLetter array index
 
-        while( Multiplier - Power26Sum[CharCount+1] >= 0 )
+        while( (UINT64)Multiplier >= Power26Sum[CharCount+1] )
         {
             CharCount++;
         }
@@ -132,7 +132,8 @@ class CSecurityFile : public CFlatFile<TSecurityInputRow, TSecurityLimits>
 
         while( CharCount > 0 )
         {
-            Multiplier += Power26[ CharCount-1 ] * m_LowerCaseLetterToIntMap[ *pSymbol ];
+            Multiplier += (INT64)Power26[ CharCount-1 ] * 
+                           m_LowerCaseLetterToIntMap[ *pSymbol ];
             CharCount--;
             pSymbol++;
         }
@@ -211,11 +212,11 @@ public:
     //
     void CreateSymbol(  TIdent  iIndex,     // row number
                         char*   szOutput,   // output buffer
-                        int     iOutputLen) // size of the output buffer (including null)
+                        size_t  iOutputLen) // size of the output buffer (including null)
     {
         TIdent  iFileIndex  = iIndex % CFlatFile<TSecurityInputRow, TSecurityLimits>::GetSize();
         TIdent  iAdd        = iIndex / CFlatFile<TSecurityInputRow, TSecurityLimits>::GetSize();
-        int     iNewLen;
+        size_t  iNewLen;
 
         // Load the base symbol
         strncpy(szOutput, GetRecord(iFileIndex)->S_SYMB, iOutputLen);
@@ -225,7 +226,7 @@ public:
         // Add a suffix if needed
         if (iAdd > 0)
         {
-            iNewLen = (int) strlen( szOutput );
+            iNewLen = strlen( szOutput );
             CreateSuffix( iAdd, &szOutput[iNewLen], iOutputLen - iNewLen );
         }
     }
@@ -285,7 +286,8 @@ public:
 
             for( ii = 0; ii < m_list.size(); ii++ )
             {
-                m_SymbolToIdMap[ m_list[ii].S_SYMB ] = m_list[ii].S_ID;
+                string sSymbol( m_list[ii].S_SYMB );
+                m_SymbolToIdMap[ sSymbol ] = m_list[ii].S_ID;
             }
             m_SymbolToIdMapIsLoaded = true;
 
@@ -308,7 +310,8 @@ public:
         if( NULL == ( pSeparator = strchr( pSymbol, m_SUFFIX_SEPARATOR )))
         {
             // we're dealing with a base symbol
-            return( m_SymbolToIdMap[ pSymbol ] );
+            string sSymbol(pSymbol);
+            return( m_SymbolToIdMap[ sSymbol ] );
         }
         else
         {
@@ -317,13 +320,12 @@ public:
             TIdent  BaseId( 0 );
             TIdent  Multiplier( 0 );
 
-            *pSeparator = '\0';                     // Temporarily split the symbol into base and suffix parts
-            BaseId = m_SymbolToIdMap[ pSymbol ];
+            string  sSymbol(pSymbol, static_cast<size_t>(pSeparator-pSymbol));
+            BaseId = m_SymbolToIdMap[ sSymbol ];
 
             pSuffix = pSeparator + 1;               // The suffix starts right after the separator character
             Multiplier = (int)ParseSuffix( pSuffix );// For now, suffix values fit in an int, cast ParseSuffix to avoid compiler warning
 
-            *pSeparator = m_SUFFIX_SEPARATOR;           // Re-connect the base symbol and the suffix
             return(( Multiplier * m_list.size() ) + BaseId );
         }
     }
@@ -332,6 +334,36 @@ public:
     {
         // Indices and Id's are offset by 1
         return( GetId( pSymbol ) - 1 );
+    }
+
+    eExchangeID GetExchangeIndex( TIdent index )
+    {
+        // The mod converts a scaled security index into a base security index
+        char *pExchange = m_list[(int)(index % m_list.size())].S_EX_ID;
+        eExchangeID eExchangeIndex;
+
+        if (!strcmp(pExchange, "NYSE"))
+        {
+            eExchangeIndex = eNYSE;
+        }
+        else if (!strcmp(pExchange, "NASDAQ"))
+        {
+            eExchangeIndex = eNASDAQ;
+        }
+        else if (!strcmp(pExchange, "AMEX"))
+        {
+            eExchangeIndex = eAMEX;
+        }
+        else if (!strcmp(pExchange, "PCX"))
+        {
+            eExchangeIndex = ePCX;
+        }
+        else
+        {
+            assert(false);
+        }
+
+        return eExchangeIndex;
     }
 };
 

@@ -1,9 +1,9 @@
 /*
  * Legal Notice
  *
- * This document and associated source code (the "Work") is a preliminary
- * version of a benchmark specification being developed by the TPC. The
- * Work is being made available to the public for review and comment only.
+ * This document and associated source code (the "Work") is a part of a
+ * benchmark specification maintained by the TPC.
+ *
  * The TPC reserves all right, title, and interest to the Work as provided
  * under U.S. and international laws, including without limitation all patent
  * and trademark rights therein.
@@ -62,7 +62,7 @@ public:
         pTxnOutput->status = Frame1Output.status;
         for (unsigned int i = 0; i < (sizeof(pTxnOutput->trade_id)/sizeof(pTxnOutput->trade_id[0])); ++i)
         {
-            strncpy( pTxnOutput->status_name[i], Frame1Output.status_name[i], sizeof( pTxnOutput->status_name[i] ) - 1 );
+            strncpy( pTxnOutput->status_name[i], Frame1Output.status_name[i], sizeof( pTxnOutput->status_name[i] ));
             pTxnOutput->trade_id[i] = Frame1Output.trade_id[i];
         }
     }

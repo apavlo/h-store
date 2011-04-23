@@ -29,12 +29,14 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.lang.reflect.Constructor;
 import java.net.UnknownHostException;
+import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
+import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicLong;
 
 import org.apache.log4j.Logger;
@@ -63,6 +65,43 @@ public abstract class ClientMain {
         // log4j hack!
         LoggerUtil.setupLogging();
     }
+    
+    public enum Command {
+        START,
+        POLL,
+        CLEAR,
+        PAUSE,
+        SHUTDOWN,
+        STOP;
+     
+        protected static final Map<Integer, Command> idx_lookup = new HashMap<Integer, Command>();
+        protected static final Map<String, Command> name_lookup = new HashMap<String, Command>();
+        static {
+            for (Command vt : EnumSet.allOf(Command.class)) {
+                Command.idx_lookup.put(vt.ordinal(), vt);
+                Command.name_lookup.put(vt.name().toUpperCase().intern(), vt);
+            } // FOR
+        }
+        
+        public static Command get(String name) {
+            return (Command.name_lookup.get(name.trim().toUpperCase().intern()));
+        }
+    }
+    
+    /** The states important to the remote controller */
+    public static enum ControlState {
+        PREPARING("PREPARING"),
+        READY("READY"),
+        RUNNING("RUNNING"),
+        PAUSED("PAUSED"),
+        ERROR("ERROR");
+
+        ControlState(final String displayname) {
+            display = displayname;
+        }
+
+        public final String display;
+    };
 
     /**
      * Client initialized here and made available for use in derived classes
@@ -104,6 +143,7 @@ public abstract class ClientMain {
     private final int m_txnRate;
     
     private final boolean m_blocking;
+    private final boolean m_throttling;
 
     /**
      * Number of transactions to generate for every millisecond of time that
@@ -154,6 +194,11 @@ public abstract class ClientMain {
     protected Catalog m_catalog;
     
     private final boolean m_exitOnCompletion;
+    
+    /**
+     * Pause Lock
+     */
+    private final Semaphore m_pauseLock = new Semaphore(1);
 
     /**
      * Data verification.
@@ -164,18 +209,6 @@ public abstract class ClientMain {
     private final LinkedHashMap<Pair<String, Integer>, Expression> m_constraints;
     private final List<String> m_tableCheckOrder = new LinkedList<String>();
     protected VoltSampler m_sampler = null;
-
-    /** The states important to the remote controller */
-    public static enum ControlState {
-        PREPARING("PREPARING"), READY("READY"), RUNNING("RUNNING"), ERROR(
-            "ERROR");
-
-        ControlState(final String displayname) {
-            display = displayname;
-        }
-
-        public final String display;
-    };
     
     public static String CONTROL_PREFIX = "{HSTORE} ";
 
@@ -200,84 +233,119 @@ public abstract class ClientMain {
     class ControlPipe implements Runnable {
 
         public void run() {
-            String command = "";
+            final Thread self = Thread.currentThread();
+            self.setName(String.format("client-%02d", m_id));
+            
             final InputStreamReader reader = new InputStreamReader(System.in);
             final BufferedReader in = new BufferedReader(reader);
 
+            Command command = null;
+            
             // transition to ready and send ready message
             if (m_controlState == ControlState.PREPARING) {
                 printControlMessage(ControlState.READY);
                 m_controlState = ControlState.READY;
-            }
-            else {
+            } else {
                 LOG.error("Not starting prepared!");
                 LOG.error(m_controlState.display + " " + m_reason);
             }
 
             while (true) {
+                final boolean debug = LOG.isDebugEnabled(); 
+                
                 try {
-                    command = in.readLine();
-                }
-                catch (final IOException e) {
+                    command = Command.get(in.readLine());
+                    if (debug) LOG.debug(String.format("Recieved Command: '%s'", command));
+                } catch (final IOException e) {
                     // Hm. quit?
                     LOG.fatal("Error on standard input", e);
                     System.exit(-1);
                 }
+                if (command == null) continue;
+                if (debug) LOG.debug("Command = " + command);
 
-                if (command.equalsIgnoreCase("START")) {
-                    if (m_controlState != ControlState.READY) {
-                        setState(ControlState.ERROR, "START when not READY.");
-                        answerWithError();
-                        continue;
-                    }
-                    answerStart();
-                    m_controlState = ControlState.RUNNING;
-                }
-                else if (command.equalsIgnoreCase("POLL")) {
-                    if (m_controlState != ControlState.RUNNING) {
-                        setState(ControlState.ERROR, "POLL when not RUNNING.");
-                        answerWithError();
-                        continue;
-                    }
-                    answerPoll();
-                    
-                    // Call tick on the client!
-                    // if (LOG.isDebugEnabled()) LOG.debug("Got poll message! Calling tick()!");
-                    ClientMain.this.tick();
-                }
-                else if (command.equalsIgnoreCase("SHUTDOWN")) {
-                    if (m_controlState == ControlState.RUNNING) {
-                        try {
-                            m_voltClient.callProcedure("@Shutdown");
-                        } catch (Exception ex) {
-                            ex.printStackTrace();
+                switch (command) {
+                    case START: {
+                        if (m_controlState != ControlState.READY) {
+                            setState(ControlState.ERROR, "START when not READY.");
+                            answerWithError();
+                            continue;
                         }
+                        answerStart();
+                        m_controlState = ControlState.RUNNING;
+                        break;
                     }
-                    System.exit(0);
-                } else if (command.equalsIgnoreCase("STOP")) {
-                    if (m_controlState == ControlState.RUNNING) {
-                        try {
-                            if (m_sampler != null) {
-                                m_sampler.setShouldStop();
-                                m_sampler.join();
-                            }
-                            m_voltClient.close();
-                            if (m_checkTables) {
-                                checkTables();
-                            }
-                        } catch (InterruptedException e) {
-                            System.exit(0);
-                        } finally {
-                            System.exit(0);
+                    case POLL: {
+                        if (m_controlState != ControlState.RUNNING) {
+                            setState(ControlState.ERROR, "POLL when not RUNNING.");
+                            answerWithError();
+                            continue;
                         }
+                        answerPoll();
+                        
+                        // Call tick on the client!
+                        // if (LOG.isDebugEnabled()) LOG.debug("Got poll message! Calling tick()!");
+                        ClientMain.this.tick();
+                        break;
                     }
-                    LOG.fatal("STOP when not RUNNING");
-                    System.exit(-1);
-                }
-                else {
-                    LOG.fatal("Error on standard input: unknown command " + command);
-                    System.exit(-1);
-                }
+                    case CLEAR: {
+                        for (AtomicLong cnt : m_counts) {
+                            cnt.set(0);
+                        } // FOR
+                        break;
+                    }
+                    case PAUSE: {
+                        assert(m_controlState == ControlState.RUNNING) : "Unexpected " + m_controlState;
+                        
+                        LOG.info("Pausing client");
+                        
+                        // Enable the lock and then change our state
+                        try {
+                            m_pauseLock.acquire();
+                        } catch (InterruptedException ex) {
+                            LOG.fatal("Unexpected interuption!", ex);
+                            System.exit(1);
+                        }
+                        m_controlState = ControlState.PAUSED;
+                        break;
+                    }
+                    case SHUTDOWN: {
+                        if (m_controlState == ControlState.RUNNING || m_controlState == ControlState.PAUSED) {
+                            try {
+                                m_voltClient.callProcedure("@Shutdown");
+                            } catch (Exception ex) {
+                                ex.printStackTrace();
+                            }
+                        }
+                        System.exit(0);
+                        break;
+                    }
+                    case STOP: {
+                        if (m_controlState == ControlState.RUNNING || m_controlState == ControlState.PAUSED) {
+                            try {
+                                if (m_sampler != null) {
+                                    m_sampler.setShouldStop();
+                                    m_sampler.join();
+                                }
+                                m_voltClient.close();
+                                if (m_checkTables) {
+                                    checkTables();
+                                }
+                            } catch (InterruptedException e) {
+                                System.exit(0);
+                            } finally {
+                                System.exit(0);
+                            }
+                        }
+                        LOG.fatal("STOP when not RUNNING");
+                        System.exit(-1);
+                        break;
+                    }
+                    default: {
+                        LOG.fatal("Error on standard input: unknown command " + command);
+                        System.exit(-1);
+                    }
+                } // SWITCH
             }
         }
 
@@ -344,14 +412,20 @@ public abstract class ClientMain {
             m_lastRequestTime = System.currentTimeMillis();
             while (true) {
                 boolean bp = false;
-                /*
-                 * If there is back pressure don't send any requests. Update the
-                 * last request time so that a large number of requests won't
-                 * queue up to be sent when there is no longer any back
-                 * pressure.
-                 */
                 try {
+                    // If there is back pressure don't send any requests. Update the
+                    // last request time so that a large number of requests won't
+                    // queue up to be sent when there is no longer any back
+                    // pressure.
                     m_voltClient.backpressureBarrier();
+                    
+                    // Check whether we are currently being paused
+                    // We will block until we're allowed to go again
+                    if (m_controlState == ControlState.PAUSED) {
+                        m_pauseLock.acquire();
+                    }
+                    assert(m_controlState != ControlState.PAUSED) : "Unexpected " + m_controlState;
+                    
                 } catch (InterruptedException e1) {
                     throw new RuntimeException();
                 }
@@ -461,6 +535,7 @@ public abstract class ClientMain {
         m_username = "";
         m_txnRate = -1;
         m_blocking = false;
+        m_throttling = false;
         m_txnsPerMillisecond = 0;
         m_catalogPath = null;
         m_id = 0;
@@ -496,6 +571,7 @@ public abstract class ClientMain {
         String reason = ""; // and error string
         int transactionRate = -1;
         boolean blocking = false;
+        boolean throttling = false;
         int id = 0;
         int num_clients = 0;
         int num_partitions = 0;
@@ -507,17 +583,23 @@ public abstract class ClientMain {
         File catalogPath = null;
 
         // scan the inputs once to read everything but host names
-        for (final String arg : args) {
+        for (int i = 0; i < args.length; i++) {
+            final String arg = args[i];
             final String[] parts = arg.split("=", 2);
             if (parts.length == 1) {
                 state = ControlState.ERROR;
                 reason = "Invalid parameter: " + arg;
                 break;
-            }
-            else if (parts[1].startsWith("${")) {
+            } else if (parts[1].startsWith("${")) {
                 continue;
+                
+            // Strip out benchmark prefix  
+            } else if (parts[0].toLowerCase().startsWith(BenchmarkController.BENCHMARK_PARAM_PREFIX)) {
+                parts[0] = parts[0].substring(BenchmarkController.BENCHMARK_PARAM_PREFIX.length());
+                args[i] = parts[0] + "=" + parts[1]; // HACK
             }
-            else if (parts[0].equalsIgnoreCase("CATALOG")) {
+            
+            if (parts[0].equalsIgnoreCase("CATALOG")) {
                 catalogPath = new File(parts[1]);
                 assert(catalogPath.exists()) : "The catalog file '" + catalogPath.getAbsolutePath() + " does not exist";
             }
@@ -535,6 +617,9 @@ public abstract class ClientMain {
             }
             else if (parts[0].equalsIgnoreCase("BLOCKING")) {
                 blocking = Boolean.parseBoolean(parts[1]);
+            }
+            else if (parts[0].equalsIgnoreCase("THROTTLING")) {
+                throttling = Boolean.parseBoolean(parts[1]);
             }
             else if (parts[0].equalsIgnoreCase("ID")) {
                 id = Integer.parseInt(parts[1]);
@@ -594,6 +679,7 @@ public abstract class ClientMain {
         m_txnRate = transactionRate;
         m_txnsPerMillisecond = transactionRate / 1000.0;
         m_blocking = blocking;
+        m_throttling = throttling;
         
         if (m_catalogPath != null) {
             try {
@@ -605,7 +691,10 @@ public abstract class ClientMain {
             }
         }
 
-        if (m_blocking) {
+        if (m_throttling) {
+            LOG.debug("Using ThrottlingClient!");
+            m_voltClient = new ThrottlingClient(new_client);
+        } else if (m_blocking) {
             LOG.debug("Using BlockingClient!");
             m_voltClient = new BlockingClient(new_client);
         } else {
@@ -732,6 +821,7 @@ public abstract class ClientMain {
 
     private void createConnection(final String hostname, final int port)
         throws UnknownHostException, IOException {
+        if (LOG.isDebugEnabled()) LOG.debug(String.format("Requesting connection to %s:%d", hostname, port));
         m_voltClient.createConnection(hostname, port, m_username, m_password);
     }
 

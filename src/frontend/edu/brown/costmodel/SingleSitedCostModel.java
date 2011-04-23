@@ -604,7 +604,7 @@ public class SingleSitedCostModel extends AbstractCostModel {
                 assert(txn_entry.multisite_queries >= 0) : txn_entry + " has negative multisited queries!\n" +  txn_entry.debug();
                 
                 // Populate this histogram so that we know what to remove from the global histogram
-                invalidate_removedTouchedPartitions.putValues(query_entry.getAllPartitions());
+                invalidate_removedTouchedPartitions.putAll(query_entry.getAllPartitions());
                 
                 // Remove the partitions this query touches from the txn's touched partitions histogram
                 txn_entry.touched_partitions.removeValues(query_entry.getAllPartitions());
@@ -977,8 +977,8 @@ public class SingleSitedCostModel extends AbstractCostModel {
                 // partitions touched by txns, because we don't want to count the same partition multiple times
                 // Note also that we want to do this *outside* of the loop above, otherwise we will count
                 // the same partition multiple times if the query references more than one table!
-                this.histogram_query_partitions.putValues(query_entry.getAllPartitions());
-                txn_entry.touched_partitions.putValues(query_entry.getAllPartitions());
+                this.histogram_query_partitions.putAll(query_entry.getAllPartitions());
+                txn_entry.touched_partitions.putAll(query_entry.getAllPartitions());
                 int query_num_partitions = query_entry.getAllPartitions().size();
                 query_partitions += query_num_partitions;
                 
@@ -1072,7 +1072,7 @@ public class SingleSitedCostModel extends AbstractCostModel {
             temp = txn_entry.touched_partitions.values();
             HashSet<Integer> new_partitions = new HashSet<Integer>(temp);
             new_partitions.removeAll(orig_partitions);
-            this.histogram_txn_partitions.putValues(new_partitions);
+            this.histogram_txn_partitions.putAll(new_partitions);
             if (debug)
                 LOG.debug("Updating " + txn_trace + " histogram_txn_partitions with " + new_partitions.size() +
                           " new partitions [new_sample_count=" + this.histogram_txn_partitions.getSampleCount() +
@@ -1164,21 +1164,21 @@ public class SingleSitedCostModel extends AbstractCostModel {
             System.out.println("Java Execution Histogram:");
             h = costmodel.getJavaExecutionHistogram();
             h.setKeepZeroEntries(true);
-            h.putValues(all_partitions, 0);
+            h.putAll(all_partitions, 0);
             System.out.println(StringUtil.addSpacers(h.toString()));
             System.out.print(StringUtil.DOUBLE_LINE);
     
             System.out.println("Transaction Partition Histogram:");
             h = costmodel.getTxnPartitionAccessHistogram();
             h.setKeepZeroEntries(true);
-            h.putValues(all_partitions, 0);
+            h.putAll(all_partitions, 0);
             System.out.println(StringUtil.addSpacers(h.toString()));
             System.out.print(StringUtil.DOUBLE_LINE);
     
             System.out.println("Query Partition Touch Histogram:");
             h = costmodel.getQueryPartitionAccessHistogram();
             h.setKeepZeroEntries(true);
-            h.putValues(all_partitions, 0);
+            h.putAll(all_partitions, 0);
             System.out.println(StringUtil.addSpacers(h.toString()));
             System.out.print(StringUtil.DOUBLE_LINE);
         }

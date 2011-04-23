@@ -20,6 +20,10 @@ package org.voltdb;
 import java.io.IOException;
 
 import java.nio.ByteBuffer;
+import java.util.Collection;
+import java.util.HashSet;
+import java.util.Set;
+
 import org.voltdb.messaging.*;
 
 /**
@@ -30,13 +34,20 @@ import org.voltdb.messaging.*;
 public class StoredProcedureInvocation implements FastSerializable {
 
     String procName = null;
+    boolean sysproc = false;
     ParameterSet params = null;
     ByteBuffer unserializedParams = null;
 
     /** A descriptor provided by the client, opaque to the server,
         returned to the client in the ClientResponse */
     long clientHandle = -1;
-
+    
+    /** Whether this invocation should be specifically executed at a particular partition **/
+    int base_partition = -1;
+    
+    /** What partitions this invocation will touch **/
+    Set<Integer> partitions = null;
+    
     public StoredProcedureInvocation() {
         super();
     }
@@ -45,6 +56,7 @@ public class StoredProcedureInvocation implements FastSerializable {
         super();
         this.clientHandle = handle;
         this.procName = procName;
+        this.sysproc = (procName.startsWith("@"));
         this.params = new ParameterSet();
         this.params.setParameters(parameters);
     }
@@ -89,13 +101,31 @@ public class StoredProcedureInvocation implements FastSerializable {
     public void setClientHandle(int aHandle) {
         clientHandle = aHandle;
     }
-
     public long getClientHandle() {
         return clientHandle;
     }
-    public long getHandle() {
-        return clientHandle;
+    
+    public boolean hasBasePartition() {
+        return (this.base_partition != -1);
     }
+    public int getBasePartition() {
+        return (this.base_partition);
+    }
+    public void setBasePartition(int partition) {
+        this.base_partition = (short)partition;
+    }
+    
+    public boolean hasPartitions() {
+        return (this.partitions != null);
+    }
+    public Set<Integer> getPartitions() {
+        return (this.partitions);
+    }
+    public void addPartitions(Collection<Integer> partitions) {
+        if (this.partitions == null) this.partitions = new HashSet<Integer>();
+        this.partitions.addAll(partitions);
+    }
+
 
     /**
      * If created from ClientInterface within a single host,
@@ -129,9 +159,20 @@ public class StoredProcedureInvocation implements FastSerializable {
 
     @Override
     public void readExternal(FastDeserializer in) throws IOException {
-        in.readByte();//skip version
-        procName = in.readString();
+//        in.readByte();//skip version
+        sysproc = in.readBoolean();
+        base_partition = (int)in.readShort();
         clientHandle = in.readLong();
+        procName = in.readString();
+        
+        int num_partitions = in.readShort();
+        if (num_partitions > 0) {
+            this.partitions = new HashSet<Integer>();
+            for (int i = 0; i < num_partitions; i++) {
+                this.partitions.add((int)in.readShort());
+            } // FOR
+        }
+        
         // do not deserialize parameters in ClientInterface context
         unserializedParams = in.remainder();
         params = null;
@@ -141,15 +182,85 @@ public class StoredProcedureInvocation implements FastSerializable {
     public void writeExternal(FastSerializer out) throws IOException {
         assert(!((params == null) && (unserializedParams == null)));
         assert((params != null) || (unserializedParams != null));
-        out.write(0);//version
+//        out.write(0);   // version (1)
+        out.writeBoolean(sysproc); // (1)
+        out.writeShort(base_partition); // (2)
+        out.writeLong(clientHandle);    // (8) 
         out.writeString(procName);
-        out.writeLong(clientHandle);
+        
+        if (this.partitions == null) {
+            out.writeShort(0);
+        } else {
+            out.writeShort(this.partitions.size());
+            for (Integer p : this.partitions) {
+                out.writeShort(p.intValue());
+            } // FOR
+        }
+        
         if (params != null)
             out.writeObject(params);
         else if (unserializedParams != null)
             out.write(unserializedParams.array(),
                       unserializedParams.position() + unserializedParams.arrayOffset(),
                       unserializedParams.remaining());
+    }
+    
+    /**
+     * Returns true if the raw bytes for this invocation indicate that it's a sysproc request
+     * @param buffer
+     * @return
+     */
+    public static boolean isSysProc(ByteBuffer buffer) {
+        return (buffer.get(0) == 1);
+    }
+    
+    /**
+     * Mark a serialized byte array of a StoredProcedureInvocation as being redirected to
+     * the given partition id without having to serialize it first.
+     * @param partition
+     * @param serialized
+     */
+    public static void markRawBytesAsRedirected(int partition, byte serialized[]) {
+        ByteBuffer buffer = ByteBuffer.wrap(serialized);
+        buffer.putShort(1, (short)partition);
+    }
+    
+    /**
+     * Returns the base partition of this invocation
+     * If the base partition is not set, the return value will be -1
+     * @param serialized
+     * @return
+     */
+    public static int getBasePartition(ByteBuffer buffer) {
+        buffer.rewind();
+        return (buffer.getShort(1));
+    }
+
+    /**
+     * 
+     * @param buffer
+     * @return
+     */
+    public static String getProcedureName(ByteBuffer buffer) {
+        buffer.rewind();
+        FastDeserializer in = new FastDeserializer(buffer);
+        try {
+            in.skipBytes(11);
+            return (in.readString());
+        } catch (IOException ex) {
+            throw new RuntimeException(ex);
+        }
+    }
+    
+    /**
+     * Return the client handle from the serialized StoredProcedureInvocation without having to 
+     * deserialize it first
+     * @param serialized
+     * @return
+     */
+    public static long getClientHandle(ByteBuffer buffer) {
+        buffer.rewind();
+        return (buffer.getLong(3));
     }
 
     @Override

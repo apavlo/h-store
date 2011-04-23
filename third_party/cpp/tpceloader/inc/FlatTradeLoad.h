@@ -1,9 +1,9 @@
 /*
  * Legal Notice
  *
- * This document and associated source code (the "Work") is a preliminary
- * version of a benchmark specification being developed by the TPC. The
- * Work is being made available to the public for review and comment only.
+ * This document and associated source code (the "Work") is a part of a
+ * benchmark specification maintained by the TPC.
+ *
  * The TPC reserves all right, title, and interest to the Work as provided
  * under U.S. and international laws, including without limitation all patent
  * and trademark rights therein.
@@ -63,7 +63,7 @@ public:
                   Flat_T_DTS.ToStr(FlatFileDateTimeFormat),
                   next_record->T_ST_ID,
                   next_record->T_TT_ID,
-                  next_record->T_IS_CASH,
+                  (next_record->T_IS_CASH ? FlatFileBoolTrue : FlatFileBoolFalse),
                   next_record->T_S_SYMB,
                   next_record->T_QTY,
                   next_record->T_BID_PRICE,
@@ -73,12 +73,11 @@ public:
                   next_record->T_CHRG,
                   next_record->T_COMM,
                   next_record->T_TAX,
-                  next_record->T_LIFO
+                  (next_record->T_LIFO ? FlatFileBoolTrue : FlatFileBoolFalse)
                 );
         if (rc < 0) {
             throw CSystemErr(CSystemErr::eWriteFile, "CFlatTradeLoad::WriteNextRecord");
         }
-        this->iNumRecords++;
     }
 };
 

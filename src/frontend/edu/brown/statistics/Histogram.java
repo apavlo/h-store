@@ -12,6 +12,7 @@ import org.voltdb.VoltTypeException;
 import org.voltdb.catalog.Database;
 import org.voltdb.utils.VoltTypeUtil;
 
+import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.JSONSerializable;
 import edu.brown.utils.JSONUtil;
 import edu.brown.utils.MathUtil;
@@ -22,7 +23,7 @@ import edu.brown.utils.MathUtil;
  * @author svelagap
  *
  */
-public class Histogram implements JSONSerializable {
+public class Histogram<X> implements JSONSerializable {
     private static final Logger LOG = Logger.getLogger(Histogram.class);
     
     public static final String DELIMITER = "\t";
@@ -35,15 +36,15 @@ public class Histogram implements JSONSerializable {
         HISTOGRAM,
         NUM_SAMPLES,
         MIN_VALUE,
-        MIN_COUNT,
-        MIN_COUNT_VALUE,
+//        MIN_COUNT,
+//        MIN_COUNT_VALUE,
         MAX_VALUE,
-        MAX_COUNT,
-        MAX_COUNT_VALUE
+//        MAX_COUNT,
+//        MAX_COUNT_VALUE
     }
     
     protected VoltType value_type = VoltType.INVALID;
-    protected final SortedMap<Object, Long> histogram = new TreeMap<Object, Long>();
+    protected final SortedMap<X, Long> histogram = new TreeMap<X, Long>();
     protected long num_samples = 0;
     
     /**
@@ -63,9 +64,9 @@ public class Histogram implements JSONSerializable {
      * occurences in the histogram
      */
     protected long min_count = 0;
-    protected Object min_count_value = null;
+    protected final Set<Object> min_count_value = new HashSet<Object>();
     protected long max_count = 0;
-    protected Object max_count_value = null;
+    protected final Set<Object> max_count_value = new HashSet<Object>();
     
     /**
      * A switchable flag that determines whether non-zero entries are kept or removed
@@ -83,15 +84,15 @@ public class Histogram implements JSONSerializable {
      * Copy Constructor
      * @param other
      */
-    public Histogram(Histogram other) {
+    public Histogram(Histogram<X> other) {
         assert(other != null);
         this.putHistogram(other);
     }
 
     @Override
     public boolean equals(Object obj) {
-        if (obj instanceof Histogram) {
-            Histogram other = (Histogram)obj;
+        if (obj instanceof Histogram<?>) {
+            Histogram<?> other = (Histogram<?>)obj;
             return (this.histogram.equals(other.histogram));
         }
         return (false);
@@ -101,7 +102,7 @@ public class Histogram implements JSONSerializable {
      * Helper method used for replacing the object's toString() output with labels
      * @param names_map
      */
-    public Histogram setDebugLabels(Map<Object, String> names_map) {
+    public Histogram<X> setDebugLabels(Map<Object, String> names_map) {
         this.debug_names.putAll(names_map);
         return (this);
     }
@@ -120,10 +121,10 @@ public class Histogram implements JSONSerializable {
         // When this option is disabled, we need to remove all of the zeroed entries
         if (!flag && this.keep_zero_entries) {
             synchronized (this) {
-                Iterator<Object> it = this.histogram.keySet().iterator();
+                Iterator<X> it = this.histogram.keySet().iterator();
                 long ctr = 0;
                 while (it.hasNext()) {
-                    Object key = it.next();
+                    X key = it.next();
                     if (this.histogram.get(key) == 0) {
                         it.remove();
                         ctr++;
@@ -150,7 +151,7 @@ public class Histogram implements JSONSerializable {
      * @param count
      */
     @SuppressWarnings("unchecked")
-    private void _put(Object value, long count) {
+    private void _put(X value, long count) {
         if (value == null) return;
         if (this.value_type == VoltType.INVALID) {
             try {
@@ -168,9 +169,9 @@ public class Histogram implements JSONSerializable {
             count += this.histogram.get(value);
         } else if (this.histogram.isEmpty()) {
             this.min_count = count;
-            this.min_count_value = value;
+            this.min_count_value.add(value);
             this.max_count = count;
-            this.max_count_value = value;
+            this.max_count_value.add(value);
         }
         assert(count >= 0) : "Invalid negative count for '" + value + "' [count=" + count + "]";
         // If the new count is zero, then completely remove it if we're not allowed to have zero entries
@@ -189,23 +190,27 @@ public class Histogram implements JSONSerializable {
     }
 
     /**
-     * 
+     * Recalculate the min/max count value sets
+     * Since this is expensive, this should only be done whenever that information is needed 
      */
-    private void calculateInternalValues() {
+    private synchronized void calculateInternalValues() {
         // New Min/Max Counts
         // The reason we have to loop through and check every time is that our 
         // value may be the current min/max count and thus it may or may not still
         // be after the count is changed
         this.max_count = 0;
         this.min_count = Integer.MAX_VALUE;
-        for (Entry<Object, Long> e : this.histogram.entrySet()) {
-            if (e.getValue() < this.min_count) {
-                this.min_count_value = e.getKey();
-                this.min_count = e.getValue();
+        for (Entry<X, Long> e : this.histogram.entrySet()) {
+            long cnt = e.getValue(); 
+            if (cnt <= this.min_count) {
+                if (cnt < this.min_count) this.min_count_value.clear();
+                this.min_count_value.add(e.getKey());
+                this.min_count = cnt;
             }
-            if (e.getValue() > this.max_count) {
-                this.max_count_value = e.getKey();
-                this.max_count = e.getValue();
+            if (cnt >= this.max_count) {
+                if (cnt > this.max_count) this.max_count_value.clear();
+                this.max_count_value.add(e.getKey());
+                this.max_count = cnt;
             }
         } // FOR
     }
@@ -256,14 +261,26 @@ public class Histogram implements JSONSerializable {
      * @return
      */
     @SuppressWarnings("unchecked")
+    @Deprecated
     public <T> T getMinCountValue() {
-        return ((T)this.min_count_value);
+        this.calculateInternalValues();
+        return ((T)CollectionUtil.getFirst(this.min_count_value));
+    }
+    /**
+     * Return the set values with the smallest number of samples
+     * @return
+     */
+    @SuppressWarnings("unchecked")
+    public <T> Set<T> getMinCountValues() {
+        this.calculateInternalValues();
+        return ((Set<T>)this.min_count_value);
     }
     /**
      * Return the number of samples for the value with the greatest number of samples in the histogram
      * @return
      */
     public long getMaxCount() {
+        this.calculateInternalValues();
         return (this.max_count);
     }
     /**
@@ -272,10 +289,20 @@ public class Histogram implements JSONSerializable {
      * @return
      */
     @SuppressWarnings("unchecked")
+    @Deprecated
     public <T> T getMaxCountValue() {
-        return ((T)this.max_count_value);
+        this.calculateInternalValues();
+        return ((T)CollectionUtil.getFirst(this.max_count_value));
     }
-    
+    /**
+     * Return the set values with the greatest number of samples
+     * @return
+     */
+    @SuppressWarnings("unchecked")
+    public <T> Set<T> getMaxCountValues() {
+        this.calculateInternalValues();
+        return ((Set<T>)this.max_count_value);
+    }
     /**
      * Return the internal variable for what we "think" the type is for this Histogram
      * Use this at your own risk
@@ -289,18 +316,17 @@ public class Histogram implements JSONSerializable {
      * Return all the values stored in the histogram
      * @return
      */
-    @SuppressWarnings("unchecked")
-    public <T> Set<T> values() {
-        return (Collections.unmodifiableSet((Set<T>)this.histogram.keySet()));
+    public Set<X> values() {
+        return (Collections.unmodifiableSet(this.histogram.keySet()));
     }
     
     /**
      * Returns the list of values sorted in descending order by cardinality
      * @return
      */
-    public SortedSet<Object> sortedValues() {
-        SortedSet<Object> sorted = new TreeSet<Object>(new Comparator<Object>() {
-            public int compare(final Object item0, final Object item1) {
+    public SortedSet<X> sortedValues() {
+        SortedSet<X> sorted = new TreeSet<X>(new Comparator<X>() {
+            public int compare(final X item0, final X item1) {
                 final Long v0 = Histogram.this.get(item0);
                 final Long v1 = Histogram.this.get(item1);
                 if (v0.equals(v1)) return (-1);
@@ -317,11 +343,10 @@ public class Histogram implements JSONSerializable {
      * @param count
      * @return
      */
-    @SuppressWarnings("unchecked")
-    public <T> Set<T> getValuesForCount(long count) {
-        Set<T> ret = new HashSet<T>();
-        for (Entry<Object, Long> e : this.histogram.entrySet()) {
-            if (e.getValue() == count) ret.add((T)e.getKey());
+    public Set<X> getValuesForCount(long count) {
+        Set<X> ret = new HashSet<X>();
+        for (Entry<X, Long> e : this.histogram.entrySet()) {
+            if (e.getValue() == count) ret.add(e.getKey());
         } // FOR
         return (ret);
     }
@@ -333,10 +358,10 @@ public class Histogram implements JSONSerializable {
         this.histogram.clear();
         this.num_samples = 0;
         this.min_count = 0;
-        this.min_count_value = null;
+        this.min_count_value.clear();
         this.min_value = null;
         this.max_count = 0;
-        this.max_count_value = null;
+        this.max_count_value.clear();
         this.max_value = null;
         assert(this.histogram.isEmpty());
     }
@@ -347,15 +372,15 @@ public class Histogram implements JSONSerializable {
      */
     public synchronized void clearValues() {
         if (this.keep_zero_entries) {
-            for (Entry<Object, Long> e : this.histogram.entrySet()) {
+            for (Entry<X, Long> e : this.histogram.entrySet()) {
                 this.histogram.put(e.getKey(), 0l);
             } // FOR
             this.num_samples = 0;
             this.min_count = 0;
-            this.min_count_value = null;
+            this.min_count_value.clear();
             this.min_value = null;
             this.max_count = 0;
-            this.max_count_value = null;
+            this.max_count_value.clear();
             this.max_value = null;
         } else {
             this.clear();
@@ -379,9 +404,8 @@ public class Histogram implements JSONSerializable {
      * @param value the value to be added to the histogram
      * 
      */
-    public synchronized void put(Object value, long i) {
+    public synchronized void put(X value, long i) {
         this._put(value, i);
-        this.calculateInternalValues();
     }
     
     /**
@@ -389,9 +413,8 @@ public class Histogram implements JSONSerializable {
      * @param value the value to be added to the histogram
      * 
      */
-    public synchronized void put(Object value) {
+    public synchronized void put(X value) {
         this._put(value, 1);
-        this.calculateInternalValues();
     }
     
     /**
@@ -399,8 +422,8 @@ public class Histogram implements JSONSerializable {
      * @param <T>
      * @param values
      */
-    public <T> void putValues(Collection<T> values) {
-        this.putValues(values, 1);
+    public void putAll(Collection<X> values) {
+        this.putAll(values, 1);
     }
     
     /**
@@ -409,22 +432,20 @@ public class Histogram implements JSONSerializable {
      * @param values
      * @param count
      */
-    public synchronized <T> void putValues(Collection<T> values, long count) {
-        for (T v : values) {
+    public synchronized void putAll(Collection<X> values, long count) {
+        for (X v : values) {
             this._put(v, count);
         } // FOR
-        this.calculateInternalValues();
     }
     
     /**
      * Add all the entries from the provided Histogram into this objects totals
      * @param other
      */
-    public synchronized void putHistogram(Histogram other) {
-        for (Entry<Object, Long> e : other.histogram.entrySet()) {
+    public synchronized void putHistogram(Histogram<X> other) {
+        for (Entry<X, Long> e : other.histogram.entrySet()) {
             if (e.getValue() > 0) this._put(e.getKey(), e.getValue());
         } // FOR
-        this.calculateInternalValues();
     }
     
     /**
@@ -432,17 +453,17 @@ public class Histogram implements JSONSerializable {
      * @param value
      * @param count
      */
-    public synchronized void remove(Object value, long count) {
+    public synchronized void remove(X value, long count) {
         assert(this.histogram.containsKey(value));
         this._put(value, count * -1);
-        this.calculateInternalValues();
+//        this.calculateInternalValues();
     }
     
     /**
      * Decrement the count for the given value by one in the histogram
      * @param value
      */
-    public synchronized void remove(Object value) {
+    public synchronized void remove(X value) {
         this._put(value, -1);
         this.calculateInternalValues();
     }
@@ -451,11 +472,11 @@ public class Histogram implements JSONSerializable {
      * Remove the entrie count for the given value
      * @param value
      */
-    public synchronized void removeAll(Object value) {
+    public synchronized void removeAll(X value) {
         long cnt = this.histogram.get(value);
         if (cnt > 0) {
             this._put(value, cnt * -1);
-            this.calculateInternalValues();
+//            this.calculateInternalValues();
         }
     }
     
@@ -464,11 +485,11 @@ public class Histogram implements JSONSerializable {
      * @param <T>
      * @param values
      */
-    public synchronized <T> void removeValues(Collection<T> values) {
-        for (T v : values) {
+    public synchronized void removeValues(Collection<X> values) {
+        for (X v : values) {
             this._put(v, -1);
         } // FOR
-        this.calculateInternalValues();
+//        this.calculateInternalValues();
     }
     
     /**
@@ -476,11 +497,11 @@ public class Histogram implements JSONSerializable {
      * @param <T>
      * @param values
      */
-    public synchronized void removeHistogram(Histogram other) {
-        for (Entry<Object, Long> e : other.histogram.entrySet()) {
+    public synchronized void removeHistogram(Histogram<X> other) {
+        for (Entry<X, Long> e : other.histogram.entrySet()) {
             if (e.getValue() > 0) this._put(e.getKey(), -1 * e.getValue());
         } // FOR
-        this.calculateInternalValues();
+//        this.calculateInternalValues();
     }
 
     /**
@@ -489,12 +510,12 @@ public class Histogram implements JSONSerializable {
      * @param value
      * @return
      */
-    public Long get(Object value) {
+    public Long get(X value) {
         Long count = histogram.get(value); 
         return (count); //  == null ? 0 : count);
     }
     
-    public long get(Object value, long value_if_null) {
+    public long get(X value, long value_if_null) {
         Long count = histogram.get(value);
         return (count == null ? value_if_null : count);
     }
@@ -504,7 +525,7 @@ public class Histogram implements JSONSerializable {
      * @param value
      * @return
      */
-    public boolean contains(Object value) {
+    public boolean contains(X value) {
         return (this.histogram.containsKey(value));
     }
     
@@ -608,6 +629,8 @@ public class Histogram implements JSONSerializable {
         StringBuilder s = new StringBuilder();
         if (max_length == null) max_length = MAX_VALUE_LENGTH;
         
+        this.calculateInternalValues();
+        
         // Don't let anything go longer than MAX_VALUE_LENGTH chars
         String f = "%-" + max_length + "s [%5d] ";
         boolean first = true;
@@ -660,6 +683,12 @@ public class Histogram implements JSONSerializable {
                         stringer.key(value.toString()).value(this.histogram.get(value));
                     } // FOR
                     stringer.endObject();
+//                } else if (element == Members.MAX_COUNT_VALUE || element == Members.MIN_COUNT_VALUE) {
+//                    stringer.key(element.name()).array();
+//                    for (Object o : (Set<Object>)field.get(this)) {
+//                        stringer.value(o);
+//                    } // FOR
+//                    stringer.endArray();
                 } else {
                     stringer.key(element.name()).value(field.get(this));
                 }
@@ -670,11 +699,13 @@ public class Histogram implements JSONSerializable {
         } // FOR
     }
     
+    @SuppressWarnings("unchecked")
     @Override
     public void fromJSON(JSONObject object, Database catalog_db) throws JSONException {
         this.value_type = VoltType.typeFromString(object.get(Members.VALUE_TYPE.name()).toString());
         assert(this.value_type != null);
-        
+
+        // This code sucks ass...
         for (Members element : Histogram.Members.values()) {
             if (element == Members.VALUE_TYPE) continue;
             try {
@@ -687,8 +718,15 @@ public class Histogram implements JSONSerializable {
                         String key_name = keys.next();
                         Object key_value = VoltTypeUtil.getObjectFromString(this.value_type, key_name);
                         Long count = jsonObject.getLong(key_name);
-                        this.histogram.put(key_value, count);
+                        this.histogram.put((X)key_value, count);
                     } // WHILE
+                } else if (field_name.endsWith("_count_value")) {
+                    Set<Object> set = (Set<Object>)field.get(this);
+                    JSONArray arr = object.getJSONArray(element.name());
+                    for (int i = 0, cnt = arr.length(); i < cnt; i++) {
+                        Object val = VoltTypeUtil.getObjectFromString(this.value_type, arr.getString(i));
+                        set.add(val);
+                    } // FOR
                 } else if (field_name.endsWith("_value")) {
                     if (object.isNull(element.name())) {
                         field.set(this, null);
@@ -704,5 +742,7 @@ public class Histogram implements JSONSerializable {
                 System.exit(1);
             }
         } // FOR
+        
+        this.calculateInternalValues();
     }
 }

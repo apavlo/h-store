@@ -106,16 +106,21 @@ public abstract class CollectionUtil {
     }
     
     /**
-     * Return a random value from the given list
+     * Return a random value from the given Collection
      * @param <T>
-     * @param list
+     * @param items
      */
-    public static <T> T getRandomValue(List<T> list) {
-        int size = list.size();
-        int idx = rand.nextInt(size);
-        return (list.get(idx));
+    public static <T> T getRandomValue(Collection<T> items) {
+        int idx = rand.nextInt(items.size());
+        return (CollectionUtil.get(items, idx));
     }
     
+    /**
+     * Return a random value from the given Iterable
+     * @param <T>
+     * @param it
+     * @return
+     */
     public static <T> T getRandomValue(Iterable<T> it) {
         List<T> list = new ArrayList<T>();
         for (T t : it) {

@@ -13,12 +13,13 @@
 #include "protodtxn/dtxn.pb.h"
 #include "protodtxn/protodtxnengine.h"
 #include "protorpc/protorpcchannel.h"
+#include "base/debuglog.h"
 
 using std::vector;
 
 int main(int argc, const char* argv[]) {
     if (argc != 5) {
-        fprintf(stderr, "protodtxnengine [engine address] [configuration file] [partition index] [replica index]\n");
+        LOG_ERROR("protodtxnengine [engine address] [configuration file] [partition index] [replica index]");
         return 1;
     }
     const char* const address = argv[1];
@@ -41,7 +42,7 @@ int main(int argc, const char* argv[]) {
     vector<TCPConnection*> connections = net::createConnectionsWithRetry(
             &event_loop, stub_address);
     if (connections.empty()) {
-        fprintf(stderr, "connection failed\n");
+        LOG_ERROR("Connection to %s failed", address);
         return 1;
     }
     ASSERT(connections.size() == 1 && connections[0] != NULL);

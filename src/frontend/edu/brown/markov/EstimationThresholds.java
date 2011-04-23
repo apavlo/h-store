@@ -28,7 +28,7 @@ public class EstimationThresholds implements JSONSerializable {
     public double read = DEFAULT_THRESHOLD;
     public double write = DEFAULT_THRESHOLD;
     public double done = DEFAULT_THRESHOLD;
-    public double abort = DEFAULT_THRESHOLD;
+    public double abort = 0.01;
     
     public EstimationThresholds() {
         // Nothing to see here...

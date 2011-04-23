@@ -33,6 +33,8 @@ public class VoltProcedureListener extends AbstractEventHandler {
     private final EventLoop eventLoop;
     private final Handler handler;
     private ServerSocketChannel serverSocket;
+    private boolean throttle = false;
+    private static final VoltTable empty_result[] = new VoltTable[0];
 
     public VoltProcedureListener(EventLoop eventLoop, Handler handler) {
         this.eventLoop = eventLoop;
@@ -108,7 +110,7 @@ public class VoltProcedureListener extends AbstractEventHandler {
         }
 
         @Override
-        public void run(byte[] serializedResult) {
+        public synchronized void run(byte[] serializedResult) {
             boolean blocked = connection.write(serializedResult);
             // Only register the write if being blocked is "new"
             // TODO: Use NonBlockingConnection which avoids attempting to write when blocked
@@ -129,9 +131,10 @@ public class VoltProcedureListener extends AbstractEventHandler {
     }
 
     private void read(ClientConnectionHandler eventLoopCallback) {
-        byte[] output;
-        while ((output = eventLoopCallback.connection.tryRead()) != null) {
-            if (output.length == 0) {
+        final boolean d = LOG.isDebugEnabled();
+        byte[] request;
+        while ((request = eventLoopCallback.connection.tryRead()) != null) {
+            if (request.length == 0) {
                 // connection closed
                 LOG.debug("Connection closed");
                 eventLoopCallback.connection.close();
@@ -139,7 +142,7 @@ public class VoltProcedureListener extends AbstractEventHandler {
             }
 
             if (eventLoopCallback.user == null) {
-                ByteBuffer input = ByteBuffer.wrap(output);
+                ByteBuffer input = ByteBuffer.wrap(request);
                 input.order(ByteOrder.BIG_ENDIAN);
                 try {
                     @SuppressWarnings("unused")
@@ -160,17 +163,45 @@ public class VoltProcedureListener extends AbstractEventHandler {
 
                 // write to say "okay": BIG HACK
                 eventLoopCallback.hackWritePasswordOk();
-            } else {
-                if (LOG.isDebugEnabled()) LOG.debug("got request " + output.length);
-
+                return;
+            }
+            
+            // If we're in throttle mode and this is not a sysproc, then reject this txn
+            ByteBuffer buffer = ByteBuffer.wrap(request);
+            boolean is_sysproc = StoredProcedureInvocation.isSysProc(buffer);
+            
+            if (this.throttle && is_sysproc == false) {
+                if (d) LOG.debug("Throttling is enabled. Rejecting transaction and asking client to wait...");
+                
+                long clientHandle = StoredProcedureInvocation.getClientHandle(buffer); 
+                ClientResponseImpl cresponse = new ClientResponseImpl(-1, ClientResponse.REJECTED, empty_result, "", clientHandle);
+                cresponse.setThrottleFlag(true);
+                
+                FastSerializer serializer = new FastSerializer();
                 try {
-                    handler.procedureInvocation(output, eventLoopCallback);
+                    serializer.writeObject(cresponse);
+                } catch (Exception ex) {
+                    throw new RuntimeException(ex);
+                }
+                eventLoopCallback.run(serializer.getBytes());
+                
+            // Execute store procedure!
+            } else {
+                if (d) LOG.debug(String.format("Got request [sysproc=%s, bytes=%d]", is_sysproc, request.length));
+                try {
+                    // RpcCallback<byte[]> callback = RpcUtil.newOneTimeCallback(eventLoopCallback);
+                    handler.procedureInvocation(request, eventLoopCallback);
                 } catch (Exception ex) {
                     LOG.fatal("Unexpected error when calling procedureInvocation!", ex);
                     throw new RuntimeException(ex);
                 }
             }
         }
+    }
+    
+    public void setThrottleFlag(boolean val) {
+        if (LOG.isDebugEnabled()) LOG.debug("Setting throttle flag: " + val);
+        this.throttle = val;
     }
 
     public static StoredProcedureInvocation decodeRequest(byte[] bytes) {

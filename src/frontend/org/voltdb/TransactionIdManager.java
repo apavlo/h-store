@@ -88,15 +88,18 @@ public class TransactionIdManager {
      * to this method will return strictly larger long values.
      * @return The newly generated transaction id.
      */
-    public long getNextUniqueTransactionId() {
+    public synchronized long getNextUniqueTransactionId() {
         long currentTime = System.currentTimeMillis();
+//        boolean new_time = true;
         if (currentTime == lastUsedTime) {
+//            new_time = false;
             // increment the counter for this millisecond
             counterValue++;
 
             // handle the case where we've run out of counter values
             // for this particular millisecond (feels unlikely)
             if (counterValue > COUNTER_MAX_VALUE) {
+                System.err.println("TOO MANY TXNS! SPIN LOCK!!!");
                 // spin until the next millisecond
                 while (currentTime == lastUsedTime)
                     currentTime = System.currentTimeMillis();
@@ -131,7 +134,9 @@ public class TransactionIdManager {
             counterValue = 0;
         }
 
-        lastTxnId = makeIdFromComponents(currentTime, counterValue, initiatorId);
+        long id = makeIdFromComponents(currentTime, counterValue, initiatorId);
+        // assert(id != lastTxnId) : String.format("Repeated Txn Id #%d [newTime=%s, time=%d, counter=%d, id=%d]", id, new_time, currentTime, counterValue, initiatorId);
+        lastTxnId = id;
 
         return lastTxnId;
     }

@@ -44,7 +44,7 @@ public class UpdateLocation extends VoltProcedure{
      public final SQLStmt update = new SQLStmt(
          "UPDATE " + TM1Constants.TABLENAME_SUBSCRIBER + " SET vlr_location = ? WHERE sub_nbr = ?");
 
-     public long run(long location, String sub_nbr) throws VoltAbortException{
+     public long run(long location, String sub_nbr) {
          voltQueueSQL(update, location, sub_nbr);
          VoltTable results[] = voltExecuteSQL();
          assert results.length == 1;

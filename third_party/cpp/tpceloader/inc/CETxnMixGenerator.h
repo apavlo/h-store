@@ -1,9 +1,9 @@
 /*
  * Legal Notice
  *
- * This document and associated source code (the "Work") is a preliminary
- * version of a benchmark specification being developed by the TPC. The
- * Work is being made available to the public for review and comment only.
+ * This document and associated source code (the "Work") is a part of a
+ * benchmark specification maintained by the TPC.
+ *
  * The TPC reserves all right, title, and interest to the Work as provided
  * under U.S. and international laws, including without limitation all patent
  * and trademark rights therein.
@@ -80,18 +80,18 @@ private:
     char*                   m_pTxnArray;
 
 public:
-    const static INT32 INVALID_TRANSACTION_TYPE = -1;
-    const static INT32 SECURITY_DETAIL          =  0;
-    const static INT32 BROKER_VOLUME            =  1;
-    const static INT32 CUSTOMER_POSITION        =  2;
-    const static INT32 MARKET_WATCH             =  3;
-    const static INT32 TRADE_STATUS             =  4;
-    const static INT32 TRADE_LOOKUP             =  5;
-    const static INT32 TRADE_ORDER              =  6;
-    const static INT32 TRADE_UPDATE             =  7;
+    static const INT32 INVALID_TRANSACTION_TYPE = -1;
+    static const INT32 SECURITY_DETAIL          =  0;
+    static const INT32 BROKER_VOLUME            =  1;
+    static const INT32 CUSTOMER_POSITION        =  2;
+    static const INT32 MARKET_WATCH             =  3;
+    static const INT32 TRADE_STATUS             =  4;
+    static const INT32 TRADE_LOOKUP             =  5;
+    static const INT32 TRADE_ORDER              =  6;
+    static const INT32 TRADE_UPDATE             =  7;
     //Trade-Result and Market-Feed are included for completness.
-    const static INT32 MARKET_FEED              =  8;
-    const static INT32 TRADE_RESULT             =  9;
+    static const INT32 MARKET_FEED              =  8;
+    static const INT32 TRADE_RESULT             =  9;
 
     CCETxnMixGenerator( const PDriverCETxnSettings pTxnParamSettings, CBaseLogger *pLogger );
     CCETxnMixGenerator( const PDriverCETxnSettings pTxnParamSettings, RNGSEED RNGSeed, CBaseLogger *pLogger);

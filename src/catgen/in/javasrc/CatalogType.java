@@ -39,7 +39,7 @@ public abstract class CatalogType implements Comparable<CatalogType> {
         public String path;
     }
 
-    private LinkedHashMap<String, Object> m_fields = new LinkedHashMap<String, Object>();
+    LinkedHashMap<String, Object> m_fields = new LinkedHashMap<String, Object>();
     LinkedHashMap<String, CatalogMap<? extends CatalogType>> m_childCollections = new LinkedHashMap<String, CatalogMap<? extends CatalogType>>();
 
     String m_path;
@@ -90,6 +90,7 @@ public abstract class CatalogType implements Comparable<CatalogType> {
      * Get the parent of this CatalogType instance
      * @return The parent of this CatalogType instance
      */
+    @SuppressWarnings("unchecked")
     public <T extends CatalogType> T getParent() {
         return (T)m_parent;
     }
@@ -340,10 +341,10 @@ public abstract class CatalogType implements Comparable<CatalogType> {
             return 0;
         }
         if (o != null) {
-            if (getPath() == null) {
+            if (this.m_path == null) {
                 return (this.hashCode() - o.hashCode());
             } else {
-                return getPath().compareTo(o.getPath());        
+                return this.m_path.compareTo(o.m_path);        
             }
         }
         return (1);
@@ -424,7 +425,7 @@ public abstract class CatalogType implements Comparable<CatalogType> {
         if (this.m_class.equals(other.m_class) == false) return (false);
 
         // Are the fields the same value?
-        if (this.m_fields.size() != other.m_fields.size()) return (false);
+        if (this.m_num_fields != other.m_num_fields) return (false);
         
         // SUPER HACK!!!
         // The only thing that we care about matching up correctly by hash code will be database..

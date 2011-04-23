@@ -99,6 +99,44 @@ public class NIOReadStream {
         buffers.clear();
     }
 
+    /** Reads all available data from input. Returns true if data was read or the connection is
+     * still open. False indicates no data was read and the connection is closed.
+     * 
+     * This allows the application an opportunity to consume the last bytes in the stream, without
+     * getting stuck if the connection is closed with a partial message.
+    */
+    // TODO: Remove tryRead()?
+    public boolean readAllAvailable() {
+        // Read until it doesn't fill the buffer: indicates no more data available
+        boolean first = true;
+        int lastRead = -1;
+        while (true) {
+            ByteBuffer writeBuffer = buffers.getWriteBuffer();
+            assert writeBuffer.remaining() > 0;
+
+            try {
+                lastRead = channel.read(writeBuffer);
+            } catch (IOException e) { throw new RuntimeException(e); }
+
+            if (lastRead > 0) {
+                totalAvailable += lastRead;
+            }
+
+            if (writeBuffer.remaining() > 0) {
+                break;
+            }
+            assert lastRead > 0;
+            first = false;
+        }
+
+        if (lastRead == -1 && first) {
+            // first read returned -1: connection is closed and buffer probably has incomplete data 
+            return false;
+        }
+
+        return true;
+    }
+    
     /** Reads until we have at least desiredAvailable bytes buffered, there is no more data, or
     the channel is closed.
     * @returns number of bytes available for reading, or -1 if less than desiredAvailable bytes

@@ -30,6 +30,13 @@ public class DefaultHasher extends AbstractHasher {
     }
 
     @Override
+    public void init(Database catalogDb) {
+        // TODO Auto-generated method stub
+        
+    }
+    
+
+    @Override
     public int hash(Object value) {
         return (this.hash(value, this.num_partitions));
     }

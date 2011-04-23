@@ -145,7 +145,8 @@ public class CheckWinningBids extends VoltProcedure {
                 voltQueueSQL(select_item_bid, maxBidId, itemId, userId);
                 VoltTable[] bidTable = voltExecuteSQL();
                 assert(1 == bidTable.length);
-                assert(bidTable[0].advanceRow());
+                boolean adv = bidTable[0].advanceRow();
+                assert(adv);
             	
                 long buyerId = bidTable[0].getLong(0);
 //                System.out.println("CheckWinningBids::: buyerId = " + buyerId);

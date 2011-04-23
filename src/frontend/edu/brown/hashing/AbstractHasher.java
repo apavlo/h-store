@@ -44,10 +44,6 @@ public abstract class AbstractHasher implements JSONSerializable {
         return this.multiValueHash(o);
     }
     
-    // -----------------------------------------------------------------
-    // ABSTRACT INTERFACE
-    // -----------------------------------------------------------------
-    
     /**
      * Return the number of partitions that this hasher can map values to
      * @return
@@ -55,6 +51,12 @@ public abstract class AbstractHasher implements JSONSerializable {
     public final int getNumPartitions() {
         return (this.num_partitions);
     }
+    
+    // -----------------------------------------------------------------
+    // ABSTRACT INTERFACE
+    // -----------------------------------------------------------------
+    
+    public abstract void init(Database catalog_db);
     
     /**
      * Hash the given value based on the partition count 
