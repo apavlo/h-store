@@ -5,8 +5,14 @@ import os
 import sys
 import re
 import commands
+import logging
 import getopt
 #from pprint import pprint
+
+logging.basicConfig(level = logging.INFO,
+                    format="%(asctime)s [%(funcName)s:%(lineno)03d] %(levelname)-5s: %(message)s",
+                    datefmt="%m-%d-%Y %H:%M:%S",
+                    stream = sys.stdout)
 
 PS_REGEX = re.compile("([\d]+)[\s]+(.*)")
 
@@ -27,6 +33,7 @@ if __name__ == '__main__':
         "protoengine",
         "protocoord",
         "client",
+        "debug",
     ])
     ## ----------------------------------------------
     ## COMMAND OPTIONS
@@ -46,6 +53,11 @@ if __name__ == '__main__':
             orig_type = type(globals()[varname])
             globals()[varname] = orig_type(True if type(globals()[varname]) == bool else options[key][0])
     ## FOR
+    if "debug" in options:
+        logging.getLogger().setLevel(logging.DEBUG)
+        handler = logging.FileHandler('/tmp/killstragglers.log')
+        logging.getLogger().addHandler(handler)
+
 
     ## SiteId
     siteid = int(options["siteid"][0]) if "siteid" in options else None
@@ -60,7 +72,6 @@ if __name__ == '__main__':
             pids[int(match.group(1))] = match.group(2)
     ## FOR
     
-
     to_kill = set()
     for pid in pids.keys():
         cmd = pids[pid]
@@ -71,6 +82,7 @@ if __name__ == '__main__':
            cmd.find("java")       != -1 and \
            (siteid == None or (siteid != None and cmd.find("node.siteid=%d" + siteid) != -1)):
             to_kill.add(pid)
+            logging.debug("Preparing to kill HStoreSite PID %d\n%s" % (pid, cmd))
         ## IF
         
         ## Kill protodtxnengines
@@ -78,6 +90,7 @@ if __name__ == '__main__':
            cmd.find("protodtxnengine") != -1 and \
            cmd.find("hstore.conf")     != -1:
             to_kill.add(pid)
+            logging.debug("Preparing to kill Dtxn.Engine PID %d\n%s" % (pid, cmd))
         ## IF
         
         ## Kill protodtxncoord
@@ -85,16 +98,20 @@ if __name__ == '__main__':
            cmd.find("protodtxncoordinator") != -1 and \
            cmd.find("hstore.conf")     != -1:
             to_kill.add(pid)
+            logging.debug("Preparing to kill Dtxn.Coordinator PID %d\n%s" % (pid, cmd))
         ## IF
         
         ## Kill client stuff
         if OPT_CLIENT and \
             (cmd.find("BLOCKING=true") != -1 or cmd.find("BLOCKING=false") != -1) and \
-            cmd.find(".benchmark.") != -1:
+            cmd.find(".benchmark.") != -1 and \
+            cmd.find("BenchmarkController") == -1:
             to_kill.add(pid)
+            logging.debug("Preparing to kill Client PID %d\n%s" % (pid, cmd))
     ## FOR
     
     ## Kill, pussy cat! Kill!
+    logging.debug("Killing %d PIDs!" % len(to_kill))
     for pid in to_kill:
         cmd = "kill -9 %d" % pid
         if OPT_DRYRUN:
