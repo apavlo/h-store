@@ -108,7 +108,7 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
 
     protected final ListOrderedMap<Procedure, ListOrderedSet<ProcParameter>> orig_proc_attributes = new ListOrderedMap<Procedure, ListOrderedSet<ProcParameter>>();
     protected final Map<Procedure, Set<Column>> proc_columns = new HashMap<Procedure, Set<Column>>();
-    protected final Map<Procedure, Histogram> proc_column_histogram = new HashMap<Procedure, Histogram>();
+    protected final Map<Procedure, Histogram<Column>> proc_column_histogram = new HashMap<Procedure, Histogram<Column>>();
     protected final Map<Procedure, Map<ProcParameter, Set<MultiProcParameter>>> proc_multipoc_map = new HashMap<Procedure, Map<ProcParameter,Set<MultiProcParameter>>>();
 
     
@@ -119,6 +119,7 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
     public LNSPartitioner(Designer designer, DesignerInfo info) {
         super(designer, info);
         this.costmodel = info.getCostModel();
+        assert(this.costmodel != null) : "CostModel is null!";
         this.correlations = new ParameterCorrelations();
         assert(info.getCorrelationsFile() != null) : "The correlations file path was not set";
     }
@@ -260,9 +261,7 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
         m.put("backtrack_mp",     hints.back_tracks_multiplier);
         m.put("localtime_mp",     hints.local_time_multiplier);
         m.put("total_txns",       info.workload.getTransactionCount());
-        for (Entry<String, Object> e : m.entrySet()) {
-            sb.append(String.format(" - %-20s = %s\n", e.getKey(), e.getValue()));
-        }
+        sb.append(StringUtil.formatMaps(m));
         sb.append(StringUtil.repeat("-", 65)).append("\n");
         sb.append(info.workload.getProcedureHistogram());
         LOG.info("\n" + StringUtil.box(sb.toString(), "+"));
@@ -282,7 +281,7 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
                 // We really need to link the hints and the checkpoints better...
                 hints.weight_costmodel_entropy = this.last_entropy_weight;
                 
-            } else {
+            } else if (this.checkpoint != null) {
                 LOG.info("Not loading non-existent checkpoint file: " + this.checkpoint);
             }
             if (this.start_time == null && this.last_checkpoint == null) {
@@ -479,17 +478,19 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
         
         if (LOG.isInfoEnabled()) {
             StringBuilder sb = new StringBuilder();
-            sb.append(String.format("LNS RESTART #%03d  [relax_size=%d]\n", restart_ctr, relax_size))
-              .append(String.format(" - last_relax_size   = %d\n", this.last_relax_size))
-              .append(String.format(" - last_halt_reason  = %s\n", this.last_halt_reason))
-              .append(String.format(" - last_elapsed_time = %d\n", this.last_elapsed_time))
-              .append(String.format(" - last_backtracks   = %d\n", this.last_backtrack_count))
-              .append(String.format(" - elapsed_ratio     = %.02f\n", elapsed_ratio))
-              .append(String.format(" - limit_local_time  = %.02f\n", this.last_localtime_limit))
-              .append(String.format(" - limit_back_track  = %.02f\n", this.last_backtrack_limit))
-              .append(String.format(" - best_cost         = " + DEBUG_COST_FORMAT + "\n", this.best_cost))
-              .append(String.format(" - best_memory       = %f\n", this.best_memory))
-            ;
+            sb.append(String.format("LNS RESTART #%03d  [relax_size=%d]\n", restart_ctr, relax_size));
+            
+            Map<String, Object> m = new ListOrderedMap<String, Object>();
+            m.put(" - last_relax_size", this.last_relax_size);
+            m.put(" - last_halt_reason", this.last_halt_reason);
+            m.put(" - last_elapsed_time", this.last_elapsed_time);
+            m.put(" - last_backtracks", this.last_backtrack_count);
+            m.put(" - elapsed_ratio", String.format("%.02f", elapsed_ratio));
+            m.put(" - limit_local_time", String.format("%.02f", this.last_localtime_limit));
+            m.put(" - limit_back_track", String.format("%.02f", this.last_backtrack_limit));
+            m.put(" - best_cost", String.format(DEBUG_COST_FORMAT, this.best_cost));
+            m.put(" - best_memory", this.best_memory);
+            sb.append(StringUtil.formatMaps(m));
             LOG.info("\n" + StringUtil.box(sb.toString(), "+", 125));
         }
 
@@ -729,7 +730,7 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
 //        assert(correlations != null);
 
         ProcParameter default_param = catalog_proc.getParameters().get(0);
-        Histogram col_access_histogram = this.proc_column_histogram.get(catalog_proc);
+        Histogram<Column> col_access_histogram = this.proc_column_histogram.get(catalog_proc);
         if (col_access_histogram == null) {
             if (debug) LOG.warn("No column access histogram for " + catalog_proc + ". Setting to default");
             return (default_param);

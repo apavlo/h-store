@@ -53,6 +53,10 @@ public abstract class AbstractDirectedTree<V extends AbstractVertex, E extends A
     }
     
     @Override
+    public void setVerbose(boolean verbose) {
+        this.inner.setVerbose(verbose);
+    }
+    @Override
     public void enableDirtyChecks() {
         this.inner.enableDirtyChecks();
     }

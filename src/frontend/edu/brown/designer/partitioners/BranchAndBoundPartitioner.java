@@ -19,6 +19,7 @@ import edu.brown.catalog.special.NullProcParameter;
 import edu.brown.catalog.special.ReplicatedColumn;
 import edu.brown.costmodel.*;
 import edu.brown.designer.*;
+import edu.brown.graphs.VertexTreeWalker;
 import edu.brown.utils.*;
 import edu.brown.workload.*;
 
@@ -626,6 +627,10 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
             BranchAndBoundPartitioner.this.halt_reason = (this.halt_reason != null ? this.halt_reason : HaltReason.EXHAUSTED_SEARCH);
         }
     
+        protected void propagateConstraints() {
+            // TODO
+        }
+        
         /**
          * 
          * @param parent

@@ -310,9 +310,9 @@ public abstract class AbstractTableStatisticsGenerator {
                                                    args.catalog_type.getPackageName(),
                                                    args.catalog_type.getBenchmarkPrefix()); 
         final AbstractTableStatisticsGenerator generator = (AbstractTableStatisticsGenerator)
-                                                                ClassUtil.newInstance(generator_className,
-                                                                                      new Object[]{ args.catalog_db, scale_factor },
-                                                                                      new Class<?>[]{ Database.class, double.class });
+                                                            ClassUtil.newInstance(generator_className,
+                                                                                  new Object[]{ args.catalog_db, scale_factor },
+                                                                                  new Class<?>[]{ Database.class, double.class });
         assert(generator != null);
         
         Map<Table, TableStatistics> table_stats = generator.generate();
