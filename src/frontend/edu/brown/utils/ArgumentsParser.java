@@ -87,7 +87,6 @@ public class ArgumentsParser {
     public static final String PARAM_WORKLOAD_PROC_INCLUDE_MULTIPLIER  = PARAM_WORKLOAD_PROC_INCLUDE + ".multiplier";
     public static final String PARAM_WORKLOAD_RANDOM_PARTITIONS = PARAM_WORKLOAD + ".randompartitions";
     public static final String PARAM_WORKLOAD_OUTPUT        = PARAM_WORKLOAD + ".output";
-    public static final String PARAM_WORKLOAD_CLASS         = PARAM_WORKLOAD + ".class";
     
     public static final String PARAM_STATS                  = "stats";
     public static final String PARAM_STATS_OUTPUT           = PARAM_STATS + ".output";
@@ -666,8 +665,16 @@ public class ArgumentsParser {
             if (this.params.containsKey(PARAM_STATS)) {
                 String path = this.params.get(PARAM_STATS);
                 if (debug) LOG.debug("Loading in workload statistics from '" + path + "'");
-                this.stats.load(path, this.catalog_db);
                 this.stats_path = new File(path).getAbsolutePath();
+                try {
+                    this.stats.load(path, this.catalog_db);
+                } catch (AssertionError ex) {
+                    LOG.fatal("Failed to load stats file '" + this.stats_path + "'", ex);
+                    System.exit(1);
+                } catch (RuntimeException ex) {
+                    LOG.fatal("Failed to load stats file '" + this.stats_path + "'", ex);
+                    System.exit(1);
+                }
             }
         }
         

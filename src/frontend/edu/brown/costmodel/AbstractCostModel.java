@@ -114,7 +114,7 @@ public abstract class AbstractCostModel implements Cloneable {
     /**
      * How many times did we execute each procedure
      */
-    protected final Histogram histogram_procs = new Histogram();
+    protected final Histogram<String> histogram_procs = new Histogram<String>();
     
     /**
      * How many times did we execute each procedure when it was either single- or multi-partition?
@@ -127,14 +127,14 @@ public abstract class AbstractCostModel implements Cloneable {
      * Note that this will only record an entry once per txn per partition. If you want the data
      * on the total number times the txns touched the partitions, you want the query access histogram 
      */
-    protected final Histogram histogram_txn_partitions = new Histogram();
+    protected final Histogram<Integer> histogram_txn_partitions = new Histogram<Integer>();
     
     /**
      * This histogram keeps track of how many times partitions were touched by any query in the txns
      * If a single txn has multiple queries that touch a particular partition, there will be an entry
      * added for each of those queries.
      */
-    protected final Histogram histogram_query_partitions = new Histogram();
+    protected final Histogram<Integer> histogram_query_partitions = new Histogram<Integer>();
     
     /**
      * Since we have an iterative cost-model, keep track of the number of queries and txns that

@@ -37,6 +37,20 @@ public class ColumnSet extends LinkedHashSet<ColumnSet.Entry> {
             this.comparison_exp = comparison_exp;
             this.query_types.addAll(query_types);
         }
+        
+        @Override
+        public boolean equals(Object o) {
+            if (o instanceof Entry) {
+                Entry other = (Entry)o;
+                if (this.comparison_exp != other.comparison_exp) return (false);
+                if (this.m_first.equals(other.m_first)) {
+                    return (this.m_second.equals(other.m_second));
+                } else if (this.m_first.equals(other.m_second)) {
+                    return (this.m_second.equals(other.m_first));
+                }
+            }
+            return (false);
+        }
 
         /**
          * @return the comparison_exp
@@ -283,8 +297,9 @@ public class ColumnSet extends LinkedHashSet<ColumnSet.Entry> {
         return (found);
     }
     
-    public <T extends CatalogType> Histogram buildHistogramForType(Class<T> search_key) {
-        Histogram h = new Histogram();
+    @SuppressWarnings("unchecked")
+    public <T extends CatalogType> Histogram<T> buildHistogramForType(Class<T> search_key) {
+        Histogram<T> h = new Histogram<T>();
         for (Entry e : this) {
             if (ClassUtil.getSuperClasses(e.getFirst().getClass()).contains(search_key)) {
                 h.put((T)e.getFirst());

@@ -5,13 +5,13 @@ package edu.brown.designer.generators;
 
 import java.util.Set;
 
+import org.apache.log4j.Logger;
 import org.voltdb.catalog.*;
 
 import edu.brown.designer.*;
 import edu.brown.designer.partitioners.PartitionEntry;
 import edu.brown.designer.partitioners.PartitionPlan;
 import edu.brown.graphs.*;
-import edu.brown.workload.Workload;
 import edu.uci.ics.jung.graph.util.*;
 
 /**
@@ -19,6 +19,7 @@ import edu.uci.ics.jung.graph.util.*;
  *
  */
 public class PartitionPlanTreeGenerator extends AbstractGenerator<PartitionTree> {
+    private static final Logger LOG = Logger.getLogger(PartitionPlanTreeGenerator.class);
 
     private final PartitionPlan pplan;
     

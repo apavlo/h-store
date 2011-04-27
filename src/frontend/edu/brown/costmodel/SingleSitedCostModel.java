@@ -111,7 +111,7 @@ public class SingleSitedCostModel extends AbstractCostModel {
         private int singlesite_queries = 0;
         private int multisite_queries = 0;
         private int unknown_queries = 0;
-        private final Histogram touched_partitions = new Histogram();
+        private final Histogram<Integer> touched_partitions = new Histogram<Integer>();
 
         public TransactionCacheEntry(String proc_key, long txn_trace_id, int total_queries) {
             this.proc_key = proc_key;
@@ -145,8 +145,8 @@ public class SingleSitedCostModel extends AbstractCostModel {
             return (partitions);
         }
 
-        public Histogram getAllTouchedPartitionsHistogram() {
-            Histogram copy = new Histogram(this.touched_partitions);
+        public Histogram<Integer> getAllTouchedPartitionsHistogram() {
+            Histogram<Integer> copy = new Histogram<Integer>(this.touched_partitions);
             assert (this.touched_partitions.getValueCount() == copy.getValueCount());
             assert (this.touched_partitions.getSampleCount() == copy.getSampleCount());
             if (this.base_partition != null && !copy.contains(this.base_partition)) {
@@ -551,7 +551,7 @@ public class SingleSitedCostModel extends AbstractCostModel {
 
         Set<TransactionCacheEntry> invalidate_modifiedTxns = new HashSet<TransactionCacheEntry>();
         Set<String> invalidate_targetKeys = new HashSet<String>();
-        Histogram invalidate_removedTouchedPartitions = new Histogram();
+        Histogram<Integer> invalidate_removedTouchedPartitions = new Histogram<Integer>();
         
         // ---------------------------------------------
         // Table Key

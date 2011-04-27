@@ -5,9 +5,11 @@ package edu.brown.designer.generators;
 
 import java.io.File;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 
 import org.apache.commons.collections15.set.ListOrderedSet;
+import org.voltdb.benchmark.tpcc.procedures.slev;
 import org.voltdb.catalog.*;
 
 import edu.brown.BaseTestCase;
@@ -30,7 +32,7 @@ import edu.brown.workload.filters.ProcedureNameFilter;
 public class TestAccessGraphGenerator extends BaseTestCase {
     
     private static final long WORKLOAD_XACT_LIMIT = 100;
-    private static final String TARGET_PROCEDURE = "slev";
+    private static final String TARGET_PROCEDURE = slev.class.getSimpleName();
     private static final String TARGET_STATEMENT = "GetStockCount";
     
     // Reading the workload takes a long time, so we only want to do it once
@@ -85,6 +87,24 @@ public class TestAccessGraphGenerator extends BaseTestCase {
         for (Table catalog_tbl : catalog_db.getTables()) {
             assertNotNull("Missing " + catalog_tbl, this.agraph.getVertex(catalog_tbl));
         } // FOR
+    }
+    
+    /**
+     * testFindEdgeSetUsingColumn
+     */
+    public void testFindEdgeSetUsingColumn() throws Exception {
+        AccessGraph agraph = new AccessGraph(catalog_db);
+        new AccessGraphGenerator(this.info, this.catalog_proc).generate(agraph);
+        agraph.setVerbose(true);
+        
+        Table catalog_tbl = this.getTable("STOCK");
+        Column catalog_col = this.getColumn(catalog_tbl, "S_W_ID");
+        
+        Vertex v = agraph.getVertex(catalog_tbl);
+        assertNotNull(v);
+        Collection<Edge> edges = agraph.findEdgeSet(v, catalog_col);
+        assertNotNull(edges);
+        assert(agraph.getEdgeCount() != edges.size());
     }
     
     /**

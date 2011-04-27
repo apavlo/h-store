@@ -50,7 +50,12 @@ public abstract class BasePartitionerTestCase extends BaseTestCase {
             assertNotNull(stats_file);
             assert(stats_file.exists());
             stats = new WorkloadStatistics(catalog_db);
-            stats.load(stats_file.getAbsolutePath(), catalog_db);
+            try {
+                stats.load(stats_file.getAbsolutePath(), catalog_db);
+            } catch (AssertionError ex) {
+                System.err.println("Failed to load " + stats_file.getAbsolutePath());
+                throw ex;
+            }
             
             correlations_file = this.getCorrelationsFile(type);
             assertNotNull(correlations_file);

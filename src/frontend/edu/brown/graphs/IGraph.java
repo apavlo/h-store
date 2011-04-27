@@ -27,6 +27,11 @@ public interface IGraph<V extends AbstractVertex, E extends AbstractEdge> extend
      */
     public void enableDirtyChecks();
     
+    /**
+     * Enable verbose output for all elements of this graph
+     * @param verbose
+     */
+    public void setVerbose(boolean verbose);
     
     public String toString(E e, boolean verbose);
     public String debug();
