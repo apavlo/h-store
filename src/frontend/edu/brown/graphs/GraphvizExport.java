@@ -326,8 +326,13 @@ public class GraphvizExport<V extends AbstractVertex, E extends AbstractEdge> {
      * @return
      * @throws Exception
      */
-    public static <V extends AbstractVertex, E extends AbstractEdge> String export(IGraph<V, E> graph, String name) throws Exception {
-        return (new GraphvizExport<V, E>(graph).export(name));
+    public static <V extends AbstractVertex, E extends AbstractEdge> String export(IGraph<V, E> graph, String name) {
+        GraphvizExport<V, E> gv = new GraphvizExport<V, E>(graph);
+        try {
+            return gv.export(name);
+        } catch (Exception ex) {
+            throw new RuntimeException(ex);
+        }
     }
     
     public static void main(String[] vargs) throws Exception {

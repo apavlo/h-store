@@ -71,6 +71,10 @@ public class AbstractEdge extends AbstractGraphElement {
         this.setAttribute(this.graph, key, value);
     }
     
+    public <E extends Enum<?>> void setAttribute(E e, Object value) {
+        this.setAttribute(e.name(), value);
+    }
+    
     public boolean hasAttribute(String key) {
         return this.hasAttribute(this.graph, key);
     }

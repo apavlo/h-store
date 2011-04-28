@@ -423,6 +423,8 @@ public class ArgumentsParser {
             if (parts.length == 1) {
                 if (parts[0].startsWith("${") == false) this.opt_params.add(parts[0]);
                 continue;
+            } else if (parts[0].equalsIgnoreCase("tag")) {
+                continue;
             } else if (parts[1].startsWith("${") || parts[0].startsWith("#")) {
                 continue;
             }

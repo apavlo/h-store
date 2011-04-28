@@ -4,14 +4,20 @@
 package edu.brown.designer.generators;
 
 import java.io.File;
-import org.voltdb.catalog.*;
+import java.util.Collection;
+
+import org.voltdb.catalog.Procedure;
+import org.voltdb.catalog.Table;
 import org.voltdb.utils.Pair;
 
 import edu.brown.BaseTestCase;
 import edu.brown.designer.AccessGraph;
+import edu.brown.designer.ColumnSet;
 import edu.brown.designer.DesignerInfo;
 import edu.brown.designer.Edge;
 import edu.brown.designer.Vertex;
+import edu.brown.designer.AccessGraph.EdgeAttributes;
+import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.ProjectType;
 import edu.brown.workload.Workload;
 import edu.brown.workload.filters.ProcedureLimitFilter;
@@ -48,7 +54,7 @@ public class TestAccessGraphGenerator2 extends BaseTestCase {
         
             // Workload Filter
             ProcedureNameFilter filter = new ProcedureNameFilter();
-            filter.include(TARGET_PROCEDURE);
+//            filter.include(TARGET_PROCEDURE);
             filter.attach(new ProcedureLimitFilter(WORKLOAD_XACT_LIMIT));
             ((Workload)workload).load(workload_file.getAbsolutePath(), catalog_db, filter);
         }
@@ -60,15 +66,67 @@ public class TestAccessGraphGenerator2 extends BaseTestCase {
         this.agraph = new AccessGraph(catalog_db);
         this.generator = new AccessGraphGenerator(this.info, this.catalog_proc);
     }
-//    
-//    private void display(final AccessGraph agraph) throws Exception {
-//          javax.swing.SwingUtilities.invokeAndWait(new Runnable() {
-//              public void run() {
-//                  GraphVisualizationPanel.createFrame(agraph).setVisible(true);
-//              }
-//          });
-//    }
-//    
+    
+    /**
+     * testConvertToSingleColumnEdges
+     */
+    public void testConvertToSingleColumnEdges() throws Exception {
+        agraph = AccessGraphGenerator.generateGlobal(this.info);
+//        agraph.setVerbose(true);
+//        System.err.println("Dumping AccessGraph to " + FileUtil.writeStringToFile("/tmp/global_tpcc.dot", GraphvizExport.export(agraph, "tpcc")));
+        
+        AccessGraph single_agraph = AccessGraphGenerator.convertToSingleColumnEdges(catalog_db, agraph);
+        assertNotNull(single_agraph);
+//        single_agraph.setVerbose(true);
+//        System.err.println("Dumping AccessGraph to " + FileUtil.writeStringToFile("/tmp/single_tpcc.dot", GraphvizExport.export(single_agraph, "tpcc")));
+
+        // Make a new ColumnSet that combines all the ColumnSets of all edges in the original AccessGraph
+        Vertex v0, v1;
+        Collection<Edge> edges;
+        boolean found = false;
+        for (Table catalog_tbl0 : catalog_db.getTables()) {
+            try {
+                v0 = agraph.getVertex(catalog_tbl0);
+            } catch (IllegalArgumentException ex) {
+                continue;
+            }
+            for (Table catalog_tbl1 : catalog_db.getTables()) {
+                try {
+                    v1 = agraph.getVertex(catalog_tbl1);
+                } catch (IllegalArgumentException ex) {
+                    continue;
+                }
+                if (catalog_tbl0.equals(catalog_tbl1)) continue;
+            
+                ColumnSet global_cset = new ColumnSet();
+                try {
+                    edges = agraph.findEdgeSet(v0, v1);
+                } catch (IllegalArgumentException ex) {
+                    continue;
+                }
+                found = true;
+                for (Edge e : edges) {
+                    ColumnSet e_cset = e.getAttribute(EdgeAttributes.COLUMNSET);
+                    assertNotNull(e_cset);
+                    global_cset.addAll(e_cset);
+                } // FOR
+//                System.err.println(String.format("%s <-> %s: %d", catalog_tbl0, catalog_tbl1, edges.size()));
+                
+                // Now check to make sure that there are no edges that have some funky ColumnSet entry that
+                // wasn't in our original graph
+                for (Edge e : single_agraph.findEdgeSet(v0, v1)) {
+                    ColumnSet e_cset = e.getAttribute(EdgeAttributes.COLUMNSET);
+                    assertNotNull(e_cset);
+                    assertEquals(e_cset.toString(), 1, e_cset.size());
+                    ColumnSet.Entry entry = CollectionUtil.getFirst(e_cset);
+                    assertNotNull(entry);
+                    assert(global_cset.contains(entry)) : "Missing " + entry;
+                } // FOR
+            } // FOR (V1)
+        } // FOR (V0)
+        assert(found);
+    }
+    
     /**
      * testGenerate
      */
@@ -86,7 +144,6 @@ public class TestAccessGraphGenerator2 extends BaseTestCase {
                 Pair.of(this.getTable("DISTRICT"), this.getTable("NEW_ORDER")),
                 Pair.of(this.getTable("DISTRICT"), this.getTable("DISTRICT")),
                 Pair.of(this.getTable("DISTRICT"), this.getTable("DISTRICT")),
-                Pair.of(this.getTable("DISTRICT"), this.getTable("WAREHOUSE")),
                 Pair.of(this.getTable("DISTRICT"), this.getTable("WAREHOUSE")),
                 Pair.of(this.getTable("DISTRICT"), this.getTable("ORDERS")),
                 Pair.of(this.getTable("DISTRICT"), this.getTable("ORDER_LINE")),
