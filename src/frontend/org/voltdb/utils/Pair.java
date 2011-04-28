@@ -91,17 +91,15 @@ public class Pair<T, U> implements Comparable<Pair<T, U>> {
     /**
      * @return the first
      */
-    @SuppressWarnings("unchecked")
-    public <X extends T> X getFirst() {
-        return (X)m_first;
+    public T getFirst() {
+        return m_first;
     }
 
     /**
      * @return the second
      */
-    @SuppressWarnings("unchecked")
-    public <X extends U> X getSecond() {
-        return (X)m_second;
+    public U getSecond() {
+        return m_second;
     }
 
     /**
