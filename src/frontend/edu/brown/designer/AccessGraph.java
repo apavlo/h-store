@@ -15,7 +15,6 @@ import edu.brown.graphs.AbstractUndirectedGraph;
 public class AccessGraph extends AbstractUndirectedGraph<Vertex, Edge>  {
     
     public enum EdgeAttributes {
-        WEIGHT,         // DOUBLE
         ACCESSTYPE,
         COLUMNSET,
         FOREIGNKEY,

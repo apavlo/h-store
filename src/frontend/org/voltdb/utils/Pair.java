@@ -24,16 +24,16 @@ package org.voltdb.utils;
  */
 public class Pair<T, U> implements Comparable<Pair<T, U>> {
 
-    protected final T m_first;
-    protected final U m_second;
-    protected transient final int m_hash;
+    private final T m_first;
+    private final U m_second;
+    private transient final int m_hash;
 
     public Pair(T first, U second, final boolean hash) {
         m_first = first;
         m_second = second;
         if (hash) {
-        m_hash = (first == null ? 0 : first.hashCode() * 31)
-                + (second == null ? 0 : second.hashCode());
+            m_hash = (first == null ? 0 : first.hashCode() * 31) +
+                     (second == null ? 0 : second.hashCode());
         } else {
             m_hash = 0;
         }
@@ -91,15 +91,17 @@ public class Pair<T, U> implements Comparable<Pair<T, U>> {
     /**
      * @return the first
      */
-    public T getFirst() {
-        return m_first;
+    @SuppressWarnings("unchecked")
+    public <X extends T> X getFirst() {
+        return (X)m_first;
     }
 
     /**
      * @return the second
      */
-    public U getSecond() {
-        return m_second;
+    @SuppressWarnings("unchecked")
+    public <X extends U> X getSecond() {
+        return (X)m_second;
     }
 
     /**

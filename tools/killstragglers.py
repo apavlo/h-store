@@ -78,8 +78,8 @@ if __name__ == '__main__':
         
         ## Kill HStoreSites
         if OPT_HSTORESITE and \
-           cmd.find("HStoreSite") != -1 and \
-           cmd.find("java")       != -1 and \
+           cmd.find("tag=site") != -1 and \
+           cmd.find("java")     != -1 and \
            (siteid == None or (siteid != None and cmd.find("node.siteid=%d" + siteid) != -1)):
             to_kill.add(pid)
             logging.debug("Preparing to kill HStoreSite PID %d\n%s" % (pid, cmd))
@@ -88,6 +88,7 @@ if __name__ == '__main__':
         ## Kill protodtxnengines
         if OPT_PROTOENGINE and \
            cmd.find("protodtxnengine") != -1 and \
+           cmd.find("tag=site")        == -1 and \
            cmd.find("hstore.conf")     != -1:
             to_kill.add(pid)
             logging.debug("Preparing to kill Dtxn.Engine PID %d\n%s" % (pid, cmd))
@@ -96,16 +97,15 @@ if __name__ == '__main__':
         ## Kill protodtxncoord
         if OPT_PROTOCOORD and \
            cmd.find("protodtxncoordinator") != -1 and \
-           cmd.find("hstore.conf")     != -1:
+           cmd.find("tag=site")             == -1 and \
+           cmd.find("hstore.conf")          != -1:
             to_kill.add(pid)
             logging.debug("Preparing to kill Dtxn.Coordinator PID %d\n%s" % (pid, cmd))
         ## IF
         
         ## Kill client stuff
         if OPT_CLIENT and \
-            (cmd.find("BLOCKING=true") != -1 or cmd.find("BLOCKING=false") != -1) and \
-            cmd.find(".benchmark.") != -1 and \
-            cmd.find("BenchmarkController") == -1:
+           cmd.find("-Dtag=client") != -1:
             to_kill.add(pid)
             logging.debug("Preparing to kill Client PID %d\n%s" % (pid, cmd))
     ## FOR
