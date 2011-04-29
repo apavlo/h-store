@@ -593,7 +593,7 @@ public abstract class AbstractPartitioner {
      * @param agraph
      * @return
      */
-    protected static Map<Table, Set<MultiColumn>> generateMultiColumns(final DesignerInfo info, final DesignerHints hints, final Procedure catalog_proc) throws Exception {
+    protected static Map<Table, Set<MultiColumn>> generateMultiColumns(final DesignerInfo info, final DesignerHints hints, final Procedure catalog_proc) {
         Map<Table, Set<MultiColumn>> multicolumns = new HashMap<Table, Set<MultiColumn>>();
        
        // For each Statement, find the columns that are accessed together

@@ -290,6 +290,16 @@ public abstract class AbstractCostModel implements Cloneable {
     public abstract void invalidateCache(String catalog_key);
     
     /**
+     *  Invalidate the cache entries for all of the given CatalogKeys
+     * @param keys
+     */
+    public void invalidateCache(Iterable<String> keys) {
+        for (String catalog_key : keys) {
+            this.invalidateCache(catalog_key);
+        }
+    }
+    
+    /**
      * 
      */
     public abstract AbstractCostModel clone(Database catalog_db) throws CloneNotSupportedException;
