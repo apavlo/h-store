@@ -1,5 +1,7 @@
 package edu.brown.designer.partitioners;
 
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 
@@ -8,6 +10,7 @@ import org.voltdb.catalog.*;
 import edu.brown.benchmark.tm1.TM1Constants;
 import edu.brown.benchmark.tm1.procedures.GetNewDestination;
 import edu.brown.catalog.CatalogKey;
+import edu.brown.catalog.CatalogUtil;
 import edu.brown.catalog.special.ReplicatedColumn;
 import edu.brown.costmodel.SingleSitedCostModel;
 import edu.brown.costmodel.TimeIntervalCostModel;
@@ -15,12 +18,16 @@ import edu.brown.designer.AccessGraph;
 import edu.brown.designer.Designer;
 import edu.brown.designer.Edge;
 import edu.brown.designer.Vertex;
+import edu.brown.designer.generators.AccessGraphGenerator;
+import edu.brown.designer.partitioners.BranchAndBoundPartitioner.StateVertex;
+import edu.brown.designer.partitioners.BranchAndBoundPartitioner.TraverseThread;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.ProjectType;
 
 public class TestBranchAndBoundPartitioner extends BasePartitionerTestCase {
 
     private BranchAndBoundPartitioner partitioner;
+    private AccessGraph agraph;
 
     @Override
     protected void setUp() throws Exception {
@@ -32,15 +39,14 @@ public class TestBranchAndBoundPartitioner extends BasePartitionerTestCase {
         this.designer = new Designer(this.info, this.hints, this.info.getArgs());
         this.partitioner = (BranchAndBoundPartitioner) this.designer.getPartitioner();
         assertNotNull(this.partitioner);
+        this.agraph = AccessGraphGenerator.convertToSingleColumnEdges(catalog_db, this.partitioner.generateAccessGraph());
+        assertNotNull(this.agraph);
     }
 
     /**
      * testGenerateAccessGraph
      */
     public void testGenerateAccessGraph() throws Exception {
-        AccessGraph agraph = this.partitioner.generateAccessGraph();
-        assertNotNull(agraph);
-
         // Make sure all of our tables are there
         for (Table catalog_tbl : catalog_db.getTables()) {
             Vertex v = agraph.getVertex(catalog_tbl);
@@ -65,9 +71,6 @@ public class TestBranchAndBoundPartitioner extends BasePartitionerTestCase {
      * testGenerateTableOrder
      */
     public void testGenerateTableOrder() throws Exception {
-        AccessGraph agraph = this.partitioner.generateAccessGraph();
-        assertNotNull(agraph);
-
         // Insert an artificial edge between SUBSCRIBER and ACCESS_INFO with a
         // high weight so that we can anticipate the ordering
         String expected[] = {
@@ -149,47 +152,44 @@ public class TestBranchAndBoundPartitioner extends BasePartitionerTestCase {
      * testHaltReason
      */
     public void testHaltReason() throws Exception {
+        List<Table> table_visit_order = (List<Table>)CatalogKey.getFromKeys(catalog_db, BranchAndBoundPartitioner.generateTableOrder(info, agraph, hints), Table.class);
+        assertFalse(table_visit_order.isEmpty());
+        List<Procedure> proc_visit_order = (List<Procedure>)CollectionUtil.addAll(new ArrayList<Procedure>(), catalog_db.getProcedures());
+        assertFalse(proc_visit_order.isEmpty());
+        
+        this.partitioner.setParameters(agraph, table_visit_order, proc_visit_order);
         this.partitioner.init(this.hints);
     }
     
-    /**
-     * testTraverse
-     */
-//    @SuppressWarnings("unchecked")
+//    /**
+//     * testTraverse
+//     */
 //    public void testTraverse() throws Exception {
-//        this.partitioner.init(this.hints);
-//        
 //        // We have to massage our attributes list so that our testing is deterministic
 //        //  (1) Remove ACCESS_INFO
 //        //  (2) Remove all attributes for SUBSCRIBER and SPECIAL_FACILITY except for S_ID
-//        ListOrderedMap<String, List<Column>> attributes = this.partitioner.base_traversal_attributes;
-//        attributes.remove(CatalogKey.createKey(this.getTable(TM1Constants.TABLENAME_ACCESS_INFO)));
+//        List<Table> table_visit_order = new ArrayList<Table>();
 //        for (String table_name : new String[] { TM1Constants.TABLENAME_SUBSCRIBER, TM1Constants.TABLENAME_SPECIAL_FACILITY }) {
 //            Table catalog_tbl = this.getTable(table_name);
-//            Column catalog_col = catalog_tbl.getColumns().get("S_ID");
-//            assertNotNull(catalog_col);
-//            attributes.get(CatalogKey.createKey(catalog_tbl)).retainAll(Arrays.asList(catalog_col));
+//            table_visit_order.add(catalog_tbl);
 //        } // FOR
+//        List<Procedure> proc_visit_order = new ArrayList<Procedure>();
 //        
-//        int next_table_idx = 0; 
-//        String next_table_key = attributes.get(next_table_idx); 
-//        assertNotNull(next_table_key);
-//        Table next_table = CatalogKey.getFromKey(catalog_db, next_table_key, Table.class);
-//        assertNotNull(next_table);
-//        assertEquals(TM1Constants.TABLENAME_SUBSCRIBER, next_table.getName());
+//        hints.enable_procparameter_search = false;
+//        this.partitioner.setParameters(agraph, table_visit_order, proc_visit_order);
+//        this.partitioner.init(this.hints);
 //        
-//        Catalog clone = CatalogUtil.cloneBaseCatalog(catalog, Table.class);
-//        assertNotNull(clone);
-//        StateVertex start_vertex = new StateVertex(CatalogUtil.getDatabase(clone), SearchType.MIN);
-//        
-//        TraverseThread thread = this.partitioner.new TraverseThread(this.info, start_vertex, attributes);
+//        StateVertex start_vertex = StateVertex.getStartVertex(Double.MAX_VALUE, Long.MAX_VALUE);
+//        TraverseThread thread = this.partitioner.new TraverseThread(info, hints, start_vertex, agraph, table_visit_order, proc_visit_order);
 //        assertNotNull(thread);
 //        thread.traverse(start_vertex, 0);
 //        
 //        // Make sure that the solution we pick has a memory and a cost
 //        StateVertex best_vertex = this.partitioner.getBestVertex();
 //        assertNotNull(best_vertex);
-//        assert(best_vertex.cost > 0);
-//        assert(best_vertex.memory > 0);
+//        System.err.println(PartitionPlan.createFromMap(best_vertex.getCatalogMap(catalog_db)));
+//        
+//        assert(best_vertex.getCost() > 0);
+//        assert(best_vertex.getMemory() > 0);
 //    }
 }

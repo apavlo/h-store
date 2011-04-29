@@ -326,8 +326,8 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
         this.costmodel.clear(true);
         if (this.restart_ctr == null) this.restart_ctr = 0;
         
-        Map<Table, Set<Column>> table_attributes = new ListOrderedMap<Table, Set<Column>>();
-        Map<Procedure, Set<ProcParameter>> proc_attributes = new ListOrderedMap<Procedure, Set<ProcParameter>>();
+        final ListOrderedSet<Table> table_attributes = new ListOrderedSet<Table>();
+        final ListOrderedSet<Procedure> proc_attributes = new ListOrderedSet<Procedure>();
         
         while (true) {
             // IMPORTANT: Make sure that we are always start comparing swaps using the solution
@@ -339,7 +339,7 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
             }
             
             // Local Search!
-            this.localSearch(hints, table_attributes, proc_attributes);
+            this.localSearch(hints, table_attributes.asList(), proc_attributes.asList());
             
             // Sanity Check!
             if (this.restart_ctr % 3 == 0) {
@@ -437,7 +437,7 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
      * @param restart_ctr
      * @throws Exception
      */
-    protected boolean relaxCurrentSolution(final DesignerHints hints, int restart_ctr, Map<Table, Set<Column>> table_attributes, Map<Procedure, Set<ProcParameter>> proc_attributes) throws Exception {
+    protected boolean relaxCurrentSolution(final DesignerHints hints, int restart_ctr, Set<Table> table_attributes, Set<Procedure> proc_attributes) throws Exception {
         assert(this.init_called);
         RandomDistribution.DiscreteRNG rand = new RandomDistribution.Flat(this.rng, 0, this.orig_table_attributes.size());
         int num_tables = this.orig_table_attributes.size();
@@ -528,31 +528,11 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
         proc_attributes.clear();
         Collections.shuffle(relaxed_tables);
         for (Table catalog_tbl : relaxed_tables) {
-            // For now just throw in all of the columns
-            // This is where we could look at the fixed tables and try to infer what columns we know 
-            // we won't need. Unfortunately I think that is too difficult because of the way the iterative
-            // costmodel works. The cost of choosing a partitioning column may not be evident until other
-            // tables have their columns selected. Furthermore, it may be the case that a txn is going to need to
-            // be multi-partitioned in order to balance the load properly, and thus we can't just throw out any columns
-            // that cause txns to become multi-partitioned...
-            List<Column> table_cols = new ArrayList<Column>(this.orig_table_attributes.get(catalog_tbl));
-            Collections.shuffle(table_cols, this.rng);
-            table_attributes.put(catalog_tbl, new HashSet<Column>(table_cols));
-            
+            table_attributes.add(catalog_tbl);
             for (Procedure catalog_proc : this.table_procedures.get(catalog_tbl)) {
-                proc_attributes.put(catalog_proc, null); // Placeholder
+                proc_attributes.add(catalog_proc);
             } // FOR
         } // FOR
-        
-        // Now add in all of the attributes for the procedures we will want to investigate
-        for (Procedure catalog_proc : proc_attributes.keySet()) {
-            HashSet<ProcParameter> params = new HashSet<ProcParameter>();
-            for (ProcParameter catalog_param : catalog_proc.getParameters()) {
-                if (catalog_param.getIsarray()) continue;
-                params.add(catalog_param);
-            } // FOR
-            proc_attributes.put(catalog_proc, params);
-        }
         
         this.last_relax_size = relax_size;
         return (true);
@@ -565,31 +545,27 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
      * @param proc_attributes
      * @throws Exception
      */
-    protected void localSearch(final DesignerHints hints, Map<Table, Set<Column>> table_attributes, Map<Procedure, Set<ProcParameter>> proc_attributes) throws Exception {
+    protected void localSearch(final DesignerHints hints, List<Table> table_attributes, List<Procedure> proc_attributes) throws Exception {
         
         // -------------------------------
-        // Convert to catalog keys and apply relaxation
+        // Apply relaxation and invalidate caches!
         // -------------------------------
-        Map<String, List<String>> key_attributes = new ListOrderedMap<String, List<String>>();
-        for (Entry<Table, Set<Column>> e : table_attributes.entrySet()) {
-            List<String> column_keys = new ArrayList<String>(CatalogKey.createKeys(e.getValue()));
-            key_attributes.put(CatalogKey.createKey(e.getKey()), column_keys);
-            this.costmodel.invalidateCache(e.getKey());
+        for (Table catalog_tbl : table_attributes) {
+//            catalog_tbl.setPartitioncolumn(null);
+            this.costmodel.invalidateCache(catalog_tbl);
         } // FOR
-        for (Entry<Procedure, Set<ProcParameter>> e : proc_attributes.entrySet()) {
-            List<String> param_keys = new ArrayList<String>(CatalogKey.createKeys(e.getValue()));
-            key_attributes.put(CatalogKey.createKey(e.getKey()), param_keys);
-            e.getKey().setPartitionparameter(NullProcParameter.PARAM_IDX);
-            this.costmodel.invalidateCache(e.getKey());
+        for (Procedure catalog_proc : proc_attributes) {
+            catalog_proc.setPartitionparameter(NullProcParameter.PARAM_IDX);
+            this.costmodel.invalidateCache(catalog_proc);
         } // FOR
         
         // Sanity Check: Make sure the non-relaxed tables come back with the same partitioning attribute
         Map<CatalogType, CatalogType> orig_solution = new HashMap<CatalogType, CatalogType>();
         for (Table catalog_tbl : info.catalog_db.getTables()) {
-            if (!table_attributes.containsKey(catalog_tbl)) orig_solution.put(catalog_tbl, catalog_tbl.getPartitioncolumn());
+            if (!table_attributes.contains(catalog_tbl)) orig_solution.put(catalog_tbl, catalog_tbl.getPartitioncolumn());
         }
         for (Procedure catalog_proc : info.catalog_db.getProcedures()) {
-            if (!proc_attributes.containsKey(catalog_proc)) {
+            if (!proc_attributes.contains(catalog_proc)) {
                 ProcParameter catalog_param = catalog_proc.getParameters().get(catalog_proc.getPartitionparameter());
                 orig_solution.put(catalog_proc, catalog_param);
             }
@@ -616,7 +592,7 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
         // -------------------------------
         // GO GO LOCAL SEARCH!!
         // -------------------------------
-        Pair<PartitionPlan, BranchAndBoundPartitioner.StateVertex> pair = this.executeLocalSearch(hints, table_attributes, key_attributes);
+        Pair<PartitionPlan, BranchAndBoundPartitioner.StateVertex> pair = this.executeLocalSearch(hints, this.agraph, table_attributes, proc_attributes);
         assert(pair != null);
         PartitionPlan result = pair.getFirst();
         BranchAndBoundPartitioner.StateVertex state = pair.getSecond();
@@ -668,11 +644,12 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
      * @throws Exception
      */
     protected Pair<PartitionPlan, BranchAndBoundPartitioner.StateVertex> executeLocalSearch(final DesignerHints hints,
-                                                                                            final Map<Table, Set<Column>> table_attributes,
-                                                                                            final Map<String, List<String>> key_attributes) throws Exception {
-        BranchAndBoundPartitioner local_search = new BranchAndBoundPartitioner(this.designer, this.info);
+                                                                                            final AccessGraph agraph,
+                                                                                            final List<Table> table_visit_order,
+                                                                                            final List<Procedure> proc_visit_order) throws Exception {
+        BranchAndBoundPartitioner local_search = new BranchAndBoundPartitioner(this.designer, this.info, agraph, table_visit_order, proc_visit_order);
         local_search.setUpperBounds(hints, this.best_solution, this.best_cost, (long)(this.best_memory * hints.max_memory_per_partition));
-        local_search.setTraversalAttributes(key_attributes, table_attributes.size());
+//        local_search.setTraversalAttributes(key_attributes, table_attributes.size());
 
         long start = System.currentTimeMillis();
         PartitionPlan result = local_search.generate(hints);

@@ -19,6 +19,7 @@ import edu.brown.utils.ProjectType;
 public class TestConstraintPropagator extends BasePartitionerTestCase {
     
     private static AccessGraph agraph;
+    private ConstraintPropagator cp;
     
     @Override
     protected void setUp() throws Exception {
@@ -31,14 +32,13 @@ public class TestConstraintPropagator extends BasePartitionerTestCase {
 //            System.err.println("Dumping AccessGraph to " + FileUtil.writeStringToFile("/tmp/tpcc.dot", GraphvizExport.export(agraph, "tpcc")));
         }
         assertNotNull(agraph);
+        this.cp = new ConstraintPropagator(info, hints, agraph);
     }
     
     /**
      * testInitialize
      */
     public void testInitialize() throws Exception {
-        ConstraintPropagator cp = new ConstraintPropagator(agraph);
-        
         for (Vertex v : agraph.getVertices()) {
             assertNotNull(cp.getEdgeColumns(v));
             // System.err.println(v + " => " + cp.getEdgeColumns(v));
@@ -58,7 +58,6 @@ public class TestConstraintPropagator extends BasePartitionerTestCase {
      * testUpdateTwice
      */
     public void testUpdateTwice() throws Exception {
-        ConstraintPropagator cp = new ConstraintPropagator(agraph);
         Table catalog_tbl = this.getTable("WAREHOUSE");
         cp.update(catalog_tbl);
         try {
@@ -72,8 +71,8 @@ public class TestConstraintPropagator extends BasePartitionerTestCase {
     /**
      * testUpdateTable
      */
+    @SuppressWarnings("unchecked")
     public void testUpdateTable() throws Exception {
-        ConstraintPropagator cp = new ConstraintPropagator(agraph);
         Set<Table> targets = new HashSet<Table>();
         for (String table_name : new String[]{ "WAREHOUSE", "DISTRICT", "CUSTOMER" }) {
             Table catalog_tbl = this.getTable(table_name);
@@ -90,7 +89,7 @@ public class TestConstraintPropagator extends BasePartitionerTestCase {
             Vertex v0 = agraph.getVertex(catalog_tbl);
             
             try {
-                columns = cp.getPossibleValues(catalog_tbl);
+                columns = (Collection<Column>)cp.getPossibleValues(catalog_tbl, Column.class);
             } catch (IllegalArgumentException ex) {
                 continue;
             }
@@ -142,9 +141,9 @@ public class TestConstraintPropagator extends BasePartitionerTestCase {
     /**
      * testResetTable
      */
+    @SuppressWarnings("unchecked")
     public void testResetTable() throws Exception {
         // First update all of the tables
-        ConstraintPropagator cp = new ConstraintPropagator(agraph);
         for (Table catalog_tbl : catalog_db.getTables()) {
             try {
                 cp.update(catalog_tbl);
@@ -155,7 +154,7 @@ public class TestConstraintPropagator extends BasePartitionerTestCase {
         
         // Get the list of columns that we can use for ORDERS
         Table catalog_tbl0 = this.getTable("ORDERS");
-        Set<Column> orig_columns = new HashSet<Column>(cp.getPossibleValues(catalog_tbl0));
+        Set<Column> orig_columns = new HashSet<Column>((Collection<Column>)cp.getPossibleValues(catalog_tbl0, Column.class));
         assertFalse(catalog_tbl0.toString(), orig_columns.isEmpty());
         
         // Reset both ORDERS and CUSTOMER
@@ -166,7 +165,7 @@ public class TestConstraintPropagator extends BasePartitionerTestCase {
         
         // Then grab the list of colunms for ORDERS again. It should be larger than our original list
         // And the original list should be a subset
-        Collection<Column> new_columns = cp.getPossibleValues(catalog_tbl0);
+        Collection<Column> new_columns = (Collection<Column>)cp.getPossibleValues(catalog_tbl0, Column.class);
         assert(new_columns.size() > orig_columns.size()) : orig_columns;
         assert(new_columns.containsAll(orig_columns)) : String.format("ORIG: %s\nNEW: %s", orig_columns, new_columns);
     }
@@ -175,7 +174,6 @@ public class TestConstraintPropagator extends BasePartitionerTestCase {
      * testResetTwice
      */
     public void testResetTwice() throws Exception {
-        ConstraintPropagator cp = new ConstraintPropagator(agraph);
         Table catalog_tbl = this.getTable("WAREHOUSE");
         cp.update(catalog_tbl);
         cp.reset(catalog_tbl);

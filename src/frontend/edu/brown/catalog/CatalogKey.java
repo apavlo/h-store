@@ -228,11 +228,14 @@ public abstract class CatalogKey {
         return (null);
     }
     
-    public static <T extends CatalogType> Collection<T> getFromKeys(Database catalog_db, Collection<String> keys, Class<T> catalog_class) {
-        List<T> items = new ArrayList<T>();
+    public static <T extends CatalogType> Collection<T> getFromKeys(Database catalog_db, Collection<String> keys, Class<T> catalog_class, Collection<T> items) {
         for (String key : keys) {
             items.add(CatalogKey.getFromKey(catalog_db, key, catalog_class));
         } // FOR
         return (items);
+    }
+    
+    public static <T extends CatalogType> Collection<T> getFromKeys(Database catalog_db, Collection<String> keys, Class<T> catalog_class) {
+        return (getFromKeys(catalog_db, keys, catalog_class, new ArrayList<T>()));
     }
 }
