@@ -46,7 +46,7 @@ public class ColumnStatistics extends AbstractStatistics<Column> {
     };
     
     public Boolean readonly = true;
-    public Histogram histogram = new Histogram();
+    public Histogram<Object> histogram = new Histogram<Object>();
     
     public ColumnStatistics(String catalog_key) {
         super(catalog_key);

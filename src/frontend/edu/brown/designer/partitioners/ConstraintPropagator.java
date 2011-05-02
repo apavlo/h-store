@@ -153,7 +153,7 @@ public class ConstraintPropagator {
                 Collection<Edge> all_edges = this.agraph.getIncidentEdges(v0);
                 assert(all_edges != null);
                 
-                if (d) LOG.debug(String.format("%s Edges:\nMATCHING EDGES\n%s\n===========\nALL EDGES\n%s",
+                if (t) LOG.trace(String.format("%s Edges:\nMATCHING EDGES\n%s\n===========\nALL EDGES\n%s",
                                  catalog_tbl.getName(), StringUtil.join("\n", edges), StringUtil.join("\n", all_edges)));
                 
                 // Look at v0's edges and mark any that are not in our list 
@@ -278,6 +278,8 @@ public class ConstraintPropagator {
         } else {
             assert(false) : "Unexpected " + catalog_obj;
         }
+        assert(ret != null);
+        if (d) LOG.debug(String.format("%s Possible Values [%d]: %s", catalog_obj, ret.size(), ret));
         return (ret);
     }
 

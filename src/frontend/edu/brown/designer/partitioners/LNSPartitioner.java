@@ -29,6 +29,7 @@ import edu.brown.designer.AccessGraph;
 import edu.brown.designer.Designer;
 import edu.brown.designer.DesignerHints;
 import edu.brown.designer.DesignerInfo;
+import edu.brown.designer.generators.AccessGraphGenerator;
 import edu.brown.rand.RandomDistribution;
 import edu.brown.statistics.Histogram;
 import edu.brown.statistics.TableStatistics;
@@ -39,8 +40,8 @@ import edu.brown.utils.MathUtil;
 import edu.brown.utils.StringUtil;
 
 /**
+ * Large-Neighborhood Search Partitioner
  * @author pavlo
- *
  */
 public class LNSPartitioner extends AbstractPartitioner implements JSONSerializable {
     protected static final Logger LOG = Logger.getLogger(LNSPartitioner.class);
@@ -70,6 +71,7 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
     protected final AbstractCostModel costmodel;
     protected final ParameterCorrelations correlations;
     protected AccessGraph agraph;
+    protected AccessGraph single_agraph;
 
     // ----------------------------------------------------------------------------
     // STATE INFORMATION
@@ -136,6 +138,7 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
 
         this.init_called = true;
         this.agraph = this.generateAccessGraph();
+        this.single_agraph = AccessGraphGenerator.convertToSingleColumnEdges(info.catalog_db, this.agraph);
         
         // Set the limits initially from the hints file
         if (hints.limit_back_tracks != null) this.last_backtrack_limit = new Double(hints.limit_back_tracks);
@@ -546,7 +549,6 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
      * @throws Exception
      */
     protected void localSearch(final DesignerHints hints, List<Table> table_attributes, List<Procedure> proc_attributes) throws Exception {
-        
         // -------------------------------
         // Apply relaxation and invalidate caches!
         // -------------------------------
@@ -592,7 +594,7 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
         // -------------------------------
         // GO GO LOCAL SEARCH!!
         // -------------------------------
-        Pair<PartitionPlan, BranchAndBoundPartitioner.StateVertex> pair = this.executeLocalSearch(hints, this.agraph, table_attributes, proc_attributes);
+        Pair<PartitionPlan, BranchAndBoundPartitioner.StateVertex> pair = this.executeLocalSearch(hints, this.single_agraph, table_attributes, proc_attributes);
         assert(pair != null);
         PartitionPlan result = pair.getFirst();
         BranchAndBoundPartitioner.StateVertex state = pair.getSecond();
@@ -647,6 +649,8 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
                                                                                             final AccessGraph agraph,
                                                                                             final List<Table> table_visit_order,
                                                                                             final List<Procedure> proc_visit_order) throws Exception {
+        assert(agraph != null) : "Missing AccessGraph!";
+        
         BranchAndBoundPartitioner local_search = new BranchAndBoundPartitioner(this.designer, this.info, agraph, table_visit_order, proc_visit_order);
         local_search.setUpperBounds(hints, this.best_solution, this.best_cost, (long)(this.best_memory * hints.max_memory_per_partition));
 //        local_search.setTraversalAttributes(key_attributes, table_attributes.size());
