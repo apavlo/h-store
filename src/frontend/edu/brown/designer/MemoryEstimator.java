@@ -14,14 +14,15 @@ import edu.brown.statistics.*;
 import edu.brown.utils.*;
 
 public class MemoryEstimator {
-    private static final Logger LOG = Logger.getLogger(MemoryEstimator.class.getName());
+    private static final Logger LOG = Logger.getLogger(MemoryEstimator.class);
+    private static final boolean d = LOG.isDebugEnabled();
+//    private static final boolean t = LOG.isTraceEnabled();
 
     private static final Map<String, Long> CACHE_TABLE_ESTIMATE = new HashMap<String, Long>();
     
-    private final boolean debug;
     private final WorkloadStatistics stats;
     private final AbstractHasher hasher;
-    private final Map<String, Histogram> cache_table_partition = new HashMap<String, Histogram>();
+    private final Map<String, Histogram<Integer>> cache_table_partition = new HashMap<String, Histogram<Integer>>();
     
     /**
      * Constructor
@@ -31,9 +32,12 @@ public class MemoryEstimator {
     public MemoryEstimator(WorkloadStatistics stats, AbstractHasher hasher) {
         this.stats = stats;
         this.hasher = hasher;
-        this.debug = LOG.isDebugEnabled();
     }
 
+    public AbstractHasher getHasher() {
+        return (this.hasher);
+    }
+    
     public long estimate(Database catalog_db, int partitions) {
         HashSet<Table> all_tables = new HashSet<Table>();
         CollectionUtil.addAll(all_tables, catalog_db.getTables());
@@ -52,7 +56,11 @@ public class MemoryEstimator {
      * @return
      */
     public long estimate(Database catalog_db, int partitions, Collection<Table> include_tables) {
-        if (debug) LOG.debug("Estimating total size of tables: " + include_tables);
+        Map<String, Long> m = null;
+        if (d) {
+            LOG.debug(String.format("Estimating total size of tables for %d partitions: %s", partitions, include_tables));
+            m = new HashMap<String, Long>();
+        }
 
         // Sanity Check: Make sure that we weren't given a table that doesn't exist
         Set<Table> remaining_tables = new HashSet<Table>(include_tables);
@@ -60,14 +68,19 @@ public class MemoryEstimator {
         long bytes = 0l;
         for (Table catalog_tbl : catalog_db.getTables()) {
             if (!include_tables.contains(catalog_tbl)) continue;
-            bytes += this.estimate(catalog_tbl, partitions);
+            long table_bytes = this.estimate(catalog_tbl, partitions);
+            if (d) m.put(catalog_tbl.getName(), table_bytes);
+            bytes += table_bytes;
             for (Index catalog_idx : catalog_tbl.getIndexes()) {
                 bytes += this.estimate(catalog_idx, partitions);
             } // FOR
             remaining_tables.remove(catalog_tbl);
         } // FOR
         assert(remaining_tables.isEmpty()) : "Unknown Tables: " + remaining_tables;
-        if (debug) LOG.debug("Total Database Size: " + bytes);
+        if (d) {
+            m.put("Total Database Size", bytes);
+            LOG.debug(String.format("Memory Estimate for %d Partitions:\n%s", partitions, StringUtil.formatMaps(m)));
+        }
         return (bytes);
     }
     
@@ -92,18 +105,18 @@ public class MemoryEstimator {
         ColumnStatistics col_stats = table_stats.getColumnStatistics(partition_col);
         String col_key = CatalogKey.createKey(partition_col);
         
-        Histogram histogram = this.cache_table_partition.get(col_key);
-        if (histogram == null) {
-            histogram = new Histogram();
+        Histogram<Integer> h = this.cache_table_partition.get(col_key);
+        if (h == null) {
+            h = new Histogram<Integer>();
             for (Object value : col_stats.histogram.values()) {
                 int hash = this.hasher.hash(value, catalog_tbl);
-                histogram.put(hash);
+                h.put(hash);
             } // FOR
-            this.cache_table_partition.put(col_key, histogram);
+            this.cache_table_partition.put(col_key, h);
         }
         
-        assert(histogram.values().contains(partition));
-        return (histogram.get(partition) * table_stats.tuple_size_avg);
+        assert(h.values().contains(partition));
+        return (h.get(partition) * table_stats.tuple_size_avg);
     }
     
     /**
@@ -118,17 +131,21 @@ public class MemoryEstimator {
         // tuples for all possible partitions
         TableStatistics table_stats = this.stats.getTableStatistics(catalog_tbl);
         assert(table_stats != null);
+        if (table_stats.tuple_size_total == 0) {
+            LOG.warn(this.stats.debug(CatalogUtil.getDatabase(catalog_tbl)));
+        }
+        assert(table_stats.tuple_size_total != 0) : catalog_tbl;
         
         Column catalog_col = null;
         if (catalog_tbl.getIsreplicated()) {
             estimate += table_stats.tuple_size_total;
-            if (debug) catalog_col = ReplicatedColumn.get(catalog_tbl);
+            if (d) catalog_col = ReplicatedColumn.get(catalog_tbl);
         } else {
             // FIXME: Assume uniform distribution for now
             estimate += table_stats.tuple_size_total / partitions;
-            if (debug) catalog_col = catalog_tbl.getPartitioncolumn();
+            if (d) catalog_col = catalog_tbl.getPartitioncolumn();
         }
-        if (debug) LOG.debug(String.format("%-30s%d", CatalogUtil.getDisplayName(catalog_col) + ":", estimate));
+        if (d) LOG.debug(String.format("%-30s%d [total=%d]", catalog_col.fullName() + ":", estimate, table_stats.tuple_size_total));
         return (estimate);
     }
     

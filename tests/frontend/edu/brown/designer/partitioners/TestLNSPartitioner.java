@@ -255,6 +255,7 @@ public class TestLNSPartitioner extends BasePartitionerTestCase {
         // to zero so that won't actually traverse the search tree
         hints.limit_local_time = 0;
         hints.enable_procparameter_search = false;
+        this.partitioner.init(this.hints);
         this.partitioner.calculateInitialSolution(hints);
         assert(this.partitioner.initial_cost > 0);
         PartitionPlan orig_solution = new PartitionPlan(this.partitioner.initial_solution);

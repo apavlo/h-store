@@ -394,9 +394,9 @@ public abstract class DesignerUtil {
      * @throws Exception
      */
     public static void extractPlanNodeColumnSet(final Statement catalog_stmt, final Database catalog_db, final ColumnSet cset, final AbstractPlanNode root_node, final boolean convert_params, final Collection<Table> tables) throws Exception {
-        //
+        final boolean d = LOG.isDebugEnabled();
+        
         // Walk through the tree and figure out how the tables are being referenced
-        //
         new PlanNodeTreeWalker() {
             {
                 this.setAllowRevisit(true);
@@ -416,7 +416,7 @@ public abstract class DesignerUtil {
                 children.addAfter(to_add);
                 
                 LOG.debug(children);
-                LOG.debug("-------------------------\n");
+                LOG.debug("-------------------------");
             };
             
             @Override
@@ -446,21 +446,21 @@ public abstract class DesignerUtil {
                     for (int i = 0, cnt = cast_node.getSearchKeyExpressions().size(); i < cnt; i++) {
                         AbstractExpression index_exp = cast_node.getSearchKeyExpressions().get(i);
                         Column catalog_col = index_cols.get(i).getColumn();
-                        LOG.debug("[" + i + "] " + catalog_col);
+                        if (d) LOG.debug("[" + i + "] " + catalog_col);
                         exps.add(DesignerUtil.createTempExpression(catalog_col, index_exp));
-                        LOG.debug("Added temp index search key expression: " + ExpressionUtil.debug(exps.get(exps.size()-1)));
+                        if (d) LOG.debug("Added temp index search key expression:\n" + ExpressionUtil.debug(exps.get(exps.size()-1)));
                     } // FOR
                     
                     // End Expression
                     if (cast_node.getEndExpression() != null) {
                         exps.add(cast_node.getEndExpression());
-                        LOG.debug("Added scan end expression: " + ExpressionUtil.debug(exps.get(exps.size()-1)));
+                        if (d) LOG.debug("Added scan end expression:\n" + ExpressionUtil.debug(exps.get(exps.size()-1)));
                     }
                     
                     // Post-Scan Expression
                     if (cast_node.getPredicate() != null) {
                         exps.add(cast_node.getPredicate());
-                        LOG.debug("Added post-scan predicate: " + ExpressionUtil.debug(exps.get(exps.size()-1)));
+                        if (d) LOG.debug("Added post-scan predicate:\n" + ExpressionUtil.debug(exps.get(exps.size()-1)));
                     }
                 
                 //  SeqScanPlanNode
@@ -468,7 +468,7 @@ public abstract class DesignerUtil {
                     SeqScanPlanNode cast_node = (SeqScanPlanNode)node;
                     if (cast_node.getPredicate() != null) {
                         exps.add(cast_node.getPredicate());
-                        LOG.debug("Adding scan node predicate: " + ExpressionUtil.debug(exps.get(exps.size()-1)));
+                        if (d) LOG.debug("Adding scan node predicate:\n" + ExpressionUtil.debug(exps.get(exps.size()-1)));
                     }
                   
                 // Materialize
@@ -489,7 +489,7 @@ public abstract class DesignerUtil {
                             StmtParameter catalog_param = catalog_stmt.getParameters().get(((ParameterValueExpression)exp).getParameterId());
                             cset.add(catalog_col, catalog_param, ExpressionType.COMPARE_EQUAL, catalog_stmt);
                         } else if (exp instanceof AbstractValueExpression) {
-                            LOG.debug("Ignoring AbstractExpressionType type: " + exp);
+                            if (d) LOG.debug("Ignoring AbstractExpressionType type: " + exp);
                         } else {
                             throw new Exception("Unexpected AbstractExpression type: " + exp); 
                         }
@@ -500,11 +500,11 @@ public abstract class DesignerUtil {
                     AbstractJoinPlanNode cast_node = (AbstractJoinPlanNode)node;
                     if (cast_node.getPredicate() != null) {
                         exps.add(cast_node.getPredicate());
-                        LOG.debug("Added join node predicate: " + ExpressionUtil.debug(exps.get(exps.size()-1)));
+                        if (d) LOG.debug("Added join node predicate: " + ExpressionUtil.debug(exps.get(exps.size()-1)));
                     }
                 }
                 
-                LOG.debug("Extracting expressions information from " + node + " for tables " + tables);
+                if (d) LOG.debug("Extracting expressions information from " + node + " for tables " + tables);
                 for (AbstractExpression exp : exps) {
                     if (exp == null) continue;
                     DesignerUtil.extractExpressionColumnSet(catalog_stmt, catalog_db, cset, exp, convert_params, tables);
@@ -526,7 +526,9 @@ public abstract class DesignerUtil {
      * @throws Exception
      */
     public static void extractExpressionColumnSet(final Statement catalog_stmt, final Database catalog_db, final ColumnSet cset, final AbstractExpression root_exp, final boolean convert_params, final Collection<Table> tables) throws Exception {
-//        LOG.info(catalog_stmt + "\n" + ExpressionUtil.debug(root_exp));
+        final boolean d = LOG.isDebugEnabled();
+        if (d) LOG.debug(catalog_stmt + "\n" + ExpressionUtil.debug(root_exp));
+        
         new ExpressionTreeWalker() {
             {
                 this.setAllowRevisit(true);
@@ -539,10 +541,12 @@ public abstract class DesignerUtil {
             final Set<Table> used_tables = new HashSet<Table>();
             
             private void populate() {
-                LOG.debug("POPULATE!");
-                LOG.debug("LEFT:  " + this.left);
-                LOG.debug("RIGHT: " + this.right);
-                LOG.debug("USED:  " + this.used_tables);
+                if (d) {
+                    LOG.debug("POPULATE!");
+                    LOG.debug("LEFT:  " + this.left);
+                    LOG.debug("RIGHT: " + this.right);
+                    LOG.debug("USED:  " + this.used_tables);
+                }
                 //
                 // Both sides can't be empty and our extract items must cover 
                 // all the tables that we are looking for. That is, if we were asked 
@@ -552,8 +556,9 @@ public abstract class DesignerUtil {
                 if (!this.left.isEmpty() && !this.right.isEmpty()) { //  && (this.used_tables.size() == tables.size())) {
                     for (CatalogType left_element : this.left) {
                         for (CatalogType right_element : this.right) {
-                            LOG.debug("Added entry: [" + left_element + " " + this.compare_exp + " " + right_element + "]"); 
+                            if (d) LOG.debug("Added entry: [" + left_element + " " + this.compare_exp + " " + right_element + "]"); 
                             cset.add(left_element, right_element, this.compare_exp, catalog_stmt);
+                            if (d) LOG.debug("ColumnSet:\n" + cset.debug());
                         } // FOR
                     } // FOR
                 }
@@ -567,7 +572,7 @@ public abstract class DesignerUtil {
             
             @Override
             protected void callback(AbstractExpression exp) {
-                LOG.debug("CALLBACK(counter=" + this.getCounter() + ") " + exp.getClass().getSimpleName());
+                if (d) LOG.debug("CALLBACK(counter=" + this.getCounter() + ") " + exp.getClass().getSimpleName());
 //                if (exp instanceof ComparisonExpression) {
 //                    LOG.debug("\n" + ExpressionUtil.debug(exp));
 //                }
@@ -595,15 +600,12 @@ public abstract class DesignerUtil {
                         this.populate();
                     }
                     
-                //
                 // When we hit a conjunction, we need to make a cross product of the left and
                 // right attribute sets
-                //
                 } else if (exp instanceof ConjunctionExpression) {
                     this.populate();
-                //
+                    
                 // Values: NULL, Tuple, Constants, Parameters
-                //
                 } else if (exp instanceof AbstractValueExpression) {
                     this.processValueExpression(exp);
                 }
@@ -620,7 +622,7 @@ public abstract class DesignerUtil {
                     case VALUE_TUPLE: {
                         String table_name = ((TupleValueExpression)exp).getTableName();
                         String column_name = ((TupleValueExpression)exp).getColumnName();
-                        LOG.debug("VALUE TUPLE: " + table_name + "." + column_name);
+                        if (d) LOG.debug("VALUE TUPLE: " + table_name + "." + column_name);
                         Table catalog_tbl = catalog_db.getTables().get(table_name);
                         
                         //
@@ -628,7 +630,7 @@ public abstract class DesignerUtil {
                         // be one of the ones that we are looking for
                         //
                         if (tables.contains(catalog_tbl)) {
-                            LOG.debug("FOUND VALUE_TUPLE: " + table_name);
+                            if (d) LOG.debug("FOUND VALUE_TUPLE: " + table_name);
                             element = catalog_tbl.getColumns().get(column_name);
                             this.used_tables.add(catalog_tbl);
                         }
@@ -657,10 +659,8 @@ public abstract class DesignerUtil {
                             LOG.warn("ERROR: Unable to find Parameter object in catalog [" + ((ParameterValueExpression)exp).getParameterId() + "]");
                             this.stop();
                         }
-                        //
                         // We want to use the ProcParameter instead of the StmtParameter
                         // It's not an error if the StmtParameter is not mapped to a ProcParameter
-                        //
 //                        LOG.debug("PARAMETER: " + element);
                         if (convert_params && ((StmtParameter)element).getProcparameter() != null) {
                             element = ((StmtParameter)element).getProcparameter();
@@ -674,8 +674,8 @@ public abstract class DesignerUtil {
                 if (element != null) {
                     if (this.on_leftside) this.left.add(element);
                     else this.right.add(element);
-                    LOG.debug("LEFT: " + this.left);
-                    LOG.debug("RIGHT: " + this.right);
+                    if (d) LOG.debug("LEFT: " + this.left);
+                    if (d) LOG.debug("RIGHT: " + this.right);
                 }
             }
             

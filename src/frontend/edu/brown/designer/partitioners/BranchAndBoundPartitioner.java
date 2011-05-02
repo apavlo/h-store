@@ -150,7 +150,19 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
         }
         
         public Map<CatalogType, CatalogType> getCatalogMap(Database catalog_db) {
-            return (this.buildCatalogMap(catalog_db, new ListOrderedMap<CatalogType, CatalogType>()));
+            Map<CatalogType, CatalogType> m = new ListOrderedMap<CatalogType, CatalogType>();
+            
+//            // First insert all of the entries from the catalog
+//            for (Table catalog_tbl : catalog_db.getTables()) {
+//                m.put(catalog_tbl, catalog_tbl.getPartitioncolumn());
+//            } // FOR
+//            for (Procedure catalog_proc : catalog_db.getProcedures()) {
+//                if (catalog_proc.getSystemproc()) continue;
+//                m.put(catalog_proc, CatalogUtil.getProcParameter(catalog_proc));
+//            } // FOR
+            
+            // Then overwrite those entries with what's in our vertex tree
+            return (this.buildCatalogMap(catalog_db, m));
         }
         private Map<CatalogType, CatalogType> buildCatalogMap(Database catalog_db, Map<CatalogType, CatalogType> map) {
             if (this.parent != null) this.parent.buildCatalogMap(catalog_db, map);
@@ -534,6 +546,7 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
          * @param traversal_attributes
          * @param children
          */
+        @SuppressWarnings("unchecked")
         public TraverseThread(DesignerInfo info, DesignerHints hints, StateVertex start, AccessGraph agraph, List<Table> search_tables, List<Procedure> search_procs) {
             this.info = info;
             this.hints = hints;
@@ -555,6 +568,7 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
             this.cp = new ConstraintPropagator(this.info, this.hints, this.agraph);
             
             // Mark all of our tables that we're not going to search against as updated in our ConstraintPropagator
+            if (debug.get()) LOG.debug("Updating ConstraintPropagator with fixed Table info");
             for (Table catalog_tbl : this.info.catalog_db.getTables()) {
                 if (this.search_tables.contains(catalog_tbl) == false) {
                     this.cp.update(catalog_tbl);
@@ -562,7 +576,9 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
                 }
             } // FOR
             
+            if (debug.get()) LOG.debug("Updating ConstraintPropagator with fixed Procedure info");
             for (Procedure catalog_proc : this.info.catalog_db.getProcedures()) {
+                if (AbstractPartitioner.shouldIgnoreProcedure(hints, catalog_proc)) continue;
                 // Unset all Procedure partitioning parameters
                 if (this.search_procs.contains(catalog_proc)) {
                     catalog_proc.setPartitionparameter(NullProcParameter.PARAM_IDX);
@@ -578,7 +594,6 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
                 this.previous_tables[i] = new HashSet<Table>(temp);
                 if (i < this.num_tables) this.previous_tables[i].add(this.search_tables.get(i)); 
             } // FOR
-            
             
             // Memory Estimator
             this.memory_estimator = info.getMemoryEstimator();
@@ -693,8 +708,8 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
             Workload.Filter filter = BranchAndBoundPartitioner.this.traversal_filters.get(current);
             
             // Descendant tables used for memory calculations
-            Set<Table> previous_tables = this.previous_tables[idx];
-            assert(previous_tables.isEmpty() == false) : "No previous tables at index " + idx + "?";
+            Set<Table> all_tables = this.previous_tables[idx];
+            assert(all_tables.isEmpty() == false) : "No previous tables at index " + idx + "?";
             
             // The local best vertex is the best vertex for this level in the traversal
             StateVertex local_best_vertex = null;
@@ -753,12 +768,13 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
                     assert(current_col != null);
                     current_tbl.setPartitioncolumn(current_col);
                     assert(current_col.getName().equals(current_tbl.getPartitioncolumn().getName())) :
-                        "Unexpected " + current_col.getName() + " != " + current_tbl.getPartitioncolumn().getName();
+                        "Unexpected " + current_col.fullName() + " != " + current_tbl.getPartitioncolumn().fullName();
                     
                     // Estimate memory size
-                    if (trace.get()) LOG.trace("Calculating memory size of current solution [" + CatalogUtil.getDisplayName(current_col) + "]");                
-                    memory = this.memory_estimator.estimate(search_db, info.getNumPartitions(), previous_tables);
+                    if (trace.get()) LOG.trace(String.format("Calculating memory size of current solution [%s]: %s", current_col.fullName(), all_tables));                
+                    memory = this.memory_estimator.estimate(search_db, info.getNumPartitions(), all_tables);
                     memory_exceeded = (memory > this.hints.max_memory_per_partition);
+                    if (trace.get()) LOG.trace(String.format("%s Memory: %d [exceeded=%s]", current_col.fullName(), memory, memory_exceeded));
                     
                     current_attribute = current_col;
                     

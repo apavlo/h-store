@@ -272,7 +272,7 @@ public abstract class BaseTestCase extends TestCase {
     protected Column getColumn(Database catalog_db, Table catalog_tbl, String col_name) {
         assertNotNull(catalog_db);
         assertNotNull(catalog_tbl);
-        Column catalog_col = catalog_tbl.getColumns().get(col_name);
+        Column catalog_col = catalog_tbl.getColumns().getIgnoreCase(col_name);
         assert(catalog_col != null) : "Failed to retrieve Column '" + col_name + "' from Table '" + catalog_tbl.getName() + "'";
         return (catalog_col);
     }
@@ -284,6 +284,14 @@ public abstract class BaseTestCase extends TestCase {
     }
     protected Column getColumn(String table_name, String col_name) {
         return (getColumn(catalog_db, this.getTable(table_name), col_name));
+    }
+    protected Column getColumn(Table catalog_tbl, int col_idx) {
+        int num_columns = catalog_tbl.getColumns().size();
+        if (col_idx < 0) col_idx = num_columns + col_idx; // Python!
+        assert(col_idx >= 0 && col_idx < num_columns) : "Invalid column index for " + catalog_tbl + ": " + col_idx;
+        Column catalog_col = catalog_tbl.getColumns().get(col_idx); 
+        assert(catalog_col != null) : "Failed to retrieve Column at '" + col_idx + "' from Table '" + catalog_tbl.getName() + "'";
+        return (catalog_col);
     }
 
     protected Procedure getProcedure(Database catalog_db, String proc_name) {

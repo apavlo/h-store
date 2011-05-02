@@ -55,7 +55,6 @@ public abstract class BasePartitionerTestCase extends BaseTestCase {
                 System.err.println("Failed to load " + stats_file.getAbsolutePath());
                 throw ex;
             }
-            
             this.applyCatalogCorrelations(type);
             correlations_file = this.getCorrelationsFile(type);
             assertNotNull(correlations_file);
