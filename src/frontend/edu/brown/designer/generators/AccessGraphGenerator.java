@@ -5,6 +5,8 @@ package edu.brown.designer.generators;
 
 import java.util.*;
 
+import javax.management.Query;
+
 import org.apache.log4j.Logger;
 import org.voltdb.catalog.*;
 import org.voltdb.types.*;
@@ -164,9 +166,7 @@ public class AccessGraphGenerator extends AbstractGenerator<AccessGraph> {
 //        }
         //if (true) return;
         
-        //
         // Get the list of tables used in the procedure
-        //
         Set<Table> proc_tables = CatalogUtil.getReferencedTables(this.catalog_proc);
 
         // Loop through each query and create edges for the explicitly defined relationships:
@@ -176,16 +176,13 @@ public class AccessGraphGenerator extends AbstractGenerator<AccessGraph> {
         for (Statement catalog_stmt : this.catalog_proc.getStatements()) {
             this.createExplicitEdges(agraph, catalog_stmt);
         } // FOR
-
-//        if (debug) System.err.println("\n===============================================================\n");
+        if (debug) LOG.debug("===============================================================");
         
-        //
         // After the initial edges have been added to the graph, loop back through again looking for
         // implicit references between two tables:
         //
         //  - Tables implicitly joined by sharing parameters on foreign keys
         //  - Tables implicitly referenced together by using the same values on foreign keys
-        //
         Statement catalog_stmts[] = this.catalog_proc.getStatements().values();
         for (int stmt_ctr0 = 0, stmt_cnt = catalog_stmts.length; stmt_ctr0 < stmt_cnt; stmt_ctr0++) {
             Statement catalog_stmt0 = catalog_stmts[stmt_ctr0];
@@ -200,7 +197,7 @@ public class AccessGraphGenerator extends AbstractGenerator<AccessGraph> {
             for (StmtParameter param : catalog_stmt0.getParameters()) {
                 if (param.getProcparameter() != null) params0.add(param.getProcparameter());
             } // FOR
-            if (debug) if (d) LOG.debug(catalog_stmt0.getName() + " Params: " + params0);
+            if (debug && d) LOG.debug(catalog_stmt0.getName() + " Params: " + params0);
 
             for (int stmt_ctr1 = stmt_ctr0 + 1; stmt_ctr1 < stmt_cnt; stmt_ctr1++) {
                 Statement catalog_stmt1 = catalog_stmts[stmt_ctr1];
@@ -213,7 +210,7 @@ public class AccessGraphGenerator extends AbstractGenerator<AccessGraph> {
             //     This is when one statement has a predicate that uses an input parameter
             //     that is not referenced in conjunction with other tables
             // --------------------------------------------------------------
-            if (debug) if (d) LOG.debug("-----------------------------------------\nLooking for implicit reference joins in " + catalog_stmt0 + "\n" + "TABLES: " + stmt0_tables);
+            if (debug && d) LOG.debug("-----------------------------------------\nLooking for implicit reference joins in " + catalog_stmt0 + "\n" + "TABLES: " + stmt0_tables);
             for (Table catalog_tbl : stmt0_tables) {
                 this.createImplicitEdges(agraph, proc_tables, catalog_stmt0, catalog_tbl);
             } // FOR
@@ -302,7 +299,8 @@ public class AccessGraphGenerator extends AbstractGenerator<AccessGraph> {
                 if (debug_table) LOG.trace("Creating scan edge to " + table0 + " for " + catalog_stmt);
                 //if (debug) if (d) LOG.debug("Scan Column SET[" + table0.getName() + "]: " + cset.debug());
                 Vertex vertex = agraph.getVertex(table0);
-                this.addEdge(agraph, AccessType.SCAN, cset, vertex, vertex, catalog_stmt);
+                AccessType atype = (catalog_stmt.getQuerytype() == QueryType.INSERT.getValue() ? AccessType.INSERT : AccessType.SCAN);
+                this.addEdge(agraph, atype, cset, vertex, vertex, catalog_stmt);
             }
             // --------------------------------------------------------------
         } // FOR

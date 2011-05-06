@@ -192,7 +192,7 @@ public abstract class DesignerUtil {
             }
             // INSERT
             if (catalog_stmt.getQuerytype() == QueryType.INSERT.getValue()) {
-                DesignerUtil.extractInsertColumnSet(catalog_stmt, catalog_db, cset, root_node, convert_params, tables);
+                DesignerUtil.extractInsertColumnSet(catalog_stmt, cset, root_node, convert_params, catalog_tables);
             // UPDATE
             // XXX: Should we be doing this?
             } else if (catalog_stmt.getQuerytype() == QueryType.UPDATE.getValue()) {
@@ -213,7 +213,8 @@ public abstract class DesignerUtil {
      */
     public static ColumnSet extractUpdateColumnSet(final Statement catalog_stmt, final boolean convert_params, final Table... catalog_tables) throws Exception {
         assert(catalog_stmt.getQuerytype() == QueryType.UPDATE.getValue());
-        final Database catalog_db = (Database)catalog_stmt.getParent().getParent();
+        final Database catalog_db = CatalogUtil.getDatabase(catalog_stmt);
+        
         final Set<Table> tables = new HashSet<Table>();
         final Set<String> table_keys = new HashSet<String>();
         for (Table table : catalog_tables) {
@@ -242,14 +243,12 @@ public abstract class DesignerUtil {
      */
     public static ColumnSet extractFragmentColumnSet(final PlanFragment catalog_frag, final boolean convert_params, final Table... catalog_tables) throws Exception {
         final Statement catalog_stmt = (Statement)catalog_frag.getParent();
-        final Database catalog_db = (Database)catalog_stmt.getParent().getParent();
+        final Database catalog_db = CatalogUtil.getDatabase(catalog_stmt);
         // if (catalog_frag.guid == 279) LOG.setLevel(Level.DEBUG);
         
-        //
         // We need to be clever about what we're doing here
         // We always have to examine the fragment (rather than just the entire Statement), because
         // we don't know whehter they want the multi-sited version or not
-        //
         final Set<Table> tables = new HashSet<Table>();
         final Set<String> table_keys = new HashSet<String>();
         for (Table table : catalog_tables) {
@@ -281,28 +280,24 @@ public abstract class DesignerUtil {
      * @param tables
      * @throws Exception
      */
-    public static void extractInsertColumnSet(final Statement catalog_stmt, final Database catalog_db, final ColumnSet cset, final AbstractPlanNode root_node, final boolean convert_params, final Collection<Table> tables) throws Exception {
-        //
+    public static void extractInsertColumnSet(final Statement catalog_stmt, final ColumnSet cset, final AbstractPlanNode root_node, final boolean convert_params, final Table...catalog_tables) throws Exception {
+        assert(catalog_stmt.getQuerytype() == QueryType.INSERT.getValue());
+        final Database catalog_db = CatalogUtil.getDatabase(catalog_stmt);
+        final List<List<CatalogType>> materialize_elements = new ArrayList<List<CatalogType>>();
+        
         // Find the MaterializePlanNode that feeds into the Insert
         // This will have the list of columns that will be used to insert into the table
-        //
         new PlanNodeTreeWalker() {
-            List<List<CatalogType>> materialize_elements = new ArrayList<List<CatalogType>>(); 
-            
             @Override
             protected void callback(final AbstractPlanNode node) {
-                //
                 // We should find the Materialize node before the Insert
-                //
                 if (node instanceof MaterializePlanNode) {
                     for (Integer column_guid : node.m_outputColumns) {
                         PlanColumn column = PlannerContext.singleton().get(column_guid);
                         assert(column != null);
                         AbstractExpression exp = column.getExpression();
                         
-                        //
                         // Now extract the CatalogType objects that are being referenced by this materialization column
-                        //
                         final List<CatalogType> catalog_refs = new ArrayList<CatalogType>();
                         new ExpressionTreeWalker() {
                             @Override
@@ -317,10 +312,8 @@ public abstract class DesignerUtil {
                                             LOG.warn("ERROR: Unable to find Parameter object in catalog [" + ((ParameterValueExpression)exp).getParameterId() + "]");
                                             this.stop();
                                         }
-                                        //
                                         // We want to use the ProcParameter instead of the StmtParameter
                                         // It's not an error if the StmtParameter is not mapped to a ProcParameter
-                                        //
                                         if (convert_params && ((StmtParameter)element).getProcparameter() != null) {
                                             LOG.debug(element + "(" + element + ") --> ProcParameter[" + element.getField("procparameter") + "]");
                                             element = ((StmtParameter)element).getProcparameter();
@@ -329,9 +322,7 @@ public abstract class DesignerUtil {
                                     }
                                     case VALUE_TUPLE_ADDRESS:
                                     case VALUE_TUPLE: {
-                                        //
                                         // This shouldn't happen, but it is nice to be told if it does...
-                                        //
                                         LOG.warn("Unexpected " + exp.getClass().getSimpleName() + " node when examining " + node.getClass().getSimpleName() + " for " + catalog_stmt);
                                         break;
                                     }
@@ -346,35 +337,33 @@ public abstract class DesignerUtil {
                                 return;
                             }
                         }.traverse(exp);
-                        this.materialize_elements.add(catalog_refs);
+                        materialize_elements.add(catalog_refs);
                     } // FOR
-                //
+                    
                 // InsertPlanNode
-                //
                 } else if (node instanceof InsertPlanNode) {
                     InsertPlanNode insert_node = (InsertPlanNode)node;
                     Table catalog_tbl = catalog_db.getTables().get(insert_node.getTargetTableName());
                     
-                    //
                     // We only support when the Materialize node is inserting data into all columns
-                    //
-                    if (this.materialize_elements.size() != catalog_tbl.getColumns().size()) {
-                        LOG.fatal(catalog_tbl + " has " + catalog_tbl.getColumns().size() + " columns but the MaterializePlanNode has " + materialize_elements.size() + " output columns");
-                        System.out.println(PlanNodeUtil.debug(node));
-                        System.exit(1);
+                    if (materialize_elements.size() != catalog_tbl.getColumns().size()) {
+                        String msg = String.format("%s has %d columns but the MaterializePlanNode has %d output columns",
+                                                   catalog_tbl, catalog_tbl.getColumns().size(), materialize_elements.size()); 
+                        LOG.fatal(PlanNodeUtil.debug(node));
+                        throw new RuntimeException(msg);
                     }
                     
-                    //
                     // Loop through each column position and add an entry in the ColumnSet for
                     // each catalog item that was used in the MaterializePlanNode
                     // For example, if the INSERT clause for a column FOO was "PARAM1 + PARAM2", then
                     // the column set will have separate entries for FOO->PARAM1 and FOO->PARAM2
-                    //
-                    for (int ctr = 0, cnt = this.materialize_elements.size(); ctr < cnt; ctr++) {
+                    LOG.debug("Materialize Elements: " + materialize_elements);
+                    for (int ctr = 0, cnt = materialize_elements.size(); ctr < cnt; ctr++) {
                         Column catalog_col = catalog_tbl.getColumns().get(ctr);
                         assert(catalog_col != null);
-                        for (CatalogType catalog_item : this.materialize_elements.get(ctr)) {
+                        for (CatalogType catalog_item : materialize_elements.get(ctr)) {
                             cset.add(catalog_col, catalog_item, ExpressionType.COMPARE_EQUAL, catalog_stmt);
+                            LOG.debug(String.format("[%02d] Adding Entry %s => %s", ctr, catalog_col, catalog_item));
                         } // FOR
                     } // FOR
                 }

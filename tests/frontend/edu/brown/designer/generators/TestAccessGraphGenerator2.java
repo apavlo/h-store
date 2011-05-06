@@ -6,6 +6,7 @@ package edu.brown.designer.generators;
 import java.io.File;
 import java.util.Collection;
 
+import org.voltdb.benchmark.tpcc.procedures.paymentByCustomerId;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Table;
 import org.voltdb.utils.Pair;
@@ -17,7 +18,9 @@ import edu.brown.designer.DesignerInfo;
 import edu.brown.designer.Edge;
 import edu.brown.designer.Vertex;
 import edu.brown.designer.AccessGraph.EdgeAttributes;
+import edu.brown.graphs.GraphvizExport;
 import edu.brown.utils.CollectionUtil;
+import edu.brown.utils.FileUtil;
 import edu.brown.utils.ProjectType;
 import edu.brown.workload.Workload;
 import edu.brown.workload.filters.ProcedureLimitFilter;
@@ -68,6 +71,26 @@ public class TestAccessGraphGenerator2 extends BaseTestCase {
     }
     
     /**
+     * testInsertHistory
+     */
+    public void testInsertHistory() throws Exception {
+        agraph = new AccessGraph(catalog_db);
+        catalog_proc = this.getProcedure(paymentByCustomerId.class);
+        this.generator = new AccessGraphGenerator(this.info, catalog_proc);
+        this.generator.generate(agraph);
+        assert(agraph.getVertexCount() > 0);
+        
+        // Make sure it has a vertex for HISTORY
+        Table catalog_tbl = this.getTable("HISTORY");
+        Vertex v = agraph.getVertex(catalog_tbl);
+        assertNotNull(v);
+        
+        // And make sure that it has edges
+        Collection<Edge> edges = agraph.getIncidentEdges(v); 
+        assertFalse(edges.isEmpty());
+    }
+    
+    /**
      * testConvertToSingleColumnEdges
      */
     public void testConvertToSingleColumnEdges() throws Exception {
@@ -80,6 +103,14 @@ public class TestAccessGraphGenerator2 extends BaseTestCase {
 //        single_agraph.setVerbose(true);
 //        System.err.println("Dumping AccessGraph to " + FileUtil.writeStringToFile("/tmp/single_tpcc.dot", GraphvizExport.export(single_agraph, "tpcc")));
 
+        // Make sure that it has all of our tables except CUSTOMER_NAME
+        for (Table catalog_tbl : catalog_db.getTables()) {
+            if (catalog_tbl.getName().equalsIgnoreCase("CUSTOMER_NAME")) continue;
+            Vertex v = single_agraph.getVertex(catalog_tbl);
+            assertNotNull(v);
+            System.err.println(catalog_tbl + ": " + v);
+        } // FOR
+        
         // Make a new ColumnSet that combines all the ColumnSets of all edges in the original AccessGraph
         Vertex v0, v1;
         Collection<Edge> edges;
