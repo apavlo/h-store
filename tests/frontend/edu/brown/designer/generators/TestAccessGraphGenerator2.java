@@ -105,9 +105,10 @@ public class TestAccessGraphGenerator2 extends BaseTestCase {
 
         // Make sure that it has all of our tables except CUSTOMER_NAME
         for (Table catalog_tbl : catalog_db.getTables()) {
-            if (catalog_tbl.getName().equalsIgnoreCase("CUSTOMER_NAME")) continue;
+            if (catalog_tbl.getName().equalsIgnoreCase("CUSTOMER_NAME") ||
+                catalog_tbl.getName().equalsIgnoreCase("HISTORY")) continue;
             Vertex v = single_agraph.getVertex(catalog_tbl);
-            assertNotNull(v);
+            assertNotNull(catalog_tbl.getName(), v);
             System.err.println(catalog_tbl + ": " + v);
         } // FOR
         
