@@ -23,7 +23,8 @@ public class AccessGraph extends AbstractUndirectedGraph<Vertex, Edge>  {
         SCAN,
         SQL_JOIN,
         PARAM_JOIN,
-        IMPLICIT_JOIN;
+        IMPLICIT_JOIN,
+        INSERT;
         
         public static List<AccessType> JOINS = new ArrayList<AccessType>();
         static {

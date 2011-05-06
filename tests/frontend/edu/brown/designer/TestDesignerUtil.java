@@ -2,16 +2,21 @@ package edu.brown.designer;
 
 import java.util.*;
 
+import org.apache.commons.collections15.set.ListOrderedSet;
+import org.voltdb.benchmark.tpcc.procedures.neworder;
+import org.voltdb.benchmark.tpcc.procedures.paymentByCustomerId;
 import org.voltdb.benchmark.tpcc.procedures.slev;
 import org.voltdb.catalog.*;
 import org.voltdb.plannodes.AbstractPlanNode;
 import org.voltdb.utils.Pair;
 
 import edu.brown.BaseTestCase;
+import edu.brown.catalog.CatalogUtil;
 import edu.brown.catalog.QueryPlanUtil;
 import edu.brown.designer.ColumnSet;
 import edu.brown.designer.DesignerUtil;
 import edu.brown.utils.ProjectType;
+import edu.brown.utils.StringUtil;
 
 /**
  * 
@@ -60,43 +65,64 @@ public class TestDesignerUtil extends BaseTestCase {
     /**
      * testExtractStatementColumnSet
      */
-//    public void testExtractStatementColumnSet() throws Exception {
-//        Table catalog_tbl = catalog_db.getTables().get("DISTRICT");
-//        assertNotNull(catalog_tbl);
-//        Procedure catalog_proc = catalog_db.getProcedures().get("neworder");
-//        assertNotNull(catalog_proc);
-//        Statement catalog_stmt = catalog_proc.getStatements().get("getDistrict");
-//        assertNotNull(catalog_stmt);
-//        ColumnSet cset = DesignerUtil.extractStatementColumnSet(catalog_stmt, false, catalog_tbl);
-//        
-//        // Column -> StmtParameter Index
-//        Set<Pair<Column, Integer>> expected_columns = new HashSet<Pair<Column, Integer>>();
-//        expected_columns.add(Pair.of(catalog_tbl.getColumns().get("D_ID"), 0));
-//        expected_columns.add(Pair.of(catalog_tbl.getColumns().get("D_W_ID"), 1));
-//        assertEquals(catalog_stmt.getParameters().size(), expected_columns.size());
-//        
-//        this.checkColumnSet(cset, expected_columns);
-//    }
+    public void testExtractStatementColumnSet() throws Exception {
+        Table catalog_tbl = this.getTable("DISTRICT");
+        assertNotNull(catalog_tbl);
+        Procedure catalog_proc = catalog_db.getProcedures().get("neworder");
+        assertNotNull(catalog_proc);
+        Statement catalog_stmt = catalog_proc.getStatements().get("getDistrict");
+        assertNotNull(catalog_stmt);
+        ColumnSet cset = DesignerUtil.extractStatementColumnSet(catalog_stmt, false, catalog_tbl);
+        
+        // Column -> StmtParameter Index
+        Set<Pair<Column, Integer>> expected_columns = new HashSet<Pair<Column, Integer>>();
+        expected_columns.add(Pair.of(catalog_tbl.getColumns().get("D_ID"), 0));
+        expected_columns.add(Pair.of(catalog_tbl.getColumns().get("D_W_ID"), 1));
+        assertEquals(catalog_stmt.getParameters().size(), expected_columns.size());
+        
+        this.checkColumnSet(cset, expected_columns);
+    }
     
     /**
      * testExtractUpdateColumnSet
      */
-//    public void testExtractUpdateColumnSet() throws Exception {
-//        Table catalog_tbl = catalog_db.getTables().get("DISTRICT");
-//        assertNotNull(catalog_tbl);
-//        Procedure catalog_proc = catalog_db.getProcedures().get("neworder");
-//        assertNotNull(catalog_proc);
-//        Statement catalog_stmt = catalog_proc.getStatements().get("incrementNextOrderId");
-//        assertNotNull(catalog_stmt);
-//        ColumnSet cset = DesignerUtil.extractUpdateColumnSet(catalog_stmt, false, catalog_tbl);
-//        // System.out.println(cset.debug());
-//        
-//        // Column -> StmtParameter Index
-//        Set<Pair<Column, Integer>> expected_columns = new HashSet<Pair<Column, Integer>>();
-//        expected_columns.add(Pair.of(catalog_tbl.getColumns().get("D_NEXT_O_ID"), 0));
-//        
-//        this.checkColumnSet(cset, expected_columns);
-//    }
+    public void testExtractUpdateColumnSet() throws Exception {
+        Table catalog_tbl = this.getTable("DISTRICT");
+        Procedure catalog_proc = this.getProcedure(neworder.class);
+        Statement catalog_stmt = this.getStatement(catalog_proc, "incrementNextOrderId");
+        
+        ColumnSet cset = DesignerUtil.extractUpdateColumnSet(catalog_stmt, false, catalog_tbl);
+        // System.out.println(cset.debug());
+        
+        // Column -> StmtParameter Index
+        Set<Pair<Column, Integer>> expected_columns = new HashSet<Pair<Column, Integer>>();
+        expected_columns.add(Pair.of(catalog_tbl.getColumns().get("D_NEXT_O_ID"), 0));
+        
+        this.checkColumnSet(cset, expected_columns);
+    }
+    
+    /**
+     * testExtractInsertColumnSet
+     */
+    public void testExtractInsertColumnSet() throws Exception {
+        Table catalog_tbl = this.getTable("HISTORY");
+        Procedure catalog_proc = this.getProcedure(paymentByCustomerId.class);
+        Statement catalog_stmt = this.getStatement(catalog_proc, "insertHistory");
+
+        assertNotNull(catalog_stmt);
+        ColumnSet cset = DesignerUtil.extractStatementColumnSet(catalog_stmt, false, catalog_tbl);
+        // System.out.println(cset.debug());
+        
+        // Column -> StmtParameter Index
+        Set<Pair<Column, Integer>> expected_columns = new ListOrderedSet<Pair<Column, Integer>>();
+        for (Column catalog_col : CatalogUtil.getSortedCatalogItems(catalog_tbl.getColumns(), "index")) {
+            assertNotNull(catalog_col);
+            expected_columns.add(Pair.of(catalog_col, catalog_col.getIndex()));
+        } // FOR
+        // System.err.println("EXPECTED:\n" + StringUtil.join("\n", expected_columns));
+        
+        this.checkColumnSet(cset, expected_columns);
+    }
 
     /**
      * testExtractPlanNodeColumnSet

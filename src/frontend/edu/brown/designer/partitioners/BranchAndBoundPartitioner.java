@@ -571,7 +571,11 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
             if (debug.get()) LOG.debug("Updating ConstraintPropagator with fixed Table info");
             for (Table catalog_tbl : this.info.catalog_db.getTables()) {
                 if (this.search_tables.contains(catalog_tbl) == false) {
-                    this.cp.update(catalog_tbl);
+                    try {
+                        this.cp.update(catalog_tbl);
+                    } catch (IllegalArgumentException ex) {
+                        // IGNORE
+                    }
                     this.remaining_tables.add(catalog_tbl);
                 }
             } // FOR
@@ -650,6 +654,7 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
             if (debug.get() && this.halt_time != null)
                 LOG.debug("Remaining Search Time: " + (this.halt_time - System.currentTimeMillis()) / 1000d);  
                 
+            if (debug.get()) LOG.debug(String.format("Starting Search for %d Elements: %s", this.all_search_elements.size(), this.all_search_elements));
             try {
                 this.traverse(start, 0);
             } catch (Exception ex) {
