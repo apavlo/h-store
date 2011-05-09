@@ -150,6 +150,14 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
         
         // Gather all the information we need about each table
         for (Table catalog_tbl : CatalogKey.getFromKeys(info.catalog_db, AbstractPartitioner.generateTableOrder(info, this.agraph, hints), Table.class)) {
+            
+            // Ignore this table if it's not used in the AcessGraph
+            try {
+                this.single_agraph.getVertex(catalog_tbl);
+            } catch (IllegalArgumentException ex) {
+                LOG.warn("Ignoring table " + catalog_tbl);
+            }
+            
             // Potential Partitioning Attributes
             List<String> columns = AbstractPartitioner.generateColumnOrder(info, agraph, catalog_tbl, hints, false, true);
             assert(!columns.isEmpty()) : "No potential partitioning columns selected for " + catalog_tbl;
