@@ -567,12 +567,12 @@ public abstract class AbstractPartitioner {
         for (int i = 0, cnt = params.size(); i < cnt; i++) {
             ProcParameter param0 = params.get(i);
             assert(param0 != null);
-            if (param0 instanceof MultiProcParameter) continue;
+            if (param0 instanceof MultiProcParameter || param0.getIsarray()) continue;
             
             for (int ii = i + 1; ii < cnt; ii++) {
                 ProcParameter param1 = params.get(ii);
                 assert(param1 != null);
-                if (param1 instanceof MultiProcParameter) continue;
+                if (param1 instanceof MultiProcParameter || param1.getIsarray()) continue;
                 
                 // This will automatically update the Procedure, so there isn't anything more 
                 // we need to do here...

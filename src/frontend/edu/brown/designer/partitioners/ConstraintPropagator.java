@@ -235,7 +235,9 @@ public class ConstraintPropagator {
         if (catalog_obj instanceof Table) {
             Table catalog_tbl = (Table)catalog_obj;
             Vertex v = this.agraph.getVertex(catalog_tbl);
-            if (v == null) throw new IllegalArgumentException("Missing vertex for " + catalog_tbl);
+            if (v == null) {
+                throw new IllegalArgumentException("Missing vertex for " + catalog_tbl);
+            }
             if (d) LOG.debug("Calculating possible values for " + catalog_tbl);
             
             Map<Edge, Column> edge_cols = this.vertex_edge_col.get(v);
