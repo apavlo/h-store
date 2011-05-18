@@ -76,7 +76,10 @@
     <not><isset property="project"/></not>
 </condition>
 <property file="${benchmark.dir}/${project}.properties" prefix="benchmark" />
+<fail message="Missing properties file" unless="coordinator.host" />
+
 <property name="benchmark.jar" location="${project}.jar" />
+<fail message="Invalid benchmark project '${project}'" unless="benchmark.client" />
 
 <condition property="jar" value="${benchmark.jar}">
     <not><isset property="jar"/></not>
