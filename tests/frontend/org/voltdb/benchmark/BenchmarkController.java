@@ -511,7 +511,7 @@ public class BenchmarkController {
             }
             StringBuilder loaderCommand = new StringBuilder(4096);
 
-            loaderCommand.append("java -XX:-ReduceInitialCardMarks -XX:+HeapDumpOnOutOfMemoryError " +
+            loaderCommand.append("java -Dtag=loader -XX:-ReduceInitialCardMarks -XX:+HeapDumpOnOutOfMemoryError " +
                     "-XX:HeapDumpPath=/tmp -Xmx" + loaderheap + "m " + debugString);
             String classpath = ""; // Disable this so that we just pull from the build dir -> "hstore.jar" + ":" + m_jarFileName;
             if (System.getProperty("java.class.path") != null) {
@@ -578,7 +578,7 @@ public class BenchmarkController {
         if (m_config.listenForDebugger) {
             clArgs.add(""); //placeholder for agent lib
         }
-        clArgs.add("-ea -XX:-ReduceInitialCardMarks -XX:+HeapDumpOnOutOfMemoryError " +
+        clArgs.add("-Dtag=client -ea -XX:-ReduceInitialCardMarks -XX:+HeapDumpOnOutOfMemoryError " +
                     "-XX:HeapDumpPath=/tmp -Xmx" + String.valueOf(m_config.clientHeapSize) + "m");
 
         /*

@@ -77,7 +77,6 @@
 </condition>
 <property file="${benchmark.dir}/${project}.properties" prefix="benchmark" />
 <property name="benchmark.jar" location="${project}.jar" />
-
 <condition property="jar" value="${benchmark.jar}">
     <not><isset property="jar"/></not>
 </condition>
@@ -2208,10 +2207,6 @@ H-STORE REMIX
     <antcall target="hstore-jar">
         <param name="jar" value="${benchmark.jar}" />
     </antcall>
-    
-    <antcall target="hstore-conf">
-        <param name="jar" value="${benchmark.jar}" />
-    </antcall>
 </target>
 
 <target name="hstore-site" description="H-Store Execution Node/Coordinator">
@@ -2223,6 +2218,7 @@ H-STORE REMIX
     </condition>
 
     <java fork="yes" classname="edu.mit.hstore.HStoreSite">
+        <arg value="tag=site" />
         <jvmarg value="-Xmx${node.memory}m" />
         <jvmarg value="-Dlog4j.configuration=${basedir}/log4j.properties"/>
         <jvmarg value="-server" />
@@ -2268,7 +2264,6 @@ H-STORE REMIX
         <param name="catalog" value="${benchmark.jar}" />
         <param name="compile" value="false" />
         <param name="cataloghosts" value="true" />
-        <param name="cataloghosts" value="true" />
     </antcall>
 </target>
 
@@ -2283,7 +2278,11 @@ H-STORE REMIX
 <!--         <param name="hosts" value="${global.defaulthost}:0:0,${global.defaulthost}:0:1" /> -->
         <param name="hosts" value="${global.defaulthost}:0:0,${global.defaulthost}:0:1,${global.defaulthost}:1:2,${global.defaulthost}:1:3" />
     </antcall>
+    <antcall target="hstore-conf">
+        <param name="jar" value="${benchmark.jar}" />
+    </antcall>
 </target>
+
 
 <!-- END PROJECT -->
 </project>
