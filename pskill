@@ -1,0 +1,35 @@
+#!/usr/bin/env perl
+
+use strict;
+use warnings;
+use File::Basename;
+use Getopt::Long;
+
+GetOptions(
+    "debug" => \$main::opt_debug,
+    "signal=s" => \$main::opt_signal,
+);
+
+my $target = pop(@ARGV);
+my @pids = ( );
+my $self = basename($0);
+
+foreach (`ps -o "%p%a" x | grep $target | grep -v grep | grep -v $self`) {
+   if ($_ =~ m/([\d]+)[\s]+(.*?)/g) {
+      print "$_" if (defined($main::opt_debug));
+      push(@pids, $1);
+   } 
+} # FOREACH
+
+my $kill_cmd = "kill";
+if (defined($main::opt_signal)) {
+   $kill_cmd .= " -".$main::opt_signal;
+}
+
+if ($#pids >= 0) {
+   my $cmd = "$kill_cmd @ARGV @pids";
+   print "$cmd\n" if (defined($main::opt_debug));
+   system($cmd);
+}
+exit(0);
+
