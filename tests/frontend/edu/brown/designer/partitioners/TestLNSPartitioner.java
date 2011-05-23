@@ -5,13 +5,15 @@ package edu.brown.designer.partitioners;
 
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import org.apache.commons.collections15.map.ListOrderedMap;
 import org.junit.Test;
-import org.voltdb.catalog.*;
+import org.voltdb.catalog.Column;
+import org.voltdb.catalog.ProcParameter;
+import org.voltdb.catalog.Procedure;
+import org.voltdb.catalog.Table;
 
 import edu.brown.benchmark.tm1.TM1Constants;
 import edu.brown.benchmark.tm1.procedures.GetAccessData;
@@ -127,14 +129,14 @@ public class TestLNSPartitioner extends BasePartitionerTestCase {
     public void testProcedureColumnAccessHistogramSimple() throws Exception {
         this.partitioner.init(this.hints);
         
-        Histogram proc_histogram = workload.getProcedureHistogram();
+        Histogram<String> proc_histogram = workload.getProcedureHistogram();
         
         // Just make sure that each Histogram isn't empty
         for (Procedure catalog_proc : catalog_db.getProcedures()) {
             if (!AbstractPartitioner.isPartitionable(catalog_proc)) continue;
             String proc_key = CatalogKey.createKey(catalog_proc);
             if (catalog_proc.getSystemproc() || !proc_histogram.contains(proc_key)) continue;
-            Histogram h = this.partitioner.proc_column_histogram.get(catalog_proc);
+            Histogram<Column> h = this.partitioner.proc_column_histogram.get(catalog_proc);
             assert(h != null) : "Null Column Access Histogram: " + catalog_proc;
             assert(!h.isEmpty()) : "Empty Column Access Histogram: " + catalog_proc;
 //            System.err.println(catalog_proc + ":\n" + h);
@@ -157,7 +159,7 @@ public class TestLNSPartitioner extends BasePartitionerTestCase {
             this.getColumn(catalog_tbl1, "SF_TYPE")
         };
         
-        Histogram h = this.partitioner.proc_column_histogram.get(catalog_proc);
+        Histogram<Column> h = this.partitioner.proc_column_histogram.get(catalog_proc);
         assertNotNull(h);
         assertEquals(expected.length, h.getValueCount());
         for (Column col : expected) {
@@ -253,6 +255,7 @@ public class TestLNSPartitioner extends BasePartitionerTestCase {
         // to zero so that won't actually traverse the search tree
         hints.limit_local_time = 0;
         hints.enable_procparameter_search = false;
+        this.partitioner.init(this.hints);
         this.partitioner.calculateInitialSolution(hints);
         assert(this.partitioner.initial_cost > 0);
         PartitionPlan orig_solution = new PartitionPlan(this.partitioner.initial_solution);
@@ -267,15 +270,14 @@ public class TestLNSPartitioner extends BasePartitionerTestCase {
         assertEquals(this.partitioner.initial_cost, new_cost);
         
         // Genarate table+procedure attribute lists
-        Map<Table, Set<Column>> table_attributes = new ListOrderedMap<Table, Set<Column>>();
+        List<Table> table_attributes = new ArrayList<Table>();
         Table catalog_tbl = this.getTable(TM1Constants.TABLENAME_SUBSCRIBER);
-        table_attributes.put(catalog_tbl, new HashSet<Column>());
-        table_attributes.get(catalog_tbl).add(this.getColumn(catalog_tbl, "S_ID"));
-        Map<Procedure, Set<ProcParameter>> proc_attributes = new ListOrderedMap<Procedure, Set<ProcParameter>>();
+        table_attributes.add(catalog_tbl);
+        
+        List<Procedure> proc_attributes = new ArrayList<Procedure>();
         for (Procedure catalog_proc : catalog_db.getProcedures()) {
-            if (!AbstractPartitioner.isPartitionable(catalog_proc)) continue;
-            proc_attributes.put(catalog_proc, (HashSet<ProcParameter>)CollectionUtil.addAll(new HashSet<ProcParameter>(), catalog_proc.getParameters()));
-        }
+            if (AbstractPartitioner.isPartitionable(catalog_proc)) proc_attributes.add(catalog_proc);
+        } // FOR
 
         // Now throw everything at the local search procedure. This should stop right away because the 
         // time limits will immediately be exceeded

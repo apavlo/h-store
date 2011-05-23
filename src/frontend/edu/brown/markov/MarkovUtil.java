@@ -20,7 +20,7 @@ import org.voltdb.utils.Pair;
 
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.graphs.GraphvizExport;
-import edu.brown.graphs.GraphvizExport.Attributes;
+import edu.brown.graphs.GraphvizExport.Attribute;
 import edu.brown.hashing.AbstractHasher;
 import edu.brown.utils.ClassUtil;
 import edu.brown.utils.CollectionUtil;
@@ -542,26 +542,26 @@ public abstract class MarkovUtil {
     public static GraphvizExport<Vertex, Edge> exportGraphviz(MarkovGraph markov, boolean use_full_output, boolean use_vldb_output, List<Edge> path) {
         GraphvizExport<Vertex, Edge> graphviz = new GraphvizExport<Vertex, Edge>(markov);
         graphviz.setEdgeLabels(true);
-        graphviz.getGlobalGraphAttributes().put(Attributes.PACK, "true");
-        graphviz.getGlobalVertexAttributes().put(Attributes.FONTNAME, "Courier");
+        graphviz.getGlobalGraphAttributes().put(Attribute.PACK, "true");
+        graphviz.getGlobalVertexAttributes().put(Attribute.FONTNAME, "Courier");
         
         Vertex v = markov.getStartVertex();
-        graphviz.getAttributes(v).put(Attributes.FILLCOLOR, "darkblue");
-        graphviz.getAttributes(v).put(Attributes.FONTCOLOR, "white");
-        graphviz.getAttributes(v).put(Attributes.STYLE, "filled,bold");
-        graphviz.getAttributes(v).put(Attributes.FONTSIZE, "24");
+        graphviz.getAttributes(v).put(Attribute.FILLCOLOR, "darkblue");
+        graphviz.getAttributes(v).put(Attribute.FONTCOLOR, "white");
+        graphviz.getAttributes(v).put(Attribute.STYLE, "filled,bold");
+        graphviz.getAttributes(v).put(Attribute.FONTSIZE, "24");
 
         v = markov.getCommitVertex();
-        graphviz.getAttributes(v).put(Attributes.FILLCOLOR, "darkgreen");
-        graphviz.getAttributes(v).put(Attributes.FONTCOLOR, "white");
-        graphviz.getAttributes(v).put(Attributes.STYLE, "filled,bold");
-        graphviz.getAttributes(v).put(Attributes.FONTSIZE, "24");
+        graphviz.getAttributes(v).put(Attribute.FILLCOLOR, "darkgreen");
+        graphviz.getAttributes(v).put(Attribute.FONTCOLOR, "white");
+        graphviz.getAttributes(v).put(Attribute.STYLE, "filled,bold");
+        graphviz.getAttributes(v).put(Attribute.FONTSIZE, "24");
         
         v = markov.getAbortVertex();
-        graphviz.getAttributes(v).put(Attributes.FILLCOLOR, "firebrick4");
-        graphviz.getAttributes(v).put(Attributes.FONTCOLOR, "white");
-        graphviz.getAttributes(v).put(Attributes.STYLE, "filled,bold");
-        graphviz.getAttributes(v).put(Attributes.FONTSIZE, "24");
+        graphviz.getAttributes(v).put(Attribute.FILLCOLOR, "firebrick4");
+        graphviz.getAttributes(v).put(Attribute.FONTCOLOR, "white");
+        graphviz.getAttributes(v).put(Attribute.STYLE, "filled,bold");
+        graphviz.getAttributes(v).put(Attribute.FONTSIZE, "24");
 
         // Highlight Path
         if (path != null) graphviz.highlightPath(path, "red");
@@ -616,7 +616,7 @@ public abstract class MarkovUtil {
                 } else {
                     label = v0.debug();
                 }
-                graphviz.getAttributes(v0).put(Attributes.LABEL, label.replace("\n", "\\n"));
+                graphviz.getAttributes(v0).put(Attribute.LABEL, label);
             } // FOR
         }
         

@@ -1,24 +1,31 @@
 package edu.brown.designer;
 
-import java.util.*;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
+import org.apache.commons.collections15.set.ListOrderedSet;
 import org.apache.log4j.Logger;
-
-import org.voltdb.catalog.*;
+import org.voltdb.catalog.CatalogType;
+import org.voltdb.catalog.Statement;
 import org.voltdb.types.ExpressionType;
 import org.voltdb.types.QueryType;
 import org.voltdb.utils.Pair;
 
-import edu.brown.catalog.CatalogUtil;
 import edu.brown.expressions.ExpressionUtil;
 import edu.brown.statistics.Histogram;
 import edu.brown.utils.ClassUtil;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.StringUtil;
 
-public class ColumnSet extends LinkedHashSet<ColumnSet.Entry> {
+public class ColumnSet extends ListOrderedSet<ColumnSet.Entry> {
     private static final long serialVersionUID = -7735075759916955292L;
-    private static final Logger LOG = Logger.getLogger(ColumnSet.class.getName());
+    private static final Logger LOG = Logger.getLogger(ColumnSet.class);
+    private static final boolean d = LOG.isDebugEnabled();
+    private static final boolean t = LOG.isTraceEnabled();
 
     private final Set<Statement> catalog_stmts = new HashSet<Statement>();
     
@@ -26,16 +33,36 @@ public class ColumnSet extends LinkedHashSet<ColumnSet.Entry> {
         protected final ExpressionType comparison_exp;
         protected final Set<QueryType> query_types = new HashSet<QueryType>();
 
-        public Entry(CatalogType element0, CatalogType element1, ExpressionType comparison_exp, QueryType query_type) {
-            super(element0, element1);
-            this.comparison_exp = comparison_exp;
-            this.query_types.add(query_type);
+        public static Entry factory(CatalogType element0, CatalogType element1, ExpressionType comparison_exp, Collection<QueryType> query_types) {
+            // Sort them!
+            if (element0.compareTo(element1) > 0) {
+                CatalogType temp = element0;
+                element0 = element1;
+                element1 = temp;
+            }
+            return (new Entry(element0, element1, comparison_exp, query_types));
         }
         
-        public Entry(CatalogType element0, CatalogType element1, ExpressionType comparison_exp, Collection<QueryType> query_types) {
+        public static Entry factory(CatalogType element0, CatalogType element1, ExpressionType comparison_exp, QueryType...query_types) {
+             Set<QueryType> qt_set = (Set<QueryType>)CollectionUtil.addAll(new HashSet<QueryType>(), query_types);
+             return (Entry.factory(element0, element1, comparison_exp, qt_set));
+        }
+        
+        private Entry(CatalogType element0, CatalogType element1, ExpressionType comparison_exp, Collection<QueryType> query_types) {
             super(element0, element1);
             this.comparison_exp = comparison_exp;
-            this.query_types.addAll(query_types);
+            CollectionUtil.addAll(this.query_types, query_types);
+        }
+        
+        @Override
+        public boolean equals(Object o) {
+            if (o instanceof Entry) {
+                Entry other = (Entry)o;
+                return (this.comparison_exp == other.comparison_exp &&
+                        this.getFirst().equals(other.getFirst()) &&
+                        this.getSecond().equals(other.getSecond())); 
+            }
+            return (false);
         }
 
         /**
@@ -69,12 +96,9 @@ public class ColumnSet extends LinkedHashSet<ColumnSet.Entry> {
         
         @Override
         public String toString() {
-            String ret = "( ";
-            ret += CatalogUtil.getDisplayName(this.getFirst(), true) + " ";
-            ret += ExpressionUtil.EXPRESSION_STRING.get(this.getComparisonExp());
-            ret += " " + CatalogUtil.getDisplayName(this.getSecond(), true);
-            ret += " )";
-            return (ret);
+            return (String.format("(%s %s %s)", this.getFirst().fullName(),
+                                                ExpressionUtil.EXPRESSION_STRING.get(this.getComparisonExp()),
+                                                this.getSecond().fullName()));
         }
     } // END CLASS
     
@@ -147,7 +171,7 @@ public class ColumnSet extends LinkedHashSet<ColumnSet.Entry> {
         for (Statement catalog_stmt : catalog_stmts) {
             query_types.add(QueryType.get(catalog_stmt.getQuerytype()));
         } // FOR
-        boolean ret = this.add(new Entry(element0, element1, comparison_exp, query_types));
+        boolean ret = this.add(Entry.factory(element0, element1, comparison_exp, query_types));
         if (ret) this.catalog_stmts.addAll(catalog_stmts);
         return (ret);
     }
@@ -160,39 +184,60 @@ public class ColumnSet extends LinkedHashSet<ColumnSet.Entry> {
      */
     public ColumnSet createColumnSetForParent(Class<? extends CatalogType> match_class, CatalogType parent_search_key) {
         ColumnSet ret = new ColumnSet(this.catalog_stmts);
-        //
         // We're looking for Pairs where one of the elements matches the search_key, and
         // the other element is of the same type of match_class
-        //
-        for (Entry pair : this) {
-            if (pair.getFirst().getClass() == match_class && pair.getSecond().getParent() == parent_search_key) {
-                ret.add(new Entry(pair.getSecond(), pair.getFirst(), pair.getComparisonExp(), pair.getQueryTypes()));
-            } else if (pair.getSecond().getClass() == match_class && pair.getFirst().getParent() == parent_search_key) {
-                ret.add(pair);
+        for (Entry e : this) {
+            if (e.getFirst().getClass().equals(match_class) && e.getSecond().getParent().equals(parent_search_key)) {
+                ret.add(Entry.factory(e.getSecond(), e.getFirst(), e.getComparisonExp(), e.getQueryTypes()));
+            } else if (e.getSecond().getClass().equals(match_class) && e.getFirst().getParent().equals(parent_search_key)) {
+                ret.add(e);
             }
         } // FOR
         return (ret);
     }
 
-    public <T extends CatalogType> Set<T> findAll(Class<T> match_class, CatalogType search_key) {
-        return (this.findAll(match_class, search_key, false, false));
-    }
     /**
-     * Find all entries in the ColumnSet where the one element of the pair matches the search_key and
-     * the other element matches the given class
+     * Find all elements in the ColumnSet that match both the search key and the given class
+     * @param <T>
+     * @param match_class
+     * @param search_key
+     * @return
+     */
+    public <T extends CatalogType> Set<T> findAll(Class<T> match_class, CatalogType search_key) {
+        return (this.find(match_class, search_key, false, false));
+    }
+    
+    /**
+     * Find all elements of the given match class in the ColumnSet where the other element in the Entry matches the search_key
      * @param <T>
      * @param match_class
      * @param search_key
      * @return
      */
     public <T extends CatalogType> Set<T> findAllForOther(Class<T> match_class, CatalogType search_key) {
-        return (this.findAll(match_class, search_key, false, true));
+        return (this.find(match_class, search_key, false, true));
     }
+    
+    /**
+     * Find all elements of the given match class in the ColumnSet where that element's parent matches the given search key
+     * @param <T>
+     * @param match_class
+     * @param parent_search_key
+     * @return
+     */
     public <T extends CatalogType> Set<T> findAllForParent(Class<T> match_class, CatalogType parent_search_key) {
-        return (this.findAll(match_class, parent_search_key, true, false));
+        return (this.find(match_class, parent_search_key, true, false));
     }
+    
+    /**
+     * Find all elements of the given match class in the ColumnSet where the other element in the Entry has a parent that matches the search key
+     * @param <T>
+     * @param match_class
+     * @param parent_search_key
+     * @return
+     */
     public <T extends CatalogType> Set<T> findAllForOtherParent(Class<T> match_class, CatalogType parent_search_key) {
-        return (this.findAll(match_class, parent_search_key, true, true));
+        return (this.find(match_class, parent_search_key, true, true));
     }
     
     /**
@@ -206,31 +251,34 @@ public class ColumnSet extends LinkedHashSet<ColumnSet.Entry> {
      * @return
      */
     @SuppressWarnings("unchecked")
-    private <T extends CatalogType> Set<T> findAll(Class<T> match_class, CatalogType search_key, boolean use_parent, boolean use_other) {
+    private <T extends CatalogType> Set<T> find(Class<T> match_class, CatalogType search_key, boolean use_parent, boolean use_other) {
+        if (d) LOG.debug(String.format("find(match_class=%s, search_key=%s, use_parent=%s, use_other=%s)",
+                         match_class.getSimpleName(), search_key.fullName(), use_parent, use_other));
+        assert(search_key != null) : "Invalid search key";
+        
         Set<T> found = new HashSet<T>();
         final int use_my_idxs[][] = { { 0, 0 }, { 1, 1 } };
         final int use_other_idxs[][] = { { 0, 1 }, { 1, 0 } };
         int lookup_idxs[][] = (use_other ? use_other_idxs : use_my_idxs);
-        
-        //
+       
         // We're looking for Pairs where one of the elements matches the search_key, and
         // the other element is of the same type of match_class
-        //
-        //System.out.println("findAllUsingParent(match_class=" + match_class + ", parent_search_key=" + parent_search_key + ", use_other_parent=" + use_other_parent + ")");
         for (Pair<CatalogType, CatalogType> pair : this) {
-            //System.out.println(pair);
-            //int ctr = 0;
+            if (t) LOG.trace(pair);
+            int ctr = 0;
             for (int idxs[] : lookup_idxs) {
                 T cur = (T)pair.get(idxs[0]);
                 Class<?> cur_class = pair.get(idxs[0]).getClass();
+                List<Class<?>> all_classes = ClassUtil.getSuperClasses(cur_class);
                 CatalogType cur_value = (CatalogType)pair.get(idxs[1]);
                 if (use_parent) cur_value = cur_value.getParent();
                 
-                //System.out.println("[" + ctr + "] cur: " + cur); 
-                //System.out.println("[" + ctr + "] class: " + cur_class.equals(match_class) + " " + cur_class);
-                //System.out.println("[" + ctr++ + "] parent: " + cur_parent.equals(parent_search_key) + " " + cur_parent);
-                
-                if (cur_class.equals(match_class) && cur_value.equals(search_key)) {
+                if (t) {
+                    LOG.trace("[" + ctr + "] cur: " + cur); 
+                    LOG.trace("[" + ctr + "] class: " + cur_class.equals(match_class) + " " + cur_class);
+                    LOG.trace("[" + (ctr++) + "] cur_value: " + cur_value);
+                }
+                if (cur_value != null && cur_value.equals(search_key) && all_classes.contains(match_class)) {
                     found.add(cur);
                     break;
                 }
@@ -270,6 +318,7 @@ public class ColumnSet extends LinkedHashSet<ColumnSet.Entry> {
         return (found);
     }
     
+    @SuppressWarnings("unchecked")
     public <T extends CatalogType> Set<T> findAllForType(Class<T> search_key) {
         Set<T> found = new HashSet<T>();
         for (Entry e : this) {
@@ -283,8 +332,9 @@ public class ColumnSet extends LinkedHashSet<ColumnSet.Entry> {
         return (found);
     }
     
-    public <T extends CatalogType> Histogram buildHistogramForType(Class<T> search_key) {
-        Histogram h = new Histogram();
+    @SuppressWarnings("unchecked")
+    public <T extends CatalogType> Histogram<T> buildHistogramForType(Class<T> search_key) {
+        Histogram<T> h = new Histogram<T>();
         for (Entry e : this) {
             if (ClassUtil.getSuperClasses(e.getFirst().getClass()).contains(search_key)) {
                 h.put((T)e.getFirst());

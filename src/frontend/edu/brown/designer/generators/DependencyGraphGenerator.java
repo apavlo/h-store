@@ -2,12 +2,12 @@ package edu.brown.designer.generators;
 
 import java.util.*;
 
+import org.apache.log4j.Logger;
 import org.voltdb.catalog.*;
 import org.voltdb.types.ConstraintType;
 
 import edu.brown.designer.*;
 import edu.brown.graphs.*;
-import edu.brown.workload.Workload;
 import edu.brown.workload.Workload;
 import edu.uci.ics.jung.graph.util.EdgeType;
 
@@ -17,7 +17,8 @@ import edu.uci.ics.jung.graph.util.EdgeType;
  *
  */
 public class DependencyGraphGenerator extends AbstractGenerator<AbstractDirectedGraph<Vertex, Edge>> {
-
+    private static final Logger LOG = Logger.getLogger(DependencyGraphGenerator.class);
+    
     public DependencyGraphGenerator(DesignerInfo info) {
         super(info);
     }

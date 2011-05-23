@@ -219,6 +219,7 @@ public class DesignerInfo {
     /** Workload Statistics **/
     public void setStats(WorkloadStatistics stats) {
         this.stats = stats;
+        this.m_estimator = new MemoryEstimator(this.stats, this.m_estimator.getHasher());
     }
     public WorkloadStatistics getStats() {
         return this.stats;

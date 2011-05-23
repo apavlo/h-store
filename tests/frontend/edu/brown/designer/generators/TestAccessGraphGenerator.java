@@ -5,21 +5,28 @@ package edu.brown.designer.generators;
 
 import java.io.File;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 
-import org.apache.commons.collections15.set.ListOrderedSet;
-import org.voltdb.catalog.*;
+import org.voltdb.benchmark.tpcc.procedures.slev;
+import org.voltdb.catalog.Column;
+import org.voltdb.catalog.ProcParameter;
+import org.voltdb.catalog.Procedure;
+import org.voltdb.catalog.Statement;
+import org.voltdb.catalog.StmtParameter;
+import org.voltdb.catalog.Table;
 
 import edu.brown.BaseTestCase;
 import edu.brown.designer.AccessGraph;
+import edu.brown.designer.ColumnSet;
 import edu.brown.designer.DesignerInfo;
 import edu.brown.designer.Edge;
 import edu.brown.designer.Vertex;
-import edu.brown.gui.common.GraphVisualizationPanel;
+import edu.brown.designer.AccessGraph.EdgeAttributes;
 import edu.brown.statistics.Histogram;
 import edu.brown.utils.ProjectType;
-import edu.brown.workload.Workload;
 import edu.brown.workload.TransactionTrace;
+import edu.brown.workload.Workload;
 import edu.brown.workload.filters.ProcedureLimitFilter;
 import edu.brown.workload.filters.ProcedureNameFilter;
 
@@ -30,7 +37,7 @@ import edu.brown.workload.filters.ProcedureNameFilter;
 public class TestAccessGraphGenerator extends BaseTestCase {
     
     private static final long WORKLOAD_XACT_LIMIT = 100;
-    private static final String TARGET_PROCEDURE = "slev";
+    private static final String TARGET_PROCEDURE = slev.class.getSimpleName();
     private static final String TARGET_STATEMENT = "GetStockCount";
     
     // Reading the workload takes a long time, so we only want to do it once
@@ -69,12 +76,45 @@ public class TestAccessGraphGenerator extends BaseTestCase {
         this.generator = new AccessGraphGenerator(this.info, this.catalog_proc);
     }
     
-    private void display(final AccessGraph agraph) throws Exception {
-          javax.swing.SwingUtilities.invokeAndWait(new Runnable() {
-              public void run() {
-                  GraphVisualizationPanel.createFrame(agraph).setVisible(true);
-              }
-          });
+//    private void display(final AccessGraph agraph) throws Exception {
+//          javax.swing.SwingUtilities.invokeAndWait(new Runnable() {
+//              public void run() {
+//                  GraphVisualizationPanel.createFrame(agraph).setVisible(true);
+//              }
+//          });
+//    }
+    
+    /**
+     * testConvertToSingleColumnEdges
+     */
+    public void testConvertToSingleColumnEdges() throws Exception {
+        new AccessGraphGenerator(this.info, this.catalog_proc).generate(agraph);
+        agraph = AccessGraphGenerator.convertToSingleColumnEdges(catalog_db, agraph);
+        
+        // Make sure that there is at least one edge between DISTRICT and all other tables
+        Table target = this.getTable("DISTRICT");
+        Vertex v0 = agraph.getVertex(target);
+        assertNotNull(v0);
+        
+        String expected[] = { "ORDER_LINE", "STOCK" };
+        for (String tbl_name : expected) {
+            Table catalog_tbl = this.getTable(tbl_name);
+            Vertex v1 = agraph.getVertex(catalog_tbl);
+            assertNotNull(v1);
+            
+            Collection<Edge> edges =  agraph.findEdgeSet(v0, v1);
+            assertNotNull(edges);
+            assertFalse(edges.isEmpty());
+            
+            for (Edge e : edges) {
+                ColumnSet cset = e.getAttribute(EdgeAttributes.COLUMNSET);
+                assertNotNull(cset);
+                assertEquals(cset.toString(), 1, cset.size());
+            }
+        } // FOR
+        
+//        agraph.setVerbose(true);
+//        System.err.println("Dumping AccessGraph to " + FileUtil.writeStringToTempFile(GraphvizExport.export(agraph, "tpcc"), "dot"));
     }
     
     /**
@@ -85,6 +125,24 @@ public class TestAccessGraphGenerator extends BaseTestCase {
         for (Table catalog_tbl : catalog_db.getTables()) {
             assertNotNull("Missing " + catalog_tbl, this.agraph.getVertex(catalog_tbl));
         } // FOR
+    }
+    
+    /**
+     * testFindEdgeSetUsingColumn
+     */
+    public void testFindEdgeSetUsingColumn() throws Exception {
+        AccessGraph agraph = new AccessGraph(catalog_db);
+        new AccessGraphGenerator(this.info, this.catalog_proc).generate(agraph);
+        agraph.setVerbose(true);
+        
+        Table catalog_tbl = this.getTable("STOCK");
+        Column catalog_col = this.getColumn(catalog_tbl, "S_W_ID");
+        
+        Vertex v = agraph.getVertex(catalog_tbl);
+        assertNotNull(v);
+        Collection<Edge> edges = agraph.findEdgeSet(v, catalog_col);
+        assertNotNull(edges);
+        assert(agraph.getEdgeCount() != edges.size());
     }
     
     /**

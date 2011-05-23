@@ -6,6 +6,7 @@ import org.apache.log4j.Logger;
 import org.voltdb.catalog.*;
 import edu.brown.graphs.*;
 import edu.brown.designer.*;
+import edu.brown.designer.Edge.Members;
 import edu.brown.utils.CollectionUtil;
 
 public class PartitionSets extends HashSet<PartitionSets.Entry> {
@@ -146,7 +147,7 @@ public class PartitionSets extends HashSet<PartitionSets.Entry> {
             cset = ((ColumnSet)edge.getAttribute(AccessGraph.EdgeAttributes.COLUMNSET.name())).createColumnSetForParent(Column.class, child_table);
             entry.addAll(cset.findAllForOtherParent(Column.class, child_table));
         }
-        double weight = (Double)edge.getAttribute(AccessGraph.EdgeAttributes.WEIGHT.name());
+        double weight = (Double)edge.getAttribute(Members.WEIGHTS.name());
         entry.weight = weight;
         //System.out.println(cset + " Weight=" + entry.weight);
         
