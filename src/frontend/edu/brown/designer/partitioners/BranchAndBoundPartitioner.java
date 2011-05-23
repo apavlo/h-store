@@ -19,7 +19,10 @@ import edu.brown.catalog.special.NullProcParameter;
 import edu.brown.catalog.special.ReplicatedColumn;
 import edu.brown.costmodel.*;
 import edu.brown.designer.*;
+import edu.brown.designer.generators.AccessGraphGenerator;
+import edu.brown.graphs.VertexTreeWalker;
 import edu.brown.utils.*;
+import edu.brown.utils.LoggerUtil.LoggerBoolean;
 import edu.brown.workload.*;
 
 /**
@@ -28,6 +31,11 @@ import edu.brown.workload.*;
  */
 public class BranchAndBoundPartitioner extends AbstractPartitioner {
     public static final Logger LOG = Logger.getLogger(BranchAndBoundPartitioner.class);
+    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    static {
+        LoggerUtil.attachObserver(LOG, debug, trace);
+    }
 
     /**
      * Debug Output Spacers
@@ -53,6 +61,7 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
         
         private final int depth;
         private final StateVertex parent;
+        private final boolean is_table;
         private final String catalog_key;
         private final String partition_key;
         private final Double cost;
@@ -68,17 +77,18 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
          * @param cost
          * @param memory
          */
-        private StateVertex(StateVertex parent, int depth, String catalog_key, String partition_key, Double cost, Long memory) {
+        private StateVertex(StateVertex parent, int depth, String catalog_key, String partition_key, boolean is_table, Double cost, Long memory) {
             this.parent = parent;
             this.depth = depth;
             this.catalog_key = catalog_key;
             this.partition_key = partition_key;
+            this.is_table = is_table;
             this.cost = new Double(cost);
             this.memory = memory;
         }
         
-        public StateVertex(StateVertex parent, String catalog_key, String partition_key, Double cost, Long memory) {
-            this(parent, parent.depth + 1, catalog_key, partition_key, cost, memory);
+        public StateVertex(StateVertex parent, String catalog_key, String partition_key, boolean is_table, Double cost, Long memory) {
+            this(parent, parent.depth + 1, catalog_key, partition_key, is_table, cost, memory);
         }
 
         /**
@@ -86,7 +96,7 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
          * @return
          */
         public static StateVertex getStartVertex(Double cost, Long memory) {
-            return (new StateVertex(null, 0, START_VERTEX_NAME, null, cost, memory));
+            return (new StateVertex(null, 0, START_VERTEX_NAME, null, false, cost, memory));
         }
         
         /**
@@ -96,7 +106,7 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
          * @return
          */
         public static StateVertex getUpperBoundVertex(Double cost, Long memory) {
-            return (new StateVertex(null, 0, UPPERBOUND_NAME, null, cost, memory));
+            return (new StateVertex(null, 0, UPPERBOUND_NAME, null, false, cost, memory));
         }
         
         public int getDepth() {
@@ -131,14 +141,47 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
          * @return
          */
         public Map<String, String> getCatalogKeyMap() {
-            return (this.buildCatalogMap(new ListOrderedMap<String, String>()));
+            return (this.buildCatalogKeyMap(new ListOrderedMap<String, String>()));
         }
-        private Map<String, String> buildCatalogMap(Map<String, String> map) {
-            if (this.parent != null) this.parent.buildCatalogMap(map);
+        private Map<String, String> buildCatalogKeyMap(Map<String, String> map) {
+            if (this.parent != null) this.parent.buildCatalogKeyMap(map);
             if (this.depth > 0) map.put(this.catalog_key, this.partition_key);
             return (map);
         }
         
+        public Map<CatalogType, CatalogType> getCatalogMap(Database catalog_db) {
+            Map<CatalogType, CatalogType> m = new ListOrderedMap<CatalogType, CatalogType>();
+            
+//            // First insert all of the entries from the catalog
+//            for (Table catalog_tbl : catalog_db.getTables()) {
+//                m.put(catalog_tbl, catalog_tbl.getPartitioncolumn());
+//            } // FOR
+//            for (Procedure catalog_proc : catalog_db.getProcedures()) {
+//                if (catalog_proc.getSystemproc()) continue;
+//                m.put(catalog_proc, CatalogUtil.getProcParameter(catalog_proc));
+//            } // FOR
+            
+            // Then overwrite those entries with what's in our vertex tree
+            return (this.buildCatalogMap(catalog_db, m));
+        }
+        private Map<CatalogType, CatalogType> buildCatalogMap(Database catalog_db, Map<CatalogType, CatalogType> map) {
+            if (this.parent != null) this.parent.buildCatalogMap(catalog_db, map);
+            if (this.depth > 0) {
+                CatalogType key = null;
+                CatalogType val = null;
+                
+                if (this.is_table) {
+                    key = CatalogKey.getFromKey(catalog_db, this.catalog_key, Table.class);
+                    val = CatalogKey.getFromKey(catalog_db, this.partition_key, Column.class);
+                } else {
+                    key = CatalogKey.getFromKey(catalog_db, this.catalog_key, Procedure.class);
+                    val = CatalogKey.getFromKey(catalog_db, this.partition_key, ProcParameter.class);
+                }
+                map.put(key, val);
+            }
+            return (map);
+        }
+
         @Override
         public String toString() {
             StringBuilder sb = new StringBuilder();
@@ -155,22 +198,37 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
     protected StateVertex best_vertex = null;
     protected StateVertex upper_bounds_vertex = null;
     protected PartitionPlan upper_bounds_pplan = null;
-    protected final Map<String, WorkloadFilter> traversal_filters = new HashMap<String, WorkloadFilter>();
+    protected final Map<CatalogType, WorkloadFilter> traversal_filters = new HashMap<CatalogType, WorkloadFilter>();
     protected TraverseThread thread = null;
+    
+    protected List<Table> table_visit_order = new ArrayList<Table>();
+    protected List<Procedure> proc_visit_order = new ArrayList<Procedure>();
+    protected AccessGraph agraph = null;
 
     /**
      * The key of this map is the CatalogKey of the element that we are trying to plan
      * The value is the list of partitioning attributes that can be set for the key 
      */
-    protected final ListOrderedMap<String, List<String>> base_traversal_attributes = new ListOrderedMap<String, List<String>>();
-    protected int num_tables;
+    // protected final ListOrderedMap<String, List<String>> base_traversal_attributes = new ListOrderedMap<String, List<String>>();
+//    protected int num_tables;
 
+    public BranchAndBoundPartitioner(Designer designer, DesignerInfo info) {
+        super(designer, info);
+    }
+    
     /**
      * @param stats_catalog_db
      * @param workload
      */
-    public BranchAndBoundPartitioner(Designer designer, DesignerInfo info) {
+    public BranchAndBoundPartitioner(Designer designer, DesignerInfo info, AccessGraph agraph, List<Table> table_visit_order, List<Procedure> proc_visit_order) {
         super(designer, info);
+        this.setParameters(agraph, table_visit_order, proc_visit_order);
+    }
+    
+    public void setParameters(AccessGraph agraph, List<Table> table_visit_order, List<Procedure> proc_visit_order) {
+        this.agraph = agraph;
+        this.table_visit_order.addAll(table_visit_order);
+        this.proc_visit_order.addAll(proc_visit_order);
     }
 
     public void setUpperBounds(final DesignerHints hints, PartitionPlan pplan, double cost, long memory) throws Exception {
@@ -186,12 +244,12 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
     public StateVertex getUpperBounds() {
         return (this.upper_bounds_vertex);
     }
-    
-    public void setTraversalAttributes(Map<String, List<String>> attributes, int num_tables) {
-        this.base_traversal_attributes.clear();
-        this.base_traversal_attributes.putAll(attributes);
-        this.num_tables = num_tables;
-    }
+
+//    public void setTraversalAttributes(Map<String, List<String>> attributes, int num_tables) {
+//        this.base_traversal_attributes.clear();
+//        this.base_traversal_attributes.putAll(attributes);
+//        this.num_tables = num_tables;
+//    }
 
     /**
      * Returns true if the last search halt because of a limit
@@ -226,96 +284,57 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
      * @throws Exception
      */
     protected void init(final DesignerHints hints) throws Exception {
-        final boolean trace = LOG.isTraceEnabled();
-        final boolean debug = LOG.isDebugEnabled();
-        if (debug) LOG.debug("Initializing partitioner for new generate run");
+        assert(this.agraph != null) : "Missing global AccessGraph";
+        assert(this.table_visit_order.isEmpty() == false) : "Missing Table Visit Order";
+        if (hints.enable_procparameter_search) assert(this.proc_visit_order.isEmpty() == false) : "Missing Procedure Visit Order";
+        
+        if (debug.get()) LOG.debug("Initializing partitioner for new generate run");
         
         // (1) We first need to construct an AccessGraph that represents the entire workload for all procedures
-        final AccessGraph agraph = this.generateAccessGraph();
+//        final AccessGraph agraph = AccessGraphGenerator.convertToSingleColumnEdges(info.catalog_db, this.generateAccessGraph());
         
-        List<String> table_visit_order = null;
-        List<String> proc_visit_order = null;
-        boolean need_attributes = this.base_traversal_attributes.isEmpty();
-        if (need_attributes) {
-            table_visit_order = AbstractPartitioner.generateTableOrder(this.info, agraph, hints);
-            //GraphVisualizationPanel.createFrame(agraph).setVisible(true);
-            proc_visit_order = this.generateProcedureOrder(info.catalog_db, hints);
-        } else {
-            assert(this.num_tables < this.base_traversal_attributes.size());
-            table_visit_order = new ArrayList<String>();
-            proc_visit_order = new ArrayList<String>();
-            for (int i = 0, cnt = this.base_traversal_attributes.size(); i < cnt; i++) {
-                if (i < this.num_tables) {
-                    table_visit_order.add(this.base_traversal_attributes.get(i));
-                } else {
-                    proc_visit_order.add(this.base_traversal_attributes.get(i));
-                }
-            } // FOR
-        }
+//        List<String> table_visit_order = null;
+//        List<String> proc_visit_order = null;
+//        boolean need_attributes = this.base_traversal_attributes.isEmpty();
+//        if (need_attributes) {
+//            table_visit_order = AbstractPartitioner.generateTableOrder(this.info, agraph, hints);
+//            //GraphVisualizationPanel.createFrame(agraph).setVisible(true);
+//            proc_visit_order = this.generateProcedureOrder(info.catalog_db, hints);
+//        } else {
+//            assert(this.num_tables < this.base_traversal_attributes.size());
+//            table_visit_order = new ArrayList<String>();
+//            proc_visit_order = new ArrayList<String>();
+//            for (int i = 0, cnt = this.base_traversal_attributes.size(); i < cnt; i++) {
+//                if (i < this.num_tables) {
+//                    table_visit_order.add(this.base_traversal_attributes.get(i));
+//                } else {
+//                    proc_visit_order.add(this.base_traversal_attributes.get(i));
+//                }
+//            } // FOR
+//        }
 
         // (2) Then get the ordered list of tables that we will visit during the search 
-        if (debug) LOG.debug("Table Visit Order: " + table_visit_order);
+//        if (debug.get()) LOG.debug("Table Visit Order: " + table_visit_order);
             
         // (3) Now for each table we're going to visit, come up with a ordered list of how
         //     we will visit the columns of each table. We also will generate filters so that
         //     we can quickly walk through the workload and only evaluate queries that access the
         //     tables for our level in the search tree.
-        if (debug) LOG.debug("Creating table specific data structures for the " + table_visit_order.size() + " traversal levels");
+        if (debug.get()) LOG.debug("Creating table specific data structures for the " + table_visit_order.size() + " traversal levels");
         List<Table> filter_tables = new ArrayList<Table>();
         
         // IMPORTANT: Add in any table that is not in the attributes list
         for (Table catalog_tbl : info.catalog_db.getTables()) {
-            String table_key = CatalogKey.createKey(catalog_tbl);
-            if (!table_visit_order.contains(table_key)) {
+            if (!table_visit_order.contains(catalog_tbl)) {
                 filter_tables.add(catalog_tbl);
             }
         } // FOR
-        if (debug) LOG.debug("Tables to never filter: " + filter_tables);
-
-        // Generate the multi-attribute partitioning candidates
-        final Map<String, Set<String>> multicolumns = new HashMap<String, Set<String>>();
-        final Map<String, Set<String>> multiparams = new HashMap<String, Set<String>>();
-        if (hints.enable_multi_partitioning) {
-            for (Procedure catalog_proc : info.catalog_db.getProcedures()) {
-                if (AbstractPartitioner.shouldIgnoreProcedure(hints, catalog_proc)) continue;
-                
-                // MultiProcParameters
-                String proc_key = CatalogKey.createKey(catalog_proc);
-                multiparams.put(proc_key, new HashSet<String>());
-                for (Set<MultiProcParameter> mpps : AbstractPartitioner.generateMultiProcParameters(info, hints, catalog_proc).values()) {
-                    multiparams.get(proc_key).addAll(CatalogKey.createKeys(mpps));
-                } // FOR 
-                
-                // MultiColumns
-                for (Entry<Table, Set<MultiColumn>> e : AbstractPartitioner.generateMultiColumns(info, hints, catalog_proc).entrySet()) {
-                    String table_key = CatalogKey.createKey(e.getKey());
-                    if (!multicolumns.containsKey(table_key)) multicolumns.put(table_key, new HashSet<String>()); 
-                    multicolumns.get(table_key).addAll(CatalogKey.createKeys(e.getValue()));
-                } // FOR (entry)
-            } // FOR (procedure)
-        }
-        
-        for (String table_key : table_visit_order) {
-            Table catalog_tbl = CatalogKey.getFromKey(info.catalog_db, table_key, Table.class);
-        
-            // Columns Visit Order
-            if (need_attributes) {
-                LinkedList<String> columns_visit_order = AbstractPartitioner.generateColumnOrder(info, agraph, catalog_tbl, hints);
-                this.base_traversal_attributes.put(table_key, columns_visit_order);
-
-                // Add multi-column partitioning parameters for each table
-                if (hints.enable_multi_partitioning && multicolumns.containsKey(table_key)) {
-                    this.base_traversal_attributes.get(table_key).addAll(multicolumns.get(table_key));
-                }
-
-                this.num_tables++;
-                if (trace) LOG.trace(catalog_tbl.getName() + " Column Visit Order: " + columns_visit_order);
-            }
-
-            // Now construct all of the workload filters for this level of the traversal
+        if (debug.get()) LOG.debug("Tables to never filter: " + filter_tables);
+        // Now construct all of the workload filters for this level of the traversal
+        for (Table catalog_tbl : table_visit_order) {
             filter_tables.add(catalog_tbl);
-            this.traversal_filters.put(table_key, new WorkloadFilter(filter_tables));
-        } // FOR
+            this.traversal_filters.put(catalog_tbl, new WorkloadFilter(filter_tables));
+        } // FOR        
         
         // (4) Lastly, we need to add the list Procedures that we are going to need to select
         //     ProcParameters for. We don't actually want to populate the entries at this point
@@ -325,25 +344,26 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
 //            "Missing Procedures from visit order list:\n" +
 //            "Expected[" + info.workload.getProcedureHistogram().getValueCount() + "]: " + info.workload.getProcedureHistogram().values() + "\n" +
 //            "Got Back[" + proc_visit_order.size() + "]: " + proc_visit_order; 
-        if (debug) LOG.debug("Procedure Visit Order: " + proc_visit_order);
-        if (hints.enable_procparameter_search) {
-            for (String proc_key : proc_visit_order) {
-                assert(proc_key != null);
-                assert(proc_key.isEmpty() == false);
-                
-                // Just put in an empty list for now -- WHY???
-                if (need_attributes) this.base_traversal_attributes.put(proc_key, new LinkedList<String>());
-                
-                // Important: Don't put in any workload filters here because we want to estimate the cost of
-                // all procedures (even though we may not have selected a ProcParameter yet) This is necessary
-                // to ensure that our cost estimates never decrease as we traverse the search tree
-                this.traversal_filters.put(proc_key, null);
-            } // FOR
-        }
+//        if (debug.get()) LOG.debug("Procedure Visit Order: " + proc_visit_order);
+//        if (hints.enable_procparameter_search) {
+//            for (String proc_key : proc_visit_order) {
+//                assert(proc_key != null);
+//                assert(proc_key.isEmpty() == false);
+//                Procedure catalog_proc = CatalogKey.getFromKey(info.catalog_db, proc_key, Procedure.class);
+//                
+//                // Just put in an empty list for now -- WHY???
+//                if (need_attributes) this.base_traversal_attributes.put(proc_key, new LinkedList<String>());
+//                
+//                // Important: Don't put in any workload filters here because we want to estimate the cost of
+//                // all procedures (even though we may not have selected a ProcParameter yet) This is necessary
+//                // to ensure that our cost estimates never decrease as we traverse the search tree
+//                this.traversal_filters.put(catalog_proc, null);
+//            } // FOR
+//        }
 
         // Pure genius! Then use the PrimaryKeyPartitioner to calculate an upper-bounds
         if (this.upper_bounds_pplan == null) {
-            if (debug) LOG.debug("Calculating upper bounds...");
+            if (debug.get()) LOG.debug("Calculating upper bounds...");
             PartitionPlan pplan = new MostPopularPartitioner(this.designer, this.info).generate(hints);
             
             // Cost Estimate
@@ -368,9 +388,6 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
      */
     @Override
     public PartitionPlan generate(final DesignerHints hints) throws Exception {
-        final boolean trace = LOG.isTraceEnabled();
-        final boolean debug = LOG.isDebugEnabled();
-        
 //        hints.addTablePartitionCandidate(info.catalog_db, "CUSTOMER", "C_D_ID");
 //        hints.addTablePartitionCandidate(info.catalog_db, "CUSTOMER_NAME", Designer.REPLICATED_COLUMN_NAME);
 //        hints.addTablePartitionCandidate(info.catalog_db, "DISTRICT", "D_ID");
@@ -405,7 +422,7 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
         this.info.getCostModel().applyDesignerHints(hints);
         this.init(hints);
         
-        if (debug) {
+        if (debug.get()) {
             LOG.debug("Exhaustive Search:    " + hints.exhaustive_search);
             LOG.debug("Greedy Search:        " + hints.greedy_search);
             LOG.debug("Local Search Time:    " + hints.limit_local_time);
@@ -415,18 +432,18 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
             LOG.debug("Number of Partitions: " + CatalogUtil.getNumberOfPartitions(info.catalog_db));
             LOG.debug("Memory per Partition: " + hints.max_memory_per_partition);
             LOG.debug("Cost Model Weights:   [execution=" + info.getCostModel().getExecutionWeight() + ", entropy=" + info.getCostModel().getEntropyWeight() + "]"); 
-            if (trace) LOG.trace("Procedure Histogram:\n" + info.workload.getProcedureHistogram());
+            if (trace.get()) LOG.trace("Procedure Histogram:\n" + info.workload.getProcedureHistogram());
         }
         
-        this.thread = new TraverseThread(info, hints, this.best_vertex, this.base_traversal_attributes, this.num_tables);
-        thread.run();
+        this.thread = new TraverseThread(info, hints, this.best_vertex, this.agraph, this.table_visit_order, this.proc_visit_order);
+        thread.run(); // BLOCK
         
         PartitionPlan pplan = null;
         
         // If the best solution is still the start vertex, then we know that it was the upper bound
         // limit was the best solution, so we can just use that. What a waste of a search!
         if (this.best_vertex.isStartVertex()) {
-            if (debug) LOG.debug("No new solution was found. Using upper bounds");
+            if (debug.get()) LOG.debug("No new solution was found. Using upper bounds");
             assert(this.upper_bounds_vertex.isUpperBoundVertex());
             assert(this.upper_bounds_pplan != null);
             assert(this.best_vertex.getCost().equals(this.upper_bounds_vertex.getCost())) : this.best_vertex.getCost() + " == " + this.upper_bounds_vertex.getCost();
@@ -435,9 +452,9 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
         // Otherwise reconstruct the PartitionPlan from the StateVertex
         } else {
             Map<String, String> best_catalogkey_map = this.best_vertex.getCatalogKeyMap();
-            assert(best_catalogkey_map.size() == this.base_traversal_attributes.size()) :
-                "Best solution has " + best_catalogkey_map.size() + " vertices. " +
-                "Should have " + this.base_traversal_attributes.size() + " vertices!";
+            assert(best_catalogkey_map.size() == (this.table_visit_order.size() + this.proc_visit_order.size())) :
+                String.format("Best solution has %d vertices. Should have %d tables and %d procedures!",
+                              best_catalogkey_map.size(), this.table_visit_order.size(), this.proc_visit_order.size());
             //System.out.println("MEMORY: " + this.best_vertex.memory);
             
             Map<CatalogType, CatalogType> pplan_map = new HashMap<CatalogType, CatalogType>();
@@ -475,7 +492,7 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
             LOG.error("Failed to complete search successfully:\n" + pplan);
             assert(false);
         }
-        pplan.apply(info.catalog_db);
+        pplan.apply(info.catalog_db); // Why?
         return (pplan);
     }
     
@@ -492,9 +509,17 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
      */
     protected class TraverseThread extends Thread {
         
+        private final AccessGraph agraph;
+        private final ConstraintPropagator cp;
         private final DesignerInfo info;
         private final DesignerHints hints;
-        private final ListOrderedMap<String, List<String>> traversal_attributes = new ListOrderedMap<String, List<String>>();
+        
+        private final List<Table> search_tables;
+        private final List<Procedure> search_procs;
+        private final List<CatalogType> all_search_elements = new ArrayList<CatalogType>();
+        private final List<String> all_search_keys = new ArrayList<String>();
+        private final Set<Table> previous_tables[];
+        
         private final int num_elements;
         private final int num_tables;
         private final String start_name;
@@ -511,7 +536,6 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
         private HaltReason halt_reason = null;
         private boolean completed_search = false;
         
-        
         // These tables aren't in our attributes but we still need to use them for estimating size
         private final Set<Table> remaining_tables = new HashSet<Table>();
         
@@ -522,42 +546,58 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
          * @param traversal_attributes
          * @param children
          */
-        public TraverseThread(DesignerInfo info, DesignerHints hints, StateVertex start, ListOrderedMap<String, List<String>> traversal_attributes, int num_tables) {
+        @SuppressWarnings("unchecked")
+        public TraverseThread(DesignerInfo info, DesignerHints hints, StateVertex start, AccessGraph agraph, List<Table> search_tables, List<Procedure> search_procs) {
             this.info = info;
             this.hints = hints;
             this.start = start;
             this.start_name = CatalogKey.getNameFromKey(start.getCatalogKey());
-            this.traversal_attributes.putAll(traversal_attributes);
-            this.num_elements = this.traversal_attributes.size();
-            
-            // This the catalog that this thread will muck around with
-//            Database clone_db = null;
-//            try {
-//                clone_db = CatalogUtil.cloneDatabase(info.catalog_db);
-//            } catch (Exception ex) {
-//                LOG.fatal("Failed to clone database", ex);
-//                System.exit(1);
-//            }
-//            this.search_db = clone_db;
             this.search_db = info.catalog_db;
-
-//            Catalog search_catalog = new Catalog();
-//            search_catalog.execute(info.catalog_db.getCatalog().serialize());
-//            this.search_db = CatalogUtil.getDatabase(search_catalog);
-//            this.search_db = info.catalog_db;
-            this.num_tables = num_tables;
+            this.search_tables = search_tables;
+            this.search_procs = search_procs;
             
-            // Unset all Procedure partitioning parameters
-            for (int i = this.num_tables; i < this.traversal_attributes.size(); i++) {
-                String proc_key = this.traversal_attributes.get(i);
-                Procedure catalog_proc = CatalogKey.getFromKey(search_db, proc_key, Procedure.class);
-                catalog_proc.setPartitionparameter(NullProcParameter.PARAM_IDX);
+            this.all_search_elements.addAll(this.search_tables);
+            this.all_search_elements.addAll(this.search_procs);
+            this.all_search_keys.addAll(CatalogKey.createKeys(this.all_search_elements));
+            
+            this.num_tables = this.search_tables.size();
+            this.num_elements = this.all_search_elements.size();
+            
+            // Create a ConstraintPropagator that will keep track of which attributes we can use per database object
+            this.agraph = agraph;
+            this.cp = new ConstraintPropagator(this.info, this.hints, this.agraph);
+            
+            // Mark all of our tables that we're not going to search against as updated in our ConstraintPropagator
+            if (debug.get()) LOG.debug("Updating ConstraintPropagator with fixed Table info");
+            for (Table catalog_tbl : this.info.catalog_db.getTables()) {
+                if (this.search_tables.contains(catalog_tbl) == false) {
+                    try {
+                        this.cp.update(catalog_tbl);
+                    } catch (IllegalArgumentException ex) {
+                        // IGNORE
+                    }
+                    this.remaining_tables.add(catalog_tbl);
+                }
             } // FOR
             
-            for (Table catalog_tbl : search_db.getTables()) {
-                String table_key = CatalogKey.createKey(catalog_tbl);
-                if (!this.traversal_attributes.containsKey(table_key)) this.remaining_tables.add(catalog_tbl);
-            }
+            if (debug.get()) LOG.debug("Updating ConstraintPropagator with fixed Procedure info");
+            for (Procedure catalog_proc : this.info.catalog_db.getProcedures()) {
+                if (AbstractPartitioner.shouldIgnoreProcedure(hints, catalog_proc)) continue;
+                // Unset all Procedure partitioning parameters
+                if (this.search_procs.contains(catalog_proc)) {
+                    catalog_proc.setPartitionparameter(NullProcParameter.PARAM_IDX);
+                } else {
+                    this.cp.update(catalog_proc);
+                }
+            } // FOR
+            
+            // For each level in the search tree, compute the sets of tables
+            this.previous_tables = (Set<Table>[])(new Set<?>[this.num_elements]);
+            Set<Table> temp = new HashSet<Table>(this.remaining_tables);
+            for (int i = 0; i < this.num_elements; i++) {
+                this.previous_tables[i] = new HashSet<Table>(temp);
+                if (i < this.num_tables) this.previous_tables[i].add(this.search_tables.get(i)); 
+            } // FOR
             
             // Memory Estimator
             this.memory_estimator = info.getMemoryEstimator();
@@ -587,7 +627,6 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
         
         @Override
         public void run() {
-            final boolean debug = LOG.isDebugEnabled(); 
             Long stop_local = null; 
             Long stop_total = null;
             
@@ -612,9 +651,10 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
                 this.halt_time = stop_total;
                 this.halt_time_local = false;
             }
-            if (debug && this.halt_time != null)
+            if (debug.get() && this.halt_time != null)
                 LOG.debug("Remaining Search Time: " + (this.halt_time - System.currentTimeMillis()) / 1000d);  
                 
+            if (debug.get()) LOG.debug(String.format("Starting Search for %d Elements: %s", this.all_search_elements.size(), this.all_search_elements));
             try {
                 this.traverse(start, 0);
             } catch (Exception ex) {
@@ -626,6 +666,10 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
             BranchAndBoundPartitioner.this.halt_reason = (this.halt_reason != null ? this.halt_reason : HaltReason.EXHAUSTED_SEARCH);
         }
     
+        protected void propagateConstraints() {
+            // TODO
+        }
+        
         /**
          * 
          * @param parent
@@ -633,15 +677,18 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
          * @throws Exception
          */
         protected void traverse(StateVertex parent, int idx) throws Exception {
-            final boolean trace = LOG.isTraceEnabled();
-            final boolean debug = LOG.isDebugEnabled();
+            assert(idx < this.num_elements && idx >= 0);
+            final CatalogType current = this.all_search_elements.get(idx);
+            assert(current != null);
+            final String current_key = this.all_search_keys.get(idx);
             
-            assert(idx < this.traversal_attributes.size());
-            final String current_key = this.traversal_attributes.get(idx);
             this.traverse_ctr++;
             final boolean is_table = (idx < this.num_tables);
             final boolean is_last_table = ((idx + 1) == this.num_tables);
-            CatalogType current = null;
+            // Are we the last element in the list, thereby creating a complete solution
+            final boolean complete_solution = (idx + 1 == this.num_elements);
+            if (is_table) assert(current instanceof Table);
+            final String spacer = BranchAndBoundPartitioner.TRAVERSAL_SPACERS.get(idx);
             
             if (this.halt_search == false) {
                 assert(this.halt_reason == null);
@@ -656,51 +703,28 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
                 }
             } else return;
             
-            // Table -> Columns
-            if (is_table) {
-                current = CatalogKey.getFromKey(this.search_db, current_key, Table.class);
-            // Procedure -> ProcParameter
-            } else {
-                current = CatalogKey.getFromKey(this.search_db, current_key, Procedure.class);
-            }
-            if (trace) LOG.trace("Traverse [current=" + current.getName() + ", # of attributes=" + this.traversal_attributes.get(current_key).size() + "]");
+            // Get the list of possible attributes that we could use for this current element
+            Collection<CatalogType> current_attributes = this.cp.getPossibleValues(current, CatalogType.class);
+            final int num_attributes = current_attributes.size();
+            assert(current_attributes != null);
+            if (trace.get()) LOG.trace("Traverse [current=" + current.getName() + ", # of attributes=" + current_attributes.size() + "]");
     
             // Get our workload filter for this level of the traversal
-            Workload.Filter filter = BranchAndBoundPartitioner.this.traversal_filters.get(current_key);
-            
-            // Create a clone of the catalog and add in our table
-//            Catalog new_catalog = CatalogUtil.cloneBaseCatalog(parent.catalog_db.getCatalog());
-//            for (Table catalog_tbl : parent.catalog_db.getTables()) {
-//                CatalogUtil.clone(catalog_tbl, new_catalog);
-//            } // FOR
-//            Database new_catalog_db = CatalogUtil.getDatabase(new_catalog);
-//            Table new_catalog_tbl = CatalogUtil.clone(current_tbl, new_catalog);
-//            CatalogUtil.cloneConstraints(info.catalog_db, new_catalog_db);
-            
-            // Are we the last element in the list, thereby creating a complete solution
-            final boolean complete_solution = (idx + 1 == this.num_elements);
-            final String spacer = BranchAndBoundPartitioner.TRAVERSAL_SPACERS.get(idx);
-            assert(this.traversal_attributes.containsKey(current_key)) : 
-                "Missing traversal attributes for " + current_key + "\n" + this.traversal_attributes;
+            Workload.Filter filter = BranchAndBoundPartitioner.this.traversal_filters.get(current);
             
             // Descendant tables used for memory calculations
-            Set<Table> previous_tables = new HashSet<Table>(this.remaining_tables);
-            for (int i = 0; i <= idx; i++) {
-                if (i >= this.num_tables) break;
-                previous_tables.add(CatalogKey.getFromKey(search_db, this.traversal_attributes.get(i), Table.class)); 
-            }
-            assert(!previous_tables.isEmpty()) : "No tables at index " + idx + "?";
+            Set<Table> all_tables = this.previous_tables[idx];
+            assert(all_tables.isEmpty() == false) : "No previous tables at index " + idx + "?";
             
             // The local best vertex is the best vertex for this level in the traversal
             StateVertex local_best_vertex = null;
             
             // Iterate through the columns and find the one with the best cost
-            final List<String> current_attributes = this.traversal_attributes.get(current_key);
-            final int num_attributes = current_attributes.size();
             int attribute_ctr = 0;
-            for (String attribute_key : current_attributes) {
-                assert(attribute_key != null) : "Null attribute key for " + current + ": " + this.traversal_attributes.get(current_key); 
-                if (trace) LOG.trace("Evaluating " + current.getName() + "." + CatalogKey.getNameFromKey(attribute_key));
+            for (CatalogType attribute : current_attributes) {
+                assert(attribute != null) : "Null attribute key for " + current + ": " + current_attributes; 
+                String attribute_key = CatalogKey.createKey(attribute);
+                if (trace.get()) LOG.trace("Evaluating " + attribute.fullName());
                 boolean memory_exceeded = false;
                 Long memory = null;
                 CatalogType current_attribute = null;
@@ -715,8 +739,8 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
                 // below us in the search tree!
                 if (this.cost_model.isCachingEnabled()) {
                     for (int i = idx; i < this.num_elements; i++) {
-                        if (trace) LOG.trace("Invalidating " + this.traversal_attributes.get(i));
-                        this.cost_model.invalidateCache(this.traversal_attributes.get(i));
+                        if (trace.get()) LOG.trace("Invalidating " + this.all_search_keys.get(i));
+                        this.cost_model.invalidateCache(this.all_search_keys.get(i));
                     } // FOR
                 // If we're not using caching, then just clear out the cost model completely
                 } else {
@@ -728,7 +752,7 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
                 // ----------------------------------------------
                 if (is_table) {
                     Table current_tbl = (Table)current;
-                    Column search_col = CatalogKey.getFromKey(this.search_db, attribute_key, Column.class);
+                    Column search_col = (Column)attribute;
                     Column current_col = null;
                     
                     // Check whether this is our replication marker column
@@ -749,12 +773,13 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
                     assert(current_col != null);
                     current_tbl.setPartitioncolumn(current_col);
                     assert(current_col.getName().equals(current_tbl.getPartitioncolumn().getName())) :
-                        "Unexpected " + current_col.getName() + " != " + current_tbl.getPartitioncolumn().getName();
+                        "Unexpected " + current_col.fullName() + " != " + current_tbl.getPartitioncolumn().fullName();
                     
                     // Estimate memory size
-                    if (trace) LOG.trace("Calculating memory size of current solution [" + CatalogUtil.getDisplayName(current_col) + "]");                
-                    memory = this.memory_estimator.estimate(search_db, info.getNumPartitions(), previous_tables);
+                    if (trace.get()) LOG.trace(String.format("Calculating memory size of current solution [%s]: %s", current_col.fullName(), all_tables));                
+                    memory = this.memory_estimator.estimate(search_db, info.getNumPartitions(), all_tables);
                     memory_exceeded = (memory > this.hints.max_memory_per_partition);
+                    if (trace.get()) LOG.trace(String.format("%s Memory: %d [exceeded=%s]", current_col.fullName(), memory, memory_exceeded));
                     
                     current_attribute = current_col;
                     
@@ -763,7 +788,7 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
                 // ----------------------------------------------
                 } else {
                     Procedure current_proc = (Procedure)current;
-                    ProcParameter current_proc_param = CatalogKey.getFromKey(this.search_db, attribute_key, ProcParameter.class);
+                    ProcParameter current_proc_param = (ProcParameter)attribute;
                     assert(current_proc_param != null);
                     current_proc.setPartitionparameter(current_proc_param.getIndex());
                     memory = parent.memory;
@@ -781,7 +806,7 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
                     cost = Double.MAX_VALUE;
                 }
 
-                StateVertex state = new StateVertex(parent, current_key, attribute_key, cost, memory);
+                StateVertex state = new StateVertex(parent, current_key, attribute_key, is_table, cost, memory);
 //                if (!this.graph.containsVertex(parent)) this.graph.addVertex(parent);
 //                this.graph.addEdge(new StateEdge(), parent, state, EdgeType.DIRECTED);
 
@@ -792,7 +817,7 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
                 // DEBUG OUTPUT
                 // ----------------------------------------------
                 state.debug = this.cost_model.getLastDebugMessages();
-                if (debug) LOG.debug(this.createLevelOutput(state, CatalogUtil.getDisplayName(current_attribute, false), spacer, memory_exceeded));
+                if (debug.get()) LOG.debug(this.createLevelOutput(state, CatalogUtil.getDisplayName(current_attribute, false), spacer, memory_exceeded));
                 
                 // ----------------------------------------------
                 // ANALYSIS
@@ -805,7 +830,7 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
                     double parent_cost = MathUtil.roundToDecimals(parent.cost, 2);
                     double current_cost = MathUtil.roundToDecimals(cost, 2) + fudge;
                     
-                    if (!(parent_cost <= current_cost) && debug) {
+                    if (!(parent_cost <= current_cost) && debug.get()) {
                         LOG.debug("Parent Cost Model Info:\n " + parent.debug);
                         LOG.debug("Parent:\n" + parent.toString());
                         LOG.debug(StringUtil.DOUBLE_LINE);
@@ -818,28 +843,27 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
                 }
                 
                 // If this is a complete solution, then check whether if it is the best one that we have seen thus far
-                synchronized (BranchAndBoundPartitioner.this) {
-                    // Allow the current solution to be the best solution if the following criteria are met:
-                    //  (1) It's a complete solution
-                    //  (2) It has not exhausted our per-partition memory limit
-                    //  (4) It is less than the upper bounds limit
-                    //  (3) And one of the following is true:
-                    //      (a) The current best solution is the start vertex
-                    //      (b) Or the current solution has a cost less than the current best solution
-                    if (complete_solution &&
-                        !memory_exceeded && 
-                        cost < BranchAndBoundPartitioner.this.upper_bounds_vertex.cost &&
-                        (BranchAndBoundPartitioner.this.best_vertex.isStartVertex() || cost < BranchAndBoundPartitioner.this.best_vertex.cost)) {
-                        assert(best_vertex.cost > state.cost) : "Best=" + best_vertex.cost + ", Current=" + state.cost;
-                        assert(upper_bounds_vertex.cost > state.cost) : "Upper=" + upper_bounds_vertex.cost + ", Current=" + state.cost;
-                        
-                        BranchAndBoundPartitioner.this.best_vertex = state;
-                        if (trace) LOG.trace("Last Cost Model Info:\n " + this.cost_model.getLastDebugMessages());
-                        if (debug) LOG.debug("New Best Solution:\n" + StringUtil.box(best_vertex.toString()));
-                        
-                        // Log new solution cost
-                        if (this.hints.shouldLogSolutionCosts()) this.hints.logSolutionCost(state.cost);
-                        
+                // Allow the current solution to be the best solution if the following criteria are met:
+                //  (1) It's a complete solution
+                //  (2) It has not exhausted our per-partition memory limit
+                //  (4) It is less than the upper bounds limit
+                //  (3) And one of the following is true:
+                //      (a) The current best solution is the start vertex
+                //      (b) Or the current solution has a cost less than the current best solution
+                if (complete_solution &&
+                    !memory_exceeded && 
+                    cost < BranchAndBoundPartitioner.this.upper_bounds_vertex.cost &&
+                    (BranchAndBoundPartitioner.this.best_vertex.isStartVertex() || cost < BranchAndBoundPartitioner.this.best_vertex.cost)) {
+                    assert(best_vertex.cost > state.cost) : "Best=" + best_vertex.cost + ", Current=" + state.cost;
+                    assert(upper_bounds_vertex.cost > state.cost) : "Upper=" + upper_bounds_vertex.cost + ", Current=" + state.cost;
+                    
+                    BranchAndBoundPartitioner.this.best_vertex = state;
+                    if (trace.get()) LOG.trace("Last Cost Model Info:\n " + this.cost_model.getLastDebugMessages());
+                    if (debug.get()) LOG.debug("New Best Solution:\n" + StringUtil.box(best_vertex.toString()));
+                    
+                    // Log new solution cost
+                    if (this.hints.shouldLogSolutionCosts()) this.hints.logSolutionCost(state.cost);
+                    
 //                        for (int i = 0; i < ((TimeIntervalCostModel)this.cost_model).getIntevalCount(); i++) {
 //                            System.err.println("Interval #" + i);
 //                            System.err.println(((TimeIntervalCostModel)this.cost_model).getCostModel(i).getTxnPartitionAccessHistogram());
@@ -847,8 +871,7 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
 //                        }
 //                        
 //                        System.exit(1);
-                    }
-                } // SYNCHRONIZED
+                }
                 
                 // ----------------------------------------------
                 // CONTINUE SEARCH TRAVERSAL
@@ -877,24 +900,25 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
                     // IMPORTANT: If this is the last table in our traversal, then we need to switch over 
                     // to working Procedures->ProcParameters. We have to now calculate the list of attributes
                     // that we want to consider
-                    if (is_last_table && this.hints.enable_procparameter_search) {
-                        for (int i = idx + 1; i < this.num_elements; i++) {
-                            String proc_key = this.traversal_attributes.get(i);
-                            Procedure catalog_proc = CatalogKey.getFromKey(this.search_db, proc_key, Procedure.class);
-                            LinkedList<String> attributes = AbstractPartitioner.generateProcParameterOrder(info, this.search_db, catalog_proc, hints);
-                            
-                            // We should have ProcParameter candidates!
-                            assert(attributes.isEmpty() == false) : "No ProcParameter candidates: " + catalog_proc + "\n" + state;
-                            this.traversal_attributes.get(proc_key).clear();
-                            this.traversal_attributes.get(proc_key).addAll(attributes);
-                        } // FOR
-                    }
+//                    if (is_last_table && this.hints.enable_procparameter_search) {
+//                        for (int i = idx + 1; i < this.num_elements; i++) {
+//                            Procedure catalog_proc = (Procedure)this.all_search_elements.get(i);
+//                            LinkedList<String> attributes = AbstractPartitioner.generateProcParameterOrder(info, this.search_db, catalog_proc, hints);
+//                            
+//                            // We should have ProcParameter candidates!
+//                            assert(attributes.isEmpty() == false) : "No ProcParameter candidates: " + catalog_proc + "\n" + state;
+//                            this.traversal_attributes.get(proc_key).clear();
+//                            this.traversal_attributes.get(proc_key).addAll(attributes);
+//                        } // FOR
+//                    }
 
                     // We only traverse if this is a table. The ProcParameter selection is a simple greedy algorithm
                     if (this.hints.greedy_search == false || (this.hints.greedy_search == true && last_attribute)) {
-                        if (debug && this.hints.greedy_search)
+                        if (debug.get() && this.hints.greedy_search)
                             LOG.debug(this.createLevelOutput(local_best_vertex, "GREEDY->" + local_best_vertex.getPartitionKey(), spacer, false));
+                        this.cp.update(current);
                         this.traverse((this.hints.greedy_search ? local_best_vertex : state), idx + 1);
+                        this.cp.reset(current);
                     }
                 }
                 
@@ -917,15 +941,17 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
                 // Is this necessary?
                 this.cost_model.invalidateCache(current_proc);
                 
-                if (debug) LOG.debug(this.createLevelOutput(local_best_vertex, CatalogUtil.getDisplayName(current_param), spacer, false));
+                if (debug.get()) LOG.debug(this.createLevelOutput(local_best_vertex, CatalogUtil.getDisplayName(current_param), spacer, false));
                 
                 // If there are more Procedures to partition and we have gone past our best cost
                 // our upper bounds, then keep going... 
-                if (complete_solution == false &&
+                if (complete_solution == false && hints.enable_procparameter_search &&
                      (this.hints.greedy_search == true) || 
                      (local_best_vertex.cost < best_vertex.cost &&
                       local_best_vertex.cost < upper_bounds_vertex.cost)) {
+                    this.cp.update(current_proc);
                     this.traverse(local_best_vertex, idx + 1);
+                    this.cp.reset(current_proc);
                 }
 
                 // Important: We will have to unset the Procedure partitioning parameter
@@ -935,8 +961,7 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
                 // manually once we finish up with this table because the next passes will
                 // overwrite the catalog that we saved off
                 for (int i = idx; i < this.num_elements; i++) {
-                    String proc_key = this.traversal_attributes.get(i);
-                    Procedure catalog_proc = CatalogKey.getFromKey(this.search_db, proc_key, Procedure.class);
+                    Procedure catalog_proc = (Procedure)this.all_search_elements.get(i);
                     catalog_proc.setPartitionparameter(-1);
                 } // FOR
             }

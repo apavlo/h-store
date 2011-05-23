@@ -2226,6 +2226,7 @@ H-STORE REMIX
     </condition>
 
     <java fork="yes" classname="edu.mit.hstore.HStoreSite">
+        <arg value="tag=site" />
         <jvmarg value="-Xmx${node.memory}m" />
         <jvmarg value="-Dlog4j.configuration=${basedir}/log4j.properties"/>
         <jvmarg value="-server" />

@@ -11,6 +11,7 @@ import org.voltdb.types.QueryType;
 import org.voltdb.utils.CatalogUtil;
 
 import edu.brown.designer.*;
+import edu.brown.designer.Edge.Members;
 import edu.brown.designer.partitioners.*;
 import edu.brown.graphs.*;
 
@@ -95,7 +96,7 @@ public class SimpleIndexSelector extends AbstractIndexSelector {
                         //
                         // We have a match, so we need to add this edge's weight to it
                         //
-                        Double weight = (Double)edge.getAttribute(AccessGraph.EdgeAttributes.WEIGHT.name());
+                        Double weight = (Double)edge.getAttribute(Members.WEIGHTS.name());
                         if (found != null) {
                             weight += found.getWeight();
                         } else {

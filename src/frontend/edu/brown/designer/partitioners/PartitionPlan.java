@@ -151,6 +151,7 @@ public class PartitionPlan implements JSONSerializable {
                     Table parent = current_entry.getParent();
                     if (parent != null) {
                         PartitionEntry parent_entry = PartitionPlan.this.table_entries.get(parent);
+                        if (parent_entry == null) LOG.error("Failed to initialize dependencies:\n" + PartitionPlan.this);
                         assert(parent_entry != null) : "Missing parent entry " + parent + " for " + element;
                         if (!this.hasVisited(parent)) children.addAfter(parent);
                     }
@@ -476,12 +477,13 @@ public class PartitionPlan implements JSONSerializable {
     }
     
     public static PartitionPlan createFromMap(final PartitionPlan pplan, Map<? extends CatalogType, ? extends CatalogType> pplan_map) {
+        assert(pplan_map.isEmpty() == false) : "PartitionPlan map is empty!";
         Database catalog_db = null;
         
         for (Entry<? extends CatalogType, ? extends CatalogType> e : pplan_map.entrySet()) {
             PartitionMethodType method = null;
             CatalogType attribute = null;
-            if (e.getValue() != null) assert(e.getKey().equals(e.getValue().getParent()));
+            if (e.getValue() != null) assert(e.getKey().equals(e.getValue().getParent())) : e;
             PartitionEntry pentry = null;
             
             // Table Partitioning
@@ -514,7 +516,7 @@ public class PartitionPlan implements JSONSerializable {
                 
                 if (catalog_proc.getSystemproc()) {
                     continue;
-                } else if (catalog_proc_param instanceof NullProcParameter || catalog_proc.getParameters().size() == 0) { 
+                } else if (catalog_proc_param instanceof NullProcParameter || catalog_proc_param == null || catalog_proc.getParameters().size() == 0) { 
                     method = PartitionMethodType.NONE;
                     single_partition = false;
                     // attribute = NullProcParameter.getNullProcParameter(catalog_proc);

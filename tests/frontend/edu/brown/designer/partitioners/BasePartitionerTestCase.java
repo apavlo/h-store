@@ -10,7 +10,6 @@ import edu.brown.designer.DesignerInfo;
 import edu.brown.statistics.WorkloadStatistics;
 import edu.brown.utils.ProjectType;
 import edu.brown.workload.Workload;
-import edu.brown.workload.Workload;
 import edu.brown.workload.filters.ProcedureLimitFilter;
 
 public abstract class BasePartitionerTestCase extends BaseTestCase {
@@ -50,8 +49,13 @@ public abstract class BasePartitionerTestCase extends BaseTestCase {
             assertNotNull(stats_file);
             assert(stats_file.exists());
             stats = new WorkloadStatistics(catalog_db);
-            stats.load(stats_file.getAbsolutePath(), catalog_db);
-            
+            try {
+                stats.load(stats_file.getAbsolutePath(), catalog_db);
+            } catch (AssertionError ex) {
+                System.err.println("Failed to load " + stats_file.getAbsolutePath());
+                throw ex;
+            }
+            this.applyCatalogCorrelations(type);
             correlations_file = this.getCorrelationsFile(type);
             assertNotNull(correlations_file);
             assert(correlations_file.exists());

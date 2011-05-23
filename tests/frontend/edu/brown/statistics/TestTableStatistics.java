@@ -1,5 +1,6 @@
 package edu.brown.statistics;
 
+import java.io.File;
 import java.lang.reflect.Field;
 import java.util.SortedMap;
 
@@ -16,9 +17,9 @@ public class TestTableStatistics extends BaseTestCase {
     
     @Override
     protected void setUp() throws Exception {
-        super.setUp(ProjectType.TPCC);
+        super.setUp(ProjectType.TM1);
         if (stats== null) {
-            catalog_tbl = this.getTable("WAREHOUSE");
+            catalog_tbl = this.getTable("ACCESS_INFO");
             
             stats = new TableStatistics(catalog_tbl);
             assertNotNull(stats);
@@ -30,6 +31,25 @@ public class TestTableStatistics extends BaseTestCase {
             stats.tuple_size_avg = ++temp;
             stats.tuple_count_total = ++temp;
         }
+    }
+    
+    /**
+     * testLoad
+     */
+    public void testLoad() throws Exception {
+        File f = this.getStatsFile(ProjectType.TM1);
+        assertNotNull(f);
+        WorkloadStatistics wstats = new WorkloadStatistics(catalog_db);
+        wstats.load(f.getAbsolutePath(), catalog_db);
+        
+        for (Table catalog_tbl : catalog_db.getTables()) {
+            TableStatistics tstats = wstats.getTableStatistics(catalog_tbl);
+            assertNotNull(tstats);
+            assert(tstats.tuple_count_total > 0) : String.format("%s.tuple_count_total", catalog_tbl.getName());
+//            System.err.println(String.format("%s.tuple_count_total = %d", catalog_tbl.getName(), tstats.tuple_count_total));
+            assert(tstats.tuple_size_total > 0) : String.format("%s.tuple_size_total", catalog_tbl.getName());
+//            System.err.println(String.format("%s.tuple_size_total = %d", catalog_tbl.getName(), tstats.tuple_size_total));
+        } // FOR
     }
 
     /**

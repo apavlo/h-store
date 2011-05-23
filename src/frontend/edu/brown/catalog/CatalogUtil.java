@@ -1256,7 +1256,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
      * @return
      * @throws Exception
      */
-    public static Set<Column> getReferencedColumns(Statement catalog_stmt) throws Exception {
+    public static Set<Column> getReferencedColumns(Statement catalog_stmt) {
         if (debug.get()) LOG.debug("Extracting table set from statement " + CatalogUtil.getDisplayName(catalog_stmt));
         
         final CatalogUtil.Cache cache = CatalogUtil.getCache(catalog_stmt);
@@ -1267,9 +1267,15 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
             // 2010-07-14: Always use the AbstractPlanNodes from the PlanFragments to figure out
             // what columns the query touches. It's more accurate because we will pick apart plan nodes
             // and expression trees to figure things out
-            AbstractPlanNode node = QueryPlanUtil.deserializeStatement(catalog_stmt, true);
-            Set<Column> columns = CatalogUtil.getPartitionableColumnReferences(catalog_db, node);
-            assert (columns != null) : "Failed to get catalog tables for " + catalog_stmt.fullName();
+            AbstractPlanNode node = null;
+            Set<Column> columns = null;
+            try {
+                node = QueryPlanUtil.deserializeStatement(catalog_stmt, true);
+                columns = CatalogUtil.getPartitionableColumnReferences(catalog_db, node);
+            } catch (Exception ex) {
+                throw new RuntimeException("Failed to get columns for " + catalog_stmt.fullName(), ex);
+            }
+            assert (columns != null) : "Failed to get columns for " + catalog_stmt.fullName();
             ret = Collections.unmodifiableSet(columns);
             cache.STATEMENT_COLUMNS.put(catalog_stmt, ret);
         }

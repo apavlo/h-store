@@ -320,6 +320,12 @@ public abstract class AbstractTreeWalker<E> implements Poolable {
     // TRAVERSAL METHODS
     // ----------------------------------------------------------------------
     
+    public final void traverse(Collection<E> elements) {
+        for (E e : elements) {
+            this.traverse(e);
+        } // FOR
+    }
+    
     /**
      * Depth first traversal
      * @param element

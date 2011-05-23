@@ -1,7 +1,6 @@
 package edu.brown.designer;
 
 import java.util.*;
-import java.util.Map.Entry;
 
 import org.voltdb.catalog.*;
 
@@ -16,7 +15,6 @@ import edu.brown.graphs.AbstractUndirectedGraph;
 public class AccessGraph extends AbstractUndirectedGraph<Vertex, Edge>  {
     
     public enum EdgeAttributes {
-        WEIGHT,         // DOUBLE
         ACCESSTYPE,
         COLUMNSET,
         FOREIGNKEY,
@@ -25,7 +23,8 @@ public class AccessGraph extends AbstractUndirectedGraph<Vertex, Edge>  {
         SCAN,
         SQL_JOIN,
         PARAM_JOIN,
-        IMPLICIT_JOIN;
+        IMPLICIT_JOIN,
+        INSERT;
         
         public static List<AccessType> JOINS = new ArrayList<AccessType>();
         static {
@@ -50,6 +49,25 @@ public class AccessGraph extends AbstractUndirectedGraph<Vertex, Edge>  {
         super(catalog_db);
     }
     
+    /**
+     * Return all the edges for the given vertex whose ColumnSets contain the given Column
+     * @param v
+     * @param catalog_col
+     * @return
+     */
+    public Collection<Edge> findEdgeSet(Vertex v, Column catalog_col) {
+        assert(v != null);
+        Set<Edge> edges = new HashSet<Edge>();
+        for (Edge e : this.getIncidentEdges(v)) {
+            ColumnSet cset = e.getAttribute(EdgeAttributes.COLUMNSET);
+            assert(cset != null);
+            if (cset.findAll(catalog_col).isEmpty() == false) {
+                edges.add(e);
+            }
+        } // FOR
+        return (edges);
+    }
+    
     public <T> Collection<Edge> getIncidentEdges(Vertex vertex, String name, T value) {
         Set<Edge> edges = new HashSet<Edge>();
         for (Edge edge : super.getIncidentEdges(vertex)) {
@@ -64,9 +82,9 @@ public class AccessGraph extends AbstractUndirectedGraph<Vertex, Edge>  {
         sb.append(super.toString(e, verbose));
         
         if (verbose) {
-            for (Entry<String, Object> entry : e.getAttributeValues(this).entrySet()) {
-                sb.append(String.format("\n => %-15s%s", entry.getKey()+":", entry.getValue().toString()));
-            }
+//            for (Entry<String, Object> entry : e.getAttributeValues(this).entrySet()) {
+//                sb.append(String.format("\n => %-15s%s", entry.getKey()+":", entry.getValue().toString()));
+//            }
             ColumnSet cset = e.getAttribute(EdgeAttributes.COLUMNSET.name());
             assert(cset != null);
             sb.append("\n").append(cset.debug());

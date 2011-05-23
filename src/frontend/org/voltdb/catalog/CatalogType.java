@@ -341,7 +341,7 @@ public abstract class CatalogType implements Comparable<CatalogType> {
             return 0;
         }
         if (o != null) {
-            if (this.m_path == null) {
+            if (this.m_path == null || o.m_path == null) {
                 return (this.hashCode() - o.hashCode());
             } else {
                 return this.m_path.compareTo(o.m_path);        

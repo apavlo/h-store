@@ -164,7 +164,7 @@ public abstract class AbstractPartitioner {
         for (Procedure catalog_proc : info.catalog_db.getProcedures()) {
             // Skip if there are no transactions in the workload for this procedure
             assert(info.workload != null);
-            if (false && info.workload.getTraces(catalog_proc).isEmpty()) {
+            if (info.workload.getTraces(catalog_proc).isEmpty()) {
                 if (debug) LOG.debug("No " + catalog_proc + " transactions in workload. Skipping...");
             } else if (this.designer.getGraphs(catalog_proc) != null) {
                 this.designer.getGraphs(catalog_proc).add(agraph);
@@ -186,7 +186,7 @@ public abstract class AbstractPartitioner {
         if (LOG.isDebugEnabled()) LOG.debug("Generating Procedure visit order");
         
         final Map<Procedure, Double> proc_weights = new HashMap<Procedure, Double>();
-        Histogram hist = info.workload.getProcedureHistogram();
+        Histogram<String> hist = info.workload.getProcedureHistogram();
         TreeSet<Procedure> proc_visit_order = new TreeSet<Procedure>(new CatalogWeightComparator<Procedure>(proc_weights));
 
         for (Procedure catalog_proc : catalog_db.getProcedures()) {
@@ -298,7 +298,7 @@ public abstract class AbstractPartitioner {
      * @return
      * @throws Exception
      */
-    protected static LinkedList<String> generateTableOrder(final DesignerInfo info, final AccessGraph agraph, final DesignerHints hints) throws Exception {
+    protected static List<String> generateTableOrder(final DesignerInfo info, final AccessGraph agraph, final DesignerHints hints) throws Exception {
         final boolean trace = LOG.isTraceEnabled();
         final boolean debug = LOG.isDebugEnabled();
         
@@ -411,6 +411,17 @@ public abstract class AbstractPartitioner {
         return (generateColumnOrder(info, agraph, catalog_tbl, hints, false, false));
     }
     
+    /**
+     * 
+     * @param info
+     * @param agraph
+     * @param catalog_tbl
+     * @param hints
+     * @param no_replication
+     * @param force_replication_last
+     * @return
+     * @throws Exception
+     */
     protected static LinkedList<String> generateColumnOrder(final DesignerInfo info, final AccessGraph agraph, final Table catalog_tbl, final DesignerHints hints, boolean no_replication, boolean force_replication_last) throws Exception {
         assert(agraph != null);
         final boolean debug = LOG.isDebugEnabled();
@@ -510,9 +521,9 @@ public abstract class AbstractPartitioner {
      * @return
      * @throws Exception
      */
-    public static Histogram generateProcedureColumnAccessHistogram(final DesignerInfo info, final DesignerHints hints, final AccessGraph agraph, final Procedure catalog_proc) throws Exception {
+    public static Histogram<Column> generateProcedureColumnAccessHistogram(final DesignerInfo info, final DesignerHints hints, final AccessGraph agraph, final Procedure catalog_proc) throws Exception {
         LOG.debug("Constructing column access histogram for " + catalog_proc.getName());
-        Histogram column_histogram = new Histogram();
+        Histogram<Column> column_histogram = new Histogram<Column>();
         for (Table catalog_tbl : CatalogUtil.getReferencedTables(catalog_proc)) {
             Vertex v = agraph.getVertex(catalog_tbl);
             for (Edge e : agraph.getIncidentEdges(v)) {
@@ -525,7 +536,7 @@ public abstract class AbstractPartitioner {
                 
                 double edge_weight = e.getTotalWeight();
                 ColumnSet cset = e.getAttribute(AccessGraph.EdgeAttributes.COLUMNSET.name());
-                Histogram cset_histogram = cset.buildHistogramForType(Column.class);
+                Histogram<Column> cset_histogram = cset.buildHistogramForType(Column.class);
                 Set<Column> columns = cset_histogram.values();
                 for (Column catalog_col : columns) {
                     if (!catalog_col.getParent().equals(catalog_tbl)) continue;
@@ -556,12 +567,12 @@ public abstract class AbstractPartitioner {
         for (int i = 0, cnt = params.size(); i < cnt; i++) {
             ProcParameter param0 = params.get(i);
             assert(param0 != null);
-            if (param0 instanceof MultiProcParameter) continue;
+            if (param0 instanceof MultiProcParameter || param0.getIsarray()) continue;
             
             for (int ii = i + 1; ii < cnt; ii++) {
                 ProcParameter param1 = params.get(ii);
                 assert(param1 != null);
-                if (param1 instanceof MultiProcParameter) continue;
+                if (param1 instanceof MultiProcParameter || param1.getIsarray()) continue;
                 
                 // This will automatically update the Procedure, so there isn't anything more 
                 // we need to do here...
@@ -582,7 +593,7 @@ public abstract class AbstractPartitioner {
      * @param agraph
      * @return
      */
-    protected static Map<Table, Set<MultiColumn>> generateMultiColumns(final DesignerInfo info, final DesignerHints hints, final Procedure catalog_proc) throws Exception {
+    protected static Map<Table, Set<MultiColumn>> generateMultiColumns(final DesignerInfo info, final DesignerHints hints, final Procedure catalog_proc) {
         Map<Table, Set<MultiColumn>> multicolumns = new HashMap<Table, Set<MultiColumn>>();
        
        // For each Statement, find the columns that are accessed together

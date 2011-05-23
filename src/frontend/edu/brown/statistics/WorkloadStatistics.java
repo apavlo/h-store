@@ -114,13 +114,15 @@ public class WorkloadStatistics implements JSONSerializable {
     
     public String debug(Database catalog_db) {
         StringBuilder buffer = new StringBuilder();
+        boolean first = true;
         for (ProcedureStatistics proc_stat : this.proc_stats.values()) {
-            buffer.append(proc_stat.debug(catalog_db)).append("\n");
+            if (first == false) buffer.append("-----------\n");
+            buffer.append(proc_stat.debug(catalog_db));
             for (QueryStatistics query_stat : proc_stat.query_stats.values()) {
                 if (query_stat.execute_count_total == 0) continue;
-                buffer.append(query_stat.debug(catalog_db));
+                buffer.append("\n").append(query_stat.debug(catalog_db));
             } // FOR
-            buffer.append("-----------\n");
+            first = false;
         } // FOR
         buffer.append("\n+-------------------------------------------------\n");
         for (TableStatistics table_stat : this.table_stats.values()) {

@@ -29,6 +29,7 @@ import edu.brown.designer.AccessGraph;
 import edu.brown.designer.Designer;
 import edu.brown.designer.DesignerHints;
 import edu.brown.designer.DesignerInfo;
+import edu.brown.designer.generators.AccessGraphGenerator;
 import edu.brown.rand.RandomDistribution;
 import edu.brown.statistics.Histogram;
 import edu.brown.statistics.TableStatistics;
@@ -39,8 +40,8 @@ import edu.brown.utils.MathUtil;
 import edu.brown.utils.StringUtil;
 
 /**
+ * Large-Neighborhood Search Partitioner
  * @author pavlo
- *
  */
 public class LNSPartitioner extends AbstractPartitioner implements JSONSerializable {
     protected static final Logger LOG = Logger.getLogger(LNSPartitioner.class);
@@ -70,6 +71,7 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
     protected final AbstractCostModel costmodel;
     protected final ParameterCorrelations correlations;
     protected AccessGraph agraph;
+    protected AccessGraph single_agraph;
 
     // ----------------------------------------------------------------------------
     // STATE INFORMATION
@@ -108,7 +110,7 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
 
     protected final ListOrderedMap<Procedure, ListOrderedSet<ProcParameter>> orig_proc_attributes = new ListOrderedMap<Procedure, ListOrderedSet<ProcParameter>>();
     protected final Map<Procedure, Set<Column>> proc_columns = new HashMap<Procedure, Set<Column>>();
-    protected final Map<Procedure, Histogram> proc_column_histogram = new HashMap<Procedure, Histogram>();
+    protected final Map<Procedure, Histogram<Column>> proc_column_histogram = new HashMap<Procedure, Histogram<Column>>();
     protected final Map<Procedure, Map<ProcParameter, Set<MultiProcParameter>>> proc_multipoc_map = new HashMap<Procedure, Map<ProcParameter,Set<MultiProcParameter>>>();
 
     
@@ -119,6 +121,7 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
     public LNSPartitioner(Designer designer, DesignerInfo info) {
         super(designer, info);
         this.costmodel = info.getCostModel();
+        assert(this.costmodel != null) : "CostModel is null!";
         this.correlations = new ParameterCorrelations();
         assert(info.getCorrelationsFile() != null) : "The correlations file path was not set";
     }
@@ -135,6 +138,7 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
 
         this.init_called = true;
         this.agraph = this.generateAccessGraph();
+        this.single_agraph = AccessGraphGenerator.convertToSingleColumnEdges(info.catalog_db, this.agraph);
         
         // Set the limits initially from the hints file
         if (hints.limit_back_tracks != null) this.last_backtrack_limit = new Double(hints.limit_back_tracks);
@@ -146,6 +150,14 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
         
         // Gather all the information we need about each table
         for (Table catalog_tbl : CatalogKey.getFromKeys(info.catalog_db, AbstractPartitioner.generateTableOrder(info, this.agraph, hints), Table.class)) {
+            
+            // Ignore this table if it's not used in the AcessGraph
+            try {
+                this.single_agraph.getVertex(catalog_tbl);
+            } catch (IllegalArgumentException ex) {
+                LOG.warn("Ignoring table " + catalog_tbl);
+            }
+            
             // Potential Partitioning Attributes
             List<String> columns = AbstractPartitioner.generateColumnOrder(info, agraph, catalog_tbl, hints, false, true);
             assert(!columns.isEmpty()) : "No potential partitioning columns selected for " + catalog_tbl;
@@ -260,9 +272,7 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
         m.put("backtrack_mp",     hints.back_tracks_multiplier);
         m.put("localtime_mp",     hints.local_time_multiplier);
         m.put("total_txns",       info.workload.getTransactionCount());
-        for (Entry<String, Object> e : m.entrySet()) {
-            sb.append(String.format(" - %-20s = %s\n", e.getKey(), e.getValue()));
-        }
+        sb.append(StringUtil.formatMaps(m));
         sb.append(StringUtil.repeat("-", 65)).append("\n");
         sb.append(info.workload.getProcedureHistogram());
         LOG.info("\n" + StringUtil.box(sb.toString(), "+"));
@@ -282,7 +292,7 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
                 // We really need to link the hints and the checkpoints better...
                 hints.weight_costmodel_entropy = this.last_entropy_weight;
                 
-            } else {
+            } else if (this.checkpoint != null) {
                 LOG.info("Not loading non-existent checkpoint file: " + this.checkpoint);
             }
             if (this.start_time == null && this.last_checkpoint == null) {
@@ -327,8 +337,8 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
         this.costmodel.clear(true);
         if (this.restart_ctr == null) this.restart_ctr = 0;
         
-        Map<Table, Set<Column>> table_attributes = new ListOrderedMap<Table, Set<Column>>();
-        Map<Procedure, Set<ProcParameter>> proc_attributes = new ListOrderedMap<Procedure, Set<ProcParameter>>();
+        final ListOrderedSet<Table> table_attributes = new ListOrderedSet<Table>();
+        final ListOrderedSet<Procedure> proc_attributes = new ListOrderedSet<Procedure>();
         
         while (true) {
             // IMPORTANT: Make sure that we are always start comparing swaps using the solution
@@ -340,7 +350,7 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
             }
             
             // Local Search!
-            this.localSearch(hints, table_attributes, proc_attributes);
+            this.localSearch(hints, table_attributes.asList(), proc_attributes.asList());
             
             // Sanity Check!
             if (this.restart_ctr % 3 == 0) {
@@ -438,7 +448,7 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
      * @param restart_ctr
      * @throws Exception
      */
-    protected boolean relaxCurrentSolution(final DesignerHints hints, int restart_ctr, Map<Table, Set<Column>> table_attributes, Map<Procedure, Set<ProcParameter>> proc_attributes) throws Exception {
+    protected boolean relaxCurrentSolution(final DesignerHints hints, int restart_ctr, Set<Table> table_attributes, Set<Procedure> proc_attributes) throws Exception {
         assert(this.init_called);
         RandomDistribution.DiscreteRNG rand = new RandomDistribution.Flat(this.rng, 0, this.orig_table_attributes.size());
         int num_tables = this.orig_table_attributes.size();
@@ -479,17 +489,19 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
         
         if (LOG.isInfoEnabled()) {
             StringBuilder sb = new StringBuilder();
-            sb.append(String.format("LNS RESTART #%03d  [relax_size=%d]\n", restart_ctr, relax_size))
-              .append(String.format(" - last_relax_size   = %d\n", this.last_relax_size))
-              .append(String.format(" - last_halt_reason  = %s\n", this.last_halt_reason))
-              .append(String.format(" - last_elapsed_time = %d\n", this.last_elapsed_time))
-              .append(String.format(" - last_backtracks   = %d\n", this.last_backtrack_count))
-              .append(String.format(" - elapsed_ratio     = %.02f\n", elapsed_ratio))
-              .append(String.format(" - limit_local_time  = %.02f\n", this.last_localtime_limit))
-              .append(String.format(" - limit_back_track  = %.02f\n", this.last_backtrack_limit))
-              .append(String.format(" - best_cost         = " + DEBUG_COST_FORMAT + "\n", this.best_cost))
-              .append(String.format(" - best_memory       = %f\n", this.best_memory))
-            ;
+            sb.append(String.format("LNS RESTART #%03d  [relax_size=%d]\n", restart_ctr, relax_size));
+            
+            Map<String, Object> m = new ListOrderedMap<String, Object>();
+            m.put(" - last_relax_size", this.last_relax_size);
+            m.put(" - last_halt_reason", this.last_halt_reason);
+            m.put(" - last_elapsed_time", this.last_elapsed_time);
+            m.put(" - last_backtracks", this.last_backtrack_count);
+            m.put(" - elapsed_ratio", String.format("%.02f", elapsed_ratio));
+            m.put(" - limit_local_time", String.format("%.02f", this.last_localtime_limit));
+            m.put(" - limit_back_track", String.format("%.02f", this.last_backtrack_limit));
+            m.put(" - best_cost", String.format(DEBUG_COST_FORMAT, this.best_cost));
+            m.put(" - best_memory", this.best_memory);
+            sb.append(StringUtil.formatMaps(m));
             LOG.info("\n" + StringUtil.box(sb.toString(), "+", 125));
         }
 
@@ -527,31 +539,11 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
         proc_attributes.clear();
         Collections.shuffle(relaxed_tables);
         for (Table catalog_tbl : relaxed_tables) {
-            // For now just throw in all of the columns
-            // This is where we could look at the fixed tables and try to infer what columns we know 
-            // we won't need. Unfortunately I think that is too difficult because of the way the iterative
-            // costmodel works. The cost of choosing a partitioning column may not be evident until other
-            // tables have their columns selected. Furthermore, it may be the case that a txn is going to need to
-            // be multi-partitioned in order to balance the load properly, and thus we can't just throw out any columns
-            // that cause txns to become multi-partitioned...
-            List<Column> table_cols = new ArrayList<Column>(this.orig_table_attributes.get(catalog_tbl));
-            Collections.shuffle(table_cols, this.rng);
-            table_attributes.put(catalog_tbl, new HashSet<Column>(table_cols));
-            
+            table_attributes.add(catalog_tbl);
             for (Procedure catalog_proc : this.table_procedures.get(catalog_tbl)) {
-                proc_attributes.put(catalog_proc, null); // Placeholder
+                proc_attributes.add(catalog_proc);
             } // FOR
         } // FOR
-        
-        // Now add in all of the attributes for the procedures we will want to investigate
-        for (Procedure catalog_proc : proc_attributes.keySet()) {
-            HashSet<ProcParameter> params = new HashSet<ProcParameter>();
-            for (ProcParameter catalog_param : catalog_proc.getParameters()) {
-                if (catalog_param.getIsarray()) continue;
-                params.add(catalog_param);
-            } // FOR
-            proc_attributes.put(catalog_proc, params);
-        }
         
         this.last_relax_size = relax_size;
         return (true);
@@ -564,31 +556,26 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
      * @param proc_attributes
      * @throws Exception
      */
-    protected void localSearch(final DesignerHints hints, Map<Table, Set<Column>> table_attributes, Map<Procedure, Set<ProcParameter>> proc_attributes) throws Exception {
-        
+    protected void localSearch(final DesignerHints hints, List<Table> table_attributes, List<Procedure> proc_attributes) throws Exception {
         // -------------------------------
-        // Convert to catalog keys and apply relaxation
+        // Apply relaxation and invalidate caches!
         // -------------------------------
-        Map<String, List<String>> key_attributes = new ListOrderedMap<String, List<String>>();
-        for (Entry<Table, Set<Column>> e : table_attributes.entrySet()) {
-            List<String> column_keys = new ArrayList<String>(CatalogKey.createKeys(e.getValue()));
-            key_attributes.put(CatalogKey.createKey(e.getKey()), column_keys);
-            this.costmodel.invalidateCache(e.getKey());
+        for (Table catalog_tbl : table_attributes) {
+//            catalog_tbl.setPartitioncolumn(null);
+            this.costmodel.invalidateCache(catalog_tbl);
         } // FOR
-        for (Entry<Procedure, Set<ProcParameter>> e : proc_attributes.entrySet()) {
-            List<String> param_keys = new ArrayList<String>(CatalogKey.createKeys(e.getValue()));
-            key_attributes.put(CatalogKey.createKey(e.getKey()), param_keys);
-            e.getKey().setPartitionparameter(NullProcParameter.PARAM_IDX);
-            this.costmodel.invalidateCache(e.getKey());
+        for (Procedure catalog_proc : proc_attributes) {
+            catalog_proc.setPartitionparameter(NullProcParameter.PARAM_IDX);
+            this.costmodel.invalidateCache(catalog_proc);
         } // FOR
         
         // Sanity Check: Make sure the non-relaxed tables come back with the same partitioning attribute
         Map<CatalogType, CatalogType> orig_solution = new HashMap<CatalogType, CatalogType>();
         for (Table catalog_tbl : info.catalog_db.getTables()) {
-            if (!table_attributes.containsKey(catalog_tbl)) orig_solution.put(catalog_tbl, catalog_tbl.getPartitioncolumn());
+            if (!table_attributes.contains(catalog_tbl)) orig_solution.put(catalog_tbl, catalog_tbl.getPartitioncolumn());
         }
         for (Procedure catalog_proc : info.catalog_db.getProcedures()) {
-            if (!proc_attributes.containsKey(catalog_proc)) {
+            if (!proc_attributes.contains(catalog_proc)) {
                 ProcParameter catalog_param = catalog_proc.getParameters().get(catalog_proc.getPartitionparameter());
                 orig_solution.put(catalog_proc, catalog_param);
             }
@@ -615,7 +602,7 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
         // -------------------------------
         // GO GO LOCAL SEARCH!!
         // -------------------------------
-        Pair<PartitionPlan, BranchAndBoundPartitioner.StateVertex> pair = this.executeLocalSearch(hints, table_attributes, key_attributes);
+        Pair<PartitionPlan, BranchAndBoundPartitioner.StateVertex> pair = this.executeLocalSearch(hints, this.single_agraph, table_attributes, proc_attributes);
         assert(pair != null);
         PartitionPlan result = pair.getFirst();
         BranchAndBoundPartitioner.StateVertex state = pair.getSecond();
@@ -667,11 +654,14 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
      * @throws Exception
      */
     protected Pair<PartitionPlan, BranchAndBoundPartitioner.StateVertex> executeLocalSearch(final DesignerHints hints,
-                                                                                            final Map<Table, Set<Column>> table_attributes,
-                                                                                            final Map<String, List<String>> key_attributes) throws Exception {
-        BranchAndBoundPartitioner local_search = new BranchAndBoundPartitioner(this.designer, this.info);
+                                                                                            final AccessGraph agraph,
+                                                                                            final List<Table> table_visit_order,
+                                                                                            final List<Procedure> proc_visit_order) throws Exception {
+        assert(agraph != null) : "Missing AccessGraph!";
+        
+        BranchAndBoundPartitioner local_search = new BranchAndBoundPartitioner(this.designer, this.info, agraph, table_visit_order, proc_visit_order);
         local_search.setUpperBounds(hints, this.best_solution, this.best_cost, (long)(this.best_memory * hints.max_memory_per_partition));
-        local_search.setTraversalAttributes(key_attributes, table_attributes.size());
+//        local_search.setTraversalAttributes(key_attributes, table_attributes.size());
 
         long start = System.currentTimeMillis();
         PartitionPlan result = local_search.generate(hints);
@@ -729,7 +719,7 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
 //        assert(correlations != null);
 
         ProcParameter default_param = catalog_proc.getParameters().get(0);
-        Histogram col_access_histogram = this.proc_column_histogram.get(catalog_proc);
+        Histogram<Column> col_access_histogram = this.proc_column_histogram.get(catalog_proc);
         if (col_access_histogram == null) {
             if (debug) LOG.warn("No column access histogram for " + catalog_proc + ". Setting to default");
             return (default_param);

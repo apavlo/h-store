@@ -19,7 +19,7 @@ public class Edge extends AbstractEdge {
      */
     private final Map<Integer, Double> weights = new TreeMap<Integer, Double>();
     {
-        this.setAttribute(EdgeAttributes.WEIGHT.name(), this.weights);
+        this.setAttribute(Members.WEIGHTS.name(), this.weights);
     }
     
     /**
@@ -70,6 +70,15 @@ public class Edge extends AbstractEdge {
             this.total_weight = null;
         }
         this.weights.put(time, weight);
+    }
+    
+    public void addToWeight(Edge other) {
+        for (Integer time : other.weights.keySet()) {
+            Double orig = this.weights.get(time);
+            if (orig == null) orig = 0.0d;
+            orig += other.weights.get(time);
+            this.weights.put(time, orig);
+        } // FOR
     }
     
     public void addToWeight(int time, double delta) {
