@@ -76,7 +76,7 @@ public class AuctionMarkBenchmarkProfile implements JSONSerializable {
     /**
      * Data Scale Factor
      */
-    public long scale_factor;
+    public double scale_factor;
 
     /**
      * Map from table names to the number of tuples we inserted during loading
@@ -216,7 +216,7 @@ public class AuctionMarkBenchmarkProfile implements JSONSerializable {
      * 
      * @return
      */
-    public long getScaleFactor() {
+    public double getScaleFactor() {
         return (this.scale_factor);
     }
 
@@ -225,7 +225,7 @@ public class AuctionMarkBenchmarkProfile implements JSONSerializable {
      * 
      * @param scale_factor
      */
-    public void setScaleFactor(long scale_factor) {
+    public void setScaleFactor(double scale_factor) {
         assert (scale_factor > 0) : "Invalid scale factor " + scale_factor;
         this.scale_factor = scale_factor;
     }

@@ -311,7 +311,7 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
                     assert (field_handle != null);
                     this.tableSize = (Long) field_handle.get(null);
                     if (!fixed_size) {
-                        this.tableSize /= AuctionMarkLoader.this.profile.getScaleFactor();
+                        this.tableSize = Math.round(this.tableSize / AuctionMarkLoader.this.profile.getScaleFactor());
                     }
                 }
 

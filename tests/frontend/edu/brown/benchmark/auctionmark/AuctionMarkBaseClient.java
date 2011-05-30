@@ -85,7 +85,7 @@ public abstract class AuctionMarkBaseClient extends ClientMain {
     public AuctionMarkBaseClient(Class<? extends AuctionMarkBaseClient> child_class, String[] args) {
         super(args);
 
-        Integer scale_factor = 1;
+        Double scale_factor = 1.0;
         String profile_file = null;
         int seed = 0;
         String randGenClassName = DefaultRandomGenerator.class.getName();
@@ -97,7 +97,7 @@ public abstract class AuctionMarkBaseClient extends ClientMain {
 
             // Scale Factor
             if (key.equalsIgnoreCase("SCALEFACTOR")) {
-                scale_factor = Integer.parseInt(value);
+                scale_factor = Double.parseDouble(value);
                 // Benchmark Profile File
             } else if (key.equalsIgnoreCase("BENCHMARKPROFILE")) {
                 profile_file = value;
@@ -115,7 +115,7 @@ public abstract class AuctionMarkBaseClient extends ClientMain {
                 dataDir = value;
             }
         } // FOR
-        assert (scale_factor != null);
+        assert (scale_factor > 0.0d);
 
         // BenchmarkProfile
         // Only load from the file for AuctionMarkClient
@@ -132,8 +132,7 @@ public abstract class AuctionMarkBaseClient extends ClientMain {
                 }
             }
         }
-        if (scale_factor != null)
-            this.profile.setScaleFactor(scale_factor);
+        this.profile.setScaleFactor(scale_factor);
 
         // Data Directory Path
         if (dataDir == null) {

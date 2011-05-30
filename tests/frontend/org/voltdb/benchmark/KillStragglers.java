@@ -60,18 +60,22 @@ public class KillStragglers implements Runnable {
         return (this.enableKillClient().enableKillCoordinator().enableKillSite().enableKillEngine());
     }
     public KillStragglers enableKillSite() {
+        LOG.debug(String.format("Setting to kill HStoreSite [%s@%s]", m_username, m_hostname));
         m_killSite = true;
         return (this);
     }
     public KillStragglers enableKillCoordinator() {
+        LOG.debug(String.format("Setting to kill Dtxn.Coordinator [%s@%s]", m_username, m_hostname));
         m_killCoordinator = true;
         return (this);
     }
     public KillStragglers enableKillEngine() {
+        LOG.debug(String.format("Setting to kill Dtxn.Engine [%s@%s]", m_username, m_hostname));
         m_killEngine = true;
         return (this);
     }
     public KillStragglers enableKillClient() {
+        LOG.debug(String.format("Setting to kill Clients [%s@%s]", m_username, m_hostname));
         m_killClient = true;
         return (this);
     }
