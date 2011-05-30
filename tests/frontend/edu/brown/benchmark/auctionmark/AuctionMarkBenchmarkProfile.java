@@ -197,8 +197,8 @@ public class AuctionMarkBenchmarkProfile implements JSONSerializable {
                 }
                 this.window_partitions.add(last_partition);
             } // FOR
-            System.err.println("Tick #" + this.current_tick + " Window: " + this.window_partitions);
-            System.err.println(this.window_histogram);
+            LOG.trace("Tick #" + this.current_tick + " Window: " + this.window_partitions);
+            LOG.trace(this.window_histogram);
             this.window_histogram.clearValues();
         }
     }

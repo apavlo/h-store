@@ -33,7 +33,7 @@ public class AuctionMarkClientBenchmarkProfile extends AuctionMarkBenchmarkProfi
     /**
      * Whether to use the zipf distribution
      */
-    public static final boolean zipf = true;
+    public static final boolean zipf = false;
 
     private RandomDistribution.Zipf zipf_distribution;
 
@@ -192,7 +192,7 @@ public class AuctionMarkClientBenchmarkProfile extends AuctionMarkBenchmarkProfi
         long ids_per_partition = AuctionMarkConstants.TABLESIZE_ITEM / catalog_clus.getNum_partitions();
         int partition_num = TheHashinator.hashToPartition(sellerid, catalog_clus.getNum_partitions());
         if (zipf_distribution.getHistory().getSampleCount() % 100 == 0) {
-            System.out.println("Zipf histograph for buyerids:\n" + zipf_distribution.getHistory().toString());
+            LOG.info("Zipf histograph for buyerids:\n" + zipf_distribution.getHistory().toString());
         }
         int specific_partition_id = (int)r.nextInt((int) ids_per_partition);
         long buyer_id = zipf_distribution.nextLong() * ids_per_partition + (partition_num + 1) + specific_partition_id;

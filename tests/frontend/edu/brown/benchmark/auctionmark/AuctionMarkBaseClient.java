@@ -47,8 +47,10 @@ import edu.brown.utils.FileUtil;
  *
  */
 public abstract class AuctionMarkBaseClient extends ClientMain {
-    protected final Logger LOG;
-
+    private static final Logger LOG = Logger.getLogger(AuctionMarkBaseClient.class);
+    private static final boolean debug = LOG.isDebugEnabled();
+    private static final boolean trace = LOG.isTraceEnabled();
+    
     /**
      * Default save location of the AuctionMarkBenchmarkProfile file
      */
@@ -73,11 +75,6 @@ public abstract class AuctionMarkBaseClient extends ClientMain {
     protected final Database catalog_db;
 
     /**
-     * Whether to enable debug information
-     */
-    protected boolean debug;
-
-    /**
      * Path to directory with data files needed by the loader
      */
     protected final String data_directory;
@@ -87,8 +84,6 @@ public abstract class AuctionMarkBaseClient extends ClientMain {
      */
     public AuctionMarkBaseClient(Class<? extends AuctionMarkBaseClient> child_class, String[] args) {
         super(args);
-        LOG = Logger.getLogger(child_class);
-        this.debug = LOG.isDebugEnabled();
 
         Integer scale_factor = 1;
         String profile_file = null;
@@ -151,7 +146,7 @@ public abstract class AuctionMarkBaseClient extends ClientMain {
 
                 File path = new File(tests_dir.getAbsolutePath() + File.separator + "frontend" + File.separator + AuctionMarkBaseClient.class.getPackage().getName().replace('.', File.separatorChar)
                         + File.separator + "data").getCanonicalFile();
-                if (this.debug)
+                if (debug)
                     LOG.debug("Default data directory path = " + path);
                 if (!path.exists()) {
                     throw new RuntimeException("The default data directory " + path + " does not exist");
@@ -163,7 +158,7 @@ public abstract class AuctionMarkBaseClient extends ClientMain {
                 LOG.fatal("Unexpected error", ex);
             }
         }
-        if (this.debug)
+        if (debug)
             LOG.debug("Data Directory: " + dataDir);
         this.data_directory = dataDir;
 
@@ -199,7 +194,7 @@ public abstract class AuctionMarkBaseClient extends ClientMain {
     public void saveProfile() {
         assert (this.profile_path != null);
         assert (this.profile != null);
-        if (this.debug)
+        if (debug)
             LOG.debug("Saving BenchmarkProfile to '" + this.profile_path + "'");
         try {
             this.profile.save(this.profile_path.getAbsolutePath());

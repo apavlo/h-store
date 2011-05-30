@@ -39,6 +39,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
+import org.apache.log4j.Logger;
 import org.voltdb.VoltTable;
 import org.voltdb.benchmark.ClientMain;
 import org.voltdb.catalog.Catalog;
@@ -55,6 +56,10 @@ import edu.brown.rand.RandomDistribution.Zipf;
 import edu.brown.utils.StringUtil;
 
 public class AuctionMarkClient extends AuctionMarkBaseClient {
+    private static final Logger LOG = Logger.getLogger(AuctionMarkClient.class);
+    private static boolean debug = LOG.isDebugEnabled();
+    private static boolean trace = LOG.isTraceEnabled();
+    
     // --------------------------------------------------------------------
     // TXN PARAMETER GENERATOR
     // --------------------------------------------------------------------
@@ -594,8 +599,7 @@ public class AuctionMarkClient extends AuctionMarkBaseClient {
         _clientId = getClientId();
 
         clientProfile = new AuctionMarkClientBenchmarkProfile(profile, getClientId(), AuctionMarkConstants.MAXIMUM_CLIENT_IDS, m_catalog, rng);
-        if (LOG.isTraceEnabled())
-            LOG.trace("constructor : histogram size = " + this.clientProfile.user_available_items_histogram.getSampleCount());
+        if (trace) LOG.trace("constructor : histogram size = " + this.clientProfile.user_available_items_histogram.getSampleCount());
 
         // Enable temporal skew
         if (m_extraParams.containsKey("TEMPORALWINDOW") && m_extraParams.containsKey("TEMPORALTOTAL")) {
@@ -622,7 +626,7 @@ public class AuctionMarkClient extends AuctionMarkBaseClient {
         int total = 0;
         for (Transaction t : Transaction.values()) {
             for (int i = 0, cnt = this.weights.get(t); i < cnt; i++) {
-                LOG.debug("xact " + total + " = " + t + ":" + t.getCallName());
+                if (debug) LOG.debug("xact " + total + " = " + t + ":" + t.getCallName());
                 this.xacts[total++] = t;
             } // FOR
         } // FOR
@@ -677,7 +681,8 @@ public class AuctionMarkClient extends AuctionMarkBaseClient {
     protected void tick() {
         super.tick();
         this.clientProfile.tick();
-        this.debug = LOG.isDebugEnabled();
+        debug = LOG.isDebugEnabled();
+        trace = LOG.isTraceEnabled();
     }
 
     /**
@@ -689,25 +694,20 @@ public class AuctionMarkClient extends AuctionMarkBaseClient {
     private void executeTransaction() throws IOException, ProcCallException, InterruptedException {
         Transaction txn = null;
         Object[] params = null;
-        int safety = 1000;
 
-        if (this.debug)
-            LOG.debug("Execute Transaction [client_id=" + this.getClientId() + "]");
+        if (debug) LOG.debug("Execute Transaction [client_id=" + this.getClientId() + "]");
 
         if (Transaction.POST_AUCTION.canExecute(clientProfile) && this.getClientId() == 0) {
             txn = Transaction.POST_AUCTION;
-            if (this.debug)
-                LOG.trace("Executing new invocation of transaction " + txn);
+            if (trace) LOG.trace("Executing new invocation of transaction " + txn);
 
             if (txn.next_params.peek().getRowCount() > 0) {
                 params = txn.params(this.rng, this.clientProfile, txn.next_params.remove(), catalog);
-                if (this.debug)
-                    LOG.debug("EXECUTING POST_AUCTION ------------------------");
+                if (debug) LOG.debug("EXECUTING POST_AUCTION ------------------------");
                 m_voltClient.callProcedure(new AuctionMarkCallback(txn, this.rng, this.clientProfile), txn.getCallName(), params);
                 return;
             } else {
-                if (this.debug)
-                    LOG.trace("POST_AUCTION ::: no executiong (rows to process = " + txn.next_params.remove().getRowCount() + ") ");
+                if (debug) LOG.trace("POST_AUCTION ::: no executiong (rows to process = " + txn.next_params.remove().getRowCount() + ") ");
             }
         }
 
@@ -718,30 +718,29 @@ public class AuctionMarkClient extends AuctionMarkBaseClient {
         if (AuctionMarkConstants.ENABLE_CHECK_WINNING_BIDS
                 && (lastCheckWinningBidTime == null || (((currentTime.getTime() - lastCheckWinningBidTime.getTime()) / 1000.0) > AuctionMarkConstants.INTERVAL_CHECK_WINNING_BIDS))) {
             txn = Transaction.CHECK_WINNING_BIDS;
-            if (this.debug)
-                LOG.trace("Executing new invocation of transaction " + txn);
+            if (trace) LOG.trace("Executing new invocation of transaction " + txn);
 
             int clientId = 1;
 
-            params = new Object[] { clientProfile.getLastCheckWinningBidTime(), clientProfile.updateAndGetLastCheckWinningBidTime(), clientId, AuctionMarkConstants.MAXIMUM_CLIENT_IDS };
-            if (this.debug)
-                LOG.trace("EXECUTING CHECK_WINNING BID------------------------");
+            params = new Object[] {
+                    clientProfile.getLastCheckWinningBidTime(),
+                    clientProfile.updateAndGetLastCheckWinningBidTime(),
+                    clientId,
+                    AuctionMarkConstants.MAXIMUM_CLIENT_IDS
+            };
+            if (trace) LOG.trace("EXECUTING CHECK_WINNING BID------------------------");
             m_voltClient.callProcedure(new AuctionMarkCallback(txn, this.rng, this.clientProfile), txn.getCallName(), params);
             return;
         }
 
         // Find the next txn and its parameters that we will run. We want to
-        // wrap this
-        // around a synchronization block so that nobody comes in and takes the
-        // parameters
-        // from us before we actually run it
+        // wrap this around a synchronization block so that nobody comes in and takes the
+        // parameters from us before we actually run it
         synchronized (this.clientProfile) {
+            int safety = 1000;
             while (true) {
                 int idx = this.rng.number(0, this.xacts.length - 1);
-                if (this.debug) {
-                    LOG.trace("idx = " + idx);
-                    LOG.trace("random txn = " + this.xacts[idx].getDisplayName());
-                }
+                if (trace) LOG.trace(String.format("Selected Random Txn: %s [idx=%d]", this.xacts[idx].getDisplayName(), idx));
                 assert (idx >= 0);
                 assert (idx < this.xacts.length);
 
@@ -749,8 +748,7 @@ public class AuctionMarkClient extends AuctionMarkBaseClient {
                 // Example: NewBid can only be executed if there are item_ids
                 // retrieved by an earlier call by GetItem
                 if (this.xacts[idx].canExecute(clientProfile)) {
-                    if (debug)
-                        LOG.trace("can execute");
+                    if (trace) LOG.trace("Can execute " + this.xacts[idx]);
                     try {
                         txn = this.xacts[idx];
                         params = txn.params(rng, clientProfile, txn.next_params.peek(), catalog);
@@ -769,8 +767,7 @@ public class AuctionMarkClient extends AuctionMarkBaseClient {
             }
         } // SYNC
         if (params != null) {
-            if (debug)
-                LOG.debug("Executing new invocation of transaction " + txn + " : callname = " + txn.getCallName());
+            if (debug) LOG.debug("Executing new invocation of transaction " + txn + " : callname = " + txn.getCallName());
             m_voltClient.callProcedure(new AuctionMarkCallback(txn, this.rng, this.clientProfile), txn.getCallName(), params);
         } else {
             LOG.warn("Failed to execute " + txn + " because the parameters were null?");
@@ -793,9 +790,7 @@ public class AuctionMarkClient extends AuctionMarkBaseClient {
 
         @Override
         public void clientCallback(ClientResponse clientResponse) {
-            final boolean trace = LOG.isTraceEnabled();
-            if (trace)
-                LOG.trace("clientCallback(cid = " + _clientId + "):: txn = " + txn.getDisplayName());
+            if (trace) LOG.trace("clientCallback(cid = " + _clientId + "):: txn = " + txn.getDisplayName());
 
             AuctionMarkClient.this.m_counts[this.txn.ordinal()].incrementAndGet();
             VoltTable[] results = clientResponse.getResults();

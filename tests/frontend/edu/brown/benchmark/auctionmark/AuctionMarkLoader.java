@@ -44,6 +44,7 @@ import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
 import org.apache.commons.collections15.map.ListOrderedMap;
+import org.apache.log4j.Logger;
 import org.voltdb.VoltTable;
 import org.voltdb.VoltType;
 import org.voltdb.catalog.Table;
@@ -66,6 +67,9 @@ import edu.brown.rand.RandomDistribution.Zipf;
  * @author visawee
  */
 public class AuctionMarkLoader extends AuctionMarkBaseClient {
+    private static final Logger LOG = Logger.getLogger(AuctionMarkLoader.class);
+    private static boolean debug = LOG.isDebugEnabled();
+    private static boolean trace = LOG.isTraceEnabled();
 
     // Data Generator Classes
     // TableName -> AbstactTableGenerator
@@ -108,7 +112,7 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
 
         numClients = this.getNumClients();
         assert(AuctionMarkConstants.MAXIMUM_NUM_CLIENTS > numClients);
-        LOG.debug("AuctionMarkLoader::: numClients = " + numClients);
+        if (debug) LOG.debug("AuctionMarkLoader::: numClients = " + numClients);
         
         // Data Generators
         this.generators.put(AuctionMarkConstants.TABLENAME_REGION, new RegionGenerator());
@@ -174,10 +178,10 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
         try {
             for (Thread thread : load_threads) {
                 thread.start();
-                if (this.debug) thread.join();
+                if (debug) thread.join();
             } // FOR
             for (Thread thread : load_threads) {
-                if (!this.debug) thread.join();
+                if (!debug) thread.join();
             } // FOR
         } catch (InterruptedException e) {
             LOG.fatal("Unexpected error", e);
@@ -207,7 +211,7 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
             try {
                 this.dependencyLock.lock();
                 while (!dependingGenerator.isFinish()) {
-                    if (debug) LOG.debug("The generator for " + tableName + " is blocked waiting for "
+                    if (debug) if (debug) LOG.debug("The generator for " + tableName + " is blocked waiting for "
                                          + dependingGenerator.getTableName() + " [" + this + "]");
                     this.dependencyCondition.await();
                 } // WHILE
@@ -220,7 +224,7 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
 
         generator.init();
 
-        if (debug) LOG.debug("Loading " + generator.getTableSize() + " tuples for table '" + tableName + "'");
+        if (debug) if (debug) LOG.debug("Loading " + generator.getTableSize() + " tuples for table '" + tableName + "'");
         while (generator.hasMore()) {
             generator.generateBatch();
             this.loadTable(tableName, volt_table);
@@ -228,7 +232,7 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
 
             // Dependent Tables
             if (generator.hasSubGenerators()) {
-                if (debug) LOG.debug("Invoking " + generator.sub_generators.size() + " sub-generators for " + tableName);
+                if (debug) if (debug) LOG.debug("Invoking " + generator.sub_generators.size() + " sub-generators for " + tableName);
                 for (AbstractTableGenerator sub_generator : generator.sub_generators) {
                     // Always call init() for the sub-generator in each new round
                     sub_generator.init();
@@ -251,7 +255,7 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
         this.dependencyLock.lock();
         this.dependencyCondition.signalAll();
         this.dependencyLock.unlock();
-        LOG.debug("Finished loading all data for " + tableName + " [" + this + "]");
+        if (debug) LOG.debug("Finished loading all data for " + tableName + " [" + this + "]");
     }
 
     // ----------------------------------------------------------------
@@ -405,13 +409,13 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
          * 
          */
         public void generateBatch() {
-            LOG.debug("Generating new batch for " + this.getTableName());
+            if (debug) LOG.debug("Generating new batch for " + this.getTableName());
             long batch_count = 0;
             while (this.hasMore() && this.table.getRowCount() < this.batchSize) {
                 this.addRow();
                 batch_count++;
             } // WHILE
-            LOG.debug("Finished generating new batch of " + batch_count + " tuples for " + this.getTableName());
+            if (debug) LOG.debug("Finished generating new batch of " + batch_count + " tuples for " + this.getTableName());
         }
 
         public void addDependency(String tableName) {
@@ -682,7 +686,7 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
             this.currentUserIDIndex = -1;
             this.currentNumUserAttributes = 0;
 
-            LOG.debug("Number of user attributes = " + numAttributes);
+            if (debug) LOG.debug("Number of user attributes = " + numAttributes);
 
             this.tableSize = numAttributes;
             this.userAttributeItr = userAttributeMap.entrySet().iterator();
@@ -807,7 +811,7 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
 
             long numItems = this.tableSize.longValue();
 
-            LOG.debug("ITEM : numItems = " + numItems);
+            if (debug) LOG.debug("ITEM : numItems = " + numItems);
             
             long tempNumItems = numItems;
 
@@ -815,7 +819,7 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
                 numItemDistribution.put(i, 0);
             }
 
-            LOG.debug(numItemDistribution.containsKey(172));
+            if (debug) LOG.debug(numItemDistribution.containsKey(172));
 
             int numSellers;
 
@@ -1055,7 +1059,7 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
             this.currentItemInfoID = -1;
             this.currentNumItemImages = 0;
 
-            LOG.debug("numImages = " + numImages);
+            if (debug) LOG.debug("numImages = " + numImages);
 
             this.tableSize = numImages;
             this.itemInfoItr = AuctionMarkLoader.this.item_info.entrySet().iterator();
@@ -1130,7 +1134,7 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
                 }
             }
 
-            LOG.debug("numComments = " + numComments);
+            if (debug) LOG.debug("numComments = " + numComments);
 
             this.currentItemInfoID = -1;
             this.currentNumItemComments = 0;
@@ -1252,9 +1256,9 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
             
             
 
-            LOG.debug("total number of bids = " + numBids);
-            LOG.debug("total number of items = " + AuctionMarkLoader.this.item_info.size());
-            LOG.debug("threshold = " + ((float) numBids / (float) AuctionMarkLoader.this.item_info.size()));
+            if (debug) LOG.debug("total number of bids = " + numBids);
+            if (debug) LOG.debug("total number of items = " + AuctionMarkLoader.this.item_info.size());
+            if (debug) LOG.debug("threshold = " + ((float) numBids / (float) AuctionMarkLoader.this.item_info.size()));
 
             this.currentNumBids = 0;
             this.currentCount = 0;
@@ -1270,7 +1274,7 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
         public synchronized boolean hasMore() {
         	
         	if (LOG.isDebugEnabled() && this.currentCount > 0 && this.currentCount % 100 == 0){
-            	LOG.debug("ITEM BID : currentCount = " + this.currentCount + " - tableSize = " + this.tableSize);
+            	if (debug) LOG.debug("ITEM BID : currentCount = " + this.currentCount + " - tableSize = " + this.tableSize);
         	}
             return (this.currentCount < this.tableSize);
         }
@@ -1633,7 +1637,7 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
         long total = this.profile.getTableSize(tableName);
         long last_reported = this.load_table_count.get(tableName);
         if ((total - last_reported) > 1000) {
-            LOG.debug(String.format(tableName + ": loading %d rows (total %d)", count, total));
+            if (debug) LOG.debug(String.format(tableName + ": loading %d rows (total %d)", count, total));
             this.load_table_count.put(tableName, total);
         }
 
