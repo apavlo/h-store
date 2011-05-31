@@ -29,11 +29,12 @@ public class ThrottlingClient extends Semaphore implements Client {
     private static boolean d = LOG.isDebugEnabled();
     private static boolean t = LOG.isTraceEnabled();
 
-    private static final int THROTTLE_WAIT = 1000; // ms
+    private static final int THROTTLE_WAIT = 500; // ms
     
     private static final long serialVersionUID = 1L;
     private final Client inner;
     private final AtomicBoolean throttle = new AtomicBoolean(false);
+    private int counter = 0;
     
     private class ThrottleCallback implements ProcedureCallback {
         private final ProcedureCallback inner_callback;
@@ -62,10 +63,11 @@ public class ThrottlingClient extends Semaphore implements Client {
                                             clientResponse.getTransactionId(), this.proc_name, clientResponse.getStatusName(), should_throttle));
             
             if (should_throttle == false && throttle.compareAndSet(true, should_throttle)) {
-                if (d) LOG.debug("Disabling throttling mode");
+                if (d) LOG.debug(String.format("Disabling throttling mode [counter=%d]", counter));
                 ThrottlingClient.this.release();
             } else if (should_throttle == true && throttle.compareAndSet(false, true)) {
                 if (d) LOG.debug("Enabling throttling mode");
+                counter++;
             }
                 
             // Only invoke the callback if the transaction wasn't rejected.

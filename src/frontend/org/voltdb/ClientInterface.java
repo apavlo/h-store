@@ -1131,8 +1131,8 @@ public class ClientInterface implements DumpManager.Dumpable {
         }
 
         @Override
-        public WriteStream writeStream() {
-            return this;
+        public NIOWriteStream writeStream() {
+            return null;
         }
 
         @Override
@@ -1171,6 +1171,11 @@ public class ClientInterface implements DumpManager.Dumpable {
 
         @Override
         public boolean hadBackPressure() {
+            throw new UnsupportedOperationException();
+        }
+        
+        @Override
+        public void setBackPressure(boolean enable) {
             throw new UnsupportedOperationException();
         }
 

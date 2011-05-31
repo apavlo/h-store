@@ -142,12 +142,22 @@ public class NIOWriteStream implements WriteStream {
         return m_hadBackPressure;
     }
 
+    @Override
+    public void setBackPressure(boolean enable) {
+        m_hadBackPressure = enable;
+        
+        if (m_hadBackPressure) {
+            this.backpressureStarted();
+        } else {
+            this.backpressureEnded();
+        }
+    }
 
 
     /**
      * Called when not all queued data could be flushed to the channel
      */
-    private final void backpressureStarted() {
+    public final void backpressureStarted() {
         if (networkLog.isTraceEnabled()) {
             networkLog.trace("Backpressure started for client " + m_port);
         }
@@ -162,7 +172,7 @@ public class NIOWriteStream implements WriteStream {
     /**
      * Called when all queued data is flushed to the channel
      */
-    private final void backpressureEnded() {
+    public final void backpressureEnded() {
         if (networkLog.isTraceEnabled()) {
             networkLog.trace("Backpressure ended for client " + m_port);
         }

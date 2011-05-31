@@ -28,6 +28,8 @@ public interface WriteStream {
      * Returns true when a drainTo invocation was unable to completely drain all queued bytes
      */
     public boolean hadBackPressure();
+    
+    public void setBackPressure(boolean enable);
 
     /**
      * Queued a container for writing. This isn't the ideal API to use since the serialization has been done
