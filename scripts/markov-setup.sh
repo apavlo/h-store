@@ -85,6 +85,10 @@ for BENCHMARK in ${BENCHMARKS[@]}; do
             -Dnumpartitions=1 \
             -Dcorrelations=files/correlations/${BENCHMARK}.correlations || exit
             
+        if [ "$BENCHMARK" = "tpcc" ]; then
+            BUILD_WORKLOAD="vldb-mar2011/tpcc.${NUM_PARTITIONS}p"
+        fi
+            
         for GLOBAL in "true" "false" ; do
             if [ $GLOBAL = "true" ]; then
                 if [ $MAKE_GLOBAL != "true" ]; then

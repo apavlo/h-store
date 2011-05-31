@@ -27,13 +27,13 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.log4j.Logger;
 import org.voltdb.ClientResponseImpl;
 import org.voltdb.StoredProcedureInvocation;
 import org.voltdb.VoltTable;
 import org.voltdb.VoltTable.ColumnInfo;
 import org.voltdb.VoltType;
-import org.voltdb.benchmark.ThrottlingClient;
 import org.voltdb.messaging.FastDeserializer;
 import org.voltdb.messaging.FastSerializer;
 import org.voltdb.network.Connection;
@@ -44,6 +44,8 @@ import org.voltdb.network.VoltProtocolHandler;
 import org.voltdb.utils.DBBPool;
 import org.voltdb.utils.DBBPool.BBContainer;
 import org.voltdb.utils.Pair;
+
+import edu.brown.utils.StringUtil;
 
 /**
  *   De/multiplexes transactions across a cluster
@@ -135,9 +137,21 @@ class Distributer {
             m_clusterRoundTripTime += clusterRoundTripTime;
         }
     }
+    
+    class CallbackValues {
+        final long time;
+        final ProcedureCallback callback;
+        final String name;
+        
+        public CallbackValues(long time, ProcedureCallback callback, String name) {
+            this.time = time;
+            this.callback = callback;
+            this.name = name;
+        }
+    }
 
     class NodeConnection extends VoltProtocolHandler implements org.voltdb.network.QueueMonitor {
-        private final HashMap<Long, Object[]> m_callbacks;
+        private final HashMap<Long, CallbackValues> m_callbacks;
         private final HashMap<String, ProcedureStats> m_stats
             = new HashMap<String, ProcedureStats>();
         private final int m_hostId;
@@ -146,7 +160,9 @@ class Distributer {
         private String m_hostname;
         private int m_port;
         private boolean m_isConnected = true;
-        private final AtomicBoolean m_hasBackupPressure = new AtomicBoolean(false);
+        private final AtomicBoolean m_hasBackPressure = new AtomicBoolean(false);
+        private long m_hasBackPressureTimestamp = -1;
+        private int m_lastServerTimestamp = Integer.MIN_VALUE;
 
         private long m_invocationsThrottled = 0;
         private long m_lastInvocationsThrottled = 0;
@@ -158,7 +174,7 @@ class Distributer {
         private long m_lastInvocationErrors = 0;
 
         public NodeConnection(long ids[]) {
-            m_callbacks = new HashMap<Long, Object[]>();
+            m_callbacks = new HashMap<Long, CallbackValues>();
             m_hostId = (int)ids[0];
             m_connectionId = ids[1];
         }
@@ -168,7 +184,7 @@ class Distributer {
             return (String.format("NodeConnection[id=%d, host=%s, port=%d]", m_hostId, m_hostname, m_port));
         }
 
-        public void createWork(long handle, String name, BBContainer c, ProcedureCallback callback) {
+        public void createWork(long now, long handle, String name, BBContainer c, ProcedureCallback callback) {
             synchronized (this) {
                 if (!m_isConnected) {
                     final ClientResponse r = new ClientResponseImpl(-1,
@@ -179,12 +195,12 @@ class Distributer {
                     c.discard();
                     return;
                 }
-                m_callbacks.put(handle, new Object[] { this, System.currentTimeMillis(), callback, name });
+                m_callbacks.put(handle, new CallbackValues(now, callback, name));
             }
             m_connection.writeStream().enqueue(c);
         }
 
-        public void createWork(long handle, String name, FastSerializable f, ProcedureCallback callback) {
+        public void createWork(long now, long handle, String name, FastSerializable f, ProcedureCallback callback) {
             synchronized (this) {
                 if (!m_isConnected) {
                     final ClientResponse r = new ClientResponseImpl(-1,
@@ -194,7 +210,7 @@ class Distributer {
                     callback.clientCallback(r);
                     return;
                 }
-                m_callbacks.put(handle, new Object[]{ this, System.currentTimeMillis(), callback, name });
+                m_callbacks.put(handle, new CallbackValues(now, callback, name));
             }
             m_connection.writeStream().enqueue(f);
         }
@@ -215,7 +231,6 @@ class Distributer {
 
         @Override
         public void handleMessage(ByteBuffer buf, Connection c) {
-            long now = System.currentTimeMillis();
             ClientResponseImpl response = null;
             FastDeserializer fds = new FastDeserializer(buf);
             try {
@@ -224,56 +239,89 @@ class Distributer {
                 e.printStackTrace();
             }
             ProcedureCallback cb = null;
-            NodeConnection cxn = null;
             long callTime = 0;
             int delta = 0;
-            long clientHandle = response.getClientHandle();
+            final long clientHandle = response.getClientHandle();
+            final boolean should_throttle = response.getThrottleFlag();
+            final byte status = response.getStatus();
+            final int timestamp = response.getServerTimestamp();
+            
+            boolean abort = false;
+            boolean error = false;
+            
+            CallbackValues stuff = null;
+            long now = System.currentTimeMillis();
             synchronized (this) {
-                Object stuff[] = m_callbacks.remove(clientHandle);
-                if (stuff != null && stuff.length > 0) {
-                    cxn = (NodeConnection)stuff[0];
-                    callTime = (Long)stuff[1];
+                stuff = m_callbacks.remove(clientHandle);
+            
+                if (stuff != null) {
+                    callTime = stuff.time;
                     delta = (int)(now - callTime);
-                    cb = (ProcedureCallback)stuff[2];
+                    cb = stuff.callback;
                     m_invocationsCompleted++;
-                    final byte status = response.getStatus();
-                    boolean abort = false;
-                    boolean error = false;
                     
-                    // Backup Pressure (Throttle)
-                    boolean should_throttle = response.getThrottleFlag();
-                    if (should_throttle == false && cxn.m_hasBackupPressure.compareAndSet(true, should_throttle)) {
-                        if (d) LOG.debug(String.format("Disabling throttling mode [counter=%d]", m_invocationsThrottled));
-                        cxn.m_connection.writeStream().setBackPressure(false);
-                    } else if (should_throttle == true && cxn.m_hasBackupPressure.compareAndSet(false, true)) {
-                        if (d) LOG.debug(String.format("Enabling throttling mode [counter=%d]", m_invocationsThrottled));
-                        m_invocationsThrottled++;
-                        cxn.m_connection.writeStream().setBackPressure(true);
+                    if (d) {
+                        Map<String, Object> m0 = new ListOrderedMap<String, Object>();
+                        m0.put("Txn #", response.getTransactionId());
+                        m0.put("Status", response.getStatusName());
+                        m0.put("ClientHandle", clientHandle);
+                        m0.put("ThrottleFlag", should_throttle);
+                        m0.put("Timestamp", timestamp);
+                        
+                        Map<String, Object> m1 = new ListOrderedMap<String, Object>();
+                        m1.put("Connection", this);
+                        m1.put("Back Pressure", m_hasBackPressure.get());
+                        m1.put("BackPressure Timestamp", m_hasBackPressureTimestamp);
+                        m1.put("Last Server Timestamp", m_lastServerTimestamp);
+                        m1.put("Completed Invocations", m_invocationsCompleted);
+                        m1.put("Error Invocations", m_invocationErrors);
+                        m1.put("Abort Invocations", m_invocationAborts);
+                        m1.put("Throttled Invocations", m_invocationsThrottled);
+                        LOG.debug("ClientResponse Information:\n" + StringUtil.formatMaps(m0, m1));
                     }
                     
-                    if (should_throttle == false) {
-                        if (status == ClientResponse.USER_ABORT || status == ClientResponse.GRACEFUL_FAILURE) {
-                            m_invocationAborts++;
-                            abort = true;
-                        } else if (status != ClientResponse.SUCCESS) {
-                            m_invocationErrors++;
-                            error = true;
+                    // BackPressure (Throttle)
+                    // If this response's timestamp is greater than the last one that we processed, then we'll allow it to modify whether
+                    // we are throttled or not. This ensures that we don't get stuck because the messages came back out of order
+                    if (timestamp > m_lastServerTimestamp) {
+                        m_lastServerTimestamp = timestamp;
+                        
+                        if (should_throttle == false && m_hasBackPressure.compareAndSet(true, should_throttle)) {
+                            if (d) LOG.debug(String.format("Disabling throttling mode [counter=%d]", m_invocationsThrottled));
+                            m_connection.writeStream().setBackPressure(false);
+                            
+                        } else if (should_throttle == true && m_hasBackPressure.compareAndSet(false, true)) {
+                            m_invocationsThrottled++;
+                            if (d) LOG.debug(String.format("Enabling throttling mode [counter=%d]", m_invocationsThrottled));
+                            m_connection.writeStream().setBackPressure(true);
+                            m_hasBackPressureTimestamp = now;
                         }
                     }
-                    updateStats((String)stuff[3], delta, response.getClusterRoundtrip(), abort, error);
                 } else {
                     LOG.warn("Failed to get callback for client handle #" + clientHandle);
                 }
+            } // SYNCH
+
+            if (stuff != null) {
+                if (status == ClientResponse.USER_ABORT || status == ClientResponse.GRACEFUL_FAILURE) {
+                    m_invocationAborts++;
+                    abort = true;
+                } else if (status != ClientResponse.SUCCESS) {
+                    m_invocationErrors++;
+                    error = true;
+                }
+                updateStats(stuff.name, delta, response.getClusterRoundtrip(), abort, error);
             }
 
             if (cb != null) {
-                response.setClientRoundtrip(delta);
-                cb.clientCallback(response);
-            }
-            else if (m_isConnected) {
+                if (status != ClientResponse.REJECTED) {
+                    response.setClientRoundtrip(delta);
+                    cb.clientCallback(response);
+                }
+            } else if (m_isConnected) {
                 // TODO: what's the right error path here?
+                LOG.fatal("Invalid response: no callback");
                 assert(false);
-                System.err.println("Invalid response: no callback");
             }
         }
 
@@ -292,9 +340,19 @@ class Distributer {
             return Integer.MAX_VALUE;
         }
 
-        public boolean hadBackPressure() {
-            if (t) LOG.trace(String.format("Checking whether %s has backup pressure: %s", m_connection, m_hasBackupPressure));
-            return m_hasBackupPressure.get();
+        public boolean hadBackPressure(long now) {
+            if (t) LOG.trace(String.format("Checking whether %s has backup pressure: %s", m_connection, m_hasBackPressure));
+            if (m_hasBackPressure.get()) {
+                if (now - m_hasBackPressureTimestamp > 500) {
+                    if (t) LOG.trace(String.format("Disabling backpresure at %s because client has waited for %d ms", this, (now - m_hasBackPressureTimestamp)));
+//                    assert(m_hasBackPressureTimestamp >= 0);
+                    m_hasBackPressure.set(false);
+                    m_hasBackPressureTimestamp = -1;
+                    return (false);
+                }
+                return (true);
+            }
+            return (false); 
         }
 
         @Override
@@ -317,8 +375,8 @@ class Distributer {
                         ClientResponse.CONNECTION_LOST, new VoltTable[0],
                         "Connection to database host (" + m_hostname +
                         ") was lost before a response was received");
-                for (final Object stuff[] : m_callbacks.values()) {
-                    ((ProcedureCallback)stuff[2]).clientCallback(r);
+                for (final CallbackValues cbv : m_callbacks.values()) {
+                    cbv.callback.clientCallback(r);
                 }
             }
         }
@@ -559,10 +617,12 @@ class Distributer {
         throws NoConnectionsException {
         NodeConnection cxn = null;
         boolean backpressure = true;
+        
         /*
          * Synchronization is necessary to ensure that m_connections is not modified
          * as well as to ensure that backpressure is reported correctly
          */
+        long now = System.currentTimeMillis();
         synchronized (this) {
             final int totalConnections = m_connections.size();
 
@@ -576,7 +636,7 @@ class Distributer {
                 cxn = m_connections.get(idx);
 //                System.err.println("m_nextConnection = " + idx + " / " + totalConnections + " [" + cxn + "]");
                 queuedInvocations += cxn.m_callbacks.size();
-                if (!cxn.hadBackPressure() || ignoreBackpressure) {
+                if (!cxn.hadBackPressure(now) || ignoreBackpressure) {
                     // serialize and queue the invocation
                     backpressure = false;
                     break;
@@ -597,7 +657,7 @@ class Distributer {
          */
         if (cxn != null) {
             if (m_useMultipleThreads) {
-                cxn.createWork(invocation.getClientHandle(), invocation.getProcName(), invocation, cb);
+                cxn.createWork(now, invocation.getClientHandle(), invocation.getProcName(), invocation, cb);
             } else {
                 final FastSerializer fs = new FastSerializer(m_pool, expectedSerializedSize);
                 BBContainer c = null;
@@ -607,7 +667,7 @@ class Distributer {
                     fs.getBBContainer().discard();
                     throw new RuntimeException(e);
                 }
-                cxn.createWork(invocation.getClientHandle(), invocation.getProcName(), c, cb);
+                cxn.createWork(now, invocation.getClientHandle(), invocation.getProcName(), c, cb);
             }
 //            final String invocationName = invocation.getProcName();
 //            if (reportedSizes.containsKey(invocationName)) {

@@ -144,15 +144,12 @@ public class NIOWriteStream implements WriteStream {
 
     @Override
     public void setBackPressure(boolean enable) {
-        m_hadBackPressure = enable;
-        
-        if (m_hadBackPressure) {
+        if (enable) {
             this.backpressureStarted();
         } else {
             this.backpressureEnded();
         }
     }
-
 
     /**
      * Called when not all queued data could be flushed to the channel
