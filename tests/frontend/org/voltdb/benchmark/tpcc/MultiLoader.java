@@ -108,7 +108,7 @@ public class MultiLoader extends ClientMain {
         m_loadThreads = new LoadThread[loadThreads];
         
         // HACK
-        MAX_BATCH_SIZE *= (10 / m_warehouses);
+        MAX_BATCH_SIZE *= Math.max(100, (10 / m_warehouses));
 
         for (int ii = 0; ii < loadThreads; ii++) {
             ScaleParameters parameters = ScaleParameters.makeWithScaleFactor(warehouses, scaleFactor);

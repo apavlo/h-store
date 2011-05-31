@@ -68,6 +68,7 @@ import org.voltdb.utils.DBBPool;
 
 import ca.evanjones.protorpc.NIOEventLoop;
 import ca.evanjones.protorpc.ProtoRpcChannel;
+import ca.evanjones.protorpc.ProtoRpcController;
 import ca.evanjones.protorpc.ProtoServer;
 
 import com.google.protobuf.ByteString;
@@ -1115,7 +1116,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
             
             Dtxn.CoordinatorFragment dtxn_request = requestBuilder.build();
             if (hstore_conf.enable_profiling) ProfileMeasurement.swap(txn_info.init_time, txn_info.coord_time);
-            this.coordinator.execute(txn_info.rpc_request_init, dtxn_request, callback);
+            this.coordinator.execute(new ProtoRpcController(), dtxn_request, callback); // txn_info.rpc_request_init
             if (d) LOG.debug(String.format("Sent Dtxn.CoordinatorFragment for txn #%d [bytes=%d]", txn_id, dtxn_request.getSerializedSize()));
         }
     }
