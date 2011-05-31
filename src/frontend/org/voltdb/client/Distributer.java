@@ -25,6 +25,7 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.log4j.Logger;
 import org.voltdb.ClientResponseImpl;
@@ -32,6 +33,7 @@ import org.voltdb.StoredProcedureInvocation;
 import org.voltdb.VoltTable;
 import org.voltdb.VoltTable.ColumnInfo;
 import org.voltdb.VoltType;
+import org.voltdb.benchmark.ThrottlingClient;
 import org.voltdb.messaging.FastDeserializer;
 import org.voltdb.messaging.FastSerializer;
 import org.voltdb.network.Connection;
@@ -144,7 +146,10 @@ class Distributer {
         private String m_hostname;
         private int m_port;
         private boolean m_isConnected = true;
+        private final AtomicBoolean m_hasBackupPressure = new AtomicBoolean(false);
 
+        private long m_invocationsThrottled = 0;
+        private long m_lastInvocationsThrottled = 0;
         private long m_invocationsCompleted = 0;
         private long m_lastInvocationsCompleted = 0;
         private long m_invocationAborts = 0;
@@ -174,7 +179,7 @@ class Distributer {
                     c.discard();
                     return;
                 }
-                m_callbacks.put(handle, new Object[] { System.currentTimeMillis(), callback, name });
+                m_callbacks.put(handle, new Object[] { this, System.currentTimeMillis(), callback, name });
             }
             m_connection.writeStream().enqueue(c);
         }
@@ -189,7 +194,7 @@ class Distributer {
                     callback.clientCallback(r);
                     return;
                 }
-                m_callbacks.put(handle, new Object[]{ System.currentTimeMillis(), callback, name });
+                m_callbacks.put(handle, new Object[]{ this, System.currentTimeMillis(), callback, name });
             }
             m_connection.writeStream().enqueue(f);
         }
@@ -219,27 +224,43 @@ class Distributer {
                 e.printStackTrace();
             }
             ProcedureCallback cb = null;
+            NodeConnection cxn = null;
             long callTime = 0;
             int delta = 0;
             long clientHandle = response.getClientHandle();
             synchronized (this) {
                 Object stuff[] = m_callbacks.remove(clientHandle);
                 if (stuff != null && stuff.length > 0) {
-                    callTime = (Long)stuff[0];
+                    cxn = (NodeConnection)stuff[0];
+                    callTime = (Long)stuff[1];
                     delta = (int)(now - callTime);
-                    cb = (ProcedureCallback)stuff[1];
+                    cb = (ProcedureCallback)stuff[2];
                     m_invocationsCompleted++;
                     final byte status = response.getStatus();
                     boolean abort = false;
                     boolean error = false;
-                    if (status == ClientResponse.USER_ABORT || status == ClientResponse.GRACEFUL_FAILURE) {
-                        m_invocationAborts++;
-                        abort = true;
-                    } else if (status != ClientResponse.SUCCESS) {
-                        m_invocationErrors++;
-                        error = true;
+                    
+                    // Backup Pressure (Throttle)
+                    boolean should_throttle = response.getThrottleFlag();
+                    if (should_throttle == false && cxn.m_hasBackupPressure.compareAndSet(true, should_throttle)) {
+                        if (d) LOG.debug(String.format("Disabling throttling mode [counter=%d]", m_invocationsThrottled));
+                        cxn.m_connection.writeStream().setBackPressure(false);
+                    } else if (should_throttle == true && cxn.m_hasBackupPressure.compareAndSet(false, true)) {
+                        if (d) LOG.debug(String.format("Enabling throttling mode [counter=%d]", m_invocationsThrottled));
+                        m_invocationsThrottled++;
+                        cxn.m_connection.writeStream().setBackPressure(true);
                     }
-                    updateStats((String)stuff[2], delta, response.getClusterRoundtrip(), abort, error);
+                    
+                    if (should_throttle == false) {
+                        if (status == ClientResponse.USER_ABORT || status == ClientResponse.GRACEFUL_FAILURE) {
+                            m_invocationAborts++;
+                            abort = true;
+                        } else if (status != ClientResponse.SUCCESS) {
+                            m_invocationErrors++;
+                            error = true;
+                        }
+                    }
+                    updateStats((String)stuff[3], delta, response.getClusterRoundtrip(), abort, error);
                 } else {
                     LOG.warn("Failed to get callback for client handle #" + clientHandle);
                 }
@@ -272,10 +293,9 @@ class Distributer {
         }
 
         public boolean hadBackPressure() {
-            if (t) LOG.trace(String.format("Checking whether %s has backup pressure", m_connection));
-            return m_connection.writeStream().hadBackPressure();
+            if (t) LOG.trace(String.format("Checking whether %s has backup pressure: %s", m_connection, m_hasBackupPressure));
+            return m_hasBackupPressure.get();
         }
-
 
         @Override
         public void stopping(Connection c) {
@@ -298,7 +318,7 @@ class Distributer {
                         "Connection to database host (" + m_hostname +
                         ") was lost before a response was received");
                 for (final Object stuff[] : m_callbacks.values()) {
-                    ((ProcedureCallback)stuff[1]).clientCallback(r);
+                    ((ProcedureCallback)stuff[2]).clientCallback(r);
                 }
             }
         }
@@ -352,10 +372,15 @@ class Distributer {
 
             final long invocationErrorsThisTime = m_invocationErrors - m_lastInvocationErrors;
             m_lastInvocationErrors = m_invocationErrors;
+
+            final long invocationsThrottledThisTime = m_invocationsThrottled - m_lastInvocationsThrottled;
+            m_lastInvocationsThrottled = m_invocationsThrottled;
+            
             return new long[] {
                     invocationsCompletedThisTime,
                     invocationsAbortsThisTime,
-                    invocationErrorsThisTime
+                    invocationErrorsThisTime,
+                    invocationsThrottledThisTime
             };
         }
 
@@ -636,6 +661,7 @@ class Distributer {
             new ColumnInfo( "INVOCATIONS_COMPLETED", VoltType.BIGINT),
             new ColumnInfo( "INVOCATIONS_ABORTED", VoltType.BIGINT),
             new ColumnInfo( "INVOCATIONS_FAILED", VoltType.BIGINT),
+            new ColumnInfo( "INVOCATIONS_THROTTLED", VoltType.BIGINT),
             new ColumnInfo( "BYTES_READ", VoltType.BIGINT),
             new ColumnInfo( "MESSAGES_READ", VoltType.BIGINT),
             new ColumnInfo( "BYTES_WRITTEN", VoltType.BIGINT),
@@ -797,6 +823,7 @@ class Distributer {
                             counters[0],
                             counters[1],
                             counters[2],
+                            counters[3],
                             bytesRead,
                             messagesRead,
                             bytesWritten,

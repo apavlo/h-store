@@ -251,12 +251,12 @@ final class ClientImpl implements Client {
         }
         if (m_backpressure) {
             synchronized (m_backpressureLock) {
-                if (m_backpressure) {
-                    while (m_backpressure && !m_isShutdown) {
-                            m_backpressureLock.wait();
-                    }
+                while (m_backpressure && !m_isShutdown) {
+                    LOG.info(String.format("Blocking client due to backup pressure [m_backpressure=%s]", m_backpressure));
+                    m_backpressureLock.wait();
+                    LOG.info(String.format("Unblocking client [m_backpressure=%s]", m_backpressure));
                 }
-            }
+            } // SYNCH
         }
     }
 
