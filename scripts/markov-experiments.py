@@ -84,7 +84,6 @@ OPT_LOAD_THREADS = 8
 OPT_SCALE_FACTOR = 10.0
 OPT_TRACE = False
 OPT_BLOCKING = False
-OPT_THROTTLING = True
 OPT_TXNRATE = -1
 OPT_DURATION = 120000
 OPT_WARMUP = 60000
@@ -113,7 +112,6 @@ if __name__ == '__main__':
     _options, args = getopt.gnu_getopt(sys.argv[1:], '', [
         "trials=",
         "blocking=",
-        "throttling=",
         "txnrate=",
         "duration=",
         "warmup=",
@@ -251,7 +249,6 @@ if __name__ == '__main__':
             "client.processesperclient":    OPT_CLIENT_PER_NODE,
             "client.txnrate":               CLIENT_TXNRATE,
             "client.blocking":              OPT_BLOCKING,
-            "client.throttling":            OPT_THROTTLING,
             "client.scalefactor":           OPT_SCALE_FACTOR,
         }
         benchmark_opts = {
@@ -269,7 +266,7 @@ if __name__ == '__main__':
         exp_opts["node.statusinterval"] = 20
 
         hstore_opts = dict(hstore_opts.items() + exp_opts.items())
-        hstore_opts_cmd = " ".join(map(lambda x: "-Dhstore.%s=%s" % (x, hstore_opts[x]), hstore_opts.keys()))
+        hstore_opts_cmd = " ".join(map(lambda x: "-D%s=%s" % (x, hstore_opts[x]), hstore_opts.keys()))
         benchmark_opts_cmd = " ".join(map(lambda x: "-D%s=%s" % (x, benchmark_opts[x]), benchmark_opts.keys()))
         ant_opts_cmd = " ".join([base_opts_cmd, hstore_opts_cmd, benchmark_opts_cmd])
 
