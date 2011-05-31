@@ -659,13 +659,12 @@ public class BenchmarkController {
      */
     public void runBenchmark() {
         if (this.stop) return;
-        LOG.info(String.format("Starting execution phase with %d clients [hosts=%d, perhost=%d, txnrate=%s, blocking=%s, throttling=%s]",
+        LOG.info(String.format("Starting execution phase with %d clients [hosts=%d, perhost=%d, txnrate=%s, blocking=%s]",
                                 m_clients.size(),
                                 m_config.clients.length,
                                 m_config.processesPerClient,
                                 m_config.parameters.get("TXNRATE"),
-                                m_config.parameters.get("BLOCKING"),
-                                m_config.parameters.get("THROTTLING")
+                                m_config.parameters.get("BLOCKING")
         ));
         
         // HACK
