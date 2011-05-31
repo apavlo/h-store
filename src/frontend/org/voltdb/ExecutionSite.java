@@ -684,13 +684,13 @@ public class ExecutionSite implements Runnable {
 
             } // WHILE
         } catch (final RuntimeException ex) {
-            LOG.fatal("Unexpected error for ExecutionSite Partition #" + this.partitionId, ex);
+            if (this.isShuttingDown() == false) LOG.fatal("Unexpected error for ExecutionSite Partition #" + this.partitionId, ex);
             this.hstore_messenger.shutdownCluster(new Exception(ex));
         } catch (AssertionError ex) {
-            LOG.fatal("Unexpected error for ExecutionSite Partition #" + this.partitionId, ex);
+            if (this.isShuttingDown() == false) LOG.fatal("Unexpected error for ExecutionSite Partition #" + this.partitionId, ex);
             this.hstore_messenger.shutdownCluster(new Exception(ex));
         } catch (Exception ex) {
-            LOG.fatal("Unexpected error for ExecutionSite Partition #" + this.partitionId, ex);
+            if (this.isShuttingDown() == false) LOG.fatal("Unexpected error for ExecutionSite Partition #" + this.partitionId, ex);
             this.hstore_messenger.shutdownCluster(new Exception(ex));
 //            throw new RuntimeException(ex);
         }
