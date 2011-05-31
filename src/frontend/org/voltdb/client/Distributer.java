@@ -298,7 +298,7 @@ class Distributer {
                         }
                     }
                 } else {
-                    LOG.warn("Failed to get callback for client handle #" + clientHandle);
+                    LOG.warn("Failed to get callback for client handle #" + clientHandle + " from " + this);
                 }
             } // SYNCH
 
@@ -320,8 +320,8 @@ class Distributer {
                 }
             } else if (m_isConnected) {
                 // TODO: what's the right error path here?
-                LOG.fatal("Invalid response: no callback");
-                assert(false);
+//                LOG.warn("No callback available for clientHandle " + clientHandle);
+//                assert(false);
             }
         }
 
