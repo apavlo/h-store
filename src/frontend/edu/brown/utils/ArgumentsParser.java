@@ -74,7 +74,6 @@ public class ArgumentsParser {
     public static final String PARAM_CATALOG_OUTPUT         = PARAM_CATALOG + ".output";
     public static final String PARAM_CATALOG_TYPE           = PARAM_CATALOG + ".type";
     public static final String PARAM_CATALOG_SCHEMA         = PARAM_CATALOG + ".schema";
-    public static final String PARAM_CATALOG_CLUSTER        = PARAM_CATALOG + ".cluster";
     
     public static final String PARAM_WORKLOAD               = "workload";
     public static final String PARAM_WORKLOAD_XACT_LIMIT    = PARAM_WORKLOAD + ".xactlimit";

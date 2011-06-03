@@ -740,6 +740,7 @@ public class ExecutionSite implements Runnable {
     public void setHStoreSite(HStoreSite hstore_site) {
         this.hstore_site = hstore_site;
         this.thresholds = (hstore_site != null ? hstore_site.getThresholds() : null);
+        if (t) LOG.trace(String.format("Setting EstimationThresholds for Partition %02d:\n%s", this.partitionId, this.thresholds.toString()));
     }
     
     public BackendTarget getBackendTarget() {
