@@ -437,6 +437,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
     
     private void setThresholds(EstimationThresholds thresholds) {
          this.thresholds = thresholds;
+         if (d) LOG.debug("Set new EstimationThresholds:\n" + thresholds);
     }
     
     /**
@@ -925,8 +926,8 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
                         if (d) LOG.debug("MarkovEstimate:\n" + estimate);
                         single_partition = estimate.isSinglePartition(this.thresholds);
                         predict_readonly = catalog_proc.getReadonly(); // FIXME
+                        predict_can_abort = predict_readonly == false || single_partition == false;
                         
-                        // can_abort = estimate.isUserAbort(this.thresholds);
                         if (this.status_monitor != null && predict_can_abort == false) TxnCounter.NO_UNDO_BUFFER.inc(catalog_proc);
                     }
                 }
@@ -1801,7 +1802,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
                      ArgumentsParser.PARAM_DTXN_ENGINE
         );
         HStoreConf.init(args);
-        if (d) LOG.debug("HStoreConf Parameters:\n" + HStoreConf.singleton().toString());
+        if (d) LOG.info("HStoreConf Parameters:\n" + HStoreConf.singleton().toString());
 
         // HStoreNode Stuff
         final int site_id = args.getIntParam(ArgumentsParser.PARAM_NODE_SITE);

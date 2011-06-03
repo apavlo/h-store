@@ -940,7 +940,7 @@ public class BenchmarkController {
         return retval;
     }
 
-    public static void main(final String[] vargs) {
+    public static void main(final String[] vargs) throws Exception {
         long interval = 10000;
         long duration = 60000;
         long warmup = 0;
@@ -1196,6 +1196,18 @@ public class BenchmarkController {
             } else if (parts[0].equalsIgnoreCase("DUMPDATABASEDIR")) {
                 dumpDatabaseDir = parts[1];
 
+            } else if (parts[0].equalsIgnoreCase("CLIENT.LOGDIR")) {
+                clientLogDir = parts[1];
+                FileUtil.makeDirIfNotExists(clientLogDir);
+                
+            } else if (parts[0].equalsIgnoreCase("COORDINATOR.LOGDIR")) {
+                coordLogDir = parts[1];
+                FileUtil.makeDirIfNotExists(coordLogDir);
+                
+            } else if (parts[0].equalsIgnoreCase("NODE.LOGDIR")) {
+                siteLogDir = parts[1];
+                FileUtil.makeDirIfNotExists(siteLogDir);
+                
             /** PAVLO **/
                 
             } else {

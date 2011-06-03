@@ -126,7 +126,8 @@ public class HStoreMessenger {
                 
                 // These errors are ok if we're actually stopping...
                 if (HStoreMessenger.this.state == MessengerState.STOPPED ||
-                    HStoreMessenger.this.state == MessengerState.PREPARE_STOP) {
+                    HStoreMessenger.this.state == MessengerState.PREPARE_STOP ||
+                    HStoreMessenger.this.hstore_site.isShuttingDown()) {
                     // IGNORE
                 } else {
                     LOG.fatal("Unexpected error in messenger listener thread", cause);
