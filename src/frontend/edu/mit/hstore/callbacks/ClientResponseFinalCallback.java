@@ -1,6 +1,9 @@
 package edu.mit.hstore.callbacks;
 
+import java.nio.ByteBuffer;
+
 import org.apache.log4j.Logger;
+import org.voltdb.ClientResponseImpl;
 
 import com.google.protobuf.RpcCallback;
 
@@ -23,25 +26,25 @@ public class ClientResponseFinalCallback extends AbstractTxnCallback implements 
         this.status = status;
     }
     
-    public byte[] getOutput() {
-        return output;
-    }
-    
     /**
      * We can finally send out the final answer to the client
      */
     @Override
     public void run(Dtxn.FinishResponse parameter) {
         final boolean d = LOG.isDebugEnabled();
-        
         // But only send the output to the client if this wasn't a mispredict
         assert(this.status != Dtxn.FragmentResponse.Status.ABORT_MISPREDICT);
-        if (d) {
-            LOG.debug("Invoking final response callback for txn #" + this.txn_id + " [" +
-                      "status=" + this.status + ", " + 
-                      "payload=" + parameter.hasPayload() + ", " +
-                      "bytes=" + this.output.length + "]");
-        }
+        
+        // Check whether we should disable throttling
+        boolean throttle = this.hstore_site.checkDisableThrottling(this.txn_id);
+        int timestamp = this.hstore_site.getNextServerTimestamp();
+        
+        ByteBuffer buffer = ByteBuffer.wrap(output);
+        ClientResponseImpl.setThrottleFlag(buffer, throttle);
+        ClientResponseImpl.setServerTimestamp(buffer, timestamp);
+        
+        if (d) LOG.debug(String.format("Invoking final response callback for txn #%d [status=%s, payload=%s, throttle=%s, timestamp=%d, bytes=%d]",  
+                                       this.txn_id, this.status, parameter.hasPayload(), throttle, timestamp, this.output.length));
         this.done.run(this.output);
         
         // Always clean-up the transaction with the HStoreSite

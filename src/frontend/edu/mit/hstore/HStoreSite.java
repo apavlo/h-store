@@ -43,6 +43,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.log4j.Logger;
 import org.voltdb.BackendTarget;
@@ -67,6 +68,7 @@ import org.voltdb.utils.DBBPool;
 
 import ca.evanjones.protorpc.NIOEventLoop;
 import ca.evanjones.protorpc.ProtoRpcChannel;
+import ca.evanjones.protorpc.ProtoRpcController;
 import ca.evanjones.protorpc.ProtoServer;
 
 import com.google.protobuf.ByteString;
@@ -278,6 +280,9 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
     protected final Database catalog_db;
     protected final PartitionEstimator p_estimator;
     protected final AbstractHasher hasher;
+    
+    /** Request counter **/
+    private final AtomicInteger server_timestamp = new AtomicInteger(0); 
 
     /** All of the partitions in the cluster */
     protected final List<Integer> all_partitions;
@@ -432,6 +437,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
     
     private void setThresholds(EstimationThresholds thresholds) {
          this.thresholds = thresholds;
+         if (d) LOG.debug("Set new EstimationThresholds:\n" + thresholds);
     }
     
     /**
@@ -448,6 +454,14 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
 
     public int getInflightTxnCount() {
         return (this.inflight_txns.size());
+    }
+    
+    /**
+     * Relative marker used 
+     * @return
+     */
+    public int getNextServerTimestamp() {
+        return (this.server_timestamp.getAndIncrement());
     }
     
     public void updateLogging() {
@@ -592,6 +606,25 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
      * @return
      */
     public boolean isThrottlingEnabled() {
+        return (this.throttle);
+    }
+    
+    /**
+     * Check to see whether this HStoreSite can disable throttling mode, and does so if it can
+     * Returns true if throttling is still enabled.
+     * @param txn_id
+     * @return
+     */
+    public boolean checkDisableThrottling(long txn_id) {
+        if (this.throttle) {
+            int queue_size = (this.inflight_txns.size() - 1);
+            if (queue_size < hstore_conf.txn_queue_release) {
+                this.voltListener.setThrottleFlag(false);
+                this.throttle = false;
+                if (d) LOG.debug(String.format("Disabling throttling because txn #%d finished [queue_size=%d, release_threshold=%d]",
+                                               txn_id, queue_size, hstore_conf.txn_queue_release));
+            }
+        }
         return (this.throttle);
     }
     
@@ -893,8 +926,8 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
                         if (d) LOG.debug("MarkovEstimate:\n" + estimate);
                         single_partition = estimate.isSinglePartition(this.thresholds);
                         predict_readonly = catalog_proc.getReadonly(); // FIXME
+                        predict_can_abort = predict_readonly == false || single_partition == false;
                         
-                        // can_abort = estimate.isUserAbort(this.thresholds);
                         if (this.status_monitor != null && predict_can_abort == false) TxnCounter.NO_UNDO_BUFFER.inc(catalog_proc);
                     }
                 }
@@ -910,7 +943,12 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
                 throw new RuntimeException(ex);
             }
         }
-        if (d) LOG.debug(String.format("Executing %s txn #%d on partition %d [single-partitioned=%s]", catalog_proc.getName(), txn_id, dest_partition, single_partition));
+        if (d) LOG.debug(String.format("Executing %s txn #%d on partition %d [singlePartition=%s, clientHandle=%d]",
+                                       catalog_proc.getName(),
+                                       txn_id,
+                                       dest_partition,
+                                       single_partition,
+                                       request.getClientHandle()));
 
         local_ts.init(txn_id, request.getClientHandle(), dest_partition.intValue(),
                       single_partition, predict_can_abort, estimator_state,
@@ -920,15 +958,18 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
             local_ts.total_time.start(timestamp);
             local_ts.init_time.start(timestamp);
         }
-        this.initializeInvocation(local_ts);
         
         // Look at the number of inflight transactions and see whether we should block and wait for the 
         // queue to drain for a bit
+        // NOTE: This needs to happen *before* we shove off the transaction
         if (this.throttle == false && this.inflight_txns.size() > hstore_conf.txn_queue_max) {
-            if (d) LOG.debug(String.format("HStoreSite is overloaded. Waiting for queue to drain [size=%d, trigger=%d]", this.inflight_txns.size(), hstore_conf.txn_queue_release));
+            if (d) LOG.debug(String.format("HStoreSite is overloaded at txn #%d. Waiting for queue to drain [size=%d, trigger=%d]",
+                                           txn_id, this.inflight_txns.size(), hstore_conf.txn_queue_release));
             this.throttle = true;
             this.voltListener.setThrottleFlag(true);
         }
+        
+        this.initializeInvocation(local_ts);
     }
     
     /**
@@ -1076,7 +1117,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
             
             Dtxn.CoordinatorFragment dtxn_request = requestBuilder.build();
             if (hstore_conf.enable_profiling) ProfileMeasurement.swap(txn_info.init_time, txn_info.coord_time);
-            this.coordinator.execute(txn_info.rpc_request_init, dtxn_request, callback);
+            this.coordinator.execute(new ProtoRpcController(), dtxn_request, callback); // txn_info.rpc_request_init
             if (d) LOG.debug(String.format("Sent Dtxn.CoordinatorFragment for txn #%d [bytes=%d]", txn_id, dtxn_request.getSerializedSize()));
         }
     }
@@ -1412,12 +1453,6 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         LocalTransactionState ts = this.inflight_txns.remove(txn_id);
         assert(ts != null) : "No LocalTransactionState for txn #" + txn_id;
 
-        if (this.throttle && this.inflight_txns.size() < hstore_conf.txn_queue_release) {
-            this.throttle = false;
-            this.voltListener.setThrottleFlag(false);
-            if (d) LOG.debug(String.format("Disabling throttling because txn #%d finished", txn_id));
-        }
-        
         int base_partition = ts.getBasePartition();
         boolean removed = this.canadian_txns[base_partition].remove(txn_id);
         if (d) {
@@ -1767,7 +1802,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
                      ArgumentsParser.PARAM_DTXN_ENGINE
         );
         HStoreConf.init(args);
-        if (d) LOG.debug("HStoreConf Parameters:\n" + HStoreConf.singleton().toString());
+        if (d) LOG.info("HStoreConf Parameters:\n" + HStoreConf.singleton().toString());
 
         // HStoreNode Stuff
         final int site_id = args.getIntParam(ArgumentsParser.PARAM_NODE_SITE);

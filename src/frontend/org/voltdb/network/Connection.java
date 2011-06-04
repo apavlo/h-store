@@ -22,7 +22,7 @@ public interface Connection {
      * Retrieve the write stream for this connection
      * @return Reference to a writable stream for outgoing data
      */
-    WriteStream writeStream();
+    NIOWriteStream writeStream();
 
     /**
      * Retrieve the read stream for this connection.

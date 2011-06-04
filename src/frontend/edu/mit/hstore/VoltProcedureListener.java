@@ -8,6 +8,7 @@ import java.nio.ByteOrder;
 import java.nio.channels.SelectableChannel;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.log4j.Logger;
 import org.voltdb.ClientResponseImpl;
@@ -33,14 +34,19 @@ public class VoltProcedureListener extends AbstractEventHandler {
     private final EventLoop eventLoop;
     private final Handler handler;
     private ServerSocketChannel serverSocket;
-    private boolean throttle = false;
+    private AtomicBoolean throttle = new AtomicBoolean(false);
     private static final VoltTable empty_result[] = new VoltTable[0];
+    
+    private final HStoreSite hstore_site;
 
     public VoltProcedureListener(EventLoop eventLoop, Handler handler) {
         this.eventLoop = eventLoop;
         this.handler = handler;
         assert this.eventLoop != null;
         assert this.handler != null;
+        
+        // HACK
+        this.hstore_site = (handler instanceof HStoreSite ? (HStoreSite)handler : null);
     }
 
     public void acceptCallback(SelectableChannel channel) {
@@ -169,14 +175,23 @@ public class VoltProcedureListener extends AbstractEventHandler {
             // If we're in throttle mode and this is not a sysproc, then reject this txn
             ByteBuffer buffer = ByteBuffer.wrap(request);
             boolean is_sysproc = StoredProcedureInvocation.isSysProc(buffer);
+            boolean _throttle = this.throttle.get();
             
-            if (this.throttle && is_sysproc == false) {
-                if (d) LOG.debug("Throttling is enabled. Rejecting transaction and asking client to wait...");
+            if (_throttle && is_sysproc == false) {
+                long clientHandle = StoredProcedureInvocation.getClientHandle(buffer);
+                int timestamp = -1;
                 
-                long clientHandle = StoredProcedureInvocation.getClientHandle(buffer); 
+                synchronized (this.throttle) {
+                    _throttle = this.throttle.get();
+                    timestamp = this.hstore_site.getNextServerTimestamp();
+                } // SYNCH
+                if (d) LOG.info(String.format("Throttling is enabled. Rejecting transaction and asking client to wait [clientHandle=%d, throttle=%s, timestamp=%d]",
+                                              clientHandle, _throttle, timestamp));
+                
                 ClientResponseImpl cresponse = new ClientResponseImpl(-1, ClientResponse.REJECTED, empty_result, "", clientHandle);
-                cresponse.setThrottleFlag(true);
-                
+                cresponse.setThrottleFlag(_throttle);
+                cresponse.setServerTimestamp(timestamp);
+                    
                 FastSerializer serializer = new FastSerializer();
                 try {
                     serializer.writeObject(cresponse);
@@ -201,7 +216,9 @@ public class VoltProcedureListener extends AbstractEventHandler {
     
     public void setThrottleFlag(boolean val) {
         if (LOG.isDebugEnabled()) LOG.debug("Setting throttle flag: " + val);
-        this.throttle = val;
+        synchronized (this.throttle) {
+            this.throttle.set(val);
+        } // SYNCH
     }
 
     public static StoredProcedureInvocation decodeRequest(byte[] bytes) {

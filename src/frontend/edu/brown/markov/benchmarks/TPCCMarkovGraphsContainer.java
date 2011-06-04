@@ -58,7 +58,7 @@ public class TPCCMarkovGraphsContainer extends MarkovGraphsContainer {
     
     public int processNeworder(long txn_id, int base_partition, Object[] params, Procedure catalog_proc) {
         // VALUE(D_ID) 
-        int d_id = ((Long)params[1]).intValue();
+        int d_id = ((Byte)params[1]).intValue();
         
         // ARRAYLENGTH[S_W_IDS]
         int arr_len = ((Object[])params[5]).length;

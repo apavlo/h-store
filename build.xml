@@ -465,7 +465,7 @@ JAVA COMPILATION
         todir='${build.test.dir}/org/voltdb/catalog'/>
 
     <!-- compile the individual source directories -->
-    <javac
+    <javac includeantruntime="false" 
         target="${javac.version}"
         srcdir="${build.protorpc.dir}"
         destdir='${build.prod.dir}'
@@ -473,7 +473,7 @@ JAVA COMPILATION
         <classpath refid="project.classpath" />
     </javac>
     
-    <javac
+    <javac includeantruntime="false"
         target="${javac.version}"
         srcdir="${src.hsqldb.dir}"
         destdir='${build.prod.dir}'
@@ -481,7 +481,7 @@ JAVA COMPILATION
         <classpath refid="project.classpath" />
     </javac>
 
-    <javac
+    <javac includeantruntime="false"
         target="${javac.version}"
         srcdir="${vendor.src.dir}"
         destdir='${build.prod.dir}'
@@ -489,7 +489,7 @@ JAVA COMPILATION
         <classpath refid="project.classpath" />
     </javac>
 
-    <javac
+    <javac includeantruntime="false"
         target="${javac.version}"
         srcdir="${src.frontend.dir}"
         destdir='${build.prod.dir}'
@@ -498,7 +498,7 @@ JAVA COMPILATION
     </javac>
 
     <!-- compile the individual test directories -->
-    <javac
+    <javac includeantruntime="false"
         target="${javac.version}"
         srcdir="${src.hsqldb.test.dir}"
         destdir='${build.test.dir}'
@@ -506,7 +506,7 @@ JAVA COMPILATION
         <classpath refid="project.classpath" />
     </javac>
 
-    <javac
+    <javac includeantruntime="false"
         target="${javac.version}"
         srcdir="${src.test.dir}"
         destdir='${build.test.dir}'
@@ -1310,7 +1310,7 @@ PROTOCOL BUFFERS
         <mkdir dir="@{destdir}"/>
         <!-- avoids needing ant clean when changing interfaces -->
         <depend srcdir="@{srcdir}" destdir="@{destdir}" cache="${depcache}"/>
-        <javac srcdir="@{srcdir}" destdir="@{destdir}" includeAntRuntime="no"
+        <javac includeantruntime="false" srcdir="@{srcdir}" destdir="@{destdir}" includeAntRuntime="no"
                 debug="${compile.debug}" source="${javac.version}">
             <compilerarg value="-Xlint:unchecked" />
             <!--<compilerarg value="-Xlint:deprecation" />-->
@@ -1426,7 +1426,7 @@ DTXN BINARIES + LIBRARIES
     <condition property="port" value="${coordinator.port}">
         <not><isset property="port"/></not>
     </condition>
-    <sleep seconds="${coordinator.delay}" />
+    <sleep milliseconds="${coordinator.delay}" />
     <exec executable="${build.dtxn.dir}/protodtxn/protodtxncoordinator">
         <arg line="${port}"/>
         <arg line="${build.dtxn.dir}/hstore.conf"/>
@@ -1440,7 +1440,7 @@ BENCHMARKS
 -->
 
 <target name='benchmark'
-    description="Compile VoltDB and run a benchmark">
+    description="Deploy a cluster and run a benchmark">
 	
     <java fork="true" failonerror="true"
         classname="org.voltdb.benchmark.BenchmarkController">
@@ -1452,8 +1452,7 @@ BENCHMARKS
         <jvmarg value="-Dlog4j.configuration=${basedir}/log4j.properties"/>
         <assertions><enable/></assertions>
 
-        <arg value="CLIENTHEAP=${volt.client.memory}" />
-        <arg value="SERVERHEAP=${volt.server.memory}" />
+        <arg value="CLIENTHEAP=${client.memory}" />
         <arg value="BACKEND=${backend}" />
         <arg value="HOSTCOUNT=${hostcount}" />
         <arg value="SITESPERHOST=${sitesperhost}"/>
@@ -1473,7 +1472,6 @@ BENCHMARKS
         <arg value="DURATION=${client.duration}" />
         <arg value="WARMUP=${client.warmup}" />
         <arg value="BLOCKING=${client.blocking}" />
-        <arg value="THROTTLING=${client.throttling}" />
         <arg value="TRACE=${trace}" />
         <arg value="PROFILESITES=${profilesites}" />
         <arg value="NOCOORDINATOR=${nocoordinator}" />
@@ -1489,6 +1487,11 @@ BENCHMARKS
         <!-- Benchmark Parameters -->
         <arg value="benchmark.client=${benchmark.client}" />
         <arg value="benchmark.datadir=${benchmark.datadir}"/>
+        
+        <!-- Log Directories -->
+        <arg value="node.logdir=${node.logdir}" />
+        <arg value="coordinator.logdir=${coordinator.logdir}" />
+        <arg value="client.logdir=${client.logdir}" />
 
         <!-- TPC-C parameters -->
         <arg value="benchmark.warehouses=${benchmark.warehouses}" />
@@ -2142,7 +2145,7 @@ OLTP Generator
 </target>
 
 <target name="oltpgen.compile" depends="oltpgen.clean, compile">
-        <javac 
+        <javac includeantruntime="false" 
                 target="${javac.version}"
                 srcdir="${src.test.dir}"
                 destdir="${build.test.dir}"

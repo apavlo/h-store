@@ -1,0 +1,199 @@
+import cotfd; 
+Solver<CP> cp();
+
+class BatchPartition {
+  set{int} partitions;
+
+  BatchPartition() {
+    partitions = new set{int}();
+  }
+
+  set{int} getPartitions() {
+    return partitions;
+  }
+}
+
+class TxnPartition {
+  int basePartition;
+  set{BatchPartition} partitions;
+
+  TxnPartition(int init_basePartition) {
+    basePartition = init_basePartition;
+    partitions = new set{BatchPartition}();
+  }
+
+  set{BatchPartition} getBatchPartitions() {
+    return partitions;
+  }
+
+  int getbasePartition() {
+    return basePartition;
+  }
+}
+
+class SystemInfo {
+  int num_partitions;
+  int num_sites;
+  int[] site_to_host;
+  int [] partition_size;
+  int site_capacity;
+
+  SystemInfo(int partition, int site, int[] s_to_h) {
+    num_partitions = partition;
+    num_sites = site;
+    site_to_host = s_to_h;
+    site_capacity = 4;
+    partition_size = new int[i in 0..num_partitions-1] = 1;
+  }
+
+  int getNumPartitions() {
+    return num_partitions;
+  }
+
+  int getNumSites() {
+    return num_sites;
+  }
+
+  int[] getSiteToHost() {
+    return site_to_host;
+  }
+
+  int[] getPartitionSize() {
+    return partition_size;
+  }
+  
+  int getSiteCapacity() {
+    return site_capacity;
+  }
+}
+
+// parse transaction trace file
+function dict{int->TxnPartition} calculateTransaction(string trace_file) {
+  ifstream file(trace_file);
+  int batch_count = file.getInt();
+  int xact_count = file.getInt();
+  dict{int->TxnPartition} partitions();
+  string [] batch_partitions;
+  TxnPartition xact_partition;
+  BatchPartition batch_partition;
+  for (int i = 0; i < xact_count; i++) {
+    batch_partition = new BatchPartition();
+    for (int j = 0; j < batch_count; j++) {
+      if (j != 0) {
+        batch_partitions = file.getLine().split(" ");
+	for (int k = 0; k < batch_partitions.getSize(); k++) {
+          //cout << "partition: " << batch_partitions[k] << endl;
+          if (batch_partitions[k] != " " && batch_partitions[k] != "") {
+            batch_partition.getPartitions().insert(batch_partitions[k].toInt()); 
+	    //cout << "inserted partition: " << batch_partitions[k].toInt() << endl;
+          }
+        }
+      } else {
+        // read base partition + instantiate transaction partition
+        xact_partition = new TxnPartition(file.getInt());
+      }
+    }
+    xact_partition.getBatchPartitions().insert(batch_partition);
+    partitions{i} = xact_partition;
+  }
+  return partitions;
+}
+
+// calculate transaction cost based on parsed transaction structure and partition to site decision variable
+function int calculateTransactionTraceCost(dict{int->TxnPartition} transactions, var<CP>{int}[] partition_site) {
+    enum PENALTY = {SAME_HOST,REMOTE_HOST};
+    int penalty[PENALTY] = [1,4];
+    int total_cost = 0;
+    for (int i = 0; i < transactions.getSize(); i++) {
+      TxnPartition xact_part = transactions{i};
+      int basePartition = xact_part.getbasePartition();
+      //cout << "base: " << xact_part.getbasePartition() << endl;
+      forall (batch in xact_part.getBatchPartitions()) {
+        forall (partition in batch.getPartitions()) {
+          //cout << "partition: " << partition << endl;
+          if (partition != basePartition) {
+            if (partition_site[partition].bound() && partition_site[basePartition].bound()) {
+	      if (partition_site[partition] == partition_site[basePartition]) {
+	        // Same site
+	        total_cost += penalty[SAME_HOST];
+                } else {
+	        total_cost += penalty[REMOTE_HOST];
+              }
+	    }
+          }
+        }
+      }
+    }
+    return total_cost;
+}
+
+// checks whether the given configuration satisifies the system memory requirements for each site
+function boolean satisfySystemRequirements(SystemInfo sys_info, var<CP>{int}[] partition_to_site) {
+  int capacity = sys_info.getSiteCapacity();
+  for (int site = 0; site < sys_info.getNumSites(); site++) {
+    cout << "current size is: " << site << endl;
+    int site_size = 0;
+    forall (i in partition_to_site.getRange()) {
+      if (partition_to_site[i] == site) {
+        cout << "site size: " << site_size << endl;
+        site_size = site_size + sys_info.getPartitionSize()[i];
+        cout << "partition " << i << " size: " << sys_info.getPartitionSize()[i] << endl;
+      }
+    }
+    if (site_size > capacity) {
+      return false;
+    }
+   }
+   return true;
+}
+
+
+// parse system information
+function SystemInfo processSystemInfo(string system_file) {
+  ifstream file(system_file);
+  string[] line = file.getLine().split(" ");
+  int partition_count = line[0].toInt();
+  int site_count = line[1].toInt();
+  //cout << "site count: " << site_count << endl;
+  int site_to_host[0..site_count-1] = -1;
+  for (int i = 0; i < site_count; i++) {
+    string[] data = file.getLine().split(":");
+    //cout << data[0] << endl;
+    site_to_host[i] = data[0].toInt();
+    //cout << "site: " << i << " host " << site_to_host[i] << endl;
+  }
+  SystemInfo si = new SystemInfo(partition_count, site_count, site_to_host);
+  return si;
+}
+
+// start function calls
+string[] args = System.getArgs();
+int partition_count = 0;
+int site_count = 0;
+SystemInfo sys_info = processSystemInfo(args[args.getSize() - 1]);
+range partition_range = 0..sys_info.getNumPartitions();
+int total_sites = sys_info.getNumSites();
+dict{int->TxnPartition} transactions = calculateTransaction(args[args.getSize() - 2]);
+
+// CP Solver - create and move to different class?
+var<CP>{int} partition_to_site[partition_range](cp,
+0..total_sites);
+minimize<cp>
+  calculateTransactionTraceCost(transactions, partition_to_site)
+subject to {
+  forall (p in partition_range) {
+    if (p != 0 && p % 8 == 0) {
+      cp.post(alldifferent(all(i in (p-8 .. p)) partition_to_site[i]));
+    }
+    cp.post(partition_to_site[p] != 0);
+  }
+}
+using {
+  labelFF(partition_to_site);
+  cout << "partition to site mapping " << partition_to_site << endl;
+  cout << "total cost: " << calculateTransactionTraceCost(transactions, partition_to_site) << endl;
+  // calls a function to check whether the current configuration is OK memory wise
+  // TODO: how to tell Comet to reassign if its not valid
+  cout << "Satisfys memory requirement: " << satisfySystemRequirements(sys_info, partition_to_site) << endl;
+  //cp.exit();
+}

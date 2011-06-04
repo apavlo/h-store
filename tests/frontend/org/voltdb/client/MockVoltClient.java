@@ -168,6 +168,17 @@ public class MockVoltClient implements Client {
                 // TODO Auto-generated method stub
                 
             }
+            
+            @Override
+            public int getServerTimestamp() {
+                // TODO Auto-generated method stub
+                return 0;
+            }
+            @Override
+            public void setServerTimestamp(int val) {
+                // TODO Auto-generated method stub
+                
+            }
         };
     }
 

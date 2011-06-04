@@ -143,7 +143,6 @@ public abstract class ClientMain {
     private final int m_txnRate;
     
     private final boolean m_blocking;
-    private final boolean m_throttling;
 
     /**
      * Number of transactions to generate for every millisecond of time that
@@ -535,7 +534,6 @@ public abstract class ClientMain {
         m_username = "";
         m_txnRate = -1;
         m_blocking = false;
-        m_throttling = false;
         m_txnsPerMillisecond = 0;
         m_catalogPath = null;
         m_id = 0;
@@ -571,7 +569,6 @@ public abstract class ClientMain {
         String reason = ""; // and error string
         int transactionRate = -1;
         boolean blocking = false;
-        boolean throttling = false;
         int id = 0;
         int num_clients = 0;
         int num_partitions = 0;
@@ -617,9 +614,6 @@ public abstract class ClientMain {
             }
             else if (parts[0].equalsIgnoreCase("BLOCKING")) {
                 blocking = Boolean.parseBoolean(parts[1]);
-            }
-            else if (parts[0].equalsIgnoreCase("THROTTLING")) {
-                throttling = Boolean.parseBoolean(parts[1]);
             }
             else if (parts[0].equalsIgnoreCase("ID")) {
                 id = Integer.parseInt(parts[1]);
@@ -679,7 +673,6 @@ public abstract class ClientMain {
         m_txnRate = transactionRate;
         m_txnsPerMillisecond = transactionRate / 1000.0;
         m_blocking = blocking;
-        m_throttling = throttling;
         
         if (m_catalogPath != null) {
             try {
@@ -691,10 +684,7 @@ public abstract class ClientMain {
             }
         }
 
-        if (m_throttling) {
-            LOG.debug("Using ThrottlingClient!");
-            m_voltClient = new ThrottlingClient(new_client);
-        } else if (m_blocking) {
+        if (m_blocking) {
             LOG.debug("Using BlockingClient!");
             m_voltClient = new BlockingClient(new_client);
         } else {
