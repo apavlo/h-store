@@ -684,13 +684,13 @@ public class ExecutionSite implements Runnable {
 
             } // WHILE
         } catch (final RuntimeException ex) {
-            LOG.fatal("Unexpected error for ExecutionSite Partition #" + this.partitionId, ex);
+            if (this.isShuttingDown() == false) LOG.fatal("Unexpected error for ExecutionSite Partition #" + this.partitionId, ex);
             this.hstore_messenger.shutdownCluster(new Exception(ex));
         } catch (AssertionError ex) {
-            LOG.fatal("Unexpected error for ExecutionSite Partition #" + this.partitionId, ex);
+            if (this.isShuttingDown() == false) LOG.fatal("Unexpected error for ExecutionSite Partition #" + this.partitionId, ex);
             this.hstore_messenger.shutdownCluster(new Exception(ex));
         } catch (Exception ex) {
-            LOG.fatal("Unexpected error for ExecutionSite Partition #" + this.partitionId, ex);
+            if (this.isShuttingDown() == false) LOG.fatal("Unexpected error for ExecutionSite Partition #" + this.partitionId, ex);
             this.hstore_messenger.shutdownCluster(new Exception(ex));
 //            throw new RuntimeException(ex);
         }
@@ -740,6 +740,7 @@ public class ExecutionSite implements Runnable {
     public void setHStoreSite(HStoreSite hstore_site) {
         this.hstore_site = hstore_site;
         this.thresholds = (hstore_site != null ? hstore_site.getThresholds() : null);
+        if (t) LOG.trace(String.format("Setting EstimationThresholds for Partition %02d:\n%s", this.partitionId, this.thresholds.toString()));
     }
     
     public BackendTarget getBackendTarget() {

@@ -659,13 +659,12 @@ public class BenchmarkController {
      */
     public void runBenchmark() {
         if (this.stop) return;
-        LOG.info(String.format("Starting execution phase with %d clients [hosts=%d, perhost=%d, txnrate=%s, blocking=%s, throttling=%s]",
+        LOG.info(String.format("Starting execution phase with %d clients [hosts=%d, perhost=%d, txnrate=%s, blocking=%s]",
                                 m_clients.size(),
                                 m_config.clients.length,
                                 m_config.processesPerClient,
                                 m_config.parameters.get("TXNRATE"),
-                                m_config.parameters.get("BLOCKING"),
-                                m_config.parameters.get("THROTTLING")
+                                m_config.parameters.get("BLOCKING")
         ));
         
         // HACK
@@ -941,7 +940,7 @@ public class BenchmarkController {
         return retval;
     }
 
-    public static void main(final String[] vargs) {
+    public static void main(final String[] vargs) throws Exception {
         long interval = 10000;
         long duration = 60000;
         long warmup = 0;
@@ -1197,6 +1196,18 @@ public class BenchmarkController {
             } else if (parts[0].equalsIgnoreCase("DUMPDATABASEDIR")) {
                 dumpDatabaseDir = parts[1];
 
+            } else if (parts[0].equalsIgnoreCase("CLIENT.LOGDIR")) {
+                clientLogDir = parts[1];
+                FileUtil.makeDirIfNotExists(clientLogDir);
+                
+            } else if (parts[0].equalsIgnoreCase("COORDINATOR.LOGDIR")) {
+                coordLogDir = parts[1];
+                FileUtil.makeDirIfNotExists(coordLogDir);
+                
+            } else if (parts[0].equalsIgnoreCase("NODE.LOGDIR")) {
+                siteLogDir = parts[1];
+                FileUtil.makeDirIfNotExists(siteLogDir);
+                
             /** PAVLO **/
                 
             } else {

@@ -28,8 +28,8 @@ public class MultiPartitionTxnCallback extends AbstractTxnCallback implements Rp
     
     @Override
     public void run(Dtxn.FragmentResponse response) {
-        final byte output[] = response.getOutput().toByteArray();
         final Dtxn.FragmentResponse.Status status = response.getStatus();
+        final byte output[] = response.getOutput().toByteArray(); // ClientResponse
         final boolean commit = (status == Dtxn.FragmentResponse.Status.OK);
         final boolean mispredict = (status == Dtxn.FragmentResponse.Status.ABORT_MISPREDICT); 
         

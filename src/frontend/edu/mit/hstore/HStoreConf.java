@@ -23,7 +23,7 @@ public final class HStoreConf {
      * Max size of queued transactions before we stop accepting new requests
      */
     public int txn_queue_max = 1000;
-    public int txn_queue_release = (int)(txn_queue_max * 0.25);  
+    public int txn_queue_release = Math.max(1, (int)(txn_queue_max * 0.25));  
     
     /**
      * Whether to enable speculative execution of single-partition transactions

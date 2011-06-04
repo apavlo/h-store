@@ -48,7 +48,6 @@ public class BenchmarkConfig {
     public final String remotePath;
     public final String remoteUser;
     public final boolean listenForDebugger;
-    public final int serverHeapSize;
     public final int clientHeapSize;
     public final boolean localmode;
     public final String useProfile;
@@ -152,7 +151,6 @@ public class BenchmarkConfig {
         this.remotePath = remotePath;
         this.remoteUser = remoteUser;
         this.listenForDebugger = listenForDebugger;
-        this.serverHeapSize = serverHeapSize;
         this.clientHeapSize = clientHeapSize;
         this.localmode = localmode;
         this.useProfile = useProfile;

@@ -79,6 +79,12 @@ public interface ClientResponse {
     public void setThrottleFlag(boolean val);
 
     /**
+     * Server Timestamp
+     */
+    public int getServerTimestamp();
+    public void setServerTimestamp(int val);
+    
+    /**
      * Returns true if this transaction executed as a single-partition txn
      * @return
      */

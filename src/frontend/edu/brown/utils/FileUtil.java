@@ -57,6 +57,13 @@ public abstract class FileUtil {
     public static String basename(String path) {
         return (new File(path)).getName();
     }
+    
+    public static void makeDirIfNotExists(String path) throws IOException {
+        File f = new File(path);
+        if (f.exists() == false) {
+            f.mkdirs();
+        }
+    }
 
     /**
      * Return a File handle to a temporary file location

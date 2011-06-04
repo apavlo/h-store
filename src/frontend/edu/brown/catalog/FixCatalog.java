@@ -197,12 +197,12 @@ public abstract class FixCatalog {
         } else {
             List<String> host_triplets = new ArrayList<String>();
             
-            if (args.hasParam(ArgumentsParser.PARAM_CATALOG_CLUSTER)) {
-                String contents = FileUtil.readFile(args.getParam(ArgumentsParser.PARAM_CATALOG_CLUSTER));
+            String hosts = args.getParam(ArgumentsParser.PARAM_SIMULATOR_HOST);
+            if (FileUtil.exists(hosts)) {
+                String contents = FileUtil.readFile(args.getParam(ArgumentsParser.PARAM_SIMULATOR_HOST));
                 CollectionUtil.addAll(host_triplets, contents.split("\n"));
             } else {
-                String hosts_list = args.getParam(ArgumentsParser.PARAM_SIMULATOR_HOST);
-                CollectionUtil.addAll(host_triplets, hosts_list.split(","));
+                CollectionUtil.addAll(host_triplets, hosts.split(","));
             }
                 
             ClusterConfiguration cc = new ClusterConfiguration();

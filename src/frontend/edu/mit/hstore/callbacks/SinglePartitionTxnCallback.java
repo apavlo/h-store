@@ -1,6 +1,9 @@
 package edu.mit.hstore.callbacks;
 
+import java.nio.ByteBuffer;
+
 import org.apache.log4j.Logger;
+import org.voltdb.ClientResponseImpl;
 
 import com.google.protobuf.RpcCallback;
 
@@ -25,7 +28,7 @@ public class SinglePartitionTxnCallback extends AbstractTxnCallback implements R
     @Override
     public void run(Dtxn.FragmentResponse response) {
         final Dtxn.FragmentResponse.Status status = response.getStatus();
-        final byte output[] = response.getOutput().toByteArray();
+        final byte output[] = response.getOutput().toByteArray(); // ClientResponse
         final boolean commit = (status == Dtxn.FragmentResponse.Status.OK);
         final boolean mispredict = (status == Dtxn.FragmentResponse.Status.ABORT_MISPREDICT); 
         
@@ -37,12 +40,20 @@ public class SinglePartitionTxnCallback extends AbstractTxnCallback implements R
         if (mispredict) {
             if (d) LOG.debug("Restarting txn #" + this.txn_id + " because it mispredicted");
             this.hstore_site.misprediction(this.txn_id, this.done);
+            
         // If the txn committed/aborted, then we can send the response directly back to the client here
         // Note that we don't even need to call HStoreSite.finishTransaction() since that doesn't do anything
         // that we haven't already done!
         } else {
-            if (d) LOG.debug("Sending back ClientResponse to txn #" + this.txn_id);
-            this.done.run(output);   
+            // Check whether we should disable throttling
+            boolean throttle = this.hstore_site.checkDisableThrottling(this.txn_id);
+            int timestamp = this.hstore_site.getNextServerTimestamp();
+            
+            ByteBuffer buffer = ByteBuffer.wrap(output);
+            ClientResponseImpl.setThrottleFlag(buffer, throttle);
+            ClientResponseImpl.setServerTimestamp(buffer, timestamp);
+            if (d) LOG.debug(String.format("Sending back ClientResponse to txn #%d [throttle=%s, timestamp=%d]", this.txn_id, throttle, timestamp));
+            this.done.run(output);
         }
 
         // But make sure we always call HStoreSite.completeTransaction() so that we cleanup whatever internal
