@@ -97,7 +97,7 @@ public class KillStragglers implements Runnable {
         
         String cmd[] = SSHTools.convert(m_username, m_hostname, m_remotePath, m_sshOptions, kill_cmd); 
         LOG.debug("KILL PUSSY CAT KILL: " + Arrays.toString(cmd));
-        //ShellTools.cmdToStdOut(cmd);
+        ShellTools.cmdToStdOut(cmd);
         LOG.debug("Finished killing at " + m_hostname);
     }
 }
