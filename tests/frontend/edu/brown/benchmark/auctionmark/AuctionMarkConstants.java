@@ -69,7 +69,7 @@ public abstract class AuctionMarkConstants {
     
     // Regular Txn Mix
     
-    public static final int FREQUENCY_GET_ITEM              = 40;
+    public static final int FREQUENCY_GET_ITEM              = 45; // 40 before, new user now 0
     public static final int FREQUENCY_GET_USER_INFO         = 10;
     public static final int FREQUENCY_GET_WATCHED_ITEMS     = 5;
     public static final int FREQUENCY_NEW_BID               = 18;
@@ -79,7 +79,7 @@ public abstract class AuctionMarkConstants {
     public static final int FREQUENCY_NEW_FEEDBACK          = 3;
     public static final int FREQUENCY_NEW_ITEM              = 10;
     public static final int FREQUENCY_NEW_PURCHASE          = 2;
-    public static final int FREQUENCY_NEW_USER              = 5;
+    public static final int FREQUENCY_NEW_USER              = 0; //5;
     public static final int FREQUENCY_UPDATE_ITEM           = 2;
     
 //    public static final int FREQUENCY_GET_ITEM              = 0;

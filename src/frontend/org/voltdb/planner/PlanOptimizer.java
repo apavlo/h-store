@@ -5,6 +5,7 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -1142,6 +1143,10 @@ public class PlanOptimizer {
 
         final int total_depth = PlanNodeUtil.getDepth(rootNode);
 
+//      System.out.println("UNOPTIMIZED TREE: ");
+//      System.out.println(PlanNodeUtil.debug(rootNode));
+//      System.out.println("\n");
+        
         if (debug)
             LOG.debug("Optimizing PlanNode Tree [total_depth=" + total_depth + "]");
         // if (debug) LOG.debug("PlanNodeTree:\n" +
@@ -1297,7 +1302,7 @@ public class PlanOptimizer {
                         assert (join_node_index.size() == join_tbl_mapping.size()) : "Join data structures don't have the same size!!!";
                         assert (join_tbl_mapping.get(element.getPlanNodeId()) != null) : "Element : " + element.getPlanNodeId() + " does NOT exist in join map!!!";
                         final Set<String> current_tbls_in_join = join_tbl_mapping.get(element.getPlanNodeId());
-                        final Set<PlanColumn> join_columns = new HashSet<PlanColumn>();
+                        final Set<PlanColumn> join_columns = new LinkedHashSet<PlanColumn>();
                         // traverse the tree from bottom up from the current nestloop index
                         final int outer_depth = this.getDepth();
                         final SortedMap<Integer, PlanColumn> proj_column_order = new TreeMap<Integer, PlanColumn>();
@@ -1306,14 +1311,14 @@ public class PlanOptimizer {
                          * current join node. (Sticks it between the send and
                          * join)
                          **/
-                        //final boolean top_join = (join_node_index.get(join_node_index.firstKey()) == element);
+                        final boolean top_join = (join_node_index.get(join_node_index.firstKey()) == element);
                         new PlanNodeTreeWalker(true) {
                             @Override
                             protected void callback(AbstractPlanNode inner_element) {
                                 int inner_depth = this.getDepth();
                                 if (inner_depth < outer_depth) {
                                     // only interested in projections and index scans
-                                    if (inner_element instanceof ProjectionPlanNode || inner_element instanceof IndexScanPlanNode || inner_element instanceof AggregatePlanNode) {
+                                    if (inner_element instanceof ProjectionPlanNode || inner_element instanceof IndexScanPlanNode) {
                                         Set<Column> col_set = planNodeColumns.get(inner_element);
                                         assert (col_set != null) : "Null column set for inner element: " + inner_element + "\n" + sql;
                                         //Map<String, Integer> current_join_output = new HashMap<String, Integer>();
@@ -1322,15 +1327,18 @@ public class PlanOptimizer {
                                         // those columns now!
                                         // iterate through columns and build the
                                         // projection columns
-//                                        if (top_join) {
-//                                            int index = 0;
-//                                            for (Integer output_guid : inner_element.m_outputColumns) {
-//                                                PlanColumn plan_col = m_context.get(output_guid);
-//                                                proj_column_order.put(index, plan_col);
-//                                                index++;
-//                                            }
-//                                        }
-//                                        else {
+                                        if (top_join) {
+                                            for (Integer output_guid : inner_element.m_outputColumns) {
+                                                PlanColumn plan_col = m_context.get(output_guid);
+                                                for (AbstractExpression exp : ExpressionUtil.getExpressions(plan_col.getExpression(), TupleValueExpression.class)) {
+                                                    TupleValueExpression tv_exp = (TupleValueExpression) exp;
+                                                    if (current_tbls_in_join.contains(tv_exp.getTableName())) {
+                                                        addProjectionColumn(join_columns, output_guid);
+                                                    }
+                                                }
+                                            }
+                                        }
+                                        else {
                                             for (Column col : col_set) {
                                                 Integer col_guid = CollectionUtil.getFirst(column_guid_xref.get(col));
                                                 PlanColumn plan_col = m_context.get(col_guid);
@@ -1341,7 +1349,19 @@ public class PlanOptimizer {
                                                     }
                                                 }
                                             }                                            
-//                                        }
+                                        }
+                                    } else if (inner_element instanceof AggregatePlanNode) {
+                                        Set<Column> col_set = planNodeColumns.get(inner_element);
+                                        for (Column col : col_set) {
+                                            Integer col_guid = CollectionUtil.getFirst(column_guid_xref.get(col));
+                                            PlanColumn plan_col = m_context.get(col_guid);
+                                            for (AbstractExpression exp : ExpressionUtil.getExpressions(plan_col.getExpression(), TupleValueExpression.class)) {
+                                                TupleValueExpression tv_exp = (TupleValueExpression) exp;
+                                                if (current_tbls_in_join.contains(tv_exp.getTableName())) {
+                                                    addProjectionColumn(join_columns, col_guid);
+                                                }
+                                            }
+                                        }                                                                                	
                                     }
                                 }
                             }

@@ -60,14 +60,15 @@ public abstract class FileUtil {
 
     /**
      * Return a File handle to a temporary file location
-     * @param ext the suffix of the filename (not including the period)
+     * @param ext the suffix of the filename
      * @param deleteOnExit whether to delete this file after the JVM exits
      * @return
      */
     public static File getTempFile(String ext, boolean deleteOnExit) {
         File tempFile;
+        if (ext.startsWith(".") == false) ext = "." + ext;
         try {
-            tempFile = File.createTempFile("hstore", "." + ext);
+            tempFile = File.createTempFile("hstore", ext);
             if (deleteOnExit) tempFile.deleteOnExit();
         } catch (Exception ex) {
             throw new RuntimeException(ex);
@@ -76,15 +77,16 @@ public abstract class FileUtil {
     }
     
     
-    public static void writeStringToFile(String file_path, String content) throws IOException {
-        FileUtil.writeStringToFile(new File(file_path), content);
+    public static File writeStringToFile(String file_path, String content) throws IOException {
+        return (FileUtil.writeStringToFile(new File(file_path), content));
     }
 
-    public static void writeStringToFile(File file, String content) throws IOException {
+    public static File writeStringToFile(File file, String content) throws IOException {
         FileWriter writer = new FileWriter(file);
         writer.write(content);
         writer.flush();
         writer.close();
+        return (file);
     }
     
     public static File writeStringToTempFile(String content) {

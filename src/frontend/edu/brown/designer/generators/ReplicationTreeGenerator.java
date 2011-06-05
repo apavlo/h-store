@@ -5,6 +5,7 @@ package edu.brown.designer.generators;
 
 import java.util.*;
 
+import org.apache.log4j.Logger;
 import org.voltdb.catalog.*;
 
 import edu.brown.designer.*;
@@ -16,6 +17,7 @@ import edu.uci.ics.jung.graph.util.EdgeType;
  *
  */
 public class ReplicationTreeGenerator extends AbstractGenerator<AbstractDirectedGraph<Vertex, Edge>> {
+    private static final Logger LOG = Logger.getLogger(ReplicationTreeGenerator.class);
 
     private final PartitionTree ptree;
     private final AccessGraph agraph;

@@ -43,7 +43,7 @@ public class LocalityLoader extends ClientMain {
     private static final int COMPOSITE_ID_OFFSET = 32;
     
     // scale all table cardinalities by this factor
-    private int m_scalefactor = 1;
+    private int m_scalefactor = 10;
     
     // When set to true, all operations will run single-threaded
     private boolean debug = true;

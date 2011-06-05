@@ -46,8 +46,11 @@ import java.util.concurrent.locks.ReentrantLock;
 import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.log4j.Logger;
 import org.voltdb.VoltTable;
+import org.voltdb.VoltTableRow;
 import org.voltdb.VoltType;
 import org.voltdb.catalog.Table;
+import org.voltdb.client.ClientResponse;
+import org.voltdb.client.ProcedureCallback;
 import org.voltdb.types.TimestampType;
 import org.voltdb.utils.CatalogUtil;
 import org.voltdb.utils.VoltTypeUtil;
@@ -56,6 +59,8 @@ import edu.brown.benchmark.auctionmark.model.Bid;
 import edu.brown.benchmark.auctionmark.model.AuctionMarkCategory;
 import edu.brown.benchmark.auctionmark.model.ItemInfo;
 import edu.brown.benchmark.auctionmark.util.AuctionMarkCategoryParser;
+import edu.brown.benchmark.locality.LocalityClient;
+import edu.brown.benchmark.locality.LocalityClient.Transaction;
 import edu.brown.rand.RandomDistribution.Flat;
 import edu.brown.rand.RandomDistribution.FlatHistogram;
 import edu.brown.rand.RandomDistribution.Gaussian;
@@ -168,6 +173,7 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
             load_threads.add(new Thread() {
                 @Override
                 public void run() {
+                	System.out.println("Table Name: " + tableName);
                     AuctionMarkLoader.this.generateTableData(tableName);
                 }
             });
@@ -190,8 +196,26 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
         
         this.saveProfile();
         LOG.info("Finished generating data for all tables");
+        
+//        // dwu 5/29: select * from users
+//        VoltTable[] results;
+//        try {
+//        	Object params[] = new Object[] {4998, 4999};
+//        	LOG.info("Calling proc GetUser .... ");
+//        	results = m_voltClient.callProcedure("GetUser", params).getResults();
+//        	LOG.info("Results number of records: " + results.length);
+//        	for (VoltTable vt : results) {
+//        		for (VoltTableRow vt_row : (VoltTableRow[])vt.getRowArray()) {
+//        			LOG.info("User id: " + vt_row.get(0).toString());
+//        		}
+//        	}
+//        } catch (Exception e) {
+//        	LOG.info("cause of the problem: " + e.getCause() + " message: " + e.getMessage());
+//             e.printStackTrace();
+//             System.exit(-1);
+//        }
     }
-
+    
     /**
      * Load the tuples for the given table name
      * 
@@ -630,6 +654,7 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
             int col = 0;
 
             long u_id = this.idGenerator.getNextId();
+            //System.out.println("U_id value is: " + u_id);
             profile.addUserId(u_id);
             
             // U_ID
@@ -691,7 +716,6 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
             this.tableSize = numAttributes;
             this.userAttributeItr = userAttributeMap.entrySet().iterator();
         }
-
         @Override
         protected void populateRow() {
             int col = 0;

@@ -274,21 +274,23 @@ public class ProcessSetManager {
     public void writeToAll(Command cmd) {
         LOG.debug(String.format("Sending %s to all processes", cmd));
         for (String processName : m_processes.keySet()) {
+        	System.out.println("cmd 1 : " + cmd.toString());
             this.writeToProcess(processName, cmd + "\n");
         }
     }
     
     public void writeToProcess(String processName, Command cmd) {
+    	System.out.println("cmd 2 : " + cmd.toString());
         this.writeToProcess(processName, cmd + "\n");
     }
     
     public void writeToProcess(String processName, String data) {
-        ProcessData pd = m_processes.get(processName);
+    	ProcessData pd = m_processes.get(processName);    		
         assert(pd != null);
-        OutputStreamWriter out = new OutputStreamWriter(pd.process.getOutputStream());
+        OutputStreamWriter out = new OutputStreamWriter(pd.process.getOutputStream());        	
         try {
-            out.write(data);
-            out.flush();
+	        out.write(data);
+	        out.flush();        		
         } catch (IOException e) {
             if (this.shutting_down == false) {
                 String msg = "";

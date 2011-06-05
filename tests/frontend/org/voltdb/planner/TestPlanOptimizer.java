@@ -136,7 +136,7 @@ public class TestPlanOptimizer extends BaseTestCase {
        final PlanOptimizer plan_opt = new PlanOptimizer(m_context, catalog_db);
        plan_opt.populateTableNodeInfo(rootNode);
        // check two hashmaps contain what we expect
-       checkPlanNodeColumns(plan_opt.planNodeColumns);
+       //checkPlanNodeColumns(plan_opt.planNodeColumns);
        checkTableColumns(plan_opt.tableColumns);
        System.out.println("Root Node: " + rootNode + " output columns: " + rootNode.m_outputColumns + " child type: " + rootNode.getChild(0).getPlanNodeType());
        // walk the tree and call extractColumnInfo on a rootNode

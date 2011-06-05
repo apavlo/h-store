@@ -1,11 +1,11 @@
 package edu.brown.graphs;
 
 import java.io.File;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.Set;
 
 import org.apache.log4j.Logger;
@@ -16,6 +16,7 @@ import edu.brown.designer.Edge;
 import edu.brown.designer.Vertex;
 import edu.brown.designer.generators.DependencyGraphGenerator;
 import edu.brown.utils.ArgumentsParser;
+import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.FileUtil;
 import edu.brown.utils.StringUtil;
 
@@ -30,7 +31,7 @@ public class GraphvizExport<V extends AbstractVertex, E extends AbstractEdge> {
     private static final Logger LOG = Logger.getLogger(GraphvizExport.class);
     
     // http://www.graphviz.org/doc/info/attrs.html
-    public enum Attributes {
+    public enum Attribute {
         BGCOLOR,
         COLOR,
         STYLE,
@@ -47,20 +48,25 @@ public class GraphvizExport<V extends AbstractVertex, E extends AbstractEdge> {
         NOJUSTIFY,
     };
 
-    public static class AttributeValues extends HashMap<Attributes, String> {
+    public static class AttributeValues extends HashMap<Attribute, String> {
         private static final long serialVersionUID = 1L;
         
         @Override
-        public String put(Attributes key, String value) {
+        public String put(Attribute key, String value) {
             LOG.debug(key + " => " + value);
             return super.put(key, value);
         }
         
-        public String toString(String delimiter) {
+        public String toString(String delimiter, Attribute...exclude) {
+            Set<Attribute> exclude_set = new HashSet<Attribute>();
+            if (exclude.length > 0) CollectionUtil.addAll(exclude_set, exclude);
+            
             final String f = (delimiter.equals("\n") ? StringUtil.SPACER : "") + "%s=\"%s\"" + delimiter;
             StringBuilder sb = new StringBuilder();
-            for (Entry<Attributes, String> e : this.entrySet()) {
-                sb.append(String.format(f, e.getKey().name().toLowerCase(), e.getValue()));        
+            for (Attribute a : this.keySet()) {
+                if (exclude_set.contains(a) == false) {
+                    sb.append(String.format(f, a.name().toLowerCase(), this.get(a)));        
+                }
             } // FOR
             return sb.toString();
         }
@@ -77,26 +83,26 @@ public class GraphvizExport<V extends AbstractVertex, E extends AbstractEdge> {
     private final AttributeValues global_graph_attrs = new AttributeValues() {
         private static final long serialVersionUID = 1L;
         {
-            this.put(Attributes.BGCOLOR, "white");
-            this.put(Attributes.PACK, "true");
-            this.put(Attributes.RATIO, "compress");
+            this.put(Attribute.BGCOLOR, "white");
+            this.put(Attribute.PACK, "true");
+            this.put(Attribute.RATIO, "compress");
         }
     };
     private final AttributeValues global_vertex_attrs = new AttributeValues() {
         private static final long serialVersionUID = 1L;
         {
-            this.put(Attributes.SHAPE, "rectangle");
-            this.put(Attributes.FILLCOLOR, "grey");
-            this.put(Attributes.COLOR, "black");
-            this.put(Attributes.STYLE, "filled");
-            this.put(Attributes.FONTSIZE, "11");
-            this.put(Attributes.NOJUSTIFY, "true");
+            this.put(Attribute.SHAPE, "rectangle");
+            this.put(Attribute.FILLCOLOR, "grey");
+            this.put(Attribute.COLOR, "black");
+            this.put(Attribute.STYLE, "filled");
+            this.put(Attribute.FONTSIZE, "11");
+            this.put(Attribute.NOJUSTIFY, "true");
         }
     };
     private final AttributeValues global_edge_attrs = new AttributeValues() {
         private static final long serialVersionUID = 1L;
         {
-            this.put(Attributes.FONTSIZE, "10");
+            this.put(Attribute.FONTSIZE, "10");
         }
     };
     
@@ -112,10 +118,18 @@ public class GraphvizExport<V extends AbstractVertex, E extends AbstractEdge> {
         this.graph = graph;
     }
     
+    /**
+     * If set to true, the Graphviz file will contain edge labels
+     * @param edge_labels
+     */
     public void setEdgeLabels(boolean edge_labels) {
         this.edge_labels = edge_labels;
     }
 
+    /**
+     * If set to true, the Graphviz file will include vertices that do not have any edges
+     * @param allowIsolated
+     */
     public void setAllowIsolated(boolean allowIsolated) {
         allow_isolated = allowIsolated;
     }
@@ -188,24 +202,34 @@ public class GraphvizExport<V extends AbstractVertex, E extends AbstractEdge> {
         b.append(StringUtil.SPACER).append("]\n");
 
         // Edges
-        Set<V> vertices = new HashSet<V>();
+        Set<V> all_vertices = new HashSet<V>();
+        // FORMAT: <Vertex0> <edgetype> <Vertex1>
+        final String edge_f = StringUtil.SPACER + "\"%s\" %s \"%s\" ";
         for (E edge : graph.getEdges()) {
-            V v0 = graph.getSource(edge);
-            vertices.add(v0);
-            V v1 = graph.getDest(edge);
-            vertices.add(v1);
+            List<V> edge_vertices = new ArrayList<V>(graph.getIncidentVertices(edge));
+            assert(edge_vertices.isEmpty() == false) : "No vertice for edge " + edge;
+            all_vertices.addAll(edge_vertices);
+
+            V v0 = edge_vertices.get(0);
+            assert(v0 != null) : "Source vertex is null for edge " + edge;
+            V v1 = edge_vertices.get(1);
+            assert(v1 != null) : "Destination vertex is null for edge " + edge;
             
-            // <Vertex0> <edgetype> <Vertex1>
-            b.append(StringUtil.SPACER)
-             .append('"').append(v0.toString()).append('"')
-             .append(edge_type)
-             .append('"').append(v1.toString()).append("\" ");
+            // Print Edge
+            b.append(String.format(edge_f, v0.toString(), edge_type, v1.toString())); 
             
             // Edge Attributes
             if (this.edge_labels || this.hasAttributes(edge)) {
+                String label = null;
+                AttributeValues av = this.getAttributes(edge);
+                if (av.containsKey(Attribute.LABEL)) {
+                    label = av.get(Attribute.LABEL);
+                } else if (this.edge_labels) {
+                    label = edge.toString();
+                }
                 b.append("[");
-                if (this.hasAttributes(edge)) b.append(this.getAttributes(edge).toString(" "));
-                if (this.edge_labels) b.append("label=\"").append(edge.toString()).append("\"");
+                if (this.hasAttributes(edge)) b.append(this.getAttributes(edge).toString(" ", Attribute.LABEL));
+                if (label != null) b.append("label=\"").append(this.escapeLabel(label)).append("\"");
                 b.append("] ");
             }
             b.append(";\n");
@@ -215,9 +239,9 @@ public class GraphvizExport<V extends AbstractVertex, E extends AbstractEdge> {
         String add = "\n";
         for (V v : graph.getVertices()) {
             // If this vertex wasn't a part of an edge and we don't allow for disconnected. then skip
-            if (!vertices.contains(v) && !this.allow_isolated) continue;
+            if (!all_vertices.contains(v) && !this.allow_isolated) continue;
             // If this vertex was a part of an edge but it doesn't have any custom attributes, then skip
-            if (vertices.contains(v) && !this.hasAttributes(v)) continue;
+            if (all_vertices.contains(v) && !this.hasAttributes(v)) continue;
             
             b.append(add).append(StringUtil.SPACER).append('"').append(v.toString()).append("\"");
             
@@ -236,6 +260,10 @@ public class GraphvizExport<V extends AbstractVertex, E extends AbstractEdge> {
         return (b.toString());
     }
 
+    private String escapeLabel(String label) {
+        return (label.replace("\n", "\\n"));
+    }
+    
     /**
      * Highlights the given edge path (with vertices) using the given color
      * @param path
@@ -244,13 +272,13 @@ public class GraphvizExport<V extends AbstractVertex, E extends AbstractEdge> {
     public void highlightPath(List<E> path, String highlight_color) {
         Integer highlight_width = 4;
         for (E e : path) {
-            this.getAttributes(e).put(Attributes.COLOR, highlight_color);
-            this.getAttributes(e).put(Attributes.PENWIDTH, Integer.toString(highlight_width * 2));
-            this.getAttributes(e).put(Attributes.STYLE, "bold");
+            this.getAttributes(e).put(Attribute.COLOR, highlight_color);
+            this.getAttributes(e).put(Attribute.PENWIDTH, Integer.toString(highlight_width * 2));
+            this.getAttributes(e).put(Attribute.STYLE, "bold");
             
             for (V v : this.graph.getIncidentVertices(e)) {
-                this.getAttributes(v).put(Attributes.COLOR, highlight_color);
-                this.getAttributes(v).put(Attributes.PENWIDTH, highlight_width.toString());
+                this.getAttributes(v).put(Attribute.COLOR, highlight_color);
+                this.getAttributes(v).put(Attribute.PENWIDTH, highlight_width.toString());
             } // FOR
         } // FOR
     }
@@ -298,8 +326,13 @@ public class GraphvizExport<V extends AbstractVertex, E extends AbstractEdge> {
      * @return
      * @throws Exception
      */
-    public static <V extends AbstractVertex, E extends AbstractEdge> String export(IGraph<V, E> graph, String name) throws Exception {
-        return (new GraphvizExport<V, E>(graph).export(name));
+    public static <V extends AbstractVertex, E extends AbstractEdge> String export(IGraph<V, E> graph, String name) {
+        GraphvizExport<V, E> gv = new GraphvizExport<V, E>(graph);
+        try {
+            return gv.export(name);
+        } catch (Exception ex) {
+            throw new RuntimeException(ex);
+        }
     }
     
     public static void main(String[] vargs) throws Exception {

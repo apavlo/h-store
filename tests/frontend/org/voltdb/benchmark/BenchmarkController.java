@@ -722,8 +722,11 @@ public class BenchmarkController {
                 // make all the clients poll
                 if (debug.get()) LOG.debug(String.format("Sending %s to %d clients", Command.POLL, m_clients.size()));
                 for (String clientName : m_clients)
-                    m_clientPSM.writeToProcess(clientName, Command.POLL);
-
+                {
+                	System.out.println("Client Name: " + clientName + " Data: " + Command.POLL);
+                    m_clientPSM.writeToProcess(clientName, Command.POLL);               	
+                }
+ 
                 // get ready for the next interval
                 nextIntervalTime = m_config.interval * (m_pollIndex.get() + 1) + startTime;
             }

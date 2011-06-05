@@ -233,6 +233,7 @@ public abstract class ClientMain {
     class ControlPipe implements Runnable {
 
         public void run() {
+        	LOG.info("STARTING THE CLIENT");
             final Thread self = Thread.currentThread();
             self.setName(String.format("client-%02d", m_id));
             
@@ -245,6 +246,7 @@ public abstract class ClientMain {
             if (m_controlState == ControlState.PREPARING) {
                 printControlMessage(ControlState.READY);
                 m_controlState = ControlState.READY;
+            	LOG.info("TRANSITION READY TO START");
             } else {
                 LOG.error("Not starting prepared!");
                 LOG.error(m_controlState.display + " " + m_reason);

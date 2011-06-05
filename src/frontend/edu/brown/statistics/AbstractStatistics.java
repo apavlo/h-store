@@ -29,12 +29,15 @@ import java.lang.reflect.Field;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.SortedMap;
+
+import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.log4j.Logger;
 
 import org.json.*;
 import org.voltdb.catalog.*;
 
 import edu.brown.catalog.CatalogKey;
+import edu.brown.utils.StringUtil;
 import edu.brown.workload.*;
 
 /**
@@ -107,39 +110,33 @@ public abstract class AbstractStatistics<T extends CatalogType> implements JSONS
     
     @SuppressWarnings("unchecked")
     protected String debug(Database catalog_db, Enum<?> elements[]) {
-        StringBuilder buffer = new StringBuilder();
-        buffer.append(this.getCatalogItem(catalog_db).toString()).append("\n");
-        
+        Map<String, Object> m = new ListOrderedMap<String, Object>();
         try {
             Class<?> statsClass = this.getClass();
             for (Enum<?> element : elements) {
                 Field field = statsClass.getDeclaredField(element.toString().toLowerCase());
                 Object value = field.get(this);
-                buffer.append(DEBUG_SPACER).append(element.toString()).append(": ");
                 
                 if (field.getClass().isAssignableFrom(SortedMap.class)) {
-                    buffer.append("\n");
-                    for (Object key : ((SortedMap)value).keySet()) {
-                        Object inner = ((SortedMap)value).get(key);
-                        buffer.append(DEBUG_SPACER).append(DEBUG_SPACER).append(key).append(": ");
-                        if (inner instanceof AbstractStatistics<?>) {
-                            buffer.append(((AbstractStatistics<?>)inner).debug(catalog_db));
-                        } else {
-                            buffer.append(inner);
+                    SortedMap orig_value = (SortedMap)value;
+                    Map<String, Object> inner_m = new ListOrderedMap<String, Object>();
+                    for (Object inner_key : orig_value.keySet()) {
+                        Object inner_val = orig_value.get(inner_key);
+                        if (inner_val instanceof AbstractStatistics<?>) {
+                            inner_val = ((AbstractStatistics<?>)inner_val).debug(catalog_db);
                         }
-                        buffer.append("\n");
+                        inner_m.put(inner_key.toString(), inner_val);
                     } // FOR
-                } else {
-                    buffer.append(value).append("\n");
+                    value = StringUtil.formatMaps(inner_m);
                 }
+                m.put(element.toString(), value);
             } // FOR
         } catch (Exception ex) {
             ex.printStackTrace();
             System.exit(1);
         }
-        
-        
-        
+        StringBuilder buffer = new StringBuilder();
+        buffer.append(this.getCatalogItem(catalog_db).toString()).append("\n").append(StringUtil.prefix(StringUtil.formatMaps(m), DEBUG_SPACER));
         return (buffer.toString());
     }
     

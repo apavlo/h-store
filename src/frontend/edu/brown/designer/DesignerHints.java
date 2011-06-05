@@ -3,6 +3,7 @@ package edu.brown.designer;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.lang.reflect.Field;
 import java.util.*;
 import java.util.Map.Entry;
 
@@ -19,6 +20,7 @@ import edu.brown.catalog.special.ReplicatedColumn;
 import edu.brown.utils.JSONSerializable;
 import edu.brown.utils.JSONUtil;
 import edu.brown.utils.LoggerUtil;
+import edu.brown.utils.StringUtil;
 
 public class DesignerHints implements Cloneable, JSONSerializable {
     private static final Logger LOG = Logger.getLogger(DesignerHints.class);
@@ -225,6 +227,23 @@ public class DesignerHints implements Cloneable, JSONSerializable {
      */
     public DesignerHints() {
         this.start_time = System.currentTimeMillis();
+    }
+    
+    @Override
+    public String toString() {
+        Class<?> hints_class = this.getClass();
+        SortedMap<String, Object> m = new TreeMap<String, Object>();
+        for (Field f : hints_class.getFields()) {
+            String key = f.getName().toUpperCase();
+            Object val = null;
+            try {
+                val = f.get(this);
+            } catch (IllegalAccessException ex) {
+                val = ex.getMessage();
+            }
+            m.put(key, val);
+        } // FOR
+        return (StringUtil.formatMaps(m));
     }
     
     /**

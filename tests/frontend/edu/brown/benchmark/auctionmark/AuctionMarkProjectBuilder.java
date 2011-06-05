@@ -81,7 +81,7 @@ public class AuctionMarkProjectBuilder extends AbstractProjectBuilder {
         {AuctionMarkConstants.TABLENAME_USER, "U_ID"},
         {AuctionMarkConstants.TABLENAME_USER_ATTRIBUTES, "UA_U_ID"},
         {AuctionMarkConstants.TABLENAME_USER_ITEM, "UI_U_ID"},
-        {AuctionMarkConstants.TABLENAME_USER_WATCH, "UW_U_ID"},
+        //{AuctionMarkConstants.TABLENAME_USER_WATCH, "UW_U_ID"},
         {AuctionMarkConstants.TABLENAME_ITEM, "I_U_ID"},
         {AuctionMarkConstants.TABLENAME_ITEM_ATTRIBUTE, "IA_U_ID"},
         {AuctionMarkConstants.TABLENAME_ITEM_IMAGE, "II_U_ID"},
