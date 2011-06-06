@@ -406,7 +406,7 @@ public class BenchmarkController {
                 String host = triplet[0];
                 String port = triplet[1];
                 int site_id = Integer.valueOf(triplet[2]);
-                String host_id = String.format("site-%s-%d", host, site_id);
+                String host_id = String.format("site-%02d-%s", site_id, host);
                 
                 // Check whether this one of the sites that will be started externally
                 if (m_config.profileSiteIds.contains(site_id)) {
@@ -619,8 +619,8 @@ public class BenchmarkController {
                 @Override
                 public void run() {
                     for (int j = 0; j < m_config.processesPerClient; j++) {
-                        int id = clientIndex.getAndIncrement();
-                        String host_id = String.format("%s-%02d", client, id);
+                        int client_id = clientIndex.getAndIncrement();
+                        String host_id = String.format("client-%02d-%s", client_id, client);
                         
                         if (m_config.listenForDebugger) {
                             clArgs.remove(1);
@@ -628,7 +628,7 @@ public class BenchmarkController {
                                 + (8003 + j) + ",server=y,suspend=n ";
                             clArgs.add(1, arg);
                         }
-                        client_args.add("ID=" + id);
+                        client_args.add("ID=" + client_id);
                         client_args.add("NUMCLIENTS=" + numClients);
                         String[] args = client_args.toArray(new String[0]);
         

@@ -81,6 +81,7 @@ public class ResultsPrinter implements BenchmarkController.BenchmarkInterest {
             System.out.println("Breakdown by client:");
             for (String clientName : results.getClientNames()) {
                 txnCount = getTotalCountForClient(clientName, results);
+                clientName = clientName.replace("client-", "");
                 System.out.printf("%23s: %10d total %12.2f txn/s %12.2f txn/m\n",
                         clientName,
                         txnCount,

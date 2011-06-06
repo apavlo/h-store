@@ -159,17 +159,32 @@ bool ProjectionExecutor::p_execute(const NValueArray &params) {
         if (all_tuple_array != NULL) {
             VOLT_TRACE("sweet, all tuples");
             for (int ctr = num_of_columns - 1; ctr >= 0; --ctr) {
-                temp_tuple.setNValue(ctr, tuple.getNValue(all_tuple_array[ctr]));
-            }
+                try {
+                    temp_tuple.setNValue(ctr, tuple.getNValue(all_tuple_array[ctr]));
+                } catch (SerializableEEException &e) {
+                    VOLT_ERROR("[Type0] Failed to project column #%02d: %s", ctr, e.message().c_str());
+                    throw e;
+                }
+            } // FOR
         } else if (all_param_array != NULL) {
             VOLT_TRACE("sweet, all params");
             for (int ctr = num_of_columns - 1; ctr >= 0; --ctr) {
-                temp_tuple.setNValue(ctr, params[all_param_array[ctr]]);
-            }
+                try {
+                    temp_tuple.setNValue(ctr, params[all_param_array[ctr]]);
+                } catch (SerializableEEException &e) {
+                    VOLT_ERROR("[Type1] Failed to project column #%02d: %s", ctr, e.message().c_str());
+                    throw e;
+                }   
+            } // FOR
         } else {
             for (int ctr = num_of_columns - 1; ctr >= 0; --ctr) {
-                temp_tuple.setNValue(ctr, expression_array[ctr]->eval(&tuple, NULL));
-            }
+                try {
+                    temp_tuple.setNValue(ctr, expression_array[ctr]->eval(&tuple, NULL));
+                } catch (SerializableEEException &e) {
+                    VOLT_ERROR("[Type2] Failed to project column #%02d: %s", ctr, e.message().c_str());
+                    throw e;
+                }
+            } // FOR
         }
         output_table->insertTupleNonVirtual(temp_tuple);
         /*if (!output_table->insertTupleNonVirtual(temp_tuple)) {
