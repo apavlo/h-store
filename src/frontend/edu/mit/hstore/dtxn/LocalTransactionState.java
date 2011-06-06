@@ -25,15 +25,7 @@
  ***************************************************************************/
 package edu.mit.hstore.dtxn;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
-import java.util.Queue;
-import java.util.Set;
+import java.util.*;
 import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -80,6 +72,8 @@ public class LocalTransactionState extends TransactionState {
     private static boolean d = debug.get();
     private static boolean t = trace.get();
 
+    private static final Set<FragmentTaskMessage> EMPTY_SET = new HashSet<FragmentTaskMessage>();
+    
     // ----------------------------------------------------------------------------
     // INTERNAL PARTITION+DEPENDENCY KEY
     // ----------------------------------------------------------------------------
@@ -274,8 +268,10 @@ public class LocalTransactionState extends TransactionState {
     
     /**
      * Unblocked FragmentTaskMessages
+     * The VoltProcedure thread will block on this queue waiting for tasks to execute inside of ExecutionSite
+     * This has to be a set so that we make sure that we only submit a single message that contains all of the tasks to the Dtxn.Coordinator
      */
-    private final LinkedBlockingDeque<FragmentTaskMessage> unblocked_tasks = new LinkedBlockingDeque<FragmentTaskMessage>(); 
+    private final LinkedBlockingDeque<Collection<FragmentTaskMessage>> unblocked_tasks = new LinkedBlockingDeque<Collection<FragmentTaskMessage>>(); 
     
     /**
      * These are the DependencyIds that we don't bother returning to the ExecutionSite
@@ -685,7 +681,7 @@ public class LocalTransactionState extends TransactionState {
     protected Set<FragmentTaskMessage> getBlockedFragmentTaskMessages() {
         return (this.blocked_tasks);
     }
-    public LinkedBlockingDeque<FragmentTaskMessage> getUnblockedFragmentTaskMessageQueue() {
+    public LinkedBlockingDeque<Collection<FragmentTaskMessage>> getUnblockedFragmentTaskMessageQueue() {
         return (this.unblocked_tasks);
     }
     
@@ -1018,11 +1014,15 @@ public class LocalTransactionState extends TransactionState {
 
             final boolean complete = (result != null ? dinfo.addResult(partition, result) : dinfo.addResponse(partition));
             if (complete) {
-                if (t) LOG.trace("Received all RESULTS + RESPONSES for [stmt#" + stmt_index + ", dep#=" + dependency_id + "] for txn #" + this.txn_id);
+                if (t) LOG.trace("Received all RESULTS + RESPONSES for [stmt#=" + stmt_index + ", dep#=" + dependency_id + "] for txn #" + this.txn_id);
                 this.received_ctr++;
                 if (this.dependency_latch != null) {
                     this.dependency_latch.countDown();
-                    if (t) LOG.trace("Setting CountDownLatch to " + this.dependency_latch.getCount() + " for txn #" + this.txn_id);
+                    
+                    // HACK: If the latch is now zero, then push an EMPTY set into the unblocked queue
+                    long count = this.dependency_latch.getCount();
+                    if (count == 0) this.unblocked_tasks.offer(EMPTY_SET);
+                    if (t) LOG.trace("Setting CountDownLatch to " + count + " for txn #" + this.txn_id);
                 }    
             }
         } // SYNC
@@ -1037,44 +1037,17 @@ public class LocalTransactionState extends TransactionState {
      * @param dependency_id
      * @param result
      */
-    private synchronized void executeBlockedTasks(DependencyInfo d) {
-        
+    private void executeBlockedTasks(DependencyInfo dinfo) {
+        Set<FragmentTaskMessage> to_unblock = dinfo.getAndReleaseBlockedFragmentTaskMessages();
         // Always double check whether somebody beat us to the punch
-        if (this.blocked_tasks.isEmpty() || d.blocked_tasks_released) return;
-        
-//        List<FragmentTaskMessage> to_execute = new ArrayList<FragmentTaskMessage>();
-        Set<FragmentTaskMessage> tasks = d.getAndReleaseBlockedFragmentTaskMessages();
-        for (FragmentTaskMessage unblocked : tasks) {
-            assert(unblocked != null);
-            assert(this.blocked_tasks.contains(unblocked));
-            if (t) LOG.trace("Unblocking FragmentTaskMessage that was waiting for DependencyId #" + d.getDependencyId() + " in txn #" + this.txn_id);
-            this.unblocked_tasks.add(unblocked);
-            this.blocked_tasks.remove(unblocked);
-            
-//            // If this task needs to execute locally, then we'll just queue up with the Executor
-//            if (d.blocked_all_local) {
-//                if (t) LOG.info("Sending unblocked task to local ExecutionSite for txn #" + this.txn_id);
-//                this.unblocked_tasks.add(unblocked);
-//                
-//            // Otherwise we will push out to the coordinator to handle for us
-//            // But we have to make sure that we attach the dependencies that they need 
-//            // so that the other partition can get to them
-//            } else {
-//                if (t) LOG.trace("Sending unblocked task to partition #" + unblocked.getDestinationPartitionId() + " with attached results for txn #" + this.txn_id);
-//                to_execute.add(unblocked);
-//            }
-        } // FOR
-//        if (!to_execute.isEmpty()) {
-//            if (t) LOG.info(String.format("Txn #%d is requesting %d unblocked tasks to be executed", this.txn_id, to_execute.size()));
-//            try {
-//                this.executor.requestWork(this, to_execute);
-//            } catch (MispredictionException ex) {
-//                this.setPendingError(ex);
-//                if (this.dependency_latch != null) {
-//                    while (this.dependency_latch.getCount() > 0) this.dependency_latch.countDown();
-//                }
-//            }
-//        }
+        if (to_unblock == null) {
+            if (t) LOG.trace(String.format("No new FragmentTaskMessages available to unblock for txn #%d. Ignoring...", this.txn_id));
+            return;
+        }
+        if (d) LOG.debug(String.format("Got %d FragmentTaskMessages to unblock for txn #%d that were waiting for DependencyId %d",
+                                       to_unblock.size(), this.txn_id, dinfo.getDependencyId()));
+        this.blocked_tasks.removeAll(to_unblock);
+        this.unblocked_tasks.add(to_unblock);
     }
 
     /**

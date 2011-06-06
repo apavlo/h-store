@@ -919,6 +919,7 @@ public abstract class VoltProcedure implements Poolable {
             batchQueryStmts[batchQueryStmtIndex++] = stmt;
             batchQueryArgs[batchQueryArgsIndex++] = args;
         }
+        if (t) LOG.trace("Batching Statement: " + stmt.getText());
     }
 
     /**
@@ -1063,7 +1064,7 @@ public abstract class VoltProcedure implements Poolable {
 
                 msg += "\nTRANSACTION STATE\n" + this.m_localTxnState.toString();
                 
-                LOG.fatal("\n" + msg);
+                LOG.warn("\n" + msg);
             }
             
             // Crash on Misprediction!
@@ -1098,7 +1099,7 @@ public abstract class VoltProcedure implements Poolable {
                 } else {
                     LOG.warn("No TransactionEstimator.State! Can't dump out MarkovGraph!");
                 }
-                LOG.info(this.m_localTxnState);
+                LOG.fatal("Crashing because mispredict_crash is true!\n" + this.m_localTxnState);
                 
                 this.executor.crash(ex);
             }

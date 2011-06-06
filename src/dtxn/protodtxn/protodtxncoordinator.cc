@@ -40,13 +40,13 @@ public:
     }
 
     void setResponse(RpcController* controller, CoordinatorResponse* response, Closure* done) {
-        LOG_DEBUG("Set Response Txn Id #%ld", id_);
-        assert(controller_ == NULL);
-        assert(response_ == NULL);
-        assert(done_ == NULL);
+        LOG_DEBUG("Set Response Txn #%ld", id_);
+        CHECK_M(controller_ == NULL, "RpcController already invoked for Txn #%ld", id_);
+        CHECK_M(response_ == NULL, "CoordinatorResponse is already set for Txn #%ld", id_);
+        CHECK_M(done_ == NULL, "Already executed done callback for Txn #%ld", id_);
         //~ assert(controller != NULL);
-        assert(response != NULL);
-        assert(done != NULL);
+        CHECK_M(response != NULL, "Incoming RpcController is NULL for Txn #%ld", id_);
+        CHECK_M(done != NULL, "Incoming done callback is NULL for Txn #%ld", id_);
         controller_ = controller;
         response_ = response;
         done_ = done;

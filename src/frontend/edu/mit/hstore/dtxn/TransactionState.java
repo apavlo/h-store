@@ -208,7 +208,7 @@ public abstract class TransactionState implements Poolable {
         this.round_state = RoundState.INITIALIZED;
         this.pending_error = null;
         
-        if (d) LOG.debug(String.format("Initializing new round information for %s local txn #%d [undoToken=%d]",
+        if (d) LOG.debug(String.format("Initializing new round information for %slocal txn #%d [undoToken=%d]",
                                        (this.exec_local ? "" : "non-"), this.txn_id, undoToken));
     }
     

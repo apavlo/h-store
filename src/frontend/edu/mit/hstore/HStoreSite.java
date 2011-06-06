@@ -1162,7 +1162,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         
         Set<Long> multip_txns = this.canadian_txns[partition];
         assert(multip_txns != null) : "Missing multi-partition txn id set at partition " + partition;
-        if (d && multip_txns.isEmpty()) LOG.debug(String.format("Enabling Dtxn.Coordinator CANADIAN mode [txn=#%d]", txn_id));
+        if (d && multip_txns.isEmpty()) LOG.debug(String.format("Enabling Dtxn.Coordinator CANADIAN mode for partition %d [txn=#%d]", partition, txn_id));
         multip_txns.add(txn_id);
         
         if (msg instanceof InitiateTaskMessage) {
@@ -1319,7 +1319,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         Set<Integer> new_done = new_ts.getDonePartitions();
         new_done.addAll(this.all_partitions);
         new_done.removeAll(touched.values());
-        if (t) LOG.trace(String.format("Txn #%d Mispredicted partitions %s", txn_id, orig_ts.getTouchedPartitions()));
+        if (t) LOG.trace(String.format("Txn #%d Mispredicted partitions\n%s", txn_id, orig_ts.getTouchedPartitions()));
         
         this.initializeInvocation(new_ts);
     }
@@ -1905,7 +1905,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
                 kill_when_hanging = args.getBooleanParam(ArgumentsParser.PARAM_NODE_STATUS_INTERVAL_KILL);
             }
             if (interval > 0) {
-                LOG.info(String.format("Enabling StatusMonitorThread [interval=%d, kill=%s]", interval, kill_when_hanging));
+                LOG.debug(String.format("Enabling StatusMonitorThread [interval=%d, kill=%s]", interval, kill_when_hanging));
                 site.enableStatusMonitor(interval, kill_when_hanging);
             }
         }

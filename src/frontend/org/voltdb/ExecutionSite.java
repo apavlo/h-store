@@ -17,6 +17,7 @@
 
 package org.voltdb;
 
+import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.commons.pool.ObjectPool;
 import org.apache.commons.pool.impl.StackObjectPool;
 import org.apache.log4j.Logger;
@@ -847,7 +848,7 @@ public class ExecutionSite implements Runnable {
         // we can be sure that the VoltProcedure knows about the problem when it wakes the stored 
         // procedure back up
         if (fresponse.getStatusCode() != FragmentResponseMessage.SUCCESS) {
-            if (t) LOG.trace("Received non-success response " + fresponse.getStatusCodeName() + " for txn #" + txn_id);
+            if (t) LOG.trace(String.format("Received non-success response %s from partition %d for txn #%d", fresponse.getStatusCodeName(), fresponse.getSourcePartitionId(), txn_id));
             ts.setPendingError(fresponse.getException());
         }
         for (int ii = 0, num_tables = fresponse.getTableCount(); ii < num_tables; ii++) {
@@ -1223,12 +1224,19 @@ public class ExecutionSite implements Runnable {
         assert(this.ee != null) : "The EE object is null. This is bad!";
         long txn_id = ts.getTransactionId();
         
-        if (t) {
-            LOG.trace("Executing " + fragmentIdIndex + " fragments for txn #" + txn_id + " [lastCommittedTxnId=" + this.lastCommittedTxnId + ", undoToken=" + undoToken + "]");
-            LOG.trace("Fragments:           " + Arrays.toString(fragmentIds));
-            LOG.trace("Parameters:          " + Arrays.toString(parameterSets));
-            LOG.trace("Input Dependencies:  " + Arrays.toString(input_depIds));
-            LOG.trace("Output Dependencies: " + Arrays.toString(output_depIds));
+        if (d) {
+            StringBuilder sb = new StringBuilder();
+            sb.append(String.format("Executing %d fragments for txn #%d [lastCommittedTxnId=%d, undoToken=%d]",
+                      fragmentIdIndex, txn_id, this.lastCommittedTxnId, undoToken));
+            if (t) {
+                Map<String, Object> m = new ListOrderedMap<String, Object>();
+                m.put("Fragments", Arrays.toString(fragmentIds));
+                m.put("Parameters", Arrays.toString(parameterSets));
+                m.put("Input Dependencies", Arrays.toString(input_depIds));
+                m.put("Output Dependencies", Arrays.toString(output_depIds));
+                sb.append("\n" + StringUtil.formatMaps(m)); 
+            }
+            LOG.debug(sb.toString());
         }
 
         // pass attached dependencies to the EE (for non-sysproc work).
@@ -1463,7 +1471,7 @@ public class ExecutionSite implements Runnable {
 //        LOG.info("Serialized FragmentResponseMessage [size=" + serialized.capacity() + ",id=" + serialized.get(VoltMessage.HEADER_SIZE) + "]");
 //        assert(serialized.get(VoltMessage.HEADER_SIZE) == VoltMessage.FRAGMENT_RESPONSE_ID);
         
-        if (d) LOG.debug(String.format("Sending FragmentResponseMessage for txn #%d [partition=%d, size%d]", txn_id, this.partitionId, bs.size()));
+        if (d) LOG.debug(String.format("Sending FragmentResponseMessage for txn #%d [partition=%d, size=%d]", txn_id, this.partitionId, bs.size()));
         Dtxn.FragmentResponse.Builder builder = Dtxn.FragmentResponse.newBuilder().setOutput(bs);
         
         switch (fresponse.getStatusCode()) {
@@ -1536,7 +1544,7 @@ public class ExecutionSite implements Runnable {
      * at remote sites in the cluster 
      * @param ftasks
      */
-    private void requestWork(LocalTransactionState ts, List<FragmentTaskMessage> tasks) {
+    private void requestWork(LocalTransactionState ts, Collection<FragmentTaskMessage> tasks) {
         assert(!tasks.isEmpty());
         assert(ts != null);
         long txn_id = ts.getTransactionId();
@@ -1643,7 +1651,7 @@ public class ExecutionSite implements Runnable {
      * @param dependency_ids
      * @return
      */
-    protected VoltTable[] waitForResponses(LocalTransactionState ts, List<FragmentTaskMessage> tasks, int batch_size) {
+    protected VoltTable[] waitForResponses(LocalTransactionState ts, Collection<FragmentTaskMessage> ftasks, int batch_size) {
         final long txn_id = ts.getTransactionId();
 
         // We have to store all of the tasks in the TransactionState before we start executing, otherwise
@@ -1651,77 +1659,115 @@ public class ExecutionSite implements Runnable {
         // get one response back from another executor
         ts.initRound(this.getNextUndoToken());
         ts.setBatchSize(batch_size);
-        boolean all_local = true;
-        boolean is_local;
-        for (FragmentTaskMessage ftask : tasks) {
-            is_local = (ftask.getDestinationPartitionId() == this.partitionId);
-            all_local = all_local && is_local;
-            if (ts.addFragmentTaskMessage(ftask) == false) {
-                if (is_local) ts.local_fragment_list.add(ftask);
-                else ts.remote_fragment_list.add(ftask);
-                
-            }
-        } // FOR
-        int num_local = ts.local_fragment_list.size();
-        int num_remote = ts.remote_fragment_list.size();
-        if (num_local == 0 && num_remote == 0) {
-            throw new RuntimeException("Deadlock! All tasks for txn #" + txn_id + " are blocked waiting on input!");
-        }
-        
-        // We have to tell the TransactinState to start the round before we send off the
-        // FragmentTasks for execution, since they might start executing locally!
-        ts.startRound();
-        
-        // First request the fragments that aren't local
-        // We want to push these out as soon as possible
-        if (num_remote > 0) {
-            if (t) LOG.trace(String.format("Requesting %d FragmentTaskMessages to be executed on remote partitions", num_remote));
-            this.requestWork(ts, ts.remote_fragment_list);
-        }
-        
-        // Then execute all of the tasks are meant for the local partition directly
-        if (num_local > 0) {
-            if (t) LOG.trace(String.format("Executing %d FragmentTaskMessages directly in local partition", num_local));
-            try {
-                for (FragmentTaskMessage ftask : ts.local_fragment_list) {
-                    this.processFragmentTaskMessage(ftask);
-                } // FOR
-            } catch (Exception ex) {
-                LOG.error("Unexpected error when executing fragments for txn #" + txn_id, ex);
-                throw new RuntimeException(ex);
-            }
-        }
+        boolean first = true;
+        boolean predict_singlePartition = ts.isPredictSinglePartition();
+        CountDownLatch latch = null;
         
         // Now if we have some work sent out to other partitions, we need to wait until they come back
         // In the first part, we wait until all of our blocked FragmentTaskMessages become unblocked
-        LinkedBlockingDeque<FragmentTaskMessage> queue = ts.getUnblockedFragmentTaskMessageQueue();
-        FragmentTaskMessage ftask = null;
-        while (ts.getBlockedFragmentTaskMessageCount() > 0 || queue.size() > 0) {
-            try {
-                ftask = queue.takeFirst(); // BLOCKING
-            } catch (InterruptedException ex) {
-                if (this.hstore_site.isShuttingDown() == false) LOG.error("We were interrupted while waiting for blocked tasks for txn #" + txn_id, ex);
-                return (null);
-            }
-            assert(ftask != null);
-            assert(ftask.getTxnId() == txn_id);
+        LinkedBlockingDeque<Collection<FragmentTaskMessage>> queue = ts.getUnblockedFragmentTaskMessageQueue();
+        
+        // Run through this loop if:
+        //  (1) This is our first time in the loop (first == true)
+        //  (2) If we know that there are still messages being blocked
+        //  (3) If we know that there are still unblocked messages that we need to process
+        //  (4) The latch for this round is still greater than zero
+        while (first == true || ts.getBlockedFragmentTaskMessageCount() > 0 || queue.size() > 0 || (latch != null && latch.getCount() > 0)) {
             
-            // Local
-            if (ftask.getDestinationPartitionId() == this.partitionId) {
-                if (t) LOG.trace(String.format("Got unblocked FragmentTaskMessage for txn #%d. Executing locally...", txn_id));
-                this.processFragmentTaskMessage(ftask);
-            // Remote
-            } else {
-                if (t) LOG.trace(String.format("Got unblocked FragmentTaskMessage for txn #%d. Requesting that it be executed remotely...", txn_id));
-                ts.remote_fragment_list.clear();
-                ts.remote_fragment_list.add(ftask);
-                this.requestWork(ts, ts.remote_fragment_list);
+            // If this is the not first time through the loop, then poll the queue to get our list of fragments
+            if (first == false) {
+                ts.local_fragment_list.clear();
+                if (!predict_singlePartition) ts.remote_fragment_list.clear();
+                
+                if (t) LOG.trace(String.format("Waiting for unblocked tasks for txn #%d on partition %d", txn_id, this.partitionId));
+                try {
+                    ftasks = queue.takeFirst(); // BLOCKING
+                } catch (InterruptedException ex) {
+                    if (this.hstore_site.isShuttingDown() == false) LOG.error("We were interrupted while waiting for blocked tasks for txn #" + txn_id, ex);
+                    return (null);
+                }
             }
+            assert(ftasks != null);
+            if (ftasks.size() == 0) break;
+            
+            // FAST PATH: Assume everything is local
+            if (predict_singlePartition) {
+                for (FragmentTaskMessage ftask : ftasks) {
+                    if (first == false || ts.addFragmentTaskMessage(ftask) == false) ts.local_fragment_list.add(ftask);
+                } // FOR
+                
+                // We have to tell the TransactinState to start the round before we send off the
+                // FragmentTasks for execution, since they might start executing locally!
+                if (first) {
+                    ts.startRound();
+                    latch = ts.getDependencyLatch();
+                }
+                
+                for (FragmentTaskMessage ftask : ts.local_fragment_list) {
+                    if (t) LOG.trace(String.format("Got unblocked FragmentTaskMessage for txn #%d. Executing locally...", txn_id));
+                    assert(ftask.getDestinationPartitionId() == this.partitionId);
+                    this.processFragmentTaskMessage(ftask);
+                } // FOR
+                
+            // SLOW PATH: Mixed local and remote messages
+            } else {
+                boolean all_local = true;
+                boolean is_local;
+                int num_local = 0;
+                int num_remote = 0;
+                
+                // Look at each task and figure out whether it should be executed remotely or locally
+                for (FragmentTaskMessage ftask : ftasks) {
+                    is_local = (ftask.getDestinationPartitionId() == this.partitionId);
+                    all_local = all_local && is_local;
+                    if (first == false || ts.addFragmentTaskMessage(ftask) == false) {
+                        if (is_local) {
+                            ts.local_fragment_list.add(ftask);
+                            num_local++;
+                        } else {
+                            ts.remote_fragment_list.add(ftask);
+                            num_remote++;
+                        }
+                    }
+                } // FOR
+                if (num_local == 0 && num_remote == 0) {
+                    throw new RuntimeException("Deadlock! All tasks for txn #" + txn_id + " are blocked waiting on input!");
+                }
+
+                // We have to tell the TransactinState to start the round before we send off the
+                // FragmentTasks for execution, since they might start executing locally!
+                if (first) {
+                    ts.startRound();
+                    latch = ts.getDependencyLatch();
+                }
+        
+                // Now request the fragments that aren't local
+                // We want to push these out as soon as possible
+                if (num_remote > 0) {
+                    if (t) LOG.trace(String.format("Requesting %d FragmentTaskMessages to be executed on remote partitions", num_remote));
+                    this.requestWork(ts, ts.remote_fragment_list);
+                }
+        
+                // Then execute all of the tasks are meant for the local partition directly
+                if (num_local > 0) {
+                    if (t) LOG.trace(String.format("Executing %d FragmentTaskMessages directly in local partition", num_local));
+                    try {
+                        for (FragmentTaskMessage ftask : ts.local_fragment_list) {
+                            this.processFragmentTaskMessage(ftask);
+                        } // FOR
+                    } catch (Exception ex) {
+                        LOG.error("Unexpected error when executing fragments for txn #" + txn_id, ex);
+                        throw new RuntimeException(ex);
+                    }
+                }
+            }
+
+            first = false;
         } // WHILE
 
         // Now that we know all of our FragmentTaskMessages have been dispatched, we can then
         // wait for all of the results to come back in.
-        CountDownLatch latch = ts.getDependencyLatch();
+        if (latch == null) latch = ts.getDependencyLatch();
         if (d) LOG.debug(String.format("All blocked messages dispatched for txn #%d. Waiting for %d dependencies", txn_id, latch.getCount()));
         if (t) LOG.trace(ts.toString());
         if (latch.getCount() > 0) {
@@ -1735,7 +1781,6 @@ public class ExecutionSite implements Runnable {
                 System.exit(1);
             }
         }
-
         
         // IMPORTANT: Check whether the fragments failed somewhere and we got a response with an error
         // We will rethrow this so that it pops the stack all the way back to VoltProcedure.call()
