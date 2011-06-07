@@ -906,7 +906,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
             try {
                 // HACK: Convert the array parameters to object arrays...
                 Object cast_args[] = this.param_manglers.get(catalog_proc).convert(args);
-                if (d) LOG.debug(String.format("Txn #%d Parameters:\n%s", txn_id, this.param_manglers.get(catalog_proc).toString(cast_args)));
+                if (t) LOG.trace(String.format("Txn #%d Parameters:\n%s", txn_id, this.param_manglers.get(catalog_proc).toString(cast_args)));
                 
                 if (hstore_conf.enable_profiling) local_ts.est_time.start();
                 estimator_state = t_estimator.startTransaction(txn_id, dest_partition, catalog_proc, cast_args);
@@ -931,8 +931,8 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
                     } else {
                         if (d) LOG.debug(String.format("Using TransactionEstimator.Estimate for txn #%d to determine if single-partitioned", txn_id));
                         
-                        assert(estimate.isValid()) : String.format("Invalid MarkovEstimate for txn #%d\n%s", txn_id, estimate);
-                        if (d) LOG.debug("MarkovEstimate:\n" + estimate);
+                        if (d) LOG.debug(String.format("%s MarkovEstimate for txn #%d:\n%s", catalog_proc.getName(), txn_id, estimate));
+                        assert(estimate.isValid()) : String.format("Invalid MarkovEstimate for %s txn #%d", catalog_proc.getName(), txn_id);
                         single_partition = estimate.isSinglePartition(this.thresholds);
                         predict_readonly = catalog_proc.getReadonly(); // FIXME
                         predict_can_abort = predict_readonly == false || single_partition == false;
@@ -942,13 +942,13 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
                 }
                 if (hstore_conf.enable_profiling) local_ts.est_time.stop();
             } catch (RuntimeException ex) {
-                LOG.fatal("Failed calculate estimate for txn #" + txn_id, ex);
+                LOG.fatal(String.format("Failed calculate estimate for %s txn #%d", catalog_proc.getName(), txn_id), ex);
                 throw ex;
             } catch (AssertionError ex) {
-                LOG.fatal("Failed calculate estimate for txn #" + txn_id, ex);
+                LOG.fatal(String.format("Failed calculate estimate for %s txn #%d", catalog_proc.getName(), txn_id), ex);
                 throw ex;
             } catch (Exception ex) {
-                LOG.fatal("Failed calculate estimate for txn #" + txn_id, ex);
+                LOG.fatal(String.format("Failed calculate estimate for %s txn #%d", catalog_proc.getName(), txn_id), ex);
                 throw new RuntimeException(ex);
             }
         }
@@ -1482,7 +1482,10 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         if (released != null && released.isEmpty() == false) {
             if (d) LOG.debug(String.format("Releasing %d transactions at partition %d because of txn #%d", released.size(), p, txn_id));
             for (LocalTransactionState release_ts : released) {
-                if (speculative) release_ts.setSpeculative(true);
+                if (speculative) {
+                    release_ts.setSpeculative(true);
+                    if (this.status_monitor != null) TxnCounter.SPECULATIVE.inc(release_ts.getProcedure());
+                }
                 this.executeTransaction(release_ts, release_ts.init_wrapper, release_ts.init_callback);
             } // FOR
         }
@@ -1509,7 +1512,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
                     break;
                 case ABORT_MISPREDICT:
                     if (t) LOG.trace("Telling the TransactionEstimator to IGNORE txn #" + txn_id);
-                    t_estimator.ignore(txn_id);
+                    t_estimator.mispredict(txn_id);
                     break;
                 case ABORT_USER:
                 case ABORT_DEADLOCK:

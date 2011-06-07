@@ -241,6 +241,12 @@ class Distributer {
             ProcedureCallback cb = null;
             long callTime = 0;
             int delta = 0;
+            
+            if (response == null) {
+                LOG.warn("Got back null ClientResponse. Ignoring...");
+                return;
+            }
+            
             final long clientHandle = response.getClientHandle();
             final boolean should_throttle = response.getThrottleFlag();
             final byte status = response.getStatus();

@@ -31,6 +31,18 @@ public final class HStoreConf {
     public boolean enable_speculative_execution = true;
     
     /**
+     * If this is set to true, TransactionEstimator will try to reuse MarkovPathEstimators
+     * for transactions running at the same partition.
+     */
+    public boolean markov_path_caching = true;
+
+    /**
+     * This threshold defines how accurate our cached MarkovPathEstimators have to be in order to keep using them.
+     * If (# of accurate txs / total txns) for a paritucular MarkovGraph goes below this threshold, then we will disable the caching   
+     */
+    public double markov_path_caching_threshold = 1.0;
+    
+    /**
      * Whether to not use the Dtxn.Coordinator for single-partition transactions
      */
     public boolean ignore_dtxn = true;

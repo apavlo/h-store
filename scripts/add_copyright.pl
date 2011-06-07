@@ -13,13 +13,7 @@ my $COPYRIGHT = <<END;
  *  Massachusetts Institute of Technology                                  *
  *  Yale University                                                        *
  *                                                                         *
- *  Original Version:                                                      *
- *  Zhe Zhang (zhe\@cs.brown.edu)                                           *
- *  http://www.cs.brown.edu/~zhe/                                          *
- *                                                                         *
- *  Modifications by:                                                      *
- *  Andy Pavlo (pavlo\@cs.brown.edu)                                        *
- *  http://www.cs.brown.edu/~pavlo/                                        *
+ *  http://hstore.cs.brown.edu/                                            *
  *                                                                         *
  *  Permission is hereby granted, free of charge, to any person obtaining  *
  *  a copy of this software and associated documentation files (the        *
