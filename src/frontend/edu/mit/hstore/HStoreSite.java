@@ -45,6 +45,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.log4j.Logger;
 import org.voltdb.BackendTarget;
 import org.voltdb.ClientResponseImpl;
@@ -265,7 +266,8 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
      * or the Dtxn.Engine. We can use the fast mode for each partition until this is empty
      * PartitionId -> Set<TransactionId> 
      */
-    private final Set<Long> canadian_txns[]; 
+    private final Set<Long> canadian_txns[];
+    private final ListOrderedMap<Long, Set<LocalTransactionState>> dtxn_txns[];
     
 
     private CountDownLatch ready_latch;
@@ -359,9 +361,12 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         this.txnid_managers = new TransactionIdManager[num_partitions];
         this.speculative_txn = new long[num_partitions];
         this.canadian_txns = (Set<Long>[])new Set<?>[num_partitions];
+        this.dtxn_txns = (ListOrderedMap<Long, Set<LocalTransactionState>>[])new ListOrderedMap<?, ?>[num_partitions];
+        
         for (int partition : this.executors.keySet()) {
             this.txnid_managers[partition] = new TransactionIdManager(partition);
             this.canadian_txns[partition] = Collections.newSetFromMap(new ConcurrentHashMap<Long, Boolean>());
+            this.dtxn_txns[partition] = new ListOrderedMap<Long, Set<LocalTransactionState>>();
             this.speculative_txn[partition] = NULL_SPECULATIVE_EXEC_ID;
             this.local_partitions.add(partition);
         } // FOR
@@ -969,20 +974,14 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
             this.voltListener.setThrottleFlag(true);
         }
         
-        this.initializeInvocation(local_ts);
+        this.initializeInvocation(local_ts, false);
     }
-    
+
     /**
      * 
-     * @param txn_id
-     * @param dtxn_txn_id
-     * @param dest_partition
-     * @param single_partition
-     * @param client_handle
-     * @param request
-     * @param done
+     * @param txn_info
      */
-    private void initializeInvocation(LocalTransactionState txn_info) {
+    private void initializeInvocation(LocalTransactionState txn_info, boolean force_execute) {
         long txn_id = txn_info.getTransactionId();
         Long orig_txn_id = txn_info.getOriginalTransactionId();
         int base_partition = txn_info.getBasePartition();
@@ -1022,7 +1021,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         // -------------------------------
         // FAST MODE: Skip the Dtxn.Coordinator
         // -------------------------------
-        if (hstore_conf.ignore_dtxn && single_partitioned && (dtxn_txns.isEmpty() || spec_exec || read_only)) {
+        if (hstore_conf.ignore_dtxn && single_partitioned && (dtxn_txns.isEmpty() || spec_exec || read_only || force_execute)) {
             txn_info.ignore_dtxn = true;
             if (d) LOG.debug(String.format("Fast path execution for %s txn #%d on partition %d [speculative=%s, handle=%d]",
                                            txn_info.getProcedureName(), txn_id, base_partition, spec_exec, txn_info.getClientHandle()));
@@ -1033,6 +1032,12 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
                 TxnCounter.FAST.inc(txn_info.getProcedure());
                 if (spec_exec) TxnCounter.SPECULATIVE.inc(txn_info.getProcedure());
             }
+        // -------------------------------
+        // FAST MODE: Queue waiting for multi-partition txn to finish
+        // -------------------------------
+        } else if (hstore_conf.ignore_dtxn && single_partitioned) {
+            int last_idx = this.dtxn_txns[base_partition].size() - 1;
+            this.dtxn_txns[base_partition].getValue(last_idx).add(txn_info);
 
         // -------------------------------
         // CANADIAN MODE: Single-Partition
@@ -1321,7 +1326,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         new_done.removeAll(touched.values());
         if (t) LOG.trace(String.format("Txn #%d Mispredicted partitions\n%s", txn_id, orig_ts.getTouchedPartitions()));
         
-        this.initializeInvocation(new_ts);
+        this.initializeInvocation(new_ts, false);
     }
     
     /**
@@ -1418,6 +1423,15 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
                     this.speculative_txn[p.intValue()] = NULL_SPECULATIVE_EXEC_ID;
                 }
             }
+            // See if there are any queued transactions we can now release
+            Set<LocalTransactionState> released = this.dtxn_txns[p].remove((Long)txn_id);
+            if (released != null) {
+                LOG.info(String.format("Releasing %d transactions at partition %d because of txn #%d", released.size(), p, txn_id));
+                for (LocalTransactionState release_ts : released) {
+                    this.initializeInvocation(release_ts, true);
+                } // FOR
+            }
+            
             this.removeCanadianTransaction(txn_id, p.intValue());
         } // FOR
         
@@ -1503,8 +1517,8 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         assert(hstore_conf.enable_speculative_execution);
 
         int spec_cnt = 0;
-        for (Integer p : partitions) {
-            if (this.txnid_managers[p.intValue()] == null) continue;
+        for (int p : partitions) {
+            if (this.txnid_managers[p] == null) continue;
             
             // We'll let multiple tell us to speculatively execute, but we only let them go when hte latest
             // one finishes. We should really have multiple queues of speculatively execute txns, but for now
@@ -1516,9 +1530,18 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
                 
             // Make sure that we tell the ExecutionSite first before we allow txns to get fired off
             if (executor.enableSpeculativeExecution(txn_id)) {
-                this.speculative_txn[p.intValue()] = txn_id;
+                this.speculative_txn[p] = txn_id;
                 spec_cnt++;
                 if (d) LOG.debug(String.format("Partition %d - Speculative Execution!", p));
+            }
+            
+            // See if there are any queued transactions we can now release
+            Set<LocalTransactionState> released = this.dtxn_txns[p].remove((Long)txn_id);
+            if (released != null) {
+                LOG.info(String.format("Releasing %d transactions at partition %d because of txn #%d", released.size(), p, txn_id));
+                for (LocalTransactionState released_ts : released) {
+                    this.initializeInvocation(released_ts, true);
+                } // FOR
             }
         } // FOR
         if (d) LOG.debug(String.format("Enabled speculative execution at %d partitions because of waiting for txn #%d", spec_cnt, txn_id));
