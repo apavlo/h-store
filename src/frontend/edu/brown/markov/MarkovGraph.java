@@ -60,7 +60,9 @@ public class MarkovGraph extends AbstractDirectedGraph<Vertex, Edge> implements 
     /**
      * 
      */
-    private int xact_count;
+    private transient int xact_count = 0;
+    private transient int xact_mispredict = 0;
+    private transient double xact_accuracy = 1.0;
 
     // ----------------------------------------------------------------------------
     // CONSTRUCTORS
@@ -663,6 +665,15 @@ public class MarkovGraph extends AbstractDirectedGraph<Vertex, Edge> implements 
      */
     public void incrementTransasctionCount() {
        this.xact_count++; 
+    }
+    
+    public void incrementMispredictionCount() {
+        this.xact_mispredict++;
+        if (this.xact_count > 0) this.xact_accuracy = (this.xact_count - this.xact_mispredict) / (double)this.xact_count;
+    }
+    
+    public double getAccuracyRatio() {
+        return (this.xact_accuracy);
     }
     
     // ----------------------------------------------------------------------------

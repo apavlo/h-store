@@ -73,6 +73,12 @@ public class TransactionEstimator {
     private final MarkovGraphsContainer markovs;
     private final Map<Long, State> txn_states = new ConcurrentHashMap<Long, State>();
     private final AtomicInteger txn_count = new AtomicInteger(0);
+    private final HStoreConf hstore_conf;
+    
+    /**
+     * We can maintain a cache of the last successful MarkovPathEstimator per MarkovGraph
+     */
+    private final Map<MarkovGraph, MarkovPathEstimator> cached_estimators = new HashMap<MarkovGraph, MarkovPathEstimator>();
     
     private transient boolean enable_recomputes = false;
     
@@ -133,7 +139,7 @@ public class TransactionEstimator {
             this.start_time = start_time;
             this.initial_estimator = initial_estimator;
             this.initial_estimate = initial_estimator.getEstimate();
-            this.setCurrent(markov.getStartVertex());    
+            this.setCurrent(markov.getStartVertex());
         }
         
         @Override
@@ -143,26 +149,38 @@ public class TransactionEstimator {
         
         @Override
         public void finish() {
-            // Return the MarkovPathEstimator
-            try {
-                TransactionEstimator.ESTIMATOR_POOL.returnObject(this.initial_estimator);
-            } catch (Exception ex) {
-                throw new RuntimeException("Failed to return MarkovPathEstimator for txn" + this.txn_id, ex);
+            // Only return the MarkovPathEstimator to it's object pool if it hasn't been cached
+            if (this.initial_estimator.isCached() == false) {
+                if (d) LOG.debug(String.format("Initial MarkovPathEstimator is not marked as cached for txn #%d. Returning to pool... [hashCode=%d]",
+                                               this.txn_id, this.initial_estimator.hashCode()));
+                try {
+                    TransactionEstimator.ESTIMATOR_POOL.returnObject(this.initial_estimator);
+                } catch (Exception ex) {
+                    throw new RuntimeException("Failed to return MarkovPathEstimator for txn" + this.txn_id, ex);
+                }
+            } else if (d) {
+                LOG.debug(String.format("Initial MarkovPathEstimator is marked as cached for txn #%d. Will not return to pool... [hashCode=%d]",
+                                        this.txn_id, this.initial_estimator.hashCode()));
             }
          
+            // We maintain a local cache of Estimates, so there is no pool to return them to
+            // The MarkovPathEstimator is responsible for its own MarkovEstimate object, so we don't
+            // want to return that here.
+            for (int i = 0; i < this.num_estimates; i++) {
+                assert(this.estimates.get(i) != this.initial_estimate) :
+                    String.format("MarkovEstimate #%d == Initial MarkovEstimate for txn #%d [hashCode=%d]", i, this.txn_id, this.initial_estimate.hashCode());
+                this.estimates.get(i).finish();
+            } // FOR
+            this.num_estimates = 0;
+            
+            this.markov.incrementTransasctionCount();
             this.txn_id = -1;
-            this.initial_estimator = null;
-            this.initial_estimate = null;
             this.actual_path.clear();
             this.touched_partitions.clear();
             this.query_instance_cnts.clear();
             this.current = null;
-            
-            // We maintain a local cache of Estimates, so there is no pool to return them to
-            for (int i = 0; i < this.num_estimates; i++) {
-                this.estimates.get(i).finish();
-            } // FOR
-            this.num_estimates = 0;
+            this.initial_estimator = null;
+            this.initial_estimate = null;
         }
         
         /**
@@ -304,6 +322,7 @@ public class TransactionEstimator {
         this.catalog_db = this.p_estimator.getDatabase();
         this.num_partitions = CatalogUtil.getNumberOfPartitions(this.catalog_db);
         this.correlations = (correlations == null ? new ParameterCorrelations() : correlations);
+        this.hstore_conf = HStoreConf.singleton();
         
         // HACK: Initialize the STATE_POOL
         synchronized (LOG) {
@@ -442,32 +461,51 @@ public class TransactionEstimator {
         
         Vertex start = markov.getStartVertex();
         MarkovPathEstimator estimator = null;
-        try {
-            estimator = (MarkovPathEstimator)ESTIMATOR_POOL.borrowObject();
-            estimator.init(markov, this, base_partition, args);
-            estimator.enableForceTraversal(true);
-        } catch (Exception ex) {
-            throw new RuntimeException(ex);
-        }
         
-        // Calculate initial path estimate
-        if (t) LOG.trace("Estimating initial execution path for txn #" + txn_id);
-        synchronized (markov) {
-            start.addInstanceTime(txn_id, start_time);
+        // We'll reuse the last MarkovPathEstimator (and it's path) if the graph has been accurate for
+        // other previous transactions. This prevents us from having to recompute the path every single time,
+        // especially for single-partition transactions where the clustered MarkovGraphs are accurate
+        if (hstore_conf.markov_path_caching == true && markov.getAccuracyRatio() >= hstore_conf.markov_path_caching_threshold) {
+            estimator = this.cached_estimators.get(markov);
+        }
+            
+        // Otherwise we have to recalculate everything from scatch again
+        if (estimator == null) {
             try {
-                estimator.traverse(start);
-                // if (catalog_proc.getName().equalsIgnoreCase("NewBid")) throw new Exception ("Fake!");
-            } catch (Throwable e) {
-                LOG.fatal("Failed to estimate path", e);
-                try {
-                    GraphvizExport<Vertex, Edge> gv = MarkovUtil.exportGraphviz(markov, true, markov.getPath(estimator.getVisitPath()));
-                    System.err.println("GRAPH DUMP: " + gv.writeToTempFile(catalog_proc));
-                } catch (Exception ex) {
-                    throw new RuntimeException(ex);
-                }
-                throw new RuntimeException(e);
+                estimator = (MarkovPathEstimator)ESTIMATOR_POOL.borrowObject();
+                estimator.init(markov, this, base_partition, args);
+                estimator.enableForceTraversal(true);
+            } catch (Exception ex) {
+                throw new RuntimeException(ex);
             }
-        } // SYNCH
+            
+            // Calculate initial path estimate
+            if (t) LOG.trace("Estimating initial execution path for txn #" + txn_id);
+    
+            synchronized (markov) {
+                start.addInstanceTime(txn_id, start_time);
+                try {
+                    estimator.traverse(start);
+                    // if (catalog_proc.getName().equalsIgnoreCase("NewBid")) throw new Exception ("Fake!");
+                } catch (Throwable e) {
+                    LOG.fatal("Failed to estimate path", e);
+                    try {
+                        GraphvizExport<Vertex, Edge> gv = MarkovUtil.exportGraphviz(markov, true, markov.getPath(estimator.getVisitPath()));
+                        System.err.println("GRAPH DUMP: " + gv.writeToTempFile(catalog_proc));
+                    } catch (Exception ex) {
+                        throw new RuntimeException(ex);
+                    }
+                    throw new RuntimeException(e);
+                }
+            } // SYNCH
+        } else {
+            if (d) LOG.debug(String.format("Using cached MarkovPathEstimator for %s txn #%d [hashCode=%d, ratio=%.02f]",
+                                           catalog_proc.getName(), txn_id, estimator.getEstimate().hashCode(), markov.getAccuracyRatio()));
+            assert(estimator.isCached()) :
+                String.format("The cached %s MarkovPathEstimator used by txn #%d does not have its cached flag set [hashCode=%d]", catalog_proc.getName(), txn_id, estimator.hashCode());
+            assert(estimator.getEstimate().isValid()) :
+                String.format("Invalid %s MarkovEstimate for cache Estimator used by txn #%d [hashCode=%d]", catalog_proc.getName(), txn_id, estimator.getEstimate().hashCode());
+        }
         assert(estimator != null);
         if (t) {
             List<Vertex> path = estimator.getVisitPath();
@@ -566,11 +604,13 @@ public class TransactionEstimator {
      * @param txn_id
      * @return
      */
-    public State ignore(long txn_id) {
+    public State mispredict(long txn_id) {
         if (d) LOG.debug(String.format("Removing State info for txn #%d", txn_id));
         // We can just remove its state and pass it back
         // We don't care if it's valid or not
-        return (this.txn_states.remove(txn_id));
+        State s = this.txn_states.remove(txn_id);
+        if (s != null) s.markov.incrementMispredictionCount();
+        return (s);
     }
     
     /**
@@ -609,6 +649,20 @@ public class TransactionEstimator {
         assert(next_e != null);
         s.setCurrent(next_v); // In case somebody wants to do post-processing...
         
+        // Store this as the last accurate MarkovPathEstimator for this graph
+        
+        if (hstore_conf.markov_path_caching && this.cached_estimators.containsKey(s.markov) == false) {
+            synchronized (this.cached_estimators) {
+                if (this.cached_estimators.containsKey(s.markov) == false) {
+                    s.initial_estimator.setCached(true);
+                    if (d) LOG.debug(String.format("Storing cached MarkovPathEstimator for %s used by txn #%d [cached=%s, hashCode=%d]",
+                                                   s.markov, txn_id, s.initial_estimator.isCached(), s.initial_estimator.hashCode()));
+                    this.cached_estimators.put(s.markov, s.initial_estimator);
+                    assert(s.initial_estimate.isValid()) :
+                        String.format("Trying to use invalid %s MarkovEstimate for cache Estimator used by txn #%d\n%s", s.markov.getProcedure().getName(), txn_id, s.initial_estimate);
+                }
+            } // SYNCH
+        }
         return (s);
     }
 

@@ -5,11 +5,14 @@ import java.util.Map;
 import java.util.Set;
 
 import org.apache.commons.collections15.map.ListOrderedMap;
+import org.apache.log4j.Logger;
 
 import edu.brown.utils.Poolable;
 import edu.brown.utils.StringUtil;
 
 public class MarkovEstimate implements Poolable {
+    private static final Logger LOG = Logger.getLogger(MarkovEstimate.class);
+    
     // Global
     private double singlepartition;
     private double userabort;
@@ -30,6 +33,7 @@ public class MarkovEstimate implements Poolable {
     private transient Vertex vertex;
     private transient int batch;
     private transient Long time;
+    private transient boolean initializing = true; 
 
     protected MarkovEstimate(int num_partitions) {
         this.touched = new int[num_partitions];
@@ -37,6 +41,7 @@ public class MarkovEstimate implements Poolable {
         this.read = new double[num_partitions];
         this.write = new double[num_partitions];
         this.finish(); // initialize!
+        this.initializing = false;
     }
     
     /**
@@ -47,6 +52,7 @@ public class MarkovEstimate implements Poolable {
      */
     public MarkovEstimate init(Vertex v, int batch) {
         assert(v != null);
+        assert(this.initializing == false);
         this.batch = batch;
         this.vertex = v;
         
@@ -70,7 +76,10 @@ public class MarkovEstimate implements Poolable {
     
     @Override
     public void finish() {
-        this.vertex = null;
+        if (this.initializing == false) {
+            if (LOG.isDebugEnabled()) LOG.debug(String.format("Cleaning up MarkovEstimate [hashCode=%d]", this.hashCode()));
+            this.vertex = null;
+        }
         for (int i = 0; i < this.touched.length; i++) {
             this.touched[i] = 0;
             this.finished[i] = MarkovUtil.NULL_MARKER;
@@ -273,6 +282,7 @@ public class MarkovEstimate implements Poolable {
         
         Map<String, Object> m0 = new ListOrderedMap<String, Object>();
         m0.put("Batch Estimate", "#" + this.batch);
+        m0.put("HashCode", this.hashCode());
         m0.put("Vertex", this.vertex);
         m0.put("Single-Partition", String.format(f, this.singlepartition));
         m0.put("User Abort", String.format(f, this.userabort));

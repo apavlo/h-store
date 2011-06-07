@@ -377,6 +377,8 @@ public class HStoreMessenger implements Shutdownable {
                 // SHUTDOWN REQUEST
                 // -----------------------------------------------------------------
                 case SHUTDOWN: {
+                    LOG.info(String.format("Got shutdown request from HStoreSite %02d", sender));
+                    
                     HStoreMessenger.this.shutting_down = true;
                     
                     // Tell the coordinator to shutdown

@@ -2,16 +2,16 @@
 
 BENCHMARKS=( \
     "tm1" \
-    "tpcc.100w.large" \
-    "auctionmark.large"\
-    "tpce" \
+#     "tpcc.100w.large" \
+#     "auctionmark.large"\
+#     "tpce" \
 )
 PARTITIONS=( \
-#     8 \
+    8 \
 #     16 \
 #     32 \
 #     64 \
-    128 \
+#     128 \
 )
 HEAP_SIZE=3072
 MAX_THREADS=2
