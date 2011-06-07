@@ -70,6 +70,7 @@ import edu.mit.hstore.dtxn.DependencyInfo;
 import edu.mit.hstore.dtxn.LocalTransactionState;
 import edu.mit.hstore.dtxn.RemoteTransactionState;
 import edu.mit.hstore.dtxn.TransactionState;
+import edu.mit.hstore.interfaces.Shutdownable;
 
 /**
  * The main executor of transactional work in the system. Controls running
@@ -77,7 +78,7 @@ import edu.mit.hstore.dtxn.TransactionState;
  * fragments. Interacts with the DTXN system to get work to do. The thread might
  * do other things, but this is where the good stuff happens.
  */
-public class ExecutionSite implements Runnable {
+public class ExecutionSite implements Runnable, Shutdownable {
     public static final Logger LOG = Logger.getLogger(ExecutionSite.class);
     private final static LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private final static LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
@@ -216,7 +217,7 @@ public class ExecutionSite implements Runnable {
     /**
      * If this flag is enabled, then we need to shut ourselves down and stop running txns
      */
-    private boolean shutdown = false;
+    private Shutdownable.State shutdown_state = Shutdownable.State.INITIALIZED;
     private CountDownLatch shutdown_latch;
     
     /**
@@ -637,7 +638,7 @@ public class ExecutionSite implements Runnable {
 //        int poll_ctr = 0;
         try {
             if (d) LOG.debug("Starting ExecutionSite run loop...");
-            while (stop == false && this.shutdown == false) {
+            while (stop == false && this.isShuttingDown() == false) {
                 work = null;
 //                if (poll_ctr++ > 10000000) {
 //                    d = debug.get();
@@ -700,8 +701,8 @@ public class ExecutionSite implements Runnable {
         this.shutdown_latch.countDown();
         
         // Stop HStoreMessenger (because we're nice)
-        if (this.shutdown == false) {
-            if (this.hstore_messenger != null) this.hstore_messenger.stop();
+        if (this.isShuttingDown() == false) {
+            if (this.hstore_messenger != null) this.hstore_messenger.shutdown();
         }
         if (d) LOG.debug("ExecutionSite thread is stopping");
     }
@@ -2032,19 +2033,25 @@ public class ExecutionSite implements Runnable {
         this.hstore_messenger.shutdownCluster(ex); // This won't return
     }
     
+    @Override
     public boolean isShuttingDown() {
-        return (this.shutdown);
+        return (this.shutdown_state == State.PREPARE_SHUTDOWN || this.shutdown_state == State.SHUTDOWN);
+    }
+    
+    @Override
+    public void prepareShutdown() {
+        shutdown_state = Shutdownable.State.PREPARE_SHUTDOWN;
     }
     
     /**
      * Somebody from the outside wants us to shutdown
      */
     public synchronized void shutdown() {
-        if (this.shutdown) {
+        if (this.shutdown_state == State.SHUTDOWN) {
             if (d) LOG.debug(String.format("Partition #%d told to shutdown again. Ignoring...", this.partitionId));
             return;
         }
-        this.shutdown = true;
+        this.shutdown_state = State.SHUTDOWN;
         
         if (d) LOG.debug(String.format("Shutting down ExecutionSite for Partition #%d", this.partitionId));
         
