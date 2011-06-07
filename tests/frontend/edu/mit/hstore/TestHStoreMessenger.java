@@ -145,13 +145,13 @@ public class TestHStoreMessenger extends BaseTestCase {
     private void stopMessengers() throws Exception {
         // Tell everyone to prepare to stop
         for (final HStoreMessenger m : this.messengers) {
-            if (m.isStarted()) m.prepareToStop();
+            if (m.isStarted()) m.prepareShutdown();
         } // FOR
         // Now stop everyone for real!
         for (final HStoreMessenger m : this.messengers) {
-            if (m.isStarted() && m.isStopped() == false) {
+            if (m.isStarted() && m.isShuttingDown() == false) {
                 System.err.println("STOP: " + m);
-                m.stop();
+                m.shutdown();
             }
         } // FOR
     }
@@ -193,7 +193,7 @@ public class TestHStoreMessenger extends BaseTestCase {
 		for (int i = 0; i < NUM_SITES_PER_HOST; i++) {
 			HStoreMessenger m = this.messengers[i];
 			// stop messenger
-			m.stop();
+			m.shutdown();
 			assertEquals(m.getListenerThread().getState(), State.TERMINATED);
 			// check that the socket is closed
 			int port = this.sites[i].getSite().getMessenger_port();

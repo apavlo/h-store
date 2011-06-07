@@ -37,6 +37,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Observer;
 import java.util.Set;
+import java.util.HashSet;
 import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
@@ -104,12 +105,13 @@ import edu.mit.hstore.callbacks.InitiateCallback;
 import edu.mit.hstore.callbacks.MultiPartitionTxnCallback;
 import edu.mit.hstore.callbacks.SinglePartitionTxnCallback;
 import edu.mit.hstore.dtxn.LocalTransactionState;
+import edu.mit.hstore.interfaces.Shutdownable;
 
 /**
  * 
  * @author pavlo
  */
-public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureListener.Handler {
+public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureListener.Handler, Shutdownable {
     private static final Logger LOG = Logger.getLogger(HStoreSite.class);
     private final static LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private final static LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
@@ -150,8 +152,6 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
     public enum TxnCounter {
         /** The number of txns that we executed locally */
         EXECUTED,
-        /** Fast single-partition execution */
-        FAST,
         /** Speculative Execution **/
         SPECULATIVE,
         /** No undo buffers! Naked transactions! */
@@ -193,6 +193,10 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
             this.h.put(catalog_proc.getName());
             return (this.get());
         }
+        public int dec(Procedure catalog_proc) {
+            this.h.remove(catalog_proc.getName());
+            return (this.get());
+        }
         public double ratio() {
             int total = -1;
             switch (this) {
@@ -201,13 +205,10 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
                     total = SINGLE_PARTITION.get() + MULTI_PARTITION.get();
                     break;
                 case SPECULATIVE:
-                    total = FAST.get();
+                    total = SINGLE_PARTITION.get();
                     break;
                 case NO_UNDO_BUFFER:
                     total = EXECUTED.get();
-                    break;
-                case FAST:
-                    total = SINGLE_PARTITION.get();
                     break;
                 case SYSPROCS:
                 case ABORTED:
@@ -266,7 +267,6 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
      * or the Dtxn.Engine. We can use the fast mode for each partition until this is empty
      * PartitionId -> Set<TransactionId> 
      */
-    private final Set<Long> canadian_txns[];
     private final ListOrderedMap<Long, Set<LocalTransactionState>> dtxn_txns[];
     
 
@@ -360,12 +360,10 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         this.engine_channels = new Dtxn.Partition[num_partitions];
         this.txnid_managers = new TransactionIdManager[num_partitions];
         this.speculative_txn = new long[num_partitions];
-        this.canadian_txns = (Set<Long>[])new Set<?>[num_partitions];
         this.dtxn_txns = (ListOrderedMap<Long, Set<LocalTransactionState>>[])new ListOrderedMap<?, ?>[num_partitions];
         
         for (int partition : this.executors.keySet()) {
             this.txnid_managers[partition] = new TransactionIdManager(partition);
-            this.canadian_txns[partition] = Collections.newSetFromMap(new ConcurrentHashMap<Long, Boolean>());
             this.dtxn_txns[partition] = new ListOrderedMap<Long, Set<LocalTransactionState>>();
             this.speculative_txn[partition] = NULL_SPECULATIVE_EXEC_ID;
             this.local_partitions.add(partition);
@@ -651,32 +649,37 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         }
     } // END CLASS
 
+    @Override
+    public void prepareShutdown() {
+        this.messenger.prepareShutdown();
+        for (ExecutionSite executor : this.executors.values()) {
+            executor.prepareShutdown();
+        } // FOR
+    }
+    
     /**
      * Perform shutdown operations for this HStoreCoordinatorNode
      * This should only be called by HStoreMessenger 
      */
+    @Override
     public synchronized void shutdown() {
         if (this.shutdown) {
             if (d) LOG.debug("Already told to shutdown... Ignoring");
             return;
         }
         this.shutdown = true;
-//        if (d)
-            LOG.info("Shutting down everything at Site #" + this.site_id);
+//      if (d)
+        LOG.info("Shutting down everything at Site #" + this.site_id);
 
-//        for (LocalTransactionState ts : this.inflight_txns.values()) {
-//            LOG.info(String.format("INFLIGHT TXN #%d\n%s", ts.getTransactionId(), this.dumpTransaction(ts)));
-//        }
-            
-        // Tell anybody that wants to know that we're going down
-        if (t) LOG.trace("Notifying " + this.shutdown_observable.countObservers() + " observers that we're shutting down");
-        this.shutdown_observable.notifyObservers();
-        
         // Tell our local boys to go down too
         for (ExecutionSite executor : this.executors.values()) {
             if (t) LOG.trace("Telling the ExecutionSite for Partition #" + executor.getPartitionId() + " to shutdown");
             executor.shutdown();
         } // FOR
+      
+        // Tell anybody that wants to know that we're going down
+        if (t) LOG.trace("Notifying " + this.shutdown_observable.countObservers() + " observers that we're shutting down");
+        this.shutdown_observable.notifyObservers();
         
         // Stop the monitor thread
         if (this.status_monitor != null) {
@@ -719,6 +722,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
      * Returns true if HStoreSite is in the process of shutting down
      * @return
      */
+    @Override
     public boolean isShuttingDown() {
         return (this.shutdown);
     }
@@ -974,19 +978,20 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
             this.voltListener.setThrottleFlag(true);
         }
         
-        this.initializeInvocation(local_ts, false);
+        this.initializeInvocation(local_ts);
     }
 
     /**
      * 
      * @param txn_info
      */
-    private void initializeInvocation(LocalTransactionState txn_info, boolean force_execute) {
+    private void initializeInvocation(LocalTransactionState txn_info) {
         long txn_id = txn_info.getTransactionId();
         Long orig_txn_id = txn_info.getOriginalTransactionId();
         int base_partition = txn_info.getBasePartition();
         boolean single_partitioned = txn_info.isPredictSinglePartition();
         boolean read_only = txn_info.isPredictReadOnly();
+        boolean spec_exec = (this.speculative_txn[base_partition] != NULL_SPECULATIVE_EXEC_ID);
                 
         LocalTransactionState dupe = this.inflight_txns.put(txn_id, txn_info);
         if (dupe != null) {
@@ -1008,37 +1013,53 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         if (this.status_monitor != null) {
             if (txn_info.sysproc) {
                 TxnCounter.SYSPROCS.inc(txn_info.getProcedure());
-            } else {
-                (single_partitioned ? TxnCounter.SINGLE_PARTITION : TxnCounter.MULTI_PARTITION).inc(txn_info.getProcedure());
+            } else if (single_partitioned) {
+                TxnCounter.SINGLE_PARTITION.inc(txn_info.getProcedure());
             }
         }
 
+        // We have to wrap the StoredProcedureInvocation object into an InitiateTaskMessage so that it can be put
+        // into the ExecutionSite's execution queue
         InitiateTaskMessage wrapper = new InitiateTaskMessage(txn_id, base_partition, base_partition, txn_info.invocation);
-        Set<Long> dtxn_txns = this.canadian_txns[base_partition];
-        assert(dtxn_txns != null) : "Missing multi-partition txn id set at partition " + base_partition;
-        boolean spec_exec = (this.speculative_txn[base_partition] != NULL_SPECULATIVE_EXEC_ID);
         
         // -------------------------------
         // FAST MODE: Skip the Dtxn.Coordinator
         // -------------------------------
-        if (hstore_conf.ignore_dtxn && single_partitioned && (dtxn_txns.isEmpty() || spec_exec || read_only || force_execute)) {
+        if (hstore_conf.ignore_dtxn && single_partitioned) {
+            Long blocked_id = null;
             txn_info.ignore_dtxn = true;
-            if (d) LOG.debug(String.format("Fast path execution for %s txn #%d on partition %d [speculative=%s, handle=%d]",
-                                           txn_info.getProcedureName(), txn_id, base_partition, spec_exec, txn_info.getClientHandle()));
-            RpcCallback<Dtxn.FragmentResponse> callback = new SinglePartitionTxnCallback(this, txn_id, base_partition, txn_info.client_callback);
-            if (hstore_conf.enable_profiling) ProfileMeasurement.swap(txn_info.init_time, txn_info.coord_time);
-            this.executeTransaction(txn_info, wrapper, callback);
-            if (this.status_monitor != null) {
-                TxnCounter.FAST.inc(txn_info.getProcedure());
-                if (spec_exec) TxnCounter.SPECULATIVE.inc(txn_info.getProcedure());
+            txn_info.init_wrapper = wrapper;
+            txn_info.init_callback = new SinglePartitionTxnCallback(this, txn_id, base_partition, txn_info.client_callback);
+            
+            synchronized (this.dtxn_txns[base_partition]) {
+                int last_idx = this.dtxn_txns[base_partition].size() - 1;
+                
+                // We will fire off this transaction right away if:
+                // (1) There are no outstanding multi-partition transactions
+                // (2) We're allowed to speculatively execute this txn
+                // (3) It is a read-only transaction <--- XXX: Is that true?
+                if (last_idx < 0 || spec_exec || read_only) {
+                    if (hstore_conf.enable_profiling) ProfileMeasurement.swap(txn_info.init_time, txn_info.coord_time);
+                    this.executeTransaction(txn_info, txn_info.init_wrapper, txn_info.init_callback);        
+                    
+                // Otherwise we need to add ourselves to the blocked txn queue that will be released when the multi-p txn finishes
+                } else {
+                    if (d) blocked_id = this.dtxn_txns[base_partition].get(last_idx);
+                    this.dtxn_txns[base_partition].getValue(last_idx).add(txn_info);
+                }
+            } // SYNCH
+            
+            if (d) {
+                if (blocked_id == null) {
+                    LOG.debug(String.format("Fast path execution for %s txn #%d on partition %d [speculative=%s, handle=%d]",
+                                            txn_info.getProcedureName(), txn_id, base_partition, spec_exec, txn_info.getClientHandle()));
+                } else {
+                    LOG.debug(String.format("Blocking single-partition txn #%d at partition %d until multi-partition txn #%d completes",
+                                            txn_id, base_partition, blocked_id));
+                }
             }
-        // -------------------------------
-        // FAST MODE: Queue waiting for multi-partition txn to finish
-        // -------------------------------
-        } else if (hstore_conf.ignore_dtxn && single_partitioned) {
-            int last_idx = this.dtxn_txns[base_partition].size() - 1;
-            this.dtxn_txns[base_partition].getValue(last_idx).add(txn_info);
-
+            if (this.status_monitor != null && spec_exec) TxnCounter.SPECULATIVE.inc(txn_info.getProcedure());
+            
         // -------------------------------
         // CANADIAN MODE: Single-Partition
         // -------------------------------
@@ -1123,6 +1144,13 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
             Dtxn.CoordinatorFragment dtxn_request = requestBuilder.build();
             if (hstore_conf.enable_profiling) ProfileMeasurement.swap(txn_info.init_time, txn_info.coord_time);
             this.coordinator.execute(new ProtoRpcController(), dtxn_request, callback); // txn_info.rpc_request_init
+            
+            // Push a new set of blocked single-partition transactions at the end of our list for this partition
+            synchronized (this.dtxn_txns[base_partition]) {
+                Object existing = this.dtxn_txns[base_partition].put(txn_id, new HashSet<LocalTransactionState>());
+                assert(existing == null) : "Duplicate blocked transaction queue for txn #" + txn_id;
+            } // SYNCH
+            
             if (d) LOG.debug(String.format("Sent Dtxn.CoordinatorFragment for txn #%d [bytes=%d]", txn_id, dtxn_request.getSerializedSize()));
         }
     }
@@ -1144,10 +1172,10 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         }
 
         long txn_id = msg.getTxnId();
-        int partition = msg.getDestinationPartitionId();
+        int target_partition = msg.getDestinationPartitionId();
         
         if (d) {
-            LOG.debug(String.format("Got %s message for txn #%d [partition=%d]", msg.getClass().getSimpleName(), txn_id, partition));
+            LOG.debug(String.format("Got %s message for txn #%d [partition=%d]", msg.getClass().getSimpleName(), txn_id, target_partition));
             if (t) LOG.trace("CONTENTS:\n" + msg);
         }
         
@@ -1164,12 +1192,6 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         //      back anything right away. The ExecutionSite will use our callback handle
         //      to send back whatever response it needs to on its own.
         //
-        
-        Set<Long> multip_txns = this.canadian_txns[partition];
-        assert(multip_txns != null) : "Missing multi-partition txn id set at partition " + partition;
-        if (d && multip_txns.isEmpty()) LOG.debug(String.format("Enabling Dtxn.Coordinator CANADIAN mode for partition %d [txn=#%d]", partition, txn_id));
-        multip_txns.add(txn_id);
-        
         if (msg instanceof InitiateTaskMessage) {
             LocalTransactionState txn_info = this.inflight_txns.get(txn_id);
             assert(txn_info != null) : "Missing TransactionInfo for txn #" + txn_id;
@@ -1181,11 +1203,20 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
             
             if (hstore_conf.enable_profiling) txn_info.coord_time.stop(timestamp);
             this.executeTransaction(txn_info, task, done);
+            
+            if (this.status_monitor != null) TxnCounter.MULTI_PARTITION.inc(txn_info.getProcedure());
 
         } else {
             if (t) LOG.trace("Executing remote fragment for txn #" + txn_id);
+            this.executors.get(target_partition).doWork(msg, done);
             
-            this.executors.get(partition).doWork(msg, done);
+            // Even though this transaction is executing remotely, we still need to queue all of our
+            // single-partition transactions until we get back a response. Note that we have to check whether
+            // we already have a queue for this txn because there could be multiple rounds of requests
+            synchronized (this.dtxn_txns[target_partition]) {
+                Object existing = this.dtxn_txns[target_partition].get(txn_id);
+                if (existing == null) this.dtxn_txns[target_partition].put(txn_id, new HashSet<LocalTransactionState>());
+            } // SYNCH
         }
     }
     
@@ -1326,7 +1357,10 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         new_done.removeAll(touched.values());
         if (t) LOG.trace(String.format("Txn #%d Mispredicted partitions\n%s", txn_id, orig_ts.getTouchedPartitions()));
         
-        this.initializeInvocation(new_ts, false);
+        this.initializeInvocation(new_ts);
+        
+        // Make sure that we decrement the single-partition counter
+        if (this.status_monitor != null) TxnCounter.SINGLE_PARTITION.dec(new_ts.getProcedure());
     }
     
     /**
@@ -1337,7 +1371,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         CountDownLatch latch = ts.init_latch;
         if (latch.getCount() > 0) {
             final boolean d = debug.get();
-            if (d) LOG.debug("Waiting for Dtxn.Coordinator to process our initialization response because Evan eats babies!!");
+            if (d) LOG.debug(String.format("Waiting for Dtxn.Coordinator to process our initialization response for txn #%d because Evan eats babies!!", ts.getTransactionId()));
             if (hstore_conf.enable_profiling) ts.blocked_time.start();
             try {
                 latch.await();
@@ -1424,15 +1458,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
                 }
             }
             // See if there are any queued transactions we can now release
-            Set<LocalTransactionState> released = this.dtxn_txns[p].remove((Long)txn_id);
-            if (released != null) {
-                LOG.info(String.format("Releasing %d transactions at partition %d because of txn #%d", released.size(), p, txn_id));
-                for (LocalTransactionState release_ts : released) {
-                    this.initializeInvocation(release_ts, true);
-                } // FOR
-            }
-            
-            this.removeCanadianTransaction(txn_id, p.intValue());
+            this.removeBlockedTransactions(txn_id, p.intValue(), false);
         } // FOR
         
         // Send back a FinishResponse to let them know we're cool with everything...
@@ -1444,17 +1470,21 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
     }
 
     /**
-     * Remove a transaction that was executed by the Canadian DTXN system
+     * 
      * @param txn_id
      * @param p
      */
-    private void removeCanadianTransaction(long txn_id, int p) {
-        boolean removed = this.canadian_txns[p].remove(txn_id);
-        if (d) {
-            if (removed && t) LOG.trace(String.format("Removed txn #%d from the multi-partition txn set for Partition %d", txn_id, p));
-            Set<Long> multip_txns = this.canadian_txns[p];
-            if (removed && multip_txns.isEmpty()) LOG.debug(String.format("Disabling Dtxn.Coordinator CANADIAN mode [txn=#%d]", txn_id));
-            else if (multip_txns.isEmpty() == false) LOG.debug(String.format("Partition %d In-Flight Dtxn.Coordinator Txns: %s", p, multip_txns.toString()));
+    private void removeBlockedTransactions(long txn_id, int p, boolean speculative) {
+        Set<LocalTransactionState> released = null;
+        synchronized (this.dtxn_txns[p]) {
+            released = this.dtxn_txns[p].remove((Long)txn_id);
+        } // SYNCH
+        if (released != null && released.isEmpty() == false) {
+            if (d) LOG.debug(String.format("Releasing %d transactions at partition %d because of txn #%d", released.size(), p, txn_id));
+            for (LocalTransactionState release_ts : released) {
+                if (speculative) release_ts.setSpeculative(true);
+                this.executeTransaction(release_ts, release_ts.init_wrapper, release_ts.init_callback);
+            } // FOR
         }
     }
 
@@ -1466,15 +1496,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         if (d) LOG.debug("Cleaning up internal info for Txn #" + txn_id);
         LocalTransactionState ts = this.inflight_txns.remove(txn_id);
         assert(ts != null) : "No LocalTransactionState for txn #" + txn_id;
-
         int base_partition = ts.getBasePartition();
-        boolean removed = this.canadian_txns[base_partition].remove(txn_id);
-        if (d) {
-            if (removed && t) LOG.trace(String.format("Removed txn #%d from the multi-partition txn set for Partition %d", txn_id, base_partition));
-            Set<Long> dtxn_txns = this.canadian_txns[base_partition];
-            if (removed && dtxn_txns.isEmpty()) LOG.debug(String.format("Disabling Dtxn.Coordinator CANADIAN mode [txn=#%d]", txn_id));
-            else if (dtxn_txns.isEmpty() == false) LOG.debug(String.format("Partition %d In-Flight Dtxn.Coordinator Txns: %s", base_partition, dtxn_txns.toString()));
-        }
         
         // Then clean-up any extra information that we may have for the txn
         if (ts.getEstimatorState() != null) {
@@ -1509,7 +1531,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
     
     /**
      * Notify this HStoreSite that the given transaction is done with the set of partitions
-     * This will cause speculative execution to be enabled
+     * This will cause all the transactions that are blocked on this transaction to be released immediately and queued 
      * @param txn_id
      * @param partitions
      */
@@ -1533,15 +1555,9 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
                 this.speculative_txn[p] = txn_id;
                 spec_cnt++;
                 if (d) LOG.debug(String.format("Partition %d - Speculative Execution!", p));
-            }
-            
-            // See if there are any queued transactions we can now release
-            Set<LocalTransactionState> released = this.dtxn_txns[p].remove((Long)txn_id);
-            if (released != null) {
-                LOG.info(String.format("Releasing %d transactions at partition %d because of txn #%d", released.size(), p, txn_id));
-                for (LocalTransactionState released_ts : released) {
-                    this.initializeInvocation(released_ts, true);
-                } // FOR
+                
+                // See if there are any queued transactions we can now release
+                this.removeBlockedTransactions(txn_id, p, true);
             }
         } // FOR
         if (d) LOG.debug(String.format("Enabled speculative execution at %d partitions because of waiting for txn #%d", spec_cnt, txn_id));
@@ -1594,11 +1610,11 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
                     hstore_site.ready_latch.countDown();
                     hstore_site.protoEventLoop.run();
                 } catch (AssertionError ex) {
-                    LOG.fatal("ProtoServer thread failed", ex);
+                    if (hstore_site.isShuttingDown() == false) LOG.fatal("ProtoServer thread failed", ex);
                     error = new Exception(ex);
                     should_shutdown = true;
                 } catch (Exception ex) {
-                    LOG.fatal("ProtoServer thread failed", ex);
+                    if (hstore_site.isShuttingDown() == false) LOG.fatal("ProtoServer thread failed", ex);
                     error = ex;
                     should_shutdown = true;
                 }

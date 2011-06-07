@@ -49,12 +49,13 @@ import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.ThreadUtil;
 import edu.brown.utils.LoggerUtil.LoggerBoolean;
 import edu.mit.hstore.callbacks.ForwardTxnResponseCallback;
+import edu.mit.hstore.interfaces.Shutdownable;
 
 /**
  * 
  * @author pavlo
  */
-public class HStoreMessenger {
+public class HStoreMessenger implements Shutdownable {
     public static final Logger LOG = Logger.getLogger(HStoreMessenger.class);
     private final static LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private final static LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
@@ -63,14 +64,7 @@ public class HStoreMessenger {
     }
     private static boolean d = debug.get();
     private static boolean t = trace.get();
-    
-    enum MessengerState {
-        INITIALIZED,
-        STARTED,
-        PREPARE_STOP,
-        STOPPED,
-    };
-    
+
     private final HStoreSite hstore_site;
     private final Site catalog_site;
     private final int local_site_id;
@@ -95,7 +89,7 @@ public class HStoreMessenger {
     private final FragmentCallback fragment_callback;
     private final MessageCallback message_callback;
     private boolean shutting_down = false;
-    private MessengerState state = MessengerState.INITIALIZED;
+    private Shutdownable.State state = State.INITIALIZED;
     
     private class Listener implements Runnable {
         @Override
@@ -125,8 +119,8 @@ public class HStoreMessenger {
                 if (cause == null) cause = error;
                 
                 // These errors are ok if we're actually stopping...
-                if (HStoreMessenger.this.state == MessengerState.STOPPED ||
-                    HStoreMessenger.this.state == MessengerState.PREPARE_STOP ||
+                if (HStoreMessenger.this.state == State.SHUTDOWN ||
+                    HStoreMessenger.this.state == State.PREPARE_SHUTDOWN ||
                     HStoreMessenger.this.hstore_site.isShuttingDown()) {
                     // IGNORE
                 } else {
@@ -175,9 +169,9 @@ public class HStoreMessenger {
      * and start the listener thread!
      */
     public synchronized void start() {
-        assert(this.state == MessengerState.INITIALIZED) : "Invalid MessengerState " + this.state;
+        assert(this.state == State.INITIALIZED) : "Invalid MessengerState " + this.state;
         
-        this.state = MessengerState.STARTED;
+        this.state = State.STARTED;
         
         if (d) LOG.debug("Initializing connections");
         this.initConnections();
@@ -191,25 +185,27 @@ public class HStoreMessenger {
      * @return
      */
     public boolean isStarted() {
-        return (this.state == MessengerState.STARTED ||
-                this.state == MessengerState.PREPARE_STOP);
+        return (this.state == State.STARTED ||
+                this.state == State.PREPARE_SHUTDOWN);
     }
     
     /**
      * Internal call for testing to hide errors
      */
-    protected void prepareToStop() {
-        assert(this.state == MessengerState.STARTED) : "Invalid MessengerState " + this.state;
-        this.state = MessengerState.PREPARE_STOP;
+    @Override
+    public void prepareShutdown() {
+        assert(this.state == State.STARTED) : "Invalid MessengerState " + this.state;
+        this.state = State.PREPARE_SHUTDOWN;
     }
     
     /**
      * Stop this messenger. This kills the ProtoRpc event loop
      */
-    public synchronized void stop() {
-        assert(this.state == MessengerState.STARTED || this.state == MessengerState.PREPARE_STOP) : "Invalid MessengerState " + this.state;
+    @Override
+    public synchronized void shutdown() {
+        assert(this.state == State.STARTED || this.state == State.PREPARE_SHUTDOWN) : "Invalid MessengerState " + this.state;
         
-        this.state = MessengerState.STOPPED;
+        this.state = State.SHUTDOWN;
         
         try {
             if (t) LOG.trace("Stopping eventLoop for Site #" + this.getLocalSiteId());
@@ -228,15 +224,16 @@ public class HStoreMessenger {
             if (t) LOG.trace("Closing listener socket for Site #" + this.getLocalSiteId());
             this.listener.close();
         }
-        assert(this.isStopped());
+        assert(this.isShuttingDown());
     }
     
     /**
      * Returns true if the messenger has stopped
      * @return
      */
-    public boolean isStopped() {
-        return (this.state == MessengerState.STOPPED);
+    @Override
+    public boolean isShuttingDown() {
+        return (this.state == State.SHUTDOWN);
     }
     
     protected int getLocalSiteId() {

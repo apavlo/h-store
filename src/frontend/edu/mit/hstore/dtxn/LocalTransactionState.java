@@ -43,6 +43,7 @@ import org.voltdb.VoltTable;
 import org.voltdb.BatchPlanner.BatchPlan;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.messaging.FragmentTaskMessage;
+import org.voltdb.messaging.InitiateTaskMessage;
 
 import ca.evanjones.protorpc.ProtoRpcController;
 
@@ -153,6 +154,9 @@ public class LocalTransactionState extends TransactionState {
      */
     private ListOrderedSet<Integer> partition_dependency_keys = new ListOrderedSet<Integer>();
 
+    public InitiateTaskMessage init_wrapper = null;
+    public RpcCallback<Dtxn.FragmentResponse> init_callback = null;
+    
     // ----------------------------------------------------------------------------
     // HSTORE SITE DATA MEMBERS
     // ----------------------------------------------------------------------------
@@ -452,6 +456,8 @@ public class LocalTransactionState extends TransactionState {
         this.rpc_request_work.reset();
         this.rpc_request_finish.reset();
         
+        this.init_wrapper = null;
+        this.init_callback = null;
         
         this.orig_txn_id = null;
         this.catalog_proc = null;

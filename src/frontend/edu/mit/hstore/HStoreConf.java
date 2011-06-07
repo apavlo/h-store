@@ -46,7 +46,7 @@ public final class HStoreConf {
     /**
      * Whether to force all transactions to be executed as single-partitioned
      */
-    public boolean force_singlepartitioned = false;
+    public boolean force_singlepartitioned = true;
     
     /**
      * Whether all transactions should execute at the local HStoreSite (i.e., they are never redirected)
