@@ -415,7 +415,7 @@ public class PlanAssembler {
          * the recursive updateOutputColumns() ideally wouldn't
          * have other callers.)
          */
-        //root.updateOutputColumns(m_catalogDb);
+        root.updateOutputColumns(m_catalogDb);
 
         // PAVLO: Ok so now before this just assumed that we were going to stick a AggregatePlanNode on top
         // of the root that we sent it (which should be a AbstractScanPlanNode or a ReceievePlanNode).
@@ -428,16 +428,8 @@ public class PlanAssembler {
 //            LOG.debug("PAVLO OPTIMIZATION:\n" + PlanNodeUtil.debug(root));
 //        }
 
-        LOG.info("UNOPTIMIZED TREE BEFORE updateOutputColumns: ");
-        LOG.info(PlanNodeUtil.debug(root));
-        LOG.info("\n");          	
-
         root.updateOutputColumns(m_catalogDb);
 
-        LOG.info("UNOPTIMIZED TREE AFTER updateOutputColumns: ");
-        LOG.info(PlanNodeUtil.debug(root));
-        LOG.info("\n");    
-        
          if ((subSelectRoot.getPlanNodeType() != PlanNodeType.INDEXSCAN ||
             ((IndexScanPlanNode) subSelectRoot).getSortDirection() == SortDirectionType.INVALID) &&
             m_parsedSelect.orderColumns.size() > 0) {

@@ -35,6 +35,7 @@ import org.voltdb.plannodes.OrderByPlanNode;
 import org.voltdb.plannodes.ProjectionPlanNode;
 import org.voltdb.plannodes.ReceivePlanNode;
 import org.voltdb.plannodes.SendPlanNode;
+import org.voltdb.types.ExpressionType;
 import org.voltdb.types.PlanNodeType;
 
 import edu.brown.catalog.CatalogUtil;
@@ -213,6 +214,29 @@ public class PlanOptimizer {
         this.sql = sql;
         // if (debug) LOG.debug("PlanNodeTree:\n" + PlanNodeUtil.debug(root));
 
+        // check to see if the join nodes have the wrong offsets. If so fix them and propagate them.
+        new PlanNodeTreeWalker(false) {
+			
+			@Override
+			protected void callback(AbstractPlanNode element) {
+				if (element instanceof NestLoopPlanNode || element instanceof NestLoopIndexPlanNode) {
+					// make sure the column reference offsets of the output column are consecutive
+					int offset_cnt = 0;
+					for (int col_guid : element.m_outputColumns) {
+						PlanColumn pc_col = m_context.get(col_guid);
+						if (pc_col.getExpression().getExpressionType() == ExpressionType.VALUE_TUPLE) {
+							// if the offset doesn't match, set it to be the correct offset
+							if (((TupleValueExpression)pc_col.getExpression()).getColumnIndex() != offset_cnt) {
+								((TupleValueExpression)pc_col.getExpression()).setColumnIndex(offset_cnt);
+							}
+							offset_cnt++;
+						}
+					}
+				}
+			}
+		}.traverse(root);
+        
+        
         // Check if our tree contains anything that we want to ignore
         Set<PlanNodeType> types = PlanNodeUtil.getPlanNodeTypes(root);
         if (trace)
