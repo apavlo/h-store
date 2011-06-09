@@ -45,6 +45,7 @@
 <property name='src.hsqldb.test.dir'         location='tests/hsqldb' />
 <property name='src.ee.parent.dir'           location='src/ee' />
 <property name='src.ee.dir'                  location='src/ee' />
+<property name='tools.dir'                   location='tools' />
 <property name='build.testoutput.dir'        location='${build.dir}/testoutput' />
 <property name='build.testobjects.dir'       location='${build.dir}/testobjects' />
 <property name='build.protorpc.dir'          location='${build.dir}/protorpc' />
@@ -147,11 +148,11 @@ PRIMARY ENTRY POINTS
     description="Compile Java classes and C++ JNI library."
 />
 <target name="check"
-    depends="compile, voltdbipc, eecheck, junit, distcheck, pythonfser"
+    depends="compile, voltdbipc, eecheck, junit, pythonfser"
     description="Run Java and C++ JNI testcases and test plan fragments."
 />
 <target name="check_quick"
-    depends="compile, voltdbipc, junit_quick, distcheck"
+    depends="compile, voltdbipc, junit_quick"
     description="Run a subset of Java testcases and test fragments."
 />
 <target name="all"
@@ -172,6 +173,11 @@ PRIMARY ENTRY POINTS
 ENVIRONMENT SETUP
 ***************************************
 -->
+
+<target name="getcpus" description="Get the number of CPUs on this machine"
+                       unless="numcpus">
+    <exec executable="${tools.dir}/getcpus.py" outputproperty="numcpus" />                       
+</target>
 
 <!--<target name="default_properties.check">
    <available property="default_properties.exists" file="${propeties.dir}/default.properties" />
@@ -1142,47 +1148,6 @@ TEST CASES
     <fail if="junit.failures" message="JUnit had failures" />
 </target>
 
-<target name="distcheck" depends='dist'
-    description="Verify distribution sample applications compile and run.">
-
-    <!-- make sure auction example compiles -->
-    <ant
-        dir='${dist.examples.auction.dir}'
-        inheritAll='false'
-        inheritRefs='false'
-        target='main'
-    />
-
-    <!-- make sure satellite example compiles
-    <ant
-        dir='${dist.examples.satellite.dir}'
-        inheritAll='false'
-        inheritRefs='false'
-        target='main'
-    />
-    -->
-
-    <!-- make sure voter example compiles -->
-    <ant
-        dir='${dist.examples.voter.dir}'
-        inheritAll='false'
-        inheritRefs='false'
-        target='main'
-    />
-
-    <!-- test the generator -->
-    <exec dir="${dist.dir}" executable='${dist.dir}/tools/generate'>
-        <arg line="foo org.foo foo"/>
-    </exec>
-    <ant
-        dir='${dist.dir}/foo'
-        inheritAll='false'
-        inheritRefs='false'
-        target='main'
-    />
-    <delete dir='${dist.dir}/foo' />
-</target>
-
 <target name='m1test_pre' depends='ee, compile'>
     <mkdir dir='${build.testoutput.dir}' />
     <junit fork="yes" printsummary='yes' haltonfailure="yes" showoutput='true'>
@@ -1349,14 +1314,16 @@ PROTOCOL BUFFERS
     <available property="protoc.built" file="${build.protobuf.dir.protoc}" />
 </target>
 
-<target name="protobuf.compile" description="Builds the protocol buffer compiler" depends="protoc.check" unless="protoc.built">
+<target name="protobuf.compile" description="Builds the protocol buffer compiler" 
+                                depends="protoc.check, getcpus"
+                                unless="protoc.built">
     <mkdir dir="${build.protobuf.dir}" />
     <exec executable="${src.protobuf.dir}/configure" dir="${build.protobuf.dir}" failonerror="true"  resolveexecutable="true">
         <arg value="--disable-shared" />
     </exec>
     <exec executable="make" dir="${build.protobuf.dir}" failonerror="true">
 <!--         <arg value="protoc" /> -->
-        <arg value="-j2" />
+        <arg value="-j${numcpus}" />
     </exec>
 </target>
 
@@ -1412,17 +1379,19 @@ DTXN BINARIES + LIBRARIES
 ***************************************
 -->
 
-<target name="dtxn" description="Build DTXN binaries" depends="protobuf.compile">
-   <exec executable="make" dir="${src.dtxn.dir}" failonerror="true" resolveexecutable="true" >
-      <arg value="PREFIX=${build.dtxn.dir}" />
-      <arg value="PROTOBUF_SRC=${src.protobuf.dir}" />
-      <arg value="PROTOBUF_BIN=${build.protobuf.dir}" />
-      <arg value="PROTORPC_PATH=${src.protorpc.dir}" />
-      <arg value="LOG_LEVEL=300" />
-   </exec>
+<target name="dtxn" description="Build Dtxn.Coordinator binaries"
+                    depends="protobuf.compile,getcpus">
+    <exec executable="make" dir="${src.dtxn.dir}" failonerror="true" resolveexecutable="true" >
+        <arg value="-j${numcpus}" />
+        <arg value="PREFIX=${build.dtxn.dir}" />
+        <arg value="PROTOBUF_SRC=${src.protobuf.dir}" />
+        <arg value="PROTOBUF_BIN=${build.protobuf.dir}" />
+        <arg value="PROTORPC_PATH=${src.protorpc.dir}" />
+        <arg value="LOG_LEVEL=300" />
+    </exec>
 </target>
 
-<target name="dtxn-coordinator" description="H-Store DTXN Coordinator">
+<target name="dtxn-coordinator" description="H-Store Dtxn.Coordinator">
     <property name="dtxn.temp.dir" location="/tmp/hstore" />
     <unzip src="${benchmark.jar}" dest="${dtxn.temp.dir}">
         <patternset>
@@ -1707,8 +1676,9 @@ DESIGNER
 
 <target name='catalog-fix'
         description="Updates the catalog in a JAR to include foreign keys and parameter mappings">
-    <copy file="${jar}" tofile="${jar}-ORIG" />
-    <echo message="Copied back-up to ${jar}-ORIG" />
+    <property name="jar.backup" location="/tmp/${jar}-BACKUP" />
+    <copy file="${jar}" tofile="${jar.backup}" />
+    <echo message="Copied back-up to ${jar.backup}" />
     <unjar src="${jar}" dest="/tmp/fixcatalog/"/>
     <java fork="yes" failonerror="true" classname="edu.brown.catalog.FixCatalog">
 <!--    <java fork="yes" failonerror="true" classname="edu.brown.utils.PatchCatalog"> -->
@@ -2104,11 +2074,14 @@ TPC-E EGenLoader
 ***************************************
 -->
 
-<target name='tpceloader' description="Builds the TPC-E EGenLoader" depends="tpceloader.check" unless="tpceloader.built">
+<target name='tpceloader' description="Builds the TPC-E EGenLoader"
+                          depends="tpceloader.check, getcpus"
+                          unless="tpceloader.built">
     <mkdir dir="${build.tpce.dir}" />
    
     <echo message="src.tpce.dir: ${src.tpce.dir}" />
     <exec executable="make" dir="${src.tpce.dir}/prj" failonerror="true" resolveexecutable="true" >
+        <arg value="-j${numcpus}" />
         <arg value="SOURCE=.." />
         <arg value="PREFIX=${build.tpce.dir}" />
         <arg value="DEBUG_OPTS=-DDEBUG -Wall -Wextra" />

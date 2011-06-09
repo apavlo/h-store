@@ -27,6 +27,7 @@ import edu.brown.utils.FileUtil;
 import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.PartitionEstimator;
 import edu.brown.utils.ProjectType;
+import edu.mit.hstore.HStoreConf;
 
 /**
  * Base class that provides a lot of the common functionality that our HStore test cases need
@@ -44,6 +45,9 @@ public abstract class BaseTestCase extends TestCase {
         if (System.getenv("ENABLE_JAR_REUSE") != null) {
             ENABLE_JAR_REUSE = Boolean.valueOf(System.getenv("ENABLE_JAR_REUSE"));
         }
+        
+        // HStoreConf Hack
+        HStoreConf.init(null, null);
     }
     
     
