@@ -173,8 +173,7 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
             load_threads.add(new Thread() {
                 @Override
                 public void run() {
-                	System.out.println("Table Name: " + tableName);
-                    AuctionMarkLoader.this.generateTableData(tableName);
+                	AuctionMarkLoader.this.generateTableData(tableName);
                 }
             });
         } // FOR

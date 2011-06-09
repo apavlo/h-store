@@ -39,36 +39,36 @@ import edu.brown.utils.CollectionUtil;
  */
 public class TestPlanOptimizations2 extends BaseTestCase {
 
-//    private VoltProjectBuilder pb = new VoltProjectBuilder("test-planopt") {
-//        {
-//            File schema = new File(TestPlanOptimizations2.class.getResource("testopt-ddl.sql").getFile());
-//            assert (schema.exists()) : "Schema: " + schema;
-//            this.addSchema(schema.getAbsolutePath());
-//
-//            this.addPartitionInfo("TABLEA", "A_ID");
-//            this.addPartitionInfo("TABLEB", "B_A_ID");
-//            this.addPartitionInfo("TABLEC", "C_A_ID");
-//
-//            this.addStmtProcedure("DistinctAggregate", "SELECT COUNT(DISTINCT(TABLEB.B_ID)) AS DISTINCTNUMBER FROM TABLEA, TABLEB WHERE TABLEA.A_ID = TABLEB.B_A_ID AND TABLEA.A_ID = ? AND TABLEB.B_ID < ?");
-//            this.addStmtProcedure("DistinctCount", "SELECT COUNT(DISTINCT(TABLEB.B_A_ID)) FROM TABLEB");
-//            this.addStmtProcedure("MaxGroup", "SELECT B_ID, Max(TABLEB.B_A_ID) FROM TABLEB GROUP BY B_ID");
-//            this.addStmtProcedure("Max", "SELECT Max(TABLEB.B_A_ID) FROM TABLEB");
-//            this.addStmtProcedure("Min", "SELECT Min(TABLEB.B_A_ID) FROM TABLEB");
-//            this.addStmtProcedure("Aggregate", "SELECT COUNT(TABLEB.B_A_ID) AS cnt FROM TABLEB");
-//            this.addStmtProcedure("Limit", "SELECT * FROM TABLEA WHERE TABLEA.A_ID > ? AND TABLEA.A_ID <= ? AND TABLEA.A_VALUE0 != ? LIMIT 15");
-//            this.addStmtProcedure("LimitJoin", "SELECT TABLEA.A_ID,TABLEB.B_ID FROM TABLEA, TABLEB WHERE TABLEA.A_ID > ? AND TABLEA.A_ID = TABLEB.B_A_ID LIMIT 15");
-//	        this.addStmtProcedure("ThreeWayJoin", "SELECT TABLEA.A_VALUE0, TABLEB.B_VALUE0, ((TABLEC.C_VALUE0 + TABLEC.C_VALUE1) / TABLEB.B_A_ID) AS blah FROM TABLEA, TABLEB, TABLEC WHERE TABLEA.A_ID = TABLEB.B_A_ID AND TABLEA.A_ID = TABLEC.C_A_ID AND TABLEA.A_VALUE3 = ? AND TABLEC.C_A_ID = ? AND TABLEC.C_VALUE0 != ? AND TABLEC.C_VALUE1 != ?");
-//	        this.addStmtProcedure("ThreeWayJoin2", "SELECT TABLEA.A_VALUE0, TABLEB.B_VALUE0, TABLEC.C_VALUE0, TABLEC.C_VALUE1, TABLEB.B_A_ID FROM TABLEA, TABLEB, TABLEC WHERE TABLEA.A_ID = TABLEB.B_A_ID AND TABLEA.A_ID = TABLEC.C_A_ID AND TABLEA.A_VALUE3 = ? AND TABLEC.C_A_ID = ? AND TABLEC.C_VALUE0 != ? AND TABLEC.C_VALUE1 != ?");
-//            this.addStmtProcedure("SingleProjection", "SELECT TABLEA.A_VALUE0 FROM TABLEA WHERE TABLEA.A_ID = ?");
-//            this.addStmtProcedure("JoinProjection", "SELECT TABLEA.A_ID, TABLEA.A_VALUE0, TABLEA.A_VALUE1, TABLEA.A_VALUE2, TABLEA.A_VALUE3, TABLEA.A_VALUE4 FROM TABLEA,TABLEB WHERE TABLEA.A_ID = ? AND TABLEA.A_ID = TABLEB.B_A_ID");
-//            this.addStmtProcedure("AggregateColumnAddition", "SELECT AVG(TABLEC.C_VALUE0), C_A_ID FROM TABLEC WHERE TABLEC.C_ID = ? GROUP BY C_A_ID");
-//            this.addStmtProcedure("OrderBy", "SELECT TABLEC.C_A_ID FROM TABLEC ORDER BY TABLEC.C_A_ID, TABLEC.C_VALUE0");
-//            this.addStmtProcedure("GroupBy", "SELECT MAX(TABLEC.C_ID) FROM TABLEC GROUP BY TABLEC.C_A_ID, TABLEC.C_VALUE0");
-//            this.addStmtProcedure("ProjectOrderBy", "select A_ID, B_A_ID, B_VALUE0, B_VALUE1, B_VALUE2, A_VALUE5 FROM TABLEA, TABLEB WHERE A_ID = B_A_ID ORDER BY A_VALUE5 ASC LIMIT 25");
-//        }
-//    };
+    private VoltProjectBuilder pb = new VoltProjectBuilder("test-planopt") {
+        {
+            File schema = new File(TestPlanOptimizations2.class.getResource("testopt-ddl.sql").getFile());
+            assert (schema.exists()) : "Schema: " + schema;
+            this.addSchema(schema.getAbsolutePath());
 
-    private VoltProjectBuilder pb = new VoltProjectBuilder("test-planopt(auction-mark)") {
+            this.addPartitionInfo("TABLEA", "A_ID");
+            this.addPartitionInfo("TABLEB", "B_A_ID");
+            this.addPartitionInfo("TABLEC", "C_A_ID");
+
+            this.addStmtProcedure("DistinctAggregate", "SELECT COUNT(DISTINCT(TABLEB.B_ID)) AS DISTINCTNUMBER FROM TABLEA, TABLEB WHERE TABLEA.A_ID = TABLEB.B_A_ID AND TABLEA.A_ID = ? AND TABLEB.B_ID < ?");
+            this.addStmtProcedure("DistinctCount", "SELECT COUNT(DISTINCT(TABLEB.B_A_ID)) FROM TABLEB");
+            this.addStmtProcedure("MaxGroup", "SELECT B_ID, Max(TABLEB.B_A_ID) FROM TABLEB GROUP BY B_ID");
+            this.addStmtProcedure("Max", "SELECT Max(TABLEB.B_A_ID) FROM TABLEB");
+            this.addStmtProcedure("Min", "SELECT Min(TABLEB.B_A_ID) FROM TABLEB");
+            this.addStmtProcedure("Aggregate", "SELECT COUNT(TABLEB.B_A_ID) AS cnt FROM TABLEB");
+            this.addStmtProcedure("Limit", "SELECT * FROM TABLEA WHERE TABLEA.A_ID > ? AND TABLEA.A_ID <= ? AND TABLEA.A_VALUE0 != ? LIMIT 15");
+            this.addStmtProcedure("LimitJoin", "SELECT TABLEA.A_ID,TABLEB.B_ID FROM TABLEA, TABLEB WHERE TABLEA.A_ID > ? AND TABLEA.A_ID = TABLEB.B_A_ID LIMIT 15");
+	        this.addStmtProcedure("ThreeWayJoin", "SELECT TABLEA.A_VALUE0, TABLEB.B_VALUE0, ((TABLEC.C_VALUE0 + TABLEC.C_VALUE1) / TABLEB.B_A_ID) AS blah FROM TABLEA, TABLEB, TABLEC WHERE TABLEA.A_ID = TABLEB.B_A_ID AND TABLEA.A_ID = TABLEC.C_A_ID AND TABLEA.A_VALUE3 = ? AND TABLEC.C_A_ID = ? AND TABLEC.C_VALUE0 != ? AND TABLEC.C_VALUE1 != ?");
+	        this.addStmtProcedure("ThreeWayJoin2", "SELECT TABLEA.A_VALUE0, TABLEB.B_VALUE0, TABLEC.C_VALUE0, TABLEC.C_VALUE1, TABLEB.B_A_ID FROM TABLEA, TABLEB, TABLEC WHERE TABLEA.A_ID = TABLEB.B_A_ID AND TABLEA.A_ID = TABLEC.C_A_ID AND TABLEA.A_VALUE3 = ? AND TABLEC.C_A_ID = ? AND TABLEC.C_VALUE0 != ? AND TABLEC.C_VALUE1 != ?");
+            this.addStmtProcedure("SingleProjection", "SELECT TABLEA.A_VALUE0 FROM TABLEA WHERE TABLEA.A_ID = ?");
+            this.addStmtProcedure("JoinProjection", "SELECT TABLEA.A_ID, TABLEA.A_VALUE0, TABLEA.A_VALUE1, TABLEA.A_VALUE2, TABLEA.A_VALUE3, TABLEA.A_VALUE4 FROM TABLEA,TABLEB WHERE TABLEA.A_ID = ? AND TABLEA.A_ID = TABLEB.B_A_ID");
+            this.addStmtProcedure("AggregateColumnAddition", "SELECT AVG(TABLEC.C_VALUE0), C_A_ID FROM TABLEC WHERE TABLEC.C_ID = ? GROUP BY C_A_ID");
+            this.addStmtProcedure("OrderBy", "SELECT TABLEC.C_A_ID FROM TABLEC ORDER BY TABLEC.C_A_ID, TABLEC.C_VALUE0");
+            this.addStmtProcedure("GroupBy", "SELECT MAX(TABLEC.C_ID) FROM TABLEC GROUP BY TABLEC.C_A_ID, TABLEC.C_VALUE0");
+            this.addStmtProcedure("ProjectOrderBy", "select A_ID, B_A_ID, B_VALUE0, B_VALUE1, B_VALUE2, A_VALUE5 FROM TABLEA, TABLEB WHERE A_ID = B_A_ID ORDER BY A_VALUE5 ASC LIMIT 25");
+        }
+    };
+
+    private VoltProjectBuilder pb2 = new VoltProjectBuilder("test-planopt(auction-mark)") {
         {
             File schema = new File(TestPlanOptimizations2.class.getResource("auction-mark-snapshot.sql").getFile());
             assert (schema.exists()) : "Schema: " + schema;
@@ -78,6 +78,7 @@ public class TestPlanOptimizations2 extends BaseTestCase {
             this.addPartitionInfo("USER_WATCH", "uw_u_id");
             this.addPartitionInfo("CATEGORY", "c_id");
 
+     		this.addStmtProcedure("SingleSelect", "SELECT u_id FROM USER");
      		this.addStmtProcedure("TwoTableJoin", "SELECT uw_u_id, i_id, i_u_id, i_name, i_current_price, i_end_date, i_status, uw_created FROM USER_WATCH, ITEM WHERE uw_u_id = ?    AND uw_i_id = i_id AND uw_i_u_id = i_u_id  ORDER BY i_end_date ASC LIMIT 25");
         }
     };
@@ -85,7 +86,7 @@ public class TestPlanOptimizations2 extends BaseTestCase {
     
     @Override
     protected void setUp() throws Exception {
-        super.setUp(pb);
+        super.setUp(pb2);
     }
 
     protected void checkColumnIndex(TupleValueExpression expr, Map<String, Integer> tbl_map) {
@@ -731,19 +732,30 @@ public class TestPlanOptimizations2 extends BaseTestCase {
 //        //System.err.println(PlanNodeUtil.debug(root));
 //    }
     
-	@Test
-	public void testTwoTableJoin() throws Exception {
-		Procedure catalog_proc = this.getProcedure("TwoTableJoin");
-		Statement catalog_stmt = this.getStatement(catalog_proc, "sql");
+  @Test
+  public void testSingleSelect() throws Exception {   
+      Procedure catalog_proc = this.getProcedure("SingleSelect");
+      Statement catalog_stmt = this.getStatement(catalog_proc, "sql");
 
-		// Grab the root node of the multi-partition query plan tree for this
-		// Statement
-		AbstractPlanNode root = QueryPlanUtil.deserializeStatement(
-				catalog_stmt, true);
-		assertNotNull(root);
-		//validateNodeColumnOffsets(root);
-		System.err.println(PlanNodeUtil.debug(root));
-	}
+      // Grab the root node of the multi-partition query plan tree for this
+      // Statement
+      AbstractPlanNode root = QueryPlanUtil.deserializeStatement(catalog_stmt, true);
+      assertNotNull(root);
+      //validateNodeColumnOffsets(root);
+      //System.err.println(PlanNodeUtil.debug(root));
+  }
     
-    /** END **/
+  @Test
+  public void testTwoTableJoin() throws Exception {   
+      Procedure catalog_proc = this.getProcedure("TwoTableJoin");
+      Statement catalog_stmt = this.getStatement(catalog_proc, "sql");
+
+      // Grab the root node of the multi-partition query plan tree for this
+      // Statement
+      AbstractPlanNode root = QueryPlanUtil.deserializeStatement(catalog_stmt, true);
+      assertNotNull(root);
+      //validateNodeColumnOffsets(root);
+      System.err.println(PlanNodeUtil.debug(root));
+  }
+  /** END **/
 }

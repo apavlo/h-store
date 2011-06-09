@@ -87,12 +87,15 @@ public class TestAuctionMarkLoader extends BaseTestCase {
         }
     };
     
-    protected static final MockAuctionMarkLoader loader = new MockAuctionMarkLoader(LOADER_ARGS);
+    //protected static final MockAuctionMarkLoader loader = new MockAuctionMarkLoader(LOADER_ARGS);
+    protected static MockAuctionMarkLoader loader = null;
     
     @Override
     protected void setUp() throws Exception {
         super.setUp(ProjectType.AUCTIONMARK);
         
+        if (loader == null) loader = new MockAuctionMarkLoader(LOADER_ARGS);
+
         if (EXPECTED_BATCHSIZES.isEmpty()) {
             for (String tableName : AuctionMarkConstants.TABLENAMES) {
                 initTable(tableName);
