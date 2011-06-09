@@ -161,6 +161,7 @@ public class ArgumentsParser {
     
     private static final String PARAM_DTXN                  = "dtxn";
     public static final String PARAM_DTXN_CONF              = PARAM_DTXN + ".conf";
+    public static final String PARAM_DTXN_CONF_OUTPUT       = PARAM_DTXN + ".conf.output";
     public static final String PARAM_DTXN_ENGINE            = PARAM_DTXN + ".engine";
     public static final String PARAM_DTXN_COORDINATOR       = PARAM_DTXN + ".coordinator";
     

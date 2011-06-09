@@ -68,6 +68,8 @@ import org.xml.sax.ErrorHandler;
 import org.xml.sax.SAXException;
 import org.xml.sax.SAXParseException;
 
+import edu.brown.catalog.HStoreDtxnConf;
+
 /**
  * Compiles a project XML file and some metadata into a Jarfile
  * containing stored procedure code and a serialzied catalog.
@@ -316,7 +318,17 @@ public class VoltCompiler {
             return false;
         }
 
+        // Create Dtxn.Coordinator configuration for cluster
+        byte[] dtxnConfBytes = null;
         try {
+            dtxnConfBytes = HStoreDtxnConf.toHStoreDtxnConf(catalog).getBytes("UTF-8");
+        } catch (final Exception e1) {
+            addErr("Can't encode the Dtxn.Coordinator configuration file correctly");
+            return false;
+        }
+        
+        try {
+            m_jarBuilder.addEntry("dtxn.conf", dtxnConfBytes);
             m_jarBuilder.addEntry("catalog.txt", catalogBytes);
             m_jarBuilder.addEntry("project.xml", new File(projectFileURL));
             for (final Entry<String, String> e : m_ddlFilePaths.entrySet())

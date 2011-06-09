@@ -29,7 +29,7 @@ public class MockExecutionSite extends ExecutionSite {
     }
 
     @Override
-    public void sendClientResponse(LocalTransactionState ts, ClientResponseImpl cresponse) {
+    public void processClientResponse(LocalTransactionState ts, ClientResponseImpl cresponse) {
         // Nothing!
     }
     

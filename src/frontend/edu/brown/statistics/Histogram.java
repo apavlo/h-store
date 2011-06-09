@@ -506,7 +506,7 @@ public class Histogram<X> implements JSONSerializable {
 
     /**
      * Returns the current count for the given value
-     * If the value was never entered into the histogram, then the count will be 0
+     * If the value was never entered into the histogram, then the count will be null
      * @param value
      * @return
      */
@@ -515,6 +515,13 @@ public class Histogram<X> implements JSONSerializable {
         return (count); //  == null ? 0 : count);
     }
     
+    /**
+     * Returns the current count for the given value.
+     * If that value was nevered entered in the histogram, then the value returned will be value_if_null 
+     * @param value
+     * @param value_if_null
+     * @return
+     */
     public long get(X value, long value_if_null) {
         Long count = histogram.get(value);
         return (count == null ? value_if_null : count);

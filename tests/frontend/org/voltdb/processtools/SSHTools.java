@@ -25,9 +25,21 @@
 package org.voltdb.processtools;
 
 import java.io.File;
+import java.util.ArrayList;
+import java.util.List;
+
+import edu.brown.utils.CollectionUtil;
+import edu.brown.utils.FileUtil;
 
 public abstract class SSHTools {
 
+    private static final List<String> DEFAULT_OPTIONS = new ArrayList<String>();
+    static {
+        DEFAULT_OPTIONS.add("-q");
+        DEFAULT_OPTIONS.add("-o"); DEFAULT_OPTIONS.add("UserKnownHostsFile=/dev/null");
+        DEFAULT_OPTIONS.add("-o"); DEFAULT_OPTIONS.add("StrictHostKeyChecking=no");
+    }
+    
 
     public static String createUrl(String user, String hostname, String path) {
         String url = new String();
@@ -42,38 +54,36 @@ public abstract class SSHTools {
 
         return url;
     }
+    
+    public static boolean writeFile(String contents, String remoteUser, String hostNameTo, String pathTo, String sshOptions[]) {
+        File f = FileUtil.writeStringToTempFile(contents, "dtxn.conf", true);
+        return (copyToRemote(f, remoteUser, hostNameTo, pathTo));
+    }
 
-    public static boolean copyFromLocal(File src, String remoteUser, String hostNameTo, String pathTo) {
+    public static boolean copyToRemote(File src, String remoteUser, String hostNameTo, String pathTo, String...sshOptions) {
         // scp -q src.getPath remoteUser@hostNameTo:/pathTo
-        String[] command = new String[8];
-        command[0] = "scp";
-        command[1] = "-q";
-        command[2] = "-o";
-        command[3] = "UserKnownHostsFile=/dev/null";
-        command[4] = "-o";
-        command[5] = "StrictHostKeyChecking=no";
-        command[6] = src.getPath();
-        command[7] = createUrl(remoteUser, hostNameTo, pathTo);
+        List<String> command = new ArrayList<String>();
+        command.add("scp");
+        command.addAll(DEFAULT_OPTIONS);
+        CollectionUtil.addAll(command, sshOptions);
+        command.add(src.getPath());
+        command.add(createUrl(remoteUser, hostNameTo, pathTo));
         String output = ShellTools.cmd(command);
         if (output.length() > 1) {
             System.err.print(output);
             return false;
         }
-
         return true;
     }
 
-    public static boolean copyFromRemote(File dst, String remoteUser, String hostNameFrom, String pathFrom) {
+    public static boolean copyFromRemote(File dst, String remoteUser, String hostNameFrom, String pathFrom, String...sshOptions) {
         // scp -q fromhost:path tohost:path
-        String[] command = new String[8];
-        command[0] = "scp";
-        command[1] = "-q";
-        command[2] = "-o";
-        command[3] = "UserKnownHostsFile=/dev/null";
-        command[4] = "-o";
-        command[5] = "StrictHostKeyChecking=no";
-        command[6] = createUrl(remoteUser, hostNameFrom, pathFrom);
-        command[7] = dst.getPath();
+        List<String> command = new ArrayList<String>();
+        command.add("scp");
+        command.addAll(DEFAULT_OPTIONS);
+        CollectionUtil.addAll(command, sshOptions);
+        command.add(createUrl(remoteUser, hostNameFrom, pathFrom));
+        command.add(dst.getPath());
 
         String output = ShellTools.cmd(command);
         if (output.length() > 1) {
@@ -87,15 +97,11 @@ public abstract class SSHTools {
     public static boolean copyBetweenRemotes(String remoteUser, String hostNameFrom, String pathFrom,
             String hostNameTo, String pathTo) {
         // scp -q fromhost:path tohost:path
-        String[] command = new String[8];
-        command[0] = "scp";
-        command[1] = "-q";
-        command[2] = "-o";
-        command[3] = "UserKnownHostsFile=/dev/null";
-        command[4] = "-o";
-        command[5] = "StrictHostKeyChecking=no";
-        command[6] = createUrl(remoteUser, hostNameFrom, pathFrom);
-        command[7] = createUrl(remoteUser, hostNameTo, pathTo);
+        List<String> command = new ArrayList<String>();
+        command.add("scp");
+        command.addAll(DEFAULT_OPTIONS);
+        command.add(createUrl(remoteUser, hostNameFrom, pathFrom));
+        command.add(createUrl(remoteUser, hostNameTo, pathTo));
 
         String output = ShellTools.cmd(command);
         if (output.length() > 1) {
@@ -153,6 +159,6 @@ public abstract class SSHTools {
 
     public static void main(String[] args) {
         System.out.print(cmd(null, "volt3b", null, new String[0], "echo foo"));
-        System.out.println(copyFromLocal(new File("build.py"), null, "volt3b", "."));
+        System.out.println(copyToRemote(new File("build.py"), null, "volt3b", "."));
     }
 }

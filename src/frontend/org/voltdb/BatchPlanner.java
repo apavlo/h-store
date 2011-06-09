@@ -481,7 +481,7 @@ public class BatchPlanner {
         this.plan_pool = new StackObjectPool(new BatchPlanFactory(this), HStoreConf.singleton().pool_batchplan_idle);
         
         // Initialize static members
-        if (BatchPlanner.INITIALIZED.compareAndSet(false, true)) {
+        if (BatchPlanner.INITIALIZED.get() == false && BatchPlanner.INITIALIZED.compareAndSet(false, true)) {
             BatchPlanner.preload(CatalogUtil.getDatabase(catalog_proc));
         }
 
