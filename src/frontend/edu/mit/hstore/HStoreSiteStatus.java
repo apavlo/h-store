@@ -14,6 +14,7 @@ import org.voltdb.BatchPlanner;
 import org.voltdb.ExecutionSite;
 
 import edu.brown.markov.TransactionEstimator;
+import edu.brown.statistics.Histogram;
 import edu.brown.utils.CountingPoolableObjectFactory;
 import edu.brown.utils.StringUtil;
 import edu.mit.hstore.HStoreSite.TxnCounter;
@@ -32,7 +33,7 @@ public class HStoreSiteStatus implements Runnable {
     private final HStoreSite hstore_site;
     private final int interval; // seconds
     private final boolean kill_when_hanging;
-    private final TreeMap<Integer, TreeSet<Long>> partition_txns = new TreeMap<Integer, TreeSet<Long>>();
+    private final Histogram<Integer> partition_txns = new Histogram<Integer>();
     private final TreeMap<Integer, ExecutionSite> executors;
     
     private Integer last_completed = null;
@@ -55,10 +56,12 @@ public class HStoreSiteStatus implements Runnable {
         this.hstore_site = hstore_site;
         this.interval = interval;
         this.kill_when_hanging = kill_when_hanging;
-        this.executors = new TreeMap<Integer, ExecutionSite>(hstore_site.executors);
+        this.executors = new TreeMap<Integer, ExecutionSite>();
         
-        for (Integer partition : hstore_site.all_partitions) {
-            this.partition_txns.put(partition, new TreeSet<Long>());
+        this.partition_txns.setKeepZeroEntries(true);
+        for (Integer partition : hstore_site.getLocalPartitionIds()) {
+            this.partition_txns.put(partition, 0);
+            this.executors.put(partition, hstore_site.getExecutionSite(partition));
         } // FOR
         
         this.header.put(String.format("%s Status", HStoreSite.class.getSimpleName()), String.format("Site #%02d", hstore_site.catalog_site.getId()));
@@ -95,15 +98,13 @@ public class HStoreSiteStatus implements Runnable {
     }
     
     public synchronized String snapshot(boolean show_txns, boolean show_threads, boolean show_poolinfo) {
-        int inflight_cur = hstore_site.inflight_txns.size();
+        int inflight_cur = hstore_site.getInflightTxnCount();
         if (inflight_min == null || inflight_cur < inflight_min) inflight_min = inflight_cur;
         if (inflight_max == null || inflight_cur > inflight_max) inflight_max = inflight_cur;
         
-        for (Integer partition : this.partition_txns.keySet()) {
-            this.partition_txns.get(partition).clear();
-        } // FOR
-        for (Entry<Long, LocalTransactionState> e : hstore_site.inflight_txns.entrySet()) {
-            this.partition_txns.get(e.getValue().getBasePartition()).add(e.getKey());
+        this.partition_txns.clearValues();
+        for (Entry<Long, LocalTransactionState> e : hstore_site.getAllTransactions()) {
+            this.partition_txns.put(e.getValue().getBasePartition());
         } // FOR
         
         // ----------------------------------------------------------------------------
@@ -125,7 +126,11 @@ public class HStoreSiteStatus implements Runnable {
             for (Entry<Integer, ExecutionSite> e : this.executors.entrySet()) {
                 int partition = e.getKey().intValue();
                 String key = String.format("  Partition[%02d]", partition); 
-                String val = String.format("%2d txns / %2d queue", this.partition_txns.get(partition).size(), e.getValue().getQueueSize());
+                String val = String.format("%2d total / %2d queued / %2d blocked / %2d waiting",
+                                           this.partition_txns.get(partition),
+                                           e.getValue().getWorkQueueSize(),
+                                           e.getValue().getBlockedQueueSize(),
+                                           e.getValue().getWaitingQueueSize());
                 m0.put(key, val);
             } // FOR
             m0.put("Throttling Mode", this.hstore_site.isThrottlingEnabled());

@@ -447,7 +447,7 @@ public class HStoreMessenger implements Shutdownable {
                 
                 // Store the VoltTable in the ExecutionSite
                 if (t) LOG.trace("Storing Depedency #" + dependency_id + " for Txn #" + txn_id + " at Partition #" + dest_partition_id);
-                HStoreMessenger.this.hstore_site.getExecutors().get(dest_partition_id).storeDependency(txn_id, sender_partition_id, dependency_id, data);
+                HStoreMessenger.this.hstore_site.getExecutionSite(dest_partition_id).storeDependency(txn_id, sender_partition_id, dependency_id, data);
             } // FOR
             
             // Send back a response
@@ -516,9 +516,8 @@ public class HStoreMessenger implements Shutdownable {
         if (this.local_partitions.contains(dest_partition_id)) {
             if (d) LOG.debug("Transfering " + dset.size() + " dependencies directly from partition #" + sender_partition_id + " to partition #" + dest_partition_id);
             
-            final Map<Integer, ExecutionSite> executors = this.hstore_site.getExecutors(); 
             for (int i = 0, cnt = dset.size(); i < cnt; i++) {
-                ExecutionSite executor = executors.get(dest_partition_id);
+                ExecutionSite executor = this.hstore_site.getExecutionSite(dest_partition_id);
                 assert(executor != null) : "Unexpected null ExecutionSite for Partition #" + dest_partition_id + " on Site #" + catalog_site.getId();
                 
                 // 2010-11-12: We have to copy each VoltTable, otherwise we get an error down in the EE when it tries

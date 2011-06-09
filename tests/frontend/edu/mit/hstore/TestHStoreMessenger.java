@@ -232,7 +232,7 @@ public class TestHStoreMessenger extends BaseTestCase {
     		sender_partition_id = Integer.parseInt(sets.toArray()[0].toString());
     		dest_partition_id = Integer.parseInt(sets.toArray()[1].toString());
     		messengers[i].sendDependency(0, sender_partition_id, dest_partition_id, 0, fragment);
-    		MockExecutionSite executor = (MockExecutionSite)sites[i].getExecutors().get(dest_partition_id);
+    		MockExecutionSite executor = (MockExecutionSite)sites[i].getExecutionSite(dest_partition_id);
     		VoltTable vt = executor.getDependency(0);
     		// Verify row expected
     		for (int j = 0; j < vt.getRowCount(); j++)
@@ -269,8 +269,8 @@ public class TestHStoreMessenger extends BaseTestCase {
         		Set<Integer> sets2 = sites[j].getMessenger().getLocalPartitionIds();
         		dest_partition_id = CollectionUtil.getFirst(sets2);
         		messengers[i].sendDependency(txn_id, sender_partition_id, dest_partition_id, 0, fragment);
-        		System.err.println("SITE #" + j + ": " + sites[j].getExecutors());
-        		MockExecutionSite executor = (MockExecutionSite)sites[j].getExecutors().get(dest_partition_id);
+        		System.err.println("SITE #" + j + ": " + sites[j].getLocalPartitionIds());
+        		MockExecutionSite executor = (MockExecutionSite)sites[j].getExecutionSite(dest_partition_id);
         		assertNotNull(executor);
         		
         		VoltTable vt = null; // executor.waitForDependency(txn_id);

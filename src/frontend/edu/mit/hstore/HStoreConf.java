@@ -6,7 +6,10 @@ import java.util.Map;
 import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.log4j.Logger;
 import org.voltdb.BatchPlanner;
+import org.voltdb.catalog.Catalog;
+import org.voltdb.catalog.Site;
 
+import edu.brown.catalog.CatalogUtil;
 import edu.brown.markov.TransactionEstimator;
 import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.CountingPoolableObjectFactory;
@@ -20,10 +23,12 @@ public final class HStoreConf {
     // ----------------------------------------------------------------------------
     
     /**
-     * Max size of queued transactions before we stop accepting new requests
+     * Max size of queued transactions before we stop accepting new requests and throttle clients
      */
-    public int txn_queue_max = 1000;
-    public int txn_queue_release = Math.max(1, (int)(txn_queue_max * 0.25));  
+    public int txn_queue_max_per_partition = 2500;
+    public double txn_queue_release_factor = 0.25;
+    public final int txn_queue_max;
+    public final int txn_queue_release;  
     
     /**
      * Whether to enable speculative execution of single-partition transactions
@@ -118,6 +123,11 @@ public final class HStoreConf {
     // ----------------------------------------------------------------------------
     
     /**
+     * The scale factor to apply to the object pool values
+     */
+    public double pool_scale_factor = Double.valueOf(System.getProperty("hstore.preload", "1.0"));
+    
+    /**
      * Whether to track the number of objects created, passivated, and destroyed from the pool
      * @see CountingPoolableObjectFactory
      */
@@ -134,12 +144,24 @@ public final class HStoreConf {
      * @see BatchPlanner.BatchPlanFactory
      */
     public int pool_batchplan_idle = 2000;
+
+    /**
+     * The number of LocalTransactionState objects to preload
+     * @see LocalTransactionState.Factory
+     */
+    public int pool_localtxnstate_preload = 500;
     
     /**
      * The max number of LocalTransactionStates to keep in the pool (per ExecutionSite)
      * @see LocalTransactionState.Factory
      */
     public int pool_localtxnstate_idle = 1000;
+    
+    /**
+     * The number of RemoteTransactionState objects to preload
+     * @see RemoteTransactionState.Factory
+     */
+    public int pool_remotetxnstate_preload = 500;
     
     /**
      * The max number of RemoteTransactionStates to keep in the pool (per ExecutionSite)
@@ -167,6 +189,9 @@ public final class HStoreConf {
      */
     public int pool_dependencyinfos_idle = 50000;
     
+    
+    public int pool_preload_dependency_infos = 10000;
+    
     // ----------------------------------------------------------------------------
     // METHODS
     // ----------------------------------------------------------------------------
@@ -174,78 +199,92 @@ public final class HStoreConf {
     /**
      * Constructor
      */
-    private HStoreConf() {
+    private HStoreConf(ArgumentsParser args, Site catalog_site) {
+        int num_partitions = 1;
+        int local_partitions = 1;
+        
+        if (args != null) {
+            
+            // Total number of partitions
+            num_partitions = CatalogUtil.getNumberOfPartitions(args.catalog);
+            
+            // Partitions at this site
+            local_partitions = catalog_site.getPartitions().size();
+            
+            // Ignore the Dtxn.Coordinator
+            if (args.hasBooleanParam(ArgumentsParser.PARAM_NODE_IGNORE_DTXN)) {
+                this.ignore_dtxn = args.getBooleanParam(ArgumentsParser.PARAM_NODE_IGNORE_DTXN);
+                if (this.ignore_dtxn) LOG.info("Ignoring the Dtxn.Coordinator for all single-partition transactions");
+            }
+            // Enable speculative execution
+            if (args.hasBooleanParam(ArgumentsParser.PARAM_NODE_ENABLE_SPECULATIVE_EXECUTION)) {
+                this.enable_speculative_execution = args.getBooleanParam(ArgumentsParser.PARAM_NODE_ENABLE_SPECULATIVE_EXECUTION);
+                if (this.enable_speculative_execution) LOG.info("Enabling speculative execution");
+            }
+            // Enable DB2-style txn redirecting
+            if (args.hasBooleanParam(ArgumentsParser.PARAM_NODE_ENABLE_DB2_REDIRECTS)) {
+                this.enable_db2_redirects = args.getBooleanParam(ArgumentsParser.PARAM_NODE_ENABLE_DB2_REDIRECTS);
+                if (this.enable_db2_redirects) LOG.info("Enabling DB2-style transaction redirects");
+            }
+            // Force all transactions to be single-partitioned
+            if (args.hasBooleanParam(ArgumentsParser.PARAM_NODE_FORCE_SINGLEPARTITION)) {
+                this.force_singlepartitioned = args.getBooleanParam(ArgumentsParser.PARAM_NODE_FORCE_SINGLEPARTITION);
+                if (this.force_singlepartitioned) LOG.info("Forcing all transactions to execute as single-partitioned");
+            }
+            // Force all transactions to be executed at the first partition that the request arrives on
+            if (args.hasBooleanParam(ArgumentsParser.PARAM_NODE_FORCE_LOCALEXECUTION)) {
+                this.force_localexecution = args.getBooleanParam(ArgumentsParser.PARAM_NODE_FORCE_LOCALEXECUTION);
+                if (this.force_localexecution) LOG.info("Forcing all transactions to execute at the partition they arrive on");
+            }
+            // Enable the "neworder" parameter hashing hack for the VLDB paper
+            if (args.hasBooleanParam(ArgumentsParser.PARAM_NODE_FORCE_NEWORDERINSPECT)) {
+                this.force_neworder_hack = args.getBooleanParam(ArgumentsParser.PARAM_NODE_FORCE_NEWORDERINSPECT);
+                if (this.force_neworder_hack) LOG.info("Enabling the inspection of incoming neworder parameters");
+            }
+            // Enable setting the done partitions for the "neworder" parameter hashing hack for the VLDB paper
+            if (args.hasBooleanParam(ArgumentsParser.PARAM_NODE_FORCE_NEWORDERINSPECT_DONE)) {
+                this.force_neworder_hack_done = args.getBooleanParam(ArgumentsParser.PARAM_NODE_FORCE_NEWORDERINSPECT_DONE);
+                if (this.force_neworder_hack_done) LOG.info("Enabling the setting of done partitions for neworder inspection");
+            }
+            // Clean-up Interval
+            if (args.hasIntParam(ArgumentsParser.PARAM_NODE_CLEANUP_INTERVAL)) {
+                this.helper_interval = args.getIntParam(ArgumentsParser.PARAM_NODE_CLEANUP_INTERVAL);
+                LOG.debug("Setting Cleanup Interval = " + this.helper_interval + "ms");
+            }
+            // Txn Expiration Time
+            if (args.hasIntParam(ArgumentsParser.PARAM_NODE_CLEANUP_TXN_EXPIRE)) {
+                this.helper_txn_expire = args.getIntParam(ArgumentsParser.PARAM_NODE_CLEANUP_TXN_EXPIRE);
+                LOG.debug("Setting Cleanup Txn Expiration = " + this.helper_txn_expire + "ms");
+            }
+            // Profiling
+            if (args.hasBooleanParam(ArgumentsParser.PARAM_NODE_ENABLE_PROFILING)) {
+                this.enable_profiling = args.getBooleanParam(ArgumentsParser.PARAM_NODE_ENABLE_PROFILING);
+                if (this.enable_profiling) LOG.info("Enabling procedure profiling");
+            }
+            // Mispredict Crash
+            if (args.hasBooleanParam(ArgumentsParser.PARAM_NODE_MISPREDICT_CRASH)) {
+                this.mispredict_crash = args.getBooleanParam(ArgumentsParser.PARAM_NODE_MISPREDICT_CRASH);
+                if (this.mispredict_crash) LOG.info("Enabling crashing HStoreSite on mispredict");
+            }
+        }
+        
+        // Compute Parameters
+        this.txn_queue_max = Math.round(local_partitions * this.txn_queue_max_per_partition);
+        this.txn_queue_release = Math.max((int)(this.txn_queue_max * this.txn_queue_release_factor), 1);
         
     }
     
     private static HStoreConf conf;
     
-    public synchronized static HStoreConf init(ArgumentsParser args) {
-        if (conf != null) return (conf);
-        conf = new HStoreConf();
-        
-        if (args != null) {
-            // Ignore the Dtxn.Coordinator
-            if (args.hasBooleanParam(ArgumentsParser.PARAM_NODE_IGNORE_DTXN)) {
-                conf.ignore_dtxn = args.getBooleanParam(ArgumentsParser.PARAM_NODE_IGNORE_DTXN);
-                if (conf.ignore_dtxn) LOG.info("Ignoring the Dtxn.Coordinator for all single-partition transactions");
-            }
-            // Enable speculative execution
-            if (args.hasBooleanParam(ArgumentsParser.PARAM_NODE_ENABLE_SPECULATIVE_EXECUTION)) {
-                conf.enable_speculative_execution = args.getBooleanParam(ArgumentsParser.PARAM_NODE_ENABLE_SPECULATIVE_EXECUTION);
-                if (conf.enable_speculative_execution) LOG.info("Enabling speculative execution");
-            }
-            // Enable DB2-style txn redirecting
-            if (args.hasBooleanParam(ArgumentsParser.PARAM_NODE_ENABLE_DB2_REDIRECTS)) {
-                conf.enable_db2_redirects = args.getBooleanParam(ArgumentsParser.PARAM_NODE_ENABLE_DB2_REDIRECTS);
-                if (conf.enable_db2_redirects) LOG.info("Enabling DB2-style transaction redirects");
-            }
-            // Force all transactions to be single-partitioned
-            if (args.hasBooleanParam(ArgumentsParser.PARAM_NODE_FORCE_SINGLEPARTITION)) {
-                conf.force_singlepartitioned = args.getBooleanParam(ArgumentsParser.PARAM_NODE_FORCE_SINGLEPARTITION);
-                if (conf.force_singlepartitioned) LOG.info("Forcing all transactions to execute as single-partitioned");
-            }
-            // Force all transactions to be executed at the first partition that the request arrives on
-            if (args.hasBooleanParam(ArgumentsParser.PARAM_NODE_FORCE_LOCALEXECUTION)) {
-                conf.force_localexecution = args.getBooleanParam(ArgumentsParser.PARAM_NODE_FORCE_LOCALEXECUTION);
-                if (conf.force_localexecution) LOG.info("Forcing all transactions to execute at the partition they arrive on");
-            }
-            // Enable the "neworder" parameter hashing hack for the VLDB paper
-            if (args.hasBooleanParam(ArgumentsParser.PARAM_NODE_FORCE_NEWORDERINSPECT)) {
-                conf.force_neworder_hack = args.getBooleanParam(ArgumentsParser.PARAM_NODE_FORCE_NEWORDERINSPECT);
-                if (conf.force_neworder_hack) LOG.info("Enabling the inspection of incoming neworder parameters");
-            }
-            // Enable setting the done partitions for the "neworder" parameter hashing hack for the VLDB paper
-            if (args.hasBooleanParam(ArgumentsParser.PARAM_NODE_FORCE_NEWORDERINSPECT_DONE)) {
-                conf.force_neworder_hack_done = args.getBooleanParam(ArgumentsParser.PARAM_NODE_FORCE_NEWORDERINSPECT_DONE);
-                if (conf.force_neworder_hack_done) LOG.info("Enabling the setting of done partitions for neworder inspection");
-            }
-            // Clean-up Interval
-            if (args.hasIntParam(ArgumentsParser.PARAM_NODE_CLEANUP_INTERVAL)) {
-                conf.helper_interval = args.getIntParam(ArgumentsParser.PARAM_NODE_CLEANUP_INTERVAL);
-                LOG.debug("Setting Cleanup Interval = " + conf.helper_interval + "ms");
-            }
-            // Txn Expiration Time
-            if (args.hasIntParam(ArgumentsParser.PARAM_NODE_CLEANUP_TXN_EXPIRE)) {
-                conf.helper_txn_expire = args.getIntParam(ArgumentsParser.PARAM_NODE_CLEANUP_TXN_EXPIRE);
-                LOG.debug("Setting Cleanup Txn Expiration = " + conf.helper_txn_expire + "ms");
-            }
-            // Profiling
-            if (args.hasBooleanParam(ArgumentsParser.PARAM_NODE_ENABLE_PROFILING)) {
-                conf.enable_profiling = args.getBooleanParam(ArgumentsParser.PARAM_NODE_ENABLE_PROFILING);
-                if (conf.enable_profiling) LOG.info("Enabling procedure profiling");
-            }
-            // Mispredict Crash
-            if (args.hasBooleanParam(ArgumentsParser.PARAM_NODE_MISPREDICT_CRASH)) {
-                conf.mispredict_crash = args.getBooleanParam(ArgumentsParser.PARAM_NODE_MISPREDICT_CRASH);
-                if (conf.mispredict_crash) LOG.info("Enabling crashing HStoreSite on mispredict");
-            }
-        }
+    public synchronized static HStoreConf init(ArgumentsParser args, Site catalog_site) {
+        if (conf != null) throw new RuntimeException("Trying to initialize HStoreConf more than once");
+        conf = new HStoreConf(args, catalog_site);
         return (conf);
     }
     
-    public static HStoreConf singleton() {
-        return (HStoreConf.init(null));
+    public synchronized static HStoreConf singleton() {
+        if (conf == null) throw new RuntimeException("Requesting HStoreConf before it is initialized");
+        return (conf);
     }
     
     @Override
