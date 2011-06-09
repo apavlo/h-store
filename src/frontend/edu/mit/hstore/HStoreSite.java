@@ -33,11 +33,11 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Observer;
 import java.util.Set;
-import java.util.HashSet;
 import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
@@ -46,7 +46,6 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.log4j.Logger;
 import org.voltdb.BackendTarget;
 import org.voltdb.ClientResponseImpl;
@@ -257,17 +256,17 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
     private final NIOEventLoop engineEventLoop = new NIOEventLoop();
 
     /**
-     * PartitionId -> The TxnId that caused Speculative Execution to get enabled
-     * When we get the response for these txns, we know we can commit/abort the ExecutionSite's queues
+     * The multi-partition TransactionId that is currently executing at a given partition
+     * When we get the response for these txns, we know we can commit/abort the speculatively executed transactions
+     * PartitionId -> TranasctionID
      */
-    private final long speculative_txn[];
+    private final long dtxn_ids[];
     
     /**
-     * Sets of TransactionIds that have been sent to either the Dtxn.Coordinator
-     * or the Dtxn.Engine. We can use the fast mode for each partition until this is empty
+     * Sets of TransactionIds that are blocked waiting for the outstanding dtxn to commit
      * PartitionId -> Set<TransactionId> 
      */
-    private final ListOrderedMap<Long, Set<LocalTransactionState>> dtxn_txns[];
+    private final Set<LocalTransactionState> dtxn_blocked[];
     
 
     private CountDownLatch ready_latch;
@@ -359,13 +358,13 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         this.executors = Collections.unmodifiableMap(new HashMap<Integer, ExecutionSite>(executors));
         this.engine_channels = new Dtxn.Partition[num_partitions];
         this.txnid_managers = new TransactionIdManager[num_partitions];
-        this.speculative_txn = new long[num_partitions];
-        this.dtxn_txns = (ListOrderedMap<Long, Set<LocalTransactionState>>[])new ListOrderedMap<?, ?>[num_partitions];
+        this.dtxn_ids = new long[num_partitions];
+        this.dtxn_blocked = (Set<LocalTransactionState>[])new Set<?>[num_partitions];
         
         for (int partition : this.executors.keySet()) {
             this.txnid_managers[partition] = new TransactionIdManager(partition);
-            this.dtxn_txns[partition] = new ListOrderedMap<Long, Set<LocalTransactionState>>();
-            this.speculative_txn[partition] = NULL_SPECULATIVE_EXEC_ID;
+            this.dtxn_blocked[partition] = new HashSet<LocalTransactionState>();
+            this.dtxn_ids[partition] = NULL_SPECULATIVE_EXEC_ID;
             this.local_partitions.add(partition);
         } // FOR
         
@@ -990,9 +989,9 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         Long orig_txn_id = txn_info.getOriginalTransactionId();
         int base_partition = txn_info.getBasePartition();
         boolean single_partitioned = txn_info.isPredictSinglePartition();
-        boolean read_only = txn_info.isPredictReadOnly();
-        boolean spec_exec = (this.speculative_txn[base_partition] != NULL_SPECULATIVE_EXEC_ID);
                 
+        // For some odd reason we sometimes get duplicate transaction ids from the VoltDB id generator
+        // So we'll just double check to make sure that it's unique, and if not, we'll just ask for a new one
         LocalTransactionState dupe = this.inflight_txns.put(txn_id, txn_info);
         if (dupe != null) {
             // HACK!
@@ -1010,14 +1009,6 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
             this.inflight_txns.put(txn_id, txn_info);
         }
         
-        if (this.status_monitor != null) {
-            if (txn_info.sysproc) {
-                TxnCounter.SYSPROCS.inc(txn_info.getProcedure());
-            } else if (single_partitioned) {
-                TxnCounter.SINGLE_PARTITION.inc(txn_info.getProcedure());
-            }
-        }
-
         // We have to wrap the StoredProcedureInvocation object into an InitiateTaskMessage so that it can be put
         // into the ExecutionSite's execution queue
         InitiateTaskMessage wrapper = new InitiateTaskMessage(txn_id, base_partition, base_partition, txn_info.invocation);
@@ -1026,39 +1017,41 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         // FAST MODE: Skip the Dtxn.Coordinator
         // -------------------------------
         if (hstore_conf.ignore_dtxn && single_partitioned) {
+//            boolean read_only = txn_info.isPredictReadOnly();
+            boolean blocked;
             Long blocked_id = null;
+            
             txn_info.ignore_dtxn = true;
             txn_info.init_wrapper = wrapper;
             txn_info.init_callback = new SinglePartitionTxnCallback(this, txn_id, base_partition, txn_info.client_callback);
             
-            synchronized (this.dtxn_txns[base_partition]) {
-                int last_idx = this.dtxn_txns[base_partition].size() - 1;
+            synchronized (this.dtxn_blocked[base_partition]) {
+                blocked = (this.dtxn_ids[base_partition] != NULL_SPECULATIVE_EXEC_ID);
                 
                 // We will fire off this transaction right away if:
                 // (1) There are no outstanding multi-partition transactions
                 // (2) We're allowed to speculatively execute this txn
-                // (3) It is a read-only transaction <--- XXX: Is that true?
-                if (last_idx < 0 || spec_exec || read_only) {
+                if (blocked == false || hstore_conf.enable_speculative_execution) {
                     if (hstore_conf.enable_profiling) ProfileMeasurement.swap(txn_info.init_time, txn_info.coord_time);
+                    if (blocked) txn_info.setSpeculative(true);
                     this.executeTransaction(txn_info, txn_info.init_wrapper, txn_info.init_callback);        
                     
                 // Otherwise we need to add ourselves to the blocked txn queue that will be released when the multi-p txn finishes
                 } else {
-                    if (d) blocked_id = this.dtxn_txns[base_partition].get(last_idx);
-                    this.dtxn_txns[base_partition].getValue(last_idx).add(txn_info);
+                    this.dtxn_blocked[base_partition].add(txn_info);
+                    blocked_id = this.dtxn_ids[base_partition];
                 }
             } // SYNCH
             
             if (d) {
                 if (blocked_id == null) {
                     LOG.debug(String.format("Fast path execution for %s txn #%d on partition %d [speculative=%s, handle=%d]",
-                                            txn_info.getProcedureName(), txn_id, base_partition, spec_exec, txn_info.getClientHandle()));
+                                            txn_info.getProcedureName(), txn_id, base_partition, hstore_conf.enable_speculative_execution, txn_info.getClientHandle()));
                 } else {
                     LOG.debug(String.format("Blocking single-partition txn #%d at partition %d until multi-partition txn #%d completes",
                                             txn_id, base_partition, blocked_id));
                 }
             }
-            if (this.status_monitor != null && spec_exec) TxnCounter.SPECULATIVE.inc(txn_info.getProcedure());
             
         // -------------------------------
         // CANADIAN MODE: Single-Partition
@@ -1145,13 +1138,14 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
             if (hstore_conf.enable_profiling) ProfileMeasurement.swap(txn_info.init_time, txn_info.coord_time);
             this.coordinator.execute(new ProtoRpcController(), dtxn_request, callback); // txn_info.rpc_request_init
             
-            // Push a new set of blocked single-partition transactions at the end of our list for this partition
-            synchronized (this.dtxn_txns[base_partition]) {
-                Object existing = this.dtxn_txns[base_partition].put(txn_id, new HashSet<LocalTransactionState>());
-                assert(existing == null) : "Duplicate blocked transaction queue for txn #" + txn_id;
-            } // SYNCH
-            
             if (d) LOG.debug(String.format("Sent Dtxn.CoordinatorFragment for txn #%d [bytes=%d]", txn_id, dtxn_request.getSerializedSize()));
+            
+            // Push a new set of blocked single-partition transactions at the end of our list for this partition
+//            synchronized (this.dtxn_txns[base_partition]) {
+//                Object existing = this.dtxn_txns[base_partition].put(txn_id, new HashSet<LocalTransactionState>());
+//                assert(existing == null) : "Duplicate blocked transaction queue for txn #" + txn_id;
+//            } // SYNCH
+
         }
     }
     
@@ -1172,11 +1166,25 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         }
 
         long txn_id = msg.getTxnId();
-        int target_partition = msg.getDestinationPartitionId();
+        int base_partition = msg.getDestinationPartitionId();
         
         if (d) {
-            LOG.debug(String.format("Got %s message for txn #%d [partition=%d]", msg.getClass().getSimpleName(), txn_id, target_partition));
+            LOG.debug(String.format("Got %s message for txn #%d [partition=%d]", msg.getClass().getSimpleName(), txn_id, base_partition));
             if (t) LOG.trace("CONTENTS:\n" + msg);
+        }
+        
+        // Mark this transaction as the only outstanding multi-partition transaction for this partition
+        // For now we can only have one outstanding multi-partition transaction
+        if (this.dtxn_ids[base_partition] != txn_id) {
+            synchronized (this.dtxn_blocked[base_partition]) {
+                    assert(this.dtxn_blocked[base_partition].isEmpty()) :
+                        String.format("Overlapping multi-partition transactions at partition %d: Orig[#%d] <=> New[#%d]",
+                                      base_partition, this.dtxn_ids[base_partition], txn_id);
+                    assert(this.dtxn_ids[base_partition] == NULL_SPECULATIVE_EXEC_ID) :
+                        String.format("Overlapping multi-partition transactions at partition %d: Orig[#%d] <=> New[#%d]",
+                                      base_partition, this.dtxn_ids[base_partition], txn_id);
+                    this.dtxn_ids[base_partition] = txn_id;
+            } // SYNCH
         }
         
         // Two things can now happen based on what type of message we were given:
@@ -1204,19 +1212,9 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
             if (hstore_conf.enable_profiling) txn_info.coord_time.stop(timestamp);
             this.executeTransaction(txn_info, task, done);
             
-            if (this.status_monitor != null) TxnCounter.MULTI_PARTITION.inc(txn_info.getProcedure());
-
         } else {
             if (t) LOG.trace("Executing remote fragment for txn #" + txn_id);
-            this.executors.get(target_partition).doWork(msg, done);
-            
-            // Even though this transaction is executing remotely, we still need to queue all of our
-            // single-partition transactions until we get back a response. Note that we have to check whether
-            // we already have a queue for this txn because there could be multiple rounds of requests
-            synchronized (this.dtxn_txns[target_partition]) {
-                Object existing = this.dtxn_txns[target_partition].get(txn_id);
-                if (existing == null) this.dtxn_txns[target_partition].put(txn_id, new HashSet<LocalTransactionState>());
-            } // SYNCH
+            this.executors.get(base_partition).doWork(msg, done);
         }
     }
     
@@ -1358,9 +1356,6 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         if (t) LOG.trace(String.format("Txn #%d Mispredicted partitions\n%s", txn_id, orig_ts.getTouchedPartitions()));
         
         this.initializeInvocation(new_ts);
-        
-        // Make sure that we decrement the single-partition counter
-        if (this.status_monitor != null) TxnCounter.SINGLE_PARTITION.dec(new_ts.getProcedure());
     }
     
     /**
@@ -1398,8 +1393,12 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         this.coordinator.execute(ts.rpc_request_work, fragment, callback);
     }
 
+    // ----------------------------------------------------------------------------
+    // TRANSACTION FINISH/CLEANUP METHODS
+    // ----------------------------------------------------------------------------
+
     /**
-     * Request that the Dtxn.Coordinator finish out transaction
+     * Request that the Dtxn.Coordinator finish our transaction
      * @param txn_id
      * @param request
      * @param callback
@@ -1411,10 +1410,6 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         if (d) LOG.debug(String.format("Telling the Dtxn.Coordinator to finish txn #%d [commit=%s]", txn_id, request.getCommit()));
         this.coordinator.finish(ts.rpc_request_finish, request, callback);
     }
-
-    // ----------------------------------------------------------------------------
-    // TRANSACTION FINISH/CLEANUP METHODS
-    // ----------------------------------------------------------------------------
     
     /**
      * 
@@ -1445,20 +1440,20 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
                     executor.abortWork(txn_id);
                 }
             
-                // Check whether this is the response that the speculatively executed txns
-                // have been waiting for
-                if (hstore_conf.enable_speculative_execution && this.speculative_txn[p.intValue()] == txn_id.longValue()) {
-                    if (d) LOG.debug(String.format("Turning off speculative execution mode at partition %d because txn #%d is finished", p, txn_id));
-                    
-                    // We can always commit our boys no matter what if we know that the txn was read-only 
+                // Check whether this is the response that the speculatively executed txns have been waiting for
+                if (this.dtxn_ids[p.intValue()] == txn_id.longValue()) {
+                    // We can always commit our boys no matter what if we know that this multi-partition txn was read-only 
                     // at the given partition
-                    Boolean readonly = executor.isReadOnly(txn_id);
-                    executor.drainQueueResponses(readonly != null && readonly == true ? true : commit);
-                    this.speculative_txn[p.intValue()] = NULL_SPECULATIVE_EXEC_ID;
+                    if (hstore_conf.enable_speculative_execution) {
+                        if (d) LOG.debug(String.format("Turning off speculative execution mode at partition %d because txn #%d is finished", p, txn_id));
+                        Boolean readonly = executor.isReadOnly(txn_id);
+                        executor.drainQueueResponses(readonly != null && readonly == true ? true : commit);
+                    }
+                    this.dtxn_ids[p.intValue()] = NULL_SPECULATIVE_EXEC_ID;
                 }
             }
             // See if there are any queued transactions we can now release
-            this.removeBlockedTransactions(txn_id, p.intValue(), false);
+            this.releaseBlockedTransactions(txn_id, p.intValue(), false);
         } // FOR
         
         // Send back a FinishResponse to let them know we're cool with everything...
@@ -1468,26 +1463,58 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
             if (t) LOG.trace("Sent back Dtxn.FinishResponse for txn #" + txn_id);
         } 
     }
+    
+    /**
+     * Notify this HStoreSite that the given transaction is done with the set of partitions
+     * This will cause all the transactions that are blocked on this transaction to be released immediately and queued 
+     * @param txn_id
+     * @param partitions
+     */
+    public void doneAtPartitions(long txn_id, Collection<Integer> partitions) {
+        assert(hstore_conf.enable_speculative_execution);
+
+        int spec_cnt = 0;
+        for (int p : partitions) {
+            if (this.txnid_managers[p] == null) continue;
+            
+            // We'll let multiple tell us to speculatively execute, but we only let them go when hte latest
+            // one finishes. We should really have multiple queues of speculatively execute txns, but for now
+            // this is fine
+            
+//            assert(this.speculative_txn[p] == NULL_SPECULATIVE_EXEC_ID ||
+//                   this.speculative_txn[p] == txn_id) : String.format("Trying to enable speculative execution twice at partition %d [current=#%d, new=#%d]", p, this.speculative_txn[p], txn_id); 
+            ExecutionSite executor = this.executors.get(p); 
+                
+            // Make sure that we tell the ExecutionSite first before we allow txns to get fired off
+            if (executor.enableSpeculativeExecution(txn_id)) {
+                spec_cnt++;
+                if (d) LOG.debug(String.format("Partition %d - Speculative Execution!", p));
+                
+                // See if there are any queued transactions we can now release
+                this.releaseBlockedTransactions(txn_id, p, true);
+            }
+        } // FOR
+        if (d) LOG.debug(String.format("Enabled speculative execution at %d partitions because of waiting for txn #%d", spec_cnt, txn_id));
+    }
 
     /**
      * 
      * @param txn_id
      * @param p
      */
-    private void removeBlockedTransactions(long txn_id, int p, boolean speculative) {
-        Set<LocalTransactionState> released = null;
-        synchronized (this.dtxn_txns[p]) {
-            released = this.dtxn_txns[p].remove((Long)txn_id);
-        } // SYNCH
-        if (released != null && released.isEmpty() == false) {
-            if (d) LOG.debug(String.format("Releasing %d transactions at partition %d because of txn #%d", released.size(), p, txn_id));
-            for (LocalTransactionState release_ts : released) {
-                if (speculative) {
-                    release_ts.setSpeculative(true);
-                    if (this.status_monitor != null) TxnCounter.SPECULATIVE.inc(release_ts.getProcedure());
-                }
-                this.executeTransaction(release_ts, release_ts.init_wrapper, release_ts.init_callback);
-            } // FOR
+    private void releaseBlockedTransactions(long txn_id, int p, boolean speculative) {
+        if (this.dtxn_blocked[p].isEmpty() == false) {
+            synchronized (this.dtxn_blocked[p]) {
+                if (d) LOG.debug(String.format("Releasing %d transactions at partition %d because of txn #%d", this.dtxn_blocked[p].size(), p, txn_id));
+                for (LocalTransactionState release_ts : this.dtxn_blocked[p]) {
+                    if (speculative) {
+                        release_ts.setSpeculative(true);
+                        if (this.status_monitor != null) TxnCounter.SPECULATIVE.inc(release_ts.getProcedure());
+                    }
+                    this.executeTransaction(release_ts, release_ts.init_wrapper, release_ts.init_callback);
+                } // FOR
+                this.dtxn_blocked[p].clear();
+            } // SYNCH
         }
     }
 
@@ -1529,41 +1556,16 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         if (this.status_monitor != null) {
             TxnCounter.COMPLETED.inc(ts.getProcedure());
             if (status != Dtxn.FragmentResponse.Status.OK) TxnCounter.ABORTED.inc(ts.getProcedure());
-        }
-    }
-    
-    /**
-     * Notify this HStoreSite that the given transaction is done with the set of partitions
-     * This will cause all the transactions that are blocked on this transaction to be released immediately and queued 
-     * @param txn_id
-     * @param partitions
-     */
-    public void doneAtPartitions(long txn_id, Collection<Integer> partitions) {
-        assert(hstore_conf.enable_speculative_execution);
-
-        int spec_cnt = 0;
-        for (int p : partitions) {
-            if (this.txnid_managers[p] == null) continue;
+            if (ts.isSpeculative()) TxnCounter.SPECULATIVE.inc(ts.getProcedure());
             
-            // We'll let multiple tell us to speculatively execute, but we only let them go when hte latest
-            // one finishes. We should really have multiple queues of speculatively execute txns, but for now
-            // this is fine
-            
-//            assert(this.speculative_txn[p] == NULL_SPECULATIVE_EXEC_ID ||
-//                   this.speculative_txn[p] == txn_id) : String.format("Trying to enable speculative execution twice at partition %d [current=#%d, new=#%d]", p, this.speculative_txn[p], txn_id); 
-            ExecutionSite executor = this.executors.get(p); 
-                
-            // Make sure that we tell the ExecutionSite first before we allow txns to get fired off
-            if (executor.enableSpeculativeExecution(txn_id)) {
-                this.speculative_txn[p] = txn_id;
-                spec_cnt++;
-                if (d) LOG.debug(String.format("Partition %d - Speculative Execution!", p));
-                
-                // See if there are any queued transactions we can now release
-                this.removeBlockedTransactions(txn_id, p, true);
+            if (ts.sysproc) {
+                TxnCounter.SYSPROCS.inc(ts.getProcedure());
+            } else if (ts.isExecSinglePartition()) {
+                TxnCounter.SINGLE_PARTITION.inc(ts.getProcedure());
+            } else {
+                TxnCounter.MULTI_PARTITION.inc(ts.getProcedure());
             }
-        } // FOR
-        if (d) LOG.debug(String.format("Enabled speculative execution at %d partitions because of waiting for txn #%d", spec_cnt, txn_id));
+        }
     }
 
     // ----------------------------------------------------------------------------

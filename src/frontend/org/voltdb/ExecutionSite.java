@@ -1340,7 +1340,7 @@ public class ExecutionSite implements Runnable, Shutdownable {
     /**
      * 
      */
-    protected synchronized void cleanupTransaction(TransactionState ts) {
+    protected void cleanupTransaction(TransactionState ts) {
         long txn_id = ts.getTransactionId();
         if (t) LOG.trace("Cleaning up internal state information for Txn #" + txn_id);
         assert(ts.isMarkedFinished());
@@ -1367,7 +1367,6 @@ public class ExecutionSite implements Runnable, Shutdownable {
     /**
      * Returns the next undo token to use when hitting up the EE with work
      * MAX_VALUE = no undo
-     * catProc.getReadonly() controls this in the original implementation
      * @param txn_id
      * @return
      */
