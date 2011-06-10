@@ -228,16 +228,6 @@ public class HStoreSiteStatus implements Runnable {
                     total_destroyed[i] += factory.getDestroyedCount();
                     i += 1;
                 } // FOR
-
-                for (ObjectPool p : e.procPool.values()) {
-                    pool = (StackObjectPool)p;
-                    factory = (CountingPoolableObjectFactory<?>)pool.getFactory();
-                    total_active[i] += p.getNumActive();
-                    total_idle[i] += p.getNumIdle();
-                    total_created[i] += factory.getCreatedCount();
-                    total_passivated[i] += factory.getPassivatedCount();
-                    total_destroyed[i] += factory.getDestroyedCount();
-                } // FOR
             } // FOR
             
             for (int i = 0, cnt = labels.length; i < cnt; i++) {

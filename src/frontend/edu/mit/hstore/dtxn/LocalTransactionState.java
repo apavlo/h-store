@@ -671,12 +671,12 @@ public class LocalTransactionState extends TransactionState {
 //        }
 //        return (null);
     }
-    public VoltProcedure getVoltProcedure() {
-        return this.volt_procedure;
-    }
-    public void setVoltProcedure(VoltProcedure voltProcedure) {
-        this.volt_procedure = voltProcedure;
-    }
+//    public VoltProcedure getVoltProcedure() {
+//        return this.volt_procedure;
+//    }
+//    public void setVoltProcedure(VoltProcedure voltProcedure) {
+//        this.volt_procedure = voltProcedure;
+//    }
     
     public int getDependencyCount() { 
         return (this.dependency_ctr);
@@ -1085,7 +1085,7 @@ public class LocalTransactionState extends TransactionState {
             assert(dinfo.getPartitions().size() == num_tables) :
                 "Number of results retrieved for <Stmt #" + stmt_index + ", DependencyId #" + input_d_id + "> is " + num_tables +
                 " but we were expecting " + dinfo.getPartitions().size() + " in txn #" + this.txn_id +
-                " [" + this.executor.getRunningVoltProcedure(this.txn_id).getProcedureName() + "]\n" + 
+                " [" + this.getProcedureName() + "]\n" + 
                 this.toString() + "\n" +
                 ftask.toString();
             results.put(input_d_id, dinfo.getResults(this.base_partition, true));
