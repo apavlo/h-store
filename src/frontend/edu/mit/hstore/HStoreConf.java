@@ -6,14 +6,18 @@ import java.util.Map;
 import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.log4j.Logger;
 import org.voltdb.BatchPlanner;
-import org.voltdb.catalog.Catalog;
+import org.voltdb.ExecutionSite;
 import org.voltdb.catalog.Site;
 
 import edu.brown.catalog.CatalogUtil;
+import edu.brown.markov.MarkovPathEstimator;
 import edu.brown.markov.TransactionEstimator;
 import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.CountingPoolableObjectFactory;
 import edu.brown.utils.StringUtil;
+import edu.mit.hstore.dtxn.DependencyInfo;
+import edu.mit.hstore.dtxn.LocalTransactionState;
+import edu.mit.hstore.dtxn.RemoteTransactionState;
 
 public final class HStoreConf {
     private static final Logger LOG = Logger.getLogger(HStoreConf.class);

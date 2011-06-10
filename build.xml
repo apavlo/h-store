@@ -727,8 +727,12 @@ TEST CASES
     <attribute name='showoutput' default='false' />
     <element name='tests'/>
     <element name='formatters'/>
+    
     <sequential>
         <mkdir dir='${build.testoutput.dir}' />
+        <delete includeemptydirs="true" failonerror='false'>
+            <fileset dir="${build.testobjects.dir}" includes="*.jar" />
+        </delete>
         <junit
             fork="yes"
             haltonfailure="${junit.haltonfailure}"
@@ -745,7 +749,7 @@ TEST CASES
             <jvmarg value="-Xmx2048m"/>
             <jvmarg value="-XX:+HeapDumpOnOutOfMemoryError"/>
             
-<!--             <env key="ENABLE_JAR_REUSE" value="true"/> -->
+            <env key="ENABLE_JAR_REUSE" value="${junit.reusejars}"/>
             <env key="VOLTDB_BUILD_DIR" value="${build.dir}"/>
             <env key="TEST_DIR" value="${build.testobjects.dir}" />
             <env key="VOLT_REGRESSIONS" value="${regressions}" />
@@ -887,32 +891,16 @@ TEST CASES
         </formatters>
         <tests>
             <fileset dir='${build.test.dir}'>
+                <exclude name="**/*$*.class"/>
+
+                <!-- VoltDB Tests -->
                 <include name='org/hsqldb/**/Test*.class'/>
                 <include name='org/voltdb/**/Test*.class'/>
                 <include name='org/voltdb/network/**/Test*.class'/>
                 <include name='org/voltdb/messaging/**/*Test.class'/>
                 <include name='org/voltdb/network/**/*Test.class'/>
                 <include name='org/voltdb/utils/**/*Test.class'/>
-                <exclude name="**/*$*.class"/>
                 <exclude name="**/TestMaliciousClientSuite.class" />
-                
-                <include name='edu/brown/**/Test*.class'/>
-                <include name='edu/brown/designer/**/Test*.class'/>
-
-                <include name='ca/evanjones/**/*Test.class'/>
-                <include name='edu/mit/**/*Test.class'/>
-                <include name='edu/mit/**/Test*.class'/>
-
-                <!-- We run out of memory on this one -->
-                <exclude name='edu/brown/benchmark/tpce/*'/>
-
-                <!-- Busted tests because of hacking -->
-                <exclude name='edu/brown/benchmark/airline/Test*'/>
-                <exclude name='edu/brown/benchmark/airline/util/TestHistogramUtil*'/>
-                
-                <exclude name='edu/brown/markov/TestMarkovGraph*' />
-                
-                <!-- VoltDB stuff -->
                 <exclude name='org/voltdb/regressionsuites/**'/>
                 <exclude name='org/voltdb/client/TestDistributer*'/>
                 <exclude name='org/voltdb/TestAdHocQueries*'/>
@@ -920,6 +908,21 @@ TEST CASES
                 <exclude name='org/voltdb/TestTheHashinator*'/>
                 <exclude name='org/voltdb/TestTwoSitePlans*'/>
                 <exclude name='org/voltdb/jni/TestExecutionEngine*'/>
+
+                <!-- Brown Tests -->
+                <include name='edu/brown/**/Test*.class'/>
+                <include name='edu/brown/designer/**/Test*.class'/>
+                <!-- We run out of memory on this one -->
+                <exclude name='edu/brown/benchmark/tpce/*'/>
+                <!-- Busted tests because of hacking -->
+                <exclude name='edu/brown/benchmark/airline/Test*'/>
+                <exclude name='edu/brown/benchmark/airline/util/TestHistogramUtil*'/>
+                <exclude name='edu/brown/markov/TestMarkovGraph*' />
+
+                <!-- Canadian Tests -->
+                <include name='ca/evanjones/**/*Test.class'/>
+                <include name='edu/mit/**/*Test.class'/>
+                <include name='edu/mit/**/Test*.class'/>
             </fileset>
         </tests>
     </run_junit>
@@ -956,12 +959,12 @@ TEST CASES
     />
 
     <!-- Regenerate milestoneOneCatalog/ -->
-    <delete dir='${build.dir}/expanded/milestoneOneCatalog' />
+<!--    <delete dir='${build.dir}/expanded/milestoneOneCatalog' />
     <mkdir dir='${build.dir}/expanded/milestoneOneCatalog' />
     <unjar
         src='${build.testobjects.dir}/milestoneOneCatalog.jar'
         dest='${build.dir}/expanded/milestoneOneCatalog'
-    />
+    />-->
 </target>
 
 <target
