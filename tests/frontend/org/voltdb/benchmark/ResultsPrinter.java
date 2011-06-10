@@ -66,16 +66,16 @@ public class ResultsPrinter implements BenchmarkController.BenchmarkInterest {
 
         if ((pollIndex * results.getIntervalDuration()) >= duration) {
             // print the final results
-            System.out.println("\n============================== BENCHMARK RESULTS ==============================");
+            System.out.println("\n================================ BENCHMARK RESULTS ================================");
             System.out.printf("Time: %d ms\n", duration);
             System.out.printf("Total transactions: %d\n", totalTxnCount);
             System.out.printf("Transactions per second: %.2f\n", totalTxnCount / (double)duration * 1000.0);
             for (String transactionName : results.getTransactionNames()) {
                 final long txnCount = getTotalCountForTransaction(transactionName, results);
-                System.out.printf("%23s: %10d total %10.2f\\% %12.2f txn/s %12.2f txn/m\n",
+                System.out.printf("%23s: %10d total %-6s %8.2f txn/s %10.2f txn/m\n",
                         transactionName,
                         txnCount,
-                        txnCount / (double)totalTxnCount, 
+                        String.format("(%5.1f%%)", (txnCount / (double)totalTxnCount) * 100), 
                         txnCount / (double)duration * 1000.0,
                         txnCount / (double)duration * 1000.0 * 60.0);
             }
@@ -83,13 +83,14 @@ public class ResultsPrinter implements BenchmarkController.BenchmarkInterest {
             for (String clientName : results.getClientNames()) {
                 final long txnCount = getTotalCountForClient(clientName, results);
                 clientName = clientName.replace("client-", "");
-                System.out.printf("%23s: %10d total %12.2f txn/s %12.2f txn/m\n",
+                System.out.printf("%23s: %10d total %-8s %8.2f txn/s %10.2f txn/m\n",
                         clientName,
                         txnCount,
+                        "",
                         txnCount / (double)duration * 1000.0,
                         txnCount / (double)duration * 1000.0 * 60.0);
             }
-            System.out.println("===============================================================================\n");
+            System.out.println("===================================================================================\n");
         }
 
         System.out.flush();

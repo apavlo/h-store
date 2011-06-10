@@ -46,6 +46,7 @@
 <property name='src.ee.parent.dir'           location='src/ee' />
 <property name='src.ee.dir'                  location='src/ee' />
 <property name='tools.dir'                   location='tools' />
+<property name='temp.dir'                    location='/tmp/hstore' />
 <property name='build.testoutput.dir'        location='${build.dir}/testoutput' />
 <property name='build.testobjects.dir'       location='${build.dir}/testobjects' />
 <property name='build.protorpc.dir'          location='${build.dir}/protorpc' />
@@ -1395,8 +1396,7 @@ DTXN BINARIES + LIBRARIES
 </target>
 
 <target name="dtxn-coordinator" description="H-Store Dtxn.Coordinator">
-    <property name="dtxn.temp.dir" location="/tmp/hstore" />
-    <unzip src="${benchmark.jar}" dest="${dtxn.temp.dir}">
+    <unzip src="${benchmark.jar}" dest="${temp.dir}">
         <patternset>
             <include name="dtxn.conf"/>
         </patternset>
@@ -1405,7 +1405,7 @@ DTXN BINARIES + LIBRARIES
     <echo message="Starting Dtxn.Coordinator on port ${coordinator.port}" />
     <exec executable="${build.dtxn.dir}/protodtxn/protodtxncoordinator">
         <arg line="${coordinator.port}"/>
-        <arg line="${dtxn.temp.dir}/dtxn.conf"/>
+        <arg line="${temp.dir}/dtxn.conf"/>
     </exec>
 </target>
 
@@ -1679,18 +1679,19 @@ DESIGNER
 
 <target name='catalog-fix'
         description="Updates the catalog in a JAR to include foreign keys and parameter mappings">
-    <property name="jar.backup" location="/tmp/${jar}-BACKUP" />
+    <basename property="jar.filename" file="${jar}"/>
+    <property name="jar.backup" location="${temp.dir}/${jar.filename}-BACKUP" />
     <copy file="${jar}" tofile="${jar.backup}" />
     <echo message="Copied back-up to ${jar.backup}" />
-    <unjar src="${jar}" dest="/tmp/fixcatalog/"/>
+    <unjar src="${jar}" dest="${temp.dir}/fixcatalog/"/>
     <java fork="yes" failonerror="true" classname="edu.brown.catalog.FixCatalog">
 <!--    <java fork="yes" failonerror="true" classname="edu.brown.utils.PatchCatalog"> -->
         <jvmarg value="-Dlog4j.configuration=${basedir}/log4j.properties"/>
         <arg value="catalog.jar=${jar}" />
         <arg value="catalog.type=${type}" />
         <arg value="catalog.cluster=${cluster}" />
-        <arg value="catalog.output=/tmp/fixcatalog/catalog.txt" />
-        <arg value="dtxn.conf.output=/tmp/fixcatalog/dtxn.conf" />
+        <arg value="catalog.output=${temp.dir}/fixcatalog/catalog.txt" />
+        <arg value="dtxn.conf.output=${temp.dir}/fixcatalog/dtxn.conf" />
         <arg value="correlations=${correlations}" />
         <arg value="simulator.host=${hosts}" />
         <arg value="simulator.numhosts=${numhosts}" />
@@ -1703,8 +1704,8 @@ DESIGNER
         <classpath refid='project.classpath' />
         <assertions><enable /></assertions>
     </java>
-   <jar destfile="${jar}" basedir="/tmp/fixcatalog/"/>
-   <delete includeemptydirs="true" dir="/tmp/fixcatalog" failonerror='false'/>
+   <jar destfile="${jar}" basedir="${temp.dir}/fixcatalog/"/>
+   <delete includeemptydirs="true" dir="${temp.dir}/fixcatalog" failonerror='false'/>
    <echo message="Updated catalog in jar file ${jar}" />
 </target>
 
@@ -1932,7 +1933,7 @@ DESIGNER
     <condition property="target.workload" value="${project}">
         <not><isset property="target.workload"/></not>
     </condition>
-    <property name="benchmark.tablestats" location="/tmp/${project}.table.stats" />
+    <property name="benchmark.tablestats" location="${temp.dir}/${project}.table.stats" />
     
 <!--    <echo>Creating table stats file for ${project}...</echo>
     <java fork="yes" classname="edu.brown.statistics.AbstractTableStatisticsGenerator" failonerror='true'>
@@ -2198,6 +2199,12 @@ H-STORE REMIX
 </target>
 
 <target name="hstore-site" description="H-Store Execution Node/Coordinator">
+    <unzip src="${benchmark.jar}" dest="${temp.dir}">
+        <patternset>
+            <include name="dtxn.conf"/>
+        </patternset>
+    </unzip>
+
     <condition property="markov" value="files/markovs/${project}.markovs">
         <not><isset property="markov"/></not>
     </condition>
@@ -2232,7 +2239,7 @@ H-STORE REMIX
         <arg value="node.mispredict_crash=${node.mispredict_crash}" />
         <arg value="coordinator.host=${coordinator.host}" />
         <arg value="coordinator.port=${coordinator.port}" />
-        <arg value="dtxn.conf=${build.dtxn.dir}/hstore.conf" />
+        <arg value="dtxn.conf=${temp.dir}/dtxn.conf" />
         <arg value="dtxn.engine=${build.dtxn.dir}/protodtxn/protodtxnengine" />
         <arg value="hasher.class=${hasher}" />
         <arg value="markov=${markov}" />

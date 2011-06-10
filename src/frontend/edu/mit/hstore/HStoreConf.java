@@ -29,7 +29,7 @@ public final class HStoreConf {
     /**
      * Max size of queued transactions before we stop accepting new requests and throttle clients
      */
-    public int txn_queue_max_per_partition = 2500;
+    public int txn_queue_max_per_partition = 1000;
     public double txn_queue_release_factor = 0.25;
     public final int txn_queue_max;
     public final int txn_queue_release;  

@@ -89,7 +89,7 @@ if __name__ == '__main__':
         if OPT_PROTOENGINE and \
            cmd.find("protodtxnengine") != -1 and \
            cmd.find("tag=site")        == -1 and \
-           cmd.find("hstore.conf")     != -1:
+           cmd.find("dtxn.conf")     != -1:
             to_kill.add(pid)
             logging.debug("Preparing to kill Dtxn.Engine PID %d\n%s" % (pid, cmd))
         ## IF
@@ -98,7 +98,7 @@ if __name__ == '__main__':
         if OPT_PROTOCOORD and \
            cmd.find("protodtxncoordinator") != -1 and \
            cmd.find("tag=site")             == -1 and \
-           cmd.find("hstore.conf")          != -1:
+           cmd.find("dtxn.conf")          != -1:
             to_kill.add(pid)
             logging.debug("Preparing to kill Dtxn.Coordinator PID %d\n%s" % (pid, cmd))
         ## IF
