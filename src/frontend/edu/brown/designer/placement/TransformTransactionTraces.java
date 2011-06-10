@@ -50,7 +50,7 @@ public class TransformTransactionTraces {
 
     private static final Logger LOG = Logger.getLogger(TransformTransactionTraces.class);
     
-    public static void transform(List<TransactionTrace> txn_traces, PartitionEstimator est, Database catalogDb, long partition_size) {
+    public static void transform(List<TransactionTrace> txn_traces, PartitionEstimator est, Database catalogDb, long partition_size, ArgumentsParser args) {
         Histogram hist = new Histogram();
         List<TxnPartition> al_txn_partitions = new ArrayList<TxnPartition>();
         
@@ -121,7 +121,7 @@ public class TransformTransactionTraces {
         // write the file
         Writer writer;
         try {
-            writer = new FileWriter("specifcy filepath");
+            writer = new FileWriter(args.getOptParam(5));
             writer.append(sb.toString());
             writer.flush();
         } catch (IOException e) {
@@ -183,7 +183,7 @@ public class TransformTransactionTraces {
         long partition_size = estimator.estimate(args.catalog_db, CatalogUtil.getNumberOfPartitions(args.catalog_db));
         Procedure catalog_proc = args.catalog_db.getProcedures().get("GetTableCounts"); // random procedure from tm1?
         PartitionEstimator p_estimator = new PartitionEstimator(args.catalog_db);
-        transform(args.workload.getTraces(catalog_proc), p_estimator, args.catalog_db, partition_size);
+        transform(args.workload.getTraces(catalog_proc), p_estimator, args.catalog_db, partition_size, args);
     }
 
 }
