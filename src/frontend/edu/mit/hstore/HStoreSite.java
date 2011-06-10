@@ -88,6 +88,7 @@ import edu.brown.statistics.Histogram;
 import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.EventObservable;
+import edu.brown.utils.FileUtil;
 import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.ParameterMangler;
 import edu.brown.utils.PartitionEstimator;
@@ -1781,6 +1782,10 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         final String coordinatorHost = args.getParam(ArgumentsParser.PARAM_COORDINATOR_HOST);
         final int coordinatorPort = args.getIntParam(ArgumentsParser.PARAM_COORDINATOR_PORT);
 
+        if (FileUtil.exists(args.getParam(ArgumentsParser.PARAM_DTXN_CONF)) == false) {
+            throw new IOException("The Dtxn.Coordinator file '" + args.getParam(ArgumentsParser.PARAM_DTXN_CONF) + "' does not exist");
+        }
+        
         // For every partition in our local site, we want to setup a new ExecutionSite
         // Thankfully I had enough sense to have PartitionEstimator take in the local partition
         // as a parameter, so we can share a single instance across all ExecutionSites

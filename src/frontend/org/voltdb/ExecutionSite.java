@@ -2104,8 +2104,7 @@ public class ExecutionSite implements Runnable, Shutdownable {
         }
         
         // Ok now at this point we can access our queue send back all of our responses
-//        if (d) 
-            LOG.info(String.format("%s %d speculatively executed transactions on partition %d",
+        if (d) LOG.debug(String.format("%s %d speculatively executed transactions on partition %d",
                                        (commit ? "Commiting" : "Aborting"), this.queued_responses.size(), this.partitionId));
         
         // XXX: Can we just commit/abort the last txn with the EE?
