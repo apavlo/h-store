@@ -2,8 +2,8 @@ package edu.mit.hstore;
 
 import java.lang.reflect.Field;
 import java.util.Map;
+import java.util.TreeMap;
 
-import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.log4j.Logger;
 import org.voltdb.BatchPlanner;
 import org.voltdb.ExecutionSite;
@@ -96,6 +96,17 @@ public final class HStoreConf {
      * Whether the VoltProcedure should crash the HStoreSite on a mispredict
      */
     public boolean mispredict_crash = false;
+    
+    /**
+     * If this enabled, HStoreSite will use a separate thread to process every outbound ClientResponse
+     * for all of the ExecutionSites.
+     */
+    public final boolean enable_postprocessing_thread = true; 
+    
+    /**
+     * 
+     */
+    public final boolean enable_queued_response_ee_bypass = true;
     
     // ----------------------------------------------------------------------------
     // ExecutionSiteHelper
@@ -294,7 +305,7 @@ public final class HStoreConf {
     @Override
     public String toString() {
         Class<?> confClass = this.getClass();
-        final Map<String, Object> m = new ListOrderedMap<String, Object>();
+        final Map<String, Object> m = new TreeMap<String, Object>();
         for (Field f : confClass.getFields()) {
             String key = f.getName().toUpperCase();
             try {

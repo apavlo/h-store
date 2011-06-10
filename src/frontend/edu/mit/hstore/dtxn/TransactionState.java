@@ -275,6 +275,11 @@ public abstract class TransactionState implements Poolable {
     public void setSubmittedEE() {
         this.submitted_to_ee = true;
     }
+    
+    public void unsetSubmittedEE() {
+        this.submitted_to_ee = false;
+    }
+    
     /**
      * Returns true if this txn has submitted work to the EE that needs to be rolled back
      * @return
