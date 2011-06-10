@@ -91,12 +91,6 @@ public class TestExecutionSite extends BaseTestCase {
     public void testGetProcedure() {
         VoltProcedure volt_proc0 = site.getVoltProcedure(TARGET_PROCEDURE);
         assertNotNull(volt_proc0);
-        
-        // If we get another one it should be a different instance
-        VoltProcedure volt_proc1 = site.getVoltProcedure(TARGET_PROCEDURE);
-        assertNotNull(volt_proc1);
-        
-        assertNotSame(volt_proc0, volt_proc1);
     }
     
     /**

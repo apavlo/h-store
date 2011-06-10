@@ -51,6 +51,7 @@ import org.voltdb.BackendTarget;
 import org.voltdb.ClientResponseImpl;
 import org.voltdb.ExecutionSite;
 import org.voltdb.ExecutionSiteHelper;
+import org.voltdb.ExecutionSitePostProcessor;
 import org.voltdb.ProcedureProfiler;
 import org.voltdb.StoredProcedureInvocation;
 import org.voltdb.TransactionIdManager;
@@ -276,9 +277,11 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
     
     /** Request counter **/
     private final AtomicInteger server_timestamp = new AtomicInteger(0); 
-
     
-    
+    /**
+     * ClientResponse Processor Thread
+     */
+    private final ExecutionSitePostProcessor processor;
     
     private final HStoreConf hstore_conf;
     
@@ -356,6 +359,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         } // FOR
         
         this.messenger = new HStoreMessenger(this);
+        this.processor = new ExecutionSitePostProcessor();
         this.helper_pool = Executors.newScheduledThreadPool(1);
         
         // NewOrder Hack
@@ -400,6 +404,10 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         ExecutionSite es = this.executors[partition]; 
         assert(es != null) : "Unexpected null ExecutionSite for Partition #" + partition + " on Site #" + this.site_id;
         return (es);
+    }
+    
+    public ExecutionSitePostProcessor getExecutionSitePostProcessor() {
+        return (this.processor);
     }
     
     public int getExecutorCount() {
@@ -522,6 +530,11 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
             this.param_manglers.put(catalog_proc, new ParameterMangler(catalog_proc));
         } // FOR
         if (d) LOG.debug(String.format("Created ParameterManglers for %d procedures", this.param_manglers.size()));
+
+        // Start the ExecutionSitePostProcessor
+        if (hstore_conf.enable_postprocessing_thread) {
+            new Thread(this.processor).start();
+        }
         
         // Then we need to start all of the ExecutionSites in threads
         if (d) LOG.debug("Starting ExecutionSite threads for " + this.local_partitions.size() + " partitions on Site #" + this.site_id);
@@ -658,6 +671,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
     @Override
     public void prepareShutdown() {
         this.messenger.prepareShutdown();
+        this.processor.prepareShutdown();
         for (int p : this.local_partitions) {
             this.executors[p].prepareShutdown();
         } // FOR
@@ -678,6 +692,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         LOG.info("Shutting down everything at Site #" + this.site_id);
 
         // Tell our local boys to go down too
+        this.processor.shutdown();
         for (int p : this.local_partitions) {
             if (t) LOG.trace("Telling the ExecutionSite for Partition #" + p + " to shutdown");
             this.executors[p].shutdown();
