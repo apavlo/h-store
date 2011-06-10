@@ -49,6 +49,8 @@ public class ProfileMeasurement {
      */
     private transient Long think_marker; 
 
+    private transient int invocations = 0;
+    
     /**
      * Constructor
      * @param pmtype
@@ -73,11 +75,27 @@ public class ProfileMeasurement {
     }
 
     /**
-     * Get the total amount of time spent in the profiled area
+     * Get the total amount of time spent in the profiled area in nanoseconds
      * @return
      */
     public long getTotalThinkTime() {
         return (this.think_time);
+    }
+    
+    /**
+     * Get the average think time per invocation
+     * @return
+     */
+    public double getAverageThinkTime() {
+        return (this.think_time / (double)this.invocations);
+    }
+    
+    /**
+     * Get the total number of times this object was started
+     * @return
+     */
+    public int getInvocations() {
+        return (this.invocations); 
     }
     
     // ----------------------------------------------------------------------------
@@ -93,6 +111,7 @@ public class ProfileMeasurement {
         assert(this.think_marker == null) : this.type + " - " + this.hashCode();
         this.think_marker = time;
 //        if (type == Type.JAVA) LOG.info(String.format("START %s [%d]", this.type, this.hashCode()));
+        this.invocations++;
         return (this);
     }
     

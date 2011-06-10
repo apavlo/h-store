@@ -562,12 +562,11 @@ public abstract class VoltProcedure implements Poolable {
 
         for (int i = 0; i < paramTypesLength; i++) {
             try {
-                this.procParams[i] = tryToMakeCompatible( i, this.procParams[i]);
+                this.procParams[i] = tryToMakeCompatible(i, this.procParams[i]);
             } catch (Exception e) {
                 String msg = "PROCEDURE " + procedure_name + " TYPE ERROR FOR PARAMETER " + i +
                         ": " + e.getMessage();
-                LOG.fatal(msg);
-                e.printStackTrace();
+                LOG.fatal(msg, e);
                 status = ClientResponseImpl.GRACEFUL_FAILURE;
                 status_msg = msg;
                 return new ClientResponseImpl(this.txn_id, this.status, this.results, this.status_msg, this.client_handle);
@@ -597,7 +596,7 @@ public abstract class VoltProcedure implements Poolable {
                 LOG.fatal(String.format("Unexpected error when executing %s txn #%d", this.procedure_name, this.txn_id));
                 throw new InvocationTargetException(e);
             } catch (AssertionError e) {
-                LOG.fatal(e);
+                LOG.fatal(String.format("Unexpected error when executing %s txn #%d", this.procedure_name, this.txn_id), e);
                 System.exit(1);
             }
             if (d) LOG.debug(this.catProc + " is finished for txn #" + this.txn_id);

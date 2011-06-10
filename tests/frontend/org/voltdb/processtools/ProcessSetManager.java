@@ -147,7 +147,7 @@ public class ProcessSetManager {
             
             if (output_directory != null) {
                 FileWriter fw = null;
-                String path = output_directory.getAbsolutePath() + "/hstore-" + m_processName + ".log";
+                String path = String.format("%s/%s.log", output_directory.getAbsolutePath(), m_processName);
                 try {
                     fw = new FileWriter(path);
                 } catch (Exception ex) {

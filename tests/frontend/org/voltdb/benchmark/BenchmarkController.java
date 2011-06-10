@@ -1196,15 +1196,15 @@ public class BenchmarkController {
             } else if (parts[0].equalsIgnoreCase("DUMPDATABASEDIR")) {
                 dumpDatabaseDir = parts[1];
 
-            } else if (parts[0].equalsIgnoreCase("CLIENT.LOGDIR")) {
+            } else if (parts[0].equalsIgnoreCase("CLIENT.LOG_DIR")) {
                 clientLogDir = parts[1];
                 FileUtil.makeDirIfNotExists(clientLogDir);
                 
-            } else if (parts[0].equalsIgnoreCase("COORDINATOR.LOGDIR")) {
+            } else if (parts[0].equalsIgnoreCase("COORDINATOR.LOG_DIR")) {
                 coordLogDir = parts[1];
                 FileUtil.makeDirIfNotExists(coordLogDir);
                 
-            } else if (parts[0].equalsIgnoreCase("NODE.LOGDIR")) {
+            } else if (parts[0].equalsIgnoreCase("NODE.LOG_DIR")) {
                 siteLogDir = parts[1];
                 FileUtil.makeDirIfNotExists(siteLogDir);
                 
