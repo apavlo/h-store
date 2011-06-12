@@ -7,6 +7,7 @@ import com.google.protobuf.RpcCallback;
 
 import edu.brown.hstore.Hstore;
 import edu.brown.hstore.Hstore.MessageAcknowledgement;
+import edu.mit.hstore.HStoreSite;
 
 public class ForwardTxnResponseCallback implements RpcCallback<byte[]> {
     private static final Logger LOG = Logger.getLogger(ForwardTxnResponseCallback.class);
@@ -30,12 +31,12 @@ public class ForwardTxnResponseCallback implements RpcCallback<byte[]> {
     @Override
     public void run(byte[] parameter) {
         final boolean trace = LOG.isTraceEnabled();
-        if (trace) LOG.trace("Got ClientResponse callback! Sending back to Site #" + this.dest_id + " " +
+        if (trace) LOG.trace("Got ClientResponse callback! Sending back to " + HStoreSite.getSiteName(this.dest_id) + " " +
                              "[bytes=" + parameter.length + "]");
         ByteString bs = ByteString.copyFrom(parameter);
         Hstore.MessageAcknowledgement response = Hstore.MessageAcknowledgement.newBuilder()
-                                                                              .setSenderId(this.source_id)
-                                                                              .setDestId(this.dest_id)
+                                                                              .setSenderSiteId(this.source_id)
+                                                                              .setDestSiteId(this.dest_id)
                                                                               .setData(bs)
                                                                               .build();
         this.orig_callback.run(response);

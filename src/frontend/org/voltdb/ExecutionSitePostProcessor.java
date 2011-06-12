@@ -3,11 +3,14 @@ package org.voltdb;
 import java.util.Arrays;
 import java.util.concurrent.LinkedBlockingDeque;
 
+import edu.mit.hstore.HStoreSite;
 import edu.mit.hstore.dtxn.LocalTransactionState;
 import edu.mit.hstore.interfaces.Shutdownable;
 
 public final class ExecutionSitePostProcessor implements Runnable, Shutdownable {
 
+    private final HStoreSite hstore_site;
+    
     /**
      * Whether we should stop processing our queue
      */
@@ -25,6 +28,14 @@ public final class ExecutionSitePostProcessor implements Runnable, Shutdownable 
     
     /**
      * 
+     * @param hstore_site
+     */
+    public ExecutionSitePostProcessor(HStoreSite hstore_site) {
+        this.hstore_site = hstore_site;
+    }
+    
+    /**
+     * 
      * @param es
      * @param ts
      * @param cresponse
@@ -36,6 +47,8 @@ public final class ExecutionSitePostProcessor implements Runnable, Shutdownable 
     @Override
     public void run() {
         this.self = Thread.currentThread();
+        this.self.setName(this.hstore_site.getThreadName("post"));
+        
         Object triplet[] = null;
         while (this.stop == false) {
             try {

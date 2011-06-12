@@ -9,6 +9,7 @@ import org.voltdb.messaging.FastDeserializer;
 import com.google.protobuf.RpcCallback;
 
 import edu.brown.hstore.Hstore.MessageAcknowledgement;
+import edu.mit.hstore.HStoreSite;
 
 /**
  * 
@@ -26,7 +27,7 @@ public class ForwardTxnRequestCallback implements RpcCallback<MessageAcknowledge
 
     @Override
     public void run(MessageAcknowledgement parameter) {
-        if (LOG.isTraceEnabled()) LOG.trace("Got back FORWARD_TXN response from Site #" + parameter.getSenderId() + ". Sending response to client " +
+        if (LOG.isTraceEnabled()) LOG.trace("Got back FORWARD_TXN response from " + HStoreSite.getSiteName(parameter.getSenderSiteId()) + ". Sending response to client " +
                                             "[bytes=" + parameter.getData().size() + "]");
         byte data[] = parameter.getData().toByteArray();
         try {

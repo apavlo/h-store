@@ -296,7 +296,8 @@ public class ProcessSetManager {
                 } else {
                     msg = String.format("Failed to write '%s' command to '%s'", data.trim(), processName);
                 }
-                LOG.fatal(msg, e);
+                if (LOG.isDebugEnabled()) LOG.fatal(msg, e);
+                else LOG.fatal(msg);
             }
             this.failure_observable.notifyObservers(processName);
         }
