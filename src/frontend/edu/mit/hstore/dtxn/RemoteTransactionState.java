@@ -32,6 +32,7 @@ import org.voltdb.BatchPlanner.BatchPlan;
 
 import edu.brown.utils.CountingPoolableObjectFactory;
 import edu.brown.utils.LoggerUtil;
+import edu.brown.utils.StringUtil;
 import edu.brown.utils.LoggerUtil.LoggerBoolean;
 
 /**
@@ -92,7 +93,7 @@ public class RemoteTransactionState extends TransactionState {
     }
     
     @Override
-    public boolean getHStoreSiteDone() {
+    public boolean isHStoreSite_Finished() {
         return (true);
     }
     
@@ -116,5 +117,19 @@ public class RemoteTransactionState extends TransactionState {
     @Override
     public void addFinishedBatchPlan(BatchPlan plan) {
         // Nothing
+    }
+    
+    @Override
+    public String toString() {
+        if (this.isInitialized()) {
+            return "REMOTE #" + this.txn_id;
+        } else {
+            return ("<Uninitialized>");
+        }
+    }
+    
+    @Override
+    public String debug() {
+        return (StringUtil.formatMaps(this.getDebugMap()));
     }
 }

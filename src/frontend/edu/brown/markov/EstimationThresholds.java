@@ -118,7 +118,7 @@ public class EstimationThresholds implements JSONSerializable {
         m.put("Write", this.write);
         m.put("Done", this.done);
         m.put("Abort", this.abort);
-        return ("EstimationThresholds:\n" + StringUtil.formatMaps(m));
+        return (StringUtil.formatMaps(m));
     }
     
     // -----------------------------------------------------------------

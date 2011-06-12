@@ -1095,7 +1095,16 @@ public class LocalTransactionState extends TransactionState {
     }
     
     @Override
-    public synchronized String toString() {
+    public String toString() {
+        if (this.isInitialized()) {
+            return (this.getProcedureName() + " #" + this.txn_id);
+        } else {
+            return ("<Uninitialized>");
+        }
+    }
+    
+    @Override
+    public synchronized String debug() {
         Map<String, Object> header = super.getDebugMap();
         
         String proc_name = (this.volt_procedure != null ? this.volt_procedure.getProcedureName() : null);

@@ -703,7 +703,7 @@ public class VoltProjectBuilder {
         File tempFile;
         try {
             tempFile = File.createTempFile("myApp", ".tmp");
-            // tempFile.deleteOnExit();
+            tempFile.deleteOnExit();
 
             final FileWriter writer = new FileWriter(tempFile);
             writer.write(content);

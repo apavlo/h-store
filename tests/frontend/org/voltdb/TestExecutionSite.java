@@ -64,8 +64,6 @@ public class TestExecutionSite extends BaseTestCase {
             executors.put(PARTITION_ID, site);
             HStoreSite hstore_site = new HStoreSite(catalog_site, executors, p_estimator);
             site.setHStoreSite(hstore_site);
-            site.setHStoreMessenger(hstore_site.getMessenger());
-            
         }
     }
     

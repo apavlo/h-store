@@ -308,10 +308,10 @@ public class TestHStoreMessenger extends BaseTestCase {
         final RpcCallback<MessageAcknowledgement> callback = new RpcCallback<MessageAcknowledgement>() {
             @Override
             public void run(MessageAcknowledgement parameter) {
-                int sender = parameter.getSenderId();
+                int sender_site_id = parameter.getSenderSiteId();
                 String status = new String(parameter.getData().toByteArray());
-                responses.put(sender, status);
-                waiting.remove(sender);
+                responses.put(sender_site_id, status);
+                waiting.remove(sender_site_id);
                 latch.countDown();
                 
                 if (waiting.isEmpty()) {
@@ -340,8 +340,8 @@ public class TestHStoreMessenger extends BaseTestCase {
             // Remote site
             } else {
                 final Hstore.MessageRequest sm = Hstore.MessageRequest.newBuilder()
-                                                                .setSenderId(sender_id)
-                                                                .setDestId(dest_id)
+                                                                .setSenderSiteId(sender_id)
+                                                                .setDestSiteId(dest_id)
                                                                 .setType(MessageType.STATUS)
                                                                 .build();
                 threads.add(new Thread(group, (sender_id + "->" + dest_id)) {

@@ -1,9 +1,12 @@
 package edu.mit.hstore;
 
+import java.io.File;
 import java.lang.reflect.Field;
 import java.util.Map;
 import java.util.TreeMap;
 
+import org.apache.commons.configuration.PropertiesConfiguration;
+import org.apache.commons.configuration.reloading.FileChangedReloadingStrategy;
 import org.apache.log4j.Logger;
 import org.voltdb.BatchPlanner;
 import org.voltdb.ExecutionSite;
@@ -13,6 +16,7 @@ import edu.brown.catalog.CatalogUtil;
 import edu.brown.markov.MarkovPathEstimator;
 import edu.brown.markov.TransactionEstimator;
 import edu.brown.utils.ArgumentsParser;
+import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.CountingPoolableObjectFactory;
 import edu.brown.utils.StringUtil;
 import edu.mit.hstore.dtxn.DependencyInfo;
@@ -206,10 +210,30 @@ public final class HStoreConf {
     
     
     public int pool_preload_dependency_infos = 10000;
+
+    
+    // ----------------------------------------------------------------------------
+    // INTERNAL 
+    // ----------------------------------------------------------------------------
+    
+    private PropertiesConfiguration config = null;
+    
     
     // ----------------------------------------------------------------------------
     // METHODS
     // ----------------------------------------------------------------------------
+    
+    protected void loadFromFile(File path) throws Exception {
+        this.config = new PropertiesConfiguration(path);
+
+        Class<?> confClass = this.getClass();
+        for (Object obj_k : CollectionUtil.wrapIterator(this.config.getKeys())) {
+            String k = obj_k.toString();
+            Field f = confClass.getField(k);
+            // TODO
+            
+        }
+    }
     
     /**
      * Constructor
