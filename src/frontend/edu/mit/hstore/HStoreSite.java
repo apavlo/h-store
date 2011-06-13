@@ -340,7 +340,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
     /**
      * Status Monitor
      */
-    private Thread status_monitor;
+    private HStoreSiteStatus status_monitor = null;
     
     // ----------------------------------------------------------------------------
     // CONSTRUCTOR
@@ -404,11 +404,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
      * @param interval
      */
     public void enableStatusMonitor(int interval, boolean kill_when_hanging) {
-        if (interval > 0) {
-            this.status_monitor = new Thread(new HStoreSiteStatus(this, interval, kill_when_hanging));
-            this.status_monitor.setPriority(Thread.MIN_PRIORITY);
-            this.status_monitor.setDaemon(true);
-        }
+        if (interval > 0) this.status_monitor = new HStoreSiteStatus(this, interval, kill_when_hanging);
     }
     
     /**
@@ -416,7 +412,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
      * @return
      */
     public String statusSnapshot() {
-        return new HStoreSiteStatus(this, 0, false).snapshot(true, false, false);
+        return new HStoreSiteStatus(this, 0, false).snapshot(true, true, false, false);
     }
     
     public ExecutionSite getExecutionSite(int partition) {
@@ -582,7 +578,10 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         // Start Monitor Thread
         if (this.status_monitor != null) {
             if (d) LOG.debug("Starting HStoreSiteStatus monitor thread");
-            this.status_monitor.start(); 
+            Thread t = new Thread(this.status_monitor);
+            t.setPriority(Thread.MIN_PRIORITY);
+            t.setDaemon(true);
+            t.start();
         }
         
         if (d) LOG.debug("Preloading cached objects");
@@ -613,9 +612,9 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
             LOG.warn("Already told that we were ready... Ignoring");
             return;
         }
-        LOG.info(String.format("%s [site=%d, port=%d, #partitions=%d]",
+        LOG.info(String.format("%s [site=%s, port=%d, #partitions=%d]",
                                HStoreSite.SITE_READY_MSG,
-                               this.site_id,
+                               this.getSiteName(),
                                this.catalog_site.getProc_port(),
                                this.getExecutorCount()));
         this.ready = true;
@@ -721,7 +720,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         // Stop the monitor thread
         if (this.status_monitor != null) {
             if (t) LOG.trace("Telling StatusMonitorThread to stop");
-            this.status_monitor.interrupt();
+            this.status_monitor.shutdown();
         }
         
         // Stop the helper
@@ -881,7 +880,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         
         boolean single_partition = false;
         boolean predict_can_abort = true;
-        boolean predict_readonly = false;
+        boolean predict_readonly = catalog_proc.getReadonly();
         TransactionEstimator.State t_state = null; 
 
         LocalTransactionState ts = null;
@@ -982,9 +981,8 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         }
 
         ts.init(txn_id, request.getClientHandle(), dest_partition.intValue(),
-                      single_partition, predict_can_abort, t_state,
+                      single_partition, predict_readonly, predict_can_abort, t_state,
                       catalog_proc, request, done);
-        ts.setPredictReadOnly(predict_readonly);
         if (hstore_conf.enable_profiling) {
             ts.total_time.start(timestamp);
             ts.init_time.start(timestamp);
@@ -1026,7 +1024,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         
         // We have to wrap the StoredProcedureInvocation object into an InitiateTaskMessage so that it can be put
         // into the ExecutionSite's execution queue
-        InitiateTaskMessage wrapper = new InitiateTaskMessage(txn_id, base_partition, base_partition, ts.invocation);
+        InitiateTaskMessage wrapper = new InitiateTaskMessage(txn_id, base_partition, base_partition, ts.isPredictReadOnly(), ts.invocation);
         
         // -------------------------------
         // FAST MODE: Skip the Dtxn.Coordinator
@@ -1408,18 +1406,19 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         assert(txn_id != null) : "Null txn id in Dtxn.FinishRequest payload";
         boolean commit = request.getCommit();
         
-        if (d) LOG.debug("Got Dtxn.FinishRequest for txn #" + txn_id + " [commit=" + commit + "]");
+        if (d) LOG.debug(String.format("Got Dtxn.FinishRequest for txn #%d [commit=%s]", txn_id, commit));
         
         // This will be null for non-local multi-partition transactions
         LocalTransactionState ts = this.inflight_txns.get(txn_id);
         // ??? assert(ts != null) : String.format("Missing TransactionState for txn #%d at site %d", txn_id, this.site_id);
 
         // We only need to call commit/abort if this wasn't a single-partition transaction
-        boolean invoke_executor = (ts == null || ts.isPredictSinglePartition() == false); 
-        // Tell each partition to either commit or abort the txn in the FinishRequest
-        for (Integer p : this.local_partitions) {
-            if (invoke_executor) this.executors[p].finishWork(txn_id, commit);
-        } // FOR
+        if (ts == null || ts.isPredictSinglePartition() == false) {
+            LOG.debug(String.format("Calling finishWork for txn #%d on %d local partitions", txn_id, this.local_partitions.size()));
+            for (Integer p : this.local_partitions) {
+                this.executors[p].finishWork(txn_id, commit);
+            } // FOR
+        }
         
         // Send back a FinishResponse to let them know we're cool with everything...
         if (done != null) {

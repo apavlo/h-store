@@ -17,7 +17,6 @@
 
 package org.voltdb.messaging;
 
-import java.io.IOException;
 import java.nio.ByteBuffer;
 
 import org.voltdb.StoredProcedureInvocation;
@@ -41,14 +40,9 @@ public class InitiateTaskMessage extends TransactionInfoBaseMessage {
         super();
     }
 
-    // Don't use this one!
-    public InitiateTaskMessage(long txnId, int srcPartitionId, StoredProcedureInvocation invocation) {
-        this(srcPartitionId, -1, txnId, false, false, invocation, -1);
-    }
-    
     // Use this one asshole!
-    public InitiateTaskMessage(long txnId, int srcPartitionId, int destPartitionId, StoredProcedureInvocation invocation) {
-        this(srcPartitionId, destPartitionId, txnId, false, false, invocation, -1);
+    public InitiateTaskMessage(long txnId, int srcPartitionId, int destPartitionId, boolean isReadOnly, StoredProcedureInvocation invocation) {
+        this(srcPartitionId, destPartitionId, txnId, isReadOnly, false, invocation, -1);
     }
 
 

@@ -115,7 +115,7 @@ public class ProcessSetManager {
             LOG.debug("Starting ProcessSetPoller");
             while (true) {
                 try {
-                    Thread.sleep(2500);
+                    Thread.sleep(5000);
                 } catch (InterruptedException ex) {
                     if (shutting_down == false) ex.printStackTrace();
                     break;

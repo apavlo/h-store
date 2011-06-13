@@ -20,17 +20,20 @@ import edu.brown.utils.StringUtil;
 import edu.mit.hstore.HStoreSite.TxnCounter;
 import edu.mit.hstore.dtxn.DependencyInfo;
 import edu.mit.hstore.dtxn.LocalTransactionState;
+import edu.mit.hstore.dtxn.TransactionState;
+import edu.mit.hstore.interfaces.Shutdownable;
 
 /**
  * 
  * @author pavlo
  */
-public class HStoreSiteStatus implements Runnable {
+public class HStoreSiteStatus implements Runnable, Shutdownable {
     private static final Logger LOG = Logger.getLogger(HStoreSiteStatus.class);
     
     private static final String POOL_FORMAT = "Active:%-5d / Idle:%-5d / Created:%-5d / Passivated:%-5d / Destroyed:%-5d";
     
     private final HStoreSite hstore_site;
+    private final HStoreConf hstore_conf;
     private final int interval; // seconds
     private final boolean kill_when_hanging;
     private final Histogram<Integer> partition_txns = new Histogram<Integer>();
@@ -40,11 +43,21 @@ public class HStoreSiteStatus implements Runnable {
     
     private Integer inflight_min = null;
     private Integer inflight_max = null;
+    
+    private Thread self;
 
-    final Map<String, Object> m0 = new ListOrderedMap<String, Object>();
-    final Map<String, Object> m1 = new ListOrderedMap<String, Object>();
-    final Map<String, Object> m2 = new ListOrderedMap<String, Object>();
+    final Map<String, Object> m_txn = new ListOrderedMap<String, Object>();
+    final Map<String, Object> m_exec = new ListOrderedMap<String, Object>();
+    final Map<String, Object> m_thread = new ListOrderedMap<String, Object>();
+    final Map<String, Object> m_pool = new ListOrderedMap<String, Object>();
     final Map<String, Object> header = new ListOrderedMap<String, Object>();
+    
+    final boolean show_txns = false;
+    final boolean show_exec = true;
+    final boolean show_threads = false;
+    final boolean show_poolinfo = false;;
+    
+    
     final TreeSet<Thread> sortedThreads = new TreeSet<Thread>(new Comparator<Thread>() {
         @Override
         public int compare(Thread o1, Thread o2) {
@@ -54,6 +67,7 @@ public class HStoreSiteStatus implements Runnable {
     
     public HStoreSiteStatus(HStoreSite hstore_site, int interval, boolean kill_when_hanging) {
         this.hstore_site = hstore_site;
+        this.hstore_conf = HStoreConf.singleton();
         this.interval = interval;
         this.kill_when_hanging = kill_when_hanging;
         this.executors = new TreeMap<Integer, ExecutionSite>();
@@ -64,13 +78,13 @@ public class HStoreSiteStatus implements Runnable {
             this.executors.put(partition, hstore_site.getExecutionSite(partition));
         } // FOR
         
-        this.header.put(String.format("%s Status", HStoreSite.class.getSimpleName()), String.format("Site #%02d", hstore_site.catalog_site.getId()));
+        this.header.put(String.format("%s Status", HStoreSite.class.getSimpleName()), hstore_site.getSiteName());
         this.header.put("Number of Partitions", this.executors.size());
     }
     
     @Override
     public void run() {
-        final Thread self = Thread.currentThread();
+        self = Thread.currentThread();
         self.setName(this.hstore_site.getThreadName("mon"));
 
         if (LOG.isDebugEnabled()) LOG.debug("Starting HStoreCoordinator status monitor thread [interval=" + interval + " secs]");
@@ -83,7 +97,7 @@ public class HStoreSiteStatus implements Runnable {
             if (this.hstore_site.isShuttingDown()) break;
 
             // Out we go!
-            LOG.info("\n" + StringUtil.box(this.snapshot(true, false, false)));
+            this.printSnapshot();
             
             // If we're not making progress, bring the whole thing down!
             int completed = TxnCounter.COMPLETED.get();
@@ -97,7 +111,28 @@ public class HStoreSiteStatus implements Runnable {
         } // WHILE
     }
     
-    public synchronized String snapshot(boolean show_txns, boolean show_threads, boolean show_poolinfo) {
+    private void printSnapshot() {
+        LOG.info("\n" + StringUtil.box(this.snapshot(show_txns, show_exec, show_threads, show_poolinfo)));
+    }
+    
+    @Override
+    public void prepareShutdown() {
+        // TODO Auto-generated method stub
+        
+    }
+    
+    @Override
+    public void shutdown() {
+        this.printSnapshot();
+        if (this.self != null) this.self.interrupt();
+    }
+    
+    @Override
+    public boolean isShuttingDown() {
+        return this.hstore_site.isShuttingDown();
+    }
+    
+    public synchronized String snapshot(boolean show_txns, boolean show_exec, boolean show_threads, boolean show_poolinfo) {
         int inflight_cur = hstore_site.getInflightTxnCount();
         if (inflight_min == null || inflight_cur < inflight_min) inflight_min = inflight_cur;
         if (inflight_max == null || inflight_cur > inflight_max) inflight_max = inflight_cur;
@@ -110,7 +145,7 @@ public class HStoreSiteStatus implements Runnable {
         // ----------------------------------------------------------------------------
         // Transaction Information
         // ----------------------------------------------------------------------------
-        m0.clear();
+        m_txn.clear();
         if (show_txns) {
             for (TxnCounter tc : TxnCounter.values()) {
                 int cnt = tc.get();
@@ -119,32 +154,42 @@ public class HStoreSiteStatus implements Runnable {
                     val += String.format(" [%.03f]", tc.ratio());
                 }
                 if (cnt > 0) val += "\n" + tc.getHistogram().toString(50);
-                m0.put(tc.toString(), val + "\n");
+                m_txn.put(tc.toString(), val + "\n");
             } // FOR
-
-            m0.put("InFlight Txn Ids", String.format("%d [min=%d, max=%d]", inflight_cur, inflight_min, inflight_max));
+        }
+        
+        // ----------------------------------------------------------------------------
+        // Executor Information
+        // ----------------------------------------------------------------------------
+        if (show_exec) {
+            m_exec.put("InFlight Txn Ids", String.format("%d [totalMin=%d, totalMax=%d]", inflight_cur, inflight_min, inflight_max));
+            m_exec.put("Throttling Mode", String.format("%s [releaseTrigger=%d]\n", this.hstore_site.isThrottlingEnabled(), hstore_conf.txn_queue_release));
+            
             for (Entry<Integer, ExecutionSite> e : this.executors.entrySet()) {
+                ExecutionSite es = e.getValue();
                 int partition = e.getKey().intValue();
+                TransactionState ts = es.getCurrentDtxn();
                 String key = String.format("  Partition[%02d]", partition); 
-                String val = String.format("%2d total / %2d queued / %2d blocked / %2d waiting",
+                String val = String.format("%2d total / %2d queued / %2d blocked / %2d waiting\nCurrent DTXN: %s\nCurrent Mode: %s\n",
                                            this.partition_txns.get(partition),
-                                           e.getValue().getWorkQueueSize(),
-                                           e.getValue().getBlockedQueueSize(),
-                                           e.getValue().getWaitingQueueSize());
-                m0.put(key, val);
+                                           es.getWorkQueueSize(),
+                                           es.getBlockedQueueSize(),
+                                           es.getWaitingQueueSize(),
+                                           (ts == null ? "" : ts),
+                                           es.getExecutionMode());
+                m_exec.put(key, val);
             } // FOR
-            m0.put("Throttling Mode", this.hstore_site.isThrottlingEnabled());
         }
 
         // ----------------------------------------------------------------------------
         // Thread Information
         // ----------------------------------------------------------------------------
-        m1.clear();
+        m_thread.clear();
         if (show_threads) {
             final Map<Thread, StackTraceElement[]> threads = Thread.getAllStackTraces();
             sortedThreads.clear();
             sortedThreads.addAll(threads.keySet());
-            m1.put("Number of Threads", threads.size());
+            m_thread.put("Number of Threads", threads.size());
             for (Thread t : sortedThreads) {
                 StackTraceElement stack[] = threads.get(t);
                 String trace = null;
@@ -155,32 +200,32 @@ public class HStoreSiteStatus implements Runnable {
                 } else {
                     trace = stack[0].toString();
                 }
-                m1.put(StringUtil.abbrv(t.getName(), 24, true), trace);
+                m_thread.put(StringUtil.abbrv(t.getName(), 24, true), trace);
             } // FOR
         }
 
         // ----------------------------------------------------------------------------
         // Object Pool Information
         // ----------------------------------------------------------------------------
-        m2.clear();
+        m_pool.clear();
         if (show_poolinfo) {
             // BatchPlanners
-            m2.put("BatchPlanners", ExecutionSite.batch_planners.size());
+            m_pool.put("BatchPlanners", ExecutionSite.batch_planners.size());
 
             // MarkovPathEstimators
             StackObjectPool pool = (StackObjectPool)TransactionEstimator.getEstimatorPool();
             CountingPoolableObjectFactory<?> factory = (CountingPoolableObjectFactory<?>)pool.getFactory();
-            m2.put("Estimators", this.formatPoolCounts(pool, factory));
+            m_pool.put("Estimators", this.formatPoolCounts(pool, factory));
 
             // TransactionEstimator.States
             pool = (StackObjectPool)TransactionEstimator.getStatePool();
             factory = (CountingPoolableObjectFactory<?>)pool.getFactory();
-            m2.put("EstimationStates", this.formatPoolCounts(pool, factory));
+            m_pool.put("EstimationStates", this.formatPoolCounts(pool, factory));
             
             // DependencyInfos
             pool = (StackObjectPool)DependencyInfo.INFO_POOL;
             factory = (CountingPoolableObjectFactory<?>)pool.getFactory();
-            m2.put("DependencyInfos", this.formatPoolCounts(pool, factory));
+            m_pool.put("DependencyInfos", this.formatPoolCounts(pool, factory));
             
             // BatchPlans
             int active = 0;
@@ -198,7 +243,7 @@ public class HStoreSiteStatus implements Runnable {
                 passivated += factory.getPassivatedCount();
                 destroyed += factory.getDestroyedCount();
             } // FOR
-            m2.put("BatchPlans", String.format(POOL_FORMAT, active, idle, created, passivated, destroyed));
+            m_pool.put("BatchPlans", String.format(POOL_FORMAT, active, idle, created, passivated, destroyed));
             
             // Partition Specific
             String labels[] = new String[] {
@@ -231,10 +276,10 @@ public class HStoreSiteStatus implements Runnable {
             } // FOR
             
             for (int i = 0, cnt = labels.length; i < cnt; i++) {
-                m2.put(labels[i], String.format(POOL_FORMAT, total_active[i], total_idle[i], total_created[i], total_passivated[i], total_destroyed[i]));
+                m_pool.put(labels[i], String.format(POOL_FORMAT, total_active[i], total_idle[i], total_created[i], total_passivated[i], total_destroyed[i]));
             } // FOR
         }
-        return (StringUtil.formatMaps(header, m0, m1, m2));
+        return (StringUtil.formatMaps(header, m_exec, m_txn, m_thread, m_pool));
     }
     
     private String formatPoolCounts(StackObjectPool pool, CountingPoolableObjectFactory<?> factory) {
