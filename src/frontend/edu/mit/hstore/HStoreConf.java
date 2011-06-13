@@ -6,7 +6,6 @@ import java.util.Map;
 import java.util.TreeMap;
 
 import org.apache.commons.configuration.PropertiesConfiguration;
-import org.apache.commons.configuration.reloading.FileChangedReloadingStrategy;
 import org.apache.log4j.Logger;
 import org.voltdb.BatchPlanner;
 import org.voltdb.ExecutionSite;
@@ -230,9 +229,21 @@ public final class HStoreConf {
         for (Object obj_k : CollectionUtil.wrapIterator(this.config.getKeys())) {
             String k = obj_k.toString();
             Field f = confClass.getField(k);
-            // TODO
+            Class<?> f_class = f.getType();
+            Object value = null;
             
-        }
+            if (f_class.equals(int.class)) {
+                value = this.config.getInt(k);
+            } else if (f_class.equals(long.class)) {
+                value = this.config.getLong(k);
+            } else if (f_class.equals(double.class)) {
+                value = this.config.getDouble(k);
+            } else if (f_class.equals(boolean.class)) {
+                value = this.config.getBoolean(k);
+            }
+            
+            f.set(this, value);
+        } // FOR
     }
     
     /**
