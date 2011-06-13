@@ -94,7 +94,7 @@ public abstract class TransactionState implements Poolable {
     /**
      * Whether we predict that this txn will be read-only
      */
-    protected boolean predict_read_only = false;
+    protected boolean predict_readOnly = false;
     
     /**
      * Whether this transaction has been read-only so far
@@ -162,7 +162,7 @@ public abstract class TransactionState implements Poolable {
     public void finish() {
         this.txn_id = -1;
         this.hstoresite_finished = false;
-        this.predict_read_only = false;
+        this.predict_readOnly = false;
         this.exec_read_only = true;
         this.ee_finished_timestamp = null;
         this.submitted_to_ee = false;
@@ -366,10 +366,10 @@ public abstract class TransactionState implements Poolable {
     }
     
     public void setPredictReadOnly(boolean read_only) {
-        this.predict_read_only = read_only;
+        this.predict_readOnly = read_only;
     }
     public boolean isPredictReadOnly() {
-        return (this.predict_read_only);
+        return (this.predict_readOnly);
     }
     
     public void setExecReadOnly(boolean read_only) {
@@ -420,6 +420,16 @@ public abstract class TransactionState implements Poolable {
         assert(callback != null) : "Null callback for txn #" + this.txn_id;
         if (t) LOG.trace("Storing FragmentTask callback for txn #" + this.txn_id);
         this.fragment_callbacks.put(ftask, callback);
+    }
+    
+    @Override
+    public boolean equals(Object obj) {
+        if (obj instanceof TransactionState) {
+            TransactionState other = (TransactionState)obj;
+            if ((other.txn_id == -1) && (this.txn_id == -1)) return (this.hashCode() != other.hashCode());
+            return (this.txn_id == other.txn_id && this.base_partition == other.base_partition);
+        }
+        return (false);
     }
 
     @Override

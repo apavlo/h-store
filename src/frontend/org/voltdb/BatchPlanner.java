@@ -112,6 +112,7 @@ public class BatchPlanner {
         final int input_dependency_id;
         final int output_dependency_id;
         final int hash_code;
+        final boolean read_only;
         
         public PlanVertex(PlanFragment catalog_frag,
                           int stmt_index,
@@ -125,6 +126,7 @@ public class BatchPlanner {
             this.round = round;
             this.input_dependency_id = input_dependency_id;
             this.output_dependency_id = output_dependency_id;
+            this.read_only = catalog_frag.getReadonly();
             
             this.hash_code = this.frag_id | this.round<<16 | this.stmt_index<<24;  
         }
@@ -791,6 +793,7 @@ public class BatchPlanner {
                 int output_ids[] = new int[num_frags];
                 int stmt_indexes[] = new int[num_frags];
                 ByteBuffer params[] = new ByteBuffer[num_frags];
+                boolean read_only = true;
         
                 int i = 0;
                 for (PlanVertex v : vertices) { // Does this order matter?
@@ -807,16 +810,10 @@ public class BatchPlanner {
                     stmt_indexes[i] = v.stmt_index;
                     
                     // Parameters
-                     params[i] = plan.param_buffers[v.stmt_index];
-//                    try {
-//                        FastSerializer fs = new FastSerializer();
-//                        batchArgs[v.stmt_index].writeExternal(fs);
-//                        params[i] = fs.getBuffer();
-//                    } catch (Exception ex) {
-//                        LOG.fatal("Failed to serialize parameters for Statement #" + v.stmt_index, ex);
-//                        throw new RuntimeException(ex);
-//                    }
-                    
+                    params[i] = plan.param_buffers[v.stmt_index];
+
+                    // Read-Only
+                    read_only = read_only && v.read_only;
                     
                     if (t) LOG.trace("Fragment Grouping " + i + " => [" +
                                      "txn_id=#" + txn_id + ", " +
@@ -841,7 +838,7 @@ public class BatchPlanner {
                         partition,
                         txn_id,
                         client_handle,
-                        false, // IGNORE
+                        read_only, // IGNORE
                         frag_ids,
                         input_ids,
                         output_ids,
