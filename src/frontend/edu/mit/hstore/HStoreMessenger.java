@@ -377,7 +377,7 @@ public class HStoreMessenger implements Shutdownable {
                 // SHUTDOWN REQUEST
                 // -----------------------------------------------------------------
                 case SHUTDOWN: {
-                    LOG.info(String.format("Got shutdown request from HStoreSite %02d", HStoreSite.getSiteName(sender_site_id)));
+                    LOG.info(String.format("Got shutdown request from HStoreSite %s", HStoreSite.getSiteName(sender_site_id)));
                     
                     HStoreMessenger.this.shutting_down = true;
                     
@@ -430,8 +430,8 @@ public class HStoreMessenger implements Shutdownable {
             long txn_id = request.getTxnId();
             int sender_partition_id = request.getSenderPartitionId();
             int dest_partition_id = request.getDestPartitionId();
-            if (t) LOG.trace("Incoming data from Partition #" + sender_partition_id + " to Partition #" + dest_partition_id +
-                                 " for Txn #" + txn_id + " with " + request.getDependenciesCount() + " dependencies");
+            if (t) LOG.trace(String.format("Incoming data from partition #%d to partition #%d for txn #%d with %d dependencies",
+                                           sender_partition_id, dest_partition_id, txn_id, request.getDependenciesCount()));
 
             for (Hstore.FragmentDependency fd : request.getDependenciesList()) {
                 int dependency_id = fd.getDependencyId();

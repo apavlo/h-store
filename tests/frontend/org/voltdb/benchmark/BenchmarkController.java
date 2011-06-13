@@ -410,11 +410,11 @@ public class BenchmarkController {
                 
                 // Check whether this one of the sites that will be started externally
                 if (m_config.profileSiteIds.contains(site_id)) {
-                    LOG.info(String.format("Skipping HStoreSite #%d because it will be started by profiler", site_id));
+                    LOG.info(String.format("Skipping HStoreSite %s because it will be started by profiler", HStoreSite.getSiteName(site_id)));
                     continue;
                 }
                 
-                LOG.info(String.format("Starting HStoreSite on %s:%s with site id #%d", host, port, site_id));
+                LOG.info(String.format("Starting HStoreSite %s on %s:%s ", HStoreSite.getSiteName(site_id), host, port));
 
 //                String debugString = "";
 //                if (m_config.listenForDebugger) {
