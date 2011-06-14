@@ -38,7 +38,6 @@ import org.apache.log4j.Logger;
 import org.voltdb.BatchPlanner;
 import org.voltdb.ExecutionSite;
 import org.voltdb.StoredProcedureInvocation;
-import org.voltdb.VoltProcedure;
 import org.voltdb.VoltTable;
 import org.voltdb.BatchPlanner.BatchPlan;
 import org.voltdb.catalog.Procedure;
@@ -58,6 +57,7 @@ import edu.brown.utils.StringUtil;
 import edu.brown.utils.LoggerUtil.LoggerBoolean;
 import edu.brown.utils.ProfileMeasurement.Type;
 import edu.mit.dtxn.Dtxn;
+import edu.mit.hstore.HStoreConf;
 
 /**
  * 
@@ -144,10 +144,6 @@ public class LocalTransactionState extends TransactionState {
      * Callback to the coordinator for txns that are running on this partition
      */
     private RpcCallback<Dtxn.FragmentResponse> coordinator_callback;
-    /**
-     * 
-     */
-    private VoltProcedure volt_procedure;
     
     /**
      * List of encoded Partition/Dependency keys
@@ -155,7 +151,6 @@ public class LocalTransactionState extends TransactionState {
     private ListOrderedSet<Integer> partition_dependency_keys = new ListOrderedSet<Integer>();
 
     public InitiateTaskMessage init_wrapper = null;
-    public RpcCallback<Dtxn.FragmentResponse> init_callback = null;
     
     // ----------------------------------------------------------------------------
     // HSTORE SITE DATA MEMBERS
@@ -172,7 +167,7 @@ public class LocalTransactionState extends TransactionState {
     /**
      * What partitions has this txn touched
      */
-    private final Histogram<Integer> touched_partitions = new Histogram<Integer>();
+    private final Histogram<Integer> exec_touchedPartitions = new Histogram<Integer>();
     /**
      * Whether this is a sysproc
      */
@@ -185,17 +180,19 @@ public class LocalTransactionState extends TransactionState {
     /**
      * Whether this txn is suppose to be single-partitioned
      */
-    private boolean precit_singlePartitioned = false;
+    private boolean predict_singlePartitioned = false;
     
-    /**
-     * Whether this txn is being executed specutatively
-     */
-    protected boolean speculative = false;
     
     /**
      * Whether this txn can abort
      */
-    protected boolean can_abort = true;
+    protected boolean predict_canAbort = true;
+
+    /**
+     * Whether this txn is being executed specutatively
+     */
+    private boolean speculative = false;
+
     
     /**
      * The original StoredProcedureInvocation request that was sent to the HStoreSite
@@ -384,7 +381,7 @@ public class LocalTransactionState extends TransactionState {
      * @param base_partition
      * @param predictSinglePartition
      * @param predictReadOnly
-     * @param can_abort
+     * @param predict_canAbort
      * @param estimator_state
      * @param catalog_proc
      * @param invocation
@@ -392,30 +389,37 @@ public class LocalTransactionState extends TransactionState {
      * @return
      */
     public LocalTransactionState init(long txnId, long clientHandle, int base_partition,
-                                      boolean predictSinglePartition, boolean predictReadOnly, boolean can_abort, TransactionEstimator.State estimator_state,
+                                      boolean predictSinglePartition, boolean predictReadOnly, boolean predict_canAbort, TransactionEstimator.State estimator_state,
                                       Procedure catalog_proc, StoredProcedureInvocation invocation, RpcCallback<byte[]> client_callback) {
         
-        this.precit_singlePartitioned = predictSinglePartition;
+        this.predict_singlePartitioned = predictSinglePartition;
         this.predict_readOnly = predictReadOnly;
-        this.can_abort = can_abort;
+        this.predict_canAbort = predict_canAbort;
         this.estimator_state = estimator_state;
         
         this.catalog_proc = catalog_proc;
         this.sysproc = catalog_proc.getSystemproc();
         this.invocation = invocation;
         this.client_callback = client_callback;
-        this.init_latch = new CountDownLatch(1);
+        this.init_latch = (this.predict_singlePartitioned == false ? new CountDownLatch(1) : null);
         
         return (this.init(txnId, clientHandle, base_partition));
     }
     
+    /**
+     * Initialization that copies information from the mispredicted original TransactionState 
+     * @param txnId
+     * @param base_partition
+     * @param orig
+     * @return
+     */
     public LocalTransactionState init(long txnId, int base_partition, LocalTransactionState orig) {
         this.orig_txn_id = orig.getTransactionId();
         this.catalog_proc = orig.catalog_proc;
         this.sysproc = orig.sysproc;
         this.invocation = orig.invocation;
         this.client_callback = orig.client_callback;
-        this.init_latch = new CountDownLatch(1);
+        this.init_latch = (this.predict_singlePartitioned == false ? new CountDownLatch(1) : null);
         // this.estimator_state = orig.estimator_state;
         
         // Append the profiling times
@@ -472,19 +476,17 @@ public class LocalTransactionState extends TransactionState {
         this.rpc_request_finish.reset();
         
         this.init_wrapper = null;
-        this.init_callback = null;
         
         this.orig_txn_id = null;
         this.catalog_proc = null;
         this.sysproc = false;
-        this.precit_singlePartitioned = false;
+        this.predict_singlePartitioned = false;
         this.speculative = false;
-        this.can_abort = true;
+        this.predict_canAbort = true;
         this.ignore_dtxn = false;
         this.done_partitions.clear();
-        this.touched_partitions.clear();
+        this.exec_touchedPartitions.clear();
         this.coordinator_callback = null;
-        this.volt_procedure = null;
         this.dependency_latch = null;
         this.all_dependencies.clear();
         this.reusable_dependencies.clear();
@@ -667,11 +669,11 @@ public class LocalTransactionState extends TransactionState {
         return done_partitions;
     }
     public Histogram<Integer> getTouchedPartitions() {
-        return (this.touched_partitions);
+        return (this.exec_touchedPartitions);
     }
     
     public String getProcedureName() {
-        return (this.catalog_proc.getName());
+        return (this.catalog_proc != null ? this.catalog_proc.getName() : null);
     }
     
     /**
@@ -752,10 +754,10 @@ public class LocalTransactionState extends TransactionState {
     }
     
     public void setPredictSinglePartitioned(boolean singlePartitioned) {
-        this.precit_singlePartitioned = singlePartitioned;
+        this.predict_singlePartitioned = singlePartitioned;
     }
     public void setPredictAbortable(boolean canAbort) {
-        this.can_abort = canAbort;
+        this.predict_canAbort = canAbort;
     }
     public void setSpeculative(boolean speculative) {
         this.speculative = speculative;
@@ -766,7 +768,7 @@ public class LocalTransactionState extends TransactionState {
      * @return
      */
     public boolean isPredictSinglePartition() {
-        return (this.precit_singlePartitioned);
+        return (this.predict_singlePartitioned);
     }
     
     /**
@@ -782,7 +784,7 @@ public class LocalTransactionState extends TransactionState {
      * @return
      */
     public boolean isPredictAbortable() {
-        return can_abort;
+        return predict_canAbort;
     }
     
     /**
@@ -790,7 +792,7 @@ public class LocalTransactionState extends TransactionState {
      * @return
      */
     public boolean isExecSinglePartition() {
-        return (this.touched_partitions.getValueCount() <= 1);
+        return (this.exec_touchedPartitions.getValueCount() <= 1);
     }
     
     /**
@@ -891,7 +893,7 @@ public class LocalTransactionState extends TransactionState {
         boolean blocked = false;
         int partition = ftask.getDestinationPartitionId();
         int num_fragments = ftask.getFragmentCount();
-        this.touched_partitions.put(partition, num_fragments);
+        this.exec_touchedPartitions.put(partition, num_fragments);
         
         // If this task produces output dependencies, then we need to make 
         // sure that the txn wait for it to arrive first
@@ -1119,47 +1121,73 @@ public class LocalTransactionState extends TransactionState {
     }
     
     @Override
-    public synchronized String debug() {
-        Map<String, Object> header = super.getDebugMap();
+    public String debug() {
+        List<Map<String, Object>> maps = new ArrayList<Map<String,Object>>();
+        ListOrderedMap<String, Object> m;
         
-        String proc_name = (this.volt_procedure != null ? this.volt_procedure.getProcedureName() : null);
-        ListOrderedMap<String, Object> m0 = new ListOrderedMap<String, Object>();
-        m0.put("Procedure", proc_name);
-        m0.put("Dtxn.Coordinator Callback", this.coordinator_callback);
-        m0.put("Ignore Dtxn.Coordinator", this.ignore_dtxn);
-        m0.put("Dependency Ctr", this.dependency_ctr);
-        m0.put("Internal Ctr", this.internal_dependencies.size());
-        m0.put("Received Ctr", this.received_ctr);
-        m0.put("CountdownLatch", this.dependency_latch);
-        m0.put("# of Blocked Tasks", this.blocked_tasks.size());
-        m0.put("# of Statements", this.batch_size);
-        m0.put("Expected Results", this.results_dependency_stmt_ctr.keySet());
-        m0.put("Expected Responses", this.responses_dependency_stmt_ctr.keySet());
+        // Header
+        maps.add(super.getDebugMap());
         
-        ListOrderedMap<String, Object> m1 = new ListOrderedMap<String, Object>();
-        m1.put("Original Txn Id", this.orig_txn_id);
-        m1.put("Init Latch", this.init_latch);
-        m1.put("Client Callback", this.client_callback);
-        m1.put("SysProc", this.sysproc);
-        m1.put("Done Partitions", this.done_partitions);
-        m1.put("Predict Single-Partitioned", this.precit_singlePartitioned);
-        m1.put("Speculative Execution", this.speculative);
-        m1.put("Estimator State", this.estimator_state);
+        // Basic Info
+        m = new ListOrderedMap<String, Object>();
+        m.put("Procedure", this.getProcedureName());
+        m.put("SysProc", this.sysproc);
+        m.put("Dependency Ctr", this.dependency_ctr);
+        m.put("Internal Ctr", this.internal_dependencies.size());
+        m.put("Received Ctr", this.received_ctr);
+        m.put("CountdownLatch", this.dependency_latch);
+        m.put("# of Blocked Tasks", this.blocked_tasks.size());
+        m.put("# of Statements", this.batch_size);
+        m.put("Expected Results", this.results_dependency_stmt_ctr.keySet());
+        m.put("Expected Responses", this.responses_dependency_stmt_ctr.keySet());
+        maps.add(m);
         
-        ListOrderedMap<String, Object> m2 = new ListOrderedMap<String, Object>();
-        m2.put("Total Time", this.total_time);
-        m2.put("Java Time", this.java_time);
-        m2.put("Coordinator Time", this.coord_time);
-        m2.put("Planner Time", this.plan_time);
-        m2.put("EE Time", this.ee_time);
-        m2.put("Estimator Time", this.est_time);
+        // Predictions
+        m = new ListOrderedMap<String, Object>();
+        m.put("Predict Single-Partitioned", this.predict_singlePartitioned);
+        m.put("Predict Read Only", this.predict_readOnly);
+        m.put("Predict Can Abort", this.predict_canAbort);
+        m.put("Estimator State", this.estimator_state);
+        maps.add(m);
+        
+        // Actual Execution
+        m = new ListOrderedMap<String, Object>();
+        m.put("Exec Single-Partitioned", this.isExecSinglePartition());
+        m.put("Exec Read Only", this.exec_readOnly);
+        m.put("Exec Locally", this.exec_local);
+        m.put("Done Partitions", this.done_partitions);
+        m.put("Speculative Execution", this.speculative);
+        m.put("Touched Partitions", this.exec_touchedPartitions);
+        maps.add(m);
+
+        // Additional Info
+        m = new ListOrderedMap<String, Object>();
+        m.put("Original Txn Id", this.orig_txn_id);
+        m.put("Init Latch", this.init_latch);
+        m.put("Client Callback", this.client_callback);
+        
+        m.put("Dtxn.Coordinator Callback", this.coordinator_callback);
+        m.put("Ignore Dtxn.Coordinator", this.ignore_dtxn);
+        maps.add(m);
+
+        // Profile Times
+        if (HStoreConf.singleton().site.exec_txn_profiling) {
+            m = new ListOrderedMap<String, Object>();
+            m.put("Total Time", this.total_time);
+            m.put("Java Time", this.java_time);
+            m.put("Coordinator Time", this.coord_time);
+            m.put("Planner Time", this.plan_time);
+            m.put("EE Time", this.ee_time);
+            m.put("Estimator Time", this.est_time);
+            maps.add(m);
+        }
         
         StringBuilder sb = new StringBuilder();
-        sb.append(StringUtil.formatMaps(header, m0, m1, m2));
+        sb.append(StringUtil.formatMaps(maps.toArray(new Map<?, ?>[maps.size()])));
         sb.append(StringUtil.SINGLE_LINE);
 
         String stmt_debug[] = new String[this.batch_size];
-        for (int stmt_index = 0; stmt_index < this.batch_size; stmt_index++) {
+        for (int stmt_index = 0; stmt_index < stmt_debug.length; stmt_index++) {
             Map<Integer, DependencyInfo> s_dependencies = new HashMap<Integer, DependencyInfo>(this.dependencies[stmt_index]); 
             Set<Integer> dependency_ids = new HashSet<Integer>(s_dependencies.keySet());
             String inner = "";

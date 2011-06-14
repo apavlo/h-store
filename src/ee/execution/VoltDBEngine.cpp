@@ -139,6 +139,9 @@ bool VoltDBEngine::initialize(
     m_clusterIndex = clusterIndex;
     m_siteId = siteId;
     m_partitionId = partitionId;
+    
+    // Set the local PartitionId for logging
+//     setPartitionIdForLogging(m_partitionId);
 
     // Instantiate our catalog - it will be populated later on by load()
     m_catalog = boost::shared_ptr<catalog::Catalog>(new catalog::Catalog());

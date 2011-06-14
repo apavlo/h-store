@@ -882,7 +882,7 @@ public abstract class ClientMain {
                 clientResponse.getException().printStackTrace();
             }
             if (clientResponse.getStatusString() != null) {
-                System.err.println(clientResponse.getStatusString());
+                LOG.warn(clientResponse.getStatusString());
             }
 
             System.exit(-1);

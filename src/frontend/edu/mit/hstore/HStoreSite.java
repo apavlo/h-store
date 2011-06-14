@@ -400,19 +400,11 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
     // ----------------------------------------------------------------------------
 
     /**
-     * Enable the HStoreSite's status monitor
-     * @param interval
-     */
-    public void enableStatusMonitor(int interval, boolean kill_when_hanging) {
-        if (interval > 0) this.status_monitor = new HStoreSiteStatus(this, interval, kill_when_hanging);
-    }
-    
-    /**
      * Convenience method to dump out status of this HStoreSite
      * @return
      */
     public String statusSnapshot() {
-        return new HStoreSiteStatus(this, 0, false).snapshot(true, true, false, false);
+        return new HStoreSiteStatus(this, hstore_conf).snapshot(true, true, false, false);
     }
     
     public ExecutionSite getExecutionSite(int partition) {
@@ -544,6 +536,16 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         } // FOR
         if (d) LOG.debug(String.format("Created ParameterManglers for %d procedures", this.param_manglers.size()));
 
+        // Start Status Monitor
+        if (hstore_conf.site.status_interval > 0) {
+            if (d) LOG.debug("Starting HStoreSiteStatus monitor thread");
+            this.status_monitor = new HStoreSiteStatus(this, hstore_conf);
+            Thread t = new Thread(this.status_monitor);
+            t.setPriority(Thread.MIN_PRIORITY);
+            t.setDaemon(true);
+            t.start();
+        }
+        
         // Start the ExecutionSitePostProcessor
         if (hstore_conf.site.exec_postprocessing_thread) {
             new Thread(this.processor).start();
@@ -574,15 +576,6 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         this.helper_pool.scheduleAtFixedRate(helper, hstore_conf.site.helper_initial_delay,
                                                      hstore_conf.site.helper_interval,
                                                      TimeUnit.MILLISECONDS);
-        
-        // Start Monitor Thread
-        if (this.status_monitor != null) {
-            if (d) LOG.debug("Starting HStoreSiteStatus monitor thread");
-            Thread t = new Thread(this.status_monitor);
-            t.setPriority(Thread.MIN_PRIORITY);
-            t.setDaemon(true);
-            t.start();
-        }
         
         if (d) LOG.debug("Preloading cached objects");
         try {
@@ -707,7 +700,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         LOG.info("Shutting down everything at " + this.getSiteName());
 
         // Tell our local boys to go down too
-        this.processor.shutdown();
+        if (this.processor != null) this.processor.shutdown();
         for (int p : this.local_partitions) {
             if (t) LOG.trace("Telling the ExecutionSite for partition " + p + " to shutdown");
             this.executors[p].shutdown();
@@ -718,10 +711,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         this.shutdown_observable.notifyObservers();
         
         // Stop the monitor thread
-        if (this.status_monitor != null) {
-            if (t) LOG.trace("Telling StatusMonitorThread to stop");
-            this.status_monitor.shutdown();
-        }
+        if (this.status_monitor != null) this.status_monitor.shutdown();
         
         // Stop the helper
         this.helper_pool.shutdown();
@@ -821,7 +811,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
                 }
                 done.run(out.getBytes());
                 // Non-blocking....
-                this.messenger.shutdownCluster(false, new Exception("Shutdown command received at " + this.getSiteName()));
+                this.messenger.shutdownCluster(new Exception("Shutdown command received at " + this.getSiteName()), false);
                 return;
             }
         // DB2-style Transaction Redirection
@@ -849,7 +839,10 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         
         if (d) LOG.debug(String.format("%s Invocation [handle=%d, partition=%d]", request.getProcName(), request.getClientHandle(), dest_partition));
         
+        // -------------------------------
+        // REDIRECT TXN TO PROPER PARTITION
         // If the dest_partition isn't local, then we need to ship it off to the right location
+        // -------------------------------
         TransactionIdManager id_generator = this.txnid_managers[dest_partition.intValue()]; 
         if (id_generator == null) {
             if (d) LOG.debug(String.format("StoredProcedureInvocation request for %s needs to be forwarded to partition %d", request.getProcName(), dest_partition));
@@ -1014,7 +1007,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
                 String msg = "Duplicate transaction id #" + txn_id;
                 LOG.fatal("ORIG TRANSACTION:\n" + dupe);
                 LOG.fatal("NEW TRANSACTION:\n" + ts);
-                this.messenger.shutdownCluster(true, new Exception(msg));
+                this.messenger.shutdownCluster(new Exception(msg), true);
             }
             LOG.warn(String.format("Had to fix duplicate txn ids: %d -> %d", txn_id, new_txn_id));
             txn_id = new_txn_id;
@@ -1032,11 +1025,11 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         if (hstore_conf.site.exec_avoid_coordinator && single_partitioned) {
             ts.ignore_dtxn = true;
             ts.init_wrapper = wrapper;
-            ts.init_callback = new SinglePartitionTxnCallback(this, ts, base_partition, ts.client_callback);
+            SinglePartitionTxnCallback init_callback = new SinglePartitionTxnCallback(this, ts, base_partition, ts.client_callback);
             if (hstore_conf.site.exec_txn_profiling) ProfileMeasurement.swap(ts.init_time, ts.coord_time);
             
             // Always execute this mofo right away and let each ExecutionSite figure out what it needs to do
-            this.executeTransaction(ts, ts.init_wrapper, ts.init_callback);        
+            this.executeTransaction(ts, ts.init_wrapper, init_callback);        
             
             if (d) LOG.debug(String.format("Fast path single-partition execution for %s on partition %d [handle=%d]",
                                            ts, base_partition, ts.getClientHandle()));
@@ -1232,7 +1225,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
             done.run(response);
             callback = new MultiPartitionTxnCallback(this, ts, base_partition, ts.client_callback);
         } else {
-            ts.init_latch.countDown();
+            if (ts.init_latch != null) ts.init_latch.countDown();
             callback = done;
         }
         ts.setCoordinatorCallback(callback);
@@ -1294,7 +1287,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
                     serializedRequest = FastSerializer.serialize(spi);
                 } catch (IOException ex) {
                     LOG.fatal("Failed to serialize StoredProcedureInvocation to redirect %s" + orig_ts);
-                    this.messenger.shutdownCluster(false, ex);
+                    this.messenger.shutdownCluster(ex, false);
                     return;
                 }
                 assert(serializedRequest != null);
@@ -1346,13 +1339,11 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
      * @param txn_id
      */
     private void initializationBlock(LocalTransactionState ts) {
-        CountDownLatch latch = ts.init_latch;
-        if (latch.getCount() > 0) {
-            final boolean d = debug.get();
+        if (ts.init_latch != null && ts.init_latch.getCount() > 0) {
             if (d) LOG.debug(String.format("Waiting for Dtxn.Coordinator to process our initialization response for %s", ts));
             if (hstore_conf.site.exec_txn_profiling) ts.blocked_time.start();
             try {
-                latch.await();
+                ts.init_latch.await();
             } catch (Exception ex) {
                 if (this.shutdown == false) LOG.fatal("Unexpected error when waiting for latch on " + ts, ex);
                 this.shutdown();
@@ -1649,7 +1640,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
                     channels = ProtoRpcChannel.connectParallel(hstore_site.engineEventLoop, destinations, 15000);
                 } catch (RuntimeException ex) {
                     LOG.fatal("Failed to connect to local Dtxn.Engines", ex);
-                    hstore_site.messenger.shutdownCluster(true, ex); // Blocking
+                    hstore_site.messenger.shutdownCluster(ex, true); // Blocking
                 }
                 assert(channels.length == destinations.length);
                 for (int i = 0; i < channels.length; i++) {
@@ -1708,7 +1699,6 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
                 hstore_site.voltListener = new VoltProcedureListener(hstore_site.coordinatorEventLoop, hstore_site);
                 hstore_site.voltListener.bind(catalog_site.getProc_port());
                 
-                boolean should_shutdown = false;
                 Exception error = null;
                 try {
                     hstore_site.coordinatorEventLoop.setExitOnSigInt(true);
@@ -1717,7 +1707,6 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
                 } catch (AssertionError ex) {
                     LOG.fatal("Dtxn.Coordinator thread failed", ex);
                     error = new Exception(ex);
-                    should_shutdown = true;
                 } catch (Exception ex) {
                     if (hstore_site.shutdown == false &&
                         ex != null &&
@@ -1726,13 +1715,12 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
                     ) {
                         LOG.fatal("Dtxn.Coordinator thread stopped", ex);
                         error = ex;
-                        should_shutdown = true;
                     }
                 }
                 if (hstore_site.shutdown == false) {
-                    LOG.warn(String.format("Dtxn.Coordinator thread is stopping! [error=%s, should_shutdown=%s, hstore_shutdown=%s]",
-                                           (error != null ? error.getMessage() : null), should_shutdown, hstore_site.shutdown));
-                    if (should_shutdown) hstore_site.messenger.shutdownCluster(error);
+                    LOG.warn(String.format("Dtxn.Coordinator thread is stopping! [error=%s, hstore_shutdown=%s]",
+                                           (error != null ? error.getMessage() : null), hstore_site.shutdown));
+                    hstore_site.messenger.shutdownCluster(error);
                 }
             };
         });
@@ -1753,7 +1741,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
                 
                 // But then wait for all of the threads to be finished with their initializations
                 // before we tell the world that we're ready!
-                if (d) LOG.info(String.format("Waiting for %d threads to complete initialization tasks", hstore_site.ready_latch.getCount()));
+                if (d) LOG.debug(String.format("Waiting for %d threads to complete initialization tasks", hstore_site.ready_latch.getCount()));
                 try {
                     hstore_site.ready_latch.await();
                 } catch (Exception ex) {
@@ -1884,19 +1872,6 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         // Now we need to create an HStoreMessenger and pass it to all of our ExecutionSites
         HStoreSite site = new HStoreSite(catalog_site, executors, p_estimator);
         if (args.thresholds != null) site.setThresholds(args.thresholds);
-
-        // Status Monitor
-        if (args.hasParam(ArgumentsParser.PARAM_NODE_STATUS_INTERVAL)) {
-            int interval = args.getIntParam(ArgumentsParser.PARAM_NODE_STATUS_INTERVAL);
-            boolean kill_when_hanging = false;
-            if (args.hasBooleanParam(ArgumentsParser.PARAM_NODE_STATUS_INTERVAL_KILL)) {
-                kill_when_hanging = args.getBooleanParam(ArgumentsParser.PARAM_NODE_STATUS_INTERVAL_KILL);
-            }
-            if (interval > 0) {
-                LOG.debug(String.format("Enabling StatusMonitorThread [interval=%d, kill=%s]", interval, kill_when_hanging));
-                site.enableStatusMonitor(interval, kill_when_hanging);
-            }
-        }
         
         // ----------------------------------------------------------------------------
         // Bombs Away!

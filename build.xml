@@ -654,7 +654,7 @@ NATIVE EE STUFF
     <exec dir='.' executable='python' failonerror='true'>
 <!--         <arg line="build.py ${build}" /> -->
 <!--         <arg line="build.py debug" /> -->
-        <arg line="build.py release" />
+        <arg line="build.py LOG_LEVEL=${site.ee_log_level} release" />
     </exec>
 <!--     <exec dir='.' executable='/bin/sh'>
         <arg line="-c 'rm -f ${build.dir}/nativelibs/libvoltdb.so'"/>
@@ -1375,13 +1375,16 @@ DTXN BINARIES + LIBRARIES
 
 <target name="dtxn" description="Build Dtxn.Coordinator binaries"
                     depends="protobuf.compile,getcpus">
+    <condition property="coordinator.log_level" value="300">
+        <not><isset property="coordinator.log_level"/></not>
+    </condition>
     <exec executable="make" dir="${src.dtxn.dir}" failonerror="true" resolveexecutable="true" >
         <arg value="-j${numcpus}" />
         <arg value="PREFIX=${build.dtxn.dir}" />
         <arg value="PROTOBUF_SRC=${src.protobuf.dir}" />
         <arg value="PROTOBUF_BIN=${build.protobuf.dir}" />
         <arg value="PROTORPC_PATH=${src.protorpc.dir}" />
-        <arg value="LOG_LEVEL=300" />
+        <arg value="LOG_LEVEL=${coordinator.log_level}" />
     </exec>
 </target>
 
@@ -2215,8 +2218,6 @@ H-STORE REMIX
         <jvmarg value="-Dhstore.preload=${node.preload}" />
         <arg value="catalog.jar=${benchmark.jar}" />
         <arg value="node.site=${node.site}" />
-        <arg value="node.statusinterval=${node.statusinterval}" />
-        <arg value="node.statusinterval_kill=${node.statusinterval_kill}" />
         <arg value="node.force_singlepartition=${node.force_singlepartition}" />
         <arg value="node.force_localexecution=${node.force_localexecution}" />
         <arg value="node.force_neworderinspect=${node.force_neworderinspect}" />

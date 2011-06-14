@@ -628,7 +628,9 @@ public class MultiLoader extends ClientMain {
             } // FOR
             if (items.getRowCount() > 0) {
                 try {
-                    LOG.info(String.format("Loading replicated ITEM table [tuples=%d/%d]", m_parameters.items-items.getRowCount(), m_parameters.items));
+                    String extra = "";
+                    if (items.getRowCount() < m_parameters.items) extra = String.format(" [tuples=%d/%d]", m_parameters.items-items.getRowCount(), m_parameters.items);
+                    LOG.info("Loading replicated ITEM table" + extra);
                     m_voltClient.callProcedure("@LoadMultipartitionTable", "ITEM", items);
                 } catch (Exception e) {
                     e.printStackTrace();

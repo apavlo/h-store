@@ -114,9 +114,9 @@ public class MostPopularPartitioner extends AbstractPartitioner {
                 }
                 if (trace) LOG.trace(catalog_tbl + " has " + edges.size() + " edges in AccessGraph");
                 
-                Histogram column_histogram = null;
-                Histogram join_column_histogram = new Histogram();
-                Histogram self_column_histogram = new Histogram();
+                Histogram<Column> column_histogram = null;
+                Histogram<Column> join_column_histogram = new Histogram<Column>();
+                Histogram<Column> self_column_histogram = new Histogram<Column>();
                 // Map<Column, Double> unsorted = new HashMap<Column, Double>();
                 for (Edge e : edges) {
                     Collection<Vertex> vertices = agraph.getIncidentVertices(e);
@@ -129,7 +129,7 @@ public class MostPopularPartitioner extends AbstractPartitioner {
                     ColumnSet cset = e.getAttribute(AccessGraph.EdgeAttributes.COLUMNSET);
                     if (trace) LOG.trace("Examining ColumnSet for " + e.toString(true));
                     
-                    Histogram cset_histogram = cset.buildHistogramForType(Column.class);
+                    Histogram<Column> cset_histogram = cset.buildHistogramForType(Column.class);
                     if (trace) LOG.trace("Constructed Histogram for " + catalog_tbl + " from ColumnSet:\n" + cset_histogram.toString());
                     
                     Set<Column> columns = cset_histogram.values();
@@ -173,7 +173,7 @@ public class MostPopularPartitioner extends AbstractPartitioner {
                 
                 total_memory_ratio += (size_ratio / (double)info.getNumPartitions());
                 total_memory_bytes += (ts.tuple_size_total / (double)info.getNumPartitions());
-                Column most_popular = (Column)column_histogram.getMaxCountValue();
+                Column most_popular = CollectionUtil.getFirst(column_histogram.getMaxCountValues());
                 pentry = new PartitionEntry(PartitionMethodType.HASH, most_popular);
                 if (debug) LOG.debug(String.format("PARTITION %-25s%s", catalog_tbl.getName(), most_popular.getName()));
             }

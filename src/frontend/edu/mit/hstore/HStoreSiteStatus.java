@@ -5,6 +5,7 @@ import java.util.Map;
 import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.Map.Entry;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.commons.pool.ObjectPool;
@@ -34,12 +35,12 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
     
     private final HStoreSite hstore_site;
     private final HStoreConf hstore_conf;
-    private final int interval; // seconds
-    private final boolean kill_when_hanging;
+    private final int interval; // milliseconds
     private final Histogram<Integer> partition_txns = new Histogram<Integer>();
     private final TreeMap<Integer, ExecutionSite> executors;
     
     private Integer last_completed = null;
+    private AtomicInteger snapshot_ctr = new AtomicInteger(0);
     
     private Integer inflight_min = null;
     private Integer inflight_max = null;
@@ -52,12 +53,6 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
     final Map<String, Object> m_pool = new ListOrderedMap<String, Object>();
     final Map<String, Object> header = new ListOrderedMap<String, Object>();
     
-    final boolean show_txns = false;
-    final boolean show_exec = true;
-    final boolean show_threads = false;
-    final boolean show_poolinfo = false;;
-    
-    
     final TreeSet<Thread> sortedThreads = new TreeSet<Thread>(new Comparator<Thread>() {
         @Override
         public int compare(Thread o1, Thread o2) {
@@ -65,11 +60,13 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
         }
     });
     
-    public HStoreSiteStatus(HStoreSite hstore_site, int interval, boolean kill_when_hanging) {
+    public HStoreSiteStatus(HStoreSite hstore_site, HStoreConf hstore_conf) {
         this.hstore_site = hstore_site;
-        this.hstore_conf = HStoreConf.singleton();
-        this.interval = interval;
-        this.kill_when_hanging = kill_when_hanging;
+        this.hstore_conf = hstore_conf;
+        
+        // Pull the parameters we need from HStoreConf
+        this.interval = hstore_conf.site.status_interval;
+        
         this.executors = new TreeMap<Integer, ExecutionSite>();
         
         this.partition_txns.setKeepZeroEntries(true);
@@ -87,10 +84,10 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
         self = Thread.currentThread();
         self.setName(this.hstore_site.getThreadName("mon"));
 
-        if (LOG.isDebugEnabled()) LOG.debug("Starting HStoreCoordinator status monitor thread [interval=" + interval + " secs]");
+        if (LOG.isDebugEnabled()) LOG.debug(String.format("Starting HStoreSite status monitor thread [interval=%d, kill=%s]", this.interval, hstore_conf.site.status_kill_if_hung));
         while (!self.isInterrupted() && this.hstore_site.isShuttingDown() == false) {
             try {
-                Thread.sleep(interval * 1000);
+                Thread.sleep(this.interval);
             } catch (InterruptedException ex) {
                 return;
             }
@@ -101,7 +98,7 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
             
             // If we're not making progress, bring the whole thing down!
             int completed = TxnCounter.COMPLETED.get();
-            if (this.kill_when_hanging && this.last_completed != null &&
+            if (hstore_conf.site.status_kill_if_hung && this.last_completed != null &&
                 this.last_completed == completed && hstore_site.getInflightTxnCount() > 0) {
                 String msg = String.format("HStoreSite #%d is hung! Killing the cluster!", hstore_site.getSiteId()); 
                 LOG.fatal(msg);
@@ -112,7 +109,11 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
     }
     
     private void printSnapshot() {
-        LOG.info("\n" + StringUtil.box(this.snapshot(show_txns, show_exec, show_threads, show_poolinfo)));
+        LOG.info("SNAPSHOT #" + this.snapshot_ctr.incrementAndGet() + "\n" +
+                 StringUtil.box(this.snapshot(hstore_conf.site.status_show_txn_info,
+                                              hstore_conf.site.status_show_executor_info,
+                                              hstore_conf.site.status_show_thread_info,
+                                              hstore_conf.site.status_show_pool_info)));
     }
     
     @Override
@@ -170,7 +171,8 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
                 int partition = e.getKey().intValue();
                 TransactionState ts = es.getCurrentDtxn();
                 String key = String.format("  Partition[%02d]", partition); 
-                String val = String.format("%2d total / %2d queued / %2d blocked / %2d waiting\nCurrent DTXN: %s\nCurrent Mode: %s\n",
+                String val = String.format("%2d total / %2d queued / %2d blocked / %2d waiting\n" +
+                                           "Current DTXN: %s\nExecution Mode: %s\n",
                                            this.partition_txns.get(partition),
                                            es.getWorkQueueSize(),
                                            es.getBlockedQueueSize(),

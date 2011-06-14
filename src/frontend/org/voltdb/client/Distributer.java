@@ -236,7 +236,7 @@ class Distributer {
             try {
                 response = fds.readObject(ClientResponseImpl.class);
             } catch (IOException e) {
-                e.printStackTrace();
+                LOG.error("Invalid ClientResponse object returned by " + this, e);
             }
             ProcedureCallback cb = null;
             long callTime = 0;
