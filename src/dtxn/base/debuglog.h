@@ -51,7 +51,6 @@
 
 // #define LOG_TIME_FORMAT "%Y-%m-%d %H:%M:%S"
 #define LOG_TIME_FORMAT "%X"
-
 #define LOG_OUTPUT_STREAM stderr
 
 // Compile Option

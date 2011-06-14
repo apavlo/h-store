@@ -7,11 +7,12 @@ import java.util.Map.Entry;
 
 import org.apache.commons.collections15.map.ListOrderedMap;
 
+import edu.brown.BaseTestCase;
 import edu.brown.utils.FileUtil;
 
 import junit.framework.TestCase;
 
-public class TestHStoreConf extends TestCase {
+public class TestHStoreConf extends BaseTestCase {
 
     private static final Map<String, Object> properties = new ListOrderedMap<String, Object>();
     static {
@@ -20,12 +21,12 @@ public class TestHStoreConf extends TestCase {
         properties.put("site.helper_initial_delay", 19999);              // Long
     }
     
-    private static HStoreConf hstore_conf;
+    private HStoreConf hstore_conf;
     
     @Override
     protected void setUp() throws Exception {
-        if (hstore_conf == null) hstore_conf = HStoreConf.init(null, null);
-        
+        assert(HStoreConf.isInitialized());
+        hstore_conf = HStoreConf.singleton();
     }
     
     /**

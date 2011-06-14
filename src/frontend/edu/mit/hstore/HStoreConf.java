@@ -2,9 +2,9 @@ package edu.mit.hstore;
 
 import java.io.File;
 import java.lang.reflect.Field;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.TreeMap;
+import java.util.Map.Entry;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -15,46 +15,116 @@ import org.voltdb.BatchPlanner;
 import org.voltdb.ExecutionSite;
 import org.voltdb.catalog.Site;
 
-import edu.brown.catalog.CatalogUtil;
 import edu.brown.markov.MarkovPathEstimator;
 import edu.brown.markov.TransactionEstimator;
 import edu.brown.utils.ArgumentsParser;
+import edu.brown.utils.ClassUtil;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.CountingPoolableObjectFactory;
 import edu.brown.utils.StringUtil;
 import edu.mit.hstore.dtxn.DependencyInfo;
 import edu.mit.hstore.dtxn.LocalTransactionState;
 import edu.mit.hstore.dtxn.RemoteTransactionState;
+import edu.mit.hstore.interfaces.ConfigProperty;
 
 public final class HStoreConf {
     private static final Logger LOG = Logger.getLogger(HStoreConf.class);
 
+    /**
+     * Base Configuration Class
+     */
+    private abstract class Conf {
+        
+        final Map<Field, ConfigProperty> properties;
+        final String prefix;
+        
+        {
+            Class<?> confClass = this.getClass();
+            this.prefix = confClass.getSimpleName().replace("Conf", "").toLowerCase();
+            HStoreConf.this.confHandles.put(this.prefix, this);
+            
+            this.properties =  ClassUtil.getFieldAnnotations(confClass.getFields(), ConfigProperty.class);
+            this.setDefaultValues();
+        }
+        
+        private void setDefaultValues() {
+            // Set the default values for the parameters based on their annotations
+            for (Entry<Field, ConfigProperty> e : this.properties.entrySet()) {
+                Field f = e.getKey();
+                Class<?> f_class = f.getType();
+                Object value = null;
+                
+                if (f_class.equals(int.class)) {
+                    value = e.getValue().defaultInt();
+                } else if (f_class.equals(long.class)) {
+                    value = e.getValue().defaultLong();
+                } else if (f_class.equals(double.class)) {
+                    value = e.getValue().defaultDouble();
+                } else if (f_class.equals(boolean.class)) {
+                    value = e.getValue().defaultBoolean();
+                } else if (f_class.equals(String.class)) {
+                    value = e.getValue().defaultString();
+                }
+                
+                try {
+                    f.set(this, value);
+                } catch (Exception ex) {
+                    throw new RuntimeException(String.format("Failed to set default value '%s' for field '%s'", value, f.getName()), ex);
+                }
+//                System.err.println(String.format("%-20s = %s", f.getName(), value));
+            } // FOR   
+        }
+        
+        @Override
+        public String toString() {
+            final Map<String, Object> m = new TreeMap<String, Object>();
+            for (Entry<Field, ConfigProperty> e : this.properties.entrySet()) {
+                Field f = e.getKey();
+                ConfigProperty cp = e.getValue();
+                String key = f.getName().toUpperCase();
+                
+                if (cp.advanced() == false) {
+                    try {
+                        m.put(key, f.get(this));
+                    } catch (IllegalAccessException ex) {
+                        m.put(key, ex.getMessage());
+                    }
+                }
+            }
+            return (StringUtil.formatMaps(m));
+        }
+        
+    }
+    
     // ============================================================================
     // GLOBAL
     // ============================================================================
-    public final class GlobalConf {
+    public final class GlobalConf extends Conf {
         
-        /**
-         * Temporary directory used to store various artifacts
-         */
+        @ConfigProperty(
+            description="Temporary directory used to store various artifacts",
+            defaultString="/tmp/hstore"
+        )
         public String temp_dir = "/tmp/hstore";
 
-        /**
-         * Options used when logging into client/server hosts
-         * We assume that there will be no spaces in paths or options listed here
-         */
-        public String sshoptions = "-x";
+        @ConfigProperty(
+            description="Options used when logging into client/server hosts. " + 
+                        "We assume that there will be no spaces in paths or options listed here.",
+            defaultString="-x"
+        )
+        public String sshoptions;
 
-        /**
-         * 
-         */
+        @ConfigProperty(
+            description="The default hostname used when generating cluster configurations.",
+            defaultString="localhost"
+        )
         public String defaulthost = "localhost";
     }
     
     // ============================================================================
     // SITE
     // ============================================================================
-    public final class SiteConf {
+    public final class SiteConf extends Conf {
     
         /**
          * Site Log Directory
@@ -65,67 +135,100 @@ public final class HStoreConf {
         // Execution Options
         // ----------------------------------------------------------------------------
         
-        /**
-         * Whether to enable speculative execution of single-partition transactions
-         */
-        public boolean exec_speculative_execution = true;
+        @ConfigProperty(
+            description="If this feature is enabled, then each HStoreSite will attempt to speculatively execute single-partition " +
+                        "transactions whenever it completes a work request for a multi-partition transaction running on a different node.",
+            defaultBoolean=false,
+            experimental=true
+        )
+        public boolean exec_speculative_execution;
         
-        /**
-         * Whether the HStoreSite will try to avoid using the Dtxn.Coordinator for single-partition transactions
-         */
-        public boolean exec_avoid_coordinator = true;
+        @ConfigProperty(
+            description="If this parameter is set to true, then each HStoreSite will not send every transaction request through the " +
+                        "Dtxn.Coordinator. Only multi-partition transactions will be sent to the Dtxn.Coordinator (in order to ensure " +
+                        "global ordering). Setting this property to true provides a major throughput improvement.",
+            defaultBoolean=true
+        )
+        public boolean exec_avoid_coordinator;
         
-        /**
-         * Whether to use DB2-style transaction redirecting
-         * When this is enabled, all txns will always start executing on a random
-         * partition at the node where the request was originally sent. Then when it executes a query,
-         * it will be aborted/restarted and redirected to the correct partition.
-         */
-        public boolean exec_db2_redirects = false;
+        @ConfigProperty(
+            description="If this feature is true, then H-Store will use DB2-style transaction redirects. Each request will execute as " +
+                        "a single-partition transaction at a random partition on the node that the request originally arrives on. " +
+                        "When the transaction makes a query request that needs to touch data from a partition that is different than its " +
+                        "base partition, then that transaction is immediately aborted, rolled back, and restarted on the partition that " +
+                        "has the data that it was requesting. If the transaction requested more than partition when it was aborted, then " +
+                        "it will be executed as a multi-partition transaction on the partition that was requested most often by queries " +
+                        "(using random tie breakers).",
+            defaultBoolean=false,
+            advanced=true,
+            experimental=true
+        )
+        public boolean exec_db2_redirects;
         
-        /**
-         * Whether to force all transactions to be executed as single-partitioned
-         */
-        public boolean exec_force_singlepartitioned = true;
+        @ConfigProperty(
+            description="Always execute transactions as single-partitioned (excluding sysprocs). If a transaction requests data on a partition " +
+                        "that is different than where it is executing, then it is aborted, rolled back, and re-executed on the same partition " +
+                        "as a multi-partition transaction that touches all partitions. Note that this is independent of how H-Store decides what " +
+                        "partition to execute the transaction’s Java control code on.",
+            defaultBoolean=true
+        )
+        public boolean exec_force_singlepartitioned;
         
-        /**
-         * Whether all transactions should execute at the local HStoreSite (i.e., they are never redirected)
-         */
-        public boolean exec_force_localexecution = false;
+        @ConfigProperty(
+            description="Always execute each transaction on a random partition on the node where the request originally arrived on. " +
+                        "Note that this is independent of whether the transaction is selected to be single-partitioned or not. It is likely that " +
+                        "you do not want to use this option.",
+            defaultBoolean=false,
+            advanced=true
+        )
+        public boolean exec_force_localexecution;
         
-        /**
-         * Assume all txns are TPC-C neworder and look directly at the parameters to figure out
-         * whether it is single-partitioned or not
-         * @see HStoreSite.procedureInvocation() 
-         */
-        public boolean exec_neworder_cheat = false;
+        @ConfigProperty(
+            description="Enable a hack for TPC-C where we inspect the arguments of the TPC-C neworder transaction and figure out what partitions " +
+                        "it needs without having to use the TransactionEstimator. This will crash the system when used with other benchmarks.",
+            defaultBoolean=false,
+            advanced=true
+        )
+        public boolean exec_neworder_cheat;
         
-        /**
-         * If this is set to true, allow the HStoreSite to set the done partitions for multi-partition txns
-         * @see HStoreSite.procedureInvocation()
-         */
-        public boolean exec_neworder_cheat_done_partitions = true;
+        @ConfigProperty(
+            description="Used in conjunction with ${site.force_neworderinspect} to figure out when TPC-C NewOrder transactions are finished " +
+                        "with partitions. This will crash the system when used with other benchmarks.",
+            defaultBoolean=false,
+            advanced=true
+        )
+        public boolean exec_neworder_cheat_done_partitions;
         
-        /**
-         * Enable txn profiling
-         */
-        public boolean exec_txn_profiling = false;
+        @ConfigProperty(
+            description="Enable txn profiling.",
+            defaultBoolean=false,
+            advanced=true,
+            experimental=true
+        )
+        public boolean exec_txn_profiling;
     
-        /**
-         * Whether the VoltProcedure should crash the HStoreSite on a mispredict
-         */
-        public boolean exec_mispredict_crash = false;
+        @ConfigProperty(
+            description="Whether the VoltProcedure should crash the HStoreSite on a mispredict.",
+            defaultBoolean=false,
+            advanced=true
+        )
+        public boolean exec_mispredict_crash;
         
-        /**
-         * If this enabled, HStoreSite will use a separate thread to process every outbound ClientResponse
-         * for all of the ExecutionSites.
-         */
-        public final boolean exec_postprocessing_thread = true; 
-        
-        /**
-         * TODO
-         */
-        public final boolean exec_queued_response_ee_bypass = true;
+        @ConfigProperty(
+            description="If this enabled, HStoreSite will use a separate thread to process every outbound ClientResponse for all of the ExecutionSites.",
+            defaultBoolean=true,
+            advanced=true
+        )
+        public boolean exec_postprocessing_thread; 
+
+        @ConfigProperty(
+            description="If this enabled with speculative execution, then HStoreSite only invoke the commit operation in the EE for " +
+                        "the last transaction in the queued responses. This will cascade to all other queued responses successful " +
+                        "transactions that were speculatively executed. ",
+            defaultBoolean=true,
+            advanced=true
+        )
+        public boolean exec_queued_response_ee_bypass;
         
         // ----------------------------------------------------------------------------
         // Incoming Transaction Queue Options
@@ -196,16 +299,50 @@ public final class HStoreConf {
         // HSTORESITE STATUS UPDATES
         // ----------------------------------------------------------------------------
         
-        /**
-         * Enable HStoreSite's StatusThread (# of seconds to print update)
-         * Set this to be -1 if you want to disable the status messages 
-         */
-        public int status_interval = 20;
+        @ConfigProperty(
+            description="Enable HStoreSite's StatusThread (# of milliseconds to print update). " +
+                        "Set this to be -1 if you want to disable the status messages.",
+            defaultInt=20000
+        )
+        public int status_interval;
 
-        /**
-         * Allow the HStoreSite StatusThread to kill the cluster if it looks hung 
-         */
-        public boolean status_kill_if_hung = true;
+        @ConfigProperty(
+            description="Allow the HStoreSite StatusThread to kill the cluster if it looks hung.",
+            defaultBoolean=true,
+            advanced=true
+        )
+        public boolean status_kill_if_hung;
+        
+        @ConfigProperty(
+            description="When this property is set to true, HStoreSite status will include transaction information",
+            defaultBoolean=true,
+            advanced=true
+        )
+        public boolean status_show_txn_info;
+
+        @ConfigProperty(
+            description="When this property is set to true, HStoreSite status will include information about each ExecutionSite, " +
+                        "such as the number of transactions currently queued, blocked for execution, or waiting to have their results " +
+                        "returned to the client.",
+            defaultBoolean=true,
+            advanced=true
+        )
+        public boolean status_show_executor_info;
+        
+        @ConfigProperty(
+            description="When this property is set to true, HStoreSite status will include a snapshot of running threads",
+            defaultBoolean=true,
+            advanced=true
+        )
+        public boolean status_show_thread_info;
+        
+        @ConfigProperty(
+            description="When this property is set to true, HStoreSite status will include pool allocation/deallocation statistics. " +
+                        "Must be used in conjunction with ${pool_enable_tracking}",
+            defaultBoolean=false,
+            advanced=true
+        )
+        public boolean status_show_pool_info;
         
         // ----------------------------------------------------------------------------
         // OBJECT POOLS
@@ -287,7 +424,7 @@ public final class HStoreConf {
     // ============================================================================
     // COORDINATOR
     // ============================================================================
-    public final class CoordinatorConf {
+    public final class CoordinatorConf extends Conf {
         
         /**
          * Coordinator Host
@@ -314,7 +451,7 @@ public final class HStoreConf {
     // ============================================================================
     // CLIENT
     // ============================================================================
-    public final class ClientConf {
+    public final class ClientConf extends Conf {
         /**
          * The amount of memory to allocate for each client process (in MB)
          */
@@ -399,123 +536,44 @@ public final class HStoreConf {
     
     private PropertiesConfiguration config = null;
 
+    /**
+     * Prefix -> Configuration
+     */
+    private final Map<String, Conf> confHandles = new ListOrderedMap<String, Conf>();
+    
+    /**
+     * Easy Access Handles
+     */
     public final GlobalConf global = new GlobalConf();
     public final SiteConf site = new SiteConf();
     public final CoordinatorConf coordinator = new CoordinatorConf();
     public final ClientConf client = new ClientConf();
     
-    private final Map<String, Object> confHandles = new ListOrderedMap<String, Object>();
-    {
-        confHandles.put("global", this.global);
-        confHandles.put("site", this.site);
-        confHandles.put("coordinator", this.coordinator);
-        confHandles.put("client", this.client);    
-    }
+    /**
+     * Singleton Object
+     */
+    private static HStoreConf conf;
     
     // ----------------------------------------------------------------------------
     // METHODS
     // ----------------------------------------------------------------------------
-    
-    /**
-     * 
-     */
-    protected void loadFromFile(File path) throws Exception {
-        this.config = new PropertiesConfiguration(path);
 
-        Pattern p = Pattern.compile("(global|site|coordinator|client)\\.(.*)");
-        for (Object obj_k : CollectionUtil.wrapIterator(this.config.getKeys())) {
-            String k = obj_k.toString();
-            Matcher m = p.matcher(k);
-            boolean found = m.matches();
-            assert(m != null && found) : "Invalid key '" + k + "' from configuration file '" + path + "'";
-            
-            Object handle = confHandles.get(m.group(1));
-            Class<?> confClass = handle.getClass();
-            assert(confClass != null);
-            Field f = confClass.getField(m.group(2));
-            Class<?> f_class = f.getType();
-            Object value = null;
-            
-            if (f_class.equals(int.class)) {
-                value = this.config.getInt(k);
-            } else if (f_class.equals(long.class)) {
-                value = this.config.getLong(k);
-            } else if (f_class.equals(double.class)) {
-                value = this.config.getDouble(k);
-            } else if (f_class.equals(boolean.class)) {
-                value = this.config.getBoolean(k);
-            }
-            
-            f.set(handle, value);
-        } // FOR
-    }
-    
-    /**
-     * 
-     */
-    public String makeDefaultConfig() {
-        StringBuilder sb = new StringBuilder();
-        for (String group : this.confHandles.keySet()) {
-            Object handle = this.confHandles.get(group);
-            Class<?> handleClass = handle.getClass();
-
-            sb.append("## ").append(StringUtil.repeat("-", 100)).append("\n")
-              .append("## ").append(StringUtil.title(group)).append(" Parameters\n")
-              .append("## ").append(StringUtil.repeat("-", 100)).append("\n\n");
-            
-            for (Field f : handleClass.getFields()) {
-                String key = String.format("%s.%s", group, f.getName());
-                Object val = null;
-                try {
-                    val = f.get(handle);
-                } catch (Exception ex) {
-                    throw new RuntimeException("Failed to get " + key, ex);
-                }
-                if (val instanceof String) {
-                    String str = (String)val;
-                    if (str.startsWith(global.temp_dir)) {
-                        val = str.replace(global.temp_dir, "${global.temp_dir}");
-                    } else if (str.equals(global.defaulthost)) {
-                        val = str.replace(global.defaulthost, "${global.defaulthost}");
-                    }
-                }
-                
-                sb.append(String.format("%-50s= %s\n", key, val));
-            } // FOR
-            sb.append("\n");
-        } // FOR
-        return (sb.toString());
-    }
-    
-    protected void computeDerivedValues() {
-        
-    }
-    
     /**
      * Constructor
      */
     private HStoreConf(ArgumentsParser args, Site catalog_site) {
-        int num_partitions = 1;
-        int local_partitions = 1;
-        
         if (args != null) {
-            
-            // Total number of partitions
-            num_partitions = CatalogUtil.getNumberOfPartitions(args.catalog);
-            
-            // Partitions at this site
-            local_partitions = catalog_site.getPartitions().size();
             
             // Ignore the Dtxn.Coordinator
             if (args.hasBooleanParam(ArgumentsParser.PARAM_NODE_IGNORE_DTXN)) {
                 site.exec_avoid_coordinator = args.getBooleanParam(ArgumentsParser.PARAM_NODE_IGNORE_DTXN);
                 if (site.exec_avoid_coordinator) LOG.info("Ignoring the Dtxn.Coordinator for all single-partition transactions");
             }
-            // Enable speculative execution
-            if (args.hasBooleanParam(ArgumentsParser.PARAM_NODE_ENABLE_SPECULATIVE_EXECUTION)) {
-                site.exec_speculative_execution = args.getBooleanParam(ArgumentsParser.PARAM_NODE_ENABLE_SPECULATIVE_EXECUTION);
-                if (site.exec_speculative_execution) LOG.info("Enabling speculative execution");
-            }
+//            // Enable speculative execution
+//            if (args.hasBooleanParam(ArgumentsParser.PARAM_NODE_ENABLE_SPECULATIVE_EXECUTION)) {
+//                site.exec_speculative_execution = args.getBooleanParam(ArgumentsParser.PARAM_NODE_ENABLE_SPECULATIVE_EXECUTION);
+//                if (site.exec_speculative_execution) LOG.info("Enabling speculative execution");
+//            }
             // Enable DB2-style txn redirecting
             if (args.hasBooleanParam(ArgumentsParser.PARAM_NODE_ENABLE_DB2_REDIRECTS)) {
                 site.exec_db2_redirects = args.getBooleanParam(ArgumentsParser.PARAM_NODE_ENABLE_DB2_REDIRECTS);
@@ -563,23 +621,105 @@ public final class HStoreConf {
             }
         }
         
+        this.computeDerivedValues(catalog_site);
+    }
+    
+    /**
+     * 
+     * @param catalog_site
+     */
+    protected void computeDerivedValues(Site catalog_site) {
+        int local_partitions = 1;
+        
+        if (catalog_site != null) {
+            
+            // Partitions at this site
+            local_partitions = catalog_site.getPartitions().size();
+            
+        }
+        
         // Compute Parameters
         site.txn_queue_max = Math.round(local_partitions * site.txn_queue_max_per_partition);
         site.txn_queue_release = Math.max((int)(site.txn_queue_max * site.txn_queue_release_factor), 1);
-        
     }
     
-    private static HStoreConf conf;
-    
-    public synchronized static HStoreConf init(ArgumentsParser args, Site catalog_site) {
-        if (conf != null) throw new RuntimeException("Trying to initialize HStoreConf more than once");
-        conf = new HStoreConf(args, catalog_site);
-        return (conf);
+    /**
+     * 
+     */
+    @SuppressWarnings("unchecked")
+    protected void loadFromFile(File path) throws Exception {
+        this.config = new PropertiesConfiguration(path);
+
+        Pattern p = Pattern.compile("(global|site|coordinator|client)\\.(.*)");
+        for (Object obj_k : CollectionUtil.wrapIterator(this.config.getKeys())) {
+            String k = obj_k.toString();
+            Matcher m = p.matcher(k);
+            boolean found = m.matches();
+            assert(m != null && found) : "Invalid key '" + k + "' from configuration file '" + path + "'";
+            
+            Object handle = confHandles.get(m.group(1));
+            Class<?> confClass = handle.getClass();
+            assert(confClass != null);
+            Field f = confClass.getField(m.group(2));
+            Class<?> f_class = f.getType();
+            Object value = null;
+            
+            if (f_class.equals(int.class)) {
+                value = this.config.getInt(k);
+            } else if (f_class.equals(long.class)) {
+                value = this.config.getLong(k);
+            } else if (f_class.equals(double.class)) {
+                value = this.config.getDouble(k);
+            } else if (f_class.equals(boolean.class)) {
+                value = this.config.getBoolean(k);
+            }
+            
+            f.set(handle, value);
+        } // FOR
     }
     
-    public synchronized static HStoreConf singleton() {
-        if (conf == null) throw new RuntimeException("Requesting HStoreConf before it is initialized");
-        return (conf);
+    /**
+     * 
+     */
+    public String makeDefaultConfig() {
+        return (this.makeConfig(false, false));
+    }
+    
+    public String makeConfig(boolean experimental, boolean advanced) {
+        StringBuilder sb = new StringBuilder();
+        for (String group : this.confHandles.keySet()) {
+            Conf handle = this.confHandles.get(group);
+
+            sb.append("## ").append(StringUtil.repeat("-", 100)).append("\n")
+              .append("## ").append(StringUtil.title(group)).append(" Parameters\n")
+              .append("## ").append(StringUtil.repeat("-", 100)).append("\n\n");
+            
+            for (Field f : handle.properties.keySet()) {
+                ConfigProperty cp = handle.properties.get(f);
+                if (cp.advanced() && advanced == false) continue;
+                if (cp.experimental() && experimental == false) continue;
+                
+                String key = String.format("%s.%s", group, f.getName());
+                Object val = null;
+                try {
+                    val = f.get(handle);
+                } catch (Exception ex) {
+                    throw new RuntimeException("Failed to get " + key, ex);
+                }
+                if (val instanceof String) {
+                    String str = (String)val;
+                    if (str.startsWith(global.temp_dir)) {
+                        val = str.replace(global.temp_dir, "${global.temp_dir}");
+                    } else if (str.equals(global.defaulthost)) {
+                        val = str.replace(global.defaulthost, "${global.defaulthost}");
+                    }
+                }
+                
+                sb.append(String.format("%-50s= %s\n", key, val));
+            } // FOR
+            sb.append("\n");
+        } // FOR
+        return (sb.toString());
     }
     
     @Override
@@ -596,4 +736,24 @@ public final class HStoreConf {
         }
         return (StringUtil.formatMaps(m));
     }
+    
+    // ----------------------------------------------------------------------------
+    // STATIC ACCESS METHODS
+    // ----------------------------------------------------------------------------
+    
+    public synchronized static HStoreConf init(ArgumentsParser args, Site catalog_site) {
+        if (conf != null) throw new RuntimeException("Trying to initialize HStoreConf more than once");
+        conf = new HStoreConf(args, catalog_site);
+        return (conf);
+    }
+    
+    public synchronized static HStoreConf singleton() {
+        if (conf == null) throw new RuntimeException("Requesting HStoreConf before it is initialized");
+        return (conf);
+    }
+    
+    public synchronized static boolean isInitialized() {
+        return (conf != null);
+    }
+
 }

@@ -618,10 +618,10 @@ public class HStoreMessenger implements Shutdownable {
     
     /**
      * Take down the cluster. If the blocking flag is true, then this call will never return
-     * @param blocking
      * @param ex
+     * @param blocking
      */
-    public void shutdownCluster(final boolean blocking, final Throwable ex) {
+    public void shutdownCluster(final Throwable ex, final boolean blocking) {
         if (blocking) {
             this.shutdownCluster(null);
         } else {

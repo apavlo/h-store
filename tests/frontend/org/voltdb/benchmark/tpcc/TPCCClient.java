@@ -50,7 +50,7 @@ public class TPCCClient extends org.voltdb.benchmark.ClientMain implements TPCCS
     final TPCCSimulation m_tpccSim2;
     private final ScaleParameters m_scaleParams;
 
-    private final boolean crash_on_error = true;
+    private final boolean crash_on_error = false;
     
     private static class ForeignKeyConstraints implements Expression {
         private final String m_table;
@@ -646,7 +646,7 @@ public class TPCCClient extends org.voltdb.benchmark.ClientMain implements TPCCS
 
         @Override
         public void clientCallback(ClientResponse clientResponse) {
-            if (LOG.isDebugEnabled()) LOG.debug("clientResponse.getStatus() = " + clientResponse.getStatusName());
+            if (LOG.isDebugEnabled()) LOG.debug("NewOrder clientResponse.getStatus() = " + clientResponse.getStatusName());
             
             if (crash_on_error) {
                 boolean status = checkTransaction(Constants.NEWORDER, clientResponse, cbRollback, false);

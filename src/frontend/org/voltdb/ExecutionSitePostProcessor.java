@@ -3,11 +3,16 @@ package org.voltdb;
 import java.util.Arrays;
 import java.util.concurrent.LinkedBlockingDeque;
 
+import org.apache.log4j.Logger;
+
 import edu.mit.hstore.HStoreSite;
 import edu.mit.hstore.dtxn.LocalTransactionState;
 import edu.mit.hstore.interfaces.Shutdownable;
 
 public final class ExecutionSitePostProcessor implements Runnable, Shutdownable {
+    private static final Logger LOG = Logger.getLogger(ExecutionSitePostProcessor.class);
+    private boolean t = LOG.isTraceEnabled();
+    private boolean d = LOG.isDebugEnabled();
 
     private final HStoreSite hstore_site;
     
@@ -38,10 +43,12 @@ public final class ExecutionSitePostProcessor implements Runnable, Shutdownable 
      * 
      * @param es
      * @param ts
-     * @param cresponse
+     * @param cr
      */
-    public void processClientResponse(ExecutionSite es, LocalTransactionState ts, ClientResponseImpl cresponse) {
-        this.ready_responses.add(new Object[]{es, ts, cresponse});
+    public void processClientResponse(ExecutionSite es, LocalTransactionState ts, ClientResponseImpl cr) {
+        if (d) LOG.debug(String.format("Adding ClientResponse for %s from partition %d to processing queue [status=%s, size=%d]",
+                                       ts, es.getPartitionId(), cr.getStatusName(), this.ready_responses.size()));
+        this.ready_responses.add(new Object[]{es, ts, cr});
     }
     
     @Override
@@ -62,6 +69,8 @@ public final class ExecutionSitePostProcessor implements Runnable, Shutdownable 
             ExecutionSite es = (ExecutionSite)triplet[0];
             LocalTransactionState ts = (LocalTransactionState)triplet[1];
             ClientResponseImpl cr = (ClientResponseImpl)triplet[2];
+            if (d) LOG.debug(String.format("Processing ClientResponse for %s at partition %d [status=%s]",
+                                           ts, es.getPartitionId(), cr.getStatusName()));
             es.processClientResponse(ts, cr);
         } // WHILE
     }
@@ -79,7 +88,7 @@ public final class ExecutionSitePostProcessor implements Runnable, Shutdownable 
     @Override
     public void shutdown() {
         this.stop = true;
-        this.self.interrupt();
+        if (this.self != null) this.self.interrupt();
     }
 
 }
