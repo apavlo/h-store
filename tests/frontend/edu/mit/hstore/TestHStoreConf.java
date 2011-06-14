@@ -15,16 +15,31 @@ public class TestHStoreConf extends TestCase {
 
     private static final Map<String, Object> properties = new ListOrderedMap<String, Object>();
     static {
-        properties.put("markov_path_caching", false);               // Boolean
-        properties.put("markov_path_caching_threshold", 0.91919);   // Double
-        properties.put("helper_initial_delay", 19999);              // Long
+        properties.put("site.markov_path_caching", false);               // Boolean
+        properties.put("site.markov_path_caching_threshold", 0.91919);   // Double
+        properties.put("site.helper_initial_delay", 19999);              // Long
     }
     
-    private HStoreConf hstore_conf;
+    private static HStoreConf hstore_conf;
     
     @Override
     protected void setUp() throws Exception {
-        hstore_conf = HStoreConf.init(null, null);
+        if (hstore_conf == null) hstore_conf = HStoreConf.init(null, null);
+        
+    }
+    
+    /**
+     * 
+     */
+    public void testMakeDefaultConfig() throws Exception {
+        String contents = hstore_conf.makeDefaultConfig();
+        assertNotNull(contents);
+        Class<?> confClass = hstore_conf.site.getClass();
+        for (Field f : confClass.getFields()) {
+            String key = String.format("site.%s", f.getName());
+            assert(contents.contains(key)) : "Missing " + key;
+        } // FOR
+        System.out.println(contents);
         
     }
     
@@ -33,10 +48,10 @@ public class TestHStoreConf extends TestCase {
      */
     public void testLoadFromFile() throws Exception {
         // First make sure that the values aren't the same
-        Class<?> confClass = hstore_conf.getClass();
+        Class<?> confClass = hstore_conf.site.getClass();
         for (String k : properties.keySet()) {
-            Field field = confClass.getField(k);
-            assertNotSame(k, properties.get(k), field.get(hstore_conf));
+            Field field = confClass.getField(k.split("\\.")[1]);
+            assertNotSame(k, properties.get(k), field.get(hstore_conf.site));
         } // FOR
         
         // Then create a config file
@@ -49,8 +64,8 @@ public class TestHStoreConf extends TestCase {
         // And load it in. Now the values should be what we expect them to be
         hstore_conf.loadFromFile(f);
         for (String k : properties.keySet()) {
-            Field field = confClass.getField(k);
-            assertEquals(k, properties.get(k), field.get(hstore_conf));
+            Field field = confClass.getField(k.split("\\.")[1]);
+            assertEquals(k, properties.get(k), field.get(hstore_conf.site));
         } // FOR
     }
     

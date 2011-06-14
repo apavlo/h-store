@@ -489,7 +489,7 @@ public class LocalTransactionState extends TransactionState {
         this.all_dependencies.clear();
         this.reusable_dependencies.clear();
         
-        if (this.executor.getHStoreConf().enable_profiling) {
+        if (this.executor.getHStoreConf().site.exec_txn_profiling) {
             this.total_time.reset();
             this.init_time.reset();
             this.blocked_time.reset();

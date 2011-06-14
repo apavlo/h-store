@@ -71,7 +71,7 @@ public class BatchPlanner {
         private final BatchPlanner planner;
         
         public BatchPlanFactory(BatchPlanner planner) {
-            super(HStoreConf.singleton().pool_enable_tracking);
+            super(HStoreConf.singleton().site.pool_enable_tracking);
             this.planner = planner;
         }
         @Override
@@ -480,7 +480,7 @@ public class BatchPlanner {
         this.p_estimator = p_estimator;
         this.num_partitions = CatalogUtil.getNumberOfPartitions(catalog_proc);
         
-        this.plan_pool = new StackObjectPool(new BatchPlanFactory(this), HStoreConf.singleton().pool_batchplan_idle);
+        this.plan_pool = new StackObjectPool(new BatchPlanFactory(this), HStoreConf.singleton().site.pool_batchplan_idle);
         
         // Initialize static members
         if (BatchPlanner.INITIALIZED.get() == false && BatchPlanner.INITIALIZED.compareAndSet(false, true)) {

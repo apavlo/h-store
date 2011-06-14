@@ -113,7 +113,7 @@ public class TransactionEstimator {
             private int num_partitions;
             
             public Factory(int num_partitions) {
-                super(HStoreConf.singleton().enable_profiling);
+                super(HStoreConf.singleton().site.exec_txn_profiling);
                 this.num_partitions = num_partitions;
             }
             
@@ -328,10 +328,10 @@ public class TransactionEstimator {
         synchronized (LOG) {
             if (STATE_POOL == null) {
                 if (d) LOG.debug("Creating TransactionEstimator.State Object Pool");
-                STATE_POOL = new StackObjectPool(new State.Factory(this.num_partitions), HStoreConf.singleton().pool_estimatorstates_idle);
+                STATE_POOL = new StackObjectPool(new State.Factory(this.num_partitions), HStoreConf.singleton().site.pool_estimatorstates_idle);
                 
                 if (d) LOG.debug("Creating MarkovPathEstimator Object Pool");
-                ESTIMATOR_POOL = new StackObjectPool(new MarkovPathEstimator.Factory(this.num_partitions), HStoreConf.singleton().pool_pathestimators_idle);
+                ESTIMATOR_POOL = new StackObjectPool(new MarkovPathEstimator.Factory(this.num_partitions), HStoreConf.singleton().site.pool_pathestimators_idle);
             }
         } // SYNC
     }
@@ -465,7 +465,7 @@ public class TransactionEstimator {
         // We'll reuse the last MarkovPathEstimator (and it's path) if the graph has been accurate for
         // other previous transactions. This prevents us from having to recompute the path every single time,
         // especially for single-partition transactions where the clustered MarkovGraphs are accurate
-        if (hstore_conf.markov_path_caching == true && markov.getAccuracyRatio() >= hstore_conf.markov_path_caching_threshold) {
+        if (hstore_conf.site.markov_path_caching == true && markov.getAccuracyRatio() >= hstore_conf.site.markov_path_caching_threshold) {
             estimator = this.cached_estimators.get(markov);
         }
             
@@ -651,7 +651,7 @@ public class TransactionEstimator {
         
         // Store this as the last accurate MarkovPathEstimator for this graph
         
-        if (hstore_conf.markov_path_caching && this.cached_estimators.containsKey(s.markov) == false) {
+        if (hstore_conf.site.markov_path_caching && this.cached_estimators.containsKey(s.markov) == false) {
             synchronized (this.cached_estimators) {
                 if (this.cached_estimators.containsKey(s.markov) == false) {
                     s.initial_estimator.setCached(true);

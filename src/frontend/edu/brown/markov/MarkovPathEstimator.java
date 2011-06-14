@@ -48,7 +48,7 @@ public class MarkovPathEstimator extends VertexTreeWalker<Vertex> {
         private final int num_partitions;
         
         public Factory(int num_partitions) {
-            super(HStoreConf.singleton().enable_profiling);
+            super(HStoreConf.singleton().site.exec_txn_profiling);
             this.num_partitions = num_partitions;
         }
         @Override

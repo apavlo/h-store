@@ -382,7 +382,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         this.helper_pool = Executors.newScheduledThreadPool(1);
         
         // NewOrder Hack
-        if (hstore_conf.force_neworder_hack) {
+        if (hstore_conf.site.exec_neworder_cheat) {
             this.neworder_hack_hashes = new HashMap<Short, Integer>();
             this.neworder_hack_w_id = new HashMap<String, Short>();
             for (Short w_id = 0; w_id < 256; w_id++) {
@@ -545,7 +545,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         if (d) LOG.debug(String.format("Created ParameterManglers for %d procedures", this.param_manglers.size()));
 
         // Start the ExecutionSitePostProcessor
-        if (hstore_conf.enable_postprocessing_thread) {
+        if (hstore_conf.site.exec_postprocessing_thread) {
             new Thread(this.processor).start();
         }
         
@@ -566,13 +566,13 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         
         // Schedule the ExecutionSiteHelper
         // This must come after the ExecutionSites are initialized
-        if (d) LOG.debug(String.format("Scheduling ExecutionSiteHelper to run every %.1f seconds", hstore_conf.helper_interval / 1000f));
+        if (d) LOG.debug(String.format("Scheduling ExecutionSiteHelper to run every %.1f seconds", hstore_conf.site.helper_interval / 1000f));
         ExecutionSiteHelper helper = new ExecutionSiteHelper(executor_list,
-                                                             hstore_conf.helper_txn_per_round,
-                                                             hstore_conf.helper_txn_expire,
-                                                             hstore_conf.enable_profiling);
-        this.helper_pool.scheduleAtFixedRate(helper, hstore_conf.helper_initial_delay,
-                                                     hstore_conf.helper_interval,
+                                                             hstore_conf.site.helper_txn_per_round,
+                                                             hstore_conf.site.helper_txn_expire,
+                                                             hstore_conf.site.exec_txn_profiling);
+        this.helper_pool.scheduleAtFixedRate(helper, hstore_conf.site.helper_initial_delay,
+                                                     hstore_conf.site.helper_interval,
                                                      TimeUnit.MILLISECONDS);
         
         // Start Monitor Thread
@@ -655,11 +655,11 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
     public boolean checkDisableThrottling(long txn_id) {
         if (this.throttle) {
             int queue_size = (this.inflight_txns.size() - 1);
-            if (queue_size < hstore_conf.txn_queue_release) {
+            if (queue_size < hstore_conf.site.txn_queue_release) {
                 this.voltListener.setThrottleFlag(false);
                 this.throttle = false;
                 if (d) LOG.debug(String.format("Disabling throttling because txn #%d finished [queue_size=%d, release_threshold=%d]",
-                                               txn_id, queue_size, hstore_conf.txn_queue_release));
+                                               txn_id, queue_size, hstore_conf.site.txn_queue_release));
             }
         }
         return (this.throttle);
@@ -778,7 +778,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
     
     @Override
     public void procedureInvocation(byte[] serializedRequest, RpcCallback<byte[]> done) {
-        long timestamp = (hstore_conf.enable_profiling ? ProfileMeasurement.getTime() : -1);
+        long timestamp = (hstore_conf.site.exec_txn_profiling ? ProfileMeasurement.getTime() : -1);
         
         // The serializedRequest is a ProcedureInvocation object
         StoredProcedureInvocation request = null;
@@ -825,12 +825,12 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
                 return;
             }
         // DB2-style Transaction Redirection
-        } else if (request.hasBasePartition() || hstore_conf.enable_db2_redirects) {
+        } else if (request.hasBasePartition() || hstore_conf.site.exec_db2_redirects) {
             if (d) LOG.debug(String.format("Using embedded base partition from %s request", request.getProcName()));
             dest_partition = request.getBasePartition();    
             
         // Otherwise we use the PartitionEstimator to figure out where this thing needs to go
-        } else if (hstore_conf.force_localexecution == false) {
+        } else if (hstore_conf.site.exec_force_localexecution == false) {
             if (d) LOG.debug(String.format("Using PartitionEstimator for %s request", request.getProcName()));
             try {
                 dest_partition = this.p_estimator.getBasePartition(catalog_proc, args, false);
@@ -843,7 +843,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         // one our partitions at random. This can happen if we're forcing txns to execute locally
         // or if there are no input parameters <-- this should be in the paper!!!
         if (dest_partition == null) {
-            if (t) LOG.trace(String.format("Selecting a random local partition to execute %s request [force_local=%s]", request.getProcName(), hstore_conf.force_localexecution));
+            if (t) LOG.trace(String.format("Selecting a random local partition to execute %s request [force_local=%s]", request.getProcName(), hstore_conf.site.exec_force_localexecution));
             dest_partition = CollectionUtil.getRandomValue(this.local_partitions);
         }
         
@@ -897,13 +897,13 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
             single_partition = false;
             
         // Force all transactions to be single-partitioned
-        } else if (hstore_conf.force_singlepartitioned) {
+        } else if (hstore_conf.site.exec_force_singlepartitioned) {
             if (t) LOG.trace("The \"Always Single-Partitioned\" flag is true. Marking as single-partitioned!");
             single_partition = true;
             
         // Assume we're executing TPC-C neworder. Manually examine the input parameters and figure
         // out what partitions it's going to need to touch
-        } else if (hstore_conf.force_neworder_hack) {
+        } else if (hstore_conf.site.exec_neworder_cheat) {
             if (t) LOG.trace(String.format("%s - Executing neworder argument hack for VLDB paper", ts));
             single_partition = true;
             Short w_id = this.neworder_hack_w_id.get(args[0].toString());
@@ -913,11 +913,11 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
             short inner[] = (short[])args[5];
             
             Set<Integer> done_partitions = ts.getDonePartitions();
-            if (hstore_conf.force_neworder_hack_done) done_partitions.addAll(this.all_partitions);
+            if (hstore_conf.site.exec_neworder_cheat_done_partitions) done_partitions.addAll(this.all_partitions);
             
             short last_w_id = w_id.shortValue();
             Integer last_partition = w_id_partition;
-            if (hstore_conf.force_neworder_hack_done) done_partitions.remove(w_id_partition);
+            if (hstore_conf.site.exec_neworder_cheat_done_partitions) done_partitions.remove(w_id_partition);
             for (short s_w_id : inner) {
                 if (s_w_id != last_w_id) {
                     last_partition = this.neworder_hack_hashes.get(s_w_id);
@@ -925,7 +925,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
                 }
                 if (w_id_partition.equals(last_partition) == false) {
                     single_partition = false;
-                    if (hstore_conf.force_neworder_hack_done) {
+                    if (hstore_conf.site.exec_neworder_cheat_done_partitions) {
                         done_partitions.remove(last_partition);
                     } else break;
                 }
@@ -941,7 +941,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
                 Object cast_args[] = this.param_manglers.get(catalog_proc).convert(args);
                 if (t) LOG.trace(String.format("Txn #%d Parameters:\n%s", txn_id, this.param_manglers.get(catalog_proc).toString(cast_args)));
                 
-                if (hstore_conf.enable_profiling) ts.est_time.start();
+                if (hstore_conf.site.exec_txn_profiling) ts.est_time.start();
                 t_state = t_estimator.startTransaction(txn_id, dest_partition, catalog_proc, cast_args);
                 
                 // If there is no TransactinEstimator.State, then there is nothing we can do
@@ -973,7 +973,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
                         if (this.status_monitor != null && predict_can_abort == false) TxnCounter.NO_UNDO_BUFFER.inc(catalog_proc);
                     }
                 }
-                if (hstore_conf.enable_profiling) ts.est_time.stop();
+                if (hstore_conf.site.exec_txn_profiling) ts.est_time.stop();
             } catch (Throwable ex) {
                 LOG.fatal(String.format("Failed calculate estimate for %s", ts), ex);
                 throw new RuntimeException(ex);
@@ -983,7 +983,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         ts.init(txn_id, request.getClientHandle(), dest_partition.intValue(),
                       single_partition, predict_readonly, predict_can_abort, t_state,
                       catalog_proc, request, done);
-        if (hstore_conf.enable_profiling) {
+        if (hstore_conf.site.exec_txn_profiling) {
             ts.total_time.start(timestamp);
             ts.init_time.start(timestamp);
         }
@@ -1029,11 +1029,11 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         // -------------------------------
         // FAST MODE: Skip the Dtxn.Coordinator
         // -------------------------------
-        if (hstore_conf.ignore_dtxn && single_partitioned) {
+        if (hstore_conf.site.exec_avoid_coordinator && single_partitioned) {
             ts.ignore_dtxn = true;
             ts.init_wrapper = wrapper;
             ts.init_callback = new SinglePartitionTxnCallback(this, ts, base_partition, ts.client_callback);
-            if (hstore_conf.enable_profiling) ProfileMeasurement.swap(ts.init_time, ts.coord_time);
+            if (hstore_conf.site.exec_txn_profiling) ProfileMeasurement.swap(ts.init_time, ts.coord_time);
             
             // Always execute this mofo right away and let each ExecutionSite figure out what it needs to do
             this.executeTransaction(ts, ts.init_wrapper, ts.init_callback);        
@@ -1123,7 +1123,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
             RpcCallback<Dtxn.CoordinatorResponse> callback = new InitiateCallback(this, txn_id, ts.init_latch);
             
             Dtxn.CoordinatorFragment dtxn_request = requestBuilder.build();
-            if (hstore_conf.enable_profiling) ProfileMeasurement.swap(ts.init_time, ts.coord_time);
+            if (hstore_conf.site.exec_txn_profiling) ProfileMeasurement.swap(ts.init_time, ts.coord_time);
             this.coordinator.execute(new ProtoRpcController(), dtxn_request, callback); // txn_info.rpc_request_init
             
             if (d) LOG.debug(String.format("Sent Dtxn.CoordinatorFragment for %s [bytes=%d]", ts, dtxn_request.getSerializedSize()));
@@ -1139,9 +1139,9 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         // Look at the number of inflight transactions and see whether we should block and wait for the 
         // queue to drain for a bit
         // NOTE: This needs to happen *before* we shove off the transaction
-        if (this.throttle == false && this.inflight_txns.size() > hstore_conf.txn_queue_max) {
+        if (this.throttle == false && this.inflight_txns.size() > hstore_conf.site.txn_queue_max) {
             if (d) LOG.debug(String.format("HStoreSite is overloaded because of %s. Waiting for queue to drain [size=%d, trigger=%d]",
-                                           ts, this.inflight_txns.size(), hstore_conf.txn_queue_release));
+                                           ts, this.inflight_txns.size(), hstore_conf.site.txn_queue_release));
             this.throttle = true;
             this.voltListener.setThrottleFlag(true);
         }
@@ -1153,7 +1153,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
      */
     @Override
     public void execute(RpcController controller, Dtxn.Fragment request, RpcCallback<Dtxn.FragmentResponse> done) {
-        long timestamp = (hstore_conf.enable_profiling ? ProfileMeasurement.getTime() : -1);
+        long timestamp = (hstore_conf.site.exec_txn_profiling ? ProfileMeasurement.getTime() : -1);
         
         // Decode the procedure request
         TransactionInfoBaseMessage msg = null;
@@ -1193,7 +1193,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
             assert(task.getStoredProcedureInvocation() == null);
             task.setStoredProcedureInvocation(ts.invocation);
             
-            if (hstore_conf.enable_profiling) ts.coord_time.stop(timestamp);
+            if (hstore_conf.site.exec_txn_profiling) ts.coord_time.stop(timestamp);
             this.executeTransaction(ts, task, done);
             
         } else {
@@ -1222,7 +1222,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         // If we're single-partitioned, then we don't want to send back a callback now.
         // The response from the ExecutionSite should be the only response that we send back to the Dtxn.Coordinator
         // This limits the number of network roundtrips that we have to do...
-        if (ts.ignore_dtxn == false && single_partitioned == false) { //  || (txn_info.sysproc == false && hstore_conf.ignore_dtxn == false)) {
+        if (ts.ignore_dtxn == false && single_partitioned == false) { //  || (txn_info.sysproc == false && hstore_conf.site.ignore_dtxn == false)) {
             // We need to send back a response before we actually start executing to avoid a race condition    
             if (d) LOG.debug(String.format("Sending back Dtxn.FragmentResponse to the InitiateTaskMessage for %s", ts));    
             Dtxn.FragmentResponse response = Dtxn.FragmentResponse.newBuilder()
@@ -1237,7 +1237,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         }
         ts.setCoordinatorCallback(callback);
         
-        if (hstore_conf.enable_profiling) ts.queue_time.start();
+        if (hstore_conf.site.exec_txn_profiling) ts.queue_time.start();
         executor.doWork(task, callback, ts);
         
         if (this.status_monitor != null) {
@@ -1265,7 +1265,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         
         // Figure out whether this transaction should be redirected based on what partitions it
         // tried to touch before it was aborted 
-        if (hstore_conf.enable_db2_redirects) {
+        if (hstore_conf.site.exec_db2_redirects) {
             Set<Integer> most_touched = touched.getMaxCountValues();
             if (d) LOG.debug(String.format("Touched partitions for mispredicted %s\n%s", orig_ts, touched));
             Integer redirect_partition = null;
@@ -1324,7 +1324,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         }
         
         // Restart the new transaction
-        if (hstore_conf.enable_profiling) ProfileMeasurement.start(new_ts.total_time, new_ts.init_time);
+        if (hstore_conf.site.exec_txn_profiling) ProfileMeasurement.start(new_ts.total_time, new_ts.init_time);
         boolean single_partitioned = (orig_ts.getOriginalTransactionId() == null && touched.getValueCount() == 1);
         new_ts.init(new_txn_id, base_partition, orig_ts);
         new_ts.setPredictSinglePartitioned(single_partitioned);
@@ -1350,14 +1350,14 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         if (latch.getCount() > 0) {
             final boolean d = debug.get();
             if (d) LOG.debug(String.format("Waiting for Dtxn.Coordinator to process our initialization response for %s", ts));
-            if (hstore_conf.enable_profiling) ts.blocked_time.start();
+            if (hstore_conf.site.exec_txn_profiling) ts.blocked_time.start();
             try {
                 latch.await();
             } catch (Exception ex) {
                 if (this.shutdown == false) LOG.fatal("Unexpected error when waiting for latch on " + ts, ex);
                 this.shutdown();
             }
-            if (hstore_conf.enable_profiling) ts.blocked_time.stop();
+            if (hstore_conf.site.exec_txn_profiling) ts.blocked_time.stop();
             if (d) LOG.debug("Got the all clear message for " + ts);
         }
         return;
@@ -1389,7 +1389,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
      */
     public void requestFinish(LocalTransactionState ts, Dtxn.FinishRequest request, RpcCallback<Dtxn.FinishResponse> callback) {
         this.initializationBlock(ts);
-        if (ts.sysproc == false && hstore_conf.enable_profiling) ProfileMeasurement.stop(ts.finish_time, ts.total_time);
+        if (ts.sysproc == false && hstore_conf.site.exec_txn_profiling) ProfileMeasurement.stop(ts.finish_time, ts.total_time);
         if (d) LOG.debug(String.format("Telling the Dtxn.Coordinator to finish %s [commit=%s]", ts, request.getCommit()));
         this.coordinator.finish(ts.rpc_request_finish, request, callback);
     }
@@ -1435,7 +1435,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
      * @param partitions
      */
     public void doneAtPartitions(long txn_id, Collection<Integer> partitions) {
-        assert(hstore_conf.enable_speculative_execution);
+        assert(hstore_conf.site.exec_speculative_execution);
         
         int spec_cnt = 0;
         for (int p : partitions) {
