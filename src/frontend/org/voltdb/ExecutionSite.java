@@ -139,17 +139,15 @@ public class ExecutionSite implements Runnable, Shutdownable {
     // ----------------------------------------------------------------------------
 
     protected enum ExecutionMode {
-        /** No speculative execution **/
-        NULL,
         /** Disable processing all transactions until... **/
         DISABLED,
+        /** No speculative execution. All transactions are committed immediately **/
+        COMMIT_ALL,
         /** Allow read-only txns to return results **/
         COMMIT_READONLY,
         /** All txn responses must wait until the multi-p txn is commited **/ 
         COMMIT_NONE,
     };
-    
-    
     
     // ----------------------------------------------------------------------------
     // GLOBAL CONSTANTS
@@ -187,7 +185,7 @@ public class ExecutionSite implements Runnable, Shutdownable {
         
         @SuppressWarnings("unchecked")
         public VoltProcedureFactory(Procedure catalog_proc) {
-            super(hstore_conf.pool_enable_tracking);
+            super(hstore_conf.site.pool_enable_tracking);
             this.catalog_proc = catalog_proc;
             this.has_java = this.catalog_proc.getHasjava();
             
@@ -321,7 +319,7 @@ public class ExecutionSite implements Runnable, Shutdownable {
      * ClientResponses from speculatively executed transactions that are waiting to be committed 
      */
     private final LinkedBlockingDeque<Pair<LocalTransactionState, ClientResponseImpl>> queued_responses = new LinkedBlockingDeque<Pair<LocalTransactionState,ClientResponseImpl>>();
-    private ExecutionMode exec_mode = ExecutionMode.NULL;
+    private ExecutionMode exec_mode = ExecutionMode.COMMIT_ALL;
     private final Semaphore exec_latch = new Semaphore(1);
 
     private ExecutionSitePostProcessor processor = null;
@@ -495,8 +493,8 @@ public class ExecutionSite implements Runnable, Shutdownable {
         this.siteId = this.site.getId();
         
         this.hstore_conf = HStoreConf.singleton();
-        this.localTxnPool = new StackObjectPool(new LocalTransactionState.Factory(this, hstore_conf.pool_enable_tracking), hstore_conf.pool_localtxnstate_idle);
-        this.remoteTxnPool = new StackObjectPool(new RemoteTransactionState.Factory(this, hstore_conf.pool_enable_tracking), hstore_conf.pool_remotetxnstate_idle);
+        this.localTxnPool = new StackObjectPool(new LocalTransactionState.Factory(this, hstore_conf.site.pool_enable_tracking), hstore_conf.site.pool_localtxnstate_idle);
+        this.remoteTxnPool = new StackObjectPool(new RemoteTransactionState.Factory(this, hstore_conf.site.pool_enable_tracking), hstore_conf.site.pool_remotetxnstate_idle);
         DependencyInfo.initializePool(hstore_conf);
         
         this.backend_target = target;
@@ -619,7 +617,7 @@ public class ExecutionSite implements Runnable, Shutdownable {
         for (boolean local : new boolean[]{ true, false }) {
             List<TransactionState> states = new ArrayList<TransactionState>();
             ObjectPool pool = (local ? this.localTxnPool : this.remoteTxnPool);
-            int count = (int)Math.round((local ? hstore_conf.pool_localtxnstate_preload : hstore_conf.pool_remotetxnstate_preload) / hstore_conf.pool_scale_factor);
+            int count = (int)Math.round((local ? hstore_conf.site.pool_localtxnstate_preload : hstore_conf.site.pool_remotetxnstate_preload) / hstore_conf.site.pool_scale_factor);
             try {
                 for (int i = 0; i < count; i++) {
                     TransactionState ts = (TransactionState)pool.borrowObject();
@@ -759,7 +757,7 @@ public class ExecutionSite implements Runnable, Shutdownable {
         this.hstore_site = hstore_site;
         this.hstore_messenger = hstore_site.getMessenger();
         this.thresholds = (hstore_site != null ? hstore_site.getThresholds() : null);
-        if (hstore_conf.enable_postprocessing_thread) this.processor = hstore_site.getExecutionSitePostProcessor();
+        if (hstore_conf.site.exec_postprocessing_thread) this.processor = hstore_site.getExecutionSitePostProcessor();
         if (t) LOG.trace(String.format("Setting EstimationThresholds for Partition %02d:\n%s", this.partitionId, this.thresholds.toString()));
     }
     
@@ -929,13 +927,13 @@ public class ExecutionSite implements Runnable, Shutdownable {
         LocalTransactionState ts = (LocalTransactionState)this.txn_states.get(txn_id);
         assert(ts != null) : "The TransactionState is somehow null for txn #" + txn_id;
         boolean single_partition = ts.isPredictSinglePartition();
-        if (hstore_conf.enable_profiling) ts.queue_time.stop();
+        if (hstore_conf.site.exec_txn_profiling) ts.queue_time.stop();
         
         // If this is a single-partition transaction, then we need to check whether we are being executed
         // under speculative execution mode. We have to check this here because it may be the case that we queued a
         // bunch of transactions when speculative execution was enabled, but now the transaction that was ahead of this 
         // one is finished, so now we're just executing them regularly
-        ExecutionMode spec_exec = ExecutionMode.NULL;
+        ExecutionMode spec_exec = ExecutionMode.COMMIT_ALL;
         boolean release_latch = false;
         if (single_partition == false) {
             synchronized (this.exec_mode) {
@@ -951,9 +949,9 @@ public class ExecutionSite implements Runnable, Shutdownable {
                                                ts, this.partitionId, true, this.exec_mode));                    
             } // SYNCH
             spec_exec = this.exec_mode;
-        } else if (hstore_conf.enable_speculative_execution) {
+        } else if (hstore_conf.site.exec_speculative_execution) {
             synchronized (this.exec_mode) {
-                if (this.exec_mode != ExecutionMode.NULL) {
+                if (this.exec_mode != ExecutionMode.COMMIT_ALL) {
                     assert(this.current_dtxn != null) : String.format("Invalid execution mode %s without a dtxn at partition %d", this.exec_mode, this.partitionId);
                     
                     // HACK: If we are currently under DISABLED mode when we get this, then we just need to block the transaction
@@ -990,8 +988,8 @@ public class ExecutionSite implements Runnable, Shutdownable {
         //  (1) This is the multi-partition transaction that everyone is waiting for
         //  (2) The transaction was not executed under speculative execution mode 
         //  (3) The transaction does not need to wait for the multi-partition transaction to finish first
-        if (single_partition == false || spec_exec == ExecutionMode.NULL || this.canProcessClientResponseNow(ts, status, spec_exec)) {
-            if (hstore_conf.enable_postprocessing_thread) {
+        if (single_partition == false || this.canProcessClientResponseNow(ts, status, spec_exec)) {
+            if (hstore_conf.site.exec_postprocessing_thread) {
                 if (d) LOG.debug(String.format("Passing ClientResponse for %s to post-processing thread [status=%s]", ts, cresponse.getStatusName()));
                 this.processor.processClientResponse(this, ts, cresponse);
             } else {
@@ -1029,7 +1027,7 @@ public class ExecutionSite implements Runnable, Shutdownable {
         }
         
         // Release the latch in case anybody is waiting for us to finish
-        if (hstore_conf.enable_speculative_execution && (spec_exec != ExecutionMode.NULL || single_partition == false) && release_latch == true) {
+        if (hstore_conf.site.exec_speculative_execution && (spec_exec != ExecutionMode.COMMIT_ALL || single_partition == false) && release_latch == true) {
             if (d) LOG.debug(String.format("%s is releasing exec latch for partition %d", ts, this.partitionId));
             this.exec_latch.release();
             assert(this.exec_latch.availablePermits() <= 1) : String.format("Invalid exec latch state [permits=%d, mode=%s]", this.exec_latch.availablePermits(), this.exec_mode);
@@ -1049,21 +1047,28 @@ public class ExecutionSite implements Runnable, Shutdownable {
      * @param spec_exec
      * @return
      */
-    protected boolean canProcessClientResponseNow(LocalTransactionState ts, byte status, ExecutionMode spec_exec) {
-        boolean ret = false;
-        
+    private boolean canProcessClientResponseNow(LocalTransactionState ts, byte status, ExecutionMode spec_exec) {
+//        if (d) 
+            LOG.info(String.format("Checking whether to process %s now [status=%s, readOnly=%s, mode=%s]",
+                ts, ClientResponseImpl.getStatusName(status), ts.isExecReadOnly(), spec_exec));
+        // Process successful txns based on the mode that it was executed under
+        if (status == ClientResponse.SUCCESS) {
+            switch (spec_exec) {
+                case COMMIT_ALL:
+                    return (true);
+                case COMMIT_READONLY:
+                    return (ts.isExecReadOnly());
+                case COMMIT_NONE:
+                    return (false);
+                default:
+                    throw new RuntimeException("Unexpectd execution mode: " + spec_exec); 
+            } // SWITCH
         // If the transaction aborted and it was read-only thus far, then we want to process it immediately
-        if (status != ClientResponse.SUCCESS && ts.isExecReadOnly()) {
+        } else if (status != ClientResponse.SUCCESS && ts.isExecReadOnly()) {
             return (true);
-        
-        // We can only process the transaction now if 
-        } else if (status == ClientResponse.SUCCESS) {
-            
-            
-//            && spec_exec != ExecutionMode.COMMIT_NONE)
         }
         
-        return (ret);
+        return (false);
     }
     
     /**
@@ -1267,9 +1272,9 @@ public class ExecutionSite implements Runnable, Shutdownable {
         // REGULAR FRAGMENTS
         // -------------------------------
         } else {
-            if (local_ts != null && hstore_conf.enable_profiling) local_ts.ee_time.start();
+            if (local_ts != null && hstore_conf.site.exec_txn_profiling) local_ts.ee_time.start();
             result = this.executePlanFragments(ts, undoToken, fragmentIdIndex, fragmentIds, parameterSets, output_depIds, input_depIds);
-            if (local_ts != null && hstore_conf.enable_profiling) local_ts.ee_time.stop();
+            if (local_ts != null && hstore_conf.site.exec_txn_profiling) local_ts.ee_time.stop();
         }
         return (result);
     }
@@ -1301,7 +1306,7 @@ public class ExecutionSite implements Runnable, Shutdownable {
         local_ts.getTouchedPartitions().put(this.partitionId, plan.getBatchSize());
         
         // Only notify other partitions that we're done with them if we're not a single-partition transaction
-        if (hstore_conf.enable_speculative_execution && local_ts.isPredictSinglePartition() == false) {
+        if (hstore_conf.site.exec_speculative_execution && local_ts.isPredictSinglePartition() == false) {
             this.notifyDonePartitions(local_ts);
         }
 
@@ -1331,9 +1336,9 @@ public class ExecutionSite implements Runnable, Shutdownable {
                      Arrays.toString(plan.getFragmentIds()), plan.getFragmentCount(), Arrays.toString(plan.getOutputDependencyIds()), Arrays.toString(plan.getInputDependencyIds())));
         }
 
-        if (local_ts != null && hstore_conf.enable_profiling) local_ts.ee_time.start();
+        if (local_ts != null && hstore_conf.site.exec_txn_profiling) local_ts.ee_time.start();
         DependencySet result = this.executePlanFragments(local_ts, undoToken, fragmentIdIndex, fragmentIds, parameterSets, output_depIds, input_depIds);
-        if (local_ts != null && hstore_conf.enable_profiling) local_ts.ee_time.stop();
+        if (local_ts != null && hstore_conf.site.exec_txn_profiling) local_ts.ee_time.stop();
       
         if (t) LOG.trace("Output:\n" + StringUtil.join("\n", result.dependencies));
         
@@ -1602,7 +1607,7 @@ public class ExecutionSite implements Runnable, Shutdownable {
         this.txn_states.put(txn_id, ts);
         
         // If we're multi-partition or single-partition and speculative execution is enabled, then just queue this mofo immediately
-        if (ts.isPredictSinglePartition() == false || (hstore_conf.enable_speculative_execution && this.exec_mode != ExecutionMode.DISABLED)) {
+        if (ts.isPredictSinglePartition() == false || (hstore_conf.site.exec_speculative_execution && this.exec_mode != ExecutionMode.DISABLED)) {
             if (t) LOG.trace(String.format("Adding %s to work queue at partition %d [size=%d]", ts, this.partitionId, this.work_queue.size()));
             this.work_queue.add(task);
             
@@ -1744,7 +1749,7 @@ public class ExecutionSite implements Runnable, Shutdownable {
         boolean predict_singlepartition = ts.isPredictSinglePartition(); 
         Set<Integer> done_partitions = ts.getDonePartitions();
         
-        if (hstore_conf.enable_speculative_execution) this.notifyDonePartitions(ts);
+        if (hstore_conf.site.exec_speculative_execution) this.notifyDonePartitions(ts);
         
         for (FragmentTaskMessage ftask : tasks) {
             assert(!ts.isBlocked(ftask));
@@ -1840,6 +1845,7 @@ public class ExecutionSite implements Runnable, Shutdownable {
         ts.initRound(this.getNextUndoToken());
         ts.setBatchSize(batch_size);
         boolean first = true;
+        boolean read_only = ts.isExecReadOnly();
         boolean predict_singlePartition = ts.isPredictSinglePartition();
         CountDownLatch latch = null;
         
@@ -1887,6 +1893,7 @@ public class ExecutionSite implements Runnable, Shutdownable {
                     if (t) LOG.trace(String.format("Got unblocked FragmentTaskMessage for %s. Executing locally...", ts));
                     assert(ftask.getDestinationPartitionId() == this.partitionId);
                     this.processFragmentTaskMessage(ftask);
+                    read_only = read_only && ftask.isReadOnly();
                 } // FOR
                 
             // SLOW PATH: Mixed local and remote messages
@@ -1908,6 +1915,7 @@ public class ExecutionSite implements Runnable, Shutdownable {
                             ts.remote_fragment_list.add(ftask);
                             num_remote++;
                         }
+                        read_only = read_only && ftask.isReadOnly();
                     }
                 } // FOR
                 if (num_local == 0 && num_remote == 0) {
@@ -1941,7 +1949,7 @@ public class ExecutionSite implements Runnable, Shutdownable {
                     }
                 }
             }
-
+            if (read_only == false) ts.setExecReadOnly(read_only);
             first = false;
         } // WHILE
 
@@ -1997,7 +2005,7 @@ public class ExecutionSite implements Runnable, Shutdownable {
         assert(ts.isSpeculative()) :
             String.format("Queuing non-specutative %s [mode=%s, status=%s]",
                           ts, this.exec_mode, cresponse.getStatusName());
-        assert(this.exec_mode != ExecutionMode.NULL) :
+        assert(this.exec_mode != ExecutionMode.COMMIT_ALL) :
             String.format("Queuing %s when in non-specutative mode [mode=%s, status=%s]",
                           ts, this.exec_mode, cresponse.getStatusName());
         assert(cresponse.getStatus() != ClientResponse.MISPREDICTION) : "Trying to queue mispredicted " + ts;
@@ -2147,14 +2155,14 @@ public class ExecutionSite implements Runnable, Shutdownable {
                 
                 // We can always commit our boys no matter what if we know that this multi-partition txn was read-only 
                 // at the given partition
-                if (hstore_conf.enable_speculative_execution) {
+                if (hstore_conf.site.exec_speculative_execution) {
                     if (d) LOG.debug(String.format("Turning off speculative execution mode at partition %d because %s is finished", this.partitionId, ts));
                     Boolean readonly = this.isReadOnly(txn_id);
                     this.releaseQueueResponses(readonly != null && readonly == true ? true : commit);
                 }
                 
                 ExecutionMode orig_mode = this.exec_mode;
-                this.exec_mode = ExecutionMode.NULL;
+                this.exec_mode = ExecutionMode.COMMIT_ALL;
                 this.exec_latch.release();
                 assert(this.exec_latch.availablePermits() <= 1) : String.format("Invalid exec latch state [permits=%d, mode=%s]", this.exec_latch.availablePermits(), orig_mode); 
                 
@@ -2234,7 +2242,7 @@ public class ExecutionSite implements Runnable, Shutdownable {
                 
             // Optimization: Check whether the last element in the list is a commit
             // If it is, then we know that we don't need to tell the EE about all the ones that executed before it
-            } else if (hstore_conf.enable_queued_response_ee_bypass) {
+            } else if (hstore_conf.site.exec_queued_response_ee_bypass) {
                 // Don't tell the EE that we committed
                 if (ee_commit == false) {
                     if (t) LOG.trace(String.format("Bypassing EE commit for %s [undoToken=%d]", ts, ts.getLastUndoToken()));
@@ -2247,7 +2255,7 @@ public class ExecutionSite implements Runnable, Shutdownable {
                 }
             }
             
-            if (hstore_conf.enable_postprocessing_thread) {
+            if (hstore_conf.site.exec_postprocessing_thread) {
                 if (t) LOG.trace(String.format("Passing queued ClientResponse for %s to post-processing thread [status=%s]", ts, cr.getStatusName()));
                 this.processor.processClientResponse(this, ts, cr);
             } else {
@@ -2255,7 +2263,7 @@ public class ExecutionSite implements Runnable, Shutdownable {
                 this.processClientResponse(ts, cr);
             }
         } // WHILE
-        if (d && hstore_conf.enable_queued_response_ee_bypass) LOG.debug(String.format("Fast Commit EE Bypass Optimization [skipped=%d, aborted=%d]", skip_commit, aborted));
+        if (d && hstore_conf.site.exec_queued_response_ee_bypass) LOG.debug(String.format("Fast Commit EE Bypass Optimization [skipped=%d, aborted=%d]", skip_commit, aborted));
         return;
     }
     

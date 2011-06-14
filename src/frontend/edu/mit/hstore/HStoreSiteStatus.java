@@ -163,7 +163,7 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
         // ----------------------------------------------------------------------------
         if (show_exec) {
             m_exec.put("InFlight Txn Ids", String.format("%d [totalMin=%d, totalMax=%d]", inflight_cur, inflight_min, inflight_max));
-            m_exec.put("Throttling Mode", String.format("%s [releaseTrigger=%d]\n", this.hstore_site.isThrottlingEnabled(), hstore_conf.txn_queue_release));
+            m_exec.put("Throttling Mode", String.format("%s [releaseTrigger=%d]\n", this.hstore_site.isThrottlingEnabled(), hstore_conf.site.txn_queue_release));
             
             for (Entry<Integer, ExecutionSite> e : this.executors.entrySet()) {
                 ExecutionSite es = e.getValue();

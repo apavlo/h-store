@@ -58,7 +58,7 @@ public class DependencyInfo implements Poolable {
      */
     public synchronized static void initializePool(HStoreConf hstore_conf) {
         if (INFO_POOL == null) {
-            INFO_POOL = new StackObjectPool(new Factory(hstore_conf.pool_enable_tracking), hstore_conf.pool_dependencyinfos_idle);
+            INFO_POOL = new StackObjectPool(new Factory(hstore_conf.site.pool_enable_tracking), hstore_conf.site.pool_dependencyinfos_idle);
         }
     }
     

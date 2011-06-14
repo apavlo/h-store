@@ -55,7 +55,7 @@ public class TestFeatureClusterer extends BaseTestCase {
         super.setUp(ProjectType.TPCC);
         this.addPartitions(NUM_PARTITIONS);
         
-        HStoreConf.singleton().markov_path_caching = false;
+        HStoreConf.singleton().site.markov_path_caching = false;
         
         if (workload == null) {
             catalog_proc = this.getProcedure(TARGET_PROCEDURE);

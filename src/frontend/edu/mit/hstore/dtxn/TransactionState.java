@@ -99,7 +99,7 @@ public abstract class TransactionState implements Poolable {
     /**
      * Whether this transaction has been read-only so far
      */
-    protected boolean exec_read_only = true;
+    protected boolean exec_readOnly = true;
 
     /**
      * Whether this Transaction has submitted work to the EE that needs to be rolled back
@@ -163,7 +163,7 @@ public abstract class TransactionState implements Poolable {
         this.txn_id = -1;
         this.hstoresite_finished = false;
         this.predict_readOnly = false;
-        this.exec_read_only = true;
+        this.exec_readOnly = true;
         this.ee_finished_timestamp = null;
         this.submitted_to_ee = false;
         this.pending_error = null;
@@ -373,10 +373,10 @@ public abstract class TransactionState implements Poolable {
     }
     
     public void setExecReadOnly(boolean read_only) {
-        this.exec_read_only = read_only;
+        this.exec_readOnly = read_only;
     }
     public boolean isExecReadOnly() {
-        return (this.exec_read_only);
+        return (this.exec_readOnly);
     }
     
     /**
@@ -447,7 +447,7 @@ public abstract class TransactionState implements Poolable {
         Map<String, Object> m = new ListOrderedMap<String, Object>();
         m.put("Transaction #", this.txn_id);
         m.put("Current Round State", this.round_state);
-        m.put("Read-Only", this.exec_read_only);
+        m.put("Read-Only", this.exec_readOnly);
         m.put("FragmentTask Callbacks", this.fragment_callbacks.size());
         m.put("Executing Locally", this.exec_local);
         m.put("Local Partition", this.executor.getPartitionId());

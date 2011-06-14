@@ -309,8 +309,12 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
     
     /** PAVLO **/
     public String getStatusName() {
+        return (ClientResponseImpl.getStatusName(this.status));
+    }
+    
+    public static String getStatusName(byte status) {
         String ret = null;
-        switch (this.status) {
+        switch (status) {
             case ClientResponseImpl.SUCCESS:
                 ret = "SUCCESS";
                 break;
@@ -333,7 +337,7 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
                 ret = "REJECTED";
                 break;
             default:
-                assert(false) : "Unknown ClientResponse status '" + this.status + "'";
+                assert(false) : "Unknown ClientResponse status '" + status + "'";
         } // SWITCH
         return (ret);
     }
