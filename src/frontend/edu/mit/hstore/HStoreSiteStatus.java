@@ -109,7 +109,7 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
     }
     
     private void printSnapshot() {
-        LOG.info("SNAPSHOT #" + this.snapshot_ctr.incrementAndGet() + "\n" +
+        System.err.println("SNAPSHOT #" + this.snapshot_ctr.incrementAndGet() + "\n" +
                  StringUtil.box(this.snapshot(hstore_conf.site.status_show_txn_info,
                                               hstore_conf.site.status_show_executor_info,
                                               hstore_conf.site.status_show_thread_info,
@@ -164,7 +164,10 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
         // ----------------------------------------------------------------------------
         if (show_exec) {
             m_exec.put("InFlight Txn Ids", String.format("%d [totalMin=%d, totalMax=%d]", inflight_cur, inflight_min, inflight_max));
-            m_exec.put("Throttling Mode", String.format("%s [releaseTrigger=%d]\n", this.hstore_site.isThrottlingEnabled(), hstore_conf.site.txn_queue_release));
+            m_exec.put("Throttling Mode", String.format("%s [limit=%d, release=%d]\n",
+                                                        this.hstore_site.isThrottlingEnabled(),
+                                                        hstore_conf.site.txn_queue_max,
+                                                        hstore_conf.site.txn_queue_release));
             
             for (Entry<Integer, ExecutionSite> e : this.executors.entrySet()) {
                 ExecutionSite es = e.getValue();
@@ -229,6 +232,11 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
             factory = (CountingPoolableObjectFactory<?>)pool.getFactory();
             m_pool.put("DependencyInfos", this.formatPoolCounts(pool, factory));
             
+            // ForwardTxnRequestCallbacks
+            pool = (StackObjectPool)this.hstore_site.forwardtxn_pool;
+            factory = (CountingPoolableObjectFactory<?>)pool.getFactory();
+            m_pool.put("ForwardTxnRequests", this.formatPoolCounts(pool, factory));
+            
             // BatchPlans
             int active = 0;
             int idle = 0;
@@ -251,7 +259,6 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
             String labels[] = new String[] {
                 "LocalTxnState",
                 "RemoteTxnState",
-                "Procedures"
             };
             int total_active[] = new int[labels.length];
             int total_idle[] = new int[labels.length];

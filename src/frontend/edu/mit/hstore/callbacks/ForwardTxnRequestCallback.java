@@ -9,26 +9,78 @@ import org.voltdb.messaging.FastDeserializer;
 import com.google.protobuf.RpcCallback;
 
 import edu.brown.hstore.Hstore.MessageAcknowledgement;
+import edu.brown.utils.CountingPoolableObjectFactory;
+import edu.brown.utils.Poolable;
 import edu.mit.hstore.HStoreSite;
 
 /**
  * 
  * @author pavlo
  */
-public class ForwardTxnRequestCallback implements RpcCallback<MessageAcknowledgement> {
+public class ForwardTxnRequestCallback implements RpcCallback<MessageAcknowledgement>, Poolable {
     private static final Logger LOG = Logger.getLogger(ForwardTxnRequestCallback.class);
     
-    protected final RpcCallback<byte[]> orig_callback;
+    /**
+     * LocalTransactionState Factory
+     */
+    public static class Factory extends CountingPoolableObjectFactory<ForwardTxnRequestCallback> {
+        
+        private final HStoreSite hstore_site;
+        
+        public Factory(HStoreSite hstore_site, boolean enable_tracking) {
+            super(enable_tracking);
+            this.hstore_site = hstore_site;
+        }
+        @Override
+        public ForwardTxnRequestCallback makeObjectImpl() throws Exception {
+            return new ForwardTxnRequestCallback(this.hstore_site);
+        }
+    };
     
+    /**
+     * 
+     */
+    protected RpcCallback<byte[]> orig_callback;
     
-    public ForwardTxnRequestCallback(RpcCallback<byte[]> orig_callback) {
+    /**
+     * 
+     */
+    protected HStoreSite hstore_site;
+    
+    /**
+     * Constructor
+     * @param orig_callback
+     */
+    public ForwardTxnRequestCallback(HStoreSite hstore_site, RpcCallback<byte[]> orig_callback) {
+        this.orig_callback = orig_callback;
+        this.hstore_site = hstore_site;
+    }
+    
+    /**
+     * Default Constructor
+     */
+    public ForwardTxnRequestCallback(HStoreSite hstore_site) {
+        this(hstore_site, null);
+    }
+    
+    public void init(RpcCallback<byte[]> orig_callback) {
         this.orig_callback = orig_callback;
     }
 
     @Override
+    public boolean isInitialized() {
+        return (this.orig_callback != null);
+    }
+    
+    @Override
+    public void finish() {
+        this.orig_callback = null;
+    }
+    
+    @Override
     public void run(MessageAcknowledgement parameter) {
-        if (LOG.isTraceEnabled()) LOG.trace("Got back FORWARD_TXN response from " + HStoreSite.getSiteName(parameter.getSenderSiteId()) + ". Sending response to client " +
-                                            "[bytes=" + parameter.getData().size() + "]");
+        if (LOG.isTraceEnabled()) LOG.trace(String.format("Got back FORWARD_TXN response from %s. Sending response to client [bytes=%d]",
+                                                          HStoreSite.getSiteName(parameter.getSenderSiteId()), parameter.getData().size()));
         byte data[] = parameter.getData().toByteArray();
         try {
             this.orig_callback.run(data);
@@ -44,7 +96,15 @@ public class ForwardTxnRequestCallback implements RpcCallback<MessageAcknowledge
             }
             LOG.fatal("Failed to forward ClientResponse data back for txn #" + txn_id, ex);
             // throw ex;
+        } finally {
+            try {
+                this.finish();
+                this.hstore_site.getForwardTxnRequestPool().returnObject(this);
+            } catch (Exception ex) {
+                throw new RuntimeException("Funky failure", ex);
+            }
         }
+        
     }
     
 }

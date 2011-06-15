@@ -493,8 +493,10 @@ public class ExecutionSite implements Runnable, Shutdownable {
         this.siteId = this.site.getId();
         
         this.hstore_conf = HStoreConf.singleton();
-        this.localTxnPool = new StackObjectPool(new LocalTransactionState.Factory(this, hstore_conf.site.pool_enable_tracking), hstore_conf.site.pool_localtxnstate_idle);
-        this.remoteTxnPool = new StackObjectPool(new RemoteTransactionState.Factory(this, hstore_conf.site.pool_enable_tracking), hstore_conf.site.pool_remotetxnstate_idle);
+        this.localTxnPool = new StackObjectPool(new LocalTransactionState.Factory(this, hstore_conf.site.pool_enable_tracking),
+                                                hstore_conf.site.pool_localtxnstate_idle);
+        this.remoteTxnPool = new StackObjectPool(new RemoteTransactionState.Factory(this, hstore_conf.site.pool_enable_tracking),
+                                                 hstore_conf.site.pool_remotetxnstate_idle);
         DependencyInfo.initializePool(hstore_conf);
         
         this.backend_target = target;
@@ -727,7 +729,7 @@ public class ExecutionSite implements Runnable, Shutdownable {
 
             } // WHILE
         } catch (final Throwable ex) {
-            if (this.isShuttingDown() == false) LOG.fatal("Unexpected error for ExecutionSite Partition #" + this.partitionId, ex);
+            if (this.isShuttingDown() == false) LOG.fatal("Unexpected error for ExecutionSite partition #" + this.partitionId, ex);
             this.hstore_messenger.shutdownCluster(new Exception(ex));
         } finally {
             if (d) LOG.debug("ExecutionSite is stopping");
@@ -2321,7 +2323,7 @@ public class ExecutionSite implements Runnable, Shutdownable {
     
     @Override
     public boolean isShuttingDown() {
-        return (this.shutdown_state == State.PREPARE_SHUTDOWN || this.shutdown_state == State.SHUTDOWN);
+        return (this.hstore_site.isShuttingDown()); // shutdown_state == State.PREPARE_SHUTDOWN || this.shutdown_state == State.SHUTDOWN);
     }
     
     @Override

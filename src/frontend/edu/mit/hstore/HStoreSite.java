@@ -28,6 +28,7 @@ package edu.mit.hstore;
 import java.io.File;
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -44,6 +45,8 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import org.apache.commons.pool.ObjectPool;
+import org.apache.commons.pool.impl.StackObjectPool;
 import org.apache.log4j.Logger;
 import org.voltdb.BackendTarget;
 import org.voltdb.ClientResponseImpl;
@@ -123,6 +126,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
     public static final String DTXN_COORDINATOR = "protodtxncoordinator";
     public static final String DTXN_ENGINE = "protodtxnengine";
     public static final String SITE_READY_MSG = "Site is ready for action";
+    private static final VoltTable EMPTY_RESULT[] = new VoltTable[0];
     
     private static final Map<Long, ByteString> CACHE_ENCODED_TXNIDS = new ConcurrentHashMap<Long, ByteString>();
     public static ByteString encodeTxnId(long txn_id) {
@@ -322,6 +326,11 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
     private final Map<Long, LocalTransactionState> inflight_txns = new ConcurrentHashMap<Long, LocalTransactionState>();
 
     /**
+     * ForwardTxnRequestCallback Pool
+     */
+    protected final ObjectPool forwardtxn_pool;
+    
+    /**
      * Helper Thread Stuff
      */
     private final ScheduledExecutorService helper_pool;
@@ -379,6 +388,8 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         
         this.messenger = new HStoreMessenger(this);
         this.processor = new ExecutionSitePostProcessor(this);
+        this.forwardtxn_pool = new StackObjectPool(new ForwardTxnRequestCallback.Factory(this, hstore_conf.site.pool_enable_tracking),
+                                                   hstore_conf.site.pool_forwardtxnrequests_idle);
         this.helper_pool = Executors.newScheduledThreadPool(1);
         
         // NewOrder Hack
@@ -431,6 +442,10 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
     
     public HStoreConf getHStoreConf() {
         return (this.hstore_conf);
+    }
+    
+    public ObjectPool getForwardTxnRequestPool() {
+        return (this.forwardtxn_pool);
     }
 
     /**
@@ -649,9 +664,9 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         if (this.throttle) {
             int queue_size = (this.inflight_txns.size() - 1);
             if (queue_size < hstore_conf.site.txn_queue_release) {
-                this.voltListener.setThrottleFlag(false);
                 this.throttle = false;
-                if (d) LOG.debug(String.format("Disabling throttling because txn #%d finished [queue_size=%d, release_threshold=%d]",
+//                if (d) 
+                    LOG.info(String.format("Disabling throttling because txn #%d finished [queue_size=%d, release_threshold=%d]",
                                                txn_id, queue_size, hstore_conf.site.txn_queue_release));
             }
         }
@@ -770,6 +785,31 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
     public void procedureInvocation(byte[] serializedRequest, RpcCallback<byte[]> done) {
         long timestamp = (hstore_conf.site.exec_txn_profiling ? ProfileMeasurement.getTime() : -1);
         
+        ByteBuffer buffer = ByteBuffer.wrap(serializedRequest);
+        boolean sysproc = StoredProcedureInvocation.isSysProc(buffer);
+        
+        // Check whether we're throttled and should just reject this transaction
+        if (this.throttle && sysproc == false) {
+            int request_ctr = this.getNextServerTimestamp();
+            long clientHandle = StoredProcedureInvocation.getClientHandle(buffer);
+            
+            if (d) LOG.info(String.format("Throttling is enabled. Rejecting transaction and asking client to wait [clientHandle=%d, requestCtr=%d]",
+                                          clientHandle, request_ctr));
+            
+            ClientResponseImpl cresponse = new ClientResponseImpl(-1, ClientResponse.REJECTED, EMPTY_RESULT, "", clientHandle);
+            cresponse.setThrottleFlag(this.throttle);
+            cresponse.setServerTimestamp(request_ctr);
+                
+            FastSerializer serializer = new FastSerializer();
+            try {
+                serializer.writeObject(cresponse);
+            } catch (Exception ex) {
+                throw new RuntimeException(ex);
+            }
+            done.run(serializer.getBytes());
+            return;
+        }
+        
         // The serializedRequest is a ProcedureInvocation object
         StoredProcedureInvocation request = null;
         FastDeserializer fds = new FastDeserializer(serializedRequest);
@@ -788,7 +828,6 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         assert(request.getParams() != null) : "The parameters object is null for new txn from client #" + request.getClientHandle();
         final Object args[] = request.getParams().toArray(); 
         final Procedure catalog_proc = this.catalog_db.getProcedures().get(request.getProcName());
-        final boolean sysproc = catalog_proc.getSystemproc();
         if (this.status_monitor != null) TxnCounter.RECEIVED.inc(catalog_proc);
         
         if (catalog_proc == null) throw new RuntimeException("Unknown procedure '" + request.getProcName() + "'");
@@ -845,11 +884,17 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         // -------------------------------
         TransactionIdManager id_generator = this.txnid_managers[dest_partition.intValue()]; 
         if (id_generator == null) {
-            if (d) LOG.debug(String.format("StoredProcedureInvocation request for %s needs to be forwarded to partition %d", request.getProcName(), dest_partition));
+            if (d) LOG.debug(String.format("Forwarding %s request to partition %d", request.getProcName(), dest_partition));
             
             // Make a wrapper for the original callback so that when the result comes back frm the remote partition
             // we will just forward it back to the client. How sweet is that??
-            ForwardTxnRequestCallback callback = new ForwardTxnRequestCallback(done);
+            ForwardTxnRequestCallback callback = null;
+            try {
+                callback = (ForwardTxnRequestCallback)this.forwardtxn_pool.borrowObject();
+                callback.init(done);
+            } catch (Exception ex) {
+                throw new RuntimeException("Failed to get ForwardTxnRequestCallback", ex);
+            }
             
             // Mark this request as having been redirected
             assert(request.hasBasePartition() == false) : "Trying to redirect " + request.getProcName() + " transaction more than once!";
@@ -1133,14 +1178,13 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         // queue to drain for a bit
         // NOTE: This needs to happen *before* we shove off the transaction
         if (this.throttle == false && this.inflight_txns.size() > hstore_conf.site.txn_queue_max) {
-            if (d) LOG.debug(String.format("HStoreSite is overloaded because of %s. Waiting for queue to drain [size=%d, trigger=%d]",
+//            if (d) 
+                LOG.info(String.format("HStoreSite is overloaded because of %s. Waiting for queue to drain [size=%d, trigger=%d]",
                                            ts, this.inflight_txns.size(), hstore_conf.site.txn_queue_release));
             this.throttle = true;
-            this.voltListener.setThrottleFlag(true);
         }
     }
     
-
     /**
      * Execute some work on a particular ExecutionSite
      */
@@ -1292,7 +1336,14 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
                 }
                 assert(serializedRequest != null);
                 
-                this.messenger.forwardTransaction(serializedRequest, new ForwardTxnRequestCallback(orig_callback), redirect_partition);
+                ForwardTxnRequestCallback callback;
+                try {
+                    callback = (ForwardTxnRequestCallback)this.forwardtxn_pool.borrowObject();
+                    callback.init(orig_callback);
+                } catch (Exception ex) {
+                    throw new RuntimeException("Failed to get ForwardTxnRequestCallback", ex);   
+                }
+                this.messenger.forwardTransaction(serializedRequest, callback, redirect_partition);
                 if (this.status_monitor != null) TxnCounter.REDIRECTED.inc(orig_ts.getProcedure());
                 return;
                 

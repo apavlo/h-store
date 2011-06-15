@@ -51,8 +51,11 @@ public final class HStoreConf {
             // Set the default values for the parameters based on their annotations
             for (Entry<Field, ConfigProperty> e : this.properties.entrySet()) {
                 Field f = e.getKey();
+                ConfigProperty cp = e.getValue();
                 Class<?> f_class = f.getType();
                 Object value = null;
+                
+                if (cp.computed()) continue;
                 
                 if (f_class.equals(int.class)) {
                     value = e.getValue().defaultInt();
@@ -126,9 +129,11 @@ public final class HStoreConf {
     // ============================================================================
     public final class SiteConf extends Conf {
     
-        /**
-         * Site Log Directory
-         */
+        @ConfigProperty(
+            description="Site log directory",
+            defaultString="${global.temp_dir}/logs/sites",
+            advanced=false
+        )
         public String log_dir = HStoreConf.this.global.temp_dir + "/logs/sites";
 
         // ----------------------------------------------------------------------------
@@ -136,28 +141,32 @@ public final class HStoreConf {
         // ----------------------------------------------------------------------------
         
         @ConfigProperty(
-            description="If this feature is enabled, then each HStoreSite will attempt to speculatively execute single-partition " +
-                        "transactions whenever it completes a work request for a multi-partition transaction running on a different node.",
-            defaultBoolean=false,
+            description="If this feature is enabled, then each HStoreSite will attempt to speculatively execute " +
+                        "single-partition transactions whenever it completes a work request for a multi-partition " +
+                        "transaction running on a different node.",
+            defaultBoolean=true,
+            advanced=false,
             experimental=true
         )
         public boolean exec_speculative_execution;
         
         @ConfigProperty(
-            description="If this parameter is set to true, then each HStoreSite will not send every transaction request through the " +
-                        "Dtxn.Coordinator. Only multi-partition transactions will be sent to the Dtxn.Coordinator (in order to ensure " +
-                        "global ordering). Setting this property to true provides a major throughput improvement.",
+            description="If this parameter is set to true, then each HStoreSite will not send every transaction request " +
+                        "through the Dtxn.Coordinator. Only multi-partition transactions will be sent to the " +
+                        "Dtxn.Coordinator (in order to ensure global ordering). Setting this property to true provides a " +
+                        "major throughput improvement.",
             defaultBoolean=true
         )
         public boolean exec_avoid_coordinator;
         
         @ConfigProperty(
-            description="If this feature is true, then H-Store will use DB2-style transaction redirects. Each request will execute as " +
-                        "a single-partition transaction at a random partition on the node that the request originally arrives on. " +
-                        "When the transaction makes a query request that needs to touch data from a partition that is different than its " +
-                        "base partition, then that transaction is immediately aborted, rolled back, and restarted on the partition that " +
-                        "has the data that it was requesting. If the transaction requested more than partition when it was aborted, then " +
-                        "it will be executed as a multi-partition transaction on the partition that was requested most often by queries " +
+            description="If this feature is true, then H-Store will use DB2-style transaction redirects. Each request will " +
+                        "execute as a single-partition transaction at a random partition on the node that the request " +
+                        "originally arrives on. When the transaction makes a query request that needs to touch data from " +
+                        "a partition that is different than its base partition, then that transaction is immediately aborted, " +
+                        "rolled back, and restarted on the partition that has the data that it was requesting. If the " +
+                        "transaction requested more than partition when it was aborted, then it will be executed as a " +
+                        "multi-partition transaction on the partition that was requested most often by queries " +
                         "(using random tie breakers).",
             defaultBoolean=false,
             advanced=true,
@@ -166,34 +175,36 @@ public final class HStoreConf {
         public boolean exec_db2_redirects;
         
         @ConfigProperty(
-            description="Always execute transactions as single-partitioned (excluding sysprocs). If a transaction requests data on a partition " +
-                        "that is different than where it is executing, then it is aborted, rolled back, and re-executed on the same partition " +
-                        "as a multi-partition transaction that touches all partitions. Note that this is independent of how H-Store decides what " +
-                        "partition to execute the transaction’s Java control code on.",
+            description="Always execute transactions as single-partitioned (excluding sysprocs). If a transaction requests " +
+                        "data on a partition that is different than where it is executing, then it is aborted, rolled back, " +
+                        "and re-executed on the same partition as a multi-partition transaction that touches all partitions. " +
+                        "Note that this is independent of how H-Store decides what partition to execute the transaction’s Java " +
+                        "control code on.",
             defaultBoolean=true
         )
         public boolean exec_force_singlepartitioned;
         
         @ConfigProperty(
-            description="Always execute each transaction on a random partition on the node where the request originally arrived on. " +
-                        "Note that this is independent of whether the transaction is selected to be single-partitioned or not. It is likely that " +
-                        "you do not want to use this option.",
+            description="Always execute each transaction on a random partition on the node where the request originally " +
+                        "arrived on. Note that this is independent of whether the transaction is selected to be " +
+                        "single-partitioned or not. It is likely that you do not want to use this option.",
             defaultBoolean=false,
             advanced=true
         )
         public boolean exec_force_localexecution;
         
         @ConfigProperty(
-            description="Enable a hack for TPC-C where we inspect the arguments of the TPC-C neworder transaction and figure out what partitions " +
-                        "it needs without having to use the TransactionEstimator. This will crash the system when used with other benchmarks.",
+            description="Enable a hack for TPC-C where we inspect the arguments of the TPC-C neworder transaction and figure " +
+                        "out what partitions it needs without having to use the TransactionEstimator. This will crash the " +
+                        "system when used with other benchmarks.",
             defaultBoolean=false,
             advanced=true
         )
         public boolean exec_neworder_cheat;
         
         @ConfigProperty(
-            description="Used in conjunction with ${site.force_neworderinspect} to figure out when TPC-C NewOrder transactions are finished " +
-                        "with partitions. This will crash the system when used with other benchmarks.",
+            description="Used in conjunction with ${site.force_neworderinspect} to figure out when TPC-C NewOrder transactions " +
+                        "are finished with partitions. This will crash the system when used with other benchmarks.",
             defaultBoolean=false,
             advanced=true
         )
@@ -215,18 +226,19 @@ public final class HStoreConf {
         public boolean exec_mispredict_crash;
         
         @ConfigProperty(
-            description="If this enabled, HStoreSite will use a separate thread to process every outbound ClientResponse for all of the ExecutionSites.",
-            defaultBoolean=true,
-            advanced=true
+            description="If this enabled, HStoreSite will use a separate thread to process every outbound ClientResponse for " +
+                        "all of the ExecutionSites.",
+            defaultBoolean=false,
+            advanced=false
         )
         public boolean exec_postprocessing_thread; 
 
         @ConfigProperty(
-            description="If this enabled with speculative execution, then HStoreSite only invoke the commit operation in the EE for " +
-                        "the last transaction in the queued responses. This will cascade to all other queued responses successful " +
-                        "transactions that were speculatively executed. ",
+            description="If this enabled with speculative execution, then HStoreSite only invoke the commit operation in the " +
+                        "EE for the last transaction in the queued responses. This will cascade to all other queued responses " +
+                        "successful transactions that were speculatively executed.",
             defaultBoolean=true,
-            advanced=true
+            advanced=false
         )
         public boolean exec_queued_response_ee_bypass;
         
@@ -234,66 +246,85 @@ public final class HStoreConf {
         // Incoming Transaction Queue Options
         // ----------------------------------------------------------------------------
         
-        /**
-         * Max size of queued transactions before we stop accepting new requests and throttle clients
-         */
-        public int txn_queue_max_per_partition = 1000;
+        @ConfigProperty(
+            description="Max size of queued transactions before we stop accepting new requests and throttle clients",
+            defaultInt=1000,
+            advanced=false
+        )
+        public int txn_queue_max_per_partition;
         
-        /**
-         * TODO
-         */
-        public double txn_queue_release_factor = 0.25;
+        @ConfigProperty(
+            description="", // TODO
+            defaultDouble=0.25,
+            advanced=false
+        )
+        public double txn_queue_release_factor;
         
-        /**
-         * TODO
-         */
+        @ConfigProperty(
+            description="", // TODO
+            computed=true
+        )
         public int txn_queue_max;
-        
-        /**
-         * TODO
-         */
+
+        @ConfigProperty(
+            description="", // TODO
+            computed=true
+        )
         public int txn_queue_release;  
         
         // ----------------------------------------------------------------------------
         // Markov Transaction Estimator Options
         // ----------------------------------------------------------------------------
         
-        /**
-         * If this is set to true, TransactionEstimator will try to reuse MarkovPathEstimators
-         * for transactions running at the same partition.
-         */
-        public boolean markov_path_caching = true;
+        @ConfigProperty(
+            description="If this is set to true, TransactionEstimator will try to reuse MarkovPathEstimators" +
+                        "for transactions running at the same partition.",
+            defaultBoolean=true,
+            advanced=false
+        )
+        public boolean markov_path_caching;
     
-        /**
-         * This threshold defines how accurate our cached MarkovPathEstimators have to be in order to keep using them.
-         * If (# of accurate txs / total txns) for a paritucular MarkovGraph goes below this threshold, then we will disable the caching   
-         */
-        public double markov_path_caching_threshold = 1.0;
+        @ConfigProperty(
+            description="This threshold defines how accurate our cached MarkovPathEstimators have to be in order " +
+                        "to keep using them. If (# of accurate txs / total txns) for a paritucular MarkovGraph " +
+                        "goes below this threshold, then we will disable the caching",
+            defaultDouble=1.0,
+            advanced=true
+        )
+        public double markov_path_caching_threshold;
         
         // ----------------------------------------------------------------------------
         // ExecutionSiteHelper
         // ----------------------------------------------------------------------------
     
-        /**
-         * How many ms to wait initially before starting the ExecutionSiteHelper
-         */
-        public int helper_initial_delay = 2000;
+        @ConfigProperty(
+            description="How many ms to wait initially before starting the ExecutionSiteHelper",
+            defaultInt=2000,
+            advanced=false
+        )
+        public int helper_initial_delay;
         
-        /**
-         * How many ms to wait before the ExecutionSiteHelper executes again to clean up txns
-         */
-        public int helper_interval = 1000;
+        @ConfigProperty(
+            description="How many ms to wait before the ExecutionSiteHelper executes again to clean up txns",
+            defaultInt=1000,
+            advanced=true
+        )
+        public int helper_interval;
         
-        /**
-         * How many txns can the ExecutionSiteHelper clean-up per Partition per Round
-         * Any value less than zero means that it will clean-up all txns it can per round
-         */
-        public int helper_txn_per_round = -1;
+        @ConfigProperty(
+            description="How many txns can the ExecutionSiteHelper clean-up per partition per round. Any value less " +
+                        "than zero means that it will clean-up all txns it can per round",
+            defaultInt=-1,
+            advanced=true
+        )
+        public int helper_txn_per_round;
         
-        /**
-         * How long should the ExecutionSiteHelper wait before cleaning up a txn's state
-         */
-        public int helper_txn_expire = 1000;
+        @ConfigProperty(
+            description="How long should the ExecutionSiteHelper wait before cleaning up a txn's state",
+            defaultInt=1000,
+            advanced=true
+        )
+        public int helper_txn_expire;
 
         // ----------------------------------------------------------------------------
         // HSTORESITE STATUS UPDATES
@@ -302,14 +333,15 @@ public final class HStoreConf {
         @ConfigProperty(
             description="Enable HStoreSite's StatusThread (# of milliseconds to print update). " +
                         "Set this to be -1 if you want to disable the status messages.",
-            defaultInt=20000
+            defaultInt=20000,
+            advanced=false
         )
         public int status_interval;
 
         @ConfigProperty(
             description="Allow the HStoreSite StatusThread to kill the cluster if it looks hung.",
             defaultBoolean=true,
-            advanced=true
+            advanced=false
         )
         public boolean status_kill_if_hung;
         
@@ -331,15 +363,15 @@ public final class HStoreConf {
         
         @ConfigProperty(
             description="When this property is set to true, HStoreSite status will include a snapshot of running threads",
-            defaultBoolean=true,
+            defaultBoolean=false,
             advanced=true
         )
         public boolean status_show_thread_info;
         
         @ConfigProperty(
             description="When this property is set to true, HStoreSite status will include pool allocation/deallocation statistics. " +
-                        "Must be used in conjunction with ${pool_enable_tracking}",
-            defaultBoolean=false,
+                        "Must be used in conjunction with ${site.pool_enable_tracking}",
+            defaultBoolean=true,
             advanced=true
         )
         public boolean status_show_pool_info;
@@ -348,77 +380,100 @@ public final class HStoreConf {
         // OBJECT POOLS
         // ----------------------------------------------------------------------------
         
-        /**
-         * The scale factor to apply to the object pool values
-         */
-        public double pool_scale_factor = 1.0d;
+        @ConfigProperty(
+            description="The scale factor to apply to the object pool values.",
+            defaultDouble=1.0,
+            advanced=false
+        )
+        public double pool_scale_factor;
         
-        /**
-         * Whether to track the number of objects created, passivated, and destroyed from the pool
-         * @see CountingPoolableObjectFactory
-         */
-        public boolean pool_enable_tracking = false;
+        @ConfigProperty(
+            description="Whether to track the number of objects created, passivated, and destroyed from the pool. " + 
+                        "Must be used with ${site.status_show_pool_info}",
+            defaultBoolean=true,
+            advanced=true
+        )
+        public boolean pool_enable_tracking;
+
+        @ConfigProperty(
+            description="The max number of VoltProcedure instances to keep in the pool " + 
+                        "(per ExecutionSite + per Procedure)",
+            defaultInt=10000,
+            advanced=true
+        )
+        public int pool_voltprocedure_idle;
         
-        /**
-         * The max number of VoltProcedure instances to keep in the pool (per ExecutionSite + per Procedure)
-         * @see ExecutionSite.VoltProcedureFactory 
-         */
-        public int pool_voltprocedure_idle = 10000;
-        
-        /**
-         * The max number of BatchPlans to keep in the pool (per BatchPlanner)
-         * @see BatchPlanner.BatchPlanFactory
-         */
-        public int pool_batchplan_idle = 2000;
+        @ConfigProperty(
+            description="The max number of BatchPlans to keep in the pool (per BatchPlanner)",
+            defaultInt=2000,
+            advanced=true
+        )
+        public int pool_batchplan_idle;
     
-        /**
-         * The number of LocalTransactionState objects to preload
-         * @see LocalTransactionState.Factory
-         */
-        public int pool_localtxnstate_preload = 500;
+        @ConfigProperty(
+            description="The number of LocalTransactionState objects to preload",
+            defaultInt=500,
+            advanced=true
+        )
+        public int pool_localtxnstate_preload;
         
-        /**
-         * The max number of LocalTransactionStates to keep in the pool (per ExecutionSite)
-         * @see LocalTransactionState.Factory
-         */
-        public int pool_localtxnstate_idle = 1000;
+        @ConfigProperty(
+            description="The max number of LocalTransactionStates to keep in the pool (per ExecutionSite)",
+            defaultInt=5000,
+            advanced=true
+        )
+        public int pool_localtxnstate_idle;
         
-        /**
-         * The number of RemoteTransactionState objects to preload
-         * @see RemoteTransactionState.Factory
-         */
-        public int pool_remotetxnstate_preload = 500;
+        @ConfigProperty(
+            description="The number of RemoteTransactionState objects to preload",
+            defaultInt=500,
+            advanced=true
+        )
+        public int pool_remotetxnstate_preload;
         
-        /**
-         * The max number of RemoteTransactionStates to keep in the pool (per ExecutionSite)
-         * @see RemoteTransactionState.Factory
-         */
-        public int pool_remotetxnstate_idle = 500;
+        @ConfigProperty(
+            description="The max number of RemoteTransactionStates to keep in the pool (per ExecutionSite)",
+            defaultInt=500,
+            advanced=true
+        )
+        public int pool_remotetxnstate_idle;
         
-        /**
-         * The max number of MarkovPathEstimators to keep in the pool (global)
-         * @see MarkovPathEstimator.Factory
-         */
-        public int pool_pathestimators_idle = 1000;
+        @ConfigProperty(
+            description="The max number of MarkovPathEstimators to keep in the pool (global)",
+            defaultInt=1000,
+            advanced=true
+        )
+        public int pool_pathestimators_idle;
         
-        /**
-         * The max number of TransactionEstimator.States to keep in the pool (global)
-         * Should be the same as the number of MarkovPathEstimators
-         * @see TransactionEstimator.State.Factory
-         */
-        public int pool_estimatorstates_idle = 1000;
+        @ConfigProperty(
+            description="The max number of TransactionEstimator.States to keep in the pool (global). " + 
+                        "Should be the same as the number of MarkovPathEstimators.",
+            defaultInt=1000,
+            advanced=true
+        )
+        public int pool_estimatorstates_idle;
         
-        /**
-         * The max number of DependencyInfos to keep in the pool (global)
-         * Should be the same as the number of MarkovPathEstimators
-         * @see DependencyInfo.State.Factory
-         */
-        public int pool_dependencyinfos_idle = 50000;
+        @ConfigProperty(
+            description="The max number of DependencyInfos to keep in the pool (global). " +
+                        "Should be the same as the number of MarkovPathEstimators. ",
+            defaultInt=50000,
+            advanced=true
+        )
+        public int pool_dependencyinfos_idle;
         
-        /**
-         * TODO
-         */
-        public int pool_preload_dependency_infos = 10000;
+        @ConfigProperty(
+            description="The number of DependencyInfo objects to preload in the pool.",
+            defaultInt=10000,
+            advanced=true
+        )
+        public int pool_preload_dependency_infos;
+        
+        @ConfigProperty(
+            description="The max number of ForwardTxnRequestCallbacks to keep in the pool",
+            defaultInt=1500,
+            advanced=false
+        )
+        public int pool_forwardtxnrequests_idle;
     }
 
     // ============================================================================
@@ -426,24 +481,32 @@ public final class HStoreConf {
     // ============================================================================
     public final class CoordinatorConf extends Conf {
         
-        /**
-         * Coordinator Host
-         */
+        @ConfigProperty(
+            description="The hostname to deploy the Dtxn.Coordinator on in the cluster.",
+            defaultString="${global.defaulthost}",
+            advanced=false
+        )
         public String host = HStoreConf.this.global.defaulthost;
         
-        /**
-         * Coordinator Port
-         */
-        public int port = 12348;
+        @ConfigProperty(
+            description="The port number that the Dtxn.Coordinator will listen on.",
+            defaultInt=12348,
+            advanced=false
+        )
+        public int port;
 
-        /**
-         * How long should we wait before starting the dtxn coordinator (in milliseconds) 
-         */
-        public int delay = 10000;
+        @ConfigProperty(
+            description="How long should we wait before starting the dtxn coordinator (in milliseconds)",
+            defaultInt=10000,
+            advanced=false
+        )
+        public int delay;
 
-        /**
-         * Coordinator Log Directory 
-         */
+        @ConfigProperty(
+            description="Dtxn.Coordinator Log Directory",
+            defaultString="${global.temp_dir}/logs/coordinator",
+            advanced=false
+        )
         public String log_dir = HStoreConf.this.global.temp_dir + "/logs/coordinator";
         
     }
