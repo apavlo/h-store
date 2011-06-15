@@ -232,15 +232,10 @@ public class ExecutionSite implements Runnable, Shutdownable {
     private final Map<String, VoltProcedure> procedures = new HashMap<String, VoltProcedure>();
     
     /**
-     * VoltProcedure.Executor Thread Pool 
-     */
-//    protected final ExecutorService thread_pool;
-    
-    /**
      * Mapping from SQLStmt batch hash codes (computed by VoltProcedure.getBatchHashCode()) to BatchPlanners
      * The idea is that we can quickly derived the partitions for each unique set of SQLStmt list
      */
-    public static final Map<Integer, BatchPlanner> batch_planners = new ConcurrentHashMap<Integer, BatchPlanner>();
+    public static final Map<Integer, BatchPlanner> POOL_BATCH_PLANNERS = new ConcurrentHashMap<Integer, BatchPlanner>();
     
     // ----------------------------------------------------------------------------
     // DATA MEMBERS
@@ -940,7 +935,7 @@ public class ExecutionSite implements Runnable, Shutdownable {
         LocalTransactionState ts = (LocalTransactionState)this.txn_states.get(txn_id);
         assert(ts != null) : "The TransactionState is somehow null for txn #" + txn_id;
         boolean predict_singlePartition = ts.isPredictSinglePartition();
-        if (hstore_conf.site.exec_txn_profiling) ts.queue_time.stop();
+        if (hstore_conf.site.txn_profiling) ts.queue_time.stop();
         
         // If this is a single-partition transaction, then we need to check whether we are being executed
         // under speculative execution mode. We have to check this here because it may be the case that we queued a
@@ -1043,8 +1038,9 @@ public class ExecutionSite implements Runnable, Shutdownable {
                 } // SYNCH
                 if (d) LOG.debug(String.format("Disabling execution on partition %d because speculative %s aborted", this.partitionId, ts));
             }
-            if (d) LOG.debug(String.format("Queuing ClientResponse for %s [status=%s, mode=%s, latchQueue=%s, dtxn=%s]",
-                                           ts, cresponse.getStatusName(), spec_exec, this.exec_latch.getQueueLength(), this.current_dtxn));
+            if (d) LOG.debug(String.format("Queuing ClientResponse for %s [status=%s, origMode=%s, newMode=%s, hasLatch=%s, latchQueue=%s, dtxn=%s]",
+                                           ts, cresponse.getStatusName(), spec_exec, this.exec_mode,
+                                           release_latch, this.exec_latch.getQueueLength(), this.current_dtxn));
             this.queueClientResponse(ts, cresponse);
         }
         
@@ -1301,9 +1297,9 @@ public class ExecutionSite implements Runnable, Shutdownable {
         // REGULAR FRAGMENTS
         // -------------------------------
         } else {
-            if (local_ts != null && hstore_conf.site.exec_txn_profiling) local_ts.ee_time.start();
+            if (local_ts != null && hstore_conf.site.txn_profiling) local_ts.ee_time.start();
             result = this.executePlanFragments(ts, undoToken, fragmentIdIndex, fragmentIds, parameterSets, output_depIds, input_depIds);
-            if (local_ts != null && hstore_conf.site.exec_txn_profiling) local_ts.ee_time.stop();
+            if (local_ts != null && hstore_conf.site.txn_profiling) local_ts.ee_time.stop();
         }
         return (result);
     }
@@ -1365,9 +1361,9 @@ public class ExecutionSite implements Runnable, Shutdownable {
                      Arrays.toString(plan.getFragmentIds()), plan.getFragmentCount(), Arrays.toString(plan.getOutputDependencyIds()), Arrays.toString(plan.getInputDependencyIds())));
         }
 
-        if (local_ts != null && hstore_conf.site.exec_txn_profiling) local_ts.ee_time.start();
+        if (local_ts != null && hstore_conf.site.txn_profiling) local_ts.ee_time.start();
         DependencySet result = this.executePlanFragments(local_ts, undoToken, fragmentIdIndex, fragmentIds, parameterSets, output_depIds, input_depIds);
-        if (local_ts != null && hstore_conf.site.exec_txn_profiling) local_ts.ee_time.stop();
+        if (local_ts != null && hstore_conf.site.txn_profiling) local_ts.ee_time.stop();
       
         if (t) LOG.trace("Output:\n" + StringUtil.join("\n", result.dependencies));
         
@@ -2189,8 +2185,6 @@ public class ExecutionSite implements Runnable, Shutdownable {
         // We could have turned off speculative execution mode beforehand 
         if (cleanup_dtxn) {
             synchronized (this.exec_mode) {
-                this.current_dtxn = null;
-                
                 // We can always commit our boys no matter what if we know that this multi-partition txn was read-only 
                 // at the given partition
                 if (hstore_conf.site.exec_speculative_execution) {
@@ -2202,6 +2196,7 @@ public class ExecutionSite implements Runnable, Shutdownable {
                     assert(this.exec_latch.availablePermits() <= 1) : String.format("Invalid exec latch state [permits=%d, mode=%s]", this.exec_latch.availablePermits(), this.exec_mode);
                 }
                 
+                this.current_dtxn = null;
                 this.setExecutionMode(ExecutionMode.COMMIT_ALL, txn_id);
                 
                 // Release blocked transactions

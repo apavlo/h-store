@@ -346,8 +346,6 @@ public class LocalTransactionState extends TransactionState {
      */
     public final ProfileMeasurement est_time = new ProfileMeasurement(Type.ESTIMATION);
     
-
-    
     // ----------------------------------------------------------------------------
     // INITIALIZATION
     // ----------------------------------------------------------------------------
@@ -491,7 +489,7 @@ public class LocalTransactionState extends TransactionState {
         this.all_dependencies.clear();
         this.reusable_dependencies.clear();
         
-        if (this.executor.getHStoreConf().site.exec_txn_profiling) {
+        if (this.executor.getHStoreConf().site.txn_profiling) {
             this.total_time.reset();
             this.init_time.reset();
             this.blocked_time.reset();
@@ -1171,7 +1169,7 @@ public class LocalTransactionState extends TransactionState {
         maps.add(m);
 
         // Profile Times
-        if (HStoreConf.singleton().site.exec_txn_profiling) {
+        if (HStoreConf.singleton().site.txn_profiling) {
             m = new ListOrderedMap<String, Object>();
             m.put("Total Time", this.total_time);
             m.put("Java Time", this.java_time);

@@ -117,7 +117,7 @@ public class TestBatchPlannerComplex extends BaseTestCase {
                 batches[i][ii] = statements.get(ii);
             } // FOR
             hashes[i] = VoltProcedure.getBatchHashCode(batches[i], batch_size);
-            ExecutionSite.batch_planners.put(hashes[i], new BatchPlanner(batches[i], catalog_proc, p_estimator));
+            ExecutionSite.POOL_BATCH_PLANNERS.put(hashes[i], new BatchPlanner(batches[i], catalog_proc, p_estimator));
         } // FOR
         
         for (int i = 0; i < batches.length; i++) {
@@ -135,7 +135,7 @@ public class TestBatchPlannerComplex extends BaseTestCase {
             
             int hash = VoltProcedure.getBatchHashCode(batches[i], batches[i].length-1);
             assert(hashes[i] != hash);
-            assertNull(ExecutionSite.batch_planners.get(hash));
+            assertNull(ExecutionSite.POOL_BATCH_PLANNERS.get(hash));
         } // FOR
     }
     

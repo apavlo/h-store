@@ -21,46 +21,26 @@ public class ForwardTxnRequestCallback implements RpcCallback<MessageAcknowledge
     private static final Logger LOG = Logger.getLogger(ForwardTxnRequestCallback.class);
     
     /**
-     * LocalTransactionState Factory
+     * Object Pool Factory
      */
     public static class Factory extends CountingPoolableObjectFactory<ForwardTxnRequestCallback> {
         
-        private final HStoreSite hstore_site;
-        
-        public Factory(HStoreSite hstore_site, boolean enable_tracking) {
+        public Factory(boolean enable_tracking) {
             super(enable_tracking);
-            this.hstore_site = hstore_site;
         }
         @Override
         public ForwardTxnRequestCallback makeObjectImpl() throws Exception {
-            return new ForwardTxnRequestCallback(this.hstore_site);
+            return new ForwardTxnRequestCallback();
         }
     };
     
-    /**
-     * 
-     */
     protected RpcCallback<byte[]> orig_callback;
-    
-    /**
-     * 
-     */
-    protected HStoreSite hstore_site;
-    
-    /**
-     * Constructor
-     * @param orig_callback
-     */
-    public ForwardTxnRequestCallback(HStoreSite hstore_site, RpcCallback<byte[]> orig_callback) {
-        this.orig_callback = orig_callback;
-        this.hstore_site = hstore_site;
-    }
-    
+
     /**
      * Default Constructor
      */
-    public ForwardTxnRequestCallback(HStoreSite hstore_site) {
-        this(hstore_site, null);
+    private ForwardTxnRequestCallback() {
+        // Nothing to do...
     }
     
     public void init(RpcCallback<byte[]> orig_callback) {
@@ -99,7 +79,7 @@ public class ForwardTxnRequestCallback implements RpcCallback<MessageAcknowledge
         } finally {
             try {
                 this.finish();
-                this.hstore_site.getForwardTxnRequestPool().returnObject(this);
+                HStoreSite.POOL_FORWARDTXN_REQUEST.returnObject(this);
             } catch (Exception ex) {
                 throw new RuntimeException("Funky failure", ex);
             }

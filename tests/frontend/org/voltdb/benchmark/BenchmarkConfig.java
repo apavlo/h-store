@@ -75,10 +75,6 @@ public class BenchmarkConfig {
     public final String markovPath;
     public final String thresholdsPath;
     
-    public final String clientLogDir;
-    public final String siteLogDir;
-    public final String coordLogDir;
-    
     public final boolean dumpDatabase;
     public final String dumpDatabaseDir;
 
@@ -124,9 +120,6 @@ public class BenchmarkConfig {
             Set<Integer> profileSiteIds,
             String markovPath,
             String thresholdsPath,
-            String clientLogDir,
-            String siteLogDir,
-            String coordLogDir,
             boolean dumpDatabase,
             String dumpDatabaseDir
         ) {
@@ -175,10 +168,6 @@ public class BenchmarkConfig {
         
         this.markovPath = markovPath;
         this.thresholdsPath = thresholdsPath;
-        
-        this.clientLogDir = clientLogDir;
-        this.siteLogDir = siteLogDir;
-        this.coordLogDir = coordLogDir;
         
         this.dumpDatabase = dumpDatabase;
         this.dumpDatabaseDir = dumpDatabaseDir;

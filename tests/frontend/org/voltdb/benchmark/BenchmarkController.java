@@ -66,6 +66,7 @@ import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.StringUtil;
 import edu.brown.utils.ThreadUtil;
 import edu.brown.utils.LoggerUtil.LoggerBoolean;
+import edu.mit.hstore.HStoreConf;
 import edu.mit.hstore.HStoreSite;
 
 public class BenchmarkController {
@@ -107,7 +108,7 @@ public class BenchmarkController {
     final ProcessSetManager m_clientPSM;
     
     /** Server Sites **/
-    final ProcessSetManager m_serverPSM;
+    final ProcessSetManager m_sitePSM;
     
     BenchmarkResults m_currentResults = null;
     Set<String> m_clients = new HashSet<String>();
@@ -118,6 +119,7 @@ public class BenchmarkController {
     Thread self = null;
     boolean stop = false;
     boolean cleaned = false;
+    HStoreConf hstore_conf;
     AtomicBoolean m_statusThreadShouldContinue = new AtomicBoolean(true);
     AtomicInteger m_clientsNotReady = new AtomicInteger(0);
     AtomicInteger m_pollIndex = new AtomicInteger(0);
@@ -243,11 +245,12 @@ public class BenchmarkController {
     public BenchmarkController(BenchmarkConfig config) {
         m_config = config;
         self = Thread.currentThread();
+        hstore_conf = HStoreConf.singleton();
         
         // Setup ProcessSetManagers...
-        m_clientPSM = new ProcessSetManager(m_config.clientLogDir, this.failure_observer);
-        m_serverPSM = new ProcessSetManager(m_config.siteLogDir, this.failure_observer);
-        m_coordPSM = new ProcessSetManager(m_config.coordLogDir, this.failure_observer);
+        m_clientPSM = new ProcessSetManager(hstore_conf.client.log_dir, this.failure_observer);
+        m_sitePSM = new ProcessSetManager(hstore_conf.site.log_dir, this.failure_observer);
+        m_coordPSM = new ProcessSetManager(hstore_conf.coordinator.log_dir, this.failure_observer);
 
         try {
             m_clientClass = (Class<? extends ClientMain>)Class.forName(m_config.benchmarkClient);
@@ -429,7 +432,7 @@ public class BenchmarkController {
                 command.add("hstore-site");
                 command.add("-Dcoordinator.host=" + m_config.coordinatorHost);
                 command.add("-Dproject=" + m_projectBuilder.getProjectName());
-                command.add("-Dnode.site=" + site_id);
+                command.add("-Dsite.id=" + site_id);
                 if (m_config.markovPath != null) command.add("-Dmarkov=" + m_config.markovPath);
                 if (m_config.thresholdsPath != null) command.add("-Dthresholds=" + m_config.thresholdsPath);
                 
@@ -442,7 +445,7 @@ public class BenchmarkController {
                 String fullCommand = StringUtil.join(" ", exec_command);
                 uploader.setCommandLineForHost(host, fullCommand);
                 if (trace.get()) LOG.trace(fullCommand);
-                m_serverPSM.startProcess(host_id, exec_command);
+                m_sitePSM.startProcess(host_id, exec_command);
                 hosts_started++;
             } // FOR
 
@@ -453,11 +456,13 @@ public class BenchmarkController {
                     "ant",
                     "dtxn-coordinator",
                     "-Dproject=" + m_projectBuilder.getProjectName(),
+                    "-Dcoordinator.delay=" + hstore_conf.coordinator.delay,
+                    "-Dcoordinator.port=" + hstore_conf.coordinator.port,
                 };
 
                 command = SSHTools.convert(m_config.remoteUser, host, m_config.remotePath, m_config.sshOptions, command);
                 String fullCommand = StringUtil.join(" ", command);
-                if (trace.get()) LOG.trace(fullCommand);
+                if (trace.get()) LOG.trace("START COORDINATOR: " + fullCommand);
                 m_coordPSM.startProcess("dtxn-" + host, command);
                 LOG.info("Started Dtxn.Coordinator on " + host);
             }
@@ -468,7 +473,7 @@ public class BenchmarkController {
                 LOG.info("Waiting for " + waiting + " HStoreSites to finish initialization");
                 
                 do {
-                    ProcessSetManager.OutputLine line = m_serverPSM.nextBlocking();
+                    ProcessSetManager.OutputLine line = m_sitePSM.nextBlocking();
                     if (line == null) break;
                     if (line.value.contains(HStoreSite.SITE_READY_MSG)) {
                         waiting--;
@@ -763,7 +768,7 @@ public class BenchmarkController {
 
         this.stop = true;
         m_clientPSM.prepareToShutdown();
-        m_serverPSM.prepareToShutdown();
+        m_sitePSM.prepareToShutdown();
         m_coordPSM.prepareToShutdown();
         
         // shut down all the clients
@@ -798,7 +803,7 @@ public class BenchmarkController {
         m_clientPSM.killAll();
 
         if (debug.get()) LOG.debug("Killing nodes");
-        m_serverPSM.killAll();
+        m_sitePSM.killAll();
         
         if (m_config.noCoordinator == false) {
             ThreadUtil.sleep(1000); // HACK
@@ -978,6 +983,9 @@ public class BenchmarkController {
         String applicationName = null;
         String subApplicationName = null;
         
+        // HStoreConf Path
+        String hstore_conf_path = null;
+        
         // Markov Stuff
         String markov_path = null;
         String thresholds_path = null;
@@ -1013,6 +1021,9 @@ public class BenchmarkController {
                 continue;
             } else if (parts[1].startsWith("${")) {
                 continue;
+            } else if (parts[0].equalsIgnoreCase("CONF")) {
+                hstore_conf_path = parts[1];
+                
             } else if (parts[0].equalsIgnoreCase("CHECKTRANSACTION")) {
                 /*
                  * Whether or not to check the result of each transaction.
@@ -1204,7 +1215,7 @@ public class BenchmarkController {
                 coordLogDir = parts[1];
                 FileUtil.makeDirIfNotExists(coordLogDir);
                 
-            } else if (parts[0].equalsIgnoreCase("NODE.LOG_DIR")) {
+            } else if (parts[0].equalsIgnoreCase("SITE.LOG_DIR")) {
                 siteLogDir = parts[1];
                 FileUtil.makeDirIfNotExists(siteLogDir);
                 
@@ -1216,6 +1227,10 @@ public class BenchmarkController {
         }
         assert(coordinatorHost != null) : "Missing CoordinatorHost";
 
+        // Initialize HStoreConf
+        assert(hstore_conf_path != null) : "Missing HStoreConf file";
+        HStoreConf.init(new File(hstore_conf_path));
+        
         if (duration < 1000) {
             System.err.println("Duration is specified in milliseconds");
             System.exit(-1);
@@ -1327,9 +1342,6 @@ public class BenchmarkController {
                 profileSiteIds,
                 markov_path,
                 thresholds_path,
-                clientLogDir,
-                siteLogDir,
-                coordLogDir,
                 dumpDatabase,
                 dumpDatabaseDir
         );

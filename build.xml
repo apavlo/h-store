@@ -1421,6 +1421,7 @@ BENCHMARKS
         <jvmarg value="-Dlog4j.configuration=${basedir}/log4j.properties"/>
         <assertions><enable/></assertions>
 
+        <arg value="conf=${properties}" />
         <arg value="CLIENTHEAP=${client.memory}" />
         <arg value="BACKEND=${backend}" />
         <arg value="HOSTCOUNT=${hostcount}" />
@@ -1458,7 +1459,7 @@ BENCHMARKS
         <arg value="benchmark.datadir=${benchmark.datadir}"/>
         
         <!-- Log Directories -->
-        <arg value="node.log_dir=${node.log_dir}" />
+        <arg value="site.log_dir=${site.log_dir}" />
         <arg value="coordinator.log_dir=${coordinator.log_dir}" />
         <arg value="client.log_dir=${client.log_dir}" />
 
@@ -1476,7 +1477,7 @@ BENCHMARKS
         <arg value="HOST=${host1}" />
         <arg value="CLIENTHOST=${client.host}" />
         <arg value="LISTENFORDEBUGGER=${debug}" />
-        <arg value="USEPROFILE=${node.useprofile}" />
+        <arg value="USEPROFILE=${site.useprofile}" />
         <arg value="CHECKTRANSACTION=${checktransaction}" />
         <arg value="CHECKTABLES=${checktables}" />
         <arg value="LOCAL=${local}" />
@@ -2207,7 +2208,7 @@ H-STORE REMIX
 
     <java fork="yes" classname="edu.mit.hstore.HStoreSite">
         <jvmarg value="-Dhstore.tag=site" />
-        <jvmarg value="-Xmx${node.memory}m" />
+        <jvmarg value="-Xmx${site.memory}m" />
         <jvmarg value="-Dlog4j.configuration=${basedir}/log4j.properties"/>
         <jvmarg value="-server" />
         <jvmarg value="-Djava.library.path=${build.dir}/nativelibs" />
@@ -2215,19 +2216,17 @@ H-STORE REMIX
 <!--        <jvmarg value="-XX:+UseParNewGC" /> -->
 <!--         <jvmarg value="-XX:+UseConcMarkSweepGC" /> -->
 
-        <jvmarg value="-Dhstore.preload=${node.preload}" />
+        <jvmarg value="-Dhstore.preload=${site.preload}" />
         <arg value="catalog.jar=${benchmark.jar}" />
-        <arg value="node.site=${node.site}" />
-        <arg value="node.force_singlepartition=${node.force_singlepartition}" />
-        <arg value="node.force_localexecution=${node.force_localexecution}" />
-        <arg value="node.force_neworderinspect=${node.force_neworderinspect}" />
-        <arg value="node.force_neworderinspect_done=${node.force_neworderinspect_done}" />
-        <arg value="node.enable_speculative_execution=${node.enable_speculative_execution}" />
-        <arg value="node.enable_db2_redirects=${node.enable_db2_redirects}" />
-        <arg value="node.cleanup_interval=${node.cleanup_interval}" />
-        <arg value="node.cleanup_txn_expire=${node.cleanup_txn_expire}" />
-        <arg value="node.enable_profiling=${node.enable_profiling}" />
-        <arg value="node.mispredict_crash=${node.mispredict_crash}" />
+        <arg value="conf=${properties}" />
+        <arg value="site.id=${site.id}" />
+        <arg value="site.exec_force_singlepartitioned=${site.exec_force_singlepartitioned}" />
+        <arg value="site.exec_force_localexecution=${site.exec_force_localexecution}" />
+        <arg value="site.exec_neworder_cheat=${site.exec_neworder_cheat}" />
+        <arg value="site.exec_neworder_cheat_done_partitions=${site.exec_neworder_cheat_done_partitions}" />
+        <arg value="site.exec_speculative_execution=${site.exec_speculative_execution}" />
+        <arg value="site.exec_db2_redirects=${site.exec_db2_redirects}" />
+        <arg value="site.enable_profiling=${site.enable_profiling}" />
         <arg value="coordinator.host=${coordinator.host}" />
         <arg value="coordinator.port=${coordinator.port}" />
         <arg value="dtxn.conf=${global.temp_dir}/dtxn.conf" />

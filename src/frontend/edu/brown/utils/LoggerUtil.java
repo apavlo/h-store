@@ -14,11 +14,11 @@ import org.apache.log4j.Logger;
  */
 public abstract class LoggerUtil {
 
-    private static final String log4j_filename = "log4j.properties";
-    private static File log4j_properties_file = null;
-    private static Thread refresh_thread = null;
-    private static long last_timestamp = 0;
-    private static final EventObservable observable = new EventObservable();
+    private static final String LOG4J_FILENAME = "log4j.properties";
+    private static File LOG4J_PROPERTIES_FILE = null;
+    private static Thread REFRESH_THREAD = null;
+    private static long LAST_TIMESTAMP = 0;
+    private static final EventObservable OBSERVABLE = new EventObservable();
     
     public static class LoggerBoolean {
         private boolean val;
@@ -26,13 +26,15 @@ public abstract class LoggerUtil {
         public LoggerBoolean(boolean val) {
             this.val = val;
         }
-        
         public boolean get() {
             return (this.val);
         }
-        
         public void set(boolean val) {
             this.val = val;
+        }
+        @Override
+        public String toString() {
+            return Boolean.toString(this.val);
         }
     }
     
@@ -75,17 +77,11 @@ public abstract class LoggerUtil {
     }
     
     public static void setupLogging() {
-        if (log4j_properties_file != null) return;
+        if (LOG4J_PROPERTIES_FILE != null) return;
         
         // Hack for testing...
         List<String> paths = new ArrayList<String>();
-        paths.add(System.getProperty("log4j.configuration", log4j_filename));
-        
-        // These probably aren't needed anymore
-        paths.add("/home/pavlo/Documents/H-Store/SVN-Brown/trunk/" + log4j_filename);
-        paths.add("/home/pavlo/Documents/H-Store/SVN-Brown/branches/markov-branch/" + log4j_filename);
-        paths.add("/host/work/hstore/src/" + log4j_filename);
-        paths.add("/research/hstore/sw47/trunk/" + log4j_filename);
+        paths.add(System.getProperty("log4j.configuration", LOG4J_FILENAME));
         
         for (String p : paths) {
             File file = new File(p);
@@ -97,7 +93,7 @@ public abstract class LoggerUtil {
         // Hack! Load in the root directory one. This is just hack to remove the
         // warning message from FileUtil
         try {
-            File findFile = FileUtil.findFile(log4j_filename);
+            File findFile = FileUtil.findFile(LOG4J_FILENAME);
             if (findFile != null && findFile.exists()) loadConfiguration(findFile);
         } catch (Exception ex) {
             ex.printStackTrace();
@@ -106,19 +102,21 @@ public abstract class LoggerUtil {
         LoggerUtil.refreshLogging(10000); // 180000l); // 3 min
     }
     
-    protected static void loadConfiguration(File file) {
-        org.apache.log4j.PropertyConfigurator.configure(file.getAbsolutePath());
-        Logger.getRootLogger().debug("Loaded log4j configuration file '" + file.getAbsolutePath() + "'");
-        log4j_properties_file = file;
-        last_timestamp = file.lastModified();
+    protected static synchronized void loadConfiguration(File file) {
+        if (LOG4J_PROPERTIES_FILE == null || LOG4J_PROPERTIES_FILE.equals(file) == false) {
+            org.apache.log4j.PropertyConfigurator.configure(file.getAbsolutePath());
+            Logger.getRootLogger().debug("Loaded log4j configuration file '" + file.getAbsolutePath() + "'");
+            LOG4J_PROPERTIES_FILE = file;
+            LAST_TIMESTAMP = file.lastModified();
+        }
     }
     
     public static void refreshLogging(final long interval) {
-        if (refresh_thread == null) {
+        if (REFRESH_THREAD == null) {
             Logger.getRootLogger().debug("Starting log4j refresh thread [update interval = " + interval + "]");
-            refresh_thread = new Thread() {
+            REFRESH_THREAD = new Thread() {
                 public void run() {
-                    if (log4j_properties_file == null) setupLogging();
+                    if (LOG4J_PROPERTIES_FILE == null) setupLogging();
                     Thread self = Thread.currentThread();
                     self.setName("LogCheck");
                     while (!self.isInterrupted()) {
@@ -128,20 +126,20 @@ public abstract class LoggerUtil {
                             break;
                         }
                         // Refresh our configuration if the file has changed
-                        if (log4j_properties_file != null && last_timestamp != log4j_properties_file.lastModified()) {
-                            loadConfiguration(log4j_properties_file);
-                            Logger.getRootLogger().info("Refreshed log4j configuration [" + log4j_properties_file.getAbsolutePath() + "]");
-                            LoggerUtil.observable.notifyObservers();
+                        if (LOG4J_PROPERTIES_FILE != null && LAST_TIMESTAMP != LOG4J_PROPERTIES_FILE.lastModified()) {
+                            loadConfiguration(LOG4J_PROPERTIES_FILE);
+                            Logger.getRootLogger().info("Refreshed log4j configuration [" + LOG4J_PROPERTIES_FILE.getAbsolutePath() + "]");
+                            LoggerUtil.OBSERVABLE.notifyObservers();
                         }
                     }
                 }
             };
-            refresh_thread.setPriority(Thread.MIN_PRIORITY);
-            refresh_thread.setDaemon(true);
-            refresh_thread.start();
+            REFRESH_THREAD.setPriority(Thread.MIN_PRIORITY);
+            REFRESH_THREAD.setDaemon(true);
+            REFRESH_THREAD.start();
             
             // We need to update all of our observers the first time
-            LoggerUtil.observable.notifyObservers();
+            LoggerUtil.OBSERVABLE.notifyObservers();
         }
     }
     
@@ -155,6 +153,7 @@ public abstract class LoggerUtil {
     }
     
     public static void attachObserver(EventObserver observer) {
-        LoggerUtil.observable.addObserver(observer);
+        observer.update(null, null);
+        LoggerUtil.OBSERVABLE.addObserver(observer);
     }
 }
