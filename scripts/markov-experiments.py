@@ -34,43 +34,43 @@ PARTITIONS = [ 4, 8, 16, 32, 64 ] # , 128 ]
 EXPERIMENT_PARAMS = [
     ## Trial #0 - Always single-partition, DB2 redirects
     {
-        "node.force_singlepartition":        True,
-        "node.force_neworderinspect":        False,
-        "node.force_neworderinspect_done":   False,
-        "node.enable_db2_redirects":         False,
-        "node.enable_speculative_execution": False,
+        "site.exec_force_singlepartitioned":        True,
+        "site.exec_neworder_cheat":        False,
+        "site.exec_neworder_cheat_done":   False,
+        "site.exec_db2_redirects":         False,
+        "site.exec_speculative_execution": False,
     },
     ## Trial #1 - NewOrder Only, Only determines whether multi-p or not
     {
-        "node.force_singlepartition":        False,
-        "node.force_neworderinspect":        True,
-        "node.force_neworderinspect_done":   False,
-        "node.enable_db2_redirects":         False,
-        "node.enable_speculative_execution": False,
+        "site.exec_force_singlepartitioned":        False,
+        "site.exec_neworder_cheat":        True,
+        "site.exec_neworder_cheat_done":   False,
+        "site.exec_db2_redirects":         False,
+        "site.exec_speculative_execution": False,
     },
     ## Trial #2 - NewOrder Only, Pick partitions, Mark Done
     {
-        "node.force_singlepartition":        False,
-        "node.force_neworderinspect":        True,
-        "node.force_neworderinspect_done":   True,
-        "node.enable_db2_redirects":         False,
-        "node.enable_speculative_execution": False,
+        "site.exec_force_singlepartitioned":        False,
+        "site.exec_neworder_cheat":        True,
+        "site.exec_neworder_cheat_done":   True,
+        "site.exec_db2_redirects":         False,
+        "site.exec_speculative_execution": False,
     },
     ## Trial #3 - Always multi-partition (worst case scenario)
     {
-        "node.force_singlepartition":        False,
-        "node.force_neworderinspect":        False,
-        "node.force_neworderinspect_done":   False,
-        "node.enable_db2_redirects":         False,
-        "node.enable_speculative_execution": False,
+        "site.exec_force_singlepartitioned":        False,
+        "site.exec_neworder_cheat":        False,
+        "site.exec_neworder_cheat_done":   False,
+        "site.exec_db2_redirects":         False,
+        "site.exec_speculative_execution": False,
     },
     ## Trial #4 - Markov Models
     {
-        "node.force_singlepartition":        False,
-        "node.force_neworderinspect":        False,
-        "node.force_neworderinspect_done":   False,
-        "node.enable_db2_redirects":         False,
-        "node.enable_speculative_execution": True,
+        "site.exec_force_singlepartitioned":        False,
+        "site.exec_neworder_cheat":        False,
+        "site.exec_neworder_cheat_done":   False,
+        "site.exec_db2_redirects":         False,
+        "site.exec_speculative_execution": True,
     },
 ]
 OPT_NODE_FORMAT = "d-%02d.cs.wisc.edu"
@@ -180,7 +180,7 @@ if __name__ == '__main__':
         site_id = 0
         node_idx = 0
         
-        cluster_file = "/tmp/hstore-%dp.cluster" % num_partitions
+        cluster_file = "/tmp/hstore/%dp.cluster" % num_partitions
         with open(cluster_file, "w") as fd:
             while nodes_added < num_nodes:
                 node_id = SITE_ALL_NODES[node_idx]
@@ -213,7 +213,7 @@ if __name__ == '__main__':
         
         base_opts = {
             "project":      OPT_BENCHMARK,
-            "cluster":      cluster_file,
+            "hosts":      cluster_file,
         }
         base_opts_cmd = " ".join(map(lambda x: "-D%s=%s" % (x, base_opts[x]), base_opts.keys()))
         cmd = "ant hstore-jar " + base_opts_cmd
@@ -262,8 +262,8 @@ if __name__ == '__main__':
             benchmark_opts["benchmark.neworder_only"] = True
 
         exp_opts = EXPERIMENT_PARAMS[OPT_EXPERIMENT]
-        exp_opts["node.mispredict_crash"] = False
-        exp_opts["node.statusinterval"] = 20
+        exp_opts["site.mispredict_crash"] = False
+        exp_opts["site.statusinterval"] = 20
 
         hstore_opts = dict(hstore_opts.items() + exp_opts.items())
         hstore_opts_cmd = " ".join(map(lambda x: "-D%s=%s" % (x, hstore_opts[x]), hstore_opts.keys()))

@@ -194,8 +194,10 @@ public class HStoreMessenger implements Shutdownable {
      */
     @Override
     public void prepareShutdown() {
-        assert(this.state == State.STARTED) : "Invalid MessengerState " + this.state;
-        this.state = State.PREPARE_SHUTDOWN;
+        if (this.state != State.PREPARE_SHUTDOWN) {
+            assert(this.state == State.STARTED) : "Invalid MessengerState " + this.state;
+            this.state = State.PREPARE_SHUTDOWN;
+        }
     }
     
     /**
