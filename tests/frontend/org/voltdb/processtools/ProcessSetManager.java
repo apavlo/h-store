@@ -289,6 +289,7 @@ public class ProcessSetManager {
             out.write(data);
             out.flush();
         } catch (IOException e) {
+            if (processName.contains("client-")) return;
             if (this.shutting_down == false) {
                 String msg = "";
                 if (data.trim().isEmpty()) {

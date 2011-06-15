@@ -410,7 +410,13 @@ public class HStoreMessenger implements Shutdownable {
                     // it back to whomever told us about this txn
                     if (t) LOG.trace("Passing " + type.name() + " information to HStoreSite");
                     byte serializedRequest[] = request.getData().toByteArray();
-                    ForwardTxnResponseCallback callback = new ForwardTxnResponseCallback(dest_site_id, sender_site_id, done);
+                    ForwardTxnResponseCallback callback = null;
+                    try {
+                        callback = (ForwardTxnResponseCallback)HStoreSite.POOL_FORWARDTXN_RESPONSE.borrowObject();
+                        callback.init(dest_site_id, sender_site_id, done);
+                    } catch (Exception ex) {
+                        throw new RuntimeException("Failed to get ForwardTxnResponseCallback", ex);
+                    }
                     HStoreMessenger.this.hstore_site.procedureInvocation(serializedRequest, callback);
                     break;
                 }

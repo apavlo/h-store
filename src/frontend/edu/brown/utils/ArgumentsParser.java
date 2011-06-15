@@ -75,6 +75,9 @@ public class ArgumentsParser {
     public static final String PARAM_CATALOG_TYPE           = PARAM_CATALOG + ".type";
     public static final String PARAM_CATALOG_SCHEMA         = PARAM_CATALOG + ".schema";
     
+    public static final String PARAM_CONF                   = "conf";
+    public static final String PARAM_CONF_OUTPUT            = PARAM_CONF + ".output";
+    
     public static final String PARAM_WORKLOAD               = "workload";
     public static final String PARAM_WORKLOAD_XACT_LIMIT    = PARAM_WORKLOAD + ".xactlimit";
     public static final String PARAM_WORKLOAD_XACT_OFFSET   = PARAM_WORKLOAD + ".xactoffset";
@@ -140,24 +143,24 @@ public class ArgumentsParser {
     public static final String PARAM_COORDINATOR_PORT       = PARAM_COORDINATOR + ".port";
     public static final String PARAM_COORDINATOR_PARTITION  = PARAM_COORDINATOR + ".partition";
 
-    private static final String PARAM_NODE                  = "node";
-    public static final String PARAM_NODE_HOST              = PARAM_NODE + ".host";
-    public static final String PARAM_NODE_PORT              = PARAM_NODE + ".port";
-    public static final String PARAM_NODE_PARTITION         = PARAM_NODE + ".partition";
-    public static final String PARAM_NODE_SITE              = PARAM_NODE + ".site";
-    public static final String PARAM_NODE_IGNORE_DTXN       = PARAM_NODE + ".ignore_dtxn";
-    public static final String PARAM_NODE_ENABLE_SPECULATIVE_EXECUTION = PARAM_NODE + ".enable_speculative_execution";
-    public static final String PARAM_NODE_ENABLE_DB2_REDIRECTS = PARAM_NODE + ".enable_db2_redirects";
-    public static final String PARAM_NODE_FORCE_SINGLEPARTITION = PARAM_NODE + ".force_singlepartition";
-    public static final String PARAM_NODE_FORCE_LOCALEXECUTION = PARAM_NODE + ".force_localexecution";
-    public static final String PARAM_NODE_FORCE_NEWORDERINSPECT = PARAM_NODE + ".force_neworderinspect";
-    public static final String PARAM_NODE_FORCE_NEWORDERINSPECT_DONE = PARAM_NODE + ".force_neworderinspect_done";
-    public static final String PARAM_NODE_STATUS_INTERVAL   = PARAM_NODE + ".statusinterval";
-    public static final String PARAM_NODE_STATUS_INTERVAL_KILL   = PARAM_NODE + ".statusinterval_kill";
-    public static final String PARAM_NODE_CLEANUP_INTERVAL = PARAM_NODE + ".cleanup_interval";
-    public static final String PARAM_NODE_CLEANUP_TXN_EXPIRE = PARAM_NODE + ".cleanup_txn_expire";
-    public static final String PARAM_NODE_ENABLE_PROFILING  = PARAM_NODE + ".enable_profiling";
-    public static final String PARAM_NODE_MISPREDICT_CRASH  = PARAM_NODE + ".mispredict_crash";
+    private static final String PARAM_SITE                  = "site";
+    public static final String PARAM_SITE_HOST              = PARAM_SITE + ".host";
+    public static final String PARAM_SITE_PORT              = PARAM_SITE + ".port";
+    public static final String PARAM_SITE_PARTITION         = PARAM_SITE + ".partition";
+    public static final String PARAM_SITE_ID              = PARAM_SITE + ".id";
+    public static final String PARAM_SITE_IGNORE_DTXN       = PARAM_SITE + ".ignore_dtxn";
+    public static final String PARAM_SITE_ENABLE_SPECULATIVE_EXECUTION = PARAM_SITE + ".exec_speculative_execution";
+    public static final String PARAM_SITE_ENABLE_DB2_REDIRECTS = PARAM_SITE + ".exec_db2_redirects";
+    public static final String PARAM_SITE_FORCE_SINGLEPARTITION = PARAM_SITE + ".exec_force_singlepartitioned";
+    public static final String PARAM_SITE_FORCE_LOCALEXECUTION = PARAM_SITE + ".exec_force_localexecution";
+    public static final String PARAM_SITE_FORCE_NEWORDERINSPECT = PARAM_SITE + ".exec_neworder_cheat";
+    public static final String PARAM_SITE_FORCE_NEWORDERINSPECT_DONE = PARAM_SITE + ".exec_neworder_cheat_done_partitions";
+    public static final String PARAM_SITE_STATUS_INTERVAL   = PARAM_SITE + ".statusinterval";
+    public static final String PARAM_SITE_STATUS_INTERVAL_KILL   = PARAM_SITE + ".statusinterval_kill";
+    public static final String PARAM_SITE_CLEANUP_INTERVAL = PARAM_SITE + ".cleanup_interval";
+    public static final String PARAM_SITE_CLEANUP_TXN_EXPIRE = PARAM_SITE + ".cleanup_txn_expire";
+    public static final String PARAM_SITE_ENABLE_PROFILING  = PARAM_SITE + ".enable_profiling";
+    public static final String PARAM_SITE_MISPREDICT_CRASH  = PARAM_SITE + ".mispredict_crash";
     
     private static final String PARAM_DTXN                  = "dtxn";
     public static final String PARAM_DTXN_CONF              = PARAM_DTXN + ".conf";
@@ -327,6 +330,13 @@ public class ArgumentsParser {
         String val = this.params.get(key);
         Boolean ret = null;
         if (val != null) ret = Boolean.valueOf(val);
+        return (ret);
+    }
+    
+    public File getFileParam(String key) {
+        String val = this.params.get(key);
+        File ret = null;
+        if (val != null) ret = new File(val);
         return (ret);
     }
     

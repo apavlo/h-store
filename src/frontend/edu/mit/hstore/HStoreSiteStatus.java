@@ -31,7 +31,7 @@ import edu.mit.hstore.interfaces.Shutdownable;
 public class HStoreSiteStatus implements Runnable, Shutdownable {
     private static final Logger LOG = Logger.getLogger(HStoreSiteStatus.class);
     
-    private static final String POOL_FORMAT = "Active:%-5d / Idle:%-5d / Created:%-5d / Passivated:%-5d / Destroyed:%-5d";
+    private static final String POOL_FORMAT = "Active:%-5d / Idle:%-5d / Created:%-5d / Destroyed:%-5d / Passivated:%-7d";
     
     private final HStoreSite hstore_site;
     private final HStoreConf hstore_conf;
@@ -109,7 +109,7 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
     }
     
     private void printSnapshot() {
-        System.err.println("SNAPSHOT #" + this.snapshot_ctr.incrementAndGet() + "\n" +
+        LOG.info("SNAPSHOT #" + this.snapshot_ctr.incrementAndGet() + "\n" +
                  StringUtil.box(this.snapshot(hstore_conf.site.status_show_txn_info,
                                               hstore_conf.site.status_show_executor_info,
                                               hstore_conf.site.status_show_thread_info,
@@ -215,7 +215,7 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
         m_pool.clear();
         if (show_poolinfo) {
             // BatchPlanners
-            m_pool.put("BatchPlanners", ExecutionSite.batch_planners.size());
+            m_pool.put("BatchPlanners", ExecutionSite.POOL_BATCH_PLANNERS.size());
 
             // MarkovPathEstimators
             StackObjectPool pool = (StackObjectPool)TransactionEstimator.getEstimatorPool();
@@ -233,9 +233,14 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
             m_pool.put("DependencyInfos", this.formatPoolCounts(pool, factory));
             
             // ForwardTxnRequestCallbacks
-            pool = (StackObjectPool)this.hstore_site.forwardtxn_pool;
+            pool = (StackObjectPool)HStoreSite.POOL_FORWARDTXN_REQUEST;
             factory = (CountingPoolableObjectFactory<?>)pool.getFactory();
             m_pool.put("ForwardTxnRequests", this.formatPoolCounts(pool, factory));
+            
+            // ForwardTxnResponseCallbacks
+            pool = (StackObjectPool)HStoreSite.POOL_FORWARDTXN_RESPONSE;
+            factory = (CountingPoolableObjectFactory<?>)pool.getFactory();
+            m_pool.put("ForwardTxnResponses", this.formatPoolCounts(pool, factory));
             
             // BatchPlans
             int active = 0;
@@ -243,7 +248,7 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
             int created = 0;
             int passivated = 0;
             int destroyed = 0;
-            for (BatchPlanner bp : ExecutionSite.batch_planners.values()) {
+            for (BatchPlanner bp : ExecutionSite.POOL_BATCH_PLANNERS.values()) {
                 pool = (StackObjectPool)bp.getBatchPlanPool();
                 factory = (CountingPoolableObjectFactory<?>)pool.getFactory();
                 
@@ -253,7 +258,7 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
                 passivated += factory.getPassivatedCount();
                 destroyed += factory.getDestroyedCount();
             } // FOR
-            m_pool.put("BatchPlans", String.format(POOL_FORMAT, active, idle, created, passivated, destroyed));
+            m_pool.put("BatchPlans", String.format(POOL_FORMAT, active, idle, created, destroyed, passivated));
             
             // Partition Specific
             String labels[] = new String[] {
@@ -285,7 +290,7 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
             } // FOR
             
             for (int i = 0, cnt = labels.length; i < cnt; i++) {
-                m_pool.put(labels[i], String.format(POOL_FORMAT, total_active[i], total_idle[i], total_created[i], total_passivated[i], total_destroyed[i]));
+                m_pool.put(labels[i], String.format(POOL_FORMAT, total_active[i], total_idle[i], total_created[i], total_destroyed[i], total_passivated[i]));
             } // FOR
         }
         return (StringUtil.formatMaps(header, m_exec, m_txn, m_thread, m_pool));
@@ -295,7 +300,7 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
         return (String.format(POOL_FORMAT, pool.getNumActive(),
                                            pool.getNumIdle(),
                                            factory.getCreatedCount(),
-                                           factory.getPassivatedCount(),
-                                           factory.getDestroyedCount()));
+                                           factory.getDestroyedCount(),
+                                           factory.getPassivatedCount()));
     }
 } // END CLASS

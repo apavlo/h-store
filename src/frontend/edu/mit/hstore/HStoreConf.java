@@ -11,20 +11,12 @@ import java.util.regex.Pattern;
 import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.commons.configuration.PropertiesConfiguration;
 import org.apache.log4j.Logger;
-import org.voltdb.BatchPlanner;
-import org.voltdb.ExecutionSite;
 import org.voltdb.catalog.Site;
 
-import edu.brown.markov.MarkovPathEstimator;
-import edu.brown.markov.TransactionEstimator;
 import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.ClassUtil;
 import edu.brown.utils.CollectionUtil;
-import edu.brown.utils.CountingPoolableObjectFactory;
 import edu.brown.utils.StringUtil;
-import edu.mit.hstore.dtxn.DependencyInfo;
-import edu.mit.hstore.dtxn.LocalTransactionState;
-import edu.mit.hstore.dtxn.RemoteTransactionState;
 import edu.mit.hstore.interfaces.ConfigProperty;
 
 public final class HStoreConf {
@@ -67,6 +59,8 @@ public final class HStoreConf {
                     value = e.getValue().defaultBoolean();
                 } else if (f_class.equals(String.class)) {
                     value = e.getValue().defaultString();
+                } else {
+                    LOG.warn(String.format("Unexpected default value type '%s' for property '%s.%s'", f_class.getSimpleName(), this.prefix, f.getName()));
                 }
                 
                 try {
@@ -77,21 +71,25 @@ public final class HStoreConf {
 //                System.err.println(String.format("%-20s = %s", f.getName(), value));
             } // FOR   
         }
-        
+
         @Override
         public String toString() {
+            return (this.toString(false, false));
+        }
+        
+        public String toString(boolean advanced, boolean experimental) {
             final Map<String, Object> m = new TreeMap<String, Object>();
             for (Entry<Field, ConfigProperty> e : this.properties.entrySet()) {
-                Field f = e.getKey();
                 ConfigProperty cp = e.getValue();
-                String key = f.getName().toUpperCase();
+                if (advanced == false && cp.advanced()) continue;
+                if (experimental == false && cp.experimental()) continue;
                 
-                if (cp.advanced() == false) {
-                    try {
-                        m.put(key, f.get(this));
-                    } catch (IllegalAccessException ex) {
-                        m.put(key, ex.getMessage());
-                    }
+                Field f = e.getKey();
+                String key = f.getName().toUpperCase();
+                try {
+                    m.put(key, f.get(this));
+                } catch (IllegalAccessException ex) {
+                    m.put(key, ex.getMessage());
                 }
             }
             return (StringUtil.formatMaps(m));
@@ -135,6 +133,13 @@ public final class HStoreConf {
             advanced=false
         )
         public String log_dir = HStoreConf.this.global.temp_dir + "/logs/sites";
+        
+        @ConfigProperty(
+            description="The amount of memory to allocate for each site process (in MB)",
+            defaultInt=1024,
+            advanced=false
+        )
+        public int memory;
 
         // ----------------------------------------------------------------------------
         // Execution Options
@@ -209,14 +214,6 @@ public final class HStoreConf {
             advanced=true
         )
         public boolean exec_neworder_cheat_done_partitions;
-        
-        @ConfigProperty(
-            description="Enable txn profiling.",
-            defaultBoolean=false,
-            advanced=true,
-            experimental=true
-        )
-        public boolean exec_txn_profiling;
     
         @ConfigProperty(
             description="Whether the VoltProcedure should crash the HStoreSite on a mispredict.",
@@ -272,6 +269,14 @@ public final class HStoreConf {
         )
         public int txn_queue_release;  
         
+        @ConfigProperty(
+            description="Enable transaction profiling.",
+            defaultBoolean=false,
+            advanced=true,
+            experimental=true
+        )
+        public boolean txn_profiling;
+        
         // ----------------------------------------------------------------------------
         // Markov Transaction Estimator Options
         // ----------------------------------------------------------------------------
@@ -306,7 +311,7 @@ public final class HStoreConf {
         
         @ConfigProperty(
             description="How many ms to wait before the ExecutionSiteHelper executes again to clean up txns",
-            defaultInt=1000,
+            defaultInt=100,
             advanced=true
         )
         public int helper_interval;
@@ -321,7 +326,7 @@ public final class HStoreConf {
         
         @ConfigProperty(
             description="How long should the ExecutionSiteHelper wait before cleaning up a txn's state",
-            defaultInt=1000,
+            defaultInt=500,
             advanced=true
         )
         public int helper_txn_expire;
@@ -469,17 +474,31 @@ public final class HStoreConf {
         public int pool_preload_dependency_infos;
         
         @ConfigProperty(
-            description="The max number of ForwardTxnRequestCallbacks to keep in the pool",
+            description="The max number of ForwardTxnRequestCallbacks to keep idle in the pool",
             defaultInt=1500,
             advanced=false
         )
         public int pool_forwardtxnrequests_idle;
+        
+        @ConfigProperty(
+            description="The max number of ForwardTxnResponseCallbacks to keep idle in the pool.",
+            defaultInt=1500,
+            advanced=false
+        )
+        public int pool_forwardtxnresponses_idle;
     }
 
     // ============================================================================
     // COORDINATOR
     // ============================================================================
     public final class CoordinatorConf extends Conf {
+        
+        @ConfigProperty(
+            description="Dtxn.Coordinator Log Directory",
+            defaultString="${global.temp_dir}/logs/coordinator",
+            advanced=false
+        )
+        public String log_dir = HStoreConf.this.global.temp_dir + "/logs/coordinator";
         
         @ConfigProperty(
             description="The hostname to deploy the Dtxn.Coordinator on in the cluster.",
@@ -502,12 +521,7 @@ public final class HStoreConf {
         )
         public int delay;
 
-        @ConfigProperty(
-            description="Dtxn.Coordinator Log Directory",
-            defaultString="${global.temp_dir}/logs/coordinator",
-            advanced=false
-        )
-        public String log_dir = HStoreConf.this.global.temp_dir + "/logs/coordinator";
+
         
     }
     
@@ -515,75 +529,117 @@ public final class HStoreConf {
     // CLIENT
     // ============================================================================
     public final class ClientConf extends Conf {
-        /**
-         * The amount of memory to allocate for each client process (in MB)
-         */
-        public int memory = 512;
+        
+        @ConfigProperty(
+            description="Benchmark client log directory",
+            defaultString="${global.temp_dir}/logs/clients",
+            advanced=false
+        )
+        public String log_dir = HStoreConf.this.global.temp_dir + "/logs/clients";
+        
+        @ConfigProperty(
+            description="The amount of memory to allocate for each client process (in MB)",
+            defaultInt=512,
+            advanced=false
+        )
+        public int memory;
 
-        /**
-         * Default client host name
-         */
+        @ConfigProperty(
+            description="Default client host name",
+            defaultString="${global.defaulthost}",
+            advanced=false
+        )
         public String host = HStoreConf.this.global.defaulthost;
 
-        /**
-         * The number of txns that each client submits (per ms)
-         * Actual TXN rate sent to cluster will be:
-         * TXNRATE * CLIENTCOUNT * PROCESSESPERCLIENT
-         */
-        public int txnrate = 10000;
+        @ConfigProperty(
+            description="The number of txns that client process submits (per ms). If ${client.blocking} " +
+                        "is disabled, then the total transaction rate for a benchmark run is " +
+                        "${client.txnrate} * ${client.processesperclient} * ${client.count}.",
+            defaultInt=10000,
+            advanced=false
+        )
+        public int txnrate;
 
-        /**
-         * Number of processes to use per client
-         */
-        public int processesperclient = 1;
+        @ConfigProperty(
+            description="Number of processes to use per client host.",
+            defaultInt=1,
+            advanced=false
+        )
+        public int processesperclient;
 
-        /**
-         * Number of clients
-         */
-        public int count = 1;
+        @ConfigProperty(
+            description="Number of clients hosts to use in the benchmark run.",
+            defaultInt=1,
+            advanced=false
+        )
+        public int count;
 
-        /**
-         * How long should the client run (in ms)
-         */
-        public int duration = 60000;
+        @ConfigProperty(
+            description="How long should the benchmark trial run (in milliseconds). Does not " +
+                        "include ${client.warmup time}.",
+            defaultInt=60000,
+            advanced=false
+        )
+        public int duration;
 
-        /**
-         * How long should the system be allowed to warmup?
-         * Any stats collected during this period are not counted.
-         */
-        public int warmup = 0;
+        @ConfigProperty(
+            description="How long should the system be allowed to warmup (in milliseconds). Any stats " +
+                        "collected during this period are not counted in the final totals.",
+            defaultInt=0,
+            advanced=false
+        )
+        public int warmup;
 
-        /**
-         * Polling interval (ms)
-         */
-        public int interval = 10000;
+        @ConfigProperty(
+            description="How often (in milliseconds) should the BenchmarkController poll the individual " +
+                        "client processes and get their intermediate results.",
+            defaultInt=10000,
+            advanced=false
+        )
+        public int interval;
 
-        /**
-         * Whether to use the BlockingClient
-         */
-        public boolean blocking = false;
+        @ConfigProperty(
+            description="Whether to use the BlockingClient. When this is true, then each client process will " +
+                        "submit one transaction at a time and wait until the result is returned before " +
+                        "submitting the next. The clients still follow the ${client.txnrate} parameter.",
+            defaultBoolean=false,
+            advanced=false
+        )
+        public boolean blocking;
 
-        /**
-         * Scale Factor
-         */
-        public int scalefactor = 10;
+        @ConfigProperty(
+            description="The scaling factor determines how large to make the target benchmark’s data set. " +
+                        "A scalefactor less than one makes the data set larger, while greater than one " +
+                        "makes it smaller. Implementation depends on benchmark specification.",
+            defaultInt=10,
+            advanced=false
+        )
+        public int scalefactor;
 
-        /**
-         * Skew Factor
-         */
-        public double skewfactor = 0.0;
+        @ConfigProperty(
+            description="How much skew to use when generating the benchmark data set. " +
+                        "Default is zero (no skew). The amount skew gets larger for values " +
+                        "greater than one. Implementation depends on benchmark specification. ",
+            defaultDouble=0.0,
+            experimental=true
+        )
+        public double skewfactor;
 
-        /**
-         * Temporal Skew
-         * Define the number of partitions used in a skew block
-         */
-        public int temporalwindow = 0;
-        public int temporaltotal = 100;
-
-        /**
-         * Client Log Directory
-         */
-        public String log_dir = HStoreConf.this.global.temp_dir + "/logs/clients";
+        @ConfigProperty(
+            description="Used to define the amount of temporal skew in the benchmark data set. " +
+                        "Implementation depends on benchmark specification.",
+            defaultInt=0,
+            experimental=true
+        )
+        public int temporalwindow;
+        
+        @ConfigProperty(
+            description="Used to define the amount of temporal skew in the benchmark data set. " +
+                        "Implementation depends on benchmark specification.",
+            defaultInt=100,
+            experimental=true
+        )
+        public int temporaltotal;
 
         /**
          * If this enabled, then each DBMS will dump their entire database contents into
@@ -621,15 +677,24 @@ public final class HStoreConf {
     // METHODS
     // ----------------------------------------------------------------------------
 
+    private HStoreConf(File f) {
+        this.loadFromFile(f);
+    }
+    
     /**
      * Constructor
      */
     private HStoreConf(ArgumentsParser args, Site catalog_site) {
         if (args != null) {
             
+            // Configuration File
+            if (args.hasParam(ArgumentsParser.PARAM_CONF)) {
+                this.loadFromFile(args.getFileParam(ArgumentsParser.PARAM_CONF));
+            }
+            
             // Ignore the Dtxn.Coordinator
-            if (args.hasBooleanParam(ArgumentsParser.PARAM_NODE_IGNORE_DTXN)) {
-                site.exec_avoid_coordinator = args.getBooleanParam(ArgumentsParser.PARAM_NODE_IGNORE_DTXN);
+            if (args.hasBooleanParam(ArgumentsParser.PARAM_SITE_IGNORE_DTXN)) {
+                site.exec_avoid_coordinator = args.getBooleanParam(ArgumentsParser.PARAM_SITE_IGNORE_DTXN);
                 if (site.exec_avoid_coordinator) LOG.info("Ignoring the Dtxn.Coordinator for all single-partition transactions");
             }
 //            // Enable speculative execution
@@ -638,48 +703,48 @@ public final class HStoreConf {
 //                if (site.exec_speculative_execution) LOG.info("Enabling speculative execution");
 //            }
             // Enable DB2-style txn redirecting
-            if (args.hasBooleanParam(ArgumentsParser.PARAM_NODE_ENABLE_DB2_REDIRECTS)) {
-                site.exec_db2_redirects = args.getBooleanParam(ArgumentsParser.PARAM_NODE_ENABLE_DB2_REDIRECTS);
+            if (args.hasBooleanParam(ArgumentsParser.PARAM_SITE_ENABLE_DB2_REDIRECTS)) {
+                site.exec_db2_redirects = args.getBooleanParam(ArgumentsParser.PARAM_SITE_ENABLE_DB2_REDIRECTS);
                 if (site.exec_db2_redirects) LOG.info("Enabling DB2-style transaction redirects");
             }
             // Force all transactions to be single-partitioned
-            if (args.hasBooleanParam(ArgumentsParser.PARAM_NODE_FORCE_SINGLEPARTITION)) {
-                site.exec_force_singlepartitioned = args.getBooleanParam(ArgumentsParser.PARAM_NODE_FORCE_SINGLEPARTITION);
+            if (args.hasBooleanParam(ArgumentsParser.PARAM_SITE_FORCE_SINGLEPARTITION)) {
+                site.exec_force_singlepartitioned = args.getBooleanParam(ArgumentsParser.PARAM_SITE_FORCE_SINGLEPARTITION);
                 if (site.exec_force_singlepartitioned) LOG.info("Forcing all transactions to execute as single-partitioned");
             }
             // Force all transactions to be executed at the first partition that the request arrives on
-            if (args.hasBooleanParam(ArgumentsParser.PARAM_NODE_FORCE_LOCALEXECUTION)) {
-                site.exec_force_localexecution = args.getBooleanParam(ArgumentsParser.PARAM_NODE_FORCE_LOCALEXECUTION);
+            if (args.hasBooleanParam(ArgumentsParser.PARAM_SITE_FORCE_LOCALEXECUTION)) {
+                site.exec_force_localexecution = args.getBooleanParam(ArgumentsParser.PARAM_SITE_FORCE_LOCALEXECUTION);
                 if (site.exec_force_localexecution) LOG.info("Forcing all transactions to execute at the partition they arrive on");
             }
             // Enable the "neworder" parameter hashing hack for the VLDB paper
-            if (args.hasBooleanParam(ArgumentsParser.PARAM_NODE_FORCE_NEWORDERINSPECT)) {
-                site.exec_neworder_cheat = args.getBooleanParam(ArgumentsParser.PARAM_NODE_FORCE_NEWORDERINSPECT);
-                if (site.exec_neworder_cheat) LOG.info("Enabling the inspection of incoming neworder parameters");
-            }
-            // Enable setting the done partitions for the "neworder" parameter hashing hack for the VLDB paper
-            if (args.hasBooleanParam(ArgumentsParser.PARAM_NODE_FORCE_NEWORDERINSPECT_DONE)) {
-                site.exec_neworder_cheat_done_partitions = args.getBooleanParam(ArgumentsParser.PARAM_NODE_FORCE_NEWORDERINSPECT_DONE);
-                if (site.exec_neworder_cheat_done_partitions) LOG.info("Enabling the setting of done partitions for neworder inspection");
-            }
+//            if (args.hasBooleanParam(ArgumentsParser.PARAM_NODE_FORCE_NEWORDERINSPECT)) {
+//                site.exec_neworder_cheat = args.getBooleanParam(ArgumentsParser.PARAM_NODE_FORCE_NEWORDERINSPECT);
+//                if (site.exec_neworder_cheat) LOG.info("Enabling the inspection of incoming neworder parameters");
+//            }
+//            // Enable setting the done partitions for the "neworder" parameter hashing hack for the VLDB paper
+//            if (args.hasBooleanParam(ArgumentsParser.PARAM_NODE_FORCE_NEWORDERINSPECT_DONE)) {
+//                site.exec_neworder_cheat_done_partitions = args.getBooleanParam(ArgumentsParser.PARAM_NODE_FORCE_NEWORDERINSPECT_DONE);
+//                if (site.exec_neworder_cheat_done_partitions) LOG.info("Enabling the setting of done partitions for neworder inspection");
+//            }
             // Clean-up Interval
-            if (args.hasIntParam(ArgumentsParser.PARAM_NODE_CLEANUP_INTERVAL)) {
-                site.helper_interval = args.getIntParam(ArgumentsParser.PARAM_NODE_CLEANUP_INTERVAL);
+            if (args.hasIntParam(ArgumentsParser.PARAM_SITE_CLEANUP_INTERVAL)) {
+                site.helper_interval = args.getIntParam(ArgumentsParser.PARAM_SITE_CLEANUP_INTERVAL);
                 LOG.debug("Setting Cleanup Interval = " + site.helper_interval + "ms");
             }
             // Txn Expiration Time
-            if (args.hasIntParam(ArgumentsParser.PARAM_NODE_CLEANUP_TXN_EXPIRE)) {
-                site.helper_txn_expire = args.getIntParam(ArgumentsParser.PARAM_NODE_CLEANUP_TXN_EXPIRE);
+            if (args.hasIntParam(ArgumentsParser.PARAM_SITE_CLEANUP_TXN_EXPIRE)) {
+                site.helper_txn_expire = args.getIntParam(ArgumentsParser.PARAM_SITE_CLEANUP_TXN_EXPIRE);
                 LOG.debug("Setting Cleanup Txn Expiration = " + site.helper_txn_expire + "ms");
             }
             // Profiling
-            if (args.hasBooleanParam(ArgumentsParser.PARAM_NODE_ENABLE_PROFILING)) {
-                site.exec_txn_profiling = args.getBooleanParam(ArgumentsParser.PARAM_NODE_ENABLE_PROFILING);
-                if (site.exec_txn_profiling) LOG.info("Enabling procedure profiling");
+            if (args.hasBooleanParam(ArgumentsParser.PARAM_SITE_ENABLE_PROFILING)) {
+                site.txn_profiling = args.getBooleanParam(ArgumentsParser.PARAM_SITE_ENABLE_PROFILING);
+                if (site.txn_profiling) LOG.info("Enabling procedure profiling");
             }
             // Mispredict Crash
-            if (args.hasBooleanParam(ArgumentsParser.PARAM_NODE_MISPREDICT_CRASH)) {
-                site.exec_mispredict_crash = args.getBooleanParam(ArgumentsParser.PARAM_NODE_MISPREDICT_CRASH);
+            if (args.hasBooleanParam(ArgumentsParser.PARAM_SITE_MISPREDICT_CRASH)) {
+                site.exec_mispredict_crash = args.getBooleanParam(ArgumentsParser.PARAM_SITE_MISPREDICT_CRASH);
                 if (site.exec_mispredict_crash) LOG.info("Enabling crashing HStoreSite on mispredict");
             }
         }
@@ -704,14 +769,24 @@ public final class HStoreConf {
         // Compute Parameters
         site.txn_queue_max = Math.round(local_partitions * site.txn_queue_max_per_partition);
         site.txn_queue_release = Math.max((int)(site.txn_queue_max * site.txn_queue_release_factor), 1);
+        
+        // Negate Parameters
+        if (site.exec_neworder_cheat) {
+            site.exec_force_singlepartitioned = false;
+            site.exec_force_localexecution = false;
+        }
     }
     
     /**
      * 
      */
     @SuppressWarnings("unchecked")
-    protected void loadFromFile(File path) throws Exception {
-        this.config = new PropertiesConfiguration(path);
+    protected void loadFromFile(File path) {
+        try {
+            this.config = new PropertiesConfiguration(path);
+        } catch (Exception ex) {
+            throw new RuntimeException("Failed to load configuration file " + path);
+        }
 
         Pattern p = Pattern.compile("(global|site|coordinator|client)\\.(.*)");
         for (Object obj_k : CollectionUtil.wrapIterator(this.config.getKeys())) {
@@ -723,7 +798,15 @@ public final class HStoreConf {
             Object handle = confHandles.get(m.group(1));
             Class<?> confClass = handle.getClass();
             assert(confClass != null);
-            Field f = confClass.getField(m.group(2));
+            Field f = null;
+            String f_name = m.group(2);
+            try {
+                f = confClass.getField(f_name);
+            } catch (Exception ex) {
+                LOG.warn("Invalid configuration property '" + k + "'. Ignoring...");
+                continue;
+//                throw new RuntimeException("Failed to retrieve field handle for '" + f_name + "'", ex);
+            }
             Class<?> f_class = f.getType();
             Object value = null;
             
@@ -735,9 +818,18 @@ public final class HStoreConf {
                 value = this.config.getDouble(k);
             } else if (f_class.equals(boolean.class)) {
                 value = this.config.getBoolean(k);
+            } else if (f_class.equals(String.class)) {
+                value = this.config.getString(k);
+            } else {
+                LOG.warn(String.format("Unexpected default value type '%s' for property '%s'", f_class.getSimpleName(), f_name));
             }
             
-            f.set(handle, value);
+            try {
+                f.set(handle, value);
+                LOG.debug(String.format("SET %s = %s", k, value));
+            } catch (Exception ex) {
+                throw new RuntimeException("Failed to set value '" + value + "' for field '" + f_name + "'", ex);
+            }
         } // FOR
     }
     
@@ -787,14 +879,23 @@ public final class HStoreConf {
     
     @Override
     public String toString() {
+        return (this.toString(false, false));
+    }
+        
+    public String toString(boolean advanced, boolean experimental) {
         Class<?> confClass = this.getClass();
         final Map<String, Object> m = new TreeMap<String, Object>();
         for (Field f : confClass.getFields()) {
             String key = f.getName().toUpperCase();
+            Object obj = null;
             try {
-                m.put(key, f.get(this));
+                obj = f.get(this);
             } catch (IllegalAccessException ex) {
                 m.put(key, ex.getMessage());
+            }
+            
+            if (obj instanceof Conf) {
+                m.put(key, ((Conf)obj).toString(advanced, experimental));
             }
         }
         return (StringUtil.formatMaps(m));
@@ -803,6 +904,12 @@ public final class HStoreConf {
     // ----------------------------------------------------------------------------
     // STATIC ACCESS METHODS
     // ----------------------------------------------------------------------------
+
+    public synchronized static HStoreConf init(File f) {
+        if (conf != null) throw new RuntimeException("Trying to initialize HStoreConf more than once");
+        conf = new HStoreConf(f);
+        return (conf);
+    }
     
     public synchronized static HStoreConf init(ArgumentsParser args, Site catalog_site) {
         if (conf != null) throw new RuntimeException("Trying to initialize HStoreConf more than once");
