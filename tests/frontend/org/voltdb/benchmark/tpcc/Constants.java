@@ -62,8 +62,8 @@ public final class Constants {
 //    public static final int FREQUENCY_PAYMENT = 43;
 //    public static final int FREQUENCY_NEW_ORDER = 45;
     
-    public static final int FREQUENCY_STOCK_LEVEL = 0;
-    public static final int FREQUENCY_DELIVERY = 100;
+    public static final int FREQUENCY_STOCK_LEVEL = 100;
+    public static final int FREQUENCY_DELIVERY = 0;
     public static final int FREQUENCY_ORDER_STATUS = 0;
     public static final int FREQUENCY_PAYMENT = 0;
     public static final int FREQUENCY_NEW_ORDER = 0;
