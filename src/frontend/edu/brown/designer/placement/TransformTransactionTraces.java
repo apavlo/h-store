@@ -51,20 +51,25 @@ public class TransformTransactionTraces {
     private static final Logger LOG = Logger.getLogger(TransformTransactionTraces.class);
     
     public static void transform(List<TransactionTrace> txn_traces, PartitionEstimator est, Database catalogDb, long partition_size, ArgumentsParser args) {
-        Histogram hist = new Histogram();
+    	
+        Histogram<Integer> hist = new Histogram<Integer>();
         List<TxnPartition> al_txn_partitions = new ArrayList<TxnPartition>();
-        
+
         /** keep the count on the number of times that each transaction access a partition per batch. **/
         Map<Integer, Integer> txn_partition_counts = new HashMap<Integer, Integer>();
         TxnPartition txn_partitions;
 
         int total_num_partitions = CatalogUtil.getNumberOfPartitions(catalogDb);
         int total_num_transactions = txn_traces.size(); // ???
+        int total_touched_partitions = 0;
+        int total_num_batches = 0;
+        int[][] output_matrix = new int[total_num_partitions][total_num_partitions];
         
         for (TransactionTrace trace : txn_traces) {
             int base_partition = 0;
             try {
                 base_partition = est.getBasePartition(trace);
+                hist.put(base_partition);
             } catch (Exception e1) {
                 // TODO Auto-generated catch block
                 e1.printStackTrace();
@@ -73,100 +78,78 @@ public class TransformTransactionTraces {
             int batch = 0;
             for (Integer batch_id : trace.getBatchIds()) {
                 // list of query traces
-                Set<Integer> query_partitions = new HashSet<Integer>();
+                Set<Integer> total_query_partitions = new HashSet<Integer>();
                 for (QueryTrace qt :trace.getBatches().get(batch_id)) {
                     try {
-                        query_partitions.addAll(est.getAllPartitions(qt, base_partition));
+                    	Set<Integer> batch_partitions = est.getAllPartitions(qt, base_partition);
+                    	for (int partition : batch_partitions) {
+                    		hist.put(partition);
+                    		output_matrix[base_partition][partition]++;
+                    		total_touched_partitions++;
+                    	}
+                        total_query_partitions.addAll(batch_partitions);
                     } catch (Exception e) {
                         e.printStackTrace();
                     }
                 }
-                // calculate the number of times partition X is called by batch Y - 
-                // not including the base partition, should we?
-                for (Integer partition_per_batch : query_partitions) {
-                	if (txn_partition_counts.containsKey(partition_per_batch)) {
-                		int count = txn_partition_counts.get(partition_per_batch);
-                		count++;
-                		txn_partition_counts.put(partition_per_batch, count);
-                	} else {
-                		txn_partition_counts.put(partition_per_batch, 1);                		
-                	}
-                }
-                txn_partitions.getPartitions().add(query_partitions);
+                txn_partitions.getPartitions().add(total_query_partitions);
                 batch++;
             }
-            
-            if (!hist.contains(txn_partitions.toString())) {
-                hist.put(txn_partitions.toString(), 1);
-            } else {
-                long count = hist.get(txn_partitions.toString());
-                count++;
-                hist.put(txn_partitions.toString(), count);
-            }
+            total_num_batches += batch;
             al_txn_partitions.add(txn_partitions);
         }
 
+        System.out.println("Total num batches in workload: " + total_num_batches);
         StringBuilder sb = new StringBuilder();
-        sb.append(CatalogUtil.getNumberOfHosts(catalogDb) + " " + CatalogUtil.getNumberOfSites(catalogDb) + " " + CatalogUtil.getNumberOfPartitions(catalogDb));
-        // now compute the heat for each partition
-        int current_heat = 0;
-        for (int i = 0; i < total_num_partitions; i++) {
-        	if (txn_partition_counts.containsKey(i)) {
-        		sb.append("partition: " + i + " heat is: " + (txn_partition_counts.get(i) / total_num_transactions));
-        	} else {
-        		sb.append("partition: " + i + " heat is 0");        		
-        	}
+        sb.append(CatalogUtil.getNumberOfHosts(catalogDb) + " " + CatalogUtil.getNumberOfSites(catalogDb) + " " + CatalogUtil.getNumberOfPartitions(catalogDb) + "\n");
+        for (int hist_value : hist.values()) {
+        	//LOG.info(hist_value  + ": " + hist.get(hist_value));
+    		sb.append(((hist.get(hist_value) * 1.0) / total_num_batches) + " " + partition_size + " " + args.getParam("simulator.host.memory") + "\n");
         }
-        
+        //sb.append(hist.toString());
         // write the file
-        Writer writer;
-        try {
-            writer = new FileWriter(args.getOptParam(5));
-            writer.append(sb.toString());
-            writer.flush();
-        } catch (IOException e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
-        }
-        
-        
-        LOG.info("Partition Histogram");
-        LOG.info(hist.toString());
-        writeFile(al_txn_partitions);
-//        for (TxnPartition tp : al_txn_partitions) {
-//            LOG.info(tp.toString());                    
-//        }
+        writeFile(al_txn_partitions, sb, args, output_matrix, total_touched_partitions);
     }
     
     /**
      * File format like the following:
-     * # of batches # of transactions
-     * base partition
-     * [partitions batch 0 touches]
-     * [partitions batch 1 touches]
+     * # of hosts, # of sites, # of partitions
+     * heat (partition 1) total partition size (partition 1) total available memory (partition 1)
      * ...
      * ...
-     * [partitions batch n touches]
+     * heat (partition n) total partition size (partition n) total available memory (partition n)
+     * [affinity stuff]
+     * partition 0 ..... partition n
+     * ........... ..... ...........
+     * ........... ..... ...........
+     * partition n ..... partition n
      * EOF
      * @param xact_partitions
      */
-    public static void writeFile(List<TxnPartition> xact_partitions) {
+    public static void writeFile(List<TxnPartition> xact_partitions, StringBuilder sb, ArgumentsParser args, int[][] matrix, int total_touched_partitions) {
         assert (xact_partitions.size() > 0);
-        TxnPartition xact_partition = xact_partitions.get(0);
-        StringBuilder sb = new StringBuilder();
-        sb.append(xact_partition.getPartitions().size() + " " + xact_partitions.size() + "\n");
-        for (TxnPartition txn_partition: xact_partitions) {
-            sb.append(txn_partition.basePartition + "\n");
-            for (Set<Integer> partition_set : txn_partition.getPartitions()) {
-                for (Integer p_id : partition_set) {
-                    sb.append(p_id + " ");
-                }
-                sb.append("\n");
+//        TxnPartition xact_partition = xact_partitions.get(0);
+//        StringBuilder sb = new StringBuilder();
+//        sb.append(xact_partition.getPartitions().size() + " " + xact_partitions.size() + "\n");
+//        for (TxnPartition txn_partition: xact_partitions) {
+//            sb.append(txn_partition.basePartition + "\n");
+//            for (Set<Integer> partition_set : txn_partition.getPartitions()) {
+//                for (Integer p_id : partition_set) {
+//                    sb.append(p_id + " ");
+//                }
+//                sb.append("\n");
+//            }
+//        }
+        //LOG.info("\n");
+        for (int i = 0; i < matrix.length; i++) {
+            for (int j = 0; j < matrix.length; j++) {
+            	sb.append(matrix[i][j] * 1.0 / total_touched_partitions + " ");
             }
+            sb.append("\n");
         }
         Writer writer;
         try {
-            writer = new FileWriter("/home/sw47/Desktop/transaction.trace");
+            writer = new FileWriter(args.getOptParam(0));
             writer.append(sb.toString());
             writer.flush();
         } catch (IOException e) {
@@ -178,12 +161,16 @@ public class TransformTransactionTraces {
 
     public static void main(String[] vargs) throws Exception {
         ArgumentsParser args = ArgumentsParser.load(vargs);
-        
+        args.require(
+                ArgumentsParser.PARAM_CATALOG,
+                ArgumentsParser.PARAM_WORKLOAD,
+                ArgumentsParser.PARAM_STATS,
+                ArgumentsParser.PARAM_SIMULATOR_HOST_MEMORY
+            );        
         MemoryEstimator estimator = new MemoryEstimator(args.stats, new DefaultHasher(args.catalog_db, CatalogUtil.getNumberOfPartitions(args.catalog_db)));
-        long partition_size = estimator.estimate(args.catalog_db, CatalogUtil.getNumberOfPartitions(args.catalog_db));
-        Procedure catalog_proc = args.catalog_db.getProcedures().get("GetTableCounts"); // random procedure from tm1?
+        long partition_size = (estimator.estimateTotalSize(args.catalog_db) / CatalogUtil.getNumberOfPartitions(args.catalog));
         PartitionEstimator p_estimator = new PartitionEstimator(args.catalog_db);
-        transform(args.workload.getTraces(catalog_proc), p_estimator, args.catalog_db, partition_size, args);
+        transform(args.workload.getTransactions(), p_estimator, args.catalog_db, partition_size, args);
     }
 
 }
