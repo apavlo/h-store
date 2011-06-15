@@ -113,7 +113,7 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
                  StringUtil.box(this.snapshot(hstore_conf.site.status_show_txn_info,
                                               hstore_conf.site.status_show_executor_info,
                                               hstore_conf.site.status_show_thread_info,
-                                              hstore_conf.site.status_show_pool_info)));
+                                              hstore_conf.site.pool_enable_tracking)));
     }
     
     @Override

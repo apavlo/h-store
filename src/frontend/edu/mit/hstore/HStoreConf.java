@@ -373,14 +373,6 @@ public final class HStoreConf {
         )
         public boolean status_show_thread_info;
         
-        @ConfigProperty(
-            description="When this property is set to true, HStoreSite status will include pool allocation/deallocation statistics. " +
-                        "Must be used in conjunction with ${site.pool_enable_tracking}",
-            defaultBoolean=true,
-            advanced=true
-        )
-        public boolean status_show_pool_info;
-        
         // ----------------------------------------------------------------------------
         // OBJECT POOLS
         // ----------------------------------------------------------------------------
@@ -394,8 +386,8 @@ public final class HStoreConf {
         
         @ConfigProperty(
             description="Whether to track the number of objects created, passivated, and destroyed from the pool. " + 
-                        "Must be used with ${site.status_show_pool_info}",
-            defaultBoolean=true,
+                        "Results are shown in HStoreSiteStatus updates.",
+            defaultBoolean=false,
             advanced=true
         )
         public boolean pool_enable_tracking;
@@ -475,14 +467,14 @@ public final class HStoreConf {
         
         @ConfigProperty(
             description="The max number of ForwardTxnRequestCallbacks to keep idle in the pool",
-            defaultInt=1500,
+            defaultInt=2500,
             advanced=false
         )
         public int pool_forwardtxnrequests_idle;
         
         @ConfigProperty(
             description="The max number of ForwardTxnResponseCallbacks to keep idle in the pool.",
-            defaultInt=1500,
+            defaultInt=2500,
             advanced=false
         )
         public int pool_forwardtxnresponses_idle;
