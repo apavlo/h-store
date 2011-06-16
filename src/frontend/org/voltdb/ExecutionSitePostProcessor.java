@@ -2,6 +2,7 @@ package org.voltdb;
 
 import java.util.Arrays;
 import java.util.concurrent.LinkedBlockingDeque;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.log4j.Logger;
 
@@ -11,7 +12,6 @@ import edu.mit.hstore.interfaces.Shutdownable;
 
 public final class ExecutionSitePostProcessor implements Runnable, Shutdownable {
     private static final Logger LOG = Logger.getLogger(ExecutionSitePostProcessor.class);
-    private boolean t = LOG.isTraceEnabled();
     private boolean d = LOG.isDebugEnabled();
 
     private final HStoreSite hstore_site;
@@ -25,6 +25,7 @@ public final class ExecutionSitePostProcessor implements Runnable, Shutdownable 
      * ClientResponses that can be immediately returned to the client
      */
     private final LinkedBlockingDeque<Object[]> ready_responses = new LinkedBlockingDeque<Object[]>();
+    private final AtomicInteger queue_size = new AtomicInteger(0);
 
     /**
      * Handle to ourselves
@@ -39,6 +40,10 @@ public final class ExecutionSitePostProcessor implements Runnable, Shutdownable 
         this.hstore_site = hstore_site;
     }
     
+    public int getQueueSize() {
+        return (this.queue_size.get());
+    }
+    
     /**
      * 
      * @param es
@@ -48,6 +53,7 @@ public final class ExecutionSitePostProcessor implements Runnable, Shutdownable 
     public void processClientResponse(ExecutionSite es, LocalTransactionState ts, ClientResponseImpl cr) {
         if (d) LOG.debug(String.format("Adding ClientResponse for %s from partition %d to processing queue [status=%s, size=%d]",
                                        ts, es.getPartitionId(), cr.getStatusName(), this.ready_responses.size()));
+        this.queue_size.incrementAndGet();
         this.ready_responses.add(new Object[]{es, ts, cr});
     }
     
@@ -77,6 +83,7 @@ public final class ExecutionSitePostProcessor implements Runnable, Shutdownable 
                 if (this.isShuttingDown() == false) throw new RuntimeException(ex);
                 break;
             }
+            this.queue_size.decrementAndGet();
         } // WHILE
     }
     

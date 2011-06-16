@@ -53,6 +53,7 @@ import org.voltdb.utils.VoltSampler;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.StringUtil;
+import edu.mit.hstore.HStoreConf;
 
 /**
  * Base class for clients that will work with the multi-host multi-process
@@ -579,6 +580,9 @@ public abstract class ClientMain {
 //        int statsPollInterval = 10000;
         File catalogPath = null;
 
+        // HStoreConf Path
+        String hstore_conf_path = null;
+        
         // scan the inputs once to read everything but host names
         for (int i = 0; i < args.length; i++) {
             final String arg = args[i];
@@ -596,7 +600,10 @@ public abstract class ClientMain {
                 args[i] = parts[0] + "=" + parts[1]; // HACK
             }
             
-            if (parts[0].equalsIgnoreCase("CATALOG")) {
+            if (parts[0].equalsIgnoreCase("CONF")) {
+                hstore_conf_path = parts[1];
+            
+            } else if (parts[0].equalsIgnoreCase("CATALOG")) {
                 catalogPath = new File(parts[1]);
                 assert(catalogPath.exists()) : "The catalog file '" + catalogPath.getAbsolutePath() + " does not exist";
             }
@@ -636,6 +643,12 @@ public abstract class ClientMain {
             } else {
                 m_extraParams.put(parts[0], parts[1]);
             }
+        }
+        
+        // Initialize HStoreConf
+        if (HStoreConf.isInitialized() == false) {
+            assert(hstore_conf_path != null) : "Missing HStoreConf file";
+            HStoreConf.init(new File(hstore_conf_path));
         }
         
         // Thread.currentThread().setName(String.format("client-%02d", id));
@@ -747,8 +760,7 @@ public abstract class ClientMain {
         final String args[], final boolean startImmediately) {
         try {
             final Constructor<? extends ClientMain> constructor =
-                clientClass.getConstructor(new Class<?>[] { new String[0]
-                    .getClass() });
+                clientClass.getConstructor(new Class<?>[] { new String[0].getClass() });
             final ClientMain clientMain =
                 constructor.newInstance(new Object[] { args });
             if (startImmediately) {

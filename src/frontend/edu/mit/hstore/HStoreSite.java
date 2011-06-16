@@ -701,7 +701,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
      */
     public boolean checkDisableThrottling(long txn_id) {
         if (this.incoming_throttle || this.redirect_throttle) {
-            int queue_size = (this.inflight_txns.size() - 1);
+            int queue_size = this.inflight_txns.size() - this.processor.getQueueSize() - 1; 
             if (queue_size < hstore_conf.site.txn_incoming_queue_release) {
                 this.incoming_throttle = false;
                 if (d) LOG.debug(String.format("Disabling INCOMING throttling because txn #%d finished [queue_size=%d, release_threshold=%d]",
@@ -1074,8 +1074,8 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         if (this.workload == false && sysproc == false) {
             synchronized(this) {
                 if (this.workload == false) {
-                    LOG.info(String.format("First non-sysproc transaction request recieved. Notifying %d observers [proc=%s]",
-                                           this.workload_observable.countObservers(), catalog_proc.getName()));
+                    if (d) LOG.debug(String.format("First non-sysproc transaction request recieved. Notifying %d observers [proc=%s]",
+                                                   this.workload_observable.countObservers(), catalog_proc.getName()));
                     this.workload = true;
                     this.workload_observable.notifyObservers();
                 }
@@ -1240,11 +1240,16 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         
         // Look at the number of inflight transactions and see whether we should block and wait for the 
         // queue to drain for a bit
-        // NOTE: This needs to happen *before* we shove off the transaction
-        if (this.incoming_throttle == false && this.inflight_txns.size() > hstore_conf.site.txn_incoming_queue_max) {
-            if (d) LOG.debug(String.format("HStoreSite is overloaded because of %s. Waiting for queue to drain [size=%d, trigger=%d]",
-                                           ts, this.inflight_txns.size(), hstore_conf.site.txn_incoming_queue_release));
+        int queue_size = this.inflight_txns.size() - this.processor.getQueueSize();
+        if (this.incoming_throttle == false && queue_size > hstore_conf.site.txn_incoming_queue_max) {
+            if (d) LOG.debug(String.format("INCOMING overloaded because of %s. Waiting for queue to drain [size=%d, trigger=%d]",
+                                           ts, queue_size, hstore_conf.site.txn_incoming_queue_release));
             this.incoming_throttle = true;
+        }
+        if (this.redirect_throttle == false && queue_size > hstore_conf.site.txn_redirect_queue_max) {
+            if (d) LOG.debug(String.format("REDIRECT overloaded because of %s. Waiting for queue to drain [size=%d, trigger=%d]",
+                                           ts, queue_size, hstore_conf.site.txn_redirect_queue_release));
+            this.redirect_throttle = true;
         }
     }
     
