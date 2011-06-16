@@ -17,6 +17,7 @@ import org.voltdb.ExecutionSite;
 import edu.brown.markov.TransactionEstimator;
 import edu.brown.statistics.Histogram;
 import edu.brown.utils.CountingPoolableObjectFactory;
+import edu.brown.utils.ProfileMeasurement;
 import edu.brown.utils.StringUtil;
 import edu.mit.hstore.HStoreSite.TxnCounter;
 import edu.mit.hstore.dtxn.DependencyInfo;
@@ -48,7 +49,6 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
     private Thread self;
 
     final Map<String, Object> m_txn = new ListOrderedMap<String, Object>();
-    final Map<String, Object> m_exec = new ListOrderedMap<String, Object>();
     final Map<String, Object> m_thread = new ListOrderedMap<String, Object>();
     final Map<String, Object> m_pool = new ListOrderedMap<String, Object>();
     final Map<String, Object> header = new ListOrderedMap<String, Object>();
@@ -113,7 +113,7 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
                  StringUtil.box(this.snapshot(hstore_conf.site.status_show_txn_info,
                                               hstore_conf.site.status_show_executor_info,
                                               hstore_conf.site.status_show_thread_info,
-                                              hstore_conf.site.pool_enable_tracking)));
+                                              hstore_conf.site.pool_profiling)));
     }
     
     @Override
@@ -133,11 +133,57 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
         return this.hstore_site.isShuttingDown();
     }
     
-    public synchronized String snapshot(boolean show_txns, boolean show_exec, boolean show_threads, boolean show_poolinfo) {
+    public Map<String, Object> executorInfo() {
         int inflight_cur = hstore_site.getInflightTxnCount();
         if (inflight_min == null || inflight_cur < inflight_min) inflight_min = inflight_cur;
         if (inflight_max == null || inflight_cur > inflight_max) inflight_max = inflight_cur;
         
+        Map<String, Object> m_exec = new ListOrderedMap<String, Object>();
+        m_exec.clear();
+        m_exec.put("InFlight Txn Ids", String.format("%d [totalMin=%d, totalMax=%d]", inflight_cur, inflight_min, inflight_max));
+        m_exec.put("Incoming Throttle", String.format("%-5s [limit=%d, release=%d]",
+                                                      this.hstore_site.isIncomingThrottled(),
+                                                      hstore_conf.site.txn_incoming_queue_max,
+                                                      hstore_conf.site.txn_incoming_queue_release));
+        m_exec.put("Redirect Throttle", String.format("%-5s [limit=%d, release=%d]\n",
+                                                      this.hstore_site.isRedirectedThrottled(),
+                                                      hstore_conf.site.txn_redirect_queue_max,
+                                                      hstore_conf.site.txn_redirect_queue_release));
+
+        
+        for (Entry<Integer, ExecutionSite> e : this.executors.entrySet()) {
+            ExecutionSite es = e.getValue();
+            int partition = e.getKey().intValue();
+            TransactionState ts = es.getCurrentDtxn();
+            String key = String.format("  Partition[%02d]", partition);
+            
+            StringBuilder sb = new StringBuilder();
+            
+            // Queue Information
+            sb.append(String.format("%2d total / %2d queued / %2d blocked / %2d waiting\n",
+                                    this.partition_txns.get(partition),
+                                    es.getWorkQueueSize(),
+                                    es.getBlockedQueueSize(),
+                                    es.getWaitingQueueSize()));
+            
+            // Execution Info
+            sb.append("Current DTXN:   ").append(ts == null ? "-" : ts).append("\n");
+            sb.append("Execution Mode: ").append(es.getExecutionMode()).append("\n");
+            
+            // Queue Time
+            if (hstore_conf.site.exec_profiling) {
+                ProfileMeasurement pm = es.getWorkQueueProfileMeasurement();
+                sb.append(String.format("Idle Time:      %.2fms total / %.2fms avg\n",
+                                        pm.getTotalThinkTime()/1000000d,
+                                        pm.getAverageThinkTime()/1000000d));
+            }
+            
+            m_exec.put(key, sb.toString());
+        } // FOR
+        return (m_exec);
+    }
+    
+    public synchronized String snapshot(boolean show_txns, boolean show_exec, boolean show_threads, boolean show_poolinfo) {
         this.partition_txns.clearValues();
         for (Entry<Long, LocalTransactionState> e : hstore_site.getAllTransactions()) {
             this.partition_txns.put(e.getValue().getBasePartition());
@@ -162,28 +208,9 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
         // ----------------------------------------------------------------------------
         // Executor Information
         // ----------------------------------------------------------------------------
+        Map<String, Object> m_exec = null;
         if (show_exec) {
-            m_exec.put("InFlight Txn Ids", String.format("%d [totalMin=%d, totalMax=%d]", inflight_cur, inflight_min, inflight_max));
-            m_exec.put("Throttling Mode", String.format("%s [limit=%d, release=%d]\n",
-                                                        this.hstore_site.isThrottlingEnabled(),
-                                                        hstore_conf.site.txn_queue_max,
-                                                        hstore_conf.site.txn_queue_release));
-            
-            for (Entry<Integer, ExecutionSite> e : this.executors.entrySet()) {
-                ExecutionSite es = e.getValue();
-                int partition = e.getKey().intValue();
-                TransactionState ts = es.getCurrentDtxn();
-                String key = String.format("  Partition[%02d]", partition); 
-                String val = String.format("%2d total / %2d queued / %2d blocked / %2d waiting\n" +
-                                           "Current DTXN: %s\nExecution Mode: %s\n",
-                                           this.partition_txns.get(partition),
-                                           es.getWorkQueueSize(),
-                                           es.getBlockedQueueSize(),
-                                           es.getWaitingQueueSize(),
-                                           (ts == null ? "" : ts),
-                                           es.getExecutionMode());
-                m_exec.put(key, val);
-            } // FOR
+            m_exec = this.executorInfo();
         }
 
         // ----------------------------------------------------------------------------

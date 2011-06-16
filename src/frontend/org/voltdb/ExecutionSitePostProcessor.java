@@ -71,7 +71,12 @@ public final class ExecutionSitePostProcessor implements Runnable, Shutdownable 
             ClientResponseImpl cr = (ClientResponseImpl)triplet[2];
             if (d) LOG.debug(String.format("Processing ClientResponse for %s at partition %d [status=%s]",
                                            ts, es.getPartitionId(), cr.getStatusName()));
-            es.processClientResponse(ts, cr);
+            try {
+                es.processClientResponse(ts, cr);
+            } catch (Throwable ex) {
+                if (this.isShuttingDown() == false) throw new RuntimeException(ex);
+                break;
+            }
         } // WHILE
     }
     

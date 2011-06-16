@@ -63,7 +63,7 @@ public class TestExecutionSite extends BaseTestCase {
             Map<Integer, ExecutionSite> executors = new HashMap<Integer, ExecutionSite>();
             executors.put(PARTITION_ID, site);
             HStoreSite hstore_site = new HStoreSite(catalog_site, executors, p_estimator);
-            site.setHStoreSite(hstore_site);
+            site.initHStoreSite(hstore_site);
         }
     }
     

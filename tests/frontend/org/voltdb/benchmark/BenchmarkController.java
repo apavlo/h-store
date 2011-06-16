@@ -963,7 +963,6 @@ public class BenchmarkController {
         int serverHeapSize = 2048;
         int clientHeapSize = 1024;
         boolean localmode = false;
-        String useProfile = "";
         boolean compileBenchmark = true;
         boolean compileOnly = false;
         boolean useCatalogHosts = false;
@@ -1034,8 +1033,6 @@ public class BenchmarkController {
                  * Whether or not to check all the tables at the end.
                  */
                 checkTables = Boolean.parseBoolean(parts[1]);
-            } else if (parts[0].equalsIgnoreCase("USEPROFILE")) {
-                useProfile = parts[1];
             } else if (parts[0].equalsIgnoreCase("LOCAL")) {
                 /*
                  * The number of Volt servers to start.
@@ -1322,7 +1319,6 @@ public class BenchmarkController {
                 serverHeapSize, 
                 clientHeapSize,
                 localmode, 
-                useProfile, 
                 checkTransaction, 
                 checkTables, 
                 snapshotPath, 
