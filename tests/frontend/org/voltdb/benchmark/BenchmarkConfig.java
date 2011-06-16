@@ -50,7 +50,6 @@ public class BenchmarkConfig {
     public final boolean listenForDebugger;
     public final int clientHeapSize;
     public final boolean localmode;
-    public final String useProfile;
     public final float checkTransaction;
     public final boolean checkTables;
     public final String snapshotPath;
@@ -100,7 +99,6 @@ public class BenchmarkConfig {
             int serverHeapSize,
             int clientHeapSize,
             boolean localmode,
-            String useProfile,
             float checkTransaction,
             boolean checkTables,
             String snapshotPath,
@@ -146,7 +144,6 @@ public class BenchmarkConfig {
         this.listenForDebugger = listenForDebugger;
         this.clientHeapSize = clientHeapSize;
         this.localmode = localmode;
-        this.useProfile = useProfile;
         this.checkTransaction = checkTransaction;
         this.checkTables = checkTables;
         this.snapshotPath = snapshotPath;

@@ -1,5 +1,7 @@
 package edu.brown.utils;
 
+import java.util.Observable;
+
 import org.apache.log4j.Logger;
 
 /**
@@ -30,6 +32,8 @@ public class ProfileMeasurement {
         EE,
         /** The amount of time spent estimating what the transaction will do */
         ESTIMATION,
+        /** The amount of time the EE was idle waiting for work */
+        EE_IDLE,
         /** Anything else... */
         MISC;
     }
@@ -51,6 +55,8 @@ public class ProfileMeasurement {
 
     private transient int invocations = 0;
     
+    private transient boolean reset = false;
+    
     /**
      * Constructor
      * @param pmtype
@@ -60,10 +66,23 @@ public class ProfileMeasurement {
         this.reset();
     }
 
-    public void reset() {
+    public synchronized void reset() {
+        if (this.think_marker != null) {
+            this.reset = true;
+        }
         this.think_marker = null;
         this.think_time = 0;
+        this.invocations = 0;
 //        if (type == Type.JAVA) LOG.info(String.format("RESET %s [%d]", this.type, this.hashCode()));
+    }
+    
+    public void resetOnEvent(EventObservable e) {
+        e.addObserver(new EventObserver() {
+            @Override
+            public void update(Observable o, Object arg) {
+                ProfileMeasurement.this.reset();
+            }
+        });
     }
 
     /**
@@ -107,7 +126,7 @@ public class ProfileMeasurement {
      * @return this
      */
 
-    public ProfileMeasurement start(long time) {
+    public synchronized ProfileMeasurement start(long time) {
         assert(this.think_marker == null) : this.type + " - " + this.hashCode();
         this.think_marker = time;
 //        if (type == Type.JAVA) LOG.info(String.format("START %s [%d]", this.type, this.hashCode()));
@@ -132,7 +151,11 @@ public class ProfileMeasurement {
      * We will check to make sure that this handle was started first
      * @return this
      */
-    public ProfileMeasurement stop(long time) {
+    public synchronized ProfileMeasurement stop(long time) {
+        if (this.reset) {
+            this.reset = false;
+            return (this);
+        }
         assert(this.think_marker != null) : this.type + " - " + this.hashCode();
         long added = (time - this.think_marker);
         this.think_time += added;

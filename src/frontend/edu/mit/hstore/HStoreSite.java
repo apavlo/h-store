@@ -279,7 +279,10 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
     private final NIOEventLoop protoEventLoop = new NIOEventLoop();
     
     private VoltProcedureListener voltListener;
-    private boolean throttle = false;
+    
+    
+    private boolean incoming_throttle = false;
+    private boolean redirect_throttle = false;
 
     /**
      * Local ExecutionSite Stuff
@@ -297,9 +300,23 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
     private final NIOEventLoop engineEventLoop = new NIOEventLoop();
 
 
-    private CountDownLatch ready_latch;
+    /**
+     * 
+     */
     private boolean ready = false;
+    private CountDownLatch ready_latch;
     private final EventObservable ready_observable = new EventObservable();
+    
+    /**
+     * This flag is set to true when we receive the first non-sysproc stored procedure
+     * Other components of the system can attach to the EventObservable to be told when this occurs 
+     */
+    private boolean workload = false;
+    private final EventObservable workload_observable = new EventObservable();
+    
+    /**
+     * 
+     */
     private boolean shutdown = false;
     private final EventObservable shutdown_observable = new EventObservable();
     
@@ -405,11 +422,11 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         
         // Static Object Pools
         if (POOL_FORWARDTXN_REQUEST == null) {
-            POOL_FORWARDTXN_REQUEST = new StackObjectPool(new ForwardTxnRequestCallback.Factory(hstore_conf.site.pool_enable_tracking),
+            POOL_FORWARDTXN_REQUEST = new StackObjectPool(new ForwardTxnRequestCallback.Factory(hstore_conf.site.pool_profiling),
                                                           hstore_conf.site.pool_forwardtxnrequests_idle);
         }
         if (POOL_FORWARDTXN_RESPONSE == null) {
-            POOL_FORWARDTXN_RESPONSE = new StackObjectPool(new ForwardTxnResponseCallback.Factory(hstore_conf.site.pool_enable_tracking),
+            POOL_FORWARDTXN_RESPONSE = new StackObjectPool(new ForwardTxnResponseCallback.Factory(hstore_conf.site.pool_profiling),
                                                            hstore_conf.site.pool_forwardtxnresponses_idle);
         }
         
@@ -588,7 +605,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         List<ExecutionSite> executor_list = new ArrayList<ExecutionSite>();
         for (int partition : this.local_partitions) {
             ExecutionSite executor = this.getExecutionSite(partition);
-            executor.setHStoreSite(this);
+            executor.initHStoreSite(this);
             executor_list.add(executor);
 
             Thread t = new Thread(executor);
@@ -664,11 +681,16 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
     }
 
     /**
-     * Returns true if this HStoreSite is throttling transactions
-     * @return
+     * Returns true if this HStoreSite is throttling incoming transactions
      */
-    public boolean isThrottlingEnabled() {
-        return (this.throttle);
+    public boolean isIncomingThrottled() {
+        return (this.incoming_throttle);
+    }
+    /**
+     * Returns true if this HStoreSite is throttling redirected transactions
+     */
+    public boolean isRedirectedThrottled() {
+        return (this.redirect_throttle);
     }
     
     /**
@@ -678,15 +700,20 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
      * @return
      */
     public boolean checkDisableThrottling(long txn_id) {
-        if (this.throttle) {
+        if (this.incoming_throttle || this.redirect_throttle) {
             int queue_size = (this.inflight_txns.size() - 1);
-            if (queue_size < hstore_conf.site.txn_queue_release) {
-                this.throttle = false;
-                if (d) LOG.debug(String.format("Disabling throttling because txn #%d finished [queue_size=%d, release_threshold=%d]",
-                                               txn_id, queue_size, hstore_conf.site.txn_queue_release));
+            if (queue_size < hstore_conf.site.txn_incoming_queue_release) {
+                this.incoming_throttle = false;
+                if (d) LOG.debug(String.format("Disabling INCOMING throttling because txn #%d finished [queue_size=%d, release_threshold=%d]",
+                                               txn_id, queue_size, hstore_conf.site.txn_incoming_queue_release));
+            }
+            if (queue_size < hstore_conf.site.txn_redirect_queue_release) {
+                this.redirect_throttle = false;
+                if (d) LOG.debug(String.format("Disabling REDIRECT throttling because txn #%d finished [queue_size=%d, release_threshold=%d]",
+                                               txn_id, queue_size, hstore_conf.site.txn_redirect_queue_release));
             }
         }
-        return (this.throttle);
+        return (this.incoming_throttle);
     }
     
     // ----------------------------------------------------------------------------
@@ -803,9 +830,15 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         
         ByteBuffer buffer = ByteBuffer.wrap(serializedRequest);
         boolean sysproc = StoredProcedureInvocation.isSysProc(buffer);
+        int base_partition = StoredProcedureInvocation.getBasePartition(buffer);
         
         // Check whether we're throttled and should just reject this transaction
-        if (this.throttle && sysproc == false) {
+        //  (1) It's not a sysproc
+        //  (2) It's a new txn request and we're throttled on incoming requests
+        //  (2) It's a redirect request and we're throttled on redirects
+        if (sysproc == false &&
+            ((this.incoming_throttle && base_partition == -1) ||
+             (this.redirect_throttle && base_partition != -1))) {
             int request_ctr = this.getNextServerTimestamp();
             long clientHandle = StoredProcedureInvocation.getClientHandle(buffer);
             
@@ -813,7 +846,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
                                           clientHandle, request_ctr));
             
             ClientResponseImpl cresponse = new ClientResponseImpl(-1, ClientResponse.REJECTED, EMPTY_RESULT, "", clientHandle);
-            cresponse.setThrottleFlag(this.throttle);
+            cresponse.setThrottleFlag(this.incoming_throttle);
             cresponse.setServerTimestamp(request_ctr);
                 
             FastSerializer serializer = new FastSerializer();
@@ -850,8 +883,6 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         if (d) LOG.debug(String.format("Received new stored procedure invocation request for %s [handle=%d, bytes=%d]", catalog_proc.getName(), request.getClientHandle(), serializedRequest.length));
         
         // First figure out where this sucker needs to go
-        Integer dest_partition = null;
-        
         // If it's a sysproc, then it doesn't need to go to a specific partition
         if (sysproc) {
             // HACK: Check if we should shutdown. This allows us to kill things even if the
@@ -870,15 +901,16 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
                 return;
             }
         // DB2-style Transaction Redirection
-        } else if (request.hasBasePartition() || hstore_conf.site.exec_db2_redirects) {
+        } else if (base_partition != -1 || hstore_conf.site.exec_db2_redirects) {
             if (d) LOG.debug(String.format("Using embedded base partition from %s request", request.getProcName()));
-            dest_partition = request.getBasePartition();    
+            assert(base_partition == request.getBasePartition());    
             
         // Otherwise we use the PartitionEstimator to figure out where this thing needs to go
         } else if (hstore_conf.site.exec_force_localexecution == false) {
             if (d) LOG.debug(String.format("Using PartitionEstimator for %s request", request.getProcName()));
             try {
-                dest_partition = this.p_estimator.getBasePartition(catalog_proc, args, false);
+                Integer p = this.p_estimator.getBasePartition(catalog_proc, args, false);
+                if (p != null) base_partition = p.intValue(); 
             } catch (Exception ex) {
                 throw new RuntimeException(ex);
             }
@@ -887,20 +919,20 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         // If we don't have a partition to send this transaction to, then we will just pick
         // one our partitions at random. This can happen if we're forcing txns to execute locally
         // or if there are no input parameters <-- this should be in the paper!!!
-        if (dest_partition == null) {
+        if (base_partition == -1) {
             if (t) LOG.trace(String.format("Selecting a random local partition to execute %s request [force_local=%s]", request.getProcName(), hstore_conf.site.exec_force_localexecution));
-            dest_partition = CollectionUtil.getRandomValue(this.local_partitions);
+            base_partition = CollectionUtil.getRandomValue(this.local_partitions);
         }
         
-        if (d) LOG.debug(String.format("%s Invocation [handle=%d, partition=%d]", request.getProcName(), request.getClientHandle(), dest_partition));
+        if (d) LOG.debug(String.format("%s Invocation [handle=%d, partition=%d]", request.getProcName(), request.getClientHandle(), base_partition));
         
         // -------------------------------
         // REDIRECT TXN TO PROPER PARTITION
         // If the dest_partition isn't local, then we need to ship it off to the right location
         // -------------------------------
-        TransactionIdManager id_generator = this.txnid_managers[dest_partition.intValue()]; 
+        TransactionIdManager id_generator = this.txnid_managers[base_partition];
         if (id_generator == null) {
-            if (d) LOG.debug(String.format("Forwarding %s request to partition %d", request.getProcName(), dest_partition));
+            if (d) LOG.debug(String.format("Forwarding %s request to partition %d", request.getProcName(), base_partition));
             
             // Make a wrapper for the original callback so that when the result comes back frm the remote partition
             // we will just forward it back to the client. How sweet is that??
@@ -914,9 +946,9 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
             
             // Mark this request as having been redirected
             assert(request.hasBasePartition() == false) : "Trying to redirect " + request.getProcName() + " transaction more than once!";
-            StoredProcedureInvocation.markRawBytesAsRedirected(dest_partition.intValue(), serializedRequest);
+            StoredProcedureInvocation.markRawBytesAsRedirected(base_partition, serializedRequest);
             
-            this.messenger.forwardTransaction(serializedRequest, callback, dest_partition);
+            this.messenger.forwardTransaction(serializedRequest, callback, base_partition);
             if (this.status_monitor != null) TxnCounter.REDIRECTED.inc(catalog_proc);
             return;
         }
@@ -929,7 +961,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         // Grab the TransactionEstimator for the destination partition and figure out whether
         // this mofo is likely to be single-partition or not. Anything that we can't estimate
         // will just have to be multi-partitioned. This includes sysprocs
-        ExecutionSite executor = this.executors[dest_partition];
+        ExecutionSite executor = this.executors[base_partition];
         TransactionEstimator t_estimator = executor.getTransactionEstimator();
         
         boolean single_partition = false;
@@ -1001,12 +1033,12 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
                 if (t) LOG.trace(String.format("Txn #%d Parameters:\n%s", txn_id, this.param_manglers.get(catalog_proc).toString(cast_args)));
                 
                 if (hstore_conf.site.txn_profiling) ts.est_time.start();
-                t_state = t_estimator.startTransaction(txn_id, dest_partition, catalog_proc, cast_args);
+                t_state = t_estimator.startTransaction(txn_id, base_partition, catalog_proc, cast_args);
                 
                 // If there is no TransactinEstimator.State, then there is nothing we can do
                 // It has to be executed as multi-partitioned
                 if (t_state == null) {
-                    if (d) LOG.debug(String.format("No TransactionEstimator.State was returned for %s. Executing as multi-partitioned", ts)); 
+                    if (d) LOG.debug(String.format("No TransactionEstimator.State was returned for %s. Executing as multi-partitioned", catalog_proc)); 
                     single_partition = false;
                     
                 // We have a TransactionEstimator.State, so let's see what it says...
@@ -1016,14 +1048,14 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
                     
                     // Bah! We didn't get back a MarkovEstimate for some reason...
                     if (m_estimate == null) {
-                        if (d) LOG.debug(String.format("No MarkovEstimate was found for %s. Executing as multi-partitioned", ts));
+                        if (d) LOG.debug(String.format("No MarkovEstimate was found for %s. Executing as multi-partitioned", catalog_proc));
                         single_partition = false;
                         
                     // Check whether the probability that we're single-partitioned is above our threshold
                     } else {
-                        if (d) LOG.debug(String.format("Using MarkovEstimate for %s to determine if single-partitioned", ts));
+                        if (d) LOG.debug(String.format("Using MarkovEstimate for %s to determine if single-partitioned", catalog_proc));
                         
-                        if (d) LOG.debug(String.format("%s MarkovEstimate:\n%s", ts, m_estimate));
+                        if (d) LOG.debug(String.format("%s MarkovEstimate:\n%s", catalog_proc, m_estimate));
                         assert(m_estimate.isValid()) : String.format("Invalid MarkovEstimate for %s", ts);
                         single_partition = m_estimate.isSinglePartition(this.thresholds);
                         predict_readonly = catalog_proc.getReadonly(); // FIXME
@@ -1034,12 +1066,23 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
                 }
                 if (hstore_conf.site.txn_profiling) ts.est_time.stop();
             } catch (Throwable ex) {
-                LOG.fatal(String.format("Failed calculate estimate for %s", ts), ex);
+                LOG.fatal(String.format("Failed calculate estimate for %s request", catalog_proc), ex);
                 throw new RuntimeException(ex);
             }
         }
+        
+        if (this.workload == false && sysproc == false) {
+            synchronized(this) {
+                if (this.workload == false) {
+                    LOG.info(String.format("First non-sysproc transaction request recieved. Notifying %d observers [proc=%s]",
+                                           this.workload_observable.countObservers(), catalog_proc.getName()));
+                    this.workload = true;
+                    this.workload_observable.notifyObservers();
+                }
+            } // SYNCH
+        }
 
-        ts.init(txn_id, request.getClientHandle(), dest_partition.intValue(),
+        ts.init(txn_id, request.getClientHandle(), base_partition,
                       single_partition, predict_readonly, predict_can_abort, t_state,
                       catalog_proc, request, done);
         if (hstore_conf.site.txn_profiling) {
@@ -1048,7 +1091,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         }
         
         if (d) LOG.debug(String.format("Executing %s on partition %d [singlePartition=%s, handle=%d]",
-                                        ts, dest_partition, single_partition, request.getClientHandle()));
+                                        ts, base_partition, single_partition, request.getClientHandle()));
         this.initializeInvocation(ts);
     }
 
@@ -1198,10 +1241,10 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         // Look at the number of inflight transactions and see whether we should block and wait for the 
         // queue to drain for a bit
         // NOTE: This needs to happen *before* we shove off the transaction
-        if (this.throttle == false && this.inflight_txns.size() > hstore_conf.site.txn_queue_max) {
+        if (this.incoming_throttle == false && this.inflight_txns.size() > hstore_conf.site.txn_incoming_queue_max) {
             if (d) LOG.debug(String.format("HStoreSite is overloaded because of %s. Waiting for queue to drain [size=%d, trigger=%d]",
-                                           ts, this.inflight_txns.size(), hstore_conf.site.txn_queue_release));
-            this.throttle = true;
+                                           ts, this.inflight_txns.size(), hstore_conf.site.txn_incoming_queue_release));
+            this.incoming_throttle = true;
         }
     }
     
@@ -1439,6 +1482,10 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         this.coordinator.execute(ts.rpc_request_work, fragment, callback);
     }
 
+    public EventObservable getWorkloadObservable() {
+        return (this.workload_observable);
+    }
+    
     // ----------------------------------------------------------------------------
     // TRANSACTION FINISH/CLEANUP METHODS
     // ----------------------------------------------------------------------------
@@ -1554,21 +1601,27 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
             } // SWITCH
         }
         
-        ts.setHStoreSite_Finished(true);
         HStoreSite.CACHE_ENCODED_TXNIDS.remove(txn_id);
         if (this.status_monitor != null) {
-            TxnCounter.COMPLETED.inc(ts.getProcedure());
-            if (status != Dtxn.FragmentResponse.Status.OK) TxnCounter.ABORTED.inc(ts.getProcedure());
-            if (ts.isSpeculative()) TxnCounter.SPECULATIVE.inc(ts.getProcedure());
+            // We always need to keep track of how many txns we process 
+            // in order to check whether we are hung or not
+            Procedure catalog_proc = ts.getProcedure();
+            TxnCounter.COMPLETED.inc(catalog_proc);
             
-            if (ts.sysproc) {
-                TxnCounter.SYSPROCS.inc(ts.getProcedure());
-            } else if (ts.isExecSinglePartition()) {
-                TxnCounter.SINGLE_PARTITION.inc(ts.getProcedure());
-            } else {
-                TxnCounter.MULTI_PARTITION.inc(ts.getProcedure());
+            if (hstore_conf.site.status_show_txn_info) {
+                if (status != Dtxn.FragmentResponse.Status.OK) TxnCounter.ABORTED.inc(catalog_proc);
+                if (ts.isSpeculative()) TxnCounter.SPECULATIVE.inc(catalog_proc);
+                
+                if (ts.sysproc) {
+                    TxnCounter.SYSPROCS.inc(catalog_proc);
+                } else if (ts.isExecSinglePartition()) {
+                    TxnCounter.SINGLE_PARTITION.inc(catalog_proc);
+                } else {
+                    TxnCounter.MULTI_PARTITION.inc(catalog_proc);
+                }
             }
         }
+        ts.setHStoreSite_Finished(true);
     }
 
     // ----------------------------------------------------------------------------

@@ -71,7 +71,7 @@ public class BatchPlanner {
         private final BatchPlanner planner;
         
         public BatchPlanFactory(BatchPlanner planner) {
-            super(HStoreConf.singleton().site.pool_enable_tracking);
+            super(HStoreConf.singleton().site.pool_profiling);
             this.planner = planner;
         }
         @Override
@@ -725,6 +725,7 @@ public class BatchPlanner {
         } // FOR
         
         // Check whether we have an existing graph exists for this batch configuration
+        // This is the only place where we need to synchronize
         PlanGraph graph = null;
         int bitmap_hash = Arrays.hashCode(plan.singlepartition_bitmap);
         synchronized (this) {

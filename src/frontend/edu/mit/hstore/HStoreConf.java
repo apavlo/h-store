@@ -146,6 +146,13 @@ public final class HStoreConf {
         // ----------------------------------------------------------------------------
         
         @ConfigProperty(
+            description="Enable execution site profiling.",
+            defaultBoolean=false,
+            advanced=true
+        )
+        public boolean exec_profiling;
+        
+        @ConfigProperty(
             description="If this feature is enabled, then each HStoreSite will attempt to speculatively execute " +
                         "single-partition transactions whenever it completes a work request for a multi-partition " +
                         "transaction running on a different node.",
@@ -244,38 +251,67 @@ public final class HStoreConf {
         // ----------------------------------------------------------------------------
         
         @ConfigProperty(
-            description="Max size of queued transactions before we stop accepting new requests and throttle clients",
-            defaultInt=1000,
-            advanced=false
-        )
-        public int txn_queue_max_per_partition;
-        
-        @ConfigProperty(
-            description="", // TODO
-            defaultDouble=0.25,
-            advanced=false
-        )
-        public double txn_queue_release_factor;
-        
-        @ConfigProperty(
-            description="", // TODO
-            computed=true
-        )
-        public int txn_queue_max;
-
-        @ConfigProperty(
-            description="", // TODO
-            computed=true
-        )
-        public int txn_queue_release;  
-        
-        @ConfigProperty(
             description="Enable transaction profiling.",
             defaultBoolean=false,
             advanced=true,
             experimental=true
         )
         public boolean txn_profiling;
+        
+        @ConfigProperty(
+            description="Max size of queued transactions before we stop accepting new requests and throttle clients",
+            defaultInt=1000,
+            advanced=false
+        )
+        public int txn_incoming_queue_max_per_partition;
+        
+        @ConfigProperty(
+            description="", // TODO
+            defaultDouble=0.25,
+            advanced=false
+        )
+        public double txn_incoming_queue_release_factor;
+        
+        @ConfigProperty(
+            description="", // TODO
+            computed=true
+        )
+        public int txn_incoming_queue_max;
+
+        @ConfigProperty(
+            description="", // TODO
+            computed=true
+        )
+        public int txn_incoming_queue_release;  
+        
+        @ConfigProperty(
+            description="Max size of the total transaction queue per partition before we stop accepting redirected requests",
+            defaultInt=2000,
+            advanced=false
+        )
+        public int txn_redirect_queue_max_per_partition;
+        
+        @ConfigProperty(
+            description="", // TODO
+            defaultDouble=0.50,
+            advanced=false
+        )
+        public double txn_redirect_queue_release_factor;
+        
+        @ConfigProperty(
+            description="The number transactions that can be stored in the HStoreSite's internal queue before " +
+                        "it will begin to reject redirected transaction requests from other HStoreSites. This " +
+                        "includes all transactions that are waiting to be executed, executing, and those that " +
+                        "have already executed and are waiting for their results to be sent back to the client.",
+            computed=true
+        )
+        public int txn_redirect_queue_max;
+
+        @ConfigProperty(
+            description="", // TODO
+            computed=true
+        )
+        public int txn_redirect_queue_release;  
         
         // ----------------------------------------------------------------------------
         // Markov Transaction Estimator Options
@@ -352,7 +388,7 @@ public final class HStoreConf {
         
         @ConfigProperty(
             description="When this property is set to true, HStoreSite status will include transaction information",
-            defaultBoolean=true,
+            defaultBoolean=false,
             advanced=true
         )
         public boolean status_show_txn_info;
@@ -390,7 +426,7 @@ public final class HStoreConf {
             defaultBoolean=false,
             advanced=true
         )
-        public boolean pool_enable_tracking;
+        public boolean pool_profiling;
 
         @ConfigProperty(
             description="The max number of VoltProcedure instances to keep in the pool " + 
@@ -759,8 +795,12 @@ public final class HStoreConf {
         }
         
         // Compute Parameters
-        site.txn_queue_max = Math.round(local_partitions * site.txn_queue_max_per_partition);
-        site.txn_queue_release = Math.max((int)(site.txn_queue_max * site.txn_queue_release_factor), 1);
+        site.txn_incoming_queue_max = Math.round(local_partitions * site.txn_incoming_queue_max_per_partition);
+        site.txn_incoming_queue_release = Math.max((int)(site.txn_incoming_queue_max * site.txn_incoming_queue_release_factor), 1);
+
+        site.txn_redirect_queue_max = Math.round(local_partitions * site.txn_redirect_queue_max_per_partition);
+        site.txn_redirect_queue_release = Math.max((int)(site.txn_redirect_queue_max * site.txn_redirect_queue_release_factor), 1);
+
         
         // Negate Parameters
         if (site.exec_neworder_cheat) {
