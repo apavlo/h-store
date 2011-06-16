@@ -430,6 +430,7 @@ public class BenchmarkController {
                 List<String> command = new ArrayList<String>();
                 command.add("ant");
                 command.add("hstore-site");
+                command.add("-Dproperties=" + m_config.hstore_conf_path);
                 command.add("-Dcoordinator.host=" + m_config.coordinatorHost);
                 command.add("-Dproject=" + m_projectBuilder.getProjectName());
                 command.add("-Dsite.id=" + site_id);
@@ -605,6 +606,7 @@ public class BenchmarkController {
             clArgs.add(userParam.getKey() + "=" + userParam.getValue());
         }
 
+        clArgs.add("CONF=" + m_config.hstore_conf_path);
         clArgs.add("CHECKTRANSACTION=" + m_config.checkTransaction);
         clArgs.add("CHECKTABLES=" + m_config.checkTables);
         clArgs.add("STATSDATABASEURL=" + m_config.statsDatabaseURL);
@@ -1300,6 +1302,7 @@ public class BenchmarkController {
 
         // create a config object, mostly for the results uploader at this point
         BenchmarkConfig config = new BenchmarkConfig(
+                hstore_conf_path,
                 clientClassname,
                 backend, 
                 coordinatorHost,

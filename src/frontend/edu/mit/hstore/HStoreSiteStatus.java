@@ -46,6 +46,9 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
     private Integer inflight_min = null;
     private Integer inflight_max = null;
     
+    private Integer processing_min = null;
+    private Integer processing_max = null;
+    
     private Thread self;
 
     final Map<String, Object> m_txn = new ListOrderedMap<String, Object>();
@@ -138,9 +141,14 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
         if (inflight_min == null || inflight_cur < inflight_min) inflight_min = inflight_cur;
         if (inflight_max == null || inflight_cur > inflight_max) inflight_max = inflight_cur;
         
+        int processing_cur = hstore_site.getExecutionSitePostProcessor().getQueueSize();
+        if (processing_min == null || processing_cur < processing_min) processing_min = processing_cur;
+        if (processing_max == null || processing_cur > processing_max) processing_max = processing_cur;
+        
         Map<String, Object> m_exec = new ListOrderedMap<String, Object>();
-        m_exec.clear();
-        m_exec.put("InFlight Txn Ids", String.format("%d [totalMin=%d, totalMax=%d]", inflight_cur, inflight_min, inflight_max));
+        m_exec.put("Completed Txns", HStoreSite.TxnCounter.COMPLETED.get());
+        m_exec.put("InFlight Txns", String.format("%d [totalMin=%d, totalMax=%d]", inflight_cur, inflight_min, inflight_max));
+        m_exec.put("Processing Txns", String.format("%d [totalMin=%d, totalMax=%d]", processing_cur, processing_min, processing_max));
         m_exec.put("Incoming Throttle", String.format("%-5s [limit=%d, release=%d]",
                                                       this.hstore_site.isIncomingThrottled(),
                                                       hstore_conf.site.txn_incoming_queue_max,
@@ -155,12 +163,12 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
             ExecutionSite es = e.getValue();
             int partition = e.getKey().intValue();
             TransactionState ts = es.getCurrentDtxn();
-            String key = String.format("  Partition[%02d]", partition);
+            String key = String.format("    Partition[%02d]", partition);
             
             StringBuilder sb = new StringBuilder();
             
             // Queue Information
-            sb.append(String.format("%2d total / %2d queued / %2d blocked / %2d waiting\n",
+            sb.append(String.format("%3d total / %3d queued / %3d blocked / %3d waiting\n",
                                     this.partition_txns.get(partition),
                                     es.getWorkQueueSize(),
                                     es.getBlockedQueueSize(),

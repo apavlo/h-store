@@ -33,7 +33,9 @@ import org.apache.commons.collections15.map.ListOrderedMap;
 import edu.brown.utils.StringUtil;
 
 public class BenchmarkConfig {
-
+    
+    public final String hstore_conf_path;
+    
     public final String benchmarkClient;
     public final String backend;
     public String[] hosts;
@@ -80,6 +82,7 @@ public class BenchmarkConfig {
     public final Map<String, String> parameters = new HashMap<String, String>();
 
     public BenchmarkConfig(
+            String hstore_conf_path,
             String benchmarkClient,
             String backend,
             String coordinatorHost,
@@ -122,6 +125,8 @@ public class BenchmarkConfig {
             String dumpDatabaseDir
         ) {
 
+        this.hstore_conf_path = hstore_conf_path;
+        
         this.benchmarkClient = benchmarkClient;
         this.backend = backend;
         this.coordinatorHost = coordinatorHost;

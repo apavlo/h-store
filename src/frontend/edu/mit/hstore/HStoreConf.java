@@ -231,9 +231,10 @@ public final class HStoreConf {
         
         @ConfigProperty(
             description="If this enabled, HStoreSite will use a separate thread to process every outbound ClientResponse for " +
-                        "all of the ExecutionSites.",
+                        "all of the ExecutionSites. This may help with multi-partition transaction but will be the bottleneck " +
+                        "for single-partition txn heavy workloads.",
             defaultBoolean=false,
-            advanced=false
+            advanced=true
         )
         public boolean exec_postprocessing_thread; 
 
@@ -669,11 +670,28 @@ public final class HStoreConf {
         )
         public int temporaltotal;
 
-        /**
-         * If this enabled, then each DBMS will dump their entire database contents into
-         * CSV files after executing a benchmark run
-         */
+        @ConfigProperty(
+            description="The amount of time (in ms) that the client will back-off from sending requests " +
+                        "to an HStoreSite when told that the site is throttled.",
+            defaultInt=500,
+            advanced=false
+        )
+        public int throttle_backoff;
+        
+        @ConfigProperty(
+            description="If this enabled, then each DBMS will dump their entire database contents into " +
+                        "CSV files after executing a benchmark run.",
+            defaultBoolean=false,
+            advanced=false
+        )
         public boolean dump_database = false;
+        
+        @ConfigProperty(
+            description="If ${client.dump_database} is enabled, then each DBMS will dump their entire " +
+                        "database contents into CSV files in the this directory after executing a benchmark run.",
+            defaultString="${global.temp_dir}/dumps",
+            advanced=false
+        )
         public String dump_database_dir = HStoreConf.this.global.temp_dir + "/dumps";
     }
     
