@@ -101,10 +101,12 @@ public class TransformTransactionTraces {
 
         System.out.println("Total num batches in workload: " + total_num_batches);
         StringBuilder sb = new StringBuilder();
-        sb.append(CatalogUtil.getNumberOfHosts(catalogDb) + " " + CatalogUtil.getNumberOfSites(catalogDb) + " " + CatalogUtil.getNumberOfPartitions(catalogDb) + "\n");
+        sb.append(CatalogUtil.getNumberOfHosts(catalogDb) + " " + CatalogUtil.getNumberOfSites(catalogDb) + " " + CatalogUtil.getNumberOfPartitions(catalogDb) + " " + args.getParam("simulator.host.memory") + " " + (CatalogUtil.getNumberOfSites(args.catalog) / CatalogUtil.getNumberOfHosts(args.catalog)) + "\n");
+        // append the communication cost multiplers (penality for different partitions, different sites, different hosts)
+        sb.append("1 100 10000");
         for (int hist_value : hist.values()) {
         	//LOG.info(hist_value  + ": " + hist.get(hist_value));
-    		sb.append(((hist.get(hist_value) * 1.0) / total_num_batches) + " " + partition_size + " " + args.getParam("simulator.host.memory") + "\n");
+    		sb.append(((hist.get(hist_value) * 1.0) / total_num_transactions) + " " + partition_size + " " + args.getParam("simulator.host.memory") + "\n");
         }
         //sb.append(hist.toString());
         // write the file
@@ -113,7 +115,8 @@ public class TransformTransactionTraces {
     
     /**
      * File format like the following:
-     * # of hosts, # of sites, # of partitions
+     * # of hosts, # of sites, # of partitions, total memory per node (site), # sites per host
+     * "penalty different partitions" "penalty different sites" "penalty different hosts"
      * heat (partition 1) total partition size (partition 1) total available memory (partition 1)
      * ...
      * ...
