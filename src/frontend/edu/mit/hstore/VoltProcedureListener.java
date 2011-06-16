@@ -78,7 +78,7 @@ public class VoltProcedureListener extends AbstractEventHandler {
         }
 
         @Override
-        public boolean writeCallback(SelectableChannel channel) {
+        public synchronized boolean writeCallback(SelectableChannel channel) {
             connectionBlocked = connection.tryWrite();
             return connectionBlocked;
         }
