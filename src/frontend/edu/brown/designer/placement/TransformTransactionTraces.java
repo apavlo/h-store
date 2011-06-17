@@ -62,8 +62,8 @@ public class TransformTransactionTraces {
         int total_num_partitions = CatalogUtil.getNumberOfPartitions(catalogDb);
         int total_num_transactions = txn_traces.size(); // ???
         int total_touched_partitions = 0;
-        int total_num_batches = 0;
         int[][] output_matrix = new int[total_num_partitions][total_num_partitions];
+        int[] num_partition_batches = new int[total_num_partitions];
         
         for (TransactionTrace trace : txn_traces) {
             int base_partition = 0;
@@ -75,31 +75,43 @@ public class TransformTransactionTraces {
                 e1.printStackTrace();
             }
             txn_partitions = new TxnPartition(base_partition);
-            int batch = 0;
+            int batches = 0;
+            
             for (Integer batch_id : trace.getBatchIds()) {
+                Set<Integer> partitions_touched_per_batch = new HashSet<Integer>();
                 // list of query traces
                 Set<Integer> total_query_partitions = new HashSet<Integer>();
-                for (QueryTrace qt :trace.getBatches().get(batch_id)) {
-                    try {
-                    	Set<Integer> batch_partitions = est.getAllPartitions(qt, base_partition);
-                    	for (int partition : batch_partitions) {
-                    		hist.put(partition);
-                    		output_matrix[base_partition][partition]++;
-                    		total_touched_partitions++;
-                    	}
-                        total_query_partitions.addAll(batch_partitions);
-                    } catch (Exception e) {
-                        e.printStackTrace();
+                if (isMultiPartitionBatch(trace.getBatches().get(batch_id), est, base_partition)) {
+                    for (QueryTrace qt :trace.getBatches().get(batch_id)) {
+                        try {
+                        	Set<Integer> batch_partitions = est.getAllPartitions(qt, base_partition);
+                        	for (int partition : batch_partitions) {
+                    			if (!partitions_touched_per_batch.contains(partition)) {
+                    				partitions_touched_per_batch.add(partition);
+                    			}
+                        	}                    		
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                        }
                     }
+                	// increment # of multi-partition batches from the base partition
+                    num_partition_batches[base_partition]++;
+                	// calculate which other partitions were touched by the multi partition transaction
+                    //output_matrix[base_partition][base_partition]++;
+                    for (int partition_num : partitions_touched_per_batch) {
+                    	System.out.println("partition num: " + partition_num + " base partition: " + base_partition);
+                    	output_matrix[base_partition][partition_num]++;                    		
+//                    	if (partition_num != base_partition) {
+//                        	output_matrix[base_partition][partition_num]++;                    		
+//                    	}
+                    }
+                    System.out.println();
                 }
                 txn_partitions.getPartitions().add(total_query_partitions);
-                batch++;
             }
-            total_num_batches += batch;
             al_txn_partitions.add(txn_partitions);
         }
 
-        System.out.println("Total num batches in workload: " + total_num_batches);
         StringBuilder sb = new StringBuilder();
         sb.append(CatalogUtil.getNumberOfHosts(catalogDb) + " " + CatalogUtil.getNumberOfSites(catalogDb) + " " + CatalogUtil.getNumberOfPartitions(catalogDb) + " " + args.getParam("simulator.host.memory") + " " + (CatalogUtil.getNumberOfSites(args.catalog) / CatalogUtil.getNumberOfHosts(args.catalog)) + "\n");
         // append the communication cost multiplers (penality for different partitions, different sites, different hosts)
@@ -110,8 +122,29 @@ public class TransformTransactionTraces {
         }
         //sb.append(hist.toString());
         // write the file
-        writeFile(al_txn_partitions, sb, args, output_matrix, total_touched_partitions);
+        writeFile(al_txn_partitions, sb, args, output_matrix, total_touched_partitions, num_partition_batches);
     }
+    
+    // takes in a list of query traces for a given batch 
+    // returns: true if the batch is multi-partitioned, false otherwise
+    public static boolean isMultiPartitionBatch(List<QueryTrace> traces, PartitionEstimator est, int base_partition) {
+        for (QueryTrace qt : traces) {
+        	Set<Integer> batch_partitions;
+			try {
+				batch_partitions = est.getAllPartitions(qt, base_partition);
+	        	for (int partition : batch_partitions) {
+	        		if (partition != base_partition) {
+	        			return true;
+	        		}
+	        	}                    		        	
+			} catch (Exception e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+        }
+        return false;
+    }
+    
     
     /**
      * File format like the following:
@@ -129,7 +162,7 @@ public class TransformTransactionTraces {
      * EOF
      * @param xact_partitions
      */
-    public static void writeFile(List<TxnPartition> xact_partitions, StringBuilder sb, ArgumentsParser args, int[][] matrix, int total_touched_partitions) {
+    public static void writeFile(List<TxnPartition> xact_partitions, StringBuilder sb, ArgumentsParser args, int[][] matrix, int total_touched_partitions, int[] partition_counts) {
         assert (xact_partitions.size() > 0);
 //        TxnPartition xact_partition = xact_partitions.get(0);
 //        StringBuilder sb = new StringBuilder();
@@ -146,8 +179,10 @@ public class TransformTransactionTraces {
         //LOG.info("\n");
         for (int i = 0; i < matrix.length; i++) {
             for (int j = 0; j < matrix.length; j++) {
-            	sb.append(matrix[i][j] * 1.0 / total_touched_partitions + " ");
+            	System.out.print(matrix[i][j] * 1.0 / partition_counts[i] + " ");
+            	sb.append(matrix[i][j] * 1.0 / partition_counts[i] + " ");
             }
+            System.out.println();
             sb.append("\n");
         }
         Writer writer;
