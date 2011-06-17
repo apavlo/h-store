@@ -67,6 +67,8 @@ public abstract class ClientMain {
         LoggerUtil.setupLogging();
     }
     
+    public static String CONTROL_PREFIX = "{HSTORE} ";
+    
     public enum Command {
         START,
         POLL,
@@ -210,7 +212,13 @@ public abstract class ClientMain {
     private final List<String> m_tableCheckOrder = new LinkedList<String>();
     protected VoltSampler m_sampler = null;
     
-    public static String CONTROL_PREFIX = "{HSTORE} ";
+    /**
+     * Configuration
+     */
+    protected final HStoreConf m_hstoreConf;
+    protected final BenchmarkConfig m_benchmarkConf;
+    
+    
 
     public static void printControlMessage(ControlState state) {
         printControlMessage(state, null);
@@ -545,6 +553,11 @@ public abstract class ClientMain {
         m_checkTransaction = 0;
         m_checkTables = false;
         m_constraints = new LinkedHashMap<Pair<String, Integer>, Expression>();
+        
+        // FIXME
+        m_hstoreConf = null;
+        m_benchmarkConf = null;
+        
     }
 
     abstract protected String getApplicationName();
@@ -583,6 +596,9 @@ public abstract class ClientMain {
         // HStoreConf Path
         String hstore_conf_path = null;
         
+        // Benchmark Conf Path
+        String benchmark_conf_path = null;
+        
         // scan the inputs once to read everything but host names
         for (int i = 0; i < args.length; i++) {
             final String arg = args[i];
@@ -593,17 +609,21 @@ public abstract class ClientMain {
                 break;
             } else if (parts[1].startsWith("${")) {
                 continue;
-                
-            // Strip out benchmark prefix  
-            } else if (parts[0].toLowerCase().startsWith(BenchmarkController.BENCHMARK_PARAM_PREFIX)) {
-                parts[0] = parts[0].substring(BenchmarkController.BENCHMARK_PARAM_PREFIX.length());
-                args[i] = parts[0] + "=" + parts[1]; // HACK
             }
             
             if (parts[0].equalsIgnoreCase("CONF")) {
                 hstore_conf_path = parts[1];
+            } else if (parts[0].equalsIgnoreCase(BenchmarkController.BENCHMARK_PARAM_PREFIX + "CONF")) {
+                benchmark_conf_path = parts[1];
+            }
+                
+            // Strip out benchmark prefix  
+            if (parts[0].toLowerCase().startsWith(BenchmarkController.BENCHMARK_PARAM_PREFIX)) {
+                parts[0] = parts[0].substring(BenchmarkController.BENCHMARK_PARAM_PREFIX.length());
+                args[i] = parts[0] + "=" + parts[1]; // HACK
+            }
             
-            } else if (parts[0].equalsIgnoreCase("CATALOG")) {
+            if (parts[0].equalsIgnoreCase("CATALOG")) {
                 catalogPath = new File(parts[1]);
                 assert(catalogPath.exists()) : "The catalog file '" + catalogPath.getAbsolutePath() + " does not exist";
             }
@@ -650,6 +670,10 @@ public abstract class ClientMain {
             assert(hstore_conf_path != null) : "Missing HStoreConf file";
             HStoreConf.init(new File(hstore_conf_path));
         }
+        m_hstoreConf = HStoreConf.singleton();
+        
+        assert(benchmark_conf_path != null) : "Missing Benchmark Configuration File";
+        m_benchmarkConf = new BenchmarkConfig(new File(benchmark_conf_path)); 
         
         // Thread.currentThread().setName(String.format("client-%02d", id));
         

@@ -101,6 +101,7 @@ public class ArgumentsParser {
     public static final String PARAM_MARKOV                 = "markov";
     public static final String PARAM_MARKOV_OUTPUT          = PARAM_MARKOV + ".output";
     public static final String PARAM_MARKOV_THRESHOLDS      = PARAM_MARKOV + ".thresholds";
+    public static final String PARAM_MARKOV_THRESHOLDS_VALUE = PARAM_MARKOV + ".thresholds.value";
     public static final String PARAM_MARKOV_THRESHOLDS_OUTPUT = PARAM_MARKOV_THRESHOLDS + ".output";
     public static final String PARAM_MARKOV_PARTITIONS      = PARAM_MARKOV + ".partitions";
     public static final String PARAM_MARKOV_TOPK            = PARAM_MARKOV + ".topk";
@@ -754,7 +755,12 @@ public class ArgumentsParser {
                 LOG.warn("The parameter correlations file '" + path + "' does not exist");
             }
         }
-        if (this.params.containsKey(PARAM_MARKOV_THRESHOLDS)) {
+        if (this.params.containsKey(PARAM_MARKOV_THRESHOLDS_VALUE)) {
+            assert(this.catalog_db != null);
+            double defaultValue = this.getDoubleParam(PARAM_MARKOV_THRESHOLDS_VALUE);
+            this.thresholds = new EstimationThresholds(defaultValue);
+            
+        } else if (this.params.containsKey(PARAM_MARKOV_THRESHOLDS)) {
             assert(this.catalog_db != null);
             this.thresholds = new EstimationThresholds();
             File path = new File(this.params.get(PARAM_MARKOV_THRESHOLDS));

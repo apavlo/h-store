@@ -105,6 +105,7 @@ public class MultiLoader extends ClientMain {
         }
 
         m_warehouses = warehouses;
+        loadThreads = Math.min(warehouses, loadThreads);
         m_loadThreads = new LoadThread[loadThreads];
         
         // HACK

@@ -1056,7 +1056,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
                         if (d) LOG.debug(String.format("Using MarkovEstimate for %s to determine if single-partitioned", catalog_proc));
                         
                         if (d) LOG.debug(String.format("%s MarkovEstimate:\n%s", catalog_proc, m_estimate));
-                        assert(m_estimate.isValid()) : String.format("Invalid MarkovEstimate for %s", ts);
+                        assert(m_estimate.isValid()) : String.format("Invalid MarkovEstimate for %s\n%s", catalog_proc, m_estimate);
                         single_partition = m_estimate.isSinglePartition(this.thresholds);
                         predict_readonly = catalog_proc.getReadonly(); // FIXME
                         predict_can_abort = predict_readonly == false || single_partition == false;
@@ -1980,7 +1980,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
                 } else {
                     local_markovs = markovs.get(local_partition);
                 }
-                assert(local_markovs != null) : "Failed to MarkovGraphsContainer that we need for partition #" + local_partition;
+                assert(local_markovs != null) : "Failed to get the proper MarkovGraphsContainer that we need for partition #" + local_partition;
             }
 
             // Initialize TransactionEstimator stuff

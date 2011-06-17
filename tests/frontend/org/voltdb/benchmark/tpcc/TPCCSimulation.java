@@ -200,11 +200,14 @@ public class TPCCSimulation {
             // long num_samples = this.zipf.getSampleCount();
             // if (num_samples > 0 && num_samples % 10000 == 0) System.err.println("W_ID Distribution:\n" + this.zipf.getHistory());
             w_id = (short)this.zipf.nextInt();
-        } else 
+        } else if (m_skewFactor > 0.0d) {
             w_id = (short)generator.skewedNumber(parameters.starting_warehouse, max_w_id, m_skewFactor);
+        } else {
+            w_id = (short)generator.number(parameters.starting_warehouse, this.max_w_id);
+        }
         
-        assert(w_id >= parameters.starting_warehouse) : "Invalid W_ID: " + w_id;
-        assert(w_id <= this.max_w_id) : "Invalid W_ID: " + w_id;
+        assert(w_id >= parameters.starting_warehouse) : String.format("Invalid W_ID: %d [min=%d, max=%d]", w_id, parameters.starting_warehouse, max_w_id); 
+        assert(w_id <= this.max_w_id) : String.format("Invalid W_ID: %d [min=%d, max=%d]", w_id, parameters.starting_warehouse, max_w_id);
         return w_id;
     }
 

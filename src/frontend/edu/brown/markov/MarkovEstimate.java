@@ -100,12 +100,20 @@ public class MarkovEstimate implements Poolable {
      * @return
      */
     public boolean isValid() {
-        if (this.vertex == null) return (false);
+        if (this.vertex == null) {
+            LOG.warn("MarkovGraph vertex is null");
+            return (false);
+        }
         
         for (int i = 0; i < this.touched.length; i++) {
-            if (this.finished[i] == MarkovUtil.NULL_MARKER ||
-                this.read[i] == MarkovUtil.NULL_MARKER ||
-                this.write[i] == MarkovUtil.NULL_MARKER) {
+            if (this.finished[i] == MarkovUtil.NULL_MARKER) {
+                LOG.warn("finished[" + i + "] is null");
+                return (false);
+            } else if (this.read[i] == MarkovUtil.NULL_MARKER) {
+                LOG.warn("read[" + i + "] is null");
+                return (false);
+            } else if (this.write[i] == MarkovUtil.NULL_MARKER) {
+                LOG.warn("write[" + i + "] is null");
                 return (false);
             }
         } // FOR
