@@ -247,8 +247,15 @@ public class GraphvizExport<V extends AbstractVertex, E extends AbstractEdge> {
             
             // Vertex Attributes
             if (this.hasAttributes(v)) {
-                AttributeValues vertex_attrs = this.getAttributes(v);
-                b.append(" [" ).append(vertex_attrs.toString(" ")).append("]");
+                AttributeValues av = this.getAttributes(v);
+                String label = null;
+                if (av.containsKey(Attribute.LABEL)) {
+                    label = av.get(Attribute.LABEL);
+                }
+                b.append("[");
+                if (this.hasAttributes(v)) b.append(this.getAttributes(v).toString(" ", Attribute.LABEL));
+                if (label != null) b.append("label=\"").append(this.escapeLabel(label)).append("\"");
+                b.append("] ");
             }
             b.append(" ;\n");
             add = "";

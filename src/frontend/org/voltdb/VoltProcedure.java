@@ -1046,31 +1046,22 @@ public abstract class VoltProcedure implements Poolable {
             MispredictionException ex = this.plan.getMisprediction(); 
             
             if (d || hstore_conf.site.exec_mispredict_crash) {
-                String msg = "Caught " + ex.getClass().getSimpleName() + "!\n" + StringUtil.SINGLE_LINE;
+                StringBuilder sb = new StringBuilder();
+                sb.append("Caught " + ex.getClass().getSimpleName() + "!\n")
+                  .append(StringUtil.SINGLE_LINE);
                 
-                msg += "CURRENT BATCH\n";
+                sb.append("CURRENT BATCH\n");
                 for (int i = 0; i < batchSize; i++) {
-                    msg += String.format("[%02d] %s <==> %s\n     %s\n     %s\n", i, batchStmts[i].catStmt.fullName(), planner.catalog_stmts[i].fullName(), batchStmts[i].catStmt.getSqltext(), Arrays.toString(params[i].toArray()));
+                    sb.append(String.format("[%02d] %s <==> %s\n     %s\n     %s\n",
+                                            i,
+                                            batchStmts[i].catStmt.fullName(),
+                                            planner.catalog_stmts[i].fullName(),
+                                            batchStmts[i].catStmt.getSqltext(),
+                                            Arrays.toString(params[i].toArray())));
                 }
                 
-                msg += "\nPLANNER\n";
-                for (int i = 0; i < batchSize; i++) {
-                    Statement stmt0 = planner.catalog_stmts[i];
-                    Statement stmt1 = batchStmts[i].catStmt;
-                    assert(stmt0.fullName().equals(stmt1.fullName())) : stmt0.fullName() + " != " + stmt1.fullName(); 
-                    msg += String.format("[%02d] %s\n     %s\n", i, stmt0.fullName(), stmt1.fullName());
-                } // FOR
-
-                msg += "\nTRANSACTION STATE\n" + this.m_localTxnState.toString();
-                
-                LOG.warn("\n" + msg);
-            }
-            
-            // Crash on Misprediction!
-            if (hstore_conf.site.exec_mispredict_crash) {
-                
+                sb.append(String.format("\nTXN #%d PARAMS:\n%s", this.txn_id, sb.toString()));
                 ParameterMangler pm = new ParameterMangler(catProc);
-                StringBuilder sb = new StringBuilder();
                 Object mangled[] = pm.convert(this.procParams); 
                 for (int i = 0; i < mangled.length; i++) {
                     sb.append(String.format("  [%02d] ", i));
@@ -1081,12 +1072,16 @@ public abstract class VoltProcedure implements Poolable {
                     }
                     sb.append("\n");
                 } // FOR
-                LOG.info(String.format("TXN #%d PARAMS:\n%s", this.txn_id, sb.toString()));
                 
+                sb.append("\nTRANSACTION STATE\n").append(this.m_localTxnState.debug());
+                
+                sb.append("\nESTIMATOR STATE:\n");
                 State s = this.m_localTxnState.getEstimatorState();
                 if (s != null) {
+                    
                     MarkovGraph markov = s.getMarkovGraph();                
                     try {
+                        markov.recomputeGraph();
                         GraphvizExport<Vertex, Edge> gv = MarkovUtil.exportGraphviz(markov, true, markov.getPath(s.getEstimatedPath()));
                         gv.highlightPath(markov.getPath(s.getActualPath()), "blue");
                         
@@ -1096,10 +1091,23 @@ public abstract class VoltProcedure implements Poolable {
                         LOG.fatal("???????????????????????", ex2);
                     }
                 } else {
-                    LOG.warn("No TransactionEstimator.State! Can't dump out MarkovGraph!");
+                    sb.append("No TransactionEstimator.State! Can't dump out MarkovGraph!\n");
                 }
-                LOG.fatal("Crashing because mispredict_crash is true!\n" + this.m_localTxnState);
                 
+                sb.append("\nPLANNER\n");
+                for (int i = 0; i < batchSize; i++) {
+                    Statement stmt0 = planner.catalog_stmts[i];
+                    Statement stmt1 = batchStmts[i].catStmt;
+                    assert(stmt0.fullName().equals(stmt1.fullName())) : stmt0.fullName() + " != " + stmt1.fullName(); 
+                    sb.append(String.format("[%02d] %s\n     %s\n", i, stmt0.fullName(), stmt1.fullName()));
+                } // FOR
+
+                LOG.warn("\n" + sb.toString());
+            }
+            
+            // Crash on Misprediction!
+            if (hstore_conf.site.exec_mispredict_crash) {
+                LOG.fatal(String.format("Crashing because site.exec_mispredict_crash is true [txn=%s]", this.m_localTxnState));
                 this.executor.crash(ex);
             }
             throw ex;

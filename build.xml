@@ -66,25 +66,47 @@
 <!-- emma build instrumentation location -->
 <property name='build.instr.dir'             location='${build.dir}/instr' />
 
-<!-- Default H-Store Properties File  -->
-<condition property="properties" value="${properties.dir}/default.properties">
-    <not><isset property="properties"/></not>
-</condition>
-<property file="${properties}"/>
+<!--
+***************************************
+** H-STORE CONFIGURATION
+**************************************
+-->
 
-<!-- Benchmarks Properties File -->
+<!-- Default H-Store Configuration File  -->
+<condition property="conf" value="${properties.dir}/default.properties">
+    <not><isset property="conf"/></not>
+</condition>
+<property file="${conf}"/>
+<fail message="Missing properties file" unless="coordinator.host" />
+
+<!--
+***************************************
+** BENCHMARK CONFIGURATION
+**************************************
+-->
+
+<!-- Default Project -->
 <condition property="project" value="tpcc">
     <not><isset property="project"/></not>
 </condition>
-<property file="${benchmark.dir}/${project}.properties" prefix="benchmark" />
-<fail message="Missing properties file" unless="coordinator.host" />
 
-<property name="benchmark.jar" location="${project}.jar" />
+<!-- Benchmarks Configuration File -->
+<condition property="benchmark.conf" value="${benchmark.dir}/${project}.properties">
+    <not><isset property="benchmark.conf"/></not>
+</condition>
+<property file="${benchmark.conf}" prefix="benchmark" />
 <fail message="Invalid benchmark project '${project}'" unless="benchmark.client" />
 
+<property name="benchmark.jar" location="${project}.jar" />
 <condition property="jar" value="${benchmark.jar}">
     <not><isset property="jar"/></not>
 </condition>
+
+<!--
+***************************************
+** ADDITIONAL CONFIGURATION
+**************************************
+-->
 
 <!-- Default heap size for Volt server (MB)  -->
 <condition property="volt.server.memory" value="2048">
@@ -1421,7 +1443,7 @@ BENCHMARKS
         <jvmarg value="-Dlog4j.configuration=${basedir}/log4j.properties"/>
         <assertions><enable/></assertions>
 
-        <arg value="conf=${properties}" />
+        <arg value="CONF=${conf}" />
         <arg value="CLIENTHEAP=${client.memory}" />
         <arg value="BACKEND=${backend}" />
         <arg value="HOSTCOUNT=${hostcount}" />
@@ -1455,6 +1477,7 @@ BENCHMARKS
         <arg value="temporaltotal=${client.temporaltotal}" />
 
         <!-- Benchmark Parameters -->
+        <arg value="benchmark.conf=${benchmark.conf}" />
         <arg value="benchmark.client=${benchmark.client}" />
         <arg value="benchmark.datadir=${benchmark.datadir}"/>
         
@@ -2218,7 +2241,7 @@ H-STORE REMIX
 
         <jvmarg value="-Dhstore.preload=${site.preload}" />
         <arg value="catalog.jar=${benchmark.jar}" />
-        <arg value="conf=${properties}" />
+        <arg value="conf=${conf}" />
         <arg value="site.id=${site.id}" />
         <arg value="site.exec_force_singlepartitioned=${site.exec_force_singlepartitioned}" />
         <arg value="site.exec_force_localexecution=${site.exec_force_localexecution}" />
@@ -2234,6 +2257,7 @@ H-STORE REMIX
         <arg value="hasher.class=${hasher}" />
         <arg value="markov=${markov}" />
         <arg value="markov.thresholds=${thresholds}" />
+        <arg value="markov.thresholds.value=${thresholds.value}" />
         <arg value="correlations=${correlations}" />
         <arg value="partitionplan=${partitionplan}" />
         <arg value="partitionplan.apply=true" />

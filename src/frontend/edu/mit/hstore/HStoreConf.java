@@ -845,7 +845,7 @@ public final class HStoreConf {
             boolean found = m.matches();
             assert(m != null && found) : "Invalid key '" + k + "' from configuration file '" + path + "'";
             
-            Object handle = confHandles.get(m.group(1));
+            Conf handle = confHandles.get(m.group(1));
             Class<?> confClass = handle.getClass();
             assert(confClass != null);
             Field f = null;
@@ -857,25 +857,33 @@ public final class HStoreConf {
                 continue;
 //                throw new RuntimeException("Failed to retrieve field handle for '" + f_name + "'", ex);
             }
+            ConfigProperty cp = handle.properties.get(f);
             Class<?> f_class = f.getType();
+            Object defaultValue = null;
             Object value = null;
             
             if (f_class.equals(int.class)) {
                 value = this.config.getInt(k);
+                if (cp != null) defaultValue = cp.defaultInt();
             } else if (f_class.equals(long.class)) {
                 value = this.config.getLong(k);
+                if (cp != null) defaultValue = cp.defaultLong();
             } else if (f_class.equals(double.class)) {
                 value = this.config.getDouble(k);
+                if (cp != null) defaultValue = cp.defaultDouble();
             } else if (f_class.equals(boolean.class)) {
                 value = this.config.getBoolean(k);
+                if (cp != null) defaultValue = cp.defaultBoolean();
             } else if (f_class.equals(String.class)) {
                 value = this.config.getString(k);
+                if (cp != null) defaultValue = cp.defaultString();
             } else {
-                LOG.warn(String.format("Unexpected default value type '%s' for property '%s'", f_class.getSimpleName(), f_name));
+                LOG.warn(String.format("Unexpected value type '%s' for property '%s'", f_class.getSimpleName(), f_name));
             }
             
             try {
                 f.set(handle, value);
+//                if (defaultValue != null && defaultValue.equals(value) == false) LOG.info(String.format("SET %s = %s", k, value));
                 LOG.debug(String.format("SET %s = %s", k, value));
             } catch (Exception ex) {
                 throw new RuntimeException("Failed to set value '" + value + "' for field '" + f_name + "'", ex);
