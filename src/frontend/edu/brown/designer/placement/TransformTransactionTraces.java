@@ -97,12 +97,12 @@ public class TransformTransactionTraces {
                 	// increment # of multi-partition batches from the base partition
                     num_partition_batches[base_partition]++;
                 	// calculate which other partitions were touched by the multi partition transaction
-                    //output_matrix[base_partition][base_partition]++;
+                    output_matrix[base_partition][base_partition]++;
                     for (int partition_num : partitions_touched_per_batch) {
-                    	output_matrix[base_partition][partition_num]++;                    		
-//                    	if (partition_num != base_partition) {
-//                        	output_matrix[base_partition][partition_num]++;                    		
-//                    	}
+                    	//output_matrix[base_partition][partition_num]++;                    		
+                    	if (partition_num != base_partition) {
+                        	output_matrix[base_partition][partition_num]++;                    		
+                    	}
                     }
                 }
                 txn_partitions.getPartitions().add(total_query_partitions);
@@ -116,7 +116,7 @@ public class TransformTransactionTraces {
         sb.append("1 100 10000 \n");
         for (int hist_value : hist.values()) {
         	//LOG.info(hist_value  + ": " + hist.get(hist_value));
-    		sb.append(((hist.get(hist_value) * 1.0) / total_num_transactions) + " " + partition_size + " " + args.getParam("simulator.host.memory") + "\n");
+    		sb.append(((hist.get(hist_value) * 1.0) / total_num_transactions) + " " + partition_size + "\n");
         }
         //sb.append(hist.toString());
         // write the file
@@ -188,6 +188,7 @@ public class TransformTransactionTraces {
             writer = new FileWriter(args.getOptParam(0));
             writer.append(sb.toString());
             writer.flush();
+            //LOG.info("Succesfully wrote to: " + output_file);
         } catch (IOException e) {
             // TODO Auto-generated catch block
             e.printStackTrace();
