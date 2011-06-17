@@ -99,13 +99,11 @@ public class TransformTransactionTraces {
                 	// calculate which other partitions were touched by the multi partition transaction
                     //output_matrix[base_partition][base_partition]++;
                     for (int partition_num : partitions_touched_per_batch) {
-                    	System.out.println("partition num: " + partition_num + " base partition: " + base_partition);
                     	output_matrix[base_partition][partition_num]++;                    		
 //                    	if (partition_num != base_partition) {
 //                        	output_matrix[base_partition][partition_num]++;                    		
 //                    	}
                     }
-                    System.out.println();
                 }
                 txn_partitions.getPartitions().add(total_query_partitions);
             }
@@ -115,7 +113,7 @@ public class TransformTransactionTraces {
         StringBuilder sb = new StringBuilder();
         sb.append(CatalogUtil.getNumberOfHosts(catalogDb) + " " + CatalogUtil.getNumberOfSites(catalogDb) + " " + CatalogUtil.getNumberOfPartitions(catalogDb) + " " + args.getParam("simulator.host.memory") + " " + (CatalogUtil.getNumberOfSites(args.catalog) / CatalogUtil.getNumberOfHosts(args.catalog)) + "\n");
         // append the communication cost multiplers (penality for different partitions, different sites, different hosts)
-        sb.append("1 100 10000");
+        sb.append("1 100 10000 \n");
         for (int hist_value : hist.values()) {
         	//LOG.info(hist_value  + ": " + hist.get(hist_value));
     		sb.append(((hist.get(hist_value) * 1.0) / total_num_transactions) + " " + partition_size + " " + args.getParam("simulator.host.memory") + "\n");
