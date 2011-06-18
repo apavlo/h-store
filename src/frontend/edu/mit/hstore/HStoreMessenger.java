@@ -709,7 +709,7 @@ public class HStoreMessenger implements Shutdownable {
             }
         }
         LOG.info(String.format("Shutting down [site=%d, status=%d]", catalog_site.getId(), exit_status.byteAt(0)));
-//        LogManager.shutdown();
+        LogManager.shutdown();
         System.exit(exit_status.byteAt(0));
     }
     

@@ -554,7 +554,7 @@ public abstract class VoltProcedure implements Poolable {
         if (this.procParams.length != this.paramTypesLength) {
             String msg = "PROCEDURE " + procedure_name + " EXPECTS " + String.valueOf(paramTypesLength) +
                 " PARAMS, BUT RECEIVED " + String.valueOf(this.procParams.length);
-            LOG.fatal(msg);
+            LOG.error(msg);
             status = ClientResponseImpl.GRACEFUL_FAILURE;
             status_msg = msg;
             return new ClientResponseImpl(this.txn_id, status, results, status_msg, this.client_handle);
@@ -1044,6 +1044,18 @@ public abstract class VoltProcedure implements Poolable {
         // Doing it this way allows us to update the TransactionEstimator before we abort the txn
         if (this.plan.getMisprediction() != null) {
             MispredictionException ex = this.plan.getMisprediction(); 
+
+            State s = this.m_localTxnState.getEstimatorState();
+            MarkovGraph markov = null;
+            if (s != null && hstore_conf.site.markov_mispredict_recompute) {
+                if (d) LOG.debug("Recomputing MarkovGraph probabilities because " + m_localTxnState + " mispredicted");
+                markov = s.getMarkovGraph();
+                markov.recomputeGraph();
+                if (d && markov.isValid() == false) {
+                    LOG.error("Invalid MarkovGraph after recomputing! Crashing...");
+                    hstore_conf.site.exec_mispredict_crash = true;
+                }
+            }
             
             if (d || hstore_conf.site.exec_mispredict_crash) {
                 StringBuilder sb = new StringBuilder();
@@ -1076,12 +1088,8 @@ public abstract class VoltProcedure implements Poolable {
                 sb.append("\nTRANSACTION STATE\n").append(this.m_localTxnState.debug());
                 
                 sb.append("\nESTIMATOR STATE:\n");
-                State s = this.m_localTxnState.getEstimatorState();
                 if (s != null) {
-                    
-                    MarkovGraph markov = s.getMarkovGraph();                
                     try {
-                        markov.recomputeGraph();
                         GraphvizExport<Vertex, Edge> gv = MarkovUtil.exportGraphviz(markov, true, markov.getPath(s.getEstimatedPath()));
                         gv.highlightPath(markov.getPath(s.getActualPath()), "blue");
                         

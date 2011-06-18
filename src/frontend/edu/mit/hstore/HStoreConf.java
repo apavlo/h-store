@@ -190,7 +190,7 @@ public final class HStoreConf {
             description="Always execute transactions as single-partitioned (excluding sysprocs). If a transaction requests " +
                         "data on a partition that is different than where it is executing, then it is aborted, rolled back, " +
                         "and re-executed on the same partition as a multi-partition transaction that touches all partitions. " +
-                        "Note that this is independent of how H-Store decides what partition to execute the transaction’s Java " +
+                        "Note that this is independent of how H-Store decides what partition to execute the transaction's Java " +
                         "control code on.",
             defaultBoolean=true
         )
@@ -317,6 +317,15 @@ public final class HStoreConf {
         // ----------------------------------------------------------------------------
         // Markov Transaction Estimator Options
         // ----------------------------------------------------------------------------
+
+        @ConfigProperty(
+            description="Recompute a MarkovGraph's execution state probabilities every time a transaction " +
+                        "is aborted due to a misprediction.",
+            defaultBoolean=true,
+            advanced=false
+        )
+        public boolean markov_mispredict_recompute;
+
         
         @ConfigProperty(
             description="If this is set to true, TransactionEstimator will try to reuse MarkovPathEstimators" +
@@ -637,7 +646,7 @@ public final class HStoreConf {
         public boolean blocking;
 
         @ConfigProperty(
-            description="The scaling factor determines how large to make the target benchmark’s data set. " +
+            description="The scaling factor determines how large to make the target benchmark's data set. " +
                         "A scalefactor less than one makes the data set larger, while greater than one " +
                         "makes it smaller. Implementation depends on benchmark specification.",
             defaultInt=10,

@@ -28,6 +28,7 @@ package edu.brown.utils;
 import java.io.*;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
+import java.text.ParseException;
 import java.util.*;
 import java.util.Map.Entry;
 import java.util.regex.Pattern;
@@ -35,7 +36,9 @@ import java.util.regex.Pattern;
 import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.log4j.Logger;
 
+import org.voltdb.VoltType;
 import org.voltdb.catalog.*;
+import org.voltdb.utils.VoltTypeUtil;
 
 import edu.brown.benchmark.AbstractProjectBuilder;
 import edu.brown.catalog.CatalogUtil;
@@ -284,19 +287,43 @@ public class ArgumentsParser {
         return (this.opt_params.get(idx));
     }
     
-    public Integer getIntOptParam(int idx) {
+    @SuppressWarnings("unchecked")
+    public <T> T getOptParam(int idx, VoltType vt) {
         String val = this.opt_params.get(idx);
-        Integer ret = null;
-        if (val != null) ret = Integer.valueOf(val);
-        return (ret);
+        if (val != null) {
+            try {
+                return ((T)VoltTypeUtil.getObjectFromString(vt, val));
+            } catch (ParseException ex) {
+                throw new RuntimeException("Failed to cast optional parameter " + idx + " [value=" + val + "]", ex);
+            }
+        }
+        return (null);
+    }
+    
+    public Boolean getBooleanOptParam(int idx) {
+        return (this.getOptParam(idx, VoltType.BOOLEAN));
+    }
+
+    public Byte getByteOptParam(int idx) {
+        return (this.getOptParam(idx, VoltType.TINYINT));
+    }
+    
+    public Short getShortOptParam(int idx) {
+        return (this.getOptParam(idx, VoltType.SMALLINT));
+    }
+    
+    public Integer getIntOptParam(int idx) {
+        return (this.getOptParam(idx, VoltType.INTEGER));
     }
     
     public Long getLongOptParam(int idx) {
-        String val = this.opt_params.get(idx);
-        Long ret = null;
-        if (val != null) ret = Long.valueOf(val);
-        return (ret);
+        return (this.getOptParam(idx, VoltType.BIGINT));
     }
+    
+    public Double getDoubleOptParam(int idx) {
+        return (this.getOptParam(idx, VoltType.DECIMAL));
+    }
+    
     
     public Map<String, String> getParams() {
         return (this.params);

@@ -36,6 +36,7 @@ import org.apache.log4j.Logger;
 import org.voltdb.BatchPlanner;
 import org.voltdb.ExecutionSite;
 import org.voltdb.VoltTable;
+import org.voltdb.catalog.Procedure;
 import org.voltdb.messaging.FragmentTaskMessage;
 
 import com.google.protobuf.RpcCallback;
@@ -59,6 +60,13 @@ public abstract class TransactionState implements Poolable {
         INITIALIZED,
         STARTED,
         FINISHED;
+    }
+    
+    public static String formatTxnName(Procedure catalog_proc, long txn_id) {
+        if (catalog_proc != null) {
+            return (catalog_proc.getName() + " #" + txn_id);
+        }
+        return ("#" + txn_id);
     }
 
     // ----------------------------------------------------------------------------

@@ -71,13 +71,16 @@ public class BenchmarkConfig {
     public String subApplicationName;
     
     public String coordinatorHost;
-    public boolean noCoordinator;
+    
     public boolean compileBenchmark;
     public boolean compileOnly;
     public boolean useCatalogHosts;
-    public boolean noDataLoad;
     public String workloadTrace;
     public Set<Integer> profileSiteIds;
+    
+    public boolean noCoordinator;
+    public boolean noDataLoad;
+    public boolean noShutdown;
     
     public String markovPath;
     public String thresholdsPath;
@@ -176,6 +179,7 @@ public class BenchmarkConfig {
             boolean compileOnly,
             boolean useCatalogHosts,
             boolean noDataLoad,
+            boolean noShutdown,
             String workloadTrace,
             Set<Integer> profileSiteIds,
             String markovPath,
@@ -225,6 +229,7 @@ public class BenchmarkConfig {
         this.compileOnly = compileOnly;
         this.useCatalogHosts = useCatalogHosts;
         this.noDataLoad = noDataLoad;
+        this.noShutdown = noShutdown;
         this.workloadTrace = workloadTrace;
         this.profileSiteIds = profileSiteIds;
         

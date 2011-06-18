@@ -56,7 +56,7 @@ public abstract class StringUtil {
             Object row[] = rows[i];
             new_rows[i] = new String[row.length - 1];
             for (int j = 0; j < new_rows[i].length; j++) {
-                new_rows[i][j] = row[j+1].toString();
+                new_rows[i][j] = (row[j+1] != null ? row[j+1].toString() : "null");
             } // FOR
         }
         

@@ -116,6 +116,11 @@ public interface ClientResponse {
      * @return An array of results. Will never be <code>null</code>, but may be length 0.
      */
     public VoltTable[] getResults();
+    
+    /**
+     * Get the number of bytes used by the results array
+     */
+    public int getResultsSize();
 
     /**
      * Get a <code>String</code> representation of any additional information the server may have included in

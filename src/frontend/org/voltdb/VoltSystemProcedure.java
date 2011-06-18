@@ -19,7 +19,9 @@ package org.voltdb;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 
 import org.apache.log4j.Logger;
 import org.voltdb.VoltTable.ColumnInfo;

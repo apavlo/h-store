@@ -95,6 +95,7 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
                 return;
             }
             if (this.hstore_site.isShuttingDown()) break;
+            if (this.hstore_site.isReady() == false) continue;
 
             // Out we go!
             this.printSnapshot();
@@ -204,6 +205,7 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
         if (show_txns) {
             for (TxnCounter tc : TxnCounter.values()) {
                 int cnt = tc.get();
+                if (cnt == 0) continue;
                 String val = Integer.toString(cnt);
                 if (tc != TxnCounter.COMPLETED && tc != TxnCounter.EXECUTED) {
                     val += String.format(" [%.03f]", tc.ratio());
