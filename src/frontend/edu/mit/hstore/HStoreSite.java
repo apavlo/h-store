@@ -108,6 +108,7 @@ import edu.mit.hstore.callbacks.InitiateCallback;
 import edu.mit.hstore.callbacks.MultiPartitionTxnCallback;
 import edu.mit.hstore.callbacks.SinglePartitionTxnCallback;
 import edu.mit.hstore.dtxn.LocalTransactionState;
+import edu.mit.hstore.dtxn.TransactionState;
 import edu.mit.hstore.interfaces.Shutdownable;
 
 /**
@@ -876,10 +877,9 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         request.buildParameterSet();
         assert(request.getParams() != null) : "The parameters object is null for new txn from client #" + request.getClientHandle();
         final Object args[] = request.getParams().toArray(); 
-        final Procedure catalog_proc = this.catalog_db.getProcedures().get(request.getProcName());
-        if (this.status_monitor != null) TxnCounter.RECEIVED.inc(catalog_proc);
-        
+        final Procedure catalog_proc = this.catalog_db.getProcedures().getIgnoreCase(request.getProcName());
         if (catalog_proc == null) throw new RuntimeException("Unknown procedure '" + request.getProcName() + "'");
+        if (this.status_monitor != null) TxnCounter.RECEIVED.inc(catalog_proc);
         if (d) LOG.debug(String.format("Received new stored procedure invocation request for %s [handle=%d, bytes=%d]", catalog_proc.getName(), request.getClientHandle(), serializedRequest.length));
         
         // First figure out where this sucker needs to go
@@ -1038,7 +1038,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
                 // If there is no TransactinEstimator.State, then there is nothing we can do
                 // It has to be executed as multi-partitioned
                 if (t_state == null) {
-                    if (d) LOG.debug(String.format("No TransactionEstimator.State was returned for %s. Executing as multi-partitioned", catalog_proc)); 
+                    if (d) LOG.debug(String.format("No TransactionEstimator.State was returned for %s. Executing as multi-partitioned", TransactionState.formatTxnName(catalog_proc, txn_id))); 
                     single_partition = false;
                     
                 // We have a TransactionEstimator.State, so let's see what it says...
@@ -1048,15 +1048,15 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
                     
                     // Bah! We didn't get back a MarkovEstimate for some reason...
                     if (m_estimate == null) {
-                        if (d) LOG.debug(String.format("No MarkovEstimate was found for %s. Executing as multi-partitioned", catalog_proc));
+                        if (d) LOG.debug(String.format("No MarkovEstimate was found for %s. Executing as multi-partitioned", TransactionState.formatTxnName(catalog_proc, txn_id)));
                         single_partition = false;
                         
                     // Check whether the probability that we're single-partitioned is above our threshold
                     } else {
-                        if (d) LOG.debug(String.format("Using MarkovEstimate for %s to determine if single-partitioned", catalog_proc));
+                        if (d) LOG.debug(String.format("Using MarkovEstimate for %s to determine if single-partitioned", TransactionState.formatTxnName(catalog_proc, txn_id)));
                         
-                        if (d) LOG.debug(String.format("%s MarkovEstimate:\n%s", catalog_proc, m_estimate));
-                        assert(m_estimate.isValid()) : String.format("Invalid MarkovEstimate for %s\n%s", catalog_proc, m_estimate);
+                        if (d) LOG.debug(String.format("%s MarkovEstimate:\n%s", TransactionState.formatTxnName(catalog_proc, txn_id), m_estimate));
+                        assert(m_estimate.isValid()) : String.format("Invalid MarkovEstimate for %s\n%s", TransactionState.formatTxnName(catalog_proc, txn_id), m_estimate);
                         single_partition = m_estimate.isSinglePartition(this.thresholds);
                         predict_readonly = catalog_proc.getReadonly(); // FIXME
                         predict_can_abort = predict_readonly == false || single_partition == false;
@@ -1066,8 +1066,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
                 }
                 if (hstore_conf.site.txn_profiling) ts.est_time.stop();
             } catch (Throwable ex) {
-                LOG.fatal(String.format("Failed calculate estimate for %s request", catalog_proc), ex);
-                throw new RuntimeException(ex);
+                throw new RuntimeException(String.format("Failed calculate estimate for %s request", TransactionState.formatTxnName(catalog_proc, txn_id)), ex);
             }
         }
         

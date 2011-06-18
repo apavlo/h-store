@@ -788,7 +788,7 @@ public class BenchmarkController {
         // shut down all the clients
         boolean first = true;
         for (String clientName : m_clients) {
-            if (first) {
+            if (first && m_config.noShutdown == false) {
                 m_clientPSM.writeToProcess(clientName, Command.SHUTDOWN);
                 first = false;
             } else {
@@ -980,7 +980,6 @@ public class BenchmarkController {
         boolean compileBenchmark = true;
         boolean compileOnly = false;
         boolean useCatalogHosts = false;
-        boolean noDataLoad = false;
         String workloadTrace = null;
         int num_partitions = 0;
         String backend = "jni";
@@ -991,10 +990,14 @@ public class BenchmarkController {
         float checkTransaction = 0;
         boolean checkTables = false;
         String coordinatorHost = null;
-        boolean noCoordinator = false;
+        
         String statsTag = null;
         String applicationName = null;
         String subApplicationName = null;
+        
+        boolean noCoordinator = false;
+        boolean noDataLoad = false;
+        boolean noShutdown = false;
         
         // HStoreConf Path
         String hstore_conf_path = null;
@@ -1197,11 +1200,16 @@ public class BenchmarkController {
                  * Launch the ExecutionSites using the hosts that are in the catalog
                  */
                 useCatalogHosts = Boolean.parseBoolean(parts[1]);
+            
+            // Disable data loading
             } else if (parts[0].equalsIgnoreCase("NODATALOAD")) {
-                /*
-                 * Disable data loading
-                 */
                 noDataLoad = Boolean.parseBoolean(parts[1]);
+                
+            // Disable sending the shutdown command at the end of the benchmark run
+            } else if (parts[0].equalsIgnoreCase("NOSHUTDOWN")) {
+                noShutdown = Boolean.parseBoolean(parts[1]);
+                LOG.info("NOSHUTDOWN = " + noShutdown);
+                
             } else if (parts[0].equalsIgnoreCase("TRACE")) {
                 /*
                  * Workload Trace Output
@@ -1358,6 +1366,7 @@ public class BenchmarkController {
                 compileOnly, 
                 useCatalogHosts,
                 noDataLoad,
+                noShutdown,
                 workloadTrace,
                 profileSiteIds,
                 markov_path,

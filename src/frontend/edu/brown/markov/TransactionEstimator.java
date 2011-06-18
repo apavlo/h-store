@@ -369,7 +369,7 @@ public class TransactionEstimator {
         return this.p_estimator;
     }
 
-    protected MarkovGraphsContainer getMarkovs() {
+    public MarkovGraphsContainer getMarkovs() {
         return (this.markovs);
     }
     
@@ -448,6 +448,8 @@ public class TransactionEstimator {
     public State startTransaction(long txn_id, int base_partition, Procedure catalog_proc, Object args[]) {
         assert (catalog_proc != null);
         long start_time = System.currentTimeMillis();
+        if (d) LOG.debug(String.format("Starting estimation for new %s #%d [partition=%d]",
+                                       catalog_proc.getName(), txn_id, base_partition));
 
         // If we don't have a graph for this procedure, we should probably just return null
         // This will be the case for all sysprocs
@@ -457,7 +459,7 @@ public class TransactionEstimator {
             if (d) LOG.debug(String.format("No %s MarkovGraph exists for txn #%d", catalog_proc.getName(), txn_id));
             return (null);
         }
-        // assert(markov.isValid()) : "The MarkovGraph for txn #" + txn_id + " is not valid!";
+        assert(markov.isValid()) : String.format("The MarkovGraph for %s txn #%d is not valid!", catalog_proc.getName(), txn_id);
         
         Vertex start = markov.getStartVertex();
         MarkovPathEstimator estimator = null;
@@ -471,6 +473,8 @@ public class TransactionEstimator {
             
         // Otherwise we have to recalculate everything from scatch again
         if (estimator == null) {
+//            if (d) 
+                LOG.info(String.format("Recalculating initial path estimate for %s #%d", catalog_proc.getName(), txn_id));
             try {
                 estimator = (MarkovPathEstimator)ESTIMATOR_POOL.borrowObject();
                 estimator.init(markov, this, base_partition, args);
@@ -481,7 +485,6 @@ public class TransactionEstimator {
             
             // Calculate initial path estimate
             if (t) LOG.trace("Estimating initial execution path for txn #" + txn_id);
-    
             synchronized (markov) {
                 start.addInstanceTime(txn_id, start_time);
                 try {
@@ -499,12 +502,13 @@ public class TransactionEstimator {
                 }
             } // SYNCH
         } else {
-            if (d) LOG.debug(String.format("Using cached MarkovPathEstimator for %s txn #%d [hashCode=%d, ratio=%.02f]",
+            if (d) LOG.info(String.format("Using cached MarkovPathEstimator for %s txn #%d [hashCode=%d, ratio=%.02f]",
                                            catalog_proc.getName(), txn_id, estimator.getEstimate().hashCode(), markov.getAccuracyRatio()));
             assert(estimator.isCached()) :
                 String.format("The cached %s MarkovPathEstimator used by txn #%d does not have its cached flag set [hashCode=%d]", catalog_proc.getName(), txn_id, estimator.hashCode());
             assert(estimator.getEstimate().isValid()) :
                 String.format("Invalid %s MarkovEstimate for cache Estimator used by txn #%d [hashCode=%d]", catalog_proc.getName(), txn_id, estimator.getEstimate().hashCode());
+            estimator.getEstimate().reused++;
         }
         assert(estimator != null);
         if (t) {
@@ -514,7 +518,7 @@ public class TransactionEstimator {
             LOG.trace(String.format("MarkovEstimate for txn #%d\n%s", txn_id, estimator.getEstimate()));
         }
         
-        if (t) LOG.trace(String.format("Creating new State txn #%d [touched=%s]", txn_id, estimator.getTouchedPartitions()));
+        if (d) LOG.debug(String.format("Creating new State txn #%d [touched=%s]", txn_id, estimator.getTouchedPartitions()));
         State state = null;
         try {
             state = (State)STATE_POOL.borrowObject();
@@ -572,6 +576,7 @@ public class TransactionEstimator {
         MarkovEstimate estimate = state.getNextEstimate(state.current);
         assert(estimate != null);
         if (d) LOG.debug(String.format("Next MarkovEstimate for txn #%d\n%s", state.txn_id, estimate));
+        assert(estimate.isValid()) : String.format("Invalid MarkovEstimate for txn #%d\n%s", state.txn_id, estimate);
         
         // Once the workload shifts we detect it and trigger this method. Recomputes
         // the graph with the data we collected with the current workload method.

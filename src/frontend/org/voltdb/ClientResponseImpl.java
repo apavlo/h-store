@@ -188,6 +188,15 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
     public VoltTable[] getResults() {
         return results;
     }
+    
+    @Override
+    public int getResultsSize() {
+        int ret = 0;
+        for (VoltTable vt : this.results) {
+            ret += vt.getUnderlyingBufferSize();
+        } // FOR
+        return ret;
+    }
 
     public String getStatusString() {
         return statusString;

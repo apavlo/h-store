@@ -1466,7 +1466,7 @@ BENCHMARKS
         <arg value="BLOCKING=${client.blocking}" />
         <arg value="TRACE=${trace}" />
         <arg value="PROFILESITES=${profilesites}" />
-        <arg value="NOCOORDINATOR=${nocoordinator}" />
+        
         <arg value="DUMPDATABASE=${client.dump_database}" />
         <arg value="DUMPDATABASEDIR=${client.dump_database_dir}" />
 
@@ -1508,7 +1508,9 @@ BENCHMARKS
         <arg value="COMPILE=${compile}" />
         <arg value="COMPILEONLY=${compileonly}" />
         <arg value="CATALOGHOSTS=${cataloghosts}" />
+        <arg value="NOCOORDINATOR=${nocoordinator}" />
         <arg value="NODATALOAD=${nodataload}" />
+        <arg value="NOSHUTDOWN=${noshutdown}" />
         
         <!-- Actual number of connections opened to cluster will be:
             NUMCONNECTIONS * CLIENTCOUNT * PROCESSESPERCLIENT * HOSTCOUNT -->
@@ -2274,6 +2276,21 @@ H-STORE REMIX
         <param name="compile" value="false" />
         <param name="cataloghosts" value="true" />
     </antcall>
+</target>
+
+<target name='hstore-invoke'
+        description="Execute on transaction on an already running H-Store cluster">
+    <java fork="yes" failonerror="true" classname="edu.mit.VoltProcedureInvoker">
+        <jvmarg value="-client" />
+        <jvmarg value="-Xms256m" />
+        <jvmarg value="-Xmx${client.memory}m" />
+        <jvmarg value="-Dlog4j.configuration=${basedir}/log4j.properties"/>
+        <arg value="catalog.jar=${benchmark.jar}" />
+        <arg value="${proc}" />
+        <arg line="${params}" />
+        <classpath refid='project.classpath' />
+        <assertions><enable/></assertions>
+    </java>
 </target>
 
 <target name="hstore-jar" description="H-Store JAR Setup">

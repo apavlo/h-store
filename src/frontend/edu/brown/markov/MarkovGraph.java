@@ -481,9 +481,11 @@ public class MarkovGraph extends AbstractDirectedGraph<Vertex, Edge> implements 
      */
     protected void normalizeTimes() {
         Map<Long, Long> stoptimes = this.getCommitVertex().getInstanceTimes();
+        List<Long> to_remove = new ArrayList<Long>();
         for (Vertex v : this.getVertices()) {
-            v.normalizeInstanceTimes(stoptimes);
-        }
+            v.normalizeInstanceTimes(stoptimes, to_remove);
+            to_remove.clear();
+        } // FOR
     }
     
     /**
@@ -512,8 +514,8 @@ public class MarkovGraph extends AbstractDirectedGraph<Vertex, Edge> implements 
                 
                 // Calculate total edge probabilities
                 double edge_probability = e.getProbability(); 
-                assert(edge_probability >= 0.0) : "Edge " + e + " probability is " + edge_probability;
-                assert(edge_probability <= 1.0) : "Edge " + e + " probability is " + edge_probability;
+                assert(edge_probability >= 0.0 && edge_probability <= 1.0) :
+                    String.format("Edge %s->%s probability is %.4f", v.getCatalogItemName(), v1.getCatalogItemName(), edge_probability);
                 sum += e.getProbability();
             } // FOR
             

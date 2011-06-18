@@ -672,8 +672,11 @@ public abstract class ClientMain {
         }
         m_hstoreConf = HStoreConf.singleton();
         
-        assert(benchmark_conf_path != null) : "Missing Benchmark Configuration File";
-        m_benchmarkConf = new BenchmarkConfig(new File(benchmark_conf_path)); 
+        if (benchmark_conf_path != null) {
+            m_benchmarkConf = new BenchmarkConfig(new File(benchmark_conf_path));
+        } else {
+            m_benchmarkConf = null;
+        }
         
         // Thread.currentThread().setName(String.format("client-%02d", id));
         

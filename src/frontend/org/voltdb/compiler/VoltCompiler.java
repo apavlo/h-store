@@ -59,6 +59,10 @@ import org.voltdb.compiler.projectfile.UsersType;
 import org.voltdb.compiler.projectfile.ClassdependenciesType.Classdependency;
 import org.voltdb.compiler.projectfile.ExportsType.Connector;
 import org.voltdb.compiler.projectfile.ExportsType.Connector.Tables;
+import org.voltdb.sysprocs.DatabaseDump;
+import org.voltdb.sysprocs.LoadMultipartitionTable;
+import org.voltdb.sysprocs.RecomputeMarkovs;
+import org.voltdb.sysprocs.Shutdown;
 import org.voltdb.utils.Encoder;
 import org.voltdb.utils.JarReader;
 import org.voltdb.utils.LogKeys;
@@ -935,17 +939,18 @@ public class VoltCompiler {
         final String[][] procedures =
         {
          // package.classname                                readonly    everysite
+        {LoadMultipartitionTable.class.getCanonicalName(),      "false",    "false"},
+        {DatabaseDump.class.getCanonicalName(),                 "true",    "false"},
+        {RecomputeMarkovs.class.getCanonicalName(),             "true",    "true"},
+        {Shutdown.class.getCanonicalName(),                     "false",   "false"},
 //         {"org.voltdb.sysprocs.AdHoc",                        "false",    "false"},
-         {"org.voltdb.sysprocs.LoadMultipartitionTable",      "false",    "false"},
-         {"org.voltdb.sysprocs.DatabaseDump",                 "true",    "false"},
 //         {"org.voltdb.sysprocs.Quiesce",                      "false",    "false"},
 //         {"org.voltdb.sysprocs.SnapshotSave",                 "false",    "false"},
 //         {"org.voltdb.sysprocs.SnapshotRestore",              "false",    "false"},
 //         {"org.voltdb.sysprocs.SnapshotStatus",               "false",    "false"},
 //         {"org.voltdb.sysprocs.SnapshotScan",                 "false",    "false"},
 //         {"org.voltdb.sysprocs.SnapshotDelete",               "false",    "false"},
-         {"org.voltdb.sysprocs.Shutdown",                     "false",    "false"},
-//       {"org.voltdb.sysprocs.StartSampler",                 "false",    "false"},
+//         {"org.voltdb.sysprocs.StartSampler",                 "false",    "false"},
 //         {"org.voltdb.sysprocs.Statistics",                   "true",     "false"},
 //         {"org.voltdb.sysprocs.SystemInformation",            "true",     "false"},
 //         {"org.voltdb.sysprocs.UpdateApplicationCatalog",     "false",    "true"},
@@ -985,6 +990,7 @@ public class VoltCompiler {
             procedure.setHasjava(true);
             procedure.setSinglepartition(info.singlePartition());
             procedure.setEverysite(everysite);
+            ProcedureCompiler.populateProcedureParameters(this, procClass, procedure);
 
             // Stored procedure sysproc classes are present in VoltDB.jar
             // and not duplicated in the catalog. This was decided

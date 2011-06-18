@@ -35,6 +35,8 @@ public class MarkovEstimate implements Poolable {
     private transient Long time;
     private transient boolean initializing = true; 
 
+    public int reused = 0;
+    
     protected MarkovEstimate(int num_partitions) {
         this.touched = new int[num_partitions];
         this.finished = new double[num_partitions];
@@ -291,6 +293,7 @@ public class MarkovEstimate implements Poolable {
         Map<String, Object> m0 = new ListOrderedMap<String, Object>();
         m0.put("Batch Estimate", "#" + this.batch);
         m0.put("HashCode", this.hashCode());
+        m0.put("Reused Counter", this.reused);
         m0.put("Vertex", this.vertex);
         m0.put("Single-Partition", String.format(f, this.singlepartition));
         m0.put("User Abort", String.format(f, this.userabort));
@@ -306,10 +309,10 @@ public class MarkovEstimate implements Poolable {
         for (int i = 0; i < rows.length; i++) {
             rows[i] = new String[] {
                 String.format("Partition %02d", i),
-                String.format(f, this.read[i]),
-                String.format(f, this.write[i]),
-                String.format(f, this.finished[i]),
-                String.format("%d", this.touched[i]),
+                (this.read[i] != MarkovUtil.NULL_MARKER ? String.format(f, this.read[i]) : null),
+                (this.write[i] != MarkovUtil.NULL_MARKER ? String.format(f, this.write[i]) : null),
+                (this.finished[i] != MarkovUtil.NULL_MARKER ? String.format(f, this.finished[i]) : null),
+                Integer.toString(this.touched[i]),
             };
         } // FOR
         Map<String, String> m1 = StringUtil.tableMap(header, rows);

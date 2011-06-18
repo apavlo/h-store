@@ -390,9 +390,9 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
             } // FOR
         } // FOR
     }
-
+    
     /**
-     * Get a mapping of partitions for each host. We have to return the Site
+     * Get a mapping of sites for each host. We have to return the Site
      * objects in order to get the Partition handle that we want
      * @return
      */
