@@ -63,7 +63,7 @@ public class RecomputeMarkovs extends VoltSystemProcedure {
             MarkovGraphsContainer markovs = t_estimator.getMarkovs();
             if (markovs != null) {
                 for (MarkovGraph m : markovs.getAll()) {
-                    m.recomputeGraph();
+                    m.recalculateProbabilities();
                     updated++;
                 } // FOR
                 if (save_to_file) {

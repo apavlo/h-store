@@ -1,5 +1,6 @@
 package edu.brown.markov;
 
+import java.io.File;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
@@ -59,15 +60,15 @@ public class MarkovGraphvizExport {
             for (Entry<Integer, MarkovGraph> e : markov_set.entrySet()) {
                 MarkovGraph markov = e.getValue();
                 assert(markov.isValid()) : "The graph for " + catalog_proc + " is not initialized!";
-                GraphvizExport<Vertex, Edge> gv = MarkovUtil.exportGraphviz(markov, full_output, vldb_output, null);
+                GraphvizExport<Vertex, Edge> gv = MarkovUtil.exportGraphviz(markov, full_output, vldb_output, false, null);
                 
-                String output = null;
+                File f = null;
                 if (markov_set.size() == 1) {
-                    output = gv.writeToTempFile(catalog_proc);
+                    f = gv.writeToTempFile(catalog_proc);
                 } else {
-                    output = gv.writeToTempFile(catalog_proc, e.getKey());
+                    f = gv.writeToTempFile(catalog_proc, e.getKey());
                 }
-                System.err.println("WROTE FILE: " + output);
+                System.err.println("WROTE FILE: " + f);
             } // FOR
         } // FOR
     }

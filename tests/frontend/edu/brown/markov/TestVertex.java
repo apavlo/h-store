@@ -106,7 +106,7 @@ public class TestVertex extends BaseTestCase {
             graph.addToEdge(vertices[5], vertices[6]);
             graph.addToEdge(vertices[7], commit);
         }
-        graph.calculateEdgeProbabilities();
+        graph.calculateProbabilities();
         // assert(graph.isSane());
         
         // System.out.println(GraphvizExport.export(graph, "markov"));

@@ -459,7 +459,12 @@ public class TransactionEstimator {
             if (d) LOG.debug(String.format("No %s MarkovGraph exists for txn #%d", catalog_proc.getName(), txn_id));
             return (null);
         }
-        assert(markov.isValid()) : String.format("The MarkovGraph for %s txn #%d is not valid!", catalog_proc.getName(), txn_id);
+        // We don't want to check this here because we have may have added new vertices that have not been computed yet
+//        if (markov.isValid() == false) {
+//            GraphvizExport<Vertex, Edge> gv = MarkovUtil.exportGraphviz(markov, true, false, true, null);
+//            LOG.warn("Wrote invalid MarkovGraph out to file: " + gv.writeToTempFile());
+//            assert(markov.isValid()) : String.format("The MarkovGraph for %s txn #%d is not valid!", catalog_proc.getName(), txn_id);
+//        }
         
         Vertex start = markov.getStartVertex();
         MarkovPathEstimator estimator = null;
@@ -581,7 +586,7 @@ public class TransactionEstimator {
         // Once the workload shifts we detect it and trigger this method. Recomputes
         // the graph with the data we collected with the current workload method.
         if (this.enable_recomputes && state.getMarkovGraph().shouldRecompute(this.txn_count.get(), RECOMPUTE_TOLERANCE)) {
-            state.getMarkovGraph().recomputeGraph();
+            state.getMarkovGraph().recalculateProbabilities();
         }
         
         return (estimate);
