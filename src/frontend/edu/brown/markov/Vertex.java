@@ -274,6 +274,20 @@ public class Vertex extends AbstractVertex {
                     }
                 } // FOR
             }
+            
+            // If this isn't the first time we are executing this query, then we should at least have
+            // past partitions that we have touched
+            if (this.query_instance_index > 0 && this.past_partitions.isEmpty()) {
+                LOG.warn(String.format("No past partitions for %s", this));
+                return (false);
+            }
+            
+            // And we should always have some partitions that we're touching now
+            if (this.partitions.isEmpty()) {
+                LOG.warn(String.format("No current partitions for %s", this));
+                return (false);
+            }
+            
         }
         return (true);
     }

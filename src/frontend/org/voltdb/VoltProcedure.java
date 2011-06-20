@@ -1050,7 +1050,7 @@ public abstract class VoltProcedure implements Poolable {
             if (s != null && hstore_conf.site.markov_mispredict_recompute) {
                 if (d) LOG.debug("Recomputing MarkovGraph probabilities because " + m_localTxnState + " mispredicted");
                 markov = s.getMarkovGraph();
-                markov.recomputeGraph();
+                markov.recalculateProbabilities();
                 if (d && markov.isValid() == false) {
                     LOG.error("Invalid MarkovGraph after recomputing! Crashing...");
                     hstore_conf.site.exec_mispredict_crash = true;

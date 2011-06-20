@@ -113,7 +113,7 @@ public class TestMarkovGraph extends BaseTestCase {
             // a partition must be zero
             if (done == 1.0) {
                 assertEquals(v + " Partition #" + partition, 0.0f, write);
-                assertEquals(v + " Partition #" + partition, 0.0f, read_only);
+                assertEquals(v + " Partition #" + partition, 1.0f, read_only);
 
             // Otherwise, we should at least be reading or writing at this partition with some probability
             } else {
@@ -198,8 +198,13 @@ public class TestMarkovGraph extends BaseTestCase {
         Vertex stop = testGraph.getCommitVertex();
 
         Statement catalog_stmt = CollectionUtil.getFirst(this.catalog_proc.getStatements());
+        Set<Integer> all_previous = new HashSet<Integer>();
         for (int i = 0; i < 10; i++) {
-            Vertex current = new Vertex(catalog_stmt, Vertex.Type.QUERY, i, new HashSet<Integer>(), new HashSet<Integer>());
+            Set<Integer> partitions = new HashSet<Integer>();
+            partitions.add(i % NUM_PARTITIONS);
+            Set<Integer> previous = new HashSet<Integer>(all_previous);
+            
+            Vertex current = new Vertex(catalog_stmt, Vertex.Type.QUERY, i, partitions, previous);
             testGraph.addVertex(current);
             
             long startcount = start.getTotalHits();
@@ -207,6 +212,15 @@ public class TestMarkovGraph extends BaseTestCase {
             testGraph.addToEdge(current, stop);
             assertTrue(startcount + 1 == start.getTotalHits());
             assertTrue(current.getTotalHits() == 1);
+            all_previous.addAll(partitions);
+        }
+        
+        testGraph.calculateProbabilities();
+        
+        if (testGraph.isValid() == false) {
+            for (Vertex v : testGraph.getVertices()) {
+                System.err.println(v);
+            }
         }
         assertTrue(testGraph.isValid());
     }
