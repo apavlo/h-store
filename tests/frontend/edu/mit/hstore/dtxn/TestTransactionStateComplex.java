@@ -115,9 +115,11 @@ public class TestTransactionStateComplex extends BaseTestCase {
                 }
                 this.dependency_partitions.get(dep_id).add(ftask.getDestinationPartitionId());
                 
-                if (ftask.getInputDependencyCount() == 0) {
+                if (ftask.getInputDependencyCount() == 0 || ftask.getInputDepIds(0).get(0) == ExecutionSite.NULL_DEPENDENCY_ID) {
+//                    System.err.println("++++ FIRST ++++\n" + ftask + "\n");
                     this.first_tasks.add(ftask);
                 } else {
+//                    System.err.println("++++ NOT FIRST ++++\n" + ftask + "\n");
                     for (Integer input_dep_id : ftask.getInputDepIds(i)) {
                         if (input_dep_id != ExecutionSite.NULL_DEPENDENCY_ID) this.internal_dependency_ids.add(input_dep_id);
                     } // FOR
@@ -151,28 +153,34 @@ public class TestTransactionStateComplex extends BaseTestCase {
         // So for this test the query plan is a diamond, so we are going to add results in waves 
         // and make sure that the things get unblocked at the right time
         // (1) Add a result for the first output dependency
-        assertEquals(1, this.first_tasks.size());
+        assertEquals(NUM_PARTITIONS, this.first_tasks.size());
         FragmentTaskMessage first_ftask = CollectionUtil.getFirst(this.first_tasks);
         assertNotNull(first_ftask);
-        int partition = first_ftask.getDestinationPartitionId();
         int first_output_dependency_id = first_ftask.getOutputDepId(0);
         DependencyInfo first_dinfo = this.ts.getDependencyInfo(0, first_output_dependency_id);
         assertNotNull(first_dinfo);
-        assertEquals(NUM_PARTITIONS, first_dinfo.getBlockedFragmentTaskMessages().size());
-        this.ts.addResult(partition, first_output_dependency_id, FAKE_RESULT);
-        this.ts.addResponse(partition, first_output_dependency_id);
-        assert(first_dinfo.hasTasksReleased());
+        assertEquals(1, first_dinfo.getBlockedFragmentTaskMessages().size());
+        for (int p = 0; p < NUM_PARTITIONS; p++) {
+            this.ts.addResult(p, first_output_dependency_id, FAKE_RESULT);
+            this.ts.addResponse(p, first_output_dependency_id);
+            assertEquals(p+1 == NUM_PARTITIONS, first_dinfo.hasTasksReleased()); 
+        } // FOR
 
         // (2) Now add outputs for each of the tasks that became unblocked in the previous step
         DependencyInfo second_dinfo = this.ts.getDependencyInfo(0, CollectionUtil.getFirst(first_dinfo.getBlockedFragmentTaskMessages()).getOutputDepId(0));
+        assertNotNull(second_dinfo);
+        assertFalse(second_dinfo.hasTasksReleased());
+        CountDownLatch latch = this.ts.getDependencyLatch();
+        assertNotNull(latch);
+        assertFalse(latch.getCount() == 0);
         for (FragmentTaskMessage ftask : first_dinfo.getBlockedFragmentTaskMessages()) {
             assertFalse(second_dinfo.hasTasksReady());
-            partition = ftask.getDestinationPartitionId();   
+            int partition = ftask.getDestinationPartitionId();   
             int output_dependency_id = ftask.getOutputDepId(0);
             this.ts.addResult(partition, output_dependency_id, FAKE_RESULT);
             this.ts.addResponse(partition, output_dependency_id);
         } // FOR
-        assert(second_dinfo.hasTasksReleased());
+        assertTrue(latch.getCount() == 0);
     }
     
     
