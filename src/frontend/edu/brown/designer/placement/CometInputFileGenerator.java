@@ -1,7 +1,6 @@
 package edu.brown.designer.placement;
 
 import java.io.File;
-import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -19,33 +18,13 @@ import edu.brown.workload.QueryTrace;
 import edu.brown.workload.TransactionTrace;
 
 
-public class TransformTransactionTraces {
+public class CometInputFileGenerator {
 
-    private static final Logger LOG = Logger.getLogger(TransformTransactionTraces.class);
+    private static final Logger LOG = Logger.getLogger(CometInputFileGenerator.class);
     
     private static final double DEFAULT_DIFFERENT_PARTITION_PENALTY = 1d;
     private static final double DEFAULT_DIFFERENT_SITE_PENALTY      = 100d;
     private static final double DEFAULT_DIFFERENT_HOST_PENALTY      = 10000d;
-    
-//    private static class TxnPartition {
-//        final int basePartition;
-//        final List<Set<Integer>> partitions = new ArrayList<Set<Integer>>();
-//        
-//        public TxnPartition(int basePartition) {
-//            this.basePartition = basePartition;
-//        }
-//        
-//        public String toString() {
-//            StringBuilder sb = new StringBuilder();
-//            sb.append("base partition: " + String.valueOf(basePartition) + " ");
-//            for (Set<Integer> batch : partitions) {
-//                for (Integer partition_id : batch) {
-//                    sb.append(String.valueOf(partition_id) + " ");
-//                }
-//            }
-//            return sb.toString();
-//        }
-//    }
     
     /**
      * File format like the following:
@@ -63,6 +42,7 @@ public class TransformTransactionTraces {
      * EOF
      */
     public static String transform(List<TransactionTrace> txn_traces, PartitionEstimator est, Database catalogDb, long memory_per_host, long partition_size, double penalties[]) {
+        final boolean d = LOG.isDebugEnabled();
     	
         final int total_num_hosts = CatalogUtil.getNumberOfHosts(catalogDb);
         final int total_num_partitions = CatalogUtil.getNumberOfPartitions(catalogDb);
@@ -85,20 +65,18 @@ public class TransformTransactionTraces {
             
             all_partitions.clear();
             all_partitions.add(base_partition);
-            affinity[base_partition][base_partition]++;
             
             for (Integer batch_id : trace.getBatchIds()) {
                 Set<Integer> partitions_touched_per_batch = new HashSet<Integer>();
                 
                 Set<Integer> batch_partitions = null;
+                boolean was_multipartitioned = false;
                 for (QueryTrace qt : trace.getBatches().get(batch_id)) {
                     try {
                         batch_partitions = est.getAllPartitions(qt, base_partition);
                         if (batch_partitions.size() > 1 || batch_partitions.contains(base_partition) == false) {
                             partitions_touched_per_batch.addAll(batch_partitions);
-                            
-                            // increment # of multi-partition batches from the base partition
-                            multipartition_batches.put(base_partition);
+                            was_multipartitioned = true;
                     	}
                         
                         // Always keep track of which partitions this txn touched
@@ -109,12 +87,15 @@ public class TransformTransactionTraces {
                     }
                 }
                 
+                // increment # of multi-partition batches from the base partition
+                if (was_multipartitioned) multipartition_batches.put(base_partition);
+                
                 // Add one to each partition that this txn touched
                 heat_histogram.putAll(all_partitions);
                 	
             	// calculate which other partitions were touched by the multi partition transaction
                 for (int p : partitions_touched_per_batch) {
-                	if (p != base_partition) affinity[base_partition][p]++;                    		
+                	affinity[base_partition][p]++;                    		
                 } // FOR
             }
         } // FOR
@@ -134,18 +115,21 @@ public class TransformTransactionTraces {
         
         // HEAT
         for (int partition : heat_histogram.values()) {
-        	//LOG.info(hist_value  + ": " + hist.get(hist_value));
             double partition_heat = heat_histogram.get(partition, 0) / (double)total_num_transactions;
             // FIXME long partition_size = ??;
     		sb.append(String.format("%.6f %d\n", partition_heat, partition_size));
+    		if (d) LOG.debug(String.format("Partition %02d: %d / %d = %f", partition, heat_histogram.get(partition, 0), total_num_transactions, partition_heat));
         } // FOR
         
         // AFFINITY
         for (int i = 0; i < affinity.length; i++) {
+            long num_multip_txns = multipartition_batches.get(i, 0);
             for (int j = 0; j < affinity.length; j++) {
-                double aff = 1.0 - (affinity[i][j] / multipartition_batches.get(i, 0));
-                LOG.debug(String.format("%d -> %d: %.3f", i, j, aff));
-                sb.append(aff).append(" ");
+                double aff = (i == j ? 0d : (affinity[i][j] / (double)num_multip_txns));
+                if (d) LOG.debug(String.format("%d -> %d: 1.0 - (%d / %d) = %.3f", i, j, affinity[i][j], num_multip_txns, aff));
+                assert(aff >= 0.0 && aff <= 1.0) : String.format("Invalid Affinity %d -> %d: %.3f", i, j, aff);
+                if (j > 0) sb.append(" ");
+                sb.append(String.format("%.6f", aff));
             } // FOR
             sb.append("\n");
         } // FOR
