@@ -15,7 +15,7 @@ import edu.brown.catalog.CatalogUtil;
 import edu.brown.utils.FileUtil;
 
 public class TransformCatalog {
-    private static final Logger LOG = Logger.getLogger(TransformTransactionTraces.class);
+//    private static final Logger LOG = Logger.getLogger(TransformCatalog.class);
     
     /** Processes the catalog information and writes it
      * File format like the following:
