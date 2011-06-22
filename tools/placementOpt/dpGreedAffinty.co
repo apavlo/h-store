@@ -1,0 +1,3 @@
+include "dpLib";
+DPData data = readFile("tm1.comet.input");
+

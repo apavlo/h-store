@@ -1,0 +1,67 @@
+include "dpLib";
+DPData data = readFile("tm1.comet.input");
+
+range Partitions = data.Partitions();
+range Nodes = data.Nodes();
+range Sites = data.NodeSites();
+
+DPPartition[] partitions = data.getPartitions();
+float meanHeat = (sum(p in Partitions) partitions[p].getHeat())/(Nodes.getSize()*Sites.getSize());
+
+float[,] siteAffinity = data.getAffinity().getSiteAffinity();
+float[,] nodeAffinity = data.getAffinity().getNodeAffinity();
+float[,] networkAffinity = data.getAffinity().getNetworkAffinity();
+
+float affinityTable[Partitions,Partitions,0..1,0..1] = -1;
+forall(p1 in Partitions, p2 in Partitions){
+	affinityTable[p1,p2,0,0] = networkAffinity[p1,p2];
+	affinityTable[p1,p2,0,1] = networkAffinity[p1,p2];
+	affinityTable[p1,p2,1,0] = nodeAffinity[p1,p2];
+	affinityTable[p1,p2,1,1] = siteAffinity[p1,p2];
+}
+
+import cotfd;
+
+Solver<CP> m();
+
+var<CP>{int} partitionNode[Partitions](m, Nodes);
+var<CP>{int} partitionSite[Partitions](m, Sites);
+
+var<CP>{int} sameNode[Partitions,Partitions](m,0..1);
+var<CP>{int} sameSite[Partitions,Partitions](m,0..1);
+var<CP>{int} partitionLocation[Nodes, Sites, Partitions](m,0..1);
+
+var<CP>{float} siteSize[Nodes,Sites](m, 0, data.getSiteCapacity());
+var<CP>{float} siteHeat[Nodes,Sites](m, 0, 1000000);
+var<CP>{float} commAffinity[Partitions,Partitions](m, 0, 1000000);
+
+
+exploreall<m>{
+	forall(p1 in Partitions, p2 in Partitions){
+		m.post(sameNode[p1,p2] == (partitionNode[p1] == partitionNode[p2]));
+		m.post(sameSite[p1,p2] == (sameNode[p1,p2] == 1 && (partitionSite[p1] == partitionSite[p2])));
+		m.post(commAffinity[p1,p2] == affinityTable[p1,p2,sameNode[p1,p2],sameSite[p1,p2]]);
+	}
+	forall(n in Nodes, s in Sites){
+		forall(p in Partitions){
+			m.post(partitionLocation[n,s,p] == (partitionNode[p] == n && partitionSite[p] == s));
+		}
+		m.post(siteSize[n,s] == sum(p in Partitions) partitionLocation[n,s,p]*partitions[p].getSize());
+		m.post(siteHeat[n,s] == sum(p in Partitions) partitionLocation[n,s,p]*partitions[p].getHeat());
+	}
+} using {
+	label(partitionNode);
+	label(partitionSite);
+
+	float commAff = sum(p1 in Partitions, p2 in Partitions) commAffinity[p1,p2];
+	float stdHeat = (sum(n in Nodes, s in Sites) (siteHeat[n,s].getValue()^2)/(Nodes.getSize()*Sites.getSize())) - meanHeat^2;
+	
+	cout << partitionNode << endl;
+	cout << partitionSite << endl;
+	cout << all(n in Nodes, s in Sites) siteSize[n,s] << endl;
+	cout << all(n in Nodes, s in Sites) siteHeat[n,s] << endl;
+	cout << commAff << ", " << stdHeat << endl;
+	cout << endl;
+}
+
+
