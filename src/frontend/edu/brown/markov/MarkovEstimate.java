@@ -7,12 +7,20 @@ import java.util.Set;
 import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.log4j.Logger;
 
+import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.Poolable;
 import edu.brown.utils.StringUtil;
+import edu.brown.utils.LoggerUtil.LoggerBoolean;
 
 public class MarkovEstimate implements Poolable {
     private static final Logger LOG = Logger.getLogger(MarkovEstimate.class);
-    
+    private final static LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private final static LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    static {
+        LoggerUtil.attachObserver(LOG, debug, trace);
+    }
+
+
     // Global
     private double singlepartition;
     private double userabort;
@@ -55,6 +63,7 @@ public class MarkovEstimate implements Poolable {
     public MarkovEstimate init(Vertex v, int batch) {
         assert(v != null);
         assert(this.initializing == false);
+        assert(this.vertex == null) : "Trying to initialize the same object twice!";
         this.batch = batch;
         this.vertex = v;
         
@@ -79,7 +88,7 @@ public class MarkovEstimate implements Poolable {
     @Override
     public void finish() {
         if (this.initializing == false) {
-            if (LOG.isDebugEnabled()) LOG.debug(String.format("Cleaning up MarkovEstimate [hashCode=%d]", this.hashCode()));
+            if (debug.get()) LOG.debug(String.format("Cleaning up MarkovEstimate [hashCode=%d]", this.hashCode()));
             this.vertex = null;
         }
         for (int i = 0; i < this.touched.length; i++) {
@@ -103,19 +112,19 @@ public class MarkovEstimate implements Poolable {
      */
     public boolean isValid() {
         if (this.vertex == null) {
-            LOG.warn("MarkovGraph vertex is null");
+            if (debug.get()) LOG.warn("MarkovGraph vertex is null");
             return (false);
         }
         
         for (int i = 0; i < this.touched.length; i++) {
             if (this.finished[i] == MarkovUtil.NULL_MARKER) {
-                LOG.warn("finished[" + i + "] is null");
+                if (debug.get()) LOG.warn("finished[" + i + "] is null");
                 return (false);
             } else if (this.read[i] == MarkovUtil.NULL_MARKER) {
-                LOG.warn("read[" + i + "] is null");
+                if (debug.get()) LOG.warn("read[" + i + "] is null");
                 return (false);
             } else if (this.write[i] == MarkovUtil.NULL_MARKER) {
-                LOG.warn("write[" + i + "] is null");
+                if (debug.get()) LOG.warn("write[" + i + "] is null");
                 return (false);
             }
         } // FOR

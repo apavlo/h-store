@@ -59,7 +59,6 @@ public class TestHStoreSite extends BaseTestCase {
         Map<Integer, ExecutionSite> executors = new HashMap<Integer, ExecutionSite>();
         coordinator = new HStoreSite(catalog_site, executors, p_estimator);
         coordinator.setDtxnCoordinator(dtxnCoordinator);
-                
     }
     
     @Test

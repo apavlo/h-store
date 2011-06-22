@@ -1313,19 +1313,22 @@ public class ExecutionSite implements Runnable, Shutdownable {
     /**
      * Execute a BatcPlan directly on this ExecutionSite without having to covert it
      * to FragmentTaskMessages first. This is big speed improvement over having to queue things up
-     * @param local_ts
+     * @param ts
      * @param plan
      * @return
      */
-    protected VoltTable[] executeLocalPlan(LocalTransactionState local_ts, BatchPlanner.BatchPlan plan) {
+    protected VoltTable[] executeLocalPlan(LocalTransactionState ts, BatchPlanner.BatchPlan plan) {
         long undoToken;
-        if (local_ts.isPredictAbortable()) {
+        
+//        LOG.info(String.format("%s: predict_canAbort=%s, conf.exec_no_undo_logging=%s", ts, ts.isPredictAbortable(), hstore_conf.site.exec_no_undo_logging));
+        
+        if (ts.isPredictAbortable() || hstore_conf.site.exec_no_undo_logging == false) {
             undoToken = this.getNextUndoToken();
         } else {
-            if (t) LOG.trace(String.format("Bold! Not using undo buffers for %s txn #%d", local_ts.getProcedureName(), local_ts.getTransactionId()));
+            if (t) LOG.info(String.format("Bold! Not using undo buffers for %s", ts));
             undoToken = Long.MAX_VALUE;
         }
-        local_ts.fastInitRound(undoToken);
+        ts.fastInitRound(undoToken);
       
         long fragmentIds[] = plan.getFragmentIds();
         int fragmentIdIndex = plan.getFragmentCount();
@@ -1334,11 +1337,11 @@ public class ExecutionSite implements Runnable, Shutdownable {
         ParameterSet parameterSets[] = plan.getParameterSets();
         
         // Mark that we touched the local partition once for each query in the batch
-        local_ts.getTouchedPartitions().put(this.partitionId, plan.getBatchSize());
+        ts.getTouchedPartitions().put(this.partitionId, plan.getBatchSize());
         
         // Only notify other partitions that we're done with them if we're not a single-partition transaction
-        if (hstore_conf.site.exec_speculative_execution && local_ts.isPredictSinglePartition() == false) {
-            this.notifyDonePartitions(local_ts);
+        if (hstore_conf.site.exec_speculative_execution && ts.isPredictSinglePartition() == false) {
+            this.notifyDonePartitions(ts);
         }
 
         if (t) {
@@ -1363,17 +1366,17 @@ public class ExecutionSite implements Runnable, Shutdownable {
                      "  fragmentIdIndex: %s\n" +
                      "  output_depIds:   %s\n" +
                      "  input_depIds:    %s",
-                     local_ts.getTransactionId(),
+                     ts.getTransactionId(),
                      Arrays.toString(plan.getFragmentIds()), plan.getFragmentCount(), Arrays.toString(plan.getOutputDependencyIds()), Arrays.toString(plan.getInputDependencyIds())));
         }
 
-        if (local_ts != null && hstore_conf.site.txn_profiling) local_ts.ee_time.start();
-        DependencySet result = this.executePlanFragments(local_ts, undoToken, fragmentIdIndex, fragmentIds, parameterSets, output_depIds, input_depIds);
-        if (local_ts != null && hstore_conf.site.txn_profiling) local_ts.ee_time.stop();
+        if (ts != null && hstore_conf.site.txn_profiling) ts.ee_time.start();
+        DependencySet result = this.executePlanFragments(ts, undoToken, fragmentIdIndex, fragmentIds, parameterSets, output_depIds, input_depIds);
+        if (ts != null && hstore_conf.site.txn_profiling) ts.ee_time.stop();
       
         if (t) LOG.trace("Output:\n" + StringUtil.join("\n", result.dependencies));
         
-        local_ts.fastFinishRound();
+        ts.fastFinishRound();
         return (result.dependencies);
     }
     

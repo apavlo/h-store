@@ -163,6 +163,15 @@ public final class HStoreConf {
         public boolean exec_speculative_execution;
         
         @ConfigProperty(
+            description="If this feature is enabled, then those non-speculative single partition transactions that are " +
+                        "deemed to never abort will be executed without undo logging. Requires Markov model estimations.",
+            defaultBoolean=false,
+            advanced=true,
+            experimental=true
+        )
+        public boolean exec_no_undo_logging;
+        
+        @ConfigProperty(
             description="If this parameter is set to true, then each HStoreSite will not send every transaction request " +
                         "through the Dtxn.Coordinator. Only multi-partition transactions will be sent to the " +
                         "Dtxn.Coordinator (in order to ensure global ordering). Setting this property to true provides a " +

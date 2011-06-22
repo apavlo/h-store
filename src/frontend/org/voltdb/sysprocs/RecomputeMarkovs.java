@@ -136,7 +136,7 @@ public class RecomputeMarkovs extends VoltSystemProcedure {
         pfs[0] = new SynthesizedPlanFragment();
         pfs[0].destPartitionId = base_partition;
         pfs[0].fragmentId = SysProcFragmentId.PF_recomputeMarkovsAggregate;
-        pfs[0].inputDependencyIds = new int[] { (int)SysProcFragmentId.PF_dumpDistribute };
+        pfs[0].inputDependencyIds = new int[] { (int)SysProcFragmentId.PF_recomputeMarkovsDistribute };
         pfs[0].outputDependencyIds = new int[] { (int)SysProcFragmentId.PF_recomputeMarkovsAggregate };
         pfs[0].multipartition = false;
         pfs[0].nonExecSites = false;

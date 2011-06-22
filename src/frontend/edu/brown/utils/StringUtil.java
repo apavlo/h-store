@@ -54,6 +54,7 @@ public abstract class StringUtil {
         Object new_rows[][] = new String[rows.length][];
         for (int i = 0; i < new_rows.length; i++) {
             Object row[] = rows[i];
+            assert(row != null) : "Null row at " + i;
             new_rows[i] = new String[row.length - 1];
             for (int j = 0; j < new_rows[i].length; j++) {
                 new_rows[i][j] = (row[j+1] != null ? row[j+1].toString() : "null");

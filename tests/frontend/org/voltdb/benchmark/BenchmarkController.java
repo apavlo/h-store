@@ -673,6 +673,21 @@ public class BenchmarkController {
         registerInterest(new ResultsPrinter());
     }
 
+    protected Client getClientConnection() {
+        // Connect to the first host and tell them to dump out the database contents
+        String triplet[] = CollectionUtil.getRandomValue(this.m_launchHosts);
+        assert(triplet != null);
+        LOG.info(String.format("Creating new client connection to HStoreSite %s", HStoreSite.getSiteName(Integer.parseInt(triplet[2]))));
+        
+        Client new_client = ClientFactory.createClient(128, null, false, null);
+        try {
+            new_client.createConnection(triplet[0], Integer.parseInt(triplet[1]), "user", "password");
+        } catch (Exception ex) {
+            throw new RuntimeException("Failed to connect to HStoreSite " + Arrays.toString(triplet), ex);
+        }
+        return (new_client);
+    }
+    
     /**
      * RUN BENCHMARK
      */
@@ -766,17 +781,26 @@ public class BenchmarkController {
             // We have to tell all our clients to pause first
             m_clientPSM.writeToAll(Command.PAUSE);
             
-            // Connect to the first host and tell them to dump out the database contents
-            String triplet[] = CollectionUtil.getRandomValue(this.m_launchHosts);
-            assert(triplet != null);
-            LOG.info(String.format("Requesting HStoreSite #%02d to dump database contents [dir=%s]", Integer.parseInt(triplet[2]), m_config.dumpDatabaseDir));
-            
-            Client new_client = ClientFactory.createClient(128, null, false, null);
+            Client new_client = this.getClientConnection();
             try {
-                new_client.createConnection(triplet[0], Integer.parseInt(triplet[1]), "user", "password");
                 new_client.callProcedure("@DatabaseDump", m_config.dumpDatabaseDir);
             } catch (Exception ex) {
-                LOG.error(String.format("Failed to dump database contents using '%s'", Arrays.toString(triplet)), ex);
+                LOG.error("Failed to dump database contents", ex);
+            }
+        }
+        
+        // Recompute MarkovGraphs
+        if (this.stop == false) {
+            String output_path = "/tmp/tpcc.markovs";
+            
+            // We have to tell all our clients to pause first
+            m_clientPSM.writeToAll(Command.PAUSE);
+            
+            Client new_client = this.getClientConnection();
+            try {
+                new_client.callProcedure("@RecomputeMarkovs", true, output_path);
+            } catch (Exception ex) {
+                LOG.error("Failed to recompute MarkovGraphs", ex);
             }
         }
 

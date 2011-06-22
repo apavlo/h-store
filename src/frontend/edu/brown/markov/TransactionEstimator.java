@@ -478,8 +478,7 @@ public class TransactionEstimator {
             
         // Otherwise we have to recalculate everything from scatch again
         if (estimator == null) {
-//            if (d) 
-                LOG.info(String.format("Recalculating initial path estimate for %s #%d", catalog_proc.getName(), txn_id));
+            if (d) LOG.debug(String.format("Recalculating initial path estimate for %s #%d", catalog_proc.getName(), txn_id));
             try {
                 estimator = (MarkovPathEstimator)ESTIMATOR_POOL.borrowObject();
                 estimator.init(markov, this, base_partition, args);

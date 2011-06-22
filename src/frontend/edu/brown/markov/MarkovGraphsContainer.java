@@ -133,6 +133,7 @@ public class MarkovGraphsContainer implements JSONSerializable {
     public MarkovGraph getOrCreate(Integer id, Procedure catalog_proc, boolean initialize) {
         MarkovGraph markov = this.get(id, catalog_proc);
         if (markov == null) {
+            LOG.warn(String.format("Creating a new %s MarkovGraph for id %d", catalog_proc.getName(), id));
             markov = new MarkovGraph(catalog_proc);
             this.put(id, markov);
             if (initialize) markov.initialize();

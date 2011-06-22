@@ -524,8 +524,8 @@ public abstract class VoltProcedure implements Poolable {
             
         } catch (AssertionError ex) {
             if (this.executor.isShuttingDown() == false) {
-                LOG.fatal("Unexpected error while executing txn #" + current_txn_id + " [" + this.procedure_name + "]", ex);
-                LOG.fatal("LocalTransactionState Dump:\n" + m_localTxnState);
+                LOG.fatal("Unexpected error while executing " + m_localTxnState, ex);
+                LOG.fatal("LocalTransactionState Dump:\n" + m_localTxnState.debug());
                 this.executor.crash(ex);
             }
         } catch (Exception ex) {
@@ -792,6 +792,7 @@ public abstract class VoltProcedure implements Poolable {
         if ((slot == short.class) && (pclass == Short.class || pclass == Byte.class)) return param;
         if ((slot == byte.class) && (pclass == Byte.class)) return param;
         if ((slot == double.class) && (pclass == Double.class)) return param;
+        if ((slot == boolean.class) && (pclass == Boolean.class)) return param;
         if ((slot == String.class) && (pclass == String.class)) return param;
         if (slot == TimestampType.class) {
             if (pclass == Long.class) return new TimestampType((Long)param);
