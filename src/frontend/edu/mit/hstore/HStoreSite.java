@@ -37,6 +37,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Observer;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
@@ -80,12 +81,16 @@ import com.google.protobuf.RpcController;
 
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.catalog.QueryPlanUtil;
+import edu.brown.graphs.GraphvizExport;
 import edu.brown.hashing.AbstractHasher;
+import edu.brown.markov.Edge;
 import edu.brown.markov.EstimationThresholds;
 import edu.brown.markov.MarkovEstimate;
+import edu.brown.markov.MarkovGraph;
 import edu.brown.markov.MarkovGraphsContainer;
 import edu.brown.markov.MarkovUtil;
 import edu.brown.markov.TransactionEstimator;
+import edu.brown.markov.Vertex;
 import edu.brown.statistics.Histogram;
 import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.CollectionUtil;
@@ -233,6 +238,13 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         public int dec(Procedure catalog_proc) {
             this.h.remove(catalog_proc.getName());
             return (this.get());
+        }
+        public static Set<String> getAllProcedures() {
+            Set<String> ret = new TreeSet<String>();
+            for (TxnCounter tc : TxnCounter.values()) {
+                ret.addAll(tc.h.values());
+            }
+            return (ret);
         }
         public double ratio() {
             int total = -1;
@@ -879,7 +891,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         final Object args[] = request.getParams().toArray(); 
         final Procedure catalog_proc = this.catalog_db.getProcedures().getIgnoreCase(request.getProcName());
         if (catalog_proc == null) throw new RuntimeException("Unknown procedure '" + request.getProcName() + "'");
-        if (this.status_monitor != null) TxnCounter.RECEIVED.inc(catalog_proc);
+        if (hstore_conf.site.status_show_txn_info) TxnCounter.RECEIVED.inc(catalog_proc);
         if (d) LOG.debug(String.format("Received new stored procedure invocation request for %s [handle=%d, bytes=%d]", catalog_proc.getName(), request.getClientHandle(), serializedRequest.length));
         
         // First figure out where this sucker needs to go
@@ -949,7 +961,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
             StoredProcedureInvocation.markRawBytesAsRedirected(base_partition, serializedRequest);
             
             this.messenger.forwardTransaction(serializedRequest, callback, base_partition);
-            if (this.status_monitor != null) TxnCounter.REDIRECTED.inc(catalog_proc);
+            if (hstore_conf.site.status_show_txn_info) TxnCounter.REDIRECTED.inc(catalog_proc);
             return;
         }
         
@@ -1027,6 +1039,8 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         } else {
             if (d) LOG.debug(String.format("Using TransactionEstimator to check whether %s is single-partition", ts));
             
+            MarkovEstimate m_estimate = null;
+            
             try {
                 // HACK: Convert the array parameters to object arrays...
                 Object cast_args[] = this.param_manglers.get(catalog_proc).convert(args);
@@ -1044,7 +1058,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
                 // We have a TransactionEstimator.State, so let's see what it says...
                 } else {
                     if (t) LOG.trace("\n" + StringUtil.box(t_state.toString()));
-                    MarkovEstimate m_estimate = t_state.getInitialEstimate();
+                    m_estimate = t_state.getInitialEstimate();
                     
                     // Bah! We didn't get back a MarkovEstimate for some reason...
                     if (m_estimate == null) {
@@ -1056,16 +1070,28 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
                         if (d) LOG.debug(String.format("Using MarkovEstimate for %s to determine if single-partitioned", TransactionState.formatTxnName(catalog_proc, txn_id)));
                         
                         if (d) LOG.debug(String.format("%s MarkovEstimate:\n%s", TransactionState.formatTxnName(catalog_proc, txn_id), m_estimate));
-                        assert(m_estimate.isValid()) : String.format("Invalid MarkovEstimate for %s\n%s", TransactionState.formatTxnName(catalog_proc, txn_id), m_estimate);
-                        single_partition = m_estimate.isSinglePartition(this.thresholds);
-                        predict_readonly = catalog_proc.getReadonly(); // FIXME
-                        predict_can_abort = predict_readonly == false || single_partition == false;
-                        
-                        if (this.status_monitor != null && predict_can_abort == false) TxnCounter.NO_UNDO_BUFFER.inc(catalog_proc);
+                        if (m_estimate.isValid()) {
+                            single_partition = m_estimate.isSinglePartition(this.thresholds);
+                            predict_readonly = catalog_proc.getReadonly(); // FIXME
+                            predict_can_abort = predict_readonly == false || single_partition == false;    
+                        } else {
+                            if (d) LOG.warn(String.format("Invalid MarkovEstimate for %s. Marking as not read-only and multi-partitioned.\n%s",
+                                                          TransactionState.formatTxnName(catalog_proc, txn_id), m_estimate));
+                            single_partition = false;
+                            predict_readonly = catalog_proc.getReadonly();
+                            predict_can_abort = true;
+                        }
                     }
                 }
                 if (hstore_conf.site.txn_profiling) ts.est_time.stop();
             } catch (Throwable ex) {
+                if (t_state != null) {
+                    MarkovGraph markov = t_state.getMarkovGraph();
+                    GraphvizExport<Vertex, Edge> gv = MarkovUtil.exportGraphviz(markov, true, markov.getPath(t_state.getEstimatedPath()));
+                    gv.highlightPath(markov.getPath(t_state.getActualPath()), "blue");
+                    System.err.println("WROTE MARKOVGRAPH: " + gv.writeToTempFile(catalog_proc));
+                }
+                
                 throw new RuntimeException(String.format("Failed calculate estimate for %s request", TransactionState.formatTxnName(catalog_proc, txn_id)), ex);
             }
         }
@@ -1081,9 +1107,10 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
             } // SYNCH
         }
 
+        predict_can_abort = false;
         ts.init(txn_id, request.getClientHandle(), base_partition,
-                      single_partition, predict_readonly, predict_can_abort, t_state,
-                      catalog_proc, request, done);
+                        single_partition, predict_readonly, predict_can_abort,
+                        t_state, catalog_proc, request, done);
         if (hstore_conf.site.txn_profiling) {
             ts.total_time.start(timestamp);
             ts.init_time.start(timestamp);
@@ -1344,7 +1371,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         if (hstore_conf.site.txn_profiling) ts.queue_time.start();
         executor.doWork(task, callback, ts);
         
-        if (this.status_monitor != null) {
+        if (hstore_conf.site.status_show_txn_info) {
             assert(ts.getProcedure() != null) : "Null Procedure for txn #" + txn_id;
             TxnCounter.EXECUTED.inc(ts.getProcedure());
         }
@@ -1363,7 +1390,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         int base_partition = orig_ts.getBasePartition();
         StoredProcedureInvocation spi = orig_ts.invocation;
         assert(spi != null) : "Missing StoredProcedureInvocation for " + orig_ts;
-        if (this.status_monitor != null) TxnCounter.MISPREDICTED.inc(orig_ts.getProcedure());
+        if (hstore_conf.site.status_show_txn_info) TxnCounter.MISPREDICTED.inc(orig_ts.getProcedure());
         
         final Histogram<Integer> touched = orig_ts.getTouchedPartitions();
         
@@ -1411,7 +1438,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
                     throw new RuntimeException("Failed to get ForwardTxnRequestCallback", ex);   
                 }
                 this.messenger.forwardTransaction(serializedRequest, callback, redirect_partition);
-                if (this.status_monitor != null) TxnCounter.REDIRECTED.inc(orig_ts.getProcedure());
+                if (hstore_conf.site.status_show_txn_info) TxnCounter.REDIRECTED.inc(orig_ts.getProcedure());
                 return;
                 
             // Allow local redirect
@@ -1615,6 +1642,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
             if (hstore_conf.site.status_show_txn_info) {
                 if (status != Dtxn.FragmentResponse.Status.OK) TxnCounter.ABORTED.inc(catalog_proc);
                 if (ts.isSpeculative()) TxnCounter.SPECULATIVE.inc(catalog_proc);
+                if (ts.getLastUndoToken() == Long.MAX_VALUE) TxnCounter.NO_UNDO_BUFFER.inc(catalog_proc);
                 
                 if (ts.sysproc) {
                     TxnCounter.SYSPROCS.inc(catalog_proc);

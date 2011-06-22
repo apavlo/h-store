@@ -663,6 +663,7 @@ public class HStoreMessenger implements Shutdownable {
         final int num_sites = this.channels.size();
         if (this.shutting_down) return;
         this.shutting_down = true;
+        this.hstore_site.prepareShutdown();
         LOG.info("Shutting down cluster" + (ex != null ? ": " + ex.getMessage() : ""));
 
         final ByteString exit_status = ByteString.copyFrom(new byte[] { (byte)(ex == null ? 0 : 1) });

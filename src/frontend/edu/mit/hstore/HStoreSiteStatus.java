@@ -2,6 +2,7 @@ package edu.mit.hstore;
 
 import java.util.Comparator;
 import java.util.Map;
+import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.Map.Entry;
@@ -51,7 +52,6 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
     
     private Thread self;
 
-    final Map<String, Object> m_txn = new ListOrderedMap<String, Object>();
     final Map<String, Object> m_thread = new ListOrderedMap<String, Object>();
     final Map<String, Object> m_pool = new ListOrderedMap<String, Object>();
     final Map<String, Object> header = new ListOrderedMap<String, Object>();
@@ -192,6 +192,31 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
         return (m_exec);
     }
     
+    public Map<String, String> txnInfo() {
+        Set<TxnCounter> cnts_to_include = new TreeSet<TxnCounter>();
+        Set<String> procs = TxnCounter.getAllProcedures();
+        for (TxnCounter tc : TxnCounter.values()) {
+            if (tc.get() > 0 && tc != TxnCounter.SYSPROCS) cnts_to_include.add(tc);
+        } // FOR
+        
+        boolean first = true;
+        String header[] = new String[cnts_to_include.size() + 1];
+        Object rows[][] = new String[procs.size()][];
+        int i = -1;
+        for (String proc_name : procs) {
+            int j = 0;
+            rows[++i] = new String[cnts_to_include.size() + 1];
+            rows[i][j++] = proc_name;
+            if (first) header[0] = "";
+            for (TxnCounter tc : cnts_to_include) {
+                if (first) header[j] = tc.toString();
+                rows[i][j++] = Long.toString(tc.getHistogram().get(proc_name, 0));
+            } // FOR
+            first = false;
+        }
+        return (StringUtil.tableMap(header, rows));
+    }
+    
     public synchronized String snapshot(boolean show_txns, boolean show_exec, boolean show_threads, boolean show_poolinfo) {
         this.partition_txns.clearValues();
         for (Entry<Long, LocalTransactionState> e : hstore_site.getAllTransactions()) {
@@ -201,19 +226,7 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
         // ----------------------------------------------------------------------------
         // Transaction Information
         // ----------------------------------------------------------------------------
-        m_txn.clear();
-        if (show_txns) {
-            for (TxnCounter tc : TxnCounter.values()) {
-                int cnt = tc.get();
-                if (cnt == 0) continue;
-                String val = Integer.toString(cnt);
-                if (tc != TxnCounter.COMPLETED && tc != TxnCounter.EXECUTED) {
-                    val += String.format(" [%.03f]", tc.ratio());
-                }
-                if (cnt > 0) val += "\n" + tc.getHistogram().toString(50);
-                m_txn.put(tc.toString(), val + "\n");
-            } // FOR
-        }
+        Map<String, String> m_txn = (show_txns ? this.txnInfo() : null);
         
         // ----------------------------------------------------------------------------
         // Executor Information
