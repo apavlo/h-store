@@ -2,6 +2,7 @@ package edu.brown.markov;
 
 import java.text.DecimalFormat;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.log4j.Logger;
@@ -34,6 +35,8 @@ public class Vertex extends AbstractVertex {
     static {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
+    private static boolean d = debug.get();
+    private static boolean t = trace.get();
     
     // ----------------------------------------------------------------------------
     // INTERNAL DATA ENUMS
@@ -164,7 +167,7 @@ public class Vertex extends AbstractVertex {
      * The execution times of the transactions in the on-line run
      * A map of the xact_id to the time it took to get to this vertex
      */
-    private transient Map<Long, Long> instancetimes = new HashMap<Long, Long>();
+    private transient Map<Long, Long> instancetimes = new ConcurrentHashMap<Long, Long>();
     
     /**
      * The count, used to figure out the average execution time above
@@ -271,6 +274,20 @@ public class Vertex extends AbstractVertex {
                     }
                 } // FOR
             }
+            
+            // If this isn't the first time we are executing this query, then we should at least have
+            // past partitions that we have touched
+            if (this.query_instance_index > 0 && this.past_partitions.isEmpty()) {
+                LOG.warn(String.format("No past partitions for %s", this));
+                return (false);
+            }
+            
+            // And we should always have some partitions that we're touching now
+            if (this.partitions.isEmpty()) {
+                LOG.warn(String.format("No current partitions for %s", this));
+                return (false);
+            }
+            
         }
         return (true);
     }
@@ -708,16 +725,20 @@ public class Vertex extends AbstractVertex {
      * get how long the xact actually lasted
      * @param end_times
      */
-    public void normalizeInstanceTimes(Map<Long, Long> end_times) {
-        List<Long> remove = new ArrayList<Long>();
-        for(Long l: instancetimes.keySet()){
-            long time = end_times.get(l) - instancetimes.get(l);
-            addExecutionTime(time);
-            remove.add(time);
-        }
-        for(long time:remove){
-            end_times.remove(time);
-        }
+    protected void normalizeInstanceTimes(Map<Long, Long> end_times, List<Long> to_remove) {
+        for (Long txn_id : this.instancetimes.keySet()) {
+            Long start = this.instancetimes.get(txn_id);
+            Long stop = end_times.get(txn_id);
+            if (start != null && stop != null) {
+                long time = end_times.get(txn_id) - this.instancetimes.get(txn_id);
+                this.addExecutionTime(time);
+                to_remove.add(txn_id);
+                if (t) LOG.trace(String.format("Updating %s with %d time units from txn #%d", this, time, txn_id)); 
+            }
+        } // FOR
+        for (Long txn_id : to_remove) {
+            end_times.remove(txn_id);
+        } // FOR
     }
 
     // ----------------------------------------------------------------------------

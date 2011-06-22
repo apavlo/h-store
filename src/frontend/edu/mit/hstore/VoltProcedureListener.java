@@ -8,6 +8,7 @@ import java.nio.ByteOrder;
 import java.nio.channels.SelectableChannel;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.log4j.Logger;
 import org.voltdb.ClientResponseImpl;
@@ -33,14 +34,18 @@ public class VoltProcedureListener extends AbstractEventHandler {
     private final EventLoop eventLoop;
     private final Handler handler;
     private ServerSocketChannel serverSocket;
-    private boolean throttle = false;
-    private static final VoltTable empty_result[] = new VoltTable[0];
+//    private AtomicBoolean throttle = new AtomicBoolean(false);
+    
+//    private final HStoreSite hstore_site;
 
     public VoltProcedureListener(EventLoop eventLoop, Handler handler) {
         this.eventLoop = eventLoop;
         this.handler = handler;
         assert this.eventLoop != null;
         assert this.handler != null;
+        
+        // HACK
+//        this.hstore_site = (handler instanceof HStoreSite ? (HStoreSite)handler : null);
     }
 
     public void acceptCallback(SelectableChannel channel) {
@@ -73,7 +78,7 @@ public class VoltProcedureListener extends AbstractEventHandler {
         }
 
         @Override
-        public boolean writeCallback(SelectableChannel channel) {
+        public synchronized boolean writeCallback(SelectableChannel channel) {
             connectionBlocked = connection.tryWrite();
             return connectionBlocked;
         }
@@ -131,7 +136,7 @@ public class VoltProcedureListener extends AbstractEventHandler {
     }
 
     private void read(ClientConnectionHandler eventLoopCallback) {
-        final boolean d = LOG.isDebugEnabled();
+//        final boolean d = LOG.isDebugEnabled();
         byte[] request;
         while ((request = eventLoopCallback.connection.tryRead()) != null) {
             if (request.length == 0) {
@@ -166,43 +171,24 @@ public class VoltProcedureListener extends AbstractEventHandler {
                 return;
             }
             
-            // If we're in throttle mode and this is not a sysproc, then reject this txn
-            ByteBuffer buffer = ByteBuffer.wrap(request);
-            boolean is_sysproc = StoredProcedureInvocation.isSysProc(buffer);
-            
-            if (this.throttle && is_sysproc == false) {
-                if (d) LOG.debug("Throttling is enabled. Rejecting transaction and asking client to wait...");
-                
-                long clientHandle = StoredProcedureInvocation.getClientHandle(buffer); 
-                ClientResponseImpl cresponse = new ClientResponseImpl(-1, ClientResponse.REJECTED, empty_result, "", clientHandle);
-                cresponse.setThrottleFlag(true);
-                
-                FastSerializer serializer = new FastSerializer();
-                try {
-                    serializer.writeObject(cresponse);
-                } catch (Exception ex) {
-                    throw new RuntimeException(ex);
-                }
-                eventLoopCallback.run(serializer.getBytes());
-                
             // Execute store procedure!
-            } else {
-                if (d) LOG.debug(String.format("Got request [sysproc=%s, bytes=%d]", is_sysproc, request.length));
-                try {
-                    // RpcCallback<byte[]> callback = RpcUtil.newOneTimeCallback(eventLoopCallback);
-                    handler.procedureInvocation(request, eventLoopCallback);
-                } catch (Exception ex) {
-                    LOG.fatal("Unexpected error when calling procedureInvocation!", ex);
-                    throw new RuntimeException(ex);
-                }
+//            if (d) LOG.debug(String.format("Got request [sysproc=%s, bytes=%d]", is_sysproc, request.length));
+            try {
+                // RpcCallback<byte[]> callback = RpcUtil.newOneTimeCallback(eventLoopCallback);
+                handler.procedureInvocation(request, eventLoopCallback);
+            } catch (Exception ex) {
+                LOG.fatal("Unexpected error when calling procedureInvocation!", ex);
+                throw new RuntimeException(ex);
             }
         }
     }
     
-    public void setThrottleFlag(boolean val) {
-        if (LOG.isDebugEnabled()) LOG.debug("Setting throttle flag: " + val);
-        this.throttle = val;
-    }
+//    public void setThrottleFlag(boolean val) {
+//        if (LOG.isDebugEnabled()) LOG.debug("Setting throttle flag: " + val);
+//        synchronized (this.throttle) {
+//            this.throttle.set(val);
+//        } // SYNCH
+//    }
 
     public static StoredProcedureInvocation decodeRequest(byte[] bytes) {
         final FastDeserializer fds = new FastDeserializer(ByteBuffer.wrap(bytes));

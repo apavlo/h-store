@@ -9,10 +9,9 @@ import logging
 import getopt
 #from pprint import pprint
 
-logging.basicConfig(level = logging.INFO,
-                    format="%(asctime)s [%(funcName)s:%(lineno)03d] %(levelname)-5s: %(message)s",
-                    datefmt="%m-%d-%Y %H:%M:%S",
-                    stream = sys.stdout)
+LOG_FORMAT = "%(asctime)s [%(funcName)s:%(lineno)03d] %(levelname)-5s: %(message)s"
+LOG_DATEFMT = "%m-%d-%Y %H:%M:%S"
+logging.basicConfig(level = logging.INFO, format=LOG_FORMAT, datefmt=LOG_DATEFMT, stream = sys.stdout)
 
 PS_REGEX = re.compile("([\d]+)[\s]+(.*)")
 
@@ -21,6 +20,7 @@ OPT_HSTORESITE  = False
 OPT_PROTOENGINE = False
 OPT_PROTOCOORD  = False
 OPT_CLIENT      = False
+OPT_LOGDIR      = "/tmp/hstore/logs"
 
 ## ==============================================
 ## main
@@ -53,14 +53,31 @@ if __name__ == '__main__':
             orig_type = type(globals()[varname])
             globals()[varname] = orig_type(True if type(globals()[varname]) == bool else options[key][0])
     ## FOR
-    if "debug" in options:
-        logging.getLogger().setLevel(logging.DEBUG)
-        handler = logging.FileHandler('/tmp/killstragglers.log')
-        logging.getLogger().addHandler(handler)
-
 
     ## SiteId
     siteid = int(options["siteid"][0]) if "siteid" in options else None
+    
+    ## Debug Output
+    if "debug" in options:
+        l = logging.getLogger()
+        l.setLevel(logging.DEBUG)
+        output = os.path.join(OPT_LOGDIR, "killstragglers.log")
+        logging.info("Writing KillStragglers log to '%s'" % output)
+        
+        if not os.path.exists(OPT_LOGDIR): os.makedirs(OPT_LOGDIR)
+        handler = logging.FileHandler(output)
+        handler.setFormatter(l.handlers[0].formatter)
+        l.addHandler(handler)
+
+        temp = {
+            "HStoreSite":       OPT_HSTORESITE,
+            "Dtxn.Engine":      OPT_PROTOENGINE,
+            "Dtxn.Coordinator": OPT_PROTOCOORD,
+            "Clients":          OPT_CLIENT,
+        }
+        logging.debug("Attempting to kill the following components\n" +
+                      "\n".join([ "%-18s %s" % (x+":", "KILL" if temp[x] else "SKIP") for x in sorted(temp.keys()) ]))
+
 
     ## Get the list of PIDS -> Commands
     cmd = "ps x -o pid -o command"
@@ -78,8 +95,8 @@ if __name__ == '__main__':
         
         ## Kill HStoreSites
         if OPT_HSTORESITE and \
-           cmd.find("tag=site") != -1 and \
-           cmd.find("java")     != -1 and \
+           cmd.find("hstore.tag=site") != -1 and \
+           cmd.find("java")            != -1 and \
            (siteid == None or (siteid != None and cmd.find("node.siteid=%d" + siteid) != -1)):
             to_kill.add(pid)
             logging.debug("Preparing to kill HStoreSite PID %d\n%s" % (pid, cmd))
@@ -88,8 +105,8 @@ if __name__ == '__main__':
         ## Kill protodtxnengines
         if OPT_PROTOENGINE and \
            cmd.find("protodtxnengine") != -1 and \
-           cmd.find("tag=site")        == -1 and \
-           cmd.find("hstore.conf")     != -1:
+           cmd.find("hstore.tag=site") == -1 and \
+           cmd.find("dtxn.conf")       != -1:
             to_kill.add(pid)
             logging.debug("Preparing to kill Dtxn.Engine PID %d\n%s" % (pid, cmd))
         ## IF
@@ -97,15 +114,15 @@ if __name__ == '__main__':
         ## Kill protodtxncoord
         if OPT_PROTOCOORD and \
            cmd.find("protodtxncoordinator") != -1 and \
-           cmd.find("tag=site")             == -1 and \
-           cmd.find("hstore.conf")          != -1:
+           cmd.find("hstore.tag=site")      == -1 and \
+           cmd.find("dtxn.conf")            != -1:
             to_kill.add(pid)
             logging.debug("Preparing to kill Dtxn.Coordinator PID %d\n%s" % (pid, cmd))
         ## IF
         
         ## Kill client stuff
         if OPT_CLIENT and \
-           cmd.find("-Dtag=client") != -1:
+           cmd.find("-Dhstore.tag=client") != -1:
             to_kill.add(pid)
             logging.debug("Preparing to kill Client PID %d\n%s" % (pid, cmd))
     ## FOR

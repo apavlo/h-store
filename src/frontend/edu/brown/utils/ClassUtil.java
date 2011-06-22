@@ -1,8 +1,10 @@
 package edu.brown.utils;
 
+import java.lang.annotation.Annotation;
 import java.lang.reflect.*;
 import java.util.*;
 
+import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.commons.lang.ClassUtils;
 
 /**
@@ -23,6 +25,22 @@ public abstract class ClassUtil {
      */
     public static boolean isArray(final Object obj) {
         return (obj != null ? obj.getClass().isArray() : false);
+    }
+
+    /**
+     * Create a mapping from Field handles to their corresponding Annotation
+     * @param <A>
+     * @param fields
+     * @param annotationClass
+     * @return
+     */
+    public static <A extends Annotation> Map<Field, A> getFieldAnnotations(Field fields[], Class<A> annotationClass) {
+        Map<Field, A> ret = new ListOrderedMap<Field, A>();
+        for (Field f : fields) {
+            A a = f.getAnnotation(annotationClass);
+            if (a != null) ret.put(f, a);
+        }
+        return (ret);
     }
     
     /**

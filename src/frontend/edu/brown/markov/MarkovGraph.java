@@ -60,7 +60,9 @@ public class MarkovGraph extends AbstractDirectedGraph<Vertex, Edge> implements 
     /**
      * 
      */
-    private int xact_count;
+    private transient int xact_count = 0;
+    private transient int xact_mispredict = 0;
+    private transient double xact_accuracy = 1.0;
 
     // ----------------------------------------------------------------------------
     // CONSTRUCTORS
@@ -328,7 +330,7 @@ public class MarkovGraph extends AbstractDirectedGraph<Vertex, Edge> implements 
      * Calculate the probabilities for this graph This invokes the static
      * methods in Vertex to calculate each probability
      */
-    public void calculateProbabilities() {
+    public synchronized void calculateProbabilities() {
         // Reset all probabilities
 //        for (Vertex v : this.getVertices()) {
 //            v.resetAllProbabilities();
@@ -341,11 +343,25 @@ public class MarkovGraph extends AbstractDirectedGraph<Vertex, Edge> implements 
         // Then traverse the graph and calculate the vertex probability tables
         this.calculateVertexProbabilities();
     }
+    
+    /**
+     * Update the instance hits for the graph's elements and recalculate probabilities
+     */
+    public synchronized void recalculateProbabilities() {
+        this.normalizeTimes();
+        for (Vertex v : this.getVertices()) {
+            v.incrementTotalhits(v.getInstancehits());
+        }
+        for (Edge e : this.getEdges()) {
+            e.incrementHits(e.getInstancehits());
+        }
+        this.calculateProbabilities();
+    }
 
     /**
      * Calculate vertex probabilities
      */
-    protected void calculateVertexProbabilities() {
+    private void calculateVertexProbabilities() {
         if (trace.get()) LOG.trace("Calculating Vertex probabilities for " + this);
         
         final Set<Edge> visited_edges = new HashSet<Edge>();
@@ -464,7 +480,7 @@ public class MarkovGraph extends AbstractDirectedGraph<Vertex, Edge> implements 
     /**
      * Calculates the probabilities for each edge to be traversed
      */
-    public void calculateEdgeProbabilities() {
+    private void calculateEdgeProbabilities() {
         Collection<Vertex> vertices = this.getVertices();
         for (Vertex v : vertices) {
             for (Edge e : getOutEdges(v)) {
@@ -479,9 +495,11 @@ public class MarkovGraph extends AbstractDirectedGraph<Vertex, Edge> implements 
      */
     protected void normalizeTimes() {
         Map<Long, Long> stoptimes = this.getCommitVertex().getInstanceTimes();
+        List<Long> to_remove = new ArrayList<Long>();
         for (Vertex v : this.getVertices()) {
-            v.normalizeInstanceTimes(stoptimes);
-        }
+            v.normalizeInstanceTimes(stoptimes, to_remove);
+            to_remove.clear();
+        } // FOR
     }
     
     /**
@@ -496,7 +514,7 @@ public class MarkovGraph extends AbstractDirectedGraph<Vertex, Edge> implements 
             double sum = 0.0;
             
             if (v.isValid() == false) {
-                LOG.warn("The probabilities for " + v + " are not valid!");
+                LOG.warn("The vertex " + v + " is not valid!");
                 return (false);
             }
             
@@ -510,8 +528,8 @@ public class MarkovGraph extends AbstractDirectedGraph<Vertex, Edge> implements 
                 
                 // Calculate total edge probabilities
                 double edge_probability = e.getProbability(); 
-                assert(edge_probability >= 0.0) : "Edge " + e + " probability is " + edge_probability;
-                assert(edge_probability <= 1.0) : "Edge " + e + " probability is " + edge_probability;
+                assert(edge_probability >= 0.0 && edge_probability <= 1.0) :
+                    String.format("Edge %s->%s probability is %.4f", v.getCatalogItemName(), v1.getCatalogItemName(), edge_probability);
                 sum += e.getProbability();
             } // FOR
             
@@ -635,20 +653,6 @@ public class MarkovGraph extends AbstractDirectedGraph<Vertex, Edge> implements 
     }
     
     /**
-     * Update the instance hits for the graph's elements and recalculate probabilities
-     */
-    public synchronized void recomputeGraph() {
-        this.normalizeTimes();
-        for (Vertex v : this.getVertices()) {
-            v.incrementTotalhits(v.getInstancehits());
-        }
-        for (Edge e : this.getEdges()) {
-            e.incrementHits(e.getInstancehits());
-        }
-        this.calculateProbabilities();
-    }
-    
-    /**
      * 
      * @return The number of xacts used to make this MarkovGraph
      */
@@ -663,6 +667,15 @@ public class MarkovGraph extends AbstractDirectedGraph<Vertex, Edge> implements 
      */
     public void incrementTransasctionCount() {
        this.xact_count++; 
+    }
+    
+    public void incrementMispredictionCount() {
+        this.xact_mispredict++;
+        if (this.xact_count > 0) this.xact_accuracy = (this.xact_count - this.xact_mispredict) / (double)this.xact_count;
+    }
+    
+    public double getAccuracyRatio() {
+        return (this.xact_accuracy);
     }
     
     // ----------------------------------------------------------------------------

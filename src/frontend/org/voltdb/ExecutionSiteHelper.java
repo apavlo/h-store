@@ -161,9 +161,9 @@ public class ExecutionSiteHelper implements Runnable {
             int cleaned = 0;
             while (es.finished_txn_states.isEmpty() == false && (this.txn_per_round < 0 || cleaned < this.txn_per_round)) {
                 TransactionState ts = es.finished_txn_states.peek();
-                if (ts.getFinishedTimestamp() < to_remove) {
+                if (ts.getEE_FinishedTimestamp() < to_remove) {
 //                    if (traceLOG.info(String.format("Want to clean txn #%d [done=%s, type=%s]", ts.getTransactionId(), ts.getHStoreSiteDone(), ts.getClass().getSimpleName()));
-                    if (ts.getHStoreSiteDone() == false) break;
+                    if (ts.isHStoreSite_Finished() == false) break;
                     
                     if (t) LOG.trace("Cleaning txn #" + ts.getTransactionId());
                     
@@ -171,7 +171,6 @@ public class ExecutionSiteHelper implements Runnable {
                     if (this.enable_profiling && ts instanceof LocalTransactionState) {
                         this.calculateProfileInformation((LocalTransactionState)ts);
                     }
-                    ts.setHStoreSiteDone(false);
                     es.cleanupTransaction(ts);
                     es.finished_txn_states.remove();
                     cleaned++;

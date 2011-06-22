@@ -34,6 +34,7 @@ import edu.brown.workload.TransactionTrace;
 import edu.brown.workload.Workload;
 import edu.brown.workload.filters.ProcedureLimitFilter;
 import edu.brown.workload.filters.ProcedureNameFilter;
+import edu.mit.hstore.HStoreConf;
 
 public class TestFeatureClusterer extends BaseTestCase {
 
@@ -53,6 +54,8 @@ public class TestFeatureClusterer extends BaseTestCase {
     protected void setUp() throws Exception {
         super.setUp(ProjectType.TPCC);
         this.addPartitions(NUM_PARTITIONS);
+        
+        HStoreConf.singleton().site.markov_path_caching = false;
         
         if (workload == null) {
             catalog_proc = this.getProcedure(TARGET_PROCEDURE);

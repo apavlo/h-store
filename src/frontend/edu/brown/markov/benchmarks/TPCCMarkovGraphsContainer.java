@@ -28,6 +28,7 @@ public class TPCCMarkovGraphsContainer extends MarkovGraphsContainer {
     private static final boolean d = LOG.isDebugEnabled();
     private static final boolean t = LOG.isTraceEnabled();
 
+    private boolean neworder_useLong = false;
 
     public TPCCMarkovGraphsContainer(Collection<Procedure> procedures) {
         super(procedures);
@@ -58,7 +59,17 @@ public class TPCCMarkovGraphsContainer extends MarkovGraphsContainer {
     
     public int processNeworder(long txn_id, int base_partition, Object[] params, Procedure catalog_proc) {
         // VALUE(D_ID) 
-        int d_id = ((Long)params[1]).intValue();
+        int d_id = -1;
+        try {
+            if (this.neworder_useLong) {
+                d_id = ((Long)params[1]).intValue();
+            } else {
+                d_id = ((Byte)params[1]).intValue();
+            }
+        } catch (ClassCastException e) {
+            this.neworder_useLong = (this.neworder_useLong == false);
+            return (this.processNeworder(txn_id, base_partition, params, catalog_proc));
+        }
         
         // ARRAYLENGTH[S_W_IDS]
         int arr_len = ((Object[])params[5]).length;

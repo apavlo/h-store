@@ -155,10 +155,12 @@ public abstract class FixCatalog {
     public static void main(String[] vargs) throws Exception {
         ArgumentsParser args = ArgumentsParser.load(vargs);
         args.require(ArgumentsParser.PARAM_CATALOG_TYPE,
-                     ArgumentsParser.PARAM_CATALOG_OUTPUT);
+                     ArgumentsParser.PARAM_CATALOG_OUTPUT,
+                     ArgumentsParser.PARAM_DTXN_CONF_OUTPUT);
         
         // ProjectType type = args.catalog_type;
-        String output_path = args.getParam(ArgumentsParser.PARAM_CATALOG_OUTPUT);
+        String catalogOutputPath = args.getParam(ArgumentsParser.PARAM_CATALOG_OUTPUT);
+        String dtxnOutputPath = args.getParam(ArgumentsParser.PARAM_DTXN_CONF_OUTPUT);
         
         // Populate Parameter Mappings
         if (args.hasParam(ArgumentsParser.PARAM_CORRELATIONS)) {
@@ -197,12 +199,12 @@ public abstract class FixCatalog {
         } else {
             List<String> host_triplets = new ArrayList<String>();
             
-            if (args.hasParam(ArgumentsParser.PARAM_CATALOG_CLUSTER)) {
-                String contents = FileUtil.readFile(args.getParam(ArgumentsParser.PARAM_CATALOG_CLUSTER));
+            String hosts = args.getParam(ArgumentsParser.PARAM_SIMULATOR_HOST);
+            if (FileUtil.exists(hosts)) {
+                String contents = FileUtil.readFile(args.getParam(ArgumentsParser.PARAM_SIMULATOR_HOST));
                 CollectionUtil.addAll(host_triplets, contents.split("\n"));
             } else {
-                String hosts_list = args.getParam(ArgumentsParser.PARAM_SIMULATOR_HOST);
-                CollectionUtil.addAll(host_triplets, hosts_list.split(","));
+                CollectionUtil.addAll(host_triplets, hosts.split(","));
             }
                 
             ClusterConfiguration cc = new ClusterConfiguration();
@@ -225,17 +227,15 @@ public abstract class FixCatalog {
             new_catalog = FixCatalog.addHostInfo(new_catalog, cc);
         }
         
-//        
-//        Catalog new_catalog = args.catalog;
-//        if (args.hasParam(ArgumentsParser.PARAM_SIMULATOR_HOST)) {
-//            new_catalog = createClusterCatalog(args);
-//        }
+        // Now construct the new Dtxn.Coordinator configuration
+        String new_dtxn = HStoreDtxnConf.toHStoreDtxnConf(new_catalog);
         
-        //
         // We need to write this things somewhere now...
-        //
-        FileUtil.writeStringToFile(new File(output_path), new_catalog.serialize());
-        LOG.info("Wrote updated catalog specification to '" + output_path + "'");
+        FileUtil.writeStringToFile(new File(catalogOutputPath), new_catalog.serialize());
+        LOG.info("Wrote updated catalog specification to '" + catalogOutputPath + "'");
+        
+        FileUtil.writeStringToFile(new File(dtxnOutputPath), new_dtxn);
+        LOG.info("Wrote updated Dtxn.Coordinator configuration to '" + dtxnOutputPath + "'");
 
         return;
     }

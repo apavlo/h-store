@@ -26,7 +26,7 @@ int main(int argc, const char* argv[]) {
 
     io::LibEventLoop event_loop;
 
-    LOG_INFO("Preparing to launch Dtxn.Coordinator...");
+    LOG_INFO("Preparing to launch Dtxn.Coordinator on port %d...", port);
     
     // Connect to the backends
     vector<TCPConnection*> tcp_connections = net::createConnectionsWithRetry(

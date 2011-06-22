@@ -6,6 +6,7 @@ import java.io.File;
 import java.io.IOException;
 import java.util.*;
 
+import org.apache.log4j.Logger;
 import org.voltdb.VoltProcedure;
 import org.voltdb.catalog.*;
 import org.voltdb.compiler.VoltProjectBuilder;
@@ -27,23 +28,31 @@ import edu.brown.utils.FileUtil;
 import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.PartitionEstimator;
 import edu.brown.utils.ProjectType;
+import edu.mit.hstore.HStoreConf;
 
 /**
  * Base class that provides a lot of the common functionality that our HStore test cases need
  * @author pavlo
  */
 public abstract class BaseTestCase extends TestCase {
+    private static final Logger LOG = Logger.getLogger(BaseTestCase.class);
 
-    protected static boolean ENABLE_JAR_REUSE = false;
+    protected static final boolean ENABLE_JAR_REUSE;
     
     static {
         // log4j Hack
         LoggerUtil.setupLogging();
         
         // Jar Caching!
+        boolean reuse = false;
         if (System.getenv("ENABLE_JAR_REUSE") != null) {
-            ENABLE_JAR_REUSE = Boolean.valueOf(System.getenv("ENABLE_JAR_REUSE"));
+            reuse = Boolean.valueOf(System.getenv("ENABLE_JAR_REUSE"));
+            if (reuse) LOG.debug("ENABLE_JAR_REUSE = " + reuse);
         }
+        ENABLE_JAR_REUSE = reuse;
+        
+        // HStoreConf Hack
+        HStoreConf.init(null, null);
     }
     
     
@@ -132,16 +141,16 @@ public abstract class BaseTestCase extends TestCase {
             if (ENABLE_JAR_REUSE) {
                 File jar_path = projectBuilder.getJarPath();
                 if (jar_path.exists()) {
-//                    System.err.println("LOAD CACHE JAR: " + jar_path.getAbsolutePath());
+                    LOG.debug("LOAD CACHE JAR: " + jar_path.getAbsolutePath());
                     catalog = CatalogUtil.loadCatalogFromJar(jar_path.getAbsolutePath());
-//                } else {
-//                    System.err.println("MISSING JAR: " + jar_path.getAbsolutePath());
+                } else {
+                    LOG.debug("MISSING JAR: " + jar_path.getAbsolutePath());
                 }
             }
             if (catalog == null) {
                 switch (type) {
                     case TPCC:
-                        catalog = TPCCProjectBuilder.getTPCCSchemaCatalog(fkeys);
+                        catalog = TPCCProjectBuilder.getTPCCSchemaCatalog(true);
                         // Update the ProcParameter mapping used in the catalogs
 //                        ParametersUtil.populateCatalog(CatalogUtil.getDatabase(catalog), ParametersUtil.getParameterMapping(type));
                         break;
@@ -159,7 +168,7 @@ public abstract class BaseTestCase extends TestCase {
                         assert(false) : "Invalid project type - " + type;
                 } // SWITCH
             }
-//            if (type == ProjectType.TPCC) ParametersUtil.populateCatalog(CatalogUtil.getDatabase(catalog), ParametersUtil.getParameterMapping(type));
+            if (type == ProjectType.TPCC) ParametersUtil.populateCatalog(CatalogUtil.getDatabase(catalog), ParametersUtil.getParameterMapping(type));
             this.init(type, catalog);
         }
     }

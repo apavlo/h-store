@@ -21,6 +21,7 @@ import org.voltdb.utils.Pair;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.graphs.GraphvizExport;
 import edu.brown.graphs.GraphvizExport.Attribute;
+import edu.brown.graphs.GraphvizExport.AttributeValues;
 import edu.brown.hashing.AbstractHasher;
 import edu.brown.utils.ClassUtil;
 import edu.brown.utils.CollectionUtil;
@@ -293,6 +294,12 @@ public abstract class MarkovUtil {
         // method to compute the final edge/vertex probabilities 
         for (MarkovGraph g : partitiongraphs.values()) {
             g.calculateProbabilities();
+            boolean valid = g.isValid(); 
+            if (valid == false) {
+                GraphvizExport<Vertex, Edge> gv = MarkovUtil.exportGraphviz(g, true, null);
+                LOG.warn("Wrote invalid MarkovGraph out to file: " + gv.writeToTempFile());
+            }
+            assert(valid) : "Invalid MarkovGraph"; 
         } // FOR
         return partitiongraphs;
     }
@@ -526,7 +533,7 @@ public abstract class MarkovUtil {
      * @throws Exception
      */
     public static GraphvizExport<Vertex, Edge> exportGraphviz(MarkovGraph markov, boolean use_full_output, List<Edge> path) {
-        return MarkovUtil.exportGraphviz(markov, use_full_output, false, path);
+        return MarkovUtil.exportGraphviz(markov, use_full_output, false, false, path);
     }
     
     /**
@@ -535,11 +542,12 @@ public abstract class MarkovUtil {
      * @param markov
      * @param use_full_output - Whether to use the full debug information for vertex labels
      * @param use_vldb_output - Whether to use labels for paper figures
+     * @param high_invalid - Whether to highlight invalid edges/vertices
      * @param path - A path to highlight (can be null)
      * @return
      * @throws Exception
      */
-    public static GraphvizExport<Vertex, Edge> exportGraphviz(MarkovGraph markov, boolean use_full_output, boolean use_vldb_output, List<Edge> path) {
+    public static GraphvizExport<Vertex, Edge> exportGraphviz(MarkovGraph markov, boolean use_full_output, boolean use_vldb_output, boolean highlight_invalid, List<Edge> path) {
         GraphvizExport<Vertex, Edge> graphviz = new GraphvizExport<Vertex, Edge>(markov);
         graphviz.setEdgeLabels(true);
         graphviz.getGlobalGraphAttributes().put(Attribute.PACK, "true");
@@ -569,6 +577,13 @@ public abstract class MarkovUtil {
         if (use_vldb_output || use_full_output) {
             final String empty_set = "\u2205";
             for (Vertex v0 : markov.getVertices()) {
+                AttributeValues av = graphviz.getAttributes(v0);
+                
+                if (highlight_invalid && v0.isValid() == false) {
+                    av.put(Attribute.FILLCOLOR, "red");
+                    LOG.warn("Highlighting " + v0 + " as invalid");
+                }
+                
                 String label = "";
             
                 // VLDB Figure Output
@@ -616,7 +631,7 @@ public abstract class MarkovUtil {
                 } else {
                     label = v0.debug();
                 }
-                graphviz.getAttributes(v0).put(Attribute.LABEL, label);
+                av.put(Attribute.LABEL, label);
             } // FOR
         }
         

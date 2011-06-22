@@ -4,7 +4,6 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Random;
 import java.util.Set;
 
 import org.junit.Before;
@@ -45,7 +44,6 @@ public class TestMarkovCostModel extends BaseTestCase {
     private static final int BASE_PARTITION = 1;
     private static final int NUM_PARTITIONS = 5;
     private static final EstimationThresholds thresholds = new EstimationThresholds();
-    private static final Random rand = new Random();
 
     private static Workload workload;
     private static MarkovGraphsContainer markovs;

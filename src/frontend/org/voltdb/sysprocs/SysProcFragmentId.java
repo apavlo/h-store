@@ -116,4 +116,8 @@ public class SysProcFragmentId
     public static final long PF_dumpDistribute = 170;
     public static final long PF_dumpAggregate = 171;
     
+    // @RecomputeMarkovs
+    public static final long PF_recomputeMarkovsDistribute = 180;
+    public static final long PF_recomputeMarkovsAggregate = 181;
+    
 }

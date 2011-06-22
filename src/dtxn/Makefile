@@ -44,6 +44,7 @@ $(PREFIX)/dtxn2/partitionserver.o \
 $(PREFIX)/dtxn2/protopartitionserver.o
 
 $(PREFIX):
+	mkdir -p $(PREFIX)/protodtxn
 	mkdir -p $(PREFIX)/dtxn2
 	mkdir -p $(PREFIX)/protorpc
 	mkdir -p $(PREFIX)/io
@@ -56,7 +57,6 @@ $(PREFIX):
 	mkdir -p $(PREFIX)/net
 	mkdir -p $(PREFIX)/logging
 	mkdir -p $(PREFIX)/dtxn/occ
-	mkdir -p $(PREFIX)/protodtxn
 	mkdir -p $(PREFIX)/stupidunit
 	mkdir -p $(PREFIX)/strings
 
@@ -67,7 +67,7 @@ clean:
 ## ------------------------------------------------------------------
 ## Protocol Buffer Stuff
 ## ------------------------------------------------------------------
-protobuf: $(PREFIX) $(PREFIX)/$(DTXN_PROTO_NAME).pb.cc $(PREFIX)/protorpc/Counter.pb.cc $(PREFIX)/protorpc/Protocol.pb.cc $(PREFIX)/protorpc/null.pb.cc
+protobuf: $(PREFIX) $(PREFIX)/$(DTXN_PROTO_NAME).pb.cc $(PREFIX)/protorpc/Protocol.pb.cc $(PREFIX)/protorpc/null.pb.cc
 
 $(PREFIX)/$(DTXN_PROTO_NAME).pb.cc: $(DTXN_PROTO_PATH)
 	$(PROTOBUF_PROTOC) --proto_path=$(PROTORPC_PATH) --cpp_out=$(PREFIX) $(DTXN_PROTO_PATH)
@@ -82,10 +82,8 @@ $(PREFIX)/protorpc/null.pb.cc: protorpc/null.proto
 ## ------------------------------------------------------------------
 ## PROTORPC
 ## ------------------------------------------------------------------
-protorpc: $(PREFIX)/protorpc/Counter.pb.o $(PREFIX)/protorpc/null.pb.o $(PREFIX)/protorpc/Protocol.pb.o $(PREFIX)/protorpc/rpcreplay $(PREFIX)/protorpc/protoserver_test.o $(PREFIX)/protorpc/sequencereader $(PREFIX)/protorpc/sequencereader_main.o $(PREFIX)/protorpc/protorpcchannel_test.o $(PREFIX)/protorpc/sequencereader.o $(PREFIX)/protorpc/protoconnectionbuffer.o $(PREFIX)/protorpc/protoconnectionbuffer_test.o $(PREFIX)/protorpc/protorpcchannel.o $(PREFIX)/protorpc/serviceregistry.o $(PREFIX)/protorpc/counter_demo.o $(PREFIX)/protorpc/rpcreplay.o $(PREFIX)/protorpc/rpcproxy.o $(PREFIX)/protorpc/rpcproxy $(PREFIX)/protorpc/protoserver.o $(PREFIX)/protorpc/protorpccontroller.o $(PREFIX)/protorpc/serviceregistry_test.o $(PREFIX)/protorpc/counter_demo
+protorpc: $(PREFIX)/$(DTXN_PROTO_NAME).pb.o $(PREFIX)/protorpc/Counter.pb.o $(PREFIX)/protorpc/rpcreplay $(PREFIX)/protorpc/protoserver_test.o $(PREFIX)/protorpc/sequencereader $(PREFIX)/protorpc/sequencereader_main.o $(PREFIX)/protorpc/protorpcchannel_test.o $(PREFIX)/protorpc/sequencereader.o $(PREFIX)/protorpc/protoconnectionbuffer.o $(PREFIX)/protorpc/protoconnectionbuffer_test.o $(PREFIX)/protorpc/protorpcchannel.o $(PREFIX)/protorpc/serviceregistry.o $(PREFIX)/protorpc/rpcreplay.o $(PREFIX)/protorpc/rpcproxy.o $(PREFIX)/protorpc/rpcproxy $(PREFIX)/protorpc/protoserver.o $(PREFIX)/protorpc/protorpccontroller.o $(PREFIX)/protorpc/serviceregistry_test.o
 $(PREFIX)/protorpc/rpcreplay: $(PREFIX)/protorpc/rpcreplay.o $(PREFIX)/protorpc/Protocol.pb.o $(PREFIX)/protorpc/null.pb.o $(PREFIX)/protorpc/protoconnectionbuffer.o $(PREFIX)/protorpc/protorpcchannel.o $(PREFIX)/protorpc/protorpccontroller.o $(PREFIX)/protorpc/sequencereader.o $(PREFIX)/io/buffer.o $(PREFIX)/networkaddress.o $(PREFIX)/randomgenerator.o $(PREFIX)/strings/utils.o $(PREFIX)/tcplistener.o $(PREFIX)/io/libeventloop.o $(PREFIX)/libevent/libevent_core.a
-	$(CC_BINARY)
-$(PREFIX)/protorpc/counter_demo: $(PREFIX)/protorpc/counter_demo.o $(PREFIX)/protorpc/Protocol.pb.o $(PREFIX)/protorpc/protoconnectionbuffer.o $(PREFIX)/protorpc/protorpcchannel.o $(PREFIX)/protorpc/protorpccontroller.o $(PREFIX)/protorpc/protoserver.o $(PREFIX)/protorpc/serviceregistry.o $(PREFIX)/buffer.o $(PREFIX)/io/buffer.o $(PREFIX)/messageconnection.o $(PREFIX)/networkaddress.o $(PREFIX)/net/messageconnectionutil.o $(PREFIX)/strings/utils.o $(PREFIX)/tcplistener.o $(PREFIX)/protorpc/Counter.pb.o $(PREFIX)/io/libeventloop.o $(PREFIX)/libevent/libevent_core.a
 	$(CC_BINARY)
 $(PREFIX)/protorpc/protoserver.o: protorpc/protoserver.cc
 	$(CC_COMPILE)
@@ -108,8 +106,6 @@ $(PREFIX)/protorpc/rpcproxy: $(PREFIX)/protorpc/rpcproxy.o $(PREFIX)/protorpc/Pr
 $(PREFIX)/protorpc/protorpcchannel.o: protorpc/protorpcchannel.cc
 	$(CC_COMPILE)
 $(PREFIX)/protorpc/serviceregistry.o: protorpc/serviceregistry.cc
-	$(CC_COMPILE)
-$(PREFIX)/protorpc/counter_demo.o: protorpc/counter_demo.cc
 	$(CC_COMPILE)
 $(PREFIX)/protorpc/rpcreplay.o: protorpc/rpcreplay.cc
 	$(CC_COMPILE)
@@ -393,8 +389,6 @@ $(PREFIX)/simpleclient.o: simpleclient.cc
 	$(CC_COMPILE)
 $(PREFIX)/protodtxn/protodtxncoordinator.o: protodtxn/protodtxncoordinator.cc
 	$(CC_COMPILE)
-$(PREFIX)/simpleserver: $(PREFIX)/simpleserver.o $(PREFIX)/buffer.o $(PREFIX)/messageconnection.o $(PREFIX)/networkaddress.o $(PREFIX)/tcplistener.o $(PREFIX)/io/buffer.o $(PREFIX)/io/libeventloop.o $(PREFIX)/strings/utils.o $(PREFIX)/libevent/libevent_core.a
-	$(CC_BINARY)
 $(PREFIX)/tcplistener_test.o: tcplistener_test.cc
 	$(CC_COMPILE)
 $(PREFIX)/strings/utils_test: $(PREFIX)/strings/utils_test.o $(PREFIX)/strings/utils.o $(PREFIX)/stupidunit/stupidunit.o
@@ -451,8 +445,6 @@ $(PREFIX)/dtxn/ordered/orderedclient_test.o: dtxn/ordered/orderedclient_test.cc
 	$(CC_COMPILE)
 $(PREFIX)/io/libeventloop_test: $(PREFIX)/io/libeventloop_test.o $(PREFIX)/io/libeventloop.o $(PREFIX)/libevent/libevent_core.a $(PREFIX)/stupidunit/stupidunit.o
 	$(CC_BINARY)
-$(PREFIX)/simpleserver.o: simpleserver.cc
-	$(CC_COMPILE)
 $(PREFIX)/tcplistener.o: tcplistener.cc
 	$(CC_COMPILE)
 $(PREFIX)/networkaddress_test: $(PREFIX)/networkaddress_test.o $(PREFIX)/networkaddress.o $(PREFIX)/strings/utils.o $(PREFIX)/stupidunit/stupidunit.o

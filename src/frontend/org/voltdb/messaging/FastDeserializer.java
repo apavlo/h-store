@@ -276,6 +276,13 @@ public class FastDeserializer implements DataInput {
             }
             return retval;
         }
+        if (type == boolean.class) {
+            final boolean[] retval = new boolean[count];
+            for (int i = 0; i < count; i++) {
+                retval[i] = readBoolean();
+            }
+            return retval;
+        }
 
         // probably throws an exception if type is not fastserializable
         @SuppressWarnings("unchecked")

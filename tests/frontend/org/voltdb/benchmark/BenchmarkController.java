@@ -66,6 +66,7 @@ import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.StringUtil;
 import edu.brown.utils.ThreadUtil;
 import edu.brown.utils.LoggerUtil.LoggerBoolean;
+import edu.mit.hstore.HStoreConf;
 import edu.mit.hstore.HStoreSite;
 
 public class BenchmarkController {
@@ -107,7 +108,7 @@ public class BenchmarkController {
     final ProcessSetManager m_clientPSM;
     
     /** Server Sites **/
-    final ProcessSetManager m_serverPSM;
+    final ProcessSetManager m_sitePSM;
     
     BenchmarkResults m_currentResults = null;
     Set<String> m_clients = new HashSet<String>();
@@ -118,6 +119,7 @@ public class BenchmarkController {
     Thread self = null;
     boolean stop = false;
     boolean cleaned = false;
+    HStoreConf hstore_conf;
     AtomicBoolean m_statusThreadShouldContinue = new AtomicBoolean(true);
     AtomicInteger m_clientsNotReady = new AtomicInteger(0);
     AtomicInteger m_pollIndex = new AtomicInteger(0);
@@ -139,7 +141,7 @@ public class BenchmarkController {
     /**
      * Triplets: <Host>, <Port>, <SiteId>
      */
-    List<String[]> launch_hosts = null;
+    List<String[]> m_launchHosts = null;
 
     public static interface BenchmarkInterest {
         public void benchmarkHasUpdated(BenchmarkResults currentResults);
@@ -243,14 +245,15 @@ public class BenchmarkController {
     public BenchmarkController(BenchmarkConfig config) {
         m_config = config;
         self = Thread.currentThread();
+        hstore_conf = HStoreConf.singleton();
         
         // Setup ProcessSetManagers...
-        m_clientPSM = new ProcessSetManager(m_config.clientLogDir, this.failure_observer);
-        m_serverPSM = new ProcessSetManager(m_config.siteLogDir, this.failure_observer);
-        m_coordPSM = new ProcessSetManager(m_config.coordLogDir, this.failure_observer);
+        m_clientPSM = new ProcessSetManager(hstore_conf.client.log_dir, this.failure_observer);
+        m_sitePSM = new ProcessSetManager(hstore_conf.site.log_dir, this.failure_observer);
+        m_coordPSM = new ProcessSetManager(hstore_conf.coordinator.log_dir, this.failure_observer);
 
         try {
-            m_clientClass = (Class<? extends ClientMain>)Class.forName(m_config.benchmarkClient);
+            m_clientClass = (Class<? extends ClientMain>)Class.forName(m_config.client);
             //Hackish, client expected to have these field as a static member
             Field builderClassField = m_clientClass.getField("m_projectBuilderClass");
             Field loaderClassField = m_clientClass.getField("m_loaderClass");
@@ -264,11 +267,11 @@ public class BenchmarkController {
         } catch (Exception e) {
             LogKeys logkey = LogKeys.benchmark_BenchmarkController_ErrorDuringReflectionForClient;
             LOG.l7dlog( Level.FATAL, logkey.name(),
-                    new Object[] { m_config.benchmarkClient }, e);
+                    new Object[] { m_config.client }, e);
             System.exit(-1);
         }
 
-        uploader = new ResultsUploader(m_config.benchmarkClient, config);
+        uploader = new ResultsUploader(m_config.client, config);
 
         try {
             m_projectBuilder = m_builderClass.newInstance();
@@ -331,10 +334,10 @@ public class BenchmarkController {
         Set<String> unique_hosts = new HashSet<String>();
         if (m_config.useCatalogHosts == false) {
             if (debug.get()) LOG.debug("Creating host information from BenchmarkConfig");
-            launch_hosts = new ArrayList<String[]>();
+            m_launchHosts = new ArrayList<String[]>();
             Integer site_id = VoltDB.FIRST_SITE_ID;
             for (String host : m_config.hosts) {
-                launch_hosts.add(new String[] {
+                m_launchHosts.add(new String[] {
                         host,
                         Integer.toString(VoltDB.DEFAULT_PORT),
                         site_id.toString()
@@ -344,8 +347,8 @@ public class BenchmarkController {
             } // FOR
         } else {
             if (debug.get()) LOG.debug("Collecting host information from catalog");
-            launch_hosts = CatalogUtil.getExecutionSites(catalog);
-            for (String[] triplet : launch_hosts) {
+            m_launchHosts = CatalogUtil.getExecutionSites(catalog);
+            for (String[] triplet : m_launchHosts) {
                 if (trace.get()) LOG.trace("Retrieved execution node info from catalog: " + triplet[0] + ":" + triplet[1] + " - ExecutionSite #" + triplet[2]);
                 unique_hosts.add(triplet[0]);
             } // FOR
@@ -400,21 +403,21 @@ public class BenchmarkController {
             }
 
             // START THE SERVERS
-            if (debug.get()) LOG.debug("Number of hosts to start: " + launch_hosts.size());
+            if (debug.get()) LOG.debug("Number of hosts to start: " + m_launchHosts.size());
             int hosts_started = 0;
-            for (String[] triplet : launch_hosts) {
+            for (String[] triplet : m_launchHosts) {
                 String host = triplet[0];
                 String port = triplet[1];
                 int site_id = Integer.valueOf(triplet[2]);
-                String host_id = String.format("site-%s-%d", host, site_id);
+                String host_id = String.format("site-%02d-%s", site_id, host);
                 
                 // Check whether this one of the sites that will be started externally
                 if (m_config.profileSiteIds.contains(site_id)) {
-                    LOG.info(String.format("Skipping HStoreSite #%d because it will be started by profiler", site_id));
+                    LOG.info(String.format("Skipping HStoreSite %s because it will be started by profiler", HStoreSite.getSiteName(site_id)));
                     continue;
                 }
                 
-                LOG.info(String.format("Starting HStoreSite on %s:%s with site id #%d", host, port, site_id));
+                LOG.info(String.format("Starting HStoreSite %s on %s:%s ", HStoreSite.getSiteName(site_id), host, port));
 
 //                String debugString = "";
 //                if (m_config.listenForDebugger) {
@@ -427,9 +430,10 @@ public class BenchmarkController {
                 List<String> command = new ArrayList<String>();
                 command.add("ant");
                 command.add("hstore-site");
+                command.add("-Dproperties=" + m_config.hstore_conf_path);
                 command.add("-Dcoordinator.host=" + m_config.coordinatorHost);
                 command.add("-Dproject=" + m_projectBuilder.getProjectName());
-                command.add("-Dnode.site=" + site_id);
+                command.add("-Dsite.id=" + site_id);
                 if (m_config.markovPath != null) command.add("-Dmarkov=" + m_config.markovPath);
                 if (m_config.thresholdsPath != null) command.add("-Dthresholds=" + m_config.thresholdsPath);
                 
@@ -442,7 +446,7 @@ public class BenchmarkController {
                 String fullCommand = StringUtil.join(" ", exec_command);
                 uploader.setCommandLineForHost(host, fullCommand);
                 if (trace.get()) LOG.trace(fullCommand);
-                m_serverPSM.startProcess(host_id, exec_command);
+                m_sitePSM.startProcess(host_id, exec_command);
                 hosts_started++;
             } // FOR
 
@@ -453,11 +457,13 @@ public class BenchmarkController {
                     "ant",
                     "dtxn-coordinator",
                     "-Dproject=" + m_projectBuilder.getProjectName(),
+                    "-Dcoordinator.delay=" + hstore_conf.coordinator.delay,
+                    "-Dcoordinator.port=" + hstore_conf.coordinator.port,
                 };
 
                 command = SSHTools.convert(m_config.remoteUser, host, m_config.remotePath, m_config.sshOptions, command);
                 String fullCommand = StringUtil.join(" ", command);
-                if (trace.get()) LOG.trace(fullCommand);
+                if (trace.get()) LOG.trace("START COORDINATOR: " + fullCommand);
                 m_coordPSM.startProcess("dtxn-" + host, command);
                 LOG.info("Started Dtxn.Coordinator on " + host);
             }
@@ -468,7 +474,7 @@ public class BenchmarkController {
                 LOG.info("Waiting for " + waiting + " HStoreSites to finish initialization");
                 
                 do {
-                    ProcessSetManager.OutputLine line = m_serverPSM.nextBlocking();
+                    ProcessSetManager.OutputLine line = m_sitePSM.nextBlocking();
                     if (line == null) break;
                     if (line.value.contains(HStoreSite.SITE_READY_MSG)) {
                         waiting--;
@@ -492,94 +498,107 @@ public class BenchmarkController {
 
         final int numClients = (m_config.clients.length * m_config.processesPerClient);
         if (m_loaderClass != null && !m_config.noDataLoad) {
-            if (debug.get()) LOG.debug("Starting loader: " + m_loaderClass);
-            ArrayList<String> localArgs = new ArrayList<String>();
-
-            // set loader max heap to MAX(1M,6M) based on thread count.
-            int lthreads = 2;
-            if (m_config.parameters.containsKey("loadthreads")) {
-                lthreads = Integer.parseInt(m_config.parameters.get("loadthreads"));
-                if (lthreads < 1) lthreads = 1;
-                if (lthreads > 6) lthreads = 6;
-            }
-            int loaderheap = 1024 * lthreads;
-            if (trace.get()) LOG.trace("LOADER HEAP " + loaderheap);
-
-            String debugString = "";
-            if (m_config.listenForDebugger) {
-                debugString = " -agentlib:jdwp=transport=dt_socket,address=8002,server=y,suspend=n ";
-            }
-            StringBuilder loaderCommand = new StringBuilder(4096);
-
-            loaderCommand.append("java -Dtag=loader -XX:-ReduceInitialCardMarks -XX:+HeapDumpOnOutOfMemoryError " +
-                    "-XX:HeapDumpPath=/tmp -Xmx" + loaderheap + "m " + debugString);
-            String classpath = ""; // Disable this so that we just pull from the build dir -> "hstore.jar" + ":" + m_jarFileName;
-            if (System.getProperty("java.class.path") != null) {
-                classpath = classpath + ":" + System.getProperty("java.class.path");
-            }
-            loaderCommand.append(" -cp \"" + classpath + "\" ");
-            loaderCommand.append(m_loaderClass.getCanonicalName());
-            
-            for (Site catalog_site : CatalogUtil.getCluster(catalog).getSites()) {
-                String address = String.format("%s:%d", catalog_site.getHost().getIpaddr(), catalog_site.getProc_port());
-                loaderCommand.append(" HOST=" + address);
-                localArgs.add("HOST=" + address);
-                if (trace.get()) LOG.trace("HStoreSite: " + address);
-            }
-
-            loaderCommand.append(" NUMCLIENTS=" + numClients + " ");
-            localArgs.add(" NUMCLIENTS=1 ");
-                    
-            loaderCommand.append(" STATSDATABASEURL=" + m_config.statsDatabaseURL + " ");
-            loaderCommand.append(" STATSPOLLINTERVAL=" + m_config.interval + " ");
-            localArgs.add(" STATSDATABASEURL=" + m_config.statsDatabaseURL + " ");
-            localArgs.add(" STATSPOLLINTERVAL=" + m_config.interval + " ");
-
-            StringBuffer userParams = new StringBuffer(4096);
-            for (Entry<String,String> userParam : m_config.parameters.entrySet()) {
-                if (userParam.getKey().equals("TXNRATE")) {
-                    continue;
-                }
-                userParams.append(" ");
-                userParams.append(userParam.getKey());
-                userParams.append("=");
-                userParams.append(userParam.getValue());
-
-                localArgs.add(userParam.getKey() + "=" + userParam.getValue());
-            }
-
-            loaderCommand.append(userParams);
-
-            // RUN THE LOADER
-//            if (true || m_config.localmode) {
-                localArgs.add("EXITONCOMPLETION=false");
-                ClientMain.main(m_loaderClass, localArgs.toArray(new String[0]), true);
-//            }
-//            else {
-//                if (debug.get()) LOG.debug("Loader Command: " + loaderCommand.toString());
-//                String[] command = SSHTools.convert(
-//                        m_config.remoteUser,
-//                        m_config.clients[0],
-//                        m_config.remotePath,
-//                        m_config.sshOptions,
-//                        loaderCommand.toString());
-//                status = ShellTools.cmdToStdOut(command);
-//                assert(status);
-//            }
+            this.startLoader(catalog, numClients);
         } else if (m_config.noDataLoad) {
             LOG.info("Skipping data loading phase");
         }
         LOG.info("Completed loading phase");
 
         //Start the clients
+        this.startClients(numClients);
+        
+        // registerInterest(uploader);
+    }
+    
+    public void startLoader(final Catalog catalog, final int numClients) {
+        if (debug.get()) LOG.debug("Starting loader: " + m_loaderClass);
+        final ArrayList<String> allArgs = new ArrayList<String>();
+        final ArrayList<String> loaderCommand = new ArrayList<String>();
+
+        // set loader max heap to MAX(1M,6M) based on thread count.
+        int lthreads = 2;
+        if (m_config.parameters.containsKey("loadthreads")) {
+            lthreads = Integer.parseInt(m_config.parameters.get("loadthreads"));
+            if (lthreads < 1) lthreads = 1;
+            if (lthreads > 6) lthreads = 6;
+        }
+        int loaderheap = 1024 * lthreads;
+        if (trace.get()) LOG.trace("LOADER HEAP " + loaderheap);
+
+        String debugString = "";
+        if (m_config.listenForDebugger) {
+            debugString = " -agentlib:jdwp=transport=dt_socket,address=8002,server=y,suspend=n ";
+        }
+
+        loaderCommand.add("java");
+        loaderCommand.add("-Dhstore.tag=loader");
+        loaderCommand.add("-XX:-ReduceInitialCardMarks");
+        loaderCommand.add("-XX:+HeapDumpOnOutOfMemoryError");
+        loaderCommand.add("-XX:HeapDumpPath=" + hstore_conf.global.temp_dir);
+        loaderCommand.add(String.format("-Xmx%dm", loaderheap));
+        if (debugString.isEmpty() == false) loaderCommand.add(debugString); 
+        
+        String classpath = ""; // Disable this so that we just pull from the build dir -> "hstore.jar" + ":" + m_jarFileName;
+        if (System.getProperty("java.class.path") != null) {
+            classpath = classpath + ":" + System.getProperty("java.class.path");
+        }
+        loaderCommand.add("-cp \"" + classpath + "\"");
+        loaderCommand.add(m_loaderClass.getCanonicalName());
+        
+        for (Site catalog_site : CatalogUtil.getCluster(catalog).getSites()) {
+            String address = String.format("%s:%d", catalog_site.getHost().getIpaddr(), catalog_site.getProc_port());
+            allArgs.add("HOST=" + address);
+            if (trace.get()) LOG.trace(String.format("HStoreSite %s: %s", HStoreSite.getSiteName(catalog_site.getId()), address));
+        } // FOR
+
+        allArgs.add("BENCHMARK.CONF=" + m_config.benchmark_conf_path);
+        allArgs.add("NUMCLIENTS=" + numClients);
+        allArgs.add("STATSDATABASEURL=" + m_config.statsDatabaseURL);
+        allArgs.add("STATSPOLLINTERVAL=" + m_config.interval);
+
+        for (Entry<String,String> e : m_config.parameters.entrySet()) {
+            if (e.getKey().equals("TXNRATE")) {
+                continue;
+            }
+            String arg = String.format("%s=%s", e.getKey(), e.getValue());
+            allArgs.add(arg);
+        } // FOR
+
+        // RUN THE LOADER
+//        if (true || m_config.localmode) {
+            allArgs.add("EXITONCOMPLETION=false");
+            ClientMain.main(m_loaderClass, allArgs.toArray(new String[0]), true);
+//        }
+//        else {
+//            if (debug.get()) LOG.debug("Loader Command: " + loaderCommand.toString());
+//            String[] command = SSHTools.convert(
+//                    m_config.remoteUser,
+//                    m_config.clients[0],
+//                    m_config.remotePath,
+//                    m_config.sshOptions,
+//                    loaderCommand.toString());
+//            status = ShellTools.cmdToStdOut(command);
+//            assert(status);
+//        }
+    }
+    
+    /**
+     * 
+     */
+    public void startClients(final int numClients) {
+        
         // java -cp voltdbfat.jar org.voltdb.benchmark.tpcc.TPCCClient warehouses=X etc...
         final ArrayList<String> clArgs = new ArrayList<String>();
         clArgs.add("java");
         if (m_config.listenForDebugger) {
             clArgs.add(""); //placeholder for agent lib
         }
-        clArgs.add("-Dtag=client -ea -XX:-ReduceInitialCardMarks -XX:+HeapDumpOnOutOfMemoryError " +
-                    "-XX:HeapDumpPath=/tmp -Xmx" + String.valueOf(m_config.clientHeapSize) + "m");
+        clArgs.add("-Dhstore.tag=client");
+        clArgs.add("-ea");
+        clArgs.add("-XX:-ReduceInitialCardMarks");
+        clArgs.add("-XX:+HeapDumpOnOutOfMemoryError");
+        clArgs.add("-XX:HeapDumpPath=/tmp");
+        clArgs.add(String.format("-Xmx%dm", m_config.clientHeapSize));
 
         /*
          * This is needed to do database verification at the end of the run. In
@@ -600,12 +619,14 @@ public class BenchmarkController {
             clArgs.add(userParam.getKey() + "=" + userParam.getValue());
         }
 
+        clArgs.add("CONF=" + m_config.hstore_conf_path);
+        clArgs.add("BENCHMARK.CONF=" + m_config.benchmark_conf_path);
         clArgs.add("CHECKTRANSACTION=" + m_config.checkTransaction);
         clArgs.add("CHECKTABLES=" + m_config.checkTables);
         clArgs.add("STATSDATABASEURL=" + m_config.statsDatabaseURL);
         clArgs.add("STATSPOLLINTERVAL=" + m_config.interval);
         
-        for (String[] triplet : launch_hosts) {
+        for (String[] triplet : m_launchHosts) {
             String host = triplet[0];
             String port = triplet[1];
             clArgs.add("HOST=" + host + ":" + port);
@@ -619,16 +640,15 @@ public class BenchmarkController {
                 @Override
                 public void run() {
                     for (int j = 0; j < m_config.processesPerClient; j++) {
-                        int id = clientIndex.getAndIncrement();
-                        String host_id = String.format("%s-%02d", client, id);
+                        int client_id = clientIndex.getAndIncrement();
+                        String host_id = String.format("client-%02d-%s", client_id, client);
                         
                         if (m_config.listenForDebugger) {
-                            clArgs.remove(1);
                             String arg = "-agentlib:jdwp=transport=dt_socket,address="
                                 + (8003 + j) + ",server=y,suspend=n ";
-                            clArgs.add(1, arg);
+                            clArgs.set(1, arg);
                         }
-                        client_args.add("ID=" + id);
+                        client_args.add("ID=" + client_id);
                         client_args.add("NUMCLIENTS=" + numClients);
                         String[] args = client_args.toArray(new String[0]);
         
@@ -651,7 +671,6 @@ public class BenchmarkController {
         m_clientsNotReady.set(m_clientPSM.size());
 
         registerInterest(new ResultsPrinter());
-        // registerInterest(uploader);
     }
 
     /**
@@ -659,13 +678,12 @@ public class BenchmarkController {
      */
     public void runBenchmark() {
         if (this.stop) return;
-        LOG.info(String.format("Starting execution phase with %d clients [hosts=%d, perhost=%d, txnrate=%s, blocking=%s, throttling=%s]",
+        LOG.info(String.format("Starting execution phase with %d clients [hosts=%d, perhost=%d, txnrate=%s, blocking=%s]",
                                 m_clients.size(),
                                 m_config.clients.length,
                                 m_config.processesPerClient,
                                 m_config.parameters.get("TXNRATE"),
-                                m_config.parameters.get("BLOCKING"),
-                                m_config.parameters.get("THROTTLING")
+                                m_config.parameters.get("BLOCKING")
         ));
         
         // HACK
@@ -752,7 +770,7 @@ public class BenchmarkController {
             m_clientPSM.writeToAll(Command.PAUSE);
             
             // Connect to the first host and tell them to dump out the database contents
-            String triplet[] = CollectionUtil.getRandomValue(this.launch_hosts);
+            String triplet[] = CollectionUtil.getRandomValue(this.m_launchHosts);
             assert(triplet != null);
             LOG.info(String.format("Requesting HStoreSite #%02d to dump database contents [dir=%s]", Integer.parseInt(triplet[2]), m_config.dumpDatabaseDir));
             
@@ -767,13 +785,13 @@ public class BenchmarkController {
 
         this.stop = true;
         m_clientPSM.prepareToShutdown();
-        m_serverPSM.prepareToShutdown();
+        m_sitePSM.prepareToShutdown();
         m_coordPSM.prepareToShutdown();
         
         // shut down all the clients
         boolean first = true;
         for (String clientName : m_clients) {
-            if (first) {
+            if (first && m_config.noShutdown == false) {
                 m_clientPSM.writeToProcess(clientName, Command.SHUTDOWN);
                 first = false;
             } else {
@@ -802,7 +820,7 @@ public class BenchmarkController {
         m_clientPSM.killAll();
 
         if (debug.get()) LOG.debug("Killing nodes");
-        m_serverPSM.killAll();
+        m_sitePSM.killAll();
         
         if (m_config.noCoordinator == false) {
             ThreadUtil.sleep(1000); // HACK
@@ -944,7 +962,7 @@ public class BenchmarkController {
         return retval;
     }
 
-    public static void main(final String[] vargs) {
+    public static void main(final String[] vargs) throws Exception {
         long interval = 10000;
         long duration = 60000;
         long warmup = 0;
@@ -962,11 +980,9 @@ public class BenchmarkController {
         int serverHeapSize = 2048;
         int clientHeapSize = 1024;
         boolean localmode = false;
-        String useProfile = "";
         boolean compileBenchmark = true;
         boolean compileOnly = false;
         boolean useCatalogHosts = false;
-        boolean noDataLoad = false;
         String workloadTrace = null;
         int num_partitions = 0;
         String backend = "jni";
@@ -977,10 +993,20 @@ public class BenchmarkController {
         float checkTransaction = 0;
         boolean checkTables = false;
         String coordinatorHost = null;
-        boolean noCoordinator = false;
+        
         String statsTag = null;
         String applicationName = null;
         String subApplicationName = null;
+        
+        boolean noCoordinator = false;
+        boolean noDataLoad = false;
+        boolean noShutdown = false;
+        
+        // HStoreConf Path
+        String hstore_conf_path = null;
+        
+        // Benchmark Conf Path
+        String benchmark_conf_path = null;
         
         // Markov Stuff
         String markov_path = null;
@@ -1017,6 +1043,14 @@ public class BenchmarkController {
                 continue;
             } else if (parts[1].startsWith("${")) {
                 continue;
+                
+            } else if (parts[0].equalsIgnoreCase("CONF")) {
+                hstore_conf_path = parts[1];
+                
+                
+            } else if (parts[0].equalsIgnoreCase(BENCHMARK_PARAM_PREFIX + "CONF")) {
+                benchmark_conf_path = parts[1];
+                
             } else if (parts[0].equalsIgnoreCase("CHECKTRANSACTION")) {
                 /*
                  * Whether or not to check the result of each transaction.
@@ -1027,8 +1061,6 @@ public class BenchmarkController {
                  * Whether or not to check all the tables at the end.
                  */
                 checkTables = Boolean.parseBoolean(parts[1]);
-            } else if (parts[0].equalsIgnoreCase("USEPROFILE")) {
-                useProfile = parts[1];
             } else if (parts[0].equalsIgnoreCase("LOCAL")) {
                 /*
                  * The number of Volt servers to start.
@@ -1171,11 +1203,16 @@ public class BenchmarkController {
                  * Launch the ExecutionSites using the hosts that are in the catalog
                  */
                 useCatalogHosts = Boolean.parseBoolean(parts[1]);
+            
+            // Disable data loading
             } else if (parts[0].equalsIgnoreCase("NODATALOAD")) {
-                /*
-                 * Disable data loading
-                 */
                 noDataLoad = Boolean.parseBoolean(parts[1]);
+                
+            // Disable sending the shutdown command at the end of the benchmark run
+            } else if (parts[0].equalsIgnoreCase("NOSHUTDOWN")) {
+                noShutdown = Boolean.parseBoolean(parts[1]);
+                LOG.info("NOSHUTDOWN = " + noShutdown);
+                
             } else if (parts[0].equalsIgnoreCase("TRACE")) {
                 /*
                  * Workload Trace Output
@@ -1200,6 +1237,18 @@ public class BenchmarkController {
             } else if (parts[0].equalsIgnoreCase("DUMPDATABASEDIR")) {
                 dumpDatabaseDir = parts[1];
 
+            } else if (parts[0].equalsIgnoreCase("CLIENT.LOG_DIR")) {
+                clientLogDir = parts[1];
+                FileUtil.makeDirIfNotExists(clientLogDir);
+                
+            } else if (parts[0].equalsIgnoreCase("COORDINATOR.LOG_DIR")) {
+                coordLogDir = parts[1];
+                FileUtil.makeDirIfNotExists(coordLogDir);
+                
+            } else if (parts[0].equalsIgnoreCase("SITE.LOG_DIR")) {
+                siteLogDir = parts[1];
+                FileUtil.makeDirIfNotExists(siteLogDir);
+                
             /** PAVLO **/
                 
             } else {
@@ -1208,6 +1257,10 @@ public class BenchmarkController {
         }
         assert(coordinatorHost != null) : "Missing CoordinatorHost";
 
+        // Initialize HStoreConf
+        assert(hstore_conf_path != null) : "Missing HStoreConf file";
+        HStoreConf.init(new File(hstore_conf_path));
+        
         if (duration < 1000) {
             System.err.println("Duration is specified in milliseconds");
             System.exit(-1);
@@ -1280,6 +1333,8 @@ public class BenchmarkController {
 
         // create a config object, mostly for the results uploader at this point
         BenchmarkConfig config = new BenchmarkConfig(
+                hstore_conf_path,
+                benchmark_conf_path,
                 clientClassname,
                 backend, 
                 coordinatorHost,
@@ -1299,7 +1354,6 @@ public class BenchmarkController {
                 serverHeapSize, 
                 clientHeapSize,
                 localmode, 
-                useProfile, 
                 checkTransaction, 
                 checkTables, 
                 snapshotPath, 
@@ -1315,13 +1369,11 @@ public class BenchmarkController {
                 compileOnly, 
                 useCatalogHosts,
                 noDataLoad,
+                noShutdown,
                 workloadTrace,
                 profileSiteIds,
                 markov_path,
                 thresholds_path,
-                clientLogDir,
-                siteLogDir,
-                coordLogDir,
                 dumpDatabase,
                 dumpDatabaseDir
         );

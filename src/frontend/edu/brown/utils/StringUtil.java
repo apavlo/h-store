@@ -56,7 +56,7 @@ public abstract class StringUtil {
             Object row[] = rows[i];
             new_rows[i] = new String[row.length - 1];
             for (int j = 0; j < new_rows[i].length; j++) {
-                new_rows[i][j] = row[j+1].toString();
+                new_rows[i][j] = (row[j+1] != null ? row[j+1].toString() : "null");
             } // FOR
         }
         
@@ -195,6 +195,7 @@ public abstract class StringUtil {
         final Map<?, ?> map_keys[] = new Map<?, ?>[maps.length];
         for (int i = 0; i < maps.length; i++) {
             Map<?, ?> m = maps[i];
+            if (m == null) continue;
             Map<Object, String> keys = new HashMap<Object, String>();
             for (Object k : m.keySet()) {
                 String k_str = k.toString();
@@ -214,9 +215,10 @@ public abstract class StringUtil {
         int max_value_size = 0;
         StringBuilder blocks[] = new StringBuilder[maps.length];
         for (int i = 0; i < maps.length; i++) {
-            Map<?, ?> m = maps[i];
-            Map<?, ?> keys = map_keys[i];
             blocks[i] = new StringBuilder();
+            Map<?, ?> m = maps[i];
+            if (m == null) continue;
+            Map<?, ?> keys = map_keys[i];
             
             for (Entry<?, ?> e : m.entrySet()) {
                 String k = keys.get(e.getKey()).toString();
@@ -241,6 +243,7 @@ public abstract class StringUtil {
         } else {
             sb = new StringBuilder();
             for (int i = 0; i < maps.length; i++) {
+                if (blocks[i].length() == 0) continue;
                 if (i != 0 && maps[i].size() > 0) sb.append(repeat("-", max_key_size + max_value_size + 2)).append("\n");
                 sb.append(blocks[i]);
             } // FOR

@@ -43,8 +43,8 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
     
     // PAVLO
     private long txn_id;
+    private int timestamp = -1;
     private boolean throttle = false;
-    
     private boolean singlepartition = false;
 
 
@@ -145,6 +145,31 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
     public void setThrottleFlag(boolean val) {
         this.throttle = val;
     }
+    /**
+     * Mark the throttle flag in the byte array without deserializing it first
+     * @param arr
+     * @param flag
+     */
+    public static void setThrottleFlag(ByteBuffer b, boolean flag) {
+        b.put(22, (byte)(flag ? 1 : 0)); // 1 + 4 + 8 + 8 + 1 = 22 
+    }
+
+    @Override
+    public int getServerTimestamp() {
+        return this.timestamp;
+    }
+    @Override
+    public void setServerTimestamp(int val) {
+        this.timestamp = val;
+    }
+    /**
+     * Set the server timestamp marker without deserializing it first
+     * @param arr
+     * @param flag
+     */
+    public static void setServerTimestamp(ByteBuffer b, int val) {
+        b.putInt(1, val); 
+    }
 
     @Override
     public boolean isSinglePartition() {
@@ -162,6 +187,15 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
 
     public VoltTable[] getResults() {
         return results;
+    }
+    
+    @Override
+    public int getResultsSize() {
+        int ret = 0;
+        for (VoltTable vt : this.results) {
+            ret += vt.getUnderlyingBufferSize();
+        } // FOR
+        return ret;
     }
 
     public String getStatusString() {
@@ -188,6 +222,7 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
     @Override
     public void readExternal(FastDeserializer in) throws IOException {
         in.readByte();//Skip version byte
+        timestamp = in.readInt();
         txn_id = in.readLong();
         clientHandle = in.readLong();
         singlepartition = in.readBoolean();
@@ -220,6 +255,7 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
     public void writeExternal(FastSerializer out) throws IOException {
         assert setProperly;
         out.writeByte(0);//version
+        out.writeInt(timestamp);
         out.writeLong(txn_id);
         out.writeLong(clientHandle);
         out.writeBoolean(singlepartition);
@@ -251,7 +287,7 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
         }
         out.writeArray(results);
     }
-
+    
     @Override
     public int getClusterRoundtrip() {
         return clusterRoundTripTime;
@@ -282,8 +318,12 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
     
     /** PAVLO **/
     public String getStatusName() {
+        return (ClientResponseImpl.getStatusName(this.status));
+    }
+    
+    public static String getStatusName(byte status) {
         String ret = null;
-        switch (this.status) {
+        switch (status) {
             case ClientResponseImpl.SUCCESS:
                 ret = "SUCCESS";
                 break;
@@ -306,7 +346,7 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
                 ret = "REJECTED";
                 break;
             default:
-                assert(false) : "Unknown ClientResponse status '" + this.status + "'";
+                assert(false) : "Unknown ClientResponse status '" + status + "'";
         } // SWITCH
         return (ret);
     }

@@ -67,15 +67,19 @@ public class TPCCSimulation {
     
     // type used by at least VoltDBClient and JDBCClient
     public static enum Transaction {
-        STOCK_LEVEL("Stock Level"),
-        DELIVERY("Delivery"),
-        ORDER_STATUS("Order Status"),
-        PAYMENT("Payment"),
-        NEW_ORDER("New Order"),
-        RESET_WAREHOUSE("Reset Warehouse");
+        STOCK_LEVEL("Stock Level", Constants.FREQUENCY_STOCK_LEVEL),
+        DELIVERY("Delivery", Constants.FREQUENCY_DELIVERY),
+        ORDER_STATUS("Order Status", Constants.FREQUENCY_ORDER_STATUS),
+        PAYMENT("Payment", Constants.FREQUENCY_PAYMENT),
+        NEW_ORDER("New Order", Constants.FREQUENCY_NEW_ORDER),
+        RESET_WAREHOUSE("Reset Warehouse", 0);
 
-        private Transaction(String displayName) { this.displayName = displayName; }
+        private Transaction(String displayName, int weight) {
+            this.displayName = displayName;
+            this.weight = weight;
+        }
         public final String displayName;
+        public final int weight;
     }
 
 
@@ -103,6 +107,7 @@ public class TPCCSimulation {
     private final long affineWarehouse;
     private final double m_skewFactor;
     private final boolean noop;
+    private final int[] SAMPLE_TABLE = new int[100];
     
     private final boolean neworder_only;
     private final boolean neworder_abort;
@@ -128,6 +133,7 @@ public class TPCCSimulation {
         this.affineWarehouse = lastAssignedWarehouseId;
         this.m_skewFactor = skewFactor;
         this.noop = noop;
+        this.initSampleTable();
         
         this.neworder_only = neworder_only;
         this.neworder_abort = neworder_abort;
@@ -146,6 +152,21 @@ public class TPCCSimulation {
             lastAssignedWarehouseId = 1;
         
         if (LOG.isDebugEnabled()) LOG.debug(this.toString());
+    }
+    
+    /**
+     * Initialize the sampling table
+     */
+    private void initSampleTable() {
+        int i = 0;
+        int sum = 0;
+        for (Transaction t : Transaction.values()) {
+            for (int ii = 0; ii < t.weight; ii++) {
+                SAMPLE_TABLE[i++] = t.ordinal();
+            }
+            sum += t.weight;
+        }
+        assert (100 == sum);
     }
     
     @Override
@@ -179,11 +200,14 @@ public class TPCCSimulation {
             // long num_samples = this.zipf.getSampleCount();
             // if (num_samples > 0 && num_samples % 10000 == 0) System.err.println("W_ID Distribution:\n" + this.zipf.getHistory());
             w_id = (short)this.zipf.nextInt();
-        } else 
+        } else if (m_skewFactor > 0.0d) {
             w_id = (short)generator.skewedNumber(parameters.starting_warehouse, max_w_id, m_skewFactor);
+        } else {
+            w_id = (short)generator.number(parameters.starting_warehouse, this.max_w_id);
+        }
         
-        assert(w_id >= parameters.starting_warehouse) : "Invalid W_ID: " + w_id;
-        assert(w_id <= this.max_w_id) : "Invalid W_ID: " + w_id;
+        assert(w_id >= parameters.starting_warehouse) : String.format("Invalid W_ID: %d [min=%d, max=%d]", w_id, parameters.starting_warehouse, max_w_id); 
+        assert(w_id <= this.max_w_id) : String.format("Invalid W_ID: %d [min=%d, max=%d]", w_id, parameters.starting_warehouse, max_w_id);
         return w_id;
     }
 
@@ -344,23 +368,27 @@ public class TPCCSimulation {
            return Transaction.NEW_ORDER.ordinal();
         }
         
-        int x = generator.number(1, 100);
-        if (x <= 4) { // 4%
-            doStockLevel();
-            return Transaction.STOCK_LEVEL.ordinal();
-        } else if (x <= 4 + 4) { // 4%
-            doDelivery();
-            return Transaction.DELIVERY.ordinal();
-        } else if (x <= 4 + 4 + 4) { // 4%
-            doOrderStatus();
-            return Transaction.ORDER_STATUS.ordinal();
-        } else if (x <= 43 + 4 + 4 + 4) { // 43%
-            doPayment();
-            return Transaction.PAYMENT.ordinal();
-        } else { // 45%
-            assert x > 100 - 45;
-            doNewOrder();
-            return Transaction.NEW_ORDER.ordinal();
+        int x = generator.number(0, 99);
+        Transaction t = Transaction.values()[this.SAMPLE_TABLE[x]];
+        switch (t) {
+            case STOCK_LEVEL:
+                doStockLevel();
+                break;
+            case DELIVERY:
+                doDelivery();
+                break;
+            case ORDER_STATUS:
+                doOrderStatus();
+                break;
+            case PAYMENT:
+                doPayment();
+                break;
+            case NEW_ORDER:
+                doNewOrder();
+                break;
+            default:
+                assert(false) : "Unexpected transaction " + t;
         }
+        return (t.ordinal());
     }
 }

@@ -516,7 +516,7 @@ public abstract class VoltProcedure implements Poolable {
             if (t) LOG.trace("Invoking VoltProcedure.call for txn #" + current_txn_id);
             response = this.call(); // Bombs away!
             assert(response != null);
-            if (hstore_conf.enable_profiling) this.m_localTxnState.finish_time.start();
+            if (hstore_conf.site.txn_profiling) this.m_localTxnState.finish_time.start();
 
             // Notify anybody who cares that we're finished (used in testing)
             if (t) LOG.trace("Notifying observers that txn #" + current_txn_id + " is finished");
@@ -554,7 +554,7 @@ public abstract class VoltProcedure implements Poolable {
         if (this.procParams.length != this.paramTypesLength) {
             String msg = "PROCEDURE " + procedure_name + " EXPECTS " + String.valueOf(paramTypesLength) +
                 " PARAMS, BUT RECEIVED " + String.valueOf(this.procParams.length);
-            LOG.fatal(msg);
+            LOG.error(msg);
             status = ClientResponseImpl.GRACEFUL_FAILURE;
             status_msg = msg;
             return new ClientResponseImpl(this.txn_id, status, results, status_msg, this.client_handle);
@@ -562,12 +562,11 @@ public abstract class VoltProcedure implements Poolable {
 
         for (int i = 0; i < paramTypesLength; i++) {
             try {
-                this.procParams[i] = tryToMakeCompatible( i, this.procParams[i]);
+                this.procParams[i] = tryToMakeCompatible(i, this.procParams[i]);
             } catch (Exception e) {
                 String msg = "PROCEDURE " + procedure_name + " TYPE ERROR FOR PARAMETER " + i +
                         ": " + e.getMessage();
-                LOG.fatal(msg);
-                e.printStackTrace();
+                LOG.fatal(msg, e);
                 status = ClientResponseImpl.GRACEFUL_FAILURE;
                 status_msg = msg;
                 return new ClientResponseImpl(this.txn_id, this.status, this.results, this.status_msg, this.client_handle);
@@ -582,7 +581,7 @@ public abstract class VoltProcedure implements Poolable {
             this.m_workloadXactHandle = ProcedureProfiler.workloadTrace.startTransaction(this.txn_id, catProc, this.procParams);
         }
 
-        if (hstore_conf.enable_profiling) this.m_localTxnState.java_time.start();
+        if (hstore_conf.site.txn_profiling) this.m_localTxnState.java_time.start();
         try {
             if (t) LOG.trace(String.format("Invoking txn #%d [procMethod=%s, class=%s, partition=%d]",
                                            this.txn_id, this.procedure_name, getClass().getSimpleName(), this.base_partition));
@@ -597,7 +596,7 @@ public abstract class VoltProcedure implements Poolable {
                 LOG.fatal(String.format("Unexpected error when executing %s txn #%d", this.procedure_name, this.txn_id));
                 throw new InvocationTargetException(e);
             } catch (AssertionError e) {
-                LOG.fatal(e);
+                LOG.fatal(String.format("Unexpected error when executing %s txn #%d", this.procedure_name, this.txn_id), e);
                 System.exit(1);
             }
             if (d) LOG.debug(this.catProc + " is finished for txn #" + this.txn_id);
@@ -670,7 +669,7 @@ public abstract class VoltProcedure implements Poolable {
             LOG.fatal(e);
             System.exit(1);
         } finally {
-            if (hstore_conf.enable_profiling) {
+            if (hstore_conf.site.txn_profiling) {
                 long time = ProfileMeasurement.getTime();
                 if (this.m_localTxnState.java_time.isStarted()) this.m_localTxnState.java_time.stop(time);
                 if (this.m_localTxnState.coord_time.isStarted()) this.m_localTxnState.coord_time.stop(time);
@@ -919,6 +918,7 @@ public abstract class VoltProcedure implements Poolable {
             batchQueryStmts[batchQueryStmtIndex++] = stmt;
             batchQueryArgs[batchQueryArgsIndex++] = args;
         }
+        if (t) LOG.trace("Batching Statement: " + stmt.getText());
     }
 
     /**
@@ -997,7 +997,7 @@ public abstract class VoltProcedure implements Poolable {
         assert(batchArgs.length > 0);
         if (batchSize == 0) return (EMPTY_RESULT);
         
-        if (hstore_conf.enable_profiling) ProfileMeasurement.swap(this.m_localTxnState.java_time, this.m_localTxnState.plan_time);
+        if (hstore_conf.site.txn_profiling) ProfileMeasurement.swap(this.m_localTxnState.java_time, this.m_localTxnState.plan_time);
 
 
         /*if (lastBatchNeedsRollback) {
@@ -1013,13 +1013,13 @@ public abstract class VoltProcedure implements Poolable {
         
         // Calculate the hash code for this batch to see whether we already have a planner
         final Integer batchHashCode = VoltProcedure.getBatchHashCode(batchStmts, batchSize);
-        this.planner = ExecutionSite.batch_planners.get(batchHashCode);
+        this.planner = ExecutionSite.POOL_BATCH_PLANNERS.get(batchHashCode);
         if (this.planner == null) { // Assume fast case
-            synchronized (ExecutionSite.batch_planners) {
-                this.planner = ExecutionSite.batch_planners.get(batchHashCode);
+            synchronized (ExecutionSite.POOL_BATCH_PLANNERS) {
+                this.planner = ExecutionSite.POOL_BATCH_PLANNERS.get(batchHashCode);
                 if (this.planner == null) {
                     this.planner = new BatchPlanner(batchStmts, batchSize, this.catProc, this.p_estimator);
-                    ExecutionSite.batch_planners.put(batchHashCode, planner);
+                    ExecutionSite.POOL_BATCH_PLANNERS.put(batchHashCode, planner);
                 }
             } // SYNCH
         }
@@ -1033,44 +1033,47 @@ public abstract class VoltProcedure implements Poolable {
         if (d) LOG.debug("BatchPlan for txn #" + this.txn_id + ":\n" + plan.toString());
         
         // Tell the TransactionEstimator that we're about to execute these mofos
-        if (hstore_conf.enable_profiling) ProfileMeasurement.swap(this.m_localTxnState.plan_time, this.m_localTxnState.est_time);
+        if (hstore_conf.site.txn_profiling) ProfileMeasurement.swap(this.m_localTxnState.plan_time, this.m_localTxnState.est_time);
         TransactionEstimator.State t_state = this.m_localTxnState.getEstimatorState();
         if (t_state != null) {
             this.t_estimator.executeQueries(t_state, this.planner.getStatements(), this.plan.getStatementPartitions());
         }
-        if (hstore_conf.enable_profiling) this.m_localTxnState.est_time.stop();
+        if (hstore_conf.site.txn_profiling) this.m_localTxnState.est_time.stop();
 
         // Check whether our plan was caused a mispredict
         // Doing it this way allows us to update the TransactionEstimator before we abort the txn
         if (this.plan.getMisprediction() != null) {
             MispredictionException ex = this.plan.getMisprediction(); 
-            
-            if (d || hstore_conf.mispredict_crash) {
-                String msg = "Caught " + ex.getClass().getSimpleName() + "!\n" + StringUtil.SINGLE_LINE;
-                
-                msg += "CURRENT BATCH\n";
-                for (int i = 0; i < batchSize; i++) {
-                    msg += String.format("[%02d] %s <==> %s\n     %s\n     %s\n", i, batchStmts[i].catStmt.fullName(), planner.catalog_stmts[i].fullName(), batchStmts[i].catStmt.getSqltext(), Arrays.toString(params[i].toArray()));
-                }
-                
-                msg += "\nPLANNER\n";
-                for (int i = 0; i < batchSize; i++) {
-                    Statement stmt0 = planner.catalog_stmts[i];
-                    Statement stmt1 = batchStmts[i].catStmt;
-                    assert(stmt0.fullName().equals(stmt1.fullName())) : stmt0.fullName() + " != " + stmt1.fullName(); 
-                    msg += String.format("[%02d] %s\n     %s\n", i, stmt0.fullName(), stmt1.fullName());
-                } // FOR
 
-                msg += "\nTRANSACTION STATE\n" + this.m_localTxnState.toString();
-                
-                LOG.fatal("\n" + msg);
+            State s = this.m_localTxnState.getEstimatorState();
+            MarkovGraph markov = null;
+            if (s != null && hstore_conf.site.markov_mispredict_recompute) {
+                if (d) LOG.debug("Recomputing MarkovGraph probabilities because " + m_localTxnState + " mispredicted");
+                markov = s.getMarkovGraph();
+                markov.recalculateProbabilities();
+                if (d && markov.isValid() == false) {
+                    LOG.error("Invalid MarkovGraph after recomputing! Crashing...");
+                    hstore_conf.site.exec_mispredict_crash = true;
+                }
             }
             
-            // Crash on Misprediction!
-            if (hstore_conf.mispredict_crash) {
-                
-                ParameterMangler pm = new ParameterMangler(catProc);
+            if (d || hstore_conf.site.exec_mispredict_crash) {
                 StringBuilder sb = new StringBuilder();
+                sb.append("Caught " + ex.getClass().getSimpleName() + "!\n")
+                  .append(StringUtil.SINGLE_LINE);
+                
+                sb.append("CURRENT BATCH\n");
+                for (int i = 0; i < batchSize; i++) {
+                    sb.append(String.format("[%02d] %s <==> %s\n     %s\n     %s\n",
+                                            i,
+                                            batchStmts[i].catStmt.fullName(),
+                                            planner.catalog_stmts[i].fullName(),
+                                            batchStmts[i].catStmt.getSqltext(),
+                                            Arrays.toString(params[i].toArray())));
+                }
+                
+                sb.append(String.format("\nTXN #%d PARAMS:\n%s", this.txn_id, sb.toString()));
+                ParameterMangler pm = new ParameterMangler(catProc);
                 Object mangled[] = pm.convert(this.procParams); 
                 for (int i = 0; i < mangled.length; i++) {
                     sb.append(String.format("  [%02d] ", i));
@@ -1081,11 +1084,11 @@ public abstract class VoltProcedure implements Poolable {
                     }
                     sb.append("\n");
                 } // FOR
-                LOG.info(String.format("TXN #%d PARAMS:\n%s", this.txn_id, sb.toString()));
                 
-                State s = this.m_localTxnState.getEstimatorState();
+                sb.append("\nTRANSACTION STATE\n").append(this.m_localTxnState.debug());
+                
+                sb.append("\nESTIMATOR STATE:\n");
                 if (s != null) {
-                    MarkovGraph markov = s.getMarkovGraph();                
                     try {
                         GraphvizExport<Vertex, Edge> gv = MarkovUtil.exportGraphviz(markov, true, markov.getPath(s.getEstimatedPath()));
                         gv.highlightPath(markov.getPath(s.getActualPath()), "blue");
@@ -1096,10 +1099,23 @@ public abstract class VoltProcedure implements Poolable {
                         LOG.fatal("???????????????????????", ex2);
                     }
                 } else {
-                    LOG.warn("No TransactionEstimator.State! Can't dump out MarkovGraph!");
+                    sb.append("No TransactionEstimator.State! Can't dump out MarkovGraph!\n");
                 }
-                LOG.info(this.m_localTxnState);
                 
+                sb.append("\nPLANNER\n");
+                for (int i = 0; i < batchSize; i++) {
+                    Statement stmt0 = planner.catalog_stmts[i];
+                    Statement stmt1 = batchStmts[i].catStmt;
+                    assert(stmt0.fullName().equals(stmt1.fullName())) : stmt0.fullName() + " != " + stmt1.fullName(); 
+                    sb.append(String.format("[%02d] %s\n     %s\n", i, stmt0.fullName(), stmt1.fullName()));
+                } // FOR
+
+                LOG.warn("\n" + sb.toString());
+            }
+            
+            // Crash on Misprediction!
+            if (hstore_conf.site.exec_mispredict_crash) {
+                LOG.fatal(String.format("Crashing because site.exec_mispredict_crash is true [txn=%s]", this.m_localTxnState));
                 this.executor.crash(ex);
             }
             throw ex;
@@ -1124,7 +1140,7 @@ public abstract class VoltProcedure implements Poolable {
         // It will dispose of it when the transaction commits/aborts
         this.m_currentTxnState.addFinishedBatchPlan(this.plan);
         
-        if (hstore_conf.enable_profiling) this.m_localTxnState.java_time.start();
+        if (hstore_conf.site.txn_profiling) this.m_localTxnState.java_time.start();
         
         return (results);
     }

@@ -20,6 +20,8 @@ import com.google.protobuf.Service;
 import edu.mit.net.NonBlockingConnection;
 
 public class ProtoServer extends AbstractEventHandler {
+    private static final Logger LOG = Logger.getLogger(ProtoServer.class);
+    
     public ProtoServer(EventLoop eventLoop) {
         this.eventLoop = eventLoop;
     }
@@ -71,7 +73,7 @@ public class ProtoServer extends AbstractEventHandler {
         boolean isOpen = eventLoopCallback.connection.readAllAvailable();
         if (!isOpen) {
             // connection closed
-            System.out.println("connection closed");
+            LOG.debug("Connection closed");
             eventLoopCallback.connection.close();
             return;
         }

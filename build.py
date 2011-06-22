@@ -77,38 +77,48 @@ else:
 CTX.IGNORE_SYS_PREFIXES = ['/usr/include', '/usr/lib', 'third_party']
 
 # where to find the source
-CTX.INPUT_PREFIX = "src/ee/"
+CTX.INPUT_PREFIX = "src/ee"
 
 # where to find the source
 CTX.THIRD_PARTY_INPUT_PREFIX = "third_party/cpp/"
 
 # where to find the tests
-CTX.TEST_PREFIX = "tests/ee/"
+CTX.TEST_PREFIX = "tests/ee"
 
 ###############################################################################
 # SET RELEASE LEVEL CONTEXT
 ###############################################################################
 
+volt_log_level = 500
+
 if CTX.LEVEL == "MEMCHECK":
-    CTX.EXTRAFLAGS += " -g3 -rdynamic -DDEBUG -DMEMCHECK -DVOLT_LOG_LEVEL=500"
+    CTX.EXTRAFLAGS += " -g3 -rdynamic -DDEBUG -DMEMCHECK"
     CTX.OUTPUT_PREFIX = "obj/memcheck"
+    volt_log_level = 500
 
 if CTX.LEVEL == "MEMCHECK_NOFREELIST":
-    CTX.EXTRAFLAGS += " -g3 -rdynamic -DDEBUG -DMEMCHECK -DMEMCHECK_NOFREELIST -DVOLT_LOG_LEVEL=500"
+    CTX.EXTRAFLAGS += " -g3 -rdynamic -DDEBUG -DMEMCHECK -DMEMCHECK_NOFREELIST"
     CTX.OUTPUT_PREFIX = "obj/memcheck_nofreelist"
+    volt_log_level = 500
 
 if CTX.LEVEL == "DEBUG":
-    CTX.EXTRAFLAGS += " -g0 -rdynamic -DDEBUG -DVOLT_LOG_LEVEL=200"
+    CTX.EXTRAFLAGS += " -g3 -rdynamic -DDEBUG"
     CTX.OUTPUT_PREFIX = "obj/release"
+    volt_log_level = 200
 
 if CTX.LEVEL == "RELEASE":
-    CTX.EXTRAFLAGS += " -g3 -O3 -mmmx -msse -msse2 -msse3 -DNDEBUG -DVOLT_LOG_LEVEL=500"
+    CTX.EXTRAFLAGS += " -g3 -O3 -mmmx -msse -msse2 -msse3 -DNDEBUG"
     CTX.OUTPUT_PREFIX = "obj/release"
+    volt_log_level = 500
 
 # build in parallel directory instead of subdir so that relative paths work
 if CTX.COVERAGE:
     CTX.EXTRAFLAGS += " -ftest-coverage -fprofile-arcs"
     CTX.OUTPUT_PREFIX += "-coverage"
+
+# Override the default log level if they gave us one
+if CTX.VOLT_LOG_LEVEL != None: volt_log_level = CTX.VOLT_LOG_LEVEL
+CTX.EXTRAFLAGS += " -DVOLT_LOG_LEVEL=%d" % volt_log_level
 
 CTX.OUTPUT_PREFIX += "/"
 

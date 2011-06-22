@@ -57,6 +57,13 @@ public abstract class FileUtil {
     public static String basename(String path) {
         return (new File(path)).getName();
     }
+    
+    public static void makeDirIfNotExists(String path) throws IOException {
+        File f = new File(path);
+        if (f.exists() == false) {
+            f.mkdirs();
+        }
+    }
 
     /**
      * Return a File handle to a temporary file location
@@ -89,12 +96,37 @@ public abstract class FileUtil {
         return (file);
     }
     
+    /**
+     * Write the given string to a temporary file
+     * Will not delete the file after the JVM exits
+     * @param content
+     * @return
+     */
     public static File writeStringToTempFile(String content) {
-        return (writeStringToTempFile(content, "tmp"));
+        return (writeStringToTempFile(content, "tmp", false));
     }
     
+    /**
+     * Write the given string to a temporary file with the given extension as the suffix
+     * Will not delete the file after the JVM exits
+     * @param content
+     * @param ext
+     * @return
+     */
     public static File writeStringToTempFile(String content, String ext) {
-        File tempFile = FileUtil.getTempFile(ext, false);
+        return (writeStringToTempFile(content, ext, false));
+    }
+    
+    /**
+     * Write the given string to a temporary file with the given extension as the suffix
+     * If deleteOnExit is true, then the file will be removed when the JVM exits
+     * @param content
+     * @param ext
+     * @param deleteOnExit
+     * @return
+     */
+    public static File writeStringToTempFile(String content, String ext, boolean deleteOnExit) {
+        File tempFile = FileUtil.getTempFile(ext, deleteOnExit);
         try {
             FileUtil.writeStringToFile(tempFile, content);    
         } catch (Exception e) {

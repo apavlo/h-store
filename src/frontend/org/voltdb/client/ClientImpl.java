@@ -28,6 +28,8 @@ import org.voltdb.VoltTable;
 import org.voltdb.messaging.FastSerializer;
 import org.voltdb.utils.DBBPool.BBContainer;
 
+import edu.mit.hstore.HStoreConf;
+
 /**
  *  A client that connects to one or more nodes in a VoltCluster
  *  and provides methods to call stored procedures and receive
@@ -88,11 +90,13 @@ final class ClientImpl implements Client {
             boolean heavyweight,
             StatsUploaderSettings statsSettings) {
         m_expectedOutgoingMessageSize = expectedOutgoingMessageSize;
+        m_backpressureWait = (HStoreConf.isInitialized() ? HStoreConf.singleton().client.throttle_backoff : 500);
         m_distributer = new Distributer(
                 expectedOutgoingMessageSize,
                 maxArenaSizes,
                 heavyweight,
-                statsSettings);
+                statsSettings,
+                m_backpressureWait);
         m_distributer.addClientStatusListener(new CSL());
     }
 
@@ -251,12 +255,14 @@ final class ClientImpl implements Client {
         }
         if (m_backpressure) {
             synchronized (m_backpressureLock) {
-                if (m_backpressure) {
-                    while (m_backpressure && !m_isShutdown) {
-                            m_backpressureLock.wait();
-                    }
+                while (m_backpressure && !m_isShutdown) {
+//                    LOG.info(String.format("Blocking client due to backup pressure [m_backpressure=%s]", m_backpressure));
+                    m_backpressureLock.wait(m_backpressureWait);
+                    m_backpressure = false;
+//                    LOG.info(String.format("Unblocking client [m_backpressure=%s]", m_backpressure));
+                    break;
                 }
-            }
+            } // SYNCH
         }
     }
 
@@ -296,6 +302,7 @@ final class ClientImpl implements Client {
     static final Logger LOG = Logger.getLogger(ClientImpl.class.getName());  // Logger shared by client package.
     private final Distributer m_distributer;                             // de/multiplexes connections to a cluster
     private final Object m_backpressureLock = new Object();
+    private final int m_backpressureWait;
     private boolean m_backpressure = false;
 
     private boolean m_blockingQueue = true;

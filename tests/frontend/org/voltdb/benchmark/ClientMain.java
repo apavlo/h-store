@@ -53,6 +53,7 @@ import org.voltdb.utils.VoltSampler;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.StringUtil;
+import edu.mit.hstore.HStoreConf;
 
 /**
  * Base class for clients that will work with the multi-host multi-process
@@ -65,6 +66,8 @@ public abstract class ClientMain {
         // log4j hack!
         LoggerUtil.setupLogging();
     }
+    
+    public static String CONTROL_PREFIX = "{HSTORE} ";
     
     public enum Command {
         START,
@@ -143,7 +146,6 @@ public abstract class ClientMain {
     private final int m_txnRate;
     
     private final boolean m_blocking;
-    private final boolean m_throttling;
 
     /**
      * Number of transactions to generate for every millisecond of time that
@@ -210,7 +212,13 @@ public abstract class ClientMain {
     private final List<String> m_tableCheckOrder = new LinkedList<String>();
     protected VoltSampler m_sampler = null;
     
-    public static String CONTROL_PREFIX = "{HSTORE} ";
+    /**
+     * Configuration
+     */
+    protected final HStoreConf m_hstoreConf;
+    protected final BenchmarkConfig m_benchmarkConf;
+    
+    
 
     public static void printControlMessage(ControlState state) {
         printControlMessage(state, null);
@@ -537,7 +545,6 @@ public abstract class ClientMain {
         m_username = "";
         m_txnRate = -1;
         m_blocking = false;
-        m_throttling = false;
         m_txnsPerMillisecond = 0;
         m_catalogPath = null;
         m_id = 0;
@@ -548,6 +555,11 @@ public abstract class ClientMain {
         m_checkTransaction = 0;
         m_checkTables = false;
         m_constraints = new LinkedHashMap<Pair<String, Integer>, Expression>();
+        
+        // FIXME
+        m_hstoreConf = null;
+        m_benchmarkConf = null;
+        
     }
 
     abstract protected String getApplicationName();
@@ -573,7 +585,6 @@ public abstract class ClientMain {
         String reason = ""; // and error string
         int transactionRate = -1;
         boolean blocking = false;
-        boolean throttling = false;
         int id = 0;
         int num_clients = 0;
         int num_partitions = 0;
@@ -584,6 +595,12 @@ public abstract class ClientMain {
 //        int statsPollInterval = 10000;
         File catalogPath = null;
 
+        // HStoreConf Path
+        String hstore_conf_path = null;
+        
+        // Benchmark Conf Path
+        String benchmark_conf_path = null;
+        
         // scan the inputs once to read everything but host names
         for (int i = 0; i < args.length; i++) {
             final String arg = args[i];
@@ -594,9 +611,16 @@ public abstract class ClientMain {
                 break;
             } else if (parts[1].startsWith("${")) {
                 continue;
+            }
+            
+            if (parts[0].equalsIgnoreCase("CONF")) {
+                hstore_conf_path = parts[1];
+            } else if (parts[0].equalsIgnoreCase(BenchmarkController.BENCHMARK_PARAM_PREFIX + "CONF")) {
+                benchmark_conf_path = parts[1];
+            }
                 
             // Strip out benchmark prefix  
-            } else if (parts[0].toLowerCase().startsWith(BenchmarkController.BENCHMARK_PARAM_PREFIX)) {
+            if (parts[0].toLowerCase().startsWith(BenchmarkController.BENCHMARK_PARAM_PREFIX)) {
                 parts[0] = parts[0].substring(BenchmarkController.BENCHMARK_PARAM_PREFIX.length());
                 args[i] = parts[0] + "=" + parts[1]; // HACK
             }
@@ -620,9 +644,6 @@ public abstract class ClientMain {
             else if (parts[0].equalsIgnoreCase("BLOCKING")) {
                 blocking = Boolean.parseBoolean(parts[1]);
             }
-            else if (parts[0].equalsIgnoreCase("THROTTLING")) {
-                throttling = Boolean.parseBoolean(parts[1]);
-            }
             else if (parts[0].equalsIgnoreCase("ID")) {
                 id = Integer.parseInt(parts[1]);
             }
@@ -644,6 +665,19 @@ public abstract class ClientMain {
             } else {
                 m_extraParams.put(parts[0], parts[1]);
             }
+        }
+        
+        // Initialize HStoreConf
+        if (HStoreConf.isInitialized() == false) {
+            assert(hstore_conf_path != null) : "Missing HStoreConf file";
+            HStoreConf.init(new File(hstore_conf_path));
+        }
+        m_hstoreConf = HStoreConf.singleton();
+        
+        if (benchmark_conf_path != null) {
+            m_benchmarkConf = new BenchmarkConfig(new File(benchmark_conf_path));
+        } else {
+            m_benchmarkConf = null;
         }
         
         // Thread.currentThread().setName(String.format("client-%02d", id));
@@ -681,7 +715,6 @@ public abstract class ClientMain {
         m_txnRate = transactionRate;
         m_txnsPerMillisecond = transactionRate / 1000.0;
         m_blocking = blocking;
-        m_throttling = throttling;
         
         if (m_catalogPath != null) {
             try {
@@ -693,10 +726,7 @@ public abstract class ClientMain {
             }
         }
 
-        if (m_throttling) {
-            LOG.debug("Using ThrottlingClient!");
-            m_voltClient = new ThrottlingClient(new_client);
-        } else if (m_blocking) {
+        if (m_blocking) {
             LOG.debug("Using BlockingClient!");
             m_voltClient = new BlockingClient(new_client);
         } else {
@@ -759,8 +789,7 @@ public abstract class ClientMain {
         final String args[], final boolean startImmediately) {
         try {
             final Constructor<? extends ClientMain> constructor =
-                clientClass.getConstructor(new Class<?>[] { new String[0]
-                    .getClass() });
+                clientClass.getConstructor(new Class<?>[] { new String[0].getClass() });
             final ClientMain clientMain =
                 constructor.newInstance(new Object[] { args });
             if (startImmediately) {
@@ -894,7 +923,7 @@ public abstract class ClientMain {
                 clientResponse.getException().printStackTrace();
             }
             if (clientResponse.getStatusString() != null) {
-                System.err.println(clientResponse.getStatusString());
+                LOG.warn(clientResponse.getStatusString());
             }
 
             System.exit(-1);

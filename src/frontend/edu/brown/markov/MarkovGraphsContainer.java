@@ -234,12 +234,25 @@ public class MarkovGraphsContainer implements JSONSerializable {
     }
     
     public Map<Integer, MarkovGraph> getAll(Procedure catalog_proc) {
-        Map<Integer, MarkovGraph> markovs = new HashMap<Integer, MarkovGraph>();
+        Map<Integer, MarkovGraph> ret = new HashMap<Integer, MarkovGraph>();
         for (Integer id : this.markovs.keySet()) {
             MarkovGraph m = this.markovs.get(id).get(catalog_proc);
-            if (m != null) markovs.put(id, m);
+            if (m != null) ret.put(id, m);
         } // FOR
-        return (markovs);
+        return (ret);
+    }
+    
+    /**
+     * Get all the MarkovGraphs contained within this object
+     * @return
+     */
+    public Set<MarkovGraph> getAll() {
+        Set<MarkovGraph> ret = new HashSet<MarkovGraph>();
+        for (Integer id : this.markovs.keySet()) {
+            Map<Procedure, MarkovGraph> m = this.markovs.get(id);
+            if (m != null && m.isEmpty() == false) ret.addAll(m.values());
+        } // FOR
+        return (ret);
     }
     
     public void copy(MarkovGraphsContainer other) {

@@ -56,6 +56,18 @@ import org.voltdb.benchmark.tpcc.procedures.*;
 public final class Constants {
     private Constants() { assert false; }
 
+    public static final int FREQUENCY_STOCK_LEVEL = 4;
+    public static final int FREQUENCY_DELIVERY = 4;
+    public static final int FREQUENCY_ORDER_STATUS = 4;
+    public static final int FREQUENCY_PAYMENT = 43;
+    public static final int FREQUENCY_NEW_ORDER = 45;
+    
+//    public static final int FREQUENCY_STOCK_LEVEL = 0;
+//    public static final int FREQUENCY_DELIVERY = 0;
+//    public static final int FREQUENCY_ORDER_STATUS = 0;
+//    public static final int FREQUENCY_PAYMENT = 50;
+//    public static final int FREQUENCY_NEW_ORDER = 50;
+    
     // 2 digits after the decimal point for money types
     public static final int MONEY_DECIMALS = 2;
 

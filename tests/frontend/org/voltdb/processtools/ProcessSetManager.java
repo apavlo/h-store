@@ -115,7 +115,7 @@ public class ProcessSetManager {
             LOG.debug("Starting ProcessSetPoller");
             while (true) {
                 try {
-                    Thread.sleep(2500);
+                    Thread.sleep(5000);
                 } catch (InterruptedException ex) {
                     if (shutting_down == false) ex.printStackTrace();
                     break;
@@ -147,7 +147,7 @@ public class ProcessSetManager {
             
             if (output_directory != null) {
                 FileWriter fw = null;
-                String path = output_directory.getAbsolutePath() + "/hstore-" + m_processName;
+                String path = String.format("%s/%s.log", output_directory.getAbsolutePath(), m_processName);
                 try {
                     fw = new FileWriter(path);
                 } catch (Exception ex) {
@@ -292,6 +292,7 @@ public class ProcessSetManager {
 	        out.write(data);
 	        out.flush();        		
         } catch (IOException e) {
+            if (processName.contains("client-")) return;
             if (this.shutting_down == false) {
                 String msg = "";
                 if (data.trim().isEmpty()) {
@@ -299,7 +300,8 @@ public class ProcessSetManager {
                 } else {
                     msg = String.format("Failed to write '%s' command to '%s'", data.trim(), processName);
                 }
-                LOG.fatal(msg, e);
+                if (LOG.isDebugEnabled()) LOG.fatal(msg, e);
+                else LOG.fatal(msg);
             }
             this.failure_observable.notifyObservers(processName);
         }

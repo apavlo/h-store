@@ -1,13 +1,16 @@
 package edu.brown.markov;
 
 import java.io.IOException;
+import java.util.Map;
 
+import org.apache.commons.collections15.map.ListOrderedMap;
 import org.json.*;
 import org.voltdb.catalog.Database;
 
 import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.JSONSerializable;
 import edu.brown.utils.JSONUtil;
+import edu.brown.utils.StringUtil;
 
 /**
  * Represents a set of thresholds used when estimating transaction information
@@ -32,6 +35,14 @@ public class EstimationThresholds implements JSONSerializable {
     
     public EstimationThresholds() {
         // Nothing to see here...
+    }
+    
+    public EstimationThresholds(double default_value) {
+        this.single_partition = default_value;
+        this.read = default_value;
+        this.write = default_value;
+        this.done = default_value;
+        this.abort = default_value;
     }
     
     /**
@@ -97,6 +108,17 @@ public class EstimationThresholds implements JSONSerializable {
      */
     public void setAbortThreshold(double abort) {
         this.abort = abort;
+    }
+    
+    @Override
+    public String toString() {
+        Map<String, Object> m = new ListOrderedMap<String, Object>();
+        m.put("Single-Partition", this.single_partition);
+        m.put("Read", this.read);
+        m.put("Write", this.write);
+        m.put("Done", this.done);
+        m.put("Abort", this.abort);
+        return (StringUtil.formatMaps(m));
     }
     
     // -----------------------------------------------------------------

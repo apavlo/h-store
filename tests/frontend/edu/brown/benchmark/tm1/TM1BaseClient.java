@@ -17,11 +17,6 @@ public abstract class TM1BaseClient extends ClientMain {
     protected final boolean blocking = true;
     
     
-    public TM1BaseClient(Client client) {
-        super(client);
-        // TODO Auto-generated constructor stub
-    }
-
     public TM1BaseClient(String[] args) {
         super(args);
         

@@ -114,6 +114,12 @@ public class MockVoltClient implements Client {
             public VoltTable[] getResults() {
                 return result;
             }
+            
+            @Override
+            public int getResultsSize() {
+                // TODO Auto-generated method stub
+                return 0;
+            }
 
             @Override
             public byte getStatus() {
@@ -165,6 +171,17 @@ public class MockVoltClient implements Client {
 
             @Override
             public void setThrottleFlag(boolean val) {
+                // TODO Auto-generated method stub
+                
+            }
+            
+            @Override
+            public int getServerTimestamp() {
+                // TODO Auto-generated method stub
+                return 0;
+            }
+            @Override
+            public void setServerTimestamp(int val) {
                 // TODO Auto-generated method stub
                 
             }

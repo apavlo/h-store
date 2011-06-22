@@ -30,12 +30,12 @@ public class ResultsPrinter implements BenchmarkController.BenchmarkInterest {
     @Override
     public void benchmarkHasUpdated(BenchmarkResults results) {
 
-        long txnCount = 0;
+        long totalTxnCount = 0;
         for (String client : results.getClientNames()) {
             for (String txn : results.getTransactionNames()) {
                 Result[] rs = results.getResultsForClientAndTransaction(client, txn);
                 for (Result r : rs)
-                    txnCount += r.transactionCount;
+                    totalTxnCount += r.transactionCount;
             }
         }
 
@@ -60,34 +60,37 @@ public class ResultsPrinter implements BenchmarkController.BenchmarkInterest {
                 txnDelta / (double)(results.getIntervalDuration()) * 1000.0);
         System.out.printf("  Since the benchmark began:\n");
         System.out.printf("    Completed %d txns at a rate of %.2f txns/s\n",
-                txnCount,
-                txnCount / (double)(pollIndex * results.getIntervalDuration()) * 1000.0);
+                totalTxnCount,
+                totalTxnCount / (double)(pollIndex * results.getIntervalDuration()) * 1000.0);
 
 
         if ((pollIndex * results.getIntervalDuration()) >= duration) {
             // print the final results
-            System.out.println("\n============================== BENCHMARK RESULTS ==============================");
+            System.out.println("\n================================ BENCHMARK RESULTS ================================");
             System.out.printf("Time: %d ms\n", duration);
-            System.out.printf("Total transactions: %d\n", txnCount);
-            System.out.printf("Transactions per second: %.2f\n", txnCount / (double)duration * 1000.0);
+            System.out.printf("Total transactions: %d\n", totalTxnCount);
+            System.out.printf("Transactions per second: %.2f\n", totalTxnCount / (double)duration * 1000.0);
             for (String transactionName : results.getTransactionNames()) {
-                txnCount = getTotalCountForTransaction(transactionName, results);
-                System.out.printf("%23s: %10d total %12.2f txn/s %12.2f txn/m\n",
+                final long txnCount = getTotalCountForTransaction(transactionName, results);
+                System.out.printf("%23s: %10d total %-6s %8.2f txn/s %10.2f txn/m\n",
                         transactionName,
                         txnCount,
+                        String.format("(%5.1f%%)", (txnCount / (double)totalTxnCount) * 100), 
                         txnCount / (double)duration * 1000.0,
                         txnCount / (double)duration * 1000.0 * 60.0);
             }
             System.out.println("Breakdown by client:");
             for (String clientName : results.getClientNames()) {
-                txnCount = getTotalCountForClient(clientName, results);
-                System.out.printf("%23s: %10d total %12.2f txn/s %12.2f txn/m\n",
+                final long txnCount = getTotalCountForClient(clientName, results);
+                clientName = clientName.replace("client-", "");
+                System.out.printf("%23s: %10d total %-8s %8.2f txn/s %10.2f txn/m\n",
                         clientName,
                         txnCount,
+                        "",
                         txnCount / (double)duration * 1000.0,
                         txnCount / (double)duration * 1000.0 * 60.0);
             }
-            System.out.println("===============================================================================\n");
+            System.out.println("===================================================================================\n");
         }
 
         System.out.flush();

@@ -93,7 +93,7 @@ public class KillStragglers implements Runnable {
         if (m_killCoordinator) kill_cmd += " --protocoord";
         if (m_killEngine) kill_cmd += " --protoengine";
         if (m_killClient) kill_cmd += " --client";
-        kill_cmd += " --debug";
+        if (LOG.isDebugEnabled()) kill_cmd += " --debug";
         
         String cmd[] = SSHTools.convert(m_username, m_hostname, m_remotePath, m_sshOptions, kill_cmd); 
         LOG.debug("KILL PUSSY CAT KILL: " + Arrays.toString(cmd));

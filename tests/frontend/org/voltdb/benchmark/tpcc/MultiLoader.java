@@ -105,10 +105,11 @@ public class MultiLoader extends ClientMain {
         }
 
         m_warehouses = warehouses;
+        loadThreads = Math.min(warehouses, loadThreads);
         m_loadThreads = new LoadThread[loadThreads];
         
         // HACK
-        MAX_BATCH_SIZE *= (10 / m_warehouses);
+        MAX_BATCH_SIZE *= Math.max(100, (10 / m_warehouses));
 
         for (int ii = 0; ii < loadThreads; ii++) {
             ScaleParameters parameters = ScaleParameters.makeWithScaleFactor(warehouses, scaleFactor);
@@ -628,7 +629,9 @@ public class MultiLoader extends ClientMain {
             } // FOR
             if (items.getRowCount() > 0) {
                 try {
-                    LOG.info(String.format("Loading replicated ITEM table [tuples=%d/%d]", m_parameters.items-items.getRowCount(), m_parameters.items));
+                    String extra = "";
+                    if (items.getRowCount() < m_parameters.items) extra = String.format(" [tuples=%d/%d]", m_parameters.items-items.getRowCount(), m_parameters.items);
+                    LOG.info("Loading replicated ITEM table" + extra);
                     m_voltClient.callProcedure("@LoadMultipartitionTable", "ITEM", items);
                 } catch (Exception e) {
                     e.printStackTrace();

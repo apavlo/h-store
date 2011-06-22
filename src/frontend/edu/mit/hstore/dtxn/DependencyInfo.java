@@ -6,6 +6,7 @@ import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.commons.pool.ObjectPool;
 import org.apache.commons.pool.impl.StackObjectPool;
@@ -57,7 +58,7 @@ public class DependencyInfo implements Poolable {
      */
     public synchronized static void initializePool(HStoreConf hstore_conf) {
         if (INFO_POOL == null) {
-            INFO_POOL = new StackObjectPool(new Factory(hstore_conf.pool_enable_tracking), hstore_conf.pool_dependencyinfos_idle);
+            INFO_POOL = new StackObjectPool(new Factory(hstore_conf.site.pool_profiling), hstore_conf.site.pool_dependencyinfos_idle);
         }
     }
     
@@ -94,7 +95,7 @@ public class DependencyInfo implements Poolable {
      * We assume a 1-to-n mapping from DependencyInfos to blocked FragmentTaskMessages
      */
     protected final Set<FragmentTaskMessage> blocked_tasks = new HashSet<FragmentTaskMessage>();
-    protected boolean blocked_tasks_released = false;
+    private AtomicBoolean blocked_tasks_released = new AtomicBoolean(false);
     // protected boolean blocked_all_local = true;
     
     /**
@@ -127,7 +128,7 @@ public class DependencyInfo implements Poolable {
         this.results_list.clear();
         this.responses.clear();
         this.blocked_tasks.clear();
-        this.blocked_tasks_released = false;
+        this.blocked_tasks_released.set(false);
 //        this.blocked_all_local = true;
     }
     
@@ -164,13 +165,16 @@ public class DependencyInfo implements Poolable {
     
     /**
      * Gets the blocked tasks for this DependencyInfo and marks them as "released"
+     * If the tasks have already been released, then the return value will be null;
      * @return
      */
-    public synchronized Set<FragmentTaskMessage> getAndReleaseBlockedFragmentTaskMessages() {
-        assert(this.blocked_tasks_released == false) : "Trying to unblock tasks more than once for txn #" + this.ts.txn_id;
-        if (t) LOG.trace(String.format("Unblocking %d FragmentTaskMessages for txn #%d", this.blocked_tasks.size(), this.ts.getTransactionId()));
-        this.blocked_tasks_released = true;
-        return (this.blocked_tasks);
+    public Set<FragmentTaskMessage> getAndReleaseBlockedFragmentTaskMessages() {
+        if (this.blocked_tasks_released.compareAndSet(false, true)) {
+            if (t) LOG.trace(String.format("Unblocking %d FragmentTaskMessages for txn #%d", this.blocked_tasks.size(), this.ts.getTransactionId()));
+            return (this.blocked_tasks);
+        }
+        if (t) LOG.trace(String.format("Ignoring duplicate release request for txn #%d", this.ts.getTransactionId()));
+        return (null);
     }
     
     /**
@@ -258,7 +262,7 @@ public class DependencyInfo implements Poolable {
             LOG.trace("# of <Responses/Results> Needed = " + num_partitions);
         }
         boolean ready = (this.blocked_tasks.isEmpty() == false) &&
-                        (this.blocked_tasks_released == false) &&
+                        (this.blocked_tasks_released.get() == false) &&
                         (this.results.size() == num_partitions) &&
                         (this.responses.size() == num_partitions);
         return (ready);
@@ -269,7 +273,7 @@ public class DependencyInfo implements Poolable {
     }
     
     public boolean hasTasksReleased() {
-        return (this.blocked_tasks_released);
+        return (this.blocked_tasks_released.get());
     }
     
     @Override
@@ -282,7 +286,7 @@ public class DependencyInfo implements Poolable {
         String status = null;
         int num_partitions = this.partitions.size();
         if (this.results.size() == num_partitions && this.responses.size() == num_partitions) {
-            if (this.blocked_tasks_released == false) {
+            if (this.blocked_tasks_released.get() == false) {
                 status = "READY";
             } else {
                 status = "RELEASED";

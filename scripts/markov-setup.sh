@@ -1,20 +1,20 @@
 #!/bin/bash -x
 
 BENCHMARKS=( \
-    "tm1" \
+#     "tm1" \
     "tpcc.100w.large" \
-    "auctionmark.large"\
-    "tpce" \
+#     "auctionmark.large"\
+#     "tpce" \
 )
 PARTITIONS=( \
-#     8 \
+    8 \
 #     16 \
 #     32 \
 #     64 \
-    128 \
+#     128 \
 )
 HEAP_SIZE=3072
-MAX_THREADS=2
+MAX_THREADS=`tools/getcpus.py`
 MAKE_GLOBAL=true
 CALCULATE_COST=true
 COMPRESS=true
@@ -25,7 +25,7 @@ WORKLOAD_BUILD_MULTIPLIER=500
 WORKLOAD_TEST_SIZE=50000
 WORKLOAD_TEST_OFFSET=0
 WORKLOAD_TEST_MULTIPLIER=500
-MARKOV_FILES_DIR=files/markovs/vldb-feb2011
+MARKOV_FILES_DIR=files/markovs/vldb-june2011
 
 TM1_MIX="DeleteCallForwarding:2,GetAccessData:35,GetNewDestination:10,GetSubscriberData:35,InsertCallForwarding:2,UpdateLocation:14,UpdateSubscriberData:2"
 TPCE_MIX="BrokerVolume:5,CustomerPosition:13,MarketFeed:1,MarketWatch:18,SecurityDetail:14,TradeLookup:8,TradeOrder:10,TradeResult:10,TradeStatus:19,TradeUpdate:2,DataMaintenance:1,TradeCleanup:1"
@@ -85,6 +85,10 @@ for BENCHMARK in ${BENCHMARKS[@]}; do
             -Dnumpartitions=1 \
             -Dcorrelations=files/correlations/${BENCHMARK}.correlations || exit
             
+        if [ "$BENCHMARK" = "tpcc" ]; then
+            BUILD_WORKLOAD="vldb-mar2011/tpcc.${NUM_PARTITIONS}p"
+        fi
+            
         for GLOBAL in "true" "false" ; do
             if [ $GLOBAL = "true" ]; then
                 if [ $MAKE_GLOBAL != "true" ]; then
@@ -92,7 +96,7 @@ for BENCHMARK in ${BENCHMARKS[@]}; do
                 fi
                 MARKOV_FILE=$MARKOV_FILES_DIR/$BENCHMARK.${NUM_PARTITIONS}p.global.markovs
             else
-                MARKOV_FILE=$MARKOV_FILES_DIR/$BENCHMARK.${NUM_PARTITIONS}p.markovs
+                MARKOV_FILE=$MARKOV_FILES_DIR/$BENCHMARK.${NUM_PARTITIONS}p.clustered.markovs
             fi
             if [ -f ${MARKOV_FILE}.gz -a "$FORCE" != true ]; then
                 MARKOV_FILE=${MARKOV_FILE}.gz

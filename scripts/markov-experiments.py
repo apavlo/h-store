@@ -31,66 +31,98 @@ SITE_ALL_NODES = range(SITE_NODE_START, NODE_MAX)
 
 PARTITIONS = [ 4, 8, 16, 32, 64 ] # , 128 ]
 
-EXPERIMENT_PARAMS = [
-    ## Trial #0 - Always single-partition, DB2 redirects
-    {
-        "node.force_singlepartition":        True,
-        "node.force_neworderinspect":        False,
-        "node.force_neworderinspect_done":   False,
-        "node.enable_db2_redirects":         False,
-        "node.enable_speculative_execution": False,
-    },
-    ## Trial #1 - NewOrder Only, Only determines whether multi-p or not
-    {
-        "node.force_singlepartition":        False,
-        "node.force_neworderinspect":        True,
-        "node.force_neworderinspect_done":   False,
-        "node.enable_db2_redirects":         False,
-        "node.enable_speculative_execution": False,
-    },
-    ## Trial #2 - NewOrder Only, Pick partitions, Mark Done
-    {
-        "node.force_singlepartition":        False,
-        "node.force_neworderinspect":        True,
-        "node.force_neworderinspect_done":   True,
-        "node.enable_db2_redirects":         False,
-        "node.enable_speculative_execution": False,
-    },
-    ## Trial #3 - Always multi-partition (worst case scenario)
-    {
-        "node.force_singlepartition":        False,
-        "node.force_neworderinspect":        False,
-        "node.force_neworderinspect_done":   False,
-        "node.enable_db2_redirects":         False,
-        "node.enable_speculative_execution": False,
-    },
-    ## Trial #4 - Markov Models
-    {
-        "node.force_singlepartition":        False,
-        "node.force_neworderinspect":        False,
-        "node.force_neworderinspect_done":   False,
-        "node.enable_db2_redirects":         False,
-        "node.enable_speculative_execution": True,
-    },
-]
+EXPERIMENT_PARAMS = {
+    "motivation": [
+        ## Trial #0 - Always multi-partition (worst case scenario)
+        {
+            "benchmark.neworder_only":          True,
+            "site.exec_force_singlepartitioned":False,
+            "site.exec_neworder_cheat":         False,
+            "site.exec_neworder_cheat_done":    False,
+            "site.exec_db2_redirects":          False,
+            "site.exec_speculative_execution":  False,
+        },
+        ## Trial #1 - NewOrder Only, Only determines whether multi-p or not
+        {
+            "benchmark.neworder_only":          True,
+            "site.exec_force_singlepartitioned":False,
+            "site.exec_neworder_cheat":         True,
+            "site.exec_neworder_cheat_done":    False,
+            "site.exec_db2_redirects":          False,
+            "site.exec_speculative_execution":  False,
+        },
+        ## Trial #2 - NewOrder Only, Pick partitions, Mark Done
+        {
+            "benchmark.neworder_only":          True,
+            "site.exec_force_singlepartitioned":False,
+            "site.exec_neworder_cheat":         True,
+            "site.exec_neworder_cheat_done":    True,
+            "site.exec_db2_redirects":          False,
+            "site.exec_speculative_execution":  False,
+        },
+    ],
+    "markov": [
+        ## Trial #0 - Always single-partition, DB2 redirects
+        {
+            "site.exec_force_singlepartitioned":True,
+            "site.exec_neworder_cheat":         False,
+            "site.exec_neworder_cheat_done":    False,
+            "site.exec_db2_redirects":          False,
+            "site.exec_speculative_execution":  True,
+        },
+        ## Trial #1 - Global Markov Models
+        {
+            "markov":                           True,
+            "markov.global":                    True,
+            "site.exec_force_singlepartitioned":False,
+            "site.exec_neworder_cheat":         False,
+            "site.exec_neworder_cheat_done":    False,
+            "site.exec_db2_redirects":          False,
+            "site.exec_speculative_execution":  True,
+        },
+        ## Trial #2 - Partitioned Markov Models
+        {
+            "markov":                           True,
+            "markov.global":                    False,
+            "site.exec_force_singlepartitioned":False,
+            "site.exec_neworder_cheat":         False,
+            "site.exec_neworder_cheat_done":    False,
+            "site.exec_db2_redirects":          False,
+            "site.exec_speculative_execution":  True,
+        },
+    ],
+    "thresholds": [
+        {
+            "thresholds":                       True,
+            "markov":                           True,
+            "markov.global":                    False,
+            "site.exec_force_singlepartitioned":False,
+            "site.exec_neworder_cheat":         False,
+            "site.exec_neworder_cheat_done":    False,
+            "site.exec_db2_redirects":          False,
+            "site.exec_speculative_execution":  True,
+        },
+    ]
+}
 OPT_NODE_FORMAT = "d-%02d.cs.wisc.edu"
 OPT_CLIENT_FORMAT = OPT_NODE_FORMAT
 OPT_SITES_PER_NODE = 1
 OPT_PARTITIONS_PER_SITE = 2
-OPT_TRIALS = 3
 OPT_BENCHMARK = "tpcc"
-OPT_EXPERIMENT = 0
 OPT_LOAD_THREADS = 8
 OPT_SCALE_FACTOR = 10.0
 OPT_TRACE = False
 OPT_BLOCKING = False
-OPT_THROTTLING = True
 OPT_TXNRATE = -1
 OPT_DURATION = 120000
 OPT_WARMUP = 60000
 OPT_CLIENT_PER_NODE = 4
 OPT_CLIENT_COUNT = -1
 OPT_NEWORDER_ONLY = False
+
+OPT_EXP_TYPE = "markov"
+OPT_EXP_TRIALS = 3
+OPT_EXP_SETTING = 0
 
 ## This is needed until I get proper throttling in the clients working...
 BASE_TXNRATE = {
@@ -111,9 +143,12 @@ def formatHostName(f, id):
 ## ==============================================
 if __name__ == '__main__':
     _options, args = getopt.gnu_getopt(sys.argv[1:], '', [
-        "trials=",
+        # Experiment Parameters
+        "exp-type=",
+        "exp-setting=",
+        "exp-trials=",
+        
         "blocking=",
-        "throttling=",
         "txnrate=",
         "duration=",
         "warmup=",
@@ -123,19 +158,21 @@ if __name__ == '__main__':
         "neworder-only=",
         "sites-per-node=",
         "partitions-per-site=",
-        ## Node Hostname Format
+        # Node Hostname Format
         "node-format=",
-        ## Client Hostname Format
+        # Client Hostname Format
         "client-format=",
-        ## Benchmark
+        # Benchmark
         "benchmark=",
-        ## Which experiment to execute
-        "experiment=",
-        ## How many partitiosn to use in the experiment
+        # How many partitiosn to use in the experiment
         "partitions=",
-        ## Enable workload trace dumps
+        # Enable workload trace dumps
         "trace",
-        ## Enable debug logging
+        
+        # Thresholds value
+        "thresholds=",
+        
+        # Enable debug logging
         "debug",
     ])
     ## ----------------------------------------------
@@ -182,7 +219,7 @@ if __name__ == '__main__':
         site_id = 0
         node_idx = 0
         
-        cluster_file = "/tmp/hstore-%dp.cluster" % num_partitions
+        cluster_file = "/tmp/hstore/%dp.cluster" % num_partitions
         with open(cluster_file, "w") as fd:
             while nodes_added < num_nodes:
                 node_id = SITE_ALL_NODES[node_idx]
@@ -214,8 +251,8 @@ if __name__ == '__main__':
         logging.debug("CLIENT_NODES = %s" % CLIENT_NODES)
         
         base_opts = {
-            "project":      OPT_BENCHMARK,
-            "cluster":      cluster_file,
+            "project":  OPT_BENCHMARK,
+            "hosts":    cluster_file,
         }
         base_opts_cmd = " ".join(map(lambda x: "-D%s=%s" % (x, base_opts[x]), base_opts.keys()))
         cmd = "ant hstore-jar " + base_opts_cmd
@@ -234,7 +271,7 @@ if __name__ == '__main__':
                 CLIENT_TXNRATE *= 0.60
             elif num_partitions == 64:
                 CLIENT_TXNRATE *= 0.50
-            if OPT_EXPERIMENT == 0:
+            if OPT_EXP_SETTING == 0:
                 if num_partitions >= 8:
                     CLIENT_TXNRATE *= 0.80
         else:
@@ -243,7 +280,7 @@ if __name__ == '__main__':
     
         hstore_opts = {
             "coordinator.host":             formatHostName(OPT_NODE_FORMAT, COORDINATOR_NODE),
-            "coordinator.delay":            10,
+            "coordinator.delay":            5000,
             "client.duration":              OPT_DURATION,
             "client.warmup":                OPT_WARMUP,
             "client.host":                  ",".join(map(lambda x: formatHostName(OPT_CLIENT_FORMAT, x), CLIENT_NODES)),
@@ -251,7 +288,6 @@ if __name__ == '__main__':
             "client.processesperclient":    OPT_CLIENT_PER_NODE,
             "client.txnrate":               CLIENT_TXNRATE,
             "client.blocking":              OPT_BLOCKING,
-            "client.throttling":            OPT_THROTTLING,
             "client.scalefactor":           OPT_SCALE_FACTOR,
         }
         benchmark_opts = {
@@ -261,25 +297,29 @@ if __name__ == '__main__':
             "benchmark.warehouses":         num_partitions,
             "benchmark.loadthreads":        OPT_LOAD_THREADS,
         }
-        if OPT_EXPERIMENT in [1, 2, 3]:
+
+        exp_opts = EXPERIMENT_PARAMS[OPT_EXP_TYPE][OPT_EXP_SETTING]
+        exp_opts["site.mispredict_crash"] = False
+        exp_opts["site.statusinterval"] = 20
+
+        if "markov" in exp_opts and exp_opts["markov"]:
+            markov_type = "global" if "markov.global" in exp_opts and exp_opts["markov.global"] else "clustered"
+            markov = "files/markovs/vldb-feb2011/%s.%dp.%s.markovs.gz" % (OPT_BENCHMARK.lower(), num_partitions, markov_type)
+            assert os.path.exists(markov), "Missing: " + markov
+            exp_opts['markov'] = markov
+            
+        if "benchmark.neworder_only" in exp_opts and exp_opts["benchmark.neworder_only"]:
+            del exp_opts["benchmark.neworder_only"]
             benchmark_opts["benchmark.neworder_only"] = True
 
-        exp_opts = EXPERIMENT_PARAMS[OPT_EXPERIMENT]
-        exp_opts["node.mispredict_crash"] = False
-        exp_opts["node.statusinterval"] = 20
+        if "thresholds" in exp_opts and exp_opts["thresholds"]:
+            del exp_opts["thresholds"]
+            exp_opts["thresholds.value"] = float(options["thresholds"][0])
 
         hstore_opts = dict(hstore_opts.items() + exp_opts.items())
         hstore_opts_cmd = " ".join(map(lambda x: "-D%s=%s" % (x, hstore_opts[x]), hstore_opts.keys()))
         benchmark_opts_cmd = " ".join(map(lambda x: "-D%s=%s" % (x, benchmark_opts[x]), benchmark_opts.keys()))
         ant_opts_cmd = " ".join([base_opts_cmd, hstore_opts_cmd, benchmark_opts_cmd])
-
-        ## Markov Models!
-        if OPT_EXPERIMENT == 4:
-            markov = "files/markovs/vldb-feb2011/%s.%dp.markovs.gz" % (OPT_BENCHMARK.lower(), num_partitions)
-            assert os.path.exists(markov), "Missing: " + markov
-            ant_opts_cmd += " -Dmarkov=%s" % markov
-            hstore_opts['markov'] = markov
-        ## IF
 
         pprint(hstore_opts)
         
@@ -294,8 +334,8 @@ if __name__ == '__main__':
             f.write(contents)
         ## WITH
         
-        print "%s EXP #%d - PARTITIONS %d" % (OPT_BENCHMARK.upper(), OPT_EXPERIMENT, num_partitions)
-        for trial in range(0, OPT_TRIALS):
+        print "%s EXP #%d - PARTITIONS %d" % (OPT_BENCHMARK.upper(), OPT_EXP_SETTING, num_partitions)
+        for trial in range(0, OPT_EXP_TRIALS):
             cmd = "ant hstore-benchmark " + ant_opts_cmd
             if OPT_TRACE: cmd += " -Dtrace=traces/%s-%dp-%d" % (OPT_BENCHMARK.lower(), num_partitions, trial)
             cmd += " | tee client.log"
@@ -321,9 +361,9 @@ if __name__ == '__main__':
             print "  Trial #%d: %s" % (trial, txnrate)
             
             ## Make sure we kill everything
-            cmd = "pusher --show-host 'pskill java' ./allhosts.txt"
-            (result, output) = commands.getstatusoutput(cmd)
-            assert result == 0, cmd + "\n" + output
+            #cmd = "pusher --show-host 'pskill java' ./allhosts.txt"
+            #(result, output) = commands.getstatusoutput(cmd)
+            #assert result == 0, cmd + "\n" + output
         ## FOR (TRIAL)
         print
     ## FOR (PARTITIONS)

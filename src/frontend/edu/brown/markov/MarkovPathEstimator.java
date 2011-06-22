@@ -48,7 +48,7 @@ public class MarkovPathEstimator extends VertexTreeWalker<Vertex> {
         private final int num_partitions;
         
         public Factory(int num_partitions) {
-            super(HStoreConf.singleton().enable_profiling);
+            super(HStoreConf.singleton().site.txn_profiling);
             this.num_partitions = num_partitions;
         }
         @Override
@@ -97,6 +97,12 @@ public class MarkovPathEstimator extends VertexTreeWalker<Vertex> {
      * 
      */
     private final MarkovEstimate estimate;
+    
+    /**
+     * If this flag is true, then this MarkovPathEstimator is being cached by the TransactionEstimator and should not be returned to
+     * the object pool when its transaction finishes
+     */
+    private transient boolean cached = false;
 
     // ----------------------------------------------------------------------------
     // TEMPORARY TRAVERSAL MEMBERS
@@ -187,9 +193,11 @@ public class MarkovPathEstimator extends VertexTreeWalker<Vertex> {
     
     @Override
     public void finish() {
+        if (d) LOG.debug(String.format("Cleaning up MarkovPathEstimator [cached=%s, hashCode=%d]", this.cached, this.hashCode()));
         super.finish();
         this.confidence = MarkovUtil.NULL_MARKER;
         this.greatest_abort = MarkovUtil.NULL_MARKER;
+        this.cached = false;
         
         this.t_estimator = null;
         this.p_estimator = null;
@@ -201,6 +209,14 @@ public class MarkovPathEstimator extends VertexTreeWalker<Vertex> {
         this.write_partitions.clear();
         this.past_partitions.clear();
         this.forced_vertices.clear();
+    }
+    
+    public void setCached(boolean val) {
+        this.cached = val;
+    }
+    
+    public boolean isCached() {
+        return this.cached;
     }
     
     public MarkovEstimate getEstimate() {
