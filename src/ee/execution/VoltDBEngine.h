@@ -314,14 +314,14 @@ class __attribute__((visibility("default"))) VoltDBEngine {
             if (m_currentUndoQuantum != NULL && m_currentUndoQuantum->getUndoToken() == undoToken) {
                 m_currentUndoQuantum = NULL;
             }
-            VOLT_INFO("Committing Buffer Token %ld at partition %d", undoToken, m_partitionId);
+            VOLT_DEBUG("Committing Buffer Token %ld at partition %d", undoToken, m_partitionId);
             m_undoLog.release(undoToken);
         }
         inline void undoUndoToken(int64_t undoToken) {
             if (m_currentUndoQuantum != NULL && m_currentUndoQuantum->isDummy()) {
                 return;
             }
-            VOLT_INFO("Undoing Buffer Token %ld at partition %d", undoToken, m_partitionId);
+            VOLT_DEBUG("Undoing Buffer Token %ld at partition %d", undoToken, m_partitionId);
             m_undoLog.undo(undoToken);
             m_currentUndoQuantum = NULL;
         }
