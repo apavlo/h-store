@@ -1107,7 +1107,6 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
             } // SYNCH
         }
 
-        predict_can_abort = false;
         ts.init(txn_id, request.getClientHandle(), base_partition,
                         single_partition, predict_readonly, predict_can_abort,
                         t_state, catalog_proc, request, done);
