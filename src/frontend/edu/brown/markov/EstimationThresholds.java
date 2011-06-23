@@ -1,16 +1,16 @@
 package edu.brown.markov;
 
 import java.io.IOException;
-import java.util.Map;
+import java.lang.reflect.Field;
 
-import org.apache.commons.collections15.map.ListOrderedMap;
-import org.json.*;
+import org.json.JSONException;
+import org.json.JSONObject;
+import org.json.JSONStringer;
 import org.voltdb.catalog.Database;
 
 import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.JSONSerializable;
 import edu.brown.utils.JSONUtil;
-import edu.brown.utils.StringUtil;
 
 /**
  * Represents a set of thresholds used when estimating transaction information
@@ -112,13 +112,19 @@ public class EstimationThresholds implements JSONSerializable {
     
     @Override
     public String toString() {
-        Map<String, Object> m = new ListOrderedMap<String, Object>();
-        m.put("Single-Partition", this.single_partition);
-        m.put("Read", this.read);
-        m.put("Write", this.write);
-        m.put("Done", this.done);
-        m.put("Abort", this.abort);
-        return (StringUtil.formatMaps(m));
+        Class<?> confClass = this.getClass();
+        StringBuilder sb = new StringBuilder();
+        for (Field f : confClass.getFields()) {
+            Object obj = null;
+            try {
+                obj = f.get(this);
+            } catch (IllegalAccessException ex) {
+                throw new RuntimeException(ex);
+            }
+            if (sb.length() > 0) sb.append(", ");
+            sb.append(String.format("%s=%s", f.getName().toUpperCase(), obj));
+        } // FOR
+        return sb.toString();
     }
     
     // -----------------------------------------------------------------

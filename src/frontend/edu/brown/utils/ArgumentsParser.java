@@ -112,6 +112,7 @@ public class ArgumentsParser {
     public static final String PARAM_MARKOV_THREADS         = PARAM_MARKOV + ".threads";
     public static final String PARAM_MARKOV_SPLIT           = PARAM_MARKOV + ".split";
     public static final String PARAM_MARKOV_GLOBAL          = PARAM_MARKOV + ".global";
+    public static final String PARAM_MARKOV_RECOMPUTE       = PARAM_MARKOV + ".recompute";
     public static final String PARAM_MARKOV_SPLIT_TRAINING  = PARAM_MARKOV_SPLIT + ".training";
     public static final String PARAM_MARKOV_SPLIT_VALIDATION = PARAM_MARKOV_SPLIT + ".validation";
     public static final String PARAM_MARKOV_SPLIT_TESTING   = PARAM_MARKOV_SPLIT + ".testing";
@@ -786,6 +787,7 @@ public class ArgumentsParser {
             assert(this.catalog_db != null);
             double defaultValue = this.getDoubleParam(PARAM_MARKOV_THRESHOLDS_VALUE);
             this.thresholds = new EstimationThresholds(defaultValue);
+            LOG.debug("CREATED THRESHOLDS: " + this.thresholds);
             
         } else if (this.params.containsKey(PARAM_MARKOV_THRESHOLDS)) {
             assert(this.catalog_db != null);
@@ -796,6 +798,7 @@ public class ArgumentsParser {
             } else {
                 LOG.warn("The estimation thresholds file '" + path + "' does not exist");
             }
+            LOG.debug("LOADED THRESHOLDS: " + this.thresholds);
         }
         
         // -------------------------------------------------------
@@ -819,24 +822,20 @@ public class ArgumentsParser {
     
     @Override
     public String toString() {
-        StringBuilder buffer = new StringBuilder();
-//        try {
-//            Class<?> arg_class = this.getClass();
-//            for (ArgumentsParser.Attribute element : ArgumentsParser.Attribute.values()) {
-//                Field field = arg_class.getField(element.toString().toLowerCase());
-//                Object value = field.get(this); 
-//                buffer.append(element).append(":\t");
-//                if (value instanceof Class<?>) {
-//                    buffer.append(((Class<?>)value).getCanonicalName());
-//                } else {
-//                    buffer.append(value);
-//                }
-//                buffer.append("\n");
-//            } // FOR
-//        } catch (Exception ex) {
-//            ex.printStackTrace();
-//            System.exit(1);
-//        }
-        return buffer.toString();
+        Map<String, Object> m0 = new ListOrderedMap<String, Object>();        
+        m0.putAll(this.params);
+        
+        Map<String, Object> m1 = null;
+        int opt_cnt = this.opt_params.size();
+        if (opt_cnt > 0) {
+            Map<String, Object> opt_inner = new ListOrderedMap<String, Object>();
+            for (int i = 0; i < opt_cnt; i++) {
+                opt_inner.put(String.format("#%02d", i), this.opt_params.get(i));
+            }
+            m1 = new ListOrderedMap<String, Object>();
+            m1.put(String.format("Optional Parameters [%d]", opt_cnt), StringUtil.formatMaps(opt_inner));
+        }
+
+        return StringUtil.formatMaps(m0, m1);
     }
 }

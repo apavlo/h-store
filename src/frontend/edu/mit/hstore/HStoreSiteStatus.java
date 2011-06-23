@@ -1,6 +1,7 @@
 package edu.mit.hstore;
 
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
@@ -17,10 +18,11 @@ import org.voltdb.ExecutionSite;
 
 import edu.brown.markov.TransactionEstimator;
 import edu.brown.statistics.Histogram;
+import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.CountingPoolableObjectFactory;
 import edu.brown.utils.ProfileMeasurement;
 import edu.brown.utils.StringUtil;
-import edu.mit.hstore.HStoreSite.TxnCounter;
+import edu.brown.utils.TableUtil;
 import edu.mit.hstore.dtxn.DependencyInfo;
 import edu.mit.hstore.dtxn.LocalTransactionState;
 import edu.mit.hstore.dtxn.TransactionState;
@@ -34,6 +36,13 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
     private static final Logger LOG = Logger.getLogger(HStoreSiteStatus.class);
     
     private static final String POOL_FORMAT = "Active:%-5d / Idle:%-5d / Created:%-5d / Destroyed:%-5d / Passivated:%-7d";
+
+    private static final Set<TxnCounter> TXNINFO_COL_DELIMITERS = new HashSet<TxnCounter>();
+    private static final Set<TxnCounter> TXNINFO_ALWAYS_SHOW = new HashSet<TxnCounter>();
+    static {
+        CollectionUtil.addAll(TXNINFO_COL_DELIMITERS, TxnCounter.EXECUTED, TxnCounter.MULTI_PARTITION, TxnCounter.MISPREDICTED);
+        CollectionUtil.addAll(TXNINFO_ALWAYS_SHOW, TxnCounter.MULTI_PARTITION);
+    }
     
     private final HStoreSite hstore_site;
     private final HStoreConf hstore_conf;
@@ -147,7 +156,7 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
         if (processing_max == null || processing_cur > processing_max) processing_max = processing_cur;
         
         Map<String, Object> m_exec = new ListOrderedMap<String, Object>();
-        m_exec.put("Completed Txns", HStoreSite.TxnCounter.COMPLETED.get());
+        m_exec.put("Completed Txns", TxnCounter.COMPLETED.get());
         m_exec.put("InFlight Txns", String.format("%d [totalMin=%d, totalMax=%d]", inflight_cur, inflight_min, inflight_max));
         m_exec.put("Processing Txns", String.format("%d [totalMin=%d, totalMax=%d]", processing_cur, processing_min, processing_max));
         m_exec.put("Incoming Throttle", String.format("%-5s [limit=%d, release=%d]",
@@ -193,28 +202,56 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
     }
     
     public Map<String, String> txnInfo() {
+        
         Set<TxnCounter> cnts_to_include = new TreeSet<TxnCounter>();
         Set<String> procs = TxnCounter.getAllProcedures();
         for (TxnCounter tc : TxnCounter.values()) {
-            if (tc.get() > 0 && tc != TxnCounter.SYSPROCS) cnts_to_include.add(tc);
+            if (TXNINFO_ALWAYS_SHOW.contains(tc) || (tc.get() > 0 && tc != TxnCounter.SYSPROCS)) cnts_to_include.add(tc);
         } // FOR
         
         boolean first = true;
-        String header[] = new String[cnts_to_include.size() + 1];
-        Object rows[][] = new String[procs.size()][];
+        int num_cols = cnts_to_include.size() + 1;
+        String header[] = new String[num_cols];
+        Object rows[][] = new String[procs.size()+2][];
+        String col_delimiters[] = new String[num_cols];
+        String row_delimiters[] = new String[rows.length];
         int i = -1;
+        int j = 0;
         for (String proc_name : procs) {
-            int j = 0;
-            rows[++i] = new String[cnts_to_include.size() + 1];
+            j = 0;
+            rows[++i] = new String[num_cols];
             rows[i][j++] = proc_name;
             if (first) header[0] = "";
             for (TxnCounter tc : cnts_to_include) {
-                if (first) header[j] = tc.toString();
-                rows[i][j++] = Long.toString(tc.getHistogram().get(proc_name, 0));
+                if (first) header[j] = tc.toString().replace("partition", "P");
+                Long cnt = tc.getHistogram().get(proc_name);
+                rows[i][j++] = (cnt != null ? Long.toString(cnt) : "-");
             } // FOR
             first = false;
-        }
-        return (StringUtil.tableMap(header, rows));
+        } // FOR
+        
+        j = 0;
+        rows[++i] = new String[num_cols];
+        rows[i+1] = new String[num_cols];
+        rows[i][j++] = "TOTAL";
+        row_delimiters[i] = "-"; // "\u2015";
+        
+        for (TxnCounter tc : cnts_to_include) {
+            if (TXNINFO_COL_DELIMITERS.contains(tc)) col_delimiters[j] = " | ";
+            
+            if (tc == TxnCounter.COMPLETED || tc == TxnCounter.RECEIVED) {
+                rows[i][j] = Integer.toString(tc.get());
+                rows[i+1][j] = "";
+            } else {
+                Double ratio = tc.ratio();
+                rows[i][j] = Integer.toString(tc.get());
+                rows[i+1][j] = (ratio == null ? "-": String.format("%.3f", ratio));
+            }
+            j++;
+        } // FOR
+        
+        TableUtil.Format f = new TableUtil.Format("   ", col_delimiters, row_delimiters, true, false, true, false, false, false);
+        return (TableUtil.tableMap(f, header, rows));
     }
     
     public synchronized String snapshot(boolean show_txns, boolean show_exec, boolean show_threads, boolean show_poolinfo) {

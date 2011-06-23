@@ -299,8 +299,6 @@ if __name__ == '__main__':
         }
 
         exp_opts = EXPERIMENT_PARAMS[OPT_EXP_TYPE][OPT_EXP_SETTING]
-        exp_opts["site.mispredict_crash"] = False
-        exp_opts["site.statusinterval"] = 20
 
         if "markov" in exp_opts and exp_opts["markov"]:
             markov_type = "global" if "markov.global" in exp_opts and exp_opts["markov.global"] else "clustered"

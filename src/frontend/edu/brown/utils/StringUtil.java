@@ -7,7 +7,6 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.regex.Pattern;
 
-import org.apache.commons.collections15.map.ListOrderedMap;
 import org.voltdb.client.Client;
 import org.voltdb.utils.Pair;
 
@@ -24,100 +23,8 @@ public abstract class StringUtil {
     private static String CACHE_REPEAT_RESULT = null;
     
     private static Pattern LINE_SPLIT = Pattern.compile("\n");
-    private static Pattern SPACE_SPLIT = Pattern.compile(" ");
-    
-    /**
-     * Format the header + rows into a CSV
-     * @param header
-     * @param rows
-     * @return
-     */
-    public static String csv(String header[], Object[]...rows) {
-        return (StringUtil.table(",", false, false, header, rows));        
-    }
-    
-    /**
-     * Format the header + rows into a neat little table
-     * @param header
-     * @param rows
-     * @return
-     */
-    public static String table(String header[], Object[]...rows) {
-        return (StringUtil.table("  ", true, false, header, rows));
-    }
-    
-    public static Map<String, String> tableMap(String header[], Object[]...rows) {
-        String new_header[] = new String[header.length-1];
-        for (int i = 0; i < new_header.length; i++) {
-            new_header[i] = header[i+1];
-        } // FOR
-        Object new_rows[][] = new String[rows.length][];
-        for (int i = 0; i < new_rows.length; i++) {
-            Object row[] = rows[i];
-            assert(row != null) : "Null row at " + i;
-            new_rows[i] = new String[row.length - 1];
-            for (int j = 0; j < new_rows[i].length; j++) {
-                new_rows[i][j] = (row[j+1] != null ? row[j+1].toString() : "null");
-            } // FOR
-        }
-        
-        Map<String, String> m = new ListOrderedMap<String, String>();
-        String lines[] = LINE_SPLIT.split(StringUtil.table(new_header, new_rows));
-        for (int i = 0; i < lines.length; i++) {
-            Object key = (i == 0 ? header[0] : rows[i-1][0]);  
-            m.put((key != null ? key.toString() : null), lines[i]);
-        } // FOR
-        return (m);
-        
-    }
-        
-    /**
-     * Format the header+rows into a table
-     * @param delimiter the character to use in between cells
-     * @param spacing whether to make the width of each column the size of the largest cell
-     * @param quotes whether to surround each cell in quotation marks
-     * @param header
-     * @param rows
-     * @return
-     */
-    public static String table(String delimiter, boolean spacing, boolean quotes, String header[], Object[]...rows) {
-        // First we need to figure out the size for each column
-        String col_formats[] = new String[header.length];
-        for (int col_idx = 0; col_idx < col_formats.length; col_idx++) {
-            String f = null;
-            if (spacing) {
-                int width = header[col_idx].length();
-                for (int row_idx = 0; row_idx < rows.length; row_idx++) {
-                    if (rows[row_idx][col_idx] != null) {
-                        width = Math.max(width, rows[row_idx][col_idx].toString().length());
-                    }
-                } // FOR
-                f = "%-" + width + "s";
-            } else {
-                f = "%s";
-            }
-            if (quotes) f = '"' + f + '"';
-            col_formats[col_idx] = (col_idx > 0 ? delimiter : "") + f;
-        } // FOR
-        
-        // Create header row
-        StringBuilder sb = new StringBuilder();
-        for (int col_idx = 0; col_idx < col_formats.length; col_idx++) {
-            sb.append(String.format(col_formats[col_idx], header[col_idx]));
-        } // FOR
-        
-        // Now dump out the table
-        for (int row_idx = 0; row_idx < rows.length; row_idx++) {
-            Object row[] = rows[row_idx];
-            sb.append("\n");
-            for (int col_idx = 0; col_idx < col_formats.length; col_idx++) {
-                String cell = (row[col_idx] != null ? row[col_idx].toString() : "");
-                sb.append(String.format(col_formats[col_idx], cell));    
-            } // FOR
-        } // FOR
-        
-        return (sb.toString());
-    }
+    private static Pattern TITLE_SPLIT = Pattern.compile(" ");
+
     
     /**
      * Split the multi-lined strings into separate columns
@@ -199,7 +106,7 @@ public abstract class StringUtil {
             if (m == null) continue;
             Map<Object, String> keys = new HashMap<Object, String>();
             for (Object k : m.keySet()) {
-                String k_str = k.toString();
+                String k_str = (k != null ? k.toString() : "");
                 keys.put(k, k_str);
                 max_key_size = Math.max(max_key_size, k_str.length());
             } // FOR
@@ -225,7 +132,7 @@ public abstract class StringUtil {
                 String k = keys.get(e.getKey()).toString();
                 String v = (e.getValue() != null ? e.getValue().toString() : "null");
                 if (upper) k = k.toUpperCase();
-                if (equalsDelimiter == false && k.isEmpty() == false) k += ":";
+                if (equalsDelimiter == false && k.trim().isEmpty() == false) k += ":";
                 
                 // If the value is multiple lines, format them nicely!
                 String lines[] = LINE_SPLIT.split(v);
@@ -396,7 +303,7 @@ public abstract class StringUtil {
     public static String title(String string, boolean keep_upper) {
         StringBuilder sb = new StringBuilder();
         String add = "";
-        for (String part : SPACE_SPLIT.split(string)) {
+        for (String part : TITLE_SPLIT.split(string)) {
             sb.append(add).append(part.substring(0, 1).toUpperCase());
             int len = part.length();
             if (len > 1) {

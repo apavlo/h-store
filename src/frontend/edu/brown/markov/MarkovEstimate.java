@@ -10,6 +10,7 @@ import org.apache.log4j.Logger;
 import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.Poolable;
 import edu.brown.utils.StringUtil;
+import edu.brown.utils.TableUtil;
 import edu.brown.utils.LoggerUtil.LoggerBoolean;
 
 public class MarkovEstimate implements Poolable {
@@ -324,7 +325,7 @@ public class MarkovEstimate implements Poolable {
                 Integer.toString(this.touched[i]),
             };
         } // FOR
-        Map<String, String> m1 = StringUtil.tableMap(header, rows);
+        Map<String, String> m1 = TableUtil.tableMap(header, rows);
 
         return (StringUtil.formatMapsBoxed(m0, m1));
     }

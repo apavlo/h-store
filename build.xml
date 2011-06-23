@@ -1453,7 +1453,11 @@ BENCHMARKS
         <arg value="REMOTEUSER=${remoteuser}"/>
         <arg value="CATALOG=${catalog}" />
         <arg value="COORDINATORHOST=${coordinator.host}" />
-        <arg value="MARKOV=${markov}" />
+        
+        <arg value="markov=${markov}" />
+        <arg value="markov.thresholds=${markov.thresholds}" />
+        <arg value="markov.thresholds.value=${markov.thresholds.value}" />
+        <arg value="markov.recompute=${markov.recompute}" />
 
         <!-- Execution Options -->
         <arg value="TXNRATE=${client.txnrate}" />
@@ -2257,8 +2261,8 @@ H-STORE REMIX
         <arg value="dtxn.engine=${build.dtxn.dir}/protodtxn/protodtxnengine" />
         <arg value="hasher.class=${hasher}" />
         <arg value="markov=${markov}" />
-        <arg value="markov.thresholds=${thresholds}" />
-        <arg value="markov.thresholds.value=${thresholds.value}" />
+        <arg value="markov.thresholds=${markov.thresholds}" />
+        <arg value="markov.thresholds.value=${markov.thresholds.value}" />
         <arg value="correlations=${correlations}" />
         <arg value="partitionplan=${partitionplan}" />
         <arg value="partitionplan.apply=true" />
