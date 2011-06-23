@@ -71,7 +71,7 @@ public class RecomputeMarkovs extends VoltSystemProcedure {
                     try {
                         markovs.save(save_path.getAbsolutePath());
                     } catch (Throwable ex) {
-                        throw new RuntimeException("Failed to save MarkovGraphContainer for site " + HStoreSite.getSiteName(this.executor.getSiteId()), ex);
+                        throw new RuntimeException("Failed to save MarkovGraphContainer for site " + HStoreSite.formatSiteName(this.executor.getSiteId()), ex);
                     }
                 }
             }

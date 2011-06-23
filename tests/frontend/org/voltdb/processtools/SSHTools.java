@@ -125,36 +125,24 @@ public abstract class SSHTools {
         return convert(username, hostname, remotePath, sshOptions, command2);
     }
 
-    public static String[] convert(String username, String hostname, String remotePath, String sshOptions[], String[] command) {
+    public static String[] convert(String username, String hostname, String remotePath, String sshOptions[], String[] remoteCommand) {
+        List<String> l = new ArrayList<String>();
+        CollectionUtil.addAll(l, remoteCommand);
+        return (convert(username, hostname, remotePath, sshOptions, l));
+    }
+        
+    public static String[] convert(String username, String hostname, String remotePath, String sshOptions[], List<String> remoteCommand) {
         assert(hostname != null);
-        int sshArgCount = 7 + (remotePath == null ? 0 : 1) + sshOptions.length;
-
-        int i = 0;
-        String[] retval = new String[command.length + sshArgCount];
-        retval[i++] = "ssh";
-        retval[i++] = "-q";
-        retval[i++] = "-o";
-        retval[i++] = "UserKnownHostsFile=/dev/null";
-        retval[i++] = "-o";
-        retval[i++] = "StrictHostKeyChecking=no";
-        for (String opt : sshOptions) {
-            retval[i++] = opt;
-        }
         
-        retval[i] = "";
-        if (username != null)
-            retval[i] = retval[i].concat(username + "@");
-        retval[i] = retval[i].concat(hostname);
-        i++;
-        
-        if (remotePath != null)
-            retval[i++] = "cd " + remotePath + ";";
-        for (int j = 0; j < command.length; j++) {
-            assert(command[j] != null);
-            retval[i + j] = command[j];
-        }
+        List<String> command = new ArrayList<String>();
+        command.add("ssh");
+        command.addAll(DEFAULT_OPTIONS);
+        CollectionUtil.addAll(command, sshOptions);
+        command.add((username != null ? username + "@" : "") + hostname);
+        if (remotePath != null) command.add("cd " + remotePath + ";");
+        command.addAll(remoteCommand);
 
-        return retval ;
+        return command.toArray(new String[0]);
     }
 
     public static void main(String[] args) {

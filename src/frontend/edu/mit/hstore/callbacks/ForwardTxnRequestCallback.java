@@ -60,7 +60,7 @@ public class ForwardTxnRequestCallback implements RpcCallback<MessageAcknowledge
     @Override
     public void run(MessageAcknowledgement parameter) {
         if (LOG.isTraceEnabled()) LOG.trace(String.format("Got back FORWARD_TXN response from %s. Sending response to client [bytes=%d]",
-                                                          HStoreSite.getSiteName(parameter.getSenderSiteId()), parameter.getData().size()));
+                                                          HStoreSite.formatSiteName(parameter.getSenderSiteId()), parameter.getData().size()));
         byte data[] = parameter.getData().toByteArray();
         try {
             this.orig_callback.run(data);

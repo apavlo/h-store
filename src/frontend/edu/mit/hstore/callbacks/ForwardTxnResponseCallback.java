@@ -61,7 +61,7 @@ public class ForwardTxnResponseCallback implements RpcCallback<byte[]>, Poolable
     public void run(byte[] parameter) {
         final boolean trace = LOG.isTraceEnabled();
         if (trace) LOG.trace(String.format("Got ClientResponse callback! Sending back to %s [bytes=%d]",
-                                           HStoreSite.getSiteName(this.dest_id), parameter.length));
+                                           HStoreSite.formatSiteName(this.dest_id), parameter.length));
         ByteString bs = ByteString.copyFrom(parameter);
         Hstore.MessageAcknowledgement response = Hstore.MessageAcknowledgement.newBuilder()
                                                                               .setSenderSiteId(this.source_id)

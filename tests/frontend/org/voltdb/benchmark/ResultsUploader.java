@@ -51,7 +51,7 @@ public class ResultsUploader implements BenchmarkController.BenchmarkInterest {
         m_benchmarkName = benchmarkName;
 
         m_benchmarkOptions = "";
-        for (Entry<String, String> param : config.parameters.entrySet())
+        for (Entry<String, String> param : config.clientParameters.entrySet())
             m_benchmarkOptions += param.getKey() + "=" + param.getValue() + " ";
         m_benchmarkOptions = m_benchmarkOptions.trim();
     }

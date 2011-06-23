@@ -44,6 +44,7 @@ import edu.brown.utils.EventObserver;
 import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.ProfileMeasurement;
 import edu.brown.utils.StringUtil;
+import edu.brown.utils.TableUtil;
 import edu.brown.utils.LoggerUtil.LoggerBoolean;
 import edu.mit.hstore.HStoreSite;
 import edu.mit.hstore.dtxn.LocalTransactionState;
@@ -316,7 +317,7 @@ public class ExecutionSiteHelper implements Runnable {
             } // FOR
             row_idx++;
         }
-        return (StringUtil.csv(header, rows));
+        return (TableUtil.csv(header, rows));
     }
 
 }

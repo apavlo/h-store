@@ -37,7 +37,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Observer;
 import java.util.Set;
-import java.util.TreeSet;
 import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
@@ -169,7 +168,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         return (String.format("H%03d%s", site_id, suffix));
     }
     
-    public static final String getSiteName(int site_id) {
+    public static final String formatSiteName(int site_id) {
         return (HStoreSite.getThreadName(site_id, null, null));
     }
 
@@ -186,100 +185,11 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
      * ForwardTxnResponseCallback Pool
      */
     public static ObjectPool POOL_FORWARDTXN_RESPONSE;
-
+    
     // ----------------------------------------------------------------------------
-    // TRANSACTION COUNTERS
+    // INTERNAL STUFF
     // ----------------------------------------------------------------------------
     
-    public enum TxnCounter {
-        /** The number of txns that we executed locally */
-        EXECUTED,
-        /** Speculative Execution **/
-        SPECULATIVE,
-        /** No undo buffers! Naked transactions! */
-        NO_UNDO_BUFFER,
-        /** Of the locally executed transactions, how many were single-partitioned */
-        SINGLE_PARTITION,
-        /** Of the locally executed transactions, how many were multi-partitioned */
-        MULTI_PARTITION,
-        /** The number of sysprocs that we executed */
-        SYSPROCS,
-        /** Of the locally executed transactions, how many were abort */
-        ABORTED,
-        /** The number of tranactions that were completed (committed or aborted) */
-        COMPLETED,
-        /** The number of transactions that were mispredicted (and thus re-executed) */
-        MISPREDICTED,
-        /** The number of transaction requests that have arrived at this site */
-        RECEIVED,
-        /** Of the the received transactions, the number that we had to send somewhere else */
-        REDIRECTED,
-        ;
-        
-        private final Histogram<String> h = new Histogram<String>();
-        private final String name;
-        private TxnCounter() {
-            this.name = StringUtil.title(this.name()).replace("_", "-");
-        }
-        @Override
-        public String toString() {
-            return (this.name);
-        }
-        public Histogram<String> getHistogram() {
-            return (this.h);
-        }
-        public int get() {
-            return ((int)this.h.getSampleCount());
-        }
-        public int inc(Procedure catalog_proc) {
-            this.h.put(catalog_proc.getName());
-            return (this.get());
-        }
-        public int dec(Procedure catalog_proc) {
-            this.h.remove(catalog_proc.getName());
-            return (this.get());
-        }
-        public static Set<String> getAllProcedures() {
-            Set<String> ret = new TreeSet<String>();
-            for (TxnCounter tc : TxnCounter.values()) {
-                ret.addAll(tc.h.values());
-            }
-            return (ret);
-        }
-        public double ratio() {
-            int total = -1;
-            switch (this) {
-                case SINGLE_PARTITION:
-                case MULTI_PARTITION:
-                    total = SINGLE_PARTITION.get() + MULTI_PARTITION.get();
-                    break;
-                case SPECULATIVE:
-                    total = SINGLE_PARTITION.get();
-                    break;
-                case NO_UNDO_BUFFER:
-                    total = EXECUTED.get();
-                    break;
-                case SYSPROCS:
-                case ABORTED:
-                case MISPREDICTED:
-                case EXECUTED:
-                    total = EXECUTED.get() - SYSPROCS.get();
-                    break;
-                case REDIRECTED:
-                case RECEIVED:
-                    total = RECEIVED.get();
-                    break;
-                default:
-                    assert(false) : this;
-            }
-            return (this.get() / (double)total);
-        }
-    }
-
-    // ----------------------------------------------------------------------------
-    // DATA MEMBERS
-    // ----------------------------------------------------------------------------
-
     /**
      * This is the thing that we will actually use to generate txn ids used by our H-Store specific code
      */
@@ -330,7 +240,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
     /**
      * 
      */
-    private boolean shutdown = false;
+    private Shutdownable.State shutdown_state = State.INITIALIZED;
     private final EventObservable shutdown_observable = new EventObservable();
     
     /** Catalog Stuff **/
@@ -505,7 +415,8 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
     
     private void setThresholds(EstimationThresholds thresholds) {
          this.thresholds = thresholds;
-         if (d) LOG.debug("Set new EstimationThresholds:\n" + thresholds);
+//         if (d) 
+         LOG.info("Set new EstimationThresholds: " + thresholds);
     }
     
     /**
@@ -749,6 +660,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
 
     @Override
     public void prepareShutdown() {
+        this.shutdown_state = State.PREPARE_SHUTDOWN;
         this.messenger.prepareShutdown();
         this.processor.prepareShutdown();
         for (int p : this.local_partitions) {
@@ -762,11 +674,11 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
      */
     @Override
     public synchronized void shutdown() {
-        if (this.shutdown) {
+        if (this.shutdown_state == State.SHUTDOWN) {
             if (d) LOG.debug("Already told to shutdown... Ignoring");
             return;
         }
-        this.shutdown = true;
+        this.shutdown_state = State.SHUTDOWN;
 //      if (d)
         LOG.info("Shutting down everything at " + this.getSiteName());
 
@@ -822,7 +734,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
      */
     @Override
     public boolean isShuttingDown() {
-        return (this.shutdown);
+        return (this.shutdown_state == State.SHUTDOWN || this.shutdown_state == State.PREPARE_SHUTDOWN);
     }
     
     /**
@@ -1489,7 +1401,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
             try {
                 ts.init_latch.await();
             } catch (Exception ex) {
-                if (this.shutdown == false) LOG.fatal("Unexpected error when waiting for latch on " + ts, ex);
+                if (this.isShuttingDown() == false) LOG.fatal("Unexpected error when waiting for latch on " + ts, ex);
                 this.shutdown();
             }
             if (hstore_conf.site.txn_profiling) ts.blocked_time.stop();
@@ -1639,9 +1551,10 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
             TxnCounter.COMPLETED.inc(catalog_proc);
             
             if (hstore_conf.site.status_show_txn_info) {
+                assert(catalog_proc != null) : "Missing catalog proc for " + ts;
                 if (status != Dtxn.FragmentResponse.Status.OK) TxnCounter.ABORTED.inc(catalog_proc);
                 if (ts.isSpeculative()) TxnCounter.SPECULATIVE.inc(catalog_proc);
-                if (ts.getLastUndoToken() == Long.MAX_VALUE) TxnCounter.NO_UNDO_BUFFER.inc(catalog_proc);
+                if (ts.getLastUndoToken() != null && ts.getLastUndoToken() == Long.MAX_VALUE) TxnCounter.NO_UNDO.inc(catalog_proc);
                 
                 if (ts.sysproc) {
                     TxnCounter.SYSPROCS.inc(catalog_proc);
@@ -1710,9 +1623,9 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
                     error = ex;
                     should_shutdown = true;
                 }
-                if (hstore_site.shutdown == false) {
-                    LOG.warn(String.format("ProtoServer thread is stopping! [error=%s, should_shutdown=%s, hstore_shutdown=%s]",
-                                           (error != null ? error.getMessage() : null), should_shutdown, hstore_site.shutdown));
+                if (hstore_site.isShuttingDown() == false) {
+                    LOG.warn(String.format("ProtoServer thread is stopping! [error=%s, should_shutdown=%s, state=%s]",
+                                           (error != null ? error.getMessage() : null), should_shutdown, hstore_site.shutdown_state));
                     hstore_site.prepareShutdown();
                     if (should_shutdown) hstore_site.messenger.shutdownCluster(error);
                 }
@@ -1757,7 +1670,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
                     hstore_site.ready_latch.countDown();
                     ThreadUtil.fork(command, hstore_site.shutdown_observable,
                                     String.format("[%s] ", hstore_site.getThreadName("protodtxnengine", partition)), true);
-                    if (hstore_site.shutdown == false) { 
+                    if (hstore_site.isShuttingDown() == false) { 
                         String msg = "ProtoDtxnEngine for Partition #" + partition + " is stopping!"; 
                         LOG.error(msg);
                         hstore_site.prepareShutdown();
@@ -1820,7 +1733,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
                     error = new Exception(ex);
                     should_shutdown = true;
                 } catch (Exception ex) {
-                    if (hstore_site.shutdown == false &&
+                    if (hstore_site.isShuttingDown() == false &&
                             ex != null &&
                             ex.getMessage() != null &&
                             ex.getMessage().contains("Connection closed") == false
@@ -1830,9 +1743,9 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
                         should_shutdown = true;
                     }
                 }
-                if (hstore_site.shutdown == false) {
-                    LOG.warn(String.format("Engine EventLoop thread is stopping! [error=%s, should_shutdown=%s, hstore_shutdown=%s]",
-                                           (error != null ? error.getMessage() : null), should_shutdown, hstore_site.shutdown));
+                if (hstore_site.isShuttingDown() == false) {
+                    LOG.warn(String.format("Engine EventLoop thread is stopping! [error=%s, should_shutdown=%s, state=%s]",
+                                           (error != null ? error.getMessage() : null), should_shutdown, hstore_site.shutdown_state));
                     hstore_site.prepareShutdown();
                     if (should_shutdown) hstore_site.messenger.shutdownCluster(error);
                 }
@@ -1868,7 +1781,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
                     LOG.fatal("Dtxn.Coordinator thread failed", ex);
                     error = new Exception(ex);
                 } catch (Exception ex) {
-                    if (hstore_site.shutdown == false &&
+                    if (hstore_site.isShuttingDown() == false &&
                         ex != null &&
                         ex.getMessage() != null &&
                         ex.getMessage().contains("Connection closed") == false
@@ -1877,9 +1790,9 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
                         error = ex;
                     }
                 }
-                if (hstore_site.shutdown == false) {
+                if (hstore_site.isShuttingDown() == false && hstore_site.isShuttingDown()) {
                     LOG.warn(String.format("Dtxn.Coordinator thread is stopping! [error=%s, hstore_shutdown=%s]",
-                                           (error != null ? error.getMessage() : null), hstore_site.shutdown));
+                                           (error != null ? error.getMessage() : null), hstore_site.shutdown_state));
                     hstore_site.messenger.shutdownCluster(error);
                 }
             };
@@ -2016,7 +1929,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
             // I'm not proud of this...
             // Load in all the partition-specific TransactionEstimators and ExecutionSites in order to 
             // stick them into the HStoreSite
-            LOG.debug("Creating Estimator for " + HStoreSite.getSiteName(site_id));
+            LOG.debug("Creating Estimator for " + HStoreSite.formatSiteName(site_id));
             TransactionEstimator t_estimator = new TransactionEstimator(p_estimator, args.param_correlations, local_markovs);
 
             // setup the EE
