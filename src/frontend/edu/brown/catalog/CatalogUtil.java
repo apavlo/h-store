@@ -96,10 +96,9 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
         public final Map<Column, Column> FOREIGNKEY_PARENT = new HashMap<Column, Column>();
         
         /**
-         * Execution Site Triplets
-         * [Host IP Address, Port #, Site ID]
+         * SiteId -> <Host, Port>
          */
-        public final List<String[]> EXECUTION_SITES = new ArrayList<String[]>();
+        public final Map<Integer, Pair<String, Integer>> EXECUTION_SITES = new HashMap<Integer, Pair<String, Integer>>(); 
     }
     
     private static final Map<Database, CatalogUtil.Cache> CACHE = new HashMap<Database, CatalogUtil.Cache>();
@@ -440,24 +439,20 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
     }
 
     /**
-     * Return a list of the triplets [Host IP Address, Port #, Site ID]
+     * Return a mapping from SiteId to <Host, Port#>
      * @param catalog_item
      * @return
      */
-    public static List<String[]> getExecutionSites(CatalogType catalog_item) {
+    public static Map<Integer, Pair<String, Integer>> getExecutionSites(CatalogType catalog_item) {
         final CatalogUtil.Cache cache = CatalogUtil.getCache(catalog_item);
-        final List<String[]> sites = cache.EXECUTION_SITES;
+        final Map<Integer, Pair<String, Integer>> sites = cache.EXECUTION_SITES;
         
         if (sites.isEmpty()) {
             Cluster catalog_clus = CatalogUtil.getCluster(catalog_item);
             for (Site catalog_site : CatalogUtil.getSortedCatalogItems(catalog_clus.getSites(), "id")) {
                 Host catalog_host = catalog_site.getHost();
                 assert (catalog_host != null);
-                sites.add(new String[] {
-                    catalog_host.getIpaddr(),
-                    Integer.toString(catalog_site.getProc_port()),
-                    Integer.toString(catalog_site.getId()), 
-                });
+                sites.put(catalog_site.getId(), Pair.of(catalog_host.getIpaddr(), catalog_site.getProc_port()));
             } // FOR
         }
         return (sites);

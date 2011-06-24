@@ -30,7 +30,6 @@ import java.io.IOException;
 import java.lang.reflect.Field;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -46,12 +45,15 @@ import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
 import org.voltdb.ServerThread;
 import org.voltdb.VoltDB;
+import org.voltdb.VoltTable;
 import org.voltdb.benchmark.BenchmarkResults.Result;
 import org.voltdb.benchmark.ClientMain.Command;
 import org.voltdb.catalog.Catalog;
+import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Site;
 import org.voltdb.client.Client;
 import org.voltdb.client.ClientFactory;
+import org.voltdb.client.ClientResponse;
 import org.voltdb.client.ProcCallException;
 import org.voltdb.compiler.VoltProjectBuilder;
 import org.voltdb.processtools.ProcessSetManager;
@@ -60,6 +62,8 @@ import org.voltdb.utils.LogKeys;
 import org.voltdb.utils.Pair;
 
 import edu.brown.catalog.CatalogUtil;
+import edu.brown.markov.MarkovGraphsContainer;
+import edu.brown.markov.MarkovUtil;
 import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.EventObserver;
@@ -141,9 +145,11 @@ public class BenchmarkController {
     ServerThread m_localserver = null;
     
     /**
-     * Triplets: <Host>, <Port>, <SiteId>
+     * SiteId -> <Host, Port>
      */
-    List<String[]> m_launchHosts = null;
+    Map<Integer, Pair<String, Integer>> m_launchHosts;
+    
+    private Catalog catalog;
     
     /**
      * Keeps track of any files to send to clients
@@ -249,10 +255,11 @@ public class BenchmarkController {
     }
 
     @SuppressWarnings("unchecked")
-    public BenchmarkController(BenchmarkConfig config) {
+    public BenchmarkController(BenchmarkConfig config, Catalog catalog) {
         m_config = config;
         self = Thread.currentThread();
         hstore_conf = HStoreConf.singleton();
+        this.catalog = catalog;
         
         // Setup ProcessSetManagers...
         m_clientPSM = new ProcessSetManager(hstore_conf.client.log_dir, this.failure_observer);
@@ -334,30 +341,29 @@ public class BenchmarkController {
         
         // Load the catalog that we just made
         if (debug.get()) LOG.debug("Loading catalog from '" + m_jarFileName + "'");
-        Catalog catalog = CatalogUtil.loadCatalogFromJar(m_jarFileName);
+        this.catalog = CatalogUtil.loadCatalogFromJar(m_jarFileName);
         assert(catalog != null);
         
         // Now figure out which hosts we really want to launch this mofo on
         Set<String> unique_hosts = new HashSet<String>();
         if (m_config.useCatalogHosts == false) {
             if (debug.get()) LOG.debug("Creating host information from BenchmarkConfig");
-            m_launchHosts = new ArrayList<String[]>();
-            Integer site_id = VoltDB.FIRST_SITE_ID;
+            m_launchHosts = new HashMap<Integer, Pair<String,Integer>>();
+            int site_id = VoltDB.FIRST_SITE_ID;
             for (String host : m_config.hosts) {
-                m_launchHosts.add(new String[] {
-                        host,
-                        Integer.toString(VoltDB.DEFAULT_PORT),
-                        site_id.toString()
-                });
+                if (trace.get()) LOG.trace(String.format("Creating host info for %s: %s:%d",
+                                                         HStoreSite.formatSiteName(site_id), host, VoltDB.DEFAULT_PORT));
+                m_launchHosts.put(site_id, Pair.of(host, VoltDB.DEFAULT_PORT));
                 unique_hosts.add(host);
                 site_id++;
             } // FOR
         } else {
             if (debug.get()) LOG.debug("Collecting host information from catalog");
             m_launchHosts = CatalogUtil.getExecutionSites(catalog);
-            for (String[] triplet : m_launchHosts) {
-                if (trace.get()) LOG.trace("Retrieved execution node info from catalog: " + triplet[0] + ":" + triplet[1] + " - ExecutionSite #" + triplet[2]);
-                unique_hosts.add(triplet[0]);
+            for (Entry<Integer, Pair<String, Integer>> e : m_launchHosts.entrySet()) {
+                if (trace.get()) LOG.trace(String.format("Retrieved host info for %s from catalog: %s:%d",
+                                                         HStoreSite.formatSiteName(e.getKey()), e.getValue().getFirst(), e.getValue().getSecond()));
+                unique_hosts.add(e.getValue().getFirst());
             } // FOR
         }
 
@@ -448,10 +454,10 @@ public class BenchmarkController {
             siteBaseCommand.add(String.format("-D%s=%s", e.getKey(), e.getValue()));
         } // FOR
 
-        for (String[] triplet : m_launchHosts) {
-            String host = triplet[0];
-            String port = triplet[1];
-            int site_id = Integer.valueOf(triplet[2]);
+        for (Entry<Integer, Pair<String, Integer>> e : m_launchHosts.entrySet()) {
+            Integer site_id = e.getKey();
+            String host = e.getValue().getFirst();
+            Integer port = e.getValue().getSecond();
             String host_id = String.format("site-%02d-%s", site_id, host);
             
             // Check whether this one of the sites that will be started externally
@@ -460,7 +466,7 @@ public class BenchmarkController {
                 continue;
             }
             
-            LOG.info(String.format("Starting HStoreSite %s on %s:%s ", HStoreSite.formatSiteName(site_id), host, port));
+            LOG.info(String.format("Starting HStoreSite %s on %s:%d", HStoreSite.formatSiteName(site_id), host, port));
 
 //            String debugString = "";
 //            if (m_config.listenForDebugger) {
@@ -496,7 +502,7 @@ public class BenchmarkController {
             String fullCommand = StringUtil.join(" ", command);
             if (trace.get()) LOG.trace("START COORDINATOR: " + fullCommand);
             m_coordPSM.startProcess("dtxn-" + host, command);
-            LOG.info("Started Dtxn.Coordinator on " + host);
+            LOG.info("Started Dtxn.Coordinator on " + host + ":" + hstore_conf.coordinator.port);
         }
         
         // WAIT FOR SERVERS TO BE READY
@@ -636,10 +642,8 @@ public class BenchmarkController {
         allClientArgs.add("STATSDATABASEURL=" + m_config.statsDatabaseURL);
         allClientArgs.add("STATSPOLLINTERVAL=" + m_config.interval);
         
-        for (String[] triplet : m_launchHosts) {
-            String host = triplet[0];
-            String port = triplet[1];
-            allClientArgs.add("HOST=" + host + ":" + port);
+        for (Pair<String, Integer> p : m_launchHosts.values()) {
+            allClientArgs.add("HOST=" + p.getFirst() + ":" + p.getSecond());
         } // FOR
 
         final AtomicInteger clientIndex = new AtomicInteger(0);
@@ -672,7 +676,7 @@ public class BenchmarkController {
                                 }
                                 if (debug.get()) LOG.debug(String.format("Copying %s file '%s' to '%s' on client %s [clientId=%d]",
                                 		                                 param, local_file, remote_file, clientHost, clientId)); 
-                                SSHTools.copyToRemote(local_file, m_config.remoteUser, clientHost, remote_file.getPath(), m_config.sshOptions);
+                                SSHTools.copyToRemote(local_file.getPath(), m_config.remoteUser, clientHost, remote_file.getPath(), m_config.sshOptions);
                                 client_args.add(param + "=" + remote_file.getPath());
                             } // FOR
                         }
@@ -703,15 +707,18 @@ public class BenchmarkController {
 
     protected Client getClientConnection() {
         // Connect to the first host and tell them to dump out the database contents
-        String triplet[] = CollectionUtil.getRandomValue(this.m_launchHosts);
-        assert(triplet != null);
-        LOG.info(String.format("Creating new client connection to HStoreSite %s", HStoreSite.formatSiteName(Integer.parseInt(triplet[2]))));
+        Integer site_id = CollectionUtil.getRandomValue(m_launchHosts.keySet());
+        assert(site_id != null);
+        Pair<String, Integer> p = m_launchHosts.get(site_id);
+        assert(p != null);
+        if (debug.get()) LOG.debug(String.format("Creating new client connection to HStoreSite %s", HStoreSite.formatSiteName(site_id)));
         
         Client new_client = ClientFactory.createClient(128, null, false, null);
         try {
-            new_client.createConnection(triplet[0], Integer.parseInt(triplet[1]), "user", "password");
+            new_client.createConnection(p.getFirst(), p.getSecond(), "user", "password");
         } catch (Exception ex) {
-            throw new RuntimeException("Failed to connect to HStoreSite " + Arrays.toString(triplet), ex);
+            throw new RuntimeException(String.format("Failed to connect to HStoreSite %s at %s:%d",
+                                                     HStoreSite.formatSiteName(site_id), p.getFirst(), p.getSecond()));
         }
         return (new_client);
     }
@@ -803,13 +810,14 @@ public class BenchmarkController {
         } // WHILE
         
         // Dump database
+        Client new_client = null;
         if (m_config.dumpDatabase && this.stop == false) {
             assert(m_config.dumpDatabaseDir != null);
             
             // We have to tell all our clients to pause first
             m_clientPSM.writeToAll(Command.PAUSE);
             
-            Client new_client = this.getClientConnection();
+            if (new_client == null) new_client = this.getClientConnection();
             try {
                 new_client.callProcedure("@DatabaseDump", m_config.dumpDatabaseDir);
             } catch (Exception ex) {
@@ -819,17 +827,11 @@ public class BenchmarkController {
         
         // Recompute MarkovGraphs
         if (m_config.markovRecompute && this.stop == false) {
-            String output_path = "/tmp/tpcc.markovs";
-            
             // We have to tell all our clients to pause first
             m_clientPSM.writeToAll(Command.PAUSE);
             
-            Client new_client = this.getClientConnection();
-            try {
-                new_client.callProcedure("@RecomputeMarkovs", true, output_path);
-            } catch (Exception ex) {
-                LOG.error("Failed to recompute MarkovGraphs", ex);
-            }
+            if (new_client == null) new_client = this.getClientConnection();
+            this.recomputeMarkovs(new_client);
         }
 
         this.stop = true;
@@ -857,6 +859,55 @@ public class BenchmarkController {
         } catch (InterruptedException e) {
             LOG.warn(e);
         }
+    }
+    
+    private void recomputeMarkovs(Client client) {
+        String output_directory = hstore_conf.global.temp_dir + "/markovs/" + m_projectBuilder.getProjectName();
+        FileUtil.makeDirIfNotExists(output_directory);
+        
+        Database catalog_db = CatalogUtil.getDatabase(catalog);
+        
+        ClientResponse cr = null;
+        try {
+            cr = client.callProcedure("@RecomputeMarkovs", true);
+        } catch (Exception ex) {
+            LOG.error("Failed to recompute MarkovGraphs", ex);
+            return;
+        }
+        assert(cr != null);
+        
+        // The return should be a list of SiteIds->RemotePath
+        // We just need to then pull down the files and then combine them into
+        // a single MarkovGraphContainer
+        Map<Integer, MarkovGraphsContainer> markovs = new HashMap<Integer, MarkovGraphsContainer>();
+        VoltTable results[] = cr.getResults();
+        assert(results.length == 1);
+        while (results[0].advanceRow()) {
+            int site_id = (int)results[0].getLong(0);
+            int partition_id = (int)results[0].getLong(1);
+            String remote_path = results[0].getString(2);
+            boolean is_global = (results[0].getLong(3) == 1);
+            
+            Pair<String, Integer> p = m_launchHosts.get(site_id);
+            assert(p != null) : "Invalid SiteId " + site_id;
+            
+            LOG.info(String.format("Retrieving MarkovGraph file '%s' from %s", remote_path, HStoreSite.formatSiteName(site_id)));
+            SSHTools.copyFromRemote(output_directory, m_config.remoteUser, p.getFirst(), remote_path, m_config.sshOptions);
+            File local_file = new File(output_directory + "/" + FileUtil.basename(remote_path));
+            
+            // Load in the MarkovGraphsContainer and add it to the list
+            MarkovGraphsContainer m = new MarkovGraphsContainer();
+            try {
+                m.load(local_file.getAbsolutePath(), catalog_db);
+            } catch (Exception ex) {
+                throw new RuntimeException("Failed to load MarkovGraphsContainer from " + HStoreSite.formatSiteName(site_id), ex);
+            }
+            markovs.put(partition_id, m);
+        } // FOR
+        
+        String new_output = output_directory + "/" + m_projectBuilder.getProjectName() + "-new.markovs";
+        LOG.info("Writing recomputed MarkovGraphsContainers to " + new_output);
+        MarkovUtil.save(markovs, new_output);
     }
     
     /**
@@ -1051,6 +1102,8 @@ public class BenchmarkController {
         boolean noDataLoad = false;
         boolean noShutdown = false;
         
+        Catalog catalog = null;
+        
         // HStoreConf Path
         String hstore_conf_path = null;
         
@@ -1236,8 +1289,7 @@ public class BenchmarkController {
             } else if (parts[0].equalsIgnoreCase("CATALOG")) {
                 catalogPath = new File(parts[1]);
                 
-                // HACK
-                Catalog catalog = CatalogUtil.loadCatalogFromJar(catalogPath.getAbsolutePath());
+                catalog = CatalogUtil.loadCatalogFromJar(catalogPath.getAbsolutePath());
                 assert(catalog != null);
                 num_partitions = CatalogUtil.getNumberOfPartitions(catalog);
                 
@@ -1450,7 +1502,7 @@ public class BenchmarkController {
         if (debug.get()) LOG.debug("Benchmark Configuration\n" + config.toString());
         
         // ACTUALLY RUN THE BENCHMARK
-        BenchmarkController controller = new BenchmarkController(config);
+        BenchmarkController controller = new BenchmarkController(config, catalog);
         controller.setupBenchmark();
         controller.runBenchmark();
         controller.cleanUpBenchmark();

@@ -17,6 +17,7 @@ import org.voltdb.utils.Encoder;
 
 import edu.brown.catalog.CatalogKey;
 import edu.brown.hashing.AbstractHasher;
+import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.JSONSerializable;
 import edu.brown.utils.JSONUtil;
@@ -277,7 +278,7 @@ public class MarkovGraphsContainer implements JSONSerializable {
     @SuppressWarnings("unchecked")
     public String toString() {
         int num_ids = this.markovs.size();
-        Map maps[] = new Map[num_ids+1];
+        Map<String, Object> maps[] = (Map<String, Object>[])new Map<?, ?>[num_ids+1];
         int i = 0;
         
         maps[i] = new ListOrderedMap<String, Object>();
@@ -287,12 +288,14 @@ public class MarkovGraphsContainer implements JSONSerializable {
         for (Integer id : this.markovs.keySet()) {
             Map<Procedure, MarkovGraph> m = this.markovs.get(id);
             
-            i += 1;
-            maps[i] = new ListOrderedMap<String, Object>();
-            maps[i].put("ID", id);
+            maps[++i] = new ListOrderedMap<String, Object>();
+            maps[i].put("ID", "#" + id);
             maps[i].put("Number of Procedures", m.size());
             for (Entry<Procedure, MarkovGraph> e : m.entrySet()) {
-                maps[i].put("   " + e.getKey().getName(), e.getValue().getVertexCount());
+                MarkovGraph markov = e.getValue();
+                String val = String.format("[Vertices=%d, Recomputed=%d, Accuracy=%.4f]",
+                                           markov.getVertexCount(), markov.getRecomputeCount(), markov.getAccuracyRatio());
+                maps[i].put("   " + e.getKey().getName(), val);
             } // FOR
         } // FOR
         
@@ -388,7 +391,6 @@ public class MarkovGraphsContainer implements JSONSerializable {
         List<Runnable> runnables = new ArrayList<Runnable>();
         for (String id_key : CollectionUtil.wrapIterator(json_inner.keys())) {
             final Integer id = Integer.valueOf(id_key);
-            // HACK
             if (id.equals(MarkovUtil.GLOBAL_MARKOV_CONTAINER_ID)) this.global = true;
         
             final JSONObject json_procs = json_inner.getJSONObject(id_key);
@@ -406,14 +408,16 @@ public class MarkovGraphsContainer implements JSONSerializable {
                     @Override
                     public void run() {
                         if (d) LOG.debug(String.format("Loading MarkovGraph [id=%d, proc=%s]", id, catalog_proc.getName()));
+                        JSONObject json_graph = null;
                         try {
-                            JSONObject json_graph = new JSONObject(Encoder.hexDecodeToString(json_procs.getString(proc_key)));
+                            json_graph = new JSONObject(Encoder.hexDecodeToString(json_procs.getString(proc_key)));
                             MarkovGraph markov = new MarkovGraph(catalog_proc);
                             markov.fromJSON(json_graph, catalog_db);
                             MarkovGraphsContainer.this.put(id, markov);
                             markov.buildCache();
-                        } catch (Exception ex) {
-                            throw new RuntimeException(ex);
+                        } catch (Throwable ex) {
+                            System.err.println(JSONUtil.format(json_graph));
+                            throw new RuntimeException("Failed to load MarkovGraph " + id + " for " + catalog_proc.getName(), ex);
                         }
                     }
                 });
@@ -421,5 +425,17 @@ public class MarkovGraphsContainer implements JSONSerializable {
         } // FOR (id key)
         if (d) LOG.debug(String.format("Going to wait for %d MarkovGraphs to load", runnables.size())); 
         ThreadUtil.runGlobalPool(runnables);
+    }
+    
+    public static void main(String[] vargs) throws Exception {
+        ArgumentsParser args = ArgumentsParser.load(vargs);
+        args.require(ArgumentsParser.PARAM_CATALOG,
+                     ArgumentsParser.PARAM_MARKOV);
+        
+        MarkovGraphsContainer m = new MarkovGraphsContainer();
+        m.load(args.getParam(ArgumentsParser.PARAM_MARKOV), args.catalog_db);
+        
+        System.out.println(m);
+        
     }
 }

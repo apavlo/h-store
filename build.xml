@@ -1833,10 +1833,10 @@ DESIGNER
     </java>
 </target>
 
-<target name='markov' description="Generate Markov Graphs">
+<target name='markov' description="Generate Markov Graphs" depends="getcpus">
     <java fork="yes" classname="edu.brown.markov.MarkovGraph" failonerror='true'>
         <jvmarg value="-Xmx${volt.client.memory}m" />
-        <jvmarg value="-Dhstore.max_threads=${max_threads}" />
+        <jvmarg value="-Dhstore.max_threads=${numcpus}" />
         <arg value="catalog.jar=${jar}" />
         <arg value="workload=${workload}" />
         <arg value="workload.xactlimit=${limit}" />
@@ -1851,10 +1851,10 @@ DESIGNER
     </java>
 </target>
 
-<target name='markov-cost' description="Estimate MarkovGraph Costs">
+<target name='markov-cost' description="Estimate MarkovGraph Costs" depends="getcpus">
     <java fork="yes" classname="edu.brown.costmodel.MarkovCostModel" failonerror='true'>
         <jvmarg value="-Xmx${volt.client.memory}m" />
-        <jvmarg value="-Dhstore.max_threads=${max_threads}" />
+        <jvmarg value="-Dhstore.max_threads=${numcpus}" />
         <arg value="catalog.jar=${jar}" />
         <arg value="workload=${workload}" />
         <arg value="workload.xactlimit=${limit}" />

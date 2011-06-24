@@ -353,6 +353,7 @@ public enum VoltType {
         switch (this)
         {
         case TINYINT:
+        case BOOLEAN:
             return NULL_TINYINT;
         case SMALLINT:
             return NULL_SMALLINT;
@@ -391,6 +392,7 @@ public enum VoltType {
             switch(typeFromObject(obj))
             {
             case TINYINT:
+            case BOOLEAN:
                 retval = (((Number) obj).byteValue() == NULL_TINYINT);
                 break;
             case SMALLINT:

@@ -17,13 +17,23 @@ public abstract class AbstractGraphElement implements JSONSerializable {
     private final Map<IGraph<?, ?>, Map<String, Object>> attributes = new HashMap<IGraph<?, ?>, Map<String,Object>>();
     private Long element_id;
     private transient boolean enable_verbose = false;
-
+    private static final Random rand = new Random(); 
+    
     public AbstractGraphElement() {
-        this.element_id = (long)super.hashCode();
+        // Nothing...
+    }
+    
+    private long computeElementId() {
+        return (this.hashCode() | rand.nextInt()<<32);
     }
     
     public Long getElementId() {
-        return element_id;
+        if (this.element_id == null) {
+            synchronized (this) {
+                if (this.element_id == null) this.element_id = computeElementId();
+            } // SYNCH
+        }
+        return this.element_id;
     }
     
     /**

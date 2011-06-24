@@ -293,7 +293,8 @@ public class ExecutionSite implements Runnable, Shutdownable {
     protected HStoreSite hstore_site;
     protected HStoreMessenger hstore_messenger;
     protected HStoreConf hstore_conf;
-    private ExecutionSitePostProcessor processor = null;
+    protected ExecutionSitePostProcessor processor = null;
+    protected ExecutionSiteHelper helper = null;
     
     protected final transient Set<Integer> done_partitions = new HashSet<Integer>();
 
@@ -659,6 +660,9 @@ public class ExecutionSite implements Runnable, Shutdownable {
         assert(this.hstore_site == null);
         this.hstore_site = hstore_site;
         this.hstore_messenger = hstore_site.getMessenger();
+        assert(this.hstore_messenger != null) : "Missing HStoreMessenger";
+        this.helper = hstore_site.getExecutionSiteHelper();
+        assert(this.helper != null) : "Missing ExecutionSiteHelper";
         this.thresholds = (hstore_site != null ? hstore_site.getThresholds() : null);
         if (hstore_conf.site.exec_postprocessing_thread) this.processor = hstore_site.getExecutionSitePostProcessor();
         if (hstore_conf.site.exec_profiling) this.work_queue_wait.resetOnEvent(this.hstore_site.getWorkloadObservable());
@@ -1575,10 +1579,10 @@ public class ExecutionSite implements Runnable, Shutdownable {
                 synchronized (this.exec_mode) {
                     assert(this.current_dtxn_blocked.isEmpty()) :
                         String.format("Overlapping multi-partition transactions at partition %d: Orig[#%d] <=> New[#%d]",
-                                      this.partitionId, this.current_dtxn, txn_id);
+                                      this.partitionId, this.current_dtxn.getTransactionId(), txn_id);
                     assert(this.current_dtxn == null) :
                         String.format("Overlapping multi-partition transactions at partition %d: Orig[#%d] <=> New[#%d]",
-                                      this.partitionId, this.current_dtxn, txn_id);
+                                      this.partitionId, this.current_dtxn.getTransactionId(), txn_id);
                     this.current_dtxn = ts;
                     if (hstore_conf.site.exec_speculative_execution) {
                         this.setExecutionMode(read_only ? ExecutionMode.COMMIT_READONLY : ExecutionMode.COMMIT_NONE, txn_id);

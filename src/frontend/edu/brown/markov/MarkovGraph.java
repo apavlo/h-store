@@ -63,6 +63,7 @@ public class MarkovGraph extends AbstractDirectedGraph<Vertex, Edge> implements 
     private transient int xact_count = 0;
     private transient int xact_mispredict = 0;
     private transient double xact_accuracy = 1.0;
+    private transient int recompute_count = 0;
 
     // ----------------------------------------------------------------------------
     // CONSTRUCTORS
@@ -356,6 +357,7 @@ public class MarkovGraph extends AbstractDirectedGraph<Vertex, Edge> implements 
             e.incrementHits(e.getInstancehits());
         }
         this.calculateProbabilities();
+        this.recompute_count++;
     }
 
     /**
@@ -551,16 +553,17 @@ public class MarkovGraph extends AbstractDirectedGraph<Vertex, Edge> implements 
         return true;
     }
 
-    public boolean shouldRecompute(int instance_count, double recomputeTolerance){
-        double VERTEX_PROPORTION = 0.5f; //If VERTEX_PROPORTION of 
+    public boolean shouldRecompute(int instance_count, double recomputeTolerance) {
+        double VERTEX_PROPORTION = 0.5f; // If VERTEX_PROPORTION of
         int count = 0;
-        for(Vertex v: this.getVertices()){
-            if(v.shouldRecompute(instance_count, recomputeTolerance, xact_count)){
+        for (Vertex v : this.getVertices()) {
+            if (v.shouldRecompute(instance_count, recomputeTolerance, xact_count)) {
                 count++;
             }
         }
-        return (count*1.0/getVertices().size()) >= VERTEX_PROPORTION;
+        return (count * 1.0 / getVertices().size()) >= VERTEX_PROPORTION;
     }
+    
     // ----------------------------------------------------------------------------
     // XACT PROCESSING METHODS
     // ----------------------------------------------------------------------------
@@ -676,6 +679,10 @@ public class MarkovGraph extends AbstractDirectedGraph<Vertex, Edge> implements 
     
     public double getAccuracyRatio() {
         return (this.xact_accuracy);
+    }
+    
+    public int getRecomputeCount() {
+        return (this.recompute_count);
     }
     
     // ----------------------------------------------------------------------------
