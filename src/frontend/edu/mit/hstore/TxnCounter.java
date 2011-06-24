@@ -68,6 +68,7 @@ public enum TxnCounter {
     }
     public Double ratio() {
         int total = -1;
+        int cnt = this.get();
         switch (this) {
             case SINGLE_PARTITION:
             case MULTI_PARTITION:
@@ -94,6 +95,6 @@ public enum TxnCounter {
             default:
                 assert(false) : this;
         }
-        return (this.get() / (double)total);
+        return (total == 0 ? null : cnt / (double)total);
     }
 }

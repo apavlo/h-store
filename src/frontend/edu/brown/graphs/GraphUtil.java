@@ -1,13 +1,17 @@
 package edu.brown.graphs;
 
 import java.io.*;
+import java.util.Collection;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import org.apache.log4j.Logger;
 import org.json.*;
 import org.voltdb.catalog.Database;
 
 import edu.brown.gui.common.GraphVisualizationPanel;
+import edu.brown.markov.Vertex;
 import edu.brown.utils.ClassUtil;
 import edu.brown.utils.FileUtil;
 import edu.brown.utils.JSONUtil;
@@ -109,14 +113,16 @@ public abstract class GraphUtil {
         assert(graph.getVertexCount() > 0) : "Graph has no vertices";
         stringer.key(Members.VERTICES.name()).array();
         Class<V> v_class = null;
-        for (V vertex : graph.getVertices()) {
+        Set<V> all_vertices = new HashSet<V>();
+        for (V v : graph.getVertices()) {
             if (v_class == null) {
-                v_class = (Class<V>)vertex.getClass();
+                v_class = (Class<V>)v.getClass();
                 LOG.debug("Discovered vertex class: " + v_class.getName());
             }
             stringer.object();
-            vertex.toJSON(stringer);
+            v.toJSON(stringer);
             stringer.endObject();
+            all_vertices.add(v);
         } // FOR
         stringer.endArray();
         stringer.key(Members.VERTEX_CLASS.name()).value(v_class.getName());
@@ -125,14 +131,29 @@ public abstract class GraphUtil {
         if (graph.getEdgeCount() > 0) {
             stringer.key(Members.EDGES.name()).array();
             Class<E> e_class = null;
-            for (E edge : graph.getEdges()) {
+            for (E e : graph.getEdges()) {
                 if (e_class == null) {
-                    e_class = (Class<E>)edge.getClass();
+                    e_class = (Class<E>)e.getClass();
                     LOG.debug("Discovered edge class: " + e_class.getName());
                 }
-                stringer.object();
-                edge.toJSON(stringer);
-                stringer.endObject();
+                // Thread synchronization issue
+                // This is an attempt to prevent us from writing out edges that have vertices
+                // that were added in between the time that we originaly wrote out the list of vertices
+                if (all_vertices.containsAll(graph.getIncidentVertices(e))) {
+//                    V v = graph.getSource(e);
+//                    if (v.getCatalogItemName().equals("getStockInfo04") && v instanceof Vertex && ((Vertex)v).getQueryInstanceIndex() == 2) {
+//                        System.err.println(e);
+//                        for (V v2 : graph.getIncidentVertices(e)) {
+//                            System.err.println("ELEMENTID: " + v2.getElementId() + "\n" + v2.debug());
+//                        }
+//                        System.err.println("-----------------------------");
+//                        break;
+//                    }
+                    
+                    stringer.object();
+                    e.toJSON(stringer);
+                    stringer.endObject();
+                }
             } // FOR
             stringer.endArray();
             stringer.key(Members.EDGE_CLASS.name()).value(e_class.getName());

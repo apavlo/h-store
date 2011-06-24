@@ -138,6 +138,7 @@ public abstract class VoltProcedure implements Poolable {
     protected TransactionEstimator t_estimator;
     protected HStoreConf hstore_conf;
     
+    /** The local partition id where this VoltProcedure is running */
     protected int base_partition = -1;
 
     /** Callback for when the VoltProcedure finishes and we need to send a ClientResponse somewhere **/
@@ -1047,15 +1048,10 @@ public abstract class VoltProcedure implements Poolable {
             MispredictionException ex = this.plan.getMisprediction(); 
 
             State s = this.m_localTxnState.getEstimatorState();
-            MarkovGraph markov = null;
-            if (s != null && hstore_conf.site.markov_mispredict_recompute) {
+            MarkovGraph markov = (s != null ? s.getMarkovGraph() : null); 
+            if (hstore_conf.site.markov_mispredict_recompute && markov != null) {
                 if (d) LOG.debug("Recomputing MarkovGraph probabilities because " + m_localTxnState + " mispredicted");
-                markov = s.getMarkovGraph();
-                markov.recalculateProbabilities();
-                if (d && markov.isValid() == false) {
-                    LOG.error("Invalid MarkovGraph after recomputing! Crashing...");
-                    hstore_conf.site.exec_mispredict_crash = true;
-                }
+                this.executor.helper.queueMarkovToRecompute(markov);
             }
             
             if (d || hstore_conf.site.exec_mispredict_crash) {

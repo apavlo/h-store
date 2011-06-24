@@ -119,6 +119,9 @@ OPT_WARMUP = 60000
 OPT_CLIENT_PER_NODE = 4
 OPT_CLIENT_COUNT = -1
 OPT_NEWORDER_ONLY = False
+OPT_MARKOV_RECOMPUTE = False
+
+OPT_OUTPUT_LOG = "client.log"
 
 OPT_EXP_TYPE = "markov"
 OPT_EXP_TRIALS = 3
@@ -169,6 +172,9 @@ if __name__ == '__main__':
         # Enable workload trace dumps
         "trace",
         
+        # Whether to recompute Markov models after run
+        "markov-recompute",
+        
         # Thresholds value
         "thresholds=",
         
@@ -205,6 +211,7 @@ if __name__ == '__main__':
     if not os.path.exists("%s.jar" % OPT_BENCHMARK):
         logging.info("Building %s project jar" % OPT_BENCHMARK.upper())
         cmd = "ant compile hstore-prepare -Dproject=%s" % OPT_BENCHMARK
+        if OPT_OUTPUT_LOG: cmd += " | tee " + OPT_OUTPUT_LOG
         logging.debug(cmd)
         (result, output) = commands.getstatusoutput(cmd)
         assert result == 0, cmd + "\n" + output
@@ -251,8 +258,9 @@ if __name__ == '__main__':
         logging.debug("CLIENT_NODES = %s" % CLIENT_NODES)
         
         base_opts = {
-            "project":  OPT_BENCHMARK,
-            "hosts":    cluster_file,
+            "project":          OPT_BENCHMARK,
+            "hosts":            cluster_file,
+            "markov.recompute": OPT_MARKOV_RECOMPUTE,
         }
         base_opts_cmd = " ".join(map(lambda x: "-D%s=%s" % (x, base_opts[x]), base_opts.keys()))
         cmd = "ant hstore-jar " + base_opts_cmd
@@ -312,7 +320,7 @@ if __name__ == '__main__':
 
         if "thresholds" in exp_opts and exp_opts["thresholds"]:
             del exp_opts["thresholds"]
-            exp_opts["thresholds.value"] = float(options["thresholds"][0])
+            exp_opts["markov.thresholds.value"] = float(options["thresholds"][0])
 
         hstore_opts = dict(hstore_opts.items() + exp_opts.items())
         hstore_opts_cmd = " ".join(map(lambda x: "-D%s=%s" % (x, hstore_opts[x]), hstore_opts.keys()))
@@ -336,7 +344,7 @@ if __name__ == '__main__':
         for trial in range(0, OPT_EXP_TRIALS):
             cmd = "ant hstore-benchmark " + ant_opts_cmd
             if OPT_TRACE: cmd += " -Dtrace=traces/%s-%dp-%d" % (OPT_BENCHMARK.lower(), num_partitions, trial)
-            cmd += " | tee client.log"
+            if OPT_OUTPUT_LOG: cmd += " | tee " + OPT_OUTPUT_LOG
             if trial == 0: logging.debug(cmd)
             #sys.exit(1)
             (result, output) = commands.getstatusoutput(cmd)

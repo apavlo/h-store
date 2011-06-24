@@ -453,8 +453,6 @@ public abstract class MarkovUtil {
                     String className = MarkovGraphsContainer.class.getCanonicalName();
                     if (json_object.has(MarkovGraphsContainer.Members.CLASSNAME.name())) {
                         className = json_object.getString(MarkovGraphsContainer.Members.CLASSNAME.name());    
-//                    } else {
-//                        assert(false) : "Missing class name: " + CollectionUtil.toList(json_object.keys());
                     }
                     MarkovGraphsContainer markovs = ClassUtil.newInstance(className,
                                                                           new Object[]{ procedures},
@@ -485,7 +483,7 @@ public abstract class MarkovUtil {
      * @param output_path
      * @throws Exception
      */
-    public static void save(Map<Integer, ? extends MarkovGraphsContainer> markovs, String output_path) throws Exception {
+    public static void save(Map<Integer, ? extends MarkovGraphsContainer> markovs, String output_path) {
         final String className = MarkovGraphsContainer.class.getSimpleName();
         LOG.info("Writing out graphs of " + className + " to '" + output_path + "'");
         
@@ -518,7 +516,7 @@ public abstract class MarkovUtil {
             out.close();
         } catch (Exception ex) {
             LOG.error("Failed to serialize the " + className + " file '" + output_path + "'", ex);
-            throw new IOException(ex);
+            throw new RuntimeException(ex);
         }
         LOG.debug(className + " objects were written out to '" + output_path + "'");
     }

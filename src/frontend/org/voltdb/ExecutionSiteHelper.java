@@ -33,17 +33,18 @@ import java.util.Map;
 import java.util.Observable;
 import java.util.TreeMap;
 import java.util.Map.Entry;
+import java.util.concurrent.LinkedBlockingDeque;
 
 import org.apache.log4j.Logger;
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Procedure;
 
 import edu.brown.catalog.CatalogUtil;
+import edu.brown.markov.MarkovGraph;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.EventObserver;
 import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.ProfileMeasurement;
-import edu.brown.utils.StringUtil;
 import edu.brown.utils.TableUtil;
 import edu.brown.utils.LoggerUtil.LoggerBoolean;
 import edu.mit.hstore.HStoreSite;
@@ -94,6 +95,11 @@ public class ExecutionSiteHelper implements Runnable {
     private int total_cleaned = 0;
     
     /**
+     * List of MarkovGraphs that need to be recomputed
+     */
+    private final LinkedBlockingDeque<MarkovGraph> markovs_to_recompute = new LinkedBlockingDeque<MarkovGraph>(); 
+    
+    /**
      * Shutdown Observer
      * This gets invoked when the HStoreSite is shutting down
      */
@@ -119,7 +125,7 @@ public class ExecutionSiteHelper implements Runnable {
      * @param txn_expire
      * @param enable_profiling
      */
-    public ExecutionSiteHelper(Collection<ExecutionSite> executors, int max_txn_per_round, int txn_expire, boolean enable_profiling) {
+    public ExecutionSiteHelper(HStoreSite hstore_site, Collection<ExecutionSite> executors, int max_txn_per_round, int txn_expire, boolean enable_profiling) {
         assert(executors != null);
         assert(executors.isEmpty() == false);
         this.executors = executors;
@@ -127,11 +133,12 @@ public class ExecutionSiteHelper implements Runnable {
         this.txn_per_round = max_txn_per_round;
         this.enable_profiling = enable_profiling;
 
+        this.hstore_site = hstore_site;
+        assert(this.hstore_site != null) : "Missing HStoreSite!";
+        
         assert(this.executors.size() > 0) : "No ExecutionSites for helper";
         ExecutionSite executor = CollectionUtil.getFirst(this.executors);
         assert(executor != null);
-        this.hstore_site = executor.getHStoreSite();
-        assert(this.hstore_site != null) : "Missing HStoreSite!";
         
         if (this.enable_profiling) {
             this.prepareProfileInformation(CatalogUtil.getDatabase(executor.getCatalogSite()));
@@ -140,6 +147,14 @@ public class ExecutionSiteHelper implements Runnable {
         
         if (debug.get()) LOG.debug(String.format("Instantiated new ExecutionSiteHelper [txn_expire=%d, per_round=%d, profiling=%s]",
                                                  this.txn_expire, this.txn_per_round, this.enable_profiling));
+    }
+    
+    /**
+     * 
+     * @param markov
+     */
+    public void queueMarkovToRecompute(MarkovGraph markov) {
+        this.markovs_to_recompute.add(markov);
     }
     
     @Override
@@ -182,6 +197,18 @@ public class ExecutionSiteHelper implements Runnable {
             // Only call tick here!
             es.tick();
         } // FOR
+        
+        // Recompute MarkovGraphs if we have them
+        MarkovGraph m = null;
+        while ((m = this.markovs_to_recompute.poll()) != null) {
+            if (d) LOG.debug(String.format("Recomputing MarkovGraph for %s [recomputed=%d, hashCode=%d]",
+                                           m.getProcedure().getName(), m.getRecomputeCount(), m.hashCode()));
+            m.recalculateProbabilities();
+            if (d && m.isValid() == false) {
+                LOG.error("Invalid MarkovGraph after recomputing! Crashing...");
+                this.hstore_site.getMessenger().shutdownCluster(new Exception("Invalid Markovgraph after recomputing"), false);
+            }
+        } // WHILE
     }
     
     /**

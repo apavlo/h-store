@@ -286,6 +286,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
     /**
      * Helper Thread Stuff
      */
+    private ExecutionSiteHelper helper;
     private final ScheduledExecutorService helper_pool;
     
     /**
@@ -387,6 +388,10 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
     
     public ExecutionSitePostProcessor getExecutionSitePostProcessor() {
         return (this.processor);
+    }
+    
+    public ExecutionSiteHelper getExecutionSiteHelper() {
+        return (this.helper);
     }
     
     public int getExecutorCount() {
@@ -498,6 +503,11 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
     public void init() {
         if (d) LOG.debug("Initializing HStoreSite " + this.getSiteName());
 
+        List<ExecutionSite> executor_list = new ArrayList<ExecutionSite>();
+        for (int partition : this.local_partitions) {
+            executor_list.add(this.getExecutionSite(partition));
+        } // FOR
+        
         // First we need to tell the HStoreMessenger to start-up and initialize its connections
         if (d) LOG.debug("Starting HStoreMessenger for " + this.getSiteName());
         this.messenger.start();
@@ -524,13 +534,23 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
             new Thread(this.processor).start();
         }
         
+        // Schedule the ExecutionSiteHelper
+        if (d) LOG.debug(String.format("Scheduling ExecutionSiteHelper to run every %.1f seconds", hstore_conf.site.helper_interval / 1000f));
+        this.helper = new ExecutionSiteHelper(this,
+                                              executor_list,
+                                              hstore_conf.site.helper_txn_per_round,
+                                              hstore_conf.site.helper_txn_expire,
+                                              hstore_conf.site.txn_profiling);
+        this.helper_pool.scheduleAtFixedRate(this.helper,
+                                             hstore_conf.site.helper_initial_delay,
+                                             hstore_conf.site.helper_interval,
+                                             TimeUnit.MILLISECONDS);
+        
         // Then we need to start all of the ExecutionSites in threads
         if (d) LOG.debug("Starting ExecutionSite threads for " + this.local_partitions.size() + " partitions on " + this.getSiteName());
-        List<ExecutionSite> executor_list = new ArrayList<ExecutionSite>();
         for (int partition : this.local_partitions) {
             ExecutionSite executor = this.getExecutionSite(partition);
             executor.initHStoreSite(this);
-            executor_list.add(executor);
 
             Thread t = new Thread(executor);
             t.setDaemon(true);
@@ -538,17 +558,6 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
             this.executor_threads[partition] = t;
             t.start();
         } // FOR
-        
-        // Schedule the ExecutionSiteHelper
-        // This must come after the ExecutionSites are initialized
-        if (d) LOG.debug(String.format("Scheduling ExecutionSiteHelper to run every %.1f seconds", hstore_conf.site.helper_interval / 1000f));
-        ExecutionSiteHelper helper = new ExecutionSiteHelper(executor_list,
-                                                             hstore_conf.site.helper_txn_per_round,
-                                                             hstore_conf.site.helper_txn_expire,
-                                                             hstore_conf.site.txn_profiling);
-        this.helper_pool.scheduleAtFixedRate(helper, hstore_conf.site.helper_initial_delay,
-                                                     hstore_conf.site.helper_interval,
-                                                     TimeUnit.MILLISECONDS);
         
         if (d) LOG.debug("Preloading cached objects");
         try {

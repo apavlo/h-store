@@ -35,7 +35,7 @@ public class Vertex extends AbstractVertex {
     static {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
-    private static boolean d = debug.get();
+//    private static boolean d = debug.get();
     private static boolean t = trace.get();
     
     // ----------------------------------------------------------------------------
@@ -652,7 +652,7 @@ public class Vertex extends AbstractVertex {
      * @return
      */
     public boolean shouldRecompute(int xact_count, double recomputeTolerance, int workload_count) {
-        double original_score = this.totalhits / (1.0f * workload_count); 
+        double original_score = this.totalhits / (1.0f * workload_count);
         return (getChangeScore(xact_count) - original_score) / original_score >= recomputeTolerance;
     }
 

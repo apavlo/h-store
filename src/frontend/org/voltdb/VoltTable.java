@@ -474,6 +474,10 @@ public final class VoltTable extends VoltTableRow implements FastSerializable {
         return retval;
     }
     
+    /**
+     * Returns the active row
+     * @return
+     */
     public final VoltTableRow getRow() {
         int idx = this.getActiveRowIndex();
         return (this.fetchRow(idx));

@@ -41,7 +41,7 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
     private static final Set<TxnCounter> TXNINFO_ALWAYS_SHOW = new HashSet<TxnCounter>();
     static {
         CollectionUtil.addAll(TXNINFO_COL_DELIMITERS, TxnCounter.EXECUTED, TxnCounter.MULTI_PARTITION, TxnCounter.MISPREDICTED);
-        CollectionUtil.addAll(TXNINFO_ALWAYS_SHOW, TxnCounter.MULTI_PARTITION);
+        CollectionUtil.addAll(TXNINFO_ALWAYS_SHOW, TxnCounter.MULTI_PARTITION, TxnCounter.SINGLE_PARTITION);
     }
     
     private final HStoreSite hstore_site;
@@ -61,7 +61,6 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
     
     private Thread self;
 
-    final Map<String, Object> m_thread = new ListOrderedMap<String, Object>();
     final Map<String, Object> m_pool = new ListOrderedMap<String, Object>();
     final Map<String, Object> header = new ListOrderedMap<String, Object>();
     
@@ -146,7 +145,11 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
         return this.hstore_site.isShuttingDown();
     }
     
-    public Map<String, Object> executorInfo() {
+    /**
+     * 
+     * @return
+     */
+    protected Map<String, Object> executorInfo() {
         int inflight_cur = hstore_site.getInflightTxnCount();
         if (inflight_min == null || inflight_cur < inflight_min) inflight_min = inflight_cur;
         if (inflight_max == null || inflight_cur > inflight_max) inflight_max = inflight_cur;
@@ -201,7 +204,11 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
         return (m_exec);
     }
     
-    public Map<String, String> txnInfo() {
+    /**
+     * 
+     * @return
+     */
+    protected Map<String, String> txnInfo() {
         
         Set<TxnCounter> cnts_to_include = new TreeSet<TxnCounter>();
         Set<String> procs = TxnCounter.getAllProcedures();
@@ -244,7 +251,7 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
                 rows[i+1][j] = "";
             } else {
                 Double ratio = tc.ratio();
-                rows[i][j] = Integer.toString(tc.get());
+                rows[i][j] = (ratio == null ? "-" : Integer.toString(tc.get()));
                 rows[i+1][j] = (ratio == null ? "-": String.format("%.3f", ratio));
             }
             j++;
@@ -252,6 +259,31 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
         
         TableUtil.Format f = new TableUtil.Format("   ", col_delimiters, row_delimiters, true, false, true, false, false, false);
         return (TableUtil.tableMap(f, header, rows));
+    }
+    
+    /**
+     * 
+     * @return
+     */
+    protected Map<String, Object> threadInfo() {
+        final Map<String, Object> m_thread = new ListOrderedMap<String, Object>();
+        final Map<Thread, StackTraceElement[]> threads = Thread.getAllStackTraces();
+        sortedThreads.clear();
+        sortedThreads.addAll(threads.keySet());
+        m_thread.put("Number of Threads", threads.size());
+        for (Thread t : sortedThreads) {
+            StackTraceElement stack[] = threads.get(t);
+            String trace = null;
+            if (stack.length == 0) {
+                trace = "<NONE>";
+//            } else if (t.getName().startsWith("Thread-")) {
+//                trace = Arrays.toString(stack);
+            } else {
+                trace = stack[0].toString();
+            }
+            m_thread.put(StringUtil.abbrv(t.getName(), 24, true), trace);
+        } // FOR
+        return (m_thread);
     }
     
     public synchronized String snapshot(boolean show_txns, boolean show_exec, boolean show_threads, boolean show_poolinfo) {
@@ -268,33 +300,12 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
         // ----------------------------------------------------------------------------
         // Executor Information
         // ----------------------------------------------------------------------------
-        Map<String, Object> m_exec = null;
-        if (show_exec) {
-            m_exec = this.executorInfo();
-        }
+        Map<String, Object> m_exec = (show_exec ? this.executorInfo() : null);
 
         // ----------------------------------------------------------------------------
         // Thread Information
         // ----------------------------------------------------------------------------
-        m_thread.clear();
-        if (show_threads) {
-            final Map<Thread, StackTraceElement[]> threads = Thread.getAllStackTraces();
-            sortedThreads.clear();
-            sortedThreads.addAll(threads.keySet());
-            m_thread.put("Number of Threads", threads.size());
-            for (Thread t : sortedThreads) {
-                StackTraceElement stack[] = threads.get(t);
-                String trace = null;
-                if (stack.length == 0) {
-                    trace = "<NONE>";
-//                } else if (t.getName().startsWith("Thread-")) {
-//                    trace = Arrays.toString(stack);
-                } else {
-                    trace = stack[0].toString();
-                }
-                m_thread.put(StringUtil.abbrv(t.getName(), 24, true), trace);
-            } // FOR
-        }
+        Map<String, Object> m_thread = (show_threads ? this.threadInfo() : null);
 
         // ----------------------------------------------------------------------------
         // Object Pool Information

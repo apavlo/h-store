@@ -34,7 +34,7 @@ public class VoltDB {
     public static final int DTXN_MAILBOX_ID = 0;
 
     // temporary for single partition testing
-    public static final int FIRST_SITE_ID = 1;
+    public static final int FIRST_SITE_ID = 0;
 
     public static final int SITES_TO_HOST_DIVISOR = 100;
     public static final int MAX_SITES_PER_HOST = 128;

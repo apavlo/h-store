@@ -240,7 +240,7 @@ public final class HStoreConf {
         
         @ConfigProperty(
             description="If this enabled, HStoreSite will use a separate thread to process every outbound ClientResponse for " +
-                        "all of the ExecutionSites. This may help with multi-partition transaction but will be the bottleneck " +
+                        "all of the ExecutionSites. This may help with multi-partition transactions but will be the bottleneck " +
                         "for single-partition txn heavy workloads.",
             defaultBoolean=false,
             advanced=true
@@ -328,9 +328,11 @@ public final class HStoreConf {
         // ----------------------------------------------------------------------------
 
         @ConfigProperty(
-            description="Recompute a MarkovGraph's execution state probabilities every time a transaction " +
-                        "is aborted due to a misprediction.",
+            description="Recompute a Markov model's execution state probabilities every time a transaction " +
+                        "is aborted due to a misprediction. The Markov model is queued in the ExecutionSiteHelper " +
+                        "for processing rather than being executed directly within the ExecutionSite's thread.",
             defaultBoolean=true,
+            experimental=false,
             advanced=false
         )
         public boolean markov_mispredict_recompute;
@@ -918,7 +920,8 @@ public final class HStoreConf {
         //  (1) parameter
         //  (2) parameter
         //  (3) experimental
-        //  (4) description 
+        //  (4) default value
+        //  (5) description 
         final String prop_f = "<a name=\"%s\"></a>\n" +
                               "<li><tt class=\"property\">%s</tt>%s\n%s\n</li>\n\n";
         
