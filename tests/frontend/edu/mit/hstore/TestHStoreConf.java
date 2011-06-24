@@ -29,6 +29,15 @@ public class TestHStoreConf extends BaseTestCase {
     }
     
     /**
+     * testMakeHTML
+     */
+    public void testMakeHTML() throws Exception {
+        String contents = hstore_conf.makeHTML();
+        assertNotNull(contents);
+        System.err.println(contents);
+    }
+    
+    /**
      * 
      */
     public void testMakeConfig() throws Exception {
@@ -39,7 +48,7 @@ public class TestHStoreConf extends BaseTestCase {
 //            String key = String.format("site.%s", f.getName());
 //            assert(contents.contains(key)) : "Missing " + key;
 //        } // FOR
-        System.out.println(contents);
+//        System.out.println(contents);
         
     }
     

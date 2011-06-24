@@ -909,6 +909,49 @@ public final class HStoreConf {
         } // FOR
     }
     
+    public String makeHTML() {
+        StringBuilder sb = new StringBuilder();
+        
+        final String experimental = " <b class=\"experimental\">Experimental</b>";
+        
+        // Parameters:
+        //  (1) parameter
+        //  (2) parameter
+        //  (3) experimental
+        //  (4) description 
+        final String prop_f = "<a name=\"%s\"></a>\n" +
+                              "<li><tt class=\"property\">%s</tt>%s\n%s\n</li>\n\n";
+        
+        final Pattern prop_p = Pattern.compile("\\$\\{([\\w]+\\.[\\w\\_]+)\\}");
+        
+        for (String group : this.confHandles.keySet()) {
+            Conf handle = this.confHandles.get(group);
+            
+            sb.append(String.format("<h2>%s Parameters</h2>\n", StringUtil.title(group)));
+            sb.append("<ul class=\"property-list\">\n\n");
+            
+            for (Field f : handle.properties.keySet()) {
+                String key = String.format("%s.%s", group, f.getName());
+                ConfigProperty cp = handle.properties.get(f);
+                
+                // Format description
+                String desc = cp.description();
+                Matcher m = prop_p.matcher(desc);
+                if (m.find()) {
+                    desc = m.replaceAll("<a href=\"#$1\" class=\"property\">$1</a>");
+                }
+                
+                sb.append(String.format(prop_f, key, key, (cp.experimental() ? experimental : ""), desc));
+            } // FOR
+            
+            sb.append("</ul>\n\n");
+        } // FOR
+        
+        return (sb.toString());
+    }
+    
+    
+    
     /**
      * 
      */
