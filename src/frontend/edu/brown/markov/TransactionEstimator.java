@@ -459,12 +459,6 @@ public class TransactionEstimator {
             if (d) LOG.debug(String.format("No %s MarkovGraph exists for txn #%d", catalog_proc.getName(), txn_id));
             return (null);
         }
-        // We don't want to check this here because we have may have added new vertices that have not been computed yet
-//        if (markov.isValid() == false) {
-//            GraphvizExport<Vertex, Edge> gv = MarkovUtil.exportGraphviz(markov, true, false, true, null);
-//            LOG.warn("Wrote invalid MarkovGraph out to file: " + gv.writeToTempFile());
-//            assert(markov.isValid()) : String.format("The MarkovGraph for %s txn #%d is not valid!", catalog_proc.getName(), txn_id);
-//        }
         
         Vertex start = markov.getStartVertex();
         MarkovPathEstimator estimator = null;
@@ -651,15 +645,14 @@ public class TransactionEstimator {
             if (next_e == null) next_e = g.addToEdge(current, next_v);
 
             // Update counters
-            next_v.incrementInstancehits();
+            next_v.incrementInstanceHits();
             next_v.addInstanceTime(txn_id, s.getExecutionTimeOffset(start_time));
-            next_e.incrementInstancehits();
+            next_e.incrementInstanceHits();
         } // SYNCH
         assert(next_e != null);
         s.setCurrent(next_v); // In case somebody wants to do post-processing...
         
         // Store this as the last accurate MarkovPathEstimator for this graph
-        
         if (hstore_conf.site.markov_path_caching && this.cached_estimators.containsKey(s.markov) == false) {
             synchronized (this.cached_estimators) {
                 if (this.cached_estimators.containsKey(s.markov) == false) {
@@ -731,8 +724,8 @@ public class TransactionEstimator {
 
         // Update the counters and other info for the next vertex and edge
         next_v.addInstanceTime(state.txn_id, state.getExecutionTimeOffset());
-        next_v.incrementInstancehits();
-        next_e.incrementInstancehits();
+        next_v.incrementInstanceHits();
+        next_e.incrementInstanceHits();
         
         // Update the state information
         state.setCurrent(next_v);

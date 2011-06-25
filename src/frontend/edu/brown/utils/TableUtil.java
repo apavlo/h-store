@@ -24,6 +24,7 @@ public abstract class TableUtil {
         public final boolean quote_rows;
         public final boolean quote_header;
         public final boolean trim_all;
+        public final boolean capitalize_header;
         
         /**
          * Create a new TableUtil format object
@@ -35,8 +36,18 @@ public abstract class TableUtil {
          * @param quote_rows Whether to wrap each non-header cell in quotes (including spacing)
          * @param quote_header Whether to wrap ach header cell in quotes (including spacing)
          * @param trim_all TODO
+         * @param capitalize_header TODO
          */
-        public Format(String delimiter, String delimiter_cols[], String[] delimiter_rows, boolean spacing, boolean spacing_all, boolean right_align, boolean quote_rows, boolean quote_header, boolean trim_all) {
+        public Format(String delimiter,
+                      String delimiter_cols[],
+                      String[] delimiter_rows,
+                      boolean spacing,
+                      boolean spacing_all,
+                      boolean right_align,
+                      boolean quote_rows,
+                      boolean quote_header,
+                      boolean trim_all,
+                      boolean capitalize_header) {
             this.delimiter_all = delimiter;
             this.delimiter_cols = delimiter_cols;
             this.delimiter_rows = delimiter_rows;
@@ -46,6 +57,7 @@ public abstract class TableUtil {
             this.quote_rows = quote_rows;
             this.quote_header = quote_header;
             this.trim_all = trim_all;
+            this.capitalize_header = capitalize_header;
         }
         
         @Override
@@ -74,14 +86,14 @@ public abstract class TableUtil {
     
     public static Format defaultTableFormat() {
         if (DEFAULT_TABLE == null) {
-            DEFAULT_TABLE = new Format(TABLE_DELIMITER, null, null, true, false, false, false, false, false);
+            DEFAULT_TABLE = new Format(TABLE_DELIMITER, null, null, true, false, false, false, false, false, false);
         }
         return (DEFAULT_TABLE);
     }
     
     public static Format defaultCSVFormat() {
         if (DEFAULT_CSV == null) {
-            DEFAULT_CSV = new Format(CSV_DELIMITER, null, null, false, false, false, false, false, false);
+            DEFAULT_CSV = new Format(CSV_DELIMITER, null, null, false, false, false, false, false, false, false);
         }
         return (DEFAULT_CSV);
     }
@@ -241,7 +253,9 @@ public abstract class TableUtil {
         // Create header row
         StringBuilder sb = new StringBuilder();
         for (int col_idx = 0; col_idx < header_formats.length; col_idx++) {
-            sb.append(String.format(header_formats[col_idx], header[col_idx]));
+            String cell = header[col_idx];
+            if (format.capitalize_header) cell = cell.toUpperCase();
+            sb.append(String.format(header_formats[col_idx], cell));
         } // FOR
         
         // Now dump out the table

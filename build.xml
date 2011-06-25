@@ -1457,7 +1457,8 @@ BENCHMARKS
         <arg value="markov=${markov}" />
         <arg value="markov.thresholds=${markov.thresholds}" />
         <arg value="markov.thresholds.value=${markov.thresholds.value}" />
-        <arg value="markov.recompute=${markov.recompute}" />
+        <arg value="markov.recompute_end=${markov.recompute_end}" />
+        <arg value="markov.recompute_warmup=${markov.recompute_warmup}" />
 
         <!-- Execution Options -->
         <arg value="TXNRATE=${client.txnrate}" />

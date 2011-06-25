@@ -750,6 +750,8 @@ public class BenchmarkController {
         m_statusThread.start();
 
         long nextIntervalTime = m_config.interval;
+        
+        Client local_client = null;
 
         // spin on whether all clients are ready
         while (m_clientsNotReady.get() > 0)
@@ -770,6 +772,24 @@ public class BenchmarkController {
             }
             
             if (this.stop == false) {
+                // Recompute Markovs
+                // We don't need to save them to a file though
+                if (m_config.markovRecomputeAfterWarmup) {
+                    
+                    // Note that this won't work the way that we want it to because it will get queued up
+                    // in the Dtxn.Coordinator and we have no way to set the priority of it
+                    // This means that it will have to wait until *all* of the previously submitted multi-partition
+                    // transactions get executed before it will get executed... we really need to write our
+                    // own transaction coordinator...
+                    if (local_client == null) local_client = this.getClientConnection();
+                    LOG.info("Requesting HStoreSites to recalculate Markov models after warm-up");
+                    try {
+                        local_client.callProcedure("@RecomputeMarkovs", false);
+                    } catch (Exception ex) {
+                        throw new RuntimeException("Failed to recompute Markov models", ex);
+                    }
+                }
+                
                 // Reset the counters
                 for (String clientName : m_clients)
                     m_clientPSM.writeToProcess(clientName, Command.CLEAR);
@@ -810,34 +830,33 @@ public class BenchmarkController {
         } // WHILE
         
         // Dump database
-        Client new_client = null;
         if (m_config.dumpDatabase && this.stop == false) {
             assert(m_config.dumpDatabaseDir != null);
             
             // We have to tell all our clients to pause first
             m_clientPSM.writeToAll(Command.PAUSE);
             
-            if (new_client == null) new_client = this.getClientConnection();
+            if (local_client == null) local_client = this.getClientConnection();
             try {
-                new_client.callProcedure("@DatabaseDump", m_config.dumpDatabaseDir);
+                local_client.callProcedure("@DatabaseDump", m_config.dumpDatabaseDir);
             } catch (Exception ex) {
                 LOG.error("Failed to dump database contents", ex);
             }
         }
         
         // Recompute MarkovGraphs
-        if (m_config.markovRecompute && this.stop == false) {
+        if (m_config.markovRecomputeAfterEnd && this.stop == false) {
             // We have to tell all our clients to pause first
             m_clientPSM.writeToAll(Command.PAUSE);
             
-            if (new_client == null) new_client = this.getClientConnection();
-            this.recomputeMarkovs(new_client);
+            if (local_client == null) local_client = this.getClientConnection();
+            this.recomputeMarkovs(local_client);
         }
 
         this.stop = true;
-        m_clientPSM.prepareToShutdown();
-        m_sitePSM.prepareToShutdown();
-        m_coordPSM.prepareToShutdown();
+        m_clientPSM.prepareShutdown();
+        m_sitePSM.prepareShutdown();
+        m_coordPSM.prepareShutdown();
         
         // shut down all the clients
         boolean first = true;
@@ -864,9 +883,9 @@ public class BenchmarkController {
     private void recomputeMarkovs(Client client) {
         String output_directory = hstore_conf.global.temp_dir + "/markovs/" + m_projectBuilder.getProjectName();
         FileUtil.makeDirIfNotExists(output_directory);
-        
         Database catalog_db = CatalogUtil.getDatabase(catalog);
-        
+
+        LOG.info("Requesting HStoreSites to recalculate Markov models");
         ClientResponse cr = null;
         try {
             cr = client.callProcedure("@RecomputeMarkovs", true);
@@ -879,35 +898,27 @@ public class BenchmarkController {
         // The return should be a list of SiteIds->RemotePath
         // We just need to then pull down the files and then combine them into
         // a single MarkovGraphContainer
-        Map<Integer, MarkovGraphsContainer> markovs = new HashMap<Integer, MarkovGraphsContainer>();
+        Map<Integer, File> markovs = new HashMap<Integer, File>();
         VoltTable results[] = cr.getResults();
         assert(results.length == 1);
         while (results[0].advanceRow()) {
             int site_id = (int)results[0].getLong(0);
             int partition_id = (int)results[0].getLong(1);
             String remote_path = results[0].getString(2);
-            boolean is_global = (results[0].getLong(3) == 1);
+//            boolean is_global = (results[0].getLong(3) == 1);
             
             Pair<String, Integer> p = m_launchHosts.get(site_id);
             assert(p != null) : "Invalid SiteId " + site_id;
             
-            LOG.info(String.format("Retrieving MarkovGraph file '%s' from %s", remote_path, HStoreSite.formatSiteName(site_id)));
+            if (debug.get()) LOG.debug(String.format("Retrieving MarkovGraph file '%s' from %s", remote_path, HStoreSite.formatSiteName(site_id)));
             SSHTools.copyFromRemote(output_directory, m_config.remoteUser, p.getFirst(), remote_path, m_config.sshOptions);
             File local_file = new File(output_directory + "/" + FileUtil.basename(remote_path));
-            
-            // Load in the MarkovGraphsContainer and add it to the list
-            MarkovGraphsContainer m = new MarkovGraphsContainer();
-            try {
-                m.load(local_file.getAbsolutePath(), catalog_db);
-            } catch (Exception ex) {
-                throw new RuntimeException("Failed to load MarkovGraphsContainer from " + HStoreSite.formatSiteName(site_id), ex);
-            }
-            markovs.put(partition_id, m);
+            markovs.put(partition_id, local_file);
         } // FOR
         
         String new_output = output_directory + "/" + m_projectBuilder.getProjectName() + "-new.markovs";
-        LOG.info("Writing recomputed MarkovGraphsContainers to " + new_output);
-        MarkovUtil.save(markovs, new_output);
+        LOG.info(String.format("Writing %d updated MarkovGraphsContainers to '%s'", markovs.size(),  new_output));
+        MarkovUtil.combine(markovs, new_output, catalog_db);
     }
     
     /**
@@ -917,15 +928,15 @@ public class BenchmarkController {
         // if (this.cleaned) return;
         
         if (debug.get()) LOG.debug("Killing clients");
-        m_clientPSM.killAll();
+        m_clientPSM.shutdown();
 
         if (debug.get()) LOG.debug("Killing nodes");
-        m_sitePSM.killAll();
+        m_sitePSM.shutdown();
         
         if (m_config.noCoordinator == false) {
             ThreadUtil.sleep(1000); // HACK
             if (debug.get()) LOG.debug("Killing Dtxn.Coordinator");
-            m_coordPSM.killAll();
+            m_coordPSM.shutdown();
         }
         this.cleaned = true;
     }
@@ -1114,7 +1125,8 @@ public class BenchmarkController {
         String markov_path = null;
         String markov_thresholdsPath = null;
         Double markov_thresholdsValue = null;
-        boolean markov_recompute = false;
+        boolean markov_recomputeAfterEnd = false;
+        boolean markov_recomputeAfterWarmup = false;
         
         // Logging
         String clientLogDir = "/tmp";
@@ -1339,9 +1351,12 @@ public class BenchmarkController {
             } else if (parts[0].equalsIgnoreCase(ArgumentsParser.PARAM_MARKOV_THRESHOLDS_VALUE)) {
                 markov_thresholdsValue = Double.valueOf(parts[1]);
                 siteParams.put(parts[0].toLowerCase(), parts[1]);
-            /* Recompute Markovs */
-            } else if (parts[0].equalsIgnoreCase(ArgumentsParser.PARAM_MARKOV_RECOMPUTE)) {
-                markov_recompute = Boolean.parseBoolean(parts[1]);
+            /* Recompute Markovs After End */
+            } else if (parts[0].equalsIgnoreCase(ArgumentsParser.PARAM_MARKOV_RECOMPUTE_END)) {
+                markov_recomputeAfterEnd = Boolean.parseBoolean(parts[1]);
+            /* Recompute Markovs After Warmup Period*/
+            } else if (parts[0].equalsIgnoreCase(ArgumentsParser.PARAM_MARKOV_RECOMPUTE_WARMUP)) {
+                markov_recomputeAfterWarmup = Boolean.parseBoolean(parts[1]);
 
             } else if (parts[0].equalsIgnoreCase("DUMPDATABASE")) {
                 dumpDatabase = Boolean.parseBoolean(parts[1]);                
@@ -1482,7 +1497,8 @@ public class BenchmarkController {
                 markov_path,
                 markov_thresholdsPath,
                 markov_thresholdsValue,
-                markov_recompute,
+                markov_recomputeAfterEnd,
+                markov_recomputeAfterWarmup,
                 dumpDatabase,
                 dumpDatabaseDir
         );
@@ -1504,7 +1520,12 @@ public class BenchmarkController {
         // ACTUALLY RUN THE BENCHMARK
         BenchmarkController controller = new BenchmarkController(config, catalog);
         controller.setupBenchmark();
-        controller.runBenchmark();
-        controller.cleanUpBenchmark();
+        try {
+            controller.runBenchmark();
+        } catch (Throwable ex) {
+            LOG.fatal("Failed to complete benchmark", ex);
+        } finally {
+            controller.cleanUpBenchmark();
+        }
     }
 }

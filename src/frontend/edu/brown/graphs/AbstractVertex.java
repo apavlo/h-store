@@ -58,7 +58,7 @@ public class AbstractVertex extends AbstractGraphElement {
     }
     
     public String getCatalogKey() {
-        return catalog_key;
+        return (this.catalog_key);
     }
     
     @Override

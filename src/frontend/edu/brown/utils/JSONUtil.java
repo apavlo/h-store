@@ -419,7 +419,7 @@ public abstract class JSONUtil {
             if (debug) LOG.debug("Retreiving value for field '" + json_key + "'");
             
             if (!json_object.has(json_key)) {
-                String msg = "JSONObject for " + base_class.getSimpleName() + " does not have key '" + json_key + "'"; // : " + CollectionUtil.toList(json_object.keys()); 
+                String msg = "JSONObject for " + base_class.getSimpleName() + " does not have key '" + json_key + "': " + CollectionUtil.toList(json_object.keys()); 
                 if (ignore_missing) {
                     if (debug) LOG.warn(msg);
                     continue;

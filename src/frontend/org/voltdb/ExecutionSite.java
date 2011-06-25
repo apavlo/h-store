@@ -117,6 +117,7 @@ import edu.mit.hstore.dtxn.DependencyInfo;
 import edu.mit.hstore.dtxn.LocalTransactionState;
 import edu.mit.hstore.dtxn.RemoteTransactionState;
 import edu.mit.hstore.dtxn.TransactionState;
+import edu.mit.hstore.interfaces.Loggable;
 import edu.mit.hstore.interfaces.Shutdownable;
 
 /**
@@ -125,15 +126,17 @@ import edu.mit.hstore.interfaces.Shutdownable;
  * fragments. Interacts with the DTXN system to get work to do. The thread might
  * do other things, but this is where the good stuff happens.
  */
-public class ExecutionSite implements Runnable, Shutdownable {
+public class ExecutionSite implements Runnable, Shutdownable, Loggable {
     public static final Logger LOG = Logger.getLogger(ExecutionSite.class);
     private final static LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private final static LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    private static boolean d;
+    private static boolean t;
     static {
         LoggerUtil.attachObserver(LOG, debug, trace);
+        d = debug.get();
+        t = trace.get();
     }
-    private boolean t = trace.get();
-    private boolean d = debug.get();
 
     // ----------------------------------------------------------------------------
     // INTERNAL EXECUTION STATE
@@ -660,9 +663,9 @@ public class ExecutionSite implements Runnable, Shutdownable {
         assert(this.hstore_site == null);
         this.hstore_site = hstore_site;
         this.hstore_messenger = hstore_site.getMessenger();
-        assert(this.hstore_messenger != null) : "Missing HStoreMessenger";
+//        assert(this.hstore_messenger != null) : "Missing HStoreMessenger";
         this.helper = hstore_site.getExecutionSiteHelper();
-        assert(this.helper != null) : "Missing ExecutionSiteHelper";
+//        assert(this.helper != null) : "Missing ExecutionSiteHelper";
         this.thresholds = (hstore_site != null ? hstore_site.getThresholds() : null);
         if (hstore_conf.site.exec_postprocessing_thread) this.processor = hstore_site.getExecutionSitePostProcessor();
         if (hstore_conf.site.exec_profiling) this.work_queue_wait.resetOnEvent(this.hstore_site.getWorkloadObservable());
@@ -787,6 +790,12 @@ public class ExecutionSite implements Runnable, Shutdownable {
         }
     }
 
+    @Override
+    public void updateLogging() {
+        d = debug.get();
+        t = trace.get();
+    }
+    
     // ----------------------------------------------------------------------------
     // UTILITY METHODS
     // ----------------------------------------------------------------------------
@@ -2299,7 +2308,7 @@ public class ExecutionSite implements Runnable, Shutdownable {
      * This won't return!
      */
     public synchronized void crash(Throwable ex) {
-        LOG.info(String.format("ExecutionSite for Partition #%d is crashing: %s", this.partitionId, ex.getMessage()));
+        LOG.info(String.format("ExecutionSite for Partition #%d is crashing", this.partitionId), ex);
         assert(this.hstore_messenger != null);
         this.hstore_messenger.shutdownCluster(ex); // This won't return
     }

@@ -1,7 +1,6 @@
 package edu.brown.markov;
 
 import java.io.File;
-import java.util.Map;
 
 import org.voltdb.VoltProcedure;
 import org.voltdb.benchmark.tpcc.procedures.neworder;

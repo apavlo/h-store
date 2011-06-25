@@ -113,13 +113,14 @@ import edu.mit.hstore.callbacks.MultiPartitionTxnCallback;
 import edu.mit.hstore.callbacks.SinglePartitionTxnCallback;
 import edu.mit.hstore.dtxn.LocalTransactionState;
 import edu.mit.hstore.dtxn.TransactionState;
+import edu.mit.hstore.interfaces.Loggable;
 import edu.mit.hstore.interfaces.Shutdownable;
 
 /**
  * 
  * @author pavlo
  */
-public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureListener.Handler, Shutdownable {
+public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureListener.Handler, Shutdownable, Loggable {
     private static final Logger LOG = Logger.getLogger(HStoreSite.class);
     private final static LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private final static LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
@@ -372,6 +373,12 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
     // UTILITY METHODS
     // ----------------------------------------------------------------------------
 
+    @Override
+    public void updateLogging() {
+        d = debug.get();
+        t = trace.get();
+    }
+    
     /**
      * Convenience method to dump out status of this HStoreSite
      * @return
@@ -466,11 +473,6 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
      */
     public int getNextServerTimestamp() {
         return (this.server_timestamp.getAndIncrement());
-    }
-    
-    public void updateLogging() {
-        d = debug.get();
-        t = trace.get();
     }
     
     /**
@@ -1618,16 +1620,12 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
                 execLatch.countDown();
                 
                 boolean should_shutdown = false;
-                Exception error = null;
+                Throwable error = null;
                 try {
                     hstore_site.protoEventLoop.setExitOnSigInt(true);
                     hstore_site.ready_latch.countDown();
                     hstore_site.protoEventLoop.run();
-                } catch (AssertionError ex) {
-                    if (hstore_site.isShuttingDown() == false) LOG.fatal("ProtoServer thread failed", ex);
-                    error = new Exception(ex);
-                    should_shutdown = true;
-                } catch (Exception ex) {
+                } catch (Throwable ex) {
                     if (hstore_site.isShuttingDown() == false) LOG.fatal("ProtoServer thread failed", ex);
                     error = ex;
                     should_shutdown = true;
@@ -1732,16 +1730,12 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
                 if (d) LOG.debug("Established connections to all Dtxn.Engines");
                 
                 boolean should_shutdown = false;
-                Exception error = null;
+                Throwable error = null;
                 try {
                     hstore_site.engineEventLoop.setExitOnSigInt(true);
                     hstore_site.ready_latch.countDown();
                     hstore_site.engineEventLoop.run();
-                } catch (AssertionError ex) {
-                    LOG.fatal("Engine EventLoop thread failed", ex);
-                    error = new Exception(ex);
-                    should_shutdown = true;
-                } catch (Exception ex) {
+                } catch (Throwable ex) {
                     if (hstore_site.isShuttingDown() == false &&
                             ex != null &&
                             ex.getMessage() != null &&
@@ -1781,15 +1775,12 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
                 hstore_site.voltListener = new VoltProcedureListener(hstore_site.coordinatorEventLoop, hstore_site);
                 hstore_site.voltListener.bind(catalog_site.getProc_port());
                 
-                Exception error = null;
+                Throwable error = null;
                 try {
                     hstore_site.coordinatorEventLoop.setExitOnSigInt(true);
                     hstore_site.ready_latch.countDown();
                     hstore_site.coordinatorEventLoop.run();
-                } catch (AssertionError ex) {
-                    LOG.fatal("Dtxn.Coordinator thread failed", ex);
-                    error = new Exception(ex);
-                } catch (Exception ex) {
+                } catch (Throwable ex) {
                     if (hstore_site.isShuttingDown() == false &&
                         ex != null &&
                         ex.getMessage() != null &&

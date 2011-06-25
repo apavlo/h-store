@@ -68,10 +68,18 @@ public class RecomputeMarkovs extends VoltSystemProcedure {
                 // We will only write out our file if we are the first partition in the list at this site
                 if (is_global == false ||
                     (is_global == true && Collections.min(hstore_site.getLocalPartitionIds()).equals(this.base_partition))) {
+                    
+                    if (debug) LOG.debug(String.format("Recalculating MarkovGraph probabilities at partition %d [save=%s, global=%s]",
+                                                       this.base_partition, save_to_file, is_global));
+                    
                     for (MarkovGraph m : markovs.getAll()) {
-                        m.recalculateProbabilities();
+                        try {
+                            m.recalculateProbabilities();
+                        } catch (Throwable ex) {
+                            this.executor.crash(ex);
+                        }
                     } // FOR
-                    LOG.debug(String.format("MarkovGraphsContainer [global=%s, partition=%d]", is_global, this.base_partition));
+                    
                     if (save_to_file) {
                         File f = FileUtil.getTempFile("markovs-" + this.base_partition, true);
                         LOG.info(String.format("Saving updated MarkovGraphs to '" + f + "'"));

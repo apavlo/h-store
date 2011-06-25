@@ -112,7 +112,8 @@ public class ArgumentsParser {
     public static final String PARAM_MARKOV_THREADS         = PARAM_MARKOV + ".threads";
     public static final String PARAM_MARKOV_SPLIT           = PARAM_MARKOV + ".split";
     public static final String PARAM_MARKOV_GLOBAL          = PARAM_MARKOV + ".global";
-    public static final String PARAM_MARKOV_RECOMPUTE       = PARAM_MARKOV + ".recompute";
+    public static final String PARAM_MARKOV_RECOMPUTE_END   = PARAM_MARKOV + ".recompute_end";
+    public static final String PARAM_MARKOV_RECOMPUTE_WARMUP = PARAM_MARKOV + ".recompute_warmup";
     public static final String PARAM_MARKOV_SPLIT_TRAINING  = PARAM_MARKOV_SPLIT + ".training";
     public static final String PARAM_MARKOV_SPLIT_VALIDATION = PARAM_MARKOV_SPLIT + ".validation";
     public static final String PARAM_MARKOV_SPLIT_TESTING   = PARAM_MARKOV_SPLIT + ".testing";

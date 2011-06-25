@@ -17,7 +17,6 @@ import edu.brown.BaseTestCase;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.correlations.ParameterCorrelations;
 import edu.brown.utils.ProjectType;
-import edu.brown.utils.StringUtil;
 import edu.brown.workload.TransactionTrace;
 import edu.brown.workload.Workload;
 import edu.brown.workload.filters.BasePartitionTxnFilter;
@@ -119,14 +118,14 @@ public class TestMarkovPathEstimator extends BaseTestCase {
         MarkovPathEstimator estimator = new MarkovPathEstimator(this.graph, this.t_estimator, BASE_PARTITION, singlep_trace.getParams());
         assert(estimator.isInitialized());
         estimator.enableForceTraversal(true);
-        assertEquals(1.0, estimator.getConfidence());
+        assertEquals(1.0f, estimator.getConfidence(), MarkovGraph.PROBABILITY_EPSILON);
         estimator.traverse(this.graph.getStartVertex());
         MarkovEstimate estimate = estimator.getEstimate();
         assertNotNull(estimate);
         
         estimator.finish();
         assertFalse(estimator.isInitialized());
-        assertEquals((float)MarkovUtil.NULL_MARKER, (float)estimator.getConfidence());
+        assertEquals(MarkovUtil.NULL_MARKER, estimator.getConfidence(), MarkovGraph.PROBABILITY_EPSILON);
     }
     
     /**
@@ -151,13 +150,13 @@ public class TestMarkovPathEstimator extends BaseTestCase {
                 assert(estimate.getWriteProbability(p) > 0.0);
             } else {
                 assertEquals(0, estimate.getTouchedCounter(p));
-                assert(estimate.getWriteProbability(p) == 0.0);
+                assertEquals(0.0f, estimate.getWriteProbability(p), MarkovGraph.PROBABILITY_EPSILON);
             }
         } // FOR
         assert(estimate.isSinglePartitionProbabilitySet());
         assert(estimate.isAbortProbabilitySet());
         
-        assertEquals(1.0, estimate.getSinglePartitionProbability());
+        assertEquals(1.0f, estimate.getSinglePartitionProbability(), MarkovGraph.PROBABILITY_EPSILON);
     }
     
     /**
@@ -173,7 +172,7 @@ public class TestMarkovPathEstimator extends BaseTestCase {
         estimator.enableForceTraversal(true);
         estimator.traverse(this.graph.getStartVertex());
         Vector<Vertex> path = new Vector<Vertex>(estimator.getVisitPath());
-        double confidence = estimator.getConfidence();
+        float confidence = estimator.getConfidence();
         
 //        System.err.println("INITIAL PATH:\n" + StringUtil.join("\n", path));
 //        System.err.println("CONFIDENCE: " + confidence);

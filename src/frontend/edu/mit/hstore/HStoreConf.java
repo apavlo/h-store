@@ -401,7 +401,8 @@ public final class HStoreConf {
         public int status_interval;
 
         @ConfigProperty(
-            description="Allow the HStoreSite StatusThread to kill the cluster if it looks hung.",
+            description="Allow the HStoreSiteStatus thread to kill the cluster if it's local HStoreSite has " +
+                        "not executed and completed any new transactions since the last time it took a status snapshot.", 
             defaultBoolean=true,
             advanced=false
         )
