@@ -25,12 +25,13 @@ import edu.brown.utils.StringUtil;
 import edu.brown.utils.LoggerUtil.LoggerBoolean;
 import edu.brown.workload.TransactionTrace;
 import edu.mit.hstore.HStoreConf;
+import edu.mit.hstore.interfaces.Loggable;
 
 /**
  * Path Estimator for TransactionEstimator
  * @author pavlo
  */
-public class MarkovPathEstimator extends VertexTreeWalker<Vertex> {
+public class MarkovPathEstimator extends VertexTreeWalker<Vertex> implements Loggable {
     private static final Logger LOG = Logger.getLogger(MarkovPathEstimator.class);
     private final static LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private final static LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
@@ -91,7 +92,7 @@ public class MarkovPathEstimator extends VertexTreeWalker<Vertex> {
     /**
      * This is how confident we are 
      */
-    private double confidence = MarkovUtil.NULL_MARKER;
+    private float confidence = MarkovUtil.NULL_MARKER;
 
     /**
      * 
@@ -167,7 +168,7 @@ public class MarkovPathEstimator extends VertexTreeWalker<Vertex> {
     public MarkovPathEstimator init(MarkovGraph markov, TransactionEstimator t_estimator, int base_partition, Object args[]) {
         this.init(markov, TraverseOrder.DEPTH, Direction.FORWARD);
         this.estimate.init(markov.getStartVertex(), -1);
-        this.confidence = 1.0;
+        this.confidence = 1.0f;
         this.t_estimator = t_estimator;
         this.p_estimator = this.t_estimator.getPartitionEstimator();
         this.correlations = this.t_estimator.getCorrelations();
@@ -258,7 +259,7 @@ public class MarkovPathEstimator extends VertexTreeWalker<Vertex> {
      * Return the confidence factor that of our estimated path
      * @return
      */
-    public double getConfidence() {
+    public float getConfidence() {
         return this.confidence;
     }
 
@@ -508,7 +509,7 @@ public class MarkovPathEstimator extends VertexTreeWalker<Vertex> {
             // Update our list of partitions touched by this transaction
             Set<Integer> next_partitions = next_vertex.getPartitions();
             String orig = next_partitions.toString();
-            double inverse_prob = 1.0 - this.confidence;
+            float inverse_prob = 1.0f - this.confidence;
             Statement catalog_stmt = next_vertex.getCatalogItem();
             
             // READ
@@ -591,13 +592,13 @@ public class MarkovPathEstimator extends VertexTreeWalker<Vertex> {
         // Finished Probability
         for (int p : this.all_partitions) {
             if (this.touched_partitions.contains(p) == false) {
-                this.estimate.setReadOnlyPartitionProbability(p, 0.0);
-                this.estimate.setWritePartitionProbability(p, 0.0);
-                this.estimate.setFinishPartitionProbability(p, 1.0);
+                this.estimate.setReadOnlyPartitionProbability(p, 0.0f);
+                this.estimate.setWritePartitionProbability(p, 0.0f);
+                this.estimate.setFinishPartitionProbability(p, 1.0f);
                 if (t) LOG.trace(String.format("Partition #%d was not touched. Setting finished probability to 1.0", p));
             } else {
                 if (this.estimate.isWriteProbabilitySet(p) == false) {
-                    this.estimate.setWritePartitionProbability(p, 1.0 - this.confidence);
+                    this.estimate.setWritePartitionProbability(p, 1.0f - this.confidence);
                 }
             }
         } // FOR
@@ -605,7 +606,7 @@ public class MarkovPathEstimator extends VertexTreeWalker<Vertex> {
         // Single-Partition Probability
         if (this.touched_partitions.size() == 1) {
             if (t) LOG.trace(String.format("Only one partition was touched %s. Setting single-partition probability to ???", this.touched_partitions)); 
-            this.estimate.setSinglePartitionProbability(1.0);
+            this.estimate.setSinglePartitionProbability(1.0f);
         }
         
         // Abort Probability

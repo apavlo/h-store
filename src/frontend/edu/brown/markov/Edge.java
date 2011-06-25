@@ -7,6 +7,7 @@ import org.voltdb.catalog.Database;
 
 import edu.brown.graphs.AbstractEdge;
 import edu.brown.graphs.IGraph;
+import edu.brown.utils.MathUtil;
 
 
 /**
@@ -18,10 +19,10 @@ import edu.brown.graphs.IGraph;
  * @author svelagap
  * 
  */
-public class Edge extends AbstractEdge implements Comparable<Edge> {
+public class Edge extends AbstractEdge implements Comparable<Edge>, MarkovHitTrackable {
     enum Members {
         PROBABILITY,
-        HITS,
+        TOTALHITS,
     }
 
     /**
@@ -32,7 +33,7 @@ public class Edge extends AbstractEdge implements Comparable<Edge> {
     /**
      * This is the total number of times that we have traversed over this edge
      */
-    public int hits;
+    public int totalhits;
 
     /**
      * This is the temporary number of times that we have traversed over this edge in the current "period" of the
@@ -48,63 +49,77 @@ public class Edge extends AbstractEdge implements Comparable<Edge> {
      */
     public Edge(IGraph<Vertex, Edge> graph) {
         super(graph);
-        this.hits = 0;
+        this.totalhits = 0;
         this.probability = 0;
     }
 
-    public Edge(IGraph<Vertex, Edge> graph, int hits, double probability) {
+    public Edge(IGraph<Vertex, Edge> graph, int hits, float probability) {
         super(graph);
-        this.hits = hits;
+        this.totalhits = hits;
         this.probability = (float)probability;
     }
 
     @Override
     public int compareTo(Edge o) {
         assert (o != null);
-        if (this.probability != o.probability) {
+        if (MathUtil.equals(this.probability, o.probability, MarkovGraph.PROBABILITY_EPSILON)) {
             return (int) (o.probability * 100 - this.probability * 100);
         }
         return (this.hashCode() - o.hashCode());
     }
 
-    public long getHits() {
-        return (this.hits);
-    }
-
-    public double getProbability() {
-        return probability;
+    public float getProbability() {
+        return this.probability;
     }
 
     /**
-     * Sets the probability for this edge. Divides the number of hits this edge has had by the parameter
-     * 
-     * @param totalhits
-     *            number of hits of the vertex that is the source of this edge
+     * Calculates the probability for this edge.
+     * Divides the number of hits this edge has had by the parameter
+     * @param allHits number of hits of the vertex that is the source of this edge
      */
-    public void setProbability(long totalhits) {
-        probability = (float) (hits * 1.0 / totalhits);
+    public void calculateProbability(long allHits) {
+        assert(this.totalhits <= allHits) : String.format("Edge hits is greater than new allHits: " + this.totalhits + " > " + allHits);
+        this.probability = (float) (this.totalhits / (double)allHits);
+        assert(MathUtil.greaterThanEquals(this.probability, 0.0f, MarkovGraph.PROBABILITY_EPSILON) &&
+               MathUtil.lessThanEquals(this.probability, 1.0f, MarkovGraph.PROBABILITY_EPSILON)) :
+           String.format("Invalid new edge probability: %d / %d = %f", this.totalhits, allHits, this.probability);
     }
 
-    public void increment() {
-        hits++;
+    // ----------------------------------------------------------------------------
+    // ONLINE UPDATE METHODS
+    // ----------------------------------------------------------------------------
+    
+    @Override
+    public void applyInstanceHitsToTotalHits() {
+        this.totalhits += this.instancehits;
+        this.instancehits = 0;
     }
-
-    public void incrementHits(long howmuch) {
-        hits += howmuch;
+    @Override
+    public void incrementTotalHits(long delta) {
+        this.totalhits += delta;
     }
-
-    public long getInstancehits() {
-        return instancehits;
+    @Override
+    public void incrementTotalHits() {
+        this.totalhits++;
     }
-
-    public synchronized void incrementInstancehits() {
-        instancehits++;
+    @Override
+    public long getTotalHits() {
+        return this.totalhits;
     }
-
-    public synchronized void setInstancehits(int i) {
-        instancehits = i;
+    @Override
+    public void setInstanceHits(int instancehits) {
+        this.instancehits = instancehits;
     }
-
+    @Override
+    public int getInstanceHits() {
+        return this.instancehits;
+    }
+    @Override
+    public void incrementInstanceHits() {
+        this.instancehits++;
+    }
+    
+    
     @Override
     public String toString() {
         return String.format("%.02f", this.probability); // FORMAT.format(this.probability);

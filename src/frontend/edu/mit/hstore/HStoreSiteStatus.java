@@ -39,9 +39,11 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
 
     private static final Set<TxnCounter> TXNINFO_COL_DELIMITERS = new HashSet<TxnCounter>();
     private static final Set<TxnCounter> TXNINFO_ALWAYS_SHOW = new HashSet<TxnCounter>();
+    private static final Set<TxnCounter> TXNINFO_EXCLUDES = new HashSet<TxnCounter>();
     static {
         CollectionUtil.addAll(TXNINFO_COL_DELIMITERS, TxnCounter.EXECUTED, TxnCounter.MULTI_PARTITION, TxnCounter.MISPREDICTED);
         CollectionUtil.addAll(TXNINFO_ALWAYS_SHOW, TxnCounter.MULTI_PARTITION, TxnCounter.SINGLE_PARTITION);
+        CollectionUtil.addAll(TXNINFO_EXCLUDES, TxnCounter.SYSPROCS);
     }
     
     private final HStoreSite hstore_site;
@@ -213,7 +215,7 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
         Set<TxnCounter> cnts_to_include = new TreeSet<TxnCounter>();
         Set<String> procs = TxnCounter.getAllProcedures();
         for (TxnCounter tc : TxnCounter.values()) {
-            if (TXNINFO_ALWAYS_SHOW.contains(tc) || (tc.get() > 0 && tc != TxnCounter.SYSPROCS)) cnts_to_include.add(tc);
+            if (TXNINFO_ALWAYS_SHOW.contains(tc) || (tc.get() > 0 && TXNINFO_EXCLUDES.contains(tc) == false)) cnts_to_include.add(tc);
         } // FOR
         
         boolean first = true;
@@ -257,7 +259,7 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
             j++;
         } // FOR
         
-        TableUtil.Format f = new TableUtil.Format("   ", col_delimiters, row_delimiters, true, false, true, false, false, false);
+        TableUtil.Format f = new TableUtil.Format("   ", col_delimiters, row_delimiters, true, false, true, false, false, false, true);
         return (TableUtil.tableMap(f, header, rows));
     }
     

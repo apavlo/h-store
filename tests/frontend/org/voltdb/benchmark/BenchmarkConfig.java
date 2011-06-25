@@ -85,9 +85,10 @@ public class BenchmarkConfig {
     public boolean noShutdown;
     
     public String markovPath;
-    public String thresholdsPath;
-    public Double thresholdsValue;
-    public boolean markovRecompute;
+    public String markov_thresholdsPath;
+    public Double markov_thresholdsValue;
+    public boolean markovRecomputeAfterEnd;
+    public boolean markovRecomputeAfterWarmup;
     
     public boolean dumpDatabase;
     public String dumpDatabaseDir;
@@ -190,7 +191,8 @@ public class BenchmarkConfig {
             String markovPath,
             String thresholdsPath,
             Double thresholdsValue,
-            boolean recomputeMarkovs,
+            boolean markovRecomputeAfterEnd,
+            boolean markovRecomputeAfterWarmup,
             boolean dumpDatabase,
             String dumpDatabaseDir
         ) {
@@ -241,9 +243,10 @@ public class BenchmarkConfig {
         this.profileSiteIds = profileSiteIds;
         
         this.markovPath = markovPath;
-        this.thresholdsPath = thresholdsPath;
-        this.thresholdsValue = thresholdsValue;
-        this.markovRecompute = recomputeMarkovs;
+        this.markov_thresholdsPath = thresholdsPath;
+        this.markov_thresholdsValue = thresholdsValue;
+        this.markovRecomputeAfterEnd = markovRecomputeAfterEnd;
+        this.markovRecomputeAfterWarmup = markovRecomputeAfterWarmup;
         
         this.dumpDatabase = dumpDatabase;
         this.dumpDatabaseDir = dumpDatabaseDir;

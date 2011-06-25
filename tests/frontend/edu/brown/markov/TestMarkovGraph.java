@@ -112,8 +112,8 @@ public class TestMarkovGraph extends BaseTestCase {
             // If the DONE probability is 1.0, then the probability that we read/write at
             // a partition must be zero
             if (done == 1.0) {
-                assertEquals(v + " Partition #" + partition, 0.0f, write);
-                assertEquals(v + " Partition #" + partition, 1.0f, read_only);
+                assertEquals(v + " Partition #" + partition, 0.0f, write, MarkovGraph.PROBABILITY_EPSILON);
+                assertEquals(v + " Partition #" + partition, 1.0f, read_only, MarkovGraph.PROBABILITY_EPSILON);
 
             // Otherwise, we should at least be reading or writing at this partition with some probability
             } else {
@@ -130,7 +130,7 @@ public class TestMarkovGraph extends BaseTestCase {
         // SINGLE_SITED probability should be zero!
         if (v.getType() == Type.QUERY &&
             (v.getPartitions().size() > 1 || v.getPartitions().contains(BASE_PARTITION) == false)) {
-            assertEquals(v.toString(), 0.0f, v.getSingleSitedProbability());
+            assertEquals(v.toString(), 0.0f, v.getSingleSitedProbability(), MarkovGraph.PROBABILITY_EPSILON);
         }
 
     }

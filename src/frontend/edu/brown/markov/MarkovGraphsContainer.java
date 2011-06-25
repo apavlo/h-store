@@ -134,7 +134,7 @@ public class MarkovGraphsContainer implements JSONSerializable {
     public MarkovGraph getOrCreate(Integer id, Procedure catalog_proc, boolean initialize) {
         MarkovGraph markov = this.get(id, catalog_proc);
         if (markov == null) {
-            LOG.warn(String.format("Creating a new %s MarkovGraph for id %d", catalog_proc.getName(), id));
+            if (LOG.isDebugEnabled()) LOG.warn(String.format("Creating a new %s MarkovGraph for id %d", catalog_proc.getName(), id));
             markov = new MarkovGraph(catalog_proc);
             this.put(id, markov);
             if (initialize) markov.initialize();
@@ -416,7 +416,6 @@ public class MarkovGraphsContainer implements JSONSerializable {
                             MarkovGraphsContainer.this.put(id, markov);
                             markov.buildCache();
                         } catch (Throwable ex) {
-                            System.err.println(JSONUtil.format(json_graph));
                             throw new RuntimeException("Failed to load MarkovGraph " + id + " for " + catalog_proc.getName(), ex);
                         }
                     }
@@ -432,10 +431,31 @@ public class MarkovGraphsContainer implements JSONSerializable {
         args.require(ArgumentsParser.PARAM_CATALOG,
                      ArgumentsParser.PARAM_MARKOV);
         
-        MarkovGraphsContainer m = new MarkovGraphsContainer();
-        m.load(args.getParam(ArgumentsParser.PARAM_MARKOV), args.catalog_db);
-        
-        System.out.println(m);
-        
+        Map<Integer, MarkovGraphsContainer> all_markovs = MarkovUtil.load(args.catalog_db, args.getParam(ArgumentsParser.PARAM_MARKOV));
+        int cnt_valid = 0;
+        int cnt_total = 0;
+        for (Integer p : all_markovs.keySet()) {
+            MarkovGraphsContainer m = all_markovs.get(p);
+            System.out.println("Validating " + m.size() + " for partition " + p);
+            
+            for (Integer id : m.keySet()) {
+                for (MarkovGraph markov : m.getAll(id).values()) {
+                    System.out.print(String.format("[%d] %-16s", id, markov.getProcedure().getName()));
+                    boolean valid = false;
+                    String error = "???";
+                    try {
+                        valid = markov.isValid();
+                    } catch (Throwable ex) {
+                        error = ex.getMessage();
+                    }
+                    if (valid) cnt_valid++;
+                    System.out.print(valid);
+                    if (valid == false) System.out.print("  [" + error + "]");
+                    System.out.println();
+                    cnt_total++;
+                }
+            } // FOR
+        }
+        System.out.println("VALID: " + cnt_valid + " / "+ cnt_total);
     }
 }

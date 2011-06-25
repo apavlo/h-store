@@ -98,7 +98,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
         /**
          * SiteId -> <Host, Port>
          */
-        public final Map<Integer, Pair<String, Integer>> EXECUTION_SITES = new HashMap<Integer, Pair<String, Integer>>(); 
+        public final Map<Integer, Pair<String, Integer>> EXECUTION_SITES = new HashMap<Integer, Pair<String, Integer>>();
     }
     
     private static final Map<Database, CatalogUtil.Cache> CACHE = new HashMap<Database, CatalogUtil.Cache>();

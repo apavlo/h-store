@@ -83,11 +83,11 @@ public enum TxnCounter {
             case SYSPROCS:
             case ABORTED:
             case MISPREDICTED:
-            case EXECUTED:
                 total = EXECUTED.get() - SYSPROCS.get();
                 break;
             case REDIRECTED:
             case RECEIVED:
+            case EXECUTED:
                 total = RECEIVED.get();
                 break;
             case COMPLETED:

@@ -1,9 +1,14 @@
 package edu.brown.graphs;
 
 import java.io.IOException;
-import java.util.*;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.atomic.AtomicLong;
 
-import org.json.*;
+import org.json.JSONException;
+import org.json.JSONObject;
+import org.json.JSONStringer;
 import org.voltdb.catalog.Database;
 import org.voltdb.utils.NotImplementedException;
 
@@ -17,14 +22,14 @@ public abstract class AbstractGraphElement implements JSONSerializable {
     private final Map<IGraph<?, ?>, Map<String, Object>> attributes = new HashMap<IGraph<?, ?>, Map<String,Object>>();
     private Long element_id;
     private transient boolean enable_verbose = false;
-    private static final Random rand = new Random(); 
+    private static final AtomicLong NEXT_ELEMENT_ID = new AtomicLong(1000); 
     
     public AbstractGraphElement() {
         // Nothing...
     }
     
     private long computeElementId() {
-        return (this.hashCode() | rand.nextInt()<<32);
+        return (NEXT_ELEMENT_ID.getAndIncrement());
     }
     
     public Long getElementId() {

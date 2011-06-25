@@ -42,7 +42,7 @@ public class TestTableUtil extends TestCase {
         List<TableUtil.Format> formats = new ArrayList<TableUtil.Format>();
         formats.add(TableUtil.defaultTableFormat());
         formats.add(TableUtil.defaultCSVFormat());
-        formats.add(new TableUtil.Format("X", null, null, true, true, true, true, true, false));
+        formats.add(new TableUtil.Format("X", null, null, true, true, true, true, true, false, false));
         
         for (TableUtil.Format f : formats) {
             String table = TableUtil.table(f, header, rows);
@@ -59,7 +59,7 @@ public class TestTableUtil extends TestCase {
         String row_delimiters[] = new String[num_rows];
         row_delimiters[num_rows-2] = "\u2015";
         
-        TableUtil.Format f = new TableUtil.Format("   ", col_delimiters, row_delimiters, true, false, true, false, false, false);
+        TableUtil.Format f = new TableUtil.Format("   ", col_delimiters, row_delimiters, true, false, true, false, false, false, false);
         assertNotNull(f);
         Map<String, String> m = TableUtil.tableMap(f, header, rows);
         

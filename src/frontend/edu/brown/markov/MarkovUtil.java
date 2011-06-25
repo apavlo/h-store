@@ -4,10 +4,20 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.SortedSet;
+import java.util.TreeSet;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.log4j.Logger;
+import org.json.JSONException;
 import org.json.JSONObject;
 import org.json.JSONStringer;
 import org.voltdb.catalog.Catalog;
@@ -446,23 +456,11 @@ public abstract class MarkovUtil {
                     
                 // Otherwise check whether this is a line number that we care about
                 } else if (line_xref.containsKey(Integer.valueOf(line_ctr))) {
-                    final Integer partition = line_xref.remove(Integer.valueOf(line_ctr));
-                    final JSONObject json_object = new JSONObject(line).getJSONObject(partition.toString());
-                    
-                    // We should be able to get the classname of the container from JSON
-                    String className = MarkovGraphsContainer.class.getCanonicalName();
-                    if (json_object.has(MarkovGraphsContainer.Members.CLASSNAME.name())) {
-                        className = json_object.getString(MarkovGraphsContainer.Members.CLASSNAME.name());    
-                    }
-                    MarkovGraphsContainer markovs = ClassUtil.newInstance(className,
-                                                                          new Object[]{ procedures},
-                                                                          new Class<?>[]{ Collection.class }); 
-                    assert(markovs != null);
-                    
-                    if (d) LOG.debug(String.format("Populating %s for partition %d", className, partition));
-                    markovs.fromJSON(json_object, catalog_db);
+                    Integer partition = line_xref.remove(Integer.valueOf(line_ctr));
+                    JSONObject json_object = new JSONObject(line).getJSONObject(partition.toString());
+                    MarkovGraphsContainer markovs = MarkovUtil.createMarkovGraphsContainer(json_object, procedures, catalog_db);
+                    if (d) LOG.debug(String.format("Storing %s for partition %d", markovs.getClass().getSimpleName(), partition));
                     ret.put(partition, markovs);        
-                    
                     if (line_xref.isEmpty()) break;
                 }
                 line_ctr++;
@@ -475,6 +473,28 @@ public abstract class MarkovUtil {
         }
         if (d) LOG.debug("The loading of the MarkovGraphsContainer is complete");
         return (ret);
+    }
+    
+    /**
+     * 
+     * @param json_object
+     * @param procedures
+     * @param catalog_db
+     * @return
+     * @throws JSONException
+     */
+    protected static MarkovGraphsContainer createMarkovGraphsContainer(JSONObject json_object, Collection<Procedure> procedures, Database catalog_db) throws JSONException {
+        // We should be able to get the classname of the container from JSON
+        String className = MarkovGraphsContainer.class.getCanonicalName();
+        if (json_object.has(MarkovGraphsContainer.Members.CLASSNAME.name())) {
+            className = json_object.getString(MarkovGraphsContainer.Members.CLASSNAME.name());    
+        }
+        MarkovGraphsContainer markovs = ClassUtil.newInstance(className, new Object[]{ procedures},
+                                                                         new Class<?>[]{ Collection.class }); 
+        assert(markovs != null);
+        if (LOG.isDebugEnabled()) LOG.debug(String.format("Instantiated new % object", className));
+        markovs.fromJSON(json_object, catalog_db);
+        return (markovs);
     }
     
     /**
@@ -519,6 +539,55 @@ public abstract class MarkovUtil {
             throw new RuntimeException(ex);
         }
         LOG.debug(className + " objects were written out to '" + output_path + "'");
+    }
+    
+    /**
+     * Combine multiple MarkovGraphsContainer files into a single file
+     * @param markovs
+     * @param output_path
+     */
+    public static void combine(Map<Integer, File> markovs, String output_path, Database catalog_db) {
+        // Sort the list of partitions so we always iterate over them in the same order
+        SortedSet<Integer> sorted = new TreeSet<Integer>(markovs.keySet());
+        
+        // We want all the procedures
+        Set<Procedure> procedures = (Set<Procedure>)CollectionUtil.addAll(new HashSet<Procedure>(), catalog_db.getProcedures());
+        
+        File file = new File(output_path);
+        try {
+            FileOutputStream out = new FileOutputStream(file);
+            
+            // First construct an index that allows us to quickly find the partitions that we want
+            JSONStringer stringer = (JSONStringer)(new JSONStringer().object());
+            int offset = 1;
+            for (Integer partition : sorted) {
+                stringer.key(Integer.toString(partition)).value(offset++);
+            } // FOR
+            out.write((stringer.endObject().toString() + "\n").getBytes());
+            
+            // Now Loop through each file individually so that we only have to load one into memory at a time
+            for (Integer partition : sorted) {
+                File in = markovs.get(partition);
+                try {
+                    JSONObject json_object = new JSONObject(FileUtil.readFile(in));
+                    MarkovGraphsContainer markov = MarkovUtil.createMarkovGraphsContainer(json_object, procedures, catalog_db);
+                    markov.load(in.getAbsolutePath(), catalog_db);
+                    
+                    stringer = (JSONStringer)new JSONStringer().object();
+                    stringer.key(partition.toString()).object();
+                    markov.toJSON(stringer);
+                    stringer.endObject().endObject();
+                    out.write((stringer.toString() + "\n").getBytes());
+                } catch (Exception ex) {
+                    throw new Exception(String.format("Failed to copy MarkovGraphsContainer for partition %d from '%s'", partition, in), ex);
+                }
+            } // FOR
+            out.close();
+        } catch (Exception ex) {
+            LOG.error("Failed to combine multiple MarkovGraphsContainers into file '" + output_path + "'", ex);
+            throw new RuntimeException(ex);
+        }
+        LOG.info(String.format("Combined %d MarkovGraphsContainers into file '%s'", markovs.size(), output_path));
     }
 
     /**
