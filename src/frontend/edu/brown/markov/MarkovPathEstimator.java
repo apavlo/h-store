@@ -496,11 +496,13 @@ public class MarkovPathEstimator extends VertexTreeWalker<Vertex> implements Log
             // edges that we could have taken in comparison to the one that we did take
             double total_probability = 0.0;
             if (d) LOG.debug("CANDIDATES:");
+            int i = 0;
             for (Edge e : this.candidates) {
                 Vertex v = markov.getOpposite(element, e);
                 total_probability += e.getProbability();
                 if (d) {
-                    LOG.debug("  " + element + " --[" + e + "]--> " + v + (next_vertex.equals(v) ? " *******" : ""));
+                    LOG.debug(String.format("  [%d] %s  --[%s]--> %s%s",
+                                            i++, element, e, v, (next_vertex.equals(v) ? " <== SELECTED" : "")));
                     if (this.candidates.size() > 1) LOG.debug(StringUtil.addSpacers(v.debug()));
                 }
             } // FOR
@@ -564,11 +566,11 @@ public class MarkovPathEstimator extends VertexTreeWalker<Vertex> implements Log
             if (d) {
                 LOG.debug("TOTAL:    " + total_probability);
                 LOG.debug("SELECTED: " + next_vertex + " [confidence=" + this.confidence + "]");
+                LOG.debug(StringUtil.repeat("-", 100));
             }
         } else {
             if (t) LOG.trace("No matching children found. We have to stop...");
         }
-        if (t) LOG.trace(StringUtil.repeat("-", 100));
     }
     
     @Override

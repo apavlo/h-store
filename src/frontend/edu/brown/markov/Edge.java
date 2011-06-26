@@ -62,7 +62,7 @@ public class Edge extends AbstractEdge implements Comparable<Edge>, MarkovHitTra
     @Override
     public int compareTo(Edge o) {
         assert (o != null);
-        if (MathUtil.equals(this.probability, o.probability, MarkovGraph.PROBABILITY_EPSILON)) {
+        if (MathUtil.equals(this.probability, o.probability, MarkovGraph.PROBABILITY_EPSILON) == false) {
             return (int) (o.probability * 100 - this.probability * 100);
         }
         return (this.hashCode() - o.hashCode());

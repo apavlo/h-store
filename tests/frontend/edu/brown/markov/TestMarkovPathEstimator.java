@@ -17,6 +17,7 @@ import edu.brown.BaseTestCase;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.correlations.ParameterCorrelations;
 import edu.brown.utils.ProjectType;
+import edu.brown.utils.StringUtil;
 import edu.brown.workload.TransactionTrace;
 import edu.brown.workload.Workload;
 import edu.brown.workload.filters.BasePartitionTxnFilter;
@@ -176,10 +177,12 @@ public class TestMarkovPathEstimator extends BaseTestCase {
         
 //        System.err.println("INITIAL PATH:\n" + StringUtil.join("\n", path));
 //        System.err.println("CONFIDENCE: " + confidence);
+//        System.err.println("DUMPED FILE: " + MarkovUtil.exportGraphviz(this.graph, false, this.graph.getPath(path)).writeToTempFile());
         
         assertEquals(start, path.firstElement());
         assertEquals(commit, path.lastElement());
         assertFalse(path.contains(abort));
+        assert(confidence > 0.0f);
         
         // All of the vertices should only have the base partition in their partition set
         for (int i = 1, cnt = path.size() - 1; i < cnt; i++) {
