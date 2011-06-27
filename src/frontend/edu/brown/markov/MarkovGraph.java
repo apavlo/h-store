@@ -13,6 +13,8 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.log4j.Logger;
+import org.json.JSONException;
+import org.json.JSONStringer;
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Statement;
@@ -21,9 +23,11 @@ import org.voltdb.types.QueryType;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.graphs.AbstractDirectedGraph;
 import edu.brown.graphs.AbstractGraphElement;
+import edu.brown.graphs.GraphUtil;
 import edu.brown.graphs.VertexTreeWalker;
 import edu.brown.graphs.VertexTreeWalker.Direction;
 import edu.brown.graphs.VertexTreeWalker.TraverseOrder;
+import edu.brown.graphs.exceptions.InvalidGraphElementException;
 import edu.brown.markov.Vertex.Type;
 import edu.brown.markov.benchmarks.TPCCMarkovGraphsContainer;
 import edu.brown.utils.ArgumentsParser;
@@ -60,7 +64,7 @@ public class MarkovGraph extends AbstractDirectedGraph<Vertex, Edge> implements 
     /**
      * The precision we care about for vertex probabilities
      */
-    public static final float PROBABILITY_EPSILON = 0.001f;
+    public static final float PROBABILITY_EPSILON = 0.00001f;
     
     // ----------------------------------------------------------------------------
     // INSTANCE DATA MEMBERS
@@ -211,8 +215,6 @@ public class MarkovGraph extends AbstractDirectedGraph<Vertex, Edge> implements 
                 e = new Edge(this);
                 this.addEdge(e, source, dest);
             }
-            source.incrementTotalHits();
-            e.incrementTotalHits();
         } // SYNCH
         return (e);
     }
@@ -341,8 +343,9 @@ public class MarkovGraph extends AbstractDirectedGraph<Vertex, Edge> implements 
     // ----------------------------------------------------------------------------
 
     /**
-     * Calculate the probabilities for this graph This invokes the static
-     * methods in Vertex to calculate each probability
+     * Calculate the probabilities for this graph.
+     * First we will reset all of the existing probabilities and then apply the instancehits to 
+     * the totalhits for each graph element
      */
     public synchronized void calculateProbabilities() {
         // Reset all probabilities
@@ -350,28 +353,21 @@ public class MarkovGraph extends AbstractDirectedGraph<Vertex, Edge> implements 
             v.resetAllProbabilities();
         } // FOR
         
+        this.normalizeTimes();
+        for (Vertex v : this.getVertices()) {
+            v.applyInstanceHitsToTotalHits();
+        }
+        for (Edge e : this.getEdges()) {
+            e.applyInstanceHitsToTotalHits();
+        }
+        
         // We first need to calculate the edge probabilities because the probabilities
         // at each vertex are going to be derived from these
         this.calculateEdgeProbabilities();
         
         // Then traverse the graph and calculate the vertex probability tables
         this.calculateVertexProbabilities();
-    }
-    
-    /**
-     * Update the instance hits for the graph's elements and recalculate probabilities
-     */
-    public synchronized void recalculateProbabilities() {
-        this.normalizeTimes();
-        for (Vertex v : this.getVertices()) {
-//            v.incrementTotalHits(v.getInstanceHits());
-            v.applyInstanceHitsToTotalHits();
-        }
-        for (Edge e : this.getEdges()) {
-//            e.incrementTotalHits(e.getInstanceHits());
-            e.applyInstanceHitsToTotalHits();
-        }
-        this.calculateProbabilities();
+        
         this.recompute_count++;
     }
 
@@ -500,6 +496,7 @@ public class MarkovGraph extends AbstractDirectedGraph<Vertex, Edge> implements 
     private void calculateEdgeProbabilities() {
         Collection<Vertex> vertices = this.getVertices();
         for (Vertex v : vertices) {
+            if (v.isQueryVertex() && v.getTotalHits() == 0) continue;
             for (Edge e : this.getOutEdges(v)) {
                 try {
                     e.calculateProbability(v.getTotalHits());
@@ -526,7 +523,7 @@ public class MarkovGraph extends AbstractDirectedGraph<Vertex, Edge> implements 
     public Set<Vertex> getInvalidVertices() {
         Set<Vertex> ret = new HashSet<Vertex>();
         for (Vertex v : this.getVertices()) {
-            if (v.isValid() == false) ret.add(v);
+            if (v.isValid(this) == false) ret.add(v);
         } // FOR
         return (ret);
     }
@@ -538,33 +535,28 @@ public class MarkovGraph extends AbstractDirectedGraph<Vertex, Edge> implements 
      * @return whether graph contains sane data
      */
     public boolean isValid() {
+        try {
+            this.validate();
+        } catch (InvalidGraphElementException ex) {
+            return (false);
+        }
+        return (true);
+    }
+    
+    public void validate() throws InvalidGraphElementException {
         if (debug.get()) LOG.warn("Calling MarkovGraph.isValid(). This should never be done at runtime!");
         Map<Long, AbstractGraphElement> seen_ids = new HashMap<Long, AbstractGraphElement>();
         
         // Validate Edges
         for (Edge e : this.getEdges()) {
-            final Vertex v0 = this.getSource(e);
-            final Vertex v1 = this.getDest(e);
-            float e_prob = e.getProbability();
             
-            // Make sure the edge probability is between [0, 1]
-            if (MathUtil.greaterThanEquals(e_prob, 0.0f, MarkovGraph.PROBABILITY_EPSILON) == false ||
-                MathUtil.lessThanEquals(e_prob, 1.0f, MarkovGraph.PROBABILITY_EPSILON) == false) {
-                LOG.warn(String.format("Edge %s->%s probability is %.4f", v0, v1, e_prob));
-                return (false);
-            }
-            
-            // Make sure that the special states are linked to each other
-            if (v0.isQueryVertex() == false && v1.isQueryVertex() == false) {
-                LOG.warn(String.format("Invalid edge %s->%s in %s MarkovGraph", v0, v1, this.catalog_proc.getName()));
-                return (false);
-            }
+            // Make sure the edge thinks it's valid
+            e.validate(this);
             
             // Make sure that nobody else has the same element id
             if (seen_ids.containsKey(e.getElementId())) {
-                LOG.warn(String.format("Duplicate element id #%d: Edge[%s] <-> %s",
-                                       e.getElementId(), e.toString(true), seen_ids.get(e.getElementId())));
-                return (false);
+                throw new InvalidGraphElementException(this, e, String.format("Duplicate element id #%d: Edge[%s] <-> %s",
+                                                                               e.getElementId(), e.toString(true), seen_ids.get(e.getElementId())));
             }
             seen_ids.put(e.getElementId(), e);
         } // FOR
@@ -576,24 +568,16 @@ public class MarkovGraph extends AbstractDirectedGraph<Vertex, Edge> implements 
             float total_prob = 0.0f;
             long total_edgehits = 0;
             
-            if (v0.isValid() == false) {
-                LOG.warn("The vertex " + v0 + " is not valid!");
-                return (false);
-            }
+            // Make sure the vertex thinks it's valid
+            v0.validate(this);
             
             Collection<Edge> outbound = this.getOutEdges(v0);
-            
-            // COMMIT and ABORT should not have any outbound edges
-            if ((v0.isAbortVertex() || v0.isCommitVertex()) && outbound.size() > 0) {
-                LOG.warn(String.format("Vertex %s is a terminal state but has %d outbound edges", v0, outbound.size()));
-                return (false);
-            }
+            Collection<Edge> inbound = this.getInEdges(v0);
             
             // Make sure that nobody else has the same element id
             if (seen_ids.containsKey(v0.getElementId())) {
-                LOG.warn(String.format("Duplicate element id #%d: Vertex[%s] <-> %s",
-                                       v0.getElementId(), v0, seen_ids.get(v0.getElementId())));
-                return (false);
+                throw new InvalidGraphElementException(this, v0, String.format("Duplicate element id #%d: Vertex[%s] <-> %s",
+                                                                 v0.getElementId(), v0, seen_ids.get(v0.getElementId())));
             }
             seen_ids.put(v0.getElementId(), v0);
             
@@ -605,33 +589,29 @@ public class MarkovGraph extends AbstractDirectedGraph<Vertex, Edge> implements 
                 
                 // Make sure that each vertex only has one edge to another vertex
                 if (seen_vertices.contains(v1)) {
-                    LOG.warn("Vertex " + v0 + " has more than one edge to vertex " + v1);
-                    return (false);
+                    throw new InvalidGraphElementException(this, v0, "Vertex has more than one edge to vertex " + v1);
                 }
                 seen_vertices.add(v1);
                 
                 // The totalhits for this vertex should always be greater than or equal to the total hints for 
                 // all of its edges and equal to the sum
                 if (v0.getTotalHits() < e.getTotalHits()) {
-                    LOG.warn(String.format("Vertex %d has %d totalHits but edge from %s to %s has %d",
-                                           v0, v0.getTotalHits(), v0, v1, e.getTotalHits()));
-                    return (false);
+                    throw new InvalidGraphElementException(this, v0, String.format("Vertex has %d totalHits but edge from %s to %s has %d",
+                                                                                   v0.getTotalHits(), v0, v1, e.getTotalHits()));
                 }
                 
                 // Make sure that this the destination vertex has the same partitions as the past+current partitions
                 // for the destination vertex
                 if (v0.isQueryVertex() && v1.isQueryVertex() && v1.past_partitions.equals(all_partitions) == false) {
-                    LOG.warn(String.format("Destination vertex for edge in %s MarkovGraph from %s to %s does not have the correct past partitions",
-                                           this.catalog_proc.getName(), v0, v1));
-                    return (false);
+                    throw new InvalidGraphElementException(this, e, "Destination vertex in edge does not have the correct past partitions");
                 }
                 
                 // Make sure that if the two vertices are for the same Statement, that
                 // the source vertex's instance counter is one less than the destination
                 if (v0.getCatalogKey().equals(v1.getCatalogKey())) {
                     if (v0.counter+1 != v1.counter) {
-                        LOG.warn(String.format("Invalid edge in %s MarkovGraph from %s to %s", this.catalog_proc.getName(), v0, v1));
-                        return (false);
+                        throw new InvalidGraphElementException(this, e, String.format("Invalid edge in from multiple invocations of %s: %d+1 != %d",
+                                                                                       this.catalog_proc.getName(), v0.counter, v1.counter));
                     }
                 }
                 
@@ -641,31 +621,27 @@ public class MarkovGraph extends AbstractDirectedGraph<Vertex, Edge> implements 
             } // FOR
             if (v0.isQueryVertex()) {
                 if (MathUtil.equals(total_prob, 1.0f, MarkovGraph.PROBABILITY_EPSILON) == false && outbound.size() > 0) {
-                    LOG.warn("Total outbound edge probability for " + v0 + " is not equal to one: " + total_prob);
-    //                System.err.println(JSONUtil.format(this));
-                    
-                    return (false);
+                    throw new InvalidGraphElementException(this, v0, "Total outbound edge probability is not equal to one: " + total_prob);
                 }
                 if (total_edgehits != v0.getTotalHits()) {
-                    LOG.warn(String.format("Vertex %s has %d totalHits but the sum of all its edges has %d",
-                                           v0, v0.getTotalHits(), total_edgehits));
-                    return (false);
+                    throw new InvalidGraphElementException(this, v0, String.format("Vertex has %d totalHits but the sum of all its edges has %d",
+                                                                                   v0.getTotalHits(), total_edgehits));
                 }
             }
             
             total_prob = 0.0f;
-            for (Edge e : this.getInEdges(v0)) { 
+            total_edgehits = 0;
+            for (Edge e : inbound) { 
                 total_prob += e.getProbability();
+                total_edgehits += e.getTotalHits();
             } // FOR
-            if (MathUtil.greaterThan(total_prob, 0.0f, MarkovGraph.PROBABILITY_EPSILON) == false && this.getInEdges(v0).size() > 0) {
-                LOG.warn("Total inbound edge probability for " + v0 + " is not greater than zero: " + total_prob);
-                return (false);
+            if (MathUtil.greaterThan(total_prob, 0.0f, MarkovGraph.PROBABILITY_EPSILON) == false && inbound.size() > 0 && total_edgehits > 0) {
+                throw new InvalidGraphElementException(this, v0, "Total inbound edge probability is not greater than zero: " + total_prob);
             }
             
             seen_vertices.clear();
             all_partitions.clear();
         } // FOR
-        return true;
     }
 
     public boolean shouldRecompute(int instance_count, double recomputeTolerance) {
@@ -694,6 +670,7 @@ public class MarkovGraph extends AbstractDirectedGraph<Vertex, Edge> implements 
         Procedure catalog_proc = txn_trace.getCatalogItem(this.getDatabase());
         Vertex previous = this.getStartVertex();
         previous.addExecutionTime(txn_trace.getStopTimestamp() - txn_trace.getStartTimestamp());
+        previous.incrementTotalHits();
 
         final List<Vertex> path = new ArrayList<Vertex>();
         path.add(previous);
@@ -728,7 +705,10 @@ public class MarkovGraph extends AbstractDirectedGraph<Vertex, Edge> implements 
                 }
                 assert(v.isQueryVertex());
                 // Add to the edge between the previous vertex and the current one
-                this.addToEdge(previous, v);
+                Edge e = this.addToEdge(previous, v);
+                assert(e != null);
+                v.incrementTotalHits();
+                e.incrementTotalHits();
     
                 // Annotate the vertex with remaining execution time
                 v.addExecutionTime(txn_trace.getStopTimestamp() - query_trace.getStartTimestamp());
@@ -739,11 +719,13 @@ public class MarkovGraph extends AbstractDirectedGraph<Vertex, Edge> implements 
         } // FOR
         
         synchronized (previous) {
-            Vertex next = (txn_trace.isAborted() ? this.getAbortVertex() : this.getCommitVertex());
-            assert(next != null);
-            this.addToEdge(previous, next);
-            path.add(next);
-            next.incrementTotalHits();
+            Vertex v = (txn_trace.isAborted() ? this.getAbortVertex() : this.getCommitVertex());
+            assert(v != null);
+            Edge e = this.addToEdge(previous, v);
+            assert(e != null);
+            path.add(v);
+            v.incrementTotalHits();
+            e.incrementTotalHits();
         } // SYNCH
         // -----------END QUERY TRACE-VERTEX CREATION--------------
         this.xact_count++;
@@ -799,6 +781,20 @@ public class MarkovGraph extends AbstractDirectedGraph<Vertex, Edge> implements 
     }
     
     // ----------------------------------------------------------------------------
+    // SERIALIZATION METHODS
+    // ----------------------------------------------------------------------------
+    
+    @Override
+    public void toJSON(JSONStringer stringer) throws JSONException {
+        // Ignore any vertices with no totalhits
+        Set<Vertex> ignore = new HashSet<Vertex>();
+        for (Vertex v : this.getVertices()) {
+            if (v.isQueryVertex() && (v.instancehits == 0 && v.totalhits == 0)) ignore.add(v);
+        }
+        GraphUtil.serialize(this, ignore, null, stringer);
+    }
+    
+    // ----------------------------------------------------------------------------
     // YE OLDE MAIN METHOD
     // ----------------------------------------------------------------------------
 
@@ -841,8 +837,11 @@ public class MarkovGraph extends AbstractDirectedGraph<Vertex, Edge> implements 
                 MarkovGraphsContainer m = new MarkovGraphsContainer(markovs.isGlobal());
                 Integer p = e.getKey();
                 for (MarkovGraph markov : e.getValue().values()) {
-                    boolean valid = markov.isValid(); 
-                    assert(valid) : String.format("Invalid %s MarkovGraph at partition %d", markov.getProcedure().getName(), p);
+                    try {
+                        markov.validate();
+                    } catch (InvalidGraphElementException ex) {
+                        throw new Exception(String.format("Invalid %s MarkovGraph at partition %d", markov.getProcedure().getName(), p), ex);
+                    }
                     m.put(p, markov);
                 } // FOR
                 inner.put(p, m);

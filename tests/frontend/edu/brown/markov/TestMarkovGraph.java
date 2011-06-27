@@ -209,7 +209,9 @@ public class TestMarkovGraph extends BaseTestCase {
             
             long startcount = start.getTotalHits();
             testGraph.addToEdge(start, current);
+            start.incrementTotalHits();
             testGraph.addToEdge(current, stop);
+            current.incrementTotalHits();
             assertTrue(startcount + 1 == start.getTotalHits());
             assertTrue(current.getTotalHits() == 1);
             all_previous.addAll(partitions);

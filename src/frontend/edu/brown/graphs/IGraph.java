@@ -13,6 +13,7 @@ import edu.uci.ics.jung.graph.Graph;
  *
  */
 public interface IGraph<V extends AbstractVertex, E extends AbstractEdge> extends Graph<V, E>, Cloneable, JSONSerializable {
+    public int getGraphId();
     public V getVertex(CatalogType catalog_item);
     public V getVertex(String catalog_key);
     public V getVertex(Long element_id);

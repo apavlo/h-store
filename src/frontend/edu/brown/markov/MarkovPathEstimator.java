@@ -329,7 +329,10 @@ public class MarkovPathEstimator extends VertexTreeWalker<Vertex> implements Log
                     LOG.error("CURRENT: " + element + "  [commit=" + element.isCommitVertex() + "]");
                     LOG.error("NEXT:    " + next + "  [commit=" + next.isCommitVertex() + "]");
                 }
-                assert(next_catalog_stmt_index > cur_catalog_stmt_index) : String.format("%d > %d", next_catalog_stmt_index, cur_catalog_stmt_index);
+                assert(next_catalog_stmt_index > cur_catalog_stmt_index) :
+                    String.format("%s[#%d] > %s[#%d]",
+                                  next_catalog_stmt.fullName(), next_catalog_stmt_index,
+                                  cur_catalog_stmt.fullName(), cur_catalog_stmt_index);
             }
             
             // Check whether it's COMMIT/ABORT

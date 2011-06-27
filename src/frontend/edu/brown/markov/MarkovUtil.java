@@ -36,9 +36,11 @@ import edu.brown.hashing.AbstractHasher;
 import edu.brown.utils.ClassUtil;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.FileUtil;
+import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.PartitionEstimator;
 import edu.brown.utils.StringUtil;
 import edu.brown.utils.ThreadUtil;
+import edu.brown.utils.LoggerUtil.LoggerBoolean;
 import edu.brown.workload.AbstractTraceElement;
 import edu.brown.workload.TransactionTrace;
 import edu.brown.workload.Workload;
@@ -57,6 +59,11 @@ import edu.brown.workload.filters.ProcedureNameFilter;
  */
 public abstract class MarkovUtil {
     private static final Logger LOG = Logger.getLogger(MarkovUtil.class);
+    private final static LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private final static LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    static {
+        LoggerUtil.attachObserver(LOG, debug, trace);
+    }
 
     /**
      * The value to use to indicate that a probability is null
@@ -266,7 +273,6 @@ public abstract class MarkovUtil {
      * @return
      */
     public static Map<Integer, MarkovGraph> createBasePartitionGraphsForProcedure(Procedure catalog_proc, Workload workload, PartitionEstimator p_estimator) {
-        final boolean trace = LOG.isTraceEnabled();
         assert(catalog_proc != null);
         assert(workload != null);
         assert(p_estimator != null);
@@ -292,7 +298,7 @@ public abstract class MarkovUtil {
                 }
                 // IMPORTANT: We should never have a null base_partition 
                 assert(base_partition != null);
-                if (trace) LOG.trace("Process " + xact + " => Partition #" + base_partition);
+                if (trace.get()) LOG.trace("Process " + xact + " => Partition #" + base_partition);
                 
                 MarkovGraph g = partitiongraphs.get(base_partition);
                 assert(g != null) : "No MarkovGraph exists for base partition #" + base_partition;
@@ -340,7 +346,7 @@ public abstract class MarkovUtil {
             runnables.add(new Runnable() {
                 public void run() {
                     List<TransactionTrace> traces = workload.getTraces(catalog_proc); 
-                    LOG.info(String.format("Populating global MarkovGraph for %s [#traces=%d]", catalog_proc.getName(), traces.size()));
+                    if (debug.get()) LOG.debug(String.format("Populating global MarkovGraph for %s [#traces=%d]", catalog_proc.getName(), traces.size()));
                     for (TransactionTrace xact : traces) {
                         try {
                             g.processTransaction(xact, p_estimator);
@@ -364,7 +370,7 @@ public abstract class MarkovUtil {
      * @param markovs
      */
     public static void calculateProbabilities(Map<Integer, ? extends MarkovGraphsContainer> markovs) {
-        if (LOG.isDebugEnabled()) LOG.debug(String.format("Calculating probabilities for %d ids", markovs.size()));
+        if (debug.get()) LOG.debug(String.format("Calculating probabilities for %d ids", markovs.size()));
         for (MarkovGraphsContainer m : markovs.values()) {
             m.calculateProbabilities();
         }
@@ -377,7 +383,7 @@ public abstract class MarkovUtil {
      * @param hasher
      */
     public static void setHasher(Map<Integer, ? extends MarkovGraphsContainer> markovs, AbstractHasher hasher) {
-        if (LOG.isDebugEnabled()) LOG.debug(String.format("Setting hasher for for %d ids", markovs.size()));
+        if (debug.get()) LOG.debug(String.format("Setting hasher for for %d ids", markovs.size()));
         for (MarkovGraphsContainer m : markovs.values()) {
             m.setHasher(hasher);
         }
@@ -421,8 +427,6 @@ public abstract class MarkovUtil {
      * @throws Exception
      */
     public static Map<Integer, MarkovGraphsContainer> load(final Database catalog_db, String input_path, Collection<Procedure> procedures, Collection<Integer> ids) throws Exception {
-        final boolean d = LOG.isDebugEnabled();
-        
         final Map<Integer, MarkovGraphsContainer> ret = new HashMap<Integer, MarkovGraphsContainer>();
         final File file = new File(input_path);
         LOG.info(String.format("Loading in serialized MarkovGraphContainers from '%s' [procedures=%s, ids=%s]", file.getName(), procedures, ids));
@@ -456,14 +460,14 @@ public abstract class MarkovUtil {
                             line_xref.put(offset, partition);
                         }
                     } // FOR
-                    if (d) LOG.debug(String.format("Loading %d MarkovGraphsContainers", line_xref.size()));
+                    if (debug.get()) LOG.debug(String.format("Loading %d MarkovGraphsContainers", line_xref.size()));
                     
                 // Otherwise check whether this is a line number that we care about
                 } else if (line_xref.containsKey(Integer.valueOf(line_ctr))) {
                     Integer partition = line_xref.remove(Integer.valueOf(line_ctr));
                     JSONObject json_object = new JSONObject(line).getJSONObject(partition.toString());
                     MarkovGraphsContainer markovs = MarkovUtil.createMarkovGraphsContainer(json_object, procedures, catalog_db);
-                    if (d) LOG.debug(String.format("Storing %s for partition %d", markovs.getClass().getSimpleName(), partition));
+                    if (debug.get()) LOG.debug(String.format("Storing %s for partition %d", markovs.getClass().getSimpleName(), partition));
                     ret.put(partition, markovs);        
                     if (line_xref.isEmpty()) break;
                 }
@@ -475,7 +479,7 @@ public abstract class MarkovUtil {
             LOG.error("Failed to deserialize the MarkovGraphsContainer from file '" + input_path + "'", ex);
             throw new IOException(ex);
         }
-        if (d) LOG.debug("The loading of the MarkovGraphsContainer is complete");
+        if (debug.get()) LOG.debug("The loading of the MarkovGraphsContainer is complete");
         return (ret);
     }
     
@@ -496,7 +500,7 @@ public abstract class MarkovUtil {
         MarkovGraphsContainer markovs = ClassUtil.newInstance(className, new Object[]{ procedures},
                                                                          new Class<?>[]{ Collection.class }); 
         assert(markovs != null);
-        if (LOG.isDebugEnabled()) LOG.debug(String.format("Instantiated new % object", className));
+        if (debug.get()) LOG.debug(String.format("Instantiated new % object", className));
         markovs.fromJSON(json_object, catalog_db);
         return (markovs);
     }
@@ -542,7 +546,7 @@ public abstract class MarkovUtil {
             LOG.error("Failed to serialize the " + className + " file '" + output_path + "'", ex);
             throw new RuntimeException(ex);
         }
-        LOG.debug(className + " objects were written out to '" + output_path + "'");
+        if (debug.get()) LOG.debug(className + " objects were written out to '" + output_path + "'");
     }
     
     /**
@@ -623,23 +627,24 @@ public abstract class MarkovUtil {
         graphviz.setEdgeLabels(true);
         graphviz.getGlobalGraphAttributes().put(Attribute.PACK, "true");
         graphviz.getGlobalVertexAttributes().put(Attribute.FONTNAME, "Courier");
+        graphviz.setGlobalLabel(String.format("MarkovGraph %s - GraphId:%d", markov.getProcedure().getName(), markov.getGraphId()));
         
         Vertex v = markov.getStartVertex();
-        graphviz.getAttributes(v).put(Attribute.FILLCOLOR, "darkblue");
+        graphviz.getAttributes(v).put(Attribute.FILLCOLOR, "blue");
         graphviz.getAttributes(v).put(Attribute.FONTCOLOR, "white");
-        graphviz.getAttributes(v).put(Attribute.STYLE, "filled,bold");
+        graphviz.getAttributes(v).put(Attribute.STYLE, "filled");
         graphviz.getAttributes(v).put(Attribute.FONTSIZE, "24");
 
         v = markov.getCommitVertex();
         graphviz.getAttributes(v).put(Attribute.FILLCOLOR, "darkgreen");
         graphviz.getAttributes(v).put(Attribute.FONTCOLOR, "white");
-        graphviz.getAttributes(v).put(Attribute.STYLE, "filled,bold");
+        graphviz.getAttributes(v).put(Attribute.STYLE, "filled");
         graphviz.getAttributes(v).put(Attribute.FONTSIZE, "24");
         
         v = markov.getAbortVertex();
         graphviz.getAttributes(v).put(Attribute.FILLCOLOR, "firebrick4");
         graphviz.getAttributes(v).put(Attribute.FONTCOLOR, "white");
-        graphviz.getAttributes(v).put(Attribute.STYLE, "filled,bold");
+        graphviz.getAttributes(v).put(Attribute.STYLE, "filled");
         graphviz.getAttributes(v).put(Attribute.FONTSIZE, "24");
 
         // Highlight Path
@@ -658,9 +663,9 @@ public abstract class MarkovUtil {
             for (Vertex v0 : markov.getVertices()) {
                 AttributeValues av = graphviz.getAttributes(v0);
                 
-                if (highlight_invalid && v0.isValid() == false) {
+                if (highlight_invalid && v0.isValid(markov) == false) {
                     av.put(Attribute.FILLCOLOR, "red");
-                    LOG.warn("Highlighting " + v0 + " as invalid");
+                    if (debug.get()) LOG.warn("Highlighting " + v0 + " as invalid");
                 }
                 
                 String label = "";

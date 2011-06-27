@@ -7,6 +7,7 @@ import org.voltdb.catalog.Database;
 
 import edu.brown.graphs.AbstractEdge;
 import edu.brown.graphs.IGraph;
+import edu.brown.graphs.exceptions.InvalidGraphElementException;
 import edu.brown.utils.MathUtil;
 
 
@@ -23,6 +24,7 @@ public class Edge extends AbstractEdge implements Comparable<Edge>, MarkovHitTra
     enum Members {
         PROBABILITY,
         TOTALHITS,
+        INSTANCEHITS,
     }
 
     /**
@@ -40,7 +42,7 @@ public class Edge extends AbstractEdge implements Comparable<Edge>, MarkovHitTra
      * MarkovGraph. This will eventually get folded into the global hits count, but we need to keep it separate so that
      * we can determine whether the current workload is deviating from the training set
      */
-    private transient int instancehits = 0;
+    public transient int instancehits = 0;
 
     /**
      * Constructor
@@ -79,12 +81,46 @@ public class Edge extends AbstractEdge implements Comparable<Edge>, MarkovHitTra
      */
     public void calculateProbability(long allHits) {
         assert(this.totalhits <= allHits) : String.format("Edge hits is greater than new allHits: " + this.totalhits + " > " + allHits);
-        this.probability = (float) (this.totalhits / (double)allHits);
+        if (allHits == 0) {
+            this.probability = 0f;
+        } else {
+            this.probability = (float) (this.totalhits / (double)allHits);
+        }
         assert(MathUtil.greaterThanEquals(this.probability, 0.0f, MarkovGraph.PROBABILITY_EPSILON) &&
                MathUtil.lessThanEquals(this.probability, 1.0f, MarkovGraph.PROBABILITY_EPSILON)) :
            String.format("Invalid new edge probability: %d / %d = %f", this.totalhits, allHits, this.probability);
     }
 
+    // ----------------------------------------------------------------------------
+    // VALIDATION METHODS
+    // ----------------------------------------------------------------------------
+    
+    public boolean isValid(MarkovGraph markov) {
+        try {
+            this.validate(markov);
+        } catch (InvalidGraphElementException ex) {
+            return (false);
+        }
+        return (true);
+    }
+
+    protected void validate(MarkovGraph markov) throws InvalidGraphElementException {
+        Vertex v0 = markov.getSource(this);
+        Vertex v1 = markov.getDest(this);
+        float e_prob = this.getProbability();
+        
+        // Make sure the edge probability is between [0, 1]
+        if (MathUtil.greaterThanEquals(e_prob, 0.0f, MarkovGraph.PROBABILITY_EPSILON) == false ||
+            MathUtil.lessThanEquals(e_prob, 1.0f, MarkovGraph.PROBABILITY_EPSILON) == false) {
+            throw new InvalidGraphElementException(markov, this, String.format("Edge probability is %.4f", e_prob));
+        }
+        
+        // Make sure that the special states are linked to each other
+        if (v0.isQueryVertex() == false && v1.isQueryVertex() == false) {
+            throw new InvalidGraphElementException(markov, this, "Invalid edge between non-query states");
+        }    
+    }
+    
     // ----------------------------------------------------------------------------
     // ONLINE UPDATE METHODS
     // ----------------------------------------------------------------------------

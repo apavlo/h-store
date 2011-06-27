@@ -53,7 +53,7 @@ if gcc_major == 4 and gcc_minor >= 3:
     CTX.CPPFLAGS += " -Wno-ignored-qualifiers -fno-strict-aliasing"
 
 # linker flags
-CTX.LDFLAGS = """ -g3 -rdynamic -ldl"""
+CTX.LDFLAGS = """-g3 -rdynamic -ldl"""
 if CTX.COVERAGE:
     CTX.LDFLAGS += " -ftest-coverage -fprofile-arcs"
 # for the google perftools profiler and the recommended stack unwinder
@@ -107,7 +107,7 @@ if CTX.LEVEL == "DEBUG":
     volt_log_level = 200
 
 if CTX.LEVEL == "RELEASE":
-    CTX.EXTRAFLAGS += " -g3 -O3 -mmmx -msse -msse2 -msse3 -DNDEBUG"
+    CTX.EXTRAFLAGS += " -g3 -O3 -mmmx -msse -msse2 -msse3 -DNDEBUG" #  -ffast-math -funroll-loops"
     CTX.OUTPUT_PREFIX = "obj/release"
     volt_log_level = 500
 

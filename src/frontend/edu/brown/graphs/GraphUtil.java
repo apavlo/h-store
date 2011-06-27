@@ -2,6 +2,7 @@ package edu.brown.graphs;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -31,6 +32,7 @@ public abstract class GraphUtil {
     }
 
     public enum Members {
+        ID,
         VERTEX_CLASS,
         VERTICES,
         EDGE_CLASS,
@@ -116,11 +118,29 @@ public abstract class GraphUtil {
      * @param stringer
      * @throws JSONException
      */
-    @SuppressWarnings("unchecked")
     public static <V extends AbstractVertex, E extends AbstractEdge> void serialize(IGraph<V, E> graph, JSONStringer stringer) throws JSONException {
+        GraphUtil.serialize(graph, null, null, stringer);
+    }
+    
+    /**
+     * For a given graph, write out its contents in serialized form into the provided Stringer
+     * Can provide sets of vertices or edges to not be serialized out
+     * @param <V>
+     * @param <E>
+     * @param graph
+     * @param ignore_v
+     * @param ignore_e
+     * @param stringer
+     * @throws JSONException
+     */
+    @SuppressWarnings("unchecked")
+    public static <V extends AbstractVertex, E extends AbstractEdge> void serialize(IGraph<V, E> graph, Collection<V> ignore_v, Collection<E> ignore_e, JSONStringer stringer) throws JSONException {
         int e_cnt = 0;
         int v_cnt = 0;
         int e_skipped = 0;
+        
+        // Graph ID
+        stringer.key(Members.ID.name()).value(graph.getGraphId());
         
         // Vertices
         assert(graph.getVertexCount() > 0) : "Graph has no vertices";
@@ -128,6 +148,7 @@ public abstract class GraphUtil {
         Class<V> v_class = null;
         Set<Long> all_vertices = new HashSet<Long>();
         for (V v : graph.getVertices()) {
+            if (ignore_v != null && ignore_v.contains(v)) continue;
             if (v_class == null) {
                 v_class = (Class<V>)v.getClass();
                 if (debug.get()) LOG.debug("Discovered vertex class: " + v_class.getName());
@@ -148,6 +169,7 @@ public abstract class GraphUtil {
             stringer.key(Members.EDGES.name()).array();
             Class<E> e_class = null;
             for (E e : graph.getEdges()) {
+                if (ignore_e != null && ignore_e.contains(e)) continue;
                 if (e_class == null) {
                     e_class = (Class<E>)e.getClass();
                     if (debug.get()) LOG.debug("Discovered edge class: " + e_class.getName());
@@ -157,6 +179,7 @@ public abstract class GraphUtil {
                 // that were added in between the time that we originally wrote out the list of vertices
                 final V v0 = graph.getSource(e);
                 final V v1 = graph.getDest(e);
+                if (ignore_v != null && (ignore_v.contains(v0) || ignore_v.contains(v1))) continue;
                 if (all_vertices.contains(v0.getElementId()) && all_vertices.contains(v1.getElementId())) {
                     if (trace.get()) LOG.trace(String.format("E [%d] %d => %d", e.getElementId(), v0.getElementId(), v1.getElementId()));
                     stringer.object();
@@ -209,7 +232,10 @@ public abstract class GraphUtil {
      * @throws Exception
      */
     @SuppressWarnings("unchecked")
-    public static <V extends AbstractVertex, E extends AbstractEdge> void deserialize(IGraph<V, E> graph, Database catalog_db, JSONObject jsonObject) throws JSONException {
+    public static <V extends AbstractVertex, E extends AbstractEdge> int deserialize(IGraph<V, E> graph, Database catalog_db, JSONObject jsonObject) throws JSONException {
+        // Graph Id
+        int id = jsonObject.getInt(Members.ID.name());
+        
         // Vertices
         String v_className = jsonObject.getString(Members.VERTEX_CLASS.name());
         Class<V> v_class = (Class<V>)ClassUtil.getClass(v_className);
@@ -243,6 +269,8 @@ public abstract class GraphUtil {
                 edge.fromJSON(jsonEdge, catalog_db);
             } // FOR
         }
+        
+        return (id);
     }
     
     /**

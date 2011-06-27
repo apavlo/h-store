@@ -1436,7 +1436,7 @@ BENCHMARKS
         classname="org.voltdb.benchmark.BenchmarkController">
         <classpath refid='project.classpath' />
         <jvmarg value="-server" />
-        <jvmarg value="-Xmx512m" />
+        <jvmarg value="-Xmx2048m" />
         <jvmarg value="-Xcheck:jni"/>
         <jvmarg value="-Djava.library.path=${build.dir}/nativelibs" />
         <jvmarg value="-Dlog4j.configuration=${basedir}/log4j.properties"/>

@@ -28,6 +28,7 @@ import org.voltdb.catalog.Statement;
 import edu.brown.catalog.CatalogKey;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.graphs.AbstractVertex;
+import edu.brown.graphs.exceptions.InvalidGraphElementException;
 import edu.brown.utils.ClassUtil;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.LoggerUtil;
@@ -60,6 +61,7 @@ public class Vertex extends AbstractVertex implements MarkovHitTrackable {
         PARTITIONS,
         PAST_PARTITIONS,
         TOTALHITS,
+        INSTANCEHITS,
         PROBABILITIES,
         EXECUTION_TIME,
     };
@@ -162,7 +164,7 @@ public class Vertex extends AbstractVertex implements MarkovHitTrackable {
     /**
      * The number of times this vertex has been touched in the current on-line run
      */
-    private transient int instancehits = 0;
+    public transient int instancehits = 0;
     
     /**
      * The execution times of the transactions in the on-line run
@@ -262,35 +264,67 @@ public class Vertex extends AbstractVertex implements MarkovHitTrackable {
         } // FOR
         this.resetAllProbabilities();
     }
-
-    public boolean isValid() {
-        if (this.type == Type.QUERY) {
-            for (Vertex.Probability ptype : Vertex.Probability.values()) {
-                int idx = ptype.ordinal();
-                for (int i = 0, cnt = this.probabilities[idx].length; i < cnt; i++) {
-                    float prob = this.probabilities[idx][i];
-                    if (MathUtil.greaterThanEquals(prob, 0.0f, MarkovGraph.PROBABILITY_EPSILON) == false ||
-                        MathUtil.lessThanEquals(prob, 1.0f, MarkovGraph.PROBABILITY_EPSILON) == false) {
-                        LOG.warn(String.format("Invalid %s probability at partition #%d: %f", ptype.name(), i, prob));
-                        return (false);
-                    }
-                } // FOR
-            }
-            
-            // If this isn't the first time we are executing this query, then we should at least have
-            // past partitions that we have touched
-            if (this.counter > 0 && this.past_partitions.isEmpty()) {
-                LOG.warn("No past partitions for at non-first query vertex");
-                return (false);
-            }
-            
-            // And we should always have some partitions that we're touching now
-            if (this.partitions.isEmpty()) {
-                LOG.warn("No current partitions for %s");
-                return (false);
-            }
+    
+    public boolean isValid(MarkovGraph markov) {
+        try {
+            this.validate(markov);
+        } catch (InvalidGraphElementException ex) {
+            return (false);
         }
         return (true);
+    }
+
+    protected void validate(MarkovGraph markov) throws InvalidGraphElementException {
+        Collection<Edge> outbound = markov.getOutEdges(this);
+        Collection<Edge> inbound = markov.getInEdges(this);
+        
+        switch (this.type) {
+            case START: {
+                // START should not have any inbound edges
+                if (inbound.size() > 0) {
+                    throw new InvalidGraphElementException(markov, this, String.format("START state has %d inbound edges", outbound.size()));
+                }
+                break;
+            }
+            case COMMIT:
+            case ABORT: {
+                // COMMIT and ABORT should not have any outbound edges
+                if (outbound.size() > 0) {
+                    throw new InvalidGraphElementException(markov, this, String.format("%s state has %d outbound edges", this.type, outbound.size()));
+                }
+                break;
+            }
+            case QUERY: {
+                // Every QUERY vertex should have an inbound edge
+                if (inbound.isEmpty()) {
+                    throw new InvalidGraphElementException(markov, this, "QUERY state does not have any inbound edges");
+                }
+                for (Vertex.Probability ptype : Vertex.Probability.values()) {
+                    int idx = ptype.ordinal();
+                    for (int i = 0, cnt = this.probabilities[idx].length; i < cnt; i++) {
+                        float prob = this.probabilities[idx][i];
+                        if (MathUtil.greaterThanEquals(prob, 0.0f, MarkovGraph.PROBABILITY_EPSILON) == false ||
+                            MathUtil.lessThanEquals(prob, 1.0f, MarkovGraph.PROBABILITY_EPSILON) == false) {
+                            throw new InvalidGraphElementException(markov, this, String.format("Invalid %s probability at partition #%d: %f", ptype.name(), i, prob));
+                        }
+                    } // FOR
+                }
+                
+                // If this isn't the first time we are executing this query, then we should at least have
+                // past partitions that we have touched
+                if (this.counter > 0 && this.past_partitions.isEmpty()) {
+                    throw new InvalidGraphElementException(markov, this, "No past partitions for at non-first query vertex");
+                }
+                
+                // And we should always have some partitions that we're touching now
+                if (this.partitions.isEmpty()) {
+                    throw new InvalidGraphElementException(markov, this, "No current partitions");
+                }
+                break;
+            }
+            default:
+                assert(false) : "Unexpected vertex type " + this.type;
+        } // SWITCH
     }
 
     // ----------------------------------------------------------------------------
@@ -418,9 +452,8 @@ public class Vertex extends AbstractVertex implements MarkovHitTrackable {
         DecimalFormat formatter = new DecimalFormat("0.000");
 
         // Basic Information
-        m0.put("Statement", this.catalog_item.fullName());
+        m0.put("Statement", this.catalog_item.getName() + (this.isQueryVertex() ? " #" + this.counter : ""));
         m0.put("ElementId", this.getElementId());
-        if (this.isQueryVertex()) m0.put("Counter", this.counter);
         m0.put("ExecutionTime", this.getExecutionTime());
         m0.put("Total Hits", this.totalhits);
         m0.put("Instance Hits", this.instancehits);
