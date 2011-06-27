@@ -981,7 +981,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
                 assert(this.current_dtxn_blocked.isEmpty()) :
                     String.format("Overlapping multi-partition transactions at partition %d: Orig[#%d] <=> New[#%d]",
                                   this.partitionId, this.current_dtxn.getTransactionId(), txn_id);
-                assert(this.current_dtxn == null) :
+                assert(this.current_dtxn == null || this.current_dtxn.isInitialized() == false) :
                     String.format("Overlapping multi-partition transactions at partition %d: Orig[#%d] <=> New[#%d]",
                             this.partitionId, this.current_dtxn.getTransactionId(), txn_id);
                 this.current_dtxn = ts;
