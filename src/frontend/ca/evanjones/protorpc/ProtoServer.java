@@ -58,15 +58,19 @@ public class ProtoServer extends AbstractEventHandler {
         }
 
         @Override
-        public boolean writeCallback(SelectableChannel channel) {
+        public synchronized boolean writeCallback(SelectableChannel channel) {
             return connection.writeAvailable();
         }
 
-        public void registerWrite() {
-            eventLoop.registerWrite(connection.getChannel(), this);
-        }
-
         private final ProtoConnection connection;
+
+        public synchronized void writeResponse(RpcResponse output) {
+            boolean blocked = connection.tryWrite(output);
+            if (blocked) {
+                // write blocked: wait for the write callback
+                eventLoop.registerWrite(connection.getChannel(), this);
+            }
+        }
     }
 
     private void read(EventCallbackWrapper eventLoopCallback) {
@@ -181,16 +185,8 @@ public class ProtoServer extends AbstractEventHandler {
                 assert controller.status != Protocol.Status.OK;
                 responseMessage.setErrorReason(controller.errorReason);
             }
-            Message output = responseMessage.build();
-            // TODO: Rethink the thread safety carefully. Maybe this should be a method on
-            // eventLoopCallback?
-            synchronized (eventLoopCallback) {
-                boolean blocked = eventLoopCallback.connection.tryWrite(output);
-                if (blocked) {
-                    // write blocked: wait for the write callback
-                    eventLoopCallback.registerWrite();
-                }
-            }
+
+            eventLoopCallback.writeResponse(responseMessage.build());
             eventLoopCallback = null;
         }
     }
@@ -198,12 +194,14 @@ public class ProtoServer extends AbstractEventHandler {
     public void bind(int port) {
         try {
             serverSocket = ServerSocketChannel.open();
-            // Mac OS X: Must bind() before calling Selector.register, or you don't get accept() events
+            // Avoid TIME_WAIT when killing the server
+            serverSocket.socket().setReuseAddress(true);
+            // Mac OS X: bind() before calling Selector.register or you don't get accept() events
             serverSocket.socket().bind(new InetSocketAddress(port));
             eventLoop.registerAccept(serverSocket, this);
         } catch (IOException e) { throw new RuntimeException("Failed to bind socket on port #" + port, e); }
     }
-    
+
     public void close() {
         try {
             serverSocket.close();
