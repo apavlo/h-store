@@ -20,9 +20,11 @@ import org.voltdb.catalog.Procedure;
 
 import edu.brown.markov.MarkovGraph;
 import edu.brown.markov.MarkovGraphsContainer;
+import edu.brown.markov.MarkovUtil;
 import edu.brown.markov.TransactionEstimator;
 import edu.brown.utils.FileUtil;
 import edu.brown.utils.PartitionEstimator;
+import edu.brown.utils.ThreadUtil;
 import edu.mit.hstore.HStoreSite;
 
 @ProcInfo(singlePartition = false)
@@ -71,12 +73,17 @@ public class RecomputeMarkovs extends VoltSystemProcedure {
                     
                     if (debug) LOG.debug(String.format("Recalculating MarkovGraph probabilities at partition %d [save=%s, global=%s]",
                                                        this.base_partition, save_to_file, is_global));
+//                    ThreadUtil.sleep(1000);
                     
                     for (MarkovGraph m : markovs.getAll()) {
                         try {
                             m.recalculateProbabilities();
                         } catch (Throwable ex) {
+                            LOG.fatal(String.format("Failed to recalculate probabilities for %s MarkovGraph: %s", m.getProcedure().getName(), ex.getMessage()));
+                            File output = MarkovUtil.exportGraphviz(m, true, false, true, null).writeToTempFile();
+                            LOG.fatal("Wrote out invalid MarkovGraph: " + output.getAbsolutePath());
                             this.executor.crash(ex);
+                            assert(false) : "I shouldn't have gotten here!";
                         }
                     } // FOR
                     

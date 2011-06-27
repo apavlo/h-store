@@ -103,7 +103,11 @@ public abstract class MarkovUtil {
         }
         public String getName() {
             return ("--" + this.type.toString() + id +"--");
-        } 
+        }
+        @Override
+        public String fullName() {
+            return this.getName();
+        }
         @SuppressWarnings("unchecked")
         @Override
         public CatalogType getParent() {
@@ -643,6 +647,14 @@ public abstract class MarkovUtil {
         
         if (use_vldb_output || use_full_output) {
             final String empty_set = "\u2205";
+            
+            if (use_full_output) {
+                for (Edge e : markov.getEdges()) {
+                    AttributeValues av = graphviz.getAttributes(e);
+                    av.put(Attribute.LABEL, e.toString(true));
+                } // FOR
+            }
+            
             for (Vertex v0 : markov.getVertices()) {
                 AttributeValues av = graphviz.getAttributes(v0);
                 

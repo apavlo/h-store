@@ -289,7 +289,7 @@ public class GraphvizExport<V extends AbstractVertex, E extends AbstractEdge> {
             } // FOR
         } // FOR
     }
-
+    
     /**
      * Convenience method to write the GraphvizExport handle to a file the temporary directory
      * @param catalog_obj

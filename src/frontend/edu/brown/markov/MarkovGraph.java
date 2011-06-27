@@ -60,7 +60,7 @@ public class MarkovGraph extends AbstractDirectedGraph<Vertex, Edge> implements 
     /**
      * The precision we care about for vertex probabilities
      */
-    public static final float PROBABILITY_EPSILON = 0.00001f;
+    public static final float PROBABILITY_EPSILON = 0.001f;
     
     // ----------------------------------------------------------------------------
     // INSTANCE DATA MEMBERS
@@ -346,9 +346,9 @@ public class MarkovGraph extends AbstractDirectedGraph<Vertex, Edge> implements 
      */
     public synchronized void calculateProbabilities() {
         // Reset all probabilities
-//        for (Vertex v : this.getVertices()) {
-//            v.resetAllProbabilities();
-//        } // FOR
+        for (Vertex v : this.getVertices()) {
+            v.resetAllProbabilities();
+        } // FOR
         
         // We first need to calculate the edge probabilities because the probabilities
         // at each vertex are going to be derived from these
@@ -364,9 +364,11 @@ public class MarkovGraph extends AbstractDirectedGraph<Vertex, Edge> implements 
     public synchronized void recalculateProbabilities() {
         this.normalizeTimes();
         for (Vertex v : this.getVertices()) {
+//            v.incrementTotalHits(v.getInstanceHits());
             v.applyInstanceHitsToTotalHits();
         }
         for (Edge e : this.getEdges()) {
+//            e.incrementTotalHits(e.getInstanceHits());
             e.applyInstanceHitsToTotalHits();
         }
         this.calculateProbabilities();
@@ -499,7 +501,11 @@ public class MarkovGraph extends AbstractDirectedGraph<Vertex, Edge> implements 
         Collection<Vertex> vertices = this.getVertices();
         for (Vertex v : vertices) {
             for (Edge e : this.getOutEdges(v)) {
-                e.calculateProbability(v.getTotalHits());
+                try {
+                    e.calculateProbability(v.getTotalHits());
+                } catch (Throwable ex) {
+                    throw new RuntimeException(String.format("Failed to calculate probabilities for edge %s -> %s", v, this.getDest(e)), ex);  
+                }
             }
         }
     }
@@ -515,6 +521,14 @@ public class MarkovGraph extends AbstractDirectedGraph<Vertex, Edge> implements 
             v.normalizeInstanceTimes(stoptimes, to_remove);
             to_remove.clear();
         } // FOR
+    }
+    
+    public Set<Vertex> getInvalidVertices() {
+        Set<Vertex> ret = new HashSet<Vertex>();
+        for (Vertex v : this.getVertices()) {
+            if (v.isValid() == false) ret.add(v);
+        } // FOR
+        return (ret);
     }
     
     /**
@@ -625,22 +639,18 @@ public class MarkovGraph extends AbstractDirectedGraph<Vertex, Edge> implements 
                 total_prob += e.getProbability();
                 total_edgehits += e.getTotalHits();
             } // FOR
-            if (MathUtil.equals(total_prob, 1.0f, MarkovGraph.PROBABILITY_EPSILON) == false && outbound.size() > 0) {
-                LOG.warn("Total outbound edge probability for " + v0 + " is not equal to one: " + total_prob);
-//                String temp = "";
-//                for (Edge e : outbound) {
-//                    temp += String.format("\n%s -> %s [%f]", this.getSource(e), this.getDest(e), e.getProbability());
-//                }
-//                LOG.warn("Busted Edge Probabilities:" + temp);
-//                System.err.println(JSONUtil.format(this));
-//                System.err.println("DUMPED: " + MarkovUtil.exportGraphviz(this, false, false, true, null).writeToTempFile());
-//                System.exit(1);
-                return (false);
-            }
-            if (total_edgehits != v0.getTotalHits()) {
-                LOG.warn(String.format("Vertex %d has %d totalHits but the sum of all its edges has %d",
-                                       v0, v0.getTotalHits(), total_edgehits));
-                return (false);
+            if (v0.isQueryVertex()) {
+                if (MathUtil.equals(total_prob, 1.0f, MarkovGraph.PROBABILITY_EPSILON) == false && outbound.size() > 0) {
+                    LOG.warn("Total outbound edge probability for " + v0 + " is not equal to one: " + total_prob);
+    //                System.err.println(JSONUtil.format(this));
+                    
+                    return (false);
+                }
+                if (total_edgehits != v0.getTotalHits()) {
+                    LOG.warn(String.format("Vertex %s has %d totalHits but the sum of all its edges has %d",
+                                           v0, v0.getTotalHits(), total_edgehits));
+                    return (false);
+                }
             }
             
             total_prob = 0.0f;
@@ -729,13 +739,11 @@ public class MarkovGraph extends AbstractDirectedGraph<Vertex, Edge> implements 
         } // FOR
         
         synchronized (previous) {
-            if (txn_trace.isAborted()) {
-                this.addToEdge(previous, this.getAbortVertex());
-                path.add(this.getAbortVertex());
-            } else {
-                this.addToEdge(previous, this.getCommitVertex());
-                path.add(this.getCommitVertex());
-            }
+            Vertex next = (txn_trace.isAborted() ? this.getAbortVertex() : this.getCommitVertex());
+            assert(next != null);
+            this.addToEdge(previous, next);
+            path.add(next);
+            next.incrementTotalHits();
         } // SYNCH
         // -----------END QUERY TRACE-VERTEX CREATION--------------
         this.xact_count++;
