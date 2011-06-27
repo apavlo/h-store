@@ -47,7 +47,8 @@ public class ProtoRpcChannel extends AbstractEventHandler implements RpcChannel 
     private void startAsyncConnect() {
         assert connection == null;
         connection = new ProtoConnection(connector.startNewConnection());
-        if (connection.getChannel() != null && !((SocketChannel) connection.getChannel()).isConnected()) { 
+        if (connection.getChannel() != null &&
+                !((SocketChannel) connection.getChannel()).isConnected()) {
             eventLoop.registerConnect((SocketChannel) connection.getChannel(), this);
         } else {
             eventLoop.registerRead(connection.getChannel(), this);
@@ -98,10 +99,10 @@ public class ProtoRpcChannel extends AbstractEventHandler implements RpcChannel 
         }
     }
 
-    /** 
+    /**
      * Sets the number of seconds to wait before reconnecting, if the connect fails.
      * This permits a channel to be created without the server running.
-     * 
+     *
      * @param reconnectSeconds number of seconds to wait between reconnect attempts. 0 disables
      *          reconnects (default).
      */
@@ -170,7 +171,8 @@ public class ProtoRpcChannel extends AbstractEventHandler implements RpcChannel 
             synchronized (this) {
                 rpc = pendingRpcs.remove(response.getSequenceNumber());
                 assert response.getStatus() == Protocol.Status.OK;
-                assert rpc != null : "No ProtoRpcController for Sequence# " + response.getSequenceNumber();
+                assert rpc != null :
+                        "No ProtoRpcController for Sequence# " + response.getSequenceNumber();
             }
             rpc.finishRpcSuccess(response.getResponse());
         }
@@ -199,7 +201,7 @@ public class ProtoRpcChannel extends AbstractEventHandler implements RpcChannel 
             throw new RuntimeException(e);
         }
 
-        // register for read events on this connection 
+        // register for read events on this connection
         eventLoop.registerRead(channel, this);
 
         boolean blocked = connection.writeAvailable();
@@ -208,8 +210,9 @@ public class ProtoRpcChannel extends AbstractEventHandler implements RpcChannel 
         }
     }
 
+    // This is synchronized so it doesn't screw up a simultaneous callMethod()
     @Override
-    public boolean writeCallback(SelectableChannel channel) {
+    public synchronized boolean writeCallback(SelectableChannel channel) {
         boolean blocked = connection.writeAvailable();
         if (LOG.isDebugEnabled()) LOG.debug(String.format("%d: writeCallback blocked = %b", hashCode(), blocked));
         return blocked;
@@ -225,7 +228,7 @@ public class ProtoRpcChannel extends AbstractEventHandler implements RpcChannel 
         if (connection == null) throw new IllegalStateException("connection closed");
         connection.close();
         connection = null;
-        
+
         // Fail all pending RPCs
         for (ProtoRpcController rpc : pendingRpcs.values()) {
             // TODO: Define constants shared between C++ and Java?
@@ -253,14 +256,14 @@ public class ProtoRpcChannel extends AbstractEventHandler implements RpcChannel 
                 assert barrierCount >= 0;
                 if (barrierCount == 0) {
                     eventLoop.cancelTimer(this);
-                    ((NIOEventLoop) eventLoop).exitLoop(); 
+                    ((NIOEventLoop) eventLoop).exitLoop();
                 }
             }
 
             private int barrierCount = addresses.length;
         }
         final ExitLoopHandler exitLoopHandler = new ExitLoopHandler();
-    
+
         class ConnectHandler extends AbstractEventHandler {
             public ConnectHandler(int index) {
                 this.index = index;
