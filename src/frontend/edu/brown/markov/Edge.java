@@ -95,10 +95,6 @@ public class Edge extends AbstractEdge implements Comparable<Edge>, MarkovHitTra
         this.instancehits = 0;
     }
     @Override
-    public void incrementTotalHits(long delta) {
-        this.totalhits += delta;
-    }
-    @Override
     public void incrementTotalHits() {
         this.totalhits++;
     }
@@ -115,14 +111,24 @@ public class Edge extends AbstractEdge implements Comparable<Edge>, MarkovHitTra
         return this.instancehits;
     }
     @Override
-    public void incrementInstanceHits() {
-        this.instancehits++;
+    public int incrementInstanceHits() {
+        return (++this.instancehits);
     }
     
     
     @Override
     public String toString() {
         return String.format("%.02f", this.probability); // FORMAT.format(this.probability);
+    }
+    
+    @Override
+    public String toString(boolean verbose) {
+        if (verbose) {
+            return (String.format("ElementId:%d, Prob:%.02f, TotalHits:%d, InstanceHits:%d",
+                                  this.getElementId(), this.probability, this.totalhits, this.instancehits));
+        } else {
+            return this.toString();
+        }
     }
 
     // ----------------------------------------------------------------------------

@@ -885,6 +885,7 @@ public class BenchmarkController {
         FileUtil.makeDirIfNotExists(output_directory);
         Database catalog_db = CatalogUtil.getDatabase(catalog);
 
+        ThreadUtil.sleep(25000);
         LOG.info("Requesting HStoreSites to recalculate Markov models");
         ClientResponse cr = null;
         try {

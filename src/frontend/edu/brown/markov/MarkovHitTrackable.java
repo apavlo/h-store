@@ -7,13 +7,6 @@ public interface MarkovHitTrackable {
      * and then reset instancehits
      */
     public void applyInstanceHitsToTotalHits();
-    
-    /**
-     * 
-     * @param delta
-     */
-    public void incrementTotalHits(long delta);
-    
     /**
      * 
      * @param delta
@@ -38,8 +31,9 @@ public interface MarkovHitTrackable {
     public int getInstanceHits();
 
     /**
+     * @return TODO
      * 
      */
-    public void incrementInstanceHits();
+    public int incrementInstanceHits();
        
 }

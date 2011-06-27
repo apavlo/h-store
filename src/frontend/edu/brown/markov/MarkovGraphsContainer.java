@@ -450,8 +450,13 @@ public class MarkovGraphsContainer implements JSONSerializable {
                     }
                     if (valid) cnt_valid++;
                     System.out.print(valid);
-                    if (valid == false) System.out.print("  [" + error + "]");
+                    if (valid == false) {
+                        System.err.println("DUMPED: " + MarkovUtil.exportGraphviz(markov, true, false, true, null).writeToTempFile(markov.catalog_proc));
+                        System.exit(1);
+                        System.out.print("  [" + error + "]");
+                    }
                     System.out.println();
+//                    if (cnt_total == 0) System.err.println("DUMPED: " + MarkovUtil.exportGraphviz(markov, true, false, true, null).writeToTempFile(markov.catalog_proc));
                     cnt_total++;
                 }
             } // FOR

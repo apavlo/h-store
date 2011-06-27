@@ -91,6 +91,7 @@ public class TransactionEstimator {
      */
     public static final class State implements Poolable {
         private final List<Vertex> actual_path = new ArrayList<Vertex>();
+        private final List<Edge> actual_path_edges = new ArrayList<Edge>();
         private final Set<Integer> touched_partitions = new HashSet<Integer>();
         private final Map<Statement, Integer> query_instance_cnts = new HashMap<Statement, Integer>();
         private final List<MarkovEstimate> estimates = new ArrayList<MarkovEstimate>();
@@ -139,7 +140,7 @@ public class TransactionEstimator {
             this.start_time = start_time;
             this.initial_estimator = initial_estimator;
             this.initial_estimate = initial_estimator.getEstimate();
-            this.setCurrent(markov.getStartVertex());
+            this.setCurrent(markov.getStartVertex(), null);
         }
         
         @Override
@@ -176,6 +177,7 @@ public class TransactionEstimator {
             this.markov.incrementTransasctionCount();
             this.txn_id = -1;
             this.actual_path.clear();
+            this.actual_path_edges.clear();
             this.touched_partitions.clear();
             this.query_instance_cnts.clear();
             this.current = null;
@@ -224,9 +226,10 @@ public class TransactionEstimator {
          * Set the current vertex for this transaction and update the actual path
          * @param current
          */
-        public void setCurrent(Vertex current) {
+        public void setCurrent(Vertex current, Edge e) {
             if (this.current != null) assert(this.current.equals(current) == false);
             this.actual_path.add(current);
+            if (e != null) this.actual_path_edges.add(e);
             this.current = current;
         }
         
@@ -625,10 +628,10 @@ public class TransactionEstimator {
     private State completeTransaction(long txn_id, Vertex.Type vtype) {
         State s = this.txn_states.remove(txn_id);
         if (s == null) {
-            if (t) LOG.warn("No state information exists for txn #" + txn_id);
+            LOG.warn("No state information exists for txn #" + txn_id);
             return (null);
         }
-        long start_time = System.currentTimeMillis();
+        long timestamp = System.currentTimeMillis();
         if (d) LOG.debug(String.format("Cleaning up state info for txn #%d [type=%s]", txn_id, vtype));
         
         // We need to update the counter information in our MarkovGraph so that we know
@@ -643,14 +646,16 @@ public class TransactionEstimator {
         synchronized (g) {
             next_e = g.findEdge(current, next_v);
             if (next_e == null) next_e = g.addToEdge(current, next_v);
+            s.setCurrent(next_v, next_e); // In case somebody wants to do post-processing...
 
             // Update counters
-            next_v.incrementInstanceHits();
-            next_v.addInstanceTime(txn_id, s.getExecutionTimeOffset(start_time));
-            next_e.incrementInstanceHits();
+            // We want to update the counters for the entire path right here so that
+            // nobody gets incomplete numbers if they recompute probabilities
+            for (Vertex v : s.actual_path) v.incrementInstanceHits();
+            for (Edge e : s.actual_path_edges) e.incrementInstanceHits();
+            next_v.addInstanceTime(txn_id, s.getExecutionTimeOffset(timestamp));
         } // SYNCH
         assert(next_e != null);
-        s.setCurrent(next_v); // In case somebody wants to do post-processing...
         
         // Store this as the last accurate MarkovPathEstimator for this graph
         if (hstore_conf.site.markov_path_caching && this.cached_estimators.containsKey(s.markov) == false) {
@@ -724,11 +729,11 @@ public class TransactionEstimator {
 
         // Update the counters and other info for the next vertex and edge
         next_v.addInstanceTime(state.txn_id, state.getExecutionTimeOffset());
-        next_v.incrementInstanceHits();
-        next_e.incrementInstanceHits();
+        // next_v.incrementInstanceHits();
+//        next_e.incrementInstanceHits();
         
         // Update the state information
-        state.setCurrent(next_v);
+        state.setCurrent(next_v, next_e);
         state.addTouchedPartitions(partitions);
         if (t) LOG.trace("Updated State Information for Txn #" + state.txn_id + ":\n" + state);
     }

@@ -25,6 +25,15 @@ public class BenchmarkClientFileUploader {
         // Nothing to do
     }
     
+    /**
+     * Queues a file on the local machine to be sent to the host running the client for the given id
+     * The local_file is the path on this machine, the remote_file is the path on the remote machine
+     * @param client_id
+     * @param parameter
+     * @param local_file
+     * @param remote_file
+     * @throws IOException
+     */
     public void sendFileToClient(int client_id, String parameter, File local_file, File remote_file) throws IOException {
         if (local_file.exists() == false) {
             throw new IOException("Unable to send local file '" + local_file + "' to client " + client_id + ". File does not exist");

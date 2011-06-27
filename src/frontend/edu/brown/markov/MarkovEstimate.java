@@ -77,7 +77,7 @@ public class MarkovEstimate implements Poolable {
                 this.setReadOnlyPartitionProbability(i, v.getReadOnlyProbability(i));
                 this.setWritePartitionProbability(i, v.getWriteProbability(i));
             } // FOR
-            this.time = v.getExecutiontime();
+            this.time = v.getExecutionTime();
         }
         return (this);
     }
