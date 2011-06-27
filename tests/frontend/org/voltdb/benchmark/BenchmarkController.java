@@ -900,26 +900,38 @@ public class BenchmarkController {
         // We just need to then pull down the files and then combine them into
         // a single MarkovGraphContainer
         Map<Integer, File> markovs = new HashMap<Integer, File>();
+        List<Pair<String, File>> files_to_remove = new ArrayList<Pair<String, File>>();
         VoltTable results[] = cr.getResults();
         assert(results.length == 1);
         while (results[0].advanceRow()) {
             int site_id = (int)results[0].getLong(0);
             int partition_id = (int)results[0].getLong(1);
-            String remote_path = results[0].getString(2);
+            File remote_path = new File(results[0].getString(2));
 //            boolean is_global = (results[0].getLong(3) == 1);
             
             Pair<String, Integer> p = m_launchHosts.get(site_id);
             assert(p != null) : "Invalid SiteId " + site_id;
             
             if (debug.get()) LOG.debug(String.format("Retrieving MarkovGraph file '%s' from %s", remote_path, HStoreSite.formatSiteName(site_id)));
-            SSHTools.copyFromRemote(output_directory, m_config.remoteUser, p.getFirst(), remote_path, m_config.sshOptions);
-            File local_file = new File(output_directory + "/" + FileUtil.basename(remote_path));
+            SSHTools.copyFromRemote(output_directory, m_config.remoteUser, p.getFirst(), remote_path.getPath(), m_config.sshOptions);
+            File local_file = new File(output_directory + "/" + remote_path.getName());
             markovs.put(partition_id, local_file);
+            files_to_remove.add(Pair.of((String)null, local_file));
+            files_to_remove.add(Pair.of(p.getFirst(), remote_path));
         } // FOR
         
         String new_output = output_directory + "/" + m_projectBuilder.getProjectName() + "-new.markovs";
-        LOG.info(String.format("Writing %d updated MarkovGraphsContainers to '%s'", markovs.size(),  new_output));
+        if (debug.get()) LOG.debug(String.format("Writing %d updated MarkovGraphsContainers to '%s'", markovs.size(),  new_output));
         MarkovUtil.combine(markovs, new_output, catalog_db);
+        
+        // Clean up the remote files
+        for (Pair<String, File> p : files_to_remove) {
+            if (p.getFirst() == null) {
+                p.getSecond().delete();
+            } else {
+                SSHTools.deleteFile(m_config.remoteUser, p.getFirst(), p.getSecond().getPath(), m_config.sshOptions);
+            }
+        } // FOR
     }
     
     /**

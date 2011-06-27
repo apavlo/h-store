@@ -203,7 +203,7 @@ public class ExecutionSiteHelper implements Runnable {
         while ((m = this.markovs_to_recompute.poll()) != null) {
             if (d) LOG.debug(String.format("Recomputing MarkovGraph for %s [recomputed=%d, hashCode=%d]",
                                            m.getProcedure().getName(), m.getRecomputeCount(), m.hashCode()));
-            m.recalculateProbabilities();
+            m.calculateProbabilities();
             if (d && m.isValid() == false) {
                 LOG.error("Invalid MarkovGraph after recomputing! Crashing...");
                 this.hstore_site.getMessenger().shutdownCluster(new Exception("Invalid Markovgraph after recomputing"), false);

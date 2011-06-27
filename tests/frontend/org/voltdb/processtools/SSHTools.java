@@ -64,25 +64,35 @@ public abstract class SSHTools {
         return url;
     }
     
-    public static boolean writeFile(String contents, String remoteUser, String hostNameTo, String pathTo, String sshOptions[]) {
+    public static boolean deleteFile(String remoteUser, String remoteHost, String remoteFile, String sshOptions[]) {
+        String command[] = { "rm", "-f", remoteFile };
+        String output = ShellTools.cmd(convert(remoteUser, remoteHost, null, sshOptions, command));
+        if (output.length() > 1) {
+            System.err.print(output);
+            return false;
+        }
+        return true;
+    }
+    
+    public static boolean writeFile(String contents, String remoteUser, String hostNameTo, String remoteFile, String sshOptions[]) {
         File f = FileUtil.writeStringToTempFile(contents, "dtxn.conf", true);
-        return (copyToRemote(f.getPath(), remoteUser, hostNameTo, pathTo));
+        return (copyToRemote(f.getPath(), remoteUser, hostNameTo, remoteFile));
     }
 
-    public static boolean copyToRemote(String localPath, String remoteUser, String remoteHost, String remotePath, String...sshOptions) {
+    public static boolean copyToRemote(String localPath, String remoteUser, String remoteHost, String renoteFile, String...sshOptions) {
         // scp -q src.getPath remoteUser@hostNameTo:/pathTo
         List<String> command = new ArrayList<String>();
         command.add("scp");
         command.addAll(DEFAULT_OPTIONS);
         CollectionUtil.addAll(command, sshOptions);
         command.add(localPath);
-        command.add(createUrl(remoteUser, remoteHost, remotePath));
+        command.add(createUrl(remoteUser, remoteHost, renoteFile));
         
         // Remove invalid scp options
         command.removeAll(SCP_PRUNE_OPTIONS);
         
         LOG.debug(String.format("Copying local file '%s' to remote file '%s' on %s",
-                               localPath, remotePath, remoteHost));
+                               localPath, renoteFile, remoteHost));
         String output = ShellTools.cmd(command);
         if (output.length() > 1) {
             System.err.print(output);

@@ -33,6 +33,7 @@ import edu.brown.utils.LoggerUtil.LoggerBoolean;
 import edu.brown.workload.QueryTrace;
 import edu.brown.workload.TransactionTrace;
 import edu.mit.hstore.HStoreConf;
+import edu.mit.hstore.dtxn.TransactionState;
 
 /**
  * 
@@ -451,19 +452,20 @@ public class TransactionEstimator {
     public State startTransaction(long txn_id, int base_partition, Procedure catalog_proc, Object args[]) {
         assert (catalog_proc != null);
         long start_time = System.currentTimeMillis();
-        if (d) LOG.debug(String.format("Starting estimation for new %s #%d [partition=%d]",
-                                       catalog_proc.getName(), txn_id, base_partition));
+        if (d) LOG.debug(String.format("Starting estimation for new %s [partition=%d]",
+                                       TransactionState.formatTxnName(catalog_proc, txn_id), base_partition));
 
         // If we don't have a graph for this procedure, we should probably just return null
         // This will be the case for all sysprocs
         if (this.markovs == null) return (null);
         MarkovGraph markov = this.markovs.getFromParams(txn_id, base_partition, args, catalog_proc);
         if (markov == null) {
-            if (d) LOG.debug(String.format("No %s MarkovGraph exists for txn #%d", catalog_proc.getName(), txn_id));
+            if (d) LOG.debug("No MarkovGraph is available for " + TransactionState.formatTxnName(catalog_proc, txn_id));
             return (null);
         }
         
         Vertex start = markov.getStartVertex();
+        assert(start != null) : "The start vertex is null. This should never happen!";
         MarkovPathEstimator estimator = null;
         
         // We'll reuse the last MarkovPathEstimator (and it's path) if the graph has been accurate for
@@ -475,27 +477,28 @@ public class TransactionEstimator {
             
         // Otherwise we have to recalculate everything from scatch again
         if (estimator == null) {
-            if (d) LOG.debug(String.format("Recalculating initial path estimate for %s #%d", catalog_proc.getName(), txn_id));
+            if (d) LOG.debug("Recalculating initial path estimate for " + TransactionState.formatTxnName(catalog_proc, txn_id)); 
             try {
                 estimator = (MarkovPathEstimator)ESTIMATOR_POOL.borrowObject();
                 estimator.init(markov, this, base_partition, args);
                 estimator.enableForceTraversal(true);
             } catch (Exception ex) {
+                LOG.error("Failed to intiialize new MarkovPathEstimator for " + TransactionState.formatTxnName(catalog_proc, txn_id));
                 throw new RuntimeException(ex);
             }
             
             // Calculate initial path estimate
-            if (t) LOG.trace("Estimating initial execution path for txn #" + txn_id);
+            if (t) LOG.trace("Estimating initial execution path for " + TransactionState.formatTxnName(catalog_proc, txn_id));
             synchronized (markov) {
                 start.addInstanceTime(txn_id, start_time);
                 try {
                     estimator.traverse(start);
                     // if (catalog_proc.getName().equalsIgnoreCase("NewBid")) throw new Exception ("Fake!");
                 } catch (Throwable e) {
-                    LOG.fatal("Failed to estimate path", e);
+                    LOG.error("Failed to estimate path for " + TransactionState.formatTxnName(catalog_proc, txn_id), e);
                     try {
                         GraphvizExport<Vertex, Edge> gv = MarkovUtil.exportGraphviz(markov, true, markov.getPath(estimator.getVisitPath()));
-                        System.err.println("GRAPH DUMP: " + gv.writeToTempFile(catalog_proc));
+                        LOG.error("GRAPH #" + markov.getGraphId() + " DUMP: " + gv.writeToTempFile(catalog_proc));
                     } catch (Exception ex) {
                         throw new RuntimeException(ex);
                     }
@@ -503,23 +506,26 @@ public class TransactionEstimator {
                 }
             } // SYNCH
         } else {
-            if (d) LOG.info(String.format("Using cached MarkovPathEstimator for %s txn #%d [hashCode=%d, ratio=%.02f]",
-                                           catalog_proc.getName(), txn_id, estimator.getEstimate().hashCode(), markov.getAccuracyRatio()));
+            if (d) LOG.info(String.format("Using cached MarkovPathEstimator for %s [hashCode=%d, ratio=%.02f]",
+                                          TransactionState.formatTxnName(catalog_proc, txn_id), estimator.getEstimate().hashCode(), markov.getAccuracyRatio()));
             assert(estimator.isCached()) :
-                String.format("The cached %s MarkovPathEstimator used by txn #%d does not have its cached flag set [hashCode=%d]", catalog_proc.getName(), txn_id, estimator.hashCode());
+                String.format("The cached MarkovPathEstimator used by %s does not have its cached flag set [hashCode=%d]",
+                              TransactionState.formatTxnName(catalog_proc, txn_id), estimator.hashCode());
             assert(estimator.getEstimate().isValid()) :
-                String.format("Invalid %s MarkovEstimate for cache Estimator used by txn #%d [hashCode=%d]", catalog_proc.getName(), txn_id, estimator.getEstimate().hashCode());
+                String.format("Invalid MarkovEstimate for cache Estimator used by %s [hashCode=%d]",
+                              TransactionState.formatTxnName(catalog_proc, txn_id), estimator.getEstimate().hashCode());
             estimator.getEstimate().reused++;
         }
         assert(estimator != null);
         if (t) {
             List<Vertex> path = estimator.getVisitPath();
-            LOG.trace(String.format("Estimated Path for txn #%d [length=%d]\n%s",
-                                    txn_id, path.size(), StringUtil.join("\n----------------------\n", path, "debug")));
-            LOG.trace(String.format("MarkovEstimate for txn #%d\n%s", txn_id, estimator.getEstimate()));
+            LOG.trace(String.format("Estimated Path for %s [length=%d]\n%s",
+                                    TransactionState.formatTxnName(catalog_proc, txn_id), path.size(),
+                                    StringUtil.join("\n----------------------\n", path, "debug")));
+            LOG.trace(String.format("MarkovEstimate for %s\n%s", TransactionState.formatTxnName(catalog_proc, txn_id), estimator.getEstimate()));
         }
         
-        if (d) LOG.debug(String.format("Creating new State txn #%d [touched=%s]", txn_id, estimator.getTouchedPartitions()));
+        if (d) LOG.debug(String.format("Creating new State %s [touchedPartitions=%s]", TransactionState.formatTxnName(catalog_proc, txn_id), estimator.getTouchedPartitions()));
         State state = null;
         try {
             state = (State)STATE_POOL.borrowObject();
@@ -529,7 +535,7 @@ public class TransactionEstimator {
         // Calling init() will set the initial MarkovEstimate for the State
         state.init(txn_id, base_partition, markov, estimator, start_time);
         State old = this.txn_states.put(txn_id, state);
-        assert(old == null) : "Duplicate transaction id #" + txn_id + " [" + catalog_proc.getName() + "]";
+        assert(old == null) : "Duplicate transaction id " + TransactionState.formatTxnName(catalog_proc, txn_id);
 
         this.txn_count.incrementAndGet();
         return (state);
@@ -582,7 +588,7 @@ public class TransactionEstimator {
         // Once the workload shifts we detect it and trigger this method. Recomputes
         // the graph with the data we collected with the current workload method.
         if (this.enable_recomputes && state.getMarkovGraph().shouldRecompute(this.txn_count.get(), RECOMPUTE_TOLERANCE)) {
-            state.getMarkovGraph().recalculateProbabilities();
+            state.getMarkovGraph().calculateProbabilities();
         }
         
         return (estimate);
@@ -640,13 +646,12 @@ public class TransactionEstimator {
         Vertex current = s.getCurrent();
         Vertex next_v = g.getSpecialVertex(vtype);
         assert(next_v != null) : "Missing " + vtype;
-        Edge next_e = null;
         
         // If no edge exists to the next vertex, then we need to create one
         synchronized (g) {
-            next_e = g.findEdge(current, next_v);
+            Edge next_e = g.findEdge(current, next_v);
             if (next_e == null) next_e = g.addToEdge(current, next_v);
-            s.setCurrent(next_v, next_e); // In case somebody wants to do post-processing...
+            s.setCurrent(next_v, next_e); // For post-txn processing...
 
             // Update counters
             // We want to update the counters for the entire path right here so that
@@ -655,7 +660,6 @@ public class TransactionEstimator {
             for (Edge e : s.actual_path_edges) e.incrementInstanceHits();
             next_v.addInstanceTime(txn_id, s.getExecutionTimeOffset(timestamp));
         } // SYNCH
-        assert(next_e != null);
         
         // Store this as the last accurate MarkovPathEstimator for this graph
         if (hstore_conf.site.markov_path_caching && this.cached_estimators.containsKey(s.markov) == false) {
@@ -729,8 +733,6 @@ public class TransactionEstimator {
 
         // Update the counters and other info for the next vertex and edge
         next_v.addInstanceTime(state.txn_id, state.getExecutionTimeOffset());
-        // next_v.incrementInstanceHits();
-//        next_e.incrementInstanceHits();
         
         // Update the state information
         state.setCurrent(next_v, next_e);

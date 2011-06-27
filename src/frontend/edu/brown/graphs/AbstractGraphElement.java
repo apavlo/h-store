@@ -178,6 +178,7 @@ public abstract class AbstractGraphElement implements JSONSerializable {
     @Override
     public void fromJSON(JSONObject object, Database catalog_db) throws JSONException {
         this.element_id = object.getLong("ELEMENT_ID");
+        NEXT_ELEMENT_ID.set(this.element_id);
         this.fromJSONObjectImpl(object, catalog_db);
     }
     

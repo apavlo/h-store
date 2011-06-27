@@ -16,9 +16,11 @@ import org.voltdb.messaging.FastSerializer;
 import org.voltdb.utils.Encoder;
 
 import edu.brown.catalog.CatalogKey;
+import edu.brown.graphs.exceptions.InvalidGraphElementException;
 import edu.brown.hashing.AbstractHasher;
 import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.CollectionUtil;
+import edu.brown.utils.FileUtil;
 import edu.brown.utils.JSONSerializable;
 import edu.brown.utils.JSONUtil;
 import edu.brown.utils.StringUtil;
@@ -100,6 +102,13 @@ public class MarkovGraphsContainer implements JSONSerializable {
         this(false);
     }
     
+    public MarkovGraph getFromGraphId(int id) {
+        for (MarkovGraph m : this.getAll()) {
+            if (m.getGraphId() == id) return (m);
+        } // FOR
+        return (null);
+    }
+    
     // -----------------------------------------------------------------
     // PSEUDO-MAP METHODS
     // -----------------------------------------------------------------
@@ -154,6 +163,7 @@ public class MarkovGraphsContainer implements JSONSerializable {
     }
     
     public void put(Integer id, MarkovGraph markov) {
+        assert(id != null) : "Invalid id";
         Map<Procedure, MarkovGraph> inner = this.markovs.get(id);
         if (inner == null) {
             inner = new HashMap<Procedure, MarkovGraph>();
@@ -432,35 +442,38 @@ public class MarkovGraphsContainer implements JSONSerializable {
                      ArgumentsParser.PARAM_MARKOV);
         
         Map<Integer, MarkovGraphsContainer> all_markovs = MarkovUtil.load(args.catalog_db, args.getParam(ArgumentsParser.PARAM_MARKOV));
-        int cnt_valid = 0;
+        int cnt_invalid = 0;
         int cnt_total = 0;
         for (Integer p : all_markovs.keySet()) {
             MarkovGraphsContainer m = all_markovs.get(p);
-            System.out.println("Validating " + m.size() + " for partition " + p);
+            LOG.info("Validating " + m.size() + " MarkovGraphs for partition " + p);
             
             for (Integer id : m.keySet()) {
                 for (MarkovGraph markov : m.getAll(id).values()) {
-                    System.out.print(String.format("[%d] %-16s", id, markov.getProcedure().getName()));
-                    boolean valid = false;
-                    String error = "???";
+                    boolean dump = false;
+                    String before = MarkovUtil.exportGraphviz(markov, true, false, true, null).export(markov.getProcedure().getName());
                     try {
-                        valid = markov.isValid();
-                    } catch (Throwable ex) {
-                        error = ex.getMessage();
+//                        markov.calculateProbabilities();
+                        markov.validate();
+                        if (markov.getGraphId() == 10012) dump = true;
+                    } catch (InvalidGraphElementException ex) {
+                        cnt_invalid++;
+                        System.out.println(String.format("[%d] %-16s - %s", markov.getGraphId(), markov.getProcedure().getName(), ex.getMessage()));
+                        dump = true;
+                        throw ex;
+                    } finally {
+                        if (dump) {
+                            System.out.println("BEFORE DUMPED: " + FileUtil.writeStringToFile("/tmp/before.dot", before));
+                            System.out.println("AFTER DUMPED: " + MarkovUtil.exportGraphviz(markov, true, false, true, null).writeToTempFile(markov.catalog_proc));
+                        }
                     }
-                    if (valid) cnt_valid++;
-                    System.out.print(valid);
-                    if (valid == false) {
-                        System.err.println("DUMPED: " + MarkovUtil.exportGraphviz(markov, true, false, true, null).writeToTempFile(markov.catalog_proc));
-                        System.exit(1);
-                        System.out.print("  [" + error + "]");
-                    }
-                    System.out.println();
-//                    if (cnt_total == 0) System.err.println("DUMPED: " + MarkovUtil.exportGraphviz(markov, true, false, true, null).writeToTempFile(markov.catalog_proc));
                     cnt_total++;
                 }
             } // FOR
         }
-        System.out.println("VALID: " + cnt_valid + " / "+ cnt_total);
+        System.out.println("VALID: " + (cnt_total - cnt_invalid) + " / "+ cnt_total);
+        if (cnt_invalid == 0) {
+            MarkovUtil.save(all_markovs, args.getParam(ArgumentsParser.PARAM_MARKOV));
+        }
     }
 }
