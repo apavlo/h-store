@@ -233,6 +233,7 @@ public class ProcessSetManager {
                 createdProcesses.add(pd.process);
                 assert(m_processes.containsKey(processName) == false) : processName + "\n" + m_processes;
                 m_processes.put(processName, pd);
+                LOG.info("processName = " + processName + ", m_processes size = " + m_processes.size());
                 
                 if (this.poller.isAlive() == false) this.poller.start();
             } // SYNCH

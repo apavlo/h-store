@@ -67,7 +67,27 @@ import edu.brown.utils.JSONUtil;
 public class AuctionMarkBenchmarkProfile implements JSONSerializable {
     protected static final Logger LOG = Logger.getLogger(AuctionMarkBaseClient.class);
 
-    public List<Long> user_ids;
+    //public List<Long> user_ids;
+
+    private int low_u_id;
+    private int high_u_id;
+    
+    
+    public int getLowerUid() {
+		return low_u_id;
+    }
+
+    public int getHighUid() {
+    	return high_u_id;
+    }
+    
+    public void setLowerUid(int low_u_id) {
+		this.low_u_id = low_u_id;
+    }
+
+    public void setHighUid(int high_u_id) {
+    	this.high_u_id = high_u_id;
+    }
 
     public enum Members {
         SCALE_FACTOR, TABLE_SIZES, ITEM_CATEGORY_HISTOGRAM, USER_IDS, USER_AVAILABLE_ITEMS, USER_WAIT_FOR_PURCHASE_ITEMS, USER_COMPLETE_ITEMS, ITEM_BID_MAP, ITEM_BUYER_MAP, GAG_GAV_MAP, GAG_GAV_HISTOGRAM
@@ -131,7 +151,7 @@ public class AuctionMarkBenchmarkProfile implements JSONSerializable {
 
         LOG.debug("AuctionMarkBenchmarkProfile :: constructor");
 
-        this.user_ids = new ArrayList<Long>();
+        //this.user_ids = new ArrayList<Long>();
 
         this.user_available_items = new ConcurrentHashMap<Long, List<Long>>();
         this.user_available_items_histogram = new Histogram<Long>();
@@ -252,25 +272,27 @@ public class AuctionMarkBenchmarkProfile implements JSONSerializable {
         this.setTableSize(table_name, orig_size + size);
     }
 
-    public void addUserId(long userId) {
-        synchronized (this.user_ids) {
-            if (LOG.isTraceEnabled()) {
-                LOG.trace("@@@ adding userId = " + userId);
-            }
-            this.user_ids.add(userId);
-        }
-    }
+//	public void addUserId(long userId) {
+//        synchronized (this.user_ids) {
+//            if (LOG.isTraceEnabled()) {
+//                LOG.trace("@@@ adding userId = " + userId);
+//            }
+//            this.user_ids.add(userId);
+//        }
+//    }
 
-    public long getUserId(int index) {
-        return this.user_ids.get(index);
-    }
-
-    public List<Long> getUserIds() {
-        return this.user_ids;
-    }
+//    public long getUserId(int index) {
+//    	//LOG.info("user id index: " + index + " client count: " + num_clients);
+//        return this.user_ids.get(index);
+//    }
+//
+//    public List<Long> getUserIds() {
+//        return this.user_ids;
+//    }
 
     public int getUserIdCount() {
-        return (this.user_ids.size());
+    	return high_u_id;
+        //return (this.user_ids.size());
     }
 
     /*
@@ -303,6 +325,30 @@ public class AuctionMarkBenchmarkProfile implements JSONSerializable {
         }
     }
 
+//    /**
+//     * Gets a random user ID within the client.
+//     * 
+//     * @param rng
+//     * @return
+//     */
+//    private Long getRandomUserId(AbstractRandomGenerator rng) {
+//        Long user_id = null;
+//        assert (this.user_ids.isEmpty() == false) : "The list of user ids is empty!";
+//        synchronized (this.user_ids) {
+//            int num_user_ids = this.user_ids.size();
+//            if (num_user_ids > 0) {
+//                RandomDistribution.DiscreteRNG randomUserIndex = this.CACHE_getRandomUserId.get(rng);
+//                if (randomUserIndex == null || randomUserIndex.getMax() != num_user_ids) {
+//                    // Do we really want everything to be Guassian??
+//                    randomUserIndex = new Gaussian(rng, 0, num_user_ids - 1);
+//                    this.CACHE_getRandomUserId.put(rng, randomUserIndex);
+//                }
+//                user_id = this.user_ids.get(randomUserIndex.nextInt());
+//            }
+//        }
+//        return (user_id);
+//    }
+
     /**
      * Gets a random user ID within the client.
      * 
@@ -311,22 +357,17 @@ public class AuctionMarkBenchmarkProfile implements JSONSerializable {
      */
     private Long getRandomUserId(AbstractRandomGenerator rng) {
         Long user_id = null;
-        assert (this.user_ids.isEmpty() == false) : "The list of user ids is empty!";
-        synchronized (this.user_ids) {
-            int num_user_ids = this.user_ids.size();
-            if (num_user_ids > 0) {
-                RandomDistribution.DiscreteRNG randomUserIndex = this.CACHE_getRandomUserId.get(rng);
-                if (randomUserIndex == null || randomUserIndex.getMax() != num_user_ids) {
-                    // Do we really want everything to be Guassian??
-                    randomUserIndex = new Gaussian(rng, 0, num_user_ids - 1);
-                    this.CACHE_getRandomUserId.put(rng, randomUserIndex);
-                }
-                user_id = this.user_ids.get(randomUserIndex.nextInt());
-            }
+        RandomDistribution.DiscreteRNG randomUserIndex = this.CACHE_getRandomUserId.get(rng);
+        if (randomUserIndex == null) {
+            // Do we really want everything to be Guassian??
+            randomUserIndex = new Gaussian(rng, low_u_id, high_u_id - 1);
+            this.CACHE_getRandomUserId.put(rng, randomUserIndex);
         }
+        user_id = (long)randomUserIndex.nextInt();
         return (user_id);
     }
-
+    
+    
     private final Map<AbstractRandomGenerator, RandomDistribution.DiscreteRNG> CACHE_getRandomUserId = new HashMap<AbstractRandomGenerator, RandomDistribution.DiscreteRNG>();
 
     /**

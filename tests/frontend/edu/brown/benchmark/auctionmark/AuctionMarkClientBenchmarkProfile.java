@@ -85,7 +85,7 @@ public class AuctionMarkClientBenchmarkProfile extends AuctionMarkBenchmarkProfi
         this.initItemBidMap(profile.item_bid_map);
         this.initItemBuyerMap(profile.item_buyer_map);
 
-        this.initUserIds(profile.user_ids);
+        //this.initUserIds(profile.user_ids);
 
         this.gag_gav_map = profile.gag_gav_map;
         this.gag_gav_histogram = profile.gag_gav_histogram;
@@ -126,20 +126,20 @@ public class AuctionMarkClientBenchmarkProfile extends AuctionMarkBenchmarkProfi
         }
     }
 
-    private void initUserIds(List<Long> sourceUserIds) {
-        long maxUserId = -1;
-        synchronized (this.user_ids) {
-            for (Long userId : sourceUserIds) {
-                if (this.isOffsetInRange(userId)) {
-                    this.user_ids.add(userId);
-                    if (userId > maxUserId) {
-                        maxUserId = userId;
-                    }
-                }
-            }
-            this._nextUserId.set(maxUserId + 1);
-        }
-    }
+//    private void initUserIds(List<Long> sourceUserIds) {
+//        long maxUserId = -1;
+//        synchronized (this.user_ids) {
+//            for (Long userId : sourceUserIds) {
+//                if (this.isOffsetInRange(userId)) {
+//                    this.user_ids.add(userId);
+//                    if (userId > maxUserId) {
+//                        maxUserId = userId;
+//                    }
+//                }
+//            }
+//            this._nextUserId.set(maxUserId + 1);
+//        }
+//    }
 
     /**
      * Gets next available user ID within the client.

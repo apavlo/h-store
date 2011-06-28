@@ -7,7 +7,7 @@ import org.junit.Test;
 public class TestPartitionIdGenerator {
 
 	private static final long MAXIMUM_ID = 100000000000000l;
-	private static final int NUM_CLIENTS = 10;
+	private static final int NUM_CLIENTS = 5;
 	private PartitionIdGenerator _idGenerator;
 	
 	

@@ -598,7 +598,7 @@ public class AuctionMarkClient extends AuctionMarkBaseClient {
 
         _clientId = getClientId();
 
-        clientProfile = new AuctionMarkClientBenchmarkProfile(profile, getClientId(), AuctionMarkConstants.MAXIMUM_CLIENT_IDS, m_catalog, rng);
+        clientProfile = new AuctionMarkClientBenchmarkProfile(profiles.get(getClientId()), getClientId(), AuctionMarkConstants.MAXIMUM_CLIENT_IDS, m_catalog, rng);
         if (trace) LOG.trace("constructor : histogram size = " + this.clientProfile.user_available_items_histogram.getSampleCount());
 
         // Enable temporal skew
@@ -900,5 +900,10 @@ public class AuctionMarkClient extends AuctionMarkBaseClient {
     @Override
     public String getSubApplicationName() {
         return "Client";
+    }
+    
+    public ArrayList getUserIDsByClientID(long clientID) {
+    	ArrayList<Integer> alUserIDs = new ArrayList<Integer>();
+    	return alUserIDs;
     }
 }

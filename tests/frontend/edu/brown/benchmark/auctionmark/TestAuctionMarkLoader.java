@@ -26,7 +26,7 @@ public class TestAuctionMarkLoader extends BaseTestCase {
     protected static final String LOADER_ARGS[] = {
         "SCALEFACTOR=" + SCALE_FACTOR, 
         "HOST=localhost",
-        "NUMCLIENTS=1",
+        "NUMCLIENTS=2",
         "CATALOG=" + BaseTestCase.getCatalogJarPath(ProjectType.AUCTIONMARK).getAbsolutePath(),
     };
     
@@ -81,7 +81,7 @@ public class TestAuctionMarkLoader extends BaseTestCase {
             if (debug) LOG.debug(table);
             
             // Make sure that we do this here because AuctionMarkLoader.generateTableData() doesn't do this anymore
-            MockAuctionMarkLoader.this.profile.addToTableSize(tablename, num_rows);
+            MockAuctionMarkLoader.this.profiles.get(getClientId()).addToTableSize(tablename, num_rows);
             
             TestAuctionMarkLoader.TOTAL_ROWS.put(tablename, total_rows);
         }
@@ -174,6 +174,20 @@ public class TestAuctionMarkLoader extends BaseTestCase {
     public void testGenerateUserAttributes() throws Exception {
         loader.generateTableData(AuctionMarkConstants.TABLENAME_USER_ATTRIBUTES);
     }        
+    
+    /**
+     * testRangePartitionUserid - tests whether the loader properly loaded the benchmark profiles
+     * correctly with disjoint subsets of userids.
+     */
+    public void testRangePartitionUserid() throws Exception {
+    	// fetch the list of profiles created
+    	int prev_high_id = -1;
+    	for (int client_id : loader.profiles.keySet()) {
+    		assert (((AuctionMarkBenchmarkProfile)loader.profiles.get(client_id)).getLowerUid() > prev_high_id); // lower id is greater than the higher id of the previous client
+    		assert (((AuctionMarkBenchmarkProfile)loader.profiles.get(client_id)).getHighUid() > ((AuctionMarkBenchmarkProfile)loader.profiles.get(client_id)).getLowerUid()); // high_id is greater than lower
+    		prev_high_id = ((AuctionMarkBenchmarkProfile)loader.profiles.get(client_id)).getLowerUid();
+    	}
+    }
     
     /**
      * testGenerateItem

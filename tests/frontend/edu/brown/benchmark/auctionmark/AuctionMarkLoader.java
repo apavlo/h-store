@@ -32,6 +32,10 @@
 package edu.brown.benchmark.auctionmark;
 
 import java.io.File;
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
+import java.io.FileReader;
+import java.io.FileWriter;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Calendar;
@@ -48,6 +52,7 @@ import org.apache.log4j.Logger;
 import org.voltdb.VoltTable;
 import org.voltdb.VoltTableRow;
 import org.voltdb.VoltType;
+import org.voltdb.benchmark.ClientMain;
 import org.voltdb.catalog.Table;
 import org.voltdb.client.ClientResponse;
 import org.voltdb.client.ProcedureCallback;
@@ -73,7 +78,7 @@ import edu.brown.rand.RandomDistribution.Zipf;
  */
 public class AuctionMarkLoader extends AuctionMarkBaseClient {
     private static final Logger LOG = Logger.getLogger(AuctionMarkLoader.class);
-    private static boolean debug = LOG.isDebugEnabled();
+    private static boolean debug = true;
     private static boolean trace = LOG.isTraceEnabled();
 
     // Data Generator Classes
@@ -97,7 +102,8 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
     private static final long MICROSECONDS_IN_A_DAY = MILLISECONDS_IN_A_DAY * 1000;
     
     private int numClients;
-
+    private int scaleFactor;
+    
     /**
      * 
      * @param args
@@ -115,7 +121,12 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
     public AuctionMarkLoader(String[] args) {
         super(AuctionMarkLoader.class, args);
 
+    	for(int i=0; i < args.length; i++)
+    	{
+    		LOG.info("args[" + i + "] = " + args[i]);
+    	}
         numClients = this.getNumClients();
+        scaleFactor = super.scaleFactor;
         assert(AuctionMarkConstants.MAXIMUM_NUM_CLIENTS > numClients);
         if (debug) LOG.debug("AuctionMarkLoader::: numClients = " + numClients);
         
@@ -140,7 +151,7 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
         this.generators.put(AuctionMarkConstants.TABLENAME_USER_ATTRIBUTES, userAttributesGenerator);
 
         // ITEM TABLES
-        ItemGenerator itemGenerator = new ItemGenerator(this.profile);
+        ItemGenerator itemGenerator = new ItemGenerator();
         itemGenerator.addSubGenerator(new ItemImageGenerator());
         itemGenerator.addSubGenerator(new ItemCommentGenerator());
         itemGenerator.addSubGenerator(new ItemBidGenerator());
@@ -234,8 +245,8 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
             try {
                 this.dependencyLock.lock();
                 while (!dependingGenerator.isFinish()) {
-                    if (debug) if (debug) LOG.debug("The generator for " + tableName + " is blocked waiting for "
-                                         + dependingGenerator.getTableName() + " [" + this + "]");
+                    if (debug)
+                    	LOG.debug("The generator for " + tableName + " is blocked waiting for " + dependingGenerator.getTableName() + " [" + this + "]");
                     this.dependencyCondition.await();
                 } // WHILE
             } catch (InterruptedException e) {
@@ -334,7 +345,7 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
                     assert (field_handle != null);
                     this.tableSize = (Long) field_handle.get(null);
                     if (!fixed_size) {
-                        this.tableSize = Math.round(this.tableSize / AuctionMarkLoader.this.profile.getScaleFactor());
+                        this.tableSize = Math.round(this.tableSize / AuctionMarkLoader.this.profiles.get(getClientId()).getScaleFactor());
                     }
                 }
 
@@ -537,7 +548,7 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
 
             boolean leaf_node = category.isLeaf();
             if (leaf_node) {
-                AuctionMarkLoader.this.profile.item_category_histogram.put(category_id, item_count.intValue());
+                AuctionMarkLoader.this.profiles.get(getClientId()).item_category_histogram.put(category_id, item_count.intValue());
             }
 
             // C_ID
@@ -565,7 +576,7 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
         @Override
         public void init() {
             // Grab the number of CATEGORY items that we have inserted
-            this.num_categories = AuctionMarkLoader.this.profile.getTableSize(AuctionMarkConstants.TABLENAME_CATEGORY);
+            this.num_categories = AuctionMarkLoader.this.profiles.get(getClientId()).getTableSize(AuctionMarkConstants.TABLENAME_CATEGORY);
         }
 
         @Override
@@ -609,7 +620,7 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
             long GAV_ID = new Integer((int) this.count);
             long GAV_GAG_ID = this.zipf.nextInt(); 
             
-            profile.addGAGIdGAVIdPair(GAV_GAG_ID, GAV_ID);
+            profiles.get(getClientId()).addGAGIdGAVIdPair(GAV_GAG_ID, GAV_ID);
             
             // GAV_ID
             this.row[col++] = GAV_ID;
@@ -628,22 +639,18 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
      * USER Generator
      */
     protected class UserGenerator extends AbstractTableGenerator {
-
         private Zipf randomBalance;
         private Flat randomRegion;
         private Gaussian randomRating;
         //private PartitionIdGenerator idGenerator;
         /** current user_id being generated **/
         private int user_id;
-        /** current client number being generated **/
-        private int current_client_number;
         
         public UserGenerator() {
             super(AuctionMarkLoader.this.getTableCatalog(AuctionMarkConstants.TABLENAME_USER));
             this.addDependency(AuctionMarkConstants.TABLENAME_REGION);
             //this.idGenerator = new PartitionIdGenerator(numClients, 0, AuctionMarkConstants.MAXIMUM_CLIENT_IDS);
             this.user_id = 0;
-            this.current_client_number = 1;
             this.randomRegion = new Flat(AuctionMarkLoader.this.rng, 0, (int) AuctionMarkConstants.TABLESIZE_REGION);
             this.randomRating = new Gaussian(AuctionMarkLoader.this.rng, 0, 6);
             this.randomBalance = new Zipf(AuctionMarkLoader.this.rng, 0, 501, 1.001);
@@ -658,47 +665,30 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
         protected void populateRow() {
             int col = 0;
 
-            // check if the u_id still belongs to this profile file or is it time to create another profile
-            if (user_id > current_client_number * AuctionMarkConstants.TABLESIZE_USER) {
-            	// write out the current profile to a file?
-            	
-            	// instantiate another profile
-            	
-            	// increment user_id and current_client_number
-            	user_id++;
-            	current_client_number++;
-            	
-            	// Anything else?
-            } else {
-            	// Add the user_id to the current profile instance
-            	
-                //long u_id = this.idGenerator.getNextId();
-                long u_id = user_id;
-                //System.out.println("U_id value is: " + u_id);
-                //profile.addUserId(u_id);
-                
-                // U_ID
-                this.row[col++] = u_id;
-                // U_RATING
-                this.row[col++] = this.randomRating.nextInt();
-                // U_BALANCE
-                this.row[col++] = (this.randomBalance.nextInt()) / 10.0;
-                // U_CREATED
-                this.row[col++] = VoltTypeUtil.getRandomValue(VoltType.TIMESTAMP);
-                // U_R_ID
-                this.row[col++] = this.randomRegion.nextInt();
-                // U_SATTR##
-                for (int i = 0; i < 8; i++) {
-                    this.row[col++] = AuctionMarkLoader.this.rng.astring(16, 64);
-                }
-
-                assert (col == this.table.getColumnCount());
-            	
-                // increment the user_id
-                user_id++;
+            long u_id = user_id;
+            //System.out.println("U_id value is: " + u_id);
+            //profile.addUserId(u_id);
+            
+            // U_ID
+            this.row[col++] = u_id;
+            // U_RATING
+            this.row[col++] = this.randomRating.nextInt();
+            // U_BALANCE
+            this.row[col++] = (this.randomBalance.nextInt()) / 10.0;
+            // U_CREATED
+            this.row[col++] = VoltTypeUtil.getRandomValue(VoltType.TIMESTAMP);
+            // U_R_ID
+            this.row[col++] = this.randomRegion.nextInt();
+            // U_SATTR##
+            for (int i = 0; i < 8; i++) {
+                this.row[col++] = AuctionMarkLoader.this.rng.astring(16, 64);
             }
-        }
 
+            assert (col == this.table.getColumnCount());
+        	
+            // increment the user_id
+            user_id++;
+        }
     }
 
     /**
@@ -724,7 +714,7 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
 
             Map<Integer, Short> userAttributeMap = new HashMap<Integer, Short>();
 
-            long numUsers = AuctionMarkLoader.this.profile.getTableSize(AuctionMarkConstants.TABLENAME_USER);
+            long numUsers = AuctionMarkLoader.this.profiles.get(getClientId()).getTableSize(AuctionMarkConstants.TABLENAME_USER);
 
             for (int i = 0; i < numUsers; i++) {
                 short n = (short) (randomNumAttributes.nextInt());
@@ -776,7 +766,7 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
             }
 
             this.currentNumUserAttributes--;
-            return profile.getUserId(this.currentUserIDIndex, m_numClients);
+            return (profiles.get(getClientId()).getLowerUid() + this.currentUserIDIndex);
         }
     }
 
@@ -801,7 +791,7 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
         private Zipf randomInitialPrice, randomNumImages, randomNumAttrs, randomBuyer, randomNumItems,
                 randomPurchaseDuration, randomNumComments;
 
-        public ItemGenerator(AuctionMarkBenchmarkProfile profile) {
+        public ItemGenerator() {
             super(AuctionMarkLoader.this.getTableCatalog(AuctionMarkConstants.TABLENAME_ITEM));
 
             this.addDependency(AuctionMarkConstants.TABLENAME_CATEGORY);
@@ -821,7 +811,7 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
         @Override
         public void init() {
         	
-            this.randomCategory = new FlatHistogram(AuctionMarkLoader.this.rng, AuctionMarkLoader.this.profile.item_category_histogram);
+            this.randomCategory = new FlatHistogram(AuctionMarkLoader.this.rng, AuctionMarkLoader.this.profiles.get(getClientId()).item_category_histogram);
             long ct1 = Calendar.getInstance().getTimeInMillis();
             long ct2 = Math.round((double)ct1 / 1000);
             long ct3 = ct2 * 1000;
@@ -849,7 +839,7 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
             this.randomNumComments = new Zipf(AuctionMarkLoader.this.rng, AuctionMarkConstants.ITEM_MIN_COMMENTS,
                     AuctionMarkConstants.ITEM_MAX_COMMENTS, 1.001);
 
-            int numUsers = (int) AuctionMarkLoader.this.profile.getTableSize(AuctionMarkConstants.TABLENAME_USER);
+            int numUsers = (int) AuctionMarkLoader.this.profiles.get(getClientId()).getTableSize(AuctionMarkConstants.TABLENAME_USER);
             this.randomBuyer = new Zipf(AuctionMarkLoader.this.rng, 0, numUsers, 1.001);
 
             // Map from (Number of items a person hold) -> (Number of persons in this group)
@@ -959,13 +949,13 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
                     //System.out.println("@@@ z last_bidder_id = " + itemInfo.last_bidder_id);
                     itemInfo.purchaseDate = this.getRandomPurchaseTimestamp(itemInfo.endDate);
                     itemInfo.num_comments = (short) this.randomNumComments.nextInt();
-                    profile.addCompleteItem(sellerID, itemID);
+                    profiles.get(getClientId()).addCompleteItem(sellerID, itemID);
                 }
                 itemStatus = 2;
             } else {
             	// Item is still available
             	itemInfo.still_available = true;
-            	profile.addAvailableItem(sellerID, itemID);
+            	profiles.get(getClientId()).addAvailableItem(sellerID, itemID);
             	itemStatus = 0;
             	
             	if (itemInfo.num_bids > 0) {
@@ -1058,7 +1048,7 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
                 }
             }
             this.sellerItems.setValue(this.sellerItems.getValue() - 1);
-            return profile.getUserId(this.sellerItems.getKey(), m_numClients);
+            return (profiles.get(getClientId()).getLowerUid() + this.sellerItems.getKey());
         }
 
         private TimestampType getRandomStartTimestamp(TimestampType endDate) {
@@ -1273,7 +1263,7 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
 
         @Override
         public void init() {
-            int numUsers = (int) AuctionMarkLoader.this.profile.getTableSize(AuctionMarkConstants.TABLENAME_USER);
+            int numUsers = (int) AuctionMarkLoader.this.profiles.get(getClientId()).getTableSize(AuctionMarkConstants.TABLENAME_USER);
             this.randomBuyerIndex = new Zipf(AuctionMarkLoader.this.rng, 0, numUsers, 1.001);
             
             long numBids = 0;
@@ -1400,14 +1390,14 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
             if (0 == this.currentNumBids) {
                 ItemInfo itemInfo = AuctionMarkLoader.this.item_info.get(this.bid.itemId);
                 this.bid.bidderId = itemInfo.last_bidder_id;
-                profile.addWaitForPurchaseItem(this.bid.sellerId, this.bid.itemId, this.bid.bidderId, this.bid.bidderId);
+                profiles.get(getClientId()).addWaitForPurchaseItem(this.bid.sellerId, this.bid.itemId, this.bid.bidderId, this.bid.bidderId);
                 if (null != itemInfo.purchaseDate) {
                     this.bid.won = true;
                 }
                 AuctionMarkLoader.this.max_bids.add(this.bid);
             } else {
             	//LOG.info("Next bit uid: " + this.randomBuyerIndex.nextInt());
-                this.bid.bidderId = profile.getUserId(this.randomBuyerIndex.nextInt(), m_numClients);
+                this.bid.bidderId = (profiles.get(getClientId()).getLowerUid() + this.randomBuyerIndex.nextInt());
             }
 
             return true;
@@ -1603,7 +1593,7 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
 
         @Override
         public void init() {
-            int numUsers = (int) AuctionMarkLoader.this.profile.getTableSize(AuctionMarkConstants.TABLENAME_USER);
+            int numUsers = (int) AuctionMarkLoader.this.profiles.get(getClientId()).getTableSize(AuctionMarkConstants.TABLENAME_USER);
             this.randomBuyerIndex = new Zipf(AuctionMarkLoader.this.rng, 0, numUsers, 1.001);
 
             long numWatches = 0;
@@ -1630,7 +1620,7 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
 
             ItemInfo itemInfo = AuctionMarkLoader.this.item_info.get(itemInfoID);
 
-            long buyerId = profile.getUserId(this.randomBuyerIndex.nextInt(), m_numClients);
+            long buyerId = (profiles.get(getClientId()).getLowerUid() + this.randomBuyerIndex.nextInt());
             
             // UW_U_ID
             this.row[col++] = buyerId;
@@ -1683,7 +1673,7 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
      */
     protected void loadTable(String tableName, VoltTable table) {
         long count = table.getRowCount();
-        long total = this.profile.getTableSize(tableName);
+        long total = this.profiles.get(getClientId()).getTableSize(tableName);
         long last_reported = this.load_table_count.get(tableName);
         if ((total - last_reported) > 1000) {
             if (debug) LOG.debug(String.format(tableName + ": loading %d rows (total %d)", count, total));
@@ -1697,7 +1687,7 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
             e.printStackTrace();
             System.exit(-1);
         }
-        this.profile.addToTableSize(tableName, count);
+        this.profiles.get(getClientId()).addToTableSize(tableName, count);
     }
     
     @Override

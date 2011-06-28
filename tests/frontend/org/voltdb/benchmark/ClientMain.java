@@ -218,7 +218,8 @@ public abstract class ClientMain {
     protected final HStoreConf m_hstoreConf;
     protected final BenchmarkConfig m_benchmarkConf;
     
-    
+    /** parse scale factor from arguments **/
+    protected int scaleFactor = 0;
 
     public static void printControlMessage(ControlState state) {
         printControlMessage(state, null);
@@ -548,7 +549,7 @@ public abstract class ClientMain {
         m_txnsPerMillisecond = 0;
         m_catalogPath = null;
         m_id = 0;
-        m_numClients = 1;
+        m_numClients = 2; //1;
         m_numPartitions = 0;
         m_counts = null;
         m_countDisplayNames = null;
@@ -656,8 +657,11 @@ public abstract class ClientMain {
             else if (parts[0].equalsIgnoreCase("CHECKTRANSACTION")) {
                 checkTransaction = Float.parseFloat(parts[1]);
             }
-            else if (parts[0].equalsIgnoreCase("CHECKTABLES")) {
-                checkTables = Boolean.parseBoolean(parts[1]);
+            else if (parts[0].equalsIgnoreCase("CHECKTRANSACTION")) {
+                checkTransaction = Float.parseFloat(parts[1]);
+            }
+            else if (parts[0].equalsIgnoreCase("SCALEFACTOR")) {
+                scaleFactor = Integer.parseInt(parts[1]);
 //            } else if (parts[0].equalsIgnoreCase("STATSDATABASEURL")) {
 //                statsDatabaseURL = parts[1];
 //            } else if (parts[0].equalsIgnoreCase("STATSPOLLINTERVAL")) {
@@ -698,6 +702,7 @@ public abstract class ClientMain {
 //                statsSettings = null;
 //            }
 //        }
+        LOG.info("message size: " + getExpectedOutgoingMessageSize() + " useheavy: " + useHeavyweightClient() + " statsetting: " + statsSettings);
         Client new_client =
             ClientFactory.createClient(
                 getExpectedOutgoingMessageSize(),
