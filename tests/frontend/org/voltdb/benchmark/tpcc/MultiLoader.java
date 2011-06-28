@@ -54,6 +54,8 @@ import org.voltdb.client.NoConnectionsException;
 import org.voltdb.client.ProcCallException;
 import org.voltdb.types.TimestampType;
 
+import edu.brown.catalog.CatalogUtil;
+
 /**
  * TPC-C database loader. Note: The methods order id parameters from "top level"
  * to "low level" parameters. However, the insert stored procedures use the
@@ -602,6 +604,10 @@ public class MultiLoader extends ClientMain {
                                             new VoltTable.ColumnInfo("I_NAME", VoltType.STRING),
                                             new VoltTable.ColumnInfo("I_PRICE", VoltType.FLOAT),
                                             new VoltTable.ColumnInfo("I_DATA", VoltType.STRING));
+            
+            // Scale the MAX_BATCH_SIZE based on the number of partitions
+            int replicated_batch_size = MAX_BATCH_SIZE / CatalogUtil.getNumberOfPartitions(m_catalog);
+            
             // items.ensureRowCapacity(parameters.items);
             // items.ensureStringCapacity(parameters.items * 96);
             // Select 10% of the rows to be marked "original"
@@ -616,7 +622,7 @@ public class MultiLoader extends ClientMain {
                 generateItem(items, i, original);
                 
                 // Items! Sail yo ho!
-                if (items.getRowCount() == MAX_BATCH_SIZE) {
+                if (items.getRowCount() == replicated_batch_size) {
                     try {
                         LOG.info(String.format("Loading replicated ITEM table [tuples=%d/%d]", i, m_parameters.items));
                         m_voltClient.callProcedure("@LoadMultipartitionTable", "ITEM", items);
@@ -689,7 +695,7 @@ public class MultiLoader extends ClientMain {
                     try {
                         for (int i2 = 0, cnt2 = table.getRowCount(); i2 < cnt2; i2++) {
                             batch.add(table.fetchRow(i2));
-                            if (batch.getRowCount() == MAX_BATCH_SIZE) {
+                            if (batch.getRowCount() == replicated_batch_size) {
                                 LOG.debug(String.format("Loading replicated CUSTOMER_NAME table [tuples=%d/%d]", i2, cnt2));
                                 m_voltClient.callProcedure("@LoadMultipartitionTable", "CUSTOMER_NAME", batch);
                                 batch.clearRowData();

@@ -254,7 +254,7 @@ public abstract class TableUtil {
         StringBuilder sb = new StringBuilder();
         for (int col_idx = 0; col_idx < header_formats.length; col_idx++) {
             String cell = header[col_idx];
-            if (format.capitalize_header) cell = cell.toUpperCase();
+            if (format.capitalize_header && cell != null) cell = cell.toUpperCase();
             sb.append(String.format(header_formats[col_idx], cell));
         } // FOR
         

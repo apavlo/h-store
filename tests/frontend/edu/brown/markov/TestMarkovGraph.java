@@ -191,7 +191,7 @@ public class TestMarkovGraph extends BaseTestCase {
      * testAddToEdge
      */
     @Test
-    public void testAddToEdge() {
+    public void testAddToEdge() throws Exception {
         MarkovGraph testGraph = new MarkovGraph(this.catalog_proc);
         testGraph.initialize();
         Vertex start = testGraph.getStartVertex();
@@ -207,24 +207,25 @@ public class TestMarkovGraph extends BaseTestCase {
             Vertex current = new Vertex(catalog_stmt, Vertex.Type.QUERY, i, partitions, previous);
             testGraph.addVertex(current);
             
-            long startcount = start.getTotalHits();
+            long startcount = start.getInstanceHits();
             testGraph.addToEdge(start, current);
-            start.incrementTotalHits();
-            testGraph.addToEdge(current, stop);
-            current.incrementTotalHits();
-            assertTrue(startcount + 1 == start.getTotalHits());
-            assertTrue(current.getTotalHits() == 1);
+            Edge e = testGraph.addToEdge(current, stop);
+            
+            start.incrementInstanceHits();
+            current.incrementInstanceHits();
+            e.incrementInstanceHits();
+            
+            assertEquals(startcount + 1, start.getInstanceHits());
+            assertEquals(1, current.getInstanceHits());
             all_previous.addAll(partitions);
         }
         
         testGraph.calculateProbabilities();
         
-        if (testGraph.isValid() == false) {
-            for (Vertex v : testGraph.getVertices()) {
-                System.err.println(v);
-            }
-        }
-        assertTrue(testGraph.isValid());
+//        if (testGraph.isValid() == false) {
+//            System.err.println("FAILED: " + MarkovUtil.exportGraphviz(testGraph, true, null).writeToTempFile());
+//        }
+        testGraph.validate();
     }
 
         
@@ -242,11 +243,18 @@ public class TestMarkovGraph extends BaseTestCase {
                                                                     CollectionUtil.addAll(new ArrayList<Integer>(), BASE_PARTITION));
          Vertex v2 = new Vertex(catalog_stmt, Vertex.Type.QUERY, 1, CollectionUtil.addAll(new ArrayList<Integer>(), BASE_PARTITION),
                                                                     CollectionUtil.addAll(new ArrayList<Integer>(), BASE_PARTITION));
-         graph.addVertex(v1);
-         graph.addToEdge(v0, v1);
-         graph.addVertex(v2);
-         graph.addToEdge(v1, v2);
-                
+
+         Vertex last = null;
+         for (Vertex v : new Vertex[]{v0, v1, v2, graph.getCommitVertex(), null}) {
+             if (v == null) break;
+             
+             if (v.isQueryVertex()) graph.addVertex(v);
+             v.incrementInstanceHits();
+             if (last != null) {
+                 graph.addToEdge(last, v).incrementInstanceHits();        
+             }
+             last = v;
+         } // FOR
          graph.setTransactionCount(1);
          graph.calculateProbabilities();
         

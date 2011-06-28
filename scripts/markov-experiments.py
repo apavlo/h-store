@@ -23,7 +23,7 @@ logging.basicConfig(level = logging.INFO,
 ## ==============================================
 
 NODE_MAX = 199
-NODES_TO_SKIP = [ 20, 21, 45, 77, 114, 101 ] # Busted nodes @ UW-Madison
+NODES_TO_SKIP = [ 3, 4, 20, 21, 45, 77, 114, 101 ] # Busted nodes @ UW-Madison
 
 COORDINATOR_NODE = 1
 SITE_NODE_START = COORDINATOR_NODE + 1
@@ -125,6 +125,7 @@ OPT_MARKOV_RECOMPUTE_WARMUP = False
 OPT_MARKOV_DIRECTORY = "files/markovs/vldb-june2011"
 
 OPT_CLUSTER_DIRECTORY = "/tmp/hstore/clusters"
+OPT_TRACE_DIRECTORY = "traces"
 
 OPT_OUTPUT_LOG = "markov-experiments.log"
 
@@ -153,7 +154,7 @@ if __name__ == '__main__':
     _options, args = getopt.gnu_getopt(sys.argv[1:], '', [
         # Experiment Parameters
         "exp-type=",
-        "exp-setting=",
+        "exp-settings=",
         "exp-trials=",
         
         "blocking=",
@@ -351,7 +352,10 @@ if __name__ == '__main__':
         print "%s EXP #%d - PARTITIONS %d" % (OPT_BENCHMARK.upper(), OPT_EXP_SETTING, num_partitions)
         for trial in range(0, OPT_EXP_TRIALS):
             cmd = "ant hstore-benchmark " + ant_opts_cmd
-            if OPT_TRACE: cmd += " -Dtrace=traces/%s-%dp-%d" % (OPT_BENCHMARK.lower(), num_partitions, trial)
+            if OPT_TRACE: 
+                trace_dir = os.path.join(OPT_TRACE_DIRECTORY, "%s-%dp-%d" % (OPT_BENCHMARK.lower(), num_partitions, trial))
+                cmd += " -Dtrace=" + trace_dir
+                logging.debug("Writing workload trace logs to '" + trace_dir + "'")
             if OPT_OUTPUT_LOG: cmd += " | tee " + OPT_OUTPUT_LOG
             if trial == 0: logging.debug(cmd)
             #sys.exit(1)

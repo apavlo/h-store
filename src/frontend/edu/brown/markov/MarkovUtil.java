@@ -429,7 +429,8 @@ public abstract class MarkovUtil {
     public static Map<Integer, MarkovGraphsContainer> load(final Database catalog_db, String input_path, Collection<Procedure> procedures, Collection<Integer> ids) throws Exception {
         final Map<Integer, MarkovGraphsContainer> ret = new HashMap<Integer, MarkovGraphsContainer>();
         final File file = new File(input_path);
-        LOG.info(String.format("Loading in serialized MarkovGraphContainers from '%s' [procedures=%s, ids=%s]", file.getName(), procedures, ids));
+        LOG.info(String.format("Loading in serialized MarkovGraphContainers from '%s' [procedures=%s, ids=%s]",
+                               file.getName(), (procedures == null ? "*ALL*" : procedures), (ids == null ? "*ALL*" : ids)));
         
         try {
             // File Format: One PartitionId per line, each with its own MarkovGraphsContainer 

@@ -979,11 +979,11 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
             // knows about.
             if (predict_singlePartition == false) {
                 assert(this.current_dtxn_blocked.isEmpty()) :
-                    String.format("Overlapping multi-partition transactions at partition %d: Orig[#%d] <=> New[#%d]",
-                                  this.partitionId, this.current_dtxn.getTransactionId(), txn_id);
+                    String.format("Overlapping multi-partition transactions at partition %d: Orig[%s] <=> New[%s]",
+                                  this.partitionId, this.current_dtxn, ts);
                 assert(this.current_dtxn == null || this.current_dtxn.isInitialized() == false) :
-                    String.format("Overlapping multi-partition transactions at partition %d: Orig[#%d] <=> New[#%d]",
-                            this.partitionId, this.current_dtxn.getTransactionId(), txn_id);
+                    String.format("Overlapping multi-partition transactions at partition %d: Orig[%s] <=> New[%s]",
+                            this.partitionId, this.current_dtxn, ts);
                 this.current_dtxn = ts;
                 if (hstore_conf.site.exec_speculative_execution) {
                     this.setExecutionMode(ts.getProcedure().getReadonly() ? ExecutionMode.COMMIT_READONLY : ExecutionMode.COMMIT_NONE, txn_id);
@@ -1304,7 +1304,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
             VoltSystemProcedure volt_proc = null;
             synchronized (this.m_registeredSysProcPlanFragments) {
                 volt_proc = this.m_registeredSysProcPlanFragments.get(fragment_id);
-            }
+            } // SYNCH
             if (volt_proc == null) throw new RuntimeException("No sysproc handle exists for FragmentID #" + fragment_id + " :: " + this.m_registeredSysProcPlanFragments);
             
             // HACK: We have to set the TransactionState for sysprocs manually
@@ -1335,7 +1335,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
         
 //        LOG.info(String.format("%s: predict_canAbort=%s, conf.exec_no_undo_logging=%s", ts, ts.isPredictAbortable(), hstore_conf.site.exec_no_undo_logging));
         
-        if (ts.isPredictAbortable() || hstore_conf.site.exec_no_undo_logging == false) {
+        if (ts.isPredictAbortable() || ts.isSpeculative() || hstore_conf.site.exec_no_undo_logging == false) {
             undoToken = this.getNextUndoToken();
         } else {
             if (t) LOG.info(String.format("Bold! Not using undo buffers for %s", ts));
@@ -1587,11 +1587,11 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
             if (ts != this.current_dtxn) {
                 synchronized (this.exec_mode) {
                     assert(this.current_dtxn_blocked.isEmpty()) :
-                        String.format("Overlapping multi-partition transactions at partition %d: Orig[#%d] <=> New[#%d]",
-                                      this.partitionId, this.current_dtxn.getTransactionId(), txn_id);
+                        String.format("Overlapping multi-partition transactions at partition %d: Orig[%s] <=> New[%s]",
+                                      this.partitionId, this.current_dtxn, ts);
                     assert(this.current_dtxn == null) :
-                        String.format("Overlapping multi-partition transactions at partition %d: Orig[#%d] <=> New[#%d]",
-                                      this.partitionId, this.current_dtxn.getTransactionId(), txn_id);
+                        String.format("Overlapping multi-partition transactions at partition %d: Orig[%s] <=> New[%s]",
+                                      this.partitionId, this.current_dtxn, ts);
                     this.current_dtxn = ts;
                     if (hstore_conf.site.exec_speculative_execution) {
                         this.setExecutionMode(read_only ? ExecutionMode.COMMIT_READONLY : ExecutionMode.COMMIT_NONE, txn_id);
@@ -2064,7 +2064,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
         // 2010-11-14: The reason why we can do this is because we will just ignore the commit
         // message when it shows from the Dtxn.Coordinator. We should probably double check with Evan on this...
         boolean is_local_singlepartitioned = ts.isExecSinglePartition() && ts.isExecLocal();
-        if (d) LOG.debug(String.format("Processing ClientResponse for %s at partition %d [single_partitioned=%s, local=%s]",
+        if (d) LOG.debug(String.format("Processing ClientResponse for %s at partition %d [singlePartition=%s, local=%s]",
                                        ts, this.partitionId, ts.isExecSinglePartition(), ts.isExecLocal()));
         switch (status) {
             case ClientResponseImpl.SUCCESS:
@@ -2073,9 +2073,9 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
                 if (is_local_singlepartitioned) this.finishWork(ts, true);
                 break;
             case ClientResponseImpl.MISPREDICTION:
-                if (d) LOG.debug(ts + " was mispredicted! Aborting work and restarting! [is_local=" + is_local_singlepartitioned + "]");
+                if (d) LOG.debug(String.format("%s mispredicted while executing at partition %d! Aborting work and restarting [isLocal=%s, singlePartition=%s, hasError=%s]",
+                                               ts, this.partitionId, ts.isExecLocal(), ts.isExecSinglePartition(), ts.hasPendingError()));
                 builder.setStatus(Dtxn.FragmentResponse.Status.ABORT_MISPREDICT);
-                // We should always abort on a misprediction... is that true??
                 this.finishWork(ts, false);
                 break;
             case ClientResponseImpl.USER_ABORT:
@@ -2270,6 +2270,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
             // Change the status to be a MISPREDICT so that they get executed again
             if (commit == false) {
                 cr.setStatus(ClientResponse.MISPREDICTION);
+                ts.setPendingError(new MispredictionException(ts.getTransactionId(), ts.getTouchedPartitions()), false);
                 aborted++;
                 
             // Optimization: Check whether the last element in the list is a commit

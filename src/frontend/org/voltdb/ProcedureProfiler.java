@@ -17,6 +17,7 @@
 
 package org.voltdb;
 
+import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.PrintStream;
 import java.util.HashMap;
@@ -27,6 +28,8 @@ import org.voltdb.catalog.PlanFragment;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Statement;
 import org.voltdb.utils.CatalogUtil;
+
+import edu.brown.utils.FileUtil;
 
 public class ProcedureProfiler {
 
@@ -316,6 +319,8 @@ public class ProcedureProfiler {
 
             // Output Path
             if (tracePath != null && !tracePath.isEmpty()) {
+                File f = new File(tracePath);
+                FileUtil.makeDirIfNotExists(f.getParent());
                 ProcedureProfiler.workloadTrace.setOutputPath(tracePath);
             }
 

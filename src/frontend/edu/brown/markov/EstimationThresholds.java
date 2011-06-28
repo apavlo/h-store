@@ -31,7 +31,7 @@ public class EstimationThresholds implements JSONSerializable {
     public double read = DEFAULT_THRESHOLD;
     public double write = DEFAULT_THRESHOLD;
     public double done = DEFAULT_THRESHOLD;
-    public double abort = 0.01;
+    public double abort = 1.00;
     
     public EstimationThresholds() {
         // Nothing to see here...
@@ -42,7 +42,7 @@ public class EstimationThresholds implements JSONSerializable {
         this.read = default_value;
         this.write = default_value;
         this.done = default_value;
-        this.abort = default_value;
+//        this.abort = default_value;
     }
     
     /**
