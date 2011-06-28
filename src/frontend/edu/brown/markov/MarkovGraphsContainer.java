@@ -444,18 +444,19 @@ public class MarkovGraphsContainer implements JSONSerializable {
         Map<Integer, MarkovGraphsContainer> all_markovs = MarkovUtil.load(args.catalog_db, args.getParam(ArgumentsParser.PARAM_MARKOV));
         int cnt_invalid = 0;
         int cnt_total = 0;
+        boolean save = true;
         for (Integer p : all_markovs.keySet()) {
             MarkovGraphsContainer m = all_markovs.get(p);
-            LOG.info("Validating " + m.size() + " MarkovGraphs for partition " + p);
+            LOG.info(String.format("[%s] Validating %d MarkovGraphs for partition %d", m.getClass().getSimpleName(), m.size(), p));
             
             for (Integer id : m.keySet()) {
                 for (MarkovGraph markov : m.getAll(id).values()) {
                     boolean dump = false;
                     String before = MarkovUtil.exportGraphviz(markov, true, false, true, null).export(markov.getProcedure().getName());
                     try {
-//                        markov.calculateProbabilities();
+                        markov.calculateProbabilities();
                         markov.validate();
-                        if (markov.getGraphId() == 10012) dump = true;
+                        if (markov.getGraphId() == 10014) dump = true;
                     } catch (InvalidGraphElementException ex) {
                         cnt_invalid++;
                         System.out.println(String.format("[%d] %-16s - %s", markov.getGraphId(), markov.getProcedure().getName(), ex.getMessage()));
@@ -472,7 +473,7 @@ public class MarkovGraphsContainer implements JSONSerializable {
             } // FOR
         }
         System.out.println("VALID: " + (cnt_total - cnt_invalid) + " / "+ cnt_total);
-        if (cnt_invalid == 0) {
+        if (save && cnt_invalid == 0) {
             MarkovUtil.save(all_markovs, args.getParam(ArgumentsParser.PARAM_MARKOV));
         }
     }

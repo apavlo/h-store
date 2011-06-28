@@ -534,17 +534,27 @@ public class LocalTransactionState extends TransactionState {
         this.txn_id = txn_id;
     }
     
-    @Override
-    public synchronized void setPendingError(RuntimeException error) {
+    /**
+     * 
+     * @param error
+     * @param wakeThread
+     */
+    public void setPendingError(RuntimeException error, boolean wakeThread) {
         boolean spin_latch = (this.pending_error == null);
         super.setPendingError(error);
+        if (wakeThread == false) return;
         
         // Spin through this so that the waiting thread wakes up and sees that they got an error
         if (spin_latch) {
             while (this.dependency_latch.getCount() > 0) {
                 this.dependency_latch.countDown();
             } // WHILE
-        }
+        }        
+    }
+    
+    @Override
+    public synchronized void setPendingError(RuntimeException error) {
+        this.setPendingError(error, true);
     }
     
     @Override

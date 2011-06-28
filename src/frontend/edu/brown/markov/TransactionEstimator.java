@@ -296,6 +296,7 @@ public class TransactionEstimator {
             Map<String, Object> m0 = new ListOrderedMap<String, Object>();
             m0.put("TransactionId", this.txn_id);
             m0.put("Procedure", this.markov.getProcedure().getName());
+            m0.put("MarkovGraph Id", this.markov.getGraphId());
             
             Map<String, Object> m1 = new ListOrderedMap<String, Object>();
             m1.put("Initial Partitions", this.getEstimatedPartitions());
@@ -471,7 +472,7 @@ public class TransactionEstimator {
         // We'll reuse the last MarkovPathEstimator (and it's path) if the graph has been accurate for
         // other previous transactions. This prevents us from having to recompute the path every single time,
         // especially for single-partition transactions where the clustered MarkovGraphs are accurate
-        if (hstore_conf.site.markov_path_caching == true && markov.getAccuracyRatio() >= hstore_conf.site.markov_path_caching_threshold) {
+        if (hstore_conf.site.markov_path_caching && markov.getAccuracyRatio() >= hstore_conf.site.markov_path_caching_threshold) {
             estimator = this.cached_estimators.get(markov);
         }
             

@@ -62,7 +62,6 @@ import org.voltdb.utils.LogKeys;
 import org.voltdb.utils.Pair;
 
 import edu.brown.catalog.CatalogUtil;
-import edu.brown.markov.MarkovGraphsContainer;
 import edu.brown.markov.MarkovUtil;
 import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.CollectionUtil;
@@ -517,8 +516,7 @@ public class BenchmarkController {
                 }
             } while (waiting > 0);
             if (waiting > 0) {
-                LOG.fatal("Failed to start all HStoreSites. Halting benchmark");
-                return;
+                throw new RuntimeException("Failed to start all HStoreSites. Halting benchmark");
             }
         }
         LOG.info("All remote HStoreSites are initialized");
@@ -582,6 +580,7 @@ public class BenchmarkController {
         // RUN THE LOADER
 //        if (true || m_config.localmode) {
             allArgs.add("EXITONCOMPLETION=false");
+            
             ClientMain.main(m_loaderClass, m_clientFileUploader, allArgs.toArray(new String[0]), true);
             
 //        }
@@ -885,7 +884,7 @@ public class BenchmarkController {
         FileUtil.makeDirIfNotExists(output_directory);
         Database catalog_db = CatalogUtil.getDatabase(catalog);
 
-        ThreadUtil.sleep(25000);
+        ThreadUtil.sleep(60000);
         LOG.info("Requesting HStoreSites to recalculate Markov models");
         ClientResponse cr = null;
         try {
@@ -1532,8 +1531,8 @@ public class BenchmarkController {
         
         // ACTUALLY RUN THE BENCHMARK
         BenchmarkController controller = new BenchmarkController(config, catalog);
-        controller.setupBenchmark();
         try {
+            controller.setupBenchmark();
             controller.runBenchmark();
         } catch (Throwable ex) {
             LOG.fatal("Failed to complete benchmark", ex);

@@ -195,11 +195,22 @@ public class MarkovEstimate implements Poolable {
     // ----------------------------------------------------------------------------
     // Convenience methods using EstimationThresholds object
     // ----------------------------------------------------------------------------
+    
+    private boolean checkProbabilityAllPartitions(float probs[], double threshold) {
+        for (int partition = 0; partition < probs.length; partition++) {
+            if (threshold < probs[partition]) return (false);
+        } // FOR
+        return (true);
+    }
+    
     public boolean isSinglePartition(EstimationThresholds t) {
         return (this.singlepartition >= t.getSinglePartitionThreshold());
     }
     public boolean isUserAbort(EstimationThresholds t) {
         return (this.userabort >= t.getAbortThreshold());
+    }
+    public boolean isReadOnlyAllPartitions(EstimationThresholds t) {
+        return (this.checkProbabilityAllPartitions(this.read, t.getReadThreshold()));
     }
     public boolean isReadOnlyPartition(EstimationThresholds t, int partition) {
         return (this.read[partition] >= t.getReadThreshold());
@@ -207,8 +218,14 @@ public class MarkovEstimate implements Poolable {
     public boolean isWritePartition(EstimationThresholds t, int partition) {
         return (this.write[partition] >= t.getWriteThreshold());
     }
+    public boolean isWriteAllPartitions(EstimationThresholds t) {
+        return (this.checkProbabilityAllPartitions(this.write, t.getWriteThreshold()));
+    }
     public boolean isFinishedPartition(EstimationThresholds t, int partition) {
         return (this.finished[partition] >= t.getDoneThreshold());
+    }
+    public boolean isFinishedAllPartitions(EstimationThresholds t) {
+        return (this.checkProbabilityAllPartitions(this.finished, t.getDoneThreshold()));
     }
     public boolean isTargetPartition(EstimationThresholds t, int partition) {
         return ((1 - this.finished[partition]) >= t.getDoneThreshold());

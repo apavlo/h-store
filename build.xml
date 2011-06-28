@@ -24,7 +24,8 @@
 <!-- allow env.VOLTBUILD to override "build" property -->
 <envdefault prop="build" var="VOLTBUILD" default="release" />
 
-<property name='build.dir'                   location='obj/${build}' />
+<!-- <property name='build.dir'                   location='obj/${build}' /> -->
+<property name='build.dir'                   location='obj/release' />
 <property name='build.prod.dir'              location='${build.dir}/prod' />
 <property name='build.test.dir'              location='${build.dir}/test' />
 <property name='build.dtxn.dir'              location='${build.dir}/dtxn' />
@@ -674,9 +675,7 @@ NATIVE EE STUFF
 <target name='ee' depends="buildinfo, jnicompile"
     description="Build C++ JNI library and copy it to production folder.">
     <exec dir='.' executable='python' failonerror='true'>
-<!--         <arg line="build.py ${build}" /> -->
-<!--         <arg line="build.py debug" /> -->
-        <arg line="build.py LOG_LEVEL=${site.ee_log_level} release" />
+        <arg line="build.py LOG_LEVEL=${site.ee_log_level} ${build}" />
     </exec>
 <!--     <exec dir='.' executable='/bin/sh'>
         <arg line="-c 'rm -f ${build.dir}/nativelibs/libvoltdb.so'"/>

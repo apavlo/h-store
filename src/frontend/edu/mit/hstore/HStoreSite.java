@@ -166,7 +166,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         } else if (partition != null) {
             suffix = String.format("%03d", partition.intValue());
         }
-        return (String.format("H%03d%s", site_id, suffix));
+        return (String.format("H%02d%s", site_id, suffix));
     }
     
     public static final String formatSiteName(int site_id) {
@@ -248,8 +248,8 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
     protected final Site catalog_site;
     protected final int site_id;
     protected final Database catalog_db;
-    protected final PartitionEstimator p_estimator;
-    protected final AbstractHasher hasher;
+    private final PartitionEstimator p_estimator;
+    private final AbstractHasher hasher;
     
     /** All of the partitions in the cluster */
     private final List<Integer> all_partitions;
@@ -291,15 +291,9 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
     private final ScheduledExecutorService helper_pool;
     
     /**
-     * NewOrder Hack
-     * W_ID String -> W_ID Short
+     * TPC-C NewOrder Cheater
      */
-    private final Map<String, Short> neworder_hack_w_id;
-    /**
-     * NewOrder Hack
-     * W_ID Short -> PartitionId
-     */
-    private final Map<Short, Integer> neworder_hack_hashes;
+    private final NewOrderInspector tpcc_inspector;
     
     /**
      * Status Monitor
@@ -357,15 +351,9 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         
         // NewOrder Hack
         if (hstore_conf.site.exec_neworder_cheat) {
-            this.neworder_hack_hashes = new HashMap<Short, Integer>();
-            this.neworder_hack_w_id = new HashMap<String, Short>();
-            for (Short w_id = 0; w_id < 256; w_id++) {
-                this.neworder_hack_w_id.put(w_id.toString(), w_id);
-                this.neworder_hack_hashes.put(w_id, hasher.hash(w_id.intValue()));
-            } // FOR
+            this.tpcc_inspector = new NewOrderInspector(this);
         } else {
-            this.neworder_hack_hashes = null;
-            this.neworder_hack_w_id = null;
+            this.tpcc_inspector = null;
         }
     }
     
@@ -385,6 +373,13 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
      */
     public String statusSnapshot() {
         return new HStoreSiteStatus(this, hstore_conf).snapshot(true, true, false, false);
+    }
+    
+    public PartitionEstimator getPartitionEstimator() {
+        return (this.p_estimator);
+    }
+    public AbstractHasher getHasher() {
+        return (this.hasher);
     }
     
     public ExecutionSite getExecutionSite(int partition) {
@@ -447,6 +442,10 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         return (HStoreSite.getThreadName(this.site_id, null, null));
     }
 
+    public Collection<Integer> getAllPartitionIds() {
+        return (this.all_partitions);
+    }
+    
     /**
      * Return the list of partition ids managed by this HStoreSite 
      * @return
@@ -888,80 +887,50 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
             return;
         }
         
-        // IMPORTANT: We have two txn ids here. We have the real one that we're going to use internally
-        // and the fake one that we pass to Evan. We don't care about the fake one and will always ignore the
-        // txn ids found in any Dtxn.Coordinator messages. 
+        // Grab a new LocalTransactionState object from the target base partition's ExecutionSite object pool
+        // This will be the handle that is used all throughout this txn's lifespan to keep track of what it does
         long txn_id = id_generator.getNextUniqueTransactionId();
-                
-        // Grab the TransactionEstimator for the destination partition and figure out whether
-        // this mofo is likely to be single-partition or not. Anything that we can't estimate
-        // will just have to be multi-partitioned. This includes sysprocs
-        ExecutionSite executor = this.executors[base_partition];
-        TransactionEstimator t_estimator = executor.getTransactionEstimator();
-        
-        boolean single_partition = false;
-        boolean predict_can_abort = true;
-        boolean predict_readonly = catalog_proc.getReadonly();
-        TransactionEstimator.State t_state = null; 
-
         LocalTransactionState ts = null;
         try {
-            ts = (LocalTransactionState)executor.localTxnPool.borrowObject();
+            ts = (LocalTransactionState)this.executors[base_partition].localTxnPool.borrowObject();
         } catch (Exception ex) {
             LOG.fatal("Failed to instantiate new LocalTransactionState for txn #" + txn_id);
             throw new RuntimeException(ex);
         }
-
+        
         // -------------------------------
-        // SINGLE-PARTITION vs. MULTI-PARTITION
+        // TRANSACTION EXECUTION PROPERTIES
         // -------------------------------
+        
+        boolean predict_singlePartition = false;
+        boolean predict_abortable = true;
+        boolean predict_readonly = catalog_proc.getReadonly();
+        TransactionEstimator.State t_state = null; 
         
         // Sysprocs are always multi-partitioned
         if (sysproc) {
             if (t) LOG.trace(String.format("%s is a sysproc, so it has to be multi-partitioned", ts));
-            single_partition = false;
+            predict_singlePartition = false;
             
         // Force all transactions to be single-partitioned
         } else if (hstore_conf.site.exec_force_singlepartitioned) {
             if (t) LOG.trace("The \"Always Single-Partitioned\" flag is true. Marking as single-partitioned!");
-            single_partition = true;
+            predict_singlePartition = true;
             
         // Assume we're executing TPC-C neworder. Manually examine the input parameters and figure
         // out what partitions it's going to need to touch
-        } else if (hstore_conf.site.exec_neworder_cheat) {
+        } else if (hstore_conf.site.exec_neworder_cheat && catalog_proc.getName().equalsIgnoreCase("neworder")) {
             if (t) LOG.trace(String.format("%s - Executing neworder argument hack for VLDB paper", ts));
-            assert(catalog_proc.getName().equalsIgnoreCase("neworder")) : "Unable to use NewOrder cheat for transaction '" + catalog_proc.getName() + "'";
-            single_partition = true;
-            Short w_id = this.neworder_hack_w_id.get(args[0].toString());
-            assert(w_id != null);
-            Integer w_id_partition = this.neworder_hack_hashes.get(w_id);
-            assert(w_id_partition != null);
-            short inner[] = (short[])args[5];
-            
-            Set<Integer> done_partitions = ts.getDonePartitions();
-            if (hstore_conf.site.exec_neworder_cheat_done_partitions) done_partitions.addAll(this.all_partitions);
-            
-            short last_w_id = w_id.shortValue();
-            Integer last_partition = w_id_partition;
-            if (hstore_conf.site.exec_neworder_cheat_done_partitions) done_partitions.remove(w_id_partition);
-            for (short s_w_id : inner) {
-                if (s_w_id != last_w_id) {
-                    last_partition = this.neworder_hack_hashes.get(s_w_id);
-                    last_w_id = s_w_id;
-                }
-                if (w_id_partition.equals(last_partition) == false) {
-                    single_partition = false;
-                    if (hstore_conf.site.exec_neworder_cheat_done_partitions) {
-                        done_partitions.remove(last_partition);
-                    } else break;
-                }
-            } // FOR
-            if (t) LOG.trace(String.format("%s - SinglePartitioned=%s, W_ID=%d, S_W_IDS=%s", ts, single_partition, w_id, Arrays.toString(inner)));
+            predict_singlePartition = this.tpcc_inspector.initializeTransaction(ts, args);
             
         // Otherwise, we'll try to estimate what the transaction will do (if we can)
         } else {
             if (d) LOG.debug(String.format("Using TransactionEstimator to check whether %s is single-partition", ts));
             
+            // Grab the TransactionEstimator for the destination partition and figure out whether
+            // this mofo is likely to be single-partition or not. Anything that we can't estimate
+            // will just have to be multi-partitioned. This includes sysprocs
+            TransactionEstimator t_estimator = this.executors[base_partition].getTransactionEstimator();
             MarkovEstimate m_estimate = null;
             
             try {
@@ -976,7 +945,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
                 // It has to be executed as multi-partitioned
                 if (t_state == null) {
                     if (d) LOG.debug(String.format("No TransactionEstimator.State was returned for %s. Executing as multi-partitioned", TransactionState.formatTxnName(catalog_proc, txn_id))); 
-                    single_partition = false;
+                    predict_singlePartition = false;
                     
                 // We have a TransactionEstimator.State, so let's see what it says...
                 } else {
@@ -986,7 +955,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
                     // Bah! We didn't get back a MarkovEstimate for some reason...
                     if (m_estimate == null) {
                         if (d) LOG.debug(String.format("No MarkovEstimate was found for %s. Executing as multi-partitioned", TransactionState.formatTxnName(catalog_proc, txn_id)));
-                        single_partition = false;
+                        predict_singlePartition = false;
                         
                     // Check whether the probability that we're single-partitioned is above our threshold
                     } else {
@@ -994,15 +963,15 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
                         
                         if (d) LOG.debug(String.format("%s MarkovEstimate:\n%s", TransactionState.formatTxnName(catalog_proc, txn_id), m_estimate));
                         if (m_estimate.isValid()) {
-                            single_partition = m_estimate.isSinglePartition(this.thresholds);
-                            predict_readonly = catalog_proc.getReadonly(); // FIXME
-                            predict_can_abort = predict_readonly == false || single_partition == false;    
+                            predict_singlePartition = m_estimate.isSinglePartition(this.thresholds);
+                            predict_readonly = catalog_proc.getReadonly(); // FIXME m_estimate.isReadOnlyAllPartitions(this.thresholds);
+                            predict_abortable = predict_singlePartition == false || predict_readonly == false; // FIXME m_estimate.isUserAbort(this.thresholds);    
                         } else {
                             if (d) LOG.warn(String.format("Invalid MarkovEstimate for %s. Marking as not read-only and multi-partitioned.\n%s",
                                                           TransactionState.formatTxnName(catalog_proc, txn_id), m_estimate));
-                            single_partition = false;
+                            predict_singlePartition = false;
                             predict_readonly = catalog_proc.getReadonly();
-                            predict_can_abort = true;
+                            predict_abortable = true;
                         }
                     }
                 }
@@ -1014,8 +983,10 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
                     gv.highlightPath(markov.getPath(t_state.getActualPath()), "blue");
                     System.err.println("WROTE MARKOVGRAPH: " + gv.writeToTempFile(catalog_proc));
                 }
-                
-                throw new RuntimeException(String.format("Failed calculate estimate for %s request", TransactionState.formatTxnName(catalog_proc, txn_id)), ex);
+                LOG.error(String.format("Failed calculate estimate for %s request", TransactionState.formatTxnName(catalog_proc, txn_id)), ex);
+                predict_singlePartition = false;
+                predict_readonly = false;
+                predict_abortable = true;
             }
         }
         
@@ -1031,7 +1002,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         }
 
         ts.init(txn_id, request.getClientHandle(), base_partition,
-                        single_partition, predict_readonly, predict_can_abort,
+                        predict_singlePartition, predict_readonly, predict_abortable,
                         t_state, catalog_proc, request, done);
         if (hstore_conf.site.txn_profiling) {
             ts.total_time.start(timestamp);
@@ -1039,7 +1010,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         }
         
         if (d) LOG.debug(String.format("Executing %s on partition %d [singlePartition=%s, handle=%d]",
-                                        ts, base_partition, single_partition, request.getClientHandle()));
+                                        ts, base_partition, predict_singlePartition, request.getClientHandle()));
         this.initializeInvocation(ts);
     }
 
@@ -1312,7 +1283,6 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         int base_partition = orig_ts.getBasePartition();
         StoredProcedureInvocation spi = orig_ts.invocation;
         assert(spi != null) : "Missing StoredProcedureInvocation for " + orig_ts;
-        if (hstore_conf.site.status_show_txn_info) TxnCounter.MISPREDICTED.inc(orig_ts.getProcedure());
         
         final Histogram<Integer> touched = orig_ts.getTouchedPartitions();
         
@@ -1529,53 +1499,60 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         if (d) LOG.debug("Cleaning up internal info for Txn #" + txn_id);
         LocalTransactionState ts = this.inflight_txns.remove(txn_id);
         assert(ts != null) : String.format("Missing TransactionState for txn #%d at site %d", txn_id, this.site_id);
-        int base_partition = ts.getBasePartition();
+        final int base_partition = ts.getBasePartition();
+        final Procedure catalog_proc = ts.getProcedure();
         
-        // Then clean-up any extra information that we may have for the txn
+        // Clean-up any extra information that we may have for the txn
+        TransactionEstimator t_estimator = null;
         if (ts.getEstimatorState() != null) {
-            TransactionEstimator t_estimator = this.executors[base_partition].getTransactionEstimator();
+            t_estimator = this.executors[base_partition].getTransactionEstimator();
             assert(t_estimator != null);
+        }
+        try {
             switch (status) {
                 case OK:
                     if (t) LOG.trace("Telling the TransactionEstimator to COMMIT " + ts);
-                    t_estimator.commit(txn_id);
+                    if (t_estimator != null) t_estimator.commit(txn_id);
+                    // We always need to keep track of how many txns we process 
+                    // in order to check whether we are hung or not
+                    if (this.status_monitor != null) TxnCounter.COMPLETED.inc(catalog_proc);
                     break;
                 case ABORT_MISPREDICT:
                     if (t) LOG.trace("Telling the TransactionEstimator to IGNORE " + ts);
-                    t_estimator.mispredict(txn_id);
+                    if (t_estimator != null) t_estimator.mispredict(txn_id);
+                    if (hstore_conf.site.status_show_txn_info) TxnCounter.MISPREDICTED.inc(catalog_proc);
                     break;
                 case ABORT_USER:
                 case ABORT_DEADLOCK:
                     if (t) LOG.trace("Telling the TransactionEstimator to ABORT " + ts);
-                    t_estimator.abort(txn_id);
+                    if (t_estimator != null) t_estimator.abort(txn_id);
+                    if (hstore_conf.site.status_show_txn_info) TxnCounter.ABORTED.inc(catalog_proc);
                     break;
                 default:
                     assert(false) : String.format("Unexpected status %s for %s", status, ts);
             } // SWITCH
+        } catch (Throwable ex) {
+            LOG.error(String.format("Unexpected error when cleaning up %s transaction %s", status, ts), ex);
+            // Pass...
+        }
+        
+        // Then update transaction profiling counters
+        if (hstore_conf.site.status_show_txn_info) {
+            Long lastUndo = ts.getLastUndoToken();
+            
+            if (ts.isSpeculative()) TxnCounter.SPECULATIVE.inc(catalog_proc);
+            if (lastUndo != null && lastUndo == Long.MAX_VALUE) TxnCounter.NO_UNDO.inc(catalog_proc);
+            
+            if (ts.sysproc) {
+                TxnCounter.SYSPROCS.inc(catalog_proc);
+            } else if (ts.isExecSinglePartition()) {
+                TxnCounter.SINGLE_PARTITION.inc(catalog_proc);
+            } else {
+                TxnCounter.MULTI_PARTITION.inc(catalog_proc);
+            }
         }
         
         HStoreSite.CACHE_ENCODED_TXNIDS.remove(txn_id);
-        if (this.status_monitor != null) {
-            // We always need to keep track of how many txns we process 
-            // in order to check whether we are hung or not
-            Procedure catalog_proc = ts.getProcedure();
-            TxnCounter.COMPLETED.inc(catalog_proc);
-            
-            if (hstore_conf.site.status_show_txn_info) {
-                assert(catalog_proc != null) : "Missing catalog proc for " + ts;
-                if (status != Dtxn.FragmentResponse.Status.OK) TxnCounter.ABORTED.inc(catalog_proc);
-                if (ts.isSpeculative()) TxnCounter.SPECULATIVE.inc(catalog_proc);
-                if (ts.getLastUndoToken() != null && ts.getLastUndoToken() == Long.MAX_VALUE) TxnCounter.NO_UNDO.inc(catalog_proc);
-                
-                if (ts.sysproc) {
-                    TxnCounter.SYSPROCS.inc(catalog_proc);
-                } else if (ts.isExecSinglePartition()) {
-                    TxnCounter.SINGLE_PARTITION.inc(catalog_proc);
-                } else {
-                    TxnCounter.MULTI_PARTITION.inc(catalog_proc);
-                }
-            }
-        }
         ts.setHStoreSite_Finished(true);
     }
 
@@ -1852,7 +1829,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         // HStoreSite Stuff
         final int site_id = args.getIntParam(ArgumentsParser.PARAM_SITE_ID);
         Thread t = Thread.currentThread();
-        t.setName(String.format("H%03d-main", site_id));
+        t.setName(HStoreSite.getThreadName(site_id, "main", null));
         
         final Site catalog_site = CatalogUtil.getSiteFromId(args.catalog_db, site_id);
         if (catalog_site == null) throw new RuntimeException("Invalid site #" + site_id);

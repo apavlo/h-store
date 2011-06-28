@@ -88,7 +88,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
         /**
          * Host -> Set<Site>
          */
-        public final Map<Host, Set<Site>> HOST_SITES = new HashMap<Host, Set<Site>>();
+        public final Map<Host, Set<Site>> HOST_SITES = new TreeMap<Host, Set<Site>>();
         
         /**
          * Column -> Foreign Key Parent Column

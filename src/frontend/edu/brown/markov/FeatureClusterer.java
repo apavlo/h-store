@@ -524,7 +524,7 @@ public class FeatureClusterer {
                     m1.put(key, val);    
                 } // FOR
                 
-                LOG.debug("\n" + StringUtil.formatMaps(":", true, true, m0, m1));
+                LOG.debug("\n" + StringUtil.formatMaps(":", true, true, false, false, m0, m1));
             }
 
             final Iterable<Set<Attribute>> it = UniqueCombinationIterator.factory(all_attributes, round);

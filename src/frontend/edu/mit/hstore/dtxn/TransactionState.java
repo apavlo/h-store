@@ -249,18 +249,22 @@ public abstract class TransactionState implements Poolable {
     // GENERAL METHODS
     // ----------------------------------------------------------------------------
 
+    /**
+     * Get the current batch/round counter
+     */
     public int getCurrentRound() {
         return (this.round_ctr);
     }
     
     /**
-     * 
+     * Returns true if this transaction has a pending error
      */
     public boolean hasPendingError() {
         return (this.pending_error != null);
     }
     /**
-     * 
+     * Return the pending error for this transaction
+     * Does not clear it.
      * @return
      */
     public RuntimeException getPendingError() {
