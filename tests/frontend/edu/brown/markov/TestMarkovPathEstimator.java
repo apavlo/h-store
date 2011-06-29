@@ -16,6 +16,7 @@ import org.voltdb.types.ExpressionType;
 import edu.brown.BaseTestCase;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.correlations.ParameterCorrelations;
+import edu.brown.utils.MathUtil;
 import edu.brown.utils.ProjectType;
 import edu.brown.utils.StringUtil;
 import edu.brown.workload.TransactionTrace;
@@ -141,23 +142,24 @@ public class TestMarkovPathEstimator extends BaseTestCase {
         assertNotNull(estimate);
 //        System.err.println(StringUtil.columns(StringUtil.join("\n", estimator.getVisitPath()), estimate.toString()));
         
+//        System.err.println(estimate);
+        
         for (int p : CatalogUtil.getAllPartitionIds(catalog_proc)) {
             assert(estimate.isReadOnlyProbabilitySet(p));
             assert(estimate.isWriteProbabilitySet(p));
             assert(estimate.isFinishedProbabilitySet(p));
             
-            if (estimate.getFinishedProbability(p) < 1.0) {
-                assert(estimate.getTouchedCounter(p) > 0);
-                assert(estimate.getWriteProbability(p) > 0.0);
-            } else {
+            if (estimate.getFinishedProbability(p) < 0.9f) {
+                assert(estimate.getTouchedCounter(p) > 0) : String.format("TOUCHED[%d]: %d", p, estimate.getTouchedCounter(p)); 
+                assert(MathUtil.greaterThan(estimate.getWriteProbability(p), 0.0f, 0.01f)) : String.format("WRITE[%d]: %f", p, estimate.getWriteProbability(p));
+            } else if (MathUtil.equals(estimate.getFinishedProbability(p), 0.01f, 0.01f)) {
                 assertEquals(0, estimate.getTouchedCounter(p));
                 assertEquals(0.0f, estimate.getWriteProbability(p), MarkovGraph.PROBABILITY_EPSILON);
             }
         } // FOR
         assert(estimate.isSinglePartitionProbabilitySet());
         assert(estimate.isAbortProbabilitySet());
-        
-        assertEquals(1.0f, estimate.getSinglePartitionProbability(), MarkovGraph.PROBABILITY_EPSILON);
+        assert(estimate.getSinglePartitionProbability() < 1.0f);
     }
     
     /**

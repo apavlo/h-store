@@ -41,6 +41,8 @@ public class MarkovPathEstimator extends VertexTreeWalker<Vertex> implements Log
     private static boolean d = debug.get();
     private static boolean t = trace.get();
     
+    private static final int ABORT_MIN_TXNS = 100; 
+    
     /**
      * 
      * @author pavlo
@@ -167,7 +169,7 @@ public class MarkovPathEstimator extends VertexTreeWalker<Vertex> implements Log
      */
     public MarkovPathEstimator init(MarkovGraph markov, TransactionEstimator t_estimator, int base_partition, Object args[]) {
         this.init(markov, TraverseOrder.DEPTH, Direction.FORWARD);
-        this.estimate.init(markov.getStartVertex(), -1);
+        this.estimate.init(markov.getStartVertex(), MarkovEstimate.INITIAL_ESTIMATE_BATCH);
         this.confidence = 1.0f;
         this.t_estimator = t_estimator;
         this.p_estimator = this.t_estimator.getPartitionEstimator();
@@ -593,29 +595,42 @@ public class MarkovPathEstimator extends VertexTreeWalker<Vertex> implements Log
     protected void callback_stop() {
         Vertex last_v = this.getVisitPath().get(this.getVisitPath().size()-1);
         if (d) LOG.debug("Callback Stop! Last Element = " + last_v);
+        MarkovGraph markov = (MarkovGraph)this.getGraph();
+        Vertex first_v = markov.getStartVertex();
         
-        // Finished Probability
+        // Confidence
+        this.estimate.setConfidenceProbability(this.confidence);
+        float inverse_prob = 1.0f - this.confidence;
+        
+        // Partition Probabilities
+        boolean is_singlepartition = this.touched_partitions.size() == 1;
+        float untouched_finish = 1.0f;
         for (int p : this.all_partitions) {
             if (this.touched_partitions.contains(p) == false) {
-                this.estimate.setReadOnlyPartitionProbability(p, 0.0f);
-                this.estimate.setWritePartitionProbability(p, 0.0f);
-                this.estimate.setFinishPartitionProbability(p, 1.0f);
-                if (t) LOG.trace(String.format("Partition #%d was not touched. Setting finished probability to 1.0", p));
-            } else {
-                if (this.estimate.isWriteProbabilitySet(p) == false) {
-                    this.estimate.setWritePartitionProbability(p, 1.0f - this.confidence);
-                }
+                this.estimate.setReadOnlyPartitionProbability(p, first_v.getReadOnlyProbability(p));
+                this.estimate.setWritePartitionProbability(p, first_v.getWriteProbability(p));
+                
+                float finished_prob = first_v.getFinishProbability(p);
+                this.estimate.setFinishPartitionProbability(p, finished_prob);
+                if (is_singlepartition) untouched_finish = Math.min(untouched_finish, finished_prob);
+            } else if (this.estimate.isWriteProbabilitySet(p) == false) {
+                this.estimate.setWritePartitionProbability(p, inverse_prob);
             }
         } // FOR
         
         // Single-Partition Probability
-        if (this.touched_partitions.size() == 1) {
+        if (is_singlepartition) {
             if (t) LOG.trace(String.format("Only one partition was touched %s. Setting single-partition probability to ???", this.touched_partitions)); 
-            this.estimate.setSinglePartitionProbability(1.0f);
+            this.estimate.setSinglePartitionProbability(untouched_finish);
         }
         
         // Abort Probability
-        this.estimate.setAbortProbability(this.greatest_abort);
+        // Only use the abort probability if we have seen at least ABORT_MIN_TXNS
+        if (markov.getStartVertex().getTotalHits() >= ABORT_MIN_TXNS) {
+            this.estimate.setAbortProbability(this.greatest_abort);
+        } else {
+            this.estimate.setAbortProbability(1.0f);
+        }
     }
     
     

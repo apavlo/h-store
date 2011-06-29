@@ -477,7 +477,7 @@ public class MarkovGraph extends AbstractDirectedGraph<Vertex, Edge> implements 
                             // This vertex doesn't access the partition, but successor vertices might so
                             // the probability is based on the edge probabilities 
                             } else {
-                                element.addDoneProbability(partition, (float)(e.getProbability() * successor.getDoneProbability(partition)));
+                                element.addDoneProbability(partition, (float)(e.getProbability() * successor.getFinishProbability(partition)));
                                 element.addWriteProbability(partition, (float)(e.getProbability() * successor.getWriteProbability(partition)));
                                 element.addReadOnlyProbability(partition, (float)(e.getProbability() * successor.getReadOnlyProbability(partition)));
                             }

@@ -931,7 +931,6 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
             // this mofo is likely to be single-partition or not. Anything that we can't estimate
             // will just have to be multi-partitioned. This includes sysprocs
             TransactionEstimator t_estimator = this.executors[base_partition].getTransactionEstimator();
-            MarkovEstimate m_estimate = null;
             
             try {
                 // HACK: Convert the array parameters to object arrays...
@@ -950,7 +949,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
                 // We have a TransactionEstimator.State, so let's see what it says...
                 } else {
                     if (t) LOG.trace("\n" + StringUtil.box(t_state.toString()));
-                    m_estimate = t_state.getInitialEstimate();
+                    MarkovEstimate m_estimate = t_state.getInitialEstimate();
                     
                     // Bah! We didn't get back a MarkovEstimate for some reason...
                     if (m_estimate == null) {
@@ -959,13 +958,14 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
                         
                     // Check whether the probability that we're single-partitioned is above our threshold
                     } else {
-                        if (d) LOG.debug(String.format("Using MarkovEstimate for %s to determine if single-partitioned", TransactionState.formatTxnName(catalog_proc, txn_id)));
-                        
-                        if (d) LOG.debug(String.format("%s MarkovEstimate:\n%s", TransactionState.formatTxnName(catalog_proc, txn_id), m_estimate));
+                        if (d) {
+                            LOG.debug(String.format("Using MarkovEstimate for %s to determine if single-partitioned", TransactionState.formatTxnName(catalog_proc, txn_id)));
+                            LOG.debug(String.format("%s MarkovEstimate:\n%s", TransactionState.formatTxnName(catalog_proc, txn_id), m_estimate));
+                        }
                         if (m_estimate.isValid()) {
                             predict_singlePartition = m_estimate.isSinglePartition(this.thresholds);
-                            predict_readonly = catalog_proc.getReadonly(); // FIXME m_estimate.isReadOnlyAllPartitions(this.thresholds);
-                            predict_abortable = predict_singlePartition == false || predict_readonly == false; // FIXME m_estimate.isUserAbort(this.thresholds);    
+                            predict_readonly = m_estimate.isReadOnlyAllPartitions(this.thresholds);
+                            predict_abortable = true; // (predict_singlePartition == false || predict_readonly == false) && m_estimate.isAbortable(this.thresholds) == false;    
                         } else {
                             if (d) LOG.warn(String.format("Invalid MarkovEstimate for %s. Marking as not read-only and multi-partitioned.\n%s",
                                                           TransactionState.formatTxnName(catalog_proc, txn_id), m_estimate));
@@ -979,7 +979,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
             } catch (Throwable ex) {
                 if (t_state != null) {
                     MarkovGraph markov = t_state.getMarkovGraph();
-                    GraphvizExport<Vertex, Edge> gv = MarkovUtil.exportGraphviz(markov, true, markov.getPath(t_state.getEstimatedPath()));
+                    GraphvizExport<Vertex, Edge> gv = MarkovUtil.exportGraphviz(markov, true, markov.getPath(t_state.getInitialPath()));
                     gv.highlightPath(markov.getPath(t_state.getActualPath()), "blue");
                     System.err.println("WROTE MARKOVGRAPH: " + gv.writeToTempFile(catalog_proc));
                 }
@@ -1110,10 +1110,11 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
             // that we're done at any partitions because it will throw an error
             // Instead, if we're not single-partitioned then that's that only time that 
             // we Tell the Dtxn.Coordinator that we are finished with partitions if we have an estimate
-            TransactionEstimator.State estimator_state = ts.getEstimatorState(); 
-            if (orig_txn_id == null && estimator_state != null && estimator_state.getInitialEstimate() != null) {
-                // TODO: How do we want to come up with estimates per partition?
-                Set<Integer> touched_partitions = estimator_state.getEstimatedPartitions();
+            TransactionEstimator.State s = ts.getEstimatorState(); 
+            if (orig_txn_id == null && s != null && s.getInitialEstimate() != null) {
+                MarkovEstimate est = s.getInitialEstimate();
+                assert(est != null);
+                Set<Integer> touched_partitions = est.getTargetPartitions(this.thresholds);
                 for (Integer p : this.all_partitions) {
                     // Make sure that we don't try to mark ourselves as being done at our own partition
                     if (touched_partitions.contains(p) == false && p.intValue() != base_partition) done_partitions.add(p);
@@ -1545,7 +1546,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
             
             if (ts.sysproc) {
                 TxnCounter.SYSPROCS.inc(catalog_proc);
-            } else if (ts.isExecSinglePartition()) {
+            } else if (ts.isPredictSinglePartition()) {
                 TxnCounter.SINGLE_PARTITION.inc(catalog_proc);
             } else {
                 TxnCounter.MULTI_PARTITION.inc(catalog_proc);

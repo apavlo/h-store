@@ -15,7 +15,7 @@ import org.apache.log4j.Logger;
 public abstract class LoggerUtil {
 
     private static final String LOG4J_FILENAME = "log4j.properties";
-    private static File LOG4J_PROPERTIES_FILE = null;
+    private static File PROPERTIES_FILE = null;
     private static Thread REFRESH_THREAD = null;
     private static long LAST_TIMESTAMP = 0;
     private static final EventObservable OBSERVABLE = new EventObservable();
@@ -77,7 +77,7 @@ public abstract class LoggerUtil {
     }
     
     public static void setupLogging() {
-        if (LOG4J_PROPERTIES_FILE != null) return;
+        if (PROPERTIES_FILE != null) return;
         
         // Hack for testing...
         List<String> paths = new ArrayList<String>();
@@ -103,10 +103,10 @@ public abstract class LoggerUtil {
     }
     
     protected static synchronized void loadConfiguration(File file) {
-        if (LOG4J_PROPERTIES_FILE == null || LOG4J_PROPERTIES_FILE.equals(file) == false) {
+        if (PROPERTIES_FILE == null || PROPERTIES_FILE.equals(file) == false) {
             org.apache.log4j.PropertyConfigurator.configure(file.getAbsolutePath());
             Logger.getRootLogger().debug("Loaded log4j configuration file '" + file.getAbsolutePath() + "'");
-            LOG4J_PROPERTIES_FILE = file;
+            PROPERTIES_FILE = file;
             LAST_TIMESTAMP = file.lastModified();
         }
     }
@@ -116,7 +116,7 @@ public abstract class LoggerUtil {
             Logger.getRootLogger().debug("Starting log4j refresh thread [update interval = " + interval + "]");
             REFRESH_THREAD = new Thread() {
                 public void run() {
-                    if (LOG4J_PROPERTIES_FILE == null) setupLogging();
+                    if (PROPERTIES_FILE == null) setupLogging();
                     Thread self = Thread.currentThread();
                     self.setName("LogCheck");
                     while (!self.isInterrupted()) {
@@ -126,9 +126,10 @@ public abstract class LoggerUtil {
                             break;
                         }
                         // Refresh our configuration if the file has changed
-                        if (LOG4J_PROPERTIES_FILE != null && LAST_TIMESTAMP != LOG4J_PROPERTIES_FILE.lastModified()) {
-                            loadConfiguration(LOG4J_PROPERTIES_FILE);
-                            Logger.getRootLogger().info("Refreshed log4j configuration [" + LOG4J_PROPERTIES_FILE.getAbsolutePath() + "]");
+                        if (PROPERTIES_FILE != null && LAST_TIMESTAMP != PROPERTIES_FILE.lastModified()) {
+                            PROPERTIES_FILE = null;
+                            loadConfiguration(PROPERTIES_FILE);
+                            Logger.getRootLogger().info("Refreshed log4j configuration [" + PROPERTIES_FILE.getAbsolutePath() + "]");
                             LoggerUtil.OBSERVABLE.notifyObservers();
                         }
                     }

@@ -23,7 +23,6 @@ import org.voltdb.catalog.Statement;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.correlations.ParameterCorrelations;
 import edu.brown.graphs.GraphvizExport;
-import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.CountingPoolableObjectFactory;
 import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.PartitionEstimator;
@@ -253,22 +252,12 @@ public class TransactionEstimator {
             return (cnt.intValue());
         }
         
-        public Set<Integer> getEstimatedPartitions() {
-            return (this.initial_estimator.getTouchedPartitions());
-        }
-        public Set<Integer> getEstimatedReadPartitions() {
-            return (this.initial_estimator.getReadPartitions());
-        }
-        public Set<Integer> getEstimatedWritePartitions() {
-            return (this.initial_estimator.getWritePartitions());
-        }
-        public List<Vertex> getEstimatedPath() {
+        public List<Vertex> getInitialPath() {
             return (this.initial_estimator.getVisitPath());
         }
-        public double getEstimatedPathConfidence() {
+        public float getInitialPathConfidence() {
             return (this.initial_estimator.getConfidence());
         }
-        
         public Set<Integer> getTouchedPartitions() {
             return (this.touched_partitions);
         }
@@ -299,8 +288,8 @@ public class TransactionEstimator {
             m0.put("MarkovGraph Id", this.markov.getGraphId());
             
             Map<String, Object> m1 = new ListOrderedMap<String, Object>();
-            m1.put("Initial Partitions", this.getEstimatedPartitions());
-            m1.put("Initial Confidence", this.getEstimatedPathConfidence());
+            m1.put("Initial Partitions", this.initial_estimator.getTouchedPartitions());
+            m1.put("Initial Confidence", this.getInitialPathConfidence());
             m1.put("Initial Estimate", this.getInitialEstimate().toString());
             
             Map<String, Object> m2 = new ListOrderedMap<String, Object>();
@@ -328,6 +317,7 @@ public class TransactionEstimator {
         this.num_partitions = CatalogUtil.getNumberOfPartitions(this.catalog_db);
         this.correlations = (correlations == null ? new ParameterCorrelations() : correlations);
         this.hstore_conf = HStoreConf.singleton();
+        if (this.markovs != null && this.markovs.hasher == null) this.markovs.setHasher(this.p_estimator.getHasher());
         
         // HACK: Initialize the STATE_POOL
         synchronized (LOG) {
@@ -408,12 +398,12 @@ public class TransactionEstimator {
     protected List<Vertex> getInitialPath(long txn_id) {
         State s = this.txn_states.get(txn_id);
         assert(s != null) : "Unexpected Transaction #" + txn_id;
-        return (s.getEstimatedPath());
+        return (s.getInitialPath());
     }
     protected double getConfidence(long txn_id) {
         State s = this.txn_states.get(txn_id);
         assert(s != null) : "Unexpected Transaction #" + txn_id;
-        return (s.getEstimatedPathConfidence());
+        return (s.getInitialPathConfidence());
     }
     
     // ----------------------------------------------------------------------------
@@ -515,7 +505,7 @@ public class TransactionEstimator {
             assert(estimator.getEstimate().isValid()) :
                 String.format("Invalid MarkovEstimate for cache Estimator used by %s [hashCode=%d]",
                               TransactionState.formatTxnName(catalog_proc, txn_id), estimator.getEstimate().hashCode());
-            estimator.getEstimate().reused++;
+            estimator.getEstimate().incrementReusedCounter();
         }
         assert(estimator != null);
         if (t) {
@@ -663,15 +653,13 @@ public class TransactionEstimator {
         } // SYNCH
         
         // Store this as the last accurate MarkovPathEstimator for this graph
-        if (hstore_conf.site.markov_path_caching && this.cached_estimators.containsKey(s.markov) == false) {
+        if (hstore_conf.site.markov_path_caching && this.cached_estimators.containsKey(s.markov) == false && s.initial_estimate.isValid()) {
             synchronized (this.cached_estimators) {
                 if (this.cached_estimators.containsKey(s.markov) == false) {
                     s.initial_estimator.setCached(true);
                     if (d) LOG.debug(String.format("Storing cached MarkovPathEstimator for %s used by txn #%d [cached=%s, hashCode=%d]",
                                                    s.markov, txn_id, s.initial_estimator.isCached(), s.initial_estimator.hashCode()));
                     this.cached_estimators.put(s.markov, s.initial_estimator);
-                    assert(s.initial_estimate.isValid()) :
-                        String.format("Trying to use invalid %s MarkovEstimate for cache Estimator used by txn #%d\n%s", s.markov.getProcedure().getName(), txn_id, s.initial_estimate);
                 }
             } // SYNCH
         }
@@ -762,14 +750,7 @@ public class TransactionEstimator {
             // Generate the data structures we will need to give to the TransactionEstimator
             Statement catalog_stmts[] = new Statement[batch_size];
             Set<Integer> partitions[] = (Set<Integer>[])new Set<?>[batch_size];
-            for (int i = 0; i < batch_size; i++) {
-                QueryTrace query_trace = e.getValue().get(i);
-                assert(query_trace != null);
-                catalog_stmts[i] = query_trace.getCatalogItem(catalog_db);
-                
-                partitions[i] = this.p_estimator.getAllPartitions(query_trace, s.getBasePartition());
-                assert(partitions[i].isEmpty() == false) : "No partitions for " + query_trace;
-            } // FOR
+            this.populateQueryBatch(e.getValue(), s.getBasePartition(), catalog_stmts, partitions);
         
             synchronized (s.getMarkovGraph()) {
                 this.executeQueries(s, catalog_stmts, partitions);
@@ -783,30 +764,15 @@ public class TransactionEstimator {
         return (s);
     }
     
-    // ----------------------------------------------------------------------------
-    // YE OLDE MAIN METHOD
-    // ----------------------------------------------------------------------------
-    
-    /**
-     * Utility method for constructing a TransactionEstimator object per
-     * partition in
-     * 
-     * @param vargs
-     * @throws Exception
-     */
-    public static void main(String[] vargs) throws Exception {
-        ArgumentsParser args = ArgumentsParser.load(vargs);
-        args.require(ArgumentsParser.PARAM_CATALOG, ArgumentsParser.PARAM_WORKLOAD);
-        
-        // First construct all of the MarkovGraphs
-        final PartitionEstimator p_estimator = new PartitionEstimator(args.catalog_db, args.hasher);
-        MarkovGraphsContainer graphs_per_partition = MarkovUtil.createBasePartitionGraphs(args.catalog_db, args.workload, p_estimator);
-        assert(graphs_per_partition != null);
-        
-        // Then construct a TransactionEstimator per partition/procedure
-        // TODO(pavlo): Do we need to be able to serialize a TransactionEstimator?
-        // System.err.println("Number of graphs: " + MarkovUtil.load(args.catalog_db, args.getParam(ArgumentsParser.PARAM_MARKOV), CatalogUtil.getAllPartitions(args.catalog_db)).get(0).size());
-        
+    private void populateQueryBatch(List<QueryTrace> queries, int base_partition, Statement catalog_stmts[], Set<Integer> partitions[]) throws Exception {
+        int i = 0;
+        for (QueryTrace query_trace : queries) {
+            assert(query_trace != null);
+            catalog_stmts[i] = query_trace.getCatalogItem(catalog_db);
+            partitions[i] = this.p_estimator.getAllPartitions(query_trace, base_partition);
+            assert(partitions[i].isEmpty() == false) : "No partitions for " + query_trace;
+            i++;
+        } // FOR
     }
 
 }

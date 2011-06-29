@@ -1089,7 +1089,7 @@ public abstract class VoltProcedure implements Poolable {
                 if (s != null) {
                     sb.append(s.toString());
                     try {
-                        GraphvizExport<Vertex, Edge> gv = MarkovUtil.exportGraphviz(markov, true, markov.getPath(s.getEstimatedPath()));
+                        GraphvizExport<Vertex, Edge> gv = MarkovUtil.exportGraphviz(markov, true, markov.getPath(s.getInitialPath()));
                         gv.highlightPath(markov.getPath(s.getActualPath()), "blue");
                         
                         LOG.info("PARTITION: " + this.executor.partitionId);

@@ -91,6 +91,7 @@ public class ArgumentsParser {
     public static final String PARAM_WORKLOAD_PROC_SAMPLE   = PARAM_WORKLOAD + ".sampling";
     public static final String PARAM_WORKLOAD_PROC_INCLUDE_MULTIPLIER  = PARAM_WORKLOAD_PROC_INCLUDE + ".multiplier";
     public static final String PARAM_WORKLOAD_RANDOM_PARTITIONS = PARAM_WORKLOAD + ".randompartitions";
+    public static final String PARAM_WORKLOAD_BASE_PARTITIONS = PARAM_WORKLOAD + ".basepartitions";
     public static final String PARAM_WORKLOAD_OUTPUT        = PARAM_WORKLOAD + ".output";
     
     public static final String PARAM_STATS                  = "stats";
@@ -307,15 +308,21 @@ public class ArgumentsParser {
     }
 
     public Byte getByteOptParam(int idx) {
-        return (this.getOptParam(idx, VoltType.TINYINT));
+        Object obj = this.getOptParam(idx, VoltType.TINYINT);
+        if (obj != null) obj = ((Long)obj).byteValue();
+        return ((Byte)obj);
     }
     
     public Short getShortOptParam(int idx) {
-        return (this.getOptParam(idx, VoltType.SMALLINT));
+        Object obj = this.getOptParam(idx, VoltType.SMALLINT);
+        if (obj != null) obj = ((Long)obj).shortValue();
+        return ((Short)obj);
     }
     
     public Integer getIntOptParam(int idx) {
-        return (this.getOptParam(idx, VoltType.INTEGER));
+        Object obj = this.getOptParam(idx, VoltType.INTEGER);
+        if (obj != null) obj = ((Long)obj).intValue();
+        return ((Integer)obj);
     }
     
     public Long getLongOptParam(int idx) {
@@ -580,14 +587,26 @@ public class ArgumentsParser {
                 this.workload_filter = (this.workload_filter != null ? filter.attach(this.workload_filter) : filter);
             }
             
-            // RANDOM BASE PARTITIONS
-            if (params.containsKey(PARAM_WORKLOAD_RANDOM_PARTITIONS)) {
+            // BASE PARTITIONS
+            if (params.containsKey(PARAM_WORKLOAD_RANDOM_PARTITIONS) || params.containsKey(PARAM_WORKLOAD_BASE_PARTITIONS)) {
                 BasePartitionTxnFilter filter = new BasePartitionTxnFilter(new PartitionEstimator(catalog_db));
                 
-                double factor = this.getDoubleParam(PARAM_WORKLOAD_RANDOM_PARTITIONS);
-                List<Integer> partitions = new ArrayList<Integer>(CatalogUtil.getAllPartitionIds(catalog_db)); 
-                Collections.shuffle(partitions, new Random());
-                filter.addPartitions(partitions.subList(0, (int)(partitions.size() * factor)));
+                List<Integer> partitions = new ArrayList<Integer>();
+                
+                // FIXED LIST
+                if (params.containsKey(PARAM_WORKLOAD_BASE_PARTITIONS)) {
+                    for (String p_str : this.getParam(PARAM_WORKLOAD_BASE_PARTITIONS).split(",")) {
+                        partitions.add(Integer.valueOf(p_str));
+                    } // FOR
+                // RANDOM
+                } else {
+                    double factor = this.getDoubleParam(PARAM_WORKLOAD_RANDOM_PARTITIONS);
+                    List<Integer> all_partitions = new ArrayList<Integer>(CatalogUtil.getAllPartitionIds(catalog_db)); 
+                    Collections.shuffle(all_partitions, new Random());
+                    partitions.addAll(all_partitions.subList(0, (int)(partitions.size() * factor)));
+                }
+                filter.addPartitions(partitions);
+                
                 this.workload_filter = (this.workload_filter != null ? this.workload_filter.attach(filter) : filter);
             }
 
