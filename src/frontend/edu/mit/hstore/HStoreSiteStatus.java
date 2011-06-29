@@ -41,9 +41,13 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
     private static final Set<TxnCounter> TXNINFO_ALWAYS_SHOW = new HashSet<TxnCounter>();
     private static final Set<TxnCounter> TXNINFO_EXCLUDES = new HashSet<TxnCounter>();
     static {
-        CollectionUtil.addAll(TXNINFO_COL_DELIMITERS, TxnCounter.EXECUTED, TxnCounter.MULTI_PARTITION, TxnCounter.MISPREDICTED);
-        CollectionUtil.addAll(TXNINFO_ALWAYS_SHOW, TxnCounter.MULTI_PARTITION, TxnCounter.SINGLE_PARTITION);
-        CollectionUtil.addAll(TXNINFO_EXCLUDES, TxnCounter.SYSPROCS);
+        CollectionUtil.addAll(TXNINFO_COL_DELIMITERS, TxnCounter.EXECUTED,
+                                                      TxnCounter.MULTI_PARTITION,
+                                                      TxnCounter.MISPREDICTED);
+        CollectionUtil.addAll(TXNINFO_ALWAYS_SHOW,    TxnCounter.MULTI_PARTITION,
+                                                      TxnCounter.SINGLE_PARTITION,
+                                                      TxnCounter.MISPREDICTED);
+        CollectionUtil.addAll(TXNINFO_EXCLUDES,       TxnCounter.SYSPROCS);
     }
     
     private final HStoreSite hstore_site;
@@ -123,7 +127,7 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
     }
     
     private void printSnapshot() {
-        LOG.info("SNAPSHOT #" + this.snapshot_ctr.incrementAndGet() + "\n" +
+        LOG.info("STATUS SNAPSHOT #" + this.snapshot_ctr.incrementAndGet() + "\n" +
                  StringUtil.box(this.snapshot(hstore_conf.site.status_show_txn_info,
                                               hstore_conf.site.status_show_executor_info,
                                               hstore_conf.site.status_show_thread_info,

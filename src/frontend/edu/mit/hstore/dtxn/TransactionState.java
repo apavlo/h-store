@@ -98,6 +98,7 @@ public abstract class TransactionState implements Poolable {
     protected int round_ctr = 0;
     protected RuntimeException pending_error;
     protected Long ee_finished_timestamp;
+    protected boolean rejected;
     
     /**
      * Whether we predict that this txn will be read-only
@@ -154,6 +155,7 @@ public abstract class TransactionState implements Poolable {
         this.base_partition = base_partition;
         this.exec_local = exec_local;
         this.round_state = RoundState.NULL;
+        this.rejected = false;
         return (this);
     }
 
@@ -212,7 +214,9 @@ public abstract class TransactionState implements Poolable {
         assert(this.round_state == RoundState.NULL || this.round_state == RoundState.FINISHED) : 
             "Invalid round state " + this.round_state + " for txn #" + this.txn_id;
         
-        this.last_undo_token = undoToken;
+        if (this.last_undo_token == null || undoToken != ExecutionSite.DISABLE_UNDO_LOGGING_TOKEN) {
+            this.last_undo_token = undoToken;
+        }
         this.round_state = RoundState.INITIALIZED;
         this.pending_error = null;
         
@@ -249,6 +253,21 @@ public abstract class TransactionState implements Poolable {
     // GENERAL METHODS
     // ----------------------------------------------------------------------------
 
+    public boolean isRejected() {
+        return (this.rejected);
+    }
+    
+    public void markAsRejected() {
+        this.rejected = true;
+    }
+    
+    /**
+     * Returns true if this transaction has done something at this partition
+     */
+    public boolean hasStarted() {
+        return (this.last_undo_token != null);
+    }
+    
     /**
      * Get the current batch/round counter
      */

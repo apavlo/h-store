@@ -169,6 +169,10 @@ public class MarkovEstimate implements Poolable {
         return (++this.reused);
     }
     
+    protected int getNumPartitions() {
+        return (this.finished.length);
+    }
+    
     // ----------------------------------------------------------------------------
     // Probabilities
     // ----------------------------------------------------------------------------
@@ -213,9 +217,9 @@ public class MarkovEstimate implements Poolable {
     // Convenience methods using EstimationThresholds object
     // ----------------------------------------------------------------------------
     
-    private boolean checkProbabilityAllPartitions(float probs[], double threshold) {
+    private boolean checkProbabilityAllPartitions(float probs[], float threshold) {
         for (int partition = 0; partition < probs.length; partition++) {
-            if (threshold < probs[partition]) return (false);
+            if (probs[partition] < threshold) return (false);
         } // FOR
         return (true);
     }
@@ -239,13 +243,13 @@ public class MarkovEstimate implements Poolable {
         return (this.checkProbabilityAllPartitions(this.write, t.getWriteThreshold()));
     }
     public boolean isFinishedPartition(EstimationThresholds t, int partition) {
-        return (this.finished[partition] >= t.getDoneThreshold());
+        return (this.finished[partition] >= t.getFinishedThreshold());
     }
     public boolean isFinishedAllPartitions(EstimationThresholds t) {
-        return (this.checkProbabilityAllPartitions(this.finished, t.getDoneThreshold()));
+        return (this.checkProbabilityAllPartitions(this.finished, t.getFinishedThreshold()));
     }
     public boolean isTargetPartition(EstimationThresholds t, int partition) {
-        return ((1 - this.finished[partition]) >= t.getDoneThreshold());
+        return ((1 - this.finished[partition]) >= t.getFinishedThreshold());
     }
 
     public boolean isConfidenceProbabilitySet() {
@@ -334,7 +338,7 @@ public class MarkovEstimate implements Poolable {
     public Set<Integer> getFinishedPartitions(EstimationThresholds t) {
         assert(t != null);
         if (this.finished_partitions == null) this.finished_partitions = new HashSet<Integer>();
-        this.getPartitions(this.finished_partitions, this.finished, (float)t.getDoneThreshold(), false);
+        this.getPartitions(this.finished_partitions, this.finished, (float)t.getFinishedThreshold(), false);
         return (this.finished_partitions);
     }
     /**
@@ -345,7 +349,7 @@ public class MarkovEstimate implements Poolable {
     public Set<Integer> getTargetPartitions(EstimationThresholds t) {
         assert(t != null);
         if (this.target_partitions == null) this.target_partitions = new HashSet<Integer>();
-        this.getPartitions(this.target_partitions, this.finished, (float)t.getDoneThreshold(), true);
+        this.getPartitions(this.target_partitions, this.finished, t.getFinishedThreshold(), true);
         return (this.target_partitions);
     }
     

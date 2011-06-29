@@ -277,7 +277,7 @@ public class TransactionEstimator {
         }
 
         public MarkovEstimate getLastEstimate() {
-            return (this.num_estimates > 0 ? this.estimates.get(this.num_estimates-1) : null);
+            return (this.num_estimates > 0 ? this.estimates.get(this.num_estimates-1) : this.initial_estimate);
         }
         
         @Override
