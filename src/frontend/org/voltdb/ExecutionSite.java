@@ -165,6 +165,8 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
     public static final int NODE_THREAD_POOL_SIZE = 1;
 
     
+    public static final long DISABLE_UNDO_LOGGING_TOKEN = Long.MAX_VALUE;
+    
     // ----------------------------------------------------------------------------
     // OBJECT POOLS
     // ----------------------------------------------------------------------------
@@ -1331,15 +1333,27 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
      * @return
      */
     protected VoltTable[] executeLocalPlan(LocalTransactionState ts, BatchPlanner.BatchPlan plan) {
-        long undoToken;
+        long undoToken = ExecutionSite.DISABLE_UNDO_LOGGING_TOKEN;
         
 //        LOG.info(String.format("%s: predict_canAbort=%s, conf.exec_no_undo_logging=%s", ts, ts.isPredictAbortable(), hstore_conf.site.exec_no_undo_logging));
         
-        if (ts.isPredictAbortable() || ts.isSpeculative() || hstore_conf.site.exec_no_undo_logging == false) {
+        // Always get a new undo token if:
+        // (1) This txn is multi-partitioned (even if the work is read-only)
+        // (2) This txn is being speculatively executed
+        // (3) There is no TransactionEstimator State for us to use to figure things out
+        // (4) We're not allowed to disable undo logging
+        if (ts.isPredictSinglePartition() == false || ts.isSpeculative() == true || ts.getEstimatorState() == null || hstore_conf.site.exec_no_undo_logging == false) {
             undoToken = this.getNextUndoToken();
-        } else {
-            if (t) LOG.info(String.format("Bold! Not using undo buffers for %s", ts));
-            undoToken = Long.MAX_VALUE;
+       
+        // If we originally executed this transaction with undo buffers and we have a MarkovEstimate,
+        // then we can go back and check whether we want to disable undo logging for the rest of the transaction
+        // We can do this regardless of whether the transaction has written anything
+        } else if (ts.isPredictAbortable()) {
+            assert(ts.getEstimatorState() != null);
+            MarkovEstimate est = ts.getEstimatorState().getLastEstimate();
+            assert(est != null) : "Got back null MarkovEstimate for " + ts;
+            undoToken = (est.isAbortable(this.thresholds) ? this.getNextUndoToken() : ExecutionSite.DISABLE_UNDO_LOGGING_TOKEN);
+            if (d && undoToken == ExecutionSite.DISABLE_UNDO_LOGGING_TOKEN) LOG.debug("Bold! Not using undo buffers for " + ts);
         }
         ts.fastInitRound(undoToken);
       
@@ -1623,6 +1637,8 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
             }
         }
         
+        // We have to lock the work queue here to prevent a speculatively executed transaction that aborts
+        // from swaping the work queue to the block task list
         if (t) LOG.trace(String.format("Adding multi-partition %s to front of work queue [size=%d]", ts, this.work_queue.size()));
         synchronized (this.work_queue) {
             this.work_queue.addFirst(task);
@@ -1642,8 +1658,14 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
                                        ts, this.partitionId, (callback == null ? "out" : "")));
         this.txn_states.put(txn_id, ts);
         
-        // If we're multi-partition or single-partition and speculative execution is enabled, then just queue this mofo immediately
-        if (ts.isPredictSinglePartition() == false || (hstore_conf.site.exec_speculative_execution && this.exec_mode != ExecutionMode.DISABLED)) {
+        // If we're a multi-partition txn then queue this mofo immediately
+        if (ts.isPredictSinglePartition()) {
+            if (t) LOG.trace(String.format("Adding %s to work queue at partition %d [size=%d]", ts, this.partitionId, this.work_queue.size()));
+//            this.work_queue.addFirst(task);
+            this.work_queue.add(task);
+
+        // If we're a single-partition and speculative execution is enabled, then we can always set it up now
+        } else if (hstore_conf.site.exec_speculative_execution && this.exec_mode != ExecutionMode.DISABLED) {
             if (t) LOG.trace(String.format("Adding %s to work queue at partition %d [size=%d]", ts, this.partitionId, this.work_queue.size()));
             this.work_queue.add(task);
             

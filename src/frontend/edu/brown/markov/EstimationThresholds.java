@@ -17,31 +17,31 @@ import edu.brown.utils.JSONUtil;
  */
 public class EstimationThresholds implements JSONSerializable {
     
-    private static final double DEFAULT_THRESHOLD = 0.90d;
+    private static final float DEFAULT_THRESHOLD = 0.80f;
 
     public enum Members {
         SINGLE_PARTITION,
         READ,
         WRITE,
-        DONE,
+        FINISHED,
         ABORT,
     };
     
-    public double single_partition = DEFAULT_THRESHOLD;
-    public double read = DEFAULT_THRESHOLD;
-    public double write = DEFAULT_THRESHOLD;
-    public double done = DEFAULT_THRESHOLD;
-    public double abort = 1.00;
+    public float single_partition = DEFAULT_THRESHOLD;
+    public float read = DEFAULT_THRESHOLD;
+    public float write = DEFAULT_THRESHOLD;
+    public float finished = DEFAULT_THRESHOLD;
+    public float abort = 0.0001f;
     
     public EstimationThresholds() {
         // Nothing to see here...
     }
     
-    public EstimationThresholds(double default_value) {
+    public EstimationThresholds(float default_value) {
         this.single_partition = default_value;
         this.read = default_value;
         this.write = default_value;
-        this.done = default_value;
+        this.finished = default_value;
 //        this.abort = default_value;
     }
     
@@ -54,59 +54,59 @@ public class EstimationThresholds implements JSONSerializable {
     /**
      * @param single_partition the single_partition to set
      */
-    public void setSinglePartitionThreshold(double single_partition) {
+    public void setSinglePartitionThreshold(float single_partition) {
         this.single_partition = single_partition;
     }
 
     /**
      * @return the read
      */
-    public double getReadThreshold() {
+    public float getReadThreshold() {
         return this.read;
     }
     /**
      * @param read the read to set
      */
-    public void setReadThreshold(double read) {
+    public void setReadThreshold(float read) {
         this.read = read;
     }
 
     /**
      * @return the write
      */
-    public double getWriteThreshold() {
+    public float getWriteThreshold() {
         return this.write;
     }
     /**
      * @param write the write to set
      */
-    public void setWriteThreshold(double write) {
+    public void setWriteThreshold(float write) {
         this.write = write;
     }
 
     /**
      * @return the done
      */
-    public double getDoneThreshold() {
-        return this.done;
+    public float getFinishedThreshold() {
+        return this.finished;
     }
     /**
      * @param done the done to set
      */
-    public void setDoneThreshold(double done) {
-        this.done = done;
+    public void setFinishedThreshold(float done) {
+        this.finished = done;
     }
 
     /**
      * @return the abort
      */
-    public double getAbortThreshold() {
+    public float getAbortThreshold() {
         return this.abort;
     }
     /**
      * @param abort the abort to set
      */
-    public void setAbortThreshold(double abort) {
+    public void setAbortThreshold(float abort) {
         this.abort = abort;
     }
     

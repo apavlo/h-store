@@ -23,7 +23,7 @@ logging.basicConfig(level = logging.INFO,
 ## ==============================================
 
 NODE_MAX = 199
-NODES_TO_SKIP = [ 3, 4, 20, 21, 45, 77, 114, 101 ] # Busted nodes @ UW-Madison
+NODES_TO_SKIP = [ 20, 21, 45, 77, 114, 101 ] # Busted nodes @ UW-Madison
 
 COORDINATOR_NODE = 1
 SITE_NODE_START = COORDINATOR_NODE + 1
@@ -336,7 +336,7 @@ if __name__ == '__main__':
         hstore_opts_cmd = " ".join(map(lambda x: "-D%s=%s" % (x, hstore_opts[x]), hstore_opts.keys()))
         ant_opts_cmd = " ".join([base_opts_cmd, hstore_opts_cmd])
 
-        pprint(hstore_opts)
+        logging.debug(pformat(hstore_opts))
         
         ## HACK
         with open("properties/default.properties", "r") as f:

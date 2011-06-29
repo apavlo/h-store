@@ -805,7 +805,7 @@ public class ArgumentsParser {
         }
         if (this.params.containsKey(PARAM_MARKOV_THRESHOLDS_VALUE)) {
             assert(this.catalog_db != null);
-            double defaultValue = this.getDoubleParam(PARAM_MARKOV_THRESHOLDS_VALUE);
+            float defaultValue = this.getDoubleParam(PARAM_MARKOV_THRESHOLDS_VALUE).floatValue();
             this.thresholds = new EstimationThresholds(defaultValue);
             LOG.debug("CREATED THRESHOLDS: " + this.thresholds);
             

@@ -23,7 +23,7 @@ public class MultiPartitionTxnCallback extends AbstractTxnCallback implements Rp
     private final ByteString payload;
     private final LocalTransactionState ts;
     
-    public MultiPartitionTxnCallback(HStoreSite hstore_site, LocalTransactionState ts, int dest_partition, RpcCallback<byte[]> done) {
+    public MultiPartitionTxnCallback(HStoreSite hstore_site, LocalTransactionState ts, RpcCallback<byte[]> done) {
         super(hstore_site, ts.getTransactionId(), done);
         this.payload = HStoreSite.encodeTxnId(this.txn_id);
         this.ts = ts;

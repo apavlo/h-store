@@ -136,7 +136,7 @@ public class TestTransactionEstimator extends BaseTestCase {
         assertNotNull(state);
         MarkovEstimate est = state.getInitialEstimate();
         assertNotNull(est);
-        assertNull(state.getLastEstimate());
+        assertNotNull(state.getLastEstimate());
         System.err.println(est.toString());
         
         MarkovGraph markov = markovs.get(BASE_PARTITION, this.catalog_proc);
@@ -155,7 +155,7 @@ public class TestTransactionEstimator extends BaseTestCase {
 //        MarkovUtil.exportGraphviz(markov, false, markov.getPath(multip_path)).writeToTempFile(this.catalog_proc, 1);
         
         assertFalse(est.isSinglePartition(this.thresholds));
-        assertFalse(est.isAbortable(this.thresholds));
+        assertTrue(est.isAbortable(this.thresholds));
         
         Set<Integer> partitions = p_estimator.getAllPartitions(multip_trace);
         

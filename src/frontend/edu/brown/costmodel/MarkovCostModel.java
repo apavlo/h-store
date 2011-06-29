@@ -51,7 +51,7 @@ public class MarkovCostModel extends AbstractCostModel {
 
     public enum PenaltyGroup {
         MISSED_ABORT,
-        MISSING_PARTITION,
+        MISSED_PARTITION,
         RETURN_PARTITION,
         UNUSED_PARTITION,
         LATE_DONE;
@@ -80,11 +80,11 @@ public class MarkovCostModel extends AbstractCostModel {
         /**
          * The transaction did not declare it would read at a partition 
          */
-        MISSING_READ_PARTITION          (PenaltyGroup.MISSING_PARTITION, 0.5d),
+        MISSED_READ_PARTITION          (PenaltyGroup.MISSED_PARTITION, 0.5d),
         /**
          * The transaction did not declare it would write at a partition 
          */
-        MISSING_WRITE_PARTITION         (PenaltyGroup.MISSING_PARTITION, 0.5d),
+        MISSED_WRITE_PARTITION         (PenaltyGroup.MISSED_PARTITION, 0.5d),
         
         // ----------------------------------------------------------------------------
         // PENALTY #3
@@ -401,24 +401,24 @@ public class MarkovCostModel extends AbstractCostModel {
             if (this.e_read_partitions.contains(p) == false) {
                 if (trace.get()) {
                     if (first_penalty) {
-                        LOG.trace("PENALTY #2: " + PenaltyGroup.MISSING_PARTITION);
+                        LOG.trace("PENALTY #2: " + PenaltyGroup.MISSED_PARTITION);
                         first_penalty = false;
                     }
                     LOG.trace(String.format("Txn #%d failed to predict that it was READING at partition %d", s.getTransactionId(), p));
                 }
-                this.penalties.add(Penalty.MISSING_READ_PARTITION);
+                this.penalties.add(Penalty.MISSED_READ_PARTITION);
             }
         } // FOR
         for (Integer p : this.a_write_partitions) {
             if (this.e_write_partitions.contains(p) == false) {
                 if (trace.get()) {
                     if (first_penalty) {
-                        LOG.trace("PENALTY #2: " + PenaltyGroup.MISSING_PARTITION);
+                        LOG.trace("PENALTY #2: " + PenaltyGroup.MISSED_PARTITION);
                         first_penalty = false;
                     }
                     LOG.trace(String.format("Txn #%d failed to predict that it was WRITING at partition %d", s.getTransactionId(), p));
                 }
-                this.penalties.add(Penalty.MISSING_WRITE_PARTITION);
+                this.penalties.add(Penalty.MISSED_WRITE_PARTITION);
             }
         } // FOR
 //        if (this.penalties.size() > 0) {

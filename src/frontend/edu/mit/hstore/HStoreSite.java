@@ -36,6 +36,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Observer;
+import java.util.Random;
 import java.util.Set;
 import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentHashMap;
@@ -106,6 +107,7 @@ import edu.brown.workload.AbstractTraceElement;
 import edu.brown.workload.Workload;
 import edu.mit.dtxn.Dtxn;
 import edu.mit.dtxn.Dtxn.FragmentResponse.Status;
+import edu.mit.hstore.callbacks.ClientResponseFinalCallback;
 import edu.mit.hstore.callbacks.ForwardTxnRequestCallback;
 import edu.mit.hstore.callbacks.ForwardTxnResponseCallback;
 import edu.mit.hstore.callbacks.InitiateCallback;
@@ -251,6 +253,10 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
     private final PartitionEstimator p_estimator;
     private final AbstractHasher hasher;
     
+    /** Cached Rejection Response **/
+    private final ByteBuffer cached_ClientResponse;
+    private final Dtxn.FragmentResponse cached_FragmentResponse;
+    
     /** All of the partitions in the cluster */
     private final List<Integer> all_partitions;
 
@@ -282,7 +288,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
     /**
      * Keep track of which txns that we have in-flight right now
      */
-    private final Map<Long, LocalTransactionState> inflight_txns = new ConcurrentHashMap<Long, LocalTransactionState>();
+    private final ConcurrentHashMap<Long, LocalTransactionState> inflight_txns = new ConcurrentHashMap<Long, LocalTransactionState>();
 
     /**
      * Helper Thread Stuff
@@ -300,6 +306,11 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
      */
     private HStoreSiteStatus status_monitor = null;
     
+    /**
+     * For whatever...
+     */
+    private final Random rand = new Random();
+    
     // ----------------------------------------------------------------------------
     // CONSTRUCTOR
     // ----------------------------------------------------------------------------
@@ -309,7 +320,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
      * @param coordinator
      * @param p_estimator
      */
-    public HStoreSite(Site catalog_site, Map<Integer, ExecutionSite> executors, PartitionEstimator p_estimator) {
+    public HStoreSite(Site catalog_site, Map<Integer, ExecutionSite> executors, PartitionEstimator p_estimator) throws Exception {
         assert(catalog_site != null);
         assert(p_estimator != null);
         
@@ -348,6 +359,13 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
             POOL_FORWARDTXN_RESPONSE = new StackObjectPool(new ForwardTxnResponseCallback.Factory(hstore_conf.site.pool_profiling),
                                                            hstore_conf.site.pool_forwardtxnresponses_idle);
         }
+        
+        // Reusable Cached Messages
+        ClientResponseImpl cresponse = new ClientResponseImpl(-1, ClientResponse.REJECTED, EMPTY_RESULT, "", -1);
+        cached_ClientResponse = ByteBuffer.wrap(FastSerializer.serialize(cresponse));
+        cached_FragmentResponse = Dtxn.FragmentResponse.newBuilder().setStatus(Status.OK)
+                                                                   .setOutput(ByteString.EMPTY)
+                                                                   .build();
         
         // NewOrder Hack
         if (hstore_conf.site.exec_neworder_cheat) {
@@ -780,17 +798,12 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
             if (d) LOG.debug(String.format("Throttling is enabled. Rejecting transaction and asking client to wait [clientHandle=%d, requestCtr=%d]",
                                           clientHandle, request_ctr));
             
-            ClientResponseImpl cresponse = new ClientResponseImpl(-1, ClientResponse.REJECTED, EMPTY_RESULT, "", clientHandle);
-            cresponse.setThrottleFlag(this.incoming_throttle);
-            cresponse.setServerTimestamp(request_ctr);
-                
-            FastSerializer serializer = new FastSerializer();
-            try {
-                serializer.writeObject(cresponse);
-            } catch (Exception ex) {
-                throw new RuntimeException(ex);
-            }
-            done.run(serializer.getBytes());
+            synchronized (this.cached_ClientResponse) {
+                ClientResponseImpl.setServerTimestamp(this.cached_ClientResponse, request_ctr);
+                ClientResponseImpl.setThrottleFlag(this.cached_ClientResponse, this.incoming_throttle);
+                ClientResponseImpl.setClientHandle(this.cached_ClientResponse, clientHandle);
+                done.run(this.cached_ClientResponse.array());
+            } // SYNCH
             return;
         }
         
@@ -956,22 +969,29 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
                         if (d) LOG.debug(String.format("No MarkovEstimate was found for %s. Executing as multi-partitioned", TransactionState.formatTxnName(catalog_proc, txn_id)));
                         predict_singlePartition = false;
                         
-                    // Check whether the probability that we're single-partitioned is above our threshold
+                    // Invalid MarkovEstimate. Stick with defaults
+                    } else if (m_estimate.isValid() == false) {
+                        if (d) LOG.warn(String.format("Invalid MarkovEstimate for %s. Marking as not read-only and multi-partitioned.\n%s",
+                                TransactionState.formatTxnName(catalog_proc, txn_id), m_estimate));
+                        predict_singlePartition = false;
+                        predict_readonly = catalog_proc.getReadonly();
+                        predict_abortable = true;
+                        
+                    // Use MarkovEstimate to determine things
                     } else {
                         if (d) {
                             LOG.debug(String.format("Using MarkovEstimate for %s to determine if single-partitioned", TransactionState.formatTxnName(catalog_proc, txn_id)));
                             LOG.debug(String.format("%s MarkovEstimate:\n%s", TransactionState.formatTxnName(catalog_proc, txn_id), m_estimate));
                         }
-                        if (m_estimate.isValid()) {
-                            predict_singlePartition = m_estimate.isSinglePartition(this.thresholds);
-                            predict_readonly = m_estimate.isReadOnlyAllPartitions(this.thresholds);
-                            predict_abortable = true; // (predict_singlePartition == false || predict_readonly == false) && m_estimate.isAbortable(this.thresholds) == false;    
-                        } else {
-                            if (d) LOG.warn(String.format("Invalid MarkovEstimate for %s. Marking as not read-only and multi-partitioned.\n%s",
-                                                          TransactionState.formatTxnName(catalog_proc, txn_id), m_estimate));
-                            predict_singlePartition = false;
-                            predict_readonly = catalog_proc.getReadonly();
-                            predict_abortable = true;
+                        predict_singlePartition = m_estimate.isSinglePartition(this.thresholds);
+                        predict_readonly = m_estimate.isReadOnlyAllPartitions(this.thresholds);
+                        predict_abortable = (predict_singlePartition == false || predict_readonly == false || m_estimate.isAbortable(this.thresholds));
+                        if (catalog_proc.getName().equals("slev") && predict_abortable) {
+                            LOG.info("predict_singlePartition = " + predict_singlePartition);
+                            LOG.info("predict_readonly        = " + predict_readonly);
+                            LOG.info("isAbortable             =  " + m_estimate.isAbortable(this.thresholds));
+                            LOG.info("MARKOV ESTIMATE:\n" + m_estimate);
+                            this.messenger.shutdownCluster(new RuntimeException("BUSTED!"), false);
                         }
                     }
                 }
@@ -1150,12 +1170,6 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
             
             if (d) LOG.debug(String.format("Sent Dtxn.CoordinatorFragment for %s [bytes=%d]", ts, dtxn_request.getSerializedSize()));
             
-            // Push a new set of blocked single-partition transactions at the end of our list for this partition
-//            synchronized (this.dtxn_txns[base_partition]) {
-//                Object existing = this.dtxn_txns[base_partition].put(txn_id, new HashSet<LocalTransactionState>());
-//                assert(existing == null) : "Duplicate blocked transaction queue for txn #" + txn_id;
-//            } // SYNCH
-
         }
         
         // Look at the number of inflight transactions and see whether we should block and wait for the 
@@ -1165,6 +1179,20 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
             if (d) LOG.debug(String.format("INCOMING overloaded because of %s. Waiting for queue to drain [size=%d, trigger=%d]",
                                            ts, queue_size, hstore_conf.site.txn_incoming_queue_release));
             this.incoming_throttle = true;
+            
+            // HACK: Randomly discard some distributed TransactionStates because we can't
+            // tell the Dtxn.Coordinator to prune its queue.
+            if (hstore_conf.site.txn_enable_queue_pruning) {
+                int ctr = 0;
+                for (Long dtxn_id : this.inflight_txns.keySet()) {
+                    LocalTransactionState _ts = this.inflight_txns.get(dtxn_id);
+                    if (_ts.isPredictSinglePartition() == false && _ts.hasStarted() == false && rand.nextInt(5) == 0) {
+                        _ts.markAsRejected();
+                        ctr++;
+                    }
+                } // FOR
+                if (ctr > 0) LOG.info("Pruned " + ctr + " queued distributed transactions to try to free up the queue");
+            }
         }
         if (this.redirect_throttle == false && queue_size > hstore_conf.site.txn_redirect_queue_max) {
             if (d) LOG.debug(String.format("REDIRECT overloaded because of %s. Waiting for queue to drain [size=%d, trigger=%d]",
@@ -1213,6 +1241,12 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
             LocalTransactionState ts = this.inflight_txns.get(txn_id);
             assert(ts != null) : String.format("Missing TransactionState for txn #%d at site %d", txn_id, this.site_id);
             
+            // HACK: Reject the transaction
+            if (hstore_conf.site.txn_enable_queue_pruning && ts.isRejected()) {
+                this.rejectTransaction(ts, done);
+                return;
+            }
+            
             // Inject the StoredProcedureInvocation because we're not going to send it over the wire
             InitiateTaskMessage task = (InitiateTaskMessage)msg;
             assert(task.getStoredProcedureInvocation() == null);
@@ -1226,6 +1260,36 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
             this.executors[base_partition].doWork(msg, done);
         }
     }
+
+    /**
+     * 
+     * @param ts
+     * @param done
+     */
+    private void rejectTransaction(LocalTransactionState ts, RpcCallback<Dtxn.FragmentResponse> done) {
+        // Send back the initial response to the Dtxn.Coordinator
+        done.run(cached_FragmentResponse);
+        
+        // We then need to tell the coordinator that we committed
+        ByteString payload = null;
+        synchronized (this.cached_ClientResponse) {
+            ClientResponseImpl.setThrottleFlag(this.cached_ClientResponse, this.incoming_throttle);
+            ClientResponseImpl.setClientHandle(this.cached_ClientResponse, ts.getClientHandle());
+            this.cached_ClientResponse.rewind();
+            payload = ByteString.copyFrom(this.cached_ClientResponse);
+        } // SYNCH
+        
+        Dtxn.FinishRequest request = Dtxn.FinishRequest.newBuilder().setTransactionId(ts.getTransactionId())
+                                                                    .setCommit(false)
+                                                                    .setPayload(payload)
+                                                                    .build();
+        ClientResponseFinalCallback callback = new ClientResponseFinalCallback(this,
+                                                                               ts.getTransactionId(),
+                                                                               payload.toByteArray(),
+                                                                               Dtxn.FragmentResponse.Status.OK,
+                                                                               ts.client_callback);
+        this.requestFinish(ts, request, callback);
+    }
     
     /**
      * 
@@ -1234,7 +1298,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
      * @param task
      * @param done
      */
-    public void executeTransaction(LocalTransactionState ts, InitiateTaskMessage task, RpcCallback<Dtxn.FragmentResponse> done) {
+    private void executeTransaction(LocalTransactionState ts, InitiateTaskMessage task, RpcCallback<Dtxn.FragmentResponse> done) {
         long txn_id = ts.getTransactionId();
         int base_partition = ts.getBasePartition();
         boolean single_partitioned = ts.isPredictSinglePartition();
@@ -1250,12 +1314,12 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         if (ts.ignore_dtxn == false && single_partitioned == false) { //  || (txn_info.sysproc == false && hstore_conf.site.ignore_dtxn == false)) {
             // We need to send back a response before we actually start executing to avoid a race condition    
             if (d) LOG.debug(String.format("Sending back Dtxn.FragmentResponse to the InitiateTaskMessage for %s", ts));    
-            Dtxn.FragmentResponse response = Dtxn.FragmentResponse.newBuilder()
-                                                 .setStatus(Status.OK)
-                                                 .setOutput(ByteString.EMPTY)
-                                                 .build();
-            done.run(response);
-            callback = new MultiPartitionTxnCallback(this, ts, base_partition, ts.client_callback);
+//            Dtxn.FragmentResponse response = Dtxn.FragmentResponse.newBuilder()
+//                                                 .setStatus(Status.OK)
+//                                                 .setOutput(ByteString.EMPTY)
+//                                                 .build();
+            done.run(cached_FragmentResponse);
+            callback = new MultiPartitionTxnCallback(this, ts, ts.client_callback);
         } else {
             if (ts.init_latch != null) ts.init_latch.countDown();
             callback = done;
@@ -1521,7 +1585,9 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
                 case ABORT_MISPREDICT:
                     if (t) LOG.trace("Telling the TransactionEstimator to IGNORE " + ts);
                     if (t_estimator != null) t_estimator.mispredict(txn_id);
-                    if (hstore_conf.site.status_show_txn_info) TxnCounter.MISPREDICTED.inc(catalog_proc);
+                    if (hstore_conf.site.status_show_txn_info) {
+                        (ts.isSpeculative() ? TxnCounter.RESTARTED : TxnCounter.MISPREDICTED).inc(catalog_proc);
+                    }
                     break;
                 case ABORT_USER:
                 case ABORT_DEADLOCK:
@@ -1546,10 +1612,8 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
             
             if (ts.sysproc) {
                 TxnCounter.SYSPROCS.inc(catalog_proc);
-            } else if (ts.isPredictSinglePartition()) {
-                TxnCounter.SINGLE_PARTITION.inc(catalog_proc);
-            } else {
-                TxnCounter.MULTI_PARTITION.inc(catalog_proc);
+            } else if (status != Dtxn.FragmentResponse.Status.ABORT_MISPREDICT) {
+                (ts.isPredictSinglePartition() ? TxnCounter.SINGLE_PARTITION : TxnCounter.MULTI_PARTITION).inc(catalog_proc);
             }
         }
         

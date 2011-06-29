@@ -321,7 +321,15 @@ public final class HStoreConf {
             description="", // TODO
             computed=true
         )
-        public int txn_redirect_queue_release;  
+        public int txn_redirect_queue_release;
+        
+        @ConfigProperty(
+            description="Allow queued distributed transctions to be rejected.",
+            defaultBoolean=false,
+            experimental=true,
+            advanced=true
+        )
+        public boolean txn_enable_queue_pruning;
         
         // ----------------------------------------------------------------------------
         // Markov Transaction Estimator Options

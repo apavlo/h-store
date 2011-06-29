@@ -28,6 +28,8 @@ public enum TxnCounter {
     COMPLETED,
     /** Of the locally executed transactions, how many were abort */
     ABORTED,
+    /** The number of transactions that were speculative and had to be restarted */
+    RESTARTED,
     /** The number of transactions that were mispredicted (and thus re-executed) */
     MISPREDICTED,
     /** Speculative Execution **/
@@ -71,7 +73,11 @@ public enum TxnCounter {
         int cnt = this.get();
         switch (this) {
             case SINGLE_PARTITION:
+                if (SINGLE_PARTITION.get() == 0) return (null);
+                total = SINGLE_PARTITION.get() + MULTI_PARTITION.get();
+                break;
             case MULTI_PARTITION:
+                if (MULTI_PARTITION.get() == 0) return (null);
                 total = SINGLE_PARTITION.get() + MULTI_PARTITION.get();
                 break;
             case SPECULATIVE:
@@ -82,6 +88,7 @@ public enum TxnCounter {
                 break;
             case SYSPROCS:
             case ABORTED:
+            case RESTARTED:
             case MISPREDICTED:
                 total = EXECUTED.get() - SYSPROCS.get();
                 break;
@@ -93,7 +100,7 @@ public enum TxnCounter {
             case COMPLETED:
                 return (null);
             default:
-                assert(false) : this;
+                assert(false) : "Unexpected TxnCounter: " + this;
         }
         return (total == 0 ? null : cnt / (double)total);
     }

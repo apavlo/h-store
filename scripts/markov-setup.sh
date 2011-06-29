@@ -1,19 +1,20 @@
 #!/bin/bash -x
 
 BENCHMARKS=( \
-#     "tm1" \
+    "tm1" \
     "tpcc.100w.large" \
-#     "auctionmark.large"\
+    "auctionmark.large" \
 #     "tpce" \
 )
 PARTITIONS=( \
+    4 \
     8 \
-#     16 \
-#     32 \
-#     64 \
+    16 \
+    32 \
+    64 \
 #     128 \
 )
-HEAP_SIZE=3072
+HEAP_SIZE=6144
 MAX_THREADS=`tools/getcpus.py`
 MAKE_GLOBAL=true
 CALCULATE_COST=true

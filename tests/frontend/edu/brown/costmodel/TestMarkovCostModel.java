@@ -182,7 +182,7 @@ public class TestMarkovCostModel extends BaseTestCase {
         List<Penalty> penalties = costmodel.getLastPenalties();
         assertNotNull(penalties);
         System.err.println(String.format("COST=%.03f PENALTIES=%s", cost, penalties));
-        assert(penalties.contains(Penalty.MISSED_ABORT_MULTI) || penalties.contains(Penalty.MISSED_ABORT_SINGLE)); 
+        assert(penalties.contains(Penalty.MISSED_READ_PARTITION) || penalties.contains(Penalty.MISSED_WRITE_PARTITION)); 
     }
     
     /**
@@ -209,7 +209,7 @@ public class TestMarkovCostModel extends BaseTestCase {
         List<Penalty> penalties = costmodel.getLastPenalties();
         assertNotNull(penalties);
         System.err.println(String.format("COST=%.03f PENALTIES=%s", cost, penalties));
-        assert(penalties.contains(Penalty.MISSING_READ_PARTITION)); 
+        assert(penalties.contains(Penalty.MISSED_READ_PARTITION)); 
     }
     
     /**
