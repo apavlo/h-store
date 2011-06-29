@@ -88,7 +88,7 @@ public class CombineWorkloadTraces {
             // If we are out of txns, set next_txns to null
             if (++next_idxs[min_idx] >= max_idxs[min_idx]) {
                 next_idxs[min_idx] = null;
-                LOG.info(String.format("Finished Workload #%02d [%02/%02d]", min_idx, finished, next_idxs.length));
+                LOG.info(String.format("Finished Workload #%02d [%02d/%02d]", min_idx, ++finished, next_idxs.length));
             }
             ctr++;
         } // WHILE

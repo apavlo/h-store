@@ -645,7 +645,7 @@ public class Vertex extends AbstractVertex implements MarkovHitTrackable {
     public void setDoneProbability(int partition, float probability) {
         this.setProbability(Probability.DONE, partition, probability);
     }
-    public float getDoneProbability(int partition) {
+    public float getFinishProbability(int partition) {
         return (this.getSpecificProbability(Probability.DONE, partition));
     }
     public boolean isDoneProbabilitySet(int partition) {

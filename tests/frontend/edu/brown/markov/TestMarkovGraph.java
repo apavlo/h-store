@@ -88,7 +88,7 @@ public class TestMarkovGraph extends BaseTestCase {
         assert (v.getAbortProbability() <= 1.0) : "Invalid Abort for " + v + ": " + v.getAbortProbability();
 
         for (int partition = 0; partition < NUM_PARTITIONS; partition++) {
-            final float done = v.getDoneProbability(partition);
+            final float done = v.getFinishProbability(partition);
             final float write = v.getWriteProbability(partition);
             final float read_only = v.getReadOnlyProbability(partition);
 
@@ -177,10 +177,10 @@ public class TestMarkovGraph extends BaseTestCase {
             
             for (int i = 0; i < NUM_PARTITIONS; i++) {
                 if (partitions.contains(i)) {
-                    assertEquals(v.toString(), 0.0f, v.getDoneProbability(i));
+                    assertEquals(v.toString(), 0.0f, v.getFinishProbability(i));
                 // We can only do this check if the vertex does not have edges to another vertex
                 } else if (markov.getSuccessorCount(v) == 1) {
-                    assertEquals(v.toString(), 1.0f, v.getDoneProbability(i));
+                    assertEquals(v.toString(), 1.0f, v.getFinishProbability(i));
                 }
             } // FOR
         } // FOR

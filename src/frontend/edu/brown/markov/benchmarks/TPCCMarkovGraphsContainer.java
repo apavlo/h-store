@@ -43,10 +43,12 @@ public class TPCCMarkovGraphsContainer extends MarkovGraphsContainer {
         // NEWORDER
         if (proc_name.equals("neworder")) {
             if (d) LOG.debug(String.format("Selecting MarkovGraph using decision tree for %s txn #%d", proc_name, txn_id));
+            assert(this.hasher != null) : "Missing hasher!";
             id = this.processNeworder(txn_id, base_partition, params, catalog_proc);
         // PAYMENT
         } else if (proc_name.startsWith("payment")) {
             if (d) LOG.debug(String.format("Selecting MarkovGraph using decision tree for %s txn #%d", proc_name, txn_id));
+            assert(this.hasher != null) : "Missing hasher!";
             id = this.processPayment(txn_id, base_partition, params, catalog_proc);
         // DEFAULT
         } else {

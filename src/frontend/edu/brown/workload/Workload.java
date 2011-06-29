@@ -45,6 +45,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Pattern;
 
 import org.apache.log4j.Logger;
+import org.json.JSONException;
 import org.json.JSONObject;
 import org.voltdb.VoltTable;
 import org.voltdb.VoltTableRow;
@@ -209,7 +210,9 @@ public class Workload implements WorkloadTrace, Iterable<AbstractTraceElement<? 
             }
             writerThread.traces.offer(xact);
         } else {
-            WriteThread.write(catalog_db, xact, output);
+            synchronized (Workload.class) {
+                WriteThread.write(catalog_db, xact, output);
+            } // SYNCH
         }
     }
     
@@ -296,6 +299,7 @@ public class Workload implements WorkloadTrace, Iterable<AbstractTraceElement<? 
         @Override
         public void run() {
             final boolean trace = LOG.isTraceEnabled();
+            final boolean debug = LOG.isDebugEnabled();
 
             AtomicInteger xact_ctr = this.counters[0];
             AtomicInteger query_ctr = this.counters[1];
@@ -325,7 +329,17 @@ public class Workload implements WorkloadTrace, Iterable<AbstractTraceElement<? 
                 line_ctr = p.getFirst();
                 line = p.getSecond();
                 try {
-                    jsonObject = new JSONObject(line);    
+                    try {
+                        jsonObject = new JSONObject(line);
+                    } catch (JSONException ex) {
+                        String msg = String.format("Ignoring invalid TransactionTrace on line %d of '%s'", (line_ctr+1), input_path);
+                        if (debug) {
+                            LOG.warn(msg, ex);
+                        } else {
+                            LOG.warn(msg); 
+                        }
+                        continue;
+                    }
                 
                     // TransactionTrace
                     if (jsonObject.has(TransactionTrace.Members.TXN_ID.name())) {
@@ -365,10 +379,10 @@ public class Workload implements WorkloadTrace, Iterable<AbstractTraceElement<? 
                         
                     // Unknown!
                     } else {
-                        throw new Exception("Unexpected serialization line in workload trace");
+                        throw new Exception("Unexpected serialization line in workload trace file '" + input_path.getAbsolutePath() + "'");
                     }
                 } catch (Exception ex) {
-                    throw new RuntimeException("Error on line " + (line_ctr+1) + " of workload trace file", ex);
+                    throw new RuntimeException("Error on line " + (line_ctr+1) + " of workload trace file '" + input_path.getAbsolutePath() + "'", ex);
                 }
             } // WHILE
         }

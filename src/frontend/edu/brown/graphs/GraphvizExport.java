@@ -282,7 +282,7 @@ public class GraphvizExport<V extends AbstractVertex, E extends AbstractEdge> {
     }
 
     private void writeVertex(StringBuilder b, String id, AttributeValues av) {
-        b.append(String.format("%s \"%s\"", StringUtil.SPACER, id));
+        b.append(String.format("%s\"%s\"", StringUtil.SPACER, id));
         
         // Vertex Attributes
         if (av != null) {
@@ -295,7 +295,7 @@ public class GraphvizExport<V extends AbstractVertex, E extends AbstractEdge> {
             if (label != null) b.append("label=\"").append(this.escapeLabel(label)).append("\"");
             b.append("] ");
         }
-        b.append(" ;");
+        b.append(" ;\n");
     }
     
     private String escapeLabel(String label) {

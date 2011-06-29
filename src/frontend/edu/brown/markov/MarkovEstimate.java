@@ -21,10 +21,13 @@ public class MarkovEstimate implements Poolable {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
 
+    public static final int INITIAL_ESTIMATE_BATCH = -1;
+    
 
     // Global
+    private float confidence;
     private float singlepartition;
-    private float userabort;
+    private float abort;
 
     // Partition-specific
     private final int touched[];
@@ -45,7 +48,7 @@ public class MarkovEstimate implements Poolable {
     private transient boolean initializing = true;
     private transient Boolean valid = null;
 
-    public int reused = 0;
+    private int reused = 0;
     
     protected MarkovEstimate(int num_partitions) {
         this.touched = new int[num_partitions];
@@ -73,7 +76,7 @@ public class MarkovEstimate implements Poolable {
             this.setSinglePartitionProbability(v.getSingleSitedProbability());
             this.setAbortProbability(v.getAbortProbability());
             for (int i = 0; i < this.touched.length; i++) {
-                this.setFinishPartitionProbability(i, v.getDoneProbability(i));
+                this.setFinishPartitionProbability(i, v.getFinishProbability(i));
                 this.setReadOnlyPartitionProbability(i, v.getReadOnlyProbability(i));
                 this.setWritePartitionProbability(i, v.getWriteProbability(i));
             } // FOR
@@ -99,8 +102,9 @@ public class MarkovEstimate implements Poolable {
             this.read[i] = MarkovUtil.NULL_MARKER;
             this.write[i] = MarkovUtil.NULL_MARKER;
         } // FOR
+        this.confidence = MarkovUtil.NULL_MARKER;
         this.singlepartition = MarkovUtil.NULL_MARKER;
-        this.userabort = MarkovUtil.NULL_MARKER;
+        this.abort = MarkovUtil.NULL_MARKER;
         
         if (this.finished_partitions != null) this.finished_partitions.clear();
         if (this.target_partitions != null) this.target_partitions.clear();
@@ -157,16 +161,29 @@ public class MarkovEstimate implements Poolable {
         this.touched[partition]++;
     }
     
+    public int getReusedCounter() {
+        return (this.reused);
+    }
+    
+    public int incrementReusedCounter() {
+        return (++this.reused);
+    }
+    
     // ----------------------------------------------------------------------------
     // Probabilities
     // ----------------------------------------------------------------------------
+    protected void setConfidenceProbability(float prob) {
+        this.confidence = prob;
+        if (prob == MarkovUtil.NULL_MARKER) this.valid = false;
+        else if (this.valid == null) this.valid = true;
+    }
     protected void setSinglePartitionProbability(float prob) {
         this.singlepartition = prob;
         if (prob == MarkovUtil.NULL_MARKER) this.valid = false;
         else if (this.valid == null) this.valid = true;
     }
     protected void setAbortProbability(float prob) {
-        this.userabort = prob;
+        this.abort = prob;
         if (prob == MarkovUtil.NULL_MARKER) this.valid = false;
         else if (this.valid == null) this.valid = true;
     }
@@ -204,10 +221,10 @@ public class MarkovEstimate implements Poolable {
     }
     
     public boolean isSinglePartition(EstimationThresholds t) {
-        return (this.singlepartition >= t.getSinglePartitionThreshold());
+        return (this.getTargetPartitions(t).size() <= 1);
     }
-    public boolean isUserAbort(EstimationThresholds t) {
-        return (this.userabort >= t.getAbortThreshold());
+    public boolean isAbortable(EstimationThresholds t) {
+        return (this.abort >= t.getAbortThreshold());
     }
     public boolean isReadOnlyAllPartitions(EstimationThresholds t) {
         return (this.checkProbabilityAllPartitions(this.read, t.getReadThreshold()));
@@ -231,11 +248,14 @@ public class MarkovEstimate implements Poolable {
         return ((1 - this.finished[partition]) >= t.getDoneThreshold());
     }
 
+    public boolean isConfidenceProbabilitySet() {
+        return (this.confidence != MarkovUtil.NULL_MARKER);
+    }
     public boolean isSinglePartitionProbabilitySet() {
         return (this.singlepartition != MarkovUtil.NULL_MARKER);
     }
     public boolean isAbortProbabilitySet() {
-        return (this.userabort != MarkovUtil.NULL_MARKER);
+        return (this.abort != MarkovUtil.NULL_MARKER);
     }
     public boolean isReadOnlyProbabilitySet(int partition) {
         return (this.read[partition] != MarkovUtil.NULL_MARKER);
@@ -250,11 +270,14 @@ public class MarkovEstimate implements Poolable {
     public int getTouchedCounter(int partition) {
         return (this.touched[partition]);
     }
+    public float getConfidenceProbability() {
+        return (this.confidence);
+    }
     public float getSinglePartitionProbability() {
         return (this.singlepartition);
     }
     public float getAbortProbability() {
-        return (this.userabort);
+        return (this.abort);
     }
     public float getReadOnlyProbablity(int partition) {
         return (this.read[partition]);
@@ -331,20 +354,21 @@ public class MarkovEstimate implements Poolable {
         final String f = "%-6.02f"; 
         
         Map<String, Object> m0 = new ListOrderedMap<String, Object>();
-        m0.put("BatchEstimate", "#" + this.batch);
+        m0.put("BatchEstimate", (this.batch == MarkovEstimate.INITIAL_ESTIMATE_BATCH ? "<INITIAL>" : "#" + this.batch));
         m0.put("HashCode", this.hashCode());
         m0.put("Valid", this.valid);
         m0.put("Reused Ctr", this.reused);
         m0.put("Vertex", this.vertex);
+        m0.put("Confidence", this.confidence);
         m0.put("Single-P", (this.singlepartition != MarkovUtil.NULL_MARKER ? String.format(f, this.singlepartition) : "-"));
-        m0.put("User Abort", (this.userabort != MarkovUtil.NULL_MARKER ? String.format(f, this.userabort) : "-"));
+        m0.put("User Abort", (this.abort != MarkovUtil.NULL_MARKER ? String.format(f, this.abort) : "-"));
         
         String header[] = {
             "",
             "ReadO",
             "Write",
             "Finished",
-            "Counter",
+            "TouchCtr",
         };
         Object rows[][] = new Object[this.touched.length][];
         for (int i = 0; i < rows.length; i++) {
