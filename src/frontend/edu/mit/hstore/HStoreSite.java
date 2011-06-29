@@ -986,13 +986,13 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
                         predict_singlePartition = m_estimate.isSinglePartition(this.thresholds);
                         predict_readonly = m_estimate.isReadOnlyAllPartitions(this.thresholds);
                         predict_abortable = (predict_singlePartition == false || predict_readonly == false || m_estimate.isAbortable(this.thresholds));
-                        if (catalog_proc.getName().equals("slev") && predict_abortable) {
-                            LOG.info("predict_singlePartition = " + predict_singlePartition);
-                            LOG.info("predict_readonly        = " + predict_readonly);
-                            LOG.info("isAbortable             =  " + m_estimate.isAbortable(this.thresholds));
-                            LOG.info("MARKOV ESTIMATE:\n" + m_estimate);
-                            this.messenger.shutdownCluster(new RuntimeException("BUSTED!"), false);
-                        }
+//                        if (catalog_proc.getName().equals("slev") && predict_abortable) {
+//                            LOG.info("predict_singlePartition = " + predict_singlePartition);
+//                            LOG.info("predict_readonly        = " + predict_readonly);
+//                            LOG.info("isAbortable             =  " + m_estimate.isAbortable(this.thresholds));
+//                            LOG.info("MARKOV ESTIMATE:\n" + m_estimate);
+//                            this.messenger.shutdownCluster(new RuntimeException("BUSTED!"), false);
+//                        }
                     }
                 }
                 if (hstore_conf.site.txn_profiling) ts.est_time.stop();
