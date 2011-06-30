@@ -280,7 +280,7 @@ public class ProcessSetManager implements Shutdownable {
         try {
             return m_output.take();
         } catch (InterruptedException e) {
-            if (this.shutting_down == false) e.printStackTrace();
+            // if (this.shutting_down == false) e.printStackTrace();
         }
         return null;
     }

@@ -91,7 +91,7 @@ public class TestTransactionStateComplex extends BaseTestCase {
             ftasks = plan.getFragmentTaskMessages();
             assertFalse(ftasks.isEmpty());
         }
-        this.ts = new LocalTransactionState(executor).init(TXN_ID, CLIENT_HANDLE, LOCAL_PARTITION);
+        this.ts = new LocalTransactionState(executor).init(TXN_ID, CLIENT_HANDLE, LOCAL_PARTITION, false, false, true);
         assertNotNull(this.ts);
     }
 
