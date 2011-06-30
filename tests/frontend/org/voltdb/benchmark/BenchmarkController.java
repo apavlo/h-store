@@ -586,7 +586,6 @@ public class BenchmarkController {
      * 
      */
     public void startClients(final int numClients) {
-    	LOG.info("Start client numClients = " + numClients);
         
         // java -cp voltdbfat.jar org.voltdb.benchmark.tpcc.TPCCClient warehouses=X etc...
         final ArrayList<String> clArgs = new ArrayList<String>();
@@ -667,7 +666,6 @@ public class BenchmarkController {
 
         String[] clientNames = m_clientPSM.getProcessNames();
         for (String name : clientNames) {
-        	LOG.info("client name = " + name);
             m_clients.add(name);
         }
         m_clientsNotReady.set(m_clientPSM.size());

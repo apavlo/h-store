@@ -60,12 +60,12 @@ public abstract class AuctionMarkConstants {
     public static final long MAXIMUM_CLIENT_IDS = 100000000000000l;
     
     
-    public static final long INTERVAL_CHECK_WINNING_BIDS = 0; // 10000; // Check winning bid's frequency in millisecond
-    public static final boolean ENABLE_CHECK_WINNING_BIDS   = false; // true;
+    public static final long INTERVAL_CHECK_WINNING_BIDS = 10000; // Check winning bid's frequency in millisecond
+    public static final boolean ENABLE_CHECK_WINNING_BIDS   = true;
     
     // Non-standard txns
-    public static final int FREQUENCY_CHECK_WINNING_BIDS    = 0; // -1; // called at regular intervals
-    public static final int FREQUENCY_POST_AUCTION          = 0; // -1; // called after CHECK_WINNING_BIDS
+    public static final int FREQUENCY_CHECK_WINNING_BIDS    = -1; // called at regular intervals
+    public static final int FREQUENCY_POST_AUCTION          = -1; // called after CHECK_WINNING_BIDS
     
     // Regular Txn Mix
     
@@ -94,7 +94,8 @@ public abstract class AuctionMarkConstants {
 //    public static final int FREQUENCY_NEW_PURCHASE          = 0;
 //    public static final int FREQUENCY_NEW_USER              = 0;
 //    public static final int FREQUENCY_UPDATE_ITEM           = 0;
-  
+
+    
     // ----------------------------------------------------------------
     // DEFAULT TABLE SIZES
     // ----------------------------------------------------------------

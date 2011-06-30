@@ -33,8 +33,6 @@ package edu.brown.benchmark.auctionmark;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.HashMap;
 
 import org.apache.log4j.Logger;
 import org.voltdb.benchmark.ClientMain;
@@ -59,9 +57,10 @@ public abstract class AuctionMarkBaseClient extends ClientMain {
     public static final String DEFAULT_PROFILE_PATH = "/tmp/" + AuctionMarkProjectBuilder.type.name().toLowerCase() + ".profile";
 
     /**
-     * Benchmark Profile - map the clientid to its created profile
+     * Benchmark Profile
      */
-    protected HashMap<Integer, AuctionMarkBenchmarkProfile> profiles;
+    protected final AuctionMarkBenchmarkProfile profile;
+    protected final File profile_path;
 
     /**
      * Specialized random number generator
@@ -86,7 +85,6 @@ public abstract class AuctionMarkBaseClient extends ClientMain {
     public AuctionMarkBaseClient(Class<? extends AuctionMarkBaseClient> child_class, String[] args) {
         super(args);
 
-        profiles = new HashMap<Integer, AuctionMarkBenchmarkProfile>();
         Double scale_factor = 1.0;
         String profile_file = null;
         int seed = 0;
@@ -121,42 +119,20 @@ public abstract class AuctionMarkBaseClient extends ClientMain {
 
         // BenchmarkProfile
         // Only load from the file for AuctionMarkClient
-        
-        int table_size = (int)AuctionMarkConstants.TABLESIZE_USER / scaleFactor;
-        int table_size_per_client = table_size / getNumClients();
-        // Instantiate as many profile as there are clients
-        for (int i = 0; i < getNumClients(); i++) {
-        	AuctionMarkBenchmarkProfile profile = new AuctionMarkBenchmarkProfile();
-        	// set the low u_id and high_u_id
-        	profile.setLowerUid(i * table_size_per_client);
-        	profile.setHighUid((i + 1) * table_size_per_client - 1);
-        	File profile_path = FileUtil.getTempFile(String.valueOf(i), false);
-        	try {
-				profile.load(profile_path.getAbsolutePath(), null);
-			} catch (IOException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
-	        profile.setScaleFactor(scale_factor);
-	        // add profile to list of created profiles
-	        profiles.put(getClientId(), profile);
-	        // save the profile
-	        saveProfile();
+        this.profile = new AuctionMarkBenchmarkProfile();
+        this.profile_path = new File(profile_file == null ? DEFAULT_PROFILE_PATH : profile_file);
+        if (child_class.equals(AuctionMarkClient.class)) {
+            if (this.profile_path.exists()) {
+                try {
+                    LOG.debug("Loading Profile: " + this.profile_path.getAbsolutePath());
+                    this.profile.load(this.profile_path.getAbsolutePath(), null);
+                } catch (Exception ex) {
+                    LOG.error("Failed to load benchmark profile file '" + this.profile_path + "'", ex);
+                    System.exit(1);
+                }
+            }
         }
-        //this.profile = new AuctionMarkBenchmarkProfile();
-//        this.profile_path = new File(profile_file == null ? DEFAULT_PROFILE_PATH : profile_file);
-//        LOG.info("profile_path = " + this.profile_path + " child_class = " + child_class.getName());
-//        if (child_class.equals(AuctionMarkClient.class)) {
-//            if (this.profile_path.exists()) {
-//                try {
-//                    LOG.debug("Loading Profile: " + this.profile_path.getAbsolutePath());
-//                    this.profile.load(this.profile_path.getAbsolutePath(), null);
-//                } catch (Exception ex) {
-//                    LOG.error("Failed to load benchmark profile file '" + this.profile_path + "'", ex);
-//                    System.exit(1);
-//                }
-//            }
-//        }
+        this.profile.setScaleFactor(scale_factor);
 
         // Data Directory Path
         if (dataDir == null) {
@@ -215,16 +191,16 @@ public abstract class AuctionMarkBaseClient extends ClientMain {
      * @throws IOException
      */
     public void saveProfile() {
-//        assert (this.profile_path != null);
-//        assert (this.profile != null);
-//        if (debug)
-//            LOG.debug("Saving BenchmarkProfile to '" + this.profile_path + "'");
-//        try {
-//            this.profile.save(this.profile_path.getAbsolutePath());
-//        } catch (IOException ex) {
-//            LOG.fatal("Failed to save BenchmarkProfile", ex);
-//            System.exit(1);
-//        }
+        assert (this.profile_path != null);
+        assert (this.profile != null);
+        if (debug)
+            LOG.debug("Saving BenchmarkProfile to '" + this.profile_path + "'");
+        try {
+            this.profile.save(this.profile_path.getAbsolutePath());
+        } catch (IOException ex) {
+            LOG.fatal("Failed to save BenchmarkProfile", ex);
+            System.exit(1);
+        }
     }
 
     /**
