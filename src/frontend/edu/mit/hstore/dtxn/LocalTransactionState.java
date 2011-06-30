@@ -164,10 +164,7 @@ public class LocalTransactionState extends TransactionState {
      * The partitions that we told the Dtxn.Coordinator that we were done with
      */
     private final Set<Integer> done_partitions = new HashSet<Integer>();
-    /**
-     * What partitions has this txn touched
-     */
-    private final Histogram<Integer> exec_touchedPartitions = new Histogram<Integer>();
+
     /**
      * Whether this is a sysproc
      */
@@ -177,22 +174,15 @@ public class LocalTransactionState extends TransactionState {
      */
     public boolean ignore_dtxn = false;
 
-    /**
-     * Whether this txn is suppose to be single-partitioned
-     */
-    private boolean predict_singlePartitioned = false;
+    // ----------------------------------------------------------------------------
+    // EXECUTION FLAGS
+    // ----------------------------------------------------------------------------
     
+    /** What partitions has this txn touched */
+    private final Histogram<Integer> exec_touchedPartitions = new Histogram<Integer>();
     
-    /**
-     * Whether this txn can abort
-     */
-    protected boolean predict_canAbort = true;
-
-    /**
-     * Whether this txn is being executed specutatively
-     */
-    private boolean speculative = false;
-
+    /** Whether this txn is being executed specutatively */
+    private boolean exec_speculative = false;
     
     /**
      * The original StoredProcedureInvocation request that was sent to the HStoreSite
@@ -364,12 +354,10 @@ public class LocalTransactionState extends TransactionState {
     }
     
     @SuppressWarnings("unchecked")
-    public LocalTransactionState init(long txnId, long clientHandle, int source_partition) {
-        // We'll use these to reduce the number of calls to the LoggerBooleans
-        // Probably doesn't make a difference but I'll take anything I can get now...
-//        t = trace.get();
-//        d = debug.get();
-        return ((LocalTransactionState)super.init(txnId, clientHandle, source_partition, true));
+    public LocalTransactionState init(long txnId, long clientHandle, int source_partition,
+                                      boolean predict_singlePartitioned, boolean predict_readOnly, boolean predict_abortable) {
+        return ((LocalTransactionState)super.init(txnId, clientHandle, source_partition,
+                                                  predict_singlePartitioned, predict_readOnly, predict_abortable, true));
     }
     
     /**
@@ -390,18 +378,16 @@ public class LocalTransactionState extends TransactionState {
                                       boolean predictSinglePartition, boolean predictReadOnly, boolean predict_canAbort, TransactionEstimator.State estimator_state,
                                       Procedure catalog_proc, StoredProcedureInvocation invocation, RpcCallback<byte[]> client_callback) {
         
-        this.predict_singlePartitioned = predictSinglePartition;
-        this.predict_readOnly = predictReadOnly;
-        this.predict_canAbort = predict_canAbort;
         this.estimator_state = estimator_state;
-        
         this.catalog_proc = catalog_proc;
         this.sysproc = catalog_proc.getSystemproc();
         this.invocation = invocation;
         this.client_callback = client_callback;
-        this.init_latch = (this.predict_singlePartitioned == false ? new CountDownLatch(1) : null);
+        this.init_latch = (predictSinglePartition == false ? new CountDownLatch(1) : null);
         
-        return (this.init(txnId, clientHandle, base_partition));
+        return ((LocalTransactionState)super.init(txnId, clientHandle, base_partition,
+                                                  predictSinglePartition, predictReadOnly, predict_canAbort,
+                                                  true));
     }
     
     /**
@@ -411,13 +397,13 @@ public class LocalTransactionState extends TransactionState {
      * @param orig
      * @return
      */
-    public LocalTransactionState init(long txnId, int base_partition, LocalTransactionState orig) {
+    public LocalTransactionState init(long txnId, int base_partition, LocalTransactionState orig, boolean predict_singlePartitioned, boolean predict_readOnly, boolean predict_abortable) {
         this.orig_txn_id = orig.getTransactionId();
         this.catalog_proc = orig.catalog_proc;
         this.sysproc = orig.sysproc;
         this.invocation = orig.invocation;
         this.client_callback = orig.client_callback;
-        this.init_latch = (this.predict_singlePartitioned == false ? new CountDownLatch(1) : null);
+        this.init_latch = (this.isPredictSinglePartition() == false ? new CountDownLatch(1) : null);
         // this.estimator_state = orig.estimator_state;
         
         // Append the profiling times
@@ -429,7 +415,7 @@ public class LocalTransactionState extends TransactionState {
 //            this.est_time.appendTime(orig.est_time);
 //        }
         
-        return (this.init(txnId, orig.client_handle, base_partition));
+        return (this.init(txnId, orig.client_handle, base_partition, predict_singlePartitioned, predict_readOnly, predict_abortable));
     }
     
     @Override
@@ -478,9 +464,8 @@ public class LocalTransactionState extends TransactionState {
         this.orig_txn_id = null;
         this.catalog_proc = null;
         this.sysproc = false;
-        this.predict_singlePartitioned = false;
-        this.speculative = false;
-        this.predict_canAbort = true;
+        
+        this.exec_speculative = false;
         this.ignore_dtxn = false;
         this.done_partitions.clear();
         this.exec_touchedPartitions.clear();
@@ -761,22 +746,9 @@ public class LocalTransactionState extends TransactionState {
         return (this.internal_dependencies);
     }
     
-    public void setPredictSinglePartitioned(boolean singlePartitioned) {
-        this.predict_singlePartitioned = singlePartitioned;
-    }
-    public void setPredictAbortable(boolean canAbort) {
-        this.predict_canAbort = canAbort;
-    }
+
     public void setSpeculative(boolean speculative) {
-        this.speculative = speculative;
-    }
-    
-    /**
-     * Returns true if this Transaction was originally predicted to be single-partitioned
-     * @return
-     */
-    public boolean isPredictSinglePartition() {
-        return (this.predict_singlePartitioned);
+        this.exec_speculative = speculative;
     }
     
     /**
@@ -784,16 +756,9 @@ public class LocalTransactionState extends TransactionState {
      * @return
      */
     public boolean isSpeculative() {
-        return (this.speculative);
+        return (this.exec_speculative);
     }
     
-    /**
-     * Returns true if this Transaction was originally predicted as being able to abort
-     * @return
-     */
-    public boolean isPredictAbortable() {
-        return predict_canAbort;
-    }
     
     /**
      * Returns true if this Transaction has executed only on a single-partition
@@ -1152,9 +1117,9 @@ public class LocalTransactionState extends TransactionState {
         
         // Predictions
         m = new ListOrderedMap<String, Object>();
-        m.put("Predict Single-Partitioned", this.predict_singlePartitioned);
-        m.put("Predict Read Only", this.predict_readOnly);
-        m.put("Predict Can Abort", this.predict_canAbort);
+        m.put("Predict Single-Partitioned", this.isPredictSinglePartition());
+        m.put("Predict Read Only", this.isPredictReadOnly());
+        m.put("Predict Abortable", this.isPredictAbortable());
         m.put("Estimator State", this.estimator_state);
         maps.add(m);
         
@@ -1164,7 +1129,7 @@ public class LocalTransactionState extends TransactionState {
         m.put("Exec Read Only", this.exec_readOnly);
         m.put("Exec Locally", this.exec_local);
         m.put("Done Partitions", this.done_partitions);
-        m.put("Speculative Execution", this.speculative);
+        m.put("Speculative Execution", this.exec_speculative);
         m.put("Touched Partitions", this.exec_touchedPartitions);
         maps.add(m);
 

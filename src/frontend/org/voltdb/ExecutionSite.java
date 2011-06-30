@@ -626,7 +626,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
             try {
                 for (int i = 0; i < count; i++) {
                     TransactionState ts = (TransactionState)pool.borrowObject();
-                    ts.init(-1l, -1l, this.partitionId);
+                    ts.init(-1l, -1l, this.partitionId, false, false, true);
                     states.add(ts);
                 } // FOR
                 
@@ -856,7 +856,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
      */
     private void setExecutionMode(ExecutionMode mode, long txn_id) {
         if (d && this.exec_mode != mode) {
-            LOG.info(String.format("Setting ExecutionMode for partition %d to %s [txn=%d, orig=%s]",
+            LOG.debug(String.format("Setting ExecutionMode for partition %d to %s [txn=%d, orig=%s]",
                                     this.partitionId, mode, txn_id, this.exec_mode));
         }
         assert(mode != ExecutionMode.COMMIT_READONLY || (mode == ExecutionMode.COMMIT_READONLY && this.current_dtxn != null)) :
@@ -1082,7 +1082,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
         
         // Release the latch in case anybody is waiting for us to finish
         if (hstore_conf.site.exec_speculative_execution && (spec_exec != ExecutionMode.COMMIT_ALL || predict_singlePartition == false) && release_latch == true) {
-            if (t) LOG.trace(String.format("%s is releasing exec latch for partition %d", ts, this.partitionId));
+            if (d) LOG.debug(String.format("%s is releasing exec latch for partition %d", ts, this.partitionId));
             this.exec_latch.release();
             assert(this.exec_latch.availablePermits() <= 1) : String.format("Invalid exec latch state [permits=%d, mode=%s]", this.exec_latch.availablePermits(), this.exec_mode);
         } else if (t) {
@@ -1311,7 +1311,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
             
             // HACK: We have to set the TransactionState for sysprocs manually
             volt_proc.setTransactionState(ts);
-            ts.setExecReadOnly(false);
+            ts.markExecNotReadOnly();
             result = volt_proc.executePlanFragment(ts.getTransactionId(), ts.ee_dependencies, (int)fragmentIds[0], parameterSets[0], this.m_systemProcedureContext);
             if (t) LOG.trace("Finished executing sysproc fragments for " + volt_proc.getClass().getSimpleName());
         // -------------------------------
@@ -1336,24 +1336,21 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
         long undoToken = ExecutionSite.DISABLE_UNDO_LOGGING_TOKEN;
         
 //        LOG.info(String.format("%s: predict_canAbort=%s, conf.exec_no_undo_logging=%s", ts, ts.isPredictAbortable(), hstore_conf.site.exec_no_undo_logging));
-        
-        // Always get a new undo token if:
-        // (1) This txn is multi-partitioned (even if the work is read-only)
-        // (2) This txn is being speculatively executed
-        // (3) There is no TransactionEstimator State for us to use to figure things out
-        // (4) We're not allowed to disable undo logging
-        if (ts.isPredictSinglePartition() == false || ts.isSpeculative() == true || ts.getEstimatorState() == null || hstore_conf.site.exec_no_undo_logging == false) {
-            undoToken = this.getNextUndoToken();
-       
+
         // If we originally executed this transaction with undo buffers and we have a MarkovEstimate,
         // then we can go back and check whether we want to disable undo logging for the rest of the transaction
-        // We can do this regardless of whether the transaction has written anything
-        } else if (ts.isPredictAbortable()) {
-            assert(ts.getEstimatorState() != null);
+        // We can do this regardless of whether the transaction has written anything <-- NOT TRUE!
+        if (ts.getEstimatorState() != null && ts.isPredictSinglePartition() && ts.isSpeculative() == false && hstore_conf.site.exec_no_undo_logging) {
             MarkovEstimate est = ts.getEstimatorState().getLastEstimate();
             assert(est != null) : "Got back null MarkovEstimate for " + ts;
-            undoToken = (est.isAbortable(this.thresholds) ? this.getNextUndoToken() : ExecutionSite.DISABLE_UNDO_LOGGING_TOKEN);
-            if (d && undoToken == ExecutionSite.DISABLE_UNDO_LOGGING_TOKEN) LOG.debug("Bold! Not using undo buffers for " + ts);
+            if (est.isAbortable(this.thresholds) || est.isReadOnlyPartition(this.thresholds, this.partitionId) == false) {
+                undoToken = this.getNextUndoToken();
+            } else if (d) {
+                LOG.debug(String.format("Bold! Disabling undo buffers for inflight %s [prob=%f]\n%s\n%s",
+                                        ts, est.getAbortProbability(), est, plan.toString()));
+            }
+        } else {
+            undoToken = this.getNextUndoToken();
         }
         ts.fastInitRound(undoToken);
       
@@ -1450,7 +1447,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
             boolean readonly = CatalogUtil.areFragmentsReadOnly(this.database, fragmentIds, fragmentIdIndex); 
             if (readonly == false) {
                 if (t) LOG.trace(String.format("Marking txn #%d as not read-only %s", txn_id, Arrays.toString(fragmentIds))); 
-                ts.setExecReadOnly(false);
+                ts.markExecNotReadOnly();
             }
         }
         
@@ -1561,80 +1558,62 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
     /**
      * New work from the coordinator that this local site needs to execute (non-blocking)
      * This method will simply chuck the task into the work queue.
+     * We should not be sent an InitiateTaskMessage here!
      * @param task
      * @param callback the RPC handle to send the response to
      */
-    public void doWork(TransactionInfoBaseMessage task, RpcCallback<Dtxn.FragmentResponse> callback) {
+    public void doWork(FragmentTaskMessage task, RpcCallback<Dtxn.FragmentResponse> callback) {
         long txn_id = task.getTxnId();
         long client_handle = task.getClientHandle();
-        boolean start_txn = (task instanceof InitiateTaskMessage);
         
         TransactionState ts = this.txn_states.get(txn_id);
         boolean read_only = task.isReadOnly();
         if (ts == null) {
             try {
-                if (start_txn) {
-                    boolean single_partitioned = true;
-                    ts = (LocalTransactionState)localTxnPool.borrowObject();
-                    assert(callback != null) : "Missing coordinator callback for txn #" + txn_id;
-                    LocalTransactionState local_ts = (LocalTransactionState)ts;
-                    local_ts.setCoordinatorCallback(callback);
-                    local_ts.setPredictSinglePartitioned(single_partitioned);
-                    local_ts.setEstimatorState(this.t_estimator.getState(txn_id));
-                    if (d) LOG.debug(String.format("Starting new VoltProcedure invocation at partition %d for %s [readOnly=%s, singlePartitioned=%s]",
-                                                   this.partitionId, ts, read_only, single_partitioned));
-                } else {
-                    // Remote Transaction
-                    ts = (RemoteTransactionState)remoteTxnPool.borrowObject();
-                    read_only = task.isReadOnly();
-                    if (d) LOG.debug(String.format("Creating new RemoteTransactionState at partition %d for txn #%d running at partition %d [readOnly=%s, singlePartitioned=%s]",
-                                                   this.partitionId, txn_id, task.getSourcePartitionId(), read_only, false));
-                }
+                // Remote Transaction
+                ts = (RemoteTransactionState)remoteTxnPool.borrowObject();
+                ts.init(txn_id, client_handle, task.getSourcePartitionId(), false, read_only, true);
+                if (d) LOG.debug(String.format("Creating new RemoteTransactionState %s from remote partition %d to execute at partition %d [readOnly=%s, singlePartitioned=%s]",
+                                               ts, task.getSourcePartitionId(), this.partitionId, read_only, false));
             } catch (Exception ex) {
                 LOG.fatal("Failed to construct TransactionState for txn #" + txn_id, ex);
                 throw new RuntimeException(ex);
             }
-            
-            // Initialize the internal data structures
-            ts.init(txn_id, client_handle, task.getSourcePartitionId());
-            
-            if (ts != this.current_dtxn) {
-                synchronized (this.exec_mode) {
-                    assert(this.current_dtxn_blocked.isEmpty()) :
-                        String.format("Overlapping multi-partition transactions at partition %d: Orig[%s] <=> New[%s]",
-                                      this.partitionId, this.current_dtxn, ts);
-                    assert(this.current_dtxn == null) :
-                        String.format("Overlapping multi-partition transactions at partition %d: Orig[%s] <=> New[%s]",
-                                      this.partitionId, this.current_dtxn, ts);
-                    this.current_dtxn = ts;
-                    if (hstore_conf.site.exec_speculative_execution) {
-                        this.setExecutionMode(read_only ? ExecutionMode.COMMIT_READONLY : ExecutionMode.COMMIT_NONE, txn_id);
-                    } else {
-                        this.setExecutionMode(ExecutionMode.DISABLED, txn_id);
-                    }
-                    
-                    if (d) LOG.debug(String.format("Marking %s as current DTXN on partition %d [isLocal=%s, execMode=%s]",
-                                                  ts, this.partitionId, start_txn, this.exec_mode));                    
-                } // SYNCH
-
-            // Check whether we should drop down to a less permissive speculative execution mode
-            } else if (hstore_conf.site.exec_speculative_execution && read_only == false) {
-                this.setExecutionMode(ExecutionMode.COMMIT_NONE, txn_id);
-            }
-            
             this.txn_states.put(txn_id, ts);
             if (t) LOG.trace(String.format("Stored new transaction state for %s at partition %d", ts, this.partitionId));
         }
+        assert(ts.isInitialized());
+            
+        if (ts != this.current_dtxn) {
+            synchronized (this.exec_mode) {
+                assert(this.current_dtxn_blocked.isEmpty()) :
+                    String.format("Overlapping multi-partition transactions at partition %d: Orig[%s] <=> New[%s]",
+                                  this.partitionId, this.current_dtxn, ts);
+                assert(this.current_dtxn == null) :
+                    String.format("Overlapping multi-partition transactions at partition %d: Orig[%s] <=> New[%s]",
+                                  this.partitionId, this.current_dtxn, ts);
+                this.current_dtxn = ts;
+                if (hstore_conf.site.exec_speculative_execution) {
+                    this.setExecutionMode(read_only ? ExecutionMode.COMMIT_READONLY : ExecutionMode.COMMIT_NONE, txn_id);
+                } else {
+                    this.setExecutionMode(ExecutionMode.DISABLED, txn_id);
+                }
+                
+                if (d) LOG.debug(String.format("Marking %s as current DTXN on partition %d [execMode=%s]",
+                                              ts, this.partitionId, this.exec_mode));                    
+            } // SYNCH
+
+        // Check whether we should drop down to a less permissive speculative execution mode
+        } else if (hstore_conf.site.exec_speculative_execution && read_only == false) {
+            this.setExecutionMode(ExecutionMode.COMMIT_NONE, txn_id);
+        }
 
         // Remote Work
-        if (start_txn == false) {
-            FragmentTaskMessage ftask = (FragmentTaskMessage)task;
-            if (callback != null) {
-                if (d) LOG.debug(String.format("Storing FragmentTask callback in TransactionState for %s at partition %d", ts, this.partitionId));
-                ts.setFragmentTaskCallback(ftask, callback);
-            } else {
-                assert(ftask.isUsingDtxnCoordinator() == false) : String.format("No callback for remote execution request for %s at partition %d", ts, this.partitionId);
-            }
+        if (callback != null) {
+            if (t) LOG.trace(String.format("Storing FragmentTask callback in TransactionState for %s at partition %d", ts, this.partitionId));
+            ts.setFragmentTaskCallback(task, callback);
+        } else {
+            assert(task.isUsingDtxnCoordinator() == false) : String.format("No callback for remote execution request for %s at partition %d", ts, this.partitionId);
         }
         
         // We have to lock the work queue here to prevent a speculatively executed transaction that aborts
@@ -1659,10 +1638,11 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
         this.txn_states.put(txn_id, ts);
         
         // If we're a multi-partition txn then queue this mofo immediately
-        if (ts.isPredictSinglePartition()) {
+        if (ts.isPredictSinglePartition() == false) {
             if (t) LOG.trace(String.format("Adding %s to work queue at partition %d [size=%d]", ts, this.partitionId, this.work_queue.size()));
-//            this.work_queue.addFirst(task);
-            this.work_queue.add(task);
+            synchronized (this.work_queue) {
+                this.work_queue.addFirst(task);
+            } // SYNCH
 
         // If we're a single-partition and speculative execution is enabled, then we can always set it up now
         } else if (hstore_conf.site.exec_speculative_execution && this.exec_mode != ExecutionMode.DISABLED) {
@@ -1889,6 +1869,8 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
      * @return
      */
     protected VoltTable[] waitForResponses(LocalTransactionState ts, Collection<FragmentTaskMessage> ftasks, int batch_size) {
+        if (d) LOG.debug(String.format("Dispatching %d messages and waiting for the results for %s", ftasks.size(), ts));
+        
         // We have to store all of the tasks in the TransactionState before we start executing, otherwise
         // there is a race condition that a task with input dependencies will start running as soon as we
         // get one response back from another executor
@@ -1999,26 +1981,25 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
                     }
                 }
             }
-            if (read_only == false) ts.setExecReadOnly(read_only);
+            if (read_only == false) ts.markExecNotReadOnly();
             first = false;
         } // WHILE
 
         // Now that we know all of our FragmentTaskMessages have been dispatched, we can then
         // wait for all of the results to come back in.
         if (latch == null) latch = ts.getDependencyLatch();
-        if (d) {
-            LOG.debug(String.format("All blocked messages dispatched for %s. Waiting for %d dependencies", ts, latch.getCount()));
-            if (t) LOG.trace(ts.toString());
-        }
         if (latch.getCount() > 0) {
+            if (d) {
+                LOG.debug(String.format("All blocked messages dispatched for %s. Waiting for %d dependencies", ts, latch.getCount()));
+                if (t) LOG.trace(ts.toString());
+            }
             try {
                 latch.await();
             } catch (InterruptedException ex) {
                 if (this.hstore_site.isShuttingDown() == false) LOG.error("We were interrupted while waiting for results for " + ts, ex);
                 return (null);
-            } catch (Exception ex) {
-                LOG.fatal(String.format("Fatal error for %s while waiting for results", ts), ex);
-                System.exit(1);
+            } catch (Throwable ex) {
+                new RuntimeException(String.format("Fatal error for %s while waiting for results", ts), ex);
             }
         }
         
@@ -2032,10 +2013,12 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
         
         // Important: Don't try to check whether we got back the right number of tables because the batch
         // may have hit an error and we didn't execute all of them.
-        if (t) LOG.trace(ts + " is now running and looking for love in all the wrong places...");
         final VoltTable results[] = ts.getResults();
         ts.finishRound();
-        if (t) LOG.trace(ts + " is returning back " + results.length + " tables to VoltProcedure");
+        if (d) {
+            if (t) LOG.trace(ts + " is now running and looking for love in all the wrong places...");
+            LOG.debug(ts + " is returning back " + results.length + " tables to VoltProcedure");
+        }
         return (results);
     }
 
@@ -2073,21 +2056,19 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
         }
         assert(cresponse.getClientHandle() != -1) : "The client handle for " + ts + " was not set properly";
         byte status = cresponse.getStatus();
-        
-        if (d) LOG.debug(String.format("Sending ClientResponse back for %s [handle=%d, status=%s]",
-                                       ts, cresponse.getClientHandle(), cresponse.getStatusName()));
-        Dtxn.FragmentResponse.Builder builder = Dtxn.FragmentResponse.newBuilder();
 
         // Always mark the throttling flag so that the clients know whether they are allowed to keep
         // coming at us and make requests
+        Dtxn.FragmentResponse.Builder builder = Dtxn.FragmentResponse.newBuilder();
         cresponse.setThrottleFlag(this.hstore_site.isIncomingThrottled());
         
         // IMPORTANT: If we executed this locally and only touched our partition, then we need to commit/abort right here
         // 2010-11-14: The reason why we can do this is because we will just ignore the commit
         // message when it shows from the Dtxn.Coordinator. We should probably double check with Evan on this...
         boolean is_local_singlepartitioned = ts.isExecSinglePartition() && ts.isExecLocal();
-        if (d) LOG.debug(String.format("Processing ClientResponse for %s at partition %d [singlePartition=%s, local=%s]",
-                                       ts, this.partitionId, ts.isExecSinglePartition(), ts.isExecLocal()));
+        if (d) LOG.debug(String.format("Processing ClientResponse for %s at partition %d [handle=%d, status=%s, singlePartition=%s, local=%s]",
+                                       ts, this.partitionId, cresponse.getClientHandle(), cresponse.getStatusName(),
+                                       ts.isExecSinglePartition(), ts.isExecLocal()));
         switch (status) {
             case ClientResponseImpl.SUCCESS:
                 if (t) LOG.trace("Marking " + ts + " as success.");
@@ -2318,7 +2299,9 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
                 this.processClientResponse(ts, cr);
             }
         } // WHILE
-        if (d && hstore_conf.site.exec_queued_response_ee_bypass) LOG.debug(String.format("Fast Commit EE Bypass Optimization [skipped=%d, aborted=%d]", skip_commit, aborted));
+        if (d && skip_commit > 0 && hstore_conf.site.exec_queued_response_ee_bypass) {
+            LOG.debug(String.format("Fast Commit EE Bypass Optimization [skipped=%d, aborted=%d]", skip_commit, aborted));
+        }
         return;
     }
     

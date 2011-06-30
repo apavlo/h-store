@@ -65,6 +65,7 @@ import org.voltdb.catalog.Site;
 import org.voltdb.client.ClientResponse;
 import org.voltdb.messaging.FastDeserializer;
 import org.voltdb.messaging.FastSerializer;
+import org.voltdb.messaging.FragmentTaskMessage;
 import org.voltdb.messaging.InitiateTaskMessage;
 import org.voltdb.messaging.TransactionInfoBaseMessage;
 import org.voltdb.messaging.VoltMessage;
@@ -915,26 +916,26 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         // TRANSACTION EXECUTION PROPERTIES
         // -------------------------------
         
-        boolean predict_singlePartition = false;
+        boolean predict_singlePartitioned = false;
         boolean predict_abortable = true;
-        boolean predict_readonly = catalog_proc.getReadonly();
+        boolean predict_readOnly = catalog_proc.getReadonly();
         TransactionEstimator.State t_state = null; 
         
         // Sysprocs are always multi-partitioned
         if (sysproc) {
             if (t) LOG.trace(String.format("%s is a sysproc, so it has to be multi-partitioned", ts));
-            predict_singlePartition = false;
+            predict_singlePartitioned = false;
             
         // Force all transactions to be single-partitioned
         } else if (hstore_conf.site.exec_force_singlepartitioned) {
             if (t) LOG.trace("The \"Always Single-Partitioned\" flag is true. Marking as single-partitioned!");
-            predict_singlePartition = true;
+            predict_singlePartitioned = true;
             
         // Assume we're executing TPC-C neworder. Manually examine the input parameters and figure
         // out what partitions it's going to need to touch
         } else if (hstore_conf.site.exec_neworder_cheat && catalog_proc.getName().equalsIgnoreCase("neworder")) {
             if (t) LOG.trace(String.format("%s - Executing neworder argument hack for VLDB paper", ts));
-            predict_singlePartition = this.tpcc_inspector.initializeTransaction(ts, args);
+            predict_singlePartitioned = this.tpcc_inspector.initializeTransaction(ts, args);
             
         // Otherwise, we'll try to estimate what the transaction will do (if we can)
         } else {
@@ -957,7 +958,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
                 // It has to be executed as multi-partitioned
                 if (t_state == null) {
                     if (d) LOG.debug(String.format("No TransactionEstimator.State was returned for %s. Executing as multi-partitioned", TransactionState.formatTxnName(catalog_proc, txn_id))); 
-                    predict_singlePartition = false;
+                    predict_singlePartitioned = false;
                     
                 // We have a TransactionEstimator.State, so let's see what it says...
                 } else {
@@ -967,14 +968,14 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
                     // Bah! We didn't get back a MarkovEstimate for some reason...
                     if (m_estimate == null) {
                         if (d) LOG.debug(String.format("No MarkovEstimate was found for %s. Executing as multi-partitioned", TransactionState.formatTxnName(catalog_proc, txn_id)));
-                        predict_singlePartition = false;
+                        predict_singlePartitioned = false;
                         
                     // Invalid MarkovEstimate. Stick with defaults
                     } else if (m_estimate.isValid() == false) {
                         if (d) LOG.warn(String.format("Invalid MarkovEstimate for %s. Marking as not read-only and multi-partitioned.\n%s",
                                 TransactionState.formatTxnName(catalog_proc, txn_id), m_estimate));
-                        predict_singlePartition = false;
-                        predict_readonly = catalog_proc.getReadonly();
+                        predict_singlePartitioned = false;
+                        predict_readOnly = catalog_proc.getReadonly();
                         predict_abortable = true;
                         
                     // Use MarkovEstimate to determine things
@@ -983,9 +984,9 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
                             LOG.debug(String.format("Using MarkovEstimate for %s to determine if single-partitioned", TransactionState.formatTxnName(catalog_proc, txn_id)));
                             LOG.debug(String.format("%s MarkovEstimate:\n%s", TransactionState.formatTxnName(catalog_proc, txn_id), m_estimate));
                         }
-                        predict_singlePartition = m_estimate.isSinglePartition(this.thresholds);
-                        predict_readonly = m_estimate.isReadOnlyAllPartitions(this.thresholds);
-                        predict_abortable = (predict_singlePartition == false || predict_readonly == false || m_estimate.isAbortable(this.thresholds));
+                        predict_singlePartitioned = m_estimate.isSinglePartition(this.thresholds);
+                        predict_readOnly = m_estimate.isReadOnlyAllPartitions(this.thresholds);
+                        predict_abortable = (predict_singlePartitioned == false || predict_readOnly == false || m_estimate.isAbortable(this.thresholds));
 //                        if (catalog_proc.getName().equals("slev") && predict_abortable) {
 //                            LOG.info("predict_singlePartition = " + predict_singlePartition);
 //                            LOG.info("predict_readonly        = " + predict_readonly);
@@ -1004,8 +1005,8 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
                     System.err.println("WROTE MARKOVGRAPH: " + gv.writeToTempFile(catalog_proc));
                 }
                 LOG.error(String.format("Failed calculate estimate for %s request", TransactionState.formatTxnName(catalog_proc, txn_id)), ex);
-                predict_singlePartition = false;
-                predict_readonly = false;
+                predict_singlePartitioned = false;
+                predict_readOnly = false;
                 predict_abortable = true;
             }
         }
@@ -1022,15 +1023,19 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         }
 
         ts.init(txn_id, request.getClientHandle(), base_partition,
-                        predict_singlePartition, predict_readonly, predict_abortable,
+                        predict_singlePartitioned, predict_readOnly, predict_abortable,
                         t_state, catalog_proc, request, done);
         if (hstore_conf.site.txn_profiling) {
             ts.total_time.start(timestamp);
             ts.init_time.start(timestamp);
         }
         
-        if (d) LOG.debug(String.format("Executing %s on partition %d [singlePartition=%s, handle=%d]",
-                                        ts, base_partition, predict_singlePartition, request.getClientHandle()));
+        if (d) {
+            LOG.debug(String.format("Executing %s on partition %d [singlePartition=%s, readOnly=%s, abortable=%s, handle=%d]",
+                                    ts, base_partition,
+                                    predict_singlePartitioned, predict_readOnly, predict_abortable,
+                                    request.getClientHandle()));
+        }
         this.initializeInvocation(ts);
     }
 
@@ -1255,9 +1260,11 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
             if (hstore_conf.site.txn_profiling) ts.coord_time.stop(timestamp);
             this.executeTransaction(ts, task, done);
             
+        } else if (msg instanceof FragmentTaskMessage) {
+            if (t) LOG.trace("Executing remote FragmentTaskMessage for txn #" + txn_id);
+            this.executors[base_partition].doWork((FragmentTaskMessage)msg, done);
         } else {
-            if (t) LOG.trace("Executing remote fragment for txn #" + txn_id);
-            this.executors[base_partition].doWork(msg, done);
+            LOG.error("Unexpected message type: " + msg.getClass().getSimpleName());
         }
     }
 
@@ -1420,16 +1427,17 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         
         // Restart the new transaction
         if (hstore_conf.site.txn_profiling) ProfileMeasurement.start(new_ts.total_time, new_ts.init_time);
-        boolean single_partitioned = (orig_ts.getOriginalTransactionId() == null && touched.getValueCount() == 1);
-        new_ts.init(new_txn_id, base_partition, orig_ts);
-        new_ts.setPredictSinglePartitioned(single_partitioned);
+        boolean predict_singlePartitioned = (orig_ts.getOriginalTransactionId() == null && touched.getValueCount() == 1);
+        boolean predict_readOnly = orig_ts.getProcedure().getReadonly(); // FIXME
+        boolean predict_abortable = true; // FIXME
+        new_ts.init(new_txn_id, base_partition, orig_ts, predict_singlePartitioned, predict_readOnly, predict_abortable);
         Set<Integer> new_done = new_ts.getDonePartitions();
         new_done.addAll(this.all_partitions);
         new_done.removeAll(touched.values());
         
         if (d) {
             LOG.debug(String.format("Re-executing mispredicted %s as new %s-partition %s on partition %d",
-                                    orig_ts, (single_partitioned ? "single" : "multi"), new_ts, base_partition));
+                                    orig_ts, (predict_singlePartitioned ? "single" : "multi"), new_ts, base_partition));
             if (t) LOG.trace(String.format("%s Mispredicted partitions\n%s", new_ts, orig_ts.getTouchedPartitions()));
         }
         
@@ -1605,11 +1613,8 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         
         // Then update transaction profiling counters
         if (hstore_conf.site.status_show_txn_info) {
-            Long lastUndo = ts.getLastUndoToken();
-            
             if (ts.isSpeculative()) TxnCounter.SPECULATIVE.inc(catalog_proc);
-            if (lastUndo != null && lastUndo == Long.MAX_VALUE) TxnCounter.NO_UNDO.inc(catalog_proc);
-            
+            if (ts.isExecNoUndoBuffer()) TxnCounter.NO_UNDO.inc(catalog_proc);
             if (ts.sysproc) {
                 TxnCounter.SYSPROCS.inc(catalog_proc);
             } else if (status != Dtxn.FragmentResponse.Status.ABORT_MISPREDICT) {
