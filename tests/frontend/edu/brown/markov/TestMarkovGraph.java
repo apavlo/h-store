@@ -88,7 +88,7 @@ public class TestMarkovGraph extends BaseTestCase {
         assert (v.getAbortProbability() <= 1.0) : "Invalid Abort for " + v + ": " + v.getAbortProbability();
 
         for (int partition = 0; partition < NUM_PARTITIONS; partition++) {
-            final float done = v.getFinishProbability(partition);
+            final float done = v.getDoneProbability(partition);
             final float write = v.getWriteProbability(partition);
             final float read_only = v.getReadOnlyProbability(partition);
 
@@ -177,10 +177,10 @@ public class TestMarkovGraph extends BaseTestCase {
             
             for (int i = 0; i < NUM_PARTITIONS; i++) {
                 if (partitions.contains(i)) {
-                    assertEquals(v.toString(), 0.0f, v.getFinishProbability(i));
+                    assertEquals(v.toString(), 0.0f, v.getDoneProbability(i));
                 // We can only do this check if the vertex does not have edges to another vertex
                 } else if (markov.getSuccessorCount(v) == 1) {
-                    assertEquals(v.toString(), 1.0f, v.getFinishProbability(i));
+                    assertEquals(v.toString(), 1.0f, v.getDoneProbability(i));
                 }
             } // FOR
         } // FOR
@@ -285,9 +285,9 @@ public class TestMarkovGraph extends BaseTestCase {
                         
              if (!edges.containsKey(s0)) edges.put(s0, new HashSet<String>());
              edges.get(s0).add(s1);
-             // System.err.println(v0 + " -> " + v1);
+             System.err.println(v0 + " -> " + v1);
          } // FOR
-         // System.err.println("--------------");
+         System.err.println("--------------");
          for (Edge e : clone.getEdges()) {
              v0 = clone.getSource(e);
              assertNotNull(v0);
@@ -296,11 +296,11 @@ public class TestMarkovGraph extends BaseTestCase {
              v1 = clone.getDest(e);
              assertNotNull(v1);
              String s1 = v1.toString();
-                        
-             assert(edges.containsKey(s0));
+              
+             System.err.println(v0 + " -> " + v1);
+             assert(edges.containsKey(s0)) : edges;
              assert(edges.get(s0).contains(s1)) : "Invalid edge: " + s0 + " -> " + s1;
              edges.get(s0).remove(s1);
-             // System.err.println(v0 + " -> " + v1);
          } // FOR
          for (String s0 : edges.keySet()) {
              assert(edges.get(s0).isEmpty()) : "Missing edges: " + edges.get(s0);

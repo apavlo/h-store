@@ -88,7 +88,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
         /**
          * Host -> Set<Site>
          */
-        public final Map<Host, Set<Site>> HOST_SITES = new TreeMap<Host, Set<Site>>();
+        public final Map<Host, Set<Site>> HOST_SITES = new TreeMap<Host, Set<Site>>(new CatalogFieldComparator<Host>("ipaddr"));
         
         /**
          * Column -> Foreign Key Parent Column
@@ -172,10 +172,10 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
      * @param items
      * @return
      */
-    public static Map<Object, String> getHistogramLabels(Set<Object> items) {
+    public static Map<Object, String> getHistogramLabels(Iterable<? extends CatalogType> items) {
         Map<Object, String> labels = new HashMap<Object, String>();
-        for (Object o : items) {
-            if (o instanceof CatalogType) labels.put(o, CatalogUtil.getDisplayName((CatalogType)o));
+        for (CatalogType ct : items) {
+            labels.put(ct, CatalogUtil.getDisplayName(ct));
         } // FOR
         return (labels);
     }
@@ -1732,18 +1732,17 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
     }
     
     public static String debug(CatalogMap<? extends CatalogType> map) {
-        String ret = "[ ";
+        String ret = "";
         String add = "";
         for (CatalogType item : map) {
             ret += add + item;
             add = ", ";
         } // FOR
-        ret += " ]";
-        return (ret);
+        return ("[" + ret + "]");
     }
 
     public static String debug(Collection<? extends CatalogType> items) {
-        String ret = "[ ";
+        String ret = "";
         String add = "";
         for (CatalogType item : items) {
             if (item != null) {
@@ -1751,8 +1750,39 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
                 add = ", ";
             }
         } // FOR
-        ret += " ]";
-        return (ret);
+        return ("[" + ret + "]");
     }
+    
+    // ------------------------------------------------------------
+    // COMPARATORS
+    // ------------------------------------------------------------
+    
+    /**
+     * Comparator based on CatalogType.fullName()
+     */
+    private static final class CatalogFieldComparator<T extends CatalogType> implements Comparator<T> {
+        private final String field;
+        
+        public CatalogFieldComparator(String field) {
+            this.field = field;
+        }
+        
+        @SuppressWarnings("unchecked")
+        @Override
+        public int compare(T obj0, T obj1) {
+            if (obj0 == null && obj1 == null) return (0);
+            if (obj0 == null) return (1);
+            if (obj1 == null) return (-1);
+            
+            Object val0 = obj0.getField(this.field);
+            Object val1 = obj1.getField(this.field);
+            if (val0 == null && val1 == null) return (0);
+            if (val0 == null) return (1);
+            if (val1 == null) return (1);
+            
+            return (val0 instanceof Comparable ? ((Comparable)val0).compareTo(val1) :
+                                                 val0.toString().compareTo(val1.toString()));
+        };
+    };
 
 } // END CLASS

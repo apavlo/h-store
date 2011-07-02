@@ -80,7 +80,7 @@ public class AbstractEdge extends AbstractGraphElement {
     }
     
     @SuppressWarnings("unchecked")
-    public <V extends AbstractVertex, E extends AbstractEdge> String getToStringPath(IGraph<V, E> graph) {
+    public <V extends AbstractVertex, E extends AbstractEdge> String toStringPath(IGraph<V, E> graph) {
         String delimiter = "";
         V v0 = null;
         V v1 = null;

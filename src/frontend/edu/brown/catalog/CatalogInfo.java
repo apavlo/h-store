@@ -36,14 +36,20 @@ public class CatalogInfo {
         m.put("# of Sites", num_sites);
         m.put("# of Partitions", num_partitions);
         System.out.println(StringUtil.formatMaps(":", false, false, false, true, m));
-        System.out.println("Cluster Information:");
+        System.out.println("Cluster Information:\n");
+        
+        int num_cols = 4;
+        String cols[] = new String[num_cols];
+        for (int i = 0; i < num_cols; i++) cols[i] = "";
         
         Map<Host, Set<Site>> hosts = CatalogUtil.getSitesPerHost(args.catalog);
         Set<String> partition_ids = new TreeSet<String>();
         String partition_f = "%0" + Integer.toString(num_partitions).length() + "d";
         int i = 0;
         for (Host catalog_host : hosts.keySet()) {
-            System.out.println(String.format("[%02d] HOST %s", i++, catalog_host.getIpaddr()));
+            int idx = i % num_cols;
+            
+            cols[idx] += String.format("[%02d] HOST %s\n", i, catalog_host.getIpaddr());
             Set<Site> sites = hosts.get(catalog_host);
             int j = 0;
             for (Site catalog_site : sites) {
@@ -52,9 +58,12 @@ public class CatalogInfo {
                     partition_ids.add(String.format(partition_f, catalog_part.getId()));
                 } // FOR
                 String prefix = (++j == sites.size() ? HOST_LAST : HOST_INNER);
-                System.out.println(String.format("     %s SITE %s: %s", prefix, HStoreSite.formatSiteName(catalog_site.getId()), partition_ids));
+                cols[idx] += String.format("     %s SITE %s: %s\n", prefix, HStoreSite.formatSiteName(catalog_site.getId()), partition_ids);
             } // FOR
+            cols[idx] += "\n";
+            i++;
         } // FOR
+        System.out.println(StringUtil.columns(cols));
     }
 
 }

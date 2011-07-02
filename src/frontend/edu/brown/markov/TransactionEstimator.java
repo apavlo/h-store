@@ -3,6 +3,7 @@ package edu.brown.markov;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -189,7 +190,7 @@ public class TransactionEstimator {
          * Get the next Estimate object for this State
          * @return
          */
-        protected synchronized MarkovEstimate getNextEstimate(Vertex v) {
+        protected synchronized MarkovEstimate createNextEstimate(Vertex v) {
             MarkovEstimate next = null;
             if (this.num_estimates < this.estimates.size()) {
                 next = this.estimates.get(this.num_estimates);
@@ -213,11 +214,22 @@ public class TransactionEstimator {
         public int getBasePartition() {
             return (this.base_partition);
         }
+        public Procedure getProcedure() {
+            return (this.markov.getProcedure());
+        }
+        public String getFormattedName() {
+            return (TransactionState.formatTxnName(this.markov.getProcedure(), this.txn_id));
+        }
+        
+        /**
+         * Get the number of MarkovEstimates generated for this transaction
+         * @return
+         */
         public int getEstimateCount() {
             return (this.num_estimates);
         }
         public List<MarkovEstimate> getEstimates() {
-            return (this.estimates);
+            return (Collections.unmodifiableList(this.estimates.subList(0, this.num_estimates)));
         }
         public Vertex getCurrent() {
             return (this.current);
@@ -423,12 +435,10 @@ public class TransactionEstimator {
         Integer base_partition = null; 
         try {
             base_partition = this.p_estimator.getBasePartition(catalog_proc, args);
-        } catch (Exception ex) {
-            LOG.fatal(String.format("Failed to calculate base partition for <%s, %s>", catalog_proc.getName(), Arrays.toString(args)), ex);
-            System.exit(1);
+            assert(base_partition != null);
+        } catch (Throwable ex) {
+            throw new RuntimeException(String.format("Failed to calculate base partition for <%s, %s>", catalog_proc.getName(), Arrays.toString(args)), ex);
         }
-        assert(base_partition != null);
-        
         return (this.startTransaction(txn_id, base_partition.intValue(), catalog_proc, args));
     }
         
@@ -571,7 +581,7 @@ public class TransactionEstimator {
             } // FOR
         } // SYNCH
         
-        MarkovEstimate estimate = state.getNextEstimate(state.current);
+        MarkovEstimate estimate = state.createNextEstimate(state.current);
         assert(estimate != null);
         if (d) LOG.debug(String.format("Next MarkovEstimate for txn #%d\n%s", state.txn_id, estimate));
         assert(estimate.isValid()) : String.format("Invalid MarkovEstimate for txn #%d\n%s", state.txn_id, estimate);
@@ -759,7 +769,7 @@ public class TransactionEstimator {
         if (txn_trace.isAborted()) this.abort(txn_id);
         else this.commit(txn_id);
         
-//        System.err.println(StringUtil.join("\n", s.getActualPath()));
+        assert(s.getEstimateCount() == txn_trace.getBatchCount());
         assert(s.getActualPath().size() == (txn_trace.getQueryCount() + 2));
         return (s);
     }

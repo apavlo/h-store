@@ -90,7 +90,7 @@ public abstract class FixCatalog {
     }
     
     public static Catalog addHostInfo(Catalog orig_catalog, int num_hosts, int num_sites_per_host, int num_partitions_per_site) {
-        return (FixCatalog.addHostInfo(orig_catalog, "node-%d", num_hosts, num_sites_per_host, num_partitions_per_site));
+        return (FixCatalog.addHostInfo(orig_catalog, "node-%02d", num_hosts, num_sites_per_host, num_partitions_per_site));
     }
     
     public static Catalog addHostInfo(Catalog orig_catalog, String hostname_format, int num_hosts, int num_sites_per_host, int num_partitions_per_site) {

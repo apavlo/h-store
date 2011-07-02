@@ -1864,6 +1864,8 @@ DESIGNER
         <arg value="workload.procinclude.multiplier=${multiplier}" />
         <arg value="correlations=files/correlations/${project}.correlations" />
         <arg value="markov=${markov}" />
+        <arg value="markov.thresholds=${markov.thresholds}" />
+        <arg value="markov.thresholds.value=${markov.thresholds.value}" />
         <classpath refid='project.classpath' />
         <assertions><enable /></assertions>
     </java>
@@ -1898,7 +1900,7 @@ DESIGNER
     </java>
 </target>
 
-<target name='markov-cluster' description="Generate Markov Cluster-based File">
+<target name='markov-cluster' description="Generate Markov Cluster-based File" depends="getcpus">
     <java fork="yes" classname="edu.brown.markov.FeatureClusterer" failonerror='true'>
         <jvmarg value="-Xmx${volt.client.memory}m" />
         <jvmarg value="-server" />
@@ -1920,7 +1922,7 @@ DESIGNER
         <arg value="markov.split.validation=${validation}" />
         <arg value="markov.split.testing=${testing}" />
         <arg value="markov.rounds=${rounds}" />
-        <arg value="markov.threads=${threads}" />
+        <arg value="markov.threads=${numcpus}" />
         <arg value="markov.partitions=${partitions}" />
         <arg value="markov.topk=${topk}" />
         <arg value="${procedure}" />

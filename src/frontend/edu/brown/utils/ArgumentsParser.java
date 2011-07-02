@@ -292,7 +292,8 @@ public class ArgumentsParser {
     
     @SuppressWarnings("unchecked")
     public <T> T getOptParam(int idx, VoltType vt) {
-        String val = this.opt_params.get(idx);
+        assert(idx >= 0);
+        String val = (idx < this.opt_params.size() ? this.opt_params.get(idx) : null);
         if (val != null) {
             try {
                 return ((T)VoltTypeUtil.getObjectFromString(vt, val));
@@ -450,125 +451,8 @@ public class ArgumentsParser {
         return (au);
     }
     
-    /**
-     * 
-     * @param args
-     * @throws Exception
-     */
-    @SuppressWarnings("unchecked")
-    public void process(String[] args) throws Exception {
+    private void loadWorkload() throws Exception {
         final boolean debug = LOG.isDebugEnabled();
-        
-        if (debug) LOG.debug("Processing " + args.length + " parameters...");
-        final Pattern p = Pattern.compile("=");
-        for (int i = 0, cnt = args.length; i < cnt; i++) {
-            final String arg = args[i];
-            final String[] parts = p.split(arg, 2);
-            if (parts[0].startsWith("-")) parts[0] = parts[0].substring(1);
-            parts[0] = parts[0].toLowerCase();
-            
-            if (parts.length == 1) {
-                if (parts[0].startsWith("${") == false) this.opt_params.add(parts[0]);
-                continue;
-            } else if (parts[0].equalsIgnoreCase("tag")) {
-                continue;
-            } else if (parts[1].startsWith("${") || parts[0].startsWith("#")) {
-                continue;
-            }
-            if (debug) LOG.debug(String.format("%-35s = %s", parts[0], parts[1]));
-            
-            if (parts[0].startsWith(PARAM_DESIGNER_HINTS_PREFIX)) {
-                String param = parts[0].replace(PARAM_DESIGNER_HINTS_PREFIX, "").toUpperCase();
-                DesignerHints.Members m = EnumUtil.get(DesignerHints.Members.values(), param);
-                if (m == null) throw new Exception("Unknown DesignerHints parameter: " + param);
-                this.hints_params.put(m.name(), parts[1]);
-            } else if (PARAMS.contains(parts[0])) {
-                this.params.put(parts[0], parts[1]);
-            } else {
-                throw new Exception("Unknown parameter '" + parts[0] + "'");
-            }
-        } // FOR
-        
-        // -------------------------------------------------------
-        // CATALOGS
-        // -------------------------------------------------------
-        
-        //
-        // Text File
-        //
-        if (this.params.containsKey(PARAM_CATALOG)) {
-            String path = this.params.get(PARAM_CATALOG);
-            if (debug) LOG.debug("Loading catalog from file '" + path + "'");
-            this.catalog = CatalogUtil.loadCatalog(path);
-            if (this.catalog == null) throw new Exception("Failed to load catalog object from file '" + path + "'");
-            this.catalog_db = CatalogUtil.getDatabase(catalog);
-            this.catalog_path = new File(path);
-        //
-        // Jar File
-        //
-        } else if (this.params.containsKey(PARAM_CATALOG_JAR)) {
-            String path = this.params.get(PARAM_CATALOG_JAR);
-            this.params.put(PARAM_CATALOG, path);
-            File jar_file = new File(path);
-            this.catalog = CatalogUtil.loadCatalogFromJar(path);
-            if (this.catalog == null) throw new Exception("Failed to load catalog object from jar file '" + path + "'");
-            if (debug) LOG.debug("Loaded catalog from jar file '" + path + "'");
-            this.catalog_db = CatalogUtil.getDatabase(catalog);
-            this.catalog_path = jar_file;
-            
-            if (!this.params.containsKey(PARAM_CATALOG_TYPE)) {
-                String jar_name = jar_file.getName();
-                int jar_idx = jar_name.lastIndexOf(".jar");
-                if (jar_idx != -1) {
-                    ProjectType type = ProjectType.get(jar_name.substring(0, jar_idx));
-                    if (type != null) {
-                        if (debug) LOG.debug("Set catalog type '" + type + "' from catalog jar file name");
-                        this.catalog_type = type;
-                        this.params.put(PARAM_CATALOG_TYPE, this.catalog_type.toString());
-                    }
-                }
-            }
-        // Schema File
-        } else if (this.params.containsKey(PARAM_CATALOG_SCHEMA)) {
-            String path = this.params.get(PARAM_CATALOG_SCHEMA); 
-            this.catalog = CompilerUtil.compileCatalog(path);
-            if (this.catalog == null) throw new Exception("Failed to load schema from '" + path + "'");
-            if (debug) LOG.debug("Loaded catalog from schema file '" + path + "'");
-            this.catalog_db = CatalogUtil.getDatabase(catalog);
-            this.catalog_path = new File(path);
-        }
-        
-        // Catalog Type
-        if (this.params.containsKey(PARAM_CATALOG_TYPE)) {
-            String catalog_type = this.params.get(PARAM_CATALOG_TYPE);
-            ProjectType type = ProjectType.get(catalog_type);
-            if (type == null) {
-                throw new Exception("Unknown catalog type '" + catalog_type + "'");
-            }
-            this.catalog_type = type;
-        }
-        
-        // -------------------------------------------------------
-        // PHYSICAL DESIGN COMPONENTS
-        // -------------------------------------------------------
-        if (this.params.containsKey(PARAM_PARTITION_PLAN)) {
-            assert(this.catalog_db != null);
-            File path = new File(this.params.get(PARAM_PARTITION_PLAN));
-            if (debug) LOG.debug("Loading in partition plan from '" + path + "'");
-            this.pplan = new PartitionPlan();
-            this.pplan.load(path.getAbsolutePath(), this.catalog_db);
-            
-            // Apply!
-            if (this.params.containsKey(PARAM_PARTITION_PLAN_APPLY) && this.getBooleanParam(PARAM_PARTITION_PLAN_APPLY)) {
-                LOG.info("Applying PartitionPlan '" + path.getName() + "' to catalog");
-                this.pplan.apply(this.catalog_db);
-            }
-        }
-        
-        // -------------------------------------------------------
-        // SAMPLE WORKLOAD TRACE
-        // -------------------------------------------------------
-        
         // Workload Trace
         if (this.params.containsKey(PARAM_WORKLOAD)) {
             assert(this.catalog_db != null) : "Missing catalog!";
@@ -613,7 +497,7 @@ public class ArgumentsParser {
             
             // Txn Limit
             this.workload_xact_limit = this.getLongParam(PARAM_WORKLOAD_XACT_LIMIT);
-            Histogram proc_histogram = null;
+            Histogram<String> proc_histogram = null;
             // Include/exclude procedures from the traces
             if (params.containsKey(PARAM_WORKLOAD_PROC_INCLUDE) || params.containsKey(PARAM_WORKLOAD_PROC_EXCLUDE)) {
                 Workload.Filter filter = new ProcedureNameFilter();
@@ -666,10 +550,10 @@ public class ArgumentsParser {
                         }
                     }
                     
-                    Histogram proc_multiplier_histogram = null;
+                    Histogram<String> proc_multiplier_histogram = null;
                     if (debug) {
                         if (proc_histogram != null) LOG.debug("Full Workload Histogram:\n" + proc_histogram);
-                        proc_multiplier_histogram = new Histogram();
+                        proc_multiplier_histogram = new Histogram<String>();
                     }
                     total = 0;
                     for (Entry<String, Integer> e : limits.entrySet()) {
@@ -736,6 +620,118 @@ public class ArgumentsParser {
                     LOG.fatal("Failed to load stats file '" + this.stats_path + "'", ex);
                     System.exit(1);
                 }
+            }
+        }
+    }
+    
+    /**
+     * 
+     * @param args
+     * @throws Exception
+     */
+    @SuppressWarnings("unchecked")
+    public void process(String[] args) throws Exception {
+        final boolean debug = LOG.isDebugEnabled();
+        
+        if (debug) LOG.debug("Processing " + args.length + " parameters...");
+        final Pattern p = Pattern.compile("=");
+        for (int i = 0, cnt = args.length; i < cnt; i++) {
+            final String arg = args[i];
+            final String[] parts = p.split(arg, 2);
+            if (parts[0].startsWith("-")) parts[0] = parts[0].substring(1);
+            parts[0] = parts[0].toLowerCase();
+            
+            if (parts.length == 1) {
+                if (parts[0].startsWith("${") == false) this.opt_params.add(parts[0]);
+                continue;
+            } else if (parts[0].equalsIgnoreCase("tag")) {
+                continue;
+            } else if (parts[1].startsWith("${") || parts[0].startsWith("#")) {
+                continue;
+            }
+            if (debug) LOG.debug(String.format("%-35s = %s", parts[0], parts[1]));
+            
+            if (parts[0].startsWith(PARAM_DESIGNER_HINTS_PREFIX)) {
+                String param = parts[0].replace(PARAM_DESIGNER_HINTS_PREFIX, "").toUpperCase();
+                DesignerHints.Members m = EnumUtil.get(DesignerHints.Members.values(), param);
+                if (m == null) throw new Exception("Unknown DesignerHints parameter: " + param);
+                this.hints_params.put(m.name(), parts[1]);
+            } else if (PARAMS.contains(parts[0])) {
+                this.params.put(parts[0], parts[1]);
+            } else {
+                throw new Exception("Unknown parameter '" + parts[0] + "'");
+            }
+        } // FOR
+        
+        // -------------------------------------------------------
+        // CATALOGS
+        // -------------------------------------------------------
+        
+        // Text File
+        if (this.params.containsKey(PARAM_CATALOG)) {
+            String path = this.params.get(PARAM_CATALOG);
+            if (debug) LOG.debug("Loading catalog from file '" + path + "'");
+            this.catalog = CatalogUtil.loadCatalog(path);
+            if (this.catalog == null) throw new Exception("Failed to load catalog object from file '" + path + "'");
+            this.catalog_db = CatalogUtil.getDatabase(catalog);
+            this.catalog_path = new File(path);
+        // Jar File
+        } else if (this.params.containsKey(PARAM_CATALOG_JAR)) {
+            String path = this.params.get(PARAM_CATALOG_JAR);
+            this.params.put(PARAM_CATALOG, path);
+            File jar_file = new File(path);
+            this.catalog = CatalogUtil.loadCatalogFromJar(path);
+            if (this.catalog == null) throw new Exception("Failed to load catalog object from jar file '" + path + "'");
+            if (debug) LOG.debug("Loaded catalog from jar file '" + path + "'");
+            this.catalog_db = CatalogUtil.getDatabase(catalog);
+            this.catalog_path = jar_file;
+            
+            if (!this.params.containsKey(PARAM_CATALOG_TYPE)) {
+                String jar_name = jar_file.getName();
+                int jar_idx = jar_name.lastIndexOf(".jar");
+                if (jar_idx != -1) {
+                    ProjectType type = ProjectType.get(jar_name.substring(0, jar_idx));
+                    if (type != null) {
+                        if (debug) LOG.debug("Set catalog type '" + type + "' from catalog jar file name");
+                        this.catalog_type = type;
+                        this.params.put(PARAM_CATALOG_TYPE, this.catalog_type.toString());
+                    }
+                }
+            }
+        // Schema File
+        } else if (this.params.containsKey(PARAM_CATALOG_SCHEMA)) {
+            String path = this.params.get(PARAM_CATALOG_SCHEMA); 
+            this.catalog = CompilerUtil.compileCatalog(path);
+            if (this.catalog == null) throw new Exception("Failed to load schema from '" + path + "'");
+            if (debug) LOG.debug("Loaded catalog from schema file '" + path + "'");
+            this.catalog_db = CatalogUtil.getDatabase(catalog);
+            this.catalog_path = new File(path);
+        }
+        
+        // Catalog Type
+        if (this.params.containsKey(PARAM_CATALOG_TYPE)) {
+            String catalog_type = this.params.get(PARAM_CATALOG_TYPE);
+            ProjectType type = ProjectType.get(catalog_type);
+            if (type == null) {
+                throw new Exception("Unknown catalog type '" + catalog_type + "'");
+            }
+            this.catalog_type = type;
+        }
+        
+        // -------------------------------------------------------
+        // PHYSICAL DESIGN COMPONENTS
+        // -------------------------------------------------------
+        if (this.params.containsKey(PARAM_PARTITION_PLAN)) {
+            assert(this.catalog_db != null);
+            File path = new File(this.params.get(PARAM_PARTITION_PLAN));
+            if (debug) LOG.debug("Loading in partition plan from '" + path + "'");
+            this.pplan = new PartitionPlan();
+            this.pplan.load(path.getAbsolutePath(), this.catalog_db);
+            
+            // Apply!
+            if (this.params.containsKey(PARAM_PARTITION_PLAN_APPLY) && this.getBooleanParam(PARAM_PARTITION_PLAN_APPLY)) {
+                LOG.info("Applying PartitionPlan '" + path.getName() + "' to catalog");
+                this.pplan.apply(this.catalog_db);
             }
         }
         
@@ -807,6 +803,7 @@ public class ArgumentsParser {
             assert(this.catalog_db != null);
             float defaultValue = this.getDoubleParam(PARAM_MARKOV_THRESHOLDS_VALUE).floatValue();
             this.thresholds = new EstimationThresholds(defaultValue);
+            this.params.put(PARAM_MARKOV_THRESHOLDS, this.thresholds.toString());
             LOG.debug("CREATED THRESHOLDS: " + this.thresholds);
             
         } else if (this.params.containsKey(PARAM_MARKOV_THRESHOLDS)) {
@@ -838,6 +835,11 @@ public class ArgumentsParser {
                 this.hasher.load(this.params.get(PARAM_HASHER_PROFILE), null);
             }
         }
+        
+        // -------------------------------------------------------
+        // SAMPLE WORKLOAD TRACE
+        // -------------------------------------------------------
+        this.loadWorkload();
     }
     
     @Override

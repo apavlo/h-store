@@ -741,7 +741,7 @@ public class HeuristicPartitioner extends AbstractPartitioner {
             //
             for (Vertex root : ptree.getRoots()) {
 //                System.out.println("ROOT: " + root);
-                new VertexTreeWalker<Vertex>(ptree) {
+                new VertexTreeWalker<Vertex, Edge>(ptree) {
                     @Override
                     protected void populate_children(VertexTreeWalker.Children<Vertex> children, Vertex element) {
                       for (Vertex v : this.getGraph().getSuccessors(element)) {
@@ -981,7 +981,7 @@ public class HeuristicPartitioner extends AbstractPartitioner {
             // We now need to set the weight of the candidate.
             // The first way I did this was to count the number of outgoing edges from the candidate
             // Now I'm going to use the weights of the outgoing edges in the AccessGraph.
-            new VertexTreeWalker<Vertex>(info.dgraph) {
+            new VertexTreeWalker<Vertex, Edge>(info.dgraph) {
                 @Override
                 protected void callback(Vertex element) {
                     // Get the total weights from this vertex to all of its descendants

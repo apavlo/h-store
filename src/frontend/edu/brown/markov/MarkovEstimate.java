@@ -13,7 +13,7 @@ import edu.brown.utils.StringUtil;
 import edu.brown.utils.TableUtil;
 import edu.brown.utils.LoggerUtil.LoggerBoolean;
 
-public class MarkovEstimate implements Poolable {
+public class MarkovEstimate implements Poolable, Estimation {
     private static final Logger LOG = Logger.getLogger(MarkovEstimate.class);
     private final static LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private final static LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
@@ -34,7 +34,8 @@ public class MarkovEstimate implements Poolable {
     
     private final float finished[];
     private Set<Integer> finished_partitions;
-    private Set<Integer> target_partitions;
+    private Set<Integer> touched_partitions;
+    private Set<Integer> most_touched_partitions;
     
     private final float read[];
     private Set<Integer> read_partitions;
@@ -73,12 +74,12 @@ public class MarkovEstimate implements Poolable {
         this.vertex = v;
         
         if (this.vertex.isStartVertex() == false) {
-            this.setSinglePartitionProbability(v.getSingleSitedProbability());
+            this.setSingleSitedProbability(v.getSingleSitedProbability());
             this.setAbortProbability(v.getAbortProbability());
             for (int i = 0; i < this.touched.length; i++) {
-                this.setFinishPartitionProbability(i, v.getFinishProbability(i));
-                this.setReadOnlyPartitionProbability(i, v.getReadOnlyProbability(i));
-                this.setWritePartitionProbability(i, v.getWriteProbability(i));
+                this.setDoneProbability(i, v.getDoneProbability(i));
+                this.setReadOnlyProbability(i, v.getReadOnlyProbability(i));
+                this.setWriteProbability(i, v.getWriteProbability(i));
             } // FOR
             this.time = v.getExecutionTime();
         }
@@ -107,7 +108,8 @@ public class MarkovEstimate implements Poolable {
         this.abort = MarkovUtil.NULL_MARKER;
         
         if (this.finished_partitions != null) this.finished_partitions.clear();
-        if (this.target_partitions != null) this.target_partitions.clear();
+        if (this.touched_partitions != null) this.touched_partitions.clear();
+        if (this.most_touched_partitions != null) this.most_touched_partitions.clear();
         if (this.read_partitions != null) this.read_partitions.clear();
         if (this.write_partitions != null) this.write_partitions.clear();
         this.valid = null;
@@ -181,36 +183,137 @@ public class MarkovEstimate implements Poolable {
         if (prob == MarkovUtil.NULL_MARKER) this.valid = false;
         else if (this.valid == null) this.valid = true;
     }
-    protected void setSinglePartitionProbability(float prob) {
+    
+    // ----------------------------------------------------------------------------
+    // SINGLE-SITED PROBABILITY
+    // ----------------------------------------------------------------------------
+    
+    @Override
+    public void addSingleSitedProbability(float probability) {
+        this.singlepartition = probability + (this.singlepartition == MarkovUtil.NULL_MARKER ? 0 : this.singlepartition); 
+        if (probability == MarkovUtil.NULL_MARKER) this.valid = false;
+        else if (this.valid == null) this.valid = true;
+    }
+    @Override
+    public void setSingleSitedProbability(float prob) {
         this.singlepartition = prob;
         if (prob == MarkovUtil.NULL_MARKER) this.valid = false;
         else if (this.valid == null) this.valid = true;
     }
-    protected void setAbortProbability(float prob) {
-        this.abort = prob;
-        if (prob == MarkovUtil.NULL_MARKER) this.valid = false;
+    @Override
+    public float getSingleSitedProbability() {
+        return (this.singlepartition);
+    }
+    @Override
+    public boolean isSingleSitedProbabilitySet() {
+        return (this.singlepartition != MarkovUtil.NULL_MARKER);
+    }
+
+    
+    // ----------------------------------------------------------------------------
+    // READ-ONLY PROBABILITY
+    // ----------------------------------------------------------------------------
+    
+    @Override
+    public void addReadOnlyProbability(int partition, float probability) {
+        this.read[partition] = probability + (this.read[partition] == MarkovUtil.NULL_MARKER ? 0 : this.read[partition]); 
+        if (probability == MarkovUtil.NULL_MARKER) this.valid = false;
         else if (this.valid == null) this.valid = true;
     }
-    protected void setReadOnlyPartitionProbability(int partition, float prob) {
+    @Override
+    public void setReadOnlyProbability(int partition, float prob) {
         assert(partition >= 0) : "Invalid Partition: " + partition;
         assert(partition < this.read.length) : "Invalid Partition: " + partition;
         this.read[partition] = prob;
         if (prob == MarkovUtil.NULL_MARKER) this.valid = false;
         else if (this.valid == null) this.valid = true;
     }
-    protected void setWritePartitionProbability(int partition, float prob) {
+    @Override
+    public float getReadOnlyProbability(int partition) {
+        return (this.read[partition]);
+    }
+    @Override
+    public boolean isReadOnlyProbabilitySet(int partition) {
+        return (this.read[partition] != MarkovUtil.NULL_MARKER);
+    }
+    
+    // ----------------------------------------------------------------------------
+    // WRITE PROBABILITY
+    // ----------------------------------------------------------------------------
+    
+    @Override
+    public void addWriteProbability(int partition, float probability) {
+        this.write[partition] = probability + (this.write[partition] == MarkovUtil.NULL_MARKER ? 0 : this.write[partition]); 
+        if (probability == MarkovUtil.NULL_MARKER) this.valid = false;
+        else if (this.valid == null) this.valid = true;
+    }
+    @Override
+    public void setWriteProbability(int partition, float prob) {
         assert(partition >= 0) : "Invalid Partition: " + partition;
         assert(partition < this.write.length) : "Invalid Partition: " + partition;
         this.write[partition] = prob;    
         if (prob == MarkovUtil.NULL_MARKER) this.valid = false;
         else if (this.valid == null) this.valid = true;
     }
-    protected void setFinishPartitionProbability(int partition, float prob) {
+    @Override
+    public float getWriteProbability(int partition) {
+        return (this.write[partition]);
+    }
+    @Override
+    public boolean isWriteProbabilitySet(int partition) {
+        return (this.write[partition] != MarkovUtil.NULL_MARKER);
+    }
+    
+    // ----------------------------------------------------------------------------
+    // DONE PROBABILITY
+    // ----------------------------------------------------------------------------
+
+    @Override
+    public void addDoneProbability(int partition, float probability) {
+        this.finished[partition] = probability + (this.finished[partition] == MarkovUtil.NULL_MARKER ? 0 : this.finished[partition]); 
+        if (probability == MarkovUtil.NULL_MARKER) this.valid = false;
+        else if (this.valid == null) this.valid = true;
+    }
+    @Override
+    public void setDoneProbability(int partition, float prob) {
         assert(partition >= 0) : "Invalid Partition: " + partition;
         assert(partition < this.finished.length) : "Invalid Partition: " + partition;
         this.finished[partition] = prob;
         if (prob == MarkovUtil.NULL_MARKER) this.valid = false;
         else if (this.valid == null) this.valid = true;
+    }
+    @Override
+    public float getDoneProbability(int partition) {
+        return (this.finished[partition]);
+    }
+    @Override
+    public boolean isDoneProbabilitySet(int partition) {
+        return (this.finished[partition] != MarkovUtil.NULL_MARKER);
+    }
+    
+    // ----------------------------------------------------------------------------
+    // ABORT PROBABILITY
+    // ----------------------------------------------------------------------------
+    
+    @Override
+    public void addAbortProbability(float probability) {
+        this.abort = probability + (this.abort == MarkovUtil.NULL_MARKER ? 0 : this.abort); 
+        if (probability == MarkovUtil.NULL_MARKER) this.valid = false;
+        else if (this.valid == null) this.valid = true;
+    }
+    @Override
+    public void setAbortProbability(float prob) {
+        this.abort = prob;
+        if (prob == MarkovUtil.NULL_MARKER) this.valid = false;
+        else if (this.valid == null) this.valid = true;
+    }
+    @Override
+    public float getAbortProbability() {
+        return (this.abort);
+    }
+    @Override
+    public boolean isAbortProbabilitySet() {
+        return (this.abort != MarkovUtil.NULL_MARKER);
     }
     
     // ----------------------------------------------------------------------------
@@ -225,7 +328,7 @@ public class MarkovEstimate implements Poolable {
     }
     
     public boolean isSinglePartition(EstimationThresholds t) {
-        return (this.getTargetPartitions(t).size() <= 1);
+        return (this.getTouchedPartitions(t).size() <= 1);
     }
     public boolean isAbortable(EstimationThresholds t) {
         return (this.abort >= t.getAbortThreshold());
@@ -255,21 +358,7 @@ public class MarkovEstimate implements Poolable {
     public boolean isConfidenceProbabilitySet() {
         return (this.confidence != MarkovUtil.NULL_MARKER);
     }
-    public boolean isSinglePartitionProbabilitySet() {
-        return (this.singlepartition != MarkovUtil.NULL_MARKER);
-    }
-    public boolean isAbortProbabilitySet() {
-        return (this.abort != MarkovUtil.NULL_MARKER);
-    }
-    public boolean isReadOnlyProbabilitySet(int partition) {
-        return (this.read[partition] != MarkovUtil.NULL_MARKER);
-    }
-    public boolean isWriteProbabilitySet(int partition) {
-        return (this.write[partition] != MarkovUtil.NULL_MARKER);
-    }
-    public boolean isFinishedProbabilitySet(int partition) {
-        return (this.finished[partition] != MarkovUtil.NULL_MARKER);
-    }
+
     
     public int getTouchedCounter(int partition) {
         return (this.touched[partition]);
@@ -277,21 +366,7 @@ public class MarkovEstimate implements Poolable {
     public float getConfidenceProbability() {
         return (this.confidence);
     }
-    public float getSinglePartitionProbability() {
-        return (this.singlepartition);
-    }
-    public float getAbortProbability() {
-        return (this.abort);
-    }
-    public float getReadOnlyProbablity(int partition) {
-        return (this.read[partition]);
-    }
-    public float getWriteProbability(int partition) {
-        return (this.write[partition]);
-    }
-    public float getFinishedProbability(int partition) {
-        return (this.finished[partition]);
-    }
+
 
     public long getExecutionTime() {
         return time;
@@ -346,11 +421,31 @@ public class MarkovEstimate implements Poolable {
      * @param t
      * @return
      */
-    public Set<Integer> getTargetPartitions(EstimationThresholds t) {
+    public Set<Integer> getTouchedPartitions(EstimationThresholds t) {
         assert(t != null);
-        if (this.target_partitions == null) this.target_partitions = new HashSet<Integer>();
-        this.getPartitions(this.target_partitions, this.finished, t.getFinishedThreshold(), true);
-        return (this.target_partitions);
+        if (this.touched_partitions == null) this.touched_partitions = new HashSet<Integer>();
+        this.getPartitions(this.touched_partitions, this.finished, t.getFinishedThreshold(), true);
+        return (this.touched_partitions);
+    }
+    
+    public Set<Integer> getMostTouchedPartitions(EstimationThresholds t) {
+        assert(t != null);
+        if (this.touched_partitions == null) this.touched_partitions = new HashSet<Integer>();
+        this.getPartitions(this.touched_partitions, this.finished, t.getFinishedThreshold(), true);
+        
+        if (this.most_touched_partitions == null) this.most_touched_partitions = new HashSet<Integer>();
+        int max_ctr = 0;
+        for (int p : this.touched_partitions) {
+            if (this.touched[p] > 0 && max_ctr <= this.touched[p]) {
+                if (max_ctr == this.touched[p]) this.most_touched_partitions.add(p);
+                else {
+                    this.most_touched_partitions.clear();
+                    this.most_touched_partitions.add(p);
+                    max_ctr = this.touched[p];
+                }
+            }
+        } // FOR
+        return (this.most_touched_partitions);
     }
     
     @Override

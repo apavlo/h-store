@@ -41,7 +41,7 @@ import edu.brown.utils.TableUtil;
  * @author svelagap
  * @author pavlo
  */
-public class Vertex extends AbstractVertex implements MarkovHitTrackable {
+public class Vertex extends AbstractVertex implements MarkovHitTrackable, Estimation {
     private static final Logger LOG = Logger.getLogger(Vertex.class);
     private final static AtomicBoolean debug = new AtomicBoolean(LOG.isDebugEnabled());
     private final static AtomicBoolean trace = new AtomicBoolean(LOG.isTraceEnabled());
@@ -645,7 +645,7 @@ public class Vertex extends AbstractVertex implements MarkovHitTrackable {
     public void setDoneProbability(int partition, float probability) {
         this.setProbability(Probability.DONE, partition, probability);
     }
-    public float getFinishProbability(int partition) {
+    public float getDoneProbability(int partition) {
         return (this.getSpecificProbability(Probability.DONE, partition));
     }
     public boolean isDoneProbabilitySet(int partition) {

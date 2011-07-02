@@ -40,7 +40,7 @@ public class InnerGraphInformation<V extends AbstractVertex, E extends AbstractE
     private ListOrderedSet<V> descendants;
     private List<V> ancestors;
     private ListOrderedSet<V> roots;
-
+    
 //    private transient final Map<V, Map<V, E>> cache_findEdge = new ConcurrentHashMap<V, Map<V, E>>();
     
     /**
@@ -63,7 +63,7 @@ public class InnerGraphInformation<V extends AbstractVertex, E extends AbstractE
     public int getGraphId() {
         if (this.graph_id == null) {
             synchronized (this) {
-                this.graph_id = NEXT_GRAPH_ID.getAndIncrement();
+                if (this.graph_id == null) this.graph_id = NEXT_GRAPH_ID.getAndIncrement();
             }
         }
         return (this.graph_id.intValue());
@@ -198,7 +198,7 @@ public class InnerGraphInformation<V extends AbstractVertex, E extends AbstractE
         
         if (recompute) {
             this.descendants.clear();
-            new VertexTreeWalker<V>(this.graph) {
+            new VertexTreeWalker<V, E>(this.graph) {
                 @Override
                 protected void callback(V element) {
                     descendants.add(element);
