@@ -18,13 +18,16 @@ public abstract class StringUtil {
     public static final String DOUBLE_LINE  = "============================================================================\n";
     public static final String SINGLE_LINE  = "----------------------------------------------------------------------------\n";
 
+    private static final Pattern LINE_SPLIT = Pattern.compile("\n");
+    private static final Pattern TITLE_SPLIT = Pattern.compile(" ");
+    
     private static String CACHE_REPEAT_STR = null;
     private static Integer CACHE_REPEAT_SIZE = null;
     private static String CACHE_REPEAT_RESULT = null;
-    
-    private static Pattern LINE_SPLIT = Pattern.compile("\n");
-    private static Pattern TITLE_SPLIT = Pattern.compile(" ");
 
+    public static String[] splitLines(String str) {
+        return (str != null ? LINE_SPLIT.split(str) : null);
+    }
     
     /**
      * Split the multi-lined strings into separate columns

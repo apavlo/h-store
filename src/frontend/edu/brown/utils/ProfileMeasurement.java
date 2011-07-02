@@ -247,6 +247,7 @@ public class ProfileMeasurement {
 
     @Override
     public String toString() {
-        return (String.format("%s[total=%d, marker=%s]", this.type, this.think_time, this.think_marker));
+        return (String.format("%s[total=%d, marker=%s, invocations=%d]",
+                              this.type, this.think_time, this.think_marker, this.invocations));
     }
 }

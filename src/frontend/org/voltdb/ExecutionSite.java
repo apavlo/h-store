@@ -971,7 +971,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
     protected void processInitiateTaskMessage(LocalTransactionState ts, InitiateTaskMessage itask) {
         final long txn_id = ts.getTransactionId();
         final boolean predict_singlePartition = ts.isPredictSinglePartition();
-        if (hstore_conf.site.txn_profiling) ts.queue_time.stop();
+        if (hstore_conf.site.txn_profiling) ts.profiler.queue_time.stop();
         
         ExecutionMode spec_exec = ExecutionMode.COMMIT_ALL;
         boolean release_latch = false;
@@ -1318,9 +1318,9 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
         // REGULAR FRAGMENTS
         // -------------------------------
         } else {
-            if (local_ts != null && hstore_conf.site.txn_profiling) local_ts.ee_time.start();
+            if (local_ts != null && hstore_conf.site.txn_profiling) local_ts.profiler.ee_time.start();
             result = this.executePlanFragments(ts, undoToken, fragmentIdIndex, fragmentIds, parameterSets, output_depIds, input_depIds);
-            if (local_ts != null && hstore_conf.site.txn_profiling) local_ts.ee_time.stop();
+            if (local_ts != null && hstore_conf.site.txn_profiling) local_ts.profiler.ee_time.stop();
         }
         return (result);
     }
@@ -1394,9 +1394,9 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
                      Arrays.toString(plan.getFragmentIds()), plan.getFragmentCount(), Arrays.toString(plan.getOutputDependencyIds()), Arrays.toString(plan.getInputDependencyIds())));
         }
 
-        if (ts != null && hstore_conf.site.txn_profiling) ts.ee_time.start();
+        if (ts != null && hstore_conf.site.txn_profiling) ts.profiler.ee_time.start();
         DependencySet result = this.executePlanFragments(ts, undoToken, fragmentIdIndex, fragmentIds, parameterSets, output_depIds, input_depIds);
-        if (ts != null && hstore_conf.site.txn_profiling) ts.ee_time.stop();
+        if (ts != null && hstore_conf.site.txn_profiling) ts.profiler.ee_time.stop();
       
         if (t) LOG.trace("Output:\n" + StringUtil.join("\n", result.dependencies));
         

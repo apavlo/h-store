@@ -261,7 +261,8 @@ public final class HStoreConf {
         // ----------------------------------------------------------------------------
         
         @ConfigProperty(
-            description="Enable transaction profiling.",
+            description="Enable transaction profiling. This will measure the amount of time a transaction spends" +
+            		    "in different parts of the system (e.g., waiting in the work queue, planning, executing).",
             defaultBoolean=false,
             advanced=true,
             experimental=true

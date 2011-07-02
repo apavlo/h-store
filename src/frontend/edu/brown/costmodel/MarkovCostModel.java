@@ -7,7 +7,6 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Random;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.LinkedBlockingDeque;
@@ -266,10 +265,15 @@ public class MarkovCostModel extends AbstractCostModel {
         this.e_write_partitions.clear();
         MarkovEstimate est = s.getInitialEstimate();
         for (Integer partition : est.getTouchedPartitions(this.thresholds)) {
-            if (est.isWritePartition(this.thresholds, partition.intValue())) {
-                this.e_write_partitions.add(partition);
-            } else {
-                this.e_read_partitions.add(partition);
+            if (est.isFinishedPartition(this.thresholds, partition.intValue()) == false) {
+                for (Vertex v : s.getInitialPath()) {
+                    if (v.getPartitions().contains(partition) == false) continue;
+                    if (((Statement)v.getCatalogItem()).getReadonly()) {
+                        this.e_read_partitions.add(partition);    
+                    } else {
+                        this.e_write_partitions.add(partition);
+                    }
+                } // FOR
             }
         } // FOR
         
@@ -299,8 +303,8 @@ public class MarkovCostModel extends AbstractCostModel {
             
             String e_path = "ESTIMATED PATH:\n" + StringUtil.join("\n", s.getInitialPath());
             String a_path = "ACTUAL PATH:\n" + StringUtil.join("\n", s.getActualPath());
-//            System.err.println(StringUtil.columns(e_path, a_path));
-//            System.err.println("MARKOV ESTIMATE:\n" + s.getInitialEstimate());
+            System.err.println(StringUtil.columns(e_path, a_path));
+            System.err.println("MARKOV ESTIMATE:\n" + s.getInitialEstimate());
             
             throw new RuntimeException(ex);
         }
@@ -688,6 +692,8 @@ public class MarkovCostModel extends AbstractCostModel {
         if (trace.get()) LOG.info(String.format("Number of Penalties %d: %s", this.penalties.size(), this.penalties));
         double cost = 0.0d;
         for (Penalty p : this.penalties) cost += p.getCost();
+        
+//        if (this.penalties.isEmpty() == false) throw new RuntimeException("Missed optimizations for " + s.getFormattedName());
         return (cost);
     }
     
@@ -731,10 +737,11 @@ public class MarkovCostModel extends AbstractCostModel {
         );
         HStoreConf.init(args, null);
         final int num_partitions = CatalogUtil.getNumberOfPartitions(args.catalog);
-        final Integer base_partition = args.getIntOptParam(0);
+        final Integer base_partition = (args.workload_base_partitions.size() == 1 ? CollectionUtil.getFirst(args.workload_base_partitions) : null);
         final boolean stop_on_error = true;
         final boolean force_fullpath = true;
         final boolean force_regenerate = false;
+        final boolean skip_processing = false;
         
         // Only load the MarkovGraphs that we actually need
         final int num_transactions = args.workload.getTransactionCount();
@@ -764,9 +771,9 @@ public class MarkovCostModel extends AbstractCostModel {
             if (force_regenerate) costmodels[p].forceRegenerateMarkovEstimates();
         } // FOR
         
-        final Histogram<String> total_h = new Histogram<String>();
-        final Histogram<String> missed_h = new Histogram<String>();
-        final Histogram<String> accurate_h = new Histogram<String>();
+        final Histogram<Procedure> total_h = new Histogram<Procedure>();
+        final Histogram<Procedure> missed_h = new Histogram<Procedure>();
+        final Histogram<Procedure> accurate_h = new Histogram<Procedure>();
         final Histogram<MarkovOptimization> optimizations_h = new Histogram<MarkovOptimization>();
         final Histogram<Penalty> penalties_h = new Histogram<Penalty>();
 
@@ -843,13 +850,16 @@ public class MarkovCostModel extends AbstractCostModel {
                         
                         int partition = pair.getFirst();
                         TransactionTrace txn_trace = pair.getSecond();
-                        total_h.put(txn_trace.getCatalogItemName());
+                        Procedure catalog_proc = txn_trace.getCatalogItem(args.catalog_db); 
+                        total_h.put(catalog_proc);
                         
                         double cost = 0.0d;
                         Throwable error = null;
                         try {
                             profiler.start();
-                            cost = costmodels[partition].estimateTransactionCost(args.catalog_db, txn_trace);
+                            if (skip_processing == false) {
+                                cost = costmodels[partition].estimateTransactionCost(args.catalog_db, txn_trace);
+                            }
                         } catch (Throwable ex) {
                             error = ex;
                         } finally {
@@ -863,7 +873,6 @@ public class MarkovCostModel extends AbstractCostModel {
                             continue;
                         }
                         
-                        String proc_name = txn_trace.getCatalogItemName();
                         if (cost > 0) {
                             penalty_groups.clear();
                             penalties.clear();
@@ -873,9 +882,9 @@ public class MarkovCostModel extends AbstractCostModel {
                             } // FOR
                             optimizations_h.putAll(penalty_groups);
                             penalties_h.putAll(penalties);
-                            missed_h.put(proc_name);
+                            missed_h.put(catalog_proc);
                         } else {
-                            accurate_h.put(proc_name);
+                            accurate_h.put(catalog_proc);
                         }
                         int cnt = total.incrementAndGet(); 
                         if (cnt % marker == 0) LOG.info(String.format("Processed %d/%d transactions %s",
@@ -887,10 +896,12 @@ public class MarkovCostModel extends AbstractCostModel {
         } // FOR
         ThreadUtil.runGlobalPool(runnables);
         
+        Map<Object, String> debugLabels = CatalogUtil.getHistogramLabels(args.catalog_db.getProcedures());
+        
         Histogram<Procedure> fastpath_h = new Histogram<Procedure>();
-        fastpath_h.setDebugLabels(CatalogUtil.getHistogramLabels(args.catalog_db.getProcedures()));
+        fastpath_h.setDebugLabels(debugLabels);
         Histogram<Procedure> fullpath_h = new Histogram<Procedure>();
-        fullpath_h.setDebugLabels(CatalogUtil.getHistogramLabels(args.catalog_db.getProcedures()));
+        fullpath_h.setDebugLabels(debugLabels);
         ProfileMeasurement total_time = new ProfileMeasurement(Type.ESTIMATION);
         
         for (int i = 0; i < num_threads; i++) {
@@ -910,10 +921,11 @@ public class MarkovCostModel extends AbstractCostModel {
         m0.put("FORCE FULLPATH", force_fullpath);
         m0.put("FORCE REGENERATE", force_regenerate);
         m0.put("COMPUTATION TIME", String.format("%.2f ms total / %.2f ms avg", total_time.getTotalThinkTimeMS(), total_time.getAverageThinkTimeMS()));
-        m0.put("TRANSACTION COUNTS", total_h);
+        m0.put("TRANSACTION COUNTS", total_h.setDebugLabels(debugLabels));
         
         Map<String, Object> m1 = new ListOrderedMap<String, Object>();
-        m1.put("TRANSACTION ACCURACY", accurate_h);
+        m1.put("ACCURATE TRANSACTIONS", accurate_h.setDebugLabels(debugLabels));
+        m1.put("MISSED TRANSACTIONS", missed_h.setDebugLabels(debugLabels));
 
         Map<String, Object> m2 = new ListOrderedMap<String, Object>();
         m2.put("FAST PATH", fastpath_h);
