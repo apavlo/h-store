@@ -6,8 +6,10 @@ import java.util.Map;
 import java.util.regex.Pattern;
 
 import org.apache.commons.collections15.map.ListOrderedMap;
+import org.apache.log4j.Logger;
 
 public abstract class TableUtil {
+    private static final Logger LOG = Logger.getLogger(TableUtil.class);
 
     private static Pattern LINE_SPLIT = Pattern.compile("\n");
     
@@ -15,49 +17,79 @@ public abstract class TableUtil {
     public static final String TABLE_DELIMITER = "  ";
     
     public static class Format {
-        public final String delimiter_all;
-        public final String delimiter_cols[];
-        public final String delimiter_rows[];
-        public final boolean spacing;
-        public final boolean spacing_all;
-        public final boolean right_align;
-        public final boolean quote_rows;
-        public final boolean quote_header;
-        public final boolean trim_all;
-        public final boolean capitalize_header;
+        public String delimiter_all;
+        public String delimiter_cols[];
+        public String delimiter_rows[];
+        public boolean spacing_col;
+        public boolean spacing_all;
+        public boolean right_align;
+        public boolean quote_rows;
+        public boolean quote_header;
+        public boolean trim_all;
+        public boolean capitalize_header;
+        public boolean prune_null_rows;
+        public Object replace_null_cells;
+        
+        private Format() {
+            // Nothing
+        }
         
         /**
          * Create a new TableUtil format object
-         * @param delimiter String used in between columns
+         * @param delimiter_all String used in between all columns
+         * @param delimiter_cols TODO
          * @param delimiter_rows TODO
-         * @param spacing Whether the cells in a single columns will all be the same width
+         * @param spacing_col Whether the cells in a single columns will all be the same width
          * @param spacing_all Whether all the cells in the entire table will be the same width
          * @param right_align Whether to right align each cell
          * @param quote_rows Whether to wrap each non-header cell in quotes (including spacing)
-         * @param quote_header Whether to wrap ach header cell in quotes (including spacing)
-         * @param trim_all TODO
+         * @param quote_header Whether to wrap each header cell in quotes (including spacing)
+         * @param trim_all Whether to invoke String.trim() on each cell
          * @param capitalize_header TODO
+         * @param prune_null_rows If true, then any null row will be skipped
+         * @param replace_null_cells TODO
          */
-        public Format(String delimiter,
+        public Format(String delimiter_all,
                       String delimiter_cols[],
                       String[] delimiter_rows,
-                      boolean spacing,
+                      boolean spacing_col,
                       boolean spacing_all,
                       boolean right_align,
                       boolean quote_rows,
                       boolean quote_header,
                       boolean trim_all,
-                      boolean capitalize_header) {
-            this.delimiter_all = delimiter;
+                      boolean capitalize_header,
+                      boolean prune_null_rows,
+                      Object replace_null_cells) {
+            this.delimiter_all = delimiter_all;
             this.delimiter_cols = delimiter_cols;
             this.delimiter_rows = delimiter_rows;
-            this.spacing = spacing;
+            this.spacing_col = spacing_col;
             this.spacing_all = spacing_all;
             this.right_align = right_align;
             this.quote_rows = quote_rows;
             this.quote_header = quote_header;
             this.trim_all = trim_all;
             this.capitalize_header = capitalize_header;
+            this.prune_null_rows = prune_null_rows;
+            this.replace_null_cells = replace_null_cells;
+        }
+        
+        public Format clone() {
+            Format clone = new Format();
+            clone.delimiter_all = this.delimiter_all;
+            clone.delimiter_cols = this.delimiter_cols;
+            clone.delimiter_rows = this.delimiter_rows;
+            clone.spacing_col = this.spacing_col;
+            clone.spacing_all = this.spacing_all;
+            clone.right_align = this.right_align;
+            clone.quote_rows = this.quote_rows;
+            clone.quote_header = this.quote_header;
+            clone.trim_all = this.trim_all;
+            clone.capitalize_header = this.capitalize_header;
+            clone.prune_null_rows = this.prune_null_rows;
+            clone.replace_null_cells = this.replace_null_cells;
+            return (clone);
         }
         
         @Override
@@ -86,14 +118,14 @@ public abstract class TableUtil {
     
     public static Format defaultTableFormat() {
         if (DEFAULT_TABLE == null) {
-            DEFAULT_TABLE = new Format(TABLE_DELIMITER, null, null, true, false, false, false, false, false, false);
+            DEFAULT_TABLE = new Format(TABLE_DELIMITER, null, null, true, false, false, false, false, false, false, false, null);
         }
         return (DEFAULT_TABLE);
     }
     
     public static Format defaultCSVFormat() {
         if (DEFAULT_CSV == null) {
-            DEFAULT_CSV = new Format(CSV_DELIMITER, null, null, false, false, false, false, false, false, false);
+            DEFAULT_CSV = new Format(CSV_DELIMITER, null, null, false, false, false, false, false, false, false, true, null);
         }
         return (DEFAULT_CSV);
     }
@@ -130,7 +162,7 @@ public abstract class TableUtil {
     
     /**
      * 
-     * @param spacing
+     * @param spacing_col
      * @param spacing_all TODO
      * @param right_align TODO
      * @param header
@@ -138,8 +170,14 @@ public abstract class TableUtil {
      * @return
      */
     public static Map<String, String> tableMap(Format format, String header[], Object[]...rows) {
-        Object key_cols[] = new String[rows.length+1];
+        int num_rows = rows.length;
+        if (format.prune_null_rows) {
+            for (int i = 0; i < num_rows; i++) {
+                if (rows[i] == null) num_rows--;
+            } // FOR
+        }
         
+        Object key_cols[] = new String[num_rows+1];
         String new_header[] = new String[header.length-1];
         for (int i = 0; i < header.length; i++) {
             if (i == 0) {
@@ -148,16 +186,19 @@ public abstract class TableUtil {
                 new_header[i-1] = header[i];
             }
         } // FOR
-        Object new_rows[][] = new String[rows.length][];
-        for (int i = 0; i < new_rows.length; i++) {
-            Object row[] = rows[i];
-            assert(row != null) : "Null row at " + i;
-            key_cols[i+1] = row[0];
+        Object new_rows[][] = new String[num_rows][];
+        int new_row_idx = 0;
+        for (int i = 0; i < rows.length; i++) {
+            Object orig_row[] = rows[i];
+            if (orig_row == null && format.prune_null_rows) continue;
+            assert(orig_row != null) : "Null row at " + i;
+            key_cols[new_row_idx+1] = orig_row[0];
             
-            new_rows[i] = new String[row.length - 1];
+            new_rows[new_row_idx] = new String[orig_row.length - 1];
             for (int j = 0; j < new_rows[i].length; j++) {
-                new_rows[i][j] = (row[j+1] != null ? row[j+1].toString() : "");
+                new_rows[new_row_idx][j] = (orig_row[j+1] != null ? orig_row[j+1].toString() : null);
             } // FOR
+            new_row_idx++;
         } // FOR
         
         Map<String, String> m = new ListOrderedMap<String, String>();
@@ -194,7 +235,7 @@ public abstract class TableUtil {
     /**
      * Format the header+rows into a table
      * @param delimiter_all the character to use in between cells
-     * @param spacing whether to make the width of each column the size of the largest cell
+     * @param spacing_col whether to make the width of each column the size of the largest cell
      * @param spacing_all TODO
      * @param right_align TODO
      * @param quote_rows whether to surround each cell in quotation marks
@@ -203,21 +244,38 @@ public abstract class TableUtil {
      * @return
      */
     public static String table(Format format, String header[], Object[]...rows) {
+        final boolean debug = LOG.isDebugEnabled();
+        
+        String replace_null_str = (format.replace_null_cells != null ? format.replace_null_cells.toString() : null);
+        if (debug) {
+            LOG.debug("format.replace_null_cells = " + format.replace_null_cells);
+            LOG.debug("replace_null_str = " + replace_null_str);
+        }
+        
         // First we need to figure out the size for each column
-        String col_formats[] = new String[header.length];
-        String header_formats[] = new String[header.length];        
+        final int num_cols = header.length;
+        String col_formats[] = new String[num_cols];
+        String header_formats[] = new String[num_cols];        
         Integer max_width = 0;
         int total_width = 0;
-        Integer widths[] = new Integer[header.length];
-        for (int col_idx = 0; col_idx < col_formats.length; col_idx++) {
+        Integer widths[] = new Integer[num_cols];
+        
+        String row_strs[][] = new String[rows.length][num_cols];
+        
+        for (int col_idx = 0; col_idx < num_cols; col_idx++) {
             Integer width = (header[col_idx] != null ? header[col_idx].length() : 0);
             for (int row_idx = 0; row_idx < rows.length; row_idx++) {
-                String val = "";
-                if (rows[row_idx][col_idx] != null) {
-                    val = rows[row_idx][col_idx].toString();
+                if (rows[row_idx] == null) continue;
+                if (col_idx == 0) row_strs[row_idx] = new String[num_cols];
+                
+                String val = (rows[row_idx][col_idx] != null ? rows[row_idx][col_idx].toString() :
+                                                               replace_null_str);
+                if (val != null) {
                     if (format.trim_all) val = val.trim();
+                    width = Math.max(width, val.length());
                 }
-                width = Math.max(width, val.length());
+                row_strs[row_idx][col_idx] = val;
+                if (debug) LOG.debug(String.format("[%d, %d] = %s", row_idx, col_idx, row_strs[row_idx][col_idx])); 
             } // FOR
             widths[col_idx] = width;
             total_width += width;
@@ -225,7 +283,7 @@ public abstract class TableUtil {
         }  // FOR
         for (int col_idx = 0; col_idx < col_formats.length; col_idx++) {
             // FORMAT
-            Integer width = (format.spacing_all ? max_width : widths[col_idx]);
+            Integer width = (format.spacing_all ? max_width : (format.spacing_col ? widths[col_idx] : null));
             final String f = "%" + 
                              (width != null ? (format.right_align ? "" : "-") + width : "") + 
                              "s";
@@ -261,6 +319,7 @@ public abstract class TableUtil {
         // Now dump out the table
         for (int row_idx = 0; row_idx < rows.length; row_idx++) {
             Object row[] = rows[row_idx];
+            if (format.prune_null_rows && row == null) continue;
             sb.append("\n");
             
             // Add row delimiter if necessary
@@ -269,7 +328,7 @@ public abstract class TableUtil {
             }
             
             for (int col_idx = 0; col_idx < col_formats.length; col_idx++) {
-                String cell = (row[col_idx] != null ? row[col_idx].toString() : "");
+                String cell = row_strs[row_idx][col_idx];
                 if (format.quote_rows && (row_idx > 0 || format.quote_header)) cell = '"' + cell + '"';
                 sb.append(String.format(col_formats[col_idx], cell));    
             } // FOR

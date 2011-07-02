@@ -235,6 +235,7 @@ public class ArgumentsParser {
     public Long workload_xact_limit = null;
     public Long workload_xact_offset = 0l;
     public Long workload_query_limit = null;
+    public final Set<Integer> workload_base_partitions = new HashSet<Integer>();
     public Workload.Filter workload_filter = null;
     
     /**
@@ -475,22 +476,19 @@ public class ArgumentsParser {
             if (params.containsKey(PARAM_WORKLOAD_RANDOM_PARTITIONS) || params.containsKey(PARAM_WORKLOAD_BASE_PARTITIONS)) {
                 BasePartitionTxnFilter filter = new BasePartitionTxnFilter(new PartitionEstimator(catalog_db));
                 
-                List<Integer> partitions = new ArrayList<Integer>();
-                
                 // FIXED LIST
                 if (params.containsKey(PARAM_WORKLOAD_BASE_PARTITIONS)) {
                     for (String p_str : this.getParam(PARAM_WORKLOAD_BASE_PARTITIONS).split(",")) {
-                        partitions.add(Integer.valueOf(p_str));
+                        workload_base_partitions.add(Integer.valueOf(p_str));
                     } // FOR
                 // RANDOM
                 } else {
                     double factor = this.getDoubleParam(PARAM_WORKLOAD_RANDOM_PARTITIONS);
                     List<Integer> all_partitions = new ArrayList<Integer>(CatalogUtil.getAllPartitionIds(catalog_db)); 
                     Collections.shuffle(all_partitions, new Random());
-                    partitions.addAll(all_partitions.subList(0, (int)(partitions.size() * factor)));
+                    workload_base_partitions.addAll(all_partitions.subList(0, (int)(all_partitions.size() * factor)));
                 }
-                filter.addPartitions(partitions);
-                
+                filter.addPartitions(workload_base_partitions);
                 this.workload_filter = (this.workload_filter != null ? this.workload_filter.attach(filter) : filter);
             }
 
@@ -659,7 +657,19 @@ public class ArgumentsParser {
             } else if (PARAMS.contains(parts[0])) {
                 this.params.put(parts[0], parts[1]);
             } else {
-                throw new Exception("Unknown parameter '" + parts[0] + "'");
+                String suggestions = "";
+                i = 0;
+                String end = CollectionUtil.getLast(parts[0].split("\\."));
+                for (String param : PARAMS) {
+                    String param_end = CollectionUtil.getLast(param.split("\\."));
+                    if (param.startsWith(parts[0]) ||
+                        (end != null && param.endsWith(end)) ||
+                        (end != null && param_end != null && param_end.startsWith(end))) {
+                        if (suggestions.isEmpty()) suggestions = ". Possible Matches:";
+                        suggestions += String.format("\n [%02d] %s", ++i, param);
+                    }
+                } // FOR
+                throw new Exception("Unknown parameter '" + parts[0] + "'" + suggestions);
             }
         } // FOR
         

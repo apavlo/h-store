@@ -77,7 +77,7 @@ public class slev extends VoltProcedure {
     public VoltTable[] run(short w_id, byte d_id, int threshold) {
 
         voltQueueSQL(GetOId, w_id, d_id);
-        if (false) {
+        if (true) {
             final VoltTable result = voltExecuteSQL()[0];
             final long o_id = result.asScalarLong(); //if invalid (i.e. no matching o_id), we expect a fail here.
             voltQueueSQL(GetStockCount, w_id, d_id, o_id, o_id - 20, w_id, threshold);

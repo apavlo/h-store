@@ -1,12 +1,17 @@
 package edu.mit.hstore;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.Map.Entry;
+import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.commons.collections15.map.ListOrderedMap;
@@ -15,16 +20,22 @@ import org.apache.commons.pool.impl.StackObjectPool;
 import org.apache.log4j.Logger;
 import org.voltdb.BatchPlanner;
 import org.voltdb.ExecutionSite;
+import org.voltdb.catalog.Database;
+import org.voltdb.catalog.Procedure;
+import org.voltdb.utils.Pair;
 
 import edu.brown.markov.TransactionEstimator;
 import edu.brown.statistics.Histogram;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.CountingPoolableObjectFactory;
+import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.ProfileMeasurement;
 import edu.brown.utils.StringUtil;
 import edu.brown.utils.TableUtil;
+import edu.brown.utils.LoggerUtil.LoggerBoolean;
 import edu.mit.hstore.dtxn.DependencyInfo;
 import edu.mit.hstore.dtxn.LocalTransactionState;
+import edu.mit.hstore.dtxn.TransactionProfile;
 import edu.mit.hstore.dtxn.TransactionState;
 import edu.mit.hstore.interfaces.Shutdownable;
 
@@ -34,6 +45,11 @@ import edu.mit.hstore.interfaces.Shutdownable;
  */
 public class HStoreSiteStatus implements Runnable, Shutdownable {
     private static final Logger LOG = Logger.getLogger(HStoreSiteStatus.class);
+    private final static LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private final static LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    static {
+        LoggerUtil.attachObserver(LOG, debug, trace);
+    }
     
     private static final String POOL_FORMAT = "Active:%-5d / Idle:%-5d / Created:%-5d / Destroyed:%-5d / Passivated:%-7d";
 
@@ -67,6 +83,12 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
     
     private Thread self;
 
+    /**
+     * Maintain a set of tuples for the transaction profile times
+     */
+    private final Map<Procedure, LinkedBlockingDeque<long[]>> proc_profiles = new TreeMap<Procedure, LinkedBlockingDeque<long[]>>();
+    private final Map<Procedure, long[]> profile_proc_totals = Collections.synchronizedSortedMap(new TreeMap<Procedure, long[]>());
+    
     final Map<String, Object> m_pool = new ListOrderedMap<String, Object>();
     final Map<String, Object> header = new ListOrderedMap<String, Object>();
     
@@ -91,6 +113,8 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
             this.partition_txns.put(partition, 0);
             this.executors.put(partition, hstore_site.getExecutionSite(partition));
         } // FOR
+        
+        this.initTxnProfileInfo(hstore_site.catalog_db);
         
         this.header.put(String.format("%s Status", HStoreSite.class.getSimpleName()), hstore_site.getSiteName());
         this.header.put("Number of Partitions", this.executors.size());
@@ -143,6 +167,10 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
     @Override
     public void shutdown() {
         this.printSnapshot();
+        if (hstore_conf.site.txn_profiling) {
+            String csv = this.txnProfileCSV();
+            if (csv != null) System.out.println(csv);
+        }
         if (this.self != null) this.self.interrupt();
     }
     
@@ -150,6 +178,10 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
     public boolean isShuttingDown() {
         return this.hstore_site.isShuttingDown();
     }
+    
+    // ----------------------------------------------------------------------------
+    // EXECUTION INFO
+    // ----------------------------------------------------------------------------
     
     /**
      * 
@@ -210,14 +242,18 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
         return (m_exec);
     }
     
+    // ----------------------------------------------------------------------------
+    // TRANSACTION EXECUTION INFO
+    // ----------------------------------------------------------------------------
+    
     /**
      * 
      * @return
      */
-    protected Map<String, String> txnInfo() {
-        
+    protected Map<String, String> txnExecInfo() {
         Set<TxnCounter> cnts_to_include = new TreeSet<TxnCounter>();
         Set<String> procs = TxnCounter.getAllProcedures();
+        if (procs.isEmpty()) return (null);
         for (TxnCounter tc : TxnCounter.values()) {
             if (TXNINFO_ALWAYS_SHOW.contains(tc) || (tc.get() > 0 && TXNINFO_EXCLUDES.contains(tc) == false)) cnts_to_include.add(tc);
         } // FOR
@@ -263,9 +299,18 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
             j++;
         } // FOR
         
-        TableUtil.Format f = new TableUtil.Format("   ", col_delimiters, row_delimiters, true, false, true, false, false, false, true);
+        if (debug.get()) {
+            for (i = 0; i < rows.length; i++) {
+                LOG.debug("ROW[" + i + "]: " + Arrays.toString(rows[i]));
+            }
+        }
+        TableUtil.Format f = new TableUtil.Format("   ", col_delimiters, row_delimiters, true, false, true, false, false, false, true, true, null);
         return (TableUtil.tableMap(f, header, rows));
     }
+    
+    // ----------------------------------------------------------------------------
+    // THREAD INFO
+    // ----------------------------------------------------------------------------
     
     /**
      * 
@@ -292,6 +337,139 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
         return (m_thread);
     }
     
+    // ----------------------------------------------------------------------------
+    // TRANSACTION PROFILING
+    // ----------------------------------------------------------------------------
+    
+    /**
+     * 
+     * @param catalog_db
+     */
+    private void initTxnProfileInfo(Database catalog_db) {
+        for (Procedure catalog_proc : catalog_db.getProcedures()) {
+            if (catalog_proc.getSystemproc()) continue;
+            this.proc_profiles.put(catalog_proc, new LinkedBlockingDeque<long[]>());
+            
+            long totals[] = new long[TransactionProfile.PROFILE_FIELDS.length + 1];
+            for (int i = 0; i < totals.length; i++) {
+                totals[i] = 0;
+            } // FOR
+            this.profile_proc_totals.put(catalog_proc, totals);
+        } // FOR
+    }
+    
+    /**
+     * 
+     * @param tp
+     */
+    public void addTxnProfile(Procedure catalog_proc, TransactionProfile tp) {
+        if (tp.total_time.isStopped() == false) return;
+        if (trace.get()) LOG.info("Calculating TransactionProfile information");
+
+        long tuple[] = tp.getTuple();
+        assert(tuple != null);
+        assert(catalog_proc != null);
+        if (trace.get()) LOG.trace(String.format("Appending TransactionProfile: %s", tp, Arrays.toString(tuple)));
+        this.proc_profiles.get(catalog_proc).offer(tuple);
+    }
+    
+    private void calculateTxnProfileTotals(Procedure catalog_proc) {
+        long totals[] = this.profile_proc_totals.get(catalog_proc);
+        
+        long tuple[] = null;
+        LinkedBlockingDeque<long[]> queue = this.proc_profiles.get(catalog_proc); 
+        while ((tuple = queue.poll()) != null) {
+            totals[0]++;
+            for (int i = 0, cnt = tuple.length; i < cnt; i++) {
+                totals[i+1] += tuple[i];
+            } // FOR
+        } // FOR
+    }
+    
+    /**
+     * 
+     * TODO: This should be broken out in a separate component that stores the data
+     *       down in the EE. That way we can extract it in a variety of ways
+     * 
+     * @param dump_csv
+     * @return
+     */
+    private Pair<String[], Object[][]> generateTxnProfileSnapshot() {
+        
+        // TABLE HEADER
+        int idx = 0;
+        String header[] = new String[TransactionProfile.PROFILE_FIELDS.length + 2];
+        header[idx++] = "";
+        header[idx++] = "txns";
+        for (int i = 0; i < TransactionProfile.PROFILE_FIELDS.length; i++) {
+            header[idx++] = TransactionProfile.PROFILE_FIELDS[i].getName().replace("_time", "");
+        } // FOR
+        
+        // TABLE ROWS
+        List<Object[]> rows = new ArrayList<Object[]>(); 
+        for (Entry<Procedure, long[]> e : this.profile_proc_totals.entrySet()) {
+            this.calculateTxnProfileTotals(e.getKey());
+            long totals[] = e.getValue();
+            if (totals[0] == 0) continue;
+
+            int col_idx = 0;
+            Object row[] = new String[header.length];
+            row[col_idx++] = e.getKey().getName();
+            
+            for (int i = 0; i < totals.length; i++) {
+                // # of Txns
+                if (i == 0) {
+                    row[col_idx++] = Long.toString(totals[i]);
+                // Everything Else
+                } else {
+                    row[col_idx++] = (totals[i] > 0 ? String.format("%.02f", totals[i] / 1000000d) : null);
+                }
+            } // FOR
+            if (debug.get()) LOG.debug("ROW[" + rows.size() + "] " + Arrays.toString(row));
+            rows.add(row);
+        } // FOR
+        if (rows.isEmpty()) return (null);
+        Object rows_arr[][] = rows.toArray(new String[rows.size()][header.length]);
+        assert(rows_arr.length == rows.size());
+        
+        return (Pair.of(header, rows_arr));
+    }
+    
+    public Map<String, String> txnProfileInfo() {
+        Pair<String[], Object[][]> pair = this.generateTxnProfileSnapshot();
+        if (pair == null) return (null);
+        String header[] = pair.getFirst();
+        Object rows[][] = pair.getSecond();
+
+        String col_delimiters[] = new String[header.length];
+        col_delimiters[2] = " | ";
+        
+        TableUtil.Format f = new TableUtil.Format("   ", col_delimiters, null, true, false, true, false, false, false, true, true, "-");
+        return (TableUtil.tableMap(f, header, rows));
+    }
+    
+    public String txnProfileCSV() {
+        Pair<String[], Object[][]> pair = this.generateTxnProfileSnapshot();
+        if (pair == null) return (null);
+        String header[] = pair.getFirst();
+        Object rows[][] = pair.getSecond();
+        
+        if (debug.get()) {
+            for (int i = 0; i < rows.length; i++) {
+                if (i == 0) LOG.debug("HEADER: " + Arrays.toString(header));
+                LOG.debug("ROW[" + i + "] " + Arrays.toString(rows[i]));
+            } // FOR
+        }
+        TableUtil.Format f = TableUtil.defaultCSVFormat().clone();
+        f.replace_null_cells = 0;
+        f.prune_null_rows = true;
+        return (TableUtil.table(f, header, rows));
+    }
+    
+    // ----------------------------------------------------------------------------
+    // SNAPSHOT PRETTY PRINTER
+    // ----------------------------------------------------------------------------
+    
     public synchronized String snapshot(boolean show_txns, boolean show_exec, boolean show_threads, boolean show_poolinfo) {
         this.partition_txns.clearValues();
         for (Entry<Long, LocalTransactionState> e : hstore_site.getAllTransactions()) {
@@ -301,7 +479,7 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
         // ----------------------------------------------------------------------------
         // Transaction Information
         // ----------------------------------------------------------------------------
-        Map<String, String> m_txn = (show_txns ? this.txnInfo() : null);
+        Map<String, String> m_txn = (show_txns ? this.txnExecInfo() : null);
         
         // ----------------------------------------------------------------------------
         // Executor Information
@@ -311,8 +489,13 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
         // ----------------------------------------------------------------------------
         // Thread Information
         // ----------------------------------------------------------------------------
-        Map<String, Object> m_thread = (show_threads ? this.threadInfo() : null);
+        Map<String, Object> threadInfo = (show_threads ? this.threadInfo() : null);
 
+        // ----------------------------------------------------------------------------
+        // Transaction Profiling
+        // ----------------------------------------------------------------------------
+        Map<String, String> txnProfiles = (hstore_conf.site.txn_profiling ? this.txnProfileInfo() : null);
+        
         // ----------------------------------------------------------------------------
         // Object Pool Information
         // ----------------------------------------------------------------------------
@@ -397,7 +580,7 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
                 m_pool.put(labels[i], String.format(POOL_FORMAT, total_active[i], total_idle[i], total_created[i], total_destroyed[i], total_passivated[i]));
             } // FOR
         }
-        return (StringUtil.formatMaps(header, m_exec, m_txn, m_thread, m_pool));
+        return (StringUtil.formatMaps(header, m_exec, m_txn, threadInfo, txnProfiles, m_pool));
     }
     
     private String formatPoolCounts(StackObjectPool pool, CountingPoolableObjectFactory<?> factory) {

@@ -14,18 +14,20 @@ PARTITIONS=( \
     64 \
 #     128 \
 )
-HEAP_SIZE=8000
+HEAP_SIZE=12000
 MAX_THREADS=`tools/getcpus.py`
 MAKE_GLOBAL=true
+MAKE_CLUSTERED=true
 CALCULATE_COST=true
 COMPRESS=true
 FORCE=false
 
-WORKLOAD_BUILD_SIZE=75000
-WORKLOAD_BUILD_MULTIPLIER=500
+WORKLOAD_DIR=files/workloads/vldb-mar2011
+WORKLOAD_BUILD_SIZE=50000
+WORKLOAD_BUILD_MULTIPLIER=-1
 WORKLOAD_TEST_SIZE=50000
 WORKLOAD_TEST_OFFSET=0
-WORKLOAD_TEST_MULTIPLIER=500
+WORKLOAD_TEST_MULTIPLIER=-1
 MARKOV_FILES_DIR=files/markovs/vldb-june2011
 MARKOV_THRESHOLDS=0.6
 
@@ -54,22 +56,20 @@ for arg in $@; do
 done
 
 for BENCHMARK in ${BENCHMARKS[@]}; do
-    BUILD_WORKLOAD=$BENCHMARK
-    TEST_WORKLOAD=${BENCHMARK}-2
+    BUILD_WORKLOAD="${BENCHMARK}.large1"
+    TEST_WORKLOAD="${BENCHMARK}.large2"
     
-    if [ "$BENCHMARK" = "tpcc.100w" -o "$BENCHMARK" = "tpcc.50w" -o "$BENCHMARK" = "tpcc.100w.large" ]; then
+    if [ "$BENCHMARK" = "tpcc" -o "$BENCHMARK" = "tpcc.100w" -o "$BENCHMARK" = "tpcc.50w" -o "$BENCHMARK" = "tpcc.100w.large" ]; then
         BENCHMARK="tpcc"
         WORKLOAD_MIX=$TPCC_MIX
     elif [ "$BENCHMARK" = "tpce" ]; then
         WORKLOAD_MIX=$TPCE_MIX
         WORKLOAD_TEST_OFFSET=75000
-        TEST_WORKLOAD=$BUILD_WORKLOAD
     elif [ "$BENCHMARK" = "auctionmark.large" ]; then
         BENCHMARK="auctionmark"
         WORKLOAD_MIX=$AUCTIONMARK_MIX
     elif [ "$BENCHMARK" = "tm1" ]; then
         WORKLOAD_MIX=$TM1_MIX
-        BUILD_WORKLOAD="tm1.large"
     fi
     if [ -n "$TARGET" -a "$TARGET" != $BENCHMARK ]; then
         continue
@@ -90,8 +90,12 @@ for BENCHMARK in ${BENCHMARKS[@]}; do
             -Dcorrelations=files/correlations/${BENCHMARK}.correlations || exit
             
         if [ "$BENCHMARK" = "tpcc" ]; then
-            BUILD_WORKLOAD="vldb-mar2011/tpcc.${NUM_PARTITIONS}p"
+            BASE_WORKLOAD="tpcc.${NUM_PARTITIONS}p"
+        else
+            BASE_WORKLOAD=${BENCHMARK}
         fi
+        BUILD_WORKLOAD="${BASE_WORKLOAD}-1"
+        TEST_WORKLOAD="${BASE_WORKLOAD}-2"
             
         for GLOBAL in "true" "false" ; do
             if [ $GLOBAL = "true" ]; then
@@ -100,6 +104,9 @@ for BENCHMARK in ${BENCHMARKS[@]}; do
                 fi
                 MARKOV_FILE=$MARKOV_FILES_DIR/$BENCHMARK.${NUM_PARTITIONS}p.global.markovs
             else
+                if [ $MAKE_CLUSTERED != "true" ]; then
+                    continue
+                fi
                 MARKOV_FILE=$MARKOV_FILES_DIR/$BENCHMARK.${NUM_PARTITIONS}p.clustered.markovs
             fi
             if [ -f ${MARKOV_FILE}.gz -a "$FORCE" != true ]; then
@@ -109,9 +116,9 @@ for BENCHMARK in ${BENCHMARKS[@]}; do
             if [ ! -f $MARKOV_FILE -o "$FORCE" = true ]; then
                 ant markov \
                     -Dvolt.client.memory=$HEAP_SIZE \
-                    -Dhstore.max_threads=$MAX_THREADS \
+                    -Dnumcpus=$MAX_THREADS \
                     -Dproject=$BENCHMARK \
-                    -Dworkload=files/workloads/$BUILD_WORKLOAD.trace.gz \
+                    -Dworkload=$WORKLOAD_DIR/$BUILD_WORKLOAD.trace.gz \
                     -Dlimit=$WORKLOAD_BUILD_SIZE \
                     -Dmultiplier=$WORKLOAD_BUILD_MULTIPLIER \
                     -Dinclude=$WORKLOAD_MIX \
@@ -127,9 +134,9 @@ for BENCHMARK in ${BENCHMARKS[@]}; do
             if [ $CALCULATE_COST = true ]; then
                 ant markov-cost \
                     -Dvolt.client.memory=$HEAP_SIZE \
-                    -Dhstore.max_threads=$MAX_THREADS \
+                    -Dnumcpus=$MAX_THREADS \
                     -Dproject=$BENCHMARK \
-                    -Dworkload=files/workloads/$TEST_WORKLOAD.trace.gz \
+                    -Dworkload=$WORKLOAD_DIR/$TEST_WORKLOAD.trace.gz \
                     -Dlimit=$WORKLOAD_TEST_SIZE \
                     -Dmultiplier=$WORKLOAD_TEST_MULTIPLIER \
                     -Dinclude=$WORKLOAD_MIX \

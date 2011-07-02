@@ -289,6 +289,19 @@ public abstract class CollectionUtil {
         }
         return (last);
     }
+    
+    /**
+     * Return the last item in an array
+     * @param <T>
+     * @param items
+     * @return
+     */
+    public static <T> T getLast(T...items) {
+        if (items != null && items.length > 0) {
+            return (items[items.length-1]);
+        }
+        return (null);
+    }
 
     /**
      * Return a new map sorted by the values of the given original map 
