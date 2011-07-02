@@ -14,21 +14,26 @@ import edu.brown.utils.CollectionUtil;
  * @author pavlo
  *
  */
-public abstract class VertexTreeWalker<V extends AbstractVertex> extends AbstractTreeWalker<V> {
+public abstract class VertexTreeWalker<V extends AbstractVertex, E extends AbstractEdge> extends AbstractTreeWalker<V> {
     private static final Logger LOG = Logger.getLogger(VertexTreeWalker.class);
     
     public enum TraverseOrder {
+        /** Breadth-First Search */
         BREADTH,
+        /** Depth-First Search */
         DEPTH,
-        /**
+        /** 
          * Traverse the graph such that the first callback is for the first element that
-         * is furthest away from the given root
+         * is farthest away from the given root
          */
         LONGEST_PATH,
     };
     public enum Direction {
+        /** Traverse the DirectedGraph from parent to child */
         FORWARD,
+        /** Traverse the DirectedGraph from child to parent */
         REVERSE,
+        /** Traverse the UndirectedGraph in any direction */
         ANY;
         
         public Direction getReverse() {
@@ -44,7 +49,8 @@ public abstract class VertexTreeWalker<V extends AbstractVertex> extends Abstrac
         }
     };
     
-    private IGraph<V, ? extends AbstractEdge> graph;
+    
+    private IGraph<V, E> graph;
     private TraverseOrder search_order;
     private Direction search_direction; 
 
@@ -58,17 +64,17 @@ public abstract class VertexTreeWalker<V extends AbstractVertex> extends Abstrac
     protected VertexTreeWalker() {
         // Nothing!
     }
-    public VertexTreeWalker(IGraph<V, ? extends AbstractEdge> graph, TraverseOrder order, Direction direction) {
+    public VertexTreeWalker(IGraph<V, E> graph, TraverseOrder order, Direction direction) {
         this.init(graph, order, direction);
     }
-    public VertexTreeWalker(IGraph<V, ? extends AbstractEdge> graph) {
+    public VertexTreeWalker(IGraph<V, E> graph) {
         this(graph, TraverseOrder.DEPTH, Direction.FORWARD);
     }
-    public VertexTreeWalker(IGraph<V, ? extends AbstractEdge> graph, TraverseOrder order) {
+    public VertexTreeWalker(IGraph<V, E> graph, TraverseOrder order) {
         this(graph, order, Direction.FORWARD);
     }
 
-    public VertexTreeWalker<V> init(IGraph<V, ? extends AbstractEdge> graph, TraverseOrder order, Direction direction) {
+    public VertexTreeWalker<V, E> init(IGraph<V, E> graph, TraverseOrder order, Direction direction) {
         this.graph = graph;
         this.search_order = order;
         this.search_direction = direction;
@@ -85,7 +91,7 @@ public abstract class VertexTreeWalker<V extends AbstractVertex> extends Abstrac
         if (this.bfs_levels != null) this.bfs_levels.clear();
     }
     
-    public final IGraph<V, ? extends AbstractEdge> getGraph() {
+    public final IGraph<V, E> getGraph() {
         return this.graph;
     }
     
@@ -174,4 +180,5 @@ public abstract class VertexTreeWalker<V extends AbstractVertex> extends Abstrac
         
         return;
     }
+
 }

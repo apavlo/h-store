@@ -147,19 +147,19 @@ public class TestMarkovPathEstimator extends BaseTestCase {
         for (int p : CatalogUtil.getAllPartitionIds(catalog_proc)) {
             assert(estimate.isReadOnlyProbabilitySet(p));
             assert(estimate.isWriteProbabilitySet(p));
-            assert(estimate.isFinishedProbabilitySet(p));
+            assert(estimate.isDoneProbabilitySet(p));
             
-            if (estimate.getFinishedProbability(p) < 0.9f) {
+            if (estimate.getDoneProbability(p) < 0.9f) {
                 assert(estimate.getTouchedCounter(p) > 0) : String.format("TOUCHED[%d]: %d", p, estimate.getTouchedCounter(p)); 
                 assert(MathUtil.greaterThan(estimate.getWriteProbability(p), 0.0f, 0.01f)) : String.format("WRITE[%d]: %f", p, estimate.getWriteProbability(p));
-            } else if (MathUtil.equals(estimate.getFinishedProbability(p), 0.01f, 0.01f)) {
+            } else if (MathUtil.equals(estimate.getDoneProbability(p), 0.01f, 0.01f)) {
                 assertEquals(0, estimate.getTouchedCounter(p));
                 assertEquals(0.0f, estimate.getWriteProbability(p), MarkovGraph.PROBABILITY_EPSILON);
             }
         } // FOR
-        assert(estimate.isSinglePartitionProbabilitySet());
+        assert(estimate.isSingleSitedProbabilitySet());
         assert(estimate.isAbortProbabilitySet());
-        assert(estimate.getSinglePartitionProbability() < 1.0f);
+        assert(estimate.getSingleSitedProbability() < 1.0f);
     }
     
     /**

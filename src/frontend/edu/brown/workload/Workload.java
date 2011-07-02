@@ -668,7 +668,7 @@ public class Workload implements WorkloadTrace, Iterable<AbstractTraceElement<? 
     public void load(String input_path, Database catalog_db, Filter filter) throws Exception {
         if (debug.get()) LOG.debug("Reading workload trace from file '" + input_path + "'");
         this.input_path = new File(input_path);
-
+        long start = System.currentTimeMillis();
         
         // HACK: Throw out traces unless they have the procedures that we're looking for
         Pattern temp_pattern = null;
@@ -715,7 +715,10 @@ public class Workload implements WorkloadTrace, Iterable<AbstractTraceElement<? 
         if (debug.get()) LOG.debug(String.format("Loading workload trace using %d LoadThreads", rt.load_threads.size())); 
         ThreadUtil.runGlobalPool(all_runnables);
         this.validate();
-        LOG.info("Loaded in " + this.xact_trace.size() + " txns with " + counters[1].get() + " queries from '" + this.input_path.getName() + "'");
+        
+        long stop = System.currentTimeMillis();
+        LOG.info(String.format("Loaded in %d txns with %d queries from '%s' in %.1f sec using %d threads",
+                               this.xact_trace.size(), counters[1].get(), this.input_path.getName(), (stop - start) / 1000d, num_threads));
         return;
     }
     

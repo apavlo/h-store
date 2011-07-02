@@ -263,6 +263,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
 
     /** List of local partitions at this HStoreSite */
     private final List<Integer> local_partitions = new ArrayList<Integer>();
+    private final int num_local_partitions;
 
     
     /** Request counter **/
@@ -346,6 +347,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
             this.txnid_managers[partition] = new TransactionIdManager(partition);
             this.local_partitions.add(partition);
         } // FOR
+        this.num_local_partitions = this.local_partitions.size();
         
         this.messenger = new HStoreMessenger(this);
         this.processor = new ExecutionSitePostProcessor(this);
@@ -862,14 +864,14 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
             } catch (Exception ex) {
                 throw new RuntimeException(ex);
             }
-            
         }
         // If we don't have a partition to send this transaction to, then we will just pick
         // one our partitions at random. This can happen if we're forcing txns to execute locally
         // or if there are no input parameters <-- this should be in the paper!!!
         if (base_partition == -1) {
-            if (t) LOG.trace(String.format("Selecting a random local partition to execute %s request [force_local=%s]", request.getProcName(), hstore_conf.site.exec_force_localexecution));
-            base_partition = CollectionUtil.getRandomValue(this.local_partitions);
+            if (t) LOG.trace(String.format("Selecting a random local partition to execute %s request [force_local=%s]",
+                                           request.getProcName(), hstore_conf.site.exec_force_localexecution));
+            base_partition = this.local_partitions.get((int)(Math.abs(request.getClientHandle()) % this.num_local_partitions));
         }
         
         if (d) LOG.debug(String.format("%s Invocation [handle=%d, partition=%d]", request.getProcName(), request.getClientHandle(), base_partition));
@@ -1139,7 +1141,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
             if (orig_txn_id == null && s != null && s.getInitialEstimate() != null) {
                 MarkovEstimate est = s.getInitialEstimate();
                 assert(est != null);
-                Set<Integer> touched_partitions = est.getTargetPartitions(this.thresholds);
+                Set<Integer> touched_partitions = est.getTouchedPartitions(this.thresholds);
                 for (Integer p : this.all_partitions) {
                     // Make sure that we don't try to mark ourselves as being done at our own partition
                     if (touched_partitions.contains(p) == false && p.intValue() != base_partition) done_partitions.add(p);

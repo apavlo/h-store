@@ -121,6 +121,7 @@ public class CombineWorkloadTraces {
         Collections.sort(workload_files);
         
         int num_workloads = workload_files.size();
+        assert(num_workloads > 0) : "No workloads specified";
         Workload workloads[] = new Workload[num_workloads];
         LOG.info("Combining " + num_workloads + " workloads into '" + output_path + "'");
         for (int i = 0; i < num_workloads; i++) {

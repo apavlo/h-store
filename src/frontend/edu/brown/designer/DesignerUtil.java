@@ -83,7 +83,7 @@ public abstract class DesignerUtil {
             // Now I'm going to use the weights of the outgoing edges in the AccessGraph.
             //
             final List<Double> weights = new ArrayList<Double>(); 
-            new VertexTreeWalker<Vertex>(info.dgraph) {
+            new VertexTreeWalker<Vertex, Edge>(info.dgraph) {
                 @Override
                 protected void callback(Vertex element) {
                     // Get the total weights from this vertex to all of its descendants

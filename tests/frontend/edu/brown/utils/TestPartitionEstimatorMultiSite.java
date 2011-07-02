@@ -1,19 +1,32 @@
 package edu.brown.utils;
 
-import java.util.*;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
 
-import org.voltdb.catalog.*;
+import org.voltdb.catalog.CatalogMap;
+import org.voltdb.catalog.Column;
+import org.voltdb.catalog.Database;
+import org.voltdb.catalog.PlanFragment;
+import org.voltdb.catalog.ProcParameter;
+import org.voltdb.catalog.Procedure;
+import org.voltdb.catalog.Statement;
+import org.voltdb.catalog.Table;
 
 import edu.brown.BaseTestCase;
 import edu.brown.benchmark.tm1.TM1Constants;
 import edu.brown.benchmark.tm1.procedures.GetAccessData;
 import edu.brown.benchmark.tm1.procedures.GetNewDestination;
-import edu.brown.benchmark.tm1.procedures.UpdateLocation;
 import edu.brown.benchmark.tm1.procedures.UpdateSubscriberData;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.catalog.special.MultiColumn;
 import edu.brown.catalog.special.MultiProcParameter;
-import edu.brown.hashing.*;
+import edu.brown.hashing.AbstractHasher;
+import edu.brown.hashing.DefaultHasher;
+import edu.brown.workload.QueryTrace;
+import edu.brown.workload.TransactionTrace;
 
 /**
  * 
@@ -33,6 +46,26 @@ public class TestPartitionEstimatorMultiSite extends BaseTestCase {
             this.addPartitions(num_partitions);
             hasher = new DefaultHasher(catalog_db, CatalogUtil.getNumberOfPartitions(catalog_db));
         }
+    }
+    
+    /**
+     * testGetPartitionsTransactionTrace
+     */
+    public void testGetPartitionsTransactionTrace() throws Exception {
+        Procedure catalog_proc = this.getProcedure(GetNewDestination.class);
+        Object txn_params[] = new Object[] { 1l, 4l, 0l, 5l };
+        
+        Statement catalog_stmt = this.getStatement(catalog_proc, "GetData");
+        Object query_params[] = new Object[] { 1l, 1l, 4l, 0l, 5l };
+        
+        TransactionTrace txn_trace = new TransactionTrace(1001l, catalog_proc, txn_params);
+        QueryTrace query_trace = new QueryTrace(catalog_stmt, query_params, 0);
+        txn_trace.addQuery(query_trace);
+        txn_trace.stop();
+        
+        Collection<Integer> partitions = p_estimator.getAllPartitions(txn_trace);
+        assertNotNull(partitions);
+        assertEquals(partitions.toString(), 1, partitions.size());
     }
     
     /**

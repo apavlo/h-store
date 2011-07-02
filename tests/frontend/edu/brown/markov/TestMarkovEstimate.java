@@ -41,18 +41,18 @@ public class TestMarkovEstimate extends BaseTestCase {
         // Initialize
         // This is based on an actual estimate generated from a benchmark run
         for (int p = 0, cnt = est.getNumPartitions(); p < cnt; p++) {
-            est.setReadOnlyPartitionProbability(p, 1.0f);
+            est.setReadOnlyProbability(p, 1.0f);
             if (p == BASE_PARTITION) {
-                est.setWritePartitionProbability(p, 0.08f);
-                est.setFinishPartitionProbability(p, 0.0f);
+                est.setWriteProbability(p, 0.08f);
+                est.setDoneProbability(p, 0.0f);
                 est.incrementTouchedCounter(p);
             } else {
-                est.setWritePartitionProbability(p, 0.0f);
-                est.setFinishPartitionProbability(p, 1.0f);
+                est.setWriteProbability(p, 0.0f);
+                est.setDoneProbability(p, 1.0f);
             }
         } // FOR
         est.setConfidenceProbability(0.92f);
-        est.setSinglePartitionProbability(1.0f);
+        est.setSingleSitedProbability(1.0f);
         est.setAbortProbability(0.0f);
         assert(this.est.isValid());
 //        System.err.println(est);

@@ -330,7 +330,7 @@ public abstract class AbstractPartitioner {
             if (debug) LOG.debug("Examining edges for candidate root '" + root.getCatalogItem().getName() + "'");
             // From each candidate root, traverse the graph in breadth first order based on
             // the edge weights in the AccessGraph
-            new VertexTreeWalker<Vertex>(info.dgraph, VertexTreeWalker.TraverseOrder.BREADTH) {
+            new VertexTreeWalker<Vertex, Edge>(info.dgraph, VertexTreeWalker.TraverseOrder.BREADTH) {
                 @Override
                 protected void populate_children(VertexTreeWalker.Children<Vertex> children, Vertex element) {
                     // For the current element, look at all of its children and count up the total
@@ -383,7 +383,7 @@ public abstract class AbstractPartitioner {
         for (Vertex root : info.dgraph.getRoots()) {
             if (trace) LOG.trace("Creating table visit order starting from root " + root);
             
-            new VertexTreeWalker<Vertex>(info.dgraph, VertexTreeWalker.TraverseOrder.BREADTH) {
+            new VertexTreeWalker<Vertex, Edge>(info.dgraph, VertexTreeWalker.TraverseOrder.BREADTH) {
                 protected void callback(Vertex element) {
                     Table catalog_tbl = element.getCatalogItem();
                     assert(catalog_tbl != null);

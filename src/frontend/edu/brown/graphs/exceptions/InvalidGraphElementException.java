@@ -12,7 +12,7 @@ public class InvalidGraphElementException extends Exception {
     private final AbstractGraphElement element;
     
     public InvalidGraphElementException(IGraph<? extends AbstractVertex, ? extends AbstractEdge> graph, AbstractGraphElement element, String message) {
-        super((element instanceof AbstractEdge ?    String.format("EDGE[%s]", ((AbstractEdge)element).getToStringPath(graph)) :
+        super((element instanceof AbstractEdge ?    String.format("EDGE[%s]", ((AbstractEdge)element).toStringPath(graph)) :
               (element instanceof AbstractVertex) ? String.format("VERTEX[%s]", element.toString()) :
                                                     String.format("????[%s]", element.toString()))
               + " " + message);

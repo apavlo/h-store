@@ -237,7 +237,7 @@ public abstract class AbstractTableStatisticsGenerator {
         
         // Now traverse the DependencyGraph and generate the rest of the tables
         for (Vertex root : dgraph.getRoots()) {
-            new VertexTreeWalker<Vertex>(dgraph, TraverseOrder.LONGEST_PATH) {
+            new VertexTreeWalker<Vertex, Edge>(dgraph, TraverseOrder.LONGEST_PATH) {
                 protected boolean hasVisited(Vertex element) {
                     return (super.hasVisited(element) || stats.containsKey(element.getCatalogItem()));
                 };

@@ -232,7 +232,7 @@ public class TestVertex extends BaseTestCase {
         assertEquals(0.0f, v.getAbortProbability());
         assertEquals(0.0f, v.getSingleSitedProbability());
         for (int i = 0; i < NUM_PARTITIONS; i++) {
-            assertEquals(1.0f, v.getFinishProbability(i));
+            assertEquals(1.0f, v.getDoneProbability(i));
             assertEquals(0.0f, v.getWriteProbability(i));
             assertEquals(0.0f, v.getReadOnlyProbability(i));
         } // FOR

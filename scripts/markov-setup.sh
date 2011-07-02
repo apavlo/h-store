@@ -1,4 +1,4 @@
-#!/bin/bash -x
+#!/bin/bash
 
 BENCHMARKS=( \
     "tm1" \
@@ -14,7 +14,7 @@ PARTITIONS=( \
     64 \
 #     128 \
 )
-HEAP_SIZE=6144
+HEAP_SIZE=8000
 MAX_THREADS=`tools/getcpus.py`
 MAKE_GLOBAL=true
 CALCULATE_COST=true
@@ -27,6 +27,7 @@ WORKLOAD_TEST_SIZE=50000
 WORKLOAD_TEST_OFFSET=0
 WORKLOAD_TEST_MULTIPLIER=500
 MARKOV_FILES_DIR=files/markovs/vldb-june2011
+MARKOV_THRESHOLDS=0.6
 
 TM1_MIX="DeleteCallForwarding:2,GetAccessData:35,GetNewDestination:10,GetSubscriberData:35,InsertCallForwarding:2,UpdateLocation:14,UpdateSubscriberData:2"
 TPCE_MIX="BrokerVolume:5,CustomerPosition:13,MarketFeed:1,MarketWatch:18,SecurityDetail:14,TradeLookup:8,TradeOrder:10,TradeResult:10,TradeStatus:19,TradeUpdate:2,DataMaintenance:1,TradeCleanup:1"
@@ -49,7 +50,7 @@ for arg in $@; do
         echo "param_value: $param_value"
         exit 1
     fi
-    eval $param_key="$param_value"
+    eval $param_key=\("$param_value"\)
 done
 
 for BENCHMARK in ${BENCHMARKS[@]}; do
@@ -68,6 +69,7 @@ for BENCHMARK in ${BENCHMARKS[@]}; do
         WORKLOAD_MIX=$AUCTIONMARK_MIX
     elif [ "$BENCHMARK" = "tm1" ]; then
         WORKLOAD_MIX=$TM1_MIX
+        BUILD_WORKLOAD="tm1.large"
     fi
     if [ -n "$TARGET" -a "$TARGET" != $BENCHMARK ]; then
         continue
@@ -79,7 +81,8 @@ for BENCHMARK in ${BENCHMARKS[@]}; do
     fi
         
     for NUM_PARTITIONS in ${PARTITIONS[@]}; do
-        ant catalog-fix catalog-info \
+        echo "$BENCHMARK - $NUM_PARTITIONS Partitions / ${PARTITIONS[@]}"
+        ant catalog-fix \
             -Dproject=$BENCHMARK \
             -Dnumhosts=$NUM_PARTITIONS \
             -Dnumsites=1 \
@@ -130,6 +133,7 @@ for BENCHMARK in ${BENCHMARKS[@]}; do
                     -Dlimit=$WORKLOAD_TEST_SIZE \
                     -Dmultiplier=$WORKLOAD_TEST_MULTIPLIER \
                     -Dinclude=$WORKLOAD_MIX \
+                    -Dmarkov.thresholds.value=$MARKOV_THRESHOLDS \
                     -Dmarkov=$MARKOV_FILE|| exit
             fi
         done # GLOBAL
