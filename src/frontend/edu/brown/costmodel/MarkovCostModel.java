@@ -40,7 +40,6 @@ import edu.brown.utils.ProfileMeasurement;
 import edu.brown.utils.StringUtil;
 import edu.brown.utils.ThreadUtil;
 import edu.brown.utils.LoggerUtil.LoggerBoolean;
-import edu.brown.utils.ProfileMeasurement.Type;
 import edu.brown.workload.TransactionTrace;
 import edu.brown.workload.Workload;
 import edu.brown.workload.Workload.Filter;
@@ -786,7 +785,7 @@ public class MarkovCostModel extends AbstractCostModel {
         final ProfileMeasurement profilers[] = new ProfileMeasurement[num_threads];
         final LinkedBlockingDeque<Pair<Integer, TransactionTrace>> queues[] = (LinkedBlockingDeque<Pair<Integer, TransactionTrace>>[])new LinkedBlockingDeque<?>[num_threads];
         for (int i = 0; i < num_threads; i++) {
-            profilers[i] = new ProfileMeasurement(Type.ESTIMATION);
+            profilers[i] = new ProfileMeasurement("ESTIMATION");
             queues[i] = new LinkedBlockingDeque<Pair<Integer, TransactionTrace>>();
         } // FOR
         LOG.info(String.format("Estimating the accuracy of the MarkovGraphs using %d transactions [threads=%d]", args.workload.getTransactionCount(), num_threads));
@@ -902,7 +901,7 @@ public class MarkovCostModel extends AbstractCostModel {
         fastpath_h.setDebugLabels(debugLabels);
         Histogram<Procedure> fullpath_h = new Histogram<Procedure>();
         fullpath_h.setDebugLabels(debugLabels);
-        ProfileMeasurement total_time = new ProfileMeasurement(Type.ESTIMATION);
+        ProfileMeasurement total_time = new ProfileMeasurement("ESTIMATION");
         
         for (int i = 0; i < num_threads; i++) {
             MarkovCostModel mc = costmodels[i];
