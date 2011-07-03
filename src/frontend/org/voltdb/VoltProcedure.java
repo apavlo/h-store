@@ -517,21 +517,19 @@ public abstract class VoltProcedure implements Poolable {
             if (t) LOG.trace("Invoking VoltProcedure.call for txn #" + current_txn_id);
             response = this.call(); // Bombs away!
             assert(response != null);
-            if (hstore_conf.site.txn_profiling) this.m_localTxnState.profiler.finish_time.start();
 
             // Notify anybody who cares that we're finished (used in testing)
             if (t) LOG.trace("Notifying observers that txn #" + current_txn_id + " is finished");
             this.observable.notifyObservers(response);
             
-        } catch (AssertionError ex) {
+        // VoltProcedure.call() should handle anything from the transaction
+        // If we get anything out here then that's bad news
+        } catch (Throwable ex) {
             if (this.executor.isShuttingDown() == false) {
                 LOG.fatal("Unexpected error while executing " + m_localTxnState, ex);
                 LOG.fatal("LocalTransactionState Dump:\n" + m_localTxnState.debug());
                 this.executor.crash(ex);
             }
-        } catch (Exception ex) {
-            LOG.fatal("Unexpected error while executing txn #" + current_txn_id + " [" + this.procedure_name + "]", ex);
-            this.executor.crash(ex);
         }
         return (response);
     }
@@ -582,7 +580,7 @@ public abstract class VoltProcedure implements Poolable {
             this.m_workloadXactHandle = ProcedureProfiler.workloadTrace.startTransaction(this.txn_id, catalog_proc, this.procParams);
         }
 
-        if (hstore_conf.site.txn_profiling) this.m_localTxnState.profiler.java_time.start();
+        if (hstore_conf.site.txn_profiling) this.m_localTxnState.profiler.startExecJava();
         try {
             if (t) LOG.trace(String.format("Invoking txn #%d [procMethod=%s, class=%s, partition=%d]",
                                            this.txn_id, this.procedure_name, getClass().getSimpleName(), this.base_partition));
@@ -670,12 +668,7 @@ public abstract class VoltProcedure implements Poolable {
             LOG.fatal(e);
             System.exit(1);
         } finally {
-            if (hstore_conf.site.txn_profiling) {
-                long time = ProfileMeasurement.getTime();
-                if (this.m_localTxnState.profiler.java_time.isStarted()) this.m_localTxnState.profiler.java_time.stop(time);
-                if (this.m_localTxnState.profiler.coord_time.isStarted()) this.m_localTxnState.profiler.coord_time.stop(time);
-                if (this.m_localTxnState.profiler.planner_time.isStarted()) this.m_localTxnState.profiler.planner_time.stop(time);
-            }
+            if (hstore_conf.site.txn_profiling) this.m_localTxnState.profiler.startFinish();
         }
 
         // Workload Trace - Stop the transaction trace record.
@@ -999,7 +992,10 @@ public abstract class VoltProcedure implements Poolable {
         assert(batchArgs.length > 0);
         if (batchSize == 0) return (EMPTY_RESULT);
         
-        if (hstore_conf.site.txn_profiling) ProfileMeasurement.swap(this.m_localTxnState.profiler.java_time, this.m_localTxnState.profiler.planner_time);
+        if (hstore_conf.site.txn_profiling) {
+            this.m_localTxnState.profiler.stopExecJava();
+            this.m_localTxnState.profiler.startExecPlanning();
+        }
 
 
         /*if (lastBatchNeedsRollback) {
@@ -1033,14 +1029,15 @@ public abstract class VoltProcedure implements Poolable {
         this.plan = this.planner.plan(this.txn_id, this.client_handle, this.base_partition, params, this.predict_singlepartition);
         assert(this.plan != null);
         if (d) LOG.debug("BatchPlan for txn #" + this.txn_id + ":\n" + plan.toString());
+        if (hstore_conf.site.txn_profiling) this.m_localTxnState.profiler.stopExecPlanning();
         
         // Tell the TransactionEstimator that we're about to execute these mofos
-        if (hstore_conf.site.txn_profiling) ProfileMeasurement.swap(this.m_localTxnState.profiler.planner_time, this.m_localTxnState.profiler.estimator_time);
         TransactionEstimator.State t_state = this.m_localTxnState.getEstimatorState();
         if (t_state != null) {
+            if (hstore_conf.site.txn_profiling) this.m_localTxnState.profiler.startExecEstimation();
             this.t_estimator.executeQueries(t_state, this.planner.getStatements(), this.plan.getStatementPartitions());
+            if (hstore_conf.site.txn_profiling) this.m_localTxnState.profiler.stopExecEstimation();
         }
-        if (hstore_conf.site.txn_profiling) this.m_localTxnState.profiler.estimator_time.stop();
 
         // Check whether our plan was caused a mispredict
         // Doing it this way allows us to update the TransactionEstimator before we abort the txn
@@ -1141,7 +1138,7 @@ public abstract class VoltProcedure implements Poolable {
         // It will dispose of it when the transaction commits/aborts
         this.m_currentTxnState.addFinishedBatchPlan(this.plan);
         
-        if (hstore_conf.site.txn_profiling) this.m_localTxnState.profiler.java_time.start();
+        if (hstore_conf.site.txn_profiling) this.m_localTxnState.profiler.startExecJava();
         
         return (results);
     }

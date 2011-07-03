@@ -1,5 +1,6 @@
 package edu.mit.hstore;
 
+import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -22,7 +23,6 @@ import org.voltdb.BatchPlanner;
 import org.voltdb.ExecutionSite;
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Procedure;
-import org.voltdb.utils.Pair;
 
 import edu.brown.markov.TransactionEstimator;
 import edu.brown.statistics.Histogram;
@@ -86,8 +86,10 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
     /**
      * Maintain a set of tuples for the transaction profile times
      */
-    private final Map<Procedure, LinkedBlockingDeque<long[]>> proc_profiles = new TreeMap<Procedure, LinkedBlockingDeque<long[]>>();
-    private final Map<Procedure, long[]> profile_proc_totals = Collections.synchronizedSortedMap(new TreeMap<Procedure, long[]>());
+    private final Map<Procedure, LinkedBlockingDeque<long[]>> txn_profile_queues = new TreeMap<Procedure, LinkedBlockingDeque<long[]>>();
+    private final Map<Procedure, long[]> txn_profile_totals = Collections.synchronizedSortedMap(new TreeMap<Procedure, long[]>());
+    private TableUtil.Format txn_profile_format;
+    private String txn_profiler_header[];
     
     final Map<String, Object> m_pool = new ListOrderedMap<String, Object>();
     final Map<String, Object> header = new ListOrderedMap<String, Object>();
@@ -170,6 +172,17 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
         if (hstore_conf.site.txn_profiling) {
             String csv = this.txnProfileCSV();
             if (csv != null) System.out.println(csv);
+        }
+        
+        for (ExecutionSite es : this.executors.values()) {
+            TransactionEstimator te = es.getTransactionEstimator();
+            ProfileMeasurement pm = te.CONSUME;
+            System.out.println(String.format("[%02d] CONSUME %.2fms total / %.2fms avg / %d calls",
+                                              es.getPartitionId(), pm.getTotalThinkTimeMS(), pm.getAverageThinkTimeMS(), pm.getInvocations()));
+            pm = te.CACHE;
+            System.out.println(String.format("     CACHE %.2fms total / %.2fms avg / %d calls",
+                                             pm.getTotalThinkTimeMS(), pm.getAverageThinkTimeMS(), pm.getInvocations()));
+            System.out.println(String.format("     ATTEMPTS %d / SUCCESS %d", te.batch_cache_attempts.get(), te.batch_cache_success.get())); 
         }
         if (this.self != null) this.self.interrupt();
     }
@@ -346,15 +359,43 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
      * @param catalog_db
      */
     private void initTxnProfileInfo(Database catalog_db) {
+        // COLUMN DELIMITERS
+        String last_prefix = null;
+        String col_delimiters[] = new String[TransactionProfile.PROFILE_FIELDS.length + 2];
+        int col_idx = 0;
+        for (Field f : TransactionProfile.PROFILE_FIELDS) {
+            String prefix = f.getName().split("_")[1];
+            assert(prefix.isEmpty() == false);
+            if (last_prefix != null && col_idx > 0 && prefix.equals(last_prefix) == false) {
+                col_delimiters[col_idx+1] = " | ";        
+            }
+            col_idx++;
+            last_prefix = prefix;
+        } // FOR
+        this.txn_profile_format = new TableUtil.Format("   ", col_delimiters, null, true, false, true, false, false, false, true, true, "-");
+        
+        // TABLE HEADER
+        int idx = 0;
+        this.txn_profiler_header = new String[TransactionProfile.PROFILE_FIELDS.length + 2];
+        this.txn_profiler_header[idx++] = "";
+        this.txn_profiler_header[idx++] = "txns";
+        for (int i = 0; i < TransactionProfile.PROFILE_FIELDS.length; i++) {
+            String name = TransactionProfile.PROFILE_FIELDS[i].getName()
+                                .replace("pm_", "")
+                                .replace("_total", "");
+            this.txn_profiler_header[idx++] = name;
+        } // FOR
+        
+        // PROCEDURE TOTALS
         for (Procedure catalog_proc : catalog_db.getProcedures()) {
             if (catalog_proc.getSystemproc()) continue;
-            this.proc_profiles.put(catalog_proc, new LinkedBlockingDeque<long[]>());
+            this.txn_profile_queues.put(catalog_proc, new LinkedBlockingDeque<long[]>());
             
             long totals[] = new long[TransactionProfile.PROFILE_FIELDS.length + 1];
             for (int i = 0; i < totals.length; i++) {
                 totals[i] = 0;
             } // FOR
-            this.profile_proc_totals.put(catalog_proc, totals);
+            this.txn_profile_totals.put(catalog_proc, totals);
         } // FOR
     }
     
@@ -363,21 +404,21 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
      * @param tp
      */
     public void addTxnProfile(Procedure catalog_proc, TransactionProfile tp) {
-        if (tp.total_time.isStopped() == false) return;
+        assert(catalog_proc != null);
+        assert(tp.isStopped());
         if (trace.get()) LOG.info("Calculating TransactionProfile information");
 
         long tuple[] = tp.getTuple();
         assert(tuple != null);
-        assert(catalog_proc != null);
         if (trace.get()) LOG.trace(String.format("Appending TransactionProfile: %s", tp, Arrays.toString(tuple)));
-        this.proc_profiles.get(catalog_proc).offer(tuple);
+        this.txn_profile_queues.get(catalog_proc).offer(tuple);
     }
     
     private void calculateTxnProfileTotals(Procedure catalog_proc) {
-        long totals[] = this.profile_proc_totals.get(catalog_proc);
+        long totals[] = this.txn_profile_totals.get(catalog_proc);
         
         long tuple[] = null;
-        LinkedBlockingDeque<long[]> queue = this.proc_profiles.get(catalog_proc); 
+        LinkedBlockingDeque<long[]> queue = this.txn_profile_queues.get(catalog_proc); 
         while ((tuple = queue.poll()) != null) {
             totals[0]++;
             for (int i = 0, cnt = tuple.length; i < cnt; i++) {
@@ -391,29 +432,18 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
      * TODO: This should be broken out in a separate component that stores the data
      *       down in the EE. That way we can extract it in a variety of ways
      * 
-     * @param dump_csv
      * @return
      */
-    private Pair<String[], Object[][]> generateTxnProfileSnapshot() {
-        
-        // TABLE HEADER
-        int idx = 0;
-        String header[] = new String[TransactionProfile.PROFILE_FIELDS.length + 2];
-        header[idx++] = "";
-        header[idx++] = "txns";
-        for (int i = 0; i < TransactionProfile.PROFILE_FIELDS.length; i++) {
-            header[idx++] = TransactionProfile.PROFILE_FIELDS[i].getName().replace("_time", "");
-        } // FOR
-        
+    private Object[][] generateTxnProfileSnapshot() {
         // TABLE ROWS
         List<Object[]> rows = new ArrayList<Object[]>(); 
-        for (Entry<Procedure, long[]> e : this.profile_proc_totals.entrySet()) {
+        for (Entry<Procedure, long[]> e : this.txn_profile_totals.entrySet()) {
             this.calculateTxnProfileTotals(e.getKey());
             long totals[] = e.getValue();
             if (totals[0] == 0) continue;
 
             int col_idx = 0;
-            Object row[] = new String[header.length];
+            Object row[] = new String[this.txn_profiler_header.length];
             row[col_idx++] = e.getKey().getName();
             
             for (int i = 0; i < totals.length; i++) {
@@ -429,41 +459,31 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
             rows.add(row);
         } // FOR
         if (rows.isEmpty()) return (null);
-        Object rows_arr[][] = rows.toArray(new String[rows.size()][header.length]);
+        Object rows_arr[][] = rows.toArray(new String[rows.size()][this.txn_profiler_header.length]);
         assert(rows_arr.length == rows.size());
-        
-        return (Pair.of(header, rows_arr));
+        return (rows_arr);
     }
     
     public Map<String, String> txnProfileInfo() {
-        Pair<String[], Object[][]> pair = this.generateTxnProfileSnapshot();
-        if (pair == null) return (null);
-        String header[] = pair.getFirst();
-        Object rows[][] = pair.getSecond();
-
-        String col_delimiters[] = new String[header.length];
-        col_delimiters[2] = " | ";
-        
-        TableUtil.Format f = new TableUtil.Format("   ", col_delimiters, null, true, false, true, false, false, false, true, true, "-");
-        return (TableUtil.tableMap(f, header, rows));
+        Object rows[][] = this.generateTxnProfileSnapshot();
+        if (rows == null) return (null);
+        return (TableUtil.tableMap(this.txn_profile_format, this.txn_profiler_header, rows));
     }
     
     public String txnProfileCSV() {
-        Pair<String[], Object[][]> pair = this.generateTxnProfileSnapshot();
-        if (pair == null) return (null);
-        String header[] = pair.getFirst();
-        Object rows[][] = pair.getSecond();
+        Object rows[][] = this.generateTxnProfileSnapshot();
+        if (rows == null) return (null);
         
         if (debug.get()) {
             for (int i = 0; i < rows.length; i++) {
-                if (i == 0) LOG.debug("HEADER: " + Arrays.toString(header));
+                if (i == 0) LOG.debug("HEADER: " + Arrays.toString(this.txn_profiler_header));
                 LOG.debug("ROW[" + i + "] " + Arrays.toString(rows[i]));
             } // FOR
         }
         TableUtil.Format f = TableUtil.defaultCSVFormat().clone();
         f.replace_null_cells = 0;
         f.prune_null_rows = true;
-        return (TableUtil.table(f, header, rows));
+        return (TableUtil.table(f, this.txn_profiler_header, rows));
     }
     
     // ----------------------------------------------------------------------------

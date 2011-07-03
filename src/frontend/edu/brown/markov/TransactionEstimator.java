@@ -20,14 +20,17 @@ import org.apache.log4j.Logger;
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Statement;
+import org.voltdb.utils.Pair;
 
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.correlations.ParameterCorrelations;
 import edu.brown.graphs.GraphvizExport;
+import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.CountingPoolableObjectFactory;
 import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.PartitionEstimator;
 import edu.brown.utils.Poolable;
+import edu.brown.utils.ProfileMeasurement;
 import edu.brown.utils.StringUtil;
 import edu.brown.utils.LoggerUtil.LoggerBoolean;
 import edu.brown.workload.QueryTrace;
@@ -107,7 +110,8 @@ public class TransactionEstimator {
         private int num_estimates;
         
         private transient Vertex current;
-
+        private transient final Set<Integer> temp_touched_partitions = new HashSet<Integer>();
+        
         /**
          * State Factory
          */
@@ -115,7 +119,7 @@ public class TransactionEstimator {
             private int num_partitions;
             
             public Factory(int num_partitions) {
-                super(HStoreConf.singleton().site.txn_profiling);
+                super(HStoreConf.singleton().site.pool_profiling);
                 this.num_partitions = num_partitions;
             }
             
@@ -542,29 +546,13 @@ public class TransactionEstimator {
         return (state);
     }
 
+    public final AtomicInteger batch_cache_attempts = new AtomicInteger(0);
+    public final AtomicInteger batch_cache_success = new AtomicInteger(0);
+    public final ProfileMeasurement CACHE = new ProfileMeasurement("CACHE");
+    
     /**
      * Takes a series of queries and executes them in order given the partition
      * information. Provides an estimate of where the transaction might go next.
-     * @param txn_id
-     * @param catalog_stmts
-     * @param partitions
-     * @return
-     */
-    public MarkovEstimate executeQueries(long txn_id, Statement catalog_stmts[], Set<Integer> partitions[]) {
-        assert (catalog_stmts.length == partitions.length);       
-        State state = this.txn_states.get(txn_id);
-        if (state == null) {
-            if (d) {
-                String msg = "No state information exists for txn #" + txn_id;
-                LOG.debug(msg);
-            }
-            return (null);
-        }
-        return (this.executeQueries(state, catalog_stmts, partitions));
-    }
-    
-    /**
-     * 
      * @param state
      * @param catalog_stmts
      * @param partitions
@@ -572,14 +560,70 @@ public class TransactionEstimator {
      */
     public MarkovEstimate executeQueries(State state, Statement catalog_stmts[], Set<Integer> partitions[]) {
         if (d) LOG.debug(String.format("Processing %d queries for txn #%d", catalog_stmts.length, state.txn_id));
+        int batch_size = catalog_stmts.length;
+        MarkovGraph markov = state.getMarkovGraph();
+            
+        Vertex current = state.current;
+        Vertex next_v = null;
+        Edge next_e = null;
+        Statement last_stmt = null;
+        Set<Integer> last_partitions = null;
+        Set<Integer> temp_partitions = null;
+        int stmt_idxs[] = null;
+        boolean attempt_cache_lookup = false;
+
+        if (batch_size >= hstore_conf.site.markov_batch_caching_min) {
+            CACHE.start();
+            assert(current != null);
+            if (d) LOG.debug("Attempting cache look-up for last statement in batch: " + Arrays.toString(catalog_stmts));
+            attempt_cache_lookup = true;
+            batch_cache_attempts.incrementAndGet();
+            
+            temp_partitions = state.temp_touched_partitions;
+            stmt_idxs = new int[batch_size];
+            for (int i = 0; i < batch_size; i++) {
+                last_stmt = catalog_stmts[i];
+                last_partitions = partitions[batch_size - 1];
+                stmt_idxs[i] = state.updateQueryInstanceCount(last_stmt);
+                if (i+1 != batch_size) temp_partitions.addAll(last_partitions);
+            } // FOR
+            Pair<Edge, Vertex> pair = markov.getCachedBatchEnd(current, last_stmt, stmt_idxs[batch_size-1], last_partitions, temp_partitions);
+            
+            if (pair != null) {
+                next_e = pair.getFirst();
+                assert(next_e != null);
+                next_v = pair.getSecond();
+                assert(next_v != null);
+                if (d) LOG.debug(String.format("Got cached batch end for %s: %s -> %s", markov, current, next_v));
+                
+                // Update the counters and other info for the next vertex and edge
+                next_v.addInstanceTime(state.txn_id, state.getExecutionTimeOffset());
+                
+                // Update the state information
+                state.setCurrent(next_v, next_e);
+                
+                state.touched_partitions.addAll(temp_partitions);
+                state.touched_partitions.addAll(last_partitions);
+                batch_cache_success.incrementAndGet();
+            }
+            CACHE.stop();
+        }
         
         // Roll through the Statements in this batch and move the current vertex
         // for the txn's State handle along the path in the MarkovGraph
-        synchronized (state.getMarkovGraph()) {
-            for (int i = 0; i < catalog_stmts.length; i++) {
-                this.consume(state, catalog_stmts[i], partitions[i]);
+        if (next_v == null) {
+            for (int i = 0; i < batch_size; i++) {
+                int idx = (attempt_cache_lookup ? stmt_idxs[i] : -1);
+                this.consume(state, markov, catalog_stmts[i], partitions[i], idx);
+                if (attempt_cache_lookup == false) state.touched_partitions.addAll(partitions[i]);
             } // FOR
-        } // SYNCH
+            
+            // Update our cache if we tried and failed before
+            if (attempt_cache_lookup) {
+                if (d) LOG.debug(String.format("Updating cache batch end for %s: %s -> %s", markov, current, state.current));
+                markov.addCachedBatchEnd(current, CollectionUtil.getLast(state.actual_path_edges), state.current, last_stmt, stmt_idxs[batch_size-1], last_partitions, temp_partitions);
+            }
+        }
         
         MarkovEstimate estimate = state.createNextEstimate(state.current);
         assert(estimate != null);
@@ -588,10 +632,9 @@ public class TransactionEstimator {
         
         // Once the workload shifts we detect it and trigger this method. Recomputes
         // the graph with the data we collected with the current workload method.
-        if (this.enable_recomputes && state.getMarkovGraph().shouldRecompute(this.txn_count.get(), RECOMPUTE_TOLERANCE)) {
-            state.getMarkovGraph().calculateProbabilities();
+        if (this.enable_recomputes && markov.shouldRecompute(this.txn_count.get(), RECOMPUTE_TOLERANCE)) {
+            markov.calculateProbabilities();
         }
-        
         return (estimate);
     }
 
@@ -680,6 +723,8 @@ public class TransactionEstimator {
     // INTERNAL ESTIMATION METHODS
     // ----------------------------------------------------------------------------
 
+    public final ProfileMeasurement CONSUME = new ProfileMeasurement("CONSUME");
+    
     /**
      * Figure out the next vertex that the txn will transition to for the give Statement catalog object
      * and the partitions that it will touch when it is executed. If no vertex exists, we will create
@@ -689,12 +734,11 @@ public class TransactionEstimator {
      * @param catalog_stmt
      * @param partitions
      */
-    protected void consume(State state, Statement catalog_stmt, Collection<Integer> partitions) {
+    private void consume(State state, MarkovGraph markov, Statement catalog_stmt, Collection<Integer> partitions, int queryInstanceIndex) {
+        CONSUME.start();
         // Update the number of times that we have executed this query in the txn
-        int queryInstanceIndex = state.updateQueryInstanceCount(catalog_stmt);
-        
-        MarkovGraph g = state.getMarkovGraph();
-        assert(g != null);
+        if (queryInstanceIndex < 0) queryInstanceIndex = state.updateQueryInstanceCount(catalog_stmt);
+        assert(markov != null);
         
         // Examine all of the vertices that are adjacent to our current vertex
         // and see which vertex we are going to move to next
@@ -704,39 +748,41 @@ public class TransactionEstimator {
         Edge next_e = null;
 
         // Synchronize on the single vertex so that it's more fine-grained than the entire graph
-        Collection<Edge> edges = g.getOutEdges(current); 
-        if (t) LOG.trace("Examining " + edges.size() + " edges from " + current + " for Txn #" + state.txn_id);
-        for (Edge e : edges) {
-            Vertex v = g.getDest(e);
-            if (v.isEqual(catalog_stmt, partitions, state.getTouchedPartitions(), queryInstanceIndex)) {
-                if (t) LOG.trace("Found next vertex " + v + " for Txn #" + state.txn_id);
-                next_v = v;
-                next_e = e;
-                break;
+        synchronized (current) {
+            Collection<Edge> edges = markov.getOutEdges(current); 
+            if (t) LOG.trace("Examining " + edges.size() + " edges from " + current + " for Txn #" + state.txn_id);
+            for (Edge e : edges) {
+                Vertex v = markov.getDest(e);
+                if (v.isEqual(catalog_stmt, partitions, state.touched_partitions, queryInstanceIndex)) {
+                    if (t) LOG.trace("Found next vertex " + v + " for Txn #" + state.txn_id);
+                    next_v = v;
+                    next_e = e;
+                    break;
+                }
+            } // FOR
+        
+            // If we fail to find the next vertex, that means we have to dynamically create a new 
+            // one. The graph is self-managed, so we don't need to worry about whether 
+            // we need to recompute probabilities.
+            if (next_v == null) {
+                next_v = new Vertex(catalog_stmt,
+                                    Vertex.Type.QUERY,
+                                    queryInstanceIndex,
+                                    partitions,
+                                    state.touched_partitions);
+                markov.addVertex(next_v);
+                next_e = markov.addToEdge(current, next_v);
+                if (t) LOG.trace("Created new edge/vertex from " + state.getCurrent() + " for Txn #" + state.txn_id);
             }
-        } // FOR
-    
-        // If we fail to find the next vertex, that means we have to dynamically create a new 
-        // one. The graph is self-managed, so we don't need to worry about whether 
-        // we need to recompute probabilities.
-        if (next_v == null) {
-            next_v = new Vertex(catalog_stmt,
-                                Vertex.Type.QUERY,
-                                queryInstanceIndex,
-                                partitions,
-                                state.getTouchedPartitions());
-            g.addVertex(next_v);
-            next_e = g.addToEdge(current, next_v);
-            if (t) LOG.trace("Created new edge/vertex from " + state.getCurrent() + " for Txn #" + state.txn_id);
-        }
+        } // SYNCH
 
         // Update the counters and other info for the next vertex and edge
         next_v.addInstanceTime(state.txn_id, state.getExecutionTimeOffset());
         
         // Update the state information
         state.setCurrent(next_v, next_e);
-        state.addTouchedPartitions(partitions);
         if (t) LOG.trace("Updated State Information for Txn #" + state.txn_id + ":\n" + state);
+        CONSUME.stop();
     }
 
     // ----------------------------------------------------------------------------
@@ -774,15 +820,18 @@ public class TransactionEstimator {
         return (s);
     }
     
-    private void populateQueryBatch(List<QueryTrace> queries, int base_partition, Statement catalog_stmts[], Set<Integer> partitions[]) throws Exception {
+    private boolean populateQueryBatch(List<QueryTrace> queries, int base_partition, Statement catalog_stmts[], Set<Integer> partitions[]) throws Exception {
         int i = 0;
+        boolean readOnly = true;
         for (QueryTrace query_trace : queries) {
             assert(query_trace != null);
             catalog_stmts[i] = query_trace.getCatalogItem(catalog_db);
             partitions[i] = this.p_estimator.getAllPartitions(query_trace, base_partition);
             assert(partitions[i].isEmpty() == false) : "No partitions for " + query_trace;
+            readOnly = readOnly && catalog_stmts[i].getReadonly();
             i++;
         } // FOR
+        return (readOnly);
     }
 
 }

@@ -360,7 +360,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
     /**
      * Keep track of how much time the ExecutionSite was idle waiting for work to do in its queue
      */
-    private final ProfileMeasurement work_queue_wait = new ProfileMeasurement(ProfileMeasurement.Type.EE_IDLE);
+    private final ProfileMeasurement work_queue_wait = new ProfileMeasurement("EE_IDLE");
     
     // ----------------------------------------------------------------------------
     // Coordinator Callback
@@ -971,7 +971,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
     protected void processInitiateTaskMessage(LocalTransactionState ts, InitiateTaskMessage itask) {
         final long txn_id = ts.getTransactionId();
         final boolean predict_singlePartition = ts.isPredictSinglePartition();
-        if (hstore_conf.site.txn_profiling) ts.profiler.queue_time.stop();
+        if (hstore_conf.site.txn_profiling) ts.profiler.startExec();
         
         ExecutionMode spec_exec = ExecutionMode.COMMIT_ALL;
         boolean release_latch = false;
@@ -981,11 +981,11 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
             // knows about.
             if (predict_singlePartition == false) {
                 assert(this.current_dtxn_blocked.isEmpty()) :
-                    String.format("Overlapping multi-partition transactions at partition %d: Orig[%s] <=> New[%s]",
+                    String.format("Concurrent multi-partition transactions at partition %d: Orig[%s] <=> New[%s]",
                                   this.partitionId, this.current_dtxn, ts);
                 assert(this.current_dtxn == null || this.current_dtxn.isInitialized() == false) :
-                    String.format("Overlapping multi-partition transactions at partition %d: Orig[%s] <=> New[%s]",
-                            this.partitionId, this.current_dtxn, ts);
+                    String.format("Concurrent multi-partition transactions at partition %d: Orig[%s] <=> New[%s]",
+                                   this.partitionId, this.current_dtxn, ts);
                 this.current_dtxn = ts;
                 if (hstore_conf.site.exec_speculative_execution) {
                     this.setExecutionMode(ts.getProcedure().getReadonly() ? ExecutionMode.COMMIT_READONLY : ExecutionMode.COMMIT_NONE, txn_id);
@@ -1268,9 +1268,6 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
                 if (t) LOG.trace(ts + " ->paramData[" + i + "] => " + fds.buffer());
                 try {
                     parameterSets[i] = fds.readObject(ParameterSet.class);
-                } catch (final IOException e) {
-                    LOG.fatal(e);
-                    VoltDB.crashVoltDB();
                 } catch (Exception ex) {
                     LOG.fatal("Failed to deserialize ParameterSet[" + i + "] for FragmentTaskMessage " + fragmentIds[i] + " in " + ts, ex);
                     throw ex;
@@ -1318,9 +1315,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
         // REGULAR FRAGMENTS
         // -------------------------------
         } else {
-            if (local_ts != null && hstore_conf.site.txn_profiling) local_ts.profiler.ee_time.start();
             result = this.executePlanFragments(ts, undoToken, fragmentIdIndex, fragmentIds, parameterSets, output_depIds, input_depIds);
-            if (local_ts != null && hstore_conf.site.txn_profiling) local_ts.profiler.ee_time.stop();
         }
         return (result);
     }
@@ -1393,11 +1388,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
                      ts.getTransactionId(),
                      Arrays.toString(plan.getFragmentIds()), plan.getFragmentCount(), Arrays.toString(plan.getOutputDependencyIds()), Arrays.toString(plan.getInputDependencyIds())));
         }
-
-        if (ts != null && hstore_conf.site.txn_profiling) ts.profiler.ee_time.start();
         DependencySet result = this.executePlanFragments(ts, undoToken, fragmentIdIndex, fragmentIds, parameterSets, output_depIds, input_depIds);
-        if (ts != null && hstore_conf.site.txn_profiling) ts.profiler.ee_time.stop();
-      
         if (t) LOG.trace("Output:\n" + StringUtil.join("\n", result.dependencies));
         
         ts.fastFinishRound();
@@ -1454,6 +1445,9 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
         DependencySet result = null;
         try {
             if (t) LOG.trace(String.format("Executing %d fragments at partition %d for %s", fragmentIdIndex, this.partitionId, ts));
+            if (hstore_conf.site.txn_profiling && ts instanceof LocalTransactionState) {
+                ((LocalTransactionState)ts).profiler.startExecEE();
+            }
             synchronized (this.ee) {
                 result = this.ee.executeQueryPlanFragmentsAndGetDependencySet(
                                 fragmentIds,
@@ -1466,6 +1460,9 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
                                 this.lastCommittedTxnId,
                                 undoToken);
             } // SYNCH
+            if (hstore_conf.site.txn_profiling && ts instanceof LocalTransactionState) {
+                ((LocalTransactionState)ts).profiler.stopExecEE();
+            }
         } catch (RuntimeException ex) {
             LOG.error(String.format("Failed to execute PlanFragments for %s: %s", ts, Arrays.toString(fragmentIds)), ex);
             throw ex;
@@ -1587,10 +1584,10 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
         if (ts != this.current_dtxn) {
             synchronized (this.exec_mode) {
                 assert(this.current_dtxn_blocked.isEmpty()) :
-                    String.format("Overlapping multi-partition transactions at partition %d: Orig[%s] <=> New[%s]",
+                    String.format("Concurrent multi-partition transactions at partition %d: Orig[%s] <=> New[%s]",
                                   this.partitionId, this.current_dtxn, ts);
-                assert(this.current_dtxn == null) :
-                    String.format("Overlapping multi-partition transactions at partition %d: Orig[%s] <=> New[%s]",
+                assert(this.current_dtxn == null || this.current_dtxn.isInitialized() == false) :
+                    String.format("Concurrent multi-partition transactions at partition %d: Orig[%s] <=> New[%s]",
                                   this.partitionId, this.current_dtxn, ts);
                 this.current_dtxn = ts;
                 if (hstore_conf.site.exec_speculative_execution) {
@@ -1890,6 +1887,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
         //  (2) If we know that there are still messages being blocked
         //  (3) If we know that there are still unblocked messages that we need to process
         //  (4) The latch for this round is still greater than zero
+//        if (hstore_conf.site.txn_profiling) ts.profiler.startExecCoordinatorBlocked();
         while (first == true || ts.getBlockedFragmentTaskMessageCount() > 0 || queue.size() > 0 || (latch != null && latch.getCount() > 0)) {
             
             // If this is the not first time through the loop, then poll the queue to get our list of fragments
@@ -2003,6 +2001,8 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
             }
         }
         
+//        if (hstore_conf.site.txn_profiling) ts.profiler.stopExecCoordinatorBlocked();
+        
         // IMPORTANT: Check whether the fragments failed somewhere and we got a response with an error
         // We will rethrow this so that it pops the stack all the way back to VoltProcedure.call()
         // where we can generate a message to the client 
@@ -2042,6 +2042,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
             String.format("Queuing %s when in non-specutative mode [mode=%s, status=%s]",
                           ts, this.exec_mode, cresponse.getStatusName());
         assert(cresponse.getStatus() != ClientResponse.MISPREDICTION) : "Trying to queue mispredicted " + ts;
+        // FIXME if (hstore_conf.site.txn_profiling) ts.profiler.finish_time.stop();
         this.queued_responses.add(Pair.of(ts, cresponse));
         if (d) LOG.debug("Total # of Queued Responses: " + this.queued_responses.size());
     }
@@ -2268,6 +2269,9 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
         while ((p = (hstore_conf.site.exec_queued_response_ee_bypass ? this.queued_responses.pollLast() : this.queued_responses.pollFirst())) != null) {
             LocalTransactionState ts = p.getFirst();
             ClientResponseImpl cr = p.getSecond();
+            // 2011-07-02: I have no idea how this could not be stopped here, but for some reason
+            // I am getting a random error.
+            // FIXME if (hstore_conf.site.txn_profiling && ts.profiler.finish_time.isStopped()) ts.profiler.finish_time.start();
             
             // If the multi-p txn aborted, then we need to abort everything in our queue
             // Change the status to be a MISPREDICT so that they get executed again

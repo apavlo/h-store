@@ -4,44 +4,24 @@ import java.util.Observable;
 
 import org.apache.log4j.Logger;
 
+import edu.brown.utils.LoggerUtil.LoggerBoolean;
+
 /**
  * 
  * @author pavlo
  */
 public class ProfileMeasurement {
     public static final Logger LOG = Logger.getLogger(ProfileMeasurement.class);
-    
-    public enum Type {
-        /** The total amount of time spent for a transactions */
-        TOTAL,
-        /** Initialization time **/
-        INITIALIZATION,
-        /** Blocked time **/
-        BLOCKED,
-        /** Clean-up time **/
-        CLEANUP,
-        /** The time spent waiting in the execution queue **/
-        QUEUE,
-        /** The amount of time spent executing the Java-portion of the stored procedure */
-        JAVA,
-        /** The amount of time spent coordinating the transaction */
-        COORDINATOR,
-        /** The amount of time spent generating the execution plans for the transaction */
-        PLANNER,
-        /** The amount of time spent executing in the plan fragments */
-        EE,
-        /** The amount of time spent estimating what the transaction will do */
-        ESTIMATION,
-        /** The amount of time the EE was idle waiting for work */
-        EE_IDLE,
-        /** Anything else... */
-        MISC;
+    private final static LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private final static LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    static {
+        LoggerUtil.attachObserver(LOG, debug, trace);
     }
-
+    
     /**
      * The profile type
      */
-    private final Type type;
+    private final String type;
     /**
      * Total amount of time spent processsing the profiled seciton (in ms) 
      */
@@ -61,7 +41,7 @@ public class ProfileMeasurement {
      * Constructor
      * @param pmtype
      */
-    public ProfileMeasurement(Type pmtype) {
+    public ProfileMeasurement(String pmtype) {
         this.type = pmtype;
         this.reset();
     }
@@ -70,10 +50,14 @@ public class ProfileMeasurement {
         if (this.think_marker != null) {
             this.reset = true;
         }
-        this.think_marker = null;
         this.think_time = 0;
         this.invocations = 0;
-//        if (type == Type.JAVA) LOG.info(String.format("RESET %s [%d]", this.type, this.hashCode()));
+    }
+    
+    public void clear() {
+        this.think_marker = null;
+        this.invocations = 0;
+        this.think_time = 0;
     }
     
     public void resetOnEvent(EventObservable e) {
@@ -89,7 +73,7 @@ public class ProfileMeasurement {
      * Get the profile type
      * @return
      */
-    public Type getType() {
+    public String getType() {
         return type;
     }
 
@@ -113,7 +97,7 @@ public class ProfileMeasurement {
      * @return
      */
     public double getAverageThinkTime() {
-        return (this.think_time / (double)this.invocations);
+        return (this.invocations > 0 ? this.think_time / (double)this.invocations : 0d);
     }
     /**
      * Get the average think time per invocation in milliseconds
@@ -140,10 +124,10 @@ public class ProfileMeasurement {
      * @return this
      */
 
-    public synchronized ProfileMeasurement start(long time) {
+    public synchronized ProfileMeasurement start(long timestamp) {
         assert(this.think_marker == null) : this.type + " - " + this.hashCode();
-        this.think_marker = time;
-//        if (type == Type.JAVA) LOG.info(String.format("START %s [%d]", this.type, this.hashCode()));
+        if (debug.get()) LOG.debug(String.format("START %s", this));
+        this.think_marker = timestamp;
         this.invocations++;
         return (this);
     }
@@ -165,13 +149,15 @@ public class ProfileMeasurement {
      * We will check to make sure that this handle was started first
      * @return this
      */
-    public synchronized ProfileMeasurement stop(long time) {
+    public synchronized ProfileMeasurement stop(long timestamp) {
         if (this.reset) {
             this.reset = false;
+            this.think_marker = null;
             return (this);
         }
+        if (debug.get()) LOG.debug(String.format("STOP %s", this));
         assert(this.think_marker != null) : this.type + " - " + this.hashCode();
-        long added = (time - this.think_marker);
+        long added = (timestamp - this.think_marker);
         this.think_time += added;
         this.think_marker = null;
 //        if (type == Type.JAVA) LOG.info(String.format("STOP %s [time=%d, id=%d]", this.type, added, this.hashCode()));
@@ -228,9 +214,19 @@ public class ProfileMeasurement {
      * @param to_stop
      */
     public static void stop(ProfileMeasurement...to_stop) {
+        stop(false, to_stop);
+    }
+    
+    /**
+     * Stop multiple ProfileMeasurements with the same timestamp
+     * If ignore_stopped is true, we won't stop ProfileMeasurements that already stopped
+     * @param ignore_stopped
+     * @param to_stop
+     */
+    public static void stop(boolean ignore_stopped, ProfileMeasurement...to_stop) {
         long time = ProfileMeasurement.getTime();
         for (ProfileMeasurement pm : to_stop) {
-            pm.stop(time);
+            if (ignore_stopped == false || (ignore_stopped && pm.isStopped() == false)) pm.stop(time);
         } // FOR
     }
     
@@ -240,14 +236,27 @@ public class ProfileMeasurement {
      * @param to_start the handle to start
      */
     public static void swap(ProfileMeasurement to_stop, ProfileMeasurement to_start) {
-        long time = ProfileMeasurement.getTime();
-        to_stop.stop(time);
-        to_start.start(time);
+        swap(ProfileMeasurement.getTime(), to_stop, to_start);
     }
+    
+    public static void swap(long timestamp, ProfileMeasurement to_stop, ProfileMeasurement to_start) {
+        if (debug.get()) LOG.debug(String.format("SWAP %s -> %s", to_stop, to_start));
+        to_stop.stop(timestamp);
+        to_start.start(timestamp);
+    }
+    
 
     @Override
     public String toString() {
-        return (String.format("%s[total=%d, marker=%s, invocations=%d]",
-                              this.type, this.think_time, this.think_marker, this.invocations));
+        return (this.toString(false));
+    }
+    
+    public String toString(boolean verbose) {
+        if (verbose) {
+            return (String.format("%s[total=%d, marker=%s, invocations=%d]",
+                    this.type, this.think_time, this.think_marker, this.invocations));    
+        } else {
+            return (this.type);
+        }
     }
 }

@@ -419,13 +419,13 @@ public abstract class CatalogType implements Comparable<CatalogType> {
         
         CatalogType other = (CatalogType)obj;
         
+        // Are the fields the same value?
+        if (this.m_num_fields != other.m_num_fields) return (false);
+        
         // Quickly check whether they are at least the same class
         if (this.m_class == null) this.m_class = this.getClass();
         if (other.m_class == null) other.m_class = other.getClass();
         if (this.m_class.equals(other.m_class) == false) return (false);
-
-        // Are the fields the same value?
-        if (this.m_num_fields != other.m_num_fields) return (false);
         
         // SUPER HACK!!!
         // The only thing that we care about matching up correctly by hash code will be database..

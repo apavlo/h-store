@@ -364,6 +364,13 @@ public final class HStoreConf {
         )
         public double markov_path_caching_threshold;
         
+        @ConfigProperty(
+            description="TODO",
+            defaultInt=3,
+            advanced=false
+        )
+        public int markov_batch_caching_min;
+        
         // ----------------------------------------------------------------------------
         // ExecutionSiteHelper
         // ----------------------------------------------------------------------------

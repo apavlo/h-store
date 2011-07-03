@@ -326,7 +326,7 @@ public class Vertex extends AbstractVertex implements MarkovHitTrackable, Estima
                 assert(false) : "Unexpected vertex type " + this.type;
         } // SWITCH
     }
-
+    
     // ----------------------------------------------------------------------------
     // DATA MEMBER METHODS
     // ----------------------------------------------------------------------------
@@ -421,10 +421,10 @@ public class Vertex extends AbstractVertex implements MarkovHitTrackable, Estima
      * @return
      */
     public boolean isEqual(Statement other_stmt, Collection<Integer> other_partitions, Collection<Integer> other_past, int other_queryInstanceIndex, boolean use_past_partitions) {
-        return (other_stmt.equals(this.catalog_item) &&
-                other_queryInstanceIndex == this.counter &&
-                other_partitions.equals(this.partitions) &&
-                (use_past_partitions ? other_past.equals(this.past_partitions) : true));
+        return (other_queryInstanceIndex == this.counter && 
+                other_stmt.equals(this.catalog_item) &&
+                this.partitions.equals(other_partitions) &&
+                (use_past_partitions ? this.past_partitions.equals(other_past) : true));
     }
     
     @Override

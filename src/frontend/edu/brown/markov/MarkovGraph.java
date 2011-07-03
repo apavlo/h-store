@@ -12,13 +12,18 @@ import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import org.apache.commons.collections.map.MultiValueMap;
+import org.apache.commons.collections15.keyvalue.MultiKey;
+import org.apache.commons.collections15.map.MultiKeyMap;
 import org.apache.log4j.Logger;
 import org.json.JSONException;
 import org.json.JSONStringer;
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Statement;
+import org.voltdb.utils.Pair;
 
+import edu.brown.catalog.CatalogKey;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.graphs.AbstractDirectedGraph;
 import edu.brown.graphs.AbstractGraphElement;
@@ -180,8 +185,44 @@ public class MarkovGraph extends AbstractDirectedGraph<Vertex, Edge> implements 
                 this.cache_stmtVertices.get(catalog_stmt).add(v);
             }
         } // FOR
-        
     }
+    
+    /**
+     * For a given vertex, maintain a map to possible future vertices
+     */
+    private final Map<Vertex, ConcurrentHashMap<MultiKey<String>, Pair<Edge, Vertex>>> cache_batchEnd = new HashMap<Vertex, ConcurrentHashMap<MultiKey<String>, Pair<Edge, Vertex>>>(); 
+    
+    public Pair<Edge, Vertex> getCachedBatchEnd(Vertex start, Statement catalog_stmt, int idx, Set<Integer> partitions, Set<Integer> past_partitions) {
+        Map<MultiKey<String>, Pair<Edge, Vertex>> m = cache_batchEnd.get(start);
+        Pair<Edge, Vertex> found = null;
+        if (m != null) {
+            MultiKey<String> cache_key = new MultiKey<String>(CatalogKey.createKey(catalog_stmt),
+                                                              Integer.toString(idx),
+                                                              partitions.toString(),
+                                                              past_partitions.toString());
+            found = m.get(cache_key);
+        }
+        return (found);
+    }
+    
+    public void addCachedBatchEnd(Vertex start, Edge e, Vertex v, Statement catalog_stmt, int idx, Set<Integer> partitions, Set<Integer> past_partitions) {
+        ConcurrentHashMap<MultiKey<String>, Pair<Edge, Vertex>> m = cache_batchEnd.get(start);
+        if (m == null) {
+            synchronized (cache_batchEnd) {
+                m = cache_batchEnd.get(start);
+                if (m == null) {
+                    m = new ConcurrentHashMap<MultiKey<String>, Pair<Edge, Vertex>>();
+                    cache_batchEnd.put(start, m);
+                }
+            } // SYNCH
+        }
+        MultiKey<String> cache_key = new MultiKey<String>(CatalogKey.createKey(catalog_stmt),
+                                                          Integer.toString(idx),
+                                                          partitions.toString(),
+                                                          past_partitions.toString());
+        m.putIfAbsent(cache_key, Pair.of(e, v));
+    }
+
     
     // ----------------------------------------------------------------------------
     // DATA MEMBER METHODS
