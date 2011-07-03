@@ -42,6 +42,7 @@ import java.util.TreeMap;
 import java.util.Vector;
 import java.util.concurrent.ConcurrentHashMap;
 
+
 import org.apache.log4j.Logger;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -66,11 +67,31 @@ import edu.brown.utils.JSONUtil;
 
 public class AuctionMarkBenchmarkProfile implements JSONSerializable {
     protected static final Logger LOG = Logger.getLogger(AuctionMarkBaseClient.class);
-
+    
     public List<Long> user_ids;
 
+	public int low_u_id;
+	public int high_u_id;
+
+	public int getLowerUid() {
+		return low_u_id;
+	}
+
+	public int getHighUid() {
+		return high_u_id;
+	}
+
+	public void setLowerUid(int low_u_id) {
+		this.low_u_id = low_u_id;
+	}
+
+	public void setHighUid(int high_u_id) {
+		this.high_u_id = high_u_id;
+	}
+    
+	/** dwu 7/1: removed USER_IDS, added LOW_U_ID, HIGH_U_ID **/
     public enum Members {
-        SCALE_FACTOR, TABLE_SIZES, ITEM_CATEGORY_HISTOGRAM, USER_IDS, USER_AVAILABLE_ITEMS, USER_WAIT_FOR_PURCHASE_ITEMS, USER_COMPLETE_ITEMS, ITEM_BID_MAP, ITEM_BUYER_MAP, GAG_GAV_MAP, GAG_GAV_HISTOGRAM
+        LOW_U_ID, HIGH_U_ID, SCALE_FACTOR, TABLE_SIZES, ITEM_CATEGORY_HISTOGRAM, USER_AVAILABLE_ITEMS, USER_WAIT_FOR_PURCHASE_ITEMS, USER_COMPLETE_ITEMS, ITEM_BID_MAP, ITEM_BUYER_MAP, GAG_GAV_MAP, GAG_GAV_HISTOGRAM
     };
 
     /**

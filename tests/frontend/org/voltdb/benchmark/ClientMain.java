@@ -394,6 +394,7 @@ public abstract class ClientMain {
                     m_sampler.start();
                 }
                 try {
+                	LOG.info("run in ControlWorker in ClientMain called!");
                     runLoop();
                 }
                 catch (final IOException e) {
@@ -487,7 +488,29 @@ public abstract class ClientMain {
             }
         }
     }
+    
+    private BenchmarkClientFileUploader uploader = null;
 
+
+    /**
+     * Queue a local file to be sent to the client with the given client id. The file will be copied into
+     * the path specified by remote_file. When the client is started it will be passed argument <parameter>=<remote_file>
+     * @param client_id
+     * @param parameter
+     * @param local_file
+     * @param remote_file
+     */
+    public void sendFileToClient(int client_id, String parameter, File local_file, File remote_file) throws IOException {
+        assert(uploader != null);
+        this.uploader.sendFileToClient(client_id, parameter, local_file, remote_file);
+        LOG.info(String.format("Queuing local file '%s' to be sent to client %d as parameter '%s' to remote file '%s'", local_file, client_id, parameter, remote_file));
+    }
+    
+    protected void setBenchmarkClientFileUploader(BenchmarkClientFileUploader uploader) {
+        assert(this.uploader == null);
+        this.uploader = uploader;
+    }
+    
     /**
      * Implemented by derived classes. Loops indefinitely invoking stored
      * procedures. Method never returns and never receives any updates.
@@ -785,13 +808,17 @@ public abstract class ClientMain {
      * @param startImmediately
      *            Whether to start the client thread immediately or not.
      */
-    public static void main(final Class<? extends ClientMain> clientClass,
-        final String args[], final boolean startImmediately) {
+    public static ClientMain main(final Class<? extends ClientMain> clientClass, final String args[], final boolean startImmediately) {
+        return main(clientClass, null, args, startImmediately);
+    }
+        
+    protected static ClientMain main(final Class<? extends ClientMain> clientClass, final BenchmarkClientFileUploader uploader, final String args[], final boolean startImmediately) {
+        ClientMain clientMain = null;
         try {
             final Constructor<? extends ClientMain> constructor =
                 clientClass.getConstructor(new Class<?>[] { new String[0].getClass() });
-            final ClientMain clientMain =
-                constructor.newInstance(new Object[] { args });
+            clientMain = constructor.newInstance(new Object[] { args });
+            if (uploader != null) clientMain.uploader = uploader;
             if (startImmediately) {
                 final ControlWorker worker = clientMain.new ControlWorker();
                 worker.start();
@@ -806,6 +833,7 @@ public abstract class ClientMain {
             e.printStackTrace();
             System.exit(-1);
         }
+        return (clientMain);
     }
 
     // update the client state and start waiting for a message.

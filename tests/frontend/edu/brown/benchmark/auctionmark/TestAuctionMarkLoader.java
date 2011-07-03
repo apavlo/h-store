@@ -26,7 +26,7 @@ public class TestAuctionMarkLoader extends BaseTestCase {
     protected static final String LOADER_ARGS[] = {
         "SCALEFACTOR=" + SCALE_FACTOR, 
         "HOST=localhost",
-        "NUMCLIENTS=1",
+        "NUMCLIENTS=2",
         "CATALOG=" + BaseTestCase.getCatalogJarPath(ProjectType.AUCTIONMARK).getAbsolutePath(),
     };
     
@@ -174,11 +174,26 @@ public class TestAuctionMarkLoader extends BaseTestCase {
     public void testGenerateUserAttributes() throws Exception {
         loader.generateTableData(AuctionMarkConstants.TABLENAME_USER_ATTRIBUTES);
     }        
-    
+
+    /**
+     * testPartitionRangeId
+     */
+    public void testPartitionRangeIds() throws Exception {
+    	loader.PartitionRangeIds();
+    	// fetch the list of profiles created
+        int prev_high_id = -1;
+        for (AuctionMarkBenchmarkProfile profile : loader.getProfiles()) {
+        	LOG.info("prev high: " + prev_high_id);
+        	assert (profile.getLowerUid() > prev_high_id); // lower id is greater than the higher id of the previous client
+            assert (profile.getHighUid() > profile.getLowerUid()); // high_id is greater than lower
+            prev_high_id = profile.getHighUid();
+        }    
+    }        
+
     /**
      * testGenerateItem
      */
-//    public void testGenerateItem() throws Exception {
-//        loader.generateTableData(AuctionMarkConstants.TABLENAME_ITEM);
-//    }
+    public void testGenerateItem() throws Exception {
+        loader.generateTableData(AuctionMarkConstants.TABLENAME_ITEM);
+    }
 }

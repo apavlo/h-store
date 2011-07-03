@@ -32,6 +32,7 @@ public class CombineWorkloadTraces {
         Integer max_idxs[] = new Integer[workloads.length];
         List<TransactionTrace> txns[] = new List[workloads.length];
         long relative_starts[] = new long[workloads.length];
+        int finished = 0;
         for (int i = 0; i < workloads.length; i++) {
             txns[i] = workloads[i].getTransactions();
             max_idxs[i] = txns[i].size();
@@ -40,6 +41,7 @@ public class CombineWorkloadTraces {
                 next_idxs[i] = 0;
             } else {
                 next_idxs[i] = null;
+                finished++;
             }
             LOG.info(String.format("Workload #%02d: %d txns", i, txns[i].size()));
         }
@@ -86,7 +88,7 @@ public class CombineWorkloadTraces {
             // If we are out of txns, set next_txns to null
             if (++next_idxs[min_idx] >= max_idxs[min_idx]) {
                 next_idxs[min_idx] = null;
-                LOG.info(String.format("Successfully merged all txns for Workload #%02d", min_idx));
+                LOG.info(String.format("Finished Workload #%02d [%02d/%02d]", min_idx, ++finished, next_idxs.length));
             }
             ctr++;
         } // WHILE
@@ -119,11 +121,12 @@ public class CombineWorkloadTraces {
         Collections.sort(workload_files);
         
         int num_workloads = workload_files.size();
+        assert(num_workloads > 0) : "No workloads specified";
         Workload workloads[] = new Workload[num_workloads];
         LOG.info("Combining " + num_workloads + " workloads into '" + output_path + "'");
         for (int i = 0; i < num_workloads; i++) {
             File input_path = workload_files.get(i);
-            LOG.info("Loading workload '" + input_path + "'");
+            LOG.debug("Loading workload '" + input_path + "'");
             workloads[i] = new Workload(args.catalog);
             workloads[i].load(input_path.getAbsolutePath(), args.catalog_db);
         } // FOR

@@ -91,6 +91,7 @@ public class ArgumentsParser {
     public static final String PARAM_WORKLOAD_PROC_SAMPLE   = PARAM_WORKLOAD + ".sampling";
     public static final String PARAM_WORKLOAD_PROC_INCLUDE_MULTIPLIER  = PARAM_WORKLOAD_PROC_INCLUDE + ".multiplier";
     public static final String PARAM_WORKLOAD_RANDOM_PARTITIONS = PARAM_WORKLOAD + ".randompartitions";
+    public static final String PARAM_WORKLOAD_BASE_PARTITIONS = PARAM_WORKLOAD + ".basepartitions";
     public static final String PARAM_WORKLOAD_OUTPUT        = PARAM_WORKLOAD + ".output";
     
     public static final String PARAM_STATS                  = "stats";
@@ -112,6 +113,8 @@ public class ArgumentsParser {
     public static final String PARAM_MARKOV_THREADS         = PARAM_MARKOV + ".threads";
     public static final String PARAM_MARKOV_SPLIT           = PARAM_MARKOV + ".split";
     public static final String PARAM_MARKOV_GLOBAL          = PARAM_MARKOV + ".global";
+    public static final String PARAM_MARKOV_RECOMPUTE_END   = PARAM_MARKOV + ".recompute_end";
+    public static final String PARAM_MARKOV_RECOMPUTE_WARMUP = PARAM_MARKOV + ".recompute_warmup";
     public static final String PARAM_MARKOV_SPLIT_TRAINING  = PARAM_MARKOV_SPLIT + ".training";
     public static final String PARAM_MARKOV_SPLIT_VALIDATION = PARAM_MARKOV_SPLIT + ".validation";
     public static final String PARAM_MARKOV_SPLIT_TESTING   = PARAM_MARKOV_SPLIT + ".testing";
@@ -232,6 +235,7 @@ public class ArgumentsParser {
     public Long workload_xact_limit = null;
     public Long workload_xact_offset = 0l;
     public Long workload_query_limit = null;
+    public final Set<Integer> workload_base_partitions = new HashSet<Integer>();
     public Workload.Filter workload_filter = null;
     
     /**
@@ -289,7 +293,8 @@ public class ArgumentsParser {
     
     @SuppressWarnings("unchecked")
     public <T> T getOptParam(int idx, VoltType vt) {
-        String val = this.opt_params.get(idx);
+        assert(idx >= 0);
+        String val = (idx < this.opt_params.size() ? this.opt_params.get(idx) : null);
         if (val != null) {
             try {
                 return ((T)VoltTypeUtil.getObjectFromString(vt, val));
@@ -305,15 +310,21 @@ public class ArgumentsParser {
     }
 
     public Byte getByteOptParam(int idx) {
-        return (this.getOptParam(idx, VoltType.TINYINT));
+        Object obj = this.getOptParam(idx, VoltType.TINYINT);
+        if (obj != null) obj = ((Long)obj).byteValue();
+        return ((Byte)obj);
     }
     
     public Short getShortOptParam(int idx) {
-        return (this.getOptParam(idx, VoltType.SMALLINT));
+        Object obj = this.getOptParam(idx, VoltType.SMALLINT);
+        if (obj != null) obj = ((Long)obj).shortValue();
+        return ((Short)obj);
     }
     
     public Integer getIntOptParam(int idx) {
-        return (this.getOptParam(idx, VoltType.INTEGER));
+        Object obj = this.getOptParam(idx, VoltType.INTEGER);
+        if (obj != null) obj = ((Long)obj).intValue();
+        return ((Integer)obj);
     }
     
     public Long getLongOptParam(int idx) {
@@ -441,125 +452,8 @@ public class ArgumentsParser {
         return (au);
     }
     
-    /**
-     * 
-     * @param args
-     * @throws Exception
-     */
-    @SuppressWarnings("unchecked")
-    public void process(String[] args) throws Exception {
+    private void loadWorkload() throws Exception {
         final boolean debug = LOG.isDebugEnabled();
-        
-        if (debug) LOG.debug("Processing " + args.length + " parameters...");
-        final Pattern p = Pattern.compile("=");
-        for (int i = 0, cnt = args.length; i < cnt; i++) {
-            final String arg = args[i];
-            final String[] parts = p.split(arg, 2);
-            if (parts[0].startsWith("-")) parts[0] = parts[0].substring(1);
-            parts[0] = parts[0].toLowerCase();
-            
-            if (parts.length == 1) {
-                if (parts[0].startsWith("${") == false) this.opt_params.add(parts[0]);
-                continue;
-            } else if (parts[0].equalsIgnoreCase("tag")) {
-                continue;
-            } else if (parts[1].startsWith("${") || parts[0].startsWith("#")) {
-                continue;
-            }
-            if (debug) LOG.debug(String.format("%-35s = %s", parts[0], parts[1]));
-            
-            if (parts[0].startsWith(PARAM_DESIGNER_HINTS_PREFIX)) {
-                String param = parts[0].replace(PARAM_DESIGNER_HINTS_PREFIX, "").toUpperCase();
-                DesignerHints.Members m = EnumUtil.get(DesignerHints.Members.values(), param);
-                if (m == null) throw new Exception("Unknown DesignerHints parameter: " + param);
-                this.hints_params.put(m.name(), parts[1]);
-            } else if (PARAMS.contains(parts[0])) {
-                this.params.put(parts[0], parts[1]);
-            } else {
-                throw new Exception("Unknown parameter '" + parts[0] + "'");
-            }
-        } // FOR
-        
-        // -------------------------------------------------------
-        // CATALOGS
-        // -------------------------------------------------------
-        
-        //
-        // Text File
-        //
-        if (this.params.containsKey(PARAM_CATALOG)) {
-            String path = this.params.get(PARAM_CATALOG);
-            if (debug) LOG.debug("Loading catalog from file '" + path + "'");
-            this.catalog = CatalogUtil.loadCatalog(path);
-            if (this.catalog == null) throw new Exception("Failed to load catalog object from file '" + path + "'");
-            this.catalog_db = CatalogUtil.getDatabase(catalog);
-            this.catalog_path = new File(path);
-        //
-        // Jar File
-        //
-        } else if (this.params.containsKey(PARAM_CATALOG_JAR)) {
-            String path = this.params.get(PARAM_CATALOG_JAR);
-            this.params.put(PARAM_CATALOG, path);
-            File jar_file = new File(path);
-            this.catalog = CatalogUtil.loadCatalogFromJar(path);
-            if (this.catalog == null) throw new Exception("Failed to load catalog object from jar file '" + path + "'");
-            if (debug) LOG.debug("Loaded catalog from jar file '" + path + "'");
-            this.catalog_db = CatalogUtil.getDatabase(catalog);
-            this.catalog_path = jar_file;
-            
-            if (!this.params.containsKey(PARAM_CATALOG_TYPE)) {
-                String jar_name = jar_file.getName();
-                int jar_idx = jar_name.lastIndexOf(".jar");
-                if (jar_idx != -1) {
-                    ProjectType type = ProjectType.get(jar_name.substring(0, jar_idx));
-                    if (type != null) {
-                        if (debug) LOG.debug("Set catalog type '" + type + "' from catalog jar file name");
-                        this.catalog_type = type;
-                        this.params.put(PARAM_CATALOG_TYPE, this.catalog_type.toString());
-                    }
-                }
-            }
-        // Schema File
-        } else if (this.params.containsKey(PARAM_CATALOG_SCHEMA)) {
-            String path = this.params.get(PARAM_CATALOG_SCHEMA); 
-            this.catalog = CompilerUtil.compileCatalog(path);
-            if (this.catalog == null) throw new Exception("Failed to load schema from '" + path + "'");
-            if (debug) LOG.debug("Loaded catalog from schema file '" + path + "'");
-            this.catalog_db = CatalogUtil.getDatabase(catalog);
-            this.catalog_path = new File(path);
-        }
-        
-        // Catalog Type
-        if (this.params.containsKey(PARAM_CATALOG_TYPE)) {
-            String catalog_type = this.params.get(PARAM_CATALOG_TYPE);
-            ProjectType type = ProjectType.get(catalog_type);
-            if (type == null) {
-                throw new Exception("Unknown catalog type '" + catalog_type + "'");
-            }
-            this.catalog_type = type;
-        }
-        
-        // -------------------------------------------------------
-        // PHYSICAL DESIGN COMPONENTS
-        // -------------------------------------------------------
-        if (this.params.containsKey(PARAM_PARTITION_PLAN)) {
-            assert(this.catalog_db != null);
-            File path = new File(this.params.get(PARAM_PARTITION_PLAN));
-            if (debug) LOG.debug("Loading in partition plan from '" + path + "'");
-            this.pplan = new PartitionPlan();
-            this.pplan.load(path.getAbsolutePath(), this.catalog_db);
-            
-            // Apply!
-            if (this.params.containsKey(PARAM_PARTITION_PLAN_APPLY) && this.getBooleanParam(PARAM_PARTITION_PLAN_APPLY)) {
-                LOG.info("Applying PartitionPlan '" + path.getName() + "' to catalog");
-                this.pplan.apply(this.catalog_db);
-            }
-        }
-        
-        // -------------------------------------------------------
-        // SAMPLE WORKLOAD TRACE
-        // -------------------------------------------------------
-        
         // Workload Trace
         if (this.params.containsKey(PARAM_WORKLOAD)) {
             assert(this.catalog_db != null) : "Missing catalog!";
@@ -578,21 +472,30 @@ public class ArgumentsParser {
                 this.workload_filter = (this.workload_filter != null ? filter.attach(this.workload_filter) : filter);
             }
             
-            // RANDOM BASE PARTITIONS
-            if (params.containsKey(PARAM_WORKLOAD_RANDOM_PARTITIONS)) {
+            // BASE PARTITIONS
+            if (params.containsKey(PARAM_WORKLOAD_RANDOM_PARTITIONS) || params.containsKey(PARAM_WORKLOAD_BASE_PARTITIONS)) {
                 BasePartitionTxnFilter filter = new BasePartitionTxnFilter(new PartitionEstimator(catalog_db));
                 
-                double factor = this.getDoubleParam(PARAM_WORKLOAD_RANDOM_PARTITIONS);
-                List<Integer> partitions = new ArrayList<Integer>(CatalogUtil.getAllPartitionIds(catalog_db)); 
-                Collections.shuffle(partitions, new Random());
-                filter.addPartitions(partitions.subList(0, (int)(partitions.size() * factor)));
+                // FIXED LIST
+                if (params.containsKey(PARAM_WORKLOAD_BASE_PARTITIONS)) {
+                    for (String p_str : this.getParam(PARAM_WORKLOAD_BASE_PARTITIONS).split(",")) {
+                        workload_base_partitions.add(Integer.valueOf(p_str));
+                    } // FOR
+                // RANDOM
+                } else {
+                    double factor = this.getDoubleParam(PARAM_WORKLOAD_RANDOM_PARTITIONS);
+                    List<Integer> all_partitions = new ArrayList<Integer>(CatalogUtil.getAllPartitionIds(catalog_db)); 
+                    Collections.shuffle(all_partitions, new Random());
+                    workload_base_partitions.addAll(all_partitions.subList(0, (int)(all_partitions.size() * factor)));
+                }
+                filter.addPartitions(workload_base_partitions);
                 this.workload_filter = (this.workload_filter != null ? this.workload_filter.attach(filter) : filter);
             }
 
             
             // Txn Limit
             this.workload_xact_limit = this.getLongParam(PARAM_WORKLOAD_XACT_LIMIT);
-            Histogram proc_histogram = null;
+            Histogram<String> proc_histogram = null;
             // Include/exclude procedures from the traces
             if (params.containsKey(PARAM_WORKLOAD_PROC_INCLUDE) || params.containsKey(PARAM_WORKLOAD_PROC_EXCLUDE)) {
                 Workload.Filter filter = new ProcedureNameFilter();
@@ -645,10 +548,10 @@ public class ArgumentsParser {
                         }
                     }
                     
-                    Histogram proc_multiplier_histogram = null;
+                    Histogram<String> proc_multiplier_histogram = null;
                     if (debug) {
                         if (proc_histogram != null) LOG.debug("Full Workload Histogram:\n" + proc_histogram);
-                        proc_multiplier_histogram = new Histogram();
+                        proc_multiplier_histogram = new Histogram<String>();
                     }
                     total = 0;
                     for (Entry<String, Integer> e : limits.entrySet()) {
@@ -715,6 +618,130 @@ public class ArgumentsParser {
                     LOG.fatal("Failed to load stats file '" + this.stats_path + "'", ex);
                     System.exit(1);
                 }
+            }
+        }
+    }
+    
+    /**
+     * 
+     * @param args
+     * @throws Exception
+     */
+    @SuppressWarnings("unchecked")
+    public void process(String[] args) throws Exception {
+        final boolean debug = LOG.isDebugEnabled();
+        
+        if (debug) LOG.debug("Processing " + args.length + " parameters...");
+        final Pattern p = Pattern.compile("=");
+        for (int i = 0, cnt = args.length; i < cnt; i++) {
+            final String arg = args[i];
+            final String[] parts = p.split(arg, 2);
+            if (parts[0].startsWith("-")) parts[0] = parts[0].substring(1);
+            parts[0] = parts[0].toLowerCase();
+            
+            if (parts.length == 1) {
+                if (parts[0].startsWith("${") == false) this.opt_params.add(parts[0]);
+                continue;
+            } else if (parts[0].equalsIgnoreCase("tag")) {
+                continue;
+            } else if (parts[1].startsWith("${") || parts[0].startsWith("#")) {
+                continue;
+            }
+            if (debug) LOG.debug(String.format("%-35s = %s", parts[0], parts[1]));
+            
+            if (parts[0].startsWith(PARAM_DESIGNER_HINTS_PREFIX)) {
+                String param = parts[0].replace(PARAM_DESIGNER_HINTS_PREFIX, "").toUpperCase();
+                DesignerHints.Members m = EnumUtil.get(DesignerHints.Members.values(), param);
+                if (m == null) throw new Exception("Unknown DesignerHints parameter: " + param);
+                this.hints_params.put(m.name(), parts[1]);
+            } else if (PARAMS.contains(parts[0])) {
+                this.params.put(parts[0], parts[1]);
+            } else {
+                String suggestions = "";
+                i = 0;
+                String end = CollectionUtil.getLast(parts[0].split("\\."));
+                for (String param : PARAMS) {
+                    String param_end = CollectionUtil.getLast(param.split("\\."));
+                    if (param.startsWith(parts[0]) ||
+                        (end != null && param.endsWith(end)) ||
+                        (end != null && param_end != null && param_end.startsWith(end))) {
+                        if (suggestions.isEmpty()) suggestions = ". Possible Matches:";
+                        suggestions += String.format("\n [%02d] %s", ++i, param);
+                    }
+                } // FOR
+                throw new Exception("Unknown parameter '" + parts[0] + "'" + suggestions);
+            }
+        } // FOR
+        
+        // -------------------------------------------------------
+        // CATALOGS
+        // -------------------------------------------------------
+        
+        // Text File
+        if (this.params.containsKey(PARAM_CATALOG)) {
+            String path = this.params.get(PARAM_CATALOG);
+            if (debug) LOG.debug("Loading catalog from file '" + path + "'");
+            this.catalog = CatalogUtil.loadCatalog(path);
+            if (this.catalog == null) throw new Exception("Failed to load catalog object from file '" + path + "'");
+            this.catalog_db = CatalogUtil.getDatabase(catalog);
+            this.catalog_path = new File(path);
+        // Jar File
+        } else if (this.params.containsKey(PARAM_CATALOG_JAR)) {
+            String path = this.params.get(PARAM_CATALOG_JAR);
+            this.params.put(PARAM_CATALOG, path);
+            File jar_file = new File(path);
+            this.catalog = CatalogUtil.loadCatalogFromJar(path);
+            if (this.catalog == null) throw new Exception("Failed to load catalog object from jar file '" + path + "'");
+            if (debug) LOG.debug("Loaded catalog from jar file '" + path + "'");
+            this.catalog_db = CatalogUtil.getDatabase(catalog);
+            this.catalog_path = jar_file;
+            
+            if (!this.params.containsKey(PARAM_CATALOG_TYPE)) {
+                String jar_name = jar_file.getName();
+                int jar_idx = jar_name.lastIndexOf(".jar");
+                if (jar_idx != -1) {
+                    ProjectType type = ProjectType.get(jar_name.substring(0, jar_idx));
+                    if (type != null) {
+                        if (debug) LOG.debug("Set catalog type '" + type + "' from catalog jar file name");
+                        this.catalog_type = type;
+                        this.params.put(PARAM_CATALOG_TYPE, this.catalog_type.toString());
+                    }
+                }
+            }
+        // Schema File
+        } else if (this.params.containsKey(PARAM_CATALOG_SCHEMA)) {
+            String path = this.params.get(PARAM_CATALOG_SCHEMA); 
+            this.catalog = CompilerUtil.compileCatalog(path);
+            if (this.catalog == null) throw new Exception("Failed to load schema from '" + path + "'");
+            if (debug) LOG.debug("Loaded catalog from schema file '" + path + "'");
+            this.catalog_db = CatalogUtil.getDatabase(catalog);
+            this.catalog_path = new File(path);
+        }
+        
+        // Catalog Type
+        if (this.params.containsKey(PARAM_CATALOG_TYPE)) {
+            String catalog_type = this.params.get(PARAM_CATALOG_TYPE);
+            ProjectType type = ProjectType.get(catalog_type);
+            if (type == null) {
+                throw new Exception("Unknown catalog type '" + catalog_type + "'");
+            }
+            this.catalog_type = type;
+        }
+        
+        // -------------------------------------------------------
+        // PHYSICAL DESIGN COMPONENTS
+        // -------------------------------------------------------
+        if (this.params.containsKey(PARAM_PARTITION_PLAN)) {
+            assert(this.catalog_db != null);
+            File path = new File(this.params.get(PARAM_PARTITION_PLAN));
+            if (debug) LOG.debug("Loading in partition plan from '" + path + "'");
+            this.pplan = new PartitionPlan();
+            this.pplan.load(path.getAbsolutePath(), this.catalog_db);
+            
+            // Apply!
+            if (this.params.containsKey(PARAM_PARTITION_PLAN_APPLY) && this.getBooleanParam(PARAM_PARTITION_PLAN_APPLY)) {
+                LOG.info("Applying PartitionPlan '" + path.getName() + "' to catalog");
+                this.pplan.apply(this.catalog_db);
             }
         }
         
@@ -784,8 +811,10 @@ public class ArgumentsParser {
         }
         if (this.params.containsKey(PARAM_MARKOV_THRESHOLDS_VALUE)) {
             assert(this.catalog_db != null);
-            double defaultValue = this.getDoubleParam(PARAM_MARKOV_THRESHOLDS_VALUE);
+            float defaultValue = this.getDoubleParam(PARAM_MARKOV_THRESHOLDS_VALUE).floatValue();
             this.thresholds = new EstimationThresholds(defaultValue);
+            this.params.put(PARAM_MARKOV_THRESHOLDS, this.thresholds.toString());
+            LOG.debug("CREATED THRESHOLDS: " + this.thresholds);
             
         } else if (this.params.containsKey(PARAM_MARKOV_THRESHOLDS)) {
             assert(this.catalog_db != null);
@@ -796,6 +825,7 @@ public class ArgumentsParser {
             } else {
                 LOG.warn("The estimation thresholds file '" + path + "' does not exist");
             }
+            LOG.debug("LOADED THRESHOLDS: " + this.thresholds);
         }
         
         // -------------------------------------------------------
@@ -815,28 +845,29 @@ public class ArgumentsParser {
                 this.hasher.load(this.params.get(PARAM_HASHER_PROFILE), null);
             }
         }
+        
+        // -------------------------------------------------------
+        // SAMPLE WORKLOAD TRACE
+        // -------------------------------------------------------
+        this.loadWorkload();
     }
     
     @Override
     public String toString() {
-        StringBuilder buffer = new StringBuilder();
-//        try {
-//            Class<?> arg_class = this.getClass();
-//            for (ArgumentsParser.Attribute element : ArgumentsParser.Attribute.values()) {
-//                Field field = arg_class.getField(element.toString().toLowerCase());
-//                Object value = field.get(this); 
-//                buffer.append(element).append(":\t");
-//                if (value instanceof Class<?>) {
-//                    buffer.append(((Class<?>)value).getCanonicalName());
-//                } else {
-//                    buffer.append(value);
-//                }
-//                buffer.append("\n");
-//            } // FOR
-//        } catch (Exception ex) {
-//            ex.printStackTrace();
-//            System.exit(1);
-//        }
-        return buffer.toString();
+        Map<String, Object> m0 = new ListOrderedMap<String, Object>();        
+        m0.putAll(this.params);
+        
+        Map<String, Object> m1 = null;
+        int opt_cnt = this.opt_params.size();
+        if (opt_cnt > 0) {
+            Map<String, Object> opt_inner = new ListOrderedMap<String, Object>();
+            for (int i = 0; i < opt_cnt; i++) {
+                opt_inner.put(String.format("#%02d", i), this.opt_params.get(i));
+            }
+            m1 = new ListOrderedMap<String, Object>();
+            m1.put(String.format("Optional Parameters [%d]", opt_cnt), StringUtil.formatMaps(opt_inner));
+        }
+
+        return StringUtil.formatMaps(m0, m1);
     }
 }

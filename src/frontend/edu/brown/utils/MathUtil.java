@@ -27,6 +27,21 @@ public abstract class MathUtil {
         return (r0 >= (r1 - fudge)) && (r0 <= (r1 + fudge));
     }
     
+    public static final boolean equals(float val0, float val1, float fudge) {
+        return (Math.abs(val0 - val1) < fudge);
+    }
+    
+    public static final boolean greaterThanEquals(float val0, float val1, float fudge) {
+        return (val0 > val1 || MathUtil.equals(val0, val1, fudge));
+    }
+    
+    public static final boolean greaterThan(float val0, float val1, float fudge) {
+        return (Math.abs(val0 - val1) > fudge);
+    }
+    
+    public static final boolean lessThanEquals(float val0, float val1, float fudge) {
+        return (val0 < val1 || MathUtil.equals(val0, val1, fudge));
+    }
     
     /**
      * Returns the geometric mean of the entries in the input array.

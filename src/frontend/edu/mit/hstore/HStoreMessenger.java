@@ -341,7 +341,7 @@ public class HStoreMessenger implements Shutdownable {
             int sender_site_id = request.getSenderSiteId();
             int dest_site_id = request.getDestSiteId();
             MessageType type = request.getType();
-            if (d) LOG.debug("Received " + type.name() + " request from " + HStoreSite.getSiteName(sender_site_id));
+            if (d) LOG.debug("Received " + type.name() + " request from " + HStoreSite.formatSiteName(sender_site_id));
             
             Hstore.MessageAcknowledgement response = null;
             switch (type) {
@@ -379,7 +379,7 @@ public class HStoreMessenger implements Shutdownable {
                 // SHUTDOWN REQUEST
                 // -----------------------------------------------------------------
                 case SHUTDOWN: {
-                    LOG.info(String.format("Got shutdown request from HStoreSite %s", HStoreSite.getSiteName(sender_site_id)));
+                    LOG.info(String.format("Got shutdown request from HStoreSite %s", HStoreSite.formatSiteName(sender_site_id)));
                     
                     HStoreMessenger.this.shutting_down = true;
                     
@@ -489,7 +489,7 @@ public class HStoreMessenger implements Shutdownable {
     private class MessageCallback implements RpcCallback<MessageAcknowledgement> {
         @Override
         public void run(MessageAcknowledgement parameter) {
-            if (t) LOG.trace("Received sendMessage callback from remote HStoreSite " + HStoreSite.getSiteName(parameter.getSenderSiteId()));
+            if (t) LOG.trace("Received sendMessage callback from remote HStoreSite " + HStoreSite.formatSiteName(parameter.getSenderSiteId()));
         }
     }
  
@@ -604,7 +604,7 @@ public class HStoreMessenger implements Shutdownable {
             int dest_site_id = this.partition_site_xref.get(p).intValue();
             if (site_sent[dest_site_id]) continue;
             
-            if (d) LOG.debug(String.format("Sending DoneAtPartitions message to %s for txn #%d", HStoreSite.getSiteName(dest_site_id), txn_id));
+            if (d) LOG.debug(String.format("Sending DoneAtPartitions message to %s for txn #%d", HStoreSite.formatSiteName(dest_site_id), txn_id));
             
             if (this.local_site_id == dest_site_id) {
                 this.hstore_site.doneAtPartitions(txn_id, partitions);
@@ -663,6 +663,7 @@ public class HStoreMessenger implements Shutdownable {
         final int num_sites = this.channels.size();
         if (this.shutting_down) return;
         this.shutting_down = true;
+        this.hstore_site.prepareShutdown();
         LOG.info("Shutting down cluster" + (ex != null ? ": " + ex.getMessage() : ""));
 
         final ByteString exit_status = ByteString.copyFrom(new byte[] { (byte)(ex == null ? 0 : 1) });
@@ -691,7 +692,7 @@ public class HStoreMessenger implements Shutdownable {
                                                 .setType(MessageType.SHUTDOWN)
                                                 .build();
                 e.getValue().sendMessage(new ProtoRpcController(), sm, callback);
-                if (t) LOG.trace("Sent SHUTDOWN to " + HStoreSite.getSiteName(e.getKey()));
+                if (t) LOG.trace("Sent SHUTDOWN to " + HStoreSite.formatSiteName(e.getKey()));
             } // FOR
         }
         
@@ -721,7 +722,7 @@ public class HStoreMessenger implements Shutdownable {
      */
     public void forwardTransaction(byte[] serializedRequest, RpcCallback<MessageAcknowledgement> done, int partition) {
         int dest_site_id = this.partition_site_xref.get(partition);
-        if (d) LOG.debug("Forwarding a transaction request to partition #" + partition + " on " + HStoreSite.getSiteName(dest_site_id));
+        if (d) LOG.debug("Forwarding a transaction request to partition #" + partition + " on " + HStoreSite.formatSiteName(dest_site_id));
         ByteString bs = ByteString.copyFrom(serializedRequest);
         Hstore.MessageRequest mr = Hstore.MessageRequest.newBuilder()
                                         .setSenderSiteId(this.local_site_id)
@@ -730,7 +731,7 @@ public class HStoreMessenger implements Shutdownable {
                                         .setData(bs)
                                         .build();
         this.channels.get(dest_site_id).sendMessage(new ProtoRpcController(), mr, done);
-        if (t) LOG.debug("Sent " + MessageType.FORWARD_TXN.name() + " to " + HStoreSite.getSiteName(dest_site_id));
+        if (t) LOG.debug("Sent " + MessageType.FORWARD_TXN.name() + " to " + HStoreSite.formatSiteName(dest_site_id));
     }
 
     /**

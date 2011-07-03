@@ -597,6 +597,7 @@ public class AuctionMarkClient extends AuctionMarkBaseClient {
         super(AuctionMarkClient.class, args);
 
         _clientId = getClientId();
+        LOG.info("Current client id: " + _clientId);
 
         clientProfile = new AuctionMarkClientBenchmarkProfile(profile, getClientId(), AuctionMarkConstants.MAXIMUM_CLIENT_IDS, m_catalog, rng);
         if (trace) LOG.trace("constructor : histogram size = " + this.clientProfile.user_available_items_histogram.getSampleCount());

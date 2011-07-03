@@ -25,28 +25,18 @@
  ***************************************************************************/
 package org.voltdb;
 
-import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
-import java.util.List;
-import java.util.Map;
 import java.util.Observable;
-import java.util.TreeMap;
-import java.util.Map.Entry;
+import java.util.concurrent.LinkedBlockingDeque;
 
 import org.apache.log4j.Logger;
-import org.voltdb.catalog.Database;
-import org.voltdb.catalog.Procedure;
 
-import edu.brown.catalog.CatalogUtil;
+import edu.brown.markov.MarkovGraph;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.EventObserver;
 import edu.brown.utils.LoggerUtil;
-import edu.brown.utils.ProfileMeasurement;
-import edu.brown.utils.StringUtil;
 import edu.brown.utils.LoggerUtil.LoggerBoolean;
 import edu.mit.hstore.HStoreSite;
-import edu.mit.hstore.dtxn.LocalTransactionState;
 import edu.mit.hstore.dtxn.TransactionState;
 
 /**
@@ -61,14 +51,6 @@ public class ExecutionSiteHelper implements Runnable {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
     
-    /**
-     * Enable profiling calculations 
-     */
-    private final boolean enable_profiling;
-    /**
-     * Maintain a set of tuples for the times
-     */
-    private final Map<Procedure, List<long[]>> proc_profiles = new TreeMap<Procedure, List<long[]>>();
     /**
      * How many milliseconds will we keep around old transaction states
      */
@@ -93,21 +75,19 @@ public class ExecutionSiteHelper implements Runnable {
     private int total_cleaned = 0;
     
     /**
+     * List of MarkovGraphs that need to be recomputed
+     */
+    private final LinkedBlockingDeque<MarkovGraph> markovs_to_recompute = new LinkedBlockingDeque<MarkovGraph>(); 
+    
+    /**
      * Shutdown Observer
      * This gets invoked when the HStoreSite is shutting down
      */
     private final EventObserver shutdown_observer = new EventObserver() {
-        final StringBuilder sb = new StringBuilder();
-        
         @Override
         public void update(Observable o, Object arg) {
             ExecutionSiteHelper.this.shutdown();
             LOG.debug("Got shutdown notification from HStoreSite. Dumping profile information");
-            sb.append("\n")
-              .append(ExecutionSiteHelper.this.dumpProfileInformation())
-              .append("\n")
-              .append(ExecutionSiteHelper.this.hstore_site.statusSnapshot());
-            LOG.info("\n" + sb.toString());
         }
     };
     
@@ -118,27 +98,31 @@ public class ExecutionSiteHelper implements Runnable {
      * @param txn_expire
      * @param enable_profiling
      */
-    public ExecutionSiteHelper(Collection<ExecutionSite> executors, int max_txn_per_round, int txn_expire, boolean enable_profiling) {
+    public ExecutionSiteHelper(HStoreSite hstore_site, Collection<ExecutionSite> executors, int max_txn_per_round, int txn_expire, boolean enable_profiling) {
         assert(executors != null);
         assert(executors.isEmpty() == false);
         this.executors = executors;
         this.txn_expire = txn_expire;
         this.txn_per_round = max_txn_per_round;
-        this.enable_profiling = enable_profiling;
 
+        this.hstore_site = hstore_site;
+        assert(this.hstore_site != null) : "Missing HStoreSite!";
+        
         assert(this.executors.size() > 0) : "No ExecutionSites for helper";
         ExecutionSite executor = CollectionUtil.getFirst(this.executors);
         assert(executor != null);
-        this.hstore_site = executor.getHStoreSite();
-        assert(this.hstore_site != null) : "Missing HStoreSite!";
-        
-        if (this.enable_profiling) {
-            this.prepareProfileInformation(CatalogUtil.getDatabase(executor.getCatalogSite()));
-            this.hstore_site.addShutdownObservable(this.shutdown_observer);
-        }
-        
-        if (debug.get()) LOG.debug(String.format("Instantiated new ExecutionSiteHelper [txn_expire=%d, per_round=%d, profiling=%s]",
-                                                 this.txn_expire, this.txn_per_round, this.enable_profiling));
+        this.hstore_site.addShutdownObservable(this.shutdown_observer);
+
+        if (debug.get()) LOG.debug(String.format("Instantiated new ExecutionSiteHelper [txn_expire=%d, per_round=%d]",
+                                                 this.txn_expire, this.txn_per_round));
+    }
+    
+    /**
+     * 
+     * @param markov
+     */
+    public void queueMarkovToRecompute(MarkovGraph markov) {
+        this.markovs_to_recompute.add(markov);
     }
     
     @Override
@@ -167,10 +151,7 @@ public class ExecutionSiteHelper implements Runnable {
                     
                     if (t) LOG.trace("Cleaning txn #" + ts.getTransactionId());
                     
-                    // We have to calculate the profile information *before* we call ExecutionSite.cleanup!
-                    if (this.enable_profiling && ts instanceof LocalTransactionState) {
-                        this.calculateProfileInformation((LocalTransactionState)ts);
-                    }
+
                     es.cleanupTransaction(ts);
                     es.finished_txn_states.remove();
                     cleaned++;
@@ -181,6 +162,18 @@ public class ExecutionSiteHelper implements Runnable {
             // Only call tick here!
             es.tick();
         } // FOR
+        
+        // Recompute MarkovGraphs if we have them
+        MarkovGraph m = null;
+        while ((m = this.markovs_to_recompute.poll()) != null) {
+            if (d) LOG.debug(String.format("Recomputing MarkovGraph for %s [recomputed=%d, hashCode=%d]",
+                                           m.getProcedure().getName(), m.getRecomputeCount(), m.hashCode()));
+            m.calculateProbabilities();
+            if (d && m.isValid() == false) {
+                LOG.error("Invalid MarkovGraph after recomputing! Crashing...");
+                this.hstore_site.getMessenger().shutdownCluster(new Exception("Invalid Markovgraph after recomputing"), false);
+            }
+        } // WHILE
     }
     
     /**
@@ -189,134 +182,13 @@ public class ExecutionSiteHelper implements Runnable {
      */
     private synchronized void shutdown() {
         LOG.info("Shutdown event received. Cleaning all transactions");
-        TransactionState ts = null;
         
         for (ExecutionSite es : this.executors) {
-            int cleaned = 0;
-            if (this.enable_profiling) {
-                while ((ts = es.finished_txn_states.poll()) != null) {
-                    if (ts instanceof LocalTransactionState) {
-                        this.calculateProfileInformation((LocalTransactionState)ts);
-                    }
-                    cleaned++;
-                } // WHILE
-            } else {
-                cleaned += es.finished_txn_states.size();
-                es.finished_txn_states.clear();
-            }
+            int cleaned = es.finished_txn_states.size();
+            es.finished_txn_states.clear();
             assert(es.finished_txn_states.isEmpty());
             if (debug.get()) LOG.debug(String.format("Cleaned %d TransactionStates at partition %d", cleaned, es.partitionId));
         } // FOR
-    }
-
-    /**
-     * 
-     * @param catalog_db
-     */
-    public void prepareProfileInformation(Database catalog_db) {
-        for (Procedure catalog_proc : catalog_db.getProcedures()) {
-            if (catalog_proc.getSystemproc()) continue;
-            this.proc_profiles.put(catalog_proc, new ArrayList<long[]>());
-        } // FOR
-    }
-
-    /**
-     * 
-     * @param ts
-     */
-    public void calculateProfileInformation(LocalTransactionState ts) {
-        if (ts.sysproc || ts.total_time.isStopped() == false) return;
-        if (trace.get()) LOG.info("Calculating profile information for txn #" + ts.getTransactionId());
-        ProfileMeasurement pms[] = {
-            ts.total_time,
-            ts.init_time,
-            ts.queue_time,
-            ts.java_time,
-            ts.coord_time,
-            ts.plan_time,
-            ts.ee_time,
-            ts.est_time,
-            ts.finish_time,
-            ts.blocked_time,
-        };
-        long tuple[] = new long[pms.length];
-        for (int i = 0; i < pms.length; i++) {
-            if (pms[i] != null) tuple[i] = pms[i].getTotalThinkTime();
-            if (i == 0) assert(tuple[i] > 0) : "????";
-        } // FOR
-        
-        Procedure catalog_proc = ts.getProcedure();
-        assert(catalog_proc != null);
-        if (trace.get()) LOG.trace(String.format("Txn #%d - %s: %s", ts.getTransactionId(), catalog_proc.getName(), Arrays.toString(tuple)));
-        this.proc_profiles.get(catalog_proc).add(tuple);
-    }
-    
-    public String dumpProfileInformation() {
-        
-        String header[] = {
-            "",
-            "# of Txns",
-            "Total Time",
-            "Initialization",
-            "Queue Time",
-            "Procedure",
-            "Coordinator",
-            "Planner",
-            "EE",
-            "Estimation",
-            "Finish",
-            "Blocked",
-            "Miscellaneous",
-        };
-        int num_procs = 0;
-        for (List<long[]> tuples : this.proc_profiles.values()) {
-            if (tuples.size() > 0) num_procs++;
-        } // FOR
-        if (num_procs == 0) return ("<NONE>");
-        
-        Object rows[][] = new String[num_procs][header.length];
-        long totals[] = new long[header.length-1];
-//        String f = "%.02f";
-        
-        int row_idx = 0;
-        for (Entry<Procedure, List<long[]>> e : this.proc_profiles.entrySet()) {
-            int num_tuples = e.getValue().size();
-            if (num_tuples == 0) continue;
-            for (int i = 0; i < totals.length; i++) totals[i] = 0;
-            totals[0] = num_tuples;
-            
-            // Sum up the total time for each category
-            for (long tuple[] : e.getValue()) {
-                long tuple_total = 0;
-                for (int i = 0, cnt = totals.length-1; i < cnt; i++) {
-                    // The last one should be the total time minus the time in the
-                    // Java/EE/Coord/Est parts. This is will be considered the misc/bookkeeping time
-                    if (i == tuple.length) {
-                        totals[i+1] = tuple[0] - tuple_total;
-//                        LOG.info(String.format("misc=%d, total=%d, else=%d", totals[i+1], tuple[0], tuple_total));
-                    } else {
-                        totals[i+1] += tuple[i];
-                        if (i > 0) tuple_total += tuple[i];
-                    }
-                } // FOR
-            } // FOR
-            
-            // Now calculate the average
-            rows[row_idx] = new String[header.length];
-            rows[row_idx][0] = e.getKey().getName();
-            
-            for (int i = 0; i < totals.length; i++) {
-                // # of Txns
-                if (i == 0) {
-                    rows[row_idx][i+1] = Long.toString(totals[i]);
-                // Everything Else
-                } else {
-                    rows[row_idx][i+1] = String.format("%.03f", totals[i] / 1000000d);
-                }
-            } // FOR
-            row_idx++;
-        }
-        return (StringUtil.csv(header, rows));
     }
 
 }

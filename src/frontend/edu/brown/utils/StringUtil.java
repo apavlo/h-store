@@ -7,7 +7,6 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.regex.Pattern;
 
-import org.apache.commons.collections15.map.ListOrderedMap;
 import org.voltdb.client.Client;
 import org.voltdb.utils.Pair;
 
@@ -19,103 +18,15 @@ public abstract class StringUtil {
     public static final String DOUBLE_LINE  = "============================================================================\n";
     public static final String SINGLE_LINE  = "----------------------------------------------------------------------------\n";
 
+    private static final Pattern LINE_SPLIT = Pattern.compile("\n");
+    private static final Pattern TITLE_SPLIT = Pattern.compile(" ");
+    
     private static String CACHE_REPEAT_STR = null;
     private static Integer CACHE_REPEAT_SIZE = null;
     private static String CACHE_REPEAT_RESULT = null;
-    
-    private static Pattern LINE_SPLIT = Pattern.compile("\n");
-    private static Pattern SPACE_SPLIT = Pattern.compile(" ");
-    
-    /**
-     * Format the header + rows into a CSV
-     * @param header
-     * @param rows
-     * @return
-     */
-    public static String csv(String header[], Object[]...rows) {
-        return (StringUtil.table(",", false, false, header, rows));        
-    }
-    
-    /**
-     * Format the header + rows into a neat little table
-     * @param header
-     * @param rows
-     * @return
-     */
-    public static String table(String header[], Object[]...rows) {
-        return (StringUtil.table("  ", true, false, header, rows));
-    }
-    
-    public static Map<String, String> tableMap(String header[], Object[]...rows) {
-        String new_header[] = new String[header.length-1];
-        for (int i = 0; i < new_header.length; i++) {
-            new_header[i] = header[i+1];
-        } // FOR
-        Object new_rows[][] = new String[rows.length][];
-        for (int i = 0; i < new_rows.length; i++) {
-            Object row[] = rows[i];
-            new_rows[i] = new String[row.length - 1];
-            for (int j = 0; j < new_rows[i].length; j++) {
-                new_rows[i][j] = (row[j+1] != null ? row[j+1].toString() : "null");
-            } // FOR
-        }
-        
-        Map<String, String> m = new ListOrderedMap<String, String>();
-        String lines[] = LINE_SPLIT.split(StringUtil.table(new_header, new_rows));
-        for (int i = 0; i < lines.length; i++) {
-            Object key = (i == 0 ? header[0] : rows[i-1][0]);  
-            m.put((key != null ? key.toString() : null), lines[i]);
-        } // FOR
-        return (m);
-        
-    }
-        
-    /**
-     * Format the header+rows into a table
-     * @param delimiter the character to use in between cells
-     * @param spacing whether to make the width of each column the size of the largest cell
-     * @param quotes whether to surround each cell in quotation marks
-     * @param header
-     * @param rows
-     * @return
-     */
-    public static String table(String delimiter, boolean spacing, boolean quotes, String header[], Object[]...rows) {
-        // First we need to figure out the size for each column
-        String col_formats[] = new String[header.length];
-        for (int col_idx = 0; col_idx < col_formats.length; col_idx++) {
-            String f = null;
-            if (spacing) {
-                int width = header[col_idx].length();
-                for (int row_idx = 0; row_idx < rows.length; row_idx++) {
-                    if (rows[row_idx][col_idx] != null) {
-                        width = Math.max(width, rows[row_idx][col_idx].toString().length());
-                    }
-                } // FOR
-                f = "%-" + width + "s";
-            } else {
-                f = "%s";
-            }
-            if (quotes) f = '"' + f + '"';
-            col_formats[col_idx] = (col_idx > 0 ? delimiter : "") + f;
-        } // FOR
-        
-        // Create header row
-        StringBuilder sb = new StringBuilder();
-        for (int col_idx = 0; col_idx < col_formats.length; col_idx++) {
-            sb.append(String.format(col_formats[col_idx], header[col_idx]));
-        } // FOR
-        
-        // Now dump out the table
-        for (int row_idx = 0; row_idx < rows.length; row_idx++) {
-            Object row[] = rows[row_idx];
-            sb.append("\n");
-            for (int col_idx = 0; col_idx < col_formats.length; col_idx++) {
-                String cell = (row[col_idx] != null ? row[col_idx].toString() : "");
-                sb.append(String.format(col_formats[col_idx], cell));    
-            } // FOR
-        } // FOR
-        
-        return (sb.toString());
+
+    public static String[] splitLines(String str) {
+        return (str != null ? LINE_SPLIT.split(str) : null);
     }
     
     /**
@@ -158,7 +69,7 @@ public abstract class StringUtil {
      * @return
      */
     public static String formatMaps(Map<?, ?>...maps) {
-        return (formatMaps(":", false, false, maps));
+        return (formatMaps(":", false, false, false, false, maps));
     }
     
     /**
@@ -169,7 +80,7 @@ public abstract class StringUtil {
      * @return
      */
     public static String formatMaps(String delimiter, Map<?, ?>...maps) {
-        return (formatMaps(delimiter, false, false, maps));
+        return (formatMaps(delimiter, false, false, false, false, maps));
     }
 
     /**
@@ -186,10 +97,14 @@ public abstract class StringUtil {
      * @param delimiter
      * @param upper Upper-case all keys
      * @param box Box results
+     * @param border_top TODO
+     * @param border_bottom TODO
      * @param maps
      * @return
      */
-    public static String formatMaps(String delimiter, boolean upper, boolean box, Map<?, ?>...maps) {
+    public static String formatMaps(String delimiter, boolean upper, boolean box, boolean border_top, boolean border_bottom, Map<?, ?>...maps) {
+        boolean need_divider = (maps.length > 1 || border_bottom || border_top);
+        
         // Figure out the largest key size so we can get spacing right
         int max_key_size = 0;
         final Map<?, ?> map_keys[] = new Map<?, ?>[maps.length];
@@ -198,7 +113,7 @@ public abstract class StringUtil {
             if (m == null) continue;
             Map<Object, String> keys = new HashMap<Object, String>();
             for (Object k : m.keySet()) {
-                String k_str = k.toString();
+                String k_str = (k != null ? k.toString() : "");
                 keys.put(k, k_str);
                 max_key_size = Math.max(max_key_size, k_str.length());
             } // FOR
@@ -206,7 +121,7 @@ public abstract class StringUtil {
         } // FOR
         
         boolean equalsDelimiter = delimiter.equals("=");
-        final String f = "%-" + (max_key_size + 2) + "s" +
+        final String f = "%-" + (max_key_size + delimiter.length() + 1) + "s" +
                          (equalsDelimiter ? "= " : "") +
                          "%s\n";
         
@@ -224,19 +139,21 @@ public abstract class StringUtil {
                 String k = keys.get(e.getKey()).toString();
                 String v = (e.getValue() != null ? e.getValue().toString() : "null");
                 if (upper) k = k.toUpperCase();
-                if (equalsDelimiter == false && k.isEmpty() == false) k += ":";
+                if (equalsDelimiter == false && k.trim().isEmpty() == false) k += ":";
                 
                 // If the value is multiple lines, format them nicely!
                 String lines[] = LINE_SPLIT.split(v);
                 for (int line_i = 0; line_i < lines.length; line_i++) {
                     blocks[i].append(String.format(f, (line_i == 0 ? k : ""), lines[line_i]));
-                    if (maps.length > 1) max_value_size = Math.max(max_value_size, lines[line_i].length());
+                    if (need_divider) max_value_size = Math.max(max_value_size, lines[line_i].length());
                 } // FOR
                 if (v.endsWith("\n")) blocks[i].append("\n"); 
             }
         } // FOR
         
         // Put it all together!
+        int total_width = max_key_size + max_value_size + delimiter.length() + 1;
+        String dividing_line = (need_divider ? repeat("-", total_width) : "");
         StringBuilder sb = null;
         if (maps.length == 1) {
             sb = blocks[0];
@@ -244,11 +161,12 @@ public abstract class StringUtil {
             sb = new StringBuilder();
             for (int i = 0; i < maps.length; i++) {
                 if (blocks[i].length() == 0) continue;
-                if (i != 0 && maps[i].size() > 0) sb.append(repeat("-", max_key_size + max_value_size + 2)).append("\n");
+                if (i != 0 && maps[i].size() > 0) sb.append(dividing_line).append("\n");
                 sb.append(blocks[i]);
             } // FOR
         }
-        return (box ? StringUtil.box(sb.toString()) : sb.toString());
+        return (box ? StringUtil.box(sb.toString()) :
+                      (border_top ? dividing_line+"\n" : "") + sb.toString() + (border_bottom ? dividing_line : ""));
     }
 
     /**
@@ -257,7 +175,7 @@ public abstract class StringUtil {
      * @return
      */
     public static String formatMapsBoxed(Map<?, ?>...maps) {
-        return (formatMaps(":", false, true, maps));
+        return (formatMaps(":", false, true, false, false, maps));
     }
 
     /**
@@ -395,7 +313,7 @@ public abstract class StringUtil {
     public static String title(String string, boolean keep_upper) {
         StringBuilder sb = new StringBuilder();
         String add = "";
-        for (String part : SPACE_SPLIT.split(string)) {
+        for (String part : TITLE_SPLIT.split(string)) {
             sb.append(add).append(part.substring(0, 1).toUpperCase());
             int len = part.length();
             if (len > 1) {

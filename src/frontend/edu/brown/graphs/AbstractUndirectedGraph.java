@@ -41,6 +41,10 @@ public abstract class AbstractUndirectedGraph<V extends AbstractVertex, E extend
     // ----------------------------------------------------------------------------
     
     @Override
+    public int getGraphId() {
+        return this.inner.getGraphId();
+    }
+    @Override
     public void setVerbose(boolean verbose) {
         this.inner.setVerbose(verbose);
     }
@@ -176,6 +180,7 @@ public abstract class AbstractUndirectedGraph<V extends AbstractVertex, E extend
     
     @Override
     public void fromJSON(JSONObject jsonObject, Database catalog_db) throws JSONException {
-        GraphUtil.deserialize(this, catalog_db, jsonObject);
+        int id = GraphUtil.deserialize(this, catalog_db, jsonObject);
+        this.inner.setGraphId(id);
     }
 }

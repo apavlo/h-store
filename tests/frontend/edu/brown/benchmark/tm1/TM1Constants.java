@@ -14,12 +14,12 @@ public abstract class TM1Constants {
     public static final int FREQUENCY_UPDATE_SUBSCRIBER_DATA    = 2;    // Single
     
 //    public static final int FREQUENCY_DELETE_CALL_FORWARDING    = 0;    // Multi
-//    public static final int FREQUENCY_GET_ACCESS_DATA           = 25;   // Single
-//    public static final int FREQUENCY_GET_NEW_DESTINATION       = 25;   // Single
-//    public static final int FREQUENCY_GET_SUBSCRIBER_DATA       = 25;   // Single
+//    public static final int FREQUENCY_GET_ACCESS_DATA           = 100;   // Single
+//    public static final int FREQUENCY_GET_NEW_DESTINATION       = 0;   // Single
+//    public static final int FREQUENCY_GET_SUBSCRIBER_DATA       = 0;   // Single
 //    public static final int FREQUENCY_INSERT_CALL_FORWARDING    = 0;    // Multi
 //    public static final int FREQUENCY_UPDATE_LOCATION           = 0;   // Multi
-//    public static final int FREQUENCY_UPDATE_SUBSCRIBER_DATA    = 25;    // Single
+//    public static final int FREQUENCY_UPDATE_SUBSCRIBER_DATA    = 0;    // Single
     
     // ----------------------------------------------------------------
     // TABLE NAMES

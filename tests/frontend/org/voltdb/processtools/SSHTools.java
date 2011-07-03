@@ -28,18 +28,27 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.apache.log4j.Logger;
+
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.FileUtil;
 
 public abstract class SSHTools {
+    private static final Logger LOG = Logger.getLogger(SSHTools.class);
 
     private static final List<String> DEFAULT_OPTIONS = new ArrayList<String>();
     static {
         DEFAULT_OPTIONS.add("-q");
+        DEFAULT_OPTIONS.add("-C");
         DEFAULT_OPTIONS.add("-o"); DEFAULT_OPTIONS.add("UserKnownHostsFile=/dev/null");
         DEFAULT_OPTIONS.add("-o"); DEFAULT_OPTIONS.add("StrictHostKeyChecking=no");
     }
     
+    private static final List<String> SCP_PRUNE_OPTIONS = new ArrayList<String>();
+    static {
+        SCP_PRUNE_OPTIONS.add("-x");
+        SCP_PRUNE_OPTIONS.add("-X");
+    }
 
     public static String createUrl(String user, String hostname, String path) {
         String url = new String();
@@ -55,19 +64,35 @@ public abstract class SSHTools {
         return url;
     }
     
-    public static boolean writeFile(String contents, String remoteUser, String hostNameTo, String pathTo, String sshOptions[]) {
+    public static boolean deleteFile(String remoteUser, String remoteHost, String remoteFile, String sshOptions[]) {
+        String command[] = { "rm", "-f", remoteFile };
+        String output = ShellTools.cmd(convert(remoteUser, remoteHost, null, sshOptions, command));
+        if (output.length() > 1) {
+            System.err.print(output);
+            return false;
+        }
+        return true;
+    }
+    
+    public static boolean writeFile(String contents, String remoteUser, String hostNameTo, String remoteFile, String sshOptions[]) {
         File f = FileUtil.writeStringToTempFile(contents, "dtxn.conf", true);
-        return (copyToRemote(f, remoteUser, hostNameTo, pathTo));
+        return (copyToRemote(f.getPath(), remoteUser, hostNameTo, remoteFile));
     }
 
-    public static boolean copyToRemote(File src, String remoteUser, String hostNameTo, String pathTo, String...sshOptions) {
+    public static boolean copyToRemote(String localPath, String remoteUser, String remoteHost, String renoteFile, String...sshOptions) {
         // scp -q src.getPath remoteUser@hostNameTo:/pathTo
         List<String> command = new ArrayList<String>();
         command.add("scp");
         command.addAll(DEFAULT_OPTIONS);
         CollectionUtil.addAll(command, sshOptions);
-        command.add(src.getPath());
-        command.add(createUrl(remoteUser, hostNameTo, pathTo));
+        command.add(localPath);
+        command.add(createUrl(remoteUser, remoteHost, renoteFile));
+        
+        // Remove invalid scp options
+        command.removeAll(SCP_PRUNE_OPTIONS);
+        
+        LOG.debug(String.format("Copying local file '%s' to remote file '%s' on %s",
+                               localPath, renoteFile, remoteHost));
         String output = ShellTools.cmd(command);
         if (output.length() > 1) {
             System.err.print(output);
@@ -76,15 +101,20 @@ public abstract class SSHTools {
         return true;
     }
 
-    public static boolean copyFromRemote(File dst, String remoteUser, String hostNameFrom, String pathFrom, String...sshOptions) {
+    public static boolean copyFromRemote(String localPath, String remoteUser, String remoteHost, String remotePath, String...sshOptions) {
         // scp -q fromhost:path tohost:path
         List<String> command = new ArrayList<String>();
         command.add("scp");
         command.addAll(DEFAULT_OPTIONS);
         CollectionUtil.addAll(command, sshOptions);
-        command.add(createUrl(remoteUser, hostNameFrom, pathFrom));
-        command.add(dst.getPath());
+        command.add(createUrl(remoteUser, remoteHost, remotePath));
+        command.add(localPath);
+        
+        // Remove invalid scp options
+        command.removeAll(SCP_PRUNE_OPTIONS);
 
+        LOG.debug(String.format("Copying remote file '%s' on %s to local file '%s'",
+                               remotePath, remoteHost, localPath));
         String output = ShellTools.cmd(command);
         if (output.length() > 1) {
             System.err.print(output);
@@ -103,6 +133,9 @@ public abstract class SSHTools {
         command.add(createUrl(remoteUser, hostNameFrom, pathFrom));
         command.add(createUrl(remoteUser, hostNameTo, pathTo));
 
+        // Remove invalid scp options
+        command.removeAll(SCP_PRUNE_OPTIONS);
+        
         String output = ShellTools.cmd(command);
         if (output.length() > 1) {
             System.err.print(output);
@@ -125,40 +158,28 @@ public abstract class SSHTools {
         return convert(username, hostname, remotePath, sshOptions, command2);
     }
 
-    public static String[] convert(String username, String hostname, String remotePath, String sshOptions[], String[] command) {
+    public static String[] convert(String username, String hostname, String remotePath, String sshOptions[], String[] remoteCommand) {
+        List<String> l = new ArrayList<String>();
+        CollectionUtil.addAll(l, remoteCommand);
+        return (convert(username, hostname, remotePath, sshOptions, l));
+    }
+        
+    public static String[] convert(String username, String hostname, String remotePath, String sshOptions[], List<String> remoteCommand) {
         assert(hostname != null);
-        int sshArgCount = 7 + (remotePath == null ? 0 : 1) + sshOptions.length;
-
-        int i = 0;
-        String[] retval = new String[command.length + sshArgCount];
-        retval[i++] = "ssh";
-        retval[i++] = "-q";
-        retval[i++] = "-o";
-        retval[i++] = "UserKnownHostsFile=/dev/null";
-        retval[i++] = "-o";
-        retval[i++] = "StrictHostKeyChecking=no";
-        for (String opt : sshOptions) {
-            retval[i++] = opt;
-        }
         
-        retval[i] = "";
-        if (username != null)
-            retval[i] = retval[i].concat(username + "@");
-        retval[i] = retval[i].concat(hostname);
-        i++;
-        
-        if (remotePath != null)
-            retval[i++] = "cd " + remotePath + ";";
-        for (int j = 0; j < command.length; j++) {
-            assert(command[j] != null);
-            retval[i + j] = command[j];
-        }
+        List<String> command = new ArrayList<String>();
+        command.add("ssh");
+        command.addAll(DEFAULT_OPTIONS);
+        CollectionUtil.addAll(command, sshOptions);
+        command.add((username != null ? username + "@" : "") + hostname);
+        if (remotePath != null) command.add("cd " + remotePath + ";");
+        command.addAll(remoteCommand);
 
-        return retval ;
+        return command.toArray(new String[0]);
     }
 
     public static void main(String[] args) {
         System.out.print(cmd(null, "volt3b", null, new String[0], "echo foo"));
-        System.out.println(copyToRemote(new File("build.py"), null, "volt3b", "."));
+        System.out.println(copyToRemote(new File("build.py").getAbsolutePath(), null, "volt3b", "."));
     }
 }

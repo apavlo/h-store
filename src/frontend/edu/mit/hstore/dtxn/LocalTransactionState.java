@@ -25,7 +25,16 @@
  ***************************************************************************/
 package edu.mit.hstore.dtxn;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+import java.util.Queue;
+import java.util.Set;
 import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -52,12 +61,9 @@ import edu.brown.markov.TransactionEstimator;
 import edu.brown.statistics.Histogram;
 import edu.brown.utils.CountingPoolableObjectFactory;
 import edu.brown.utils.LoggerUtil;
-import edu.brown.utils.ProfileMeasurement;
 import edu.brown.utils.StringUtil;
 import edu.brown.utils.LoggerUtil.LoggerBoolean;
-import edu.brown.utils.ProfileMeasurement.Type;
 import edu.mit.dtxn.Dtxn;
-import edu.mit.hstore.HStoreConf;
 
 /**
  * 
@@ -164,10 +170,7 @@ public class LocalTransactionState extends TransactionState {
      * The partitions that we told the Dtxn.Coordinator that we were done with
      */
     private final Set<Integer> done_partitions = new HashSet<Integer>();
-    /**
-     * What partitions has this txn touched
-     */
-    private final Histogram<Integer> exec_touchedPartitions = new Histogram<Integer>();
+
     /**
      * Whether this is a sysproc
      */
@@ -177,22 +180,15 @@ public class LocalTransactionState extends TransactionState {
      */
     public boolean ignore_dtxn = false;
 
-    /**
-     * Whether this txn is suppose to be single-partitioned
-     */
-    private boolean predict_singlePartitioned = false;
+    // ----------------------------------------------------------------------------
+    // EXECUTION FLAGS
+    // ----------------------------------------------------------------------------
     
+    /** What partitions has this txn touched */
+    private final Histogram<Integer> exec_touchedPartitions = new Histogram<Integer>();
     
-    /**
-     * Whether this txn can abort
-     */
-    protected boolean predict_canAbort = true;
-
-    /**
-     * Whether this txn is being executed specutatively
-     */
-    private boolean speculative = false;
-
+    /** Whether this txn is being executed specutatively */
+    private boolean exec_speculative = false;
     
     /**
      * The original StoredProcedureInvocation request that was sent to the HStoreSite
@@ -300,51 +296,12 @@ public class LocalTransactionState extends TransactionState {
      */
     private final ConcurrentLinkedQueue<DependencyInfo> reusable_dependencies = new ConcurrentLinkedQueue<DependencyInfo>(); 
 
-    
-    // ----------------------------------------------------------------------------
-    // PROFILE MEASUREMENTS
-    // ----------------------------------------------------------------------------
+    /**
+     * 
+     */
+    public final TransactionProfile profiler;
 
-    /**
-     * Total time spent executing the transaction
-     */
-    public final ProfileMeasurement total_time = new ProfileMeasurement(Type.TOTAL);
-    /**
-     * Time spent in HStoreSite procedureInitialization
-     */
-    public final ProfileMeasurement init_time = new ProfileMeasurement(Type.INITIALIZATION);
-    /**
-     * Time spent blocked on the initialization latch
-     */
-    public final ProfileMeasurement blocked_time = new ProfileMeasurement(Type.BLOCKED);
-    /**
-     * Time spent getting the response back to the client
-     */
-    public final ProfileMeasurement finish_time = new ProfileMeasurement(Type.CLEANUP);
-    /**
-     * Time spent waiting in queue
-     */
-    public final ProfileMeasurement queue_time = new ProfileMeasurement(Type.QUEUE);
-    /**
-     * The amount of time spent executing the Java-portion of the stored procedure
-     */
-    public final ProfileMeasurement java_time = new ProfileMeasurement(Type.JAVA);
-    /**
-     * The amount of time spent coordinating the transaction
-     */
-    public final ProfileMeasurement coord_time = new ProfileMeasurement(Type.COORDINATOR);
-    /**
-     * The amount of time spent planning the transaction
-     */
-    public final ProfileMeasurement plan_time = new ProfileMeasurement(Type.PLANNER);
-    /**
-     * The amount of time spent executing in the plan fragments
-     */
-    public final ProfileMeasurement ee_time = new ProfileMeasurement(Type.EE);
-    /**
-     * The amount of time spent estimating what the transaction will do
-     */
-    public final ProfileMeasurement est_time = new ProfileMeasurement(Type.ESTIMATION);
+
     
     // ----------------------------------------------------------------------------
     // INITIALIZATION
@@ -361,15 +318,19 @@ public class LocalTransactionState extends TransactionState {
         for (int i = 0; i < this.dependencies.length; i++) {
             this.dependencies[i] = new HashMap<Integer, DependencyInfo>();
         } // FOR
+        
+        if (this.executor.getHStoreConf().site.txn_profiling) {
+            this.profiler = new TransactionProfile();
+        } else {
+            this.profiler = null;
+        }
     }
     
     @SuppressWarnings("unchecked")
-    public LocalTransactionState init(long txnId, long clientHandle, int source_partition) {
-        // We'll use these to reduce the number of calls to the LoggerBooleans
-        // Probably doesn't make a difference but I'll take anything I can get now...
-//        t = trace.get();
-//        d = debug.get();
-        return ((LocalTransactionState)super.init(txnId, clientHandle, source_partition, true));
+    public LocalTransactionState init(long txnId, long clientHandle, int source_partition,
+                                      boolean predict_singlePartitioned, boolean predict_readOnly, boolean predict_abortable) {
+        return ((LocalTransactionState)super.init(txnId, clientHandle, source_partition,
+                                                  predict_singlePartitioned, predict_readOnly, predict_abortable, true));
     }
     
     /**
@@ -390,18 +351,16 @@ public class LocalTransactionState extends TransactionState {
                                       boolean predictSinglePartition, boolean predictReadOnly, boolean predict_canAbort, TransactionEstimator.State estimator_state,
                                       Procedure catalog_proc, StoredProcedureInvocation invocation, RpcCallback<byte[]> client_callback) {
         
-        this.predict_singlePartitioned = predictSinglePartition;
-        this.predict_readOnly = predictReadOnly;
-        this.predict_canAbort = predict_canAbort;
         this.estimator_state = estimator_state;
-        
         this.catalog_proc = catalog_proc;
         this.sysproc = catalog_proc.getSystemproc();
         this.invocation = invocation;
         this.client_callback = client_callback;
-        this.init_latch = (this.predict_singlePartitioned == false ? new CountDownLatch(1) : null);
+        this.init_latch = (predictSinglePartition == false ? new CountDownLatch(1) : null);
         
-        return (this.init(txnId, clientHandle, base_partition));
+        return ((LocalTransactionState)super.init(txnId, clientHandle, base_partition,
+                                                  predictSinglePartition, predictReadOnly, predict_canAbort,
+                                                  true));
     }
     
     /**
@@ -411,13 +370,13 @@ public class LocalTransactionState extends TransactionState {
      * @param orig
      * @return
      */
-    public LocalTransactionState init(long txnId, int base_partition, LocalTransactionState orig) {
+    public LocalTransactionState init(long txnId, int base_partition, LocalTransactionState orig, boolean predict_singlePartitioned, boolean predict_readOnly, boolean predict_abortable) {
         this.orig_txn_id = orig.getTransactionId();
         this.catalog_proc = orig.catalog_proc;
         this.sysproc = orig.sysproc;
         this.invocation = orig.invocation;
         this.client_callback = orig.client_callback;
-        this.init_latch = (this.predict_singlePartitioned == false ? new CountDownLatch(1) : null);
+        this.init_latch = (this.isPredictSinglePartition() == false ? new CountDownLatch(1) : null);
         // this.estimator_state = orig.estimator_state;
         
         // Append the profiling times
@@ -429,7 +388,7 @@ public class LocalTransactionState extends TransactionState {
 //            this.est_time.appendTime(orig.est_time);
 //        }
         
-        return (this.init(txnId, orig.client_handle, base_partition));
+        return (this.init(txnId, orig.client_handle, base_partition, predict_singlePartitioned, predict_readOnly, predict_abortable));
     }
     
     @Override
@@ -478,9 +437,8 @@ public class LocalTransactionState extends TransactionState {
         this.orig_txn_id = null;
         this.catalog_proc = null;
         this.sysproc = false;
-        this.predict_singlePartitioned = false;
-        this.speculative = false;
-        this.predict_canAbort = true;
+        
+        this.exec_speculative = false;
         this.ignore_dtxn = false;
         this.done_partitions.clear();
         this.exec_touchedPartitions.clear();
@@ -489,17 +447,7 @@ public class LocalTransactionState extends TransactionState {
         this.all_dependencies.clear();
         this.reusable_dependencies.clear();
         
-        if (this.executor.getHStoreConf().site.txn_profiling) {
-            this.total_time.reset();
-            this.init_time.reset();
-            this.blocked_time.reset();
-            this.queue_time.reset();
-            this.finish_time.reset();
-            this.java_time.reset();
-            this.coord_time.reset();
-            this.ee_time.reset();
-            this.est_time.reset();
-        }
+        if (this.profiler != null) this.profiler.finish();
     }
     
     private void clearRound() {
@@ -534,17 +482,27 @@ public class LocalTransactionState extends TransactionState {
         this.txn_id = txn_id;
     }
     
-    @Override
-    public synchronized void setPendingError(RuntimeException error) {
+    /**
+     * 
+     * @param error
+     * @param wakeThread
+     */
+    public void setPendingError(RuntimeException error, boolean wakeThread) {
         boolean spin_latch = (this.pending_error == null);
         super.setPendingError(error);
+        if (wakeThread == false) return;
         
         // Spin through this so that the waiting thread wakes up and sees that they got an error
         if (spin_latch) {
             while (this.dependency_latch.getCount() > 0) {
                 this.dependency_latch.countDown();
             } // WHILE
-        }
+        }        
+    }
+    
+    @Override
+    public synchronized void setPendingError(RuntimeException error) {
+        this.setPendingError(error, true);
     }
     
     @Override
@@ -751,22 +709,9 @@ public class LocalTransactionState extends TransactionState {
         return (this.internal_dependencies);
     }
     
-    public void setPredictSinglePartitioned(boolean singlePartitioned) {
-        this.predict_singlePartitioned = singlePartitioned;
-    }
-    public void setPredictAbortable(boolean canAbort) {
-        this.predict_canAbort = canAbort;
-    }
+
     public void setSpeculative(boolean speculative) {
-        this.speculative = speculative;
-    }
-    
-    /**
-     * Returns true if this Transaction was originally predicted to be single-partitioned
-     * @return
-     */
-    public boolean isPredictSinglePartition() {
-        return (this.predict_singlePartitioned);
+        this.exec_speculative = speculative;
     }
     
     /**
@@ -774,16 +719,9 @@ public class LocalTransactionState extends TransactionState {
      * @return
      */
     public boolean isSpeculative() {
-        return (this.speculative);
+        return (this.exec_speculative);
     }
     
-    /**
-     * Returns true if this Transaction was originally predicted as being able to abort
-     * @return
-     */
-    public boolean isPredictAbortable() {
-        return predict_canAbort;
-    }
     
     /**
      * Returns true if this Transaction has executed only on a single-partition
@@ -1142,9 +1080,9 @@ public class LocalTransactionState extends TransactionState {
         
         // Predictions
         m = new ListOrderedMap<String, Object>();
-        m.put("Predict Single-Partitioned", this.predict_singlePartitioned);
-        m.put("Predict Read Only", this.predict_readOnly);
-        m.put("Predict Can Abort", this.predict_canAbort);
+        m.put("Predict Single-Partitioned", this.isPredictSinglePartition());
+        m.put("Predict Read Only", this.isPredictReadOnly());
+        m.put("Predict Abortable", this.isPredictAbortable());
         m.put("Estimator State", this.estimator_state);
         maps.add(m);
         
@@ -1154,7 +1092,7 @@ public class LocalTransactionState extends TransactionState {
         m.put("Exec Read Only", this.exec_readOnly);
         m.put("Exec Locally", this.exec_local);
         m.put("Done Partitions", this.done_partitions);
-        m.put("Speculative Execution", this.speculative);
+        m.put("Speculative Execution", this.exec_speculative);
         m.put("Touched Partitions", this.exec_touchedPartitions);
         maps.add(m);
 
@@ -1169,16 +1107,7 @@ public class LocalTransactionState extends TransactionState {
         maps.add(m);
 
         // Profile Times
-        if (HStoreConf.singleton().site.txn_profiling) {
-            m = new ListOrderedMap<String, Object>();
-            m.put("Total Time", this.total_time);
-            m.put("Java Time", this.java_time);
-            m.put("Coordinator Time", this.coord_time);
-            m.put("Planner Time", this.plan_time);
-            m.put("EE Time", this.ee_time);
-            m.put("Estimator Time", this.est_time);
-            maps.add(m);
-        }
+        if (this.profiler != null) maps.add(this.profiler.debugMap());
         
         StringBuilder sb = new StringBuilder();
         sb.append(StringUtil.formatMaps(maps.toArray(new Map<?, ?>[maps.size()])));

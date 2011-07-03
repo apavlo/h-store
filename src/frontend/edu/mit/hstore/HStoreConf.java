@@ -163,6 +163,15 @@ public final class HStoreConf {
         public boolean exec_speculative_execution;
         
         @ConfigProperty(
+            description="If this feature is enabled, then those non-speculative single partition transactions that are " +
+                        "deemed to never abort will be executed without undo logging. Requires Markov model estimations.",
+            defaultBoolean=false,
+            advanced=true,
+            experimental=true
+        )
+        public boolean exec_no_undo_logging;
+        
+        @ConfigProperty(
             description="If this parameter is set to true, then each HStoreSite will not send every transaction request " +
                         "through the Dtxn.Coordinator. Only multi-partition transactions will be sent to the " +
                         "Dtxn.Coordinator (in order to ensure global ordering). Setting this property to true provides a " +
@@ -231,7 +240,7 @@ public final class HStoreConf {
         
         @ConfigProperty(
             description="If this enabled, HStoreSite will use a separate thread to process every outbound ClientResponse for " +
-                        "all of the ExecutionSites. This may help with multi-partition transaction but will be the bottleneck " +
+                        "all of the ExecutionSites. This may help with multi-partition transactions but will be the bottleneck " +
                         "for single-partition txn heavy workloads.",
             defaultBoolean=false,
             advanced=true
@@ -252,7 +261,8 @@ public final class HStoreConf {
         // ----------------------------------------------------------------------------
         
         @ConfigProperty(
-            description="Enable transaction profiling.",
+            description="Enable transaction profiling. This will measure the amount of time a transaction spends" +
+            		    "in different parts of the system (e.g., waiting in the work queue, planning, executing).",
             defaultBoolean=false,
             advanced=true,
             experimental=true
@@ -312,16 +322,26 @@ public final class HStoreConf {
             description="", // TODO
             computed=true
         )
-        public int txn_redirect_queue_release;  
+        public int txn_redirect_queue_release;
+        
+        @ConfigProperty(
+            description="Allow queued distributed transctions to be rejected.",
+            defaultBoolean=false,
+            experimental=true,
+            advanced=true
+        )
+        public boolean txn_enable_queue_pruning;
         
         // ----------------------------------------------------------------------------
         // Markov Transaction Estimator Options
         // ----------------------------------------------------------------------------
 
         @ConfigProperty(
-            description="Recompute a MarkovGraph's execution state probabilities every time a transaction " +
-                        "is aborted due to a misprediction.",
+            description="Recompute a Markov model's execution state probabilities every time a transaction " +
+                        "is aborted due to a misprediction. The Markov model is queued in the ExecutionSiteHelper " +
+                        "for processing rather than being executed directly within the ExecutionSite's thread.",
             defaultBoolean=true,
+            experimental=false,
             advanced=false
         )
         public boolean markov_mispredict_recompute;
@@ -390,7 +410,8 @@ public final class HStoreConf {
         public int status_interval;
 
         @ConfigProperty(
-            description="Allow the HStoreSite StatusThread to kill the cluster if it looks hung.",
+            description="Allow the HStoreSiteStatus thread to kill the cluster if it's local HStoreSite has " +
+                        "not executed and completed any new transactions since the last time it took a status snapshot.", 
             defaultBoolean=true,
             advanced=false
         )
@@ -899,6 +920,50 @@ public final class HStoreConf {
             }
         } // FOR
     }
+    
+    public String makeHTML() {
+        StringBuilder sb = new StringBuilder();
+        
+        final String experimental = " <b class=\"experimental\">Experimental</b>";
+        
+        // Parameters:
+        //  (1) parameter
+        //  (2) parameter
+        //  (3) experimental
+        //  (4) default value
+        //  (5) description 
+        final String prop_f = "<a name=\"%s\"></a>\n" +
+                              "<li><tt class=\"property\">%s</tt>%s\n%s\n</li>\n\n";
+        
+        final Pattern prop_p = Pattern.compile("\\$\\{([\\w]+\\.[\\w\\_]+)\\}");
+        
+        for (String group : this.confHandles.keySet()) {
+            Conf handle = this.confHandles.get(group);
+            
+            sb.append(String.format("<h2>%s Parameters</h2>\n", StringUtil.title(group)));
+            sb.append("<ul class=\"property-list\">\n\n");
+            
+            for (Field f : handle.properties.keySet()) {
+                String key = String.format("%s.%s", group, f.getName());
+                ConfigProperty cp = handle.properties.get(f);
+                
+                // Format description
+                String desc = cp.description();
+                Matcher m = prop_p.matcher(desc);
+                if (m.find()) {
+                    desc = m.replaceAll("<a href=\"#$1\" class=\"property\">$1</a>");
+                }
+                
+                sb.append(String.format(prop_f, key, key, (cp.experimental() ? experimental : ""), desc));
+            } // FOR
+            
+            sb.append("</ul>\n\n");
+        } // FOR
+        
+        return (sb.toString());
+    }
+    
+    
     
     /**
      * 

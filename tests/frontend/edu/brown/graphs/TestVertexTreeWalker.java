@@ -9,6 +9,7 @@ import junit.framework.TestCase;
 import org.junit.Test;
 import org.voltdb.catalog.CatalogType;
 
+import edu.brown.graphs.VertexTreeWalker.Direction;
 import edu.brown.graphs.VertexTreeWalker.TraverseOrder;
 
 /**
@@ -87,6 +88,33 @@ public class TestVertexTreeWalker extends TestCase {
         this.graph.addEdge(new MockEdge(edge_id++), vertices[3], vertices[6]);
     }
     
+    private List<Integer> traverse(MockVertex v, TraverseOrder order, Direction direction) {
+        final List<Integer> result = new ArrayList<Integer>(); 
+        new VertexTreeWalker<MockVertex, MockEdge>(this.graph, order, direction) {
+            @Override
+            protected void callback(MockVertex element) {
+                result.add(element.id);
+            }
+        }.traverse(v);
+        return (result);
+    }
+    
+    /**
+     * testReverseSearch
+     */
+    @Test
+    public void testReverseSearch() {
+        final List<Integer> expected = Arrays.asList(6, 3, 1, 0);
+        List<Integer> result = this.traverse(vertices[6], TraverseOrder.DEPTH, Direction.REVERSE);
+        System.err.println("Longest Path Expected: " + expected);
+        System.err.println("Longest Path Result: " + result);
+        
+        assertEquals(expected.size(), result.size());
+        for (int i = 0, cnt = expected.size(); i < cnt; i++) {
+            assertEquals("[" + i + "]", expected.get(i), result.get(i));
+        } // FOR
+    }
+    
     /**
      * testBreadthFirstSearch
      */
@@ -95,16 +123,9 @@ public class TestVertexTreeWalker extends TestCase {
         final List<Integer> expected = Arrays.asList(0, 1, 2, 3, 4, 5, 6);
         assertEquals(this.vertices.length, expected.size());
         
-        final List<Integer> result = new ArrayList<Integer>(); 
-        new VertexTreeWalker<MockVertex>(this.graph, TraverseOrder.BREADTH) {
-            @Override
-            protected void callback(MockVertex element) {
-                result.add(element.id);
-            }
-        }.traverse(this.vertices[0]);
-        
-        System.err.println("Expected: " + expected);
-        System.err.println("Result: " + result);
+        final List<Integer> result = this.traverse(this.vertices[0], TraverseOrder.BREADTH, Direction.FORWARD);
+        System.err.println("Breadth First Expected: " + expected);
+        System.err.println("Breadth First Result: " + result);
         
         assertEquals(expected.size(), result.size());
         for (int i = 0, cnt = expected.size(); i < cnt; i++) {
@@ -120,16 +141,9 @@ public class TestVertexTreeWalker extends TestCase {
         final List<Integer> expected = Arrays.asList(0, 1, 3, 6, 4, 2, 5);
         assertEquals(this.vertices.length, expected.size());
         
-        final List<Integer> result = new ArrayList<Integer>(); 
-        new VertexTreeWalker<MockVertex>(this.graph, TraverseOrder.DEPTH) {
-            @Override
-            protected void callback(MockVertex element) {
-                result.add(element.id);
-            }
-        }.traverse(this.vertices[0]);
-        
-        System.err.println("Expected: " + expected);
-        System.err.println("Result: " + result);
+        final List<Integer> result = this.traverse(this.vertices[0], TraverseOrder.DEPTH, Direction.FORWARD);
+        System.err.println("Depth First Expected: " + expected);
+        System.err.println("Depth First Result: " + result);
         
         assertEquals(expected.size(), result.size());
         for (int i = 0, cnt = expected.size(); i < cnt; i++) {

@@ -25,6 +25,7 @@ package org.voltdb.benchmark;
 
 import java.io.File;
 import java.lang.reflect.Field;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
@@ -33,6 +34,7 @@ import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.commons.configuration.PropertiesConfiguration;
 import org.apache.log4j.Logger;
 
+import edu.brown.utils.ClassUtil;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.StringUtil;
 
@@ -83,12 +85,16 @@ public class BenchmarkConfig {
     public boolean noShutdown;
     
     public String markovPath;
-    public String thresholdsPath;
+    public String markov_thresholdsPath;
+    public Double markov_thresholdsValue;
+    public boolean markovRecomputeAfterEnd;
+    public boolean markovRecomputeAfterWarmup;
     
     public boolean dumpDatabase;
     public String dumpDatabaseDir;
-
-    public final Map<String, String> parameters = new HashMap<String, String>();
+    
+    public final Map<String, String> clientParameters = new HashMap<String, String>();
+    public final Map<String, String> siteParameters = new HashMap<String, String>();
 
     private PropertiesConfiguration config = null;
     
@@ -184,6 +190,9 @@ public class BenchmarkConfig {
             Set<Integer> profileSiteIds,
             String markovPath,
             String thresholdsPath,
+            Double thresholdsValue,
+            boolean markovRecomputeAfterEnd,
+            boolean markovRecomputeAfterWarmup,
             boolean dumpDatabase,
             String dumpDatabaseDir
         ) {
@@ -234,7 +243,10 @@ public class BenchmarkConfig {
         this.profileSiteIds = profileSiteIds;
         
         this.markovPath = markovPath;
-        this.thresholdsPath = thresholdsPath;
+        this.markov_thresholdsPath = thresholdsPath;
+        this.markov_thresholdsValue = thresholdsValue;
+        this.markovRecomputeAfterEnd = markovRecomputeAfterEnd;
+        this.markovRecomputeAfterWarmup = markovRecomputeAfterWarmup;
         
         this.dumpDatabase = dumpDatabase;
         this.dumpDatabaseDir = dumpDatabaseDir;
@@ -255,18 +267,19 @@ public class BenchmarkConfig {
             } else if (key.equalsIgnoreCase("clients")) {
                 m1.put("Number of Clients", this.clients.length);
                 m1.put("Clients", StringUtil.join("\n", this.clients));
-            } else if (key.equalsIgnoreCase("parameters")) {
+            } else if (key.equalsIgnoreCase("clientParameters") || key.equalsIgnoreCase("siteParameters")) {
                 // Skip
             } else {
                 Object val = null;
                 try {
                     val = f.get(this);
+                    if (ClassUtil.isArray(val)) val = Arrays.toString((Object[])val);
                 } catch (IllegalAccessException ex) {
                     val = ex.getMessage();
                 }
                 m2.put(key, val);
             }
         } // FOR
-        return (StringUtil.formatMaps(m0, m1, this.parameters, m2));
+        return (StringUtil.formatMaps(m0, m1, this.clientParameters, this.siteParameters, m2));
     }
 }

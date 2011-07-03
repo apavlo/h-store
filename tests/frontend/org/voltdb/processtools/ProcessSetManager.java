@@ -46,8 +46,9 @@ import edu.brown.utils.EventObservable;
 import edu.brown.utils.EventObserver;
 import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.LoggerUtil.LoggerBoolean;
+import edu.mit.hstore.interfaces.Shutdownable;
 
-public class ProcessSetManager {
+public class ProcessSetManager implements Shutdownable {
     private static final Logger LOG = Logger.getLogger(ProcessSetManager.class);
     private final static LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private final static LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
@@ -212,8 +213,26 @@ public class ProcessSetManager {
         this(null, null);
     }
     
-    public void prepareToShutdown() {
+    @Override
+    public void prepareShutdown() {
         this.shutting_down = true;
+        for (StreamWatcher sw : this.m_watchers.values()) {
+            sw.m_expectDeath.set(true);
+        } // FOR
+    }
+    
+    @Override
+    public void shutdown() {
+        this.shutting_down = true;
+        this.poller.interrupt();
+        for (String name : m_processes.keySet()) {
+            killProcess(name);
+        }
+    }
+    
+    @Override
+    public boolean isShuttingDown() {
+        return (this.shutting_down);
     }
 
     public String[] getProcessNames() {
@@ -262,7 +281,7 @@ public class ProcessSetManager {
         try {
             return m_output.take();
         } catch (InterruptedException e) {
-            if (this.shutting_down == false) e.printStackTrace();
+            // if (this.shutting_down == false) e.printStackTrace();
         }
         return null;
     }
@@ -354,14 +373,6 @@ public class ProcessSetManager {
         }
 
         return retval;
-    }
-
-    public void killAll() {
-        this.shutting_down = true;
-        poller.interrupt();
-        for (String name : m_processes.keySet()) {
-            killProcess(name);
-        }
     }
 
     public int size() {

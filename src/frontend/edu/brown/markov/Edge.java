@@ -7,6 +7,8 @@ import org.voltdb.catalog.Database;
 
 import edu.brown.graphs.AbstractEdge;
 import edu.brown.graphs.IGraph;
+import edu.brown.graphs.exceptions.InvalidGraphElementException;
+import edu.brown.utils.MathUtil;
 
 
 /**
@@ -18,10 +20,11 @@ import edu.brown.graphs.IGraph;
  * @author svelagap
  * 
  */
-public class Edge extends AbstractEdge implements Comparable<Edge> {
+public class Edge extends AbstractEdge implements Comparable<Edge>, MarkovHitTrackable {
     enum Members {
         PROBABILITY,
-        HITS,
+        TOTALHITS,
+        INSTANCEHITS,
     }
 
     /**
@@ -32,14 +35,14 @@ public class Edge extends AbstractEdge implements Comparable<Edge> {
     /**
      * This is the total number of times that we have traversed over this edge
      */
-    public int hits;
+    public int totalhits;
 
     /**
      * This is the temporary number of times that we have traversed over this edge in the current "period" of the
      * MarkovGraph. This will eventually get folded into the global hits count, but we need to keep it separate so that
      * we can determine whether the current workload is deviating from the training set
      */
-    private transient int instancehits = 0;
+    public transient int instancehits = 0;
 
     /**
      * Constructor
@@ -48,66 +51,120 @@ public class Edge extends AbstractEdge implements Comparable<Edge> {
      */
     public Edge(IGraph<Vertex, Edge> graph) {
         super(graph);
-        this.hits = 0;
+        this.totalhits = 0;
         this.probability = 0;
     }
 
-    public Edge(IGraph<Vertex, Edge> graph, int hits, double probability) {
+    public Edge(IGraph<Vertex, Edge> graph, int hits, float probability) {
         super(graph);
-        this.hits = hits;
+        this.totalhits = hits;
         this.probability = (float)probability;
     }
 
     @Override
     public int compareTo(Edge o) {
         assert (o != null);
-        if (this.probability != o.probability) {
+        if (MathUtil.equals(this.probability, o.probability, MarkovGraph.PROBABILITY_EPSILON) == false) {
             return (int) (o.probability * 100 - this.probability * 100);
         }
         return (this.hashCode() - o.hashCode());
     }
 
-    public long getHits() {
-        return (this.hits);
-    }
-
-    public double getProbability() {
-        return probability;
+    public float getProbability() {
+        return this.probability;
     }
 
     /**
-     * Sets the probability for this edge. Divides the number of hits this edge has had by the parameter
-     * 
-     * @param totalhits
-     *            number of hits of the vertex that is the source of this edge
+     * Calculates the probability for this edge.
+     * Divides the number of hits this edge has had by the parameter
+     * @param allHits number of hits of the vertex that is the source of this edge
      */
-    public void setProbability(long totalhits) {
-        probability = (float) (hits * 1.0 / totalhits);
+    public void calculateProbability(long allHits) {
+        assert(this.totalhits <= allHits) : String.format("Edge hits is greater than new allHits: " + this.totalhits + " > " + allHits);
+        if (allHits == 0) {
+            this.probability = 0f;
+        } else {
+            this.probability = (float) (this.totalhits / (double)allHits);
+        }
+        assert(MathUtil.greaterThanEquals(this.probability, 0.0f, MarkovGraph.PROBABILITY_EPSILON) &&
+               MathUtil.lessThanEquals(this.probability, 1.0f, MarkovGraph.PROBABILITY_EPSILON)) :
+           String.format("Invalid new edge probability: %d / %d = %f", this.totalhits, allHits, this.probability);
     }
 
-    public void increment() {
-        hits++;
+    // ----------------------------------------------------------------------------
+    // VALIDATION METHODS
+    // ----------------------------------------------------------------------------
+    
+    public boolean isValid(MarkovGraph markov) {
+        try {
+            this.validate(markov);
+        } catch (InvalidGraphElementException ex) {
+            return (false);
+        }
+        return (true);
     }
 
-    public void incrementHits(long howmuch) {
-        hits += howmuch;
+    protected void validate(MarkovGraph markov) throws InvalidGraphElementException {
+        Vertex v0 = markov.getSource(this);
+        Vertex v1 = markov.getDest(this);
+        float e_prob = this.getProbability();
+        
+        // Make sure the edge probability is between [0, 1]
+        if (MathUtil.greaterThanEquals(e_prob, 0.0f, MarkovGraph.PROBABILITY_EPSILON) == false ||
+            MathUtil.lessThanEquals(e_prob, 1.0f, MarkovGraph.PROBABILITY_EPSILON) == false) {
+            throw new InvalidGraphElementException(markov, this, String.format("Edge probability is %.4f", e_prob));
+        }
+        
+        // Make sure that the special states are linked to each other
+        if (v0.isQueryVertex() == false && v1.isQueryVertex() == false) {
+            throw new InvalidGraphElementException(markov, this, "Invalid edge between non-query states");
+        }    
     }
-
-    public long getInstancehits() {
-        return instancehits;
+    
+    // ----------------------------------------------------------------------------
+    // ONLINE UPDATE METHODS
+    // ----------------------------------------------------------------------------
+    
+    @Override
+    public void applyInstanceHitsToTotalHits() {
+        this.totalhits += this.instancehits;
+        this.instancehits = 0;
     }
-
-    public synchronized void incrementInstancehits() {
-        instancehits++;
+    @Override
+    public void incrementTotalHits() {
+        this.totalhits++;
     }
-
-    public synchronized void setInstancehits(int i) {
-        instancehits = i;
+    @Override
+    public long getTotalHits() {
+        return this.totalhits;
     }
-
+    @Override
+    public void setInstanceHits(int instancehits) {
+        this.instancehits = instancehits;
+    }
+    @Override
+    public int getInstanceHits() {
+        return this.instancehits;
+    }
+    @Override
+    public int incrementInstanceHits() {
+        return (++this.instancehits);
+    }
+    
+    
     @Override
     public String toString() {
         return String.format("%.02f", this.probability); // FORMAT.format(this.probability);
+    }
+    
+    @Override
+    public String toString(boolean verbose) {
+        if (verbose) {
+            return (String.format("ElementId:%d, Prob:%.02f, TotalHits:%d, InstanceHits:%d",
+                                  this.getElementId(), this.probability, this.totalhits, this.instancehits));
+        } else {
+            return this.toString();
+        }
     }
 
     // ----------------------------------------------------------------------------

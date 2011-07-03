@@ -42,7 +42,11 @@ public abstract class AbstractDirectedGraph<V extends AbstractVertex, E extends 
     // ----------------------------------------------------------------------------
     // INNER DELEGATION METHODS
     // ----------------------------------------------------------------------------
-
+    
+    @Override
+    public int getGraphId() {
+        return this.inner.getGraphId();
+    }
     public Set<V> getDescendants(V vertex) {
         return (this.inner.getDescendants(vertex));
     }
@@ -186,7 +190,8 @@ public abstract class AbstractDirectedGraph<V extends AbstractVertex, E extends 
     
     @Override
     public void fromJSON(JSONObject jsonObject, Database catalog_db) throws JSONException {
-        GraphUtil.deserialize(this, catalog_db, jsonObject);
+        int id = GraphUtil.deserialize(this, catalog_db, jsonObject);
+        this.inner.setGraphId(id);
     }
 
 }

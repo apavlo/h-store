@@ -16,8 +16,11 @@ import org.voltdb.messaging.FastSerializer;
 import org.voltdb.utils.Encoder;
 
 import edu.brown.catalog.CatalogKey;
+import edu.brown.graphs.exceptions.InvalidGraphElementException;
 import edu.brown.hashing.AbstractHasher;
+import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.CollectionUtil;
+import edu.brown.utils.FileUtil;
 import edu.brown.utils.JSONSerializable;
 import edu.brown.utils.JSONUtil;
 import edu.brown.utils.StringUtil;
@@ -99,6 +102,13 @@ public class MarkovGraphsContainer implements JSONSerializable {
         this(false);
     }
     
+    public MarkovGraph getFromGraphId(int id) {
+        for (MarkovGraph m : this.getAll()) {
+            if (m.getGraphId() == id) return (m);
+        } // FOR
+        return (null);
+    }
+    
     // -----------------------------------------------------------------
     // PSEUDO-MAP METHODS
     // -----------------------------------------------------------------
@@ -133,6 +143,7 @@ public class MarkovGraphsContainer implements JSONSerializable {
     public MarkovGraph getOrCreate(Integer id, Procedure catalog_proc, boolean initialize) {
         MarkovGraph markov = this.get(id, catalog_proc);
         if (markov == null) {
+            if (LOG.isDebugEnabled()) LOG.warn(String.format("Creating a new %s MarkovGraph for id %d", catalog_proc.getName(), id));
             markov = new MarkovGraph(catalog_proc);
             this.put(id, markov);
             if (initialize) markov.initialize();
@@ -152,6 +163,7 @@ public class MarkovGraphsContainer implements JSONSerializable {
     }
     
     public void put(Integer id, MarkovGraph markov) {
+        assert(id != null) : "Invalid id";
         Map<Procedure, MarkovGraph> inner = this.markovs.get(id);
         if (inner == null) {
             inner = new HashMap<Procedure, MarkovGraph>();
@@ -276,7 +288,7 @@ public class MarkovGraphsContainer implements JSONSerializable {
     @SuppressWarnings("unchecked")
     public String toString() {
         int num_ids = this.markovs.size();
-        Map maps[] = new Map[num_ids+1];
+        Map<String, Object> maps[] = (Map<String, Object>[])new Map<?, ?>[num_ids+1];
         int i = 0;
         
         maps[i] = new ListOrderedMap<String, Object>();
@@ -286,12 +298,14 @@ public class MarkovGraphsContainer implements JSONSerializable {
         for (Integer id : this.markovs.keySet()) {
             Map<Procedure, MarkovGraph> m = this.markovs.get(id);
             
-            i += 1;
-            maps[i] = new ListOrderedMap<String, Object>();
-            maps[i].put("ID", id);
+            maps[++i] = new ListOrderedMap<String, Object>();
+            maps[i].put("ID", "#" + id);
             maps[i].put("Number of Procedures", m.size());
             for (Entry<Procedure, MarkovGraph> e : m.entrySet()) {
-                maps[i].put("   " + e.getKey().getName(), e.getValue().getVertexCount());
+                MarkovGraph markov = e.getValue();
+                String val = String.format("[Vertices=%d, Recomputed=%d, Accuracy=%.4f]",
+                                           markov.getVertexCount(), markov.getRecomputeCount(), markov.getAccuracyRatio());
+                maps[i].put("   " + e.getKey().getName(), val);
             } // FOR
         } // FOR
         
@@ -387,7 +401,6 @@ public class MarkovGraphsContainer implements JSONSerializable {
         List<Runnable> runnables = new ArrayList<Runnable>();
         for (String id_key : CollectionUtil.wrapIterator(json_inner.keys())) {
             final Integer id = Integer.valueOf(id_key);
-            // HACK
             if (id.equals(MarkovUtil.GLOBAL_MARKOV_CONTAINER_ID)) this.global = true;
         
             final JSONObject json_procs = json_inner.getJSONObject(id_key);
@@ -405,14 +418,15 @@ public class MarkovGraphsContainer implements JSONSerializable {
                     @Override
                     public void run() {
                         if (d) LOG.debug(String.format("Loading MarkovGraph [id=%d, proc=%s]", id, catalog_proc.getName()));
+                        JSONObject json_graph = null;
                         try {
-                            JSONObject json_graph = new JSONObject(Encoder.hexDecodeToString(json_procs.getString(proc_key)));
+                            json_graph = new JSONObject(Encoder.hexDecodeToString(json_procs.getString(proc_key)));
                             MarkovGraph markov = new MarkovGraph(catalog_proc);
                             markov.fromJSON(json_graph, catalog_db);
                             MarkovGraphsContainer.this.put(id, markov);
                             markov.buildCache();
-                        } catch (Exception ex) {
-                            throw new RuntimeException(ex);
+                        } catch (Throwable ex) {
+                            throw new RuntimeException("Failed to load MarkovGraph " + id + " for " + catalog_proc.getName(), ex);
                         }
                     }
                 });
@@ -420,5 +434,47 @@ public class MarkovGraphsContainer implements JSONSerializable {
         } // FOR (id key)
         if (d) LOG.debug(String.format("Going to wait for %d MarkovGraphs to load", runnables.size())); 
         ThreadUtil.runGlobalPool(runnables);
+    }
+    
+    public static void main(String[] vargs) throws Exception {
+        ArgumentsParser args = ArgumentsParser.load(vargs);
+        args.require(ArgumentsParser.PARAM_CATALOG,
+                     ArgumentsParser.PARAM_MARKOV);
+        
+        Map<Integer, MarkovGraphsContainer> all_markovs = MarkovUtil.load(args.catalog_db, args.getParam(ArgumentsParser.PARAM_MARKOV));
+        int cnt_invalid = 0;
+        int cnt_total = 0;
+        boolean save = true;
+        for (Integer p : all_markovs.keySet()) {
+            MarkovGraphsContainer m = all_markovs.get(p);
+            LOG.info(String.format("[%s] Validating %d MarkovGraphs for partition %d", m.getClass().getSimpleName(), m.size(), p));
+            
+            for (Integer id : m.keySet()) {
+                for (MarkovGraph markov : m.getAll(id).values()) {
+                    boolean dump = false;
+                    String before = MarkovUtil.exportGraphviz(markov, true, false, true, null).export(markov.getProcedure().getName());
+                    try {
+                        markov.calculateProbabilities();
+                        markov.validate();
+                        if (markov.getGraphId() == 10014) dump = true;
+                    } catch (InvalidGraphElementException ex) {
+                        cnt_invalid++;
+                        System.out.println(String.format("[%d] %-16s - %s", markov.getGraphId(), markov.getProcedure().getName(), ex.getMessage()));
+                        dump = true;
+                        throw ex;
+                    } finally {
+                        if (dump) {
+                            System.out.println("BEFORE DUMPED: " + FileUtil.writeStringToFile("/tmp/before.dot", before));
+                            System.out.println("AFTER DUMPED: " + MarkovUtil.exportGraphviz(markov, true, false, true, null).writeToTempFile(markov.catalog_proc));
+                        }
+                    }
+                    cnt_total++;
+                }
+            } // FOR
+        }
+        System.out.println("VALID: " + (cnt_total - cnt_invalid) + " / "+ cnt_total);
+        if (save && cnt_invalid == 0) {
+            MarkovUtil.save(all_markovs, args.getParam(ArgumentsParser.PARAM_MARKOV));
+        }
     }
 }

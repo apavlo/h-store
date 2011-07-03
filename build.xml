@@ -24,7 +24,8 @@
 <!-- allow env.VOLTBUILD to override "build" property -->
 <envdefault prop="build" var="VOLTBUILD" default="release" />
 
-<property name='build.dir'                   location='obj/${build}' />
+<!-- <property name='build.dir'                   location='obj/${build}' /> -->
+<property name='build.dir'                   location='obj/release' />
 <property name='build.prod.dir'              location='${build.dir}/prod' />
 <property name='build.test.dir'              location='${build.dir}/test' />
 <property name='build.dtxn.dir'              location='${build.dir}/dtxn' />
@@ -674,9 +675,7 @@ NATIVE EE STUFF
 <target name='ee' depends="buildinfo, jnicompile"
     description="Build C++ JNI library and copy it to production folder.">
     <exec dir='.' executable='python' failonerror='true'>
-<!--         <arg line="build.py ${build}" /> -->
-<!--         <arg line="build.py debug" /> -->
-        <arg line="build.py LOG_LEVEL=${site.ee_log_level} release" />
+        <arg line="build.py LOG_LEVEL=${site.ee_log_level} ${build}" />
     </exec>
 <!--     <exec dir='.' executable='/bin/sh'>
         <arg line="-c 'rm -f ${build.dir}/nativelibs/libvoltdb.so'"/>
@@ -1436,7 +1435,7 @@ BENCHMARKS
         classname="org.voltdb.benchmark.BenchmarkController">
         <classpath refid='project.classpath' />
         <jvmarg value="-server" />
-        <jvmarg value="-Xmx512m" />
+        <jvmarg value="-Xmx2048m" />
         <jvmarg value="-Xcheck:jni"/>
         <jvmarg value="-Djava.library.path=${build.dir}/nativelibs" />
         <jvmarg value="-Dlog4j.configuration=${basedir}/log4j.properties"/>
@@ -1453,7 +1452,12 @@ BENCHMARKS
         <arg value="REMOTEUSER=${remoteuser}"/>
         <arg value="CATALOG=${catalog}" />
         <arg value="COORDINATORHOST=${coordinator.host}" />
-        <arg value="MARKOV=${markov}" />
+        
+        <arg value="markov=${markov}" />
+        <arg value="markov.thresholds=${markov.thresholds}" />
+        <arg value="markov.thresholds.value=${markov.thresholds.value}" />
+        <arg value="markov.recompute_end=${markov.recompute_end}" />
+        <arg value="markov.recompute_warmup=${markov.recompute_warmup}" />
 
         <!-- Execution Options -->
         <arg value="TXNRATE=${client.txnrate}" />
@@ -1829,10 +1833,10 @@ DESIGNER
     </java>
 </target>
 
-<target name='markov' description="Generate Markov Graphs">
+<target name='markov' description="Generate Markov Graphs" depends="getcpus">
     <java fork="yes" classname="edu.brown.markov.MarkovGraph" failonerror='true'>
         <jvmarg value="-Xmx${volt.client.memory}m" />
-        <jvmarg value="-Dhstore.max_threads=${max_threads}" />
+        <jvmarg value="-Dhstore.max_threads=${numcpus}" />
         <arg value="catalog.jar=${jar}" />
         <arg value="workload=${workload}" />
         <arg value="workload.xactlimit=${limit}" />
@@ -1847,10 +1851,10 @@ DESIGNER
     </java>
 </target>
 
-<target name='markov-cost' description="Estimate MarkovGraph Costs">
+<target name='markov-cost' description="Estimate MarkovGraph Costs" depends="getcpus">
     <java fork="yes" classname="edu.brown.costmodel.MarkovCostModel" failonerror='true'>
         <jvmarg value="-Xmx${volt.client.memory}m" />
-        <jvmarg value="-Dhstore.max_threads=${max_threads}" />
+        <jvmarg value="-Dhstore.max_threads=${numcpus}" />
         <arg value="catalog.jar=${jar}" />
         <arg value="workload=${workload}" />
         <arg value="workload.xactlimit=${limit}" />
@@ -1860,6 +1864,8 @@ DESIGNER
         <arg value="workload.procinclude.multiplier=${multiplier}" />
         <arg value="correlations=files/correlations/${project}.correlations" />
         <arg value="markov=${markov}" />
+        <arg value="markov.thresholds=${markov.thresholds}" />
+        <arg value="markov.thresholds.value=${markov.thresholds.value}" />
         <classpath refid='project.classpath' />
         <assertions><enable /></assertions>
     </java>
@@ -1894,7 +1900,7 @@ DESIGNER
     </java>
 </target>
 
-<target name='markov-cluster' description="Generate Markov Cluster-based File">
+<target name='markov-cluster' description="Generate Markov Cluster-based File" depends="getcpus">
     <java fork="yes" classname="edu.brown.markov.FeatureClusterer" failonerror='true'>
         <jvmarg value="-Xmx${volt.client.memory}m" />
         <jvmarg value="-server" />
@@ -1916,7 +1922,7 @@ DESIGNER
         <arg value="markov.split.validation=${validation}" />
         <arg value="markov.split.testing=${testing}" />
         <arg value="markov.rounds=${rounds}" />
-        <arg value="markov.threads=${threads}" />
+        <arg value="markov.threads=${numcpus}" />
         <arg value="markov.partitions=${partitions}" />
         <arg value="markov.topk=${topk}" />
         <arg value="${procedure}" />
@@ -2257,8 +2263,8 @@ H-STORE REMIX
         <arg value="dtxn.engine=${build.dtxn.dir}/protodtxn/protodtxnengine" />
         <arg value="hasher.class=${hasher}" />
         <arg value="markov=${markov}" />
-        <arg value="markov.thresholds=${thresholds}" />
-        <arg value="markov.thresholds.value=${thresholds.value}" />
+        <arg value="markov.thresholds=${markov.thresholds}" />
+        <arg value="markov.thresholds.value=${markov.thresholds.value}" />
         <arg value="correlations=${correlations}" />
         <arg value="partitionplan=${partitionplan}" />
         <arg value="partitionplan.apply=true" />

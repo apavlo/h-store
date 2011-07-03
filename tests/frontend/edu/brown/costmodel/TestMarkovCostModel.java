@@ -133,7 +133,7 @@ public class TestMarkovCostModel extends BaseTestCase {
         this.markov = markovs.get(BASE_PARTITION, catalog_proc);
         assertNotNull(this.markov);
         
-        this.estimated_path = this.txn_state.getEstimatedPath();
+        this.estimated_path = this.txn_state.getInitialPath();
         assertNotNull(this.estimated_path);
         assert(this.estimated_path.isEmpty() == false);
         this.actual_path = this.txn_state.getActualPath();
@@ -172,7 +172,7 @@ public class TestMarkovCostModel extends BaseTestCase {
     public void testComparePathsFull_Penalty1() throws Exception {
         // We have to call comparePathsFast first to setup some sets
         // We don't care what the outcome is here...
-        costmodel.comparePathsFast(this.txn_state.getEstimatedPath(), this.txn_state.getActualPath());
+        costmodel.comparePathsFast(this.txn_state.getInitialPath(), this.txn_state.getActualPath());
         
         Vertex abort_v = markov.getAbortVertex();
         List<Vertex> actual = this.txn_state.getActualPath();
@@ -182,7 +182,7 @@ public class TestMarkovCostModel extends BaseTestCase {
         List<Penalty> penalties = costmodel.getLastPenalties();
         assertNotNull(penalties);
         System.err.println(String.format("COST=%.03f PENALTIES=%s", cost, penalties));
-        assert(penalties.contains(Penalty.MISSED_ABORT_MULTI) || penalties.contains(Penalty.MISSED_ABORT_SINGLE)); 
+        assert(penalties.contains(Penalty.MISSED_READ_PARTITION) || penalties.contains(Penalty.MISSED_WRITE_PARTITION)); 
     }
     
     /**
@@ -192,7 +192,7 @@ public class TestMarkovCostModel extends BaseTestCase {
     public void testComparePathsFull_Penalty2() throws Exception {
         // We have to call comparePathsFast first to setup some sets
         // We don't care what the outcome is here...
-        costmodel.comparePathsFast(this.txn_state.getEstimatedPath(), this.txn_state.getActualPath());
+        costmodel.comparePathsFast(this.txn_state.getInitialPath(), this.txn_state.getActualPath());
         
         // Remove all of the estimated read partitions except for one
         Set<Integer> e_read_partitions = costmodel.getLastEstimatedReadPartitions();
@@ -209,7 +209,7 @@ public class TestMarkovCostModel extends BaseTestCase {
         List<Penalty> penalties = costmodel.getLastPenalties();
         assertNotNull(penalties);
         System.err.println(String.format("COST=%.03f PENALTIES=%s", cost, penalties));
-        assert(penalties.contains(Penalty.MISSING_READ_PARTITION)); 
+        assert(penalties.contains(Penalty.MISSED_READ_PARTITION)); 
     }
     
     /**

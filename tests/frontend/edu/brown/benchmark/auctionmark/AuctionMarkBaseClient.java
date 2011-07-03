@@ -84,7 +84,6 @@ public abstract class AuctionMarkBaseClient extends ClientMain {
      */
     public AuctionMarkBaseClient(Class<? extends AuctionMarkBaseClient> child_class, String[] args) {
         super(args);
-
         Double scale_factor = 1.0;
         String profile_file = null;
         int seed = 0;
@@ -121,6 +120,7 @@ public abstract class AuctionMarkBaseClient extends ClientMain {
         // Only load from the file for AuctionMarkClient
         this.profile = new AuctionMarkBenchmarkProfile();
         this.profile_path = new File(profile_file == null ? DEFAULT_PROFILE_PATH : profile_file);
+        // child_class is class edu....AuctionMarkLoader
         if (child_class.equals(AuctionMarkClient.class)) {
             if (this.profile_path.exists()) {
                 try {

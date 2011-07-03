@@ -259,6 +259,9 @@ public abstract class VoltTableRow {
         case DECIMAL:
             ret = getDecimalAsBigDecimal(columnIndex);
             break;
+        case BOOLEAN:
+            ret = getBoolean(columnIndex);
+            break;
         default:
             throw new IllegalArgumentException("Invalid type '" + type + "'");
         }
@@ -306,12 +309,23 @@ public abstract class VoltTableRow {
         case DECIMAL:
             ret = getDecimalAsBigDecimal(columnName);
             break;
+        case BOOLEAN:
+            ret = getBoolean(columnName);
+            break;
         default:
             throw new IllegalArgumentException("Invalid type '" + type + "'");
         }
         return ret;
     }
 
+    public final boolean getBoolean(int columnIndex) {
+        return (this.getLong(columnIndex) != 0);
+    }
+    
+    public final boolean getBoolean(String columnName) {
+        return (this.getLong(columnName) != 0);
+    }
+    
     /**
      * Retrieve the <tt>long</tt> value stored in the column specified by index.
      * Looking at the return value is not a reliable way to check if the value
@@ -332,6 +346,7 @@ public abstract class VoltTableRow {
 
         switch (type) {
         case TINYINT:
+        case BOOLEAN:
             final byte value1 = m_buffer.get(getOffset(columnIndex));
             m_wasNull = (value1 == VoltType.NULL_TINYINT);
             return value1;

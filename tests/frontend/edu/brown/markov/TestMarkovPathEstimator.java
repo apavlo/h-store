@@ -16,6 +16,7 @@ import org.voltdb.types.ExpressionType;
 import edu.brown.BaseTestCase;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.correlations.ParameterCorrelations;
+import edu.brown.utils.MathUtil;
 import edu.brown.utils.ProjectType;
 import edu.brown.utils.StringUtil;
 import edu.brown.workload.TransactionTrace;
@@ -119,14 +120,14 @@ public class TestMarkovPathEstimator extends BaseTestCase {
         MarkovPathEstimator estimator = new MarkovPathEstimator(this.graph, this.t_estimator, BASE_PARTITION, singlep_trace.getParams());
         assert(estimator.isInitialized());
         estimator.enableForceTraversal(true);
-        assertEquals(1.0, estimator.getConfidence());
+        assertEquals(1.0f, estimator.getConfidence(), MarkovGraph.PROBABILITY_EPSILON);
         estimator.traverse(this.graph.getStartVertex());
         MarkovEstimate estimate = estimator.getEstimate();
         assertNotNull(estimate);
         
         estimator.finish();
         assertFalse(estimator.isInitialized());
-        assertEquals((float)MarkovUtil.NULL_MARKER, (float)estimator.getConfidence());
+        assertEquals(MarkovUtil.NULL_MARKER, estimator.getConfidence(), MarkovGraph.PROBABILITY_EPSILON);
     }
     
     /**
@@ -141,23 +142,24 @@ public class TestMarkovPathEstimator extends BaseTestCase {
         assertNotNull(estimate);
 //        System.err.println(StringUtil.columns(StringUtil.join("\n", estimator.getVisitPath()), estimate.toString()));
         
+//        System.err.println(estimate);
+        
         for (int p : CatalogUtil.getAllPartitionIds(catalog_proc)) {
             assert(estimate.isReadOnlyProbabilitySet(p));
             assert(estimate.isWriteProbabilitySet(p));
-            assert(estimate.isFinishedProbabilitySet(p));
+            assert(estimate.isDoneProbabilitySet(p));
             
-            if (estimate.getFinishedProbability(p) < 1.0) {
-                assert(estimate.getTouchedCounter(p) > 0);
-                assert(estimate.getWriteProbability(p) > 0.0);
-            } else {
+            if (estimate.getDoneProbability(p) < 0.9f) {
+                assert(estimate.getTouchedCounter(p) > 0) : String.format("TOUCHED[%d]: %d", p, estimate.getTouchedCounter(p)); 
+                assert(MathUtil.greaterThan(estimate.getWriteProbability(p), 0.0f, 0.01f)) : String.format("WRITE[%d]: %f", p, estimate.getWriteProbability(p));
+            } else if (MathUtil.equals(estimate.getDoneProbability(p), 0.01f, 0.01f)) {
                 assertEquals(0, estimate.getTouchedCounter(p));
-                assert(estimate.getWriteProbability(p) == 0.0);
+                assertEquals(0.0f, estimate.getWriteProbability(p), MarkovGraph.PROBABILITY_EPSILON);
             }
         } // FOR
-        assert(estimate.isSinglePartitionProbabilitySet());
+        assert(estimate.isSingleSitedProbabilitySet());
         assert(estimate.isAbortProbabilitySet());
-        
-        assertEquals(1.0, estimate.getSinglePartitionProbability());
+        assert(estimate.getSingleSitedProbability() < 1.0f);
     }
     
     /**
@@ -173,14 +175,16 @@ public class TestMarkovPathEstimator extends BaseTestCase {
         estimator.enableForceTraversal(true);
         estimator.traverse(this.graph.getStartVertex());
         Vector<Vertex> path = new Vector<Vertex>(estimator.getVisitPath());
-        double confidence = estimator.getConfidence();
+        float confidence = estimator.getConfidence();
         
 //        System.err.println("INITIAL PATH:\n" + StringUtil.join("\n", path));
 //        System.err.println("CONFIDENCE: " + confidence);
+//        System.err.println("DUMPED FILE: " + MarkovUtil.exportGraphviz(this.graph, false, this.graph.getPath(path)).writeToTempFile());
         
         assertEquals(start, path.firstElement());
         assertEquals(commit, path.lastElement());
         assertFalse(path.contains(abort));
+        assert(confidence > 0.0f);
         
         // All of the vertices should only have the base partition in their partition set
         for (int i = 1, cnt = path.size() - 1; i < cnt; i++) {

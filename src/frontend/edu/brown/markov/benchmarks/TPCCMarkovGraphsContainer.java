@@ -3,7 +3,6 @@ package edu.brown.markov.benchmarks;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -39,17 +38,22 @@ public class TPCCMarkovGraphsContainer extends MarkovGraphsContainer {
         MarkovGraph ret = null;
         
         String proc_name = catalog_proc.getName();
-        int id = base_partition;
+        int id = -1;
         
         // NEWORDER
         if (proc_name.equals("neworder")) {
+            if (d) LOG.debug(String.format("Selecting MarkovGraph using decision tree for %s txn #%d", proc_name, txn_id));
+            assert(this.hasher != null) : "Missing hasher!";
             id = this.processNeworder(txn_id, base_partition, params, catalog_proc);
         // PAYMENT
         } else if (proc_name.startsWith("payment")) {
+            if (d) LOG.debug(String.format("Selecting MarkovGraph using decision tree for %s txn #%d", proc_name, txn_id));
+            assert(this.hasher != null) : "Missing hasher!";
             id = this.processPayment(txn_id, base_partition, params, catalog_proc);
         // DEFAULT
         } else {
-            if (t) LOG.trace(String.format("Using default MarkovGraph for %s txn #%d", proc_name, txn_id));
+            if (d) LOG.debug(String.format("Using default MarkovGraph for %s txn #%d", proc_name, txn_id));
+            id = base_partition;
         }
         ret = this.getOrCreate(id, catalog_proc, true);
         assert(ret != null);

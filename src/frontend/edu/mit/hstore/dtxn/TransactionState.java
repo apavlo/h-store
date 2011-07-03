@@ -83,6 +83,36 @@ public abstract class TransactionState implements Poolable {
      */
     private boolean hstoresite_finished = false;
 
+    // ----------------------------------------------------------------------------
+    // PREDICTIONS FLAGS
+    // ----------------------------------------------------------------------------
+    
+    /** Whether this txn is suppose to be single-partitioned */
+    private boolean predict_singlePartitioned = false;
+    
+    /** Whether this txn can abort */
+    private boolean predict_abortable = true;
+    
+    /** Whether we predict that this txn will be read-only */
+    private boolean predict_readOnly = false;
+    
+    // ----------------------------------------------------------------------------
+    // EXECUTION FLAGS
+    // ----------------------------------------------------------------------------
+    
+    /** Whether this transaction has been read-only so far */
+    protected boolean exec_readOnly = true;
+
+    /** Whether this Transaction has submitted work to the EE that may need to be rolled back */
+    protected boolean exec_eeWork = false;
+    
+    /** This is set to true if the transaction did some work without an undo buffer **/
+    private boolean exec_noUndoBuffer = false;
+    
+    /**
+     * Whether this transaction's control code is executing at this partition
+     */
+    protected boolean exec_local;
     
     // ----------------------------------------------------------------------------
     // INVOCATION DATA MEMBERS
@@ -92,27 +122,13 @@ public abstract class TransactionState implements Poolable {
     protected long client_handle;
     protected int base_partition;
     protected final Set<Integer> touched_partitions = new HashSet<Integer>();
-    protected boolean exec_local;
     protected Long last_undo_token;
     protected RoundState round_state;
     protected int round_ctr = 0;
     protected RuntimeException pending_error;
     protected Long ee_finished_timestamp;
+    protected boolean rejected;
     
-    /**
-     * Whether we predict that this txn will be read-only
-     */
-    protected boolean predict_readOnly = false;
-    
-    /**
-     * Whether this transaction has been read-only so far
-     */
-    protected boolean exec_readOnly = true;
-
-    /**
-     * Whether this Transaction has submitted work to the EE that needs to be rolled back
-     */
-    protected boolean submitted_to_ee = false;
 
     /**
      * Callbacks for specific FragmentTaskMessages
@@ -144,16 +160,28 @@ public abstract class TransactionState implements Poolable {
     /**
      * Initialize this TransactionState for a new Transaction invocation
      * @param txn_id
-     * @param dtxn_txn_id
      * @param client_handle
+     * @param predict_singlePartition TODO
+     * @param predict_readOnly TODO
+     * @param predict_abortable TODO
      * @param exec_local
+     * @param dtxn_txn_id
      */
-    protected final TransactionState init(long txn_id, long client_handle, int base_partition, boolean exec_local) {
+    protected final TransactionState init(long txn_id, long client_handle, int base_partition,
+                                          boolean predict_singlePartition, boolean predict_readOnly, boolean predict_abortable,
+                                          boolean exec_local) {
         this.txn_id = txn_id;
         this.client_handle = client_handle;
         this.base_partition = base_partition;
-        this.exec_local = exec_local;
         this.round_state = RoundState.NULL;
+        this.rejected = false;
+
+        this.predict_singlePartitioned = predict_singlePartition;
+        this.predict_readOnly = predict_readOnly;
+        this.predict_abortable = predict_abortable;
+        
+        this.exec_local = exec_local;
+        
         return (this);
     }
 
@@ -170,12 +198,18 @@ public abstract class TransactionState implements Poolable {
     public void finish() {
         this.txn_id = -1;
         this.hstoresite_finished = false;
-        this.predict_readOnly = false;
-        this.exec_readOnly = true;
+        
         this.ee_finished_timestamp = null;
-        this.submitted_to_ee = false;
         this.pending_error = null;
         this.last_undo_token = null;
+        
+        this.predict_singlePartitioned = false;
+        this.predict_readOnly = false;
+        this.predict_abortable = true;
+        
+        this.exec_readOnly = true;
+        this.exec_eeWork = false;
+        
         this.touched_partitions.clear();
         this.fragment_callbacks.clear();
     }
@@ -189,8 +223,11 @@ public abstract class TransactionState implements Poolable {
      * @param txnId
      * @param clientHandle
      * @param source_partition
+     * @param predict_singlePartitioned TODO
+     * @param predict_readOnly TODO
+     * @param predict_abortable TODO
      */
-    public abstract <T extends TransactionState> T init(long txnId, long clientHandle, int source_partition);
+    public abstract <T extends TransactionState> T init(long txnId, long clientHandle, int source_partition, boolean predict_singlePartitioned, boolean predict_readOnly, boolean predict_abortable);
     
     public abstract VoltTable[] getResults();
     
@@ -212,7 +249,12 @@ public abstract class TransactionState implements Poolable {
         assert(this.round_state == RoundState.NULL || this.round_state == RoundState.FINISHED) : 
             "Invalid round state " + this.round_state + " for txn #" + this.txn_id;
         
-        this.last_undo_token = undoToken;
+        if (this.last_undo_token == null || undoToken != ExecutionSite.DISABLE_UNDO_LOGGING_TOKEN) {
+            this.last_undo_token = undoToken;
+        }
+        if (undoToken == ExecutionSite.DISABLE_UNDO_LOGGING_TOKEN) {
+            this.exec_noUndoBuffer = true;
+        }
         this.round_state = RoundState.INITIALIZED;
         this.pending_error = null;
         
@@ -246,21 +288,92 @@ public abstract class TransactionState implements Poolable {
     }
     
     // ----------------------------------------------------------------------------
+    // PREDICTIONS
+    // ----------------------------------------------------------------------------
+    
+    /**
+     * Returns true if this Transaction was originally predicted to be single-partitioned
+     */
+    public boolean isPredictSinglePartition() {
+        return (this.predict_singlePartitioned);
+    }
+    /**
+     * Returns true if this Transaction was originally predicted as being able to abort
+     */
+    public boolean isPredictAbortable() {
+        return (this.predict_abortable);
+    }
+    /**
+     * Returns true if this transaction was originally predicted as read only
+     */
+    public boolean isPredictReadOnly() {
+        return (this.predict_readOnly);
+    }
+    
+    // ----------------------------------------------------------------------------
+    // EXECUTION FLAG METHODS
+    // ----------------------------------------------------------------------------
+    
+    /**
+     * Mark this transaction as have performed some modification on this partition
+     */
+    public void markExecNotReadOnly() {
+        this.exec_readOnly = false;
+    }
+    /**
+     * Returns true if this transaction has not executed any modifying work at this partition
+     */
+    public boolean isExecReadOnly() {
+        return (this.exec_readOnly);
+    }
+    /**
+     * Returns true if this transaction executed without undo buffers at some point
+     */
+    public boolean isExecNoUndoBuffer() {
+        return (this.exec_noUndoBuffer);
+    }
+    /**
+     * Returns true if this transaction's control code running at this partition 
+     */
+    public boolean isExecLocal() {
+        return this.exec_local;
+    }
+    
+    // ----------------------------------------------------------------------------
     // GENERAL METHODS
     // ----------------------------------------------------------------------------
 
+    public boolean isRejected() {
+        return (this.rejected);
+    }
+    
+    public void markAsRejected() {
+        this.rejected = true;
+    }
+    
+    /**
+     * Returns true if this transaction has done something at this partition
+     */
+    public boolean hasStarted() {
+        return (this.last_undo_token != null);
+    }
+    
+    /**
+     * Get the current batch/round counter
+     */
     public int getCurrentRound() {
         return (this.round_ctr);
     }
     
     /**
-     * 
+     * Returns true if this transaction has a pending error
      */
     public boolean hasPendingError() {
         return (this.pending_error != null);
     }
     /**
-     * 
+     * Return the pending error for this transaction
+     * Does not clear it.
      * @return
      */
     public RuntimeException getPendingError() {
@@ -286,18 +399,18 @@ public abstract class TransactionState implements Poolable {
      * Should be called whenever the txn submits work to the EE 
      */
     public void setSubmittedEE() {
-        this.submitted_to_ee = true;
+        this.exec_eeWork = true;
     }
     
     public void unsetSubmittedEE() {
-        this.submitted_to_ee = false;
+        this.exec_eeWork = false;
     }
     /**
      * Returns true if this txn has submitted work to the EE that needs to be rolled back
      * @return
      */
     public boolean hasSubmittedEE() {
-        return (this.submitted_to_ee);
+        return (this.exec_eeWork);
     }
     
     // ----------------------------------------------------------------------------
@@ -373,20 +486,6 @@ public abstract class TransactionState implements Poolable {
         return this.last_undo_token;
     }
     
-    public void setPredictReadOnly(boolean read_only) {
-        this.predict_readOnly = read_only;
-    }
-    public boolean isPredictReadOnly() {
-        return (this.predict_readOnly);
-    }
-    
-    public void setExecReadOnly(boolean read_only) {
-        this.exec_readOnly = read_only;
-    }
-    public boolean isExecReadOnly() {
-        return (this.exec_readOnly);
-    }
-    
     /**
      * @return the client_handle
      */
@@ -402,13 +501,6 @@ public abstract class TransactionState implements Poolable {
         return base_partition;
     }
     
-    /**
-     * Is this transaction's control code running at this partition? 
-     * @return the exec_local
-     */
-    public boolean isExecLocal() {
-        return this.exec_local;
-    }
 
     /**
      * Return the previously stored callback for a FragmentTaskMessage

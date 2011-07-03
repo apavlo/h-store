@@ -32,6 +32,7 @@
 package edu.brown.benchmark.auctionmark;
 
 import java.io.File;
+import java.io.IOException;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Calendar;
@@ -65,6 +66,7 @@ import edu.brown.rand.RandomDistribution.Flat;
 import edu.brown.rand.RandomDistribution.FlatHistogram;
 import edu.brown.rand.RandomDistribution.Gaussian;
 import edu.brown.rand.RandomDistribution.Zipf;
+import edu.brown.utils.FileUtil;
 
 /**
  * 
@@ -97,7 +99,28 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
     private static final long MICROSECONDS_IN_A_DAY = MILLISECONDS_IN_A_DAY * 1000;
     
     private int numClients;
+    
+    private ArrayList<AuctionMarkBenchmarkProfile> profiles;
 
+    public ArrayList<AuctionMarkBenchmarkProfile> getProfiles() {
+    	return profiles;
+    }
+    
+    public void PartitionRangeIds() {
+        // split up the profiles into multiple profile objects
+        double table_size = AuctionMarkConstants.TABLESIZE_USER / profile.getScaleFactor();
+        double table_size_per_client = table_size / getNumClients();
+        for (int i = 0; i < getNumClients(); i++) {
+            AuctionMarkBenchmarkProfile profile = new AuctionMarkBenchmarkProfile();
+            // set the low u_id and high_u_id
+            profile.setLowerUid((int)(i * table_size_per_client));
+            profile.setHighUid((int)((i + 1) * table_size_per_client - 1));
+            // add profile to list of created profiles
+            profiles.add(profile);
+            LOG.info("create profile with id: " + i + " low uid: " + (i * table_size_per_client) + " high uid: " +  ((i + 1) * table_size_per_client - 1));
+        }
+    }
+    
     /**
      * 
      * @param args
@@ -115,6 +138,7 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
     public AuctionMarkLoader(String[] args) {
         super(AuctionMarkLoader.class, args);
 
+        profiles = new ArrayList<AuctionMarkBenchmarkProfile>();
         numClients = this.getNumClients();
         assert(AuctionMarkConstants.MAXIMUM_NUM_CLIENTS > numClients);
         if (debug) LOG.debug("AuctionMarkLoader::: numClients = " + numClients);
@@ -165,6 +189,7 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
      */
     @Override
     public void runLoop() {
+    	//LOG.info("runloop in Auctionmark loader called!!!!!!!!!!!!!!!!");
         // Construct a new thread to load each table
         // TODO: Need to think about how to handle tables that may need to wait for earlier
         // tables to be constructed
@@ -192,7 +217,21 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
             LOG.fatal("Unexpected error", e);
             System.exit(-1);
         }
-        
+    	//LOG.info("finish loop:");
+    	PartitionRangeIds();
+    	// call sendToClient on all the profiles just created
+    	int profile_index = 0;
+    	for (AuctionMarkBenchmarkProfile profile : profiles) {
+    		File f = FileUtil.getTempFile("profile" + profile_index, false);
+    		try {
+				profile.save(f.getAbsolutePath());
+				sendFileToClient(profile_index, "", f, f);
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+			profile_index++;
+    	}
         this.saveProfile();
         LOG.info("Finished generating data for all tables");
         
@@ -700,7 +739,8 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
             Map<Integer, Short> userAttributeMap = new HashMap<Integer, Short>();
 
             long numUsers = AuctionMarkLoader.this.profile.getTableSize(AuctionMarkConstants.TABLENAME_USER);
-
+            //LOG.info("num users in user attribute generator: " + numUsers);
+            
             for (int i = 0; i < numUsers; i++) {
                 short n = (short) (randomNumAttributes.nextInt());
                 numAttributes += n;
@@ -751,6 +791,8 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
             }
 
             this.currentNumUserAttributes--;
+            //LOG.info("User Attribute generator userid index: " + this.currentUserIDIndex);
+            //LOG.info("User Attribute generator userid index: " + this.currentUserIDIndex + " userid: " + profile.getUserId(this.currentUserIDIndex));
             return profile.getUserId(this.currentUserIDIndex);
         }
     }
@@ -825,6 +867,8 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
                     AuctionMarkConstants.ITEM_MAX_COMMENTS, 1.001);
 
             int numUsers = (int) AuctionMarkLoader.this.profile.getTableSize(AuctionMarkConstants.TABLENAME_USER);
+            //LOG.info("Number of users on Item generator: " + numUsers);
+            
             this.randomBuyer = new Zipf(AuctionMarkLoader.this.rng, 0, numUsers, 1.001);
 
             // Map from (Number of items a person hold) -> (Number of persons in this group)
@@ -1033,6 +1077,7 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
                 }
             }
             this.sellerItems.setValue(this.sellerItems.getValue() - 1);
+            //LOG.info("item generator userid index: " + this.sellerItems.getKey() + " returned userid: " + profile.getUserId(this.sellerItems.getKey()));
             return profile.getUserId(this.sellerItems.getKey());
         }
 

@@ -58,11 +58,18 @@ public abstract class FileUtil {
         return (new File(path)).getName();
     }
     
-    public static void makeDirIfNotExists(String path) throws IOException {
-        File f = new File(path);
-        if (f.exists() == false) {
-            f.mkdirs();
-        }
+    /**
+     * Create any directory in the list paths if it doesn't exist 
+     * @param paths
+     */
+    public static void makeDirIfNotExists(String...paths) {
+        for (String p : paths) {
+            if (p == null) continue;
+            File f = new File(p);
+            if (f.exists() == false) {
+                f.mkdirs();
+            }
+        } // FOR
     }
 
     /**

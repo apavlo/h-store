@@ -69,8 +69,8 @@ public class RemoteTransactionState extends TransactionState {
     
     @Override
     @SuppressWarnings("unchecked")
-    public RemoteTransactionState init(long txnId, long clientHandle, int source_partition) {
-        return ((RemoteTransactionState)super.init(txnId, clientHandle, source_partition, false));
+    public RemoteTransactionState init(long txnId, long clientHandle, int source_partition, boolean predict_singlePartitioned, boolean predict_readOnly, boolean predict_abortable) {
+        return ((RemoteTransactionState)super.init(txnId, clientHandle, source_partition, predict_singlePartitioned, predict_readOnly, predict_abortable, false));
     }
     
     @Override

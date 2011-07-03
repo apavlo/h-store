@@ -100,13 +100,27 @@ public class ProfileMeasurement {
     public long getTotalThinkTime() {
         return (this.think_time);
     }
+    /**
+     * Get the total amount of time spent in the profiled area in milliseconds
+     * @return
+     */
+    public double getTotalThinkTimeMS() {
+        return (this.think_time / 1000000d);
+    }
     
     /**
-     * Get the average think time per invocation
+     * Get the average think time per invocation in nanoseconds
      * @return
      */
     public double getAverageThinkTime() {
         return (this.think_time / (double)this.invocations);
+    }
+    /**
+     * Get the average think time per invocation in milliseconds
+     * @return
+     */
+    public double getAverageThinkTimeMS() {
+        return (this.getAverageThinkTime() / 1000000d);
     }
     
     /**
@@ -181,6 +195,7 @@ public class ProfileMeasurement {
         assert(this.type == other.type);
         this.think_time += other.think_time;
         this.think_marker = other.think_marker;
+        this.invocations += other.invocations;
     }
  
     public void addThinkTime(long start, long stop) {
@@ -232,6 +247,7 @@ public class ProfileMeasurement {
 
     @Override
     public String toString() {
-        return (String.format("%s[total=%d, marker=%s]", this.type, this.think_time, this.think_marker));
+        return (String.format("%s[total=%d, marker=%s, invocations=%d]",
+                              this.type, this.think_time, this.think_marker, this.invocations));
     }
 }

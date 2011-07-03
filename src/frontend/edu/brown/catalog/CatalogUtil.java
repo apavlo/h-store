@@ -88,7 +88,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
         /**
          * Host -> Set<Site>
          */
-        public final Map<Host, Set<Site>> HOST_SITES = new HashMap<Host, Set<Site>>();
+        public final Map<Host, Set<Site>> HOST_SITES = new TreeMap<Host, Set<Site>>(new CatalogFieldComparator<Host>("ipaddr"));
         
         /**
          * Column -> Foreign Key Parent Column
@@ -96,10 +96,9 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
         public final Map<Column, Column> FOREIGNKEY_PARENT = new HashMap<Column, Column>();
         
         /**
-         * Execution Site Triplets
-         * [Host IP Address, Port #, Site ID]
+         * SiteId -> <Host, Port>
          */
-        public final List<String[]> EXECUTION_SITES = new ArrayList<String[]>();
+        public final Map<Integer, Pair<String, Integer>> EXECUTION_SITES = new HashMap<Integer, Pair<String, Integer>>();
     }
     
     private static final Map<Database, CatalogUtil.Cache> CACHE = new HashMap<Database, CatalogUtil.Cache>();
@@ -173,10 +172,10 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
      * @param items
      * @return
      */
-    public static Map<Object, String> getHistogramLabels(Set<Object> items) {
+    public static Map<Object, String> getHistogramLabels(Iterable<? extends CatalogType> items) {
         Map<Object, String> labels = new HashMap<Object, String>();
-        for (Object o : items) {
-            if (o instanceof CatalogType) labels.put(o, CatalogUtil.getDisplayName((CatalogType)o));
+        for (CatalogType ct : items) {
+            labels.put(ct, CatalogUtil.getDisplayName(ct));
         } // FOR
         return (labels);
     }
@@ -440,24 +439,20 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
     }
 
     /**
-     * Return a list of the triplets [Host IP Address, Port #, Site ID]
+     * Return a mapping from SiteId to <Host, Port#>
      * @param catalog_item
      * @return
      */
-    public static List<String[]> getExecutionSites(CatalogType catalog_item) {
+    public static Map<Integer, Pair<String, Integer>> getExecutionSites(CatalogType catalog_item) {
         final CatalogUtil.Cache cache = CatalogUtil.getCache(catalog_item);
-        final List<String[]> sites = cache.EXECUTION_SITES;
+        final Map<Integer, Pair<String, Integer>> sites = cache.EXECUTION_SITES;
         
         if (sites.isEmpty()) {
             Cluster catalog_clus = CatalogUtil.getCluster(catalog_item);
             for (Site catalog_site : CatalogUtil.getSortedCatalogItems(catalog_clus.getSites(), "id")) {
                 Host catalog_host = catalog_site.getHost();
                 assert (catalog_host != null);
-                sites.add(new String[] {
-                    catalog_host.getIpaddr(),
-                    Integer.toString(catalog_site.getProc_port()),
-                    Integer.toString(catalog_site.getId()), 
-                });
+                sites.put(catalog_site.getId(), Pair.of(catalog_host.getIpaddr(), catalog_site.getProc_port()));
             } // FOR
         }
         return (sites);
@@ -1737,18 +1732,17 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
     }
     
     public static String debug(CatalogMap<? extends CatalogType> map) {
-        String ret = "[ ";
+        String ret = "";
         String add = "";
         for (CatalogType item : map) {
             ret += add + item;
             add = ", ";
         } // FOR
-        ret += " ]";
-        return (ret);
+        return ("[" + ret + "]");
     }
 
     public static String debug(Collection<? extends CatalogType> items) {
-        String ret = "[ ";
+        String ret = "";
         String add = "";
         for (CatalogType item : items) {
             if (item != null) {
@@ -1756,8 +1750,39 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
                 add = ", ";
             }
         } // FOR
-        ret += " ]";
-        return (ret);
+        return ("[" + ret + "]");
     }
+    
+    // ------------------------------------------------------------
+    // COMPARATORS
+    // ------------------------------------------------------------
+    
+    /**
+     * Comparator based on CatalogType.fullName()
+     */
+    private static final class CatalogFieldComparator<T extends CatalogType> implements Comparator<T> {
+        private final String field;
+        
+        public CatalogFieldComparator(String field) {
+            this.field = field;
+        }
+        
+        @SuppressWarnings("unchecked")
+        @Override
+        public int compare(T obj0, T obj1) {
+            if (obj0 == null && obj1 == null) return (0);
+            if (obj0 == null) return (1);
+            if (obj1 == null) return (-1);
+            
+            Object val0 = obj0.getField(this.field);
+            Object val1 = obj1.getField(this.field);
+            if (val0 == null && val1 == null) return (0);
+            if (val0 == null) return (1);
+            if (val1 == null) return (1);
+            
+            return (val0 instanceof Comparable ? ((Comparable)val0).compareTo(val1) :
+                                                 val0.toString().compareTo(val1.toString()));
+        };
+    };
 
 } // END CLASS

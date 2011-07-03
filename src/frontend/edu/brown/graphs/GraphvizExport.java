@@ -79,6 +79,7 @@ public class GraphvizExport<V extends AbstractVertex, E extends AbstractEdge> {
     // Global Options
     private boolean edge_labels = true;
     private boolean allow_isolated = true;
+    private String graph_label = null;
     
     private final AttributeValues global_graph_attrs = new AttributeValues() {
         private static final long serialVersionUID = 1L;
@@ -105,6 +106,16 @@ public class GraphvizExport<V extends AbstractVertex, E extends AbstractEdge> {
             this.put(Attribute.FONTSIZE, "10");
         }
     };
+    private final AttributeValues graph_label_attrs = new AttributeValues() {
+        private static final long serialVersionUID = 1L;
+        {
+            this.put(Attribute.SHAPE, "ellipse");
+            this.put(Attribute.FILLCOLOR, "black");
+            this.put(Attribute.FONTCOLOR, "white");
+            this.put(Attribute.STYLE, "filled");
+            this.put(Attribute.FONTSIZE, "12");
+        }
+    };
     
     private final Map<V, AttributeValues> vertex_attrs = new HashMap<V, AttributeValues>(); 
     private final Map<E, AttributeValues> edge_attrs = new HashMap<E, AttributeValues>();
@@ -116,6 +127,10 @@ public class GraphvizExport<V extends AbstractVertex, E extends AbstractEdge> {
      */
     public GraphvizExport(IGraph<V, E> graph) {
         this.graph = graph;
+    }
+    
+    public void setGlobalLabel(String contents) {
+        this.graph_label = contents;
     }
     
     /**
@@ -145,11 +160,18 @@ public class GraphvizExport<V extends AbstractVertex, E extends AbstractEdge> {
     }
 
     // Custom Vertex Attributes
+    
     public AttributeValues getAttributes(V vertex) {
-        if (!this.vertex_attrs.containsKey(vertex)) {
-            this.vertex_attrs.put(vertex, new AttributeValues());
+        return (this.getAttributes(vertex, true));
+    }
+    
+    private AttributeValues getAttributes(V vertex, boolean create_if_null) {
+        AttributeValues av = this.vertex_attrs.get(vertex);
+        if (av == null && create_if_null) {
+            av = new AttributeValues();
+            this.vertex_attrs.put(vertex, av);
         }
-        return (this.vertex_attrs.get(vertex));
+        return (av);
     }
     public boolean hasAttributes(V vertex) {
         return (this.vertex_attrs.containsKey(vertex));
@@ -205,7 +227,7 @@ public class GraphvizExport<V extends AbstractVertex, E extends AbstractEdge> {
         Set<V> all_vertices = new HashSet<V>();
         // FORMAT: <Vertex0> <edgetype> <Vertex1>
         final String edge_f = StringUtil.SPACER + "\"%s\" %s \"%s\" ";
-        for (E edge : graph.getEdges()) {
+        for (E edge : this.graph.getEdges()) {
             List<V> edge_vertices = new ArrayList<V>(graph.getIncidentVertices(edge));
             assert(edge_vertices.isEmpty() == false) : "No vertice for edge " + edge;
             all_vertices.addAll(edge_vertices);
@@ -236,30 +258,22 @@ public class GraphvizExport<V extends AbstractVertex, E extends AbstractEdge> {
         } // FOR
         
         // Vertices
-        String add = "\n";
-        for (V v : graph.getVertices()) {
+        b.append("\n");
+        for (V v : this.graph.getVertices()) {
             // If this vertex wasn't a part of an edge and we don't allow for disconnected. then skip
             if (!all_vertices.contains(v) && !this.allow_isolated) continue;
             // If this vertex was a part of an edge but it doesn't have any custom attributes, then skip
             if (all_vertices.contains(v) && !this.hasAttributes(v)) continue;
             
-            b.append(add).append(StringUtil.SPACER).append('"').append(v.toString()).append("\"");
-            
-            // Vertex Attributes
-            if (this.hasAttributes(v)) {
-                AttributeValues av = this.getAttributes(v);
-                String label = null;
-                if (av.containsKey(Attribute.LABEL)) {
-                    label = av.get(Attribute.LABEL);
-                }
-                b.append("[");
-                if (this.hasAttributes(v)) b.append(this.getAttributes(v).toString(" ", Attribute.LABEL));
-                if (label != null) b.append("label=\"").append(this.escapeLabel(label)).append("\"");
-                b.append("] ");
-            }
-            b.append(" ;\n");
-            add = "";
+            AttributeValues av = this.getAttributes(v, false);
+            this.writeVertex(b, v.toString(), av);
         } // FOR
+        
+        // Global Graph Label
+        if (this.graph_label != null) {
+            this.graph_label_attrs.put(Attribute.LABEL, this.graph_label);
+            this.writeVertex(b, "__global__", this.graph_label_attrs);
+        }
         
         // Close graph
         b.append("}\n");
@@ -267,6 +281,23 @@ public class GraphvizExport<V extends AbstractVertex, E extends AbstractEdge> {
         return (b.toString());
     }
 
+    private void writeVertex(StringBuilder b, String id, AttributeValues av) {
+        b.append(String.format("%s\"%s\"", StringUtil.SPACER, id));
+        
+        // Vertex Attributes
+        if (av != null) {
+            String label = null;
+            if (av.containsKey(Attribute.LABEL)) {
+                label = av.get(Attribute.LABEL);
+            }
+            b.append("[");
+            b.append(av.toString(" ", Attribute.LABEL));
+            if (label != null) b.append("label=\"").append(this.escapeLabel(label)).append("\"");
+            b.append("] ");
+        }
+        b.append(" ;\n");
+    }
+    
     private String escapeLabel(String label) {
         return (label.replace("\n", "\\n"));
     }
@@ -289,23 +320,23 @@ public class GraphvizExport<V extends AbstractVertex, E extends AbstractEdge> {
             } // FOR
         } // FOR
     }
-
+    
     /**
      * Convenience method to write the GraphvizExport handle to a file the temporary directory
      * @param catalog_obj
      * @return
      * @throws Exception
      */
-    public File writeToTempFile(CatalogType catalog_obj) throws Exception {
+    public File writeToTempFile(CatalogType catalog_obj) {
         return (this.writeToTempFile(catalog_obj.fullName(), null));
     }
-    public File writeToTempFile(CatalogType catalog_obj, int i) throws Exception {
+    public File writeToTempFile(CatalogType catalog_obj, int i) {
         return (this.writeToTempFile(catalog_obj.fullName(), Integer.toString(i)));
     }
-    public File writeToTempFile(CatalogType catalog_obj, String suffix) throws Exception {
+    public File writeToTempFile(CatalogType catalog_obj, String suffix) {
         return (this.writeToTempFile(catalog_obj.fullName(), suffix));
     }
-    public File writeToTempFile(String name) throws Exception {
+    public File writeToTempFile(String name) {
         return (this.writeToTempFile(name, null));
     }
     public File writeToTempFile() {
@@ -326,11 +357,15 @@ public class GraphvizExport<V extends AbstractVertex, E extends AbstractEdge> {
      * @return
      * @throws Exception
      */
-    public File writeToTempFile(String name, String suffix) throws Exception {
+    public File writeToTempFile(String name, String suffix) {
         if (suffix != null && suffix.length() > 0) suffix = "-" + suffix;
         else if (suffix == null) suffix = "";
         String filename = String.format("/tmp/%s%s.dot", name, suffix);
-        return (FileUtil.writeStringToFile(filename, this.export(name)));
+        try {
+            return (FileUtil.writeStringToFile(filename, this.export(name)));
+        } catch (Exception ex) {
+            throw new RuntimeException(ex);
+        }
     }
     
     /**

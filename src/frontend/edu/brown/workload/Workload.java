@@ -45,6 +45,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Pattern;
 
 import org.apache.log4j.Logger;
+import org.json.JSONException;
 import org.json.JSONObject;
 import org.voltdb.VoltTable;
 import org.voltdb.VoltTableRow;
@@ -209,7 +210,9 @@ public class Workload implements WorkloadTrace, Iterable<AbstractTraceElement<? 
             }
             writerThread.traces.offer(xact);
         } else {
-            WriteThread.write(catalog_db, xact, output);
+            synchronized (Workload.class) {
+                WriteThread.write(catalog_db, xact, output);
+            } // SYNCH
         }
     }
     
@@ -296,6 +299,7 @@ public class Workload implements WorkloadTrace, Iterable<AbstractTraceElement<? 
         @Override
         public void run() {
             final boolean trace = LOG.isTraceEnabled();
+            final boolean debug = LOG.isDebugEnabled();
 
             AtomicInteger xact_ctr = this.counters[0];
             AtomicInteger query_ctr = this.counters[1];
@@ -325,7 +329,17 @@ public class Workload implements WorkloadTrace, Iterable<AbstractTraceElement<? 
                 line_ctr = p.getFirst();
                 line = p.getSecond();
                 try {
-                    jsonObject = new JSONObject(line);    
+                    try {
+                        jsonObject = new JSONObject(line);
+                    } catch (JSONException ex) {
+                        String msg = String.format("Ignoring invalid TransactionTrace on line %d of '%s'", (line_ctr+1), input_path);
+                        if (debug) {
+                            LOG.warn(msg, ex);
+                        } else {
+                            LOG.warn(msg); 
+                        }
+                        continue;
+                    }
                 
                     // TransactionTrace
                     if (jsonObject.has(TransactionTrace.Members.TXN_ID.name())) {
@@ -365,10 +379,10 @@ public class Workload implements WorkloadTrace, Iterable<AbstractTraceElement<? 
                         
                     // Unknown!
                     } else {
-                        throw new Exception("Unexpected serialization line in workload trace");
+                        throw new Exception("Unexpected serialization line in workload trace file '" + input_path.getAbsolutePath() + "'");
                     }
                 } catch (Exception ex) {
-                    throw new RuntimeException("Error on line " + (line_ctr+1) + " of workload trace file", ex);
+                    throw new RuntimeException("Error on line " + (line_ctr+1) + " of workload trace file '" + input_path.getAbsolutePath() + "'", ex);
                 }
             } // WHILE
         }
@@ -654,7 +668,7 @@ public class Workload implements WorkloadTrace, Iterable<AbstractTraceElement<? 
     public void load(String input_path, Database catalog_db, Filter filter) throws Exception {
         if (debug.get()) LOG.debug("Reading workload trace from file '" + input_path + "'");
         this.input_path = new File(input_path);
-
+        long start = System.currentTimeMillis();
         
         // HACK: Throw out traces unless they have the procedures that we're looking for
         Pattern temp_pattern = null;
@@ -701,7 +715,10 @@ public class Workload implements WorkloadTrace, Iterable<AbstractTraceElement<? 
         if (debug.get()) LOG.debug(String.format("Loading workload trace using %d LoadThreads", rt.load_threads.size())); 
         ThreadUtil.runGlobalPool(all_runnables);
         this.validate();
-        LOG.info("Loaded in " + this.xact_trace.size() + " txns with " + counters[1].get() + " queries from '" + this.input_path.getName() + "'");
+        
+        long stop = System.currentTimeMillis();
+        LOG.info(String.format("Loaded in %d txns with %d queries from '%s' in %.1f sec using %d threads",
+                               this.xact_trace.size(), counters[1].get(), this.input_path.getName(), (stop - start) / 1000d, num_threads));
         return;
     }
     

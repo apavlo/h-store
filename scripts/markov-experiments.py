@@ -120,6 +120,15 @@ OPT_CLIENT_PER_NODE = 4
 OPT_CLIENT_COUNT = -1
 OPT_NEWORDER_ONLY = False
 
+OPT_MARKOV_RECOMPUTE_END = False
+OPT_MARKOV_RECOMPUTE_WARMUP = False
+OPT_MARKOV_DIRECTORY = "files/markovs/vldb-june2011"
+
+OPT_CLUSTER_DIRECTORY = "/tmp/hstore/clusters"
+OPT_TRACE_DIRECTORY = "traces"
+
+OPT_OUTPUT_LOG = "markov-experiments.log"
+
 OPT_EXP_TYPE = "markov"
 OPT_EXP_TRIALS = 3
 OPT_EXP_SETTING = 0
@@ -145,7 +154,7 @@ if __name__ == '__main__':
     _options, args = getopt.gnu_getopt(sys.argv[1:], '', [
         # Experiment Parameters
         "exp-type=",
-        "exp-setting=",
+        "exp-settings=",
         "exp-trials=",
         
         "blocking=",
@@ -168,6 +177,11 @@ if __name__ == '__main__':
         "partitions=",
         # Enable workload trace dumps
         "trace",
+        
+        # Whether to recompute Markov models after run
+        "markov-recompute-end",
+        # Whether to recompute Markov models after warmup period
+        "markov-recompute-warmup",
         
         # Thresholds value
         "thresholds=",
@@ -205,10 +219,14 @@ if __name__ == '__main__':
     if not os.path.exists("%s.jar" % OPT_BENCHMARK):
         logging.info("Building %s project jar" % OPT_BENCHMARK.upper())
         cmd = "ant compile hstore-prepare -Dproject=%s" % OPT_BENCHMARK
+        if OPT_OUTPUT_LOG: cmd += " | tee " + OPT_OUTPUT_LOG
         logging.debug(cmd)
         (result, output) = commands.getstatusoutput(cmd)
         assert result == 0, cmd + "\n" + output
     ## IF
+    
+    if not os.path.exists(OPT_CLUSTER_DIRECTORY):
+        os.makedirs(OPT_CLUSTER_DIRECTORY)
     
     for num_partitions in PARTITIONS:
         ## Build Cluster Configuration
@@ -219,7 +237,7 @@ if __name__ == '__main__':
         site_id = 0
         node_idx = 0
         
-        cluster_file = "/tmp/hstore/%dp.cluster" % num_partitions
+        cluster_file = os.path.join(OPT_CLUSTER_DIRECTORY, "%dp.cluster" % num_partitions)
         with open(cluster_file, "w") as fd:
             while nodes_added < num_nodes:
                 node_id = SITE_ALL_NODES[node_idx]
@@ -251,8 +269,8 @@ if __name__ == '__main__':
         logging.debug("CLIENT_NODES = %s" % CLIENT_NODES)
         
         base_opts = {
-            "project":  OPT_BENCHMARK,
-            "hosts":    cluster_file,
+            "project":                  OPT_BENCHMARK,
+            "hosts":                    cluster_file,
         }
         base_opts_cmd = " ".join(map(lambda x: "-D%s=%s" % (x, base_opts[x]), base_opts.keys()))
         cmd = "ant hstore-jar " + base_opts_cmd
@@ -289,22 +307,20 @@ if __name__ == '__main__':
             "client.txnrate":               CLIENT_TXNRATE,
             "client.blocking":              OPT_BLOCKING,
             "client.scalefactor":           OPT_SCALE_FACTOR,
-        }
-        benchmark_opts = {
             "benchmark.neworder_only":      False,
             "benchmark.neworder_abort":     True,
             "benchmark.neworder_multip":    True,
             "benchmark.warehouses":         num_partitions,
             "benchmark.loadthreads":        OPT_LOAD_THREADS,
+            "markov.recompute_end":         OPT_MARKOV_RECOMPUTE_END,
+            "markov.recompute_warmup":      OPT_MARKOV_RECOMPUTE_WARMUP,
         }
 
         exp_opts = EXPERIMENT_PARAMS[OPT_EXP_TYPE][OPT_EXP_SETTING]
-        exp_opts["site.mispredict_crash"] = False
-        exp_opts["site.statusinterval"] = 20
 
         if "markov" in exp_opts and exp_opts["markov"]:
             markov_type = "global" if "markov.global" in exp_opts and exp_opts["markov.global"] else "clustered"
-            markov = "files/markovs/vldb-feb2011/%s.%dp.%s.markovs.gz" % (OPT_BENCHMARK.lower(), num_partitions, markov_type)
+            markov = os.path.join(OPT_MARKOV_DIRECTORY, "%s.%dp.%s.markovs.gz" % (OPT_BENCHMARK.lower(), num_partitions, markov_type))
             assert os.path.exists(markov), "Missing: " + markov
             exp_opts['markov'] = markov
             
@@ -314,14 +330,13 @@ if __name__ == '__main__':
 
         if "thresholds" in exp_opts and exp_opts["thresholds"]:
             del exp_opts["thresholds"]
-            exp_opts["thresholds.value"] = float(options["thresholds"][0])
+            exp_opts["markov.thresholds.value"] = float(options["thresholds"][0])
 
         hstore_opts = dict(hstore_opts.items() + exp_opts.items())
         hstore_opts_cmd = " ".join(map(lambda x: "-D%s=%s" % (x, hstore_opts[x]), hstore_opts.keys()))
-        benchmark_opts_cmd = " ".join(map(lambda x: "-D%s=%s" % (x, benchmark_opts[x]), benchmark_opts.keys()))
-        ant_opts_cmd = " ".join([base_opts_cmd, hstore_opts_cmd, benchmark_opts_cmd])
+        ant_opts_cmd = " ".join([base_opts_cmd, hstore_opts_cmd])
 
-        pprint(hstore_opts)
+        logging.debug(pformat(hstore_opts))
         
         ## HACK
         with open("properties/default.properties", "r") as f:
@@ -337,8 +352,11 @@ if __name__ == '__main__':
         print "%s EXP #%d - PARTITIONS %d" % (OPT_BENCHMARK.upper(), OPT_EXP_SETTING, num_partitions)
         for trial in range(0, OPT_EXP_TRIALS):
             cmd = "ant hstore-benchmark " + ant_opts_cmd
-            if OPT_TRACE: cmd += " -Dtrace=traces/%s-%dp-%d" % (OPT_BENCHMARK.lower(), num_partitions, trial)
-            cmd += " | tee client.log"
+            if OPT_TRACE: 
+                trace_dir = os.path.join(OPT_TRACE_DIRECTORY, "%s-%dp-%d" % (OPT_BENCHMARK.lower(), num_partitions, trial))
+                cmd += " -Dtrace=" + trace_dir
+                logging.debug("Writing workload trace logs to '" + trace_dir + "'")
+            if OPT_OUTPUT_LOG: cmd += " | tee " + OPT_OUTPUT_LOG
             if trial == 0: logging.debug(cmd)
             #sys.exit(1)
             (result, output) = commands.getstatusoutput(cmd)

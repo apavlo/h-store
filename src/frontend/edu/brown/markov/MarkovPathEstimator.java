@@ -25,12 +25,13 @@ import edu.brown.utils.StringUtil;
 import edu.brown.utils.LoggerUtil.LoggerBoolean;
 import edu.brown.workload.TransactionTrace;
 import edu.mit.hstore.HStoreConf;
+import edu.mit.hstore.interfaces.Loggable;
 
 /**
  * Path Estimator for TransactionEstimator
  * @author pavlo
  */
-public class MarkovPathEstimator extends VertexTreeWalker<Vertex> {
+public class MarkovPathEstimator extends VertexTreeWalker<Vertex, Edge> implements Loggable {
     private static final Logger LOG = Logger.getLogger(MarkovPathEstimator.class);
     private final static LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private final static LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
@@ -91,7 +92,7 @@ public class MarkovPathEstimator extends VertexTreeWalker<Vertex> {
     /**
      * This is how confident we are 
      */
-    private double confidence = MarkovUtil.NULL_MARKER;
+    private float confidence = MarkovUtil.NULL_MARKER;
 
     /**
      * 
@@ -166,8 +167,8 @@ public class MarkovPathEstimator extends VertexTreeWalker<Vertex> {
      */
     public MarkovPathEstimator init(MarkovGraph markov, TransactionEstimator t_estimator, int base_partition, Object args[]) {
         this.init(markov, TraverseOrder.DEPTH, Direction.FORWARD);
-        this.estimate.init(markov.getStartVertex(), -1);
-        this.confidence = 1.0;
+        this.estimate.init(markov.getStartVertex(), MarkovEstimate.INITIAL_ESTIMATE_BATCH);
+        this.confidence = 1.0f;
         this.t_estimator = t_estimator;
         this.p_estimator = this.t_estimator.getPartitionEstimator();
         this.correlations = this.t_estimator.getCorrelations();
@@ -258,7 +259,7 @@ public class MarkovPathEstimator extends VertexTreeWalker<Vertex> {
      * Return the confidence factor that of our estimated path
      * @return
      */
-    public double getConfidence() {
+    public float getConfidence() {
         return this.confidence;
     }
 
@@ -328,7 +329,10 @@ public class MarkovPathEstimator extends VertexTreeWalker<Vertex> {
                     LOG.error("CURRENT: " + element + "  [commit=" + element.isCommitVertex() + "]");
                     LOG.error("NEXT:    " + next + "  [commit=" + next.isCommitVertex() + "]");
                 }
-                assert(next_catalog_stmt_index > cur_catalog_stmt_index) : String.format("%d > %d", next_catalog_stmt_index, cur_catalog_stmt_index);
+                assert(next_catalog_stmt_index > cur_catalog_stmt_index) :
+                    String.format("%s[#%d] > %s[#%d]",
+                                  next_catalog_stmt.fullName(), next_catalog_stmt_index,
+                                  cur_catalog_stmt.fullName(), cur_catalog_stmt_index);
             }
             
             // Check whether it's COMMIT/ABORT
@@ -495,11 +499,13 @@ public class MarkovPathEstimator extends VertexTreeWalker<Vertex> {
             // edges that we could have taken in comparison to the one that we did take
             double total_probability = 0.0;
             if (d) LOG.debug("CANDIDATES:");
+            int i = 0;
             for (Edge e : this.candidates) {
                 Vertex v = markov.getOpposite(element, e);
                 total_probability += e.getProbability();
                 if (d) {
-                    LOG.debug("  " + element + " --[" + e + "]--> " + v + (next_vertex.equals(v) ? " *******" : ""));
+                    LOG.debug(String.format("  [%d] %s  --[%s]--> %s%s",
+                                            i++, element, e, v, (next_vertex.equals(v) ? " <== SELECTED" : "")));
                     if (this.candidates.size() > 1) LOG.debug(StringUtil.addSpacers(v.debug()));
                 }
             } // FOR
@@ -508,7 +514,7 @@ public class MarkovPathEstimator extends VertexTreeWalker<Vertex> {
             // Update our list of partitions touched by this transaction
             Set<Integer> next_partitions = next_vertex.getPartitions();
             String orig = next_partitions.toString();
-            double inverse_prob = 1.0 - this.confidence;
+            float inverse_prob = 1.0f - this.confidence;
             Statement catalog_stmt = next_vertex.getCatalogItem();
             
             // READ
@@ -517,7 +523,7 @@ public class MarkovPathEstimator extends VertexTreeWalker<Vertex> {
                     if (this.read_partitions.contains(p) == false) {
                         if (t) LOG.trace(String.format("First time partition %d is read from! Setting read-only probability to %.03f", p, this.confidence));
                         try {
-                            this.estimate.setReadOnlyPartitionProbability(p.intValue(), this.confidence);
+                            this.estimate.setReadOnlyProbability(p.intValue(), this.confidence);
                         } catch (AssertionError ex) {
                             System.err.println("BUSTED: " + next_vertex);
                             System.err.println("NEXT PARTITIONS: " + next_partitions);
@@ -525,7 +531,7 @@ public class MarkovPathEstimator extends VertexTreeWalker<Vertex> {
                             throw ex;
                         }
                         if (this.touched_partitions.contains(p) == false) {
-                            this.estimate.setFinishPartitionProbability(p.intValue(), inverse_prob);
+                            this.estimate.setDoneProbability(p.intValue(), inverse_prob);
                         }
                         this.read_partitions.add(p);
                     }
@@ -536,10 +542,10 @@ public class MarkovPathEstimator extends VertexTreeWalker<Vertex> {
                 for (Integer p : next_partitions) {
                     if (this.write_partitions.contains(p) == false) {
                         if (t) LOG.trace(String.format("First time partition %d is written to! Setting write probability to %.03f", p, this.confidence));
-                        this.estimate.setReadOnlyPartitionProbability(p.intValue(), inverse_prob);
-                        this.estimate.setWritePartitionProbability(p.intValue(), this.confidence);
+                        this.estimate.setReadOnlyProbability(p.intValue(), inverse_prob);
+                        this.estimate.setWriteProbability(p.intValue(), this.confidence);
                         if (this.touched_partitions.contains(p) == false) {
-                            this.estimate.setFinishPartitionProbability(p.intValue(), inverse_prob);
+                            this.estimate.setDoneProbability(p.intValue(), inverse_prob);
                         }
                         this.write_partitions.add(p);
                     }
@@ -550,9 +556,9 @@ public class MarkovPathEstimator extends VertexTreeWalker<Vertex> {
             
             // If this is the first time that the path touched more than one partition, then we need to set the single-partition
             // probability to be the confidence coefficient thus far
-            if (this.touched_partitions.size() > 1 && this.estimate.isSinglePartitionProbabilitySet() == false) {
+            if (this.touched_partitions.size() > 1 && this.estimate.isSingleSitedProbabilitySet() == false) {
                 if (t) LOG.trace("Setting the single-partition probability to current confidence [" + this.confidence + "]");
-                this.estimate.setSinglePartitionProbability(inverse_prob);
+                this.estimate.setSingleSitedProbability(inverse_prob);
             }
             
             // Keep track of the highest abort probability that we've seen thus far
@@ -563,11 +569,11 @@ public class MarkovPathEstimator extends VertexTreeWalker<Vertex> {
             if (d) {
                 LOG.debug("TOTAL:    " + total_probability);
                 LOG.debug("SELECTED: " + next_vertex + " [confidence=" + this.confidence + "]");
+                LOG.debug(StringUtil.repeat("-", 100));
             }
         } else {
             if (t) LOG.trace("No matching children found. We have to stop...");
         }
-        if (t) LOG.trace(StringUtil.repeat("-", 100));
     }
     
     @Override
@@ -587,29 +593,42 @@ public class MarkovPathEstimator extends VertexTreeWalker<Vertex> {
     protected void callback_stop() {
         Vertex last_v = this.getVisitPath().get(this.getVisitPath().size()-1);
         if (d) LOG.debug("Callback Stop! Last Element = " + last_v);
+        MarkovGraph markov = (MarkovGraph)this.getGraph();
+        Vertex first_v = markov.getStartVertex();
         
-        // Finished Probability
+        // Confidence
+        this.estimate.setConfidenceProbability(this.confidence);
+        float inverse_prob = 1.0f - this.confidence;
+        
+        // Partition Probabilities
+        boolean is_singlepartition = this.touched_partitions.size() == 1;
+        float untouched_finish = 1.0f;
         for (int p : this.all_partitions) {
             if (this.touched_partitions.contains(p) == false) {
-                this.estimate.setReadOnlyPartitionProbability(p, 0.0);
-                this.estimate.setWritePartitionProbability(p, 0.0);
-                this.estimate.setFinishPartitionProbability(p, 1.0);
-                if (t) LOG.trace(String.format("Partition #%d was not touched. Setting finished probability to 1.0", p));
-            } else {
-                if (this.estimate.isWriteProbabilitySet(p) == false) {
-                    this.estimate.setWritePartitionProbability(p, 1.0 - this.confidence);
-                }
+                this.estimate.setReadOnlyProbability(p, first_v.getReadOnlyProbability(p));
+                this.estimate.setWriteProbability(p, first_v.getWriteProbability(p));
+                
+                float finished_prob = first_v.getDoneProbability(p);
+                this.estimate.setDoneProbability(p, finished_prob);
+                if (is_singlepartition) untouched_finish = Math.min(untouched_finish, finished_prob);
+            } else if (this.estimate.isWriteProbabilitySet(p) == false) {
+                this.estimate.setWriteProbability(p, inverse_prob);
             }
         } // FOR
         
         // Single-Partition Probability
-        if (this.touched_partitions.size() == 1) {
+        if (is_singlepartition) {
             if (t) LOG.trace(String.format("Only one partition was touched %s. Setting single-partition probability to ???", this.touched_partitions)); 
-            this.estimate.setSinglePartitionProbability(1.0);
+            this.estimate.setSingleSitedProbability(untouched_finish);
         }
         
         // Abort Probability
-        this.estimate.setAbortProbability(this.greatest_abort);
+        // Only use the abort probability if we have seen at least ABORT_MIN_TXNS
+        if (markov.getStartVertex().getTotalHits() >= MarkovGraph.MIN_HITS_FOR_NO_ABORT) {
+            this.estimate.setAbortProbability(this.greatest_abort);
+        } else {
+            this.estimate.setAbortProbability(1.0f);
+        }
     }
     
     
