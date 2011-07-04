@@ -119,18 +119,11 @@ public abstract class AbstractPlanNode implements JSONString, Comparable<Abstrac
     }
     
     public boolean updateOutputColumns(Database db) {
-    	//System.out.println("updateOutputColumns Node type: " + this.getPlanNodeType() + " # of inline nodes: " + this.getInlinePlanNodes().size());
 
     	ArrayList<Integer> childCols = new ArrayList<Integer>();
         for (AbstractPlanNode child : m_children) {
             boolean result = child.updateOutputColumns(db);
             assert(result);
-            
-            // print child inline columns
-//            for (Integer out : child.m_outputColumns)
-//            {
-//            	System.out.println(m_context.get(out).displayName());
-//            }
             
             childCols.addAll(child.m_outputColumns);
         }
