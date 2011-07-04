@@ -406,7 +406,7 @@ public class PlanAssembler {
             return null;
 
         AbstractPlanNode root = subSelectRoot;
-
+        
         /*
          * Establish the output columns for the sub select plan.
          * The order, aggregation and expression operations placed
@@ -427,14 +427,16 @@ public class PlanAssembler {
 //        if (PlanNodeUtil.getPlanNodes(root, ReceivePlanNode.class).isEmpty() == false) {
 //            LOG.debug("PAVLO OPTIMIZATION:\n" + PlanNodeUtil.debug(root));
 //        }
-         root.updateOutputColumns(m_catalogDb);
 
-        if ((subSelectRoot.getPlanNodeType() != PlanNodeType.INDEXSCAN ||
+        root.updateOutputColumns(m_catalogDb);
+
+         if ((subSelectRoot.getPlanNodeType() != PlanNodeType.INDEXSCAN ||
             ((IndexScanPlanNode) subSelectRoot).getSortDirection() == SortDirectionType.INVALID) &&
             m_parsedSelect.orderColumns.size() > 0) {
             root = addOrderBy(root);
-        }
+        }   
 
+        
         if ((root.getPlanNodeType() != PlanNodeType.AGGREGATE) &&
             (root.getPlanNodeType() != PlanNodeType.HASHAGGREGATE) &&
             (root.getPlanNodeType() != PlanNodeType.DISTINCT) &&
@@ -463,10 +465,7 @@ public class PlanAssembler {
             limit.setOutputColumns(root.m_outputColumns);
             root = limit;
         }
-        
-//        System.out.println(PlanNodeUtil.debug(root));
-//        System.out.println();
-//        System.out.println();
+
         
 //        System.err.println(m_parsedSelect.sql);
         PlanOptimizer po = new PlanOptimizer(m_context, m_catalogDb);
