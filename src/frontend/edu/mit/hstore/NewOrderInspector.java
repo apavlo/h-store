@@ -52,7 +52,7 @@ public class NewOrderInspector {
      * @return
      */
     public boolean initializeTransaction(LocalTransactionState ts, Object args[]) {
-        assert(ts.getProcedureName().equalsIgnoreCase("neworder")) : "Unable to use NewOrder cheat for " + ts;
+//        assert(ts.getProcedureName().equalsIgnoreCase("neworder")) : "Unable to use NewOrder cheat for " + ts;
         Short w_id = this.neworder_hack_w_id.get(args[0].toString());
         assert(w_id != null);
         Integer w_id_partition = this.neworder_hack_hashes.get(w_id);

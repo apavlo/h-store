@@ -210,19 +210,36 @@ public abstract class FixCatalog {
             ClusterConfiguration cc = new ClusterConfiguration();
             Set<Integer> partitions = new HashSet<Integer>();
             for (String host_info : host_triplets) {
+                host_info = host_info.trim();
+                if (host_info.isEmpty()) continue;
                 String data[] = host_info.split(":");
                 assert(data.length == 3) : "Invalid host information '" + host_info + "'";
                 
                 String host = data[0];
                 if (host.startsWith("#")) continue;
                 int site = Integer.parseInt(data[1]);
-                int partition = Integer.parseInt(data[2]);
                 
-                if (partitions.contains(partition)) {
-                    throw new Exception("Duplicate partition id #" + partition + " for host '" + host + "'");
-                }
-                partitions.add(partition);
-                cc.addPartition(host, site, partition);
+                // Partition Ranges
+                for (String p : data[2].split(",")) {
+                    int start = -1;
+                    int stop = -1;
+                    String range[] = p.split("-");
+                    if (range.length == 2) {
+                        start = Integer.parseInt(range[0]);
+                        stop = Integer.parseInt(range[1]);
+                    } else {
+                        start = Integer.parseInt(p);
+                        stop = start;
+                    }
+                    
+                    for (int partition = start; partition < stop+1; partition++) {
+                        if (partitions.contains(partition)) {
+                            throw new Exception("Duplicate partition id #" + partition + " for host '" + host + "'");
+                        }
+                        partitions.add(partition);
+                        cc.addPartition(host, site, partition);
+                    } // FOR
+                } // FOR
             } // FOR
             new_catalog = FixCatalog.addHostInfo(new_catalog, cc);
         }
@@ -239,4 +256,5 @@ public abstract class FixCatalog {
 
         return;
     }
+    
 }

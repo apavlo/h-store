@@ -23,6 +23,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.concurrent.ConcurrentHashMap;
 
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
@@ -123,8 +124,7 @@ public abstract class ExecutionEngine implements FastDeserializer.Deserializatio
 
 
     private class DependencyTracker {
-        private final HashMap<Integer, ArrayDeque<VoltTable>> m_depsById =
-            new HashMap<Integer, ArrayDeque<VoltTable>>();
+        private final Map<Integer, ArrayDeque<VoltTable>> m_depsById = new ConcurrentHashMap<Integer, ArrayDeque<VoltTable>>();
 
         private final Logger hostLog =
             Logger.getLogger("HOST", VoltLoggerFactory.instance());

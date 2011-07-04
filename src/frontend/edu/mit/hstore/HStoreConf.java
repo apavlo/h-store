@@ -16,11 +16,18 @@ import org.voltdb.catalog.Site;
 import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.ClassUtil;
 import edu.brown.utils.CollectionUtil;
+import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.StringUtil;
+import edu.brown.utils.LoggerUtil.LoggerBoolean;
 import edu.mit.hstore.interfaces.ConfigProperty;
 
 public final class HStoreConf {
     private static final Logger LOG = Logger.getLogger(HStoreConf.class);
+    private final static LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private final static LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    static {
+        LoggerUtil.attachObserver(LOG, debug, trace);
+    }
 
     /**
      * Base Configuration Class
@@ -677,10 +684,10 @@ public final class HStoreConf {
             description="The scaling factor determines how large to make the target benchmark's data set. " +
                         "A scalefactor less than one makes the data set larger, while greater than one " +
                         "makes it smaller. Implementation depends on benchmark specification.",
-            defaultInt=10,
+            defaultDouble=10.0,
             advanced=false
         )
-        public int scalefactor;
+        public double scalefactor;
 
         @ConfigProperty(
             description="How much skew to use when generating the benchmark data set. " +
@@ -880,7 +887,11 @@ public final class HStoreConf {
             String k = obj_k.toString();
             Matcher m = p.matcher(k);
             boolean found = m.matches();
-            assert(m != null && found) : "Invalid key '" + k + "' from configuration file '" + path + "'";
+            if (m == null || found == false) {
+                if (debug.get()) LOG.warn("Invalid key '" + k + "' from configuration file '" + path + "'");
+                continue;
+            }
+            assert(m != null);
             
             Conf handle = confHandles.get(m.group(1));
             Class<?> confClass = handle.getClass();
@@ -921,7 +932,7 @@ public final class HStoreConf {
             try {
                 f.set(handle, value);
 //                if (defaultValue != null && defaultValue.equals(value) == false) LOG.info(String.format("SET %s = %s", k, value));
-                LOG.debug(String.format("SET %s = %s", k, value));
+                if (debug.get()) LOG.debug(String.format("SET %s = %s", k, value));
             } catch (Exception ex) {
                 throw new RuntimeException("Failed to set value '" + value + "' for field '" + f_name + "'", ex);
             }

@@ -322,7 +322,6 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
     public static int getNumberOfPartitions(CatalogType catalog_item) {
         Cluster catalog_clus = CatalogUtil.getCluster(catalog_item);
         int ret = catalog_clus.getNum_partitions();
-        assert (ret > 0);
         return (ret);
     }
 
@@ -389,7 +388,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
     public static Collection<Integer> getAllPartitionIds(CatalogType catalog_item) {
         final CatalogUtil.Cache cache = CatalogUtil.getCatalogCache(catalog_item);
         if (cache.PARTITION_XREF.isEmpty()) cache.buildPartitionCache(catalog_item);
-        return (Collections.unmodifiableCollection(cache.PARTITION_XREF.asList()));
+        return (Collections.synchronizedCollection(cache.PARTITION_XREF.asList()));
     }
 
     /**

@@ -9,6 +9,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.Map.Entry;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -451,6 +453,7 @@ public class MarkovCostModel extends AbstractCostModel {
                                         s.getTransactionId(), e_base_partition, base_partition));
             }
             this.penalties.add(Penalty.WRONG_BASE_PARTITION);
+//            assert(false) : e_base_partition + " != " + base_partition + "  " + most_touched;
         }
         
         // ----------------------------------------------------------------------------
@@ -749,6 +752,7 @@ public class MarkovCostModel extends AbstractCostModel {
         final Histogram<Procedure> accurate_h = new Histogram<Procedure>();
         final Histogram<MarkovOptimization> optimizations_h = new Histogram<MarkovOptimization>();
         final Histogram<Penalty> penalties_h = new Histogram<Penalty>();
+        final Map<Procedure, Histogram<MarkovOptimization>> proc_penalties_h = new ConcurrentHashMap<Procedure, Histogram<MarkovOptimization>>();
 
         final AtomicInteger total = new AtomicInteger(0);
         final AtomicInteger failures = new AtomicInteger(0);
@@ -850,11 +854,14 @@ public class MarkovCostModel extends AbstractCostModel {
             runnables.add(new Runnable() {
                 @Override
                 public void run() {
+                    Thread self = Thread.currentThread();
+                    processing_threads.add(self);
+                    
                     Pair<Integer, TransactionTrace> pair = null;
                     final Set<MarkovOptimization> penalty_groups = new HashSet<MarkovOptimization>();
                     final Set<Penalty> penalties = new HashSet<Penalty>();
-                    Thread self = Thread.currentThread();
-                    processing_threads.add(self);
+                    Histogram<MarkovOptimization> proc_h = null;
+                    
                     ProfileMeasurement profiler = profilers[thread_id];
                     assert(profiler != null);
 
@@ -895,6 +902,17 @@ public class MarkovCostModel extends AbstractCostModel {
                         total_h.put(catalog_proc);
                         if (debug.get()) LOG.debug(String.format("Processing %s [%d / %d]", txn_trace, thread_ctr, thread_ctr + queues[thread_id].size()));
                         
+                        proc_h = proc_penalties_h.get(catalog_proc);
+                        if (proc_h == null) {
+                            synchronized(proc_penalties_h) {
+                                proc_h = proc_penalties_h.get(catalog_proc);
+                                if (proc_h == null) {
+                                    proc_h = new Histogram<MarkovOptimization>();
+                                    proc_penalties_h.put(catalog_proc, proc_h);
+                                }
+                            } // SYNCH
+                        }
+                        
                         double cost = 0.0d;
                         Throwable error = null;
                         try {
@@ -922,6 +940,7 @@ public class MarkovCostModel extends AbstractCostModel {
                                 penalty_groups.add(p.getGroup());
                                 penalties.add(p);
                             } // FOR
+                            proc_h.putAll(penalty_groups);
                             optimizations_h.putAll(penalty_groups);
                             penalties_h.putAll(penalties);
                             missed_h.put(catalog_proc);
@@ -994,9 +1013,16 @@ public class MarkovCostModel extends AbstractCostModel {
             } // FOR
             m4.put(m4.lastKey(), m4.get(m4.lastKey()) + "\n"); // .concat("\n");
         } // FOR
+        
+        ListOrderedMap<String, Object> m5 = new ListOrderedMap<String, Object>();
+        for (Entry<Procedure, Histogram<MarkovOptimization>> e : proc_penalties_h.entrySet()) {
+            if (e.getValue().isEmpty() == false) m5.put(e.getKey().getName(), e.getValue());
+        }
 
         System.err.println(StringUtil.formatMaps(m0, m1, m2) +
                            StringUtil.DOUBLE_LINE +
-                           StringUtil.formatMaps(m3, m4));
+                           StringUtil.formatMaps(m3, m4) +
+                           StringUtil.DOUBLE_LINE +
+                           StringUtil.formatMaps(m5));
     }
 }

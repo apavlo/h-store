@@ -7,6 +7,7 @@ import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -15,6 +16,8 @@ import java.util.Set;
 import java.util.SortedSet;
 import java.util.TreeSet;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.LinkedBlockingDeque;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.log4j.Logger;
@@ -23,6 +26,7 @@ import org.json.JSONObject;
 import org.json.JSONStringer;
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Procedure;
+import org.voltdb.utils.Pair;
 
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.hashing.AbstractHasher;
@@ -34,6 +38,7 @@ import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.FileUtil;
 import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.PartitionEstimator;
+import edu.brown.utils.ProfileMeasurement;
 import edu.brown.utils.ThreadUtil;
 import edu.brown.utils.LoggerUtil.LoggerBoolean;
 import edu.brown.workload.TransactionTrace;
@@ -56,9 +61,9 @@ public abstract class MarkovGraphContainersUtil {
      * @param args
      * @throws Exception
      */
+    @SuppressWarnings("unchecked")
     public static <T extends MarkovGraphsContainer> Map<Integer, MarkovGraphsContainer> createMarkovGraphsContainers(final Database catalog_db, final Workload workload, final PartitionEstimator p_estimator, final Class<T> containerClass) throws Exception {
         final String className = containerClass.getSimpleName();
-        LOG.info(String.format("Generating %s for %d partitions", className, CatalogUtil.getNumberOfPartitions(catalog_db)));
         
         final Map<Integer, MarkovGraphsContainer> markovs_map = new ConcurrentHashMap<Integer, MarkovGraphsContainer>();
         final List<Runnable> runnables = new ArrayList<Runnable>();
@@ -68,23 +73,84 @@ public abstract class MarkovGraphContainersUtil {
         final int marker = Math.max(1, (int)(num_transactions * 0.10));
         final AtomicInteger finished_ctr = new AtomicInteger(0);
         final AtomicInteger txn_ctr = new AtomicInteger(0);
+        final int num_threads = ThreadUtil.getMaxGlobalThreads();
         
         final Constructor<T> constructor = ClassUtil.getConstructor(containerClass, new Class<?>[]{Collection.class});
         final boolean is_global = containerClass.equals(GlobalMarkovGraphsContainer.class);
         
-        for (final Procedure catalog_proc : procedures) {
+        final List<Thread> processing_threads = new ArrayList<Thread>();
+        final LinkedBlockingDeque<Pair<Integer, TransactionTrace>> queues[] = (LinkedBlockingDeque<Pair<Integer, TransactionTrace>>[])new LinkedBlockingDeque<?>[num_threads];
+        for (int i = 0; i < num_threads; i++) {
+            queues[i] = new LinkedBlockingDeque<Pair<Integer, TransactionTrace>>();
+        } // FOR
+        
+        // QUEUING THREAD
+        final AtomicBoolean queued_all = new AtomicBoolean(false);
+        runnables.add(new Runnable() {
+            @Override
+            public void run() {
+                List<TransactionTrace> all_txns = workload.getTransactions();
+                Collections.shuffle(all_txns);
+                int ctr = 0;
+                for (TransactionTrace txn_trace : all_txns) {
+                    // Make sure it goes to the right base partition
+                    Integer partition = null;
+                    try {
+                        partition = p_estimator.getBasePartition(txn_trace);
+                    } catch (Exception ex) {
+                        throw new RuntimeException(ex);
+                    }
+                    assert(partition != null) : "Failed to get base partition for " + txn_trace + "\n" + txn_trace.debug(catalog_db);
+                    queues[ctr % num_threads].add(Pair.of(partition, txn_trace));
+                    if (++ctr % marker == 0) LOG.info(String.format("Queued %d/%d transactions", ctr, num_transactions));
+                } // FOR
+                queued_all.set(true);
+                
+                // Poke all our threads just in case they finished
+                for (Thread t : processing_threads) t.interrupt();
+            }
+        });
+        
+        // PROCESSING THREADS
+        for (int i = 0; i < num_threads; i++) {
+            final int thread_id = i;
             runnables.add(new Runnable() {
+                @Override
                 public void run() {
-                    List<TransactionTrace> traces = workload.getTraces(catalog_proc); 
-                    LOG.info(String.format("Populating %s for %s [txns=%d]", className, catalog_proc.getName(), traces.size()));
+                    Thread self = Thread.currentThread();
+                    processing_threads.add(self);
+
                     MarkovGraphsContainer markovs = null;
+                    Pair<Integer, TransactionTrace> pair = null;
                     
-                    for (TransactionTrace txn_trace : traces) {
+                    while (true) {
+                        try {
+                            if (queued_all.get()) {
+                                pair = queues[thread_id].poll();
+                            } else {
+                                pair = queues[thread_id].take();
+                                
+                                // Steal work
+                                if (pair == null) {
+                                    for (int i = 0; i < num_threads; i++) {
+                                        if (i == thread_id) continue;
+                                        pair = queues[i].take();
+                                        if (pair != null) break;
+                                    } // FOR
+                                }
+                            }
+                        } catch (InterruptedException ex) {
+                            continue;
+                        }
+                        if (pair == null) break;
+                        
+                        int partition = pair.getFirst();
+                        TransactionTrace txn_trace = pair.getSecond();
+                        Procedure catalog_proc = txn_trace.getCatalogItem(catalog_db);
                         long txn_id = txn_trace.getTransactionId();
                         try {
-                            int map_id = (is_global ? MarkovUtil.GLOBAL_MARKOV_CONTAINER_ID : p_estimator.getBasePartition(txn_trace));
+                            int map_id = (is_global ? MarkovUtil.GLOBAL_MARKOV_CONTAINER_ID : partition);
                             Object params[] = txn_trace.getParams();
-                            Procedure catalog_proc = txn_trace.getCatalogItem(catalog_db);
                             
                             markovs = markovs_map.get(map_id);
                             if (markovs == null) {
@@ -99,7 +165,9 @@ public abstract class MarkovGraphContainersUtil {
                             }
                             
                             MarkovGraph markov = markovs.getFromParams(txn_id, map_id, params, catalog_proc);
-                            markov.processTransaction(txn_trace, p_estimator);
+                            synchronized (markov) {
+                                markov.processTransaction(txn_trace, p_estimator);
+                            } // SYNCH
                         } catch (Exception ex) {
                             LOG.fatal("Failed to process " + txn_trace, ex);
                             throw new RuntimeException(ex);
@@ -112,11 +180,13 @@ public abstract class MarkovGraphContainersUtil {
                                                     global_ctr, num_transactions));
                         }
                     } // FOR
-                    LOG.info(String.format("Processing thread finished creating MarkovGraphs for %s [%d/%d]",
-                                           catalog_proc.getName(), finished_ctr.incrementAndGet(), procedures.size()));
+                    LOG.info(String.format("Processing thread finished creating %s [%d/%d]",
+                                            className, finished_ctr.incrementAndGet(), num_threads));
                 }
             });
         } // FOR
+        LOG.info(String.format("Generating %s for %d partitions using %d threads",
+                               className, CatalogUtil.getNumberOfPartitions(catalog_db), num_threads));
         ThreadUtil.runGlobalPool(runnables);
     
         LOG.info("Procedure Histogram:\n" + proc_h);

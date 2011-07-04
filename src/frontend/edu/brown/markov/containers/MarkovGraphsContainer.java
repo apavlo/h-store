@@ -132,10 +132,15 @@ public class MarkovGraphsContainer implements JSONSerializable {
     public MarkovGraph getOrCreate(Integer id, Procedure catalog_proc, boolean initialize) {
         MarkovGraph markov = this.get(id, catalog_proc);
         if (markov == null) {
-            if (LOG.isDebugEnabled()) LOG.warn(String.format("Creating a new %s MarkovGraph for id %d", catalog_proc.getName(), id));
-            markov = new MarkovGraph(catalog_proc);
-            this.put(id, markov);
-            if (initialize) markov.initialize();
+            synchronized (this) {
+                markov = this.get(id, catalog_proc);
+                if (markov == null) {
+                    if (LOG.isDebugEnabled()) LOG.warn(String.format("Creating a new %s MarkovGraph for id %d", catalog_proc.getName(), id));
+                    markov = new MarkovGraph(catalog_proc);
+                    if (initialize) markov.initialize();
+                    this.put(id, markov);
+                }
+            } // SYNCH
         }
         return (markov);
     }
