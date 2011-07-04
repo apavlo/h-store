@@ -346,8 +346,13 @@ public class MarkovGraph extends AbstractDirectedGraph<Vertex, Edge> implements 
     protected Vertex getVertex(Statement a, Set<Integer> partitions, Set<Integer> past_partitions, int queryInstanceIndex) {
         Set<Vertex> stmt_vertices = this.cache_stmtVertices.get(a);
         if (stmt_vertices == null) {
-            this.buildCache();
-            stmt_vertices = this.cache_stmtVertices.get(a);
+            synchronized (this) {
+                stmt_vertices = this.cache_stmtVertices.get(a);
+                if (stmt_vertices == null) {
+                    this.buildCache();
+                    stmt_vertices = this.cache_stmtVertices.get(a);
+                }
+            } // SYNCH
         }
         for (Vertex v : stmt_vertices) {
             if (v.isEqual(a, partitions, past_partitions, queryInstanceIndex)) {

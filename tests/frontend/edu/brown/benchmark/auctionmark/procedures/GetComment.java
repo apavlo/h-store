@@ -16,7 +16,7 @@ import edu.brown.benchmark.auctionmark.AuctionMarkConstants;
     partitionInfo = "USER.U_ID: 0",
     singlePartition = true
 )
-public class GetComment extends VoltProcedure{
+public class GetComment extends VoltProcedure {
 	
     public final SQLStmt select_comment = new SQLStmt(
             "SELECT * FROM " + AuctionMarkConstants.TABLENAME_ITEM_COMMENT + " " + 

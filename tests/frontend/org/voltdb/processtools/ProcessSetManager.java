@@ -114,9 +114,10 @@ public class ProcessSetManager implements Shutdownable {
         @Override
         public void run() {
             LOG.debug("Starting ProcessSetPoller");
+            boolean first = true;
             while (true) {
                 try {
-                    Thread.sleep(5000);
+                    Thread.sleep(first ? 60000 : 5000);
                 } catch (InterruptedException ex) {
                     if (shutting_down == false) ex.printStackTrace();
                     break;
@@ -128,6 +129,7 @@ public class ProcessSetManager implements Shutdownable {
                         writeToProcess(e.getKey(), " ");
                     }
                 } // FOR
+                first = false;
             } // WHILE
         }
     }

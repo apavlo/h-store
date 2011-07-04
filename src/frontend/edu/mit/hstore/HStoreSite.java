@@ -168,13 +168,17 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
             suffix = "-" + suffix;
             if (partition != null) suffix = String.format("-%03d%s", partition.intValue(), suffix);
         } else if (partition != null) {
-            suffix = String.format("%03d", partition.intValue());
+            suffix = String.format("-%03d", partition.intValue());
         }
         return (String.format("H%02d%s", site_id, suffix));
     }
     
     public static final String formatSiteName(int site_id) {
         return (HStoreSite.getThreadName(site_id, null, null));
+    }
+    
+    public static final String formatPartitionName(int site_id, int partition_id) {
+        return (HStoreSite.getThreadName(site_id, null, partition_id));
     }
 
     // ----------------------------------------------------------------------------
@@ -1191,16 +1195,17 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
             
             // HACK: Randomly discard some distributed TransactionStates because we can't
             // tell the Dtxn.Coordinator to prune its queue.
-            if (hstore_conf.site.txn_enable_queue_pruning) {
+            if (hstore_conf.site.txn_enable_queue_pruning && rand.nextBoolean() == true) {
                 int ctr = 0;
                 for (Long dtxn_id : this.inflight_txns.keySet()) {
                     LocalTransactionState _ts = this.inflight_txns.get(dtxn_id);
-                    if (_ts.isPredictSinglePartition() == false && _ts.hasStarted() == false && rand.nextInt(5) == 0) {
+                    if (_ts == null) continue;
+                    if (_ts.isPredictSinglePartition() == false && _ts.hasStarted() == false && rand.nextInt(10) == 0) {
                         _ts.markAsRejected();
                         ctr++;
                     }
                 } // FOR
-                if (ctr > 0) LOG.info("Pruned " + ctr + " queued distributed transactions to try to free up the queue");
+                if (d && ctr > 0) LOG.debug("Pruned " + ctr + " queued distributed transactions to try to free up the queue");
             }
         }
         if (this.redirect_throttle == false && queue_size > hstore_conf.site.txn_redirect_queue_max) {

@@ -38,13 +38,14 @@ public class CatalogInfo {
         System.out.println(StringUtil.formatMaps(":", false, false, false, true, m));
         System.out.println("Cluster Information:\n");
         
-        int num_cols = 4;
-        String cols[] = new String[num_cols];
-        for (int i = 0; i < num_cols; i++) cols[i] = "";
-        
         Map<Host, Set<Site>> hosts = CatalogUtil.getSitesPerHost(args.catalog);
         Set<String> partition_ids = new TreeSet<String>();
         String partition_f = "%0" + Integer.toString(num_partitions).length() + "d";
+        
+        int num_cols = Math.min(4, hosts.size());
+        String cols[] = new String[num_cols];
+        for (int i = 0; i < num_cols; i++) cols[i] = "";
+        
         int i = 0;
         for (Host catalog_host : hosts.keySet()) {
             int idx = i % num_cols;
