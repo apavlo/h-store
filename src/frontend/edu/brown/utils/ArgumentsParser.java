@@ -236,7 +236,7 @@ public class ArgumentsParser {
     public Long workload_xact_offset = 0l;
     public Long workload_query_limit = null;
     public final Set<Integer> workload_base_partitions = new HashSet<Integer>();
-    public Workload.Filter workload_filter = null;
+    public Filter workload_filter = null;
     
     /**
      * Workload Statistics Attributes
@@ -498,7 +498,7 @@ public class ArgumentsParser {
             Histogram<String> proc_histogram = null;
             // Include/exclude procedures from the traces
             if (params.containsKey(PARAM_WORKLOAD_PROC_INCLUDE) || params.containsKey(PARAM_WORKLOAD_PROC_EXCLUDE)) {
-                Workload.Filter filter = new ProcedureNameFilter();
+                Filter filter = new ProcedureNameFilter();
                 String temp = params.get(PARAM_WORKLOAD_PROC_INCLUDE);
                 if (temp != null && !temp.equals(ProcedureNameFilter.INCLUDE_ALL)) {
                     

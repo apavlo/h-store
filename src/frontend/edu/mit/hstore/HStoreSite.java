@@ -88,10 +88,11 @@ import edu.brown.markov.Edge;
 import edu.brown.markov.EstimationThresholds;
 import edu.brown.markov.MarkovEstimate;
 import edu.brown.markov.MarkovGraph;
-import edu.brown.markov.MarkovGraphsContainer;
 import edu.brown.markov.MarkovUtil;
 import edu.brown.markov.TransactionEstimator;
 import edu.brown.markov.Vertex;
+import edu.brown.markov.containers.MarkovGraphContainersUtil;
+import edu.brown.markov.containers.MarkovGraphsContainer;
 import edu.brown.statistics.Histogram;
 import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.CollectionUtil;
@@ -259,7 +260,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
     private final Dtxn.FragmentResponse cached_FragmentResponse;
     
     /** All of the partitions in the cluster */
-    private final List<Integer> all_partitions;
+    private final Collection<Integer> all_partitions;
 
     /** List of local partitions at this HStoreSite */
     private final List<Integer> local_partitions = new ArrayList<Integer>();
@@ -1925,8 +1926,8 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         if (args.hasParam(ArgumentsParser.PARAM_MARKOV)) {
             File path = new File(args.getParam(ArgumentsParser.PARAM_MARKOV));
             if (path.exists()) {
-                markovs = MarkovUtil.loadIds(args.catalog_db, path.getAbsolutePath(), CatalogUtil.getLocalPartitionIds(catalog_site));
-                MarkovUtil.setHasher(markovs, p_estimator.getHasher());
+                markovs = MarkovGraphContainersUtil.loadIds(args.catalog_db, path.getAbsolutePath(), CatalogUtil.getLocalPartitionIds(catalog_site));
+                MarkovGraphContainersUtil.setHasher(markovs, p_estimator.getHasher());
                 LOG.info("Finished loading MarkovGraphsContainer '" + path + "'");
             } else {
                 if (LOG.isDebugEnabled()) LOG.warn("The Markov Graphs file '" + path + "' does not exist");

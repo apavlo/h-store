@@ -16,6 +16,7 @@ import edu.brown.catalog.CatalogUtil;
 import edu.brown.correlations.Correlation;
 import edu.brown.correlations.ParameterCorrelations;
 import edu.brown.graphs.VertexTreeWalker;
+import edu.brown.markov.containers.MarkovGraphsContainer;
 import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.CountingPoolableObjectFactory;
@@ -70,7 +71,7 @@ public class MarkovPathEstimator extends VertexTreeWalker<Vertex, Edge> implemen
     private Object args[];
     private float greatest_abort = MarkovUtil.NULL_MARKER;
 
-    private final List<Integer> all_partitions;
+    private final Collection<Integer> all_partitions;
     private final Set<Integer> touched_partitions = new HashSet<Integer>();
     private final Set<Integer> read_partitions = new HashSet<Integer>();
     private final Set<Integer> write_partitions = new HashSet<Integer>();

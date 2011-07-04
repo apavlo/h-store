@@ -54,10 +54,10 @@ public class NewPurchase extends VoltProcedure{
             "WHERE ip_ib_id = ? AND ip_ib_i_id = ? AND ip_ib_u_id = ?"
         );    
     
-    public VoltTable run(long ib_id, long i_id, long u_id, long buyer_id) throws VoltAbortException {
+    public VoltTable run(long ib_id, long i_id, long seller_id, long buyer_id) throws VoltAbortException {
     	
     	// Check if this is the correct max_bid ( max_bid_buyer_id == buyer_id)
-    	voltQueueSQL(select_item_max_bid, i_id, u_id);
+    	voltQueueSQL(select_item_max_bid, i_id, seller_id);
     	VoltTable results[] = voltExecuteSQL();
     	assert(results.length == 1);
     	if (results[0].getRowCount() == 1) {
@@ -84,7 +84,7 @@ public class NewPurchase extends VoltProcedure{
     	long ip_id;
     	
     	// Set item_purchase_id
-    	voltQueueSQL(select_max_purchase_id, ib_id, i_id, u_id);
+    	voltQueueSQL(select_max_purchase_id, ib_id, i_id, seller_id);
     	results = voltExecuteSQL();
     	assert(results.length == 1);
     	if (results[0].getRowCount() == 0){
@@ -102,11 +102,11 @@ public class NewPurchase extends VoltProcedure{
     	}
     	
     	// Insert a new purchase
-        voltQueueSQL(insert_purchase, ip_id, ib_id, i_id, u_id, new TimestampType());
+        voltQueueSQL(insert_purchase, ip_id, ib_id, i_id, seller_id, new TimestampType());
         voltExecuteSQL();
         
         // Update item status to close
-        voltQueueSQL(update_item_status, i_id, u_id);
+        voltQueueSQL(update_item_status, i_id, seller_id);
         voltExecuteSQL();
         
         // Return ip_id, ip_ib_id, ip_ib_i_id, u_id, ip_ib_u_id
@@ -117,7 +117,7 @@ public class NewPurchase extends VoltProcedure{
         		new VoltTable.ColumnInfo("u_id", VoltType.BIGINT),
         		new VoltTable.ColumnInfo("ip_ib_u_id", VoltType.BIGINT)
         });
-        ret.addRow(new Object[]{ip_id, ib_id, i_id, u_id, buyer_id});
+        ret.addRow(new Object[]{ip_id, ib_id, i_id, seller_id, buyer_id});
         
         return ret;
     }	

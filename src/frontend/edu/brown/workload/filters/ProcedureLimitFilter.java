@@ -8,7 +8,7 @@ import edu.brown.workload.*;
  * @author pavlo
  *
  */
-public class ProcedureLimitFilter extends Workload.Filter {
+public class ProcedureLimitFilter extends Filter {
     private final long limit;
     private long offset;
     private long count = 0;
@@ -26,7 +26,7 @@ public class ProcedureLimitFilter extends Workload.Filter {
         this(limit, offset, null);
     }
     
-    public ProcedureLimitFilter(Long limit, Long offset, Workload.Filter next) {
+    public ProcedureLimitFilter(Long limit, Long offset, Filter next) {
         super(next);
         this.limit = (limit == null ? -1 : limit);
         this.offset = offset;

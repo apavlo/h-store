@@ -1,5 +1,6 @@
 package edu.brown.markov;
 
+import java.io.File;
 import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -8,13 +9,10 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import org.apache.commons.collections.map.MultiValueMap;
 import org.apache.commons.collections15.keyvalue.MultiKey;
-import org.apache.commons.collections15.map.MultiKeyMap;
 import org.apache.log4j.Logger;
 import org.json.JSONException;
 import org.json.JSONStringer;
@@ -29,7 +27,11 @@ import edu.brown.graphs.AbstractDirectedGraph;
 import edu.brown.graphs.AbstractGraphElement;
 import edu.brown.graphs.GraphUtil;
 import edu.brown.graphs.exceptions.InvalidGraphElementException;
-import edu.brown.markov.benchmarks.TPCCMarkovGraphsContainer;
+import edu.brown.markov.containers.AuctionMarkMarkovGraphsContainer;
+import edu.brown.markov.containers.GlobalMarkovGraphsContainer;
+import edu.brown.markov.containers.MarkovGraphContainersUtil;
+import edu.brown.markov.containers.MarkovGraphsContainer;
+import edu.brown.markov.containers.TPCCMarkovGraphsContainer;
 import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.MathUtil;
@@ -68,7 +70,7 @@ public class MarkovGraph extends AbstractDirectedGraph<Vertex, Edge> implements 
     /**
      * TODO
      */
-    public static final int MIN_HITS_FOR_NO_ABORT = 20;
+    public static final int MIN_HITS_FOR_NO_ABORT = 5;
     
     // ----------------------------------------------------------------------------
     // INSTANCE DATA MEMBERS
@@ -174,7 +176,7 @@ public class MarkovGraph extends AbstractDirectedGraph<Vertex, Edge> implements 
         return (successors);
     }
     
-    protected void buildCache() {
+    public void buildCache() {
         for (Statement catalog_stmt : this.catalog_proc.getStatements()) {
             if (this.cache_stmtVertices.containsKey(catalog_stmt) == false)
                 this.cache_stmtVertices.put(catalog_stmt, new HashSet<Vertex>());
@@ -359,7 +361,7 @@ public class MarkovGraph extends AbstractDirectedGraph<Vertex, Edge> implements 
      * Return an immutable list of all the partition ids in our catalog
      * @return
      */
-    protected List<Integer> getAllPartitions() {
+    protected Collection<Integer> getAllPartitions() {
         return (CatalogUtil.getAllPartitionIds(this.getDatabase()));
     }
     
@@ -736,46 +738,34 @@ public class MarkovGraph extends AbstractDirectedGraph<Vertex, Edge> implements 
      */
     public static void main(String vargs[]) throws Exception {
         ArgumentsParser args = ArgumentsParser.load(vargs);
-        args.require(ArgumentsParser.PARAM_CATALOG, ArgumentsParser.PARAM_WORKLOAD);
+        args.require(
+            ArgumentsParser.PARAM_CATALOG,
+            ArgumentsParser.PARAM_WORKLOAD,
+            ArgumentsParser.PARAM_MARKOV_OUTPUT
+        );
         final PartitionEstimator p_estimator = new PartitionEstimator(args.catalog_db, args.hasher);
-        
-        MarkovGraphsContainer markovs = null;
+        Class<? extends MarkovGraphsContainer> containerClass = MarkovGraphsContainer.class;
         
         // Check whether we are generating the global graphs or the clustered versions
         Boolean global = args.getBooleanParam(ArgumentsParser.PARAM_MARKOV_GLOBAL); 
         if (global != null && global == true) {
-            markovs = MarkovUtil.createProcedureGraphs(args.catalog_db, args.workload, p_estimator);
+            containerClass = GlobalMarkovGraphsContainer.class;
 
-        // HACK
+        // TPCCMarkovGraphsContainer
         } else if (args.catalog_type == ProjectType.TPCC) {
-            TPCCMarkovGraphsContainer.create(args);
-            return;
-        // Or whether we should divide the transactions by their base partition 
-        } else {
-            markovs = MarkovUtil.createBasePartitionGraphs(args.catalog_db, args.workload, p_estimator);
+            containerClass = TPCCMarkovGraphsContainer.class;
+
+        // AuctionMarkMarkovGraphsContainer
+        } else if (args.catalog_type == ProjectType.AUCTIONMARK) {
+            containerClass = AuctionMarkMarkovGraphsContainer.class;
         }
+        assert(containerClass != null);
+        Map<Integer, MarkovGraphsContainer> markovs_map = MarkovGraphContainersUtil.createMarkovGraphsContainers(args.catalog_db, args.workload, p_estimator, containerClass);
         
         // Save the graphs
-        if (args.hasParam(ArgumentsParser.PARAM_MARKOV_OUTPUT)) {
-            LOG.info("Writing graphs out to " + args.getParam(ArgumentsParser.PARAM_MARKOV_OUTPUT));
-            
-            // HACK: Split the graphs into separate MarkovGraphsContainers based on partition ids
-            Map<Integer, MarkovGraphsContainer> inner = new HashMap<Integer, MarkovGraphsContainer>();
-            for (Entry<Integer, Map<Procedure, MarkovGraph>> e : markovs.entrySet()) {
-                MarkovGraphsContainer m = new MarkovGraphsContainer(markovs.isGlobal());
-                Integer p = e.getKey();
-                for (MarkovGraph markov : e.getValue().values()) {
-                    try {
-                        markov.validate();
-                    } catch (InvalidGraphElementException ex) {
-                        throw new Exception(String.format("Invalid %s MarkovGraph at partition %d", markov.getProcedure().getName(), p), ex);
-                    }
-                    m.put(p, markov);
-                } // FOR
-                inner.put(p, m);
-            } // FOR
-            MarkovUtil.save(inner, args.getParam(ArgumentsParser.PARAM_MARKOV_OUTPUT));
-        }
-
+        assert(markovs_map != null);
+        File output = args.getFileParam(ArgumentsParser.PARAM_MARKOV_OUTPUT);
+        LOG.info("Writing graphs out to " + output);
+        MarkovGraphContainersUtil.save(markovs_map, output.getAbsolutePath());
     }
 }

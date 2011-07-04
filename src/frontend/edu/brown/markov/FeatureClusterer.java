@@ -31,6 +31,8 @@ import weka.filters.unsupervised.attribute.NumericToNominal;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.correlations.ParameterCorrelations;
 import edu.brown.costmodel.MarkovCostModel;
+import edu.brown.markov.containers.MarkovGraphContainersUtil;
+import edu.brown.markov.containers.MarkovGraphsContainer;
 import edu.brown.markov.features.BasePartitionFeature;
 import edu.brown.markov.features.FeatureUtil;
 import edu.brown.markov.features.ParamArrayLengthFeature;
@@ -1166,7 +1168,7 @@ public class FeatureClusterer {
         Map<Integer, MarkovGraphsContainer> markovs = fclusterer.constructMarkovModels(aset, data);
         
         String output = catalog_proc.getName() + ".markovs";
-        MarkovUtil.save(markovs, output);
+        MarkovGraphContainersUtil.save(markovs, output);
         
 //        fclusterer.calculateGlobalCost();
 //        AbstractClusterer clusterer = fclusterer.calculateAttributeSetCost(aset);

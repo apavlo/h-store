@@ -10,6 +10,8 @@ import org.voltdb.catalog.Procedure;
 import edu.brown.BaseTestCase;
 import edu.brown.benchmark.tm1.procedures.GetNewDestination;
 import edu.brown.catalog.CatalogUtil;
+import edu.brown.markov.containers.MarkovGraphContainersUtil;
+import edu.brown.markov.containers.MarkovGraphsContainer;
 import edu.brown.utils.FileUtil;
 import edu.brown.utils.ProjectType;
 
@@ -47,7 +49,7 @@ public class TestMarkovUtil extends BaseTestCase {
         // Serialize them out to a file. This will also make a nice little index in the file
         File temp = FileUtil.getTempFile("markovs", true);
         assertNotNull(temp);
-        MarkovUtil.save(markovs, temp.getAbsolutePath());
+        MarkovGraphContainersUtil.save(markovs, temp.getAbsolutePath());
 //        System.err.println("MARKOV FILE: " + temp);
         
         // Now read it back in make sure everything is there

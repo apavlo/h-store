@@ -8,7 +8,7 @@ import edu.brown.catalog.CatalogKey;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.utils.PartitionEstimator;
 import edu.brown.workload.TransactionTrace;
-import edu.brown.workload.Workload.Filter;
+import edu.brown.workload.filters.Filter;
 
 public class LowerBoundsCostModel extends SingleSitedCostModel {
     private static final Logger LOG = Logger.getLogger(LowerBoundsCostModel.class);

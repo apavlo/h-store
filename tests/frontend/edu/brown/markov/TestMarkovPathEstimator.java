@@ -16,12 +16,15 @@ import org.voltdb.types.ExpressionType;
 import edu.brown.BaseTestCase;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.correlations.ParameterCorrelations;
+import edu.brown.markov.containers.MarkovGraphContainersUtil;
+import edu.brown.markov.containers.MarkovGraphsContainer;
 import edu.brown.utils.MathUtil;
 import edu.brown.utils.ProjectType;
 import edu.brown.utils.StringUtil;
 import edu.brown.workload.TransactionTrace;
 import edu.brown.workload.Workload;
 import edu.brown.workload.filters.BasePartitionTxnFilter;
+import edu.brown.workload.filters.Filter;
 import edu.brown.workload.filters.ProcParameterArraySizeFilter;
 import edu.brown.workload.filters.ProcedureLimitFilter;
 import edu.brown.workload.filters.ProcedureNameFilter;
@@ -63,7 +66,7 @@ public class TestMarkovPathEstimator extends BaseTestCase {
             //  (3) Only include traces that execute on the BASE_PARTITION
             //  (4) Limit the total number of traces to WORKLOAD_XACT_LIMIT
             List<ProcParameter> array_params = CatalogUtil.getArrayProcParameters(this.catalog_proc);
-            Workload.Filter filter = new ProcedureNameFilter()
+            Filter filter = new ProcedureNameFilter()
                   .include(TARGET_PROCEDURE.getSimpleName())
                   .attach(new ProcParameterArraySizeFilter(array_params.get(0), 10, ExpressionType.COMPARE_EQUAL))
                   .attach(new BasePartitionTxnFilter(p_estimator, BASE_PARTITION))
@@ -78,7 +81,7 @@ public class TestMarkovPathEstimator extends BaseTestCase {
 //             }
             
             // Generate MarkovGraphs
-            markovs = MarkovUtil.createBasePartitionGraphs(catalog_db, workload, p_estimator);
+            markovs = MarkovGraphContainersUtil.createBasePartitionMarkovGraphsContainer(catalog_db, workload, p_estimator);
             assertNotNull(markovs);
             
             // Find a single-partition and multi-partition trace

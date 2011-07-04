@@ -900,20 +900,20 @@ public final class HStoreConf {
             Object value = null;
             
             if (f_class.equals(int.class)) {
-                value = this.config.getInt(k);
                 if (cp != null) defaultValue = cp.defaultInt();
+                value = this.config.getInt(k, (Integer)defaultValue);
             } else if (f_class.equals(long.class)) {
-                value = this.config.getLong(k);
                 if (cp != null) defaultValue = cp.defaultLong();
+                value = this.config.getLong(k, (Long)defaultValue);
             } else if (f_class.equals(double.class)) {
-                value = this.config.getDouble(k);
                 if (cp != null) defaultValue = cp.defaultDouble();
+                value = this.config.getDouble(k, (Double)defaultValue);
             } else if (f_class.equals(boolean.class)) {
-                value = this.config.getBoolean(k);
                 if (cp != null) defaultValue = cp.defaultBoolean();
+                value = this.config.getBoolean(k, (Boolean)defaultValue);
             } else if (f_class.equals(String.class)) {
-                value = this.config.getString(k);
                 if (cp != null) defaultValue = cp.defaultString();
+                value = this.config.getString(k, (String)defaultValue);
             } else {
                 LOG.warn(String.format("Unexpected value type '%s' for property '%s'", f_class.getSimpleName(), f_name));
             }

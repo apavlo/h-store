@@ -25,12 +25,13 @@ import edu.brown.catalog.CatalogUtil;
 import edu.brown.markov.EstimationThresholds;
 import edu.brown.markov.MarkovEstimate;
 import edu.brown.markov.MarkovGraph;
-import edu.brown.markov.MarkovGraphsContainer;
 import edu.brown.markov.MarkovProbabilityCalculator;
 import edu.brown.markov.MarkovUtil;
 import edu.brown.markov.TransactionEstimator;
 import edu.brown.markov.Vertex;
 import edu.brown.markov.TransactionEstimator.State;
+import edu.brown.markov.containers.MarkovGraphContainersUtil;
+import edu.brown.markov.containers.MarkovGraphsContainer;
 import edu.brown.statistics.Histogram;
 import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.CollectionUtil;
@@ -42,7 +43,7 @@ import edu.brown.utils.ThreadUtil;
 import edu.brown.utils.LoggerUtil.LoggerBoolean;
 import edu.brown.workload.TransactionTrace;
 import edu.brown.workload.Workload;
-import edu.brown.workload.Workload.Filter;
+import edu.brown.workload.filters.Filter;
 import edu.mit.hstore.HStoreConf;
 
 public class MarkovCostModel extends AbstractCostModel {
@@ -163,7 +164,7 @@ public class MarkovCostModel extends AbstractCostModel {
     
     private final EstimationThresholds thresholds;
     private final TransactionEstimator t_estimator;
-    private final List<Integer> all_partitions;
+    private final Collection<Integer> all_partitions;
     private boolean force_full_comparison = false;
     private boolean force_regenerate_markovestimates = false;
     
@@ -737,38 +738,11 @@ public class MarkovCostModel extends AbstractCostModel {
         HStoreConf.init(args, null);
         final int num_partitions = CatalogUtil.getNumberOfPartitions(args.catalog);
         final Integer base_partition = (args.workload_base_partitions.size() == 1 ? CollectionUtil.getFirst(args.workload_base_partitions) : null);
+        final int num_threads = ThreadUtil.getMaxGlobalThreads();
         final boolean stop_on_error = true;
         final boolean force_fullpath = true;
         final boolean force_regenerate = false;
         final boolean skip_processing = false;
-        
-        // Only load the MarkovGraphs that we actually need
-        final int num_transactions = args.workload.getTransactionCount();
-        assert(num_transactions > 0) : "No TransactionTraces";
-        Set<Procedure> procedures = args.workload.getProcedures(args.catalog_db);
-        Collection<Integer> partitions = null;
-        if (base_partition != null) {
-            partitions = new HashSet<Integer>();
-            partitions.add(base_partition);
-        } else {
-            partitions = CatalogUtil.getAllPartitionIds(args.catalog_db);
-        }
-        
-        String input_path = args.getParam(ArgumentsParser.PARAM_MARKOV);
-        Map<Integer, MarkovGraphsContainer> m = MarkovUtil.load(args.catalog_db, input_path, procedures, partitions);
-        assert(m != null);
-        Boolean global = m.containsKey(MarkovUtil.GLOBAL_MARKOV_CONTAINER_ID);
-        
-        final PartitionEstimator p_estimator = new PartitionEstimator(args.catalog_db);
-        final TransactionEstimator t_estimators[] = new TransactionEstimator[num_partitions];
-        final MarkovCostModel costmodels[] = new MarkovCostModel[num_partitions];
-        for (int p = 0; p < num_partitions; p++) {
-            MarkovGraphsContainer markovs = (global != null && global == true ? m.get(MarkovUtil.GLOBAL_MARKOV_CONTAINER_ID) : m.get(p));
-            t_estimators[p] = new TransactionEstimator(p_estimator, args.param_correlations, markovs);
-            costmodels[p] = new MarkovCostModel(args.catalog_db, p_estimator, t_estimators[p], args.thresholds);
-            if (force_fullpath) costmodels[p].forceFullPathComparison();
-            if (force_regenerate) costmodels[p].forceRegenerateMarkovEstimates();
-        } // FOR
         
         final Histogram<Procedure> total_h = new Histogram<Procedure>();
         final Histogram<Procedure> missed_h = new Histogram<Procedure>();
@@ -780,8 +754,57 @@ public class MarkovCostModel extends AbstractCostModel {
         final AtomicInteger failures = new AtomicInteger(0);
         final List<Runnable> runnables = new ArrayList<Runnable>();
         final List<Thread> processing_threads = new ArrayList<Thread>();
+        final AtomicInteger thread_finished = new AtomicInteger(0);
         
-        final int num_threads = ThreadUtil.getMaxGlobalThreads() - 1;
+        // Only load the MarkovGraphs that we actually need
+        final int num_transactions = args.workload.getTransactionCount();
+        assert(num_transactions > 0) : "No TransactionTraces";
+        final int marker = Math.max(1, (int)(num_transactions * 0.10));
+        final Set<Procedure> procedures = args.workload.getProcedures(args.catalog_db);
+        Collection<Integer> partitions = null;
+        if (base_partition != null) {
+            partitions = new HashSet<Integer>();
+            partitions.add(base_partition);
+        } else {
+            partitions = CatalogUtil.getAllPartitionIds(args.catalog_db);
+        }
+        
+        final String input_path = args.getParam(ArgumentsParser.PARAM_MARKOV);
+        final Map<Integer, MarkovGraphsContainer> m = MarkovGraphContainersUtil.load(args.catalog_db, input_path, procedures, partitions);
+        assert(m != null);
+        final boolean global = m.containsKey(MarkovUtil.GLOBAL_MARKOV_CONTAINER_ID);
+        final Map<Integer, MarkovGraphsContainer> thread_markovs[] = (Map<Integer, MarkovGraphsContainer>[])new Map<?, ?>[num_threads];
+        
+        // If this is a GLOBAL model, load up a copy for each thread so that there is no thread contention
+        if (global && num_threads > 2) {
+            LOG.info("Loading multiple copies of GLOBAL MarkovGraphsContainer");
+            
+            for (int i = 0; i < num_threads; i++) {
+                final int thread_id = i;
+                runnables.add(new Runnable() {
+                    @Override
+                    public void run() {
+                        try {
+                            thread_markovs[thread_id] = MarkovGraphContainersUtil.load(args.catalog_db, input_path, procedures, null);
+                        } catch (Throwable ex) {
+                            throw new RuntimeException(ex);
+                        }
+                        assert(thread_markovs[thread_id].containsKey(MarkovUtil.GLOBAL_MARKOV_CONTAINER_ID));
+                        LOG.info(String.format("Loading Thread Finished %d / %d", thread_finished.incrementAndGet(), num_threads));
+                    }
+                });
+            } // FOR
+            ThreadUtil.runNewPool(runnables, procedures.size());
+            thread_finished.set(0);
+            runnables.clear();
+        } else {
+            for (int i = 0; i < num_threads; i++) {
+                thread_markovs[i] = m;
+            } // FOR
+        }
+        
+        final PartitionEstimator p_estimator = new PartitionEstimator(args.catalog_db);
+        final MarkovCostModel thread_costmodels[][] = new MarkovCostModel[num_threads][num_partitions];
         final ProfileMeasurement profilers[] = new ProfileMeasurement[num_threads];
         final LinkedBlockingDeque<Pair<Integer, TransactionTrace>> queues[] = (LinkedBlockingDeque<Pair<Integer, TransactionTrace>>[])new LinkedBlockingDeque<?>[num_threads];
         for (int i = 0; i < num_threads; i++) {
@@ -791,8 +814,6 @@ public class MarkovCostModel extends AbstractCostModel {
         LOG.info(String.format("Estimating the accuracy of the MarkovGraphs using %d transactions [threads=%d]", args.workload.getTransactionCount(), num_threads));
         LOG.info("THRESHOLDS: " + args.thresholds);
         
-        final int marker = Math.max(1, (int)(num_transactions * 0.20));
-        
         // QUEUING THREAD
         final AtomicBoolean queued_all = new AtomicBoolean(false);
         runnables.add(new Runnable() {
@@ -800,7 +821,7 @@ public class MarkovCostModel extends AbstractCostModel {
             public void run() {
                 List<TransactionTrace> all_txns = args.workload.getTransactions();
                 Collections.shuffle(all_txns);
-                int cnt = 0;
+                int ctr = 0;
                 for (TransactionTrace txn_trace : all_txns) {
                     // Make sure it goes to the right base partition
                     Integer partition = null;
@@ -811,8 +832,10 @@ public class MarkovCostModel extends AbstractCostModel {
                     }
                     assert(partition != null) : "Failed to get base partition for " + txn_trace + "\n" + txn_trace.debug(args.catalog_db);
                     if (base_partition != null && base_partition.equals(partition) == false) continue;
-                    queues[partition % num_threads].add(Pair.of(partition, txn_trace));
-                    if (++cnt % marker == 0) LOG.info(String.format("Queued %d/%d transactions", cnt, num_transactions));
+                    
+                    int queue_idx = (global ? ctr : partition) % num_threads;
+                    queues[queue_idx].add(Pair.of(partition, txn_trace));
+                    if (++ctr % marker == 0) LOG.info(String.format("Queued %d/%d transactions", ctr, num_transactions));
                 } // FOR
                 queued_all.set(true);
                 
@@ -834,13 +857,32 @@ public class MarkovCostModel extends AbstractCostModel {
                     processing_threads.add(self);
                     ProfileMeasurement profiler = profilers[thread_id];
                     assert(profiler != null);
-                    
+
+                    MarkovCostModel costmodels[] = thread_costmodels[thread_id];
+                    for (int p = 0; p < num_partitions; p++) {
+                        MarkovGraphsContainer markovs = (global ? thread_markovs[thread_id].get(MarkovUtil.GLOBAL_MARKOV_CONTAINER_ID) : thread_markovs[thread_id].get(p));
+                        TransactionEstimator t_estimator = new TransactionEstimator(p_estimator, args.param_correlations, markovs);
+                        costmodels[p] = new MarkovCostModel(args.catalog_db, p_estimator, t_estimator, args.thresholds);
+                        if (force_fullpath) thread_costmodels[thread_id][p].forceFullPathComparison();
+                        if (force_regenerate) thread_costmodels[thread_id][p].forceRegenerateMarkovEstimates();
+                    } // FOR
+                        
+                    int thread_ctr = 0;
                     while (true) {
                         try {
                             if (queued_all.get()) {
                                 pair = queues[thread_id].poll();
                             } else {
                                 pair = queues[thread_id].take();
+                                
+                                // Steal work
+                                if (pair == null) {
+                                    for (int i = 0; i < num_threads; i++) {
+                                        if (i == thread_id) continue;
+                                        pair = queues[i].take();
+                                        if (pair != null) break;
+                                    } // FOR
+                                }
                             }
                         } catch (InterruptedException ex) {
                             continue;
@@ -851,6 +893,7 @@ public class MarkovCostModel extends AbstractCostModel {
                         TransactionTrace txn_trace = pair.getSecond();
                         Procedure catalog_proc = txn_trace.getCatalogItem(args.catalog_db); 
                         total_h.put(catalog_proc);
+                        if (debug.get()) LOG.debug(String.format("Processing %s [%d / %d]", txn_trace, thread_ctr, thread_ctr + queues[thread_id].size()));
                         
                         double cost = 0.0d;
                         Throwable error = null;
@@ -885,11 +928,13 @@ public class MarkovCostModel extends AbstractCostModel {
                         } else {
                             accurate_h.put(catalog_proc);
                         }
-                        int cnt = total.incrementAndGet(); 
-                        if (cnt % marker == 0) LOG.info(String.format("Processed %d/%d transactions %s",
-                                                                      cnt, num_transactions,
+                        int global_ctr = total.incrementAndGet(); 
+                        if (global_ctr % marker == 0) LOG.info(String.format("Processed %d/%d transactions %s",
+                                                                      global_ctr, num_transactions,
                                                                       (failures.get() > 0 ? String.format("[failures=%d]", failures.get()) : "")));
+                        thread_ctr++;
                     } // WHILE
+                    LOG.info(String.format("Processing Thread Finished %d / %d", thread_finished.incrementAndGet(), num_threads));
                 } 
             });
         } // FOR
@@ -904,10 +949,12 @@ public class MarkovCostModel extends AbstractCostModel {
         ProfileMeasurement total_time = new ProfileMeasurement("ESTIMATION");
         
         for (int i = 0; i < num_threads; i++) {
-            MarkovCostModel mc = costmodels[i];
-            fastpath_h.putHistogram(mc.fast_path_counter);
-            fullpath_h.putHistogram(mc.full_path_counter);
-            total_time.appendTime(profilers[i]);
+            for (int p = 0; p < num_partitions; p++) {
+                MarkovCostModel mc = thread_costmodels[i][p];
+                fastpath_h.putHistogram(mc.fast_path_counter);
+                fullpath_h.putHistogram(mc.full_path_counter);
+                total_time.appendTime(profilers[i]);
+            }
         } // FOR
         
         int accurate_cnt = total.get() - (int)missed_h.getSampleCount();

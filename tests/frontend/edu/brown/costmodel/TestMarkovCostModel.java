@@ -20,17 +20,18 @@ import edu.brown.correlations.ParameterCorrelations;
 import edu.brown.costmodel.MarkovCostModel.Penalty;
 import edu.brown.markov.EstimationThresholds;
 import edu.brown.markov.MarkovGraph;
-import edu.brown.markov.MarkovGraphsContainer;
-import edu.brown.markov.MarkovUtil;
 import edu.brown.markov.TransactionEstimator;
 import edu.brown.markov.Vertex;
 import edu.brown.markov.TransactionEstimator.State;
+import edu.brown.markov.containers.MarkovGraphContainersUtil;
+import edu.brown.markov.containers.MarkovGraphsContainer;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.ProjectType;
 import edu.brown.workload.AbstractTraceElement;
 import edu.brown.workload.TransactionTrace;
 import edu.brown.workload.Workload;
 import edu.brown.workload.filters.BasePartitionTxnFilter;
+import edu.brown.workload.filters.Filter;
 import edu.brown.workload.filters.MultiPartitionTxnFilter;
 import edu.brown.workload.filters.ProcParameterArraySizeFilter;
 import edu.brown.workload.filters.ProcParameterValueFilter;
@@ -79,7 +80,7 @@ public class TestMarkovCostModel extends BaseTestCase {
             // (3) Filter to only include multi-partition txns
             // (4) Another limit to stop after allowing ### txns
             // Where is your god now???
-            Workload.Filter filter = new ProcedureNameFilter()
+            Filter filter = new ProcedureNameFilter()
                     .include(TARGET_PROCEDURE.getSimpleName())
                     .attach(new ProcParameterValueFilter().include(1, new Long(5))) // D_ID
                     .attach(new ProcParameterArraySizeFilter(CatalogUtil.getArrayProcParameters(catalog_proc).get(0), 10, ExpressionType.COMPARE_EQUAL))
@@ -89,7 +90,7 @@ public class TestMarkovCostModel extends BaseTestCase {
             workload.load(file.getAbsolutePath(), catalog_db, filter);
             
             // Make a copy that doesn't have the first TransactionTrace
-            Workload clone = new Workload(workload, new Workload.Filter() {
+            Workload clone = new Workload(workload, new Filter() {
                 private boolean first = true;
                 @Override
                 protected FilterResult filter(AbstractTraceElement<? extends CatalogType> element) {
@@ -115,7 +116,7 @@ public class TestMarkovCostModel extends BaseTestCase {
             // Generate MarkovGraphs per base partition
 //            file = this.getMarkovFile(ProjectType.TPCC);
 //            markovs = MarkovUtil.load(catalog_db, file.getAbsolutePath());
-            markovs = MarkovUtil.createBasePartitionGraphs(catalog_db, clone, p_estimator);
+            markovs = MarkovGraphContainersUtil.createBasePartitionMarkovGraphsContainer(catalog_db, clone, p_estimator);
             assertNotNull(markovs);
             
             // And then populate the MarkovCostModel

@@ -2,7 +2,6 @@ package edu.brown.markov;
 
 import java.util.Collection;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Set;
 
 import org.apache.log4j.Logger;
@@ -24,7 +23,7 @@ public class MarkovProbabilityCalculator extends VertexTreeWalker<Vertex, Edge> 
     }
     
     private final Set<Edge> visited_edges = new HashSet<Edge>();
-    private final List<Integer> all_partitions;
+    private final Collection<Integer> all_partitions;
     private MarkovEstimate markov_est;
     
     public MarkovProbabilityCalculator(MarkovGraph markov) {

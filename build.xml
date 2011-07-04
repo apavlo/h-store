@@ -349,7 +349,7 @@ CLEANING
 ***************************************
 -->
 
-<target name="clean" depends="clean-java, clean-cpp" />
+<target name="clean" depends="clean-all" />
 
 <target name="clean-java">
     <delete includeemptydirs="true" dir="${build.dir}/prod" />

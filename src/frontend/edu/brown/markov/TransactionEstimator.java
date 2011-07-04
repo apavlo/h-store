@@ -9,6 +9,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -25,24 +26,25 @@ import org.voltdb.utils.Pair;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.correlations.ParameterCorrelations;
 import edu.brown.graphs.GraphvizExport;
+import edu.brown.markov.containers.MarkovGraphsContainer;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.CountingPoolableObjectFactory;
 import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.PartitionEstimator;
 import edu.brown.utils.Poolable;
-import edu.brown.utils.ProfileMeasurement;
 import edu.brown.utils.StringUtil;
 import edu.brown.utils.LoggerUtil.LoggerBoolean;
 import edu.brown.workload.QueryTrace;
 import edu.brown.workload.TransactionTrace;
 import edu.mit.hstore.HStoreConf;
 import edu.mit.hstore.dtxn.TransactionState;
+import edu.mit.hstore.interfaces.Loggable;
 
 /**
  * 
  * @author pavlo
  */
-public class TransactionEstimator {
+public class TransactionEstimator implements Loggable {
     private static final Logger LOG = Logger.getLogger(TransactionEstimator.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
@@ -64,7 +66,15 @@ public class TransactionEstimator {
 
     private static ObjectPool ESTIMATOR_POOL;
     
-    private static ObjectPool STATE_POOL; 
+    private static ObjectPool STATE_POOL;
+    
+    public static ObjectPool getStatePool() {
+        return (STATE_POOL);
+    }
+    
+    public static ObjectPool getEstimatorPool() {
+        return (ESTIMATOR_POOL);
+    }
     
     // ----------------------------------------------------------------------------
     // DATA MEMBERS
@@ -110,7 +120,8 @@ public class TransactionEstimator {
         private int num_estimates;
         
         private transient Vertex current;
-        private transient final Set<Integer> temp_touched_partitions = new HashSet<Integer>();
+        private transient final Set<Integer> cache_past_partitions = new TreeSet<Integer>();
+        private transient final Set<Integer> cache_last_partitions = new TreeSet<Integer>();
         
         /**
          * State Factory
@@ -333,7 +344,7 @@ public class TransactionEstimator {
         this.num_partitions = CatalogUtil.getNumberOfPartitions(this.catalog_db);
         this.correlations = (correlations == null ? new ParameterCorrelations() : correlations);
         this.hstore_conf = HStoreConf.singleton();
-        if (this.markovs != null && this.markovs.hasher == null) this.markovs.setHasher(this.p_estimator.getHasher());
+        if (this.markovs != null && this.markovs.getHasher() == null) this.markovs.setHasher(this.p_estimator.getHasher());
         
         // HACK: Initialize the STATE_POOL
         synchronized (LOG) {
@@ -360,13 +371,12 @@ public class TransactionEstimator {
     // DATA MEMBER METHODS
     // ----------------------------------------------------------------------------
 
-    public static ObjectPool getStatePool() {
-        return (STATE_POOL);
+    @Override
+    public void updateLogging() {
+        d = debug.get();
+        t = trace.get();
     }
-    
-    public static ObjectPool getEstimatorPool() {
-        return (ESTIMATOR_POOL);
-    }
+
     
     public void enableGraphRecomputes() {
        this.enable_recomputes = true;
@@ -546,9 +556,10 @@ public class TransactionEstimator {
         return (state);
     }
 
-    public final AtomicInteger batch_cache_attempts = new AtomicInteger(0);
-    public final AtomicInteger batch_cache_success = new AtomicInteger(0);
-    public final ProfileMeasurement CACHE = new ProfileMeasurement("CACHE");
+//    public final AtomicInteger batch_cache_attempts = new AtomicInteger(0);
+//    public final AtomicInteger batch_cache_success = new AtomicInteger(0);
+//    public final ProfileMeasurement CACHE = new ProfileMeasurement("CACHE");
+//    public final ProfileMeasurement CONSUME = new ProfileMeasurement("CONSUME");
     
     /**
      * Takes a series of queries and executes them in order given the partition
@@ -556,9 +567,10 @@ public class TransactionEstimator {
      * @param state
      * @param catalog_stmts
      * @param partitions
+     * @param allow_cache_lookup TODO
      * @return
      */
-    public MarkovEstimate executeQueries(State state, Statement catalog_stmts[], Set<Integer> partitions[]) {
+    public MarkovEstimate executeQueries(State state, Statement catalog_stmts[], Set<Integer> partitions[], boolean allow_cache_lookup) {
         if (d) LOG.debug(String.format("Processing %d queries for txn #%d", catalog_stmts.length, state.txn_id));
         int batch_size = catalog_stmts.length;
         MarkovGraph markov = state.getMarkovGraph();
@@ -567,28 +579,30 @@ public class TransactionEstimator {
         Vertex next_v = null;
         Edge next_e = null;
         Statement last_stmt = null;
-        Set<Integer> last_partitions = null;
-        Set<Integer> temp_partitions = null;
         int stmt_idxs[] = null;
         boolean attempt_cache_lookup = false;
 
-        if (batch_size >= hstore_conf.site.markov_batch_caching_min) {
-            CACHE.start();
+        if (allow_cache_lookup && batch_size >= hstore_conf.site.markov_batch_caching_min) {
+//            CACHE.start();
             assert(current != null);
             if (d) LOG.debug("Attempting cache look-up for last statement in batch: " + Arrays.toString(catalog_stmts));
             attempt_cache_lookup = true;
-            batch_cache_attempts.incrementAndGet();
+//            batch_cache_attempts.incrementAndGet();
             
-            temp_partitions = state.temp_touched_partitions;
+            state.cache_last_partitions.clear();
+            state.cache_past_partitions.clear();
+            
+            Set<Integer> last_partitions;
             stmt_idxs = new int[batch_size];
             for (int i = 0; i < batch_size; i++) {
                 last_stmt = catalog_stmts[i];
                 last_partitions = partitions[batch_size - 1];
                 stmt_idxs[i] = state.updateQueryInstanceCount(last_stmt);
-                if (i+1 != batch_size) temp_partitions.addAll(last_partitions);
+                if (i+1 != batch_size) state.cache_past_partitions.addAll(last_partitions);
+                else state.cache_last_partitions.addAll(last_partitions);
             } // FOR
-            Pair<Edge, Vertex> pair = markov.getCachedBatchEnd(current, last_stmt, stmt_idxs[batch_size-1], last_partitions, temp_partitions);
             
+            Pair<Edge, Vertex> pair = markov.getCachedBatchEnd(current, last_stmt, stmt_idxs[batch_size-1], state.cache_last_partitions, state.cache_past_partitions);
             if (pair != null) {
                 next_e = pair.getFirst();
                 assert(next_e != null);
@@ -601,12 +615,11 @@ public class TransactionEstimator {
                 
                 // Update the state information
                 state.setCurrent(next_v, next_e);
-                
-                state.touched_partitions.addAll(temp_partitions);
-                state.touched_partitions.addAll(last_partitions);
-                batch_cache_success.incrementAndGet();
+                state.touched_partitions.addAll(state.cache_last_partitions);
+                state.touched_partitions.addAll(state.cache_past_partitions);
+//                batch_cache_success.incrementAndGet();
             }
-            CACHE.stop();
+//            CACHE.stop();
         }
         
         // Roll through the Statements in this batch and move the current vertex
@@ -621,7 +634,7 @@ public class TransactionEstimator {
             // Update our cache if we tried and failed before
             if (attempt_cache_lookup) {
                 if (d) LOG.debug(String.format("Updating cache batch end for %s: %s -> %s", markov, current, state.current));
-                markov.addCachedBatchEnd(current, CollectionUtil.getLast(state.actual_path_edges), state.current, last_stmt, stmt_idxs[batch_size-1], last_partitions, temp_partitions);
+                markov.addCachedBatchEnd(current, CollectionUtil.getLast(state.actual_path_edges), state.current, last_stmt, stmt_idxs[batch_size-1], state.cache_past_partitions, state.cache_last_partitions);
             }
         }
         
@@ -723,7 +736,7 @@ public class TransactionEstimator {
     // INTERNAL ESTIMATION METHODS
     // ----------------------------------------------------------------------------
 
-    public final ProfileMeasurement CONSUME = new ProfileMeasurement("CONSUME");
+    
     
     /**
      * Figure out the next vertex that the txn will transition to for the give Statement catalog object
@@ -735,7 +748,7 @@ public class TransactionEstimator {
      * @param partitions
      */
     private void consume(State state, MarkovGraph markov, Statement catalog_stmt, Collection<Integer> partitions, int queryInstanceIndex) {
-        CONSUME.start();
+//        CONSUME.start();
         // Update the number of times that we have executed this query in the txn
         if (queryInstanceIndex < 0) queryInstanceIndex = state.updateQueryInstanceCount(catalog_stmt);
         assert(markov != null);
@@ -782,7 +795,7 @@ public class TransactionEstimator {
         // Update the state information
         state.setCurrent(next_v, next_e);
         if (t) LOG.trace("Updated State Information for Txn #" + state.txn_id + ":\n" + state);
-        CONSUME.stop();
+//        CONSUME.stop();
     }
 
     // ----------------------------------------------------------------------------
@@ -809,7 +822,7 @@ public class TransactionEstimator {
             this.populateQueryBatch(e.getValue(), s.getBasePartition(), catalog_stmts, partitions);
         
             synchronized (s.getMarkovGraph()) {
-                this.executeQueries(s, catalog_stmts, partitions);
+                this.executeQueries(s, catalog_stmts, partitions, false);
             } // SYNCH
         } // FOR (batches)
         if (txn_trace.isAborted()) this.abort(txn_id);
