@@ -24,6 +24,7 @@ import edu.brown.graphs.VertexTreeWalker;
 import edu.brown.utils.*;
 import edu.brown.utils.LoggerUtil.LoggerBoolean;
 import edu.brown.workload.*;
+import edu.brown.workload.filters.Filter;
 
 /**
  * @author pavlo
@@ -710,7 +711,7 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
             if (trace.get()) LOG.trace("Traverse [current=" + current.getName() + ", # of attributes=" + current_attributes.size() + "]");
     
             // Get our workload filter for this level of the traversal
-            Workload.Filter filter = BranchAndBoundPartitioner.this.traversal_filters.get(current);
+            Filter filter = BranchAndBoundPartitioner.this.traversal_filters.get(current);
             
             // Descendant tables used for memory calculations
             Set<Table> all_tables = this.previous_tables[idx];

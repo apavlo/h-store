@@ -19,10 +19,13 @@ import org.voltdb.catalog.Statement;
 import edu.brown.BaseTestCase;
 import edu.brown.correlations.ParameterCorrelations;
 import edu.brown.markov.Vertex.Type;
+import edu.brown.markov.containers.MarkovGraphContainersUtil;
+import edu.brown.markov.containers.MarkovGraphsContainer;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.ProjectType;
 import edu.brown.workload.Workload;
 import edu.brown.workload.filters.BasePartitionTxnFilter;
+import edu.brown.workload.filters.Filter;
 import edu.brown.workload.filters.ProcedureLimitFilter;
 import edu.brown.workload.filters.ProcedureNameFilter;
 
@@ -59,7 +62,7 @@ public class TestMarkovGraph extends BaseTestCase {
             // (3) Filter to only include multi-partition txns
             // (4) Another limit to stop after allowing ### txns
             // Where is your god now???
-            Workload.Filter filter = new ProcedureNameFilter().include(TARGET_PROCEDURE.getSimpleName());
+            Filter filter = new ProcedureNameFilter().include(TARGET_PROCEDURE.getSimpleName());
             filter.attach(new BasePartitionTxnFilter(p_estimator, BASE_PARTITION))
             // .attach(new MultiPartitionTxnFilter(p_estimator))
                     .attach(new ProcedureLimitFilter(WORKLOAD_XACT_LIMIT));
@@ -71,8 +74,9 @@ public class TestMarkovGraph extends BaseTestCase {
             // }
 
             // Generate MarkovGraphs
-            markovs = MarkovUtil.createBasePartitionGraphs(catalog_db, workload, p_estimator);
+            markovs = MarkovGraphContainersUtil.createBasePartitionMarkovGraphsContainer(catalog_db, workload, p_estimator);
             assertNotNull(markovs);
+            assertEquals(1, markovs.size());
         }
     }
 

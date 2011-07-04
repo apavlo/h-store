@@ -7,6 +7,7 @@ import java.io.File;
 import java.lang.reflect.Constructor;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
@@ -31,7 +32,7 @@ import edu.brown.utils.StringUtil;
 import edu.brown.workload.AbstractTraceElement;
 import edu.brown.workload.Workload;
 import edu.brown.workload.TransactionTrace;
-import edu.brown.workload.Workload.Filter;
+import edu.brown.workload.filters.Filter;
 
 /**
  * @author pavlo
@@ -170,14 +171,14 @@ public class TimeIntervalCostModel<T extends AbstractCostModel> extends Abstract
      * 
      */
     @Override
-    public double estimateCost(Database catalog_db, Workload workload, Workload.Filter filter) throws Exception {
+    public double estimateCost(Database catalog_db, Workload workload, Filter filter) throws Exception {
         final boolean trace = LOG.isTraceEnabled();
         final boolean debug = LOG.isDebugEnabled();
         this.last_debug = "";
         
         this.prepare(catalog_db);
         int num_partitions = CatalogUtil.getNumberOfPartitions(catalog_db);
-        List<Integer> all_partitions = CatalogUtil.getAllPartitionIds(catalog_db);
+        Collection<Integer> all_partitions = CatalogUtil.getAllPartitionIds(catalog_db);
         
         if (debug) LOG.debug("Calculating workload execution cost across " + num_intervals + " intervals for " + num_partitions + " partitions");
 
@@ -186,8 +187,8 @@ public class TimeIntervalCostModel<T extends AbstractCostModel> extends Abstract
         
         // (1) Grab the costs at the different time intervals
         //     Also create the ratios that we will use to weight the interval costs
-        Histogram histogram_proc_intervals = workload.getTimeIntervalProcedureHistogram(this.num_intervals);
-        Histogram histogram_query_intervals = workload.getTimeIntervalQueryHistogram(this.num_intervals);
+        Histogram<Integer> histogram_proc_intervals = workload.getTimeIntervalProcedureHistogram(this.num_intervals);
+        Histogram<Integer> histogram_query_intervals = workload.getTimeIntervalQueryHistogram(this.num_intervals);
         final long total_txns = workload.getTransactionCount();
         final int singlepartition_ctrs[] = new int[num_intervals];
         final int singlepartition_with_partitions_ctrs[] = new int[num_intervals];

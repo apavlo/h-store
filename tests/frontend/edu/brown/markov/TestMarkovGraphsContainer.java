@@ -8,6 +8,7 @@ import org.voltdb.catalog.Procedure;
 
 import edu.brown.BaseTestCase;
 import edu.brown.catalog.CatalogUtil;
+import edu.brown.markov.containers.MarkovGraphsContainer;
 import edu.brown.utils.FileUtil;
 import edu.brown.utils.ProjectType;
 

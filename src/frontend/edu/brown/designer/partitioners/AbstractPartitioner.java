@@ -49,9 +49,9 @@ import edu.brown.statistics.TableStatistics;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.MathUtil;
 import edu.brown.workload.AbstractTraceElement;
-import edu.brown.workload.Workload;
 import edu.brown.workload.QueryTrace;
 import edu.brown.workload.TransactionTrace;
+import edu.brown.workload.filters.Filter;
 
 public abstract class AbstractPartitioner {
     protected static final Logger LOG = Logger.getLogger(AbstractPartitioner.class);
@@ -642,7 +642,7 @@ public abstract class AbstractPartitioner {
     /**
      * 
      */
-    protected class WorkloadFilter extends Workload.Filter {
+    protected class WorkloadFilter extends Filter {
         private final Set<String> stmt_cache = new HashSet<String>();
 
         public WorkloadFilter() {

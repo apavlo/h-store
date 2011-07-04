@@ -14,7 +14,7 @@ PARTITIONS=( \
     64 \
 #     128 \
 )
-HEAP_SIZE=12000
+HEAP_SIZE=18000
 MAX_THREADS=`tools/getcpus.py`
 MAKE_GLOBAL=true
 MAKE_CLUSTERED=true
@@ -65,7 +65,7 @@ for BENCHMARK in ${BENCHMARKS[@]}; do
     elif [ "$BENCHMARK" = "tpce" ]; then
         WORKLOAD_MIX=$TPCE_MIX
         WORKLOAD_TEST_OFFSET=75000
-    elif [ "$BENCHMARK" = "auctionmark.large" ]; then
+    elif [ "$BENCHMARK" = "auctionmark" -o "$BENCHMARK" = "auctionmark.large" ]; then
         BENCHMARK="auctionmark"
         WORKLOAD_MIX=$AUCTIONMARK_MIX
     elif [ "$BENCHMARK" = "tm1" ]; then

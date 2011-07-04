@@ -12,6 +12,7 @@ import edu.brown.correlations.CorrelationCalculator.*;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.ProjectType;
 import edu.brown.workload.*;
+import edu.brown.workload.filters.Filter;
 import edu.brown.workload.filters.ProcParameterValueFilter;
 import edu.brown.workload.filters.ProcedureLimitFilter;
 import edu.brown.workload.filters.ProcedureNameFilter;
@@ -32,7 +33,7 @@ public class TestCorrelationCalculator extends BaseTestCase {
         if (workload == null) {
             File file = this.getWorkloadFile(ProjectType.TPCC);
             workload = new Workload(catalog);
-            Workload.Filter filter = new ProcedureNameFilter()
+            Filter filter = new ProcedureNameFilter()
                     .include(TARGET_PROCEDURE.getSimpleName())
                     .attach(new ProcParameterValueFilter().include(1, new Long(1))) // D_ID
                     .attach(new ProcedureLimitFilter(WORKLOAD_XACT_LIMIT));

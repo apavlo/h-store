@@ -99,6 +99,22 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
          * SiteId -> <Host, Port>
          */
         public final Map<Integer, Pair<String, Integer>> EXECUTION_SITES = new HashMap<Integer, Pair<String, Integer>>();
+        
+        
+        /**
+         * Construct the internal PARTITION_XREF cache map
+         * @param cache
+         * @param catalog_item
+         */
+        private void buildPartitionCache(CatalogType catalog_item) {
+            Cluster catalog_clus = CatalogUtil.getCluster(catalog_item);    
+            for (Site catalog_site : catalog_clus.getSites()) {
+                for (Partition catalog_part : catalog_site.getPartitions()) {
+                    this.PARTITION_XREF.put(catalog_part.getId(), catalog_part);
+                } // FOR
+            } // FOR
+        }
+        
     }
     
     private static final Map<Database, CatalogUtil.Cache> CACHE = new HashMap<Database, CatalogUtil.Cache>();
@@ -109,7 +125,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
      * @param catalog_item
      * @return
      */
-    private static CatalogUtil.Cache getCache(CatalogType catalog_item) {
+    private static CatalogUtil.Cache getCatalogCache(CatalogType catalog_item) {
         final Database catalog_db = (catalog_item instanceof Database ? (Database)catalog_item : CatalogUtil.getDatabase(catalog_item));
         CatalogUtil.Cache ret = CACHE.get(catalog_db);
         if (ret == null) {
@@ -326,8 +342,8 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
      * @return
      */
     public static Partition getPartitionById(CatalogType catalog_item, Integer id) {
-        final CatalogUtil.Cache cache = CatalogUtil.getCache(catalog_item);
-        if (cache.PARTITION_XREF.isEmpty()) CatalogUtil.buildPartitionCache(cache, catalog_item);
+        final CatalogUtil.Cache cache = CatalogUtil.getCatalogCache(catalog_item);
+        if (cache.PARTITION_XREF.isEmpty()) cache.buildPartitionCache(catalog_item);
         Partition catalog_part = cache.PARTITION_XREF.get(id);
         return (catalog_part);
     }
@@ -340,8 +356,8 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
      * @return
      */
     public static InetSocketAddress getPartitionAddressById(CatalogType catalog_item, Integer id, boolean engine) {
-        final CatalogUtil.Cache cache = CatalogUtil.getCache(catalog_item);
-        if (cache.PARTITION_XREF.isEmpty()) CatalogUtil.buildPartitionCache(cache, catalog_item);
+        final CatalogUtil.Cache cache = CatalogUtil.getCatalogCache(catalog_item);
+        if (cache.PARTITION_XREF.isEmpty()) cache.buildPartitionCache(catalog_item);
         Partition catalog_part = cache.PARTITION_XREF.get(id);
         if (catalog_part == null) {
             LOG.warn(String.format("Invalid partition id '%d'", id));
@@ -361,8 +377,8 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
      * @return
      */
     public static Collection<Partition> getAllPartitions(CatalogType catalog_item) {
-        final CatalogUtil.Cache cache = CatalogUtil.getCache(catalog_item);
-        if (cache.PARTITION_XREF.isEmpty()) CatalogUtil.buildPartitionCache(cache, catalog_item);
+        final CatalogUtil.Cache cache = CatalogUtil.getCatalogCache(catalog_item);
+        if (cache.PARTITION_XREF.isEmpty()) cache.buildPartitionCache(catalog_item);
         return (Collections.unmodifiableCollection(cache.PARTITION_XREF.values()));
     }
 
@@ -370,33 +386,19 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
      * Get a new list of all the partition ids in this catalog
      * @return
      */
-    public static List<Integer> getAllPartitionIds(CatalogType catalog_item) {
-        final CatalogUtil.Cache cache = CatalogUtil.getCache(catalog_item);
-        if (cache.PARTITION_XREF.isEmpty()) CatalogUtil.buildPartitionCache(cache, catalog_item);
-        return (cache.PARTITION_XREF.asList());
+    public static Collection<Integer> getAllPartitionIds(CatalogType catalog_item) {
+        final CatalogUtil.Cache cache = CatalogUtil.getCatalogCache(catalog_item);
+        if (cache.PARTITION_XREF.isEmpty()) cache.buildPartitionCache(catalog_item);
+        return (Collections.unmodifiableCollection(cache.PARTITION_XREF.asList()));
     }
-    
-    /**
-     * Construct the internal PARTITION_XREF cache map
-     * @param cache
-     * @param catalog_item
-     */
-    private static void buildPartitionCache(CatalogUtil.Cache cache, CatalogType catalog_item) {
-        Cluster catalog_clus = CatalogUtil.getCluster(catalog_item);    
-        for (Site catalog_site : catalog_clus.getSites()) {
-            for (Partition catalog_part : catalog_site.getPartitions()) {
-                cache.PARTITION_XREF.put(catalog_part.getId(), catalog_part);
-            } // FOR
-        } // FOR
-    }
-    
+
     /**
      * Get a mapping of sites for each host. We have to return the Site
      * objects in order to get the Partition handle that we want
      * @return
      */
     public static Map<Host, Set<Site>> getSitesPerHost(CatalogType catalog_item) {
-        final CatalogUtil.Cache cache = CatalogUtil.getCache(catalog_item);
+        final CatalogUtil.Cache cache = CatalogUtil.getCatalogCache(catalog_item);
         final Map<Host, Set<Site>> sites = cache.HOST_SITES;
         
         if (sites.isEmpty()) {
@@ -444,7 +446,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
      * @return
      */
     public static Map<Integer, Pair<String, Integer>> getExecutionSites(CatalogType catalog_item) {
-        final CatalogUtil.Cache cache = CatalogUtil.getCache(catalog_item);
+        final CatalogUtil.Cache cache = CatalogUtil.getCatalogCache(catalog_item);
         final Map<Integer, Pair<String, Integer>> sites = cache.EXECUTION_SITES;
         
         if (sites.isEmpty()) {
@@ -823,7 +825,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
      */
     public static Column getForeignKeyParent(Column from_column) {
         assert (from_column != null);
-        final CatalogUtil.Cache cache = CatalogUtil.getCache(from_column);
+        final CatalogUtil.Cache cache = CatalogUtil.getCatalogCache(from_column);
         Column to_column = cache.FOREIGNKEY_PARENT.get(from_column);
 
         if (to_column == null) {
@@ -1129,7 +1131,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
      * @throws Exception
      */
     public static Set<Table> getReferencedTables(Procedure catalog_proc) throws Exception {
-        final CatalogUtil.Cache cache = CatalogUtil.getCache(catalog_proc);
+        final CatalogUtil.Cache cache = CatalogUtil.getCatalogCache(catalog_proc);
         Set<Table> ret = cache.PROCEDURE_TABLES.get(catalog_proc);
         if (ret == null) {
             Set<Table> tables = new HashSet<Table>();
@@ -1149,7 +1151,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
      * @throws Exception
      */
     public static Set<Column> getReferencedColumns(Procedure catalog_proc) throws Exception {
-        final CatalogUtil.Cache cache = CatalogUtil.getCache(catalog_proc);
+        final CatalogUtil.Cache cache = CatalogUtil.getCatalogCache(catalog_proc);
         Set<Column> ret = cache.PROCEDURE_COLUMNS.get(catalog_proc);
         if (ret == null) {
             Set<Column> columns = new HashSet<Column>();
@@ -1219,7 +1221,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
      * @throws Exception
      */
     public static Set<Table> getReferencedTables(Statement catalog_stmt) throws Exception {
-        final CatalogUtil.Cache cache = CatalogUtil.getCache(catalog_stmt);
+        final CatalogUtil.Cache cache = CatalogUtil.getCatalogCache(catalog_stmt);
         Set<Table> ret = cache.STATEMENT_TABLES.get(catalog_stmt);
         if (ret == null) {
             Set<Table> tables = new HashSet<Table>();
@@ -1254,7 +1256,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
     public static Set<Column> getReferencedColumns(Statement catalog_stmt) {
         if (debug.get()) LOG.debug("Extracting table set from statement " + CatalogUtil.getDisplayName(catalog_stmt));
         
-        final CatalogUtil.Cache cache = CatalogUtil.getCache(catalog_stmt);
+        final CatalogUtil.Cache cache = CatalogUtil.getCatalogCache(catalog_stmt);
         Set<Column> ret = cache.STATEMENT_COLUMNS.get(catalog_stmt);
         if (ret == null) {
             final Database catalog_db = CatalogUtil.getDatabase(catalog_stmt);
@@ -1549,7 +1551,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
     public static Long estimateTupleSize(Table catalog_tbl, Statement catalog_stmt, Object params[]) throws Exception {
         long bytes = 0;
 
-        Cache c = CatalogUtil.getCache(catalog_tbl);
+        Cache c = CatalogUtil.getCatalogCache(catalog_tbl);
         
         // If the table contains nothing but numeral values, then we don't need
         // to loop through and calculate the estimated tuple size each time around,

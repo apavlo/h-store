@@ -1035,7 +1035,7 @@ public abstract class VoltProcedure implements Poolable {
         TransactionEstimator.State t_state = this.m_localTxnState.getEstimatorState();
         if (t_state != null) {
             if (hstore_conf.site.txn_profiling) this.m_localTxnState.profiler.startExecEstimation();
-            this.t_estimator.executeQueries(t_state, this.planner.getStatements(), this.plan.getStatementPartitions());
+            this.t_estimator.executeQueries(t_state, this.planner.getStatements(), this.plan.getStatementPartitions(), true);
             if (hstore_conf.site.txn_profiling) this.m_localTxnState.profiler.stopExecEstimation();
         }
 

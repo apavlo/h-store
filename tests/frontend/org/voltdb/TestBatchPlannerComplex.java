@@ -19,6 +19,7 @@ import edu.brown.workload.QueryTrace;
 import edu.brown.workload.TransactionTrace;
 import edu.brown.workload.Workload;
 import edu.brown.workload.filters.BasePartitionTxnFilter;
+import edu.brown.workload.filters.Filter;
 import edu.brown.workload.filters.MultiPartitionTxnFilter;
 import edu.brown.workload.filters.ProcedureLimitFilter;
 import edu.brown.workload.filters.ProcedureNameFilter;
@@ -60,7 +61,7 @@ public class TestBatchPlannerComplex extends BaseTestCase {
             // (2) Filter to only include multi-partition txns
             // (3) Another limit to stop after allowing ### txns
             // Where is your god now???
-            Workload.Filter filter = new ProcedureNameFilter()
+            Filter filter = new ProcedureNameFilter()
                     .include(TARGET_PROCEDURE.getSimpleName())
                     .attach(new BasePartitionTxnFilter(p_estimator, BASE_PARTITION))
                     .attach(new MultiPartitionTxnFilter(p_estimator))

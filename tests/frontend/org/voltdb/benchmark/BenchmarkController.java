@@ -62,7 +62,7 @@ import org.voltdb.utils.LogKeys;
 import org.voltdb.utils.Pair;
 
 import edu.brown.catalog.CatalogUtil;
-import edu.brown.markov.MarkovUtil;
+import edu.brown.markov.containers.MarkovGraphContainersUtil;
 import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.EventObserver;
@@ -921,7 +921,7 @@ public class BenchmarkController {
         
         String new_output = output_directory + "/" + m_projectBuilder.getProjectName() + "-new.markovs";
         if (debug.get()) LOG.debug(String.format("Writing %d updated MarkovGraphsContainers to '%s'", markovs.size(),  new_output));
-        MarkovUtil.combine(markovs, new_output, catalog_db);
+        MarkovGraphContainersUtil.combine(markovs, new_output, catalog_db);
         
         // Clean up the remote files
         for (Pair<String, File> p : files_to_remove) {

@@ -174,16 +174,16 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
             if (csv != null) System.out.println(csv);
         }
         
-        for (ExecutionSite es : this.executors.values()) {
-            TransactionEstimator te = es.getTransactionEstimator();
-            ProfileMeasurement pm = te.CONSUME;
-            System.out.println(String.format("[%02d] CONSUME %.2fms total / %.2fms avg / %d calls",
-                                              es.getPartitionId(), pm.getTotalThinkTimeMS(), pm.getAverageThinkTimeMS(), pm.getInvocations()));
-            pm = te.CACHE;
-            System.out.println(String.format("     CACHE %.2fms total / %.2fms avg / %d calls",
-                                             pm.getTotalThinkTimeMS(), pm.getAverageThinkTimeMS(), pm.getInvocations()));
-            System.out.println(String.format("     ATTEMPTS %d / SUCCESS %d", te.batch_cache_attempts.get(), te.batch_cache_success.get())); 
-        }
+//        for (ExecutionSite es : this.executors.values()) {
+//            TransactionEstimator te = es.getTransactionEstimator();
+//            ProfileMeasurement pm = te.CONSUME;
+//            System.out.println(String.format("[%02d] CONSUME %.2fms total / %.2fms avg / %d calls",
+//                                              es.getPartitionId(), pm.getTotalThinkTimeMS(), pm.getAverageThinkTimeMS(), pm.getInvocations()));
+//            pm = te.CACHE;
+//            System.out.println(String.format("     CACHE %.2fms total / %.2fms avg / %d calls",
+//                                             pm.getTotalThinkTimeMS(), pm.getAverageThinkTimeMS(), pm.getInvocations()));
+//            System.out.println(String.format("     ATTEMPTS %d / SUCCESS %d", te.batch_cache_attempts.get(), te.batch_cache_success.get())); 
+//        }
         if (this.self != null) this.self.interrupt();
     }
     

@@ -39,7 +39,7 @@ import edu.brown.workload.AbstractTraceElement;
 import edu.brown.workload.Workload;
 import edu.brown.workload.QueryTrace;
 import edu.brown.workload.TransactionTrace;
-import edu.brown.workload.Workload.Filter;
+import edu.brown.workload.filters.Filter;
 
 /**
  * @author pavlo
@@ -506,7 +506,7 @@ public class SingleSitedCostModel extends AbstractCostModel {
      * 
      */
     @Override
-    public double estimateTransactionCost(Database catalog_db, Workload workload, Workload.Filter filter, TransactionTrace xact) throws Exception {
+    public double estimateTransactionCost(Database catalog_db, Workload workload, Filter filter, TransactionTrace xact) throws Exception {
         // Sanity Check: If we don't have any TransactionCacheEntries, then the histograms should all be wiped out!
         if (this.txn_entries.size() == 0) {
             assert(this.histogram_txn_partitions.isEmpty()) : this.histogram_txn_partitions;
@@ -808,7 +808,7 @@ public class SingleSitedCostModel extends AbstractCostModel {
      * @return
      * @throws Exception
      */
-    public TransactionCacheEntry processTransaction(Database catalog_db, TransactionTrace txn_trace, Workload.Filter filter) throws Exception {
+    public TransactionCacheEntry processTransaction(Database catalog_db, TransactionTrace txn_trace, Filter filter) throws Exception {
         final boolean debug = LOG.isDebugEnabled();
         final boolean trace = LOG.isTraceEnabled();
         final boolean debug_txn = DEBUG_TRACE_IDS.contains(txn_trace.getId());
@@ -1128,12 +1128,12 @@ public class SingleSitedCostModel extends AbstractCostModel {
         long multipartition = 0;
         long total = 0;
         SingleSitedCostModel costmodel = new SingleSitedCostModel(args.catalog_db);
-        List<Integer> all_partitions = CatalogUtil.getAllPartitionIds(args.catalog_db);
+        Collection<Integer> all_partitions = CatalogUtil.getAllPartitionIds(args.catalog_db);
 //        costmodel.setEntropyWeight(4.0);
 //        costmodel.setJavaExecutionWeightEnabled(true);
 //        costmodel.setJavaExecutionWeight(100);
 
-        Histogram hist = new Histogram();
+        Histogram<String> hist = new Histogram<String>();
         for (AbstractTraceElement<? extends CatalogType> element : args.workload) {
             if (element instanceof TransactionTrace) {
                 total++;
@@ -1151,7 +1151,7 @@ public class SingleSitedCostModel extends AbstractCostModel {
 //        long total_partitions_touched_txns = costmodel.getTxnPartitionAccessHistogram().getSampleCount();
 //        long total_partitions_touched_queries = costmodel.getQueryPartitionAccessHistogram().getSampleCount();
 
-        Histogram h = null;
+        Histogram<Integer> h = null;
         if (!table_output) {
             System.out.println("Workload Procedure Histogram:");
             System.out.println(StringUtil.addSpacers(args.workload.getProcedureHistogram().toString()));
@@ -1198,7 +1198,7 @@ public class SingleSitedCostModel extends AbstractCostModel {
         m.put("IDLE PARTITIONS", (all_partitions.size() - active_partitions));
 //        System.out.println("Partitions Touched By Queries: " + total_partitions_touched_queries);
 
-        Histogram entropy_h = costmodel.getJavaExecutionHistogram();
+        Histogram<Integer> entropy_h = costmodel.getJavaExecutionHistogram();
         m.put("JAVA SKEW", EntropyUtil.calculateEntropy(all_partitions.size(), entropy_h.getSampleCount(), entropy_h));
         
         entropy_h = costmodel.getTxnPartitionAccessHistogram();
