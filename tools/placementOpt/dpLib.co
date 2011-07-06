@@ -1,65 +1,65 @@
 class DPData {
 	range _Clusters;
 	range _Sites;
-	float _siteCapacity;
+	int _siteCapacity;
 	DPPartition[] _partitions;
-	DPAffinity _affinity;
+	DPCost _cost;
 	
-	DPData(range Clusters, range Sites, float siteCapacity, DPPartition[] partitions, DPAffinity affinity){
+	DPData(range Clusters, range Sites, int siteCapacity, DPPartition[] partitions, DPCost cost){
 		_Clusters = Clusters;
 		_Sites = Sites;
 		_siteCapacity = siteCapacity;
 		_partitions = partitions;
-		_affinity = affinity;
+		_cost = cost;
 	}
 	
 	range Nodes() {return _Clusters;}
 	range NodeSites() {return _Sites;}
 	range Partitions() {return _partitions.getRange();}
-	float getSiteCapacity() {return _siteCapacity;}
+	int getSiteCapacity() {return _siteCapacity;}
 	DPPartition[] getPartitions() {return _partitions;}
-	DPAffinity getAffinity() {return _affinity;}
+	DPCost getCost() {return _cost;}
 }
 
 class DPPartition {
 	float _heat;
-	float _size;
+	int _size;
 	
-	DPPartition(float heat, float size){
+	DPPartition(float heat, int size){
 		_heat = heat;
 		_size = size;
 	}
 	
 	float getHeat() {return _heat;}
-	float getSize() {return _size;}
+	int getSize() {return _size;}
 }
 
-class DPAffinity {
-	int _nodeFactor;
-	int _siteFactor;
-	int _networkFactor;
-	float[,] _affinity;
+class DPCost {
+	float _nodeFactor;
+	float _siteFactor;
+	float _networkFactor;
+	float[,] _cost;
 	
-	DPAffinity(int siteFactor, int nodeFactor, int networkFactor, float[,] affinity){
+	DPCost(float siteFactor, float nodeFactor, float networkFactor, float[,] cost){
 		_nodeFactor = nodeFactor;
 		_siteFactor = siteFactor;
 		_networkFactor = networkFactor;
-		_affinity = affinity;
+		_cost = cost;
 	}
 	
-	int getSiteFactor() {return _siteFactor;}
-	int getNodeFactor() {return _nodeFactor;}
-	int getNetworkFactor() {return _networkFactor;}
-	float[,] getAffinity() {return _affinity;}
+	float getSiteFactor() {return _siteFactor;}
+	float getNodeFactor() {return _nodeFactor;}
+	float getNetworkFactor() {return _networkFactor;}
+	float[,] getAffinity() {return _cost;}
 	
-	float[,] getSiteAffinity() {return scaleAffinityMatrix(_siteFactor);}
-	float[,] getNodeAffinity() {return scaleAffinityMatrix(_nodeFactor);}
-	float[,] getNetworkAffinity() {return scaleAffinityMatrix(_networkFactor);}
+	float[,] getSiteCost() {return scaleCostMatrix(_siteFactor);}
+	float[,] getNodeCost() {return scaleCostMatrix(_nodeFactor);}
+	float[,] getNetworkCost() {return scaleCostMatrix(_networkFactor);}
 	
-	float[,] scaleAffinityMatrix(float scale){
-		float newMatrix[_affinity.getRange(0),_affinity.getRange(1)];
-		forall(i in _affinity.getRange(0), j in _affinity.getRange(1)){
-			newMatrix[i,j] = scale*_affinity[i,j];
+	float[,] scaleCostMatrix(float scale){
+		float newMatrix[_cost.getRange(0),_cost.getRange(1)];
+		forall(i in _cost.getRange(0), j in _cost.getRange(1)){
+			newMatrix[i,j] = scale*_cost[i,j];
 		}
 		return newMatrix;
 	}
@@ -69,23 +69,23 @@ class DPAffinity {
 
 function DPData readFile(string fileLoc){
 	ifstream input(fileLoc);
+
 	int clustersNb = input.getInt();
 	int sitesNb = input.getInt();
 	int partitionsNb = input.getInt();
-	float siteCapacity = input.getFloat();
-	int unknown = input.getInt(); //nodes per site?
+	int siteCapacity = input.getInt();
+  
+	float nodeFactor = input.getFloat();
+	float siteFactor = input.getFloat();
+	float clusterFactor = input.getFloat();
 	
-	//cout << input.getLine() << endl;
 	
-	int nodeFactor = input.getInt();
-	int siteFactor = input.getInt();
-	int clusterFactor = input.getInt();
 	
 	range Partitions = 0..partitionsNb-1;
 	DPPartition partitions[Partitions];
 	forall(p in Partitions){
 		float heat = input.getFloat();
-		float size = input.getFloat();
+		int size = input.getInt();
 		partitions[p] = new DPPartition(heat, size);
 	}
 	
@@ -94,11 +94,11 @@ function DPData readFile(string fileLoc){
 		affinityMatrix[p1,p2] = input.getFloat();
 	}
 	
-	DPAffinity affinity = new DPAffinity(nodeFactor, siteFactor, clusterFactor, affinityMatrix);
+	DPCost cost = new DPCost(nodeFactor, siteFactor, clusterFactor, affinityMatrix);
 	range Clusters = 0..clustersNb-1;
 	range Sites = 0..sitesNb-1;
 	
-	return new DPData(Clusters, Sites, siteCapacity, partitions, affinity);
+	return new DPData(Clusters, Sites, siteCapacity, partitions, cost);
 }
 
 /*

@@ -1,0 +1,39 @@
+include "dpLib";
+//DPData data = readFile("tm1.comet.input");
+DPData data = readFile("tpcc.100w.comet");
+
+range Partitions = data.Partitions();
+range Nodes = data.Nodes();
+range Sites = data.NodeSites();
+
+DPPartition[] partitions = data.getPartitions();
+float meanHeat = (sum(p in Partitions) partitions[p].getHeat())/(Nodes.getSize()*Sites.getSize());
+
+import cotln;
+
+Solver<MIP> m();
+m.displayModel();
+m.setFloatParameter("limits/time", 10);	
+
+var<MIP>{int} partitionLocation[Nodes,Sites,Partitions](m, 0..1);
+var<MIP>{float} maxHeat(m, meanHeat,sum(p in Partitions) partitions[p].getHeat());
+
+minimize<m>
+  maxHeat
+subject to{
+  forall(p in Partitions){
+    m.post(sum(n in Nodes, s in Sites) partitionLocation[n,s,p] >= 1);
+  }
+  forall(n in Nodes){
+    m.post(sum(s in Sites, p in Partitions) partitions[p].getSize()*partitionLocation[n,s,p] <= data.getSiteCapacity());
+    forall(s in Sites){
+      m.post(sum(p in Partitions) partitions[p].getHeat()*partitionLocation[n,s,p] <= maxHeat);
+    }
+  }
+}
+cout << m.getStatus() << endl;
+
+forall(n in Nodes, s in Sites){
+  cout << n << "-" << s << " : " << setof(p in Partitions)(partitionLocation[n,s,p] >= 1) << "  H: " << sum(p in Partitions) partitions[p].getHeat()*partitionLocation[n,s,p] << endl;
+}
+

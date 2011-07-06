@@ -1,0 +1,163 @@
+include "dpLib";
+//DPData data = readFile("tm1.comet.input");
+DPData data = readFile("tpcc.100w.comet");
+
+range Partitions = data.Partitions();
+range Nodes = data.Nodes();
+range Sites = data.NodeSites();
+
+DPPartition[] partitions = data.getPartitions();
+float meanHeat = (sum(p in Partitions) partitions[p].getHeat())/(Nodes.getSize()*Sites.getSize());
+
+import cotfd;
+
+Solver<CP> m();
+m.timeLimit(1);
+
+var<CP>{int} partitionLocation[Nodes,Sites,Partitions](m, 0..1);
+//var<CP>{int} locationCount[Nodes,Sites](m, 0..Partitions.getSize());
+var<CP>{float} maxHeat(m, meanHeat, sum(p in Partitions) partitions[p].getHeat());
+
+minimize<m>
+  maxHeat
+subject to{
+  forall(n in Nodes){
+    m.post(sum(s in Sites, p in Partitions) partitions[p].getSize()*partitionLocation[n,s,p] <= data.getSiteCapacity());
+    forall(s in Sites){
+      m.post(sum(p in Partitions) partitions[p].getHeat()*partitionLocation[n,s,p] <= maxHeat);
+      //m.post(sum(p in Partitions) partitionLocation[n,s,p] == locationCount[n,s]);
+    }
+  }
+  forall(p in Partitions){
+    m.post(sum(n in Nodes, s in Sites) partitionLocation[n,s,p] == 1);
+  }
+
+  forall(n in Nodes){
+    forall(s in Sites : s < Sites.getUp()){
+       m.post(lexleq(all(p in Partitions) partitionLocation[n,s,p], all(p in Partitions) partitionLocation[n,s+1,p]));
+    }
+  }
+  forall(n in Nodes : n < Nodes.getUp()){
+    //m.post(lexleq(all(s in Sites, p in Partitions) partitionLocation[n,s,p], all(s in Sites, p in Partitions) partitionLocation[n+1,s,p]));
+  }
+  
+} using {
+  //label(m);
+  //*
+	forall(p in Partitions){
+	  forall(n in Nodes) {//by (sum(s in Sites) locationCount[n,s].getMin()){
+	    forall(s in Sites) {//by (locationCount[n,s].getMin()) {
+	      try<m>{
+	        m.label(partitionLocation[n,s,p],1);
+	      } | {
+	        m.label(partitionLocation[n,s,p],0);
+	      }
+	    }
+	  }
+	}
+	//*/
+	forall(n in Nodes, s in Sites){
+    cout << n << "-" << s << " : " << setof(p in Partitions)(partitionLocation[n,s,p] >= 1) << "  H: " << sum(p in Partitions) partitions[p].getHeat()*partitionLocation[n,s,p] << endl;
+  }
+	cout << "LB: " << meanHeat << endl;
+}
+//cout << m.getStatus() << endl;
+
+float maxHeatValue = max(n in Nodes, s in Sites) sum(p in Partitions) partitions[p].getHeat()*partitionLocation[n,s,p];
+
+cout << endl << endl;
+cout << "Min comm cost: " << endl;
+
+float[,] siteCost = data.getCost().getSiteCost();
+float[,] nodeCost = data.getCost().getNodeCost();
+float[,] networkCost = data.getCost().getNetworkCost();
+
+int costTable[Partitions,Partitions,0..1,0..1] = -1;
+forall(p1 in Partitions, p2 in Partitions){
+	costTable[p1,p2,0,0] = (int)networkCost[p1,p2];
+	costTable[p1,p2,0,1] = (int)networkCost[p1,p2];
+	costTable[p1,p2,1,0] = (int)nodeCost[p1,p2];
+	costTable[p1,p2,1,1] = (int)siteCost[p1,p2];
+}
+
+int maxCost = max(p1 in Partitions, p2 in Partitions) (int)networkCost[p1,p2];
+
+Solver<CP> m2();
+
+var<CP>{int} partitionLocation2[Nodes,Sites,Partitions](m2, 0..1);
+var<CP>{int} sameSite[Partitions,Partitions](m2, 0..1);
+var<CP>{int} sameNode[Partitions,Partitions](m2, 0..1);
+
+
+var<CP>{int} commCost[Partitions,Partitions](m2, 0..maxCost);
+//var<CP>{int} commCostTotal(m2, 0..Partitions.getSize()*System.getMAXINT());
+
+minimize<m2>
+  //commCostTotal
+  sum(p1 in Partitions,p2 in Partitions : p1 < p2 && siteCost[p1,p2] > 0) commCost[p1,p2] 
+subject to{
+//exploreall<m2>{
+  forall(n in Nodes){
+    m2.post(sum(s in Sites, p in Partitions) partitions[p].getSize()*partitionLocation2[n,s,p] <= data.getSiteCapacity());
+    forall(s in Sites){
+      m2.post(sum(p in Partitions) partitions[p].getHeat()*partitionLocation2[n,s,p] <= maxHeatValue);
+      //m2.post(sum(p in Partitions) partitionLocation2[n,s,p] == locationCount[n,s]);
+    }
+  }
+  forall(p in Partitions){
+    m2.post(sum(n in Nodes, s in Sites) partitionLocation2[n,s,p] == 1);
+  }
+  
+  forall(p1 in Partitions, p2 in Partitions : p1 < p2 && siteCost[p1,p2] > 0){
+		m2.post(sameNode[p1,p2] == (or(n in Nodes) (or(s in Sites) (partitionLocation2[n,s,p1] == 1) && or(s in Sites) (partitionLocation2[n,s,p2] == 1))));
+		m2.post(sameSite[p1,p2] == (or(s in Sites) (or(n in Nodes) (partitionLocation2[n,s,p1] == 1) && or(n in Nodes) (partitionLocation2[n,s,p2] == 1))));
+		m2.post(commCost[p1,p2] == costTable[p1,p2,sameNode[p1,p2],sameSite[p1,p2]]);
+	  /*
+	  m2.post(commCost[p1,p2] >= 
+	    (sameSite[p1,p2]==1 && sameNode[p1,p2]==1)*siteCost[p1,p2] + 
+	    (sameSite[p1,p2]==0 && sameNode[p1,p2]==1)*nodeCost[p1,p2] +
+	    (sameSite[p1,p2]==1 && sameNode[p1,p2]==0)*networkCost[p1,p2] +
+	    (sameSite[p1,p2]==0 && sameNode[p1,p2]==0)*networkCost[p1,p2]
+	  );
+	  */
+	}
+	//m2.post(sum(p1 in Partitions,p2 in Partitions) commCost[p1,p2] <= commCostTotal);
+  
+} using {
+  //label(all(n in Nodes,s in Sites, p in Partitions) partitionLocation2[n,s,p]);
+  //*
+	forall(p in Partitions){
+	  forall(n in Nodes) {//by (sum(n in Nodes) locationCount[s,n].getMin()){
+	    forall(s in Sites) {//by (locationCount[s,n].getMin()) {
+	      if(partitionLocation[n,s,p].getValue() == 1){
+	        try<m2>{
+  	        m2.label(partitionLocation2[n,s,p],1);
+  	      } | {
+  	        m2.label(partitionLocation2[n,s,p],0);
+  	      }
+	      }
+  	    else {
+  	      try<m2>{
+  	        m2.label(partitionLocation2[n,s,p],0);
+  	      } | {
+  	        m2.label(partitionLocation2[n,s,p],1);
+  	      }
+  	    }
+	    }
+	  }
+	}
+	//*/
+	
+	forall(p1 in Partitions, p2 in Partitions : p1 < p2 && siteCost[p1,p2] > 0){
+	  cout << p1 << " -> " << p2 << " : " << commCost[p1,p2]  << " |  " << sameNode[p1,p2] << " , " << sameSite[p1,p2]  << endl;
+	}
+	forall(n in Nodes, s in Sites){
+    cout << n << "-" << s << " : " << setof(p in Partitions)(partitionLocation2[n,s,p] >= 1) << "  H: " << sum(p in Partitions) partitions[p].getHeat()*partitionLocation2[n,s,p] << endl;
+  }
+  //System.terminate();
+}
+//cout << m.getStatus() << endl;
+
+forall(n in Nodes, s in Sites){
+  cout << n << "-" << s << " : " << setof(p in Partitions)(partitionLocation2[n,s,p] >= 1) << "  H: " << sum(p in Partitions) partitions[p].getHeat()*partitionLocation2[n,s,p] << endl;
+}
