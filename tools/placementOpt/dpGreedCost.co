@@ -1,3 +1,87 @@
 include "dpLib";
-DPData data = readFile("tm1.comet.input");
+//DPData data = readFile("tm1.comet.input");
+DPData data = readFile("tpcc.100w.comet");
+
+range Partitions = data.Partitions();
+range Nodes = data.Nodes();
+range Sites = data.NodeSites();
+
+DPPartition[] partitions = data.getPartitions();
+
+float[,] siteCost = data.getCost().getSiteCost();
+float[,] nodeCost = data.getCost().getNodeCost();
+float[,] networkCost = data.getCost().getNetworkCost();
+
+tuple Edge{
+  int p1;
+  int p2;
+  float cost;
+}
+
+set{Edge} edges();
+forall(p1 in Partitions, p2 in Partitions : siteCost[p1,p2] > 0.0){
+  edges.insert(Edge(p1,p2,siteCost[p1,p2]));
+} 
+
+set{int} unassigned = collect(p in Partitions) p;
+float capcityLeft[n in Nodes] = data.getSiteCapacity();
+
+set{int} solution[Nodes,Sites]();
+//*
+while(edges.getSize() > 0){
+  selectMax(e in edges)(e.cost){
+    int p = -1;
+    if(unassigned.contains(e.p1) && unassigned.contains(e.p2)){
+      float p1total = sum(pt in Partitions) siteCost[pt,e.p1];
+      float p2total = sum(pt in Partitions) siteCost[pt,e.p2];
+      if(p1total >= p2total){
+        p = e.p1;
+      } else {
+        p = e.p2;
+      }
+    } else if(unassigned.contains(e.p1)) {
+      p = e.p1;
+    } else if(unassigned.contains(e.p2)) {
+      p = e.p2;
+    } else {
+      assert(false);
+    }
+    
+    selectMax(n in Nodes, s in Sites : capcityLeft[n] >= partitions[p].getSize())(sum(p2 in solution[n,s]) siteCost[p,p2]){
+      cout << p << " -> " << n << " , " << s << endl;
+      solution[n,s].insert(p);
+      capcityLeft[n] -= partitions[p].getSize();
+      unassigned.delete(p);
+      
+      set{Edge} deleteIt();
+      forall(e in edges){
+        if(e.p1 == p && !unassigned.contains(e.p2) || e.p2 == p && !unassigned.contains(e.p1)){
+          deleteIt.insert(e);
+        }
+      }
+      forall(e in deleteIt){
+        edges.delete(e);
+      }
+    }
+    
+  }
+}
+//*/
+
+/*
+while(unassigned.getSize() > 0){
+  selectMax(p in unassigned)(sum(p2 in Partitions) siteCost[p,p2]){
+    selectMax(n in Nodes, s in Sites : capcityLeft[n] >= partitions[p].getSize())(sum(p2 in solution[n,s]) siteCost[p,p2]){
+      cout << p << " -> " << n << " , " << s << endl;
+      solution[n,s].insert(p);
+      capcityLeft[n] -= partitions[p].getSize();
+      unassigned.delete(p);
+    }
+  }
+}
+*/
+
+cout << endl;
+
+printSolution(solution,data);
 

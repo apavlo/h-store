@@ -1,0 +1,34 @@
+include "dpLib";
+//DPData data = readFile("tm1.comet.input");
+DPData data = readFile("tpcc.100w.comet");
+
+range Partitions = data.Partitions();
+range Nodes = data.Nodes();
+range Sites = data.NodeSites();
+
+DPPartition[] partitions = data.getPartitions();
+
+set{int} unassigned = collect(p in Partitions) p;
+
+float capcityLeft[n in Nodes] = data.getSiteCapacity();
+float heat[Nodes,Sites] = 0;
+
+set{int} solution[Nodes,Sites]();
+
+while(unassigned.getSize() > 0){
+  selectMax(p in unassigned)(partitions[p].getHeat()){
+    selectMin(n in Nodes, s in Sites : capcityLeft[n] >= partitions[p].getSize())(heat[n,s]){
+      cout << p << " -> " << n << " , " << s << endl;
+      solution[n,s].insert(p);
+      heat[n,s] += partitions[p].getHeat();
+      capcityLeft[n] -= partitions[p].getSize();
+      unassigned.delete(p);
+    }
+  }
+}
+
+cout << "Max Heat: " << max(n in Nodes, s in Sites) heat[n,s] << endl;
+cout << endl;
+printSolution(solution,data);
+
+

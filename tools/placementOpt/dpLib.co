@@ -101,6 +101,65 @@ function DPData readFile(string fileLoc){
 	return new DPData(Clusters, Sites, siteCapacity, partitions, cost);
 }
 
+function void printSolution(set{int}[,] solution, DPData data){
+  range Partitions = data.Partitions();
+  range Nodes = data.Nodes();
+  range Sites = data.NodeSites();
+
+  DPPartition[] partitions = data.getPartitions();
+  
+  float heat[n in Nodes, s in Sites] = sum(p in solution[n,s]) partitions[p].getHeat();
+  float cap[n in Nodes, s in Sites] = sum(p in solution[n,s]) partitions[p].getSize();
+  
+  float[,] siteCost = data.getCost().getSiteCost();
+  float[,] nodeCost = data.getCost().getNodeCost();
+  float[,] networkCost = data.getCost().getNetworkCost();
+  
+  boolean sameNode[Partitions, Partitions] = false;
+  boolean sameSite[Partitions, Partitions] = false;
+  forall(n in Nodes){
+    set{int} np();
+    forall(s in Sites){
+      np = np union solution[n,s];
+      forall(p1 in solution[n,s], p2 in solution[n,s]){
+        sameSite[p1,p2] = true;
+      }
+    }
+    
+    forall(p1 in np, p2 in np){
+      sameNode[p1,p2] = true;
+    }
+  }
+  
+  /*
+  forall(p1 in Partitions, p2 in Partitions : siteCost[p1,p2] > 0.0){
+    cout << p1 << " -> " << p2 << " : " <<  siteCost[p1,p2]  << " , " << sameNode[p1,p2] << " , " << sameSite[p1,p2] << endl;
+  }
+  */
+  
+  float commCost = 0;
+  forall(p1 in Partitions, p2 in Partitions : siteCost[p1,p2] > 0.0){
+    if(sameSite[p1,p2]){
+      commCost += siteCost[p1,p2]; 
+    } else if(sameNode[p1,p2]){
+      commCost += nodeCost[p1,p2];
+    } else {
+      commCost += networkCost[p1,p2];
+    }
+  }
+  
+  cout << "Solution:" << endl;
+  cout << "  Nodes:" << endl;
+  forall(n in Nodes){
+    cout << "    " << n << " Cap: " << (sum(s in Sites) cap[n,s])/data.getSiteCapacity() <<" H: " << sum(s in Sites) heat[n,s] << endl;
+  }
+  cout << "  Sites:" << endl;
+  forall(n in Nodes, s in Sites){
+    cout << "    " << n << "-" << s << " : " << solution[n,s] << " C: " << cap[n,s] <<" H: " << heat[n,s] << endl;
+  }
+  cout << "Comm Cost: " << commCost << endl;
+}
+
 /*
 1 2 4 10000000 2
 1 100 10000 
