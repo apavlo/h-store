@@ -1,0 +1,260 @@
+include "dpLib";
+
+string fileLoc = "tpcc.100w.comet";
+boolean optHeat = true;
+boolean optComm = true;
+int timeHeat = 5;
+int timeComm = 15;
+float heatFactor = 0.0;
+
+string[] args = System.getArgs();
+forall(i in args.getRange()) {
+  if (args[i].prefix(6).equals("+file="))
+		fileLoc = args[i].suffix(6);
+  if (args[i].prefix(7).equals("+noheat") && args[i].length() == 7)
+		optHeat = false;
+	if (args[i].prefix(7).equals("+nocomm") && args[i].length() == 7)
+		optComm = false;
+	if (args[i].prefix(10).equals("+heattime="))
+		timeHeat = args[i].suffix(10).toInt();
+	if (args[i].prefix(10).equals("+commtime="))
+		timeComm = args[i].suffix(10).toInt();
+	if (args[i].prefix(12).equals("+heatfactor="))
+		heatFactor = args[i].suffix(12).toFloat();
+}
+
+assert(optHeat || optComm);
+//cout << optHeat << " , " << optComm << endl;
+//System.terminate();
+
+DPData data = readFile(fileLoc);
+
+range Partitions = data.Partitions();
+range Nodes = data.Nodes();
+range Sites = data.NodeSites();
+
+DPPartition[] partitions = data.getPartitions();
+float maxHeat = sum(p in Partitions) partitions[p].getHeat();
+float meanHeat = maxHeat/(Nodes.getSize()*Sites.getSize());
+set{int}[,] solution;
+
+import cotfd;
+
+UniformDistribution rNode(Nodes);
+UniformDistribution rSite(Sites);
+UniformDistribution dist(1..100);
+Integer percentFixed(95);
+Integer restartCount(0);
+Integer completeCount(0);
+
+if(optHeat){
+  Solver<CP> m();
+  m.lnsOnFailure(Partitions.getSize()*10);
+  if(timeHeat > 0){
+    m.limitTime(timeHeat);
+  }
+  
+  Boolean first(true);
+  
+  var<CP>{int} partitionLocation[Nodes,Sites,Partitions](m, 0..1);
+  //var<CP>{int} locationCount[Nodes,Sites](m, 0..Partitions.getSize());
+  var<CP>{float} maxHeatObj(m, meanHeat, sum(p in Partitions) partitions[p].getHeat());
+
+  minimize<m>
+    maxHeatObj
+  subject to{
+    forall(n in Nodes){
+      m.post(sum(s in Sites, p in Partitions) partitions[p].getSize()*partitionLocation[n,s,p] <= data.getSiteCapacity());
+      forall(s in Sites){
+        m.post(sum(p in Partitions) partitions[p].getHeat()*partitionLocation[n,s,p] <= maxHeatObj);
+        //m.post(sum(p in Partitions) partitionLocation[n,s,p] == locationCount[n,s]);
+      }
+    }
+    forall(p in Partitions){
+      m.post(sum(n in Nodes, s in Sites) partitionLocation[n,s,p] == 1);
+    }
+
+    forall(n in Nodes){
+      forall(s in Sites : s < Sites.getUp()){
+         m.post(lexleq(all(p in Partitions) partitionLocation[n,s,p], all(p in Partitions) partitionLocation[n,s+1,p]));
+      }
+    }
+    forall(n in Nodes : n < Nodes.getUp()){
+      //m.post(lexleq(all(s in Sites, p in Partitions) partitionLocation[n,s,p], all(s in Sites, p in Partitions) partitionLocation[n+1,s,p]));
+    }
+  
+  } using {
+  	forall(p in Partitions){
+  	  forall(n in Nodes) by (rNode.get()){
+  	    forall(s in Sites) by (rSite.get()) {
+  	      try<m>{
+  	        m.label(partitionLocation[n,s,p],1);
+  	      } | {
+  	        m.label(partitionLocation[n,s,p],0);
+  	      }
+  	    }
+  	  }
+  	}
+
+  	cout << endl;
+  	forall(n in Nodes, s in Sites){
+      cout << n << "-" << s << " : " << setof(p in Partitions)(partitionLocation[n,s,p] >= 1) << "  H: " << sum(p in Partitions) partitions[p].getHeat()*partitionLocation[n,s,p] << endl;
+    }
+  	cout << "LB: " << meanHeat << " H: " << maxHeatObj.getMin() << " gap: " << (maxHeatObj.getMin()/meanHeat - 1)*100 << endl;
+  }
+  onRestart {
+    restartCount := restartCount + 1;
+    completeCount := completeCount + m.isLastLNSRestartCompleted();
+    if(restartCount % 20 == 0){
+   	if(completeCount > 15){
+  	 percentFixed := percentFixed - 1;
+  	 cout << " (P - " << percentFixed << ") ";
+      } else {
+  	 m.setLNSFailureLimit(m.getLNSFailureLimit() * 120 / 100);
+  	 cout << " (F - " << m.getLNSFailureLimit() << ") ";
+      }
+
+      completeCount := 0;
+    }
+
+    with atomic(m) {
+      Solution sol = m.getSolution();
+      forall (p in Partitions : dist.get() <= percentFixed) {
+        forall(n in Nodes, s in Sites){
+          m.post(partitionLocation[n,s,p] == partitionLocation[n,s,p].getSnapshot(sol));
+        }
+      }
+    }
+
+  }
+  
+  maxHeat = max(n in Nodes, s in Sites) sum(p in Partitions) partitions[p].getHeat()*partitionLocation[n,s,p];
+  set{int} heatSolution[n in Nodes, s in Sites] = setof(p in Partitions)(partitionLocation[n,s,p] >= 1);
+  solution = heatSolution;
+}
+
+
+
+if(optComm){
+  cout << endl << endl;
+  cout << "Min comm cost: " << endl;
+  
+  float heatBound = maxHeat*(1.0+heatFactor) + 0.0000001;
+  cout << "Heat Sol: " <<  maxHeat << " factor: " <<  heatFactor << " bound: " << heatBound << endl;
+  
+  float[,] siteCost = data.getCost().getSiteCost();
+  float[,] nodeCost = data.getCost().getNodeCost();
+  float[,] networkCost = data.getCost().getNetworkCost();
+
+  int costTable[Partitions,Partitions,0..1,0..1] = -1;
+  forall(p1 in Partitions, p2 in Partitions){
+  	costTable[p1,p2,0,0] = (int)ceil(networkCost[p1,p2]);
+  	costTable[p1,p2,0,1] = (int)ceil(networkCost[p1,p2]);
+  	costTable[p1,p2,1,0] = (int)ceil(nodeCost[p1,p2]);
+  	costTable[p1,p2,1,1] = (int)ceil(siteCost[p1,p2]);
+  }
+
+  int maxCost = max(p1 in Partitions, p2 in Partitions : p1 < p2) (int)(ceil(networkCost[p1,p2])+ceil(networkCost[p2,p1]));
+
+
+  Solver<CP> m2();
+  m2.lnsOnFailure(Partitions.getSize()*10);
+  if(timeComm > 0){
+    m2.limitTime(timeComm);
+  }
+
+  percentFixed := 95;
+  restartCount := 0;
+  completeCount := 0;
+  Boolean first(solution != null);
+  
+  var<CP>{int} partitionNode[Partitions](m2,Nodes);
+  var<CP>{int} partitionSite[Partitions](m2,Sites);
+  var<CP>{int} sameSite[Partitions,Partitions](m2, 0..1);
+  var<CP>{int} sameNode[Partitions,Partitions](m2, 0..1);
+  var<CP>{int} commCost[Partitions,Partitions](m2, 0..maxCost);
+
+  minimize<m2>
+    sum(p1 in Partitions,p2 in Partitions : p1 < p2 && (siteCost[p1,p2] > 0 || siteCost[p2,p1] > 0.0)) commCost[p1,p2] 
+  subject to{
+    forall(n in Nodes){
+      m2.post(sum(p in Partitions) partitions[p].getSize()*(partitionNode[p] == n) <= data.getSiteCapacity());
+      forall(s in Sites){
+        m2.post(sum(p in Partitions) partitions[p].getHeat()*(partitionNode[p] == n && partitionSite[p] == s) <= heatBound);
+      }
+    }
+    forall(p1 in Partitions, p2 in Partitions : p1 < p2 && (siteCost[p1,p2] > 0.0 || siteCost[p2,p1] > 0.0)){
+  		m2.post(sameNode[p1,p2] == (partitionNode[p1] == partitionNode[p2]));
+  		m2.post(sameSite[p1,p2] == (partitionSite[p1] == partitionSite[p2]));
+  		m2.post(commCost[p1,p2] == costTable[p1,p2,sameNode[p1,p2],sameSite[p1,p2]] + costTable[p2,p1,sameNode[p1,p2],sameSite[p1,p2]]);
+  	}
+  } using {
+    if(first){
+      first := false;
+      forall(n in Nodes, s in Sites){
+        forall(p in solution[n,s]){
+          m2.label(partitionNode[p],n);
+          m2.label(partitionSite[p],s);
+        }
+      }
+    }
+    
+    forall(p in Partitions){
+  	  tryall<m2>(n in Nodes) {
+  	    m2.label(partitionNode[p],n);
+	    }
+	    tryall<m2>(s in Sites){
+	      m2.label(partitionSite[p],s);
+	    }
+	  }
+	  
+  	cout << endl;
+  	//forall(p1 in Partitions, p2 in Partitions : p1 < p2 && siteCost[p1,p2] > 0){
+  	//  cout << p1 << " -> " << p2 << " : " << commCost[p1,p2]  << " |  " << sameNode[p1,p2] << " , " << sameSite[p1,p2]  << endl;
+  	//}
+  	forall(n in Nodes, s in Sites){
+      cout << n << "-" << s << " : " << setof(p in Partitions)(partitionNode[p] == n && partitionSite[p] == s) << "  H: " << sum(p in Partitions) partitions[p].getHeat()*(partitionNode[p] == n && partitionSite[p] == s) << endl;
+    }
+    //System.terminate();
+  }
+  onRestart {
+    restartCount := restartCount + 1;
+    completeCount := completeCount + m2.isLastLNSRestartCompleted();
+    if(restartCount % 20 == 0){
+   	if(completeCount > 15){
+  	 percentFixed := percentFixed - 1;
+  	 cout << " (P - " << percentFixed << ") ";
+      } else {
+  	 m2.setLNSFailureLimit(m2.getLNSFailureLimit() * 120 / 100);
+  	 cout << " (F - " << m2.getLNSFailureLimit() << ") ";
+      }
+
+      completeCount := 0;
+    }
+
+    with atomic(m2) {
+      Solution sol = m2.getSolution();
+      forall (p in Partitions : dist.get() <= percentFixed) {
+          m2.post(partitionNode[p] == partitionNode[p].getSnapshot(sol));
+          m2.post(partitionSite[p] == partitionSite[p].getSnapshot(sol));
+      }
+    }
+
+  }
+
+  cout << endl;
+  cout << sum(p1 in Partitions,p2 in Partitions : p1 < p2 && (siteCost[p1,p2] > 0 || siteCost[p2,p1] > 0)) commCost[p1,p2].getValue() << endl;
+  forall(n in Nodes, s in Sites){
+    cout << n << "-" << s << " : " << setof(p in Partitions)(partitionNode[p] == n && partitionSite[p] == s) << "  H: " << sum(p in Partitions) partitions[p].getHeat()*(partitionNode[p] == n && partitionSite[p] == s) << endl;
+  }
+  
+  set{int} commSolution[n in Nodes, s in Sites] = setof(p in Partitions)(partitionNode[p] == n && partitionSite[p] == s);
+  solution = commSolution;
+  
+}
+
+
+cout << endl;
+printSolution(solution,data);
+
+

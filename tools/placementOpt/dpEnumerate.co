@@ -40,7 +40,7 @@ exploreall<m>{
   
 	forall(p1 in Partitions, p2 in Partitions){
 		m.post(sameNode[p1,p2] == (partitionNode[p1] == partitionNode[p2]));
-		m.post(sameSite[p1,p2] == (sameNode[p1,p2] == 1 && (partitionSite[p1] == partitionSite[p2])));
+		m.post(sameSite[p1,p2] == (partitionSite[p1] == partitionSite[p2]));
 		//m.post(commCost[p1,p2] == CostTable[p1,p2,sameNode[p1,p2],sameSite[p1,p2]]);
 	}
 	forall(n in Nodes, s in Sites){
@@ -52,9 +52,11 @@ exploreall<m>{
 	}
 	
 } using {
+  label(partitionSite);
 	label(partitionNode);
-	label(partitionSite);
-
+	//label(partitionSite);
+  
+  /*
 	float commAff = sum(p1 in Partitions, p2 in Partitions) costTable[p1,p2,sameNode[p1,p2],sameSite[p1,p2]];//commCost[p1,p2];
 	float stdHeat = (sum(n in Nodes, s in Sites) (siteHeat[n,s].getValue()^2)/(Nodes.getSize()*Sites.getSize())) - meanHeat^2;
 	float maxHeat = max(n in Nodes, s in Sites) siteHeat[n,s].getValue();
@@ -65,6 +67,12 @@ exploreall<m>{
 	cout << all(n in Nodes, s in Sites) siteHeat[n,s] << endl;
 	cout << commAff << ", " << stdHeat << " , " << maxHeat << endl;
 	cout << endl;
+	*/
+	
+	cout << endl;
+	cout << "Comm Cost: " << sum(p1 in Partitions, p2 in Partitions : p1 < p2 && (siteCost[p1,p2] > 0.0 || siteCost[p2,p1] > 0.0)) (costTable[p1,p2,sameNode[p1,p2],sameSite[p1,p2]] + costTable[p2,p1,sameNode[p1,p2],sameSite[p1,p2]]) << endl; 
+	set{int} solution[n in Nodes, s in Sites] = setof(p in Partitions)(partitionNode[p] == n && partitionSite[p] == s);
+	printSolution(solution,data);
 }
 
 
