@@ -111,13 +111,14 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
         double table_size = AuctionMarkConstants.TABLESIZE_USER / profile.getScaleFactor();
         double table_size_per_client = table_size / getNumClients();
         for (int i = 0; i < getNumClients(); i++) {
-            AuctionMarkBenchmarkProfile profile = new AuctionMarkBenchmarkProfile();
+            //AuctionMarkBenchmarkProfile profile = new AuctionMarkBenchmarkProfile();
+        	AuctionMarkClientBenchmarkProfile client_profile = new AuctionMarkClientBenchmarkProfile(this.profile, getClientId(), (long)table_size_per_client, m_catalog, rng);
+            profiles.add(client_profile);
             // set the low u_id and high_u_id
-            profile.setLowerUid((int)(i * table_size_per_client));
-            profile.setHighUid((int)((i + 1) * table_size_per_client - 1));
+//            profile.setLowerUid((int)(i * table_size_per_client));
+//            profile.setHighUid((int)((i + 1) * table_size_per_client - 1));
             // add profile to list of created profiles
-            profiles.add(profile);
-            LOG.info("create profile with id: " + i + " low uid: " + (i * table_size_per_client) + " high uid: " +  ((i + 1) * table_size_per_client - 1));
+            //LOG.info("create profile with id: " + i + " low uid: " + (i * table_size_per_client) + " high uid: " +  ((i + 1) * table_size_per_client - 1));
         }
     }
     
@@ -222,17 +223,20 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
     	// call sendToClient on all the profiles just created
     	int profile_index = 0;
     	for (AuctionMarkBenchmarkProfile profile : profiles) {
-    		File f = FileUtil.getTempFile("profile" + profile_index, false);
+    		AuctionMarkClientBenchmarkProfile client_profile = (AuctionMarkClientBenchmarkProfile)profile;
+    		File local_file = FileUtil.getTempFile("localprofile" + profile_index, false);
+    		File remote_file = FileUtil.getTempFile("remoteprofile" + profile_index, false);
     		try {
-				profile.save(f.getAbsolutePath());
-				sendFileToClient(profile_index, "", f, f);
+    			client_profile.save(local_file.getAbsolutePath());
+    	        LOG.info("saved the client profile: " + local_file.getAbsolutePath());
+				sendFileToClient(profile_index, "BENCHMARKPROFILE", local_file, remote_file);
 			} catch (IOException e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
 			profile_index++;
     	}
-        this.saveProfile();
+        //this.saveProfile();
         LOG.info("Finished generating data for all tables");
         
 //        // dwu 5/29: select * from users

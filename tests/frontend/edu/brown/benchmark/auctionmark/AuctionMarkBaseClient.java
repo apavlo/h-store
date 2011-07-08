@@ -92,8 +92,10 @@ public abstract class AuctionMarkBaseClient extends ClientMain {
         String dataDir = null;
 
         for (String key : m_extraParams.keySet()) {
-            String value = m_extraParams.get(key);
-
+        	String value = m_extraParams.get(key);
+        	
+        	// LOG.info("parameter key: " + key + " value: " + value);
+            
             // Scale Factor
             if (key.equalsIgnoreCase("SCALEFACTOR")) {
                 scale_factor = Double.parseDouble(value);
@@ -107,7 +109,7 @@ public abstract class AuctionMarkBaseClient extends ClientMain {
             } else if (key.equalsIgnoreCase("RANDOMGENERATOR")) {
                 randGenClassName = value;
                 // Random Generator Profile File
-            } else if (key.equalsIgnoreCase("RANDOMPROFILE")) {
+            } else if (key.equalsIgnoreCase("RANDprofileOMPROFILE")) {
                 randGenProfilePath = value;
                 // Data directory
             } else if (key.equalsIgnoreCase("DATADIR")) {
@@ -119,12 +121,17 @@ public abstract class AuctionMarkBaseClient extends ClientMain {
         // BenchmarkProfile
         // Only load from the file for AuctionMarkClient
         this.profile = new AuctionMarkBenchmarkProfile();
-        this.profile_path = new File(profile_file == null ? DEFAULT_PROFILE_PATH : profile_file);
+        //this.profile_path = new File(profile_file == null ? DEFAULT_PROFILE_PATH : profile_file);
+        if (profile_file != null) {
+        	this.profile_path = new File(profile_file);
+        } else {
+        	this.profile_path = null;
+        }
         // child_class is class edu....AuctionMarkLoader
         if (child_class.equals(AuctionMarkClient.class)) {
             if (this.profile_path.exists()) {
                 try {
-                    LOG.debug("Loading Profile: " + this.profile_path.getAbsolutePath());
+                    LOG.info("Loading Profile: " + this.profile_path.getAbsolutePath());
                     this.profile.load(this.profile_path.getAbsolutePath(), null);
                 } catch (Exception ex) {
                     LOG.error("Failed to load benchmark profile file '" + this.profile_path + "'", ex);
@@ -134,7 +141,7 @@ public abstract class AuctionMarkBaseClient extends ClientMain {
         }
         this.profile.setScaleFactor(scale_factor);
 
-        // Data Directory Path
+        // Data Directory Pathprofile
         if (dataDir == null) {
             // If we weren't given a path, then we need to look for the tests
             // directory and
@@ -196,6 +203,7 @@ public abstract class AuctionMarkBaseClient extends ClientMain {
         if (debug)
             LOG.debug("Saving BenchmarkProfile to '" + this.profile_path + "'");
         try {
+        	LOG.info("saveProfile = " + this.profile_path.getAbsolutePath());
             this.profile.save(this.profile_path.getAbsolutePath());
         } catch (IOException ex) {
             LOG.fatal("Failed to save BenchmarkProfile", ex);
