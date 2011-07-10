@@ -21,7 +21,7 @@ public class TestProcedureLimitFilter extends AbstractTestFilter {
         int new_limit = 100;
         ProcedureLimitFilter filter = new ProcedureLimitFilter(new_limit);
         
-        Iterator<AbstractTraceElement<? extends CatalogType>> it = workload.iterator(filter);
+        Iterator<TransactionTrace> it = workload.iterator(filter);
         assertNotNull(it);
 
         int count = 0;

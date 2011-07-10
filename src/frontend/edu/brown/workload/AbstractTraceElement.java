@@ -45,11 +45,7 @@ public abstract class AbstractTraceElement<T extends CatalogType> implements JSO
     /** java.util.logging logger. */
     protected static final Logger LOG = Logger.getLogger(AbstractTraceElement.class.getName());
     
-    private static AtomicLong NEXT_ID = new AtomicLong(0);
-    
     public enum Members {
-        // Unique AbstractTraceElement Id
-        ID,
         // Catalog Name
         NAME,
         // Start Time (relative to start of trace)
@@ -60,29 +56,22 @@ public abstract class AbstractTraceElement<T extends CatalogType> implements JSO
         PARAMS,
         // Aborted (true/false)
         ABORTED,
+        // Output
+        OUTPUT,
     };
     
-    protected long id;
     protected Long start_timestamp;
     protected Long stop_timestamp; 
     protected Object params[];
     protected String catalog_item_name;
     protected boolean aborted = false;
-    
-    public static void setStartingId(long id) {
-        AbstractTraceElement.NEXT_ID.set(id);
-    }
+    protected Object output[][];
     
     public AbstractTraceElement() {
         // Nothing to do...
     }
     
     public AbstractTraceElement(T catalog_item, Object params[]) {
-        // Important: We have to create a new unique id here. This is needed so that we can keep
-        // the list of the trace elements as they are created by the system in order to play back
-        // the trace by what really happened (as opposed to just getting the individual xact elements
-        // one by one.
-        this.id = NEXT_ID.getAndIncrement();
         this.params = params;
         this.catalog_item_name = catalog_item.getName();
         this.start_timestamp = System.nanoTime();
@@ -91,7 +80,7 @@ public abstract class AbstractTraceElement<T extends CatalogType> implements JSO
     
     @Override
     public String toString() {
-        return (this.getClass().getSimpleName() + "[" + this.catalog_item_name + ":#" + this.id + "]");
+        return (this.getClass().getSimpleName() + "[" + this.catalog_item_name + "]");
     }
     
     public void stop() {
@@ -109,14 +98,6 @@ public abstract class AbstractTraceElement<T extends CatalogType> implements JSO
     
     public boolean isAborted() {
         return (this.aborted);
-    }
-    
-    /**
-     * Return the the TraceId for this element
-     * @return
-     */
-    public long getId() {
-        return this.id;
     }
     
     /**
@@ -171,6 +152,7 @@ public abstract class AbstractTraceElement<T extends CatalogType> implements JSO
         this.params[i] = value;
     }
 
+    
     /**
      * 
      * @param catalog_db
@@ -199,7 +181,6 @@ public abstract class AbstractTraceElement<T extends CatalogType> implements JSO
     }
     
     public void toJSONString(JSONStringer stringer, Database catalog_db) throws JSONException {
-        stringer.key(Members.ID.name()).value(this.id);
         stringer.key(Members.NAME.name()).value(this.catalog_item_name);
         stringer.key(Members.START.name()).value(this.start_timestamp);
         stringer.key(Members.STOP.name()).value(this.stop_timestamp);
@@ -296,7 +277,7 @@ public abstract class AbstractTraceElement<T extends CatalogType> implements JSO
                             param_isarray = false;
                             param_type = VoltType.STRING;
                         } else {
-                            LOG.error("Failed to deserialize " + CatalogUtil.getDisplayName(catalog_param) + " [trace_id=" + this.id + ", type=" + param_type + ", isarray=" + param_isarray + "]", ex);
+                            LOG.error("Failed to deserialize " + CatalogUtil.getDisplayName(catalog_param) + " [type=" + param_type + ", isarray=" + param_isarray + "]", ex);
                             throw ex;        
                         }
                     }
@@ -330,7 +311,6 @@ public abstract class AbstractTraceElement<T extends CatalogType> implements JSO
     }
     
     protected void fromJSONObject(JSONObject object, Database db) throws JSONException {
-        this.id = object.getLong(Members.ID.name());
         this.start_timestamp = object.getLong(Members.START.name());
         if (!object.isNull(Members.STOP.name())) {
             this.stop_timestamp = object.getLong(Members.STOP.name());

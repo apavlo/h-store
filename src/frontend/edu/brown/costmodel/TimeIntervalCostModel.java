@@ -80,11 +80,11 @@ public class TimeIntervalCostModel<T extends AbstractCostModel> extends Abstract
         LOG.debug("TimeIntervalCostModel: " + this.num_intervals + " intervals");
     }
     
-    @Override
-    public AbstractCostModel clone(Database catalog_db) throws CloneNotSupportedException {
-        TimeIntervalCostModel<T> clone = new TimeIntervalCostModel<T>(catalog_db, this.inner_class, this.cost_models.length);
-        return (clone);
-    }
+//    @Override
+//    public AbstractCostModel clone(Database catalog_db) throws CloneNotSupportedException {
+//        TimeIntervalCostModel<T> clone = new TimeIntervalCostModel<T>(catalog_db, this.inner_class, this.cost_models.length);
+//        return (clone);
+//    }
     
     @Override
     public void applyDesignerHints(DesignerHints hints) {
@@ -233,89 +233,86 @@ public class TimeIntervalCostModel<T extends AbstractCostModel> extends Abstract
             LOG.trace("Total # of Txns in Workload: " + workload.getTransactionCount());
             LOG.trace("Workload Filter Chain:       " + filter);
         }
-        Iterator<AbstractTraceElement<?>> it = workload.iterator(filter);
+        Iterator<TransactionTrace> it = workload.iterator(filter);
         while (it.hasNext()) {
-            AbstractTraceElement<?> element = it.next();
-            if (element instanceof TransactionTrace) {
-                TransactionTrace txn_trace = (TransactionTrace)element;
-                int i = workload.getTimeInterval(txn_trace, num_intervals);
-                assert(i >= 0);
-                assert(i < num_intervals) : "Invalid interval: " + i;
-                try {
-                    /*
-                    if (trace_ids[i].contains(txn_trace.getId())) {
-                        System.err.println(StringUtil.join("\n", trace_ids[i]));
-                        throw new RuntimeException("Duplicate " + txn_trace + " for interval #" + i);
-                    }
-                    assert(!trace_ids[i].contains(txn_trace.getId())) : "Duplicate " + txn_trace + " for interval #" + i;
-                    trace_ids[i].add(txn_trace.getId());
-                    */
-                    
-                    // Terrible Hack: Assume that we are using the SingleSitedCostModel and that
-                    // it will return fixed values based on whether the txn is single-partitioned or not
-                    this.cost_models[i].estimateTransactionCost(catalog_db, workload, filter, txn_trace);
-                    SingleSitedCostModel singlesited_cost_model = (SingleSitedCostModel)this.cost_models[i]; 
-                    TransactionCacheEntry txn_entry = singlesited_cost_model.getTransactionCacheEntry(txn_trace);
-                    assert(txn_entry != null) : "No txn entry for " + txn_trace;
-                    Set<Integer> partitions = txn_entry.getTouchedPartitions();
-                    
-                    // If the txn runs on only one partition, then the cost is nothing
-                    if (txn_entry.isSingleSited()) {
-                        singlepartition_ctrs[i]++;
-                        if (!partitions.isEmpty()) {
-                            assert(txn_entry.getAllTouchedPartitionsHistogram().getValueCount() == 1) :
-                                txn_entry + " says it was single-sited but the partition count says otherwise:\n" + txn_entry.debug();
-                            singlepartition_with_partitions_ctrs[i]++;
-                        }
-                        this.histogram_sp_procs.put(CatalogKey.createKey(CatalogUtil.DEFAULT_DATABASE_NAME, txn_trace.getCatalogItemName()));
-                        
-                    // If the txn runs on multiple partitions, then the cost is...
-                    // XXX 2010-06-28: The number of partitions that the txn touches divided by the total number of partitions
-                    // XXX 2010-07-02: The histogram for the total number of partitions touched by all of the queries 
-                    //                 in the transaction. This ensures that txns with just one multi-partition query
-                    //                 isn't weighted the same as a txn with many multi-partition queries
-                    } else {
-                        assert(!partitions.isEmpty()) : "No touched partitions for " + txn_trace;
-                        if (partitions.size() == 1 && txn_entry.getExecutionPartition() != null) {
-                            assert(CollectionUtil.getFirst(partitions) != txn_entry.getExecutionPartition()) : txn_entry.debug();
-                            exec_mismatch_ctrs[i]++;
-                            partitions_touched[i]++;
-                        } else {
-                            assert(partitions.size() > 1) : txn_entry.debug();
-                        }
-                        partitions_touched[i] += partitions.size(); // Txns
-                        multipartition_ctrs[i]++;
-                        this.histogram_mp_procs.put(CatalogKey.createKey(CatalogUtil.DEFAULT_DATABASE_NAME, txn_trace.getCatalogItemName()));
-                    }
-                    Integer base_partition = txn_entry.getExecutionPartition();
-                    if (base_partition != null) {
-                        exec_histogram[i].put(base_partition);
-                    } else {
-                        exec_histogram[i].putAll(all_partitions);
-                    }
-                    if (trace) LOG.trace(txn_trace + ": " + (txn_entry.isSingleSited() ? "Single" : "Multi") + "-Sited [" +
-                                         "singlep_ctrs=" + singlepartition_ctrs[i] + ", " +
-                                         "singlep_with_partitions_ctrs=" + singlepartition_with_partitions_ctrs[i] + ", " +
-                                         "p_touched=" + partitions_touched[i] + ", " +
-                                         "exec_mismatch=" + exec_mismatch_ctrs[i] + "]");
-
-                    // We need to keep a count of the number txns that didn't have all of its queries estimated
-                    // completely so that we can update the access histograms down below for entropy calculations
-                    // Note that this is at the txn level, not the query level.
-                    if (!txn_entry.isComplete()) {
-                        if (trace) LOG.trace("Marking " + txn_trace + " as incomplete in interval #" + i);
-                        incomplete_txn_ctrs[i]++;
-                        Set<Integer> missing_partitions = new HashSet<Integer>(all_partitions);
-                        missing_partitions.removeAll(txn_entry.getTouchedPartitions());
-                        // Update the histogram for this interval to keep track of how many times we need to
-                        // increase the partition access histogram
-                        incomplete_txn_histogram[i].putAll(missing_partitions);
-                    }
-                } catch (Exception ex) {
-                    LOG.error("Failed to estimate cost for " + txn_trace.getCatalogItemName() + " at interval " + i);
-                    CatalogUtil.saveCatalog(catalog_db.getCatalog(), "catalog.txt");
-                    throw ex;
+            TransactionTrace txn_trace = it.next();
+            int i = workload.getTimeInterval(txn_trace, num_intervals);
+            assert(i >= 0);
+            assert(i < num_intervals) : "Invalid interval: " + i;
+            try {
+                /*
+                if (trace_ids[i].contains(txn_trace.getId())) {
+                    System.err.println(StringUtil.join("\n", trace_ids[i]));
+                    throw new RuntimeException("Duplicate " + txn_trace + " for interval #" + i);
                 }
+                assert(!trace_ids[i].contains(txn_trace.getId())) : "Duplicate " + txn_trace + " for interval #" + i;
+                trace_ids[i].add(txn_trace.getId());
+                */
+                
+                // Terrible Hack: Assume that we are using the SingleSitedCostModel and that
+                // it will return fixed values based on whether the txn is single-partitioned or not
+                this.cost_models[i].estimateTransactionCost(catalog_db, workload, filter, txn_trace);
+                SingleSitedCostModel singlesited_cost_model = (SingleSitedCostModel)this.cost_models[i]; 
+                TransactionCacheEntry txn_entry = singlesited_cost_model.getTransactionCacheEntry(txn_trace);
+                assert(txn_entry != null) : "No txn entry for " + txn_trace;
+                Set<Integer> partitions = txn_entry.getTouchedPartitions();
+                
+                // If the txn runs on only one partition, then the cost is nothing
+                if (txn_entry.isSingleSited()) {
+                    singlepartition_ctrs[i]++;
+                    if (!partitions.isEmpty()) {
+                        assert(txn_entry.getAllTouchedPartitionsHistogram().getValueCount() == 1) :
+                            txn_entry + " says it was single-sited but the partition count says otherwise:\n" + txn_entry.debug();
+                        singlepartition_with_partitions_ctrs[i]++;
+                    }
+                    this.histogram_sp_procs.put(CatalogKey.createKey(CatalogUtil.DEFAULT_DATABASE_NAME, txn_trace.getCatalogItemName()));
+                    
+                // If the txn runs on multiple partitions, then the cost is...
+                // XXX 2010-06-28: The number of partitions that the txn touches divided by the total number of partitions
+                // XXX 2010-07-02: The histogram for the total number of partitions touched by all of the queries 
+                //                 in the transaction. This ensures that txns with just one multi-partition query
+                //                 isn't weighted the same as a txn with many multi-partition queries
+                } else {
+                    assert(!partitions.isEmpty()) : "No touched partitions for " + txn_trace;
+                    if (partitions.size() == 1 && txn_entry.getExecutionPartition() != null) {
+                        assert(CollectionUtil.getFirst(partitions) != txn_entry.getExecutionPartition()) : txn_entry.debug();
+                        exec_mismatch_ctrs[i]++;
+                        partitions_touched[i]++;
+                    } else {
+                        assert(partitions.size() > 1) : txn_entry.debug();
+                    }
+                    partitions_touched[i] += partitions.size(); // Txns
+                    multipartition_ctrs[i]++;
+                    this.histogram_mp_procs.put(CatalogKey.createKey(CatalogUtil.DEFAULT_DATABASE_NAME, txn_trace.getCatalogItemName()));
+                }
+                Integer base_partition = txn_entry.getExecutionPartition();
+                if (base_partition != null) {
+                    exec_histogram[i].put(base_partition);
+                } else {
+                    exec_histogram[i].putAll(all_partitions);
+                }
+                if (trace) LOG.trace(txn_trace + ": " + (txn_entry.isSingleSited() ? "Single" : "Multi") + "-Sited [" +
+                                     "singlep_ctrs=" + singlepartition_ctrs[i] + ", " +
+                                     "singlep_with_partitions_ctrs=" + singlepartition_with_partitions_ctrs[i] + ", " +
+                                     "p_touched=" + partitions_touched[i] + ", " +
+                                     "exec_mismatch=" + exec_mismatch_ctrs[i] + "]");
+
+                // We need to keep a count of the number txns that didn't have all of its queries estimated
+                // completely so that we can update the access histograms down below for entropy calculations
+                // Note that this is at the txn level, not the query level.
+                if (!txn_entry.isComplete()) {
+                    if (trace) LOG.trace("Marking " + txn_trace + " as incomplete in interval #" + i);
+                    incomplete_txn_ctrs[i]++;
+                    Set<Integer> missing_partitions = new HashSet<Integer>(all_partitions);
+                    missing_partitions.removeAll(txn_entry.getTouchedPartitions());
+                    // Update the histogram for this interval to keep track of how many times we need to
+                    // increase the partition access histogram
+                    incomplete_txn_histogram[i].putAll(missing_partitions);
+                }
+            } catch (Exception ex) {
+                LOG.error("Failed to estimate cost for " + txn_trace.getCatalogItemName() + " at interval " + i);
+                CatalogUtil.saveCatalog(catalog_db.getCatalog(), "catalog.txt");
+                throw ex;
             }
         } // WHILE
         
@@ -427,10 +424,10 @@ public class TimeIntervalCostModel<T extends AbstractCostModel> extends Abstract
                 System.err.println("Check Touched Partitions: sample=" + check.getSampleCount() + ", value=" + check.getValueCount());
                 System.err.println("Cache Touched Partitions: sample=" + this.cost_models[i].getTxnPartitionAccessHistogram().getSampleCount() + ", value=" + this.cost_models[i].getTxnPartitionAccessHistogram().getValueCount());
                 
-                int qtotal = singlesited_cost_model.getQueryCacheEntries().size();
+                int qtotal = singlesited_cost_model.getAllQueryCacheEntries().size();
                 int ctr = 0;
                 int multip = 0;
-                for (QueryCacheEntry qce : singlesited_cost_model.getQueryCacheEntries()) {
+                for (QueryCacheEntry qce : singlesited_cost_model.getAllQueryCacheEntries()) {
                     ctr += (qce.getAllPartitions().isEmpty() ? 0 : 1);
                     multip += qce.getAllPartitions().size() > 1 ? 1 : 0;
                 }

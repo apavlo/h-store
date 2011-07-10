@@ -48,7 +48,7 @@ public class TransactionTrace extends AbstractTraceElement<Procedure> {
         QUERIES
     };
     
-    private long txn_id;
+    protected long txn_id;
     private List<QueryTrace> queries = new ArrayList<QueryTrace>(); 
     private transient LinkedMap<Integer, List<QueryTrace>> query_batches = new LinkedMap<Integer, List<QueryTrace>>();
     
@@ -97,7 +97,7 @@ public class TransactionTrace extends AbstractTraceElement<Procedure> {
         // Header Info
         StringBuilder sb = new StringBuilder();
         sb.append(thick_line)
-          .append(catalog_proc.getName().toUpperCase() + " - Txn#" + this.txn_id + " - Trace#" + this.id + "\n")
+          .append(catalog_proc.getName().toUpperCase() + " - Txn#" + this.txn_id + "\n")
           .append("Start Time:   " + this.start_timestamp + "\n")
           .append("Stop Time:    " + this.stop_timestamp + "\n")
           .append("Run Time:     " + (this.stop_timestamp != null ? this.stop_timestamp - this.start_timestamp : "???") + "\n")
@@ -159,11 +159,8 @@ public class TransactionTrace extends AbstractTraceElement<Procedure> {
         return (this.queries.size());
     }
     
-    public QueryTrace getQuery(long id) {
-        for (QueryTrace query_trace : this.queries) {
-            if (query_trace.id == id) return (query_trace);
-        }
-        return (null);
+    public QueryTrace getQuery(int idx) {
+        return (this.queries.get(idx));
     }
     
     /**
@@ -236,7 +233,7 @@ public class TransactionTrace extends AbstractTraceElement<Procedure> {
                 QueryTrace query = QueryTrace.loadFromJSONObject(jsonQuery, db);
                 this.addQuery(query);
             } catch (JSONException ex) {
-                LOG.fatal("Failed to load query trace #" + i + " for transaction record on " + this.catalog_item_name + " [ID=" + this.id + "]");
+                LOG.fatal("Failed to load query trace #" + i + " for transaction record on " + this.catalog_item_name + "]");
                 throw ex;
             }
         } // FOR

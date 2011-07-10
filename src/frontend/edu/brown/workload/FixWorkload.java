@@ -28,12 +28,6 @@ public abstract class FixWorkload {
     private static final int OL_SUPPLY_REMOTE = 50; // %
     private static final int OL_SUPPLY_REMOTE_ITEM = 50; // % 
 
-    public static void duplicateWorkload(ArgumentsParser args, int start_id) {
-        for (AbstractTraceElement<?> element : args.workload) {
-            element.id = start_id++;
-        }
-    }
-    
     /**
      * 
      * @param args
@@ -420,12 +414,7 @@ public abstract class FixWorkload {
     private static final void updateTraceIds(Database catalog_db, Workload workload, String output_path) throws Exception {
         FileOutputStream output = new FileOutputStream(output_path);
         
-        long new_id = 1;
         for (TransactionTrace txn_trace : workload.getTransactions()) {
-            txn_trace.id = new_id++;
-            for (QueryTrace query_trace : txn_trace.getQueries()) {
-                query_trace.id = new_id++;
-            }
             Workload.writeTransactionToStream(catalog_db, txn_trace, output);
         } // FOR
     }

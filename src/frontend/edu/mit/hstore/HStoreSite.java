@@ -1973,13 +1973,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
             String tracePath = args.getParam(ArgumentsParser.PARAM_WORKLOAD_OUTPUT) + "-" + site_id;
             String traceIgnore = args.getParam(ArgumentsParser.PARAM_WORKLOAD_PROC_EXCLUDE);
             ProcedureProfiler.initializeWorkloadTrace(args.catalog, traceClass, tracePath, traceIgnore);
-            
-            // For each HStoreSiteNode, we need to make sure that the trace ids start at our offset
-            // This will allow us to merge multiple traces together for a benchmark single-run
-            long start_id = (site_id + 1) * 100000l;
-            AbstractTraceElement.setStartingId(start_id);
-            
-            LOG.info("Enabled workload logging '" + tracePath + "' with trace id offset " + start_id);
+            LOG.info("Enabled workload logging '" + tracePath + "'");
         }
         
         // ----------------------------------------------------------------------------

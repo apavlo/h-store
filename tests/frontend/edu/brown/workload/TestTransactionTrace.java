@@ -102,9 +102,10 @@ public class TestTransactionTrace extends BaseTestCase {
         TransactionTrace copy = TransactionTrace.loadFromJSONObject(jsonObject, catalog_db);
         
         assertEquals(xact.catalog_item_name, copy.catalog_item_name);
-        assertEquals(xact.id, copy.id);
         assertEquals(xact.getTransactionId(), copy.getTransactionId());
         assertEquals(xact.start_timestamp, copy.start_timestamp);
+        assertEquals(xact.getQueryCount(), copy.getQueryCount());
+        assertEquals(xact.getBatchCount(), copy.getBatchCount());
         
         assertEquals(xact.params.length, copy.params.length);
         for (int i = 0; i < xact.params.length; i++) {

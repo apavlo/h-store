@@ -12,18 +12,10 @@ public abstract class VerifyWorkload {
     private static final Logger LOG = Logger.getLogger(VerifyWorkload.class);
     
     public static boolean verify(Database catalog_db, Workload workload) throws Exception {
-        Set<Long> trace_ids = new HashSet<Long>();
         Set<Long> txn_ids = new HashSet<Long>();
         
         long ctr = 0;
         for (AbstractTraceElement<?> element : workload) {
-            long trace_id = element.getId();
-            if (trace_ids.contains(trace_id)) {
-                LOG.fatal("Duplicate Trace Id: " + element);
-                return (false);
-            }
-            trace_ids.add(trace_id);
-            
             // TransactionTrace
             if (element instanceof TransactionTrace) {
                 TransactionTrace txn_trace = (TransactionTrace)element;

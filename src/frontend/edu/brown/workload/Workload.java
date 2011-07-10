@@ -29,7 +29,6 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.OutputStream;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -40,6 +39,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Pattern;
 
+import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.log4j.Logger;
 import org.json.JSONObject;
 import org.voltdb.VoltTable;
@@ -47,7 +47,6 @@ import org.voltdb.VoltTableRow;
 import org.voltdb.VoltType;
 import org.voltdb.WorkloadTrace;
 import org.voltdb.catalog.Catalog;
-import org.voltdb.catalog.CatalogType;
 import org.voltdb.catalog.Column;
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Procedure;
@@ -73,7 +72,7 @@ import edu.brown.workload.filters.ProcedureNameFilter;
  * 
  * @author Andy Pavlo <pavlo@cs.brown.edu>
  */
-public class Workload implements WorkloadTrace, Iterable<AbstractTraceElement<? extends CatalogType>> {
+public class Workload implements WorkloadTrace, Iterable<TransactionTrace> {
     static final Logger LOG = Logger.getLogger(Workload.class);
     static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
@@ -98,15 +97,9 @@ public class Workload implements WorkloadTrace, Iterable<AbstractTraceElement<? 
     private Catalog catalog;
     private Database catalog_db;
 
-    // Ordered list of element ids that are used
-    private final transient List<Long> element_ids = new ArrayList<Long>();
-    
-    // Mapping from element ids to actual objects
-    private final transient Map<Long, AbstractTraceElement<? extends CatalogType>> element_id_xref = new HashMap<Long, AbstractTraceElement<? extends CatalogType>>();
-    
     // The following data structures are specific to Transactions
     private final transient List<TransactionTrace> xact_trace = new ArrayList<TransactionTrace>();
-    private final transient Map<Long, TransactionTrace> xact_trace_xref = new HashMap<Long, TransactionTrace>();
+    private final transient ListOrderedMap<Long, TransactionTrace> xact_trace_xref = new ListOrderedMap<Long, TransactionTrace>();
     private final transient Map<TransactionTrace, Integer> trace_bach_id = new HashMap<TransactionTrace, Integer>();
 
     // Reverse mapping from QueryTraces to TxnIds
@@ -177,10 +170,10 @@ public class Workload implements WorkloadTrace, Iterable<AbstractTraceElement<? 
     /**
      * WorkloadIterator
      */
-    public class WorkloadIterator implements Iterator<AbstractTraceElement<? extends CatalogType>> {
+    public class WorkloadIterator implements Iterator<TransactionTrace> {
         private int idx = 0;
         private boolean is_init = false;
-        private AbstractTraceElement<? extends CatalogType> peek;
+        private TransactionTrace peek;
         private final Filter filter;
         
         public WorkloadIterator(Filter filter) {
@@ -206,21 +199,21 @@ public class Workload implements WorkloadTrace, Iterable<AbstractTraceElement<? 
         }
         
         @Override
-        public AbstractTraceElement<? extends CatalogType> next() {
+        public TransactionTrace next() {
             // Always set the current one what we peeked ahead and saw earlier
-            AbstractTraceElement<? extends CatalogType> current = this.peek;
+            TransactionTrace current = this.peek;
             this.peek = null;
             
             // Now figure out what the next element should be the next time next() is called
-            int size = Workload.this.element_ids.size();
+            int size = Workload.this.xact_trace.size();
             while (this.peek == null && this.idx++ < size) {
-                Long next_id = Workload.this.element_ids.get(this.idx - 1);
-                AbstractTraceElement<? extends CatalogType> element = Workload.this.element_id_xref.get(next_id);
+                Long next_id = Workload.this.xact_trace_xref.get(this.idx - 1);
+                TransactionTrace element = Workload.this.xact_trace_xref.get(next_id);
                 if (element == null) {
                     LOG.warn("idx: " + this.idx);
                     LOG.warn("next_id: " + next_id);
                     // System.err.println("elements: " + Workload.this.element_id_xref);
-                    LOG.warn("size: " + Workload.this.element_id_xref.size());
+                    LOG.warn("size: " + Workload.this.xact_trace_xref.size());
                 }
                 if (this.filter == null || (this.filter != null && this.filter.apply(element) == Filter.FilterResult.ALLOW)) {
                     this.peek = element;
@@ -273,13 +266,10 @@ public class Workload implements WorkloadTrace, Iterable<AbstractTraceElement<? 
     public Workload(Workload workload, Filter filter) {
         this(workload.catalog);
         
-        Iterator<AbstractTraceElement<? extends CatalogType>> it = workload.iterator(filter);
+        Iterator<TransactionTrace> it = workload.iterator(filter);
         while (it.hasNext()) {
-            AbstractTraceElement<? extends CatalogType> trace = it.next();
-            if (trace instanceof TransactionTrace) {
-                TransactionTrace txn = (TransactionTrace)trace;
-                this.addTransaction(txn.getCatalogItem(CatalogUtil.getDatabase(this.catalog)), txn);
-            }
+            TransactionTrace txn = it.next();
+            this.addTransaction(txn.getCatalogItem(CatalogUtil.getDatabase(this.catalog)), txn);
         } // WHILE
     }
     
@@ -304,19 +294,6 @@ public class Workload implements WorkloadTrace, Iterable<AbstractTraceElement<? 
             this.out.close();
         }
         super.finalize();
-    }
-
-    /**
-     * 
-     */
-    protected void validate() {
-        if (debug.get()) LOG.debug("Checking to make sure there are no duplicate trace objects in workload");
-        Set<Long> trace_ids = new HashSet<Long>();
-        for (AbstractTraceElement<?> element : this) {
-            long trace_id = element.getId();
-            assert(!trace_ids.contains(trace_id)) : "Duplicate Trace Element: " + element;
-            trace_ids.add(trace_id);
-        } // FOR
     }
 
     /**
@@ -418,7 +395,7 @@ public class Workload implements WorkloadTrace, Iterable<AbstractTraceElement<? 
         
         if (debug.get()) LOG.debug(String.format("Loading workload trace using %d LoadThreads", rt.load_threads.size())); 
         ThreadUtil.runGlobalPool(all_runnables);
-        this.validate();
+        VerifyWorkload.verify(catalog_db, this);
         
         long stop = System.currentTimeMillis();
         LOG.info(String.format("Loaded %d txns / %d queries from '%s' in %.1f seconds using %d threads",
@@ -444,11 +421,11 @@ public class Workload implements WorkloadTrace, Iterable<AbstractTraceElement<? 
      * @return
      */
     @Override
-    public Iterator<AbstractTraceElement<? extends CatalogType>> iterator() {
+    public Iterator<TransactionTrace> iterator() {
         return (new Workload.WorkloadIterator());
     }
 
-    public Iterator<AbstractTraceElement<? extends CatalogType>> iterator(Filter filter) {
+    public Iterator<TransactionTrace> iterator(Filter filter) {
         return (new Workload.WorkloadIterator(filter));
     }
     
@@ -535,14 +512,6 @@ public class Workload implements WorkloadTrace, Iterable<AbstractTraceElement<? 
             this.proc_histogram.setDebugLabels(labels);
         }
         return (this.proc_histogram);
-    }
-    
-    /**
-     * Return the max id
-     * @return
-     */
-    public long getMaxTraceId() {
-        return (Collections.max(this.element_ids));
     }
     
     /**
@@ -644,18 +613,6 @@ public class Workload implements WorkloadTrace, Iterable<AbstractTraceElement<? 
         this.xact_trace_xref.put(txn_id, xact);
         this.xact_open_queries.put(txn_id, new HashMap<Integer, AtomicInteger>());
         
-        // Check whether we need to add the element id of the txn and all of its queries.
-        // This happens when if we are trying to insert the txn from another one
-        // It's kind of a hack, but what are you going to do when times are tough..
-        if (force_index_update || this.element_ids.contains(xact.getId()) == false) {
-            this.element_ids.add(xact.getId());
-            this.element_id_xref.put(xact.getId(), xact);
-            for (QueryTrace query : xact.getQueries()) {
-                this.element_ids.add(query.getId());
-                this.element_id_xref.put(query.getId(), query);
-            } // FOR
-        }
-        
         String proc_key = CatalogKey.createKey(catalog_proc);
         if (!this.proc_xact_xref.containsKey(proc_key)) {
             this.proc_xact_xref.put(proc_key, new ArrayList<TransactionTrace>());
@@ -699,16 +656,6 @@ public class Workload implements WorkloadTrace, Iterable<AbstractTraceElement<? 
             return (this.proc_xact_xref.get(proc_key));
         }
         return (new ArrayList<TransactionTrace>());
-    }
-    
-    /**
-     * Return the AbstractTraceElement object for the given id 
-     * @param id
-     * @return
-     */
-    @SuppressWarnings("unchecked")
-    public <T extends AbstractTraceElement<? extends CatalogType>> T getTraceObject(long id) {
-        return ((T)this.element_id_xref.get(id));
     }
     
     /**
@@ -843,8 +790,6 @@ public class Workload implements WorkloadTrace, Iterable<AbstractTraceElement<? 
         } else {
             xact_handle = new TransactionTrace(xact_id, catalog_proc, args);
             this.addTransaction(catalog_proc, xact_handle);
-            this.element_ids.add(xact_handle.getId());
-            this.element_id_xref.put(xact_handle.getId(), xact_handle);
             if (debug.get()) LOG.debug(String.format("Created %s TransactionTrace with %d parameters", proc_name, args.length));
             
             // HACK
@@ -971,8 +916,6 @@ public class Workload implements WorkloadTrace, Iterable<AbstractTraceElement<? 
             
             query_handle = new QueryTrace(catalog_statement, args, batch_id);
             xact.addQuery(query_handle);
-            this.element_ids.add(query_handle.getId());
-            this.element_id_xref.put(query_handle.getId(), query_handle);
             this.query_txn_xref.put(query_handle, txn_id);
             
             // Make sure that there aren't still running queries in the previous batch
