@@ -49,7 +49,7 @@ public class CombineWorkloadTraces {
         
         // This is basically a crappy merge sort...
         long ctr = 0;
-        long trace_id = 1;
+        long new_txn_id = 10000;
         while (true) {
             long min_timestamp = Long.MAX_VALUE;
             Integer min_idx = null;
@@ -69,14 +69,13 @@ public class CombineWorkloadTraces {
             int current_offset = next_idxs[min_idx];
             TransactionTrace xact = txns[min_idx].get(current_offset);
             
-            // Update trace ids so that we don't get duplicates
+            // Update txn ids so that we don't get duplicates
             // Fix the timestamps so that they are all the same
-            xact.id = trace_id++;
+            xact.txn_id = new_txn_id++;
             xact.start_timestamp -= relative_starts[min_idx];
             xact.stop_timestamp -= relative_starts[min_idx];
 //            if (next_idxs[min_idx] == 0) System.err.println(xact.debug(catalog_db));
             for (QueryTrace query_trace : xact.getQueries()) {
-                query_trace.id = trace_id++;
                 query_trace.start_timestamp -= relative_starts[min_idx];
                 if (query_trace.stop_timestamp == null) query_trace.stop_timestamp = query_trace.start_timestamp;
                 query_trace.stop_timestamp -= relative_starts[min_idx];

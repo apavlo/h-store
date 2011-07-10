@@ -21,7 +21,7 @@ public class TestMultiPartitionTxnFilter extends AbstractTestFilter {
     public void testSinglePartition() throws Exception {
         MultiPartitionTxnFilter filter = new MultiPartitionTxnFilter(p_estimator, true);
         
-        Iterator<AbstractTraceElement<? extends CatalogType>> it = workload.iterator(filter);
+        Iterator<TransactionTrace> it = workload.iterator(filter);
         assertNotNull(it);
 
         int count = 0;
@@ -46,7 +46,7 @@ public class TestMultiPartitionTxnFilter extends AbstractTestFilter {
     public void testMultiPartition() throws Exception {
         MultiPartitionTxnFilter filter = new MultiPartitionTxnFilter(p_estimator, false);
         
-        Iterator<AbstractTraceElement<? extends CatalogType>> it = workload.iterator(filter);
+        Iterator<TransactionTrace> it = workload.iterator(filter);
         assertNotNull(it);
 
         int count = 0;

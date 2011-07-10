@@ -63,7 +63,7 @@ public class TestQueryTrace extends TestTransactionTrace {
             QueryTrace copy_query = copy.getQueries().get(i);
             
             assertEquals(query.catalog_item_name, copy_query.catalog_item_name);
-            assertEquals(query.id, copy_query.id);
+            assertEquals(query.getBatchId(), copy_query.getBatchId());
             assertEquals(query.start_timestamp, copy_query.start_timestamp);
         
             assertEquals(query.params.length, copy_query.params.length);

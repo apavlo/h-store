@@ -712,11 +712,6 @@ public class MarkovCostModel extends AbstractCostModel {
     public void invalidateCache(String catalogKey) {
         // Nothing...
     }
-
-    @Override
-    public AbstractCostModel clone(Database catalogDb) throws CloneNotSupportedException {
-        return null;
-    }
     
     @Override
     public void prepareImpl(Database catalog_db) {

@@ -27,7 +27,7 @@ public class TestProcedureNameFilter extends AbstractTestFilter {
         String exclude = neworder.class.getSimpleName();
         ProcedureNameFilter filter = new ProcedureNameFilter().exclude(exclude);
         
-        Iterator<AbstractTraceElement<? extends CatalogType>> it = workload.iterator(filter);
+        Iterator<TransactionTrace> it = workload.iterator(filter);
         assertNotNull(it);
 
         int count = 0;
@@ -49,7 +49,7 @@ public class TestProcedureNameFilter extends AbstractTestFilter {
         String include = slev.class.getSimpleName();
         ProcedureNameFilter filter = new ProcedureNameFilter().include(include);
         
-        Iterator<AbstractTraceElement<? extends CatalogType>> it = workload.iterator(filter);
+        Iterator<TransactionTrace> it = workload.iterator(filter);
         assertNotNull(it);
 
         int count = 0;
@@ -80,18 +80,16 @@ public class TestProcedureNameFilter extends AbstractTestFilter {
             results.put(e.getKey(), 0);
         } // FOR
         
-        Iterator<AbstractTraceElement<? extends CatalogType>> it = workload.iterator(filter);
+        Iterator<TransactionTrace> it = workload.iterator(filter);
         assertNotNull(it);
 
         int count = 0;
         while (it.hasNext()) {
-            AbstractTraceElement<? extends CatalogType> element = it.next();
-            if (element instanceof TransactionTrace) {
-                String name = element.getCatalogItemName();
-                assert(results.containsKey(name)) : "Unexpected " + name;
-                results.put(name, results.get(name) + 1);
-                count++;
-            }
+            TransactionTrace element = it.next();
+            String name = element.getCatalogItemName();
+            assert(results.containsKey(name)) : "Unexpected " + name;
+            results.put(name, results.get(name) + 1);
+            count++;
         } // WHILE
         assert(count > 0);
         

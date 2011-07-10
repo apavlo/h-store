@@ -43,9 +43,8 @@ import edu.brown.designer.DesignerHints;
 import edu.brown.statistics.Histogram;
 import edu.brown.utils.PartitionEstimator;
 import edu.brown.utils.StringUtil;
-import edu.brown.workload.AbstractTraceElement;
-import edu.brown.workload.Workload;
 import edu.brown.workload.TransactionTrace;
+import edu.brown.workload.Workload;
 import edu.brown.workload.filters.Filter;
 
 /**
@@ -53,7 +52,7 @@ import edu.brown.workload.filters.Filter;
  * @author pavlo
  *
  */
-public abstract class AbstractCostModel implements Cloneable {
+public abstract class AbstractCostModel {
     private static final Logger LOG = Logger.getLogger(AbstractCostModel.class);
     
     /**
@@ -300,12 +299,6 @@ public abstract class AbstractCostModel implements Cloneable {
         }
     }
     
-    /**
-     * 
-     */
-    public abstract AbstractCostModel clone(Database catalog_db) throws CloneNotSupportedException;
-
-    
     // ----------------------------------------------------------------------------
     // DEBUGGING METHODS
     // ----------------------------------------------------------------------------
@@ -548,19 +541,16 @@ public abstract class AbstractCostModel implements Cloneable {
         this.prepare(catalog_db);
         double cost = 0.0d;
         
-        Iterator<AbstractTraceElement<?>> it = workload.iterator(filter);
+        Iterator<TransactionTrace> it = workload.iterator(filter);
         while (it.hasNext()) {
-            AbstractTraceElement<?> element = it.next();
-            if (element instanceof TransactionTrace) {
-                TransactionTrace xact = (TransactionTrace)element;
-                //System.out.println(xact.debug(this.catalog_db) + "\n");
-                try {
-                    cost += this.estimateTransactionCost(catalog_db, workload, filter, xact);
-                } catch (Exception ex) {
-                    LOG.error("Failed to estimate cost for " + xact.getCatalogItemName());
-                    CatalogUtil.saveCatalog(catalog_db.getCatalog(), "catalog.txt");
-                    throw ex;
-                }
+            TransactionTrace xact = it.next();
+            //System.out.println(xact.debug(this.catalog_db) + "\n");
+            try {
+                cost += this.estimateTransactionCost(catalog_db, workload, filter, xact);
+            } catch (Exception ex) {
+                LOG.error("Failed to estimate cost for " + xact.getCatalogItemName());
+                CatalogUtil.saveCatalog(catalog_db.getCatalog(), "catalog.txt");
+                throw ex;
             }
         } // WHILE
         return (cost);

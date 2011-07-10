@@ -49,7 +49,7 @@ public class TestProcParameterArraySizeFilter extends AbstractTestFilter {
     @Test
     public void testEquals() throws Exception {
         Filter filter = this.makeFilter(ExpressionType.COMPARE_EQUAL);
-        Iterator<AbstractTraceElement<? extends CatalogType>> it = workload.iterator(filter);
+        Iterator<TransactionTrace> it = workload.iterator(filter);
         assertNotNull(it);
 
         int count = 0;
@@ -78,7 +78,7 @@ public class TestProcParameterArraySizeFilter extends AbstractTestFilter {
     @Test
     public void testLessThan() throws Exception {
         Filter filter = this.makeFilter(ExpressionType.COMPARE_LESSTHAN);
-        Iterator<AbstractTraceElement<? extends CatalogType>> it = workload.iterator(filter);
+        Iterator<TransactionTrace> it = workload.iterator(filter);
         assertNotNull(it);
 
         int count = 0;

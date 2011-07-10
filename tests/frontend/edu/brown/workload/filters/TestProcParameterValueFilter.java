@@ -38,7 +38,7 @@ public class TestProcParameterValueFilter extends AbstractTestFilter {
         Filter filter = new ProcedureNameFilter().include(TARGET_PROCEDURE)
             .attach(new ProcParameterValueFilter().include(this.catalog_param, PARAM_VALUE));
         
-        Iterator<AbstractTraceElement<? extends CatalogType>> it = workload.iterator(filter);
+        Iterator<TransactionTrace> it = workload.iterator(filter);
         assertNotNull(it);
 
         int count = 0;
