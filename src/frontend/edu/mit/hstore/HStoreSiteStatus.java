@@ -14,6 +14,7 @@ import java.util.TreeSet;
 import java.util.Map.Entry;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.regex.Pattern;
 
 import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.commons.pool.ObjectPool;
@@ -52,6 +53,10 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
     }
     
     private static final String POOL_FORMAT = "Active:%-5d / Idle:%-5d / Created:%-5d / Destroyed:%-5d / Passivated:%-7d";
+    
+    
+    private static final Pattern THREAD_REGEX = Pattern.compile("(edu\\.brown|edu\\.mit|org\\.voltdb)");
+    
 
     private static final Set<TxnCounter> TXNINFO_COL_DELIMITERS = new HashSet<TxnCounter>();
     private static final Set<TxnCounter> TXNINFO_ALWAYS_SHOW = new HashSet<TxnCounter>();
@@ -334,6 +339,7 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
         final Map<Thread, StackTraceElement[]> threads = Thread.getAllStackTraces();
         sortedThreads.clear();
         sortedThreads.addAll(threads.keySet());
+        
         m_thread.put("Number of Threads", threads.size());
         for (Thread t : sortedThreads) {
             StackTraceElement stack[] = threads.get(t);
@@ -343,7 +349,14 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
 //            } else if (t.getName().startsWith("Thread-")) {
 //                trace = Arrays.toString(stack);
             } else {
-                trace = stack[0].toString();
+                // Find the first line that is interesting to us
+                for (int i = 0; i < stack.length; i++) {
+                    if (THREAD_REGEX.matcher(stack[i].getClassName()).matches()) {
+                        trace = stack[i].toString();
+                        break;
+                    }
+                } // FOR
+                if (trace == null) stack[0].toString();
             }
             m_thread.put(StringUtil.abbrv(t.getName(), 24, true), trace);
         } // FOR

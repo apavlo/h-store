@@ -134,6 +134,7 @@ void JNITopend::crashVoltDB(FatalException e) {
         jstring traceString = m_jniEnv->NewStringUTF(e.m_traces[ii].c_str());
         m_jniEnv->SetObjectArrayElement( jTracesArray, ii, traceString);
     }
+    VOLT_ERROR("The EE is crashing!");
     m_jniEnv->CallStaticVoidMethod(
             m_jniEnv->GetObjectClass(m_javaExecutionEngine),
             m_crashVoltDBMID,

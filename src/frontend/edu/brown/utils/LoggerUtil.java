@@ -103,12 +103,10 @@ public abstract class LoggerUtil {
     }
     
     protected static synchronized void loadConfiguration(File file) {
-        if (PROPERTIES_FILE == null || PROPERTIES_FILE.equals(file) == false) {
-            org.apache.log4j.PropertyConfigurator.configure(file.getAbsolutePath());
-            Logger.getRootLogger().debug("Loaded log4j configuration file '" + file.getAbsolutePath() + "'");
-            PROPERTIES_FILE = file;
-            LAST_TIMESTAMP = file.lastModified();
-        }
+        org.apache.log4j.PropertyConfigurator.configure(file.getAbsolutePath());
+        Logger.getRootLogger().debug("Loaded log4j configuration file '" + file.getAbsolutePath() + "'");
+        PROPERTIES_FILE = file;
+        LAST_TIMESTAMP = file.lastModified();
     }
     
     public static void refreshLogging(final long interval) {
@@ -127,8 +125,8 @@ public abstract class LoggerUtil {
                         }
                         // Refresh our configuration if the file has changed
                         if (PROPERTIES_FILE != null && LAST_TIMESTAMP != PROPERTIES_FILE.lastModified()) {
-                            PROPERTIES_FILE = null;
                             loadConfiguration(PROPERTIES_FILE);
+                            assert(PROPERTIES_FILE != null);
                             Logger.getRootLogger().info("Refreshed log4j configuration [" + PROPERTIES_FILE.getAbsolutePath() + "]");
                             LoggerUtil.OBSERVABLE.notifyObservers();
                         }

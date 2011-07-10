@@ -57,6 +57,7 @@ public class ProcessSetManager implements Shutdownable {
     }
     
     
+    final int initial_polling_delay; 
     final File output_directory;
     final EventObservable failure_observable = new EventObservable();
     final LinkedBlockingQueue<OutputLine> m_output = new LinkedBlockingQueue<OutputLine>();
@@ -89,6 +90,11 @@ public class ProcessSetManager implements Shutdownable {
         public final String processName;
         public final Stream stream;
         public final String value;
+        
+        @Override
+        public String toString() {
+            return String.format("{%s, %s, \"%s\"}", processName, stream, value);
+        }
     }
 
     static Set<Process> createdProcesses = new HashSet<Process>();
@@ -113,11 +119,11 @@ public class ProcessSetManager implements Shutdownable {
         
         @Override
         public void run() {
-            LOG.debug("Starting ProcessSetPoller");
+            if (debug.get()) LOG.debug("Starting ProcessSetPoller [initialDelay=" + initial_polling_delay + "]");
             boolean first = true;
             while (true) {
                 try {
-                    Thread.sleep(first ? 60000 : 5000);
+                    Thread.sleep(first ? initial_polling_delay : 5000);
                 } catch (InterruptedException ex) {
                     if (shutting_down == false) ex.printStackTrace();
                     break;
@@ -205,13 +211,14 @@ public class ProcessSetManager implements Shutdownable {
         }
     }
     
-    public ProcessSetManager(String log_dir, EventObserver observer) {
+    public ProcessSetManager(String log_dir, int initial_polling_delay, EventObserver observer) {
         this.output_directory = (log_dir != null ? new File(log_dir) : null);
+        this.initial_polling_delay = initial_polling_delay;
         this.failure_observable.addObserver(observer);
     }
     
     public ProcessSetManager() {
-        this(null, null);
+        this(null, 10000, null);
     }
     
     @Override

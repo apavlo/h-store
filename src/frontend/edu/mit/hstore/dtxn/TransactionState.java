@@ -209,6 +209,7 @@ public abstract class TransactionState implements Poolable {
         
         this.exec_readOnly = true;
         this.exec_eeWork = false;
+        this.exec_noUndoBuffer = false;
         
         this.touched_partitions.clear();
         this.fragment_callbacks.clear();
@@ -332,6 +333,9 @@ public abstract class TransactionState implements Poolable {
     public boolean isExecNoUndoBuffer() {
         return (this.exec_noUndoBuffer);
     }
+    public void markExecNoUndoBuffer() {
+        this.exec_noUndoBuffer = true;
+    }
     /**
      * Returns true if this transaction's control code running at this partition 
      */
@@ -378,6 +382,9 @@ public abstract class TransactionState implements Poolable {
      */
     public RuntimeException getPendingError() {
         return (this.pending_error);
+    }
+    public String getPendingErrorMessage() {
+        return (this.pending_error != null ? this.pending_error.getMessage() : null);
     }
     /**
      * 

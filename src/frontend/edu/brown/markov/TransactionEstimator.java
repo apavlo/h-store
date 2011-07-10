@@ -504,20 +504,19 @@ public class TransactionEstimator implements Loggable {
             
             // Calculate initial path estimate
             if (t) LOG.trace("Estimating initial execution path for " + TransactionState.formatTxnName(catalog_proc, txn_id));
+            start.addInstanceTime(txn_id, start_time);
             synchronized (markov) {
-                start.addInstanceTime(txn_id, start_time);
                 try {
                     estimator.traverse(start);
                     // if (catalog_proc.getName().equalsIgnoreCase("NewBid")) throw new Exception ("Fake!");
                 } catch (Throwable e) {
-                    LOG.error("Failed to estimate path for " + TransactionState.formatTxnName(catalog_proc, txn_id), e);
                     try {
                         GraphvizExport<Vertex, Edge> gv = MarkovUtil.exportGraphviz(markov, true, markov.getPath(estimator.getVisitPath()));
                         LOG.error("GRAPH #" + markov.getGraphId() + " DUMP: " + gv.writeToTempFile(catalog_proc));
                     } catch (Exception ex) {
                         throw new RuntimeException(ex);
                     }
-                    throw new RuntimeException(e);
+                    throw new RuntimeException("Failed to estimate path for " + TransactionState.formatTxnName(catalog_proc, txn_id), e);
                 }
             } // SYNCH
         } else {

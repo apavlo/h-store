@@ -450,7 +450,11 @@ public class MarkovPathEstimator extends VertexTreeWalker<Vertex, Edge> implemen
                         if (next.isEqual(catalog_stmt, this.stmt_partitions, this.past_partitions, catalog_stmt_index)) {
                             // BINGO!!!
                             assert(this.candidate_edge == null);
-                            this.candidate_edge = markov.findEdge(element, next);
+                            try {
+                                this.candidate_edge = markov.findEdge(element, next);
+                            } catch (NullPointerException ex) {
+                                continue;
+                            }
                             assert(this.candidate_edge != null);
 
                             this.candidates.add(this.candidate_edge);
@@ -481,7 +485,8 @@ public class MarkovPathEstimator extends VertexTreeWalker<Vertex, Edge> implemen
 //                this.candidates.add(candidate_edge);
 //                LOG.info("Created a new vertex " + v);
 //            } else {
-                this.candidates.addAll(markov.getOutEdges(element));
+            Collection<Edge> out_edges = markov.getOutEdges(element);
+            if (out_edges != null) this.candidates.addAll(out_edges);
 //            }
             num_candidates = this.candidates.size();
             was_forced = true;

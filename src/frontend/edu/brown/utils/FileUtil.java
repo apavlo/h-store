@@ -31,6 +31,7 @@ import org.apache.log4j.Logger;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.regex.Pattern;
 import java.util.zip.GZIPInputStream;
 
 /**
@@ -39,6 +40,8 @@ import java.util.zip.GZIPInputStream;
 public abstract class FileUtil {
     private static final Logger LOG = Logger.getLogger(FileUtil.class);
 
+    private static final Pattern EXT_SPLIT = Pattern.compile("\\.");
+    
     public static boolean exists(String path) {
         return (new File(path).exists());
     }
@@ -56,6 +59,17 @@ public abstract class FileUtil {
     
     public static String basename(String path) {
         return (new File(path)).getName();
+    }
+    
+    public static String getExtension(File f) {
+        if (f != null && f.isFile()) {
+            String parts[] = EXT_SPLIT.split(f.getName());
+            if (parts.length > 1) {
+                return (parts[parts.length-1]);
+            }
+        }
+        return (null);
+            
     }
     
     /**
@@ -79,10 +93,16 @@ public abstract class FileUtil {
      * @return
      */
     public static File getTempFile(String ext, boolean deleteOnExit) {
+        return getTempFile(null, ext, deleteOnExit);
+    }
+    
+    public static File getTempFile(String prefix, String suffix, boolean deleteOnExit) {
         File tempFile;
-        if (ext.startsWith(".") == false) ext = "." + ext;
+        if (suffix != null && suffix.startsWith(".") == false) suffix = "." + suffix;
+        if (prefix == null) prefix = "hstore";
+        
         try {
-            tempFile = File.createTempFile("hstore", ext);
+            tempFile = File.createTempFile(prefix, suffix);
             if (deleteOnExit) tempFile.deleteOnExit();
         } catch (Exception ex) {
             throw new RuntimeException(ex);

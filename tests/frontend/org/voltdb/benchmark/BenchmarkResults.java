@@ -155,7 +155,7 @@ class BenchmarkResults {
                 Result r = new Result(offsetTime, entry.getValue());
                 ArrayList<Result> results = m_data.get(clientName).get(entry.getKey());
                 assert(results != null);
-                assert(results.size() == pollIndex);
+                assert(results.size() == pollIndex) : String.format("[%d] %s => %s", pollIndex, entry, results);
                 results.add(r);
             }
         }

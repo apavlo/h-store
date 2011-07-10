@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -12,6 +13,7 @@ import java.util.Set;
 import java.util.SortedMap;
 import java.util.TreeMap;
 import java.util.Map.Entry;
+import java.util.concurrent.ConcurrentHashMap;
 
 import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.log4j.Logger;
@@ -59,7 +61,7 @@ public class MarkovGraphsContainer implements JSONSerializable {
     /**
      * 
      */
-    private final SortedMap<Integer, Map<Procedure, MarkovGraph>> markovs = new TreeMap<Integer, Map<Procedure, MarkovGraph>>();
+    private final Map<Integer, Map<Procedure, MarkovGraph>> markovs = Collections.synchronizedMap(new TreeMap<Integer, Map<Procedure, MarkovGraph>>());
     
     /**
      * The procedures that we actually want to load. If this is null, then we will load everything
@@ -160,7 +162,12 @@ public class MarkovGraphsContainer implements JSONSerializable {
         assert(id != null) : "Invalid id";
         Map<Procedure, MarkovGraph> inner = this.markovs.get(id);
         if (inner == null) {
-            inner = new HashMap<Procedure, MarkovGraph>();
+            synchronized (this.markovs) {
+                inner = this.markovs.get(id);
+                if (inner == null) {
+                    inner = new ConcurrentHashMap<Procedure, MarkovGraph>();
+                }
+            } // SYNCH
             this.markovs.put(id, inner);
         }
         inner.put(markov.getProcedure(), markov);

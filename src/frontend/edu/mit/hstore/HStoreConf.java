@@ -177,6 +177,14 @@ public final class HStoreConf {
             experimental=true
         )
         public boolean exec_no_undo_logging;
+
+        @ConfigProperty(
+            description="All transactions are executed without any undo logging. For testing purposes only.",
+            defaultBoolean=false,
+            advanced=true,
+            experimental=true
+        )
+        public boolean exec_no_undo_logging_all;
         
         @ConfigProperty(
             description="If this parameter is set to true, then each HStoreSite will not send every transaction request " +

@@ -180,6 +180,11 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
     public static final String formatPartitionName(int site_id, int partition_id) {
         return (HStoreSite.getThreadName(site_id, null, partition_id));
     }
+    
+    /**
+     * TODO
+     */
+    private static HStoreSite SHUTDOWN_HANDLE = null;
 
     // ----------------------------------------------------------------------------
     // OBJECT POOLS
@@ -604,6 +609,11 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         
         // Add in our shutdown hook
         Runtime.getRuntime().addShutdownHook(new Thread(new ShutdownHook()));
+        
+        // And mark ourselves as the current HStoreSite in case somebody wants to take us down!
+        synchronized (HStoreSite.class) {
+            if (SHUTDOWN_HANDLE == null) SHUTDOWN_HANDLE = this;
+        } // SYNCH
     }
     
     /**
@@ -679,6 +689,17 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
     // ----------------------------------------------------------------------------
     // HSTORESTITE SHUTDOWN STUFF
     // ----------------------------------------------------------------------------
+    
+    public static void crash() {
+        if (SHUTDOWN_HANDLE != null) {
+            SHUTDOWN_HANDLE.messenger.shutdownCluster();
+        } else {
+            LOG.fatal("H-Store has encountered an unrecoverable error and is exiting.");
+            LOG.fatal("The log may contain additional information.");
+            System.exit(-1);
+        }
+        
+    }
     
     /**
      * Shutdown Hook Thread
@@ -928,7 +949,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         // -------------------------------
         
         boolean predict_singlePartitioned = false;
-        boolean predict_abortable = true;
+        boolean predict_abortable = (hstore_conf.site.exec_no_undo_logging_all == false);
         boolean predict_readOnly = catalog_proc.getReadonly();
         TransactionEstimator.State t_state = null; 
         
@@ -997,12 +1018,16 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
                         }
                         predict_singlePartitioned = m_estimate.isSinglePartition(this.thresholds);
                         predict_readOnly = m_estimate.isReadOnlyAllPartitions(this.thresholds);
-                        predict_abortable = (predict_singlePartitioned == false || predict_readOnly == false || m_estimate.isAbortable(this.thresholds));
-//                        if (catalog_proc.getName().equals("slev") && predict_abortable) {
-//                            LOG.info("predict_singlePartition = " + predict_singlePartition);
-//                            LOG.info("predict_readonly        = " + predict_readonly);
-//                            LOG.info("isAbortable             =  " + m_estimate.isAbortable(this.thresholds));
+                        predict_abortable = (predict_singlePartitioned == false || m_estimate.isAbortable(this.thresholds)); // || predict_readOnly == false
+//                        if (catalog_proc.getName().startsWith("payment") && predict_abortable == true) {
+//                            LOG.info(catalog_proc.getName() + " -> predict_singlePartition = " + predict_singlePartitioned);
+//                            LOG.info(catalog_proc.getName() + " -> predict_readonly        = " + predict_readOnly);
+//                            LOG.info(catalog_proc.getName() + " -> isAbortable             =  " + m_estimate.isAbortable(this.thresholds));
 //                            LOG.info("MARKOV ESTIMATE:\n" + m_estimate);
+//                            MarkovGraph markov = t_state.getMarkovGraph();
+//                            GraphvizExport<Vertex, Edge> gv = MarkovUtil.exportGraphviz(markov, true, markov.getPath(t_state.getInitialPath()));
+//                            gv.highlightPath(markov.getPath(t_state.getActualPath()), "blue");
+//                            System.err.println("WROTE MARKOVGRAPH: " + gv.writeToTempFile(catalog_proc));
 //                            this.messenger.shutdownCluster(new RuntimeException("BUSTED!"), false);
 //                        }
                     }
@@ -1493,7 +1518,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
      */
     public void requestFinish(LocalTransactionState ts, Dtxn.FinishRequest request, RpcCallback<Dtxn.FinishResponse> callback) {
         this.initializationBlock(ts);
-        if (d) LOG.debug(String.format("Telling the Dtxn.Coordinator to finish %s [commit=%s]", ts, request.getCommit()));
+        if (d) LOG.debug(String.format("Telling the Dtxn.Coordinator to finish %s [commit=%s, error=%s]", ts, request.getCommit(), ts.getPendingErrorMessage()));
         if (hstore_conf.site.txn_profiling) ts.profiler.startCoordinatorBlocked();
         this.coordinator.finish(ts.rpc_request_finish, request, callback);
     }

@@ -21,6 +21,8 @@ import java.io.File;
 import java.util.Map;
 import java.util.TimeZone;
 
+import edu.mit.hstore.HStoreSite;
+
 /**
  * <code>VoltDB</code> is the main class for VoltDB server.
  * It sets up global objects and then starts the individual threads
@@ -211,9 +213,10 @@ public class VoltDB {
             System.err.println(t.toString());
         }
 
-        System.err.println("VoltDB has encountered an unrecoverable error and is exiting.");
-        System.err.println("The log may contain additional information.");
-        System.exit(-1);
+        HStoreSite.crash();
+//        System.err.println("VoltDB has encountered an unrecoverable error and is exiting.");
+//        System.err.println("The log may contain additional information.");
+//        System.exit(-1);
     }
 
     /**

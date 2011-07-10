@@ -74,6 +74,8 @@ public class BenchmarkConfig {
     
     public String coordinatorHost;
     
+    public int client_initialPollingDelay;
+    
     public boolean compileBenchmark;
     public boolean compileOnly;
     public boolean useCatalogHosts;
@@ -169,6 +171,7 @@ public class BenchmarkConfig {
             boolean listenForDebugger,
             int serverHeapSize,
             int clientHeapSize,
+            int client_polling_delay,
             boolean localmode,
             float checkTransaction,
             boolean checkTables,
@@ -221,6 +224,7 @@ public class BenchmarkConfig {
         this.remoteUser = remoteUser;
         this.listenForDebugger = listenForDebugger;
         this.clientHeapSize = clientHeapSize;
+        this.client_initialPollingDelay = client_polling_delay;
         this.localmode = localmode;
         this.checkTransaction = checkTransaction;
         this.checkTables = checkTables;

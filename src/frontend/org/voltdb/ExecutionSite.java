@@ -59,6 +59,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.Semaphore;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -769,7 +770,8 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
             if (this.isShuttingDown() == false) LOG.fatal("Unexpected error for ExecutionSite partition #" + this.partitionId, ex);
             this.hstore_messenger.shutdownCluster(new Exception(ex));
         } finally {
-            if (d) LOG.debug("ExecutionSite is stopping");
+//            if (d) 
+                LOG.info("ExecutionSite is stopping. In-Flight Txn: " + ts);
             
             // Release the shutdown latch in case anybody waiting for us
             this.shutdown_latch.countDown();
@@ -1330,8 +1332,6 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
     protected VoltTable[] executeLocalPlan(LocalTransactionState ts, BatchPlanner.BatchPlan plan) {
         long undoToken = ExecutionSite.DISABLE_UNDO_LOGGING_TOKEN;
         
-//        LOG.info(String.format("%s: predict_canAbort=%s, conf.exec_no_undo_logging=%s", ts, ts.isPredictAbortable(), hstore_conf.site.exec_no_undo_logging));
-
         // If we originally executed this transaction with undo buffers and we have a MarkovEstimate,
         // then we can go back and check whether we want to disable undo logging for the rest of the transaction
         // We can do this regardless of whether the transaction has written anything <-- NOT TRUE!
@@ -1344,7 +1344,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
                 LOG.debug(String.format("Bold! Disabling undo buffers for inflight %s [prob=%f]\n%s\n%s",
                                         ts, est.getAbortProbability(), est, plan.toString()));
             }
-        } else {
+        } else if (hstore_conf.site.exec_no_undo_logging_all == false) {
             undoToken = this.getNextUndoToken();
         }
         ts.fastInitRound(undoToken);
@@ -1370,16 +1370,6 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
                 sb.append(String.format("\n [%02d] %s", i, parameterSets[i].toString()));
             }
             LOG.trace(sb.toString());
-
-//        FragmentTaskMessage ftask = plan.getFragmentTaskMessages().get(0);
-//        LOG.info(String.format("Txn #%d - FTASK:\n" +
-//                "  fragmentIds:     %s\n" + 
-//                "  fragmentIdIndex: %s\n" +
-//                "  output_depIds:   %s\n" +
-//                "  input_depIds:    %s",
-//                local_ts.getTransactionId(),
-//                Arrays.toString(ftask.getFragmentIds()), ftask.getFragmentCount(), Arrays.toString(ftask.getOutputDependencyIds()), Arrays.toString(ftask.getAllUnorderedInputDepIds())));
-
             LOG.trace(String.format("Txn #%d - BATCHPLAN:\n" +
                      "  fragmentIds:     %s\n" + 
                      "  fragmentIdIndex: %s\n" +
@@ -1463,9 +1453,8 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
             if (hstore_conf.site.txn_profiling && ts instanceof LocalTransactionState) {
                 ((LocalTransactionState)ts).profiler.stopExecEE();
             }
-        } catch (RuntimeException ex) {
-            LOG.error(String.format("Failed to execute PlanFragments for %s: %s", ts, Arrays.toString(fragmentIds)), ex);
-            throw ex;
+        } catch (Throwable ex) {
+            new RuntimeException(String.format("Failed to execute PlanFragments for %s: %s", ts, Arrays.toString(fragmentIds)), ex);
         }
         
         if (t) LOG.trace(String.format("Executed fragments %s and got back results %s",
@@ -1637,7 +1626,9 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
         // If we're a multi-partition txn then queue this mofo immediately
         if (ts.isPredictSinglePartition() == false) {
             if (t) LOG.trace(String.format("Adding %s to work queue at partition %d [size=%d]", ts, this.partitionId, this.work_queue.size()));
-            this.work_queue.add(task);
+            synchronized (this.work_queue) {
+                this.work_queue.addFirst(task);    
+            }
 
         // If we're a single-partition and speculative execution is enabled, then we can always set it up now
         } else if (hstore_conf.site.exec_speculative_execution && this.exec_mode != ExecutionMode.DISABLED) {
@@ -1989,14 +1980,19 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
                 LOG.debug(String.format("All blocked messages dispatched for %s. Waiting for %d dependencies", ts, latch.getCount()));
                 if (t) LOG.trace(ts.toString());
             }
-            try {
-                latch.await();
-            } catch (InterruptedException ex) {
-                if (this.hstore_site.isShuttingDown() == false) LOG.error("We were interrupted while waiting for results for " + ts, ex);
-                return (null);
-            } catch (Throwable ex) {
-                new RuntimeException(String.format("Fatal error for %s while waiting for results", ts), ex);
-            }
+            while (true) {
+                boolean done = false;
+                try {
+                    done = latch.await(10000, TimeUnit.MILLISECONDS);
+                } catch (InterruptedException ex) {
+                    if (this.hstore_site.isShuttingDown() == false) LOG.error("We were interrupted while waiting for results for " + ts, ex);
+                    return (null);
+                } catch (Throwable ex) {
+                    new RuntimeException(String.format("Fatal error for %s while waiting for results", ts), ex);
+                }
+                if (done) break;
+                LOG.warn("Still waiting for responses for " + ts + "\n" + ts.debug());
+            } // WHILE
         }
         
 //        if (hstore_conf.site.txn_profiling) ts.profiler.stopExecCoordinatorBlocked();
@@ -2134,24 +2130,31 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
         //  (3) The transaction was executed with undo buffers
         //  (4) The transaction actually submitted work to the EE
         //  (5) The transaction modified data at this partition
-        if (this.ee != null && ts.hasSubmittedEE() && ts.isExecReadOnly() == false && undoToken != null && undoToken != Long.MAX_VALUE) {
-            synchronized (this.ee) {
-                if (commit) {
-                    if (d) LOG.debug(String.format("Committing %s at partition=%d [lastTxnId=%d, undoToken=%d, submittedEE=%s]",
-                                                   ts, this.partitionId, this.lastCommittedTxnId, undoToken, ts.hasSubmittedEE()));
-                    this.ee.releaseUndoToken(undoToken);
-    
-                // Evan says that txns will be aborted LIFO. This means the first txn that
-                // we get in abortWork() will have a the greatest undoToken, which means that 
-                // it will automagically rollback all other outstanding txns.
-                // I'm lazy/tired, so for now I'll just rollback everything I get, but in theory
-                // we should be able to check whether our undoToken has already been rolled back
-                } else {
-                    if (d) LOG.debug(String.format("Aborting %s at partition=%d [lastTxnId=%d, undoToken=%d, submittedEE=%s]",
-                                                   ts, this.partitionId, this.lastCommittedTxnId, undoToken, ts.hasSubmittedEE()));
-                    this.ee.undoUndoToken(undoToken);
+        if (this.ee != null && ts.hasSubmittedEE() && ts.isExecReadOnly() == false && undoToken != null) {
+            if (undoToken == ExecutionSite.DISABLE_UNDO_LOGGING_TOKEN) {
+                if (commit == false) {
+                    LOG.fatal(ts.debug());
+                    this.crash(new RuntimeException("TRYING TO ABORT TRANSACTION WITHOUT UNDO LOGGING: "+ ts));
                 }
-            } // SYNCH
+            } else {
+                synchronized (this.ee) {
+                    if (commit) {
+                        if (d) LOG.debug(String.format("Committing %s at partition=%d [lastTxnId=%d, undoToken=%d, submittedEE=%s]",
+                                                       ts, this.partitionId, this.lastCommittedTxnId, undoToken, ts.hasSubmittedEE()));
+                        this.ee.releaseUndoToken(undoToken);
+        
+                    // Evan says that txns will be aborted LIFO. This means the first txn that
+                    // we get in abortWork() will have a the greatest undoToken, which means that 
+                    // it will automagically rollback all other outstanding txns.
+                    // I'm lazy/tired, so for now I'll just rollback everything I get, but in theory
+                    // we should be able to check whether our undoToken has already been rolled back
+                    } else {
+                        if (d) LOG.debug(String.format("Aborting %s at partition=%d [lastTxnId=%d, undoToken=%d, submittedEE=%s]",
+                                                       ts, this.partitionId, this.lastCommittedTxnId, undoToken, ts.hasSubmittedEE()));
+                        this.ee.undoUndoToken(undoToken);
+                    }
+                } // SYNCH
+            }
         }
         
         // We always need to do the following things regardless if we hit up the EE or not
