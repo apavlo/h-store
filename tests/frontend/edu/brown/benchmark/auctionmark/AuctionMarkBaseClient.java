@@ -50,11 +50,6 @@ public abstract class AuctionMarkBaseClient extends ClientMain {
     protected final Logger LOG;
     
     /**
-     * Default save location of the AuctionMarkBenchmarkProfile file
-     */
-    public static final String DEFAULT_PROFILE_PATH = "/tmp/" + AuctionMarkProjectBuilder.type.name().toLowerCase() + ".profile";
-    
-    /**
      * Benchmark Profile
      */
     protected final AuctionMarkBenchmarkProfile profile;
@@ -89,7 +84,7 @@ public abstract class AuctionMarkBaseClient extends ClientMain {
         LOG = Logger.getLogger(child_class);
         this.debug = LOG.isDebugEnabled();
         
-        Integer scale_factor = 1;
+        Double scale_factor = 1.0;
         String profile_file = null;
         int seed = 0;
         String randGenClassName = DefaultRandomGenerator.class.getName();
@@ -101,7 +96,7 @@ public abstract class AuctionMarkBaseClient extends ClientMain {
 
             // Scale Factor
             if (key.equalsIgnoreCase("SCALEFACTOR")) {
-                scale_factor = Integer.parseInt(value);
+                scale_factor = Double.parseDouble(value);
             // Benchmark Profile File
             } else if (key.equalsIgnoreCase("BENCHMARKPROFILE")) {
                 profile_file = value;
@@ -124,17 +119,19 @@ public abstract class AuctionMarkBaseClient extends ClientMain {
         // BenchmarkProfile
         // Only load from the file for AuctionMarkClient
         this.profile = new AuctionMarkBenchmarkProfile();
-        this.profile_path = new File(profile_file == null ? DEFAULT_PROFILE_PATH : profile_file);
         if (child_class.equals(AuctionMarkClient.class)) {
+            this.profile_path = new File(profile_file);
             if (this.profile_path.exists()) {
                 try {
-                    LOG.debug("Loading Profile: " + this.profile_path.getAbsolutePath());
+                    LOG.info("Loading Profile: " + this.profile_path.getAbsolutePath());
                     this.profile.load(this.profile_path.getAbsolutePath(), null);
                 } catch (Exception ex) {
                     LOG.error("Failed to load benchmark profile file '" + this.profile_path + "'", ex);
                     System.exit(1);
                 }
             }
+        } else {
+            this.profile_path = null;
         }
         if (scale_factor != null) this.profile.setScaleFactor(scale_factor);
         
@@ -160,8 +157,9 @@ public abstract class AuctionMarkBaseClient extends ClientMain {
                 LOG.fatal("Unexpected error", ex);
             }
         }
-        if (this.debug) LOG.debug("Data Directory: " + dataDir);
         this.data_directory = dataDir;
+        if (this.data_directory == null) LOG.warn("No data directory was set!");
+        else LOG.debug("AuctionMark Data Directory: " + dataDir);
         
         // Random Generator
         AbstractRandomGenerator rng = null;
@@ -190,16 +188,24 @@ public abstract class AuctionMarkBaseClient extends ClientMain {
      * Save the information stored in the BenchmarkProfile out to a file 
      * @throws IOException
      */
-    public void saveProfile() {
-        assert(this.profile_path != null);
+    public File saveProfile() {
         assert(this.profile != null);
-        if (this.debug) LOG.debug("Saving BenchmarkProfile to '" + this.profile_path + "'");
+        File f = FileUtil.getTempFile("profile", false);
+        if (this.debug) LOG.debug("Saving BenchmarkProfile to '" + f + "'");
         try {
-            this.profile.save(this.profile_path.getAbsolutePath());
+            this.profile.save(f.getAbsolutePath());
         } catch (IOException ex) {
             LOG.fatal("Failed to save BenchmarkProfile", ex);
             System.exit(1);
         }
+        try {
+            for (int i = 0; i < this.getNumClients(); i++) {
+                this.sendFileToClient(i, "BENCHMARKPROFILE", f);
+            } // FOR
+        } catch (Exception ex) {
+            throw new RuntimeException(ex);
+        }
+        return (f);
     }
 
     /**

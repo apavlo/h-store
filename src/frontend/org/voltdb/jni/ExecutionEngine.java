@@ -42,6 +42,8 @@ import org.voltdb.utils.LogKeys;
 import org.voltdb.utils.VoltLoggerFactory;
 import org.voltdb.utils.DBBPool.BBContainer;
 
+import edu.brown.utils.StringUtil;
+
 /**
  * Wrapper for native Execution Engine library. There are two implementations,
  * one using JNI and one using IPC. ExecutionEngine provides a consistent interface
@@ -224,11 +226,8 @@ public abstract class ExecutionEngine implements FastDeserializer.Deserializatio
      */
     public static void crashVoltDB(String reason, String traces[], String filename, int lineno) {
         if (reason != null) {
-            System.err.println(reason);
-            System.err.println("In " + filename + ":" + lineno);
-            for ( String trace : traces) {
-                System.err.println(trace);
-            }
+            LOG.fatal("ExecutionEngine requested that we crash: " + reason);
+            LOG.fatal("Error was in " + filename + ":" + lineno + "\n" + StringUtil.join("\n", traces));
         }
         VoltDB.crashVoltDB();
     }

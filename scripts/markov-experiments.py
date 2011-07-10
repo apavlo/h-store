@@ -11,6 +11,7 @@ import shutil
 import logging
 import getopt
 import string
+import math
 from pprint import pprint, pformat
 
 logging.basicConfig(level = logging.INFO,
@@ -22,11 +23,12 @@ logging.basicConfig(level = logging.INFO,
 ## CONFIGURATION PARAMETERS
 ## ==============================================
 
-EXPERIMENT_PARAMS = {
+EXPERIMENT_SETTINGS = {
     "motivation": [
         ## Trial #0 - Always multi-partition (worst case scenario)
         {
             "benchmark.neworder_only":          True,
+            "benchmark.neworder_abort":         True,
             "site.exec_force_singlepartitioned":False,
             "site.exec_neworder_cheat":         False,
             "site.exec_neworder_cheat_done":    False,
@@ -36,6 +38,7 @@ EXPERIMENT_PARAMS = {
         ## Trial #1 - NewOrder Only, Only determines whether multi-p or not
         {
             "benchmark.neworder_only":          True,
+            "benchmark.neworder_abort":         True,
             "site.exec_force_singlepartitioned":False,
             "site.exec_neworder_cheat":         True,
             "site.exec_neworder_cheat_done":    False,
@@ -45,11 +48,23 @@ EXPERIMENT_PARAMS = {
         ## Trial #2 - NewOrder Only, Pick partitions, Mark Done
         {
             "benchmark.neworder_only":          True,
+            "benchmark.neworder_abort":         True,
             "site.exec_force_singlepartitioned":False,
             "site.exec_neworder_cheat":         True,
             "site.exec_neworder_cheat_done":    True,
             "site.exec_db2_redirects":          False,
-            "site.exec_speculative_execution":  False,
+            "site.exec_speculative_execution":  True,
+        },
+        ## Trial #2 - NewOrder Only, Pick partitions, Mark Done, No Aborts
+        {
+            "benchmark.neworder_only":          True,
+            "benchmark.neworder_abort":         False,
+            "site.exec_no_undo_logging_all":    True,
+            "site.exec_force_singlepartitioned":False,
+            "site.exec_neworder_cheat":         True,
+            "site.exec_neworder_cheat_done":    True,
+            "site.exec_db2_redirects":          False,
+            "site.exec_speculative_execution":  True,
         },
     ],
     "markov": [
@@ -81,6 +96,14 @@ EXPERIMENT_PARAMS = {
             "site.exec_db2_redirects":          False,
             "site.exec_speculative_execution":  True,
         },
+        ## Trial #3 - Testing - Always single-partition
+        {
+            "site.exec_force_singlepartitioned":True,
+            "site.exec_neworder_cheat":         False,
+            "site.exec_neworder_cheat_done":    False,
+            "site.exec_db2_redirects":          False,
+            "site.exec_speculative_execution":  False,
+        },
     ],
     "thresholds": [
         {
@@ -106,7 +129,7 @@ OPT_HOST_FORMAT = "d-%02d.cs.wisc.edu"
 OPT_HOSTS_FILE = ""
 
 OPT_COORDINATOR_HOST = ""
-OPT_COORDINATOR_DELAY = 0
+OPT_COORDINATOR_DELAY = -1
 
 OPT_SITES_PER_NODE = 1
 OPT_PARTITIONS_PER_SITE = 4
@@ -126,7 +149,7 @@ OPT_MARKOV_RECOMPUTE_END = False
 OPT_MARKOV_RECOMPUTE_WARMUP = False
 OPT_MARKOV_DIRECTORY = "files/markovs/vldb-june2011"
 
-OPT_CLUSTER_DIRECTORY = "/tmp/hstore/clusters"
+OPT_CLUSTER_DIRECTORY = "/tmp/hstore-pavlo/clusters"
 OPT_TRACE_DIRECTORY = "traces"
 
 OPT_OUTPUT_LOG = "markov-experiments.log"
@@ -303,10 +326,12 @@ if __name__ == '__main__':
         logging.info("Initialized %s project jar [hosts=%d, sites=%d, partitions=%d]" % (OPT_BENCHMARK.upper(), num_nodes, num_sites, num_partitions))
     
         CLIENT_TXNRATE = int(OPT_TXNRATE)
+        
+        coordinator_delay = 0 if OPT_COORDINATOR_DELAY == -1 else OPT_COORDINATOR_DELAY
     
         hstore_opts = {
             "coordinator.host":             COORDINATOR_HOST,
-            "coordinator.delay":            OPT_COORDINATOR_DELAY,
+            "coordinator.delay":            int(coordinator_delay),
             "client.duration":              OPT_DURATION,
             "client.warmup":                OPT_WARMUP,
             "client.host":                  ",".join(CLIENT_HOSTS),
@@ -320,17 +345,23 @@ if __name__ == '__main__':
             "benchmark.neworder_multip":    True,
             "benchmark.warehouses":         num_partitions,
             "benchmark.loadthreads":        OPT_LOAD_THREADS,
+            "benchmark.initial_polling_delay": 10000,
             "markov.recompute_end":         OPT_MARKOV_RECOMPUTE_END,
             "markov.recompute_warmup":      OPT_MARKOV_RECOMPUTE_WARMUP,
         }
-        hstore_opts = dict(hstore_opts.items() + EXPERIMENT_PARAMS[OPT_EXP_TYPE][OPT_EXP_SETTINGS].items())
+        hstore_opts = dict(hstore_opts.items() + EXPERIMENT_SETTINGS[OPT_EXP_TYPE][OPT_EXP_SETTINGS].items())
 
         if "markov" in hstore_opts and hstore_opts["markov"]:
             markov_type = "global" if "markov.global" in hstore_opts and hstore_opts["markov.global"] else "clustered"
             markov = os.path.join(OPT_MARKOV_DIRECTORY, "%s.%dp.%s.markovs.gz" % (OPT_BENCHMARK.lower(), num_partitions, markov_type))
             assert os.path.exists(markov), "Missing: " + markov
             hstore_opts['markov'] = markov
-            hstore_opts['coordinator.delay'] = 20000
+            
+            ## Add a delay in to account for loading the markovs
+            ## Eventually we should load them *after* the network connections
+            if OPT_COORDINATOR_DELAY == -1:
+                hstore_opts["coordinator.delay"] = int(math.log(num_partitions, 4) * OPT_PARTITIONS_PER_SITE * 5000)
+            hstore_opts["benchmark.initial_polling_delay"] = hstore_opts["coordinator.delay"]
             
         if "benchmark.neworder_only" in hstore_opts and hstore_opts["benchmark.neworder_only"]:
             del hstore_opts["benchmark.neworder_only"]

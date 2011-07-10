@@ -14,7 +14,7 @@ PARTITIONS=( \
     64 \
 #     128 \
 )
-HEAP_SIZE=18000
+HEAP_SIZE=12000
 MAX_THREADS=`tools/getcpus.py`
 MAKE_GLOBAL=true
 MAKE_CLUSTERED=true
@@ -23,6 +23,7 @@ COMPRESS=true
 FORCE=false
 
 WORKLOAD_DIR=files/workloads/vldb-mar2011
+WORKLOAD_EXCLUDE=""
 WORKLOAD_BUILD_SIZE=50000
 WORKLOAD_BUILD_MULTIPLIER=-1
 WORKLOAD_TEST_SIZE=50000
@@ -54,6 +55,10 @@ for arg in $@; do
     fi
     eval $param_key=\("$param_value"\)
 done
+
+if [ ! -d $MARKOV_FILES_DIR ]; then
+    mkdir -p $MARKOV_FILES_DIR
+fi
 
 for BENCHMARK in ${BENCHMARKS[@]}; do
     BUILD_WORKLOAD="${BENCHMARK}.large1"
@@ -112,16 +117,21 @@ for BENCHMARK in ${BENCHMARKS[@]}; do
             if [ -f ${MARKOV_FILE}.gz -a "$FORCE" != true ]; then
                 MARKOV_FILE=${MARKOV_FILE}.gz
             fi
+            
+            ANT_ARGS="-Dvolt.client.memory=$HEAP_SIZE \
+                    -Dnumcpus=$MAX_THREADS \
+                    -Dproject=$BENCHMARK \
+                    -Dinclude=$WORKLOAD_MIX \
+                    -Dinclude=$WORKLOAD_MIX \
+                    -Dexclude=$WORKLOAD_EXCLUDE"
+            
     
             if [ ! -f $MARKOV_FILE -o "$FORCE" = true ]; then
                 ant markov \
-                    -Dvolt.client.memory=$HEAP_SIZE \
-                    -Dnumcpus=$MAX_THREADS \
-                    -Dproject=$BENCHMARK \
+                    $ANT_ARGS \
                     -Dworkload=$WORKLOAD_DIR/$BUILD_WORKLOAD.trace.gz \
                     -Dlimit=$WORKLOAD_BUILD_SIZE \
                     -Dmultiplier=$WORKLOAD_BUILD_MULTIPLIER \
-                    -Dinclude=$WORKLOAD_MIX \
                     -Doutput=$MARKOV_FILE \
                     -Dglobal=$GLOBAL || exit
                 if [ "$COMPRESS" = true ]; then
@@ -133,13 +143,9 @@ for BENCHMARK in ${BENCHMARKS[@]}; do
             ## MarkovCostModel
             if [ $CALCULATE_COST = true ]; then
                 ant markov-cost \
-                    -Dvolt.client.memory=$HEAP_SIZE \
-                    -Dnumcpus=$MAX_THREADS \
-                    -Dproject=$BENCHMARK \
                     -Dworkload=$WORKLOAD_DIR/$TEST_WORKLOAD.trace.gz \
                     -Dlimit=$WORKLOAD_TEST_SIZE \
                     -Dmultiplier=$WORKLOAD_TEST_MULTIPLIER \
-                    -Dinclude=$WORKLOAD_MIX \
                     -Dmarkov.thresholds.value=$MARKOV_THRESHOLDS \
                     -Dmarkov=$MARKOV_FILE|| exit
             fi

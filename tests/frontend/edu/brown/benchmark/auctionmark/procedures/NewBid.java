@@ -145,19 +145,18 @@ VALUES ($bidId, $itemId, $sellerId, $buyerId,  $qty, 0, $bid, $maxBid, '$now');
     
     /**
      * 
-     * @param i_id
-     * @param u_id
-     * @param i_buyer_id
+     * @param item_id
+     * @param seller_id
+     * @param buyer_id
      * @param bid
      * @param type
      */
-    public VoltTable run(long i_id, long u_id, long i_buyer_id, double bid, double maxBid) {
-        Date currentTime = new Date();
+    public VoltTable run(long item_id, long seller_id, long buyer_id, double bid, double maxBid) {
         TimestampType currentTimestamp = new TimestampType();
         
         // First check to make sure that we can even add a new bid to this item
         // If we fail to update, the new know that the auction is closed
-        voltQueueSQL(updateItem, i_id, u_id);
+        voltQueueSQL(updateItem, item_id, seller_id);
         VoltTable results[] = voltExecuteSQL();
         assert(1 == results.length);
         boolean advRow = results[0].advanceRow();
@@ -166,7 +165,7 @@ VALUES ($bidId, $itemId, $sellerId, $buyerId,  $qty, 0, $bid, $maxBid, '$now');
             throw new VoltAbortException("Unable to bid on item: Auction has ended");
         }
         
-        voltQueueSQL(getMaxBidId, i_id, u_id);
+        voltQueueSQL(getMaxBidId, item_id, seller_id);
         results = voltExecuteSQL();
         assert(1 == results.length);
         
@@ -186,7 +185,7 @@ VALUES ($bidId, $itemId, $sellerId, $buyerId,  $qty, 0, $bid, $maxBid, '$now');
         }
         
         // Get the current max bid record for this item
-        voltQueueSQL(getItemMaxBid, i_id, u_id);
+        voltQueueSQL(getItemMaxBid, item_id, seller_id);
         VoltTable[] itemMaxBidTable = voltExecuteSQL();
         assert(itemMaxBidTable.length == 1);
         
@@ -198,7 +197,7 @@ VALUES ($bidId, $itemId, $sellerId, $buyerId,  $qty, 0, $bid, $maxBid, '$now');
             
             long current_bid_id = itemMaxBidTable[0].getLong(0);
         
-            voltQueueSQL(getItemBid, current_bid_id, i_id, u_id);
+            voltQueueSQL(getItemBid, current_bid_id, item_id, seller_id);
             VoltTable[] itemBidTable = voltExecuteSQL();
             
             assert(1 == itemBidTable.length);
@@ -216,26 +215,26 @@ VALUES ($bidId, $itemId, $sellerId, $buyerId,  $qty, 0, $bid, $maxBid, '$now');
             	}
             } else {
             	if(bid > current_bid){
-            		voltQueueSQL(updateBid, bid, current_bid_id, i_id, u_id);
+            		voltQueueSQL(updateBid, bid, current_bid_id, item_id, seller_id);
             		voltExecuteSQL();
             	}
             }
             
-            voltQueueSQL(insertItemBid, ib_id, i_id, u_id, i_buyer_id, bid, maxBid, new TimestampType(currentTime.getTime()), new TimestampType(currentTime.getTime()));
+            voltQueueSQL(insertItemBid, ib_id, item_id, seller_id, buyer_id, bid, maxBid, currentTimestamp, currentTimestamp);
             voltExecuteSQL();
             
             if(newBidWin){
-            	voltQueueSQL(updateItemMaxBid, ib_id, i_id, u_id, currentTimestamp, i_id, u_id);
+            	voltQueueSQL(updateItemMaxBid, ib_id, item_id, seller_id, currentTimestamp, item_id, seller_id);
             	voltExecuteSQL();
             }
             
         } else {
         	
             // There is no existing max bid record, therefore we can just insert ourselves
-        	voltQueueSQL(insertItemBid, ib_id, i_id, u_id, i_buyer_id, bid, maxBid, currentTimestamp, currentTimestamp);
+        	voltQueueSQL(insertItemBid, ib_id, item_id, seller_id, buyer_id, bid, maxBid, currentTimestamp, currentTimestamp);
             voltExecuteSQL();
         	
-        	voltQueueSQL(insertItemMaxBid, i_id, u_id, ib_id, i_id, u_id, currentTimestamp, currentTimestamp);
+        	voltQueueSQL(insertItemMaxBid, item_id, seller_id, ib_id, item_id, seller_id, currentTimestamp, currentTimestamp);
         	voltExecuteSQL();
         }
         

@@ -51,6 +51,7 @@ import org.voltdb.utils.Pair;
 import org.voltdb.utils.VoltSampler;
 
 import edu.brown.catalog.CatalogUtil;
+import edu.brown.utils.FileUtil;
 import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.StringUtil;
 import edu.mit.hstore.HStoreConf;
@@ -300,6 +301,7 @@ public abstract class ClientMain {
                         for (AtomicLong cnt : m_counts) {
                             cnt.set(0);
                         } // FOR
+                        answerOk();
                         break;
                     }
                     case PAUSE: {
@@ -377,6 +379,10 @@ public abstract class ClientMain {
         public void answerStart() {
             final ControlWorker worker = new ControlWorker();
             new Thread(worker).start();
+        }
+        
+        public void answerOk() {
+            printControlMessage(m_controlState, "OK");
         }
     }
 
@@ -500,7 +506,13 @@ public abstract class ClientMain {
     public void sendFileToClient(int client_id, String parameter, File local_file, File remote_file) throws IOException {
         assert(uploader != null);
         this.uploader.sendFileToClient(client_id, parameter, local_file, remote_file);
-        LOG.info(String.format("Queuing local file '%s' to be sent to client %d as parameter '%s' to remote file '%s'", local_file, client_id, parameter, remote_file));
+        LOG.debug(String.format("Queuing local file '%s' to be sent to client %d as parameter '%s' to remote file '%s'", local_file, client_id, parameter, remote_file));
+    }
+    public void sendFileToClient(int client_id, String parameter, File local_file) throws IOException {
+        String suffix = FileUtil.getExtension(local_file);
+        String prefix = String.format("%s-%02d-", local_file.getName().replace("." + suffix, ""), client_id);
+        File remote_file = FileUtil.getTempFile(prefix, suffix, false);
+        sendFileToClient(client_id, parameter, local_file, remote_file);
     }
     
     protected void setBenchmarkClientFileUploader(BenchmarkClientFileUploader uploader) {

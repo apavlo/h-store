@@ -648,6 +648,7 @@ public class HStoreMessenger implements Shutdownable {
     
     /**
      * Tell all of the other sites to shutdown and then knock ourselves out...
+     * This is will never return
      */
     public void shutdownCluster() {
         this.shutdownCluster(null);
@@ -655,7 +656,7 @@ public class HStoreMessenger implements Shutdownable {
     
     /**
      * Shutdown the cluster. If the given Exception is not null, then all the nodes will
-     * exit with a non-zero status.
+     * exit with a non-zero status. This is will never return
      * Will not return.
      * @param ex
      */

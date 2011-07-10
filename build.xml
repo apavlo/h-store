@@ -1482,6 +1482,7 @@ BENCHMARKS
         <!-- Benchmark Parameters -->
         <arg value="benchmark.conf=${benchmark.conf}" />
         <arg value="benchmark.client=${benchmark.client}" />
+        <arg value="benchmark.initial_polling_delay=${benchmark.initial_polling_delay}" />
         <arg value="benchmark.datadir=${benchmark.datadir}"/>
         
         <!-- Log Directories -->

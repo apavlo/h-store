@@ -744,7 +744,7 @@ public class MarkovCostModel extends AbstractCostModel {
         final int num_threads = ThreadUtil.getMaxGlobalThreads();
         final boolean stop_on_error = true;
         final boolean force_fullpath = true;
-        final boolean force_regenerate = false;
+        final boolean force_regenerate = true;
         final boolean skip_processing = false;
         
         final Histogram<Procedure> total_h = new Histogram<Procedure>();

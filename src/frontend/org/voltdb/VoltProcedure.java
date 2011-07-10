@@ -607,6 +607,10 @@ public abstract class VoltProcedure implements Poolable {
             Throwable ex = itex.getCause();
             Class<?> ex_class = ex.getClass();
             
+            if (this.m_localTxnState.hasPendingError() == false) {
+                this.m_localTxnState.setPendingError(new RuntimeException(ex), false);
+            }
+            
             // Pass the exception back to the client if it is serializable
             if (ex instanceof SerializableException) {
                 this.error = (SerializableException)ex;

@@ -38,6 +38,7 @@ import java.util.Map;
 import java.util.Observable;
 import java.util.Set;
 import java.util.Map.Entry;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -232,12 +233,10 @@ public class BenchmarkController {
                     else if (status.equals("RUNNING")) {
                         // System.out.println("Got running message: " + Arrays.toString(parts));
                         HashMap<String, Long> results = new HashMap<String, Long>();
+                        if (parts[parts.length-1].equalsIgnoreCase("OK")) continue;
                         if ((parts.length % 2) != 0) {
                             m_clientPSM.killProcess(line.processName);
-                            LogKeys logkey =
-                                LogKeys.benchmark_BenchmarkController_ProcessReturnedMalformedLine;
-                            LOG.l7dlog( Level.ERROR, logkey.name(),
-                                    new Object[] { line.processName, control_line }, null);
+                            LOG.error("Invalid response from client: " + line);
                             continue;
                         }
                         for (int i = 2; i < parts.length; i += 2) {
@@ -246,7 +245,13 @@ public class BenchmarkController {
                             results.put(txnName, txnCount);
                         }
                         resultsToRead--;
-                        setPollResponseInfo(line.processName, time, results, null);
+                        try {
+                            if (debug.get()) LOG.debug("UPDATE: " + line);
+                            setPollResponseInfo(line.processName, time, results, null);
+                        } catch (Throwable ex) {
+                            LOG.error("Invalid response: " + line.toString());
+                            throw new RuntimeException(ex);
+                        }
                     }
                 }
             }
@@ -261,9 +266,9 @@ public class BenchmarkController {
         this.catalog = catalog;
         
         // Setup ProcessSetManagers...
-        m_clientPSM = new ProcessSetManager(hstore_conf.client.log_dir, this.failure_observer);
-        m_sitePSM = new ProcessSetManager(hstore_conf.site.log_dir, this.failure_observer);
-        m_coordPSM = new ProcessSetManager(hstore_conf.coordinator.log_dir, this.failure_observer);
+        m_clientPSM = new ProcessSetManager(hstore_conf.client.log_dir, 0, this.failure_observer);
+        m_sitePSM = new ProcessSetManager(hstore_conf.site.log_dir, config.client_initialPollingDelay, this.failure_observer);
+        m_coordPSM = new ProcessSetManager(hstore_conf.coordinator.log_dir, config.client_initialPollingDelay, this.failure_observer);
 
         try {
             m_clientClass = (Class<? extends ClientMain>)Class.forName(m_config.client);
@@ -645,6 +650,8 @@ public class BenchmarkController {
             allClientArgs.add("HOST=" + p.getFirst() + ":" + p.getSecond());
         } // FOR
 
+        final Map<String, Map<File, File>> sent_files = new ConcurrentHashMap<String, Map<File,File>>();
+        
         final AtomicInteger clientIndex = new AtomicInteger(0);
         List<Runnable> runnables = new ArrayList<Runnable>();
         for (final String clientHost : m_config.clients) {
@@ -673,9 +680,34 @@ public class BenchmarkController {
                                     LOG.warn(String.format("Not sending %s file to client %d. The local file '%s' does not exist", param, clientId, local_file));
                                     continue;
                                 }
-                                if (debug.get()) LOG.debug(String.format("Copying %s file '%s' to '%s' on client %s [clientId=%d]",
+                                boolean skip = false;
+                                synchronized (sent_files) {
+                                    Map<File, File> files = sent_files.get(clientHost);
+                                    if (files == null) {
+                                        files = new HashMap<File, File>();
+                                        sent_files.put(clientHost, files);
+                                    }
+                                    // Check whether we have already written to this remote file on the client host
+                                    // If we have, then we need to check whether it's the same local file.
+                                    // If it is, then we're ok. If it's not, well then that's a paddlin'...
+                                    File previous = files.get(remote_file);
+                                    if (previous != null) {
+                                        if (previous.equals(local_file)) {
+                                            skip = true;
+                                        } else {
+                                            throw new RuntimeException(String.format("Trying to write two different local files ['%s', '%s'] to the same remote file '%s' on client host '%s'",
+                                                                                     local_file, previous, remote_file, clientHost));
+                                        }
+                                    }
+                                } // SYNCH
+                                
+                                if (skip) {
+                                    if (debug.get()) LOG.warn(String.format("Skipping duplicate file '%s' on client host '%s'", local_file, clientHost));
+                                } else {
+                                    if (debug.get()) LOG.info(String.format("Copying %s file '%s' to '%s' on client %s [clientId=%d]",
                                 		                                 param, local_file, remote_file, clientHost, clientId)); 
-                                SSHTools.copyToRemote(local_file.getPath(), m_config.remoteUser, clientHost, remote_file.getPath(), m_config.sshOptions);
+                                    SSHTools.copyToRemote(local_file.getPath(), m_config.remoteUser, clientHost, remote_file.getPath(), m_config.sshOptions);
+                                }
                                 client_args.add(param + "=" + remote_file.getPath());
                             } // FOR
                         }
@@ -1093,6 +1125,7 @@ public class BenchmarkController {
         int sitesPerHost = 2;
         int k_factor = 0;
         int clientCount = 1;
+        int clientInitialPollingDelay = 10000;
         int processesPerClient = 1;
         String sshOptions = "";
         String remotePath = "voltbin/";
@@ -1375,6 +1408,9 @@ public class BenchmarkController {
             } else if (parts[0].equalsIgnoreCase("DUMPDATABASEDIR")) {
                 dumpDatabaseDir = parts[1];
 
+            } else if (parts[0].equalsIgnoreCase(BENCHMARK_PARAM_PREFIX +  "INITIAL_POLLING_DELAY")) {
+                clientInitialPollingDelay = Integer.parseInt(parts[1]);
+                
             /** LOGGING **/
             } else if (parts[0].equalsIgnoreCase("CLIENT.LOG_DIR")) {
                 clientLogDir = parts[1];
@@ -1487,6 +1523,7 @@ public class BenchmarkController {
                 listenForDebugger, 
                 serverHeapSize, 
                 clientHeapSize,
+                clientInitialPollingDelay,
                 localmode, 
                 checkTransaction, 
                 checkTables, 

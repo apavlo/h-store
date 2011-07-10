@@ -496,9 +496,12 @@ public class ArgumentsParser {
             // Txn Limit
             this.workload_xact_limit = this.getLongParam(PARAM_WORKLOAD_XACT_LIMIT);
             Histogram<String> proc_histogram = null;
+            
             // Include/exclude procedures from the traces
             if (params.containsKey(PARAM_WORKLOAD_PROC_INCLUDE) || params.containsKey(PARAM_WORKLOAD_PROC_EXCLUDE)) {
                 Filter filter = new ProcedureNameFilter();
+                
+                // INCLUDE
                 String temp = params.get(PARAM_WORKLOAD_PROC_INCLUDE);
                 if (temp != null && !temp.equals(ProcedureNameFilter.INCLUDE_ALL)) {
                     
@@ -561,6 +564,8 @@ public class ArgumentsParser {
                     } // FOR
                     if (debug) LOG.debug("Multiplier Histogram [total=" + total + "]:\n" + proc_multiplier_histogram);
                 }
+                
+                // EXCLUDE
                 temp = params.get(PARAM_WORKLOAD_PROC_EXCLUDE);
                 if (temp != null) {
                     for (String proc_name : params.get(PARAM_WORKLOAD_PROC_EXCLUDE).split(",")) {
