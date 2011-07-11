@@ -44,7 +44,7 @@ public interface WorkloadTrace {
      *
      * @param xact_handle - the transaction handle created by startTransaction()
      */
-    public void stopTransaction(Object xact_handle);
+    public void stopTransaction(Object xact_handle, VoltTable...result);
     
     /**
      * For the given transaction trace handle, mark this transaction as aborted.
@@ -69,7 +69,7 @@ public interface WorkloadTrace {
      *
      * @param query_handle - the query trace handle created by startQuery()
      */
-    public void stopQuery(Object query_handle);
+    public void stopQuery(Object query_handle, VoltTable result);
 
     // ---------------------------------------------------------------------
     // UTILITY METHODS

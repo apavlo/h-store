@@ -156,8 +156,8 @@ public class WorkloadStatistics implements JSONSerializable {
         // PROCESS
         // -----------------------------------------------------
         LOG.info("Invoking process methods on statistics objects for " + workload);
-        List<Thread> threads = new ArrayList<Thread>();
-        int num_threads = 10;
+//        List<Thread> threads = new ArrayList<Thread>();
+//        int num_threads = 10;
 //        long max_id = workload.getMaxTraceId();
 //        long fraction = (max_id / num_threads);
         

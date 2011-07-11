@@ -158,7 +158,7 @@ public abstract class VoltProcedure implements Poolable {
     private boolean enable_tracing = false;
     private Object m_workloadXactHandle = null;
     private Integer m_workloadBatchId = null;
-    private final Set<Object> m_workloadQueryHandles = new HashSet<Object>();
+    private final List<Object> m_workloadQueryHandles = new ArrayList<Object>();
 
     // ----------------------------------------------------------------------------
     // INVOCATION MEMBERS
@@ -677,7 +677,11 @@ public abstract class VoltProcedure implements Poolable {
 
         // Workload Trace - Stop the transaction trace record.
         if (this.enable_tracing && m_workloadXactHandle != null && this.status == ClientResponseImpl.SUCCESS) {
-            ProcedureProfiler.workloadTrace.stopTransaction(m_workloadXactHandle);
+            if (hstore_conf.site.trace_txn_output) {
+                ProcedureProfiler.workloadTrace.stopTransaction(m_workloadXactHandle, this.results);
+            } else {
+                ProcedureProfiler.workloadTrace.stopTransaction(m_workloadXactHandle);
+            }
         }
         
         if (this.results == null) {
@@ -952,6 +956,7 @@ public abstract class VoltProcedure implements Poolable {
         // Workload Trace - Start Query
         if (this.enable_tracing && m_workloadXactHandle != null) {
             m_workloadBatchId = ProcedureProfiler.workloadTrace.getNextBatchId(m_workloadXactHandle);
+            m_workloadQueryHandles.clear();
             for (int i = 0; i < batchQueryStmtIndex; i++) {
                 Object queryHandle = ProcedureProfiler.workloadTrace.startQuery(m_workloadXactHandle,
                                                                                 batchQueryStmts[i].catStmt,
@@ -967,9 +972,16 @@ public abstract class VoltProcedure implements Poolable {
 
         // Workload Trace - Stop Query
         if (this.enable_tracing && m_workloadXactHandle != null) {
-            for (Object handle : m_workloadQueryHandles) {
-                if (handle != null) ProcedureProfiler.workloadTrace.stopQuery(handle);
-            }
+            for (int i = 0; i < batchQueryStmtIndex; i++) {
+                Object handle = m_workloadQueryHandles.get(i);
+                if (handle != null) {
+                    if (hstore_conf.site.trace_query_output) {
+                        ProcedureProfiler.workloadTrace.stopQuery(handle, retval[i]);
+                    } else {
+                        ProcedureProfiler.workloadTrace.stopQuery(handle, null);
+                    }
+                }
+            } // FOR
             // Make sure that we clear out our query handles so that the next
             // time they queue a query they will get a new batch id
             m_workloadQueryHandles.clear();

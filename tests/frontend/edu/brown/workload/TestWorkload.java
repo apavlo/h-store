@@ -144,7 +144,7 @@ public class TestWorkload extends BaseTestCase {
         QueryTrace nonabort_query = this.startQuery(xact, catalog_stmt, new Object[]{1l}, 0);
         assertNotNull(nonabort_query);
         assert(xact.getQueries().contains(nonabort_query));
-        this.workload.stopQuery(nonabort_query);
+        this.workload.stopQuery(nonabort_query, null);
         assert(nonabort_query.isStopped());
         assertFalse(nonabort_query.isAborted());
         
@@ -259,7 +259,7 @@ public class TestWorkload extends BaseTestCase {
             QueryTrace query = this.startQuery(xact, catalog_stmt, args, batch_id);
             assertNotNull(query);
             assert(xact.getQueries().contains(query));
-            this.workload.stopQuery(query);
+            this.workload.stopQuery(query, null);
         } // FOR
         
         this.workload.stopTransaction(xact);

@@ -418,7 +418,24 @@ public final class HStoreConf {
             advanced=true
         )
         public int helper_txn_expire;
+        
+        // ----------------------------------------------------------------------------
+        // Output Tracing
+        // ----------------------------------------------------------------------------
+        @ConfigProperty(
+            description="When this property is set to true, all TransactionTrace records will include the stored procedure output result",
+            defaultBoolean=false,
+            advanced=true
+        )
+        public boolean trace_txn_output;
 
+        @ConfigProperty(
+            description="When this property is set to true, all QueryTrace records will include the query output result",
+            defaultBoolean=false,
+            advanced=true
+        )
+        public boolean trace_query_output;
+        
         // ----------------------------------------------------------------------------
         // HSTORESITE STATUS UPDATES
         // ----------------------------------------------------------------------------
