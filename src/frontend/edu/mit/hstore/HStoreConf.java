@@ -597,7 +597,7 @@ public final class HStoreConf {
         public int port;
 
         @ConfigProperty(
-            description="How long should we wait before starting the dtxn coordinator (in milliseconds)",
+            description="How long should we wait before starting the Dtxn.Coordinator (in milliseconds)",
             defaultInt=10000,
             advanced=false
         )
@@ -975,14 +975,15 @@ public final class HStoreConf {
         //  (4) default value
         //  (5) description 
         final String template = "<a name=\"@@PROP@@\"></a>\n" +
-                                "<li><tt class=\"property\">@@PROP@@</tt>@@EXP@@\n" +
+                                "<li><tt class=\"property\">@@PROPFULL@@</tt>@@EXP@@\n" +
                                 "<table>\n" +
                                 "<tr><td class=\"prop-default\">Default:</td><td><tt>@@DEFAULT@@</tt></td>\n" +
                                 "<tr><td class=\"prop-type\">Permitted Type:</td><td><tt>@@TYPE@@</tt></td>\n" +
                                 "<tr><td colspan=\"2\">@@DESC@@</td></tr>\n" +
                                 "</table></li>\n\n";
         
-        final Pattern prop_p = Pattern.compile("\\$\\{([\\w]+\\.[\\w\\_]+)\\}");
+        final Pattern regex = Pattern.compile("\\$\\{([\\w]+)\\.([\\w\\_]+)\\}");
+        final String regex_replace = "<a href=\"/documentation/configuration/properties-file/$1#$2\" class=\"property\">\\${$1.$2}</a>";
         
         for (String group : this.confHandles.keySet()) {
             Conf handle = this.confHandles.get(group);
@@ -995,14 +996,15 @@ public final class HStoreConf {
                 ConfigProperty cp = handle.properties.get(f);
 
                 // PROP
-                values.put("PROP", String.format("%s.%s", group, f.getName()));
+                values.put("PROP", f.getName());
+                values.put("PROPFULL", String.format("%s.%s", group, f.getName()));
                 
                 // DEFAULT
                 Object defaultValue = this.getDefaultValue(f, cp);
                 if (defaultValue != null) {
                     String value = defaultValue.toString();
-                    Matcher m = prop_p.matcher(value);
-                    if (m.find()) value = m.replaceAll("<a href=\"#$1\" class=\"property\">\\${$1}</a>");
+                    Matcher m = regex.matcher(value);
+                    if (m.find()) value = m.replaceAll(regex_replace);
                     defaultValue = value;
                 }
                 values.put("DEFAULT", (defaultValue != null ? defaultValue.toString() : "null"));
@@ -1019,9 +1021,9 @@ public final class HStoreConf {
                 
                 // DESC
                 String desc = cp.description();
-                Matcher m = prop_p.matcher(desc);
+                Matcher m = regex.matcher(desc);
                 if (m.find()) {
-                    desc = m.replaceAll("<a href=\"#$1\" class=\"property\">$1</a>");
+                    desc = m.replaceAll(regex_replace);
                 }
                 values.put("DESC", desc);
                 

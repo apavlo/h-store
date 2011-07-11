@@ -422,7 +422,7 @@ public abstract class BaseTestCase extends TestCase {
      * @throws IOException
      */
     public File getStatsFile(ProjectType type) throws IOException {
-        return (this.getProjectFile(new File(".").getCanonicalFile(), type, "workloads", "stats"));
+        return (this.getProjectFile(new File(".").getCanonicalFile(), type, "stats", ".stats"));
     }
     
     /**
@@ -433,7 +433,7 @@ public abstract class BaseTestCase extends TestCase {
      * @throws IOException
      */
     public File getCorrelationsFile(ProjectType type) throws IOException {
-        return (this.getProjectFile(new File(".").getCanonicalFile(), type, "correlations", "correlations"));
+        return (this.getProjectFile(new File(".").getCanonicalFile(), type, "correlations", ".correlations"));
     }
     
     /**
@@ -444,7 +444,7 @@ public abstract class BaseTestCase extends TestCase {
      * @throws IOException
      */
     public File getMarkovFile(ProjectType type) throws IOException {
-        return (this.getProjectFile(new File(".").getCanonicalFile(), type, "markovs", "markovs"));
+        return (this.getProjectFile(new File(".").getCanonicalFile(), type, "markovs", ".markovs"));
     }
     
     /**
