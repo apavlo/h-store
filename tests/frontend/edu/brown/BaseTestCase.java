@@ -1,17 +1,26 @@
 package edu.brown;
 
-import junit.framework.TestCase;
-
 import java.io.File;
 import java.io.IOException;
-import java.util.*;
+import java.util.HashMap;
+import java.util.Map;
+
+import junit.framework.TestCase;
 
 import org.apache.log4j.Logger;
 import org.voltdb.VoltProcedure;
-import org.voltdb.catalog.*;
+import org.voltdb.benchmark.tpcc.TPCCProjectBuilder;
+import org.voltdb.catalog.Catalog;
+import org.voltdb.catalog.Cluster;
+import org.voltdb.catalog.Column;
+import org.voltdb.catalog.Database;
+import org.voltdb.catalog.ProcParameter;
+import org.voltdb.catalog.Procedure;
+import org.voltdb.catalog.Site;
+import org.voltdb.catalog.Statement;
+import org.voltdb.catalog.Table;
 import org.voltdb.compiler.VoltProjectBuilder;
 import org.voltdb.utils.JarReader;
-import org.voltdb.benchmark.tpcc.TPCCProjectBuilder;
 
 import edu.brown.benchmark.AbstractProjectBuilder;
 import edu.brown.benchmark.airline.AirlineProjectBuilder;
@@ -20,14 +29,12 @@ import edu.brown.benchmark.markov.MarkovProjectBuilder;
 import edu.brown.benchmark.tm1.TM1ProjectBuilder;
 import edu.brown.benchmark.tpce.TPCEProjectBuilder;
 import edu.brown.catalog.CatalogUtil;
+import edu.brown.catalog.ClusterConfiguration;
 import edu.brown.catalog.FixCatalog;
 import edu.brown.catalog.ParametersUtil;
-import edu.brown.catalog.ClusterConfiguration;
 import edu.brown.correlations.ParameterCorrelations;
-import edu.brown.markov.Vertex;
 import edu.brown.utils.FileUtil;
 import edu.brown.utils.LoggerUtil;
-import edu.brown.utils.MathUtil;
 import edu.brown.utils.PartitionEstimator;
 import edu.brown.utils.ProjectType;
 import edu.mit.hstore.HStoreConf;
