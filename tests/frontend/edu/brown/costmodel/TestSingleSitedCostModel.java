@@ -320,7 +320,7 @@ public class TestSingleSitedCostModel extends BaseTestCase {
 //            expected_touched.put(txn_entry.getExecutionPartition());
             
             for (QueryCacheEntry query_entry : cost_model.getQueryCacheEntries(txn_trace)) {
-                QueryTrace query_trace = txn_trace.getQuery(query_entry.getQueryId());
+                QueryTrace query_trace = txn_trace.getQueries().get(query_entry.getQueryIdx());
                 assertNotNull(query_trace);
                 Boolean should_be_invalid = (query_trace.getCatalogItemName().equals(invalid_stmt.getName()) ? true :
                                             (query_trace.getCatalogItemName().equals(valid_stmt.getName()) ? false : null));

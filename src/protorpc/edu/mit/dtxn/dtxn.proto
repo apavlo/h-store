@@ -88,7 +88,7 @@ message CoordinatorFragment {
     // After this fragment, the partitions in this list have no more work as part of this
     // transaction. It is an error to to include a partition in this list that has already been
     // excluded.
-    repeated int32 done_partition = 4;
+    repeated int32 done_partition = 4 [packed=true];
 
     // PAVLO: Attach extra info for the txn
     optional bytes payload = 5;

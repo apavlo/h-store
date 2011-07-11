@@ -79,6 +79,27 @@ public class AbstractEdge extends AbstractGraphElement {
         return this.hasAttribute(this.graph, key);
     }
     
+    @SuppressWarnings("unchecked")
+    public <V extends AbstractVertex, E extends AbstractEdge> String toStringPath(IGraph<V, E> graph) {
+        String delimiter = "";
+        V v0 = null;
+        V v1 = null;
+        switch (graph.getEdgeType((E)this)) {
+            case DIRECTED:
+                delimiter = "->";
+                v0 = graph.getSource((E)this);
+                v1 = graph.getDest((E)this);
+                break;
+            case UNDIRECTED:
+                delimiter = "--";
+                for (V v : graph.getIncidentVertices((E)this)) {
+                    if (v0 == null) v0 = v;
+                    else v1 = v;
+                } // FOR
+        } // SWITCH
+        return (v0 + delimiter + v1);
+    }
+    
     public String toString(boolean verbose) {
         return (this.graph.toString(this, verbose));   
     }

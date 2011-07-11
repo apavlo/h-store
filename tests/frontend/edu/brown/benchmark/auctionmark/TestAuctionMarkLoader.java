@@ -54,7 +54,7 @@ public class TestAuctionMarkLoader extends BaseTestCase {
         }
         
         @Override
-        protected void loadTable(String tablename, VoltTable table) {
+        protected void loadTable(String tablename, VoltTable table, Long expectedTotal) {
             boolean debug = DEBUG_TABLES.contains(tablename);
             if (debug) LOG.debug("loadTable() called for " + tablename);
             long current_tablesize = TestAuctionMarkLoader.EXPECTED_TABLESIZES.get(tablename);

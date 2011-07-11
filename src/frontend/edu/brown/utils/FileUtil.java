@@ -31,6 +31,7 @@ import org.apache.log4j.Logger;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.regex.Pattern;
 import java.util.zip.GZIPInputStream;
 
 /**
@@ -39,6 +40,8 @@ import java.util.zip.GZIPInputStream;
 public abstract class FileUtil {
     private static final Logger LOG = Logger.getLogger(FileUtil.class);
 
+    private static final Pattern EXT_SPLIT = Pattern.compile("\\.");
+    
     public static boolean exists(String path) {
         return (new File(path).exists());
     }
@@ -58,11 +61,29 @@ public abstract class FileUtil {
         return (new File(path)).getName();
     }
     
-    public static void makeDirIfNotExists(String path) throws IOException {
-        File f = new File(path);
-        if (f.exists() == false) {
-            f.mkdirs();
+    public static String getExtension(File f) {
+        if (f != null && f.isFile()) {
+            String parts[] = EXT_SPLIT.split(f.getName());
+            if (parts.length > 1) {
+                return (parts[parts.length-1]);
+            }
         }
+        return (null);
+            
+    }
+    
+    /**
+     * Create any directory in the list paths if it doesn't exist 
+     * @param paths
+     */
+    public static void makeDirIfNotExists(String...paths) {
+        for (String p : paths) {
+            if (p == null) continue;
+            File f = new File(p);
+            if (f.exists() == false) {
+                f.mkdirs();
+            }
+        } // FOR
     }
 
     /**
@@ -72,10 +93,16 @@ public abstract class FileUtil {
      * @return
      */
     public static File getTempFile(String ext, boolean deleteOnExit) {
+        return getTempFile(null, ext, deleteOnExit);
+    }
+    
+    public static File getTempFile(String prefix, String suffix, boolean deleteOnExit) {
         File tempFile;
-        if (ext.startsWith(".") == false) ext = "." + ext;
+        if (suffix != null && suffix.startsWith(".") == false) suffix = "." + suffix;
+        if (prefix == null) prefix = "hstore";
+        
         try {
-            tempFile = File.createTempFile("hstore", ext);
+            tempFile = File.createTempFile(prefix, suffix);
             if (deleteOnExit) tempFile.deleteOnExit();
         } catch (Exception ex) {
             throw new RuntimeException(ex);
@@ -96,12 +123,37 @@ public abstract class FileUtil {
         return (file);
     }
     
+    /**
+     * Write the given string to a temporary file
+     * Will not delete the file after the JVM exits
+     * @param content
+     * @return
+     */
     public static File writeStringToTempFile(String content) {
-        return (writeStringToTempFile(content, "tmp"));
+        return (writeStringToTempFile(content, "tmp", false));
     }
     
+    /**
+     * Write the given string to a temporary file with the given extension as the suffix
+     * Will not delete the file after the JVM exits
+     * @param content
+     * @param ext
+     * @return
+     */
     public static File writeStringToTempFile(String content, String ext) {
-        File tempFile = FileUtil.getTempFile(ext, false);
+        return (writeStringToTempFile(content, ext, false));
+    }
+    
+    /**
+     * Write the given string to a temporary file with the given extension as the suffix
+     * If deleteOnExit is true, then the file will be removed when the JVM exits
+     * @param content
+     * @param ext
+     * @param deleteOnExit
+     * @return
+     */
+    public static File writeStringToTempFile(String content, String ext, boolean deleteOnExit) {
+        File tempFile = FileUtil.getTempFile(ext, deleteOnExit);
         try {
             FileUtil.writeStringToFile(tempFile, content);    
         } catch (Exception e) {

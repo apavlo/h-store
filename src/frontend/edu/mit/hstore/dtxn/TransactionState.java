@@ -36,12 +36,12 @@ import org.apache.log4j.Logger;
 import org.voltdb.BatchPlanner;
 import org.voltdb.ExecutionSite;
 import org.voltdb.VoltTable;
+import org.voltdb.catalog.Procedure;
 import org.voltdb.messaging.FragmentTaskMessage;
 
 import com.google.protobuf.RpcCallback;
 
 import edu.brown.utils.Poolable;
-import edu.brown.utils.StringUtil;
 import edu.mit.dtxn.Dtxn;
 
 /**
@@ -61,6 +61,13 @@ public abstract class TransactionState implements Poolable {
         STARTED,
         FINISHED;
     }
+    
+    public static String formatTxnName(Procedure catalog_proc, long txn_id) {
+        if (catalog_proc != null) {
+            return (catalog_proc.getName() + " #" + txn_id);
+        }
+        return ("#" + txn_id);
+    }
 
     // ----------------------------------------------------------------------------
     // GLOBAL DATA MEMBERS
@@ -74,8 +81,38 @@ public abstract class TransactionState implements Poolable {
     /**
      * A simple flag that lets us know that the HStoreSite is done with this guy
      */
-    private  boolean hstore_site_done = false;
+    private boolean hstoresite_finished = false;
 
+    // ----------------------------------------------------------------------------
+    // PREDICTIONS FLAGS
+    // ----------------------------------------------------------------------------
+    
+    /** Whether this txn is suppose to be single-partitioned */
+    private boolean predict_singlePartitioned = false;
+    
+    /** Whether this txn can abort */
+    private boolean predict_abortable = true;
+    
+    /** Whether we predict that this txn will be read-only */
+    private boolean predict_readOnly = false;
+    
+    // ----------------------------------------------------------------------------
+    // EXECUTION FLAGS
+    // ----------------------------------------------------------------------------
+    
+    /** Whether this transaction has been read-only so far */
+    protected boolean exec_readOnly = true;
+
+    /** Whether this Transaction has submitted work to the EE that may need to be rolled back */
+    protected boolean exec_eeWork = false;
+    
+    /** This is set to true if the transaction did some work without an undo buffer **/
+    private boolean exec_noUndoBuffer = false;
+    
+    /**
+     * Whether this transaction's control code is executing at this partition
+     */
+    protected boolean exec_local;
     
     // ----------------------------------------------------------------------------
     // INVOCATION DATA MEMBERS
@@ -85,27 +122,13 @@ public abstract class TransactionState implements Poolable {
     protected long client_handle;
     protected int base_partition;
     protected final Set<Integer> touched_partitions = new HashSet<Integer>();
-    protected boolean exec_local;
     protected Long last_undo_token;
     protected RoundState round_state;
     protected int round_ctr = 0;
     protected RuntimeException pending_error;
-    protected Long finished_timestamp;
+    protected Long ee_finished_timestamp;
+    protected boolean rejected;
     
-    /**
-     * Whether we predict that this txn will be read-only
-     */
-    protected boolean predict_read_only = false;
-    
-    /**
-     * Whether this transaction has been read-only so far
-     */
-    protected boolean exec_read_only = true;
-
-    /**
-     * Whether this Transaction has submitted work to the EE that needs to be rolled back
-     */
-    protected boolean submitted_to_ee = false;
 
     /**
      * Callbacks for specific FragmentTaskMessages
@@ -137,16 +160,28 @@ public abstract class TransactionState implements Poolable {
     /**
      * Initialize this TransactionState for a new Transaction invocation
      * @param txn_id
-     * @param dtxn_txn_id
      * @param client_handle
+     * @param predict_singlePartition TODO
+     * @param predict_readOnly TODO
+     * @param predict_abortable TODO
      * @param exec_local
+     * @param dtxn_txn_id
      */
-    protected final TransactionState init(long txn_id, long client_handle, int base_partition, boolean exec_local) {
+    protected final TransactionState init(long txn_id, long client_handle, int base_partition,
+                                          boolean predict_singlePartition, boolean predict_readOnly, boolean predict_abortable,
+                                          boolean exec_local) {
         this.txn_id = txn_id;
         this.client_handle = client_handle;
         this.base_partition = base_partition;
-        this.exec_local = exec_local;
         this.round_state = RoundState.NULL;
+        this.rejected = false;
+
+        this.predict_singlePartitioned = predict_singlePartition;
+        this.predict_readOnly = predict_readOnly;
+        this.predict_abortable = predict_abortable;
+        
+        this.exec_local = exec_local;
+        
         return (this);
     }
 
@@ -162,12 +197,20 @@ public abstract class TransactionState implements Poolable {
     @Override
     public void finish() {
         this.txn_id = -1;
-        this.predict_read_only = false;
-        this.exec_read_only = true;
-        this.finished_timestamp = null;
-        this.submitted_to_ee = false;
+        this.hstoresite_finished = false;
+        
+        this.ee_finished_timestamp = null;
         this.pending_error = null;
         this.last_undo_token = null;
+        
+        this.predict_singlePartitioned = false;
+        this.predict_readOnly = false;
+        this.predict_abortable = true;
+        
+        this.exec_readOnly = true;
+        this.exec_eeWork = false;
+        this.exec_noUndoBuffer = false;
+        
         this.touched_partitions.clear();
         this.fragment_callbacks.clear();
     }
@@ -181,8 +224,11 @@ public abstract class TransactionState implements Poolable {
      * @param txnId
      * @param clientHandle
      * @param source_partition
+     * @param predict_singlePartitioned TODO
+     * @param predict_readOnly TODO
+     * @param predict_abortable TODO
      */
-    public abstract <T extends TransactionState> T init(long txnId, long clientHandle, int source_partition);
+    public abstract <T extends TransactionState> T init(long txnId, long clientHandle, int source_partition, boolean predict_singlePartitioned, boolean predict_readOnly, boolean predict_abortable);
     
     public abstract VoltTable[] getResults();
     
@@ -204,11 +250,16 @@ public abstract class TransactionState implements Poolable {
         assert(this.round_state == RoundState.NULL || this.round_state == RoundState.FINISHED) : 
             "Invalid round state " + this.round_state + " for txn #" + this.txn_id;
         
-        this.last_undo_token = undoToken;
+        if (this.last_undo_token == null || undoToken != ExecutionSite.DISABLE_UNDO_LOGGING_TOKEN) {
+            this.last_undo_token = undoToken;
+        }
+        if (undoToken == ExecutionSite.DISABLE_UNDO_LOGGING_TOKEN) {
+            this.exec_noUndoBuffer = true;
+        }
         this.round_state = RoundState.INITIALIZED;
         this.pending_error = null;
         
-        if (d) LOG.debug(String.format("Initializing new round information for %s local txn #%d [undoToken=%d]",
+        if (d) LOG.debug(String.format("Initializing new round information for %slocal txn #%d [undoToken=%d]",
                                        (this.exec_local ? "" : "non-"), this.txn_id, undoToken));
     }
     
@@ -238,25 +289,102 @@ public abstract class TransactionState implements Poolable {
     }
     
     // ----------------------------------------------------------------------------
+    // PREDICTIONS
+    // ----------------------------------------------------------------------------
+    
+    /**
+     * Returns true if this Transaction was originally predicted to be single-partitioned
+     */
+    public boolean isPredictSinglePartition() {
+        return (this.predict_singlePartitioned);
+    }
+    /**
+     * Returns true if this Transaction was originally predicted as being able to abort
+     */
+    public boolean isPredictAbortable() {
+        return (this.predict_abortable);
+    }
+    /**
+     * Returns true if this transaction was originally predicted as read only
+     */
+    public boolean isPredictReadOnly() {
+        return (this.predict_readOnly);
+    }
+    
+    // ----------------------------------------------------------------------------
+    // EXECUTION FLAG METHODS
+    // ----------------------------------------------------------------------------
+    
+    /**
+     * Mark this transaction as have performed some modification on this partition
+     */
+    public void markExecNotReadOnly() {
+        this.exec_readOnly = false;
+    }
+    /**
+     * Returns true if this transaction has not executed any modifying work at this partition
+     */
+    public boolean isExecReadOnly() {
+        return (this.exec_readOnly);
+    }
+    /**
+     * Returns true if this transaction executed without undo buffers at some point
+     */
+    public boolean isExecNoUndoBuffer() {
+        return (this.exec_noUndoBuffer);
+    }
+    public void markExecNoUndoBuffer() {
+        this.exec_noUndoBuffer = true;
+    }
+    /**
+     * Returns true if this transaction's control code running at this partition 
+     */
+    public boolean isExecLocal() {
+        return this.exec_local;
+    }
+    
+    // ----------------------------------------------------------------------------
     // GENERAL METHODS
     // ----------------------------------------------------------------------------
 
+    public boolean isRejected() {
+        return (this.rejected);
+    }
+    
+    public void markAsRejected() {
+        this.rejected = true;
+    }
+    
+    /**
+     * Returns true if this transaction has done something at this partition
+     */
+    public boolean hasStarted() {
+        return (this.last_undo_token != null);
+    }
+    
+    /**
+     * Get the current batch/round counter
+     */
     public int getCurrentRound() {
         return (this.round_ctr);
     }
     
     /**
-     * 
+     * Returns true if this transaction has a pending error
      */
     public boolean hasPendingError() {
         return (this.pending_error != null);
     }
     /**
-     * 
+     * Return the pending error for this transaction
+     * Does not clear it.
      * @return
      */
     public RuntimeException getPendingError() {
         return (this.pending_error);
+    }
+    public String getPendingErrorMessage() {
+        return (this.pending_error != null ? this.pending_error.getMessage() : null);
     }
     /**
      * 
@@ -269,42 +397,79 @@ public abstract class TransactionState implements Poolable {
             this.pending_error = error;
         }
     }
+    
+    // ----------------------------------------------------------------------------
+    // Keep track of whether this txn executed stuff at this partition's EE
+    // ----------------------------------------------------------------------------
+    
     /**
      * Should be called whenever the txn submits work to the EE 
      */
     public void setSubmittedEE() {
-        this.submitted_to_ee = true;
+        this.exec_eeWork = true;
+    }
+    
+    public void unsetSubmittedEE() {
+        this.exec_eeWork = false;
     }
     /**
      * Returns true if this txn has submitted work to the EE that needs to be rolled back
      * @return
      */
     public boolean hasSubmittedEE() {
-        return (this.submitted_to_ee);
+        return (this.exec_eeWork);
     }
+    
+    // ----------------------------------------------------------------------------
+    // Whether the ExecutionSite is finished with the transaction
+    // ----------------------------------------------------------------------------
+    
+    
     /**
      * Mark this txn as finished (and thus ready for clean-up)
      */
-    public void markAsFinished() {
-        if (this.finished_timestamp == null) {
-            this.finished_timestamp = System.currentTimeMillis();
+    public void setEE_Finished() {
+        if (this.ee_finished_timestamp == null) {
+            this.ee_finished_timestamp = System.currentTimeMillis();
         }
     }
     /**
      * Is this TransactionState marked as finished
      * @return
      */
-    public boolean isMarkedFinished() {
-        return (this.finished_timestamp != null);
+    public boolean isEE_Finished() {
+        return (this.ee_finished_timestamp != null);
     }
     /**
      * 
      * @return
      */
-    public long getFinishedTimestamp() {
-        assert(this.finished_timestamp != null);
-        return (this.finished_timestamp);
+    public long getEE_FinishedTimestamp() {
+        assert(this.ee_finished_timestamp != null);
+        return (this.ee_finished_timestamp);
     }
+    
+    // ----------------------------------------------------------------------------
+    // Whether the HStoreSite is finished with the transaction
+    // This assumes that all of the ExecutionSites are finished with it too
+    // ----------------------------------------------------------------------------
+    
+    
+    /**
+     * Returns true if this transaction is finished at this HStoreSite
+     * @return
+     */
+    public boolean isHStoreSite_Finished() {
+        if (t) LOG.trace(String.format("%s - Returning HStoreSite done [val=%s, hash=%d]", this, this.hstoresite_finished, this.hashCode()));
+        return (this.hstoresite_finished);
+    }
+    public void setHStoreSite_Finished(boolean val) {
+        this.hstoresite_finished = val;
+        if (t) LOG.trace(String.format("%s - Setting HStoreSite done [val=%s, hash=%d]", this, this.hstoresite_finished, this.hashCode()));
+    }
+    
+    
+    
     /**
      * Get this state's transaction id
      * @return
@@ -328,35 +493,13 @@ public abstract class TransactionState implements Poolable {
         return this.last_undo_token;
     }
     
-    public void setPredictReadOnly(boolean read_only) {
-        this.predict_read_only = read_only;
-    }
-    public boolean isPredictReadOnly() {
-        return (this.predict_read_only);
-    }
-    
-    public void setExecReadOnly(boolean read_only) {
-        this.exec_read_only = read_only;
-    }
-    public boolean isExecReadOnly() {
-        return (this.exec_read_only);
-    }
-    
     /**
      * @return the client_handle
      */
     public long getClientHandle() {
         return this.client_handle;
     }
-    public boolean getHStoreSiteDone() {
-        if (t) LOG.trace(String.format("Txn #%d - Returning HStoreSite done [val=%s, hash=%d]", this.txn_id, this.hstore_site_done, this.hashCode()));
-        return (this.hstore_site_done);
-    }
-    public void setHStoreSiteDone(boolean val) {
-        this.hstore_site_done = val;
-        if (t) LOG.trace(String.format("Txn #%d - Setting HStoreSite done [val=%s, hash=%d]", this.txn_id, this.hstore_site_done, this.hashCode()));
-    }
-    
+
     /**
      * Get the base PartitionId where this txn's Java code is executing on
      * @return
@@ -365,13 +508,6 @@ public abstract class TransactionState implements Poolable {
         return base_partition;
     }
     
-    /**
-     * Is this transaction's control code running at this partition? 
-     * @return the exec_local
-     */
-    public boolean isExecLocal() {
-        return this.exec_local;
-    }
 
     /**
      * Return the previously stored callback for a FragmentTaskMessage
@@ -392,17 +528,33 @@ public abstract class TransactionState implements Poolable {
         if (t) LOG.trace("Storing FragmentTask callback for txn #" + this.txn_id);
         this.fragment_callbacks.put(ftask, callback);
     }
+    
+    @Override
+    public boolean equals(Object obj) {
+        if (obj instanceof TransactionState) {
+            TransactionState other = (TransactionState)obj;
+            if ((other.txn_id == -1) && (this.txn_id == -1)) return (this.hashCode() != other.hashCode());
+            return (this.txn_id == other.txn_id && this.base_partition == other.base_partition);
+        }
+        return (false);
+    }
 
     @Override
     public String toString() {
-        return (StringUtil.formatMaps(this.getDebugMap()));
+        if (this.isInitialized()) {
+            return "Txn #" + this.txn_id;
+        } else {
+            return ("<Uninitialized>");
+        }
     }
+    
+    public abstract String debug();
     
     protected Map<String, Object> getDebugMap() {
         Map<String, Object> m = new ListOrderedMap<String, Object>();
         m.put("Transaction #", this.txn_id);
         m.put("Current Round State", this.round_state);
-        m.put("Read-Only", this.exec_read_only);
+        m.put("Read-Only", this.exec_readOnly);
         m.put("FragmentTask Callbacks", this.fragment_callbacks.size());
         m.put("Executing Locally", this.exec_local);
         m.put("Local Partition", this.executor.getPartitionId());

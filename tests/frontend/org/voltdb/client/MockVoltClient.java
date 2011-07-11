@@ -114,6 +114,12 @@ public class MockVoltClient implements Client {
             public VoltTable[] getResults() {
                 return result;
             }
+            
+            @Override
+            public int getResultsSize() {
+                // TODO Auto-generated method stub
+                return 0;
+            }
 
             @Override
             public byte getStatus() {

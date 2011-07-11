@@ -13,11 +13,14 @@ import edu.brown.BaseTestCase;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.correlations.ParameterCorrelations;
 import edu.brown.markov.TransactionEstimator.State;
+import edu.brown.markov.containers.MarkovGraphContainersUtil;
+import edu.brown.markov.containers.MarkovGraphsContainer;
 import edu.brown.utils.*;
 import edu.brown.workload.QueryTrace;
 import edu.brown.workload.Workload;
 import edu.brown.workload.TransactionTrace;
 import edu.brown.workload.filters.BasePartitionTxnFilter;
+import edu.brown.workload.filters.Filter;
 import edu.brown.workload.filters.ProcParameterArraySizeFilter;
 import edu.brown.workload.filters.ProcParameterValueFilter;
 import edu.brown.workload.filters.ProcedureLimitFilter;
@@ -35,7 +38,7 @@ public class TestTransactionEstimator extends BaseTestCase {
     private static final int WORKLOAD_XACT_LIMIT = 50;
     private static final int BASE_PARTITION = 1;
     private static final int NUM_PARTITIONS = 10;
-    private static List<Integer> ALL_PARTITIONS;
+    private static Collection<Integer> ALL_PARTITIONS;
     private static final Class<? extends VoltProcedure> TARGET_PROCEDURE = neworder.class;
     private static int XACT_ID = 1000;
 
@@ -64,7 +67,7 @@ public class TestTransactionEstimator extends BaseTestCase {
             correlations = new ParameterCorrelations();
             correlations.load(file.getAbsolutePath(), catalog_db);
             
-            Workload.Filter filter = new ProcedureNameFilter()
+            Filter filter = new ProcedureNameFilter()
                     .include(TARGET_PROCEDURE.getSimpleName())
                     .attach(new ProcParameterValueFilter().include(1, new Long(5))) // D_ID
                     .attach(new ProcParameterArraySizeFilter(CatalogUtil.getArrayProcParameters(catalog_proc).get(0), 10, ExpressionType.COMPARE_EQUAL))
@@ -77,7 +80,7 @@ public class TestTransactionEstimator extends BaseTestCase {
             assert(workload.getTransactionCount() > 0);
             
             // Generate MarkovGraphs
-            markovs = MarkovUtil.createBasePartitionGraphs(catalog_db, workload, p_estimator);
+            markovs = MarkovGraphContainersUtil.createBasePartitionMarkovGraphsContainer(catalog_db, workload, p_estimator);
             assertNotNull(markovs);
             
             // Find a single-partition and multi-partition trace
@@ -136,11 +139,11 @@ public class TestTransactionEstimator extends BaseTestCase {
         assertNotNull(state);
         MarkovEstimate est = state.getInitialEstimate();
         assertNotNull(est);
-        assertNull(state.getLastEstimate());
+        assertNotNull(state.getLastEstimate());
         System.err.println(est.toString());
         
         MarkovGraph markov = markovs.get(BASE_PARTITION, this.catalog_proc);
-        List<Vertex> initial_path = state.getEstimatedPath();
+        List<Vertex> initial_path = state.getInitialPath();
         assertFalse(initial_path.isEmpty());
         
         System.err.println("# of Vertices: " + markov.getVertexCount());
@@ -155,7 +158,7 @@ public class TestTransactionEstimator extends BaseTestCase {
 //        MarkovUtil.exportGraphviz(markov, false, markov.getPath(multip_path)).writeToTempFile(this.catalog_proc, 1);
         
         assertFalse(est.isSinglePartition(this.thresholds));
-        assertFalse(est.isUserAbort(this.thresholds));
+        assertTrue(est.isAbortable(this.thresholds));
         
         Set<Integer> partitions = p_estimator.getAllPartitions(multip_trace);
         

@@ -156,21 +156,21 @@ public class WorkloadStatistics implements JSONSerializable {
         // PROCESS
         // -----------------------------------------------------
         LOG.info("Invoking process methods on statistics objects for " + workload);
-        List<Thread> threads = new ArrayList<Thread>();
-        int num_threads = 10;
-        long max_id = workload.getMaxTraceId();
-        long fraction = (max_id / num_threads);
+//        List<Thread> threads = new ArrayList<Thread>();
+//        int num_threads = 10;
+//        long max_id = workload.getMaxTraceId();
+//        long fraction = (max_id / num_threads);
         
         final AtomicInteger count = new AtomicInteger(0);
-        for (int i = 0; i < num_threads; i++) {
-            final long start_id = i * fraction;
-            final long stop_id = (i + 1) * fraction;
-            
-            threads.add(new Thread() {
-                public void run() {
-                    for (AbstractTraceElement<?> element : workload) {
-                        if (element.getId() < start_id) continue;
-                        if (element.getId() > stop_id) break;
+//        for (int i = 0; i < num_threads; i++) {
+//            final long start_id = i * fraction;
+//            final long stop_id = (i + 1) * fraction;
+//            
+//            threads.add(new Thread() {
+//                public void run() {
+                    for (TransactionTrace element : workload) {
+//                        if (element.getId() < start_id) continue;
+//                        if (element.getId() > stop_id) break;
                         
                         if (element instanceof TransactionTrace) {
                             TransactionTrace xact = (TransactionTrace)element;
@@ -195,13 +195,13 @@ public class WorkloadStatistics implements JSONSerializable {
                                 LOG.error("Failed to process " + xact, ex);
                                 System.exit(1);
                             }
-                            if (count.getAndIncrement() % 1000 == 0) LOG.debug("Processed " + count.get() + " transaction traces [" + start_id + "-" + stop_id + "]");
+                            if (count.getAndIncrement() % 1000 == 0) LOG.debug("Processed " + count.get() + " transaction traces");
                         }
                     } // FOR
-                }
-            });
-        } // FOR
-        ThreadUtil.runNewPool(threads);
+//                }
+//            });
+//        } // FOR
+//        ThreadUtil.runNewPool(threads);
         
         // -----------------------------------------------------
         // POST-PROCESS

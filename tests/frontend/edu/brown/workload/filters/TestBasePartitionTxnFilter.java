@@ -20,7 +20,7 @@ public class TestBasePartitionTxnFilter extends AbstractTestFilter {
     public void testFilter() throws Exception {
         BasePartitionTxnFilter filter = new BasePartitionTxnFilter(p_estimator, BASE_PARTITION);
         
-        Iterator<AbstractTraceElement<? extends CatalogType>> it = workload.iterator(filter);
+        Iterator<TransactionTrace> it = workload.iterator(filter);
         assertNotNull(it);
 
         int count = 0;

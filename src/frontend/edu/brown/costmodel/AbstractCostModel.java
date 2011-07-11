@@ -43,16 +43,16 @@ import edu.brown.designer.DesignerHints;
 import edu.brown.statistics.Histogram;
 import edu.brown.utils.PartitionEstimator;
 import edu.brown.utils.StringUtil;
-import edu.brown.workload.AbstractTraceElement;
-import edu.brown.workload.Workload;
 import edu.brown.workload.TransactionTrace;
+import edu.brown.workload.Workload;
+import edu.brown.workload.filters.Filter;
 
 /**
  * 
  * @author pavlo
  *
  */
-public abstract class AbstractCostModel implements Cloneable {
+public abstract class AbstractCostModel {
     private static final Logger LOG = Logger.getLogger(AbstractCostModel.class);
     
     /**
@@ -109,7 +109,7 @@ public abstract class AbstractCostModel implements Cloneable {
     /**
      * Which partitions executed the actual the java of the VoltProcedure
      */
-    protected final Histogram histogram_java_partitions = new Histogram();
+    protected final Histogram<Integer> histogram_java_partitions = new Histogram<Integer>();
     
     /**
      * How many times did we execute each procedure
@@ -119,8 +119,8 @@ public abstract class AbstractCostModel implements Cloneable {
     /**
      * How many times did we execute each procedure when it was either single- or multi-partition?
      */
-    protected final Histogram histogram_sp_procs = new Histogram();
-    protected final Histogram histogram_mp_procs = new Histogram();
+    protected final Histogram<String> histogram_sp_procs = new Histogram<String>();
+    protected final Histogram<String> histogram_mp_procs = new Histogram<String>();
     
     /**
      * This histogram keeps track of how many times txns touched a partition at least once
@@ -281,7 +281,7 @@ public abstract class AbstractCostModel implements Cloneable {
      * @return
      * @throws Exception
      */
-    public abstract double estimateTransactionCost(Database catalog_db, Workload workload, Workload.Filter filter, TransactionTrace xact) throws Exception;
+    public abstract double estimateTransactionCost(Database catalog_db, Workload workload, Filter filter, TransactionTrace xact) throws Exception;
     
     /**
      * Invalidate cache entries for the given CatalogKey
@@ -298,12 +298,6 @@ public abstract class AbstractCostModel implements Cloneable {
             this.invalidateCache(catalog_key);
         }
     }
-    
-    /**
-     * 
-     */
-    public abstract AbstractCostModel clone(Database catalog_db) throws CloneNotSupportedException;
-
     
     // ----------------------------------------------------------------------------
     // DEBUGGING METHODS
@@ -479,14 +473,14 @@ public abstract class AbstractCostModel implements Cloneable {
     }
     
     
-    public Histogram getProcedureHistogram() {
+    public Histogram<String> getProcedureHistogram() {
         return this.histogram_procs;
     }
     
-    public Histogram getSinglePartitionProcedureHistogram() {
+    public Histogram<String> getSinglePartitionProcedureHistogram() {
         return this.histogram_sp_procs;
     }
-    public Histogram getMultiPartitionProcedureHistogram() {
+    public Histogram<String> getMultiPartitionProcedureHistogram() {
         return this.histogram_mp_procs;
     }
     
@@ -495,7 +489,7 @@ public abstract class AbstractCostModel implements Cloneable {
      * the Java code for a transaction
      * @return
      */
-    public Histogram getJavaExecutionHistogram() {
+    public Histogram<Integer> getJavaExecutionHistogram() {
         return this.histogram_java_partitions;
     }
     
@@ -503,7 +497,7 @@ public abstract class AbstractCostModel implements Cloneable {
      * Returns the histogram for how often partitions are accessed for txns
      * @return
      */
-    public Histogram getTxnPartitionAccessHistogram() {
+    public Histogram<Integer> getTxnPartitionAccessHistogram() {
         return this.histogram_txn_partitions;
     }
     
@@ -511,7 +505,7 @@ public abstract class AbstractCostModel implements Cloneable {
      * Returns the histogram for how often partitions are accessed for queries 
      * @return
      */
-    public Histogram getQueryPartitionAccessHistogram() {
+    public Histogram<Integer> getQueryPartitionAccessHistogram() {
         return this.histogram_query_partitions;
     }
     
@@ -543,23 +537,20 @@ public abstract class AbstractCostModel implements Cloneable {
      * @return
      * @throws Exception
      */
-    public double estimateCost(Database catalog_db, Workload workload, Workload.Filter filter) throws Exception {
+    public double estimateCost(Database catalog_db, Workload workload, Filter filter) throws Exception {
         this.prepare(catalog_db);
         double cost = 0.0d;
         
-        Iterator<AbstractTraceElement<?>> it = workload.iterator(filter);
+        Iterator<TransactionTrace> it = workload.iterator(filter);
         while (it.hasNext()) {
-            AbstractTraceElement<?> element = it.next();
-            if (element instanceof TransactionTrace) {
-                TransactionTrace xact = (TransactionTrace)element;
-                //System.out.println(xact.debug(this.catalog_db) + "\n");
-                try {
-                    cost += this.estimateTransactionCost(catalog_db, workload, filter, xact);
-                } catch (Exception ex) {
-                    LOG.error("Failed to estimate cost for " + xact.getCatalogItemName());
-                    CatalogUtil.saveCatalog(catalog_db.getCatalog(), "catalog.txt");
-                    throw ex;
-                }
+            TransactionTrace xact = it.next();
+            //System.out.println(xact.debug(this.catalog_db) + "\n");
+            try {
+                cost += this.estimateTransactionCost(catalog_db, workload, filter, xact);
+            } catch (Exception ex) {
+                LOG.error("Failed to estimate cost for " + xact.getCatalogItemName());
+                CatalogUtil.saveCatalog(catalog_db.getCatalog(), "catalog.txt");
+                throw ex;
             }
         } // WHILE
         return (cost);

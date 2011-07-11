@@ -10,14 +10,13 @@ import org.voltdb.catalog.CatalogType;
 import org.voltdb.catalog.ProcParameter;
 
 import edu.brown.workload.AbstractTraceElement;
-import edu.brown.workload.Workload;
 import edu.brown.workload.TransactionTrace;
 
 /**
  * Filters out transactions based on the whether a ProcParameter equals a specific value
  * @author pavlo
  */
-public class ProcParameterValueFilter extends Workload.Filter {
+public class ProcParameterValueFilter extends Filter {
     
     private final Map<Integer, Set<Object>> values = new HashMap<Integer, Set<Object>>(); 
     

@@ -13,8 +13,7 @@ import edu.brown.benchmark.auctionmark.AuctionMarkConstants;
  * @author pavlo
  */
 @ProcInfo (
-    partitionInfo = "USER.U_ID: 1",
-    singlePartition = true
+    partitionInfo = "USER.U_ID: 1"
 )
 public class GetItem extends VoltProcedure {
 

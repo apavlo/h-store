@@ -19,11 +19,11 @@ package org.voltdb.jni;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayDeque;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.concurrent.ConcurrentHashMap;
 
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
@@ -41,6 +41,8 @@ import org.voltdb.messaging.FastDeserializer;
 import org.voltdb.utils.LogKeys;
 import org.voltdb.utils.VoltLoggerFactory;
 import org.voltdb.utils.DBBPool.BBContainer;
+
+import edu.brown.utils.StringUtil;
 
 /**
  * Wrapper for native Execution Engine library. There are two implementations,
@@ -124,8 +126,7 @@ public abstract class ExecutionEngine implements FastDeserializer.Deserializatio
 
 
     private class DependencyTracker {
-        private final HashMap<Integer, ArrayDeque<VoltTable>> m_depsById =
-            new HashMap<Integer, ArrayDeque<VoltTable>>();
+        private final Map<Integer, ArrayDeque<VoltTable>> m_depsById = new ConcurrentHashMap<Integer, ArrayDeque<VoltTable>>();
 
         private final Logger hostLog =
             Logger.getLogger("HOST", VoltLoggerFactory.instance());
@@ -225,11 +226,8 @@ public abstract class ExecutionEngine implements FastDeserializer.Deserializatio
      */
     public static void crashVoltDB(String reason, String traces[], String filename, int lineno) {
         if (reason != null) {
-            System.err.println(reason);
-            System.err.println("In " + filename + ":" + lineno);
-            for ( String trace : traces) {
-                System.err.println(trace);
-            }
+            LOG.fatal("ExecutionEngine requested that we crash: " + reason);
+            LOG.fatal("Error was in " + filename + ":" + lineno + "\n" + StringUtil.join("\n", traces));
         }
         VoltDB.crashVoltDB();
     }

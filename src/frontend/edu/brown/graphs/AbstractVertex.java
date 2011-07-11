@@ -53,8 +53,12 @@ public class AbstractVertex extends AbstractGraphElement {
         return ((T)catalog_item);
     }
     
+    public String getCatalogItemName() {
+        return (CatalogKey.getNameFromKey(this.catalog_key));
+    }
+    
     public String getCatalogKey() {
-        return catalog_key;
+        return (this.catalog_key);
     }
     
     @Override

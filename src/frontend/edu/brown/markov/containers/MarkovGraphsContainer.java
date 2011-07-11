@@ -1,12 +1,22 @@
-package edu.brown.markov;
+package edu.brown.markov.containers;
 
 import java.io.IOException;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.SortedMap;
+import java.util.TreeMap;
 import java.util.Map.Entry;
+import java.util.concurrent.ConcurrentHashMap;
 
 import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.log4j.Logger;
-import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.json.JSONStringer;
@@ -16,8 +26,13 @@ import org.voltdb.messaging.FastSerializer;
 import org.voltdb.utils.Encoder;
 
 import edu.brown.catalog.CatalogKey;
+import edu.brown.graphs.exceptions.InvalidGraphElementException;
 import edu.brown.hashing.AbstractHasher;
+import edu.brown.markov.MarkovGraph;
+import edu.brown.markov.MarkovUtil;
+import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.CollectionUtil;
+import edu.brown.utils.FileUtil;
 import edu.brown.utils.JSONSerializable;
 import edu.brown.utils.JSONUtil;
 import edu.brown.utils.StringUtil;
@@ -29,31 +44,24 @@ import edu.brown.utils.ThreadUtil;
  * @author pavlo
  */
 public class MarkovGraphsContainer implements JSONSerializable {
-    private static final long serialVersionUID = 1L;
     private static final Logger LOG = Logger.getLogger(MarkovGraphsContainer.class);
+    private static final boolean debug = LOG.isDebugEnabled();
+    
+    private static final long serialVersionUID = 1L;
+    
 
     public enum Members {
         MARKOVS,
-        FEATURES,
-        GLOBAL,
         CLASSNAME,
         ;
     }
     
     protected AbstractHasher hasher;
     
-    private boolean global;
-    
     /**
      * 
      */
-    private final SortedMap<Integer, Map<Procedure, MarkovGraph>> markovs = new TreeMap<Integer, Map<Procedure, MarkovGraph>>();
-    
-    /**
-     * 
-     */
-    private final Map<Procedure, List<String>> features = new HashMap<Procedure, List<String>>();
-    
+    private final Map<Integer, Map<Procedure, MarkovGraph>> markovs = Collections.synchronizedMap(new TreeMap<Integer, Map<Procedure, MarkovGraph>>());
     
     /**
      * The procedures that we actually want to load. If this is null, then we will load everything
@@ -66,11 +74,9 @@ public class MarkovGraphsContainer implements JSONSerializable {
 
     /**
      * Base Constructor
-     * @param global
      * @param procedures
      */
-    public MarkovGraphsContainer(boolean global, Collection<Procedure> procedures) {
-        this.global = global;
+    public MarkovGraphsContainer(Collection<Procedure> procedures) {
         if (procedures != null) {
             this.load_procedures = new HashSet<Procedure>();
             this.load_procedures.addAll(procedures);
@@ -79,42 +85,37 @@ public class MarkovGraphsContainer implements JSONSerializable {
         }
     }
     
-    /**
-     * 
-     * @param global
-     */
-    public MarkovGraphsContainer(boolean global) {
-        this(global, null);
+    public MarkovGraphsContainer() {
+        this(null);
+    }
+    
+    // -----------------------------------------------------------------
+    // UTILITY METHODS
+    // -----------------------------------------------------------------
+    
+    public MarkovGraph getFromGraphId(int id) {
+        for (MarkovGraph m : this.getAll()) {
+            if (m.getGraphId() == id) return (m);
+        } // FOR
+        return (null);
     }
 
-    /**
-     * 
-     * @param procedures
-     */
-    public MarkovGraphsContainer(Collection<Procedure> procedures) {
-        this(false, procedures);
+    public AbstractHasher getHasher() {
+        return (this.hasher);
     }
-    
-    public MarkovGraphsContainer() {
-        this(false);
+    public void setHasher(AbstractHasher hasher) {
+        this.hasher = hasher;
     }
-    
+    public boolean isGlobal() {
+        return (false);
+    }
+
     // -----------------------------------------------------------------
     // PSEUDO-MAP METHODS
     // -----------------------------------------------------------------
     
-    public void setHasher(AbstractHasher hasher) {
-        this.hasher = hasher;
-    }
-    
-    public boolean isGlobal() {
-        return global;
-    }
-    
-    
     public void clear() {
         this.markovs.clear();
-        this.features.clear();
     }
     
     public MarkovGraph get(Integer id, Procedure catalog_proc) {
@@ -133,9 +134,15 @@ public class MarkovGraphsContainer implements JSONSerializable {
     public MarkovGraph getOrCreate(Integer id, Procedure catalog_proc, boolean initialize) {
         MarkovGraph markov = this.get(id, catalog_proc);
         if (markov == null) {
-            markov = new MarkovGraph(catalog_proc);
-            this.put(id, markov);
-            if (initialize) markov.initialize();
+            synchronized (this) {
+                markov = this.get(id, catalog_proc);
+                if (markov == null) {
+                    if (LOG.isDebugEnabled()) LOG.warn(String.format("Creating a new %s MarkovGraph for id %d", catalog_proc.getName(), id));
+                    markov = new MarkovGraph(catalog_proc);
+                    if (initialize) markov.initialize();
+                    this.put(id, markov);
+                }
+            } // SYNCH
         }
         return (markov);
     }
@@ -152,9 +159,15 @@ public class MarkovGraphsContainer implements JSONSerializable {
     }
     
     public void put(Integer id, MarkovGraph markov) {
+        assert(id != null) : "Invalid id";
         Map<Procedure, MarkovGraph> inner = this.markovs.get(id);
         if (inner == null) {
-            inner = new HashMap<Procedure, MarkovGraph>();
+            synchronized (this.markovs) {
+                inner = this.markovs.get(id);
+                if (inner == null) {
+                    inner = new ConcurrentHashMap<Procedure, MarkovGraph>();
+                }
+            } // SYNCH
             this.markovs.put(id, inner);
         }
         inner.put(markov.getProcedure(), markov);
@@ -170,18 +183,7 @@ public class MarkovGraphsContainer implements JSONSerializable {
      */
     public MarkovGraph getFromParams(long txn_id, int base_partition, Object params[], Procedure catalog_proc) {
         assert(catalog_proc != null);
-        MarkovGraph m = null;
-        if (this.global) {
-            m = this.get(MarkovUtil.GLOBAL_MARKOV_CONTAINER_ID, catalog_proc);
-        } else {
-            List<String> proc_features = this.features.get(catalog_proc);
-            if (proc_features == null) {
-                m = this.getOrCreate(base_partition, catalog_proc, true);
-//                m = this.get(base_partition, catalog_proc);
-            } else {
-                assert(false) : "To be implemented!";
-            }
-        }
+        MarkovGraph m = this.getOrCreate(base_partition, catalog_proc, true);
         if (m == null) {
             LOG.warn(String.format("Failed to find MarkovGraph for %s txn #%d [base_partition=%d, params=%s]",
                                    catalog_proc.getName(), txn_id, base_partition, Arrays.toString(params)));
@@ -190,21 +192,7 @@ public class MarkovGraphsContainer implements JSONSerializable {
         
         return (m);
     }
-    
-    
-    public void setFeatureKeys(Procedure catalog_proc, List<String> keys) {
-        List<String> inner = this.features.get(catalog_proc);
-        if (inner == null) {
-            inner = new ArrayList<String>();
-            this.features.put(catalog_proc, inner);
-        }
-        inner.addAll(keys);
-    }
-    
-    public List<String> getFeatureKeys(Procedure catalog_proc) {
-        return (this.features.get(catalog_proc));
-    }
-    
+
     /**
      * Invoke MarkovGraph.calculateProbabilities() for all of the graphs stored within this container 
      */
@@ -234,24 +222,36 @@ public class MarkovGraphsContainer implements JSONSerializable {
     }
     
     public Map<Integer, MarkovGraph> getAll(Procedure catalog_proc) {
-        Map<Integer, MarkovGraph> markovs = new HashMap<Integer, MarkovGraph>();
+        Map<Integer, MarkovGraph> ret = new HashMap<Integer, MarkovGraph>();
         for (Integer id : this.markovs.keySet()) {
             MarkovGraph m = this.markovs.get(id).get(catalog_proc);
-            if (m != null) markovs.put(id, m);
+            if (m != null) ret.put(id, m);
         } // FOR
-        return (markovs);
+        return (ret);
+    }
+    
+    /**
+     * Get all the MarkovGraphs contained within this object
+     * @return
+     */
+    public Set<MarkovGraph> getAll() {
+        Set<MarkovGraph> ret = new HashSet<MarkovGraph>();
+        for (Integer id : this.markovs.keySet()) {
+            Map<Procedure, MarkovGraph> m = this.markovs.get(id);
+            if (m != null && m.isEmpty() == false) ret.addAll(m.values());
+        } // FOR
+        return (ret);
     }
     
     public void copy(MarkovGraphsContainer other) {
-        this.features.putAll(other.features);
         this.markovs.putAll(other.markovs);
     }
     
-    protected Set<Integer> keySet() {
+    public Set<Integer> keySet() {
         return this.markovs.keySet();
     }
     
-    protected Set<Entry<Integer, Map<Procedure, MarkovGraph>>> entrySet() {
+    public Set<Entry<Integer, Map<Procedure, MarkovGraph>>> entrySet() {
         return this.markovs.entrySet();
     }
     
@@ -263,22 +263,23 @@ public class MarkovGraphsContainer implements JSONSerializable {
     @SuppressWarnings("unchecked")
     public String toString() {
         int num_ids = this.markovs.size();
-        Map maps[] = new Map[num_ids+1];
+        Map<String, Object> maps[] = (Map<String, Object>[])new Map<?, ?>[num_ids+1];
         int i = 0;
         
         maps[i] = new ListOrderedMap<String, Object>();
         maps[i].put("Number of Ids", num_ids);
-        maps[i].put("Global", this.global);
         
         for (Integer id : this.markovs.keySet()) {
             Map<Procedure, MarkovGraph> m = this.markovs.get(id);
             
-            i += 1;
-            maps[i] = new ListOrderedMap<String, Object>();
-            maps[i].put("ID", id);
+            maps[++i] = new ListOrderedMap<String, Object>();
+            maps[i].put("ID", "#" + id);
             maps[i].put("Number of Procedures", m.size());
             for (Entry<Procedure, MarkovGraph> e : m.entrySet()) {
-                maps[i].put("   " + e.getKey().getName(), e.getValue().getVertexCount());
+                MarkovGraph markov = e.getValue();
+                String val = String.format("[Vertices=%d, Recomputed=%d, Accuracy=%.4f]",
+                                           markov.getVertexCount(), markov.getRecomputeCount(), markov.getAccuracyRatio());
+                maps[i].put("   " + e.getKey().getName(), val);
             } // FOR
         } // FOR
         
@@ -309,20 +310,6 @@ public class MarkovGraphsContainer implements JSONSerializable {
         // CLASSNAME
         stringer.key(Members.CLASSNAME.name()).value(this.getClass().getCanonicalName());
         
-        // IS GLOBAL
-        stringer.key(Members.GLOBAL.name()).value(this.global);
-        
-        // FEATURE KEYS
-        stringer.key(Members.FEATURES.name()).object();
-        for (Procedure catalog_proc : this.features.keySet()) {
-            stringer.key(CatalogKey.createKey(catalog_proc)).array();
-            for (String feature_key : this.features.get(catalog_proc)) {
-                stringer.value(feature_key);
-            } // FOR (feature)
-            stringer.endArray();
-        } // FOR (procedure)
-        stringer.endObject();
-
         // MARKOV GRAPHS
         stringer.key(Members.MARKOVS.name()).object();
         for (Integer id : this.markovs.keySet()) {
@@ -350,33 +337,11 @@ public class MarkovGraphsContainer implements JSONSerializable {
 
     @Override
     public void fromJSON(JSONObject json_object, final Database catalog_db) throws JSONException {
-        final boolean d = LOG.isDebugEnabled(); 
-        
-        // IS GLOBAL
-        this.global = json_object.getBoolean(Members.GLOBAL.name());
-        
-        // FEATURE KEYS
-        JSONObject json_inner = json_object.getJSONObject(Members.FEATURES.name());
-        for (String proc_key : CollectionUtil.wrapIterator(json_inner.keys())) {
-            Procedure catalog_proc = CatalogKey.getFromKey(catalog_db, proc_key, Procedure.class);
-            assert(catalog_proc != null);
-            
-            JSONArray json_arr = json_inner.getJSONArray(proc_key);
-            List<String> feature_keys = new ArrayList<String>(); 
-            for (int i = 0, cnt = json_arr.length(); i < cnt; i++) {
-                feature_keys.add(json_arr.getString(i));
-            } // FOR
-            this.features.put(catalog_proc, feature_keys);
-        } // FOR (proc key)
-        
         // MARKOV GRAPHS
-        json_inner = json_object.getJSONObject(Members.MARKOVS.name());
+        JSONObject json_inner = json_object.getJSONObject(Members.MARKOVS.name());
         List<Runnable> runnables = new ArrayList<Runnable>();
         for (String id_key : CollectionUtil.wrapIterator(json_inner.keys())) {
             final Integer id = Integer.valueOf(id_key);
-            // HACK
-            if (id.equals(MarkovUtil.GLOBAL_MARKOV_CONTAINER_ID)) this.global = true;
-        
             final JSONObject json_procs = json_inner.getJSONObject(id_key);
             assert(json_procs != null);
             
@@ -384,28 +349,71 @@ public class MarkovGraphsContainer implements JSONSerializable {
                 final Procedure catalog_proc = CatalogKey.getFromKey(catalog_db, proc_key, Procedure.class);
                 assert(catalog_proc != null);
                 if (this.load_procedures != null && this.load_procedures.contains(catalog_proc) == false) {
-                    if (d) LOG.debug(String.format("Skipping MarkovGraph [id=%d, proc=%s]", id, catalog_proc.getName()));
+                    if (debug) LOG.debug(String.format("Skipping MarkovGraph [id=%d, proc=%s]", id, catalog_proc.getName()));
                     continue;
                 }
                 
                 runnables.add(new Runnable() {
                     @Override
                     public void run() {
-                        if (d) LOG.debug(String.format("Loading MarkovGraph [id=%d, proc=%s]", id, catalog_proc.getName()));
+                        if (debug) LOG.debug(String.format("Loading MarkovGraph [id=%d, proc=%s]", id, catalog_proc.getName()));
+                        JSONObject json_graph = null;
                         try {
-                            JSONObject json_graph = new JSONObject(Encoder.hexDecodeToString(json_procs.getString(proc_key)));
+                            json_graph = new JSONObject(Encoder.hexDecodeToString(json_procs.getString(proc_key)));
                             MarkovGraph markov = new MarkovGraph(catalog_proc);
                             markov.fromJSON(json_graph, catalog_db);
                             MarkovGraphsContainer.this.put(id, markov);
                             markov.buildCache();
-                        } catch (Exception ex) {
-                            throw new RuntimeException(ex);
+                        } catch (Throwable ex) {
+                            throw new RuntimeException("Failed to load MarkovGraph " + id + " for " + catalog_proc.getName(), ex);
                         }
                     }
                 });
             } // FOR (proc key)
         } // FOR (id key)
-        if (d) LOG.debug(String.format("Going to wait for %d MarkovGraphs to load", runnables.size())); 
+        if (debug) LOG.debug(String.format("Going to wait for %d MarkovGraphs to load", runnables.size())); 
         ThreadUtil.runGlobalPool(runnables);
+    }
+    
+    public static void main(String[] vargs) throws Exception {
+        ArgumentsParser args = ArgumentsParser.load(vargs);
+        args.require(ArgumentsParser.PARAM_CATALOG,
+                     ArgumentsParser.PARAM_MARKOV);
+        
+        Map<Integer, MarkovGraphsContainer> all_markovs = MarkovUtil.load(args.catalog_db, args.getParam(ArgumentsParser.PARAM_MARKOV));
+        int cnt_invalid = 0;
+        int cnt_total = 0;
+        boolean save = true;
+        for (Integer p : all_markovs.keySet()) {
+            MarkovGraphsContainer m = all_markovs.get(p);
+            LOG.info(String.format("[%s] Validating %d MarkovGraphs for partition %d", m.getClass().getSimpleName(), m.size(), p));
+            
+            for (Integer id : m.keySet()) {
+                for (MarkovGraph markov : m.getAll(id).values()) {
+                    boolean dump = false;
+                    String before = MarkovUtil.exportGraphviz(markov, true, false, true, null).export(markov.getProcedure().getName());
+                    try {
+                        markov.calculateProbabilities();
+                        markov.validate();
+                        if (markov.getGraphId() == 10014) dump = true;
+                    } catch (InvalidGraphElementException ex) {
+                        cnt_invalid++;
+                        System.out.println(String.format("[%d] %-16s - %s", markov.getGraphId(), markov.getProcedure().getName(), ex.getMessage()));
+                        dump = true;
+                        throw ex;
+                    } finally {
+                        if (dump) {
+                            System.out.println("BEFORE DUMPED: " + FileUtil.writeStringToFile("/tmp/before.dot", before));
+                            System.out.println("AFTER DUMPED: " + MarkovUtil.exportGraphviz(markov, true, false, true, null).writeToTempFile(markov.getProcedure()));
+                        }
+                    }
+                    cnt_total++;
+                }
+            } // FOR
+        }
+        System.out.println("VALID: " + (cnt_total - cnt_invalid) + " / "+ cnt_total);
+        if (save && cnt_invalid == 0) {
+            MarkovGraphContainersUtil.save(all_markovs, args.getParam(ArgumentsParser.PARAM_MARKOV));
+        }
     }
 }

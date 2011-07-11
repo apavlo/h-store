@@ -150,7 +150,10 @@ public abstract class AbstractTreeWalker<E> implements Poolable {
      * Cache handle to the object pool we use for the children
      */
     private StackObjectPool children_pool;
-    
+    /**
+     * If we reach one of these elements, we will halt the traversal
+     */
+    private Set<E> stop_elements; 
     /**
      * Depth limit (for debugging)
      */
@@ -175,13 +178,16 @@ public abstract class AbstractTreeWalker<E> implements Poolable {
         this.allow_revisit = false;
         this.counter = 0;
         this.depth_limit = -1;
-
-        try {
-            for (Children<E> c : this.attached_children.values()) {
-                this.children_pool.returnObject(c);
-            } // FOR
-        } catch (Exception ex) {
-            throw new RuntimeException(ex);
+        if (this.stop_elements != null) this.stop_elements.clear();
+        
+        if (this.children_pool != null) {
+            try {
+                for (Children<E> c : this.attached_children.values()) {
+                    this.children_pool.returnObject(c);
+                } // FOR
+            } catch (Exception ex) {
+                throw new RuntimeException(ex);
+            }
         }
         this.attached_children.clear();
         this.children_pool = null;
@@ -315,6 +321,16 @@ public abstract class AbstractTreeWalker<E> implements Poolable {
     protected final boolean isStopped() {
         return (this.stop);
     }
+    /**
+     * Mark an element that will cause the traversal to stop when if traverse is invoked with it
+     * @param element
+     */
+    protected synchronized final void stopAtElement(E element) {
+        if (this.stop_elements == null) {
+            this.stop_elements = new HashSet<E>();
+        }
+        this.stop_elements.add(element);
+    }
 
     // ----------------------------------------------------------------------
     // TRAVERSAL METHODS
@@ -345,6 +361,9 @@ public abstract class AbstractTreeWalker<E> implements Poolable {
             if (trace) LOG.trace("callback_first(" + element + ")");
             this.callback_first(element);
         }
+        
+        // Check if we should stop here
+        this.stop = this.stop || (this.stop_elements != null && this.stop_elements.contains(element));
         if (this.stop) {
             if (trace) LOG.trace("Stop Called. Halting traversal.");
             return;

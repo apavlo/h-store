@@ -1,5 +1,6 @@
 package edu.brown.markov;
 
+import java.io.File;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
@@ -8,6 +9,8 @@ import java.util.Map.Entry;
 import org.voltdb.catalog.Procedure;
 
 import edu.brown.graphs.GraphvizExport;
+import edu.brown.markov.containers.MarkovGraphContainersUtil;
+import edu.brown.markov.containers.MarkovGraphsContainer;
 import edu.brown.utils.ArgumentsParser;
 
 public class MarkovGraphvizExport {
@@ -38,7 +41,7 @@ public class MarkovGraphvizExport {
         } // FOR
         assert(procedures.size() > 0) : "No procedures";
         
-        Map<Integer, MarkovGraphsContainer> m = MarkovUtil.loadProcedures(args.catalog_db, input_path, procedures);
+        Map<Integer, MarkovGraphsContainer> m = MarkovGraphContainersUtil.loadProcedures(args.catalog_db, input_path, procedures);
         for (Procedure catalog_proc : procedures) {
             MarkovGraphsContainer markovs = null;
             
@@ -59,15 +62,15 @@ public class MarkovGraphvizExport {
             for (Entry<Integer, MarkovGraph> e : markov_set.entrySet()) {
                 MarkovGraph markov = e.getValue();
                 assert(markov.isValid()) : "The graph for " + catalog_proc + " is not initialized!";
-                GraphvizExport<Vertex, Edge> gv = MarkovUtil.exportGraphviz(markov, full_output, vldb_output, null);
+                GraphvizExport<Vertex, Edge> gv = MarkovUtil.exportGraphviz(markov, full_output, vldb_output, false, null);
                 
-                String output = null;
+                File f = null;
                 if (markov_set.size() == 1) {
-                    output = gv.writeToTempFile(catalog_proc);
+                    f = gv.writeToTempFile(catalog_proc);
                 } else {
-                    output = gv.writeToTempFile(catalog_proc, e.getKey());
+                    f = gv.writeToTempFile(catalog_proc, e.getKey());
                 }
-                System.err.println("WROTE FILE: " + output);
+                System.err.println("WROTE FILE: " + f);
             } // FOR
         } // FOR
     }

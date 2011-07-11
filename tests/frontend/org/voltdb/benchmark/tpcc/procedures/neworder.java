@@ -160,7 +160,7 @@ public class neworder extends VoltProcedure {
         voltQueueSQL(getWarehouseTaxRate, w_id);
         voltQueueSQL(getDistrict, d_id, w_id);
         voltQueueSQL(getCustomer, w_id, d_id, c_id);
-
+        
         final VoltTable[] itemresults = voltExecuteSQL();
         assert itemresults.length == item_id.length + 3;
         for (int i = 0; i < item_id.length; ++i) {
@@ -173,6 +173,17 @@ public class neworder extends VoltProcedure {
             items[i] = itemresults[i].fetchRow(0);
         }
 
+        double total = 0;
+        for (int i = 0; i < item_id.length; ++i) {
+            final long ol_supply_w_id = supware[i];
+            final long ol_i_id = item_id[i];
+
+            // One getStockInfo SQL statement for each district
+            voltQueueSQL(getStockInfo[d_id-1], ol_i_id, ol_supply_w_id);
+        }
+        final VoltTable[] stockresults = voltExecuteSQL();
+        assert stockresults.length == item_id.length;
+        
         //final VoltTable[] backgroundInfo = executeSQL();
         VoltTable customer = itemresults[item_id.length + 2];
 
@@ -194,17 +205,6 @@ public class neworder extends VoltProcedure {
 
         // values the client is missing: i_name, s_quantity, brand_generic, i_price, ol_amount
         final VoltTable item_data = item_data_template.clone(2048);
-
-        double total = 0;
-        for (int i = 0; i < item_id.length; ++i) {
-            final long ol_supply_w_id = supware[i];
-            final long ol_i_id = item_id[i];
-
-            // One getStockInfo SQL statement for each district
-            voltQueueSQL(getStockInfo[d_id-1], ol_i_id, ol_supply_w_id);
-        }
-        final VoltTable[] stockresults = voltExecuteSQL();
-        assert stockresults.length == item_id.length;
 
         for (int i = 0; i < item_id.length; ++i) {
             final long ol_number = i + 1;

@@ -9,10 +9,10 @@ from common import *
 ## AbstractTraceElement
 ## ==============================================
 class AbstractTraceElement(object):
-    def __init__(self, id, catalog_name = None, params = [ ], start_timestamp = None, stop_timestamp = None, aborted = False):
-        self.id = id
+    def __init__(self, catalog_name = None, params = [ ], output = [ ], start_timestamp = None, stop_timestamp = None, aborted = False):
         self.name = catalog_name
         self.params = list(params)
+        self.output = list(output)
         self.start = start_timestamp
         self.stop = stop_timestamp
         self.aborted = aborted
@@ -29,12 +29,13 @@ class AbstractTraceElement(object):
         #return (data)
         
         return ({
-            "ID":       self.id,
             "NAME":     self.name,
             "START":    convertTimestamp(self.start),
             "STOP":     convertTimestamp(self.stop),
             "ABORTED":  self.aborted,
             "PARAMS":   self.params,
+            "OUTPUT":   self.output,
+            
         })
     ## DEF
     
@@ -51,8 +52,8 @@ class AbstractTraceElement(object):
 class TransactionTrace(AbstractTraceElement):
     NEXT_TXN_ID = 1000
     
-    def __init__(self, id = None, start_timestamp = None, debug = False, strict_matching = False):
-        super(TransactionTrace, self).__init__(id, start_timestamp = start_timestamp)
+    def __init__(self, start_timestamp = None, debug = False, strict_matching = False):
+        super(TransactionTrace, self).__init__(start_timestamp = start_timestamp)
         #assert self.id
         #assert self.start
         assert not self.params
@@ -208,8 +209,8 @@ class TransactionTrace(AbstractTraceElement):
 ## ==============================================
 class QueryTrace(AbstractTraceElement):
     
-    def __init__(self, id = None, orig_query = None, name = None, proc_name = None, params = [], start_timestamp = None):
-        super(QueryTrace, self).__init__(id, catalog_name = name, params = params, start_timestamp = start_timestamp)
+    def __init__(self, orig_query = None, name = None, proc_name = None, params = [], output = [], start_timestamp = None):
+        super(QueryTrace, self).__init__(catalog_name = name, params = params, start_timestamp = start_timestamp)
         self.proc_name = proc_name
         self.batch_id = None
         self.orig_query = orig_query

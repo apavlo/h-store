@@ -7,7 +7,7 @@ import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Statement;
 
 import edu.brown.BaseTestCase;
-import edu.brown.benchmark.tm1.procedures.GetAccessData;
+import edu.brown.benchmark.tm1.procedures.UpdateSubscriberData;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.correlations.ParameterCorrelations;
 import edu.brown.utils.CollectionUtil;
@@ -15,12 +15,13 @@ import edu.brown.utils.ProjectType;
 import edu.brown.workload.TransactionTrace;
 import edu.brown.workload.Workload;
 import edu.brown.workload.filters.BasePartitionTxnFilter;
+import edu.brown.workload.filters.Filter;
 import edu.brown.workload.filters.ProcedureLimitFilter;
 import edu.brown.workload.filters.ProcedureNameFilter;
 
 public class TestMarkovGraphProbabilities extends BaseTestCase {
 
-    private static final Class<? extends VoltProcedure> TARGET_PROCEDURE = GetAccessData.class;
+    private static final Class<? extends VoltProcedure> TARGET_PROCEDURE = UpdateSubscriberData.class;
     private static final int WORKLOAD_XACT_LIMIT = 10;
     private static final int BASE_PARTITION = 1;
     private static final int NUM_PARTITIONS = 4;
@@ -55,7 +56,7 @@ public class TestMarkovGraphProbabilities extends BaseTestCase {
             // (3) Filter to only include multi-partition txns
             // (4) Another limit to stop after allowing ### txns
             // Where is your god now???
-            Workload.Filter filter = new ProcedureNameFilter()
+            Filter filter = new ProcedureNameFilter()
                     .include(TARGET_PROCEDURE.getSimpleName())
                     .attach(new BasePartitionTxnFilter(p_estimator, BASE_PARTITION))
                     .attach(new ProcedureLimitFilter(WORKLOAD_XACT_LIMIT));
@@ -81,20 +82,19 @@ public class TestMarkovGraphProbabilities extends BaseTestCase {
         System.err.println(v.debug());
         
         assertEquals(1.0f, v.getSingleSitedProbability());
-        assertEquals(0.0f, v.getAbortProbability());
+        assert(v.getAbortProbability() > 0.0) : v.getAbortProbability(); 
         
         for (int p : CatalogUtil.getAllPartitionIds(catalog_proc)) {
             if (p == BASE_PARTITION) {
-                assertEquals(1.0f, v.getReadOnlyProbability(p));
-                assertEquals(0.0f, v.getWriteProbability(p));
-                assertEquals(0.0f, v.getDoneProbability(p));
+                assertEquals(0.0f, v.getReadOnlyProbability(p), MarkovGraph.PROBABILITY_EPSILON);
+                assertEquals(1.0f, v.getWriteProbability(p), MarkovGraph.PROBABILITY_EPSILON);
+                assertEquals(0.0f, v.getDoneProbability(p), MarkovGraph.PROBABILITY_EPSILON);
             } else {
-                assertEquals(0.0f, v.getReadOnlyProbability(p));
-                assertEquals(0.0f, v.getWriteProbability(p));
-                assertEquals(1.0f, v.getDoneProbability(p));
+                assertEquals(1.0f, v.getReadOnlyProbability(p), MarkovGraph.PROBABILITY_EPSILON);
+                assertEquals(0.0f, v.getWriteProbability(p), MarkovGraph.PROBABILITY_EPSILON);
+                assertEquals(1.0f, v.getDoneProbability(p), MarkovGraph.PROBABILITY_EPSILON);
             }
         } // FOR
-        
     }
     
     

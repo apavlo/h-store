@@ -51,8 +51,10 @@ import org.voltdb.utils.Pair;
 import org.voltdb.utils.VoltSampler;
 
 import edu.brown.catalog.CatalogUtil;
+import edu.brown.utils.FileUtil;
 import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.StringUtil;
+import edu.mit.hstore.HStoreConf;
 
 /**
  * Base class for clients that will work with the multi-host multi-process
@@ -65,6 +67,8 @@ public abstract class ClientMain {
         // log4j hack!
         LoggerUtil.setupLogging();
     }
+    
+    public static String CONTROL_PREFIX = "{HSTORE} ";
     
     public enum Command {
         START,
@@ -209,7 +213,13 @@ public abstract class ClientMain {
     private final List<String> m_tableCheckOrder = new LinkedList<String>();
     protected VoltSampler m_sampler = null;
     
-    public static String CONTROL_PREFIX = "{HSTORE} ";
+    /**
+     * Configuration
+     */
+    protected final HStoreConf m_hstoreConf;
+    protected final BenchmarkConfig m_benchmarkConf;
+    
+    
 
     public static void printControlMessage(ControlState state) {
         printControlMessage(state, null);
@@ -291,6 +301,7 @@ public abstract class ClientMain {
                         for (AtomicLong cnt : m_counts) {
                             cnt.set(0);
                         } // FOR
+                        answerOk();
                         break;
                     }
                     case PAUSE: {
@@ -368,6 +379,10 @@ public abstract class ClientMain {
         public void answerStart() {
             final ControlWorker worker = new ControlWorker();
             new Thread(worker).start();
+        }
+        
+        public void answerOk() {
+            printControlMessage(m_controlState, "OK");
         }
     }
 
@@ -476,7 +491,35 @@ public abstract class ClientMain {
             }
         }
     }
+    
+    private BenchmarkClientFileUploader uploader = null;
 
+
+    /**
+     * Queue a local file to be sent to the client with the given client id. The file will be copied into
+     * the path specified by remote_file. When the client is started it will be passed argument <parameter>=<remote_file>
+     * @param client_id
+     * @param parameter
+     * @param local_file
+     * @param remote_file
+     */
+    public void sendFileToClient(int client_id, String parameter, File local_file, File remote_file) throws IOException {
+        assert(uploader != null);
+        this.uploader.sendFileToClient(client_id, parameter, local_file, remote_file);
+        LOG.debug(String.format("Queuing local file '%s' to be sent to client %d as parameter '%s' to remote file '%s'", local_file, client_id, parameter, remote_file));
+    }
+    public void sendFileToClient(int client_id, String parameter, File local_file) throws IOException {
+        String suffix = FileUtil.getExtension(local_file);
+        String prefix = String.format("%s-%02d-", local_file.getName().replace("." + suffix, ""), client_id);
+        File remote_file = FileUtil.getTempFile(prefix, suffix, false);
+        sendFileToClient(client_id, parameter, local_file, remote_file);
+    }
+    
+    protected void setBenchmarkClientFileUploader(BenchmarkClientFileUploader uploader) {
+        assert(this.uploader == null);
+        this.uploader = uploader;
+    }
+    
     /**
      * Implemented by derived classes. Loops indefinitely invoking stored
      * procedures. Method never returns and never receives any updates.
@@ -544,6 +587,11 @@ public abstract class ClientMain {
         m_checkTransaction = 0;
         m_checkTables = false;
         m_constraints = new LinkedHashMap<Pair<String, Integer>, Expression>();
+        
+        // FIXME
+        m_hstoreConf = null;
+        m_benchmarkConf = null;
+        
     }
 
     abstract protected String getApplicationName();
@@ -579,6 +627,12 @@ public abstract class ClientMain {
 //        int statsPollInterval = 10000;
         File catalogPath = null;
 
+        // HStoreConf Path
+        String hstore_conf_path = null;
+        
+        // Benchmark Conf Path
+        String benchmark_conf_path = null;
+        
         // scan the inputs once to read everything but host names
         for (int i = 0; i < args.length; i++) {
             final String arg = args[i];
@@ -589,9 +643,16 @@ public abstract class ClientMain {
                 break;
             } else if (parts[1].startsWith("${")) {
                 continue;
+            }
+            
+            if (parts[0].equalsIgnoreCase("CONF")) {
+                hstore_conf_path = parts[1];
+            } else if (parts[0].equalsIgnoreCase(BenchmarkController.BENCHMARK_PARAM_PREFIX + "CONF")) {
+                benchmark_conf_path = parts[1];
+            }
                 
             // Strip out benchmark prefix  
-            } else if (parts[0].toLowerCase().startsWith(BenchmarkController.BENCHMARK_PARAM_PREFIX)) {
+            if (parts[0].toLowerCase().startsWith(BenchmarkController.BENCHMARK_PARAM_PREFIX)) {
                 parts[0] = parts[0].substring(BenchmarkController.BENCHMARK_PARAM_PREFIX.length());
                 args[i] = parts[0] + "=" + parts[1]; // HACK
             }
@@ -636,6 +697,19 @@ public abstract class ClientMain {
             } else {
                 m_extraParams.put(parts[0], parts[1]);
             }
+        }
+        
+        // Initialize HStoreConf
+        if (HStoreConf.isInitialized() == false) {
+            assert(hstore_conf_path != null) : "Missing HStoreConf file";
+            HStoreConf.init(new File(hstore_conf_path));
+        }
+        m_hstoreConf = HStoreConf.singleton();
+        
+        if (benchmark_conf_path != null) {
+            m_benchmarkConf = new BenchmarkConfig(new File(benchmark_conf_path));
+        } else {
+            m_benchmarkConf = null;
         }
         
         // Thread.currentThread().setName(String.format("client-%02d", id));
@@ -743,14 +817,17 @@ public abstract class ClientMain {
      * @param startImmediately
      *            Whether to start the client thread immediately or not.
      */
-    public static void main(final Class<? extends ClientMain> clientClass,
-        final String args[], final boolean startImmediately) {
+    public static ClientMain main(final Class<? extends ClientMain> clientClass, final String args[], final boolean startImmediately) {
+        return main(clientClass, null, args, startImmediately);
+    }
+        
+    protected static ClientMain main(final Class<? extends ClientMain> clientClass, final BenchmarkClientFileUploader uploader, final String args[], final boolean startImmediately) {
+        ClientMain clientMain = null;
         try {
             final Constructor<? extends ClientMain> constructor =
-                clientClass.getConstructor(new Class<?>[] { new String[0]
-                    .getClass() });
-            final ClientMain clientMain =
-                constructor.newInstance(new Object[] { args });
+                clientClass.getConstructor(new Class<?>[] { new String[0].getClass() });
+            clientMain = constructor.newInstance(new Object[] { args });
+            if (uploader != null) clientMain.uploader = uploader;
             if (startImmediately) {
                 final ControlWorker worker = clientMain.new ControlWorker();
                 worker.start();
@@ -765,6 +842,7 @@ public abstract class ClientMain {
             e.printStackTrace();
             System.exit(-1);
         }
+        return (clientMain);
     }
 
     // update the client state and start waiting for a message.
@@ -882,7 +960,7 @@ public abstract class ClientMain {
                 clientResponse.getException().printStackTrace();
             }
             if (clientResponse.getStatusString() != null) {
-                System.err.println(clientResponse.getStatusString());
+                LOG.warn(clientResponse.getStatusString());
             }
 
             System.exit(-1);

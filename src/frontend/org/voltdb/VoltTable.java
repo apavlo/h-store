@@ -474,6 +474,10 @@ public final class VoltTable extends VoltTableRow implements FastSerializable {
         return retval;
     }
     
+    /**
+     * Returns the active row
+     * @return
+     */
     public final VoltTableRow getRow() {
         int idx = this.getActiveRowIndex();
         return (this.fetchRow(idx));
@@ -566,6 +570,7 @@ public final class VoltTable extends VoltTableRow implements FastSerializable {
                     if (VoltType.isNullVoltType(value))
                     {
                         switch (columnType) {
+                        case BOOLEAN:
                         case TINYINT:
                             m_buffer.put(VoltType.NULL_TINYINT);
                             break;

@@ -13,6 +13,7 @@
 #include "protorpc/protoserver.h"
 #include "replication/nulllog.h"
 #include "replication/primarybackuplistener.h"
+#include "base/debuglog.h"
 
 using std::string;
 using std::vector;
@@ -49,10 +50,10 @@ void runServer(io::EventLoop* event_loop, Scheduler* scheduler, const dtxn::Part
     MessageListener listener(((io::LibEventLoop*) event_loop)->base(), &msg_server);
     if (!listener.listen(partition.replica(replica_index).port())) {
         // TODO: How to deal with errors?
-        fprintf(stderr, "Error binding to port\n");
+        LOG_ERROR("Error binding to port %d", partition.replica(replica_index).port());
         return;
     }
-    printf("listening on port %d\n", listener.port());
+    LOG_DEBUG("Listening on port %d", listener.port());
 
     // TODO: Eventually convert to this RPC protocol
     int proto_port = partition.replica(replica_index).port() + 1;

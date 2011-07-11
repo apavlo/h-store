@@ -24,6 +24,7 @@ import edu.brown.statistics.Histogram;
 import edu.brown.utils.ProjectType;
 import edu.brown.workload.TransactionTrace;
 import edu.brown.workload.Workload;
+import edu.brown.workload.filters.Filter;
 import edu.brown.workload.filters.ProcedureLimitFilter;
 import edu.brown.workload.filters.ProcedureNameFilter;
 
@@ -45,7 +46,7 @@ public class TestFeatureSet extends BaseTestCase {
         if (workload == null) {
             File file = this.getWorkloadFile(ProjectType.TPCC);
             workload = new Workload(catalog);
-            Workload.Filter filter = new ProcedureNameFilter().include(TARGET_PROCEDURE.getSimpleName())
+            Filter filter = new ProcedureNameFilter().include(TARGET_PROCEDURE.getSimpleName())
                                          .attach(new ProcedureLimitFilter(WORKLOAD_XACT_LIMIT));
             workload.load(file.getAbsolutePath(), catalog_db, filter);
         }

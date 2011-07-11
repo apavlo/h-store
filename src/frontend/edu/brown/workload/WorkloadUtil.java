@@ -2,18 +2,260 @@ package edu.brown.workload;
 
 import java.io.BufferedReader;
 import java.io.File;
+import java.io.IOException;
+import java.io.OutputStream;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.LinkedBlockingDeque;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import org.apache.log4j.Logger;
+import org.json.JSONException;
+import org.json.JSONObject;
+import org.voltdb.catalog.Database;
+import org.voltdb.utils.Pair;
 
 import edu.brown.statistics.Histogram;
 import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.FileUtil;
+import edu.brown.utils.LoggerUtil;
+import edu.brown.utils.LoggerUtil.LoggerBoolean;
+import edu.brown.workload.filters.Filter;
+import edu.brown.workload.filters.Filter.FilterResult;
 
 public abstract class WorkloadUtil {
-    private static final Logger LOG = Logger.getLogger(WorkloadUtil.class);
+    static final Logger LOG = Logger.getLogger(WorkloadUtil.class);
+    static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    static {
+        LoggerUtil.attachObserver(LOG, debug, trace);
+    }
     
+    
+    public static class LoadThread implements Runnable {
+        final Workload workload;
+        final File input_path;
+        final ReadThread reader;
+        final Database catalog_db;
+        final Filter filter;
+        final AtomicInteger counters[];
+         
+        boolean stop = false;
+        
+        public LoadThread(Workload workload, File input_path, ReadThread reader, Database catalog_db, Filter filter, AtomicInteger counters[]) {
+            this.workload = workload;
+            this.input_path = input_path;
+            this.reader = reader;
+            this.catalog_db = catalog_db;
+            this.filter = filter;
+            this.counters = counters;
+        }
+        
+        @Override
+        public void run() {
+            final boolean trace = LOG.isTraceEnabled();
+            final boolean debug = LOG.isDebugEnabled();
+    
+            AtomicInteger xact_ctr = this.counters[0];
+            AtomicInteger query_ctr = this.counters[1];
+            AtomicInteger element_ctr = this.counters[2];
+            
+            while (true) {
+                String line = null;
+                Integer line_ctr = null;
+                JSONObject jsonObject = null;
+                Pair<Integer, String> p = null;
+                
+                try {
+                    p = this.reader.lines.poll(100, TimeUnit.MILLISECONDS);
+                } catch (Exception ex) {
+                    throw new RuntimeException(ex);
+                }
+    
+                if (p == null) {
+                    if (this.stop) {
+                        if (trace) LOG.trace("Queue is empty and we were told to stop!");
+                        break;
+                    }
+                    if (trace) LOG.trace("Queue is empty but we haven't been told to stop yet");
+                    continue;
+                }
+                
+                line_ctr = p.getFirst();
+                line = p.getSecond();
+                try {
+                    try {
+                        jsonObject = new JSONObject(line);
+                    } catch (JSONException ex) {
+                        String msg = String.format("Ignoring invalid TransactionTrace on line %d of '%s'", (line_ctr+1), input_path);
+                        if (debug) {
+                            LOG.warn(msg, ex);
+                        } else {
+                            LOG.warn(msg); 
+                        }
+                        continue;
+                    }
+                
+                    // TransactionTrace
+                    if (jsonObject.has(TransactionTrace.Members.TXN_ID.name())) {
+                        
+                        // If we have already loaded in up to our limit, then we don't need to
+                        // do anything else. But we still have to keep reading because we need
+                        // be able to load in our index structures that are at the bottom of the file
+                        //
+                        // NOTE: If we ever load something else but the straight trace dumps, then the following
+                        // line should be a continue and not a break.
+                        
+                        // Load the xact from the jsonObject
+                        TransactionTrace xact = TransactionTrace.loadFromJSONObject(jsonObject, catalog_db);
+                        if (xact == null) {
+                            throw new Exception("Failed to deserialize transaction trace on line " + xact_ctr);
+                        } else if (filter != null) {
+                            FilterResult result = filter.apply(xact);
+                            if (result == FilterResult.HALT) {
+                                // We have to tell the ReadThread to stop too!
+                                if (trace) LOG.trace("Got HALT response from filter! Telling ReadThread to stop!");
+                                this.reader.stop();
+                                break;
+                            }
+                            else if (result == FilterResult.SKIP) continue;
+                            if (trace) LOG.trace(result + ": " + xact);
+                        }
+    
+                        // Keep track of how many trace elements we've loaded so that we can make sure
+                        // that our element trace list is complete
+                        int x = xact_ctr.incrementAndGet();
+                        if (trace && x % 10000 == 0) LOG.trace("Read in " + xact_ctr + " transactions...");
+                        query_ctr.addAndGet(xact.getQueryCount());
+                        element_ctr.addAndGet(1 + xact.getQueries().size());
+                        
+                        // This call just updates the various other index structures 
+                        this.workload.addTransaction(xact.getCatalogItem(catalog_db), xact, true);
+                        
+                    // Unknown!
+                    } else {
+                        throw new Exception("Unexpected serialization line in workload trace file '" + input_path.getAbsolutePath() + "'");
+                    }
+                } catch (Exception ex) {
+                    throw new RuntimeException("Error on line " + (line_ctr+1) + " of workload trace file '" + input_path.getAbsolutePath() + "'", ex);
+                }
+            } // WHILE
+        }
+        
+        public void stop() {
+            LOG.trace("Told to stop [queue_size=" + this.reader.lines.size() + "]");
+            this.stop = true;
+        }
+    }
+
+    /**
+     * READ THREAD
+     */
+    public static class ReadThread implements Runnable {
+        final File input_path;
+        final List<LoadThread> load_threads = new ArrayList<LoadThread>();
+        final LinkedBlockingDeque<Pair<Integer, String>> lines;
+        final Pattern pattern;
+        boolean stop = false;
+        Thread self;
+        
+        public ReadThread(File input_path, Pattern pattern, int num_threads) {
+            this.input_path = input_path;
+            this.pattern = pattern;
+            this.lines = new LinkedBlockingDeque<Pair<Integer, String>>(num_threads * 2);
+        }
+        
+        @Override
+        public void run() {
+            self = Thread.currentThread();
+            
+            BufferedReader in = null;
+            try {
+                in = FileUtil.getReader(this.input_path);
+            } catch (Exception ex) {
+                throw new RuntimeException(ex);
+            }
+            
+            int line_ctr = 0;
+            int fast_ctr = 0;
+            try {
+                while (in.ready() && this.stop == false) {
+                    String line = in.readLine().trim();
+                    if (line.isEmpty()) continue;
+                    if (this.pattern != null && this.pattern.matcher(line).find() == false) {
+                        fast_ctr++;
+                        continue;
+                    }
+                    this.lines.offerLast(Pair.of(line_ctr, line), 100, TimeUnit.SECONDS);
+                    line_ctr++;
+                } // WHILE
+                in.close();
+                if (debug.get()) LOG.debug("Finished reading file. Telling all LoadThreads to stop when their queue is empty");
+            } catch (InterruptedException ex) {
+                if (this.stop == false) throw new RuntimeException(ex);
+            } catch (Exception ex) {
+                throw new RuntimeException(ex);
+            } finally {
+                // Tell all the load threads to stop before we finish
+                for (LoadThread lt : this.load_threads) {
+                    lt.stop();
+                } // FOR
+            }
+            if (debug.get()) LOG.debug(String.format("Read %d lines [fast_filter=%d]", line_ctr, fast_ctr));
+        }
+        public synchronized void stop() {
+            if (this.stop == false) {
+                if (debug.get()) LOG.debug("ReadThread told to stop by LoadThread [queue_size=" + this.lines.size() + "]");
+                this.stop = true;
+                this.lines.clear();
+                this.self.interrupt();
+            }
+        }
+    } // END CLASS
+
+    
+    public static final class WriteThread implements Runnable {
+        final Database catalog_db;
+        final OutputStream output;
+        final LinkedBlockingDeque<TransactionTrace> traces = new LinkedBlockingDeque<TransactionTrace>();
+        
+        public WriteThread(Database catalog_db, OutputStream output) {
+            this.catalog_db = catalog_db;
+            this.output = output;
+            assert(this.output != null);
+        }
+        
+        @Override
+        public void run() {
+            TransactionTrace xact = null;
+            while (true) {
+                try {
+                    xact = this.traces.take();
+                    assert(xact != null);
+                    write(this.catalog_db, xact, this.output);
+                } catch (InterruptedException ex) {
+                    // IGNORE
+                    break;
+                }
+            } // WHILE
+        }
+        
+        public static void write(Database catalog_db, TransactionTrace xact, OutputStream output) {
+            try {
+                output.write(xact.toJSONString(catalog_db).getBytes());
+                output.write("\n".getBytes());
+                output.flush();
+                if (Workload.debug.get()) Workload.LOG.debug("Wrote out new trace record for " + xact + " with " + xact.getQueries().size() + " queries");
+            } catch (IOException ex) {
+                Workload.LOG.fatal("Failed to write " + xact + " out to file", ex);
+                System.exit(1);
+            }
+        }
+    } // END CLASS
+
     /**
      * Read a Workload file and generate a Histogram for how often each procedure 
      * is executed in the trace. This is a faster method than having to deserialize the entire
@@ -22,8 +264,8 @@ public abstract class WorkloadUtil {
      * @return
      * @throws Exception
      */
-    public static Histogram getProcedureHistogram(File workload_path) throws Exception {
-        final Histogram h = new Histogram();
+    public static Histogram<String> getProcedureHistogram(File workload_path) throws Exception {
+        final Histogram<String> h = new Histogram<String>();
         final String regex = "^\\{.*?,[\\s]*\"" +
                              AbstractTraceElement.Members.NAME.name() +
                              "\":[\\s]*\"([\\w\\d]+)\"[\\s]*,[\\s]*.*";
@@ -58,6 +300,7 @@ public abstract class WorkloadUtil {
     
     public static void main(String[] vargs) throws Exception {
         ArgumentsParser args = ArgumentsParser.load(vargs);
+        assert(args != null);
         System.out.println(getProcedureHistogram(new File("/home/pavlo/Documents/H-Store/SVN-Brown/trunk/files/workloads/tpce.trace.gz")));
         
     }

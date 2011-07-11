@@ -33,6 +33,7 @@ package edu.brown.benchmark.auctionmark;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
@@ -79,12 +80,12 @@ public class AuctionMarkBenchmarkProfile implements JSONSerializable {
     /**
      * Data Scale Factor
      */
-    public long scale_factor;
+    public double scale_factor;
 
     /**
      * Map from table names to the number of tuples we inserted during loading
      */
-    public SortedMap<String, Long> table_sizes = new TreeMap<String, Long>();
+    public Map<String, Long> table_sizes = Collections.synchronizedMap(new TreeMap<String, Long>());
 
     /**
      * Histogram for number of items per category (stored as category_id)
@@ -219,7 +220,7 @@ public class AuctionMarkBenchmarkProfile implements JSONSerializable {
      * 
      * @return
      */
-    public long getScaleFactor() {
+    public double getScaleFactor() {
         return (this.scale_factor);
     }
 
@@ -228,7 +229,7 @@ public class AuctionMarkBenchmarkProfile implements JSONSerializable {
      * 
      * @param scale_factor
      */
-    public void setScaleFactor(long scale_factor) {
+    public void setScaleFactor(double scale_factor) {
         assert (scale_factor > 0) : "Invalid scale factor " + scale_factor;
         this.scale_factor = scale_factor;
     }

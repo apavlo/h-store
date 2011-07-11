@@ -34,6 +34,7 @@ import edu.brown.workload.TransactionTrace;
 import edu.brown.workload.Workload;
 import edu.brown.workload.filters.ProcedureLimitFilter;
 import edu.brown.workload.filters.ProcedureNameFilter;
+import edu.mit.hstore.HStoreConf;
 
 public class TestFeatureClusterer extends BaseTestCase {
 
@@ -54,6 +55,8 @@ public class TestFeatureClusterer extends BaseTestCase {
         super.setUp(ProjectType.TPCC);
         this.addPartitions(NUM_PARTITIONS);
         
+        HStoreConf.singleton().site.markov_path_caching = false;
+        
         if (workload == null) {
             catalog_proc = this.getProcedure(TARGET_PROCEDURE);
             
@@ -70,7 +73,7 @@ public class TestFeatureClusterer extends BaseTestCase {
             // (3) Filter to only include multi-partition txns
             // (4) Another limit to stop after allowing ### txns
             // Where is your god now???
-            Workload.Filter filter = new ProcedureNameFilter()
+            edu.brown.workload.filters.Filter filter = new ProcedureNameFilter()
                     .include(TARGET_PROCEDURE.getSimpleName())
 //                    .attach(new ProcParameterValueFilter().include(1, new Long(5))) // D_ID
 //                    .attach(new ProcParameterArraySizeFilter(CatalogUtil.getArrayProcParameters(catalog_proc).get(0), 10, ExpressionType.COMPARE_EQUAL))

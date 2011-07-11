@@ -64,9 +64,9 @@ public class Histogram<X> implements JSONSerializable {
      * occurences in the histogram
      */
     protected long min_count = 0;
-    protected final Set<Object> min_count_value = new HashSet<Object>();
+    protected final Set<X> min_count_values = new HashSet<X>();
     protected long max_count = 0;
-    protected final Set<Object> max_count_value = new HashSet<Object>();
+    protected final Set<X> max_count_values = new HashSet<X>();
     
     /**
      * A switchable flag that determines whether non-zero entries are kept or removed
@@ -169,9 +169,9 @@ public class Histogram<X> implements JSONSerializable {
             count += this.histogram.get(value);
         } else if (this.histogram.isEmpty()) {
             this.min_count = count;
-            this.min_count_value.add(value);
+            this.min_count_values.add(value);
             this.max_count = count;
-            this.max_count_value.add(value);
+            this.max_count_values.add(value);
         }
         assert(count >= 0) : "Invalid negative count for '" + value + "' [count=" + count + "]";
         // If the new count is zero, then completely remove it if we're not allowed to have zero entries
@@ -203,13 +203,13 @@ public class Histogram<X> implements JSONSerializable {
         for (Entry<X, Long> e : this.histogram.entrySet()) {
             long cnt = e.getValue(); 
             if (cnt <= this.min_count) {
-                if (cnt < this.min_count) this.min_count_value.clear();
-                this.min_count_value.add(e.getKey());
+                if (cnt < this.min_count) this.min_count_values.clear();
+                this.min_count_values.add(e.getKey());
                 this.min_count = cnt;
             }
             if (cnt >= this.max_count) {
-                if (cnt > this.max_count) this.max_count_value.clear();
-                this.max_count_value.add(e.getKey());
+                if (cnt > this.max_count) this.max_count_values.clear();
+                this.max_count_values.add(e.getKey());
                 this.max_count = cnt;
             }
         } // FOR
@@ -264,16 +264,15 @@ public class Histogram<X> implements JSONSerializable {
     @Deprecated
     public <T> T getMinCountValue() {
         this.calculateInternalValues();
-        return ((T)CollectionUtil.getFirst(this.min_count_value));
+        return ((T)CollectionUtil.getFirst(this.min_count_values));
     }
     /**
      * Return the set values with the smallest number of samples
      * @return
      */
-    @SuppressWarnings("unchecked")
-    public <T> Set<T> getMinCountValues() {
+    public Set<X> getMinCountValues() {
         this.calculateInternalValues();
-        return ((Set<T>)this.min_count_value);
+        return (this.min_count_values);
     }
     /**
      * Return the number of samples for the value with the greatest number of samples in the histogram
@@ -292,16 +291,15 @@ public class Histogram<X> implements JSONSerializable {
     @Deprecated
     public <T> T getMaxCountValue() {
         this.calculateInternalValues();
-        return ((T)CollectionUtil.getFirst(this.max_count_value));
+        return ((T)CollectionUtil.getFirst(this.max_count_values));
     }
     /**
      * Return the set values with the greatest number of samples
      * @return
      */
-    @SuppressWarnings("unchecked")
-    public <T> Set<T> getMaxCountValues() {
+    public Set<X> getMaxCountValues() {
         this.calculateInternalValues();
-        return ((Set<T>)this.max_count_value);
+        return (this.max_count_values);
     }
     /**
      * Return the internal variable for what we "think" the type is for this Histogram
@@ -358,10 +356,10 @@ public class Histogram<X> implements JSONSerializable {
         this.histogram.clear();
         this.num_samples = 0;
         this.min_count = 0;
-        this.min_count_value.clear();
+        this.min_count_values.clear();
         this.min_value = null;
         this.max_count = 0;
-        this.max_count_value.clear();
+        this.max_count_values.clear();
         this.max_value = null;
         assert(this.histogram.isEmpty());
     }
@@ -377,10 +375,10 @@ public class Histogram<X> implements JSONSerializable {
             } // FOR
             this.num_samples = 0;
             this.min_count = 0;
-            this.min_count_value.clear();
+            this.min_count_values.clear();
             this.min_value = null;
             this.max_count = 0;
-            this.max_count_value.clear();
+            this.max_count_values.clear();
             this.max_value = null;
         } else {
             this.clear();
@@ -506,7 +504,7 @@ public class Histogram<X> implements JSONSerializable {
 
     /**
      * Returns the current count for the given value
-     * If the value was never entered into the histogram, then the count will be 0
+     * If the value was never entered into the histogram, then the count will be null
      * @param value
      * @return
      */
@@ -515,6 +513,13 @@ public class Histogram<X> implements JSONSerializable {
         return (count); //  == null ? 0 : count);
     }
     
+    /**
+     * Returns the current count for the given value.
+     * If that value was nevered entered in the histogram, then the value returned will be value_if_null 
+     * @param value
+     * @param value_if_null
+     * @return
+     */
     public long get(X value, long value_if_null) {
         Long count = histogram.get(value);
         return (count == null ? value_if_null : count);

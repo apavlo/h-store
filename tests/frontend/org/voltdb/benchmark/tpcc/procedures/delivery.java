@@ -159,11 +159,13 @@ public class delivery extends VoltProcedure {
             final boolean ol_total_wasnull = row.wasNull();
 
             // If there are no order lines, SUM returns null. There should always be order lines.
+            /* FIXME
             if (ol_total_wasnull) {
                 throw new VoltAbortException(
                         "ol_total is NULL: there are no order lines. This should not happen");
             }
             assert ol_total > 0.0;
+            */
 
             voltQueueSQL(updateCustomer, ol_total, c_id, d_id, w_id);
 

@@ -5,6 +5,7 @@
 #include "protodtxn/protodtxncoordinator.h"
 
 #include <tr1/functional>
+#include <tr1/inttypes.h>
 
 #include "base/assert.h"
 #include "base/debuglog.h"
@@ -40,17 +41,17 @@ public:
     }
 
     void setResponse(RpcController* controller, CoordinatorResponse* response, Closure* done) {
-        LOG_DEBUG("Set Response Txn Id #%ld", id_);
-        assert(controller_ == NULL);
-        assert(response_ == NULL);
-        assert(done_ == NULL);
+        LOG_DEBUG("Set Response Txn #%" PRIu64, id_);
+        CHECK_M(controller_ == NULL, "RpcController already invoked for Txn #%" PRIu64, id_);
+        CHECK_M(response_ == NULL, "CoordinatorResponse is already set for Txn #%" PRIu64, id_);
+        CHECK_M(done_ == NULL, "Already executed done callback for Txn #%" PRIu64, id_);
         //~ assert(controller != NULL);
-        assert(response != NULL);
-        assert(done != NULL);
+        CHECK_M(response != NULL, "Incoming RpcController is NULL for Txn #%" PRIu64, id_);
+        CHECK_M(done != NULL, "Incoming done callback is NULL for Txn #%" PRIu64, id_);
         controller_ = controller;
         response_ = response;
         done_ = done;
-        LOG_DEBUG("Txn #%ld now has a response! What do you think about that?", id_);
+        LOG_DEBUG("Txn #%lld now has a response! What do you think about that?", id_);
     }
 
     DistributedTransaction* transaction() { return transaction_; }

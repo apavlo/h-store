@@ -57,6 +57,7 @@
 #include <string>
 #include <ctime>
 #include <cstdio>
+#include <sys/time.h>
 
 // Log levels.
 #define VOLT_LEVEL_OFF    1000
@@ -68,8 +69,10 @@
 #define VOLT_LEVEL_ALL    0
 
 // #define VOLT_LOG_TIME_FORMAT "%Y-%m-%d %H:%M:%S"
-#define VOLT_LOG_TIME_FORMAT "%X"
+// #define VOLT_LOG_TIME_FORMAT "%X,XXX"
+#define VOLT_LOG_TIME_FORMAT "%d:%02d:%02d,%03d"
 #define VOLT_LOG_OUTPUT_STREAM stdout
+#define VOLT_LOG_TIME_MILLISECONDS 1
 
 // Compile Option
 #ifndef VOLT_LOG_LEVEL
@@ -92,6 +95,8 @@
 #endif
 
 void outputLogHeader_(const char *file, int line, const char *func, int level);
+// void setPartitionIdForLogging(int id);
+// int _logPartitionId = -1;
 
 // Two convenient macros for debugging
 // 1. Logging macros.
@@ -102,7 +107,7 @@ void outputLogHeader_(const char *file, int line, const char *func, int level);
 #if VOLT_LOG_LEVEL<=VOLT_LEVEL_ERROR
     #define VOLT_ERROR_ENABLED
     //#pragma message("VOLT_ERROR was enabled.")
-    #define VOLT_ERROR(...) outputLogHeader_(__FILE__, __LINE__, __FUNCTION__, VOLT_LEVEL_ERROR);::printf(__VA_ARGS__);printf("\n");::fflush(stdout)
+    #define VOLT_ERROR(...) outputLogHeader_(__FILE__, __LINE__, __FUNCTION__, VOLT_LEVEL_ERROR);::fprintf(VOLT_LOG_OUTPUT_STREAM, __VA_ARGS__);fprintf(VOLT_LOG_OUTPUT_STREAM, "\n");::fflush(VOLT_LOG_OUTPUT_STREAM)
 #else
     #define VOLT_ERROR(...) ((void)0)
 #endif
@@ -113,7 +118,7 @@ void outputLogHeader_(const char *file, int line, const char *func, int level);
 #if VOLT_LOG_LEVEL<=VOLT_LEVEL_WARN
     #define VOLT_WARN_ENABLED
     //#pragma message("VOLT_WARN was enabled.")
-    #define VOLT_WARN(...) outputLogHeader_(__FILE__, __LINE__, __FUNCTION__, VOLT_LEVEL_WARN);::printf(__VA_ARGS__);printf("\n");::fflush(stdout)
+    #define VOLT_WARN(...) outputLogHeader_(__FILE__, __LINE__, __FUNCTION__, VOLT_LEVEL_WARN);::fprintf(VOLT_LOG_OUTPUT_STREAM, __VA_ARGS__);fprintf(VOLT_LOG_OUTPUT_STREAM, "\n");::fflush(VOLT_LOG_OUTPUT_STREAM)
 #else
     #define VOLT_WARN(...) ((void)0)
 #endif
@@ -124,7 +129,7 @@ void outputLogHeader_(const char *file, int line, const char *func, int level);
 #if VOLT_LOG_LEVEL<=VOLT_LEVEL_INFO
     #define VOLT_INFO_ENABLED
     //#pragma message("VOLT_INFO was enabled.")
-    #define VOLT_INFO(...) outputLogHeader_(__FILE__, __LINE__, __FUNCTION__, VOLT_LEVEL_INFO);::printf(__VA_ARGS__);printf("\n");::fflush(stdout)
+    #define VOLT_INFO(...) outputLogHeader_(__FILE__, __LINE__, __FUNCTION__, VOLT_LEVEL_INFO);::fprintf(VOLT_LOG_OUTPUT_STREAM, __VA_ARGS__);fprintf(VOLT_LOG_OUTPUT_STREAM, "\n");::fflush(VOLT_LOG_OUTPUT_STREAM)
 #else
     #define VOLT_INFO(...) ((void)0)
 #endif
@@ -135,7 +140,7 @@ void outputLogHeader_(const char *file, int line, const char *func, int level);
 #if VOLT_LOG_LEVEL<=VOLT_LEVEL_DEBUG
     #define VOLT_DEBUG_ENABLED
     //#pragma message("VOLT_DEBUG was enabled.")
-    #define VOLT_DEBUG(...) outputLogHeader_(__FILE__, __LINE__, __FUNCTION__, VOLT_LEVEL_DEBUG);::printf(__VA_ARGS__);printf("\n");::fflush(stdout)
+    #define VOLT_DEBUG(...) outputLogHeader_(__FILE__, __LINE__, __FUNCTION__, VOLT_LEVEL_DEBUG);::fprintf(VOLT_LOG_OUTPUT_STREAM, __VA_ARGS__);fprintf(VOLT_LOG_OUTPUT_STREAM, "\n");::fflush(VOLT_LOG_OUTPUT_STREAM)
 #else
     #define VOLT_DEBUG(...) ((void)0)
 #endif
@@ -146,7 +151,7 @@ void outputLogHeader_(const char *file, int line, const char *func, int level);
 #if VOLT_LOG_LEVEL<=VOLT_LEVEL_TRACE
     #define VOLT_TRACE_ENABLED
     //#pragma message("VOLT_TRACE was enabled.")
-    #define VOLT_TRACE(...) outputLogHeader_(__FILE__, __LINE__, __FUNCTION__, VOLT_LEVEL_TRACE);::printf(__VA_ARGS__);printf("\n");::fflush(stdout)
+    #define LOG_TRACE(...) outputLogHeader_(__FILE__, __LINE__, __FUNCTION__, LOG_LEVEL_TRACE);::fprintf(LOG_OUTPUT_STREAM, __VA_ARGS__);fprintf(LOG_OUTPUT_STREAM, "\n");::fflush(LOG_OUTPUT_STREAM)
 #else
     #define VOLT_TRACE(...) ((void)0)
 #endif
@@ -154,10 +159,21 @@ void outputLogHeader_(const char *file, int line, const char *func, int level);
 // Output log message header in this format: [type] [file:line:function] time -
 // ex: [ERROR] [somefile.cpp:123:doSome()] 2008/07/06 10:00:00 -
 inline void outputLogHeader_(const char *file, int line, const char *func, int level) {
-    time_t t = ::time(NULL) ;
-    tm *curTime = localtime(&t);
     char time_str[32]; // FIXME
-    ::strftime(time_str, 32, VOLT_LOG_TIME_FORMAT, curTime);
+    
+    if (VOLT_LOG_TIME_MILLISECONDS) {
+        struct timeval tv;
+        struct timezone tz;
+        struct tm *tm;
+        ::gettimeofday(&tv, &tz);
+        tm = localtime(&tv.tv_sec);
+        ::snprintf(time_str, 32, VOLT_LOG_TIME_FORMAT, tm->tm_hour, tm->tm_min, tm->tm_sec, (int)(tv.tv_usec/1000));
+    } else {
+        time_t t = ::time(NULL) ;
+        tm *curTime = localtime(&t);
+        ::strftime(time_str, 32, VOLT_LOG_TIME_FORMAT, curTime);
+    }
+    
     const char* type;
     switch (level) {
         case VOLT_LEVEL_ERROR:
@@ -178,8 +194,12 @@ inline void outputLogHeader_(const char *file, int line, const char *func, int l
         default:
             type = "UNKWN";
     }
-//     printf("[%s] [%s:%d:%s()] %s - ", type, file, line, func, time_str);
-    fprintf(VOLT_LOG_OUTPUT_STREAM, "EE %s [%s:%d] %s - ", time_str, file, line, type);
+    fprintf(VOLT_LOG_OUTPUT_STREAM, "%s [EE] (%s:%d) %s - ", time_str, file, line, type);
+//     fprintf(VOLT_LOG_OUTPUT_STREAM, "%s [EE-%03d] (%s:%d) %s - ", time_str, _logPartitionId, file, line, type);
 }
+
+// inline void setPartitionIdForLogging(int id) {
+//     _logPartitionId = id;
+// }
 
 #endif

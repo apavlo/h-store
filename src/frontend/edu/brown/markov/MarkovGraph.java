@@ -1,5 +1,6 @@
 package edu.brown.markov;
 
+import java.io.File;
 import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -8,28 +9,34 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import org.apache.commons.collections15.keyvalue.MultiKey;
 import org.apache.log4j.Logger;
+import org.json.JSONException;
+import org.json.JSONStringer;
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Statement;
-import org.voltdb.types.QueryType;
+import org.voltdb.utils.Pair;
 
+import edu.brown.catalog.CatalogKey;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.graphs.AbstractDirectedGraph;
-import edu.brown.graphs.VertexTreeWalker;
-import edu.brown.graphs.VertexTreeWalker.Direction;
-import edu.brown.graphs.VertexTreeWalker.TraverseOrder;
-import edu.brown.markov.Vertex.Type;
-import edu.brown.markov.benchmarks.TPCCMarkovGraphsContainer;
+import edu.brown.graphs.AbstractGraphElement;
+import edu.brown.graphs.GraphUtil;
+import edu.brown.graphs.exceptions.InvalidGraphElementException;
+import edu.brown.markov.containers.AuctionMarkMarkovGraphsContainer;
+import edu.brown.markov.containers.GlobalMarkovGraphsContainer;
+import edu.brown.markov.containers.MarkovGraphContainersUtil;
+import edu.brown.markov.containers.MarkovGraphsContainer;
+import edu.brown.markov.containers.TPCCMarkovGraphsContainer;
 import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.LoggerUtil;
+import edu.brown.utils.MathUtil;
 import edu.brown.utils.PartitionEstimator;
 import edu.brown.utils.ProjectType;
-import edu.brown.utils.StringUtil;
 import edu.brown.utils.LoggerUtil.LoggerBoolean;
 import edu.brown.workload.QueryTrace;
 import edu.brown.workload.TransactionTrace;
@@ -55,12 +62,30 @@ public class MarkovGraph extends AbstractDirectedGraph<Vertex, Edge> implements 
      */
     public static final boolean USE_PAST_PARTITIONS = true;
     
+    /**
+     * The precision we care about for vertex probabilities
+     */
+    public static final float PROBABILITY_EPSILON = 0.00001f;
+    
+    /**
+     * TODO
+     */
+    public static final int MIN_HITS_FOR_NO_ABORT = 5;
+    
+    // ----------------------------------------------------------------------------
+    // INSTANCE DATA MEMBERS
+    // ----------------------------------------------------------------------------
+    
     protected final Procedure catalog_proc;
 
-    /**
-     * 
-     */
-    private int xact_count;
+    /** Keep track of how many times we have used this graph for transactions */
+    private transient int xact_count = 0;
+    /** Keep track of how many times we have used this graph but the transaction mispredicted */
+    private transient int xact_mispredict = 0;
+    /** Percentage of how accurate this graph has been */
+    private transient double xact_accuracy = 1.0;
+    /** How many times have we recomputed the probabilities for this graph */
+    private transient int recompute_count = 0;
 
     // ----------------------------------------------------------------------------
     // CONSTRUCTORS
@@ -151,7 +176,7 @@ public class MarkovGraph extends AbstractDirectedGraph<Vertex, Edge> implements 
         return (successors);
     }
     
-    protected void buildCache() {
+    public void buildCache() {
         for (Statement catalog_stmt : this.catalog_proc.getStatements()) {
             if (this.cache_stmtVertices.containsKey(catalog_stmt) == false)
                 this.cache_stmtVertices.put(catalog_stmt, new HashSet<Vertex>());
@@ -162,8 +187,44 @@ public class MarkovGraph extends AbstractDirectedGraph<Vertex, Edge> implements 
                 this.cache_stmtVertices.get(catalog_stmt).add(v);
             }
         } // FOR
-        
     }
+    
+    /**
+     * For a given vertex, maintain a map to possible future vertices
+     */
+    private final Map<Vertex, ConcurrentHashMap<MultiKey<String>, Pair<Edge, Vertex>>> cache_batchEnd = new HashMap<Vertex, ConcurrentHashMap<MultiKey<String>, Pair<Edge, Vertex>>>(); 
+    
+    public Pair<Edge, Vertex> getCachedBatchEnd(Vertex start, Statement catalog_stmt, int idx, Set<Integer> partitions, Set<Integer> past_partitions) {
+        Map<MultiKey<String>, Pair<Edge, Vertex>> m = cache_batchEnd.get(start);
+        Pair<Edge, Vertex> found = null;
+        if (m != null) {
+            MultiKey<String> cache_key = new MultiKey<String>(CatalogKey.createKey(catalog_stmt),
+                                                              Integer.toString(idx),
+                                                              partitions.toString(),
+                                                              past_partitions.toString());
+            found = m.get(cache_key);
+        }
+        return (found);
+    }
+    
+    public void addCachedBatchEnd(Vertex start, Edge e, Vertex v, Statement catalog_stmt, int idx, Set<Integer> partitions, Set<Integer> past_partitions) {
+        ConcurrentHashMap<MultiKey<String>, Pair<Edge, Vertex>> m = cache_batchEnd.get(start);
+        if (m == null) {
+            synchronized (cache_batchEnd) {
+                m = cache_batchEnd.get(start);
+                if (m == null) {
+                    m = new ConcurrentHashMap<MultiKey<String>, Pair<Edge, Vertex>>();
+                    cache_batchEnd.put(start, m);
+                }
+            } // SYNCH
+        }
+        MultiKey<String> cache_key = new MultiKey<String>(CatalogKey.createKey(catalog_stmt),
+                                                          Integer.toString(idx),
+                                                          partitions.toString(),
+                                                          past_partitions.toString());
+        m.putIfAbsent(cache_key, Pair.of(e, v));
+    }
+
     
     // ----------------------------------------------------------------------------
     // DATA MEMBER METHODS
@@ -195,8 +256,6 @@ public class MarkovGraph extends AbstractDirectedGraph<Vertex, Edge> implements 
                 e = new Edge(this);
                 this.addEdge(e, source, dest);
             }
-            source.increment();
-            e.increment();
         } // SYNCH
         return (e);
     }
@@ -287,8 +346,13 @@ public class MarkovGraph extends AbstractDirectedGraph<Vertex, Edge> implements 
     protected Vertex getVertex(Statement a, Set<Integer> partitions, Set<Integer> past_partitions, int queryInstanceIndex) {
         Set<Vertex> stmt_vertices = this.cache_stmtVertices.get(a);
         if (stmt_vertices == null) {
-            this.buildCache();
-            stmt_vertices = this.cache_stmtVertices.get(a);
+            synchronized (this) {
+                stmt_vertices = this.cache_stmtVertices.get(a);
+                if (stmt_vertices == null) {
+                    this.buildCache();
+                    stmt_vertices = this.cache_stmtVertices.get(a);
+                }
+            } // SYNCH
         }
         for (Vertex v : stmt_vertices) {
             if (v.isEqual(a, partitions, past_partitions, queryInstanceIndex)) {
@@ -302,7 +366,7 @@ public class MarkovGraph extends AbstractDirectedGraph<Vertex, Edge> implements 
      * Return an immutable list of all the partition ids in our catalog
      * @return
      */
-    protected List<Integer> getAllPartitions() {
+    protected Collection<Integer> getAllPartitions() {
         return (CatalogUtil.getAllPartitionIds(this.getDatabase()));
     }
     
@@ -325,14 +389,23 @@ public class MarkovGraph extends AbstractDirectedGraph<Vertex, Edge> implements 
     // ----------------------------------------------------------------------------
 
     /**
-     * Calculate the probabilities for this graph This invokes the static
-     * methods in Vertex to calculate each probability
+     * Calculate the probabilities for this graph.
+     * First we will reset all of the existing probabilities and then apply the instancehits to 
+     * the totalhits for each graph element
      */
-    public void calculateProbabilities() {
+    public synchronized void calculateProbabilities() {
         // Reset all probabilities
-//        for (Vertex v : this.getVertices()) {
-//            v.resetAllProbabilities();
-//        } // FOR
+        for (Vertex v : this.getVertices()) {
+            v.resetAllProbabilities();
+        } // FOR
+        
+        this.normalizeTimes();
+        for (Vertex v : this.getVertices()) {
+            v.applyInstanceHitsToTotalHits();
+        }
+        for (Edge e : this.getEdges()) {
+            e.applyInstanceHitsToTotalHits();
+        }
         
         // We first need to calculate the edge probabilities because the probabilities
         // at each vertex are going to be derived from these
@@ -340,135 +413,31 @@ public class MarkovGraph extends AbstractDirectedGraph<Vertex, Edge> implements 
         
         // Then traverse the graph and calculate the vertex probability tables
         this.calculateVertexProbabilities();
+        
+        this.recompute_count++;
     }
 
     /**
      * Calculate vertex probabilities
      */
-    protected void calculateVertexProbabilities() {
+    private void calculateVertexProbabilities() {
         if (trace.get()) LOG.trace("Calculating Vertex probabilities for " + this);
-        
-        final Set<Edge> visited_edges = new HashSet<Edge>();
-        final List<Integer> all_partitions = this.getAllPartitions();
-        
-        // This is tricky. We need to sort of multiplex the traversal from either the commit
-        // or abort vertices. We'll always start from the commit but then force the abort 
-        // vertex to be the first node visited after it
-        final Vertex commit = this.getCommitVertex();
-        
-        new VertexTreeWalker<Vertex>(this, TraverseOrder.LONGEST_PATH, Direction.REVERSE) {
-            {
-                this.getChildren(commit).addAfter(MarkovGraph.this.getAbortVertex());
-            }
-            
-            @Override
-            protected void callback(Vertex element) {
-                if (trace.get()) LOG.trace("BEFORE: " + element + " => " + element.getSingleSitedProbability());
-//                    if (element.isSingleSitedProbablitySet() == false) element.setSingleSitedProbability(0.0);
-                Type vtype = element.getType(); 
-                
-                // COMMIT/ABORT is always single-partitioned!
-                if (vtype == Vertex.Type.COMMIT || vtype == Vertex.Type.ABORT) {
-                    if (trace.get()) LOG.trace(element + " is single-partitioned!");
-                    element.setSingleSitedProbability(1.0f);
-                    
-                    // And DONE at all partitions!
-                    // And will not Read/Write Probability
-                    for (Integer partition : all_partitions) {
-                        element.setDoneProbability(partition, 1.0f);
-                        element.setReadOnlyProbability(partition, 1.0f);
-                        element.setWriteProbability(partition, 0.0f);
-                    } // FOR
-                    
-                    // Abort Probability
-                    if (vtype == Vertex.Type.ABORT) {
-                        element.setAbortProbability(1.0f);
-                    } else {
-                        element.setAbortProbability(0.0f);
-                    }
-
-                } else {
-                    
-                    // If the current vertex is not single-partitioned, then we know right away
-                    // that the probability should be zero and we don't need to check our successors
-                    // We define a single-partition vertex to be a query that accesses only one partition
-                    // that is the same partition as the base/local partition. So even if the query accesses
-                    // only one partition, if that partition is not the same as where the java is executing,
-                    // then we're going to say that it is multi-partitioned
-                    boolean element_islocalonly = element.isLocalPartitionOnly(); 
-                    if (element_islocalonly == false) {
-                        if (trace.get()) LOG.trace(element + " NOT is single-partitioned!");
-                        element.setSingleSitedProbability(0.0f);
-                    }
-
-                    Statement catalog_stmt = element.getCatalogItem();
-                    QueryType qtype = QueryType.get(catalog_stmt.getQuerytype());
-                    
-                    Collection<Edge> edges = MarkovGraph.this.getOutEdges(element);
-                    for (Edge e : edges) {
-                        if (visited_edges.contains(e)) continue;
-                        Vertex successor = MarkovGraph.this.getDest(e);
-                        assert(successor != null);
-                        assert(successor.isSingleSitedProbabilitySet()) : "Setting " + element + " BEFORE " + successor;
-
-                        // Single-Partition Probability
-                        // If our vertex only touches the base partition, then we need to calculate the 
-                        // single-partition probability as the sum of the the edge weights times our
-                        // successors' single-partition probability
-                        if (element_islocalonly) {
-                            float prob = (float)(e.getProbability() * successor.getSingleSitedProbability());
-                            element.addSingleSitedProbability(prob);
-                            if (trace.get()) LOG.trace(element + " --" + e + "--> " + successor + String.format(" [%f * %f = %f]", e.getProbability(), successor.getSingleSitedProbability(), prob) + "\nprob = " + prob);
-                        }
-                        
-                        // Abort Probability
-                        element.addAbortProbability((float)(e.getProbability() * successor.getAbortProbability()));
-                        
-                        // Done/Read/Write At Partition Probability
-                        for (Integer partition : all_partitions) {
-                            assert(successor.isDoneProbabilitySet(partition)) : "Setting " + element + " BEFORE " + successor;
-                            assert(successor.isReadOnlyProbabilitySet(partition)) : "Setting " + element + " BEFORE " + successor;
-                            assert(successor.isWriteProbabilitySet(partition)) : "Setting " + element + " BEFORE " + successor;
-                            
-                            // This vertex accesses this partition
-                            if (element.getPartitions().contains(partition)) {
-                                element.setDoneProbability(partition, 0.0f);
-                                
-                                // Figure out whether it is a read or a write
-                                if (catalog_stmt.getReadonly()) {
-                                    if (trace.get()) LOG.trace(String.format("%s does not modify partition %d. Setting writing probability based on children [%s]", element, partition, qtype));
-                                    element.addWriteProbability(partition, (float)(e.getProbability() * successor.getWriteProbability(partition)));
-                                    element.addReadOnlyProbability(partition, (float)(e.getProbability() * successor.getReadOnlyProbability(partition)));
-                                } else {
-                                    if (trace.get()) LOG.trace(String.format("%s modifies partition %d. Setting writing probability to 1.0 [%s]", element, partition, qtype));
-                                    element.setWriteProbability(partition, 1.0f);
-                                    element.setReadOnlyProbability(partition, 0.0f);
-                                }
-                                
-                            // This vertex doesn't access the partition, but successor vertices might so
-                            // the probability is based on the edge probabilities 
-                            } else {
-                                element.addDoneProbability(partition, (float)(e.getProbability() * successor.getDoneProbability(partition)));
-                                element.addWriteProbability(partition, (float)(e.getProbability() * successor.getWriteProbability(partition)));
-                                element.addReadOnlyProbability(partition, (float)(e.getProbability() * successor.getReadOnlyProbability(partition)));
-                            }
-                        } // FOR (PartitionId)
-                    } // FOR (Edge)
-                }
-                if (trace.get()) LOG.trace("AFTER: " + element + " => " + element.getSingleSitedProbability());
-                if (trace.get()) LOG.trace(StringUtil.repeat("-", 40));
-            }
-        }.traverse(commit);
+        new MarkovProbabilityCalculator(this).calculate();
     }
 
     /**
      * Calculates the probabilities for each edge to be traversed
      */
-    public void calculateEdgeProbabilities() {
+    private void calculateEdgeProbabilities() {
         Collection<Vertex> vertices = this.getVertices();
         for (Vertex v : vertices) {
-            for (Edge e : getOutEdges(v)) {
-                e.setProbability(v.getTotalHits());
+            if (v.isQueryVertex() && v.getTotalHits() == 0) continue;
+            for (Edge e : this.getOutEdges(v)) {
+                try {
+                    e.calculateProbability(v.getTotalHits());
+                } catch (Throwable ex) {
+                    throw new RuntimeException(String.format("Failed to calculate probabilities for edge %s -> %s", v, this.getDest(e)), ex);  
+                }
             }
         }
     }
@@ -479,9 +448,19 @@ public class MarkovGraph extends AbstractDirectedGraph<Vertex, Edge> implements 
      */
     protected void normalizeTimes() {
         Map<Long, Long> stoptimes = this.getCommitVertex().getInstanceTimes();
+        List<Long> to_remove = new ArrayList<Long>();
         for (Vertex v : this.getVertices()) {
-            v.normalizeInstanceTimes(stoptimes);
-        }
+            v.normalizeInstanceTimes(stoptimes, to_remove);
+            to_remove.clear();
+        } // FOR
+    }
+    
+    public Set<Vertex> getInvalidVertices() {
+        Set<Vertex> ret = new HashSet<Vertex>();
+        for (Vertex v : this.getVertices()) {
+            if (v.isValid(this) == false) ret.add(v);
+        } // FOR
+        return (ret);
     }
     
     /**
@@ -491,58 +470,126 @@ public class MarkovGraph extends AbstractDirectedGraph<Vertex, Edge> implements 
      * @return whether graph contains sane data
      */
     public boolean isValid() {
-        double EPSILON = 0.00001;
-        for (Vertex v : this.getVertices()) {
-            double sum = 0.0;
+        try {
+            this.validate();
+        } catch (InvalidGraphElementException ex) {
+            return (false);
+        }
+        return (true);
+    }
+    
+    public void validate() throws InvalidGraphElementException {
+        if (debug.get()) LOG.warn("Calling MarkovGraph.isValid(). This should never be done at runtime!");
+        Map<Long, AbstractGraphElement> seen_ids = new HashMap<Long, AbstractGraphElement>();
+        
+        // Validate Edges
+        for (Edge e : this.getEdges()) {
             
-            if (v.isValid() == false) {
-                LOG.warn("The probabilities for " + v + " are not valid!");
-                return (false);
+            // Make sure the edge thinks it's valid
+            e.validate(this);
+            
+            // Make sure that nobody else has the same element id
+            if (seen_ids.containsKey(e.getElementId())) {
+                throw new InvalidGraphElementException(this, e, String.format("Duplicate element id #%d: Edge[%s] <-> %s",
+                                                                               e.getElementId(), e.toString(true), seen_ids.get(e.getElementId())));
             }
+            seen_ids.put(e.getElementId(), e);
+        } // FOR
+        
+        // Validate Vertices
+        Set<Vertex> seen_vertices = new HashSet<Vertex>();
+        Set<Integer> all_partitions = new HashSet<Integer>();
+        for (Vertex v0 : this.getVertices()) {
+            float total_prob = 0.0f;
+            long total_edgehits = 0;
             
-            Set<Vertex> seen_vertices = new HashSet<Vertex>(); 
-            for (Edge e : this.getOutEdges(v)) {
-                Vertex v1 = this.getOpposite(v, e);
+            // Make sure the vertex thinks it's valid
+            v0.validate(this);
+            
+            Collection<Edge> outbound = this.getOutEdges(v0);
+            Collection<Edge> inbound = this.getInEdges(v0);
+            
+            // Make sure that nobody else has the same element id
+            if (seen_ids.containsKey(v0.getElementId())) {
+                throw new InvalidGraphElementException(this, v0, String.format("Duplicate element id #%d: Vertex[%s] <-> %s",
+                                                                 v0.getElementId(), v0, seen_ids.get(v0.getElementId())));
+            }
+            seen_ids.put(v0.getElementId(), v0);
+            
+            all_partitions.addAll(v0.partitions);
+            all_partitions.addAll(v0.past_partitions);
+            
+            for (Edge e : outbound) {
+                Vertex v1 = this.getOpposite(v0, e);
                 
                 // Make sure that each vertex only has one edge to another vertex
-                assert(!seen_vertices.contains(v1)) : "Vertex " + v + " has more than one edge to vertex " + v1;
+                if (seen_vertices.contains(v1)) {
+                    throw new InvalidGraphElementException(this, v0, "Vertex has more than one edge to vertex " + v1);
+                }
                 seen_vertices.add(v1);
                 
-                // Calculate total edge probabilities
-                double edge_probability = e.getProbability(); 
-                assert(edge_probability >= 0.0) : "Edge " + e + " probability is " + edge_probability;
-                assert(edge_probability <= 1.0) : "Edge " + e + " probability is " + edge_probability;
-                sum += e.getProbability();
+                // The totalhits for this vertex should always be greater than or equal to the total hints for 
+                // all of its edges and equal to the sum
+                if (v0.getTotalHits() < e.getTotalHits()) {
+                    throw new InvalidGraphElementException(this, v0, String.format("Vertex has %d totalHits but edge from %s to %s has %d",
+                                                                                   v0.getTotalHits(), v0, v1, e.getTotalHits()));
+                }
+                
+                // Make sure that this the destination vertex has the same partitions as the past+current partitions
+                // for the destination vertex
+                if (v0.isQueryVertex() && v1.isQueryVertex() && v1.past_partitions.equals(all_partitions) == false) {
+                    throw new InvalidGraphElementException(this, e, "Destination vertex in edge does not have the correct past partitions");
+                }
+                
+                // Make sure that if the two vertices are for the same Statement, that
+                // the source vertex's instance counter is one less than the destination
+                if (v0.getCatalogKey().equals(v1.getCatalogKey())) {
+                    if (v0.counter+1 != v1.counter) {
+                        throw new InvalidGraphElementException(this, e, String.format("Invalid edge in from multiple invocations of %s: %d+1 != %d",
+                                                                                       this.catalog_proc.getName(), v0.counter, v1.counter));
+                    }
+                }
+                
+                // Calculate total edge probabilities and hits
+                total_prob += e.getProbability();
+                total_edgehits += e.getTotalHits();
             } // FOR
+            if (v0.isQueryVertex()) {
+                if (MathUtil.equals(total_prob, 1.0f, MarkovGraph.PROBABILITY_EPSILON) == false && outbound.size() > 0) {
+                    throw new InvalidGraphElementException(this, v0, "Total outbound edge probability is not equal to one: " + total_prob);
+                }
+                if (total_edgehits != v0.getTotalHits()) {
+                    throw new InvalidGraphElementException(this, v0, String.format("Vertex has %d totalHits but the sum of all its edges has %d",
+                                                                                   v0.getTotalHits(), total_edgehits));
+                }
+            }
             
-            if (sum - 1.0 > EPSILON && getInEdges(v).size() != 0) {
-                return false;
+            total_prob = 0.0f;
+            total_edgehits = 0;
+            for (Edge e : inbound) { 
+                total_prob += e.getProbability();
+                total_edgehits += e.getTotalHits();
+            } // FOR
+            if (MathUtil.greaterThan(total_prob, 0.0f, MarkovGraph.PROBABILITY_EPSILON) == false && inbound.size() > 0 && total_edgehits > 0) {
+                throw new InvalidGraphElementException(this, v0, "Total inbound edge probability is not greater than zero: " + total_prob);
             }
-            sum = 0.0;
-            // Andy asks: Should this be getInEdges()?
-            // Saurya replies: No, the probability of leaving this query should be 1.0, coming
-            //                 in could be more. There could be two vertices each with .75 probability
-            //                 of getting into this vertex, 1.5 altogether
-            for (Edge e : getOutEdges(v)) { 
-                sum += e.getProbability();
-            }
-            if (sum - 1.0 > EPSILON && getOutEdges(v).size() != 0) {
-                return false;
-            }
-        }
-        return true;
+            
+            seen_vertices.clear();
+            all_partitions.clear();
+        } // FOR
     }
 
-    public boolean shouldRecompute(int instance_count, double recomputeTolerance){
-        double VERTEX_PROPORTION = 0.5f; //If VERTEX_PROPORTION of 
+    public boolean shouldRecompute(int instance_count, double recomputeTolerance) {
+        double VERTEX_PROPORTION = 0.5f; // If VERTEX_PROPORTION of
         int count = 0;
-        for(Vertex v: this.getVertices()){
-            if(v.shouldRecompute(instance_count, recomputeTolerance, xact_count)){
+        for (Vertex v : this.getVertices()) {
+            if (v.shouldRecompute(instance_count, recomputeTolerance, xact_count)) {
                 count++;
             }
         }
-        return (count*1.0/getVertices().size()) >= VERTEX_PROPORTION;
+        return (count * 1.0 / getVertices().size()) >= VERTEX_PROPORTION;
     }
+    
     // ----------------------------------------------------------------------------
     // XACT PROCESSING METHODS
     // ----------------------------------------------------------------------------
@@ -558,6 +605,7 @@ public class MarkovGraph extends AbstractDirectedGraph<Vertex, Edge> implements 
         Procedure catalog_proc = txn_trace.getCatalogItem(this.getDatabase());
         Vertex previous = this.getStartVertex();
         previous.addExecutionTime(txn_trace.getStopTimestamp() - txn_trace.getStartTimestamp());
+        previous.incrementTotalHits();
 
         final List<Vertex> path = new ArrayList<Vertex>();
         path.add(previous);
@@ -592,7 +640,10 @@ public class MarkovGraph extends AbstractDirectedGraph<Vertex, Edge> implements 
                 }
                 assert(v.isQueryVertex());
                 // Add to the edge between the previous vertex and the current one
-                this.addToEdge(previous, v);
+                Edge e = this.addToEdge(previous, v);
+                assert(e != null);
+                v.incrementTotalHits();
+                e.incrementTotalHits();
     
                 // Annotate the vertex with remaining execution time
                 v.addExecutionTime(txn_trace.getStopTimestamp() - query_trace.getStartTimestamp());
@@ -603,13 +654,13 @@ public class MarkovGraph extends AbstractDirectedGraph<Vertex, Edge> implements 
         } // FOR
         
         synchronized (previous) {
-            if (txn_trace.isAborted()) {
-                this.addToEdge(previous, this.getAbortVertex());
-                path.add(this.getAbortVertex());
-            } else {
-                this.addToEdge(previous, this.getCommitVertex());
-                path.add(this.getCommitVertex());
-            }
+            Vertex v = (txn_trace.isAborted() ? this.getAbortVertex() : this.getCommitVertex());
+            assert(v != null);
+            Edge e = this.addToEdge(previous, v);
+            assert(e != null);
+            path.add(v);
+            v.incrementTotalHits();
+            e.incrementTotalHits();
         } // SYNCH
         // -----------END QUERY TRACE-VERTEX CREATION--------------
         this.xact_count++;
@@ -627,25 +678,11 @@ public class MarkovGraph extends AbstractDirectedGraph<Vertex, Edge> implements 
      */
     public synchronized void resetCounters() {
         for (Vertex v : this.getVertices()) {
-            v.setInstancehits(0);
+            v.setInstanceHits(0);
         }
         for (Edge e : this.getEdges()) {
-            e.setInstancehits(0);
+            e.setInstanceHits(0);
         }
-    }
-    
-    /**
-     * Update the instance hits for the graph's elements and recalculate probabilities
-     */
-    public synchronized void recomputeGraph() {
-        this.normalizeTimes();
-        for (Vertex v : this.getVertices()) {
-            v.incrementTotalhits(v.getInstancehits());
-        }
-        for (Edge e : this.getEdges()) {
-            e.incrementHits(e.getInstancehits());
-        }
-        this.calculateProbabilities();
     }
     
     /**
@@ -665,6 +702,33 @@ public class MarkovGraph extends AbstractDirectedGraph<Vertex, Edge> implements 
        this.xact_count++; 
     }
     
+    public void incrementMispredictionCount() {
+        this.xact_mispredict++;
+        if (this.xact_count > 0) this.xact_accuracy = (this.xact_count - this.xact_mispredict) / (double)this.xact_count;
+    }
+    
+    public double getAccuracyRatio() {
+        return (this.xact_accuracy);
+    }
+    
+    public int getRecomputeCount() {
+        return (this.recompute_count);
+    }
+    
+    // ----------------------------------------------------------------------------
+    // SERIALIZATION METHODS
+    // ----------------------------------------------------------------------------
+    
+    @Override
+    public void toJSON(JSONStringer stringer) throws JSONException {
+        // Ignore any vertices with no totalhits
+        Set<Vertex> ignore = new HashSet<Vertex>();
+        for (Vertex v : this.getVertices()) {
+            if (v.isQueryVertex() && (v.instancehits == 0 && v.totalhits == 0)) ignore.add(v);
+        }
+        GraphUtil.serialize(this, ignore, null, stringer);
+    }
+    
     // ----------------------------------------------------------------------------
     // YE OLDE MAIN METHOD
     // ----------------------------------------------------------------------------
@@ -679,70 +743,34 @@ public class MarkovGraph extends AbstractDirectedGraph<Vertex, Edge> implements 
      */
     public static void main(String vargs[]) throws Exception {
         ArgumentsParser args = ArgumentsParser.load(vargs);
-        args.require(ArgumentsParser.PARAM_CATALOG, ArgumentsParser.PARAM_WORKLOAD);
+        args.require(
+            ArgumentsParser.PARAM_CATALOG,
+            ArgumentsParser.PARAM_WORKLOAD,
+            ArgumentsParser.PARAM_MARKOV_OUTPUT
+        );
         final PartitionEstimator p_estimator = new PartitionEstimator(args.catalog_db, args.hasher);
-        
-        MarkovGraphsContainer markovs = null;
+        Class<? extends MarkovGraphsContainer> containerClass = MarkovGraphsContainer.class;
         
         // Check whether we are generating the global graphs or the clustered versions
         Boolean global = args.getBooleanParam(ArgumentsParser.PARAM_MARKOV_GLOBAL); 
         if (global != null && global == true) {
-            markovs = MarkovUtil.createProcedureGraphs(args.catalog_db, args.workload, p_estimator);
+            containerClass = GlobalMarkovGraphsContainer.class;
 
-        // HACK
+        // TPCCMarkovGraphsContainer
         } else if (args.catalog_type == ProjectType.TPCC) {
-            TPCCMarkovGraphsContainer.create(args);
-            return;
-        // Or whether we should divide the transactions by their base partition 
-        } else {
-            markovs = MarkovUtil.createBasePartitionGraphs(args.catalog_db, args.workload, p_estimator);
+            containerClass = TPCCMarkovGraphsContainer.class;
+
+        // AuctionMarkMarkovGraphsContainer
+        } else if (args.catalog_type == ProjectType.AUCTIONMARK) {
+            containerClass = AuctionMarkMarkovGraphsContainer.class;
         }
+        assert(containerClass != null);
+        Map<Integer, MarkovGraphsContainer> markovs_map = MarkovGraphContainersUtil.createMarkovGraphsContainers(args.catalog_db, args.workload, p_estimator, containerClass);
         
         // Save the graphs
-        if (args.hasParam(ArgumentsParser.PARAM_MARKOV_OUTPUT)) {
-            LOG.info("Writing graphs out to " + args.getParam(ArgumentsParser.PARAM_MARKOV_OUTPUT));
-            
-            // HACK: Split the graphs into separate MarkovGraphsContainers based on partition ids
-            Map<Integer, MarkovGraphsContainer> inner = new HashMap<Integer, MarkovGraphsContainer>();
-            for (Entry<Integer, Map<Procedure, MarkovGraph>> e : markovs.entrySet()) {
-                MarkovGraphsContainer m = new MarkovGraphsContainer(markovs.isGlobal());
-                Integer p = e.getKey();
-                for (MarkovGraph markov : e.getValue().values()) {
-                    m.put(p, markov);
-                } // FOR
-                inner.put(p, m);
-            } // FOR
-            MarkovUtil.save(inner, args.getParam(ArgumentsParser.PARAM_MARKOV_OUTPUT));
-        }
-
-        
-//
-//        Map<Procedure, Pair<Integer, Integer>> counts = new HashMap<Procedure, Pair<Integer, Integer>>();
-//        for (Procedure catalog_proc : args.catalog_db.getProcedures()) {
-//            int vertexcount = 0;
-//            int edgecount = 0;
-//            
-//            for (int i : partitions) {
-//                Pair<Procedure, Integer> current = new Pair<Procedure, Integer>(catalog_proc, i);
-//                vertexcount += partitionGraphs.get(current).getVertexCount();
-//                edgecount += partitionGraphs.get(current).getEdgeCount();
-//            } // FOR
-//            counts.put(catalog_proc, new Pair<Integer, Integer>(vertexcount, edgecount));
-//        } // FOR
-//        for (Procedure pr : counts.keySet()) {
-//            System.out.println(pr + "," + args.workload + "," + args.workload_xact_limit + ","
-//                    + counts.get(pr).getFirst() + ","
-//                    + counts.get(pr).getSecond());
-//        } // FOR
-        
-            
-            
-//            for (Integer partition : graphs_per_partition.keySet()) {
-//                for (MarkovGraph g : graphs_per_partition.get(partition)) {
-//                    String name = g.getProcedure() + "_" + partition;
-//                    String contents = GraphvizExport.export(g, name);
-//                    FileUtil.writeStringToFile("./graphs/" + name + ".dot", contents);
-//                }
-//            }
+        assert(markovs_map != null);
+        File output = args.getFileParam(ArgumentsParser.PARAM_MARKOV_OUTPUT);
+        LOG.info("Writing graphs out to " + output);
+        MarkovGraphContainersUtil.save(markovs_map, output.getAbsolutePath());
     }
 }

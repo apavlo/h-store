@@ -187,6 +187,48 @@ public abstract class ProcedureCompiler {
         // set the read onlyness of a proc
         procedure.setReadonly(procHasWriteStmts == false);
 
+        Class<?>[] paramTypes = populateProcedureParameters(compiler, procClass, procedure);
+
+        // parse the procinfo
+        procedure.setSinglepartition(info.singlePartition);
+        if (info.partitionInfo != null && info.partitionInfo.isEmpty() == false) {
+            parsePartitionInfo(compiler, db, procedure, info.partitionInfo);
+            if (procedure.getPartitionparameter() >= paramTypes.length) {
+                String msg = "PartitionInfo parameter not a valid parameter for procedure: " + procedure.getClassname();
+                throw compiler.new VoltCompilerException(msg);
+            }
+
+            // check the type of partition parameter meets our high standards
+            Class<?> partitionType = paramTypes[procedure.getPartitionparameter()];
+            Class<?>[] validPartitionClzzes = {
+                    Long.class, Integer.class, Short.class, Byte.class,
+                    long.class, int.class, short.class, byte.class,
+                    String.class
+            };
+            boolean found = false;
+            for (Class<?> candidate : validPartitionClzzes) {
+                if (partitionType == candidate)
+                    found = true;
+            }
+            // assume on of the two tests above passes and one fails
+            if (!found) {
+                String msg = "PartitionInfo parameter must be a String or Number for procedure: " + procedure.getClassname();
+                throw compiler.new VoltCompilerException(msg);
+            }
+        } else {
+            procedure.setPartitionparameter(NullProcParameter.PARAM_IDX);
+        }
+        
+        // put the compiled code for this procedure into the jarfile
+        // VoltCompiler.addClassToJar(procClass, compiler);
+    }
+    
+    static Class<?>[] populateProcedureParameters(VoltCompiler compiler, Class<?> procClass, Procedure procedure) 
+           throws VoltCompiler.VoltCompilerException {
+        
+        final String[] parts = procedure.getClassname().split("\\.");
+        final String shortName = parts[parts.length - 1];
+        
         // find the run() method and get the params
         Method procMethod = null;
         Method[] methods = procClass.getMethods();
@@ -246,39 +288,7 @@ public abstract class ProcedureCompiler {
 
             param.setType(type.getValue());
         }
-
-        // parse the procinfo
-        procedure.setSinglepartition(info.singlePartition);
-        if (info.partitionInfo != null && info.partitionInfo.isEmpty() == false) {
-            parsePartitionInfo(compiler, db, procedure, info.partitionInfo);
-            if (procedure.getPartitionparameter() >= paramTypes.length) {
-                String msg = "PartitionInfo parameter not a valid parameter for procedure: " + procedure.getClassname();
-                throw compiler.new VoltCompilerException(msg);
-            }
-
-            // check the type of partition parameter meets our high standards
-            Class<?> partitionType = paramTypes[procedure.getPartitionparameter()];
-            Class<?>[] validPartitionClzzes = {
-                    Long.class, Integer.class, Short.class, Byte.class,
-                    long.class, int.class, short.class, byte.class,
-                    String.class
-            };
-            boolean found = false;
-            for (Class<?> candidate : validPartitionClzzes) {
-                if (partitionType == candidate)
-                    found = true;
-            }
-            // assume on of the two tests above passes and one fails
-            if (!found) {
-                String msg = "PartitionInfo parameter must be a String or Number for procedure: " + procedure.getClassname();
-                throw compiler.new VoltCompilerException(msg);
-            }
-        } else {
-            procedure.setPartitionparameter(NullProcParameter.PARAM_IDX);
-        }
-        
-        // put the compiled code for this procedure into the jarfile
-        VoltCompiler.addClassToJar(procClass, compiler);
+        return (paramTypes);
     }
 
     static void compileSingleStmtProcedure(VoltCompiler compiler, HSQLInterface hsql,

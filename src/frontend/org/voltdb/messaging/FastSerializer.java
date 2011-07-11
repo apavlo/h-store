@@ -315,6 +315,17 @@ public class FastSerializer implements DataOutput {
             writeObject(values[i]);
         }
     }
+    
+    public void writeArray(boolean[] values) throws IOException {
+        if (values.length > VoltType.MAX_VALUE_LENGTH) {
+            throw new IOException("Array exceeds maximum length of "
+                                  + VoltType.MAX_VALUE_LENGTH + " bytes");
+        }
+        writeInt(values.length);
+        for (int i = 0; i < values.length; ++i) {
+            writeBoolean(values[i]);
+        }
+    }
 
     public void writeArray(byte[] values) throws IOException {
         if (values.length > VoltType.MAX_VALUE_LENGTH) {
