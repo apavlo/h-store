@@ -74,7 +74,7 @@ public class TestTransactionEstimator extends BaseTestCase {
                     .attach(new BasePartitionTxnFilter(p_estimator, BASE_PARTITION))
                     .attach(new ProcedureLimitFilter(WORKLOAD_XACT_LIMIT));
 
-            file = this.getWorkloadFile(ProjectType.TPCC, "100w.large");
+            file = this.getWorkloadFile(ProjectType.TPCC);
             workload = new Workload(catalog);
             ((Workload) workload).load(file.getAbsolutePath(), catalog_db, filter);
             assert(workload.getTransactionCount() > 0);
