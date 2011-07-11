@@ -106,14 +106,13 @@ if __name__ == '__main__':
             if limit != None and limit_ctr >= limit: break
             json_data = json.loads(line)
             catalog_name = json_data["NAME"]
-            trace_id = int(json_data["ID"])
             txn_id = int(json_data["TXN_ID"])
             
             ## ----------------------------------------------
             ## GET
             ## ----------------------------------------------
             if command == "get":
-                if search_key == None or search_key in [ catalog_name, trace_id, txn_id ]:
+                if search_key == None or search_key in [ catalog_name, txn_id ]:
                     txn = TransactionTrace().fromJSON(json_data)
                     assert txn
                     
@@ -195,7 +194,7 @@ if __name__ == '__main__':
             ## ----------------------------------------------
             elif command == "fixparams":
                 assert param_mappings
-                if True or search_key in [ catalog_name, trace_id ]:
+                if True or search_key in [ catalog_name ]:
                     txn = TransactionTrace().fromJSON(json_data)
                     assert txn
                     

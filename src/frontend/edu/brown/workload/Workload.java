@@ -815,7 +815,7 @@ public class Workload implements WorkloadTrace, Iterable<TransactionTrace> {
      * @param txn_id
      */
     @Override
-    public void stopTransaction(Object xact_handle) {
+    public void stopTransaction(Object xact_handle, VoltTable...result) {
         if (xact_handle instanceof TransactionTrace) {
             TransactionTrace txn_trace = (TransactionTrace)xact_handle;
             
@@ -832,6 +832,7 @@ public class Workload implements WorkloadTrace, Iterable<TransactionTrace> {
             
             // Mark the txn as stopped
             txn_trace.stop();
+            if (result != null) txn_trace.setOutput(result);
             
             // Remove from internal cache data structures
             this.removeTransaction(txn_trace);
@@ -945,10 +946,11 @@ public class Workload implements WorkloadTrace, Iterable<TransactionTrace> {
     }
     
     @Override
-    public void stopQuery(Object query_handle) {
+    public void stopQuery(Object query_handle, VoltTable result) {
         if (query_handle instanceof QueryTrace) {
             QueryTrace query = (QueryTrace)query_handle;
             query.stop();
+            if (result != null) query.setOutput(result);
             
             // Decrement open query counter for this batch
             Long txn_id = this.query_txn_xref.remove(query);

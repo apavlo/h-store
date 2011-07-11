@@ -105,7 +105,6 @@ import edu.brown.utils.ProfileMeasurement;
 import edu.brown.utils.StringUtil;
 import edu.brown.utils.ThreadUtil;
 import edu.brown.utils.LoggerUtil.LoggerBoolean;
-import edu.brown.workload.AbstractTraceElement;
 import edu.brown.workload.Workload;
 import edu.mit.dtxn.Dtxn;
 import edu.mit.dtxn.Dtxn.FragmentResponse.Status;
