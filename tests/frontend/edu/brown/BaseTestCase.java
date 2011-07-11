@@ -398,11 +398,20 @@ public abstract class BaseTestCase extends TestCase {
      * @throws IOException
      */
     public File getWorkloadFile(ProjectType type) throws IOException {
-        return (this.getWorkloadFile(new File(".").getCanonicalFile(), type, "workloads", "trace"));
+        String suffix = "";
+        switch (type) {
+            case TPCC:
+                suffix = "100p-1";
+                break;
+            default:
+                suffix = "-1";
+                break;
+        } // SWITCH
+        return (this.getWorkloadFile(type, suffix));
     }
     
     public File getWorkloadFile(ProjectType type, String suffix) throws IOException {
-        return (this.getWorkloadFile(new File(".").getCanonicalFile(), type, "workloads", suffix+".trace"));
+        return (this.getProjectFile(new File(".").getCanonicalFile(), type, "workloads", suffix+".trace"));
     }
     
     /**
@@ -413,7 +422,7 @@ public abstract class BaseTestCase extends TestCase {
      * @throws IOException
      */
     public File getStatsFile(ProjectType type) throws IOException {
-        return (this.getWorkloadFile(new File(".").getCanonicalFile(), type, "workloads", "stats"));
+        return (this.getProjectFile(new File(".").getCanonicalFile(), type, "workloads", "stats"));
     }
     
     /**
@@ -424,7 +433,7 @@ public abstract class BaseTestCase extends TestCase {
      * @throws IOException
      */
     public File getCorrelationsFile(ProjectType type) throws IOException {
-        return (this.getWorkloadFile(new File(".").getCanonicalFile(), type, "correlations", "correlations"));
+        return (this.getProjectFile(new File(".").getCanonicalFile(), type, "correlations", "correlations"));
     }
     
     /**
@@ -435,7 +444,7 @@ public abstract class BaseTestCase extends TestCase {
      * @throws IOException
      */
     public File getMarkovFile(ProjectType type) throws IOException {
-        return (this.getWorkloadFile(new File(".").getCanonicalFile(), type, "markovs", "markovs"));
+        return (this.getProjectFile(new File(".").getCanonicalFile(), type, "markovs", "markovs"));
     }
     
     /**
@@ -445,20 +454,20 @@ public abstract class BaseTestCase extends TestCase {
      * @return
      * @throws IOException
      */
-    private File getWorkloadFile(File current, ProjectType type, String target_dir, String target_ext) throws IOException {
+    private File getProjectFile(File current, ProjectType type, String target_dir, String target_ext) throws IOException {
         boolean has_svn = false;
         for (File file : current.listFiles()) {
             if (file.getCanonicalPath().endsWith("files") && file.isDirectory()) {
-                // Look for either a .trace or a .trace.gz file
+                // Look for either a .<target_ext> or a .<target_ext>.gz file
+                String file_name = type.name().toLowerCase() + "." + target_ext;
                 for (int i = 0; i < 2; i++) {
-                    String file_name = type.name().toLowerCase() + "." + target_ext;
                     if (i > 0) file_name += ".gz";
                     File target_file = new File(file + File.separator + target_dir + File.separator + file_name);
                     if (target_file.exists() && target_file.isFile()) {
                         return (target_file);
                     }
                 } // FOR
-                assert(false) : "Unable to find '" + target_ext + "' file for '" + type + "' in directory '" + file + "'";
+                assert(false) : "Unable to find '" + file_name + "' for '" + type + "' in directory '" + file + "'";
             // Make sure that we don't go to far down...
             } else if (file.getCanonicalPath().endsWith("/.svn")) {
                 has_svn = true;
@@ -466,7 +475,7 @@ public abstract class BaseTestCase extends TestCase {
         } // FOR
         assert(has_svn) : "Unable to find files directory [last_dir=" + current.getAbsolutePath() + "]";  
         File next = new File(current.getCanonicalPath() + File.separator + "..");
-        return (this.getWorkloadFile(next, type, target_dir, target_ext));
+        return (this.getProjectFile(next, type, target_dir, target_ext));
     }
     
 }

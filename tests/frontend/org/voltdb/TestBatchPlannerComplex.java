@@ -53,7 +53,7 @@ public class TestBatchPlannerComplex extends BaseTestCase {
         if (workload == null) {
             catalog_proc = this.getProcedure(TARGET_PROCEDURE);
             
-            File file = this.getWorkloadFile(ProjectType.TPCC, "100w.large");
+            File file = this.getWorkloadFile(ProjectType.TPCC);
             workload = new Workload(catalog);
 
             // Check out this beauty:

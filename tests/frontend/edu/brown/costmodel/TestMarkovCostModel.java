@@ -71,7 +71,7 @@ public class TestMarkovCostModel extends BaseTestCase {
             correlations = new ParameterCorrelations();
             correlations.load(file.getAbsolutePath(), catalog_db);
 
-            file = this.getWorkloadFile(ProjectType.TPCC, "100w.large");
+            file = this.getWorkloadFile(ProjectType.TPCC);
             workload = new Workload(catalog);
 
             // Check out this beauty:
