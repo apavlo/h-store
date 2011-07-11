@@ -15,7 +15,7 @@ public class TestWorkloadFile extends BaseTestCase {
     protected static final int WORKLOAD_XACT_LIMIT = 5000;
     protected static final int NUM_PARTITIONS = 10;
     protected static final int BASE_PARTITION = 0;
-    protected static final int NUM_INTERVALS  = 100;
+    protected static final int NUM_INTERVALS  = 50;
     
     // Reading the workload takes a long time, so we only want to do it once
     protected static Workload workload;
