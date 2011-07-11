@@ -14,7 +14,7 @@ public class TestWorkloadFile extends BaseTestCase {
 
     protected static final int WORKLOAD_XACT_LIMIT = 5000;
     protected static final int NUM_PARTITIONS = 10;
-    protected static final int BASE_PARTITION = 1;
+    protected static final int BASE_PARTITION = 0;
     protected static final int NUM_INTERVALS  = 100;
     
     // Reading the workload takes a long time, so we only want to do it once
@@ -42,7 +42,7 @@ public class TestWorkloadFile extends BaseTestCase {
      */
     @Test
     public void testGetTimeInterval() throws Exception {
-        Histogram h = new Histogram();
+        Histogram<Integer> h = new Histogram<Integer>();
         for (TransactionTrace txn_trace : workload.getTransactions()) {
             assert(txn_trace.getQueryCount() > 0) : txn_trace.debug(catalog_db);
             int interval = workload.getTimeInterval(txn_trace, NUM_INTERVALS);
