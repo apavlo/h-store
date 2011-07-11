@@ -93,8 +93,8 @@ public class TestWorkload extends BaseTestCase {
     protected TransactionTrace startTransaction(Object args[]) {
         TransactionTrace xact = this.workload.startTransaction(CALLER.getTransactionId(), this.catalog_proc, args);
         assertNotNull(xact);
-        assertNotNull(xact.getId());
-        assertTrue(xact.getId() >= 0);
+        assertNotNull(xact.getTransactionId());
+        assertTrue(xact.getTransactionId() >= 0);
         assertNotNull(xact.getStartTimestamp());
         assertTrue(xact.getStopTimestamp() == null);
         this.last_xact_trace = xact;
@@ -105,8 +105,6 @@ public class TestWorkload extends BaseTestCase {
         assertNotNull(xact);
         QueryTrace query = (QueryTrace)this.workload.startQuery(xact, catalog_stmt, args, batch_id);
         assertNotNull(query);
-        assertNotNull(query.getId());
-        assertTrue(query.getId() >= 0);
         assertNotNull(query.getStartTimestamp());
         assertTrue(query.getStopTimestamp() == null);
         assertEquals(catalog_stmt.getName(), query.getCatalogItemName());
@@ -120,7 +118,7 @@ public class TestWorkload extends BaseTestCase {
      */
     public void testStartTransaction() throws Exception {
         TransactionTrace xact = this.startTransaction(this.single_xact_args);
-        assertNotNull(this.workload.getTraceObject(xact.getId()));
+        assertNotNull(this.workload.getTransaction(xact.getTransactionId()));
         assertFalse(xact.isAborted());
     }
     
@@ -146,7 +144,7 @@ public class TestWorkload extends BaseTestCase {
         QueryTrace nonabort_query = this.startQuery(xact, catalog_stmt, new Object[]{1l}, 0);
         assertNotNull(nonabort_query);
         assert(xact.getQueries().contains(nonabort_query));
-        this.workload.stopQuery(nonabort_query);
+        this.workload.stopQuery(nonabort_query, null);
         assert(nonabort_query.isStopped());
         assertFalse(nonabort_query.isAborted());
         
@@ -261,7 +259,7 @@ public class TestWorkload extends BaseTestCase {
             QueryTrace query = this.startQuery(xact, catalog_stmt, args, batch_id);
             assertNotNull(query);
             assert(xact.getQueries().contains(query));
-            this.workload.stopQuery(query);
+            this.workload.stopQuery(query, null);
         } // FOR
         
         this.workload.stopTransaction(xact);

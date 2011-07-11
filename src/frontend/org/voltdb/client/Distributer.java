@@ -74,6 +74,8 @@ class Distributer {
     private final DBBPool m_pool;
 
     private final boolean m_useMultipleThreads;
+    
+    private final int m_backpressureWait;
 
     private final String m_hostname;
 
@@ -236,11 +238,17 @@ class Distributer {
             try {
                 response = fds.readObject(ClientResponseImpl.class);
             } catch (IOException e) {
-                e.printStackTrace();
+                LOG.error("Invalid ClientResponse object returned by " + this, e);
             }
             ProcedureCallback cb = null;
             long callTime = 0;
             int delta = 0;
+            
+            if (response == null) {
+                LOG.warn("Got back null ClientResponse. Ignoring...");
+                return;
+            }
+            
             final long clientHandle = response.getClientHandle();
             final boolean should_throttle = response.getThrottleFlag();
             final byte status = response.getStatus();
@@ -343,7 +351,7 @@ class Distributer {
         public boolean hadBackPressure(long now) {
             if (t) LOG.trace(String.format("Checking whether %s has backup pressure: %s", m_connection, m_hasBackPressure));
             if (m_hasBackPressure.get()) {
-                if (now - m_hasBackPressureTimestamp > 500) {
+                if (now - m_hasBackPressureTimestamp > m_backpressureWait) {
                     if (t) LOG.trace(String.format("Disabling backpresure at %s because client has waited for %d ms", this, (now - m_hasBackPressureTimestamp)));
 //                    assert(m_hasBackPressureTimestamp >= 0);
                     m_hasBackPressure.set(false);
@@ -479,18 +487,28 @@ class Distributer {
     Distributer() {
         this( 128, null, false, null);
     }
-
+    
     Distributer(
             int expectedOutgoingMessageSize,
             int arenaSizes[],
             boolean useMultipleThreads,
             StatsUploaderSettings statsSettings) {
+        this(expectedOutgoingMessageSize, arenaSizes, useMultipleThreads, statsSettings, 500);
+    }
+
+    Distributer(
+            int expectedOutgoingMessageSize,
+            int arenaSizes[],
+            boolean useMultipleThreads,
+            StatsUploaderSettings statsSettings,
+            int backpressureWait) {
 //        if (statsSettings != null) {
 //            m_statsLoader = new ClientStatsLoader(statsSettings, this);
 //        } else {
             m_statsLoader = null;
 //        }
         m_useMultipleThreads = useMultipleThreads;
+        m_backpressureWait = backpressureWait;
         m_network = new VoltNetwork( useMultipleThreads, true, 3);
         m_expectedOutgoingMessageSize = expectedOutgoingMessageSize;
         m_network.start();
@@ -502,6 +520,9 @@ class Distributer {
         } catch (java.net.UnknownHostException uhe) {
         }
         m_hostname = hostname;
+        
+        LOG.debug(String.format("Created new Distributer for %s [multiThread=%s, backpressureWait=%d]",
+                                m_hostname, m_useMultipleThreads, m_backpressureWait));
 
 //        new Thread() {
 //            @Override

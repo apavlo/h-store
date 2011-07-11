@@ -7,14 +7,17 @@ import java.util.Map;
 import java.util.Set;
 
 import org.apache.commons.collections15.set.ListOrderedSet;
+import org.apache.log4j.Logger;
 
-import edu.brown.utils.CollectionUtil;
+import edu.mit.hstore.HStoreSite;
 
 /**
  * 
  * @author pavlo
  */
 public class ClusterConfiguration {
+    private static final Logger LOG = Logger.getLogger(ClusterConfiguration.class);
+    
     private final Map<String, Map<Integer, Set<PartitionConfiguration>>> host_sites = new HashMap<String, Map<Integer, Set<PartitionConfiguration>>>();
     
     
@@ -31,17 +34,9 @@ public class ClusterConfiguration {
             this.site = site;
             this.partition = partition;
         }
-        
-        public String getHost() {
-            return host;
-        }
-        
-        public int getSite() {
-            return site;
-        }
-        
-        public int getPartition() {
-            return partition;
+        @Override
+        public String toString() {
+            return String.format("%s - %s", this.host, HStoreSite.formatPartitionName(this.site, this.partition));
         }
     }
     
@@ -56,6 +51,7 @@ public class ClusterConfiguration {
             this.host_sites.get(host).put(site, new HashSet<PartitionConfiguration>());
         }
         this.host_sites.get(host).get(site).add(pc);
+        LOG.debug("Adding " + pc);
     }
     
     public Collection<String> getHosts() {
@@ -74,7 +70,7 @@ public class ClusterConfiguration {
     public Collection<Integer> getPartitionIds(String host, int site) {
         Set<Integer> ids = new ListOrderedSet<Integer>();
         for (PartitionConfiguration pc : this.getPartitions(host, site)) {
-            ids.add(pc.getPartition());
+            ids.add(pc.partition);
         } // FOR
         return (ids);
     }

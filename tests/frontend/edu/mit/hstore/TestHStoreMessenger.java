@@ -145,13 +145,13 @@ public class TestHStoreMessenger extends BaseTestCase {
     private void stopMessengers() throws Exception {
         // Tell everyone to prepare to stop
         for (final HStoreMessenger m : this.messengers) {
-            if (m.isStarted()) m.prepareToStop();
+            if (m.isStarted()) m.prepareShutdown();
         } // FOR
         // Now stop everyone for real!
         for (final HStoreMessenger m : this.messengers) {
-            if (m.isStarted() && m.isStopped() == false) {
+            if (m.isStarted() && m.isShuttingDown() == false) {
                 System.err.println("STOP: " + m);
-                m.stop();
+                m.shutdown();
             }
         } // FOR
     }
@@ -193,7 +193,7 @@ public class TestHStoreMessenger extends BaseTestCase {
 		for (int i = 0; i < NUM_SITES_PER_HOST; i++) {
 			HStoreMessenger m = this.messengers[i];
 			// stop messenger
-			m.stop();
+			m.shutdown();
 			assertEquals(m.getListenerThread().getState(), State.TERMINATED);
 			// check that the socket is closed
 			int port = this.sites[i].getSite().getMessenger_port();
@@ -232,7 +232,7 @@ public class TestHStoreMessenger extends BaseTestCase {
     		sender_partition_id = Integer.parseInt(sets.toArray()[0].toString());
     		dest_partition_id = Integer.parseInt(sets.toArray()[1].toString());
     		messengers[i].sendDependency(0, sender_partition_id, dest_partition_id, 0, fragment);
-    		MockExecutionSite executor = (MockExecutionSite)sites[i].getExecutors().get(dest_partition_id);
+    		MockExecutionSite executor = (MockExecutionSite)sites[i].getExecutionSite(dest_partition_id);
     		VoltTable vt = executor.getDependency(0);
     		// Verify row expected
     		for (int j = 0; j < vt.getRowCount(); j++)
@@ -269,8 +269,8 @@ public class TestHStoreMessenger extends BaseTestCase {
         		Set<Integer> sets2 = sites[j].getMessenger().getLocalPartitionIds();
         		dest_partition_id = CollectionUtil.getFirst(sets2);
         		messengers[i].sendDependency(txn_id, sender_partition_id, dest_partition_id, 0, fragment);
-        		System.err.println("SITE #" + j + ": " + sites[j].getExecutors());
-        		MockExecutionSite executor = (MockExecutionSite)sites[j].getExecutors().get(dest_partition_id);
+        		System.err.println("SITE #" + j + ": " + sites[j].getLocalPartitionIds());
+        		MockExecutionSite executor = (MockExecutionSite)sites[j].getExecutionSite(dest_partition_id);
         		assertNotNull(executor);
         		
         		VoltTable vt = null; // executor.waitForDependency(txn_id);
@@ -308,10 +308,10 @@ public class TestHStoreMessenger extends BaseTestCase {
         final RpcCallback<MessageAcknowledgement> callback = new RpcCallback<MessageAcknowledgement>() {
             @Override
             public void run(MessageAcknowledgement parameter) {
-                int sender = parameter.getSenderId();
+                int sender_site_id = parameter.getSenderSiteId();
                 String status = new String(parameter.getData().toByteArray());
-                responses.put(sender, status);
-                waiting.remove(sender);
+                responses.put(sender_site_id, status);
+                waiting.remove(sender_site_id);
                 latch.countDown();
                 
                 if (waiting.isEmpty()) {
@@ -340,8 +340,8 @@ public class TestHStoreMessenger extends BaseTestCase {
             // Remote site
             } else {
                 final Hstore.MessageRequest sm = Hstore.MessageRequest.newBuilder()
-                                                                .setSenderId(sender_id)
-                                                                .setDestId(dest_id)
+                                                                .setSenderSiteId(sender_id)
+                                                                .setDestSiteId(dest_id)
                                                                 .setType(MessageType.STATUS)
                                                                 .build();
                 threads.add(new Thread(group, (sender_id + "->" + dest_id)) {

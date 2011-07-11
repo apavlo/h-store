@@ -71,7 +71,7 @@ public class BatchPlanner {
         private final BatchPlanner planner;
         
         public BatchPlanFactory(BatchPlanner planner) {
-            super(HStoreConf.singleton().pool_enable_tracking);
+            super(HStoreConf.singleton().site.pool_profiling);
             this.planner = planner;
         }
         @Override
@@ -112,6 +112,7 @@ public class BatchPlanner {
         final int input_dependency_id;
         final int output_dependency_id;
         final int hash_code;
+        final boolean read_only;
         
         public PlanVertex(PlanFragment catalog_frag,
                           int stmt_index,
@@ -125,6 +126,7 @@ public class BatchPlanner {
             this.round = round;
             this.input_dependency_id = input_dependency_id;
             this.output_dependency_id = output_dependency_id;
+            this.read_only = catalog_frag.getReadonly();
             
             this.hash_code = this.frag_id | this.round<<16 | this.stmt_index<<24;  
         }
@@ -478,10 +480,10 @@ public class BatchPlanner {
         this.p_estimator = p_estimator;
         this.num_partitions = CatalogUtil.getNumberOfPartitions(catalog_proc);
         
-        this.plan_pool = new StackObjectPool(new BatchPlanFactory(this), HStoreConf.singleton().pool_batchplan_idle);
+        this.plan_pool = new StackObjectPool(new BatchPlanFactory(this), HStoreConf.singleton().site.pool_batchplan_idle);
         
         // Initialize static members
-        if (BatchPlanner.INITIALIZED.compareAndSet(false, true)) {
+        if (BatchPlanner.INITIALIZED.get() == false && BatchPlanner.INITIALIZED.compareAndSet(false, true)) {
             BatchPlanner.preload(CatalogUtil.getDatabase(catalog_proc));
         }
 
@@ -723,6 +725,7 @@ public class BatchPlanner {
         } // FOR
         
         // Check whether we have an existing graph exists for this batch configuration
+        // This is the only place where we need to synchronize
         PlanGraph graph = null;
         int bitmap_hash = Arrays.hashCode(plan.singlepartition_bitmap);
         synchronized (this) {
@@ -791,6 +794,7 @@ public class BatchPlanner {
                 int output_ids[] = new int[num_frags];
                 int stmt_indexes[] = new int[num_frags];
                 ByteBuffer params[] = new ByteBuffer[num_frags];
+                boolean read_only = true;
         
                 int i = 0;
                 for (PlanVertex v : vertices) { // Does this order matter?
@@ -807,16 +811,10 @@ public class BatchPlanner {
                     stmt_indexes[i] = v.stmt_index;
                     
                     // Parameters
-                     params[i] = plan.param_buffers[v.stmt_index];
-//                    try {
-//                        FastSerializer fs = new FastSerializer();
-//                        batchArgs[v.stmt_index].writeExternal(fs);
-//                        params[i] = fs.getBuffer();
-//                    } catch (Exception ex) {
-//                        LOG.fatal("Failed to serialize parameters for Statement #" + v.stmt_index, ex);
-//                        throw new RuntimeException(ex);
-//                    }
-                    
+                    params[i] = plan.param_buffers[v.stmt_index];
+
+                    // Read-Only
+                    read_only = read_only && v.read_only;
                     
                     if (t) LOG.trace("Fragment Grouping " + i + " => [" +
                                      "txn_id=#" + txn_id + ", " +
@@ -841,7 +839,7 @@ public class BatchPlanner {
                         partition,
                         txn_id,
                         client_handle,
-                        false, // IGNORE
+                        read_only, // IGNORE
                         frag_ids,
                         input_ids,
                         output_ids,

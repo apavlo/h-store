@@ -92,7 +92,7 @@ public class QueryTrace extends AbstractTraceElement<Statement> {
     
     @Override
     public String toString() {
-        return (this.getClass().getSimpleName() + "[" + this.proc_name + "." + this.catalog_item_name + ":" + this.id + "]");
+        return (this.getClass().getSimpleName() + "[" + this.proc_name + "." + this.catalog_item_name + "]");
     }
     
     @Override

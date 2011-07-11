@@ -25,13 +25,10 @@
  ***************************************************************************/
 package edu.brown.workload;
 
-import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileOutputStream;
-import java.io.IOException;
 import java.io.OutputStream;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -39,11 +36,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.LinkedBlockingDeque;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Pattern;
 
+import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.log4j.Logger;
 import org.json.JSONObject;
 import org.voltdb.VoltTable;
@@ -51,37 +47,34 @@ import org.voltdb.VoltTableRow;
 import org.voltdb.VoltType;
 import org.voltdb.WorkloadTrace;
 import org.voltdb.catalog.Catalog;
-import org.voltdb.catalog.CatalogType;
 import org.voltdb.catalog.Column;
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Statement;
 import org.voltdb.catalog.Table;
 import org.voltdb.types.QueryType;
-import org.voltdb.utils.Pair;
 
 import edu.brown.catalog.CatalogKey;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.statistics.Histogram;
 import edu.brown.statistics.TableStatistics;
 import edu.brown.statistics.WorkloadStatistics;
-import edu.brown.utils.ClassUtil;
-import edu.brown.utils.FileUtil;
 import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.StringUtil;
 import edu.brown.utils.ThreadUtil;
 import edu.brown.utils.LoggerUtil.LoggerBoolean;
-import edu.brown.workload.Workload.Filter.FilterResult;
+import edu.brown.workload.WorkloadUtil.LoadThread;
+import edu.brown.workload.WorkloadUtil.ReadThread;
+import edu.brown.workload.filters.Filter;
 import edu.brown.workload.filters.ProcedureNameFilter;
 
 /**
  * 
  * @author Andy Pavlo <pavlo@cs.brown.edu>
- *
  */
-public class Workload implements WorkloadTrace, Iterable<AbstractTraceElement<? extends CatalogType>> {
-    private static final Logger LOG = Logger.getLogger(Workload.class);
-    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+public class Workload implements WorkloadTrace, Iterable<TransactionTrace> {
+    static final Logger LOG = Logger.getLogger(Workload.class);
+    static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
     static {
         LoggerUtil.attachObserver(LOG, debug, trace);
@@ -104,15 +97,9 @@ public class Workload implements WorkloadTrace, Iterable<AbstractTraceElement<? 
     private Catalog catalog;
     private Database catalog_db;
 
-    // Ordered list of element ids that are used
-    private final transient List<Long> element_ids = new ArrayList<Long>();
-    
-    // Mapping from element ids to actual objects
-    private final transient Map<Long, AbstractTraceElement<? extends CatalogType>> element_id_xref = new HashMap<Long, AbstractTraceElement<? extends CatalogType>>();
-    
     // The following data structures are specific to Transactions
     private final transient List<TransactionTrace> xact_trace = new ArrayList<TransactionTrace>();
-    private final transient Map<Long, TransactionTrace> xact_trace_xref = new HashMap<Long, TransactionTrace>();
+    private final transient ListOrderedMap<Long, TransactionTrace> xact_trace_xref = new ListOrderedMap<Long, TransactionTrace>();
     private final transient Map<TransactionTrace, Integer> trace_bach_id = new HashMap<TransactionTrace, Integer>();
 
     // Reverse mapping from QueryTraces to TxnIds
@@ -152,46 +139,7 @@ public class Workload implements WorkloadTrace, Iterable<AbstractTraceElement<? 
     // THREADS
     // ----------------------------------------------------------
     
-    private static final class WriteThread implements Runnable {
-        final Database catalog_db;
-        final OutputStream output;
-        final LinkedBlockingDeque<TransactionTrace> traces = new LinkedBlockingDeque<TransactionTrace>();
-        
-        public WriteThread(Database catalog_db, OutputStream output) {
-            this.catalog_db = catalog_db;
-            this.output = output;
-            assert(this.output != null);
-        }
-        
-        @Override
-        public void run() {
-            TransactionTrace xact = null;
-            while (true) {
-                try {
-                    xact = this.traces.take();
-                    assert(xact != null);
-                    write(this.catalog_db, xact, this.output);
-                } catch (InterruptedException ex) {
-                    // IGNORE
-                    break;
-                }
-            } // WHILE
-        }
-        
-        public static void write(Database catalog_db, TransactionTrace xact, OutputStream output) {
-            try {
-                output.write(xact.toJSONString(catalog_db).getBytes());
-                output.write("\n".getBytes());
-                output.flush();
-                if (debug.get()) LOG.debug("Wrote out new trace record for " + xact + " with " + xact.getQueries().size() + " queries");
-            } catch (IOException ex) {
-                LOG.fatal("Failed to write " + xact + " out to file", ex);
-                System.exit(1);
-            }
-        }
-    } // END CLASS
-    
-    private static WriteThread writerThread = null; 
+    private static WorkloadUtil.WriteThread writerThread = null; 
     public static void writeTransactionToStream(Database catalog_db, TransactionTrace xact, OutputStream output) {
         writeTransactionToStream(catalog_db, xact, output, false);
     }
@@ -200,7 +148,7 @@ public class Workload implements WorkloadTrace, Iterable<AbstractTraceElement<? 
             if (writerThread == null) {
                 synchronized (Workload.class) {
                     if (writerThread == null) {
-                        writerThread = new WriteThread(catalog_db, output);
+                        writerThread = new WorkloadUtil.WriteThread(catalog_db, output);
                         Thread t = new Thread(writerThread);
                         t.setDaemon(true);
                         t.start();
@@ -209,263 +157,26 @@ public class Workload implements WorkloadTrace, Iterable<AbstractTraceElement<? 
             }
             writerThread.traces.offer(xact);
         } else {
-            WriteThread.write(catalog_db, xact, output);
-        }
-    }
-    
-    /**
-     * READ THREAD
-     */
-    private final class ReadThread implements Runnable {
-        final File input_path;
-        final List<LoadThread> load_threads = new ArrayList<LoadThread>();
-        final LinkedBlockingDeque<Pair<Integer, String>> lines;
-        final Pattern pattern;
-        boolean stop = false;
-        Thread self;
-        
-        public ReadThread(File input_path, Pattern pattern, int num_threads) {
-            this.input_path = input_path;
-            this.pattern = pattern;
-            this.lines = new LinkedBlockingDeque<Pair<Integer, String>>(num_threads * 2);
-        }
-        
-        @Override
-        public void run() {
-            self = Thread.currentThread();
-            
-            BufferedReader in = null;
-            try {
-                in = FileUtil.getReader(this.input_path);
-            } catch (Exception ex) {
-                throw new RuntimeException(ex);
-            }
-            
-            int line_ctr = 0;
-            int fast_ctr = 0;
-            try {
-                while (in.ready() && this.stop == false) {
-                    String line = in.readLine().trim();
-                    if (line.isEmpty()) continue;
-                    if (this.pattern != null && this.pattern.matcher(line).find() == false) {
-                        fast_ctr++;
-                        continue;
-                    }
-                    this.lines.offerLast(Pair.of(line_ctr, line), 100, TimeUnit.SECONDS);
-                    line_ctr++;
-                } // WHILE
-                in.close();
-                if (debug.get()) LOG.debug("Finished reading file. Telling all LoadThreads to stop when their queue is empty");
-            } catch (InterruptedException ex) {
-                if (this.stop == false) throw new RuntimeException(ex);
-            } catch (Exception ex) {
-                throw new RuntimeException(ex);
-            } finally {
-                // Tell all the load threads to stop before we finish
-                for (LoadThread lt : this.load_threads) {
-                    lt.stop();
-                } // FOR
-            }
-            if (debug.get()) LOG.debug(String.format("Read %d lines [fast_filter=%d]", line_ctr, fast_ctr));
-        }
-        public synchronized void stop() {
-            if (this.stop == false) {
-                if (debug.get()) LOG.debug("ReadThread told to stop by LoadThread [queue_size=" + this.lines.size() + "]");
-                this.stop = true;
-                this.lines.clear();
-                this.self.interrupt();
-            }
-        }
-    } // END CLASS
-    
-    private class LoadThread implements Runnable {
-        final ReadThread reader;
-        final Database catalog_db;
-        final Filter filter;
-        final AtomicInteger counters[];
-         
-        boolean stop = false;
-        
-        public LoadThread(ReadThread reader, Database catalog_db, Filter filter, AtomicInteger counters[]) {
-            this.reader = reader;
-            this.catalog_db = catalog_db;
-            this.filter = filter;
-            this.counters = counters;
-        }
-        
-        @Override
-        public void run() {
-            final boolean trace = LOG.isTraceEnabled();
-
-            AtomicInteger xact_ctr = this.counters[0];
-            AtomicInteger query_ctr = this.counters[1];
-            AtomicInteger element_ctr = this.counters[2];
-            
-            while (true) {
-                String line = null;
-                Integer line_ctr = null;
-                JSONObject jsonObject = null;
-                Pair<Integer, String> p = null;
-                
-                try {
-                    p = this.reader.lines.poll(100, TimeUnit.MILLISECONDS);
-                } catch (Exception ex) {
-                    throw new RuntimeException(ex);
-                }
-
-                if (p == null) {
-                    if (this.stop) {
-                        if (trace) LOG.trace("Queue is empty and we were told to stop!");
-                        break;
-                    }
-                    if (trace) LOG.trace("Queue is empty but we haven't been told to stop yet");
-                    continue;
-                }
-                
-                line_ctr = p.getFirst();
-                line = p.getSecond();
-                try {
-                    jsonObject = new JSONObject(line);    
-                
-                    // TransactionTrace
-                    if (jsonObject.has(TransactionTrace.Members.TXN_ID.name())) {
-                        
-                        // If we have already loaded in up to our limit, then we don't need to
-                        // do anything else. But we still have to keep reading because we need
-                        // be able to load in our index structures that are at the bottom of the file
-                        //
-                        // NOTE: If we ever load something else but the straight trace dumps, then the following
-                        // line should be a continue and not a break.
-                        
-                        // Load the xact from the jsonObject
-                        TransactionTrace xact = TransactionTrace.loadFromJSONObject(jsonObject, catalog_db);
-                        if (xact == null) {
-                            throw new Exception("Failed to deserialize transaction trace on line " + xact_ctr);
-                        } else if (filter != null) {
-                            FilterResult result = filter.apply(xact);
-                            if (result == FilterResult.HALT) {
-                                // We have to tell the ReadThread to stop too!
-                                if (trace) LOG.trace("Got HALT response from filter! Telling ReadThread to stop!");
-                                this.reader.stop();
-                                break;
-                            }
-                            else if (result == FilterResult.SKIP) continue;
-                            if (trace) LOG.trace(result + ": " + xact);
-                        }
-    
-                        // Keep track of how many trace elements we've loaded so that we can make sure
-                        // that our element trace list is complete
-                        int x = xact_ctr.incrementAndGet();
-                        if (trace && x % 10000 == 0) LOG.trace("Read in " + xact_ctr + " transactions...");
-                        query_ctr.addAndGet(xact.getQueryCount());
-                        element_ctr.addAndGet(1 + xact.getQueries().size());
-                        
-                        // This call just updates the various other index structures 
-                        Workload.this.addTransaction(xact.getCatalogItem(catalog_db), xact, true);
-                        
-                    // Unknown!
-                    } else {
-                        throw new Exception("Unexpected serialization line in workload trace");
-                    }
-                } catch (Exception ex) {
-                    throw new RuntimeException("Error on line " + (line_ctr+1) + " of workload trace file", ex);
-                }
-            } // WHILE
-        }
-        
-        public void stop() {
-            LOG.trace("Told to stop [queue_size=" + this.reader.lines.size() + "]");
-            this.stop = true;
+            synchronized (Workload.class) {
+                WorkloadUtil.WriteThread.write(catalog_db, xact, output);
+            } // SYNCH
         }
     }
     
     // ----------------------------------------------------------
-    // ITERATOR
+    // FILTERS
     // ----------------------------------------------------------
-    
-    /**
-     * WorkloadIterator Filter
-     */
-    public abstract static class Filter {
-        private Filter next;
-        
-        public enum FilterResult {
-            ALLOW,
-            SKIP,
-            HALT,
-        };
-        
-        public Filter(Filter next) {
-            this.next = next;
-        }
-        
-        public Filter() {
-            this(null);
-        }
-        
-        /**
-         * Returns an ordered list of the filters within the chain that are the same type as the
-         * given search class (inclusive).
-         * @param <T>
-         * @param search
-         * @return
-         */
-        public final <T extends Filter> List<T> getFilters(Class<? extends T> search) {
-            return (this.getFilters(search, new ArrayList<T>()));
-        }
-        
-        @SuppressWarnings("unchecked")
-        private final <T extends Filter> List<T> getFilters(Class<? extends T> search, List<T> found) {
-            if (ClassUtil.getSuperClasses(this.getClass()).contains(search)) {
-                found.add((T)this);
-            }
-            if (this.next != null) this.next.getFilters(search, found);
-            return (found);
-        }
-        
-        public final Filter attach(Filter next) {
-            if (this.next != null) this.next.attach(next);
-            else this.next = next;
-            assert(this.next != null);
-            return (this);
-        }
-        
-        public FilterResult apply(AbstractTraceElement<? extends CatalogType> element) {
-            assert(element != null);
-            FilterResult result = this.filter(element); 
-            if (result == FilterResult.ALLOW) {
-                return (this.next != null ? this.next.apply(element) : FilterResult.ALLOW);
-            }
-            return (result);
-        }
-        
-        public void reset() {
-            this.resetImpl();
-            if (this.next != null) this.next.reset();
-            return;
-        }
-        
-        protected abstract FilterResult filter(AbstractTraceElement<? extends CatalogType> element); 
-        
-        protected abstract void resetImpl();
-        
-        protected abstract String debug();
-        
-        public final String toString() {
-            return (this.debug() + (this.next != null ? "\n" + this.next.toString() : ""));
-        }
-    }
     
     /**
      * WorkloadIterator
      */
-    public class WorkloadIterator implements Iterator<AbstractTraceElement<? extends CatalogType>> {
+    public class WorkloadIterator implements Iterator<TransactionTrace> {
         private int idx = 0;
         private boolean is_init = false;
-        private AbstractTraceElement<? extends CatalogType> peek;
-        private final Workload.Filter filter;
+        private TransactionTrace peek;
+        private final Filter filter;
         
-        public WorkloadIterator(Workload.Filter filter) {
+        public WorkloadIterator(Filter filter) {
             this.filter = filter;
         }
         
@@ -488,21 +199,21 @@ public class Workload implements WorkloadTrace, Iterable<AbstractTraceElement<? 
         }
         
         @Override
-        public AbstractTraceElement<? extends CatalogType> next() {
+        public TransactionTrace next() {
             // Always set the current one what we peeked ahead and saw earlier
-            AbstractTraceElement<? extends CatalogType> current = this.peek;
+            TransactionTrace current = this.peek;
             this.peek = null;
             
             // Now figure out what the next element should be the next time next() is called
-            int size = Workload.this.element_ids.size();
+            int size = Workload.this.xact_trace.size();
             while (this.peek == null && this.idx++ < size) {
-                Long next_id = Workload.this.element_ids.get(this.idx - 1);
-                AbstractTraceElement<? extends CatalogType> element = Workload.this.element_id_xref.get(next_id);
+                Long next_id = Workload.this.xact_trace_xref.get(this.idx - 1);
+                TransactionTrace element = Workload.this.xact_trace_xref.get(next_id);
                 if (element == null) {
                     LOG.warn("idx: " + this.idx);
                     LOG.warn("next_id: " + next_id);
                     // System.err.println("elements: " + Workload.this.element_id_xref);
-                    LOG.warn("size: " + Workload.this.element_id_xref.size());
+                    LOG.warn("size: " + Workload.this.xact_trace_xref.size());
                 }
                 if (this.filter == null || (this.filter != null && this.filter.apply(element) == Filter.FilterResult.ALLOW)) {
                     this.peek = element;
@@ -555,13 +266,10 @@ public class Workload implements WorkloadTrace, Iterable<AbstractTraceElement<? 
     public Workload(Workload workload, Filter filter) {
         this(workload.catalog);
         
-        Iterator<AbstractTraceElement<? extends CatalogType>> it = workload.iterator(filter);
+        Iterator<TransactionTrace> it = workload.iterator(filter);
         while (it.hasNext()) {
-            AbstractTraceElement<? extends CatalogType> trace = it.next();
-            if (trace instanceof TransactionTrace) {
-                TransactionTrace txn = (TransactionTrace)trace;
-                this.addTransaction(txn.getCatalogItem(CatalogUtil.getDatabase(this.catalog)), txn);
-            }
+            TransactionTrace txn = it.next();
+            this.addTransaction(txn.getCatalogItem(CatalogUtil.getDatabase(this.catalog)), txn);
         } // WHILE
     }
     
@@ -586,19 +294,6 @@ public class Workload implements WorkloadTrace, Iterable<AbstractTraceElement<? 
             this.out.close();
         }
         super.finalize();
-    }
-
-    /**
-     * 
-     */
-    protected void validate() {
-        if (debug.get()) LOG.debug("Checking to make sure there are no duplicate trace objects in workload");
-        Set<Long> trace_ids = new HashSet<Long>();
-        for (AbstractTraceElement<?> element : this) {
-            long trace_id = element.getId();
-            assert(!trace_ids.contains(trace_id)) : "Duplicate Trace Element: " + element;
-            trace_ids.add(trace_id);
-        } // FOR
     }
 
     /**
@@ -654,7 +349,7 @@ public class Workload implements WorkloadTrace, Iterable<AbstractTraceElement<? 
     public void load(String input_path, Database catalog_db, Filter filter) throws Exception {
         if (debug.get()) LOG.debug("Reading workload trace from file '" + input_path + "'");
         this.input_path = new File(input_path);
-
+        long start = System.currentTimeMillis();
         
         // HACK: Throw out traces unless they have the procedures that we're looking for
         Pattern temp_pattern = null;
@@ -685,7 +380,7 @@ public class Workload implements WorkloadTrace, Iterable<AbstractTraceElement<? 
         };
         
         List<Runnable> all_runnables = new ArrayList<Runnable>();
-        int num_threads = ThreadUtil.getMaxGlobalThreads() - 1;
+        int num_threads = ThreadUtil.getMaxGlobalThreads();
         
         // Create the reader thread first
         ReadThread rt = new ReadThread(this.input_path, pattern, num_threads);
@@ -693,15 +388,18 @@ public class Workload implements WorkloadTrace, Iterable<AbstractTraceElement<? 
         
         // Then create all of our load threads
         for (int i = 0; i < num_threads; i++) {
-            LoadThread lt = new LoadThread(rt, catalog_db, filter, counters);
+            LoadThread lt = new LoadThread(this, this.input_path, rt, catalog_db, filter, counters);
             rt.load_threads.add(lt);
             all_runnables.add(lt);
         } // FOR
         
         if (debug.get()) LOG.debug(String.format("Loading workload trace using %d LoadThreads", rt.load_threads.size())); 
         ThreadUtil.runGlobalPool(all_runnables);
-        this.validate();
-        LOG.info("Loaded in " + this.xact_trace.size() + " txns with " + counters[1].get() + " queries from '" + this.input_path.getName() + "'");
+        VerifyWorkload.verify(catalog_db, this);
+        
+        long stop = System.currentTimeMillis();
+        LOG.info(String.format("Loaded %d txns / %d queries from '%s' in %.1f seconds using %d threads",
+                               this.xact_trace.size(), counters[1].get(), this.input_path.getName(), (stop - start) / 1000d, num_threads));
         return;
     }
     
@@ -723,11 +421,11 @@ public class Workload implements WorkloadTrace, Iterable<AbstractTraceElement<? 
      * @return
      */
     @Override
-    public Iterator<AbstractTraceElement<? extends CatalogType>> iterator() {
+    public Iterator<TransactionTrace> iterator() {
         return (new Workload.WorkloadIterator());
     }
 
-    public Iterator<AbstractTraceElement<? extends CatalogType>> iterator(Workload.Filter filter) {
+    public Iterator<TransactionTrace> iterator(Filter filter) {
         return (new Workload.WorkloadIterator(filter));
     }
     
@@ -814,14 +512,6 @@ public class Workload implements WorkloadTrace, Iterable<AbstractTraceElement<? 
             this.proc_histogram.setDebugLabels(labels);
         }
         return (this.proc_histogram);
-    }
-    
-    /**
-     * Return the max id
-     * @return
-     */
-    public long getMaxTraceId() {
-        return (Collections.max(this.element_ids));
     }
     
     /**
@@ -923,18 +613,6 @@ public class Workload implements WorkloadTrace, Iterable<AbstractTraceElement<? 
         this.xact_trace_xref.put(txn_id, xact);
         this.xact_open_queries.put(txn_id, new HashMap<Integer, AtomicInteger>());
         
-        // Check whether we need to add the element id of the txn and all of its queries.
-        // This happens when if we are trying to insert the txn from another one
-        // It's kind of a hack, but what are you going to do when times are tough..
-        if (force_index_update || this.element_ids.contains(xact.getId()) == false) {
-            this.element_ids.add(xact.getId());
-            this.element_id_xref.put(xact.getId(), xact);
-            for (QueryTrace query : xact.getQueries()) {
-                this.element_ids.add(query.getId());
-                this.element_id_xref.put(query.getId(), query);
-            } // FOR
-        }
-        
         String proc_key = CatalogKey.createKey(catalog_proc);
         if (!this.proc_xact_xref.containsKey(proc_key)) {
             this.proc_xact_xref.put(proc_key, new ArrayList<TransactionTrace>());
@@ -978,16 +656,6 @@ public class Workload implements WorkloadTrace, Iterable<AbstractTraceElement<? 
             return (this.proc_xact_xref.get(proc_key));
         }
         return (new ArrayList<TransactionTrace>());
-    }
-    
-    /**
-     * Return the AbstractTraceElement object for the given id 
-     * @param id
-     * @return
-     */
-    @SuppressWarnings("unchecked")
-    public <T extends AbstractTraceElement<? extends CatalogType>> T getTraceObject(long id) {
-        return ((T)this.element_id_xref.get(id));
     }
     
     /**
@@ -1122,8 +790,6 @@ public class Workload implements WorkloadTrace, Iterable<AbstractTraceElement<? 
         } else {
             xact_handle = new TransactionTrace(xact_id, catalog_proc, args);
             this.addTransaction(catalog_proc, xact_handle);
-            this.element_ids.add(xact_handle.getId());
-            this.element_id_xref.put(xact_handle.getId(), xact_handle);
             if (debug.get()) LOG.debug(String.format("Created %s TransactionTrace with %d parameters", proc_name, args.length));
             
             // HACK
@@ -1149,7 +815,7 @@ public class Workload implements WorkloadTrace, Iterable<AbstractTraceElement<? 
      * @param txn_id
      */
     @Override
-    public void stopTransaction(Object xact_handle) {
+    public void stopTransaction(Object xact_handle, VoltTable...result) {
         if (xact_handle instanceof TransactionTrace) {
             TransactionTrace txn_trace = (TransactionTrace)xact_handle;
             
@@ -1166,6 +832,7 @@ public class Workload implements WorkloadTrace, Iterable<AbstractTraceElement<? 
             
             // Mark the txn as stopped
             txn_trace.stop();
+            if (result != null) txn_trace.setOutput(result);
             
             // Remove from internal cache data structures
             this.removeTransaction(txn_trace);
@@ -1250,8 +917,6 @@ public class Workload implements WorkloadTrace, Iterable<AbstractTraceElement<? 
             
             query_handle = new QueryTrace(catalog_statement, args, batch_id);
             xact.addQuery(query_handle);
-            this.element_ids.add(query_handle.getId());
-            this.element_id_xref.put(query_handle.getId(), query_handle);
             this.query_txn_xref.put(query_handle, txn_id);
             
             // Make sure that there aren't still running queries in the previous batch
@@ -1281,10 +946,11 @@ public class Workload implements WorkloadTrace, Iterable<AbstractTraceElement<? 
     }
     
     @Override
-    public void stopQuery(Object query_handle) {
+    public void stopQuery(Object query_handle, VoltTable result) {
         if (query_handle instanceof QueryTrace) {
             QueryTrace query = (QueryTrace)query_handle;
             query.stop();
+            if (result != null) query.setOutput(result);
             
             // Decrement open query counter for this batch
             Long txn_id = this.query_txn_xref.remove(query);

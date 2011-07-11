@@ -232,7 +232,6 @@ public class StoredProcedureInvocation implements FastSerializable {
      * @return
      */
     public static int getBasePartition(ByteBuffer buffer) {
-        buffer.rewind();
         return (buffer.getShort(1));
     }
 

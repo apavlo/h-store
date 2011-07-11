@@ -34,10 +34,9 @@ public class VoltProcedureListener extends AbstractEventHandler {
     private final EventLoop eventLoop;
     private final Handler handler;
     private ServerSocketChannel serverSocket;
-    private AtomicBoolean throttle = new AtomicBoolean(false);
-    private static final VoltTable empty_result[] = new VoltTable[0];
+//    private AtomicBoolean throttle = new AtomicBoolean(false);
     
-    private final HStoreSite hstore_site;
+//    private final HStoreSite hstore_site;
 
     public VoltProcedureListener(EventLoop eventLoop, Handler handler) {
         this.eventLoop = eventLoop;
@@ -46,7 +45,7 @@ public class VoltProcedureListener extends AbstractEventHandler {
         assert this.handler != null;
         
         // HACK
-        this.hstore_site = (handler instanceof HStoreSite ? (HStoreSite)handler : null);
+//        this.hstore_site = (handler instanceof HStoreSite ? (HStoreSite)handler : null);
     }
 
     public void acceptCallback(SelectableChannel channel) {
@@ -79,7 +78,7 @@ public class VoltProcedureListener extends AbstractEventHandler {
         }
 
         @Override
-        public boolean writeCallback(SelectableChannel channel) {
+        public synchronized boolean writeCallback(SelectableChannel channel) {
             connectionBlocked = connection.tryWrite();
             return connectionBlocked;
         }
@@ -137,7 +136,7 @@ public class VoltProcedureListener extends AbstractEventHandler {
     }
 
     private void read(ClientConnectionHandler eventLoopCallback) {
-        final boolean d = LOG.isDebugEnabled();
+//        final boolean d = LOG.isDebugEnabled();
         byte[] request;
         while ((request = eventLoopCallback.connection.tryRead()) != null) {
             if (request.length == 0) {
@@ -172,54 +171,24 @@ public class VoltProcedureListener extends AbstractEventHandler {
                 return;
             }
             
-            // If we're in throttle mode and this is not a sysproc, then reject this txn
-            ByteBuffer buffer = ByteBuffer.wrap(request);
-            boolean is_sysproc = StoredProcedureInvocation.isSysProc(buffer);
-            boolean _throttle = this.throttle.get();
-            
-            if (_throttle && is_sysproc == false) {
-                long clientHandle = StoredProcedureInvocation.getClientHandle(buffer);
-                int timestamp = -1;
-                
-                synchronized (this.throttle) {
-                    _throttle = this.throttle.get();
-                    timestamp = this.hstore_site.getNextServerTimestamp();
-                } // SYNCH
-                if (d) LOG.info(String.format("Throttling is enabled. Rejecting transaction and asking client to wait [clientHandle=%d, throttle=%s, timestamp=%d]",
-                                              clientHandle, _throttle, timestamp));
-                
-                ClientResponseImpl cresponse = new ClientResponseImpl(-1, ClientResponse.REJECTED, empty_result, "", clientHandle);
-                cresponse.setThrottleFlag(_throttle);
-                cresponse.setServerTimestamp(timestamp);
-                    
-                FastSerializer serializer = new FastSerializer();
-                try {
-                    serializer.writeObject(cresponse);
-                } catch (Exception ex) {
-                    throw new RuntimeException(ex);
-                }
-                eventLoopCallback.run(serializer.getBytes());
-                
             // Execute store procedure!
-            } else {
-                if (d) LOG.debug(String.format("Got request [sysproc=%s, bytes=%d]", is_sysproc, request.length));
-                try {
-                    // RpcCallback<byte[]> callback = RpcUtil.newOneTimeCallback(eventLoopCallback);
-                    handler.procedureInvocation(request, eventLoopCallback);
-                } catch (Exception ex) {
-                    LOG.fatal("Unexpected error when calling procedureInvocation!", ex);
-                    throw new RuntimeException(ex);
-                }
+//            if (d) LOG.debug(String.format("Got request [sysproc=%s, bytes=%d]", is_sysproc, request.length));
+            try {
+                // RpcCallback<byte[]> callback = RpcUtil.newOneTimeCallback(eventLoopCallback);
+                handler.procedureInvocation(request, eventLoopCallback);
+            } catch (Exception ex) {
+                LOG.fatal("Unexpected error when calling procedureInvocation!", ex);
+                throw new RuntimeException(ex);
             }
         }
     }
     
-    public void setThrottleFlag(boolean val) {
-        if (LOG.isDebugEnabled()) LOG.debug("Setting throttle flag: " + val);
-        synchronized (this.throttle) {
-            this.throttle.set(val);
-        } // SYNCH
-    }
+//    public void setThrottleFlag(boolean val) {
+//        if (LOG.isDebugEnabled()) LOG.debug("Setting throttle flag: " + val);
+//        synchronized (this.throttle) {
+//            this.throttle.set(val);
+//        } // SYNCH
+//    }
 
     public static StoredProcedureInvocation decodeRequest(byte[] bytes) {
         final FastDeserializer fds = new FastDeserializer(ByteBuffer.wrap(bytes));

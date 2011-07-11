@@ -26,6 +26,7 @@ package org.voltdb.processtools;
 
 import java.io.BufferedInputStream;
 import java.io.IOException;
+import java.util.List;
 
 import org.apache.log4j.Logger;
 
@@ -34,6 +35,10 @@ import edu.brown.utils.StringUtil;
 public abstract class ShellTools {
     private static final Logger LOG = Logger.getLogger(ShellTools.class);
 
+    public static String cmd(List<String> command) {
+        return cmd(command.toArray(new String[0]));
+    }
+    
     public static String cmd(String command) {
         String[] command2 = command.split(" ");
         return cmd(command2);

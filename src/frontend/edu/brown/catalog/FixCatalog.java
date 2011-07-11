@@ -90,7 +90,7 @@ public abstract class FixCatalog {
     }
     
     public static Catalog addHostInfo(Catalog orig_catalog, int num_hosts, int num_sites_per_host, int num_partitions_per_site) {
-        return (FixCatalog.addHostInfo(orig_catalog, "node-%d", num_hosts, num_sites_per_host, num_partitions_per_site));
+        return (FixCatalog.addHostInfo(orig_catalog, "node-%02d", num_hosts, num_sites_per_host, num_partitions_per_site));
     }
     
     public static Catalog addHostInfo(Catalog orig_catalog, String hostname_format, int num_hosts, int num_sites_per_host, int num_partitions_per_site) {
@@ -155,10 +155,12 @@ public abstract class FixCatalog {
     public static void main(String[] vargs) throws Exception {
         ArgumentsParser args = ArgumentsParser.load(vargs);
         args.require(ArgumentsParser.PARAM_CATALOG_TYPE,
-                     ArgumentsParser.PARAM_CATALOG_OUTPUT);
+                     ArgumentsParser.PARAM_CATALOG_OUTPUT,
+                     ArgumentsParser.PARAM_DTXN_CONF_OUTPUT);
         
         // ProjectType type = args.catalog_type;
-        String output_path = args.getParam(ArgumentsParser.PARAM_CATALOG_OUTPUT);
+        String catalogOutputPath = args.getParam(ArgumentsParser.PARAM_CATALOG_OUTPUT);
+        String dtxnOutputPath = args.getParam(ArgumentsParser.PARAM_DTXN_CONF_OUTPUT);
         
         // Populate Parameter Mappings
         if (args.hasParam(ArgumentsParser.PARAM_CORRELATIONS)) {
@@ -208,35 +210,51 @@ public abstract class FixCatalog {
             ClusterConfiguration cc = new ClusterConfiguration();
             Set<Integer> partitions = new HashSet<Integer>();
             for (String host_info : host_triplets) {
+                host_info = host_info.trim();
+                if (host_info.isEmpty()) continue;
                 String data[] = host_info.split(":");
                 assert(data.length == 3) : "Invalid host information '" + host_info + "'";
                 
                 String host = data[0];
                 if (host.startsWith("#")) continue;
                 int site = Integer.parseInt(data[1]);
-                int partition = Integer.parseInt(data[2]);
                 
-                if (partitions.contains(partition)) {
-                    throw new Exception("Duplicate partition id #" + partition + " for host '" + host + "'");
-                }
-                partitions.add(partition);
-                cc.addPartition(host, site, partition);
+                // Partition Ranges
+                for (String p : data[2].split(",")) {
+                    int start = -1;
+                    int stop = -1;
+                    String range[] = p.split("-");
+                    if (range.length == 2) {
+                        start = Integer.parseInt(range[0]);
+                        stop = Integer.parseInt(range[1]);
+                    } else {
+                        start = Integer.parseInt(p);
+                        stop = start;
+                    }
+                    
+                    for (int partition = start; partition < stop+1; partition++) {
+                        if (partitions.contains(partition)) {
+                            throw new Exception("Duplicate partition id #" + partition + " for host '" + host + "'");
+                        }
+                        partitions.add(partition);
+                        cc.addPartition(host, site, partition);
+                    } // FOR
+                } // FOR
             } // FOR
             new_catalog = FixCatalog.addHostInfo(new_catalog, cc);
         }
         
-//        
-//        Catalog new_catalog = args.catalog;
-//        if (args.hasParam(ArgumentsParser.PARAM_SIMULATOR_HOST)) {
-//            new_catalog = createClusterCatalog(args);
-//        }
+        // Now construct the new Dtxn.Coordinator configuration
+        String new_dtxn = HStoreDtxnConf.toHStoreDtxnConf(new_catalog);
         
-        //
         // We need to write this things somewhere now...
-        //
-        FileUtil.writeStringToFile(new File(output_path), new_catalog.serialize());
-        LOG.info("Wrote updated catalog specification to '" + output_path + "'");
+        FileUtil.writeStringToFile(new File(catalogOutputPath), new_catalog.serialize());
+        LOG.info("Wrote updated catalog specification to '" + catalogOutputPath + "'");
+        
+        FileUtil.writeStringToFile(new File(dtxnOutputPath), new_dtxn);
+        LOG.info("Wrote updated Dtxn.Coordinator configuration to '" + dtxnOutputPath + "'");
 
         return;
     }
+    
 }

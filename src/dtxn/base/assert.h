@@ -34,7 +34,7 @@
 
 #define CHECK_M(x, message, args...) do { \
     if (!(x)) { \
-        ::fprintf(stderr, "CHECK failed: %s at %s:%d in function %s\n" message "\n", \
+        ::fprintf(stderr, "CHECK failed: %s at %s:%d in function %s\nERROR: " message "\n", \
                 #x, __FILE__, __LINE__, __PRETTY_FUNCTION__, ##args); \
         ::abort(); \
     } \

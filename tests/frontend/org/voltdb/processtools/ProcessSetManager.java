@@ -46,8 +46,9 @@ import edu.brown.utils.EventObservable;
 import edu.brown.utils.EventObserver;
 import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.LoggerUtil.LoggerBoolean;
+import edu.mit.hstore.interfaces.Shutdownable;
 
-public class ProcessSetManager {
+public class ProcessSetManager implements Shutdownable {
     private static final Logger LOG = Logger.getLogger(ProcessSetManager.class);
     private final static LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private final static LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
@@ -56,6 +57,7 @@ public class ProcessSetManager {
     }
     
     
+    final int initial_polling_delay; 
     final File output_directory;
     final EventObservable failure_observable = new EventObservable();
     final LinkedBlockingQueue<OutputLine> m_output = new LinkedBlockingQueue<OutputLine>();
@@ -88,6 +90,11 @@ public class ProcessSetManager {
         public final String processName;
         public final Stream stream;
         public final String value;
+        
+        @Override
+        public String toString() {
+            return String.format("{%s, %s, \"%s\"}", processName, stream, value);
+        }
     }
 
     static Set<Process> createdProcesses = new HashSet<Process>();
@@ -112,10 +119,11 @@ public class ProcessSetManager {
         
         @Override
         public void run() {
-            LOG.debug("Starting ProcessSetPoller");
+            if (debug.get()) LOG.debug("Starting ProcessSetPoller [initialDelay=" + initial_polling_delay + "]");
+            boolean first = true;
             while (true) {
                 try {
-                    Thread.sleep(2500);
+                    Thread.sleep(first ? initial_polling_delay : 5000);
                 } catch (InterruptedException ex) {
                     if (shutting_down == false) ex.printStackTrace();
                     break;
@@ -127,6 +135,7 @@ public class ProcessSetManager {
                         writeToProcess(e.getKey(), " ");
                     }
                 } // FOR
+                first = false;
             } // WHILE
         }
     }
@@ -147,7 +156,7 @@ public class ProcessSetManager {
             
             if (output_directory != null) {
                 FileWriter fw = null;
-                String path = output_directory.getAbsolutePath() + "/hstore-" + m_processName;
+                String path = String.format("%s/%s.log", output_directory.getAbsolutePath(), m_processName);
                 try {
                     fw = new FileWriter(path);
                 } catch (Exception ex) {
@@ -203,17 +212,36 @@ public class ProcessSetManager {
         }
     }
     
-    public ProcessSetManager(String log_dir, EventObserver observer) {
+    public ProcessSetManager(String log_dir, int initial_polling_delay, EventObserver observer) {
         this.output_directory = (log_dir != null ? new File(log_dir) : null);
+        this.initial_polling_delay = initial_polling_delay;
         this.failure_observable.addObserver(observer);
     }
     
     public ProcessSetManager() {
-        this(null, null);
+        this(null, 10000, null);
     }
     
-    public void prepareToShutdown() {
+    @Override
+    public void prepareShutdown() {
         this.shutting_down = true;
+        for (StreamWatcher sw : this.m_watchers.values()) {
+            sw.m_expectDeath.set(true);
+        } // FOR
+    }
+    
+    @Override
+    public void shutdown() {
+        this.shutting_down = true;
+        this.poller.interrupt();
+        for (String name : m_processes.keySet()) {
+            killProcess(name);
+        }
+    }
+    
+    @Override
+    public boolean isShuttingDown() {
+        return (this.shutting_down);
     }
 
     public String[] getProcessNames() {
@@ -262,7 +290,7 @@ public class ProcessSetManager {
         try {
             return m_output.take();
         } catch (InterruptedException e) {
-            if (this.shutting_down == false) e.printStackTrace();
+            // if (this.shutting_down == false) e.printStackTrace();
         }
         return null;
     }
@@ -290,6 +318,7 @@ public class ProcessSetManager {
             out.write(data);
             out.flush();
         } catch (IOException e) {
+            if (processName.contains("client-")) return;
             if (this.shutting_down == false) {
                 String msg = "";
                 if (data.trim().isEmpty()) {
@@ -297,7 +326,8 @@ public class ProcessSetManager {
                 } else {
                     msg = String.format("Failed to write '%s' command to '%s'", data.trim(), processName);
                 }
-                LOG.fatal(msg, e);
+                if (LOG.isDebugEnabled()) LOG.fatal(msg, e);
+                else LOG.fatal(msg);
             }
             this.failure_observable.notifyObservers(processName);
         }
@@ -350,14 +380,6 @@ public class ProcessSetManager {
         }
 
         return retval;
-    }
-
-    public void killAll() {
-        this.shutting_down = true;
-        poller.interrupt();
-        for (String name : m_processes.keySet()) {
-            killProcess(name);
-        }
     }
 
     public int size() {

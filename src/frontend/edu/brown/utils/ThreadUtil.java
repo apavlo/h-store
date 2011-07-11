@@ -193,20 +193,29 @@ public abstract class ThreadUtil {
     /**
      * For a given list of threads, execute them all (up to max_concurrent at a time) and return
      * once they have completed. If max_concurrent is null, then all threads will be fired off at the same time
-     * @param threads
+     * @param runnables
      * @param max_concurrent
      * @throws Exception
      */
-    private static final <R extends Runnable> void run(final Collection<R> threads, final ExecutorService pool, final boolean stop_pool) {
+    private static final <R extends Runnable> void run(final Collection<R> runnables, final ExecutorService pool, final boolean stop_pool) {
         final boolean d = LOG.isDebugEnabled();
         final long start = System.currentTimeMillis();
         
-        int num_threads = threads.size();
-        CountDownLatch latch = new CountDownLatch(num_threads);
+        final int num_threads = runnables.size();
+        final CountDownLatch latch = new CountDownLatch(num_threads);
+        final Throwable last_error[] = new Throwable[1];
+        
+        Thread.UncaughtExceptionHandler handler = new Thread.UncaughtExceptionHandler() {
+            @Override
+            public void uncaughtException(Thread t, Throwable e) {
+                last_error[0] = e;
+                while (latch.getCount() > 0) latch.countDown();
+            }
+        };
         
         if (d) LOG.debug(String.format("Executing %d threads and blocking until they finish", num_threads));
-        for (R r : threads) {
-            pool.execute(new LatchRunnable(r, latch));
+        for (R r : runnables) {
+            pool.execute(new LatchRunnable(r, latch, handler));
         } // FOR
         if (stop_pool) pool.shutdown();
         
@@ -215,6 +224,8 @@ public abstract class ThreadUtil {
         } catch (InterruptedException ex) {
             LOG.fatal("ThreadUtil.run() was interuptted!", ex);
             throw new RuntimeException(ex);
+        } finally {
+            if (last_error[0] != null) throw new RuntimeException(last_error[0]);
         }
         if (d) {
             final long stop = System.currentTimeMillis();
@@ -235,13 +246,16 @@ public abstract class ThreadUtil {
     private static class LatchRunnable implements Runnable {
         private final Runnable r;
         private final CountDownLatch latch;
+        private final Thread.UncaughtExceptionHandler handler;
         
-        public LatchRunnable(Runnable r, CountDownLatch latch) {
+        public LatchRunnable(Runnable r, CountDownLatch latch, Thread.UncaughtExceptionHandler handler) {
             this.r = r;
             this.latch = latch;
+            this.handler = handler;
         }
         @Override
         public void run() {
+            Thread.currentThread().setUncaughtExceptionHandler(this.handler);
             this.r.run();
             this.latch.countDown();
         }

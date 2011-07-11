@@ -23,68 +23,136 @@
 
 package org.voltdb.benchmark;
 
+import java.io.File;
 import java.lang.reflect.Field;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 
 import org.apache.commons.collections15.map.ListOrderedMap;
+import org.apache.commons.configuration.PropertiesConfiguration;
+import org.apache.log4j.Logger;
 
+import edu.brown.utils.ClassUtil;
+import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.StringUtil;
 
 public class BenchmarkConfig {
-
-    public final String benchmarkClient;
-    public final String backend;
+    private static final Logger LOG = Logger.getLogger(BenchmarkConfig.class);
+    
+    public String hstore_conf_path;
+    public String benchmark_conf_path;
+    
+    public String client;
+    public String backend;
     public String[] hosts;
-    public final int sitesPerHost;
-    public final int k_factor;
-    public final String[] clients;
-    public final int processesPerClient;
-    public final long interval;
-    public final long duration;
-    public final long warmup;
-    public final String sshOptions[];
-    public final String remotePath;
-    public final String remoteUser;
-    public final boolean listenForDebugger;
-    public final int clientHeapSize;
-    public final boolean localmode;
-    public final String useProfile;
-    public final float checkTransaction;
-    public final boolean checkTables;
-    public final String snapshotPath;
-    public final String snapshotPrefix;
-    public final String snapshotFrequency;
-    public final int snapshotRetain;
-    public final String statsDatabaseURL;
-    public final String resultsDatabaseURL;
-    public final String statsTag;//Identifies the result set
-    public final String applicationName;
-    public final String subApplicationName;
+    public int sitesPerHost;
+    public int k_factor;
+    public String[] clients;
+    public int processesPerClient;
+    public long interval;
+    public long duration;
+    public long warmup;
+    public String sshOptions[];
+    public String remotePath;
+    public String remoteUser;
+    public boolean listenForDebugger;
+    public int clientHeapSize;
+    public boolean localmode;
+    public float checkTransaction;
+    public boolean checkTables;
+    public String snapshotPath;
+    public String snapshotPrefix;
+    public String snapshotFrequency;
+    public int snapshotRetain;
+    public String statsDatabaseURL;
+    public String resultsDatabaseURL;
+    public String statsTag;//Identifies the result set
+    public String applicationName;
+    public String subApplicationName;
     
-    public final String coordinatorHost;
-    public final boolean noCoordinator;
-    public final boolean compileBenchmark;
-    public final boolean compileOnly;
-    public final boolean useCatalogHosts;
-    public final boolean noDataLoad;
-    public final String workloadTrace;
-    public final Set<Integer> profileSiteIds;
+    public String coordinatorHost;
     
-    public final String markovPath;
-    public final String thresholdsPath;
+    public int client_initialPollingDelay;
     
-    public final String clientLogDir;
-    public final String siteLogDir;
-    public final String coordLogDir;
+    public boolean compileBenchmark;
+    public boolean compileOnly;
+    public boolean useCatalogHosts;
+    public String workloadTrace;
+    public Set<Integer> profileSiteIds;
     
-    public final boolean dumpDatabase;
-    public final String dumpDatabaseDir;
+    public boolean noCoordinator;
+    public boolean noDataLoad;
+    public boolean noShutdown;
+    
+    public String markovPath;
+    public String markov_thresholdsPath;
+    public Double markov_thresholdsValue;
+    public boolean markovRecomputeAfterEnd;
+    public boolean markovRecomputeAfterWarmup;
+    
+    public boolean dumpDatabase;
+    public String dumpDatabaseDir;
+    
+    public final Map<String, String> clientParameters = new HashMap<String, String>();
+    public final Map<String, String> siteParameters = new HashMap<String, String>();
 
-    public final Map<String, String> parameters = new HashMap<String, String>();
-
+    private PropertiesConfiguration config = null;
+    
+    /**
+     * 
+     * @param benchmark_conf_path
+     */
+    @SuppressWarnings("unchecked")
+    public BenchmarkConfig(File benchmark_conf_path) {
+        try {
+            this.config = new PropertiesConfiguration(benchmark_conf_path);
+        } catch (Exception ex) {
+            throw new RuntimeException("Failed to load benchmark configuration file " + benchmark_conf_path);
+        }
+        
+        Class<?> confClass = this.getClass();
+        for (Object key : CollectionUtil.wrapIterator(this.config.getKeys())) {
+            Field f = null;
+            String f_name = key.toString();
+            try {
+                f = confClass.getField(f_name);
+            } catch (Exception ex) {
+                // XXX LOG.warn("Invalid configuration property '" + f_name + "'. Ignoring...");
+                continue;
+            }
+            assert(f != null);
+            
+            Class<?> f_class = f.getType();
+            Object value = null;
+            
+            if (f_class.equals(int.class)) {
+                value = this.config.getInt(f_name);
+            } else if (f_class.equals(long.class)) {
+                value = this.config.getLong(f_name);
+            } else if (f_class.equals(double.class)) {
+                value = this.config.getDouble(f_name);
+            } else if (f_class.equals(boolean.class)) {
+                value = this.config.getBoolean(f_name);
+            } else if (f_class.equals(String.class)) {
+                value = this.config.getString(f_name);
+            } else {
+                LOG.warn(String.format("Unexpected value type '%s' for property '%s'", f_class.getSimpleName(), f_name));
+            }
+            
+            try {
+                f.set(this, value);
+                LOG.debug(String.format("SET %s = %s", f_name, value));
+            } catch (Exception ex) {
+                throw new RuntimeException("Failed to set value '" + value + "' for field '" + f_name + "'", ex);
+            }
+        } // FOR
+    }
+    
     public BenchmarkConfig(
+            String hstore_conf_path,
+            String benchmark_conf_path,
             String benchmarkClient,
             String backend,
             String coordinatorHost,
@@ -103,8 +171,8 @@ public class BenchmarkConfig {
             boolean listenForDebugger,
             int serverHeapSize,
             int clientHeapSize,
+            int client_polling_delay,
             boolean localmode,
-            String useProfile,
             float checkTransaction,
             boolean checkTables,
             String snapshotPath,
@@ -120,18 +188,22 @@ public class BenchmarkConfig {
             boolean compileOnly,
             boolean useCatalogHosts,
             boolean noDataLoad,
+            boolean noShutdown,
             String workloadTrace,
             Set<Integer> profileSiteIds,
             String markovPath,
             String thresholdsPath,
-            String clientLogDir,
-            String siteLogDir,
-            String coordLogDir,
+            Double thresholdsValue,
+            boolean markovRecomputeAfterEnd,
+            boolean markovRecomputeAfterWarmup,
             boolean dumpDatabase,
             String dumpDatabaseDir
         ) {
 
-        this.benchmarkClient = benchmarkClient;
+        this.hstore_conf_path = hstore_conf_path;
+        this.benchmark_conf_path = benchmark_conf_path;
+        
+        this.client = benchmarkClient;
         this.backend = backend;
         this.coordinatorHost = coordinatorHost;
         this.noCoordinator = noCoordinator;
@@ -152,8 +224,8 @@ public class BenchmarkConfig {
         this.remoteUser = remoteUser;
         this.listenForDebugger = listenForDebugger;
         this.clientHeapSize = clientHeapSize;
+        this.client_initialPollingDelay = client_polling_delay;
         this.localmode = localmode;
-        this.useProfile = useProfile;
         this.checkTransaction = checkTransaction;
         this.checkTables = checkTables;
         this.snapshotPath = snapshotPath;
@@ -170,15 +242,15 @@ public class BenchmarkConfig {
         this.compileOnly = compileOnly;
         this.useCatalogHosts = useCatalogHosts;
         this.noDataLoad = noDataLoad;
+        this.noShutdown = noShutdown;
         this.workloadTrace = workloadTrace;
         this.profileSiteIds = profileSiteIds;
         
         this.markovPath = markovPath;
-        this.thresholdsPath = thresholdsPath;
-        
-        this.clientLogDir = clientLogDir;
-        this.siteLogDir = siteLogDir;
-        this.coordLogDir = coordLogDir;
+        this.markov_thresholdsPath = thresholdsPath;
+        this.markov_thresholdsValue = thresholdsValue;
+        this.markovRecomputeAfterEnd = markovRecomputeAfterEnd;
+        this.markovRecomputeAfterWarmup = markovRecomputeAfterWarmup;
         
         this.dumpDatabase = dumpDatabase;
         this.dumpDatabaseDir = dumpDatabaseDir;
@@ -199,18 +271,19 @@ public class BenchmarkConfig {
             } else if (key.equalsIgnoreCase("clients")) {
                 m1.put("Number of Clients", this.clients.length);
                 m1.put("Clients", StringUtil.join("\n", this.clients));
-            } else if (key.equalsIgnoreCase("parameters")) {
+            } else if (key.equalsIgnoreCase("clientParameters") || key.equalsIgnoreCase("siteParameters")) {
                 // Skip
             } else {
                 Object val = null;
                 try {
                     val = f.get(this);
+                    if (ClassUtil.isArray(val)) val = Arrays.toString((Object[])val);
                 } catch (IllegalAccessException ex) {
                     val = ex.getMessage();
                 }
                 m2.put(key, val);
             }
         } // FOR
-        return (StringUtil.formatMaps(m0, m1, this.parameters, m2));
+        return (StringUtil.formatMaps(m0, m1, this.clientParameters, this.siteParameters, m2));
     }
 }

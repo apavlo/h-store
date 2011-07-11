@@ -23,7 +23,7 @@ public class TestEntropyUtil extends BaseTestCase {
         // Simple check to make sure varying numbers of partitions with slight randomness
         // always works and gives us expected results
         for (int num_partitions = 2; num_partitions < NUM_PARTITIONS; num_partitions++) {
-            Histogram h = new Histogram();
+            Histogram<Integer> h = new Histogram<Integer>();
             for (int i = 0; i < num_partitions; i++) {
                 long count = 1000 + (rand.nextInt(20) - 10); // +/- 10
                 h.put(i, count);
@@ -44,7 +44,7 @@ public class TestEntropyUtil extends BaseTestCase {
     public void testSanityCheck() throws Exception {
         // Add a bunch of partitions and then make sure that making one of the partitions zero
         // and making one of the partitions having an ass load both have worst cost
-        Histogram h = new Histogram();
+        Histogram<Integer> h = new Histogram<Integer>();
         for (int i = 0; i < NUM_PARTITIONS; i++) {
             h.put(i, QUERIES_PER_PARTITION);
         }
@@ -63,7 +63,7 @@ public class TestEntropyUtil extends BaseTestCase {
      * testAlternating
      */
     public void testAlternating() throws Exception {
-        Histogram h = new Histogram();
+        Histogram<Integer> h = new Histogram<Integer>();
         long delta = Math.round(QUERIES_PER_PARTITION * 0.50);
         for (int i = 0; i < NUM_PARTITIONS; i++) {
             long count = QUERIES_PER_PARTITION + (i % 2 == 0 ? -delta : delta);
@@ -89,7 +89,7 @@ public class TestEntropyUtil extends BaseTestCase {
         // For each round, increase the sigma value. We are checking that our entropy value
         // gets worse as the distribution of the histogram gets more skewed
         while (--rounds > 0) {
-            Histogram h = new Histogram();
+            Histogram<Integer> h = new Histogram<Integer>();
             RandomDistribution.Zipf zipf = new RandomDistribution.Zipf(this.rand, 0, NUM_PARTITIONS, sigma);
             for (int i = 0, cnt = (NUM_PARTITIONS * QUERIES_PER_PARTITION); i < cnt; i++) {
                 h.put(zipf.nextInt());
@@ -111,7 +111,7 @@ public class TestEntropyUtil extends BaseTestCase {
      * testCalculateEntropyBest
      */
     public void testCalculateEntropyBest() throws Exception {
-        Histogram h = new Histogram();
+        Histogram<Integer> h = new Histogram<Integer>();
         int num_queries = NUM_PARTITIONS * QUERIES_PER_PARTITION;
         for (int partition = 0; partition < NUM_PARTITIONS; partition++) {
             h.put(partition, QUERIES_PER_PARTITION);
@@ -124,7 +124,7 @@ public class TestEntropyUtil extends BaseTestCase {
      * testCalculateEntropyWorst
      */
     public void testCalculateEntropyWorst() throws Exception {
-        Histogram h = new Histogram();
+        Histogram<Integer> h = new Histogram<Integer>();
         int num_queries = QUERIES_PER_PARTITION;
         for (int partition = 0; partition < NUM_PARTITIONS; partition++) {
             h.put(partition, (partition == 0 ? QUERIES_PER_PARTITION : 0));

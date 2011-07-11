@@ -19,10 +19,13 @@ import org.voltdb.catalog.Statement;
 import edu.brown.BaseTestCase;
 import edu.brown.correlations.ParameterCorrelations;
 import edu.brown.markov.Vertex.Type;
+import edu.brown.markov.containers.MarkovGraphContainersUtil;
+import edu.brown.markov.containers.MarkovGraphsContainer;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.ProjectType;
 import edu.brown.workload.Workload;
 import edu.brown.workload.filters.BasePartitionTxnFilter;
+import edu.brown.workload.filters.Filter;
 import edu.brown.workload.filters.ProcedureLimitFilter;
 import edu.brown.workload.filters.ProcedureNameFilter;
 
@@ -59,7 +62,7 @@ public class TestMarkovGraph extends BaseTestCase {
             // (3) Filter to only include multi-partition txns
             // (4) Another limit to stop after allowing ### txns
             // Where is your god now???
-            Workload.Filter filter = new ProcedureNameFilter().include(TARGET_PROCEDURE.getSimpleName());
+            Filter filter = new ProcedureNameFilter().include(TARGET_PROCEDURE.getSimpleName());
             filter.attach(new BasePartitionTxnFilter(p_estimator, BASE_PARTITION))
             // .attach(new MultiPartitionTxnFilter(p_estimator))
                     .attach(new ProcedureLimitFilter(WORKLOAD_XACT_LIMIT));
@@ -71,8 +74,9 @@ public class TestMarkovGraph extends BaseTestCase {
             // }
 
             // Generate MarkovGraphs
-            markovs = MarkovUtil.createBasePartitionGraphs(catalog_db, workload, p_estimator);
+            markovs = MarkovGraphContainersUtil.createBasePartitionMarkovGraphsContainer(catalog_db, workload, p_estimator);
             assertNotNull(markovs);
+            assertEquals(1, markovs.size());
         }
     }
 
@@ -112,8 +116,8 @@ public class TestMarkovGraph extends BaseTestCase {
             // If the DONE probability is 1.0, then the probability that we read/write at
             // a partition must be zero
             if (done == 1.0) {
-                assertEquals(v + " Partition #" + partition, 0.0f, write);
-                assertEquals(v + " Partition #" + partition, 0.0f, read_only);
+                assertEquals(v + " Partition #" + partition, 0.0f, write, MarkovGraph.PROBABILITY_EPSILON);
+                assertEquals(v + " Partition #" + partition, 1.0f, read_only, MarkovGraph.PROBABILITY_EPSILON);
 
             // Otherwise, we should at least be reading or writing at this partition with some probability
             } else {
@@ -130,7 +134,7 @@ public class TestMarkovGraph extends BaseTestCase {
         // SINGLE_SITED probability should be zero!
         if (v.getType() == Type.QUERY &&
             (v.getPartitions().size() > 1 || v.getPartitions().contains(BASE_PARTITION) == false)) {
-            assertEquals(v.toString(), 0.0f, v.getSingleSitedProbability());
+            assertEquals(v.toString(), 0.0f, v.getSingleSitedProbability(), MarkovGraph.PROBABILITY_EPSILON);
         }
 
     }
@@ -191,24 +195,41 @@ public class TestMarkovGraph extends BaseTestCase {
      * testAddToEdge
      */
     @Test
-    public void testAddToEdge() {
+    public void testAddToEdge() throws Exception {
         MarkovGraph testGraph = new MarkovGraph(this.catalog_proc);
         testGraph.initialize();
         Vertex start = testGraph.getStartVertex();
         Vertex stop = testGraph.getCommitVertex();
 
         Statement catalog_stmt = CollectionUtil.getFirst(this.catalog_proc.getStatements());
+        Set<Integer> all_previous = new HashSet<Integer>();
         for (int i = 0; i < 10; i++) {
-            Vertex current = new Vertex(catalog_stmt, Vertex.Type.QUERY, i, new HashSet<Integer>(), new HashSet<Integer>());
+            Set<Integer> partitions = new HashSet<Integer>();
+            partitions.add(i % NUM_PARTITIONS);
+            Set<Integer> previous = new HashSet<Integer>(all_previous);
+            
+            Vertex current = new Vertex(catalog_stmt, Vertex.Type.QUERY, i, partitions, previous);
             testGraph.addVertex(current);
             
-            long startcount = start.getTotalHits();
+            long startcount = start.getInstanceHits();
             testGraph.addToEdge(start, current);
-            testGraph.addToEdge(current, stop);
-            assertTrue(startcount + 1 == start.getTotalHits());
-            assertTrue(current.getTotalHits() == 1);
+            Edge e = testGraph.addToEdge(current, stop);
+            
+            start.incrementInstanceHits();
+            current.incrementInstanceHits();
+            e.incrementInstanceHits();
+            
+            assertEquals(startcount + 1, start.getInstanceHits());
+            assertEquals(1, current.getInstanceHits());
+            all_previous.addAll(partitions);
         }
-        assertTrue(testGraph.isValid());
+        
+        testGraph.calculateProbabilities();
+        
+//        if (testGraph.isValid() == false) {
+//            System.err.println("FAILED: " + MarkovUtil.exportGraphviz(testGraph, true, null).writeToTempFile());
+//        }
+        testGraph.validate();
     }
 
         
@@ -226,11 +247,18 @@ public class TestMarkovGraph extends BaseTestCase {
                                                                     CollectionUtil.addAll(new ArrayList<Integer>(), BASE_PARTITION));
          Vertex v2 = new Vertex(catalog_stmt, Vertex.Type.QUERY, 1, CollectionUtil.addAll(new ArrayList<Integer>(), BASE_PARTITION),
                                                                     CollectionUtil.addAll(new ArrayList<Integer>(), BASE_PARTITION));
-         graph.addVertex(v1);
-         graph.addToEdge(v0, v1);
-         graph.addVertex(v2);
-         graph.addToEdge(v1, v2);
-                
+
+         Vertex last = null;
+         for (Vertex v : new Vertex[]{v0, v1, v2, graph.getCommitVertex(), null}) {
+             if (v == null) break;
+             
+             if (v.isQueryVertex()) graph.addVertex(v);
+             v.incrementInstanceHits();
+             if (last != null) {
+                 graph.addToEdge(last, v).incrementInstanceHits();        
+             }
+             last = v;
+         } // FOR
          graph.setTransactionCount(1);
          graph.calculateProbabilities();
         
@@ -261,9 +289,9 @@ public class TestMarkovGraph extends BaseTestCase {
                         
              if (!edges.containsKey(s0)) edges.put(s0, new HashSet<String>());
              edges.get(s0).add(s1);
-             // System.err.println(v0 + " -> " + v1);
+             System.err.println(v0 + " -> " + v1);
          } // FOR
-         // System.err.println("--------------");
+         System.err.println("--------------");
          for (Edge e : clone.getEdges()) {
              v0 = clone.getSource(e);
              assertNotNull(v0);
@@ -272,11 +300,11 @@ public class TestMarkovGraph extends BaseTestCase {
              v1 = clone.getDest(e);
              assertNotNull(v1);
              String s1 = v1.toString();
-                        
-             assert(edges.containsKey(s0));
+              
+             System.err.println(v0 + " -> " + v1);
+             assert(edges.containsKey(s0)) : edges;
              assert(edges.get(s0).contains(s1)) : "Invalid edge: " + s0 + " -> " + s1;
              edges.get(s0).remove(s1);
-             // System.err.println(v0 + " -> " + v1);
          } // FOR
          for (String s0 : edges.keySet()) {
              assert(edges.get(s0).isEmpty()) : "Missing edges: " + edges.get(s0);

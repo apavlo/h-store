@@ -31,14 +31,12 @@ public abstract class JSONUtil {
      */
     public static String format(String json) {
         try {
-            JSONObject jsonObject = new JSONObject(json);
-            return (jsonObject.toString(1));
+            return (JSONUtil.format(new JSONObject(json)));
+        } catch (RuntimeException ex) {
+            throw ex;
         } catch (Exception ex) {
-            System.err.println(json);
-            ex.printStackTrace();
-            // Ignore...
+            throw new RuntimeException(ex);
         }
-        return (null);
     }
     
     /**
@@ -47,12 +45,25 @@ public abstract class JSONUtil {
      * @param object
      * @return
      */
-    public static <T extends JSONSerializable> String format(T object) throws JSONException {
+    public static <T extends JSONSerializable> String format(T object) {
         JSONStringer stringer = new JSONStringer();
-        stringer.object();
-        object.toJSON(stringer);
-        stringer.endObject();
+        try {
+            if (object instanceof JSONObject) return ((JSONObject)object).toString(2);
+            stringer.object();
+            object.toJSON(stringer);
+            stringer.endObject();
+        } catch (JSONException ex) {
+            throw new RuntimeException(ex);
+        }
         return (JSONUtil.format(stringer.toString()));
+    }
+    
+    public static String format(JSONObject o) {
+        try {
+            return o.toString(1);
+        } catch (JSONException ex) {
+            throw new RuntimeException(ex);
+        }
     }
     
     /**
@@ -68,8 +79,7 @@ public abstract class JSONUtil {
             object.toJSON(stringer);
             stringer.endObject();
         } catch (JSONException e) {
-            e.printStackTrace();
-            System.exit(-1);
+            throw new RuntimeException(e);
         }
         return (stringer.toString());
     }
@@ -409,7 +419,7 @@ public abstract class JSONUtil {
             if (debug) LOG.debug("Retreiving value for field '" + json_key + "'");
             
             if (!json_object.has(json_key)) {
-                String msg = "JSONObject for " + base_class.getSimpleName() + " does not have key '" + json_key + "'"; // : " + CollectionUtil.toList(json_object.keys()); 
+                String msg = "JSONObject for " + base_class.getSimpleName() + " does not have key '" + json_key + "': " + CollectionUtil.toList(json_object.keys()); 
                 if (ignore_missing) {
                     if (debug) LOG.warn(msg);
                     continue;

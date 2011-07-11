@@ -12,13 +12,12 @@ import org.voltdb.catalog.Procedure;
 import edu.brown.statistics.Histogram;
 import edu.brown.workload.AbstractTraceElement;
 import edu.brown.workload.TransactionTrace;
-import edu.brown.workload.Workload;
 
 /**
  * This filter allows uniformly samples procedures from the workload 
  * @author pavlo
  */
-public class SamplingFilter extends Workload.Filter {
+public class SamplingFilter extends Filter {
     
     private static final Logger LOG = Logger.getLogger(SamplingFilter.class);
     

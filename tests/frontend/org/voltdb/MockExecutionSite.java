@@ -25,11 +25,11 @@ public class MockExecutionSite extends ExecutionSite {
     
     public MockExecutionSite(int partition_id, Catalog catalog, PartitionEstimator p_estimator) {
         super(partition_id, catalog, BACKEND_TARGET, p_estimator, null);
-        this.initializeVoltProcedurePools();
+        this.initializeVoltProcedures();
     }
 
     @Override
-    public void sendClientResponse(LocalTransactionState ts, ClientResponseImpl cresponse) {
+    public void processClientResponse(LocalTransactionState ts, ClientResponseImpl cresponse) {
         // Nothing!
     }
     

@@ -75,8 +75,8 @@ public class GetUserInfo extends VoltProcedure {
         final boolean debug = LOG.isDebugEnabled();
         
         if (debug) LOG.debug("Grabbing USER: " + u_id);
-        this.voltQueueSQL(this.select_user, u_id);
-        final VoltTable user_results[] = this.voltExecuteSQL();
+        voltQueueSQL(select_user, u_id);
+        final VoltTable user_results[] = voltExecuteSQL();
         assert(user_results.length == 1);
 
         // 33% of the time they're going to ask for additional information
@@ -84,17 +84,17 @@ public class GetUserInfo extends VoltProcedure {
             // Of that 75% of the times we're going to get the seller's items
             if (get_seller_items == 1) {
                 if (debug) LOG.debug("Grabbing Seller's Items: " + u_id);
-                this.voltQueueSQL(this.select_seller_items, u_id);
+                voltQueueSQL(select_seller_items, u_id);
                 
             // And the remaining 25% of the time we'll get the buyer's purchased items
             } else if (get_buyer_items == 1) {
                 if (debug) LOG.debug("Grabbing Buyer's Items: " + u_id);
-                this.voltQueueSQL(this.select_buyer_items, u_id);
+                voltQueueSQL(select_buyer_items, u_id);
                 
 //                // Also get the user's feedback (33% of the time)
 //                if (get_feedback == 1) {
 //                    if (debug) LOG.debug("Grabbing User Feedback Items: " + u_id);
-//                    this.voltQueueSQL(this.select_buyer_feedback, u_id);
+//                    voltQueueSQL(select_buyer_feedback, u_id);
 //                }
             }
         }
@@ -105,7 +105,7 @@ public class GetUserInfo extends VoltProcedure {
         // the ExecutionSite will throw an error!
         VoltTable results[] = null;
         if (get_seller_items == 1 || get_buyer_items == 1) {
-            final VoltTable item_results[] = this.voltExecuteSQL();
+            final VoltTable item_results[] = voltExecuteSQL();
             assert(item_results.length > 0);
             
             // Also get the user's feedback (33% of the time)
@@ -117,9 +117,9 @@ public class GetUserInfo extends VoltProcedure {
                 // 2010-11-15: The distributed query planner chokes on this one and makes a plan
                 // that basically sends the entire user table to all nodes. So for now we'll just execute
                 // the query to grab the buyer's feedback information
-                // this.voltQueueSQL(this.select_seller_feedback, u_id);
-                this.voltQueueSQL(this.select_buyer_feedback, u_id);
-                feedback_results = this.voltExecuteSQL();
+                // voltQueueSQL(select_seller_feedback, u_id);
+                voltQueueSQL(select_buyer_feedback, u_id);
+                feedback_results = voltExecuteSQL();
                 assert(feedback_results.length > 0);    
             }
             

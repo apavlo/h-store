@@ -1,50 +1,57 @@
 package edu.mit;
 
-import org.voltdb.BackendTarget;
-import org.voltdb.ExecutionSite;
-import org.voltdb.VoltProcedure;
+import java.util.Map;
+
+import org.apache.commons.collections15.map.ListOrderedMap;
+import org.voltdb.VoltType;
+import org.voltdb.catalog.Cluster;
+import org.voltdb.catalog.Host;
+import org.voltdb.catalog.ProcParameter;
+import org.voltdb.catalog.Procedure;
+import org.voltdb.catalog.Site;
+import org.voltdb.client.Client;
+import org.voltdb.client.ClientFactory;
 import org.voltdb.client.ClientResponse;
 
 import edu.brown.utils.ArgumentsParser;
-import edu.brown.utils.PartitionEstimator;
-import edu.mit.hstore.dtxn.LocalTransactionState;
-import edu.mit.hstore.dtxn.TransactionState;
+import edu.brown.utils.CollectionUtil;
+import edu.brown.utils.StringUtil;
 
 public class VoltProcedureInvoker {
 
     //private final static Object[] EMPTY_ARRAY = {};
     public static void main(String[] vargs) throws Exception {
         ArgumentsParser args = ArgumentsParser.load(vargs);
-        if (args.catalog_db == null) {
-            System.err.println("VoltProcedureInvoker " + ArgumentsParser.PARAM_CATALOG_JAR + "=<catalog jar>");
-            System.exit(1);
-        }
-        Integer local_partition = args.getIntParam(ArgumentsParser.PARAM_SIMULATOR_PARTITION);
-        assert(local_partition != null) : "Must pass in the local partition id";
-
-        // Partition Estimator
-        PartitionEstimator p_estimator = new PartitionEstimator(args.catalog_db, args.hasher);
+        args.require(ArgumentsParser.PARAM_CATALOG);
         
-        // setup the EE
-        ExecutionSite executor = new ExecutionSite(local_partition, args.catalog, BackendTarget.NATIVE_EE_JNI, p_estimator, null);
-        VoltProcedure procedure = executor.getVoltProcedure("EmptyProcedure");
-
-        // Error: EmptyProcedure is supposed to take one argument
-        ClientResponse result = null; // procedure.call(EMPTY_ARRAY);
-//        System.out.println("status = " + result.getStatus());
-//        System.out.println("result length = " + result.getResults().length);
-
-//        result = procedure.call(42L);
-//        System.out.println("status = " + result.getStatus());
-//        System.out.println("result length = " + result.getResults().length);
-
-        procedure = executor.getVoltProcedure("InsertProcedure");
-        for (long i = 0; i < 10; i++) {
-            TransactionState txnState = new LocalTransactionState(executor);
-            txnState.init(i, 123, 0);
-            result = procedure.callAndBlock(txnState, 100L);
-            System.out.println("[" + i + "] Insert status = " + result.getStatus());
-            System.out.println("[" + i + "] Insert result (rows affected) = " + result.getResults()[0].asScalarLong());
+        Client client = ClientFactory.createClient(128, null, false, null);
+        
+        Cluster catalog_clus = args.catalog_db.getParent(); 
+        Site catalog_site = CollectionUtil.getFirst(catalog_clus.getSites());
+        assert(catalog_site != null);
+        Host catalog_host = catalog_site.getHost();
+        assert(catalog_host != null);
+        client.createConnection(catalog_host.getIpaddr(), catalog_site.getProc_port(), "user", "password");
+        
+        String procName = args.getOptParam(0);
+        assert(procName != null && procName.isEmpty() == false) : "Invalid procedure name '" + procName + "'";
+        Procedure catalog_proc = args.catalog_db.getProcedures().getIgnoreCase(procName);
+        assert(catalog_proc != null) : "Invalid procedure name '" + procName + "'";
+        
+        Object parameters[] = new Object[args.getOptParamCount() - 1];
+        for (int i = 0; i < parameters.length; i++) {
+            ProcParameter catalog_param = catalog_proc.getParameters().get(i);
+            assert(catalog_param != null) : String.format("Null %s parameter at %d", catalog_proc.getName(), i); 
+            VoltType vt = VoltType.get(catalog_param.getType());
+            parameters[i] = args.getOptParam(i+1, vt);
         }
+        
+        ClientResponse cresponse = client.callProcedure(catalog_proc.getName(), parameters);
+        Map<String, Object> m = new ListOrderedMap<String, Object>();
+        m.put("Status", cresponse.getStatusName());
+        m.put("Length", String.format("%d [bytes=%d]", cresponse.getResults().length, cresponse.getResultsSize()));
+        m.put("Results", StringUtil.join("\n", cresponse.getResults()));
+        System.out.println(StringUtil.formatMaps(m));
+
     }
 }

@@ -27,6 +27,7 @@ class BuildContext:
         self.NM = "/usr/bin/nm"
         self.NMFLAGS = "-n"    # specialized by platform in build.py
         self.COVERAGE = False
+        self.VOLT_LOG_LEVEL = None
         for arg in [x.strip().upper() for x in args]:
             if arg in ["DEBUG", "RELEASE", "MEMCHECK", "MEMCHECK_NOFREELIST"]:
                 self.LEVEL = arg
@@ -34,6 +35,10 @@ class BuildContext:
                 self.TARGET = arg
             if arg in ["COVERAGE"]:
                 self.COVERAGE = True
+            if arg.startswith("LOG_LEVEL="):
+                parts = arg.split("=")
+                if len(parts) > 1 and parts[1].isdigit(): self.VOLT_LOG_LEVEL = int(parts[1])
+                
 
 def readFile(filename):
     "read a file into a string"

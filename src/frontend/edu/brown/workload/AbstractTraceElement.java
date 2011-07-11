@@ -25,13 +25,22 @@
  ***************************************************************************/
 package edu.brown.workload;
 
-import java.util.concurrent.atomic.AtomicLong;
+import java.text.ParseException;
 
 import org.apache.log4j.Logger;
-
-import org.json.*;
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
+import org.json.JSONString;
+import org.json.JSONStringer;
+import org.voltdb.VoltTable;
+import org.voltdb.VoltTableRow;
 import org.voltdb.VoltType;
-import org.voltdb.catalog.*;
+import org.voltdb.catalog.CatalogMap;
+import org.voltdb.catalog.CatalogType;
+import org.voltdb.catalog.Database;
+import org.voltdb.catalog.Procedure;
+import org.voltdb.catalog.Statement;
 import org.voltdb.utils.VoltTypeUtil;
 
 import edu.brown.catalog.CatalogUtil;
@@ -45,11 +54,7 @@ public abstract class AbstractTraceElement<T extends CatalogType> implements JSO
     /** java.util.logging logger. */
     protected static final Logger LOG = Logger.getLogger(AbstractTraceElement.class.getName());
     
-    private static AtomicLong NEXT_ID = new AtomicLong(0);
-    
     public enum Members {
-        // Unique AbstractTraceElement Id
-        ID,
         // Catalog Name
         NAME,
         // Start Time (relative to start of trace)
@@ -60,29 +65,23 @@ public abstract class AbstractTraceElement<T extends CatalogType> implements JSO
         PARAMS,
         // Aborted (true/false)
         ABORTED,
+        // Output
+        OUTPUT,
     };
     
-    protected long id;
     protected Long start_timestamp;
     protected Long stop_timestamp; 
     protected Object params[];
     protected String catalog_item_name;
     protected boolean aborted = false;
-    
-    public static void setStartingId(long id) {
-        AbstractTraceElement.NEXT_ID.set(id);
-    }
+    protected Object output[][][];
+    protected VoltType output_types[][];
     
     public AbstractTraceElement() {
         // Nothing to do...
     }
     
     public AbstractTraceElement(T catalog_item, Object params[]) {
-        // Important: We have to create a new unique id here. This is needed so that we can keep
-        // the list of the trace elements as they are created by the system in order to play back
-        // the trace by what really happened (as opposed to just getting the individual xact elements
-        // one by one.
-        this.id = NEXT_ID.getAndIncrement();
         this.params = params;
         this.catalog_item_name = catalog_item.getName();
         this.start_timestamp = System.nanoTime();
@@ -91,7 +90,7 @@ public abstract class AbstractTraceElement<T extends CatalogType> implements JSO
     
     @Override
     public String toString() {
-        return (this.getClass().getSimpleName() + "[" + this.catalog_item_name + ":#" + this.id + "]");
+        return (this.getClass().getSimpleName() + "[" + this.catalog_item_name + "]");
     }
     
     public void stop() {
@@ -109,14 +108,6 @@ public abstract class AbstractTraceElement<T extends CatalogType> implements JSO
     
     public boolean isAborted() {
         return (this.aborted);
-    }
-    
-    /**
-     * Return the the TraceId for this element
-     * @return
-     */
-    public long getId() {
-        return this.id;
     }
     
     /**
@@ -170,7 +161,78 @@ public abstract class AbstractTraceElement<T extends CatalogType> implements JSO
     public void setParam(int i, Object value) {
         this.params[i] = value;
     }
+    
+    public boolean hasOutput() {
+        return (this.output != null);
+    }
+    public void setOutput(Object[][]...output) {
+        if (output == null || output.length == 0) return;
+        this.output = output;
+        
+        // Build Output Types
+        this.output_types = new VoltType[this.output.length][];
+        for (int i = 0; i < this.output.length; i++) {
+            Object data[][] = this.output[i];
+            if (data == null) continue;
+            Integer missing = null;
+            for (int j = 0; j < data.length; j++) {
+                Object row[] = data[j];
+                if (row == null) continue;
+                if (missing == null) {
+                    missing = row.length;
+                    this.output_types[i] = new VoltType[row.length];
+                }
+                assert(missing != null);
+                for (int k = 0; k < row.length; k++) {
+                    if (this.output_types[i][k] != null) continue;
+                    Object val = row[k];
+                    if (val == null) continue;
+                    this.output_types[i][k] = VoltType.typeFromClass(val.getClass());
+                    missing--;
+                } // FOR (columns)
+                if (missing == 0) break;
+            } // FOR (rows)
+        } // FOR
+    }
+    public void setOutput(VoltTable...output) {
+        if (output == null || output.length == 0) return;
+        this.output = new Object[output.length][][];
+        
+        this.output_types = new VoltType[output.length][];
+        for (int i = 0; i < this.output.length; i++) {
+            VoltTable vt = output[i];
+            if (vt == null) continue;
+            
+            // TYPES
+            this.output_types[i] = new VoltType[vt.getColumnCount()];
+            for (int k = 0; k < this.output_types[i].length; k++) {
+                this.output_types[i][k] = vt.getColumnType(k);
+            } // FOR
+            
+            // DATA
+            this.output[i] = new Object[vt.getRowCount()][vt.getColumnCount()];
+            int j = 0;
+            while (vt.advanceRow()) {
+                VoltTableRow row = vt.getRow();
+                for (int k = 0; k < this.output[i][j].length; k++) {
+                    this.output[i][j][k] = row.get(k); 
+                } // FOR (columns)
+                j++;
+            } // WHILE (rows)
+        } // FOR (tables)
+    }
+        
+    public Object[][][] getOutput() {
+        return (this.output);
+    }
+    public Object[][] getOutput(int idx) {
+        return (this.output[idx]);
+    }
+    public VoltType[] getOutputTypes(int idx) {
+        return (this.output_types[idx]);
+    }
 
+    
     /**
      * 
      * @param catalog_db
@@ -199,12 +261,47 @@ public abstract class AbstractTraceElement<T extends CatalogType> implements JSO
     }
     
     public void toJSONString(JSONStringer stringer, Database catalog_db) throws JSONException {
-        stringer.key(Members.ID.name()).value(this.id);
         stringer.key(Members.NAME.name()).value(this.catalog_item_name);
         stringer.key(Members.START.name()).value(this.start_timestamp);
         stringer.key(Members.STOP.name()).value(this.stop_timestamp);
         stringer.key(Members.ABORTED.name()).value(this.aborted);
           
+        // Output Tables
+        stringer.key(Members.OUTPUT.name()).array();
+        if (this.output != null) {
+            for (int i = 0; i < this.output.length; i++) {
+                stringer.object();
+                
+                // COLUMN TYPES
+                stringer.key("TYPES").array();
+                VoltType types[] = this.output_types[i];
+                if (types != null) {
+                    for (int j = 0; j < types.length; j++) {
+                        stringer.value((types[j] == null ? VoltType.NULL : types[j]).name()); 
+                    } // FOR
+                }
+                stringer.endArray();
+                
+                // DATA
+                stringer.key("DATA").array();
+                Object data[][] = this.output[i];
+                if (data != null) {
+                    for (int j = 0; j < data.length; j++) {
+                        Object row[] = data[j];
+                        stringer.array();
+                        for (int k = 0; k < row.length; k++) {
+                            stringer.value(data[j][k]);
+                        } // FOR
+                        stringer.endArray();
+                    } // FOR
+                }
+                stringer.endArray();
+                
+                stringer.endObject();
+            } // FOR
+        }
+        stringer.endArray();
+        
         // This doesn't work because CatalogType doesn't have have we need
         //assert(this.catalog_item.getField("parameters") != null);
         //CatalogMap<CatalogType> param_map = (CatalogMap<CatalogType>)this.catalog_item.getField("parameters");
@@ -224,10 +321,9 @@ public abstract class AbstractTraceElement<T extends CatalogType> implements JSO
                 Class<?> type = params[i].getClass();
                 assert(type.isArray());
                 Class<?> dataType = type.getComponentType();
-                //
+                
                 // I couldn't think of a better way to do this dynamically..
                 // It's not trivial to go from primitive arrays to object arrays
-                //
                 if (dataType == Long.TYPE) {
                     for (Object value : (long[])this.params[i]) {
                         stringer.value(value);
@@ -296,7 +392,7 @@ public abstract class AbstractTraceElement<T extends CatalogType> implements JSO
                             param_isarray = false;
                             param_type = VoltType.STRING;
                         } else {
-                            LOG.error("Failed to deserialize " + CatalogUtil.getDisplayName(catalog_param) + " [trace_id=" + this.id + ", type=" + param_type + ", isarray=" + param_isarray + "]", ex);
+                            LOG.error("Failed to deserialize " + CatalogUtil.getDisplayName(catalog_param) + " [type=" + param_type + ", isarray=" + param_isarray + "]", ex);
                             throw ex;        
                         }
                     }
@@ -330,12 +426,52 @@ public abstract class AbstractTraceElement<T extends CatalogType> implements JSO
     }
     
     protected void fromJSONObject(JSONObject object, Database db) throws JSONException {
-        this.id = object.getLong(Members.ID.name());
         this.start_timestamp = object.getLong(Members.START.name());
         if (!object.isNull(Members.STOP.name())) {
             this.stop_timestamp = object.getLong(Members.STOP.name());
         }
         this.catalog_item_name = object.getString(Members.NAME.name());
         this.aborted = object.getBoolean(Members.ABORTED.name());
+        
+        // OUTPUT
+        JSONArray output_arr = null;
+        try {
+            output_arr = object.getJSONArray(Members.OUTPUT.name());
+        } catch (JSONException ex) {
+            // IGNORE
+        }
+        if (output_arr != null) {
+            for (int i = 0, cnt = output_arr.length(); i < cnt; i++) {
+                if (i == 0) {
+                    this.output = new Object[cnt][][];
+                    this.output_types = new VoltType[cnt][];
+                }
+                JSONObject inner = output_arr.getJSONObject(i);
+                assert(inner != null);
+
+                // TYPES
+                JSONArray types_arr = inner.getJSONArray("TYPES");
+                this.output_types[i] = new VoltType[types_arr.length()];
+                for (int j = 0; j < this.output_types[i].length; j++) {
+                    this.output_types[i][j] = VoltType.typeFromString(types_arr.getString(j));
+                } // FOR
+                
+                // DATA
+                JSONArray data_arr = inner.getJSONArray("DATA");
+                this.output[i] = new Object[data_arr.length()][this.output_types[i].length];
+                for (int j = 0; j < this.output[i].length; j++) {
+                    JSONArray row_arr = data_arr.getJSONArray(j);
+                    if (row_arr == null) continue;
+                    for (int k = 0; k < this.output[i][j].length; k++) {
+                        String val_str = row_arr.getString(k);
+                        try {
+                            this.output[i][j][k] = VoltTypeUtil.getObjectFromString(this.output_types[i][k], val_str);
+                        } catch (ParseException ex) {
+                            throw new RuntimeException(String.format("Failed to deserialize output %s [%d][%d][%d]", i, j, k));
+                        }
+                    } // FOR (columns)
+                } // FOR (rows)
+            } // FOR ( tables)
+        }
     }
 }

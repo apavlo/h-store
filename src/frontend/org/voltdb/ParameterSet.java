@@ -147,6 +147,9 @@ import org.voltdb.types.VoltDecimalHelper;
                         // converted long128 in serializer api
                         out.writeArray((BigDecimal[]) obj);
                         break;
+                    case BOOLEAN:
+                        out.writeArray((boolean[]) obj);
+                        break;
                     case VOLTTABLE:
                         out.writeArray((VoltTable[]) obj);
                         break;
@@ -199,6 +202,9 @@ import org.voltdb.types.VoltDecimalHelper;
                     break;
                 case DECIMAL:
                     VoltDecimalHelper.serializeBigDecimal((BigDecimal)obj, out);
+                    break;
+                case BOOLEAN:
+                    out.writeBoolean((Boolean)obj);
                     break;
                 case VOLTTABLE:
                     out.writeObject((VoltTable) obj);
@@ -255,6 +261,8 @@ import org.voltdb.types.VoltDecimalHelper;
                     return string_val;
                 case TIMESTAMP:
                     return in.readTimestamp();
+                case BOOLEAN:
+                    return in.readBoolean();
                 case VOLTTABLE:
                     return in.readObject(VoltTable.class);
                 case DECIMAL: {

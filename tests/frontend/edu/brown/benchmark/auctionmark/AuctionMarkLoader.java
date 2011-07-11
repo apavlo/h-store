@@ -39,6 +39,9 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
@@ -81,7 +84,9 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
     private final List<Bid> max_bids = new ArrayList<Bid>();
     
     // Counter used to determine when to print debug messages
-    private final transient Map<String, Long> load_table_count = new HashMap<String, Long>();
+    private final transient Map<String, AtomicLong> load_table_count = new ConcurrentHashMap<String, AtomicLong>();
+    
+    private final transient AtomicInteger finished_loaders = new AtomicInteger(0);
     
     private static final long SECONDS_IN_A_DAY = 24 * 60 * 60;
     private static final long MILLISECONDS_IN_A_DAY = SECONDS_IN_A_DAY * 1000;
@@ -220,23 +225,27 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
 
         generator.init();
 
-        if (debug) LOG.debug("Loading " + generator.getTableSize() + " tuples for table '" + tableName + "'");
+        long expectedTotal = generator.getTableSize();
+//        if (debug) 
+            LOG.info("Loading " + expectedTotal + " tuples for table '" + tableName + "'");
+        
         while (generator.hasMore()) {
             generator.generateBatch();
-            this.loadTable(tableName, volt_table);
+            this.loadTable(tableName, volt_table, expectedTotal);
             volt_table.clearRowData();
 
             // Dependent Tables
             if (generator.hasSubGenerators()) {
                 if (debug) LOG.debug("Invoking " + generator.sub_generators.size() + " sub-generators for " + tableName);
                 for (AbstractTableGenerator sub_generator : generator.sub_generators) {
-                    // Always call init() for the sub-generator in each new round
-                    sub_generator.init();
-                    while (sub_generator.hasMore()) {
-                        sub_generator.generateBatch();
-                        this.loadTable(sub_generator.getTableName(), sub_generator.getVoltTable());
-                        sub_generator.getVoltTable().clearRowData();
-                    } // WHILE
+                            // Always call init() for the sub-generator in each new round
+                            VoltTable sub_vt = sub_generator.getVoltTable();
+                            sub_generator.init();
+                            while (sub_generator.hasMore()) {
+                                sub_generator.generateBatch();
+                                loadTable(sub_generator.getTableName(), sub_vt, null);
+                                sub_vt.clearRowData();
+                            } // WHILE
                 } // FOR
             }
         } // WHILE
@@ -251,7 +260,8 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
         this.dependencyLock.lock();
         this.dependencyCondition.signalAll();
         this.dependencyLock.unlock();
-        LOG.debug("Finished loading all data for " + tableName + " [" + this + "]");
+        LOG.info(String.format("Finished loading %d tuples for %s [%d / %d]",
+                               this.load_table_count.get(tableName).get(), tableName, this.finished_loaders.incrementAndGet(), this.generators.size()));
     }
 
     // ----------------------------------------------------------------
@@ -283,7 +293,7 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
          */
         public AbstractTableGenerator(Table catalog_tbl) {
             this.catalog_tbl = catalog_tbl;
-            AuctionMarkLoader.this.load_table_count.put(catalog_tbl.getName(), 0l);
+            AuctionMarkLoader.this.load_table_count.put(catalog_tbl.getName(), new AtomicLong(0));
         
             this.finish = false;
             
@@ -307,7 +317,7 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
                     assert (field_handle != null);
                     this.tableSize = (Long) field_handle.get(null);
                     if (!fixed_size) {
-                        this.tableSize /= AuctionMarkLoader.this.profile.getScaleFactor();
+                        this.tableSize = Math.round(this.tableSize / AuctionMarkLoader.this.profile.getScaleFactor());
                     }
                 }
 
@@ -761,7 +771,7 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
             // IMPORTANT: Make sure we clear out the ItemInfo collection so that our
             // sub-generators only work with the new ITEM records that we insert in this batch
             AuctionMarkLoader.this.item_info.clear();
-            AuctionMarkLoader.this.max_bids.clear();
+                AuctionMarkLoader.this.max_bids.clear();
             
             super.generateBatch();
         }
@@ -1390,7 +1400,7 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
         protected void populateRow() {
             int col = 0;
 
-            assert (this.bidItr.hasNext());
+                assert (this.bidItr.hasNext());
             Bid bid = this.bidItr.next();
 
             // IMB_I_ID
@@ -1431,11 +1441,11 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
 
             long purchaseCount = 0;
             
-            while (this.bidItr.hasNext()) {
-                if (this.bidItr.next().won) {
-                    purchaseCount++;
+                while (this.bidItr.hasNext()) {
+                    if (this.bidItr.next().won) {
+                        purchaseCount++;
+                    }
                 }
-            }
             
             this.bidItr = AuctionMarkLoader.this.max_bids.iterator();
             this.tableSize = purchaseCount;
@@ -1447,14 +1457,14 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
 
             Bid bid = null;
 
-            while (null == bid && this.bidItr.hasNext()) {
-                bid = this.bidItr.next();
-                if (bid.won) {
-                    break;
-                } else {
-                    bid = null;
+                while (null == bid && this.bidItr.hasNext()) {
+                    bid = this.bidItr.next();
+                    if (bid.won) {
+                        break;
+                    } else {
+                        bid = null;
+                    }
                 }
-            }
             assert (null != bid);
             
             // IP_ID
@@ -1491,14 +1501,14 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
 
             long purchaseCount = 0;
 
-            while (this.bidItr.hasNext()) {
-                if (this.bidItr.next().won) {
-                    purchaseCount++;
+                while (this.bidItr.hasNext()) {
+                    if (this.bidItr.next().won) {
+                        purchaseCount++;
+                    }
                 }
-            }
 
             this.bidItr = AuctionMarkLoader.this.max_bids.iterator();
-            
+
             this.tableSize = purchaseCount;
         }
 
@@ -1508,14 +1518,14 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
 
             Bid bid = null;
 
-            while (null == bid && this.bidItr.hasNext()) {
-                bid = this.bidItr.next();
-                if (bid.won) {
-                    break;
-                } else {
-                    bid = null;
+                while (null == bid && this.bidItr.hasNext()) {
+                    bid = this.bidItr.next();
+                    if (bid.won) {
+                        break;
+                    } else {
+                        bid = null;
+                    }
                 }
-            }
             assert (null != bid);
             
             // UI_U_ID
@@ -1628,14 +1638,12 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
      * @param tableName
      * @param table
      */
-    protected void loadTable(String tableName, VoltTable table) {
+    protected void loadTable(String tableName, VoltTable table, Long expectedTotal) {
         long count = table.getRowCount();
-        long total = this.profile.getTableSize(tableName);
-        long last_reported = this.load_table_count.get(tableName);
-        if ((total - last_reported) > 1000) {
-            LOG.debug(String.format(tableName + ": loading %d rows (total %d)", count, total));
-            this.load_table_count.put(tableName, total);
-        }
+        long current = this.load_table_count.get(tableName).addAndGet(count);
+        
+        LOG.debug(String.format(tableName + ": Loading %d rows - %d / %s [bytes=%d]",
+                 count, current, (expectedTotal != null ? expectedTotal.toString() : "-----"), table.getUnderlyingBufferSize()));
 
         // Load up this dirty mess...
         try {

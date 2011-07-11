@@ -113,7 +113,38 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
         clientHandle = handle;
         this.txn_id = txn_id;
     }
+    
+    // ----------------------------------------------------------------------------
+    // SPECIAL BYTEBUFFER MODIFIERS
+    // ----------------------------------------------------------------------------
 
+    /**
+     * Set the server timestamp marker without deserializing it first
+     * @param arr
+     * @param flag
+     */
+    public static void setServerTimestamp(ByteBuffer b, int val) {
+        b.putInt(1, val); 
+    }
+    
+    /**
+     * Set the client handle without deserializing it first
+     * @param b
+     * @param handle
+     */
+    public static void setClientHandle(ByteBuffer b, long handle) {
+        b.putLong(13, handle); // 1 + 4 + 8 
+    }
+    
+    /**
+     * Mark the throttle flag in the byte array without deserializing it first
+     * @param arr
+     * @param flag
+     */
+    public static void setThrottleFlag(ByteBuffer b, boolean flag) {
+        b.put(22, (byte)(flag ? 1 : 0)); // 1 + 4 + 8 + 8 + 1 = 22 
+    }
+    
     private void setResults(byte status, VoltTable[] results, String statusString) {
         assert results != null;
         for (VoltTable result : results) {
@@ -145,15 +176,6 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
     public void setThrottleFlag(boolean val) {
         this.throttle = val;
     }
-    /**
-     * Mark the throttle flag in the byte array without deserializing it first
-     * @param arr
-     * @param flag
-     */
-    public static void setThrottleFlag(ByteBuffer b, boolean flag) {
-        b.put(22, (byte)(flag ? 1 : 0)); // 1 + 4 + 8 + 8 + 1 = 22 
-    }
-
     @Override
     public int getServerTimestamp() {
         return this.timestamp;
@@ -162,15 +184,6 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
     public void setServerTimestamp(int val) {
         this.timestamp = val;
     }
-    /**
-     * Set the server timestamp marker without deserializing it first
-     * @param arr
-     * @param flag
-     */
-    public static void setServerTimestamp(ByteBuffer b, int val) {
-        b.putInt(1, val); 
-    }
-
     @Override
     public boolean isSinglePartition() {
         return singlepartition;
@@ -187,6 +200,15 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
 
     public VoltTable[] getResults() {
         return results;
+    }
+    
+    @Override
+    public int getResultsSize() {
+        int ret = 0;
+        for (VoltTable vt : this.results) {
+            ret += vt.getUnderlyingBufferSize();
+        } // FOR
+        return ret;
     }
 
     public String getStatusString() {
@@ -309,8 +331,12 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
     
     /** PAVLO **/
     public String getStatusName() {
+        return (ClientResponseImpl.getStatusName(this.status));
+    }
+    
+    public static String getStatusName(byte status) {
         String ret = null;
-        switch (this.status) {
+        switch (status) {
             case ClientResponseImpl.SUCCESS:
                 ret = "SUCCESS";
                 break;
@@ -333,7 +359,7 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
                 ret = "REJECTED";
                 break;
             default:
-                assert(false) : "Unknown ClientResponse status '" + this.status + "'";
+                assert(false) : "Unknown ClientResponse status '" + status + "'";
         } // SWITCH
         return (ret);
     }

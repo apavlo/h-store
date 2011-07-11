@@ -25,6 +25,7 @@ import edu.brown.utils.ProjectType;
 import edu.brown.workload.AbstractTraceElement;
 import edu.brown.workload.Workload;
 import edu.brown.workload.TransactionTrace;
+import edu.brown.workload.filters.Filter;
 import edu.brown.workload.filters.ProcedureLimitFilter;
 import edu.brown.workload.filters.ProcedureNameFilter;
 
@@ -125,7 +126,7 @@ public class TestTimeIntervalCostModel extends BaseTestCase {
         // This workload should will only consist of single-partition txns and 
         // is evenly spread out across all partitions
         final Map<Integer, Boolean> txn_for_partition = new HashMap<Integer, Boolean>();
-        Workload.Filter filter = new Workload.Filter() {
+        Filter filter = new Filter() {
             @Override
             protected void resetImpl() {
                 // Nothing...
@@ -189,7 +190,7 @@ public class TestTimeIntervalCostModel extends BaseTestCase {
             probs.put(i, cnt / 100.0d);
         } // FOR
         
-        Workload.Filter filter = new Workload.Filter() {
+        Filter filter = new Filter() {
             @Override
             protected void resetImpl() {
                 // Nothing...

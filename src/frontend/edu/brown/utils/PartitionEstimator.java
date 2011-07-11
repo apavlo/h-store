@@ -295,7 +295,7 @@ public class PartitionEstimator {
                 ProcParameter catalog_param = null;
                 if (param_idx != NullProcParameter.PARAM_IDX) catalog_param = catalog_proc.getParameters().get(param_idx);
                 this.cache_procparam.put(catalog_proc, catalog_param);
-                if (d) LOG.debug("ProcParameter Cache: " + (catalog_param != null ? catalog_param.fullName() : catalog_param));
+                if (d) LOG.debug(catalog_proc + " ProcParameter Cache: " + (catalog_param != null ? catalog_param.fullName() : catalog_param));
             }
         } // FOR
         
@@ -517,7 +517,7 @@ public class PartitionEstimator {
                             // If this is the case, then we can substitute that mofo in it's place
                             if (stmt_cache.containsKey(column_key)) {
                                 for (Integer param_idx : stmt_cache.get(column_key)) {
-                                    if (t) LOG.trace("Linking " + CatalogUtil.getDisplayName(other) + " to parameter #" + param_idx + " because of " + CatalogUtil.getDisplayName(catalog_col));
+                                    if (t) LOG.trace("Linking " + CatalogUtil.getDisplayName(other) + " to parameter #" + param_idx + " because of " + catalog_col.fullName());
                                     stmt_cache.put(other_column_key, param_idx, (Table)other.getParent());
                                     frag_cache.put(other_column_key, param_idx, (Table)other.getParent());
                                 } // FOR (StmtParameter.Index)
@@ -576,7 +576,7 @@ public class PartitionEstimator {
                         stmt_cache.put(CatalogKey.createKey(catalog_col), catalog_param.getIndex(), catalog_tbl);
                         found = true;
                     } // FOR
-                    if (found && t) LOG.trace("UpdatePlanNode in " + catalog_stmt + " modifies " + catalog_tbl);
+                    if (found && t) LOG.trace("UpdatePlanNode in " + catalog_stmt.fullName() + " modifies " + catalog_tbl);
                 } // FOR
             } // IF (UPDATE)
         } // FOR (single-partition vs multi-partition)
@@ -635,7 +635,7 @@ public class PartitionEstimator {
             
         // Single-Column Partitioning
         } else {
-            if (d) LOG.debug(catalog_tbl.getName() + " SingleColumn: " + catalog_col);
+            if (d) LOG.debug(catalog_tbl.getName() + " SingleColumn: " + catalog_col.fullName());
             
             VoltType type = VoltType.get(catalog_col.getType()); 
             Object value = row.get(catalog_col.getIndex(), type);
@@ -667,7 +667,7 @@ public class PartitionEstimator {
      * @return
      * @throws Exception
      */
-    public Integer getBasePartition(final Procedure catalog_proc, Object params[]) throws Exception {
+    public Integer getBasePartition(Procedure catalog_proc, Object params[]) throws Exception {
         return (this.getBasePartition(catalog_proc, params, false));
     }
     
@@ -678,6 +678,7 @@ public class PartitionEstimator {
      * @throws Exception
      */
     public Integer getBasePartition(final TransactionTrace txn_trace) throws Exception {
+        if (d) LOG.debug("Calculating base partition for " + txn_trace.toString());
         return (this.getBasePartition(txn_trace.getCatalogItem(this.catalog_db), txn_trace.getParams(), true));
     }
     
@@ -697,6 +698,10 @@ public class PartitionEstimator {
             if (force && catalog_proc.getParameters().size() > 0) {
                 int idx = catalog_proc.getPartitionparameter();
                 catalog_param = catalog_proc.getParameters().get(idx != NullProcParameter.PARAM_IDX ? idx : 0);
+                synchronized (this.cache_procparam) {
+                    this.cache_procparam.put(catalog_proc, catalog_param);
+                } // SYNCH
+                if (d) LOG.debug("Added cached " + catalog_param + " for " + catalog_proc);
             } else {
                 if (d) LOG.debug(catalog_proc + " has no parameters. No base partition!");
                 return (null);    
@@ -729,7 +734,7 @@ public class PartitionEstimator {
             if (d) LOG.debug(Arrays.toString(hashes) + " => " + partition);
         // Single ProcParameter
         } else {
-            if (d) LOG.debug("Partitioning on " + catalog_param.fullName());
+            if (d) LOG.debug("Calculating base partition using " + catalog_param.fullName() + ": " + params[catalog_param.getIndex()]);
             partition = this.calculatePartition(catalog_proc, params[catalog_param.getIndex()], is_array);
         }
         return (partition);
@@ -750,8 +755,10 @@ public class PartitionEstimator {
         int base_partition = this.getBasePartition(xact.getCatalogItem(this.catalog_db), xact.getParams(), true);
         partitions.add(base_partition);
         
+        Set<Integer> temp = new HashSet<Integer>();
         for (QueryTrace query : xact.getQueries()) {
-            partitions.addAll(this.getAllPartitions(query, base_partition));
+            partitions.addAll(this.getAllPartitions(temp, query.getCatalogItem(this.catalog_db), query.getParams(), base_partition));
+            temp.clear();
         } // FOR
         
         return (partitions);
@@ -1033,7 +1040,7 @@ public class PartitionEstimator {
                 // Grab the parameter mapping for this column
                 Column catalog_col = cache_tblpartitioncol.get(catalog_tbl);
                 String column_key = CatalogKey.createKey(catalog_col);
-                if (t) LOG.trace("Partitioning Column: " + CatalogUtil.getDisplayName(catalog_col));
+                if (t) LOG.trace("Partitioning Column: " + catalog_col.fullName());
                 
                 // Special Case: Multi-Column Partitioning
                 // Strap on your seatbelts, we're going in!!!
@@ -1041,7 +1048,7 @@ public class PartitionEstimator {
                     
                     // HACK: All multi-column look-ups on queries with an OR must be broadcast
                     if (cache_entry.isContainsOr()) {
-                        if (d) LOG.warn("Trying to use multi-column partitioning [" + catalog_col + "] on query that contains an 'OR': " + cache_entry);
+                        if (d) LOG.warn("Trying to use multi-column partitioning [" + catalog_col.fullName() + "] on query that contains an 'OR': " + cache_entry);
                         table_partitions.addAll(this.all_partitions);
                     } else {
                         MultiColumn mc = (MultiColumn)catalog_col;
@@ -1087,7 +1094,7 @@ public class PartitionEstimator {
     
                     // Important: If there is no entry for this partitioning column, then we have to broadcast this mofo
                     if (param_idxs == null || param_idxs.isEmpty()) {
-                        if (d) LOG.debug("No parameter mapping for " + CatalogUtil.getDisplayName(catalog_col) + ". " +
+                        if (d) LOG.debug("No parameter mapping for " + catalog_col.fullName() + ". " +
                                          "Fragment must be broadcast to all partitions");
                         table_partitions.addAll(this.all_partitions);
     

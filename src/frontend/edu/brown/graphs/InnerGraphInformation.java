@@ -6,6 +6,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.commons.collections15.set.ListOrderedSet;
 import org.voltdb.catalog.CatalogType;
@@ -19,12 +20,15 @@ import edu.uci.ics.jung.graph.util.EdgeType;
 public class InnerGraphInformation<V extends AbstractVertex, E extends AbstractEdge> {
 //    private static final Logger LOG = Logger.getLogger(InnerGraphInformation.class);
     
+    private static final AtomicInteger NEXT_GRAPH_ID = new AtomicInteger(10000);
+    
     private enum DirtyIndex {
         DESCENDANTS,
         ANCESTORS,
         ROOTS,
     };
     
+    private Integer graph_id;
     private final Database catalog_db;
     private final IGraph<V, E> graph;
     private final Map<String, V> catalog_vertex_xref = new HashMap<String, V>();
@@ -36,7 +40,7 @@ public class InnerGraphInformation<V extends AbstractVertex, E extends AbstractE
     private ListOrderedSet<V> descendants;
     private List<V> ancestors;
     private ListOrderedSet<V> roots;
-
+    
 //    private transient final Map<V, Map<V, E>> cache_findEdge = new ConcurrentHashMap<V, Map<V, E>>();
     
     /**
@@ -54,6 +58,19 @@ public class InnerGraphInformation<V extends AbstractVertex, E extends AbstractE
     
     public Database getDatabase() {
         return catalog_db;
+    }
+    
+    public int getGraphId() {
+        if (this.graph_id == null) {
+            synchronized (this) {
+                if (this.graph_id == null) this.graph_id = NEXT_GRAPH_ID.getAndIncrement();
+            }
+        }
+        return (this.graph_id.intValue());
+    }
+    public synchronized void setGraphId(int id) {
+        this.graph_id = id;
+        NEXT_GRAPH_ID.set(this.graph_id);
     }
     
     /**
@@ -181,7 +198,7 @@ public class InnerGraphInformation<V extends AbstractVertex, E extends AbstractE
         
         if (recompute) {
             this.descendants.clear();
-            new VertexTreeWalker<V>(this.graph) {
+            new VertexTreeWalker<V, E>(this.graph) {
                 @Override
                 protected void callback(V element) {
                     descendants.add(element);

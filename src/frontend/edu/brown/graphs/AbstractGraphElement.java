@@ -1,9 +1,14 @@
 package edu.brown.graphs;
 
 import java.io.IOException;
-import java.util.*;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.atomic.AtomicLong;
 
-import org.json.*;
+import org.json.JSONException;
+import org.json.JSONObject;
+import org.json.JSONStringer;
 import org.voltdb.catalog.Database;
 import org.voltdb.utils.NotImplementedException;
 
@@ -17,13 +22,23 @@ public abstract class AbstractGraphElement implements JSONSerializable {
     private final Map<IGraph<?, ?>, Map<String, Object>> attributes = new HashMap<IGraph<?, ?>, Map<String,Object>>();
     private Long element_id;
     private transient boolean enable_verbose = false;
-
+    private static final AtomicLong NEXT_ELEMENT_ID = new AtomicLong(1000); 
+    
     public AbstractGraphElement() {
-        this.element_id = (long)super.hashCode();
+        // Nothing...
+    }
+    
+    private long computeElementId() {
+        return (NEXT_ELEMENT_ID.getAndIncrement());
     }
     
     public Long getElementId() {
-        return element_id;
+        if (this.element_id == null) {
+            synchronized (this) {
+                if (this.element_id == null) this.element_id = computeElementId();
+            } // SYNCH
+        }
+        return this.element_id;
     }
     
     /**
@@ -163,6 +178,7 @@ public abstract class AbstractGraphElement implements JSONSerializable {
     @Override
     public void fromJSON(JSONObject object, Database catalog_db) throws JSONException {
         this.element_id = object.getLong("ELEMENT_ID");
+        NEXT_ELEMENT_ID.set(this.element_id);
         this.fromJSONObjectImpl(object, catalog_db);
     }
     
