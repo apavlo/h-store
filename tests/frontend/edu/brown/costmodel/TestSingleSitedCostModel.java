@@ -136,7 +136,7 @@ public class TestSingleSitedCostModel extends BaseTestCase {
         // ---------------------------------------------
         // Partitions Touched by Txns
         // ---------------------------------------------
-        Histogram txn_h = cost_model.getTxnPartitionAccessHistogram();
+        Histogram<Integer> txn_h = cost_model.getTxnPartitionAccessHistogram();
         assertNotNull(txn_h);
 //        System.err.println("Transaction Partitions:\n" + txn_h);
         assertEquals(2, txn_h.getSampleCount());
@@ -145,7 +145,7 @@ public class TestSingleSitedCostModel extends BaseTestCase {
         // ---------------------------------------------
         // Partitions Touched By Queries
         // ---------------------------------------------
-        Histogram query_h = cost_model.getQueryPartitionAccessHistogram();
+        Histogram<Integer> query_h = cost_model.getQueryPartitionAccessHistogram();
         assertNotNull(query_h);
 //        System.err.println("Query Partitions:\n" + query_h);
         assertEquals(2, query_h.getSampleCount());
@@ -154,7 +154,7 @@ public class TestSingleSitedCostModel extends BaseTestCase {
         // ---------------------------------------------
         // Partitions Executing Java Control Code 
         // ---------------------------------------------
-        Histogram java_h = cost_model.getJavaExecutionHistogram();
+        Histogram<Integer> java_h = cost_model.getJavaExecutionHistogram();
         assertNotNull(java_h);
 //        System.err.println("Java Execution:\n" + java_h);
         assertEquals(1, java_h.getSampleCount());
@@ -163,7 +163,7 @@ public class TestSingleSitedCostModel extends BaseTestCase {
         // ---------------------------------------------
         // Single-Partition Procedures
         // ---------------------------------------------
-        Histogram sproc_h = cost_model.getSinglePartitionProcedureHistogram();
+        Histogram<String> sproc_h = cost_model.getSinglePartitionProcedureHistogram();
         assertNotNull(sproc_h);
 //        System.err.println("SinglePartition:\n" + sproc_h);
         assertEquals(0, sproc_h.getSampleCount());
@@ -172,7 +172,7 @@ public class TestSingleSitedCostModel extends BaseTestCase {
         // ---------------------------------------------
         // Multi-Partition Procedures
         // ---------------------------------------------
-        Histogram mproc_h = cost_model.getMultiPartitionProcedureHistogram();
+        Histogram<String> mproc_h = cost_model.getMultiPartitionProcedureHistogram();
         assertNotNull(mproc_h);
 //        System.err.println("MultiPartition:\n" + mproc_h);
         assertEquals(1, mproc_h.getSampleCount());
@@ -181,23 +181,23 @@ public class TestSingleSitedCostModel extends BaseTestCase {
         // Now throw the same txn back at the costmodel. All of our histograms should come back the same
         cost_model.estimateTransactionCost(clone_db, xact_trace);
 
-        Histogram new_txn_h = cost_model.getTxnPartitionAccessHistogram();
+        Histogram<Integer> new_txn_h = cost_model.getTxnPartitionAccessHistogram();
         assertNotNull(new_txn_h);
         assertEquals(txn_h, new_txn_h);
 
-        Histogram new_query_h = cost_model.getQueryPartitionAccessHistogram();
+        Histogram<Integer> new_query_h = cost_model.getQueryPartitionAccessHistogram();
         assertNotNull(new_query_h);
         assertEquals(query_h, new_query_h);
         
-        Histogram new_java_h = cost_model.getJavaExecutionHistogram();
+        Histogram<Integer> new_java_h = cost_model.getJavaExecutionHistogram();
         assertNotNull(new_java_h);
         assertEquals(java_h, new_java_h);
         
-        Histogram new_sproc_h = cost_model.getSinglePartitionProcedureHistogram();
+        Histogram<String> new_sproc_h = cost_model.getSinglePartitionProcedureHistogram();
         assertNotNull(new_sproc_h);
         assertEquals(sproc_h, new_sproc_h);
 
-        Histogram new_mproc_h = cost_model.getMultiPartitionProcedureHistogram();
+        Histogram<String> new_mproc_h = cost_model.getMultiPartitionProcedureHistogram();
         assertNotNull(new_mproc_h);
         assertEquals(mproc_h, new_mproc_h);
 
@@ -394,7 +394,7 @@ public class TestSingleSitedCostModel extends BaseTestCase {
         entry = cost_model.getTransactionCacheEntry(target_txn);
         assertNotNull(entry);
         assertNotNull(entry.getExecutionPartition());
-        assertFalse(entry.isSingleSited());
+        // assertFalse(entry.isSingleSited());
         
         // Now let's put S_ID back in as the ProcParameter
         cost_model.invalidateCache(catalog_proc);

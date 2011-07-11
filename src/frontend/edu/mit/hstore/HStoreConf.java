@@ -2,6 +2,7 @@ package edu.mit.hstore;
 
 import java.io.File;
 import java.lang.reflect.Field;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.Map.Entry;
@@ -51,27 +52,10 @@ public final class HStoreConf {
             for (Entry<Field, ConfigProperty> e : this.properties.entrySet()) {
                 Field f = e.getKey();
                 ConfigProperty cp = e.getValue();
-                Class<?> f_class = f.getType();
-                Object value = null;
-                
-                if (cp.computed()) continue;
-                
-                if (f_class.equals(int.class)) {
-                    value = e.getValue().defaultInt();
-                } else if (f_class.equals(long.class)) {
-                    value = e.getValue().defaultLong();
-                } else if (f_class.equals(double.class)) {
-                    value = e.getValue().defaultDouble();
-                } else if (f_class.equals(boolean.class)) {
-                    value = e.getValue().defaultBoolean();
-                } else if (f_class.equals(String.class)) {
-                    value = e.getValue().defaultString();
-                } else {
-                    LOG.warn(String.format("Unexpected default value type '%s' for property '%s.%s'", f_class.getSimpleName(), this.prefix, f.getName()));
-                }
+                Object value = getDefaultValue(f, cp);
                 
                 try {
-                    f.set(this, value);
+                    if (value != null) f.set(this, value);
                 } catch (Exception ex) {
                     throw new RuntimeException(String.format("Failed to set default value '%s' for field '%s'", value, f.getName()), ex);
                 }
@@ -896,6 +880,28 @@ public final class HStoreConf {
         }
     }
     
+    private Object getDefaultValue(Field f, ConfigProperty cp) {
+        Class<?> f_class = f.getType();
+        Object value = null;
+        
+        if (cp.computed()) return (null);
+        
+        if (f_class.equals(int.class)) {
+            value = cp.defaultInt();
+        } else if (f_class.equals(long.class)) {
+            value = cp.defaultLong();
+        } else if (f_class.equals(double.class)) {
+            value = cp.defaultDouble();
+        } else if (f_class.equals(boolean.class)) {
+            value = cp.defaultBoolean();
+        } else if (f_class.equals(String.class)) {
+            value = cp.defaultString();
+        } else {
+            LOG.warn(String.format("Unexpected default value type '%s' for property '%s'", f_class.getSimpleName(), f.getName()));
+        }
+        return (value);
+    }
+    
     /**
      * 
      */
@@ -932,23 +938,18 @@ public final class HStoreConf {
             }
             ConfigProperty cp = handle.properties.get(f);
             Class<?> f_class = f.getType();
-            Object defaultValue = null;
+            Object defaultValue = (cp != null ? this.getDefaultValue(f, cp) : null);
             Object value = null;
             
             if (f_class.equals(int.class)) {
-                if (cp != null) defaultValue = cp.defaultInt();
                 value = this.config.getInt(k, (Integer)defaultValue);
             } else if (f_class.equals(long.class)) {
-                if (cp != null) defaultValue = cp.defaultLong();
                 value = this.config.getLong(k, (Long)defaultValue);
             } else if (f_class.equals(double.class)) {
-                if (cp != null) defaultValue = cp.defaultDouble();
                 value = this.config.getDouble(k, (Double)defaultValue);
             } else if (f_class.equals(boolean.class)) {
-                if (cp != null) defaultValue = cp.defaultBoolean();
                 value = this.config.getBoolean(k, (Boolean)defaultValue);
             } else if (f_class.equals(String.class)) {
-                if (cp != null) defaultValue = cp.defaultString();
                 value = this.config.getString(k, (String)defaultValue);
             } else {
                 LOG.warn(String.format("Unexpected value type '%s' for property '%s'", f_class.getSimpleName(), f_name));
@@ -967,16 +968,19 @@ public final class HStoreConf {
     public String makeHTML() {
         StringBuilder sb = new StringBuilder();
         
-        final String experimental = " <b class=\"experimental\">Experimental</b>";
-        
         // Parameters:
         //  (1) parameter
         //  (2) parameter
         //  (3) experimental
         //  (4) default value
         //  (5) description 
-        final String prop_f = "<a name=\"%s\"></a>\n" +
-                              "<li><tt class=\"property\">%s</tt>%s\n%s\n</li>\n\n";
+        final String template = "<a name=\"@@PROP@@\"></a>\n" +
+                                "<li><tt class=\"property\">@@PROP@@</tt>@@EXP@@\n" +
+                                "<table>\n" +
+                                "<tr><td class=\"prop-default\">Default:</td><td><tt>@@DEFAULT@@</tt></td>\n" +
+                                "<tr><td class=\"prop-type\">Permitted Type:</td><td><tt>@@TYPE@@</tt></td>\n" +
+                                "<tr><td colspan=\"2\">@@DESC@@</td></tr>\n" +
+                                "</table></li>\n\n";
         
         final Pattern prop_p = Pattern.compile("\\$\\{([\\w]+\\.[\\w\\_]+)\\}");
         
@@ -986,18 +990,47 @@ public final class HStoreConf {
             sb.append(String.format("<h2>%s Parameters</h2>\n", StringUtil.title(group)));
             sb.append("<ul class=\"property-list\">\n\n");
             
+            Map<String, String> values = new HashMap<String, String>();
             for (Field f : handle.properties.keySet()) {
-                String key = String.format("%s.%s", group, f.getName());
                 ConfigProperty cp = handle.properties.get(f);
+
+                // PROP
+                values.put("PROP", String.format("%s.%s", group, f.getName()));
                 
-                // Format description
+                // DEFAULT
+                Object defaultValue = this.getDefaultValue(f, cp);
+                if (defaultValue != null) {
+                    String value = defaultValue.toString();
+                    Matcher m = prop_p.matcher(value);
+                    if (m.find()) value = m.replaceAll("<a href=\"#$1\" class=\"property\">\\${$1}</a>");
+                    defaultValue = value;
+                }
+                values.put("DEFAULT", (defaultValue != null ? defaultValue.toString() : "null"));
+                
+                // TYPE
+                values.put("TYPE", f.getType().getSimpleName().toLowerCase());
+                
+                // EXPERIMENTAL
+                if (cp.experimental()) {
+                    values.put("EXP", " <b class=\"experimental\">Experimental</b>");
+                } else {
+                    values.put("EXP", "");   
+                }
+                
+                // DESC
                 String desc = cp.description();
                 Matcher m = prop_p.matcher(desc);
                 if (m.find()) {
                     desc = m.replaceAll("<a href=\"#$1\" class=\"property\">$1</a>");
                 }
+                values.put("DESC", desc);
                 
-                sb.append(String.format(prop_f, key, key, (cp.experimental() ? experimental : ""), desc));
+                // CREATE HTML FROM TEMPLATE
+                String copy = template;
+                for (String key : values.keySet()) {
+                    copy = copy.replace("@@" + key.toUpperCase() + "@@", values.get(key));
+                }
+                sb.append(copy);
             } // FOR
             
             sb.append("</ul>\n\n");
