@@ -22,6 +22,7 @@ import edu.brown.markov.Vertex.Type;
 import edu.brown.markov.containers.MarkovGraphContainersUtil;
 import edu.brown.markov.containers.MarkovGraphsContainer;
 import edu.brown.utils.CollectionUtil;
+import edu.brown.utils.MathUtil;
 import edu.brown.utils.ProjectType;
 import edu.brown.workload.Workload;
 import edu.brown.workload.filters.BasePartitionTxnFilter;
@@ -110,7 +111,7 @@ public class TestMarkovGraph extends BaseTestCase {
                 if (e.getValue() > 1) {
                     System.err.println(v.debug());
                 }
-                assert (e.getValue() <= 1.0) : "Invalid " + e.getKey() + " for " + v + " at Partition #" + partition + ": " + e.getValue();
+                assert(MathUtil.lessThanEquals(e.getValue(), 1.0f, MarkovGraph.PROBABILITY_EPSILON)) : "Invalid " + e.getKey() + " for " + v + " at Partition #" + partition + ": " + e.getValue();
             } // FOR
 
             // If the DONE probability is 1.0, then the probability that we read/write at
