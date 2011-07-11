@@ -401,7 +401,7 @@ public abstract class BaseTestCase extends TestCase {
         String suffix = "";
         switch (type) {
             case TPCC:
-                suffix = "100p-1";
+                suffix = ".100p-1";
                 break;
             default:
                 suffix = "-1";
@@ -459,7 +459,7 @@ public abstract class BaseTestCase extends TestCase {
         for (File file : current.listFiles()) {
             if (file.getCanonicalPath().endsWith("files") && file.isDirectory()) {
                 // Look for either a .<target_ext> or a .<target_ext>.gz file
-                String file_name = type.name().toLowerCase() + "." + target_ext;
+                String file_name = type.name().toLowerCase() + target_ext;
                 for (int i = 0; i < 2; i++) {
                     if (i > 0) file_name += ".gz";
                     File target_file = new File(file + File.separator + target_dir + File.separator + file_name);
