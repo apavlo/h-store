@@ -77,7 +77,7 @@ public abstract class AbstractTraceElement<T extends CatalogType> implements JSO
     protected Object output[][][];
     protected VoltType output_types[][];
     
-    protected transient Float weight;
+    protected transient int weight = 1;
     
     public AbstractTraceElement() {
         // Nothing to do...
@@ -107,17 +107,13 @@ public abstract class AbstractTraceElement<T extends CatalogType> implements JSO
     
     public abstract <X> X cloneImpl();
     
-    public boolean hasWeight() {
-        return (this.weight != null);
-    }
-    public void setWeight(Float weight) {
+    public void setWeight(int weight) {
         this.weight = weight;
     }
-    public void incrementWeight(float delta) {
-        if (this.weight == null) this.weight = 0f;
+    public void incrementWeight(int delta) {
         this.weight += delta;
     }
-    public Float getWeight() {
+    public int getWeight() {
         return (this.weight);
     }
     

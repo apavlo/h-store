@@ -484,10 +484,18 @@ public class Histogram<X> implements JSONSerializable {
      * @param values
      */
     public synchronized void removeValues(Collection<X> values) {
+        this.removeValues(values, 1);
+    }
+
+    /**
+     * For each value in the given collection, decrement their count by the given delta
+     * @param values
+     * @param delta
+     */
+    public synchronized void removeValues(Collection<X> values, int delta) {
         for (X v : values) {
-            this._put(v, -1);
+            this._put(v, -1 * delta);
         } // FOR
-//        this.calculateInternalValues();
     }
     
     /**

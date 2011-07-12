@@ -30,6 +30,10 @@ import edu.brown.hashing.AbstractHasher;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.PartitionEstimator;
 
+/**
+ * 
+ * @author pavlo
+ */
 public class WorkloadSummarizer {
     private static final Logger LOG = Logger.getLogger(WorkloadSummarizer.class);
 
@@ -67,7 +71,7 @@ public class WorkloadSummarizer {
                     int weight = s.size();
                     if (weight == 0) continue;
                     T t = CollectionUtil.getFirst(s);
-                    t.setWeight((float)weight);
+                    t.setWeight(weight);
                     new_elements.add(t);
                 } // FOR
             } // FOR
@@ -189,7 +193,7 @@ public class WorkloadSummarizer {
     }
     
     protected String getQueryTraceSignature(Statement catalog_stmt, QueryTrace query_trace) {
-        float weight = (query_trace.hasWeight() ? query_trace.getWeight() : 1f);
+//        int weight = (query_trace.hasWeight() ? query_trace.getWeight() : 1);
         String param_signature = this.getParamSignature(query_trace.getParams(), this.target_stmt_params.get(catalog_stmt));
 //        return String.format("%s[%.2f]%s", catalog_stmt.getName(), weight, param_signature);
         return String.format("%s->%s", catalog_stmt.getName(), param_signature);

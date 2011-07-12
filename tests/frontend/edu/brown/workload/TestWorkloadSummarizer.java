@@ -92,8 +92,7 @@ public class TestWorkloadSummarizer extends BaseTestCase {
             assertEquals(1, txn_trace.getQueryCount());
             for (QueryTrace query_trace : txn_trace.getQueries()) {
                 assertNotNull(query_trace);
-                assert(query_trace.hasWeight());
-                assertEquals(NUM_QUERIES, query_trace.getWeight().intValue());
+                assertEquals(NUM_QUERIES, query_trace.getWeight());
             } // FOR
         } // FOR
         
@@ -124,10 +123,9 @@ public class TestWorkloadSummarizer extends BaseTestCase {
             for (QueryTrace query_trace : txn_trace.getQueries()) {
                 assertNotNull(query_trace);
                 if (is_new_proc) {
-                    assertFalse(query_trace.hasWeight());
+                    assertEquals(1, query_trace.getWeight());
                 } else {
-                    assert(query_trace.hasWeight());
-                    assertEquals(NUM_QUERIES, query_trace.getWeight().intValue());
+                    assertEquals(NUM_QUERIES, query_trace.getWeight());
                 }
             } // FOR
         } // FOR
@@ -158,7 +156,7 @@ public class TestWorkloadSummarizer extends BaseTestCase {
             assertNotNull(txn_trace);
             assertEquals(NUM_QUERIES, txn_trace.getQueryCount());
             for (QueryTrace query_trace : txn_trace.getQueries()) {
-                assertFalse(query_trace.hasWeight());
+                assertEquals(1, query_trace.getWeight());
             } // FOR (query)
 //            System.err.println(txn_trace.debug(catalog_db));
 //            System.err.println("----------------------------------------------");
@@ -181,8 +179,7 @@ public class TestWorkloadSummarizer extends BaseTestCase {
             assertNotNull(txn_trace);
             assertEquals(1, txn_trace.getQueryCount());
             for (QueryTrace query_trace : txn_trace.getQueries()) {
-                assertTrue(query_trace.hasWeight());
-                assertEquals(NUM_QUERIES, query_trace.getWeight().intValue());
+                assertEquals(NUM_QUERIES, query_trace.getWeight());
             } // FOR (query)
 //            System.err.println(txn_trace.debug(catalog_db));
 //            System.err.println("----------------------------------------------");
@@ -215,7 +212,7 @@ public class TestWorkloadSummarizer extends BaseTestCase {
             assertNotNull(txn_trace);
             assertEquals(NUM_QUERIES, txn_trace.getQueryCount());
             for (QueryTrace query_trace : txn_trace.getQueries()) {
-                assertFalse(query_trace.hasWeight());
+                assertEquals(1, query_trace.getWeight());
             } // FOR (query)
 //            System.err.println(summarizer.getTransactionTraceSignature(catalog_proc, txn_trace));
 //            System.err.println("----------------------------------------------");
@@ -242,7 +239,7 @@ public class TestWorkloadSummarizer extends BaseTestCase {
             
             assertEquals(NUM_QUERIES, txn_trace.getQueryCount());
             for (QueryTrace query_trace : txn_trace.getQueries()) {
-                assertFalse(query_trace.hasWeight());
+                assertEquals(1, query_trace.getWeight());
             } // FOR (query)
         } // FOR (txn)
         assertEquals(1, pruned.getTransactionCount());
@@ -274,7 +271,7 @@ public class TestWorkloadSummarizer extends BaseTestCase {
             assertNotNull(txn_trace);
             assertEquals(NUM_QUERIES, txn_trace.getQueryCount());
             for (QueryTrace query_trace : txn_trace.getQueries()) {
-                assertFalse(query_trace.hasWeight());
+                assertEquals(1, query_trace.getWeight());
             } // FOR (query)
 //            System.err.println(summarizer.getTransactionTraceSignature(catalog_proc, txn_trace));
 //            System.err.println("----------------------------------------------");
@@ -300,11 +297,10 @@ public class TestWorkloadSummarizer extends BaseTestCase {
 //            System.err.println(summarizer.getTransactionTraceSignature(catalog_proc, txn_trace));
 //            System.err.println("----------------------------------------------");
 
-            assert(txn_trace.hasWeight());
+            assert(txn_trace.getWeight() > 1);
             assertEquals(1, txn_trace.getQueryCount());
             for (QueryTrace query_trace : txn_trace.getQueries()) {
-                assert(query_trace.hasWeight());
-                assertEquals(NUM_QUERIES * NUM_TRANSACTIONS, new Float(query_trace.getWeight() * txn_trace.getWeight()).intValue());
+                assertEquals(NUM_QUERIES * NUM_TRANSACTIONS, query_trace.getWeight() * txn_trace.getWeight());
             } // FOR (query)
         } // FOR (txn)
         assertEquals(1, pruned.getTransactionCount());
