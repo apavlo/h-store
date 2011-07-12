@@ -104,12 +104,13 @@ public class TestSingleSitedCostModel extends BaseTestCase {
     
     private Map<Field, Histogram<?>> getHistograms(AbstractCostModel cost_model) throws Exception {
         Map<Field, Histogram<?>> ret = new HashMap<Field, Histogram<?>>();
-        Class<?> clazz = cost_model.getClass();
+        Class<?> clazz = cost_model.getClass().getSuperclass();
         for (Field f : clazz.getDeclaredFields()) {
             if (f.getType().equals(Histogram.class)) {
                 ret.put(f, (Histogram<?>)f.get(cost_model));
             }
         } // FOR
+        assertFalse(ret.isEmpty());
         return (ret);
     }
     
@@ -137,6 +138,18 @@ public class TestSingleSitedCostModel extends BaseTestCase {
         assertEquals(num_txns, orig_costModel.getMultiPartitionProcedureHistogram().getSampleCount());
         assertEquals(0, orig_costModel.getSinglePartitionProcedureHistogram().getSampleCount());
         
+        // Only the base partition should be touched (2 * num_txns). Everything else should
+        // be touched num_txns
+        Integer base_partition = CollectionUtil.getFirst(orig_costModel.getQueryPartitionAccessHistogram().getMaxCountValues());
+        assertNotNull(base_partition);
+        for (Integer p : orig_costModel.getQueryPartitionAccessHistogram().values()) {
+            if (p.equals(base_partition)) {
+                assertEquals(2 * num_txns, orig_costModel.getQueryPartitionAccessHistogram().get(p).intValue());
+            } else {
+                assertEquals(num_txns, orig_costModel.getQueryPartitionAccessHistogram().get(p).intValue());
+            }
+        } // FOR
+        
         // Now change make a new workload that has the same multi-partition transaction
         // but this time it only has one but with a transaction weight
         // We should get back the exact same cost
@@ -152,7 +165,9 @@ public class TestSingleSitedCostModel extends BaseTestCase {
         
         // Now make sure the histograms match up
         Map<Field, Histogram<?>> orig_histograms = this.getHistograms(orig_costModel);
+        assertFalse(orig_histograms.isEmpty());
         Map<Field, Histogram<?>> new_histograms = this.getHistograms(new_costModel);
+        assertFalse(new_histograms.isEmpty());
         for (Field f : orig_histograms.keySet()) {
             Histogram<?> orig_h = orig_histograms.get(f);
             assertNotNull(orig_h);
@@ -248,35 +263,93 @@ public class TestSingleSitedCostModel extends BaseTestCase {
     /**
      * testWeightedTxnInvalidateCache
      */
-//    public void testWeightedTxnInvalidateCache() throws Throwable {
-//        // Make a new workload that only has a single weighted copy of our multi-partition transaction
-//        Workload new_workload = new Workload(catalog);
-//        int weight = 16;
-//        TransactionTrace multip_txn = this.getMultiPartitionTransaction();
-//        Procedure catalog_proc = multip_txn.getCatalogItem(catalog_db);
-//        TransactionTrace clone = multip_txn.clone();
-//        clone.setTransactionId(1000);
-//        clone.setWeight(weight);
-//        new_workload.addTransaction(catalog_proc, clone);
-//        assertEquals(1, new_workload.getTransactionCount());
-//        
-//        SingleSitedCostModel cost_model = new SingleSitedCostModel(catalog_db);
-//        final double orig_cost = cost_model.estimateCost(catalog_db, new_workload);
-//        assert(orig_cost > 0);
-//        
-//        // Now invalidate the cache for the first query in the procedure
-//        Statement catalog_stmt = CollectionUtil.getFirst(catalog_proc.getStatements());
-//        assertNotNull(catalog_stmt);
-//        Table catalog_tbl = CollectionUtil.getFirst(CatalogUtil.getReferencedTables(catalog_stmt));
-//        assertNotNull(catalog_tbl);
-//        try {
-//            cost_model.invalidateCache(catalog_tbl);
-//        } catch (Throwable ex) {
-//            throw ex;
-//        } finally {
-//            System.err.println(cost_model.debugHistograms());
-//        }
-//    }
+    public void testWeightedTxnInvalidateCache() throws Throwable {
+        // Make a new workload that only has a single weighted copy of our multi-partition transaction
+        Workload new_workload = new Workload(catalog);
+        int weight = 16;
+        TransactionTrace multip_txn = this.getMultiPartitionTransaction();
+        Procedure catalog_proc = multip_txn.getCatalogItem(catalog_db);
+        TransactionTrace clone = multip_txn.clone();
+        clone.setTransactionId(1000);
+        clone.setWeight(weight);
+        new_workload.addTransaction(catalog_proc, clone);
+        assertEquals(1, new_workload.getTransactionCount());
+        
+        SingleSitedCostModel cost_model = new SingleSitedCostModel(catalog_db);
+        final double orig_cost = cost_model.estimateCost(catalog_db, new_workload);
+        assert(orig_cost > 0);
+        
+        // Only the base partition should be touched (2 * num_txns). Everything else should
+        // be touched num_txns
+        Integer base_partition = CollectionUtil.getFirst(cost_model.getQueryPartitionAccessHistogram().getMaxCountValues());
+        assertNotNull(base_partition);
+        for (Integer p : cost_model.getQueryPartitionAccessHistogram().values()) {
+            if (p.equals(base_partition)) {
+                assertEquals(2 * weight, cost_model.getQueryPartitionAccessHistogram().get(p).intValue());
+            } else {
+                assertEquals(weight, cost_model.getQueryPartitionAccessHistogram().get(p).intValue());
+            }
+        } // FOR
+        
+        
+//        System.err.println(cost_model.debugHistograms());
+//        System.err.println("+++++++++++++++++++++++++++++++++++++++++++++++++");
+        
+        // Now invalidate the cache for the first query in the procedure
+        Statement catalog_stmt = CollectionUtil.getFirst(catalog_proc.getStatements());
+        assertNotNull(catalog_stmt);
+        Table catalog_tbl = CollectionUtil.getFirst(CatalogUtil.getReferencedTables(catalog_stmt));
+        assertNotNull(catalog_tbl);
+        try {
+            cost_model.invalidateCache(catalog_tbl);
+        } catch (Throwable ex) {
+            System.err.println(cost_model.debugHistograms());
+            throw ex;
+        }
+        assertEquals(0, cost_model.getMultiPartitionProcedureHistogram().getSampleCount());
+        assertEquals(weight, cost_model.getSinglePartitionProcedureHistogram().getSampleCount());
+        assertEquals(weight, cost_model.getQueryPartitionAccessHistogram().getSampleCount());
+    }
+    
+    /**
+     * testWeightedQueryInvalidateCache
+     */
+    public void testWeightedQueryInvalidateCache() throws Throwable {
+        // Make a new workload that only has a single weighted copy of our multi-partition transaction
+        Workload new_workload = new Workload(catalog);
+        int weight = 6;
+        TransactionTrace multip_txn = this.getMultiPartitionTransaction();
+        Procedure catalog_proc = multip_txn.getCatalogItem(catalog_db);
+        TransactionTrace clone = multip_txn.clone();
+        clone.setTransactionId(1000);
+        for (QueryTrace qt : clone.getQueries()) {
+            qt.setWeight(weight);
+        }
+        new_workload.addTransaction(catalog_proc, clone);
+        assertEquals(1, new_workload.getTransactionCount());
+        assertEquals(multip_txn.getQueryCount(), new_workload.getQueryCount());
+        
+        SingleSitedCostModel cost_model = new SingleSitedCostModel(catalog_db);
+        final double orig_cost = cost_model.estimateCost(catalog_db, new_workload);
+        assert(orig_cost > 0);
+        assertEquals(new_workload.getTransactionCount(), cost_model.getMultiPartitionProcedureHistogram().getSampleCount());
+        assertEquals(0, cost_model.getSinglePartitionProcedureHistogram().getSampleCount());
+        
+        // Now invalidate the cache for the first query in the procedure
+        Statement catalog_stmt = CollectionUtil.getFirst(catalog_proc.getStatements());
+        assertNotNull(catalog_stmt);
+        Table catalog_tbl = CollectionUtil.getFirst(CatalogUtil.getReferencedTables(catalog_stmt));
+        assertNotNull(catalog_tbl);
+        try {
+            cost_model.invalidateCache(catalog_tbl);
+        } catch (Throwable ex) {
+            System.err.println(cost_model.debugHistograms());
+            throw ex;
+        }
+        assertEquals(0, cost_model.getMultiPartitionProcedureHistogram().getSampleCount());
+        assertEquals(new_workload.getTransactionCount(), cost_model.getSinglePartitionProcedureHistogram().getSampleCount());
+        assertEquals(weight, cost_model.getQueryPartitionAccessHistogram().getSampleCount());
+    }
     
     /**
      * testIsAlwaysSinglePartition

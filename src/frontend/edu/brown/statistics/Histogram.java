@@ -56,8 +56,8 @@ public class Histogram<X> implements JSONSerializable {
      * The Min/Max values are the smallest/greatest values we have seen based
      * on some natural ordering
      */
-    protected Comparable<Object> min_value;
-    protected Comparable<Object> max_value;
+    protected Comparable<X> min_value;
+    protected Comparable<X> max_value;
     
     /**
      * The Min/Max counts are the values that have the smallest/greatest number of
@@ -183,9 +183,9 @@ public class Histogram<X> implements JSONSerializable {
             
         // Is this value the new min/max values?
         if (this.min_value == null || this.min_value.compareTo(value) > 0) {
-            this.min_value = (Comparable<Object>)value;
+            this.min_value = (Comparable<X>)value;
         } else if (this.max_value == null || this.max_value.compareTo(value) < 0) {
-            this.max_value = (Comparable<Object>)value;
+            this.max_value = (Comparable<X>)value;
         }
     }
 
@@ -236,16 +236,18 @@ public class Histogram<X> implements JSONSerializable {
      * This assumes that the values implement the Comparable interface
      * @return
      */
-    public Object getMinValue() {
-        return (this.min_value);
+    @SuppressWarnings("unchecked")
+    public X getMinValue() {
+        return ((X)this.min_value);
     }
     /**
      * Get the largest value entered into the histogram
      * This assumes that the values implement the Comparable interface
      * @return
      */
-    public Object getMaxValue() {
-        return (this.max_value);
+    @SuppressWarnings("unchecked")
+    public X getMaxValue() {
+        return ((X)this.max_value);
     }
 
     /**

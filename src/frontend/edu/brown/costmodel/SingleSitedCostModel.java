@@ -438,6 +438,14 @@ public class SingleSitedCostModel extends AbstractCostModel {
         assert(this.histogram_query_partitions.getValueCount() == 0);
     }
 
+    public int getWeightedTransactionCount() {
+        int ctr = 0;
+        for (TransactionCacheEntry txn_entry : this.txn_entries.values()) {
+            ctr += txn_entry.weight;
+        } // FOR
+        return (ctr);
+    }
+    
     public Collection<TransactionCacheEntry> getTransactionCacheEntries() {
         return (this.txn_entries.values());
     }
@@ -586,7 +594,7 @@ public class SingleSitedCostModel extends AbstractCostModel {
                 assert(txn_entry.multisite_queries >= 0) : txn_entry + " has negative multisited queries!\n" +  txn_entry.debug();
                 
                 // Populate this histogram so that we know what to remove from the global histogram
-                invalidate_removedTouchedPartitions.putAll(query_entry.getAllPartitions(), query_entry.weight);
+                invalidate_removedTouchedPartitions.putAll(query_entry.getAllPartitions(), query_entry.weight * txn_entry.weight);
                 
                 // Remove the partitions this query touches from the txn's touched partitions histogram
                 txn_entry.touched_partitions.removeValues(query_entry.getAllPartitions(), query_entry.weight);
@@ -689,9 +697,11 @@ public class SingleSitedCostModel extends AbstractCostModel {
             // Then check whether we're still considered multi-partition
             boolean new_singlesited = (txn_entry.multisite_queries == 0);
             if (!txn_entry.singlesited && new_singlesited) {
-                if (trace.get()) LOG.trace("Switching " + txn_entry + " from multi-partition to single-partition");
-                LOG.info("Single-Partition Transactions:\n" + this.histogram_sp_procs);
-                LOG.info("Multi-Partition Transactions:\n" + this.histogram_mp_procs);
+                if (trace.get()) {
+                    LOG.trace("Switching " + txn_entry + " from multi-partition to single-partition");
+                    LOG.trace("Single-Partition Transactions:\n" + this.histogram_sp_procs);
+                    LOG.trace("Multi-Partition Transactions:\n" + this.histogram_mp_procs);
+                }
                 this.histogram_mp_procs.remove(txn_entry.getProcedureKey(), txn_entry.weight);
                 if (txn_entry.examined_queries > 0) this.histogram_sp_procs.put(txn_entry.getProcedureKey(), txn_entry.weight);
             } else if (txn_entry.singlesited && txn_entry.examined_queries == 0) {
@@ -703,9 +713,9 @@ public class SingleSitedCostModel extends AbstractCostModel {
         // Sanity Check: If we don't have any TransactionCacheEntries, then the histograms should all be wiped out!
         if (this.txn_entries.size() == 0) {
             if (!this.histogram_java_partitions.isEmpty() || !this.histogram_txn_partitions.isEmpty() || !this.histogram_query_partitions.isEmpty()) {
-                System.err.println("MODIFIED TXNS: " + invalidate_modifiedTxns.size());
+                LOG.warn("MODIFIED TXNS: " + invalidate_modifiedTxns.size());
                 for (TransactionCacheEntry txn_entry : invalidate_modifiedTxns) {
-                    System.err.println(txn_entry.debug() + "\n");
+                    LOG.warn(txn_entry.debug() + "\n");
                 }
             }
             assert(this.histogram_mp_procs.isEmpty()) : this.histogram_mp_procs;
@@ -714,7 +724,7 @@ public class SingleSitedCostModel extends AbstractCostModel {
             assert(this.histogram_txn_partitions.isEmpty()) : this.histogram_txn_partitions;
             assert(this.histogram_query_partitions.isEmpty()) : this.histogram_query_partitions;
         }
-        assert(this.txn_entries.size() == this.txn_ctr.get()) : this.txn_entries.size() + " == " + this.txn_ctr.get();
+        if (debug.get()) assert(this.getWeightedTransactionCount() == this.txn_ctr.get()) : this.getWeightedTransactionCount() + " == " + this.txn_ctr.get();
         
         if (debug.get() && (query_ctr > 0 || txn_ctr > 0))
             LOG.debug("Invalidated Cache [" + catalog_key + "]: Queries=" + query_ctr + ", Txns=" + txn_ctr);
@@ -978,7 +988,7 @@ public class SingleSitedCostModel extends AbstractCostModel {
                 // partitions touched by txns, because we don't want to count the same partition multiple times
                 // Note also that we want to do this *outside* of the loop above, otherwise we will count
                 // the same partition multiple times if the query references more than one table!
-                this.histogram_query_partitions.putAll(query_entry.getAllPartitions(), query_weight);
+                this.histogram_query_partitions.putAll(query_entry.getAllPartitions(), query_weight * txn_weight);
                 txn_entry.touched_partitions.putAll(query_entry.getAllPartitions(), query_weight);
                 int query_num_partitions = query_entry.getAllPartitions().size();
                 query_partitions += query_num_partitions;
