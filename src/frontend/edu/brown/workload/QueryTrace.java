@@ -110,7 +110,7 @@ public class QueryTrace extends AbstractTraceElement<Statement> {
             add = ", ";
         } // FOR
         ret += "]";
-        if (this.weight != null) ret += String.format(" - Weight: %.2f", this.weight);
+        if (this.weight > 1) ret += String.format(" - Weight: %d", this.weight);
         if (this.aborted) ret += " *ABORTED*";
         
         return (ret);
