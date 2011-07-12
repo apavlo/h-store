@@ -69,7 +69,10 @@ public class TransactionTrace extends AbstractTraceElement<Procedure> {
     @Override
     public TransactionTrace cloneImpl() {
         TransactionTrace clone = new TransactionTrace(this.txn_id, this.catalog_item_name, this.params);
-        clone.setQueries(this.queries);
+        for (QueryTrace qt : this.queries) {
+            QueryTrace clone_q = qt.clone();
+            clone.addQuery(clone_q);
+        } // FOR
         return (clone);
     }
     
