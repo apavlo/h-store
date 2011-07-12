@@ -51,9 +51,7 @@ public class AirlineLoader extends AirlineBaseClient {
     public void runLoop() {
         LOG.info("Begin to load tables...");
                 
-        //
         // Load Histograms
-        //
         LOG.info("Loading data files for histograms");
         this.loadHistograms();
         

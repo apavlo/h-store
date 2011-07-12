@@ -334,7 +334,7 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
         // Now construct all of the workload filters for this level of the traversal
         for (Table catalog_tbl : table_visit_order) {
             filter_tables.add(catalog_tbl);
-            this.traversal_filters.put(catalog_tbl, new WorkloadFilter(filter_tables));
+            this.traversal_filters.put(catalog_tbl, new WorkloadFilter(info.catalog_db, filter_tables));
         } // FOR        
         
         // (4) Lastly, we need to add the list Procedures that we are going to need to select

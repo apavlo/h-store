@@ -157,7 +157,7 @@ public class HeuristicPartitioner extends AbstractPartitioner {
         WorkloadFilter filter = null;
         Set<Table> proc_tables = null;
         try {
-            filter = new WorkloadFilter(catalog_proc);
+            filter = new WorkloadFilter(CatalogUtil.getDatabase(catalog_proc), catalog_proc);
             proc_tables = CatalogUtil.getReferencedTables(catalog_proc);
         } catch (Exception ex) {
             LOG.fatal(ex.getLocalizedMessage());

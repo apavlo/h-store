@@ -55,15 +55,31 @@ public class TransactionTrace extends AbstractTraceElement<Procedure> {
     public TransactionTrace() {
         super();
     }
+
+    private TransactionTrace(long xact_id, String proc_name, Object params[]) {
+        super(proc_name, params);
+        this.txn_id = xact_id;
+    }
     
     public TransactionTrace(long xact_id, Procedure catalog_proc, Object params[]) {
-        super(catalog_proc, params);
-        this.txn_id = xact_id;
+        this(xact_id, catalog_proc.getName(), params);
+    }
+    
+    @SuppressWarnings("unchecked")
+    @Override
+    public TransactionTrace cloneImpl() {
+        TransactionTrace clone = new TransactionTrace(this.txn_id, this.catalog_item_name, this.params);
+        clone.setQueries(this.queries);
+        return (clone);
     }
     
     @Override
     public String toString() {
         return (this.getClass().getSimpleName() + "[" + this.catalog_item_name + ":#" + this.txn_id + "]");
+    }
+    
+    protected void setTransactionId(long txn_id) {
+        this.txn_id = txn_id;
     }
 
     /**
@@ -78,6 +94,14 @@ public class TransactionTrace extends AbstractTraceElement<Procedure> {
     public Procedure getCatalogItem(Database catalog_db) {
         assert(catalog_db != null);
         return (catalog_db.getProcedures().get(this.catalog_item_name));
+    }
+    
+    protected void setQueries(Collection<QueryTrace> queries) {
+        this.queries.clear();
+        this.query_batches.clear();
+        for (QueryTrace q : queries) {
+            this.addQuery(q);
+        } // FOR
     }
     
     public void addQuery(QueryTrace query) {
@@ -230,7 +254,7 @@ public class TransactionTrace extends AbstractTraceElement<Procedure> {
                 continue;
             }
             try {
-                QueryTrace query = QueryTrace.loadFromJSONObject(jsonQuery, db);
+                QueryTrace query = QueryTrace.loadFromJSONObject(jsonQuery, catalog_proc);
                 this.addQuery(query);
             } catch (JSONException ex) {
                 LOG.fatal("Failed to load query trace #" + i + " for transaction record on " + this.catalog_item_name + "]");

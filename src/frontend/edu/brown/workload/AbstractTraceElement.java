@@ -77,15 +77,48 @@ public abstract class AbstractTraceElement<T extends CatalogType> implements JSO
     protected Object output[][][];
     protected VoltType output_types[][];
     
+    protected transient Float weight;
+    
     public AbstractTraceElement() {
         // Nothing to do...
     }
     
-    public AbstractTraceElement(T catalog_item, Object params[]) {
+    public AbstractTraceElement(String catalog_item_name, Object params[]) {
         this.params = params;
-        this.catalog_item_name = catalog_item.getName();
+        this.catalog_item_name = catalog_item_name;
         this.start_timestamp = System.nanoTime();
         //this.stop_timestamp = -1l;
+    }
+    
+    public AbstractTraceElement(T catalog_item, Object params[]) {
+        this(catalog_item.getName(), params);
+    }
+    
+    public <X extends AbstractTraceElement<T>> X clone() {
+        X clone = this.cloneImpl();
+        clone.start_timestamp = this.start_timestamp;
+        clone.stop_timestamp = this.stop_timestamp;
+        clone.aborted = this.aborted;
+        clone.output = this.output;
+        clone.output_types = this.output_types;
+        clone.weight = this.weight;
+        return (clone);
+    }
+    
+    public abstract <X> X cloneImpl();
+    
+    public boolean hasWeight() {
+        return (this.weight != null);
+    }
+    public void setWeight(Float weight) {
+        this.weight = weight;
+    }
+    public void incrementWeight(float delta) {
+        if (this.weight == null) this.weight = 0f;
+        this.weight += delta;
+    }
+    public Float getWeight() {
+        return (this.weight);
     }
     
     @Override

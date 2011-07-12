@@ -643,19 +643,22 @@ public abstract class AbstractPartitioner {
      * 
      */
     protected class WorkloadFilter extends Filter {
+        private final Database catalog_db;
         private final Set<String> stmt_cache = new HashSet<String>();
 
-        public WorkloadFilter() {
-            // Do nothing...
+        public WorkloadFilter(Database catalog_db) {
+            this.catalog_db = catalog_db;
         }
         
-        public WorkloadFilter(Procedure catalog_proc) throws Exception {
+        public WorkloadFilter(Database catalog_db, Procedure catalog_proc) throws Exception {
+            this(catalog_db);
             Set<Procedure> set = new HashSet<Procedure>();
             set.add(catalog_proc);
             this.addProcedures(set);
         }
         
-        public WorkloadFilter(Collection<Table> tables) throws Exception {
+        public WorkloadFilter(Database catalog_db, Collection<Table> tables) throws Exception {
+            this(catalog_db);
             assert(tables.size() > 0);
             this.addTables(tables);
         }
@@ -694,10 +697,8 @@ public abstract class AbstractPartitioner {
          * @throws Exception
          */
         protected void addProcedures(Collection<Procedure> procedures) throws Exception {
-            //
             // Iterate through all of the procedures/queries and figure out which
             // ones we'll actually want to look at
-            //
             for (Procedure catalog_proc : procedures) {
                 for (Statement catalog_stmt : catalog_proc.getStatements()) {
                     this.stmt_cache.add(CatalogKey.createKey(catalog_stmt));
@@ -714,9 +715,8 @@ public abstract class AbstractPartitioner {
                 return (FilterResult.ALLOW);
             // But filter queries
             } else if (element instanceof QueryTrace) {
-                // We don't need to grab the Statement catalog object since we can just compare keys
                 QueryTrace query = (QueryTrace)element;
-                return (this.stmt_cache.contains(CatalogKey.createKey(query.getProcedureName(), query.getCatalogItemName())) ? FilterResult.ALLOW : FilterResult.SKIP);
+                return (this.stmt_cache.contains(CatalogKey.createKey(query.getCatalogItem(this.catalog_db))) ? FilterResult.ALLOW : FilterResult.SKIP);
             }
             return (FilterResult.HALT);
         }

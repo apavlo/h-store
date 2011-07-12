@@ -30,6 +30,8 @@ import java.util.Arrays;
 import org.json.*;
 import org.voltdb.catalog.*;
 
+import edu.brown.catalog.CatalogKey;
+import edu.brown.catalog.CatalogUtil;
 import edu.brown.utils.ClassUtil;
 
 /**
@@ -40,20 +42,33 @@ import edu.brown.utils.ClassUtil;
 public class QueryTrace extends AbstractTraceElement<Statement> {
     public enum Members {
         BATCH_ID,
-        PROC_NAME,
     };
     
     private int batch_id;
-    private String proc_name;
     
     public QueryTrace() {
         super();
     }
     
-    public QueryTrace(Statement catalog_statement, Object params[], int batch_id) {
-        super(catalog_statement, params);
+    public QueryTrace(String catalog_stmt_name, Object params[], int batch_id) {
+        super(catalog_stmt_name, params);
         this.batch_id = batch_id;
-        this.proc_name = ((Procedure)catalog_statement.getParent()).getName();
+    }
+    
+    public QueryTrace(Statement catalog_statement, Object params[], int batch_id) {
+        this(CatalogKey.createKey(catalog_statement), params, batch_id);
+    }
+    
+    @SuppressWarnings("unchecked")
+    @Override
+    public QueryTrace cloneImpl() {
+        QueryTrace clone = new QueryTrace(this.catalog_item_name, this.params, this.batch_id);
+        return (clone);
+    }
+    
+    @Override
+    public String getCatalogItemName() {
+        return CatalogKey.getNameFromKey(super.getCatalogItemName());
     }
     
     /**
@@ -63,23 +78,10 @@ public class QueryTrace extends AbstractTraceElement<Statement> {
     public int getBatchId() {
         return this.batch_id;
     }
-
-    /**
-     * Returns the name of the parent Procedure for this query
-     * @return
-     */
-    public String getProcedureName() {
-        return proc_name;
-    }
-    
-    public String getFullName() {
-        return (this.proc_name + "." + this.catalog_item_name);
-    }
-    
     
     @Override
     public Statement getCatalogItem(Database catalog_db) {
-        return (this.getCatalogProcedure(catalog_db).getStatements().get(this.catalog_item_name));
+        return (CatalogKey.getFromKey(catalog_db, this.catalog_item_name, Statement.class));
     }
     
     /**
@@ -87,12 +89,13 @@ public class QueryTrace extends AbstractTraceElement<Statement> {
      * @return the Procedure catalog object
      */
     public Procedure getCatalogProcedure(Database catalog_db) {
-        return catalog_db.getProcedures().get(this.proc_name);
+        Statement catalog_stmt = this.getCatalogItem(catalog_db);
+        return catalog_stmt.getParent();
     }
     
     @Override
     public String toString() {
-        return (this.getClass().getSimpleName() + "[" + this.proc_name + "." + this.catalog_item_name + "]");
+        return (this.getClass().getSimpleName() + "[" + this.catalog_item_name + "]");
     }
     
     @Override
@@ -107,7 +110,7 @@ public class QueryTrace extends AbstractTraceElement<Statement> {
             add = ", ";
         } // FOR
         ret += "]";
-        
+        if (this.weight != null) ret += String.format(" - Weight: %.2f", this.weight);
         if (this.aborted) ret += " *ABORTED*";
         
         return (ret);
@@ -117,18 +120,28 @@ public class QueryTrace extends AbstractTraceElement<Statement> {
     public void toJSONString(JSONStringer stringer, Database catalog_db) throws JSONException {
         super.toJSONString(stringer, catalog_db);
         stringer.key(Members.BATCH_ID.name()).value(this.batch_id);
-        stringer.key(Members.PROC_NAME.name()).value(this.proc_name);
     }
     
     @Override
-    protected void fromJSONObject(JSONObject object, Database db) throws JSONException {
-        super.fromJSONObject(object, db);
-        this.proc_name = object.getString(Members.PROC_NAME.name());
+    protected void fromJSONObject(JSONObject object, Database catalog_db) throws JSONException {
+        throw new RuntimeException("Unimplemented!");
+    }
+    
+    protected void fromJSONObject(JSONObject object, Procedure catalog_proc) throws JSONException {
+        super.fromJSONObject(object, CatalogUtil.getDatabase(catalog_proc));
         this.batch_id = object.getInt(Members.BATCH_ID.name());
         
-        Statement catalog_stmt = db.getProcedures().get(this.proc_name).getStatements().get(this.catalog_item_name);
-        if (catalog_stmt == null)
-            throw new JSONException("Procedure '" + this.proc_name + "' does not have a Statement '" + this.catalog_item_name + "'");
+        Statement catalog_stmt = null;
+        if (this.catalog_item_name.contains(".") == false) {
+            catalog_stmt = catalog_proc.getStatements().get(this.catalog_item_name);
+        } else {
+            catalog_stmt = CatalogKey.getFromKey(CatalogUtil.getDatabase(catalog_proc), this.catalog_item_name, Statement.class);
+        }
+        if (catalog_stmt == null) {
+            throw new JSONException("Procedure '" + catalog_proc.getName() + "' does not have a Statement '" + this.catalog_item_name + "'");
+        }
+        // HACK
+        this.catalog_item_name = CatalogKey.createKey(catalog_stmt);
         
         try {
             super.paramsFromJSONObject(object, catalog_stmt.getParameters(), "javatype");
@@ -138,9 +151,9 @@ public class QueryTrace extends AbstractTraceElement<Statement> {
         }
     } 
     
-    public static QueryTrace loadFromJSONObject(JSONObject object, Database db) throws JSONException {
+    public static QueryTrace loadFromJSONObject(JSONObject object, Procedure catalog_proc) throws JSONException {
         QueryTrace query = new QueryTrace();
-        query.fromJSONObject(object, db);
+        query.fromJSONObject(object, catalog_proc);
         return (query);
     }
 } // END CLASS

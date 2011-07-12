@@ -229,7 +229,7 @@ public class TestSingleSitedCostModel extends BaseTestCase {
         assertEquals(1, entry.getMultiSiteQueryCount());
         
         // Check Partition Access Histogram
-        Histogram hist_access = cost_model.getQueryPartitionAccessHistogram();
+        Histogram<Integer> hist_access = cost_model.getQueryPartitionAccessHistogram();
         assertNotNull(hist_access);
         assertEquals(NUM_PARTITIONS, hist_access.getValueCount());
         Integer multiaccess_partition = null;
@@ -245,7 +245,7 @@ public class TestSingleSitedCostModel extends BaseTestCase {
         // Check Java Execution Histogram
         // 2011-03-23
         // This always going to be empty because of how we store null ProcParameters...
-        Histogram hist_execute = cost_model.getJavaExecutionHistogram();
+        Histogram<Integer> hist_execute = cost_model.getJavaExecutionHistogram();
         assertNotNull(hist_execute);
         // System.err.println("HISTOGRAM:\n" + hist_execute);
         assertEquals(0, hist_execute.getValueCount());
@@ -278,7 +278,7 @@ public class TestSingleSitedCostModel extends BaseTestCase {
         assertNull(entry);
         
         // Make sure that we updated the Execution Histogram
-        Histogram hist = cost_model.getJavaExecutionHistogram();
+        Histogram<Integer> hist = cost_model.getJavaExecutionHistogram();
         assert(hist.isEmpty());
         
         // And make sure that we updated the Partition Access Histogram
@@ -313,7 +313,7 @@ public class TestSingleSitedCostModel extends BaseTestCase {
         // Invalidate that mofo!
         cost_model.invalidateCache(this.getTable(TM1Constants.TABLENAME_SUBSCRIBER));
         
-        Histogram expected_touched = new Histogram();
+        Histogram<Integer> expected_touched = new Histogram<Integer>();
         for (TransactionTrace txn_trace : xacts) {
             TransactionCacheEntry txn_entry = cost_model.getTransactionCacheEntry(txn_trace);
             assertNotNull(txn_entry);
@@ -322,6 +322,7 @@ public class TestSingleSitedCostModel extends BaseTestCase {
             for (QueryCacheEntry query_entry : cost_model.getQueryCacheEntries(txn_trace)) {
                 QueryTrace query_trace = txn_trace.getQueries().get(query_entry.getQueryIdx());
                 assertNotNull(query_trace);
+                assertNotNull(query_trace.getCatalogItemName());
                 Boolean should_be_invalid = (query_trace.getCatalogItemName().equals(invalid_stmt.getName()) ? true :
                                             (query_trace.getCatalogItemName().equals(valid_stmt.getName()) ? false : null));
                 assertNotNull(should_be_invalid);
@@ -344,8 +345,8 @@ public class TestSingleSitedCostModel extends BaseTestCase {
         } // FOR
         
         // Grab the histograms about what partitions got touched and make sure that they are updated properly
-        Histogram txn_partitions = cost_model.getTxnPartitionAccessHistogram();
-        Histogram query_partitions = cost_model.getQueryPartitionAccessHistogram();
+        Histogram<Integer> txn_partitions = cost_model.getTxnPartitionAccessHistogram();
+        Histogram<Integer> query_partitions = cost_model.getQueryPartitionAccessHistogram();
 
         // The txn touched partitions histogram should now only contain the entries from
         // the single-sited query (plus the java execution) and not all of the partitions
