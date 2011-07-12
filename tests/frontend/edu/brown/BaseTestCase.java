@@ -37,6 +37,7 @@ import edu.brown.utils.FileUtil;
 import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.PartitionEstimator;
 import edu.brown.utils.ProjectType;
+import edu.brown.utils.ThreadUtil;
 import edu.mit.hstore.HStoreConf;
 
 /**
@@ -62,6 +63,9 @@ public abstract class BaseTestCase extends TestCase {
         
         // HStoreConf Hack
         HStoreConf.init(null, null);
+        
+        // Force everything to be single-threaded
+        ThreadUtil.setMaxGlobalThreads(2);
     }
     
     

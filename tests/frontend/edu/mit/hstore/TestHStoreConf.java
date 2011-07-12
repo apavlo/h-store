@@ -9,6 +9,7 @@ import org.apache.commons.collections15.map.ListOrderedMap;
 
 import edu.brown.BaseTestCase;
 import edu.brown.utils.FileUtil;
+import edu.brown.utils.StringUtil;
 
 
 public class TestHStoreConf extends BaseTestCase {
@@ -32,9 +33,12 @@ public class TestHStoreConf extends BaseTestCase {
      * testMakeHTML
      */
     public void testMakeHTML() throws Exception {
-        String contents = hstore_conf.makeHTML();
-        assertNotNull(contents);
-        System.err.println(contents);
+        for (String prefix : new String[]{ "global", "site", "coordinator", "client" }) {
+            String contents = hstore_conf.makeHTML(prefix);
+            assertNotNull(contents);
+            System.err.println(contents);
+            System.err.println(StringUtil.DOUBLE_LINE);
+        }
     }
     
     /**

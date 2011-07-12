@@ -27,7 +27,7 @@ public class TestHistogramUtil extends AirlineBaseTestCase {
             assertTrue(a, histograms.containsKey(a));
         } // FOR
         
-//        System.err.println(StringUtil.formatMaps(histograms));
+        System.err.println(StringUtil.formatMaps(histograms));
         
         // We expect ATL to be the max
 //        assertEquals("ATL", histogram.getMaxCountValue());
@@ -51,7 +51,6 @@ public class TestHistogramUtil extends AirlineBaseTestCase {
     public void testLoadFlightDepartTime() throws Exception {
         Histogram<String> histogram = HistogramUtil.loadHistogram(AirlineConstants.HISTOGRAM_FLIGHT_DEPART_TIMES, AIRLINE_DATA_DIR, true);
         assertFalse(histogram.values().isEmpty());
-        // System.out.println(histogram);
         
         // We expect the times to be in 15 minute increments, therefore there should
         // be exactly 96 entries in the histogram
@@ -102,6 +101,6 @@ public class TestHistogramUtil extends AirlineBaseTestCase {
             assert(p.matcher(value.toString()).matches()) : "Invalid entry '" + value + "'";
         } // FOR
         */
-        System.err.println("Values=" + histogram.getValueCount() + "\n" + histogram);
+//        System.err.println("Values=" + histogram.getValueCount() + "\n" + histogram);
     }
 }

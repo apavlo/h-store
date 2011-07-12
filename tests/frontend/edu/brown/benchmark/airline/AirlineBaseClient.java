@@ -3,18 +3,21 @@
  */
 package edu.brown.benchmark.airline;
 
-import java.util.*;
+import java.util.Collection;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
 import java.util.Map.Entry;
 
 import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.log4j.Logger;
-import org.voltdb.VoltDB;
 import org.voltdb.benchmark.ClientMain;
 import org.voltdb.catalog.Catalog;
 import org.voltdb.catalog.Column;
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Table;
-import org.voltdb.utils.JarReader;
 import org.voltdb.utils.Pair;
 
 import edu.brown.benchmark.airline.util.CustomerId;

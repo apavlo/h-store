@@ -19,6 +19,7 @@ public abstract class ThreadUtil {
     private static ExecutorService pool;
     
     private static final int DEFAULT_NUM_THREADS = 4;
+    private static Integer OVERRIDE_NUM_THREADS = null;
     
     
     /**
@@ -144,10 +145,17 @@ public abstract class ThreadUtil {
      * @return
      */
     public static int getMaxGlobalThreads() {
+        if (OVERRIDE_NUM_THREADS != null) {
+            return (OVERRIDE_NUM_THREADS);
+        }
         int max_threads = DEFAULT_NUM_THREADS;
         String prop = System.getProperty("hstore.max_threads");
         if (prop != null && prop.startsWith("${") == false) max_threads = Integer.parseInt(prop);
         return (max_threads);
+    }
+    
+    public static void setMaxGlobalThreads(int max_threads) {
+        OVERRIDE_NUM_THREADS = max_threads;
     }
     
     /**

@@ -269,7 +269,7 @@ public class Workload implements WorkloadTrace, Iterable<TransactionTrace> {
         Iterator<TransactionTrace> it = workload.iterator(filter);
         while (it.hasNext()) {
             TransactionTrace txn = it.next();
-            this.addTransaction(txn.getCatalogItem(CatalogUtil.getDatabase(this.catalog)), txn);
+            this.addTransaction(txn.getCatalogItem(CatalogUtil.getDatabase(this.catalog)), txn, false);
         } // WHILE
     }
     
@@ -789,7 +789,7 @@ public class Workload implements WorkloadTrace, Iterable<TransactionTrace> {
         // Procedures we want to trace
         } else {
             xact_handle = new TransactionTrace(xact_id, catalog_proc, args);
-            this.addTransaction(catalog_proc, xact_handle);
+            this.addTransaction(catalog_proc, xact_handle, false);
             if (debug.get()) LOG.debug(String.format("Created %s TransactionTrace with %d parameters", proc_name, args.length));
             
             // HACK
