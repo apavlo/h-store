@@ -818,7 +818,7 @@ public class MarkovCostModel extends AbstractCostModel {
         runnables.add(new Runnable() {
             @Override
             public void run() {
-                List<TransactionTrace> all_txns = args.workload.getTransactions();
+                List<TransactionTrace> all_txns = new ArrayList<TransactionTrace>(args.workload.getTransactions());
                 Collections.shuffle(all_txns);
                 int ctr = 0;
                 for (TransactionTrace txn_trace : all_txns) {

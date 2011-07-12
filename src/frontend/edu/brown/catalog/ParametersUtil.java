@@ -113,20 +113,6 @@ public class ParametersUtil {
     }
 
     /**
-     * Return a ParameterMapping for a particular procedure
-     * 
-     * @param project_type
-     * @param proc_name
-     * @return
-     */
-    public static ParametersUtil.ParameterMapping getParameterMapping(ProjectType project_type, String proc_name) {
-        ParametersUtil putil = ParametersUtil.getCachedObject();
-        Map<String, ParameterMapping> map = putil.PARAMETER_MAPS.get(project_type);
-        assert (map != null) : "Invalid catalog type '" + project_type + "'";
-        return (map.get(proc_name));
-    }
-
-    /**
      * Return the estimated Statement parameter name for a given
      * Procedure+Statement
      * 

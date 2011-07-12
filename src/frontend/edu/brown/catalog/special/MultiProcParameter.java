@@ -117,7 +117,7 @@ public class MultiProcParameter extends ProcParameter implements MultiAttributeC
             // Add the parameter object to the procedure's list
             Procedure catalog_proc = obj.getParent();
             obj.setIndex(catalog_proc.getParameters().size());
-            catalog_proc.getParameters().addObject(obj);
+            catalog_proc.getParameters().add(obj);
         }
         assert(obj != null) : "Invalid MultiProcParameter for " + p;
         return (obj);

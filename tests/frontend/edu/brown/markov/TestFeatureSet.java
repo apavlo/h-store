@@ -21,6 +21,7 @@ import edu.brown.markov.features.BasePartitionFeature;
 import edu.brown.markov.features.ParamArrayLengthFeature;
 import edu.brown.markov.features.ParamHashEqualsBasePartitionFeature;
 import edu.brown.statistics.Histogram;
+import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.ProjectType;
 import edu.brown.workload.TransactionTrace;
 import edu.brown.workload.Workload;
@@ -53,7 +54,7 @@ public class TestFeatureSet extends BaseTestCase {
         
         this.catalog_proc = this.getProcedure(TARGET_PROCEDURE);
         this.fset = new FeatureSet();
-        this.txn_trace = workload.getTransactions().get(0);
+        this.txn_trace = CollectionUtil.getFirst(workload.getTransactions());
     }
     
     /**

@@ -13,6 +13,7 @@ import org.voltdb.TheHashinator;
 import org.voltdb.catalog.CatalogType;
 import org.voltdb.catalog.Database;
 
+import edu.brown.catalog.CatalogUtil;
 import edu.brown.utils.ClassUtil;
 
 /**
@@ -29,6 +30,10 @@ public class DefaultHasher extends AbstractHasher {
         super(catalog_db, num_partitions);
     }
 
+    public DefaultHasher(Database catalog_db) {
+        this(catalog_db, CatalogUtil.getNumberOfPartitions(catalog_db));
+    }
+    
     @Override
     public void init(Database catalogDb) {
         // TODO Auto-generated method stub

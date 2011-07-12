@@ -79,11 +79,12 @@ public class Correlation implements Comparable<Correlation>, JSONSerializable {
     public Statement getStatement() {
         return this.statement;
     }
-    
+    public Column getStatementColumn() {
+        return (this.statement_column);
+    }
     public Integer getStatementIndex() {
         return this.statement_index;
     }
-    
     public StmtParameter getStmtParameter() {
         return this.statement_parameter;
     }
@@ -91,7 +92,6 @@ public class Correlation implements Comparable<Correlation>, JSONSerializable {
     public ProcParameter getProcParameter() {
         return this.procedure_parameter;
     }
-    
     public Integer getProcParameterIndex() {
         return this.procedure_parameter_index;
     }

@@ -14,6 +14,7 @@ import org.voltdb.catalog.Statement;
 
 import edu.brown.BaseTestCase;
 import edu.brown.utils.ClassUtil;
+import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.ProjectType;
 import edu.brown.workload.QueryTrace;
 import edu.brown.workload.TransactionTrace;
@@ -70,7 +71,7 @@ public class TestBatchPlannerComplex extends BaseTestCase {
             assert(workload.getTransactionCount() > 0);
             
             // Convert the first QueryTrace batch into a SQLStmt+ParameterSet batch
-            txn_trace = workload.getTransactions().get(0);
+            txn_trace = CollectionUtil.getFirst(workload.getTransactions());
             assertNotNull(txn_trace);
             int num_batches = txn_trace.getBatchCount();
             query_batch = (List<QueryTrace>[])new List<?>[num_batches];
