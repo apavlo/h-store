@@ -1933,8 +1933,8 @@ DESIGNER
     </java>
 </target>
 
-<target name='correlations'
-        description="Generate Parameter Correlations">
+<target name='generate-mappings'
+        description="Generate Parameter Mappings">
     <java fork="yes" classname="edu.brown.correlations.CorrelationCalculator" failonerror='true'>
         <jvmarg value="-Xmx${volt.client.memory}m" />
         <jvmarg value="-Dlog4j.configuration=${basedir}/log4j.properties"/>

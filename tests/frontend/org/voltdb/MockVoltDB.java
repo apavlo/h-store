@@ -107,7 +107,7 @@ public class MockVoltDB implements VoltDBInterface
         getSite(siteId).setHost(getHost(hostId));
         if (isExec)
         {
-            getSite(siteId).getPartitions().addObject(getPartition(partitionId));
+            getSite(siteId).getPartitions().add(getPartition(partitionId));
         }
         getSite(siteId).setIsup(true);
     }

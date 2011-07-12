@@ -124,7 +124,9 @@ public class ParameterCorrelations extends TreeSet<Correlation> implements JSONS
     }
     
     /**
-     * 
+     * Return a sorted list of the Correlations for this ProcParameter regardless of ProcParameter index
+     * @param catalog_proc_param
+     * @return
      */
     public SortedSet<Correlation> get(ProcParameter catalog_proc_param) {
         assert(catalog_proc_param != null);

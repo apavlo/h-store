@@ -35,7 +35,7 @@ import edu.brown.utils.LoggerUtil.LoggerBoolean;
  * @author pavlo
  */
 public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
-    static final Logger LOG = Logger.getLogger(CatalogUtil.class);
+    private static final Logger LOG = Logger.getLogger(CatalogUtil.class);
     private final static LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private final static LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
     static {
@@ -207,6 +207,34 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
             Column catalog_col = ref.getColumn();
             ret.set(catalog_col.getIndex(), catalog_col);
         }
+        return (ret);
+    }
+
+    /**
+     * Construct a collection of all the Columns in the catalog
+     * @param catalog_obj
+     * @return
+     */
+    public static Collection<Column> getAllColumns(CatalogType catalog_obj) {
+        Database catalog_db = CatalogUtil.getDatabase(catalog_obj);
+        Set<Column> ret = new HashSet<Column>();
+        for (Table catalog_tbl : catalog_db.getTables()) {
+            ret.addAll(catalog_tbl.getColumns());
+        } // FOR
+        return (ret);
+    }
+    
+    /**
+     * Construct a collection of all the Statements in the catalog
+     * @param catalog_obj
+     * @return
+     */
+    public static Collection<Statement> getAllStatements(CatalogType catalog_obj) {
+        Database catalog_db = CatalogUtil.getDatabase(catalog_obj);
+        Set<Statement> ret = new HashSet<Statement>();
+        for (Procedure catalog_proc : catalog_db.getProcedures()) {
+            ret.addAll(catalog_proc.getStatements());
+        } // FOR
         return (ret);
     }
 

@@ -34,7 +34,7 @@ public class CombineWorkloadTraces {
         long relative_starts[] = new long[workloads.length];
         int finished = 0;
         for (int i = 0; i < workloads.length; i++) {
-            txns[i] = workloads[i].getTransactions();
+            txns[i] = new ArrayList<TransactionTrace>(workloads[i].getTransactions());
             max_idxs[i] = txns[i].size();
             if (max_idxs[i] > 0) {
                 relative_starts[i] = txns[i].get(0).getStartTimestamp();

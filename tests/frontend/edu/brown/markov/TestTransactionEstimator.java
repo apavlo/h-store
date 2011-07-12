@@ -180,7 +180,7 @@ public class TestTransactionEstimator extends BaseTestCase {
      */
     @Test
     public void testProcessTransactionTrace() throws Exception {
-        TransactionTrace txn_trace = workload.getTransactions().get(0);
+        TransactionTrace txn_trace = CollectionUtil.getFirst(workload.getTransactions());
         assertNotNull(txn_trace);
         State s = this.t_estimator.processTransactionTrace(txn_trace);
         assertNotNull(s);

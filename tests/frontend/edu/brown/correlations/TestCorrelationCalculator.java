@@ -102,13 +102,12 @@ public class TestCorrelationCalculator extends BaseTestCase {
      * testProcessTransaction
      */
     public void testProcessTransaction() throws Exception {
-        TransactionTrace xact_trace = null;
-        for (int i = 0; i < 100; i++) {
-            xact_trace = workload.getTransactions().get(i);
+        int ctr = 0;
+        for (TransactionTrace xact_trace : workload) {
+            assertNotNull(xact_trace);
             this.pc.processTransaction(xact_trace);
-        }
-        assertNotNull(xact_trace);
-        
+            if (ctr++ >= 100) break;
+        } // FOR
         this.pc.calculate();
         
         ProcedureCorrelations procc = this.pc.getProcedureCorrelations(this.catalog_proc);

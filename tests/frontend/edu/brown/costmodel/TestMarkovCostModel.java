@@ -105,7 +105,7 @@ public class TestMarkovCostModel extends BaseTestCase {
                 @Override
                 protected void resetImpl() { }
             });
-            assert(workload.getTransactions().get(0).getTransactionId() != clone.getTransactions().get(0).getTransactionId());
+            assert(CollectionUtil.getFirst(workload.getTransactions()).getTransactionId() != CollectionUtil.getFirst(clone.getTransactions()).getTransactionId());
             
             // assertEquals(WORKLOAD_XACT_LIMIT, workload.getTransactionCount());
 
@@ -126,7 +126,7 @@ public class TestMarkovCostModel extends BaseTestCase {
         this.costmodel = new MarkovCostModel(catalog_db, p_estimator, t_estimator, thresholds);
         
         // Take a TransactionTrace and throw it at the estimator to get our path info
-        this.txn_trace = workload.getTransactions().get(0);
+        this.txn_trace = CollectionUtil.getFirst(workload.getTransactions());
         assertNotNull(this.txn_trace);
         
         this.txn_state = t_estimator.processTransactionTrace(txn_trace);

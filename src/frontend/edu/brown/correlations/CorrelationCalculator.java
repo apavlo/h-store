@@ -1,14 +1,24 @@
 package edu.brown.correlations;
 
 import java.text.ParseException;
-import java.util.*;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.Map;
+import java.util.Set;
+import java.util.TreeMap;
 import java.util.Map.Entry;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.log4j.Logger;
 import org.voltdb.VoltType;
-import org.voltdb.catalog.*;
+import org.voltdb.catalog.CatalogType;
+import org.voltdb.catalog.Database;
+import org.voltdb.catalog.ProcParameter;
+import org.voltdb.catalog.Procedure;
+import org.voltdb.catalog.Statement;
+import org.voltdb.catalog.StmtParameter;
 import org.voltdb.types.TimestampType;
 import org.voltdb.utils.Pair;
 import org.voltdb.utils.VoltTypeUtil;
@@ -16,7 +26,9 @@ import org.voltdb.utils.VoltTypeUtil;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.StringUtil;
-import edu.brown.workload.*;
+import edu.brown.workload.AbstractTraceElement;
+import edu.brown.workload.QueryTrace;
+import edu.brown.workload.TransactionTrace;
 
 public class CorrelationCalculator {
     private static final Logger LOG = Logger.getLogger(CorrelationCalculator.class);
@@ -410,16 +422,12 @@ public class CorrelationCalculator {
         ProcedureCorrelations correlation = this.correlations.get(catalog_proc);
         correlation.start();
         
-        //
         // Cast all the ProcParameters once in the beginning
-        //
         Number xact_params[][] = new Number[xact_trace.getParams().length][];
         for (int i = 0; i < xact_params.length; i++) {
             ProcParameter catalog_proc_param = catalog_proc.getParameters().get("index", i);
             assert(catalog_proc_param != null);
-            // Ignore strings
             VoltType proc_param_type = VoltType.get(catalog_proc_param.getType());
-            if (proc_param_type == VoltType.STRING) continue;
             
             try {
                 // Arrays
@@ -442,34 +450,25 @@ public class CorrelationCalculator {
             }
         } // FOR
         
-        //
         // Now run through all of the queries and calculate the correlation between StmtParameters and ProcParameters
-        //
         for (QueryTrace query_trace : xact_trace.getQueries()) {
             Statement catalog_stmt = query_trace.getCatalogItem(this.catalog_db);
             QueryInstance query_instance = correlation.getQueryInstance(catalog_stmt);
             Object query_params[] = query_trace.getParams();
             
-            //
             // For each of the StmtParameter, update the correlation information for each of the ProcParameters
-            //
             for (int i = 0; i < query_params.length; i++) {
                 StmtParameter catalog_stmt_param = catalog_stmt.getParameters().get(i);
                 assert(catalog_stmt_param != null);
-                // Ignore strings
                 VoltType stmt_param_type = VoltType.get(catalog_stmt_param.getJavatype());
                 assert(stmt_param_type != VoltType.INVALID);
-                if (stmt_param_type == VoltType.STRING) continue;
                 Number stmt_param_val = this.getParamAsNumber(stmt_param_type, query_params[i]);
 
-                
                 for (int ii = 0; ii < xact_params.length; ii++) {
                     ProcParameter catalog_proc_param = catalog_proc.getParameters().get(ii);
                     assert(catalog_proc_param != null) : "Missing ProcParameter in " + catalog_proc + " at index " + ii;
-                    // Ignore strings
                     VoltType proc_param_type = VoltType.get(catalog_proc_param.getType());
                     assert(proc_param_type != VoltType.INVALID);
-                    if (proc_param_type == VoltType.STRING) continue;
                     
                     ProcParameterCorrelation ppc = query_instance.getProcParameterCorrelation(catalog_stmt_param, catalog_proc_param);
                     for (int iii = 0; iii < xact_params[ii].length; iii++) {
@@ -506,15 +505,24 @@ public class CorrelationCalculator {
     protected Number getParamAsNumber(VoltType type, Object raw_value) throws ParseException {
         if (raw_value == null) return (null);
         assert(type != VoltType.INVALID);
-        assert(type != VoltType.STRING);
         
         Number ret = null;
-        Object param_obj = VoltTypeUtil.getObjectFromString(type, raw_value.toString());
-        if (type == VoltType.TIMESTAMP) {
-            ret = ((TimestampType)param_obj).getTime();
-        } else {
-            ret = (Number)param_obj;
-        }
+        
+        switch (type) {
+            case TIMESTAMP: {
+                Object param_obj = VoltTypeUtil.getObjectFromString(type, raw_value.toString());
+                ret = ((TimestampType)param_obj).getTime();
+                break;
+            }
+            case STRING:
+                ret = raw_value.hashCode();
+                break;
+            default: {
+                Object param_obj = VoltTypeUtil.getObjectFromString(type, raw_value.toString());
+                ret = (Number)param_obj;
+                break;
+            }
+        } // SWITCH
         return (ret);
     }
     

@@ -15,7 +15,7 @@ import edu.brown.plannodes.PlanNodeTreeWalker;
 import edu.brown.utils.*;
 
 public abstract class QueryPlanUtil {
-    private static final Logger LOG = Logger.getLogger(QueryPlanUtil.class.getName());
+    private static final Logger LOG = Logger.getLogger(QueryPlanUtil.class);
     
     /**
      * PlanFragmentId -> AbstractPlanNode
@@ -42,7 +42,7 @@ public abstract class QueryPlanUtil {
     /**
      * Using this Comparator will sort a list of PlanFragments by their execution order
      */
-    protected static final Comparator<PlanFragment> PLANFRAGMENT_EXECUTION_ORDER = new Comparator<PlanFragment>() {
+    private static final Comparator<PlanFragment> PLANFRAGMENT_EXECUTION_ORDER = new Comparator<PlanFragment>() {
         @Override
         public int compare(PlanFragment o1, PlanFragment o2) {
             AbstractPlanNode node1 = null;
@@ -65,13 +65,19 @@ public abstract class QueryPlanUtil {
      * @return
      * @throws Exception
      */
-    public static Column getColumnForStmtParameter(StmtParameter catalog_stmt_param) throws Exception {
+    public static Column getColumnForStmtParameter(StmtParameter catalog_stmt_param) {
         String param_key = CatalogKey.createKey(catalog_stmt_param);
         String col_key = CACHE_STMTPARAMETER_COLUMN.get(param_key);
 
         if (col_key == null) {
-            Statement catalog_stmt = (Statement)catalog_stmt_param.getParent();
-            ColumnSet cset = DesignerUtil.extractStatementColumnSet(catalog_stmt, false);
+            Statement catalog_stmt = catalog_stmt_param.getParent();
+            ColumnSet cset = null;
+            try {
+                cset = DesignerUtil.extractStatementColumnSet(catalog_stmt, false);
+            } catch (Throwable ex) {
+                throw new RuntimeException("Failed to extract ColumnSet for " + catalog_stmt_param.fullName(), ex);
+            }
+            assert(cset != null);
             // System.err.println(cset.debug());
             Set<Column> matches = cset.findAllForOther(Column.class, catalog_stmt_param);
             // System.err.println("MATCHES: " + matches);
