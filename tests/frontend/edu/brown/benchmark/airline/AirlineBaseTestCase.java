@@ -30,7 +30,7 @@ public abstract class AirlineBaseTestCase extends BaseTestCase {
             final Catalog loader_catalog = catalog;
             loader = new AirlineLoader(
                 new String[]{ AirlineConstants.AIRLINE_DATA_PARAM + "=" + AIRLINE_DATA_DIR }) {
-                public Catalog getCatalog() throws Exception {
+                public Catalog getCatalog() {
                     return (loader_catalog);
                 };
             };

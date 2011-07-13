@@ -642,7 +642,6 @@ public class ArgumentsParser {
             final String arg = args[i];
             final String[] parts = p.split(arg, 2);
             if (parts[0].startsWith("-")) parts[0] = parts[0].substring(1);
-            parts[0] = parts[0].toLowerCase();
             
             if (parts.length == 1) {
                 if (parts[0].startsWith("${") == false) this.opt_params.add(parts[0]);
@@ -659,8 +658,8 @@ public class ArgumentsParser {
                 DesignerHints.Members m = EnumUtil.get(DesignerHints.Members.values(), param);
                 if (m == null) throw new Exception("Unknown DesignerHints parameter: " + param);
                 this.hints_params.put(m.name(), parts[1]);
-            } else if (PARAMS.contains(parts[0])) {
-                this.params.put(parts[0], parts[1]);
+            } else if (PARAMS.contains(parts[0].toLowerCase())) {
+                this.params.put(parts[0].toLowerCase(), parts[1]);
             } else {
                 String suggestions = "";
                 i = 0;
