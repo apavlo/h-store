@@ -10,8 +10,10 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.Map;
 import java.util.Set;
 
+import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.log4j.Logger;
 import org.voltdb.catalog.Database;
 
@@ -52,7 +54,8 @@ public class TimeIntervalCostModel<T extends AbstractCostModel> extends Abstract
     protected double last_skew_cost;
     protected Double last_final_cost;
     
-    protected String last_debug; 
+    protected String last_debug;
+    protected final Map<String, Histogram<?>> debug_histograms = new ListOrderedMap<String, Histogram<?>>();
 
     final ArrayList<Integer> tmp_touched = new ArrayList<Integer>();
     final ArrayList<Long> tmp_potential = new ArrayList<Long>();
@@ -74,6 +77,8 @@ public class TimeIntervalCostModel<T extends AbstractCostModel> extends Abstract
     final double txn_skews[];
     final double exec_skews[];
     final double total_skews[];
+    
+    final Set<Integer> tmp_missingPartitions = new HashSet<Integer>();
     
     /**
      * This histogram is to keep track of those partitions that we need to add to the access histogram
@@ -234,6 +239,7 @@ public class TimeIntervalCostModel<T extends AbstractCostModel> extends Abstract
         this.prepare(catalog_db);
         int num_partitions = CatalogUtil.getNumberOfPartitions(catalog_db);
         Collection<Integer> all_partitions = CatalogUtil.getAllPartitionIds(catalog_db);
+        assert(all_partitions.isEmpty() == false) : "No partitions???";
         
         if (debug) LOG.debug("Calculating workload execution cost across " + num_intervals + " intervals for " + num_partitions + " partitions");
 
@@ -337,13 +343,15 @@ public class TimeIntervalCostModel<T extends AbstractCostModel> extends Abstract
                 // completely so that we can update the access histograms down below for entropy calculations
                 // Note that this is at the txn level, not the query level.
                 if (!txn_entry.isComplete()) {
-                    if (trace) LOG.trace("Marking " + txn_trace + " as incomplete in interval #" + i);
                     incomplete_txn_ctrs[i]++;
-                    Set<Integer> missing_partitions = new HashSet<Integer>(all_partitions);
-                    missing_partitions.removeAll(txn_entry.getTouchedPartitions());
+                    tmp_missingPartitions.clear();
+                    tmp_missingPartitions.addAll(all_partitions);
+                    tmp_missingPartitions.removeAll(txn_entry.getTouchedPartitions());
                     // Update the histogram for this interval to keep track of how many times we need to
                     // increase the partition access histogram
-                    incomplete_txn_histogram[i].putAll(missing_partitions);
+                    incomplete_txn_histogram[i].putAll(tmp_missingPartitions);
+                    if (i == 0) LOG.debug(String.format("Marking %s as incomplete in interval #%d [examinedQ=%d, totalQ=%d, touchedP:%s, missingP: %s]",
+                                                        txn_trace, i, txn_entry.getExaminedQueryCount(), txn_entry.getTotalQueryCount(), txn_entry.getTouchedPartitions(), tmp_missingPartitions));
                 }
             } catch (Exception ex) {
                 LOG.error("Failed to estimate cost for " + txn_trace.getCatalogItemName() + " at interval " + i);
@@ -356,7 +364,7 @@ public class TimeIntervalCostModel<T extends AbstractCostModel> extends Abstract
         // For each interval, divide the number of partitions touched by the total number of partitions
         // that the interval could have touched (worst case scenario)
         final double execution_costs[] = new double[num_intervals];
-        StringBuilder sb = new StringBuilder();
+        StringBuilder sb = (debug ? new StringBuilder() : null);
         if (debug) LOG.debug("Calculating execution cost for " + this.num_intervals + " intervals...");
         long total_multipartition_txns = 0;
         for (int i = 0; i < this.num_intervals; i++) {
@@ -395,7 +403,7 @@ public class TimeIntervalCostModel<T extends AbstractCostModel> extends Abstract
             tmp_touched.add(partitions_touched[i]);
             tmp_potential.add(potential_txn_touches);
             
-            if (trace) {
+            if (i == 0) {
                 sb.append("Interval #" + i + ": ")
                   .append("PartTouched=" + partitions_touched[i] + ", ")
                   .append("PotentialTouched="  + potential_txn_touches + ", ")
@@ -430,6 +438,7 @@ public class TimeIntervalCostModel<T extends AbstractCostModel> extends Abstract
         // (3) We then need to go through and grab the histograms of partitions were accessed
         if (debug) {
             LOG.debug("Calculating skew factor for " + this.num_intervals + " intervals...");
+            debug_histograms.clear();
             sb = new StringBuilder();
         }
         for (int i = 0; i < num_intervals; i++) {
@@ -490,13 +499,11 @@ public class TimeIntervalCostModel<T extends AbstractCostModel> extends Abstract
             // look uniform. Then as more information is added, we will
             // This is an attempt to make sure that the entropy cost never decreases but only increases
             long total_txns_in_interval = histogram_proc_intervals.get(i, 0);
-            if (trace) {
-                sb.append("INTERVAL #" + i + " [total_txns_in_interval=" + total_txns_in_interval + ", num_txns=" + num_txns + ", incomplete_txns=" + incomplete_txn_ctrs[i] + ", sample_count=" + target_histogram.getSampleCount() + "]\n");
-                sb.append("Incomplete Txn Histogram: [sample_count=" + incomplete_txn_histogram[i].getSampleCount() + "]\n");
-                sb.append(incomplete_txn_histogram[i].toString() + "\n");
-                sb.append("Missing Txn Histogram: [sample_count=" + missing_txn_histogram[i].getSampleCount() + "]\n");
-                sb.append(missing_txn_histogram[i].toString() + "\n");
-                sb.append("BEFORE: [sample_count=" + target_histogram.getSampleCount() + "]\n" + target_histogram.toString() + "\n");
+            if (i == 0) {
+                debug_histograms.put("Incomplete Txns", incomplete_txn_histogram[i]);
+                debug_histograms.put("Missing Txns", missing_txn_histogram[i]);
+                debug_histograms.put("Target Partitions (BEFORE)", new Histogram<Integer>(target_histogram));
+                debug_histograms.put("Target Partitions (AFTER)", target_histogram);
             }
 
             // Merge the values from incomplete histogram into the target histogram            
@@ -510,9 +517,16 @@ public class TimeIntervalCostModel<T extends AbstractCostModel> extends Abstract
             assert(num_elements <= tmp_potential.get(i)) : 
                 "New Partitions Touched Sample Count [" + num_elements + "] < " +
                 "Maximum Potential Touched Count [" + tmp_potential.get(i) + "]";
-            if (trace) {
-                sb.append("AFTER: [sample_count=" + num_elements + "]\n");
-                sb.append(target_histogram + "\n");
+
+            
+            if (i == 0) {
+                Map<String, Object> m = new ListOrderedMap<String, Object>();
+                for (String key : debug_histograms.keySet()) {
+                    Histogram<?> h = debug_histograms.get(key);
+                    m.put(key, String.format("[Sample=%d, Value=%d]\n%s", h.getSampleCount(), h.getValueCount(), h));
+                } // FOR
+                sb.append(String.format("INTERVAL #%d [total_txns_in_interval=%d, num_txns=%d, incomplete_txns=%d]\n%s",
+                                        i, total_txns_in_interval, num_txns, incomplete_txn_ctrs[i], StringUtil.formatMaps(m)));
             }
             
             // Txn Skew
@@ -520,7 +534,6 @@ public class TimeIntervalCostModel<T extends AbstractCostModel> extends Abstract
                 txn_skews[i] = 0.0d;
             } else {
                 txn_skews[i] = SkewFactorUtil.calculateSkew(num_partitions, num_elements, target_histogram);
-//                if (i == 0) LOG.info("target_histogram =>\n" + target_histogram);
             }
             
             // Exec Skew
