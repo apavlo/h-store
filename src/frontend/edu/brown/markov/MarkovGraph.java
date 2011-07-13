@@ -46,7 +46,7 @@ import edu.brown.workload.TransactionTrace;
  * @author svelagap
  * @author pavlo
  */
-public class MarkovGraph extends AbstractDirectedGraph<Vertex, Edge> implements Comparable<MarkovGraph> {
+public class MarkovGraph extends AbstractDirectedGraph<MarkovVertex, MarkovEdge> implements Comparable<MarkovGraph> {
     private static final long serialVersionUID = 3548405718926801012L;
     private static final Logger LOG = Logger.getLogger(MarkovGraph.class);
     private final static LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
@@ -110,12 +110,12 @@ public class MarkovGraph extends AbstractDirectedGraph<Vertex, Edge> implements 
      * Add the START, COMMIT, and ABORT vertices to the current graph
      */
     public MarkovGraph initialize() {
-        for (Vertex.Type type : Vertex.Type.values()) {
+        for (MarkovVertex.Type type : MarkovVertex.Type.values()) {
             switch (type) {
                 case START:
                 case COMMIT:
                 case ABORT:
-                    Vertex v = MarkovUtil.getSpecialVertex(this.getDatabase(), type);
+                    MarkovVertex v = MarkovUtil.getSpecialVertex(this.getDatabase(), type);
                     assert(v != null);
                     this.addVertex(v);
                     break;
@@ -161,14 +161,14 @@ public class MarkovGraph extends AbstractDirectedGraph<Vertex, Edge> implements 
     /**
      * Cached references to the special marker vertices
      */
-    private transient final Vertex cache_specialVertices[] = new Vertex[Vertex.Type.values().length];
+    private transient final MarkovVertex cache_specialVertices[] = new MarkovVertex[MarkovVertex.Type.values().length];
 
-    private transient final Map<Statement, Set<Vertex>> cache_stmtVertices = new HashMap<Statement, Set<Vertex>>();
-    private transient final Map<Vertex, Collection<Vertex>> cache_getSuccessors = new ConcurrentHashMap<Vertex, Collection<Vertex>>();
+    private transient final Map<Statement, Set<MarkovVertex>> cache_stmtVertices = new HashMap<Statement, Set<MarkovVertex>>();
+    private transient final Map<MarkovVertex, Collection<MarkovVertex>> cache_getSuccessors = new ConcurrentHashMap<MarkovVertex, Collection<MarkovVertex>>();
     
     @Override
-    public Collection<Vertex> getSuccessors(Vertex vertex) {
-        Collection<Vertex> successors = this.cache_getSuccessors.get(vertex);
+    public Collection<MarkovVertex> getSuccessors(MarkovVertex vertex) {
+        Collection<MarkovVertex> successors = this.cache_getSuccessors.get(vertex);
         if (successors == null) {
             successors = super.getSuccessors(vertex);
             this.cache_getSuccessors.put(vertex, successors);
@@ -179,9 +179,9 @@ public class MarkovGraph extends AbstractDirectedGraph<Vertex, Edge> implements 
     public void buildCache() {
         for (Statement catalog_stmt : this.catalog_proc.getStatements()) {
             if (this.cache_stmtVertices.containsKey(catalog_stmt) == false)
-                this.cache_stmtVertices.put(catalog_stmt, new HashSet<Vertex>());
+                this.cache_stmtVertices.put(catalog_stmt, new HashSet<MarkovVertex>());
         } // FOR
-        for (Vertex v : this.getVertices()) {
+        for (MarkovVertex v : this.getVertices()) {
             if (v.isQueryVertex()) {
                 Statement catalog_stmt = v.getCatalogItem();
                 this.cache_stmtVertices.get(catalog_stmt).add(v);
@@ -192,11 +192,11 @@ public class MarkovGraph extends AbstractDirectedGraph<Vertex, Edge> implements 
     /**
      * For a given vertex, maintain a map to possible future vertices
      */
-    private final Map<Vertex, ConcurrentHashMap<MultiKey<String>, Pair<Edge, Vertex>>> cache_batchEnd = new HashMap<Vertex, ConcurrentHashMap<MultiKey<String>, Pair<Edge, Vertex>>>(); 
+    private final Map<MarkovVertex, ConcurrentHashMap<MultiKey<String>, Pair<MarkovEdge, MarkovVertex>>> cache_batchEnd = new HashMap<MarkovVertex, ConcurrentHashMap<MultiKey<String>, Pair<MarkovEdge, MarkovVertex>>>(); 
     
-    public Pair<Edge, Vertex> getCachedBatchEnd(Vertex start, Statement catalog_stmt, int idx, Set<Integer> partitions, Set<Integer> past_partitions) {
-        Map<MultiKey<String>, Pair<Edge, Vertex>> m = cache_batchEnd.get(start);
-        Pair<Edge, Vertex> found = null;
+    public Pair<MarkovEdge, MarkovVertex> getCachedBatchEnd(MarkovVertex start, Statement catalog_stmt, int idx, Set<Integer> partitions, Set<Integer> past_partitions) {
+        Map<MultiKey<String>, Pair<MarkovEdge, MarkovVertex>> m = cache_batchEnd.get(start);
+        Pair<MarkovEdge, MarkovVertex> found = null;
         if (m != null) {
             MultiKey<String> cache_key = new MultiKey<String>(CatalogKey.createKey(catalog_stmt),
                                                               Integer.toString(idx),
@@ -207,13 +207,13 @@ public class MarkovGraph extends AbstractDirectedGraph<Vertex, Edge> implements 
         return (found);
     }
     
-    public void addCachedBatchEnd(Vertex start, Edge e, Vertex v, Statement catalog_stmt, int idx, Set<Integer> partitions, Set<Integer> past_partitions) {
-        ConcurrentHashMap<MultiKey<String>, Pair<Edge, Vertex>> m = cache_batchEnd.get(start);
+    public void addCachedBatchEnd(MarkovVertex start, MarkovEdge e, MarkovVertex v, Statement catalog_stmt, int idx, Set<Integer> partitions, Set<Integer> past_partitions) {
+        ConcurrentHashMap<MultiKey<String>, Pair<MarkovEdge, MarkovVertex>> m = cache_batchEnd.get(start);
         if (m == null) {
             synchronized (cache_batchEnd) {
                 m = cache_batchEnd.get(start);
                 if (m == null) {
-                    m = new ConcurrentHashMap<MultiKey<String>, Pair<Edge, Vertex>>();
+                    m = new ConcurrentHashMap<MultiKey<String>, Pair<MarkovEdge, MarkovVertex>>();
                     cache_batchEnd.put(start, m);
                 }
             } // SYNCH
@@ -245,15 +245,15 @@ public class MarkovGraph extends AbstractDirectedGraph<Vertex, Edge> implements 
      * @param source the source vertex
      * @param dest the destination vertex
      */
-    public Edge addToEdge(Vertex source, Vertex dest) {
+    public MarkovEdge addToEdge(MarkovVertex source, MarkovVertex dest) {
         assert(source != null);
         assert(dest != null);
         
-        Edge e = null;
+        MarkovEdge e = null;
         synchronized (source) {
             e = this.findEdge(source, dest);
             if (e == null) {
-                e = new Edge(this);
+                e = new MarkovEdge(this);
                 this.addEdge(e, source, dest);
             }
         } // SYNCH
@@ -264,20 +264,20 @@ public class MarkovGraph extends AbstractDirectedGraph<Vertex, Edge> implements 
      * 
      */
     @Override
-    public boolean addVertex(Vertex v) {
+    public boolean addVertex(MarkovVertex v) {
         boolean ret;
         synchronized (v) {
             ret = super.addVertex(v);
             if (ret) {
                 if (v.isQueryVertex()) {
-                    Set<Vertex> stmt_vertices = this.cache_stmtVertices.get(v.getCatalogItem());
+                    Set<MarkovVertex> stmt_vertices = this.cache_stmtVertices.get(v.getCatalogItem());
                     if (stmt_vertices == null) {
-                        stmt_vertices = new HashSet<Vertex>();
+                        stmt_vertices = new HashSet<MarkovVertex>();
                         this.cache_stmtVertices.put((Statement)v.getCatalogItem(), stmt_vertices);
                     }
                     stmt_vertices.add(v);
                 } else {
-                    Vertex.Type vtype = v.getType();
+                    MarkovVertex.Type vtype = v.getType();
                     int idx = vtype.ordinal();
                     assert(this.cache_specialVertices[idx] == null) : "Trying add duplicate " + vtype + " vertex";
                     this.cache_specialVertices[idx] = v;
@@ -292,9 +292,9 @@ public class MarkovGraph extends AbstractDirectedGraph<Vertex, Edge> implements 
      * @param vtype - the Vertex type (cannot be a regular query)
      * @return the single vertex for that type  
      */
-    protected Vertex getSpecialVertex(Vertex.Type vtype) {
-        assert(vtype != Vertex.Type.QUERY);
-        Vertex v = null;
+    protected MarkovVertex getSpecialVertex(MarkovVertex.Type vtype) {
+        assert(vtype != MarkovVertex.Type.QUERY);
+        MarkovVertex v = null;
         switch (vtype) {
             case START:
             case COMMIT:
@@ -313,22 +313,22 @@ public class MarkovGraph extends AbstractDirectedGraph<Vertex, Edge> implements 
      * Get the start vertex for this MarkovGraph
      * @return
      */
-    public final Vertex getStartVertex() {
-        return (this.getSpecialVertex(Vertex.Type.START));
+    public final MarkovVertex getStartVertex() {
+        return (this.getSpecialVertex(MarkovVertex.Type.START));
     }
     /**
      * Get the stop vertex for this MarkovGraph
      * @return
      */
-    public final Vertex getCommitVertex() {
-        return (this.getSpecialVertex(Vertex.Type.COMMIT));
+    public final MarkovVertex getCommitVertex() {
+        return (this.getSpecialVertex(MarkovVertex.Type.COMMIT));
     }
     /**
      * Get the abort vertex for this MarkovGraph
      * @return
      */
-    public final Vertex getAbortVertex() {
-        return (this.getSpecialVertex(Vertex.Type.ABORT));
+    public final MarkovVertex getAbortVertex() {
+        return (this.getSpecialVertex(MarkovVertex.Type.ABORT));
     }
     
     /**
@@ -343,8 +343,8 @@ public class MarkovGraph extends AbstractDirectedGraph<Vertex, Edge> implements 
      *            query's location in transactiontrace
      * @return
      */
-    protected Vertex getVertex(Statement a, Set<Integer> partitions, Set<Integer> past_partitions, int queryInstanceIndex) {
-        Set<Vertex> stmt_vertices = this.cache_stmtVertices.get(a);
+    protected MarkovVertex getVertex(Statement a, Set<Integer> partitions, Set<Integer> past_partitions, int queryInstanceIndex) {
+        Set<MarkovVertex> stmt_vertices = this.cache_stmtVertices.get(a);
         if (stmt_vertices == null) {
             synchronized (this) {
                 stmt_vertices = this.cache_stmtVertices.get(a);
@@ -354,7 +354,7 @@ public class MarkovGraph extends AbstractDirectedGraph<Vertex, Edge> implements 
                 }
             } // SYNCH
         }
-        for (Vertex v : stmt_vertices) {
+        for (MarkovVertex v : stmt_vertices) {
             if (v.isEqual(a, partitions, past_partitions, queryInstanceIndex)) {
                 return v;
             }
@@ -376,9 +376,9 @@ public class MarkovGraph extends AbstractDirectedGraph<Vertex, Edge> implements 
      * @param g
      * @return
      */
-    public Set<Edge> getEdgesTo(Set<Vertex> vs) {
-        Set<Edge> edges = new HashSet<Edge>();
-        for (Vertex v : vs) {
+    public Set<MarkovEdge> getEdgesTo(Set<MarkovVertex> vs) {
+        Set<MarkovEdge> edges = new HashSet<MarkovEdge>();
+        for (MarkovVertex v : vs) {
             if (v != null) edges.addAll(this.getInEdges(v));
         }
         return edges;
@@ -395,15 +395,15 @@ public class MarkovGraph extends AbstractDirectedGraph<Vertex, Edge> implements 
      */
     public synchronized void calculateProbabilities() {
         // Reset all probabilities
-        for (Vertex v : this.getVertices()) {
+        for (MarkovVertex v : this.getVertices()) {
             v.resetAllProbabilities();
         } // FOR
         
         this.normalizeTimes();
-        for (Vertex v : this.getVertices()) {
+        for (MarkovVertex v : this.getVertices()) {
             v.applyInstanceHitsToTotalHits();
         }
-        for (Edge e : this.getEdges()) {
+        for (MarkovEdge e : this.getEdges()) {
             e.applyInstanceHitsToTotalHits();
         }
         
@@ -429,10 +429,10 @@ public class MarkovGraph extends AbstractDirectedGraph<Vertex, Edge> implements 
      * Calculates the probabilities for each edge to be traversed
      */
     private void calculateEdgeProbabilities() {
-        Collection<Vertex> vertices = this.getVertices();
-        for (Vertex v : vertices) {
+        Collection<MarkovVertex> vertices = this.getVertices();
+        for (MarkovVertex v : vertices) {
             if (v.isQueryVertex() && v.getTotalHits() == 0) continue;
-            for (Edge e : this.getOutEdges(v)) {
+            for (MarkovEdge e : this.getOutEdges(v)) {
                 try {
                     e.calculateProbability(v.getTotalHits());
                 } catch (Throwable ex) {
@@ -449,15 +449,15 @@ public class MarkovGraph extends AbstractDirectedGraph<Vertex, Edge> implements 
     protected void normalizeTimes() {
         Map<Long, Long> stoptimes = this.getCommitVertex().getInstanceTimes();
         List<Long> to_remove = new ArrayList<Long>();
-        for (Vertex v : this.getVertices()) {
+        for (MarkovVertex v : this.getVertices()) {
             v.normalizeInstanceTimes(stoptimes, to_remove);
             to_remove.clear();
         } // FOR
     }
     
-    public Set<Vertex> getInvalidVertices() {
-        Set<Vertex> ret = new HashSet<Vertex>();
-        for (Vertex v : this.getVertices()) {
+    public Set<MarkovVertex> getInvalidVertices() {
+        Set<MarkovVertex> ret = new HashSet<MarkovVertex>();
+        for (MarkovVertex v : this.getVertices()) {
             if (v.isValid(this) == false) ret.add(v);
         } // FOR
         return (ret);
@@ -483,7 +483,7 @@ public class MarkovGraph extends AbstractDirectedGraph<Vertex, Edge> implements 
         Map<Long, AbstractGraphElement> seen_ids = new HashMap<Long, AbstractGraphElement>();
         
         // Validate Edges
-        for (Edge e : this.getEdges()) {
+        for (MarkovEdge e : this.getEdges()) {
             
             // Make sure the edge thinks it's valid
             e.validate(this);
@@ -497,17 +497,17 @@ public class MarkovGraph extends AbstractDirectedGraph<Vertex, Edge> implements 
         } // FOR
         
         // Validate Vertices
-        Set<Vertex> seen_vertices = new HashSet<Vertex>();
+        Set<MarkovVertex> seen_vertices = new HashSet<MarkovVertex>();
         Set<Integer> all_partitions = new HashSet<Integer>();
-        for (Vertex v0 : this.getVertices()) {
+        for (MarkovVertex v0 : this.getVertices()) {
             float total_prob = 0.0f;
             long total_edgehits = 0;
             
             // Make sure the vertex thinks it's valid
             v0.validate(this);
             
-            Collection<Edge> outbound = this.getOutEdges(v0);
-            Collection<Edge> inbound = this.getInEdges(v0);
+            Collection<MarkovEdge> outbound = this.getOutEdges(v0);
+            Collection<MarkovEdge> inbound = this.getInEdges(v0);
             
             // Make sure that nobody else has the same element id
             if (seen_ids.containsKey(v0.getElementId())) {
@@ -519,8 +519,8 @@ public class MarkovGraph extends AbstractDirectedGraph<Vertex, Edge> implements 
             all_partitions.addAll(v0.partitions);
             all_partitions.addAll(v0.past_partitions);
             
-            for (Edge e : outbound) {
-                Vertex v1 = this.getOpposite(v0, e);
+            for (MarkovEdge e : outbound) {
+                MarkovVertex v1 = this.getOpposite(v0, e);
                 
                 // Make sure that each vertex only has one edge to another vertex
                 if (seen_vertices.contains(v1)) {
@@ -566,7 +566,7 @@ public class MarkovGraph extends AbstractDirectedGraph<Vertex, Edge> implements 
             
             total_prob = 0.0f;
             total_edgehits = 0;
-            for (Edge e : inbound) { 
+            for (MarkovEdge e : inbound) { 
                 total_prob += e.getProbability();
                 total_edgehits += e.getTotalHits();
             } // FOR
@@ -582,7 +582,7 @@ public class MarkovGraph extends AbstractDirectedGraph<Vertex, Edge> implements 
     public boolean shouldRecompute(int instance_count, double recomputeTolerance) {
         double VERTEX_PROPORTION = 0.5f; // If VERTEX_PROPORTION of
         int count = 0;
-        for (Vertex v : this.getVertices()) {
+        for (MarkovVertex v : this.getVertices()) {
             if (v.shouldRecompute(instance_count, recomputeTolerance, xact_count)) {
                 count++;
             }
@@ -601,13 +601,13 @@ public class MarkovGraph extends AbstractDirectedGraph<Vertex, Edge> implements 
      * @param txn_trace - The TransactionTrace to process and update the graph with
      * @param pest - The PartitionEstimator to use for estimating where things go
      */
-    public List<Vertex> processTransaction(TransactionTrace txn_trace, PartitionEstimator pest) throws Exception {
+    public List<MarkovVertex> processTransaction(TransactionTrace txn_trace, PartitionEstimator pest) throws Exception {
         Procedure catalog_proc = txn_trace.getCatalogItem(this.getDatabase());
-        Vertex previous = this.getStartVertex();
+        MarkovVertex previous = this.getStartVertex();
         previous.addExecutionTime(txn_trace.getStopTimestamp() - txn_trace.getStartTimestamp());
         previous.incrementTotalHits();
 
-        final List<Vertex> path = new ArrayList<Vertex>();
+        final List<MarkovVertex> path = new ArrayList<MarkovVertex>();
         path.add(previous);
         
         Map<Statement, AtomicInteger> query_instance_counters = new HashMap<Statement, AtomicInteger>();
@@ -630,17 +630,17 @@ public class MarkovGraph extends AbstractDirectedGraph<Vertex, Edge> implements 
             Statement catalog_stmnt = query_trace.getCatalogItem(this.getDatabase());
 
             int queryInstanceIndex = query_instance_counters.get(catalog_stmnt).getAndIncrement(); 
-            Vertex v = null;
+            MarkovVertex v = null;
             synchronized (previous) {
                 v = this.getVertex(catalog_stmnt, partitions, past_partitions, queryInstanceIndex);
                 if (v == null) {
                     // If no such vertex exists we simply create one
-                    v = new Vertex(catalog_stmnt, Vertex.Type.QUERY, queryInstanceIndex, partitions, new HashSet<Integer>(past_partitions));
+                    v = new MarkovVertex(catalog_stmnt, MarkovVertex.Type.QUERY, queryInstanceIndex, partitions, new HashSet<Integer>(past_partitions));
                     this.addVertex(v);
                 }
                 assert(v.isQueryVertex());
                 // Add to the edge between the previous vertex and the current one
-                Edge e = this.addToEdge(previous, v);
+                MarkovEdge e = this.addToEdge(previous, v);
                 assert(e != null);
                 v.incrementTotalHits();
                 e.incrementTotalHits();
@@ -654,9 +654,9 @@ public class MarkovGraph extends AbstractDirectedGraph<Vertex, Edge> implements 
         } // FOR
         
         synchronized (previous) {
-            Vertex v = (txn_trace.isAborted() ? this.getAbortVertex() : this.getCommitVertex());
+            MarkovVertex v = (txn_trace.isAborted() ? this.getAbortVertex() : this.getCommitVertex());
             assert(v != null);
-            Edge e = this.addToEdge(previous, v);
+            MarkovEdge e = this.addToEdge(previous, v);
             assert(e != null);
             path.add(v);
             v.incrementTotalHits();
@@ -677,10 +677,10 @@ public class MarkovGraph extends AbstractDirectedGraph<Vertex, Edge> implements 
      * other transaction running at the same time
      */
     public synchronized void resetCounters() {
-        for (Vertex v : this.getVertices()) {
+        for (MarkovVertex v : this.getVertices()) {
             v.setInstanceHits(0);
         }
-        for (Edge e : this.getEdges()) {
+        for (MarkovEdge e : this.getEdges()) {
             e.setInstanceHits(0);
         }
     }
@@ -722,8 +722,8 @@ public class MarkovGraph extends AbstractDirectedGraph<Vertex, Edge> implements 
     @Override
     public void toJSON(JSONStringer stringer) throws JSONException {
         // Ignore any vertices with no totalhits
-        Set<Vertex> ignore = new HashSet<Vertex>();
-        for (Vertex v : this.getVertices()) {
+        Set<MarkovVertex> ignore = new HashSet<MarkovVertex>();
+        for (MarkovVertex v : this.getVertices()) {
             if (v.isQueryVertex() && (v.instancehits == 0 && v.totalhits == 0)) ignore.add(v);
         }
         GraphUtil.serialize(this, ignore, null, stringer);

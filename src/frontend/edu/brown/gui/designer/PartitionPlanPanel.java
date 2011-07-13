@@ -88,9 +88,9 @@ public class PartitionPlanPanel extends JPanel {
             @Override
             public void valueChanged(ListSelectionEvent e) {
                 Table catalog_tbl = tables.get(partitonTable.getSelectedRow());
-                GraphVisualizationPanel<Vertex, Edge> visualizer = PartitionPlanPanel.this.parent.getCurrentVisualizer();
-                IGraph<Vertex, Edge> graph = (IGraph<Vertex, Edge>)visualizer.getGraph();
-                Vertex vertex = graph.getVertex(catalog_tbl);
+                GraphVisualizationPanel<DesignerVertex, DesignerEdge> visualizer = PartitionPlanPanel.this.parent.getCurrentVisualizer();
+                IGraph<DesignerVertex, DesignerEdge> graph = (IGraph<DesignerVertex, DesignerEdge>)visualizer.getGraph();
+                DesignerVertex vertex = graph.getVertex(catalog_tbl);
                 visualizer.selectVertex(vertex);
                 return;
             }

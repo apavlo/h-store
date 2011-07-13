@@ -52,11 +52,11 @@ import org.voltdb.types.TimestampType;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.graphs.GraphvizExport;
 import edu.brown.hashing.AbstractHasher;
-import edu.brown.markov.Edge;
+import edu.brown.markov.MarkovEdge;
 import edu.brown.markov.MarkovGraph;
 import edu.brown.markov.MarkovUtil;
 import edu.brown.markov.TransactionEstimator;
-import edu.brown.markov.Vertex;
+import edu.brown.markov.MarkovVertex;
 import edu.brown.markov.TransactionEstimator.State;
 import edu.brown.utils.EventObservable;
 import edu.brown.utils.EventObserver;
@@ -1102,7 +1102,7 @@ public abstract class VoltProcedure implements Poolable {
                 if (s != null) {
                     sb.append(s.toString());
                     try {
-                        GraphvizExport<Vertex, Edge> gv = MarkovUtil.exportGraphviz(markov, true, markov.getPath(s.getInitialPath()));
+                        GraphvizExport<MarkovVertex, MarkovEdge> gv = MarkovUtil.exportGraphviz(markov, true, markov.getPath(s.getInitialPath()));
                         gv.highlightPath(markov.getPath(s.getActualPath()), "blue");
                         
                         LOG.info("PARTITION: " + this.executor.partitionId);

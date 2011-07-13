@@ -34,6 +34,9 @@ public interface IGraph<V extends AbstractVertex, E extends AbstractEdge> extend
      */
     public void setVerbose(boolean verbose);
     
+    public void setEdgeVerbose(boolean verbose);
+    public void setVertexVerbose(boolean verbose);
+    
     public String toString(E e, boolean verbose);
     public String debug();
 }

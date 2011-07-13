@@ -562,17 +562,17 @@ public class Workload implements WorkloadTrace, Iterable<TransactionTrace> {
     
     public Histogram<Integer> getTimeIntervalProcedureHistogram(int num_intervals) {
         final Histogram<Integer> h = new Histogram<Integer>();
-        for (TransactionTrace xact : this.getTransactions()) {
-            h.put(this.getTimeInterval(xact, num_intervals));
+        for (TransactionTrace txn_trace : this.getTransactions()) {
+            h.put(this.getTimeInterval(txn_trace, num_intervals));
         }
         return (h);
     }
     
     public Histogram<Integer> getTimeIntervalQueryHistogram(int num_intervals) {
         final Histogram<Integer> h = new Histogram<Integer>();
-        for (TransactionTrace xact : this.getTransactions()) {
-            int interval = this.getTimeInterval(xact, num_intervals);
-            int num_queries = xact.getQueryCount();
+        for (TransactionTrace txn_trace : this.getTransactions()) {
+            int interval = this.getTimeInterval(txn_trace, num_intervals);
+            int num_queries = txn_trace.getQueryCount();
             h.put(interval, num_queries);
         } // FOR
         return (h);
@@ -592,12 +592,12 @@ public class Workload implements WorkloadTrace, Iterable<TransactionTrace> {
     /**
      * Utility method to remove a transaction from the various data structures that
      * we have to keep track of it.
-     * @param xact the transaction handle to remove
+     * @param txn_trace the transaction handle to remove
      */
-    protected void removeTransaction(TransactionTrace xact) {
-        this.xact_trace.remove(xact.getTransactionId());
-        this.xact_open_queries.remove(xact.getTransactionId());
-        this.trace_bach_id.remove(xact);
+    protected void removeTransaction(TransactionTrace txn_trace) {
+        this.xact_trace.remove(txn_trace.getTransactionId());
+        this.xact_open_queries.remove(txn_trace.getTransactionId());
+        this.trace_bach_id.remove(txn_trace);
     }
     
     /**

@@ -64,9 +64,9 @@ public class SingleSitedCostModel extends AbstractCostModel {
     // COST WEIGHTS
     // ----------------------------------------------------
 
-    public static double COST_UNKNOWN_QUERY = 1d;
-    public static double COST_SINGLESITE_QUERY = 1d;
-    public static double COST_MULTISITE_QUERY = 10d;
+    public static final double COST_UNKNOWN_QUERY = 1d;
+    public static final double COST_SINGLESITE_QUERY = 1d;
+    public static final double COST_MULTISITE_QUERY = 10d;
 
     // ----------------------------------------------------
     // DATA MEMBERS
@@ -563,7 +563,11 @@ public class SingleSitedCostModel extends AbstractCostModel {
                 // global txn touched partitions histogram 
                 final long txn_trace_id = query_entry.getTransactionId();
                 TransactionCacheEntry txn_entry = this.txn_entries.get(query_entry.getTransactionId());
-                assert (txn_entry != null);
+                if (txn_entry == null) {
+                    LOG.warn("Missing Txn #Id: " + query_entry.getTransactionId());
+                    LOG.warn("Query Entries: " + this.query_entries.get(query_entry.getTransactionId()));
+                }
+                assert(txn_entry != null);
                 txn_entry.touched_partitions.setKeepZeroEntries(true);
                 
                 invalidate_modifiedTxns.add(txn_entry);
@@ -1215,10 +1219,10 @@ public class SingleSitedCostModel extends AbstractCostModel {
 //        System.out.println("Partitions Touched By Queries: " + total_partitions_touched_queries);
 
         Histogram<Integer> entropy_h = costmodel.getJavaExecutionHistogram();
-        m.put("JAVA SKEW", EntropyUtil.calculateEntropy(all_partitions.size(), entropy_h.getSampleCount(), entropy_h));
+        m.put("JAVA SKEW", SkewFactorUtil.calculateSkew(all_partitions.size(), entropy_h.getSampleCount(), entropy_h));
         
         entropy_h = costmodel.getTxnPartitionAccessHistogram();
-        m.put("TRANSACTION SKEW", EntropyUtil.calculateEntropy(all_partitions.size(), entropy_h.getSampleCount(), entropy_h));
+        m.put("TRANSACTION SKEW", SkewFactorUtil.calculateSkew(all_partitions.size(), entropy_h.getSampleCount(), entropy_h));
         
 //        TimeIntervalCostModel<SingleSitedCostModel> timecostmodel = new TimeIntervalCostModel<SingleSitedCostModel>(args.catalog_db, SingleSitedCostModel.class, 1);
 //        timecostmodel.estimateCost(args.catalog_db, args.workload);

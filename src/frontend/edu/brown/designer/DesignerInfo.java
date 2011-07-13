@@ -230,7 +230,7 @@ public class DesignerInfo {
         return this.dependencies;
     }
     
-    public AbstractDirectedGraph<Vertex, Edge> getDependencyGraph() {
+    public AbstractDirectedGraph<DesignerVertex, DesignerEdge> getDependencyGraph() {
         return this.dgraph;
     }
     

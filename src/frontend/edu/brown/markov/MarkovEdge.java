@@ -6,6 +6,7 @@ import org.json.JSONStringer;
 import org.voltdb.catalog.Database;
 
 import edu.brown.graphs.AbstractEdge;
+import edu.brown.graphs.AbstractGraphElement;
 import edu.brown.graphs.IGraph;
 import edu.brown.graphs.exceptions.InvalidGraphElementException;
 import edu.brown.utils.MathUtil;
@@ -20,7 +21,7 @@ import edu.brown.utils.MathUtil;
  * @author svelagap
  * 
  */
-public class Edge extends AbstractEdge implements Comparable<Edge>, MarkovHitTrackable {
+public class MarkovEdge extends AbstractEdge implements MarkovHitTrackable {
     enum Members {
         PROBABILITY,
         TOTALHITS,
@@ -49,25 +50,29 @@ public class Edge extends AbstractEdge implements Comparable<Edge>, MarkovHitTra
      * 
      * @param graph
      */
-    public Edge(IGraph<Vertex, Edge> graph) {
+    public MarkovEdge(IGraph<MarkovVertex, MarkovEdge> graph) {
         super(graph);
         this.totalhits = 0;
         this.probability = 0;
     }
 
-    public Edge(IGraph<Vertex, Edge> graph, int hits, float probability) {
+    public MarkovEdge(IGraph<MarkovVertex, MarkovEdge> graph, int hits, float probability) {
         super(graph);
         this.totalhits = hits;
         this.probability = (float)probability;
     }
 
     @Override
-    public int compareTo(Edge o) {
+    public int compareTo(AbstractGraphElement o) {
         assert (o != null);
-        if (MathUtil.equals(this.probability, o.probability, MarkovGraph.PROBABILITY_EPSILON) == false) {
-            return (int) (o.probability * 100 - this.probability * 100);
+        if (o instanceof MarkovEdge) {
+            MarkovEdge me = (MarkovEdge)o;
+            if (MathUtil.equals(this.probability, me.probability, MarkovGraph.PROBABILITY_EPSILON) == false) {
+                return (int) (me.probability * 100 - this.probability * 100);
+            }
+            return (this.hashCode() - me.hashCode());
         }
-        return (this.hashCode() - o.hashCode());
+        return super.compareTo(o);
     }
 
     public float getProbability() {
@@ -105,8 +110,8 @@ public class Edge extends AbstractEdge implements Comparable<Edge>, MarkovHitTra
     }
 
     protected void validate(MarkovGraph markov) throws InvalidGraphElementException {
-        Vertex v0 = markov.getSource(this);
-        Vertex v1 = markov.getDest(this);
+        MarkovVertex v0 = markov.getSource(this);
+        MarkovVertex v1 = markov.getDest(this);
         float e_prob = this.getProbability();
         
         // Make sure the edge probability is between [0, 1]
@@ -173,12 +178,12 @@ public class Edge extends AbstractEdge implements Comparable<Edge>, MarkovHitTra
 
     public void toJSONStringImpl(JSONStringer stringer) throws JSONException {
         super.toJSONStringImpl(stringer);
-        super.fieldsToJSONString(stringer, Edge.class, Members.values());
+        super.fieldsToJSONString(stringer, MarkovEdge.class, Members.values());
     }
 
     public void fromJSONObjectImpl(JSONObject object, Database catalog_db) throws JSONException {
         super.fromJSONObjectImpl(object, catalog_db);
-        super.fieldsFromJSONObject(object, catalog_db, Edge.class, Members.values());
+        super.fieldsFromJSONObject(object, catalog_db, MarkovEdge.class, Members.values());
     }
 
 }

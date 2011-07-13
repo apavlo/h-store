@@ -134,7 +134,7 @@ public class MemoryEstimator {
         if (table_stats.tuple_size_total == 0) {
             LOG.warn(this.stats.debug(CatalogUtil.getDatabase(catalog_tbl)));
         }
-        assert(table_stats.tuple_size_total != 0) : catalog_tbl;
+        assert(table_stats.tuple_size_total != 0) : "Size estimate for " + catalog_tbl + " is zero!";
         
         Column catalog_col = null;
         if (catalog_tbl.getIsreplicated()) {

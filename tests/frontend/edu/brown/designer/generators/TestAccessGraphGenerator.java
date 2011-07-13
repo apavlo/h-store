@@ -20,8 +20,8 @@ import edu.brown.BaseTestCase;
 import edu.brown.designer.AccessGraph;
 import edu.brown.designer.ColumnSet;
 import edu.brown.designer.DesignerInfo;
-import edu.brown.designer.Edge;
-import edu.brown.designer.Vertex;
+import edu.brown.designer.DesignerEdge;
+import edu.brown.designer.DesignerVertex;
 import edu.brown.designer.AccessGraph.EdgeAttributes;
 import edu.brown.statistics.Histogram;
 import edu.brown.utils.ProjectType;
@@ -93,20 +93,20 @@ public class TestAccessGraphGenerator extends BaseTestCase {
         
         // Make sure that there is at least one edge between DISTRICT and all other tables
         Table target = this.getTable("DISTRICT");
-        Vertex v0 = agraph.getVertex(target);
+        DesignerVertex v0 = agraph.getVertex(target);
         assertNotNull(v0);
         
         String expected[] = { "ORDER_LINE", "STOCK" };
         for (String tbl_name : expected) {
             Table catalog_tbl = this.getTable(tbl_name);
-            Vertex v1 = agraph.getVertex(catalog_tbl);
+            DesignerVertex v1 = agraph.getVertex(catalog_tbl);
             assertNotNull(v1);
             
-            Collection<Edge> edges =  agraph.findEdgeSet(v0, v1);
+            Collection<DesignerEdge> edges =  agraph.findEdgeSet(v0, v1);
             assertNotNull(edges);
             assertFalse(edges.isEmpty());
             
-            for (Edge e : edges) {
+            for (DesignerEdge e : edges) {
                 ColumnSet cset = e.getAttribute(EdgeAttributes.COLUMNSET);
                 assertNotNull(cset);
                 assertEquals(cset.toString(), 1, cset.size());
@@ -138,9 +138,9 @@ public class TestAccessGraphGenerator extends BaseTestCase {
         Table catalog_tbl = this.getTable("STOCK");
         Column catalog_col = this.getColumn(catalog_tbl, "S_W_ID");
         
-        Vertex v = agraph.getVertex(catalog_tbl);
+        DesignerVertex v = agraph.getVertex(catalog_tbl);
         assertNotNull(v);
-        Collection<Edge> edges = agraph.findEdgeSet(v, catalog_col);
+        Collection<DesignerEdge> edges = agraph.findEdgeSet(v, catalog_col);
         assertNotNull(edges);
         assert(agraph.getEdgeCount() != edges.size());
     }
@@ -156,14 +156,14 @@ public class TestAccessGraphGenerator extends BaseTestCase {
         new AccessGraphGenerator(this.info, this.catalog_proc).generate(agraph1);
         
         // Make sure that all of the weights are the same
-        for (Edge e0 : agraph0.getEdges()) {
-            List<Vertex> vertices0 = new ArrayList<Vertex>(agraph0.getIncidentVertices(e0));
-            Vertex v1_0  = agraph1.getVertex(vertices0.get(0).getCatalogKey());
+        for (DesignerEdge e0 : agraph0.getEdges()) {
+            List<DesignerVertex> vertices0 = new ArrayList<DesignerVertex>(agraph0.getIncidentVertices(e0));
+            DesignerVertex v1_0  = agraph1.getVertex(vertices0.get(0).getCatalogKey());
             assertNotNull("Missing vertex " + vertices0.get(0), v1_0);
-            Vertex v1_1  = agraph1.getVertex(vertices0.get(1).getCatalogKey());
+            DesignerVertex v1_1  = agraph1.getVertex(vertices0.get(1).getCatalogKey());
             assertNotNull("Missing vertex " + vertices0.get(1), v1_1);
             
-            Edge e1 = agraph1.findEdge(v1_0, v1_1);
+            DesignerEdge e1 = agraph1.findEdge(v1_0, v1_1);
             assertNotNull("Missing edge " + e0, e1);
             
             assertEquals(e0.getIntervalCount(), e1.getIntervalCount());
@@ -188,14 +188,14 @@ public class TestAccessGraphGenerator extends BaseTestCase {
         
         // Make sure that there is an edge between STOCK and ORDER_LINE
         Table tbl0 = this.getTable("STOCK"); 
-        Vertex v0 = this.agraph.getVertex(tbl0); 
+        DesignerVertex v0 = this.agraph.getVertex(tbl0); 
         assertNotNull(v0);
         
         Table tbl1 = this.getTable("ORDER_LINE"); 
-        Vertex v1 = this.agraph.getVertex(tbl1);
+        DesignerVertex v1 = this.agraph.getVertex(tbl1);
         assertNotNull(v1);
         
-        Edge edge = this.agraph.findEdge(v0, v1);
+        DesignerEdge edge = this.agraph.findEdge(v0, v1);
         assertNotNull("No edge exists between " + tbl0 + " and " + tbl1, edge);
     }
     
@@ -227,13 +227,13 @@ public class TestAccessGraphGenerator extends BaseTestCase {
         String tables[] = { "ORDER_LINE", "DISTRICT", "STOCK" };
         for (int i = 0; i < tables.length; i++) {
             Table t0 = this.getTable(tables[i]);
-            Vertex v0 = agraph.getVertex(t0);
+            DesignerVertex v0 = agraph.getVertex(t0);
             assertNotNull(v0);            
             
             for (int ii = i + 1; ii < tables.length; ii++) {
                 Table t1 = this.getTable(tables[ii]);
                 assertNotSame(t0, t1);
-                Vertex v1 = agraph.getVertex(t1);
+                DesignerVertex v1 = agraph.getVertex(t1);
                 assertNotNull(v1);
                 assertNotNull(agraph.findEdge(v0, v1));
             } // FOR

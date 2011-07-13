@@ -59,15 +59,14 @@ public final class CatalogMap<T extends CatalogType> implements Iterable<T>, Col
         return (m_cls);
     }
     
-    /**
-     * Returns an array containing all of the elements in this collection;
-     * the runtime type of the returned array is that of the specified array.
-     * If the collection fits in the specified array, it is returned therein.
-     * Otherwise, a new array is allocated with the runtime type of the
-     * specified array and the size of this collection.
-     */
+    @Override
     public <X> X[] toArray(X[] a) {
         return (m_items.values().toArray(a));
+    }
+    
+    @Override
+    public Object[] toArray() {
+        return (m_items.values().toArray());
     }
     
     /**
@@ -344,11 +343,5 @@ public final class CatalogMap<T extends CatalogType> implements Iterable<T>, Col
     public boolean retainAll(Collection<?> c) {
         // TODO Auto-generated method stub
         return false;
-    }
-
-    @Override
-    public Object[] toArray() {
-        // TODO Auto-generated method stub
-        return null;
     }
 }

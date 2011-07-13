@@ -5,13 +5,13 @@ import org.voltdb.catalog.CatalogType;
 import edu.brown.graphs.AbstractVertex;
 import edu.brown.graphs.IGraph;
 
-public class Vertex extends AbstractVertex {
+public class DesignerVertex extends AbstractVertex {
 
-    public Vertex() {
+    public DesignerVertex() {
         super();
     }
     
-    public Vertex(CatalogType catalog_item) {
+    public DesignerVertex(CatalogType catalog_item) {
         super(catalog_item);
     }
     
@@ -20,7 +20,7 @@ public class Vertex extends AbstractVertex {
      * @param graph
      * @param copy
      */
-    public Vertex(IGraph<Vertex, Edge> graph, AbstractVertex copy) {
+    public DesignerVertex(IGraph<DesignerVertex, DesignerEdge> graph, AbstractVertex copy) {
         super(graph, copy);
     }
 }

@@ -15,9 +15,9 @@ import org.voltdb.catalog.*;
 import org.voltdb.types.ExpressionType;
 
 import edu.brown.designer.DependencyGraph;
-import edu.brown.designer.Edge;
+import edu.brown.designer.DesignerEdge;
 import edu.brown.designer.MemoryEstimator;
-import edu.brown.designer.Vertex;
+import edu.brown.designer.DesignerVertex;
 import edu.brown.graphs.VertexTreeWalker;
 import edu.brown.graphs.VertexTreeWalker.TraverseOrder;
 import edu.brown.utils.ArgumentsParser;
@@ -184,16 +184,16 @@ public abstract class AbstractTableStatisticsGenerator {
         DependencyGraph dgraph = new DependencyGraph(this.catalog_db);
         
         for (Table catalog_tbl : this.table_profiles.keySet()) {
-            dgraph.addVertex(new Vertex(catalog_tbl));
+            dgraph.addVertex(new DesignerVertex(catalog_tbl));
         } // FOR
         
         for (Entry<Table,TableProfile> e : this.table_profiles.entrySet()) {
             Table catalog_tbl = e.getKey();
             TableProfile profile = e.getValue();
-            Vertex v = dgraph.getVertex(catalog_tbl);
+            DesignerVertex v = dgraph.getVertex(catalog_tbl);
             
             for (Table other_tbl : profile.getDependentTables()) {
-                boolean ret = dgraph.addEdge(new Edge(dgraph), dgraph.getVertex(other_tbl), v, EdgeType.DIRECTED);
+                boolean ret = dgraph.addEdge(new DesignerEdge(dgraph), dgraph.getVertex(other_tbl), v, EdgeType.DIRECTED);
                 assert(ret) : "Failed to add edge from " + other_tbl + " to " + catalog_tbl;
             } // FOR
         } // FOR
@@ -236,13 +236,13 @@ public abstract class AbstractTableStatisticsGenerator {
         } // FOR
         
         // Now traverse the DependencyGraph and generate the rest of the tables
-        for (Vertex root : dgraph.getRoots()) {
-            new VertexTreeWalker<Vertex, Edge>(dgraph, TraverseOrder.LONGEST_PATH) {
-                protected boolean hasVisited(Vertex element) {
+        for (DesignerVertex root : dgraph.getRoots()) {
+            new VertexTreeWalker<DesignerVertex, DesignerEdge>(dgraph, TraverseOrder.LONGEST_PATH) {
+                protected boolean hasVisited(DesignerVertex element) {
                     return (super.hasVisited(element) || stats.containsKey(element.getCatalogItem()));
                 };
                 
-                protected void callback(Vertex element) {
+                protected void callback(DesignerVertex element) {
                     if (stats.containsKey(element.getCatalogItem())) return;
                     Table catalog_tbl = element.getCatalogItem();
                     TableProfile profile = table_profiles.get(catalog_tbl);

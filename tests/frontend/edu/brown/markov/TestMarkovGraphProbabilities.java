@@ -76,7 +76,7 @@ public class TestMarkovGraphProbabilities extends BaseTestCase {
      */
     public void testVertexProbabilities() {
         // There should only be one query vertex and it should be marked as single-partitioned
-        Vertex v = markov.getVertex(catalog_stmt);
+        MarkovVertex v = markov.getVertex(catalog_stmt);
         assertNotNull(v);
         
         System.err.println(v.debug());

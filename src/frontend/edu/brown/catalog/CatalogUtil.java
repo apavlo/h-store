@@ -1771,6 +1771,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
     }
 
     public static String debug(Collection<? extends CatalogType> items) {
+        if (items == null) return (null);
         String ret = "";
         String add = "";
         for (CatalogType item : items) {

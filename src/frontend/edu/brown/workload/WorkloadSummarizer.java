@@ -27,6 +27,7 @@ import edu.brown.catalog.QueryPlanUtil;
 import edu.brown.correlations.Correlation;
 import edu.brown.correlations.ParameterCorrelations;
 import edu.brown.hashing.AbstractHasher;
+import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.PartitionEstimator;
 
@@ -288,6 +289,20 @@ public class WorkloadSummarizer {
                                workload.getTransactionCount(), workload.getQueryCount(),
                                new_workload.getTransactionCount(), new_workload.getQueryCount()));
         return (new_workload);
+    }
+    
+    public static void main(String[] vargs) throws Exception {
+        ArgumentsParser args = ArgumentsParser.load(vargs);
+        args.require(
+            ArgumentsParser.PARAM_CATALOG,
+            ArgumentsParser.PARAM_WORKLOAD,
+            ArgumentsParser.PARAM_CORRELATIONS
+        );
+        
+        PartitionEstimator p_estimator = new PartitionEstimator(args.catalog_db);
+        WorkloadSummarizer ws = new WorkloadSummarizer(args.catalog_db, p_estimator, args.param_correlations);
+        Workload new_workload = ws.process(args.workload);
+        assert(new_workload != null);
     }
     
 }

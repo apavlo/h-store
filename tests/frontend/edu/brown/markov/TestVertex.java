@@ -15,7 +15,7 @@ import edu.brown.benchmark.tm1.procedures.GetNewDestination;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.graphs.AbstractVertex;
 import edu.brown.graphs.GraphvizExport;
-import edu.brown.markov.Vertex.Type;
+import edu.brown.markov.MarkovVertex.Type;
 import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.FileUtil;
@@ -28,9 +28,9 @@ public class TestVertex extends BaseTestCase {
     private static final double EPSILON = 0.00001;
     Workload g;
     MarkovGraph graph;
-    Vertex commit;
-    Vertex abort;
-    Vertex start;
+    MarkovVertex commit;
+    MarkovVertex abort;
+    MarkovVertex start;
     
     final Integer[][] partitions = {
             { 2, 4 },
@@ -52,9 +52,9 @@ public class TestVertex extends BaseTestCase {
             false,
             true,
     };
-    final Vertex[] vertices = new Vertex[this.partitions.length];
+    final MarkovVertex[] vertices = new MarkovVertex[this.partitions.length];
 
-    private HashSet<Vertex> stopSet;
+    private HashSet<MarkovVertex> stopSet;
 
     @Before
     public void setUp() throws Exception {
@@ -70,7 +70,7 @@ public class TestVertex extends BaseTestCase {
             if (!instance_ctr.containsKey(catalog_stmt)) {
                 instance_ctr.put(catalog_stmt, new AtomicInteger(0));
             }
-            this.vertices[i] = new Vertex(catalog_stmt, Vertex.Type.QUERY, instance_ctr.get(catalog_stmt).getAndIncrement(),
+            this.vertices[i] = new MarkovVertex(catalog_stmt, MarkovVertex.Type.QUERY, instance_ctr.get(catalog_stmt).getAndIncrement(),
                                           Arrays.asList(this.partitions[i]), new HashSet<Integer>());
         } // FOR
         
@@ -80,7 +80,7 @@ public class TestVertex extends BaseTestCase {
         commit = graph.getCommitVertex();
         abort = graph.getAbortVertex();
 
-        for (Vertex v : vertices) {
+        for (MarkovVertex v : vertices) {
             graph.addVertex(v);
         }
         for (int i = 0; i < 10; i++) {
@@ -111,7 +111,7 @@ public class TestVertex extends BaseTestCase {
         
         // System.out.println(GraphvizExport.export(graph, "markov"));
         
-        stopSet = new HashSet<Vertex>();
+        stopSet = new HashSet<MarkovVertex>();
         stopSet.add(graph.getCommitVertex());
 
     }
@@ -131,11 +131,11 @@ public class TestVertex extends BaseTestCase {
      */
     @Test
     public void testIsEqual() throws Exception {
-        Vertex v0 = this.vertices[0];
+        MarkovVertex v0 = this.vertices[0];
         assertNotNull(v0);
         v0.getPastPartitions().add(1);
         
-        Vertex v1 = this.vertices[1];
+        MarkovVertex v1 = this.vertices[1];
         assertNotNull(v1);
         v1.getPastPartitions().add(2);
         
@@ -154,7 +154,7 @@ public class TestVertex extends BaseTestCase {
             assertFalse(past_partitions.isEmpty());
             assert(query_index >= 0);
 
-            Vertex new_v = new Vertex((Statement)this.vertices[i].getCatalogItem(),
+            MarkovVertex new_v = new MarkovVertex((Statement)this.vertices[i].getCatalogItem(),
                     this.vertices[i].getType(),
                     this.vertices[i].getQueryInstanceIndex(),
                     new HashSet<Integer>(this.vertices[i].getPartitions()),
@@ -184,10 +184,10 @@ public class TestVertex extends BaseTestCase {
             base_keys.add(m.name());
         } // FOR
         
-        for (Vertex v : vertices) {
+        for (MarkovVertex v : vertices) {
             String json = v.toJSONString();
             Set<String> expected_keys = new HashSet<String>();
-            for (Vertex.Members m : Vertex.Members.values()) {
+            for (MarkovVertex.Members m : MarkovVertex.Members.values()) {
                 assert(json.contains(m.name()));
                 expected_keys.add(m.name());
             } // FOR
@@ -214,7 +214,7 @@ public class TestVertex extends BaseTestCase {
     public void testResetAllProbabilities() {
         Procedure catalog_proc = this.getProcedure(GetNewDestination.class);
         Statement catalog_stmt = this.getStatement(catalog_proc, "GetData");
-        Vertex v = new Vertex(catalog_stmt, Type.QUERY, 0, CatalogUtil.getAllPartitionIds(catalog_stmt), new HashSet<Integer>());
+        MarkovVertex v = new MarkovVertex(catalog_stmt, Type.QUERY, 0, CatalogUtil.getAllPartitionIds(catalog_stmt), new HashSet<Integer>());
         
         // System.err.println(start.debug());
         

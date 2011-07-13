@@ -9,12 +9,12 @@ import edu.brown.statistics.Histogram;
 /**
  * @author pavlo
  */
-public class TestEntropyUtil extends BaseTestCase {
+public class TestSkewFactorUtil extends BaseTestCase {
 
     private static final int NUM_PARTITIONS = 300;
     private static final int QUERIES_PER_PARTITION = 1000;
     
-    private final Random rand = new Random(0);
+    private final Random rand = new Random(100);
     
     /**
      * testPartitionCounts
@@ -29,12 +29,12 @@ public class TestEntropyUtil extends BaseTestCase {
                 h.put(i, count);
             } // FOR
             
-            // Just check that it's slightly higher than the best entropy value
-            double entropy = EntropyUtil.calculateEntropy(num_partitions, h.getSampleCount(), h);
-//            System.err.println(String.format("[%03d] %.05f", num_partitions, entropy));
+            // Just check that it's slightly higher than the best skew value
+            double skew = SkewFactorUtil.calculateSkew(num_partitions, h.getSampleCount(), h);
+//            System.err.println(String.format("[%03d] %.05f", num_partitions, skew));
 //            System.err.println(h);
-            assert(entropy < 0.1) : "Invalid entropy value " + entropy;
-            assert(entropy > 0.0) : "Invalid entropy value " + entropy;
+            assert(skew < 0.1) : "Invalid skew value " + skew;
+            assert(skew > 0.0) : "Invalid skew value " + skew;
         }
     }
     
@@ -48,15 +48,15 @@ public class TestEntropyUtil extends BaseTestCase {
         for (int i = 0; i < NUM_PARTITIONS; i++) {
             h.put(i, QUERIES_PER_PARTITION);
         }
-        double base_entropy = EntropyUtil.calculateEntropy(NUM_PARTITIONS, h.getSampleCount(), h);
+        double base_skew = SkewFactorUtil.calculateSkew(NUM_PARTITIONS, h.getSampleCount(), h);
         
         h.remove(0, QUERIES_PER_PARTITION);
-        double entropy = EntropyUtil.calculateEntropy(NUM_PARTITIONS, h.getSampleCount(), h);
-        assert(base_entropy < entropy) : "Invalid entropy value " + entropy;
+        double skew = SkewFactorUtil.calculateSkew(NUM_PARTITIONS, h.getSampleCount(), h);
+        assert(base_skew < skew) : "Invalid skew value " + skew;
 
         h.put(0, QUERIES_PER_PARTITION * 3);
-        entropy = EntropyUtil.calculateEntropy(NUM_PARTITIONS, h.getSampleCount(), h);
-        assert(base_entropy < entropy) : "Invalid entropy value " + entropy;
+        skew = SkewFactorUtil.calculateSkew(NUM_PARTITIONS, h.getSampleCount(), h);
+        assert(base_skew < skew) : "Invalid skew value " + skew;
     }
     
     /**
@@ -72,21 +72,21 @@ public class TestEntropyUtil extends BaseTestCase {
 //        System.err.println(h);
         
         double expected = 0.40d;
-        double entropy = EntropyUtil.calculateEntropy(NUM_PARTITIONS, h.getSampleCount(), h);
-//        System.err.println("entropy = " + entropy);
-        assert(entropy < 1.0) : "Invalid entropy value " + entropy;
-        assert(entropy >= expected) : "Invalid entropy value " + entropy;
+        double skew = SkewFactorUtil.calculateSkew(NUM_PARTITIONS, h.getSampleCount(), h);
+//        System.err.println("skew = " + skew);
+        assert(skew < 1.0) : "Invalid skew value " + skew;
+        assert(skew >= expected) : "Invalid skew value " + skew;
     }
     
     /**
-     * testCalculateEntropyZipf
+     * testCalculateSkewZipf
      */
-    public void testCalculateEntropyZipf() throws Exception {
+    public void testCalculateSkewZipf() throws Exception {
         int rounds = 5;
         Double last = null;
         double sigma = 1.0000001d;
         
-        // For each round, increase the sigma value. We are checking that our entropy value
+        // For each round, increase the sigma value. We are checking that our skew value
         // gets worse as the distribution of the histogram gets more skewed
         while (--rounds > 0) {
             Histogram<Integer> h = new Histogram<Integer>();
@@ -95,41 +95,41 @@ public class TestEntropyUtil extends BaseTestCase {
                 h.put(zipf.nextInt());
             } // FOR
 
-            double entropy = EntropyUtil.calculateEntropy(NUM_PARTITIONS, h.getSampleCount(), h);
-            assert(entropy >= 0.0) : "Invalid entropy value " + entropy;
-            assert(entropy <= 1.0) : "Invalid entropy value " + entropy;
-            if (last != null) assert(last < entropy) : last + " < " + entropy;
-            last = entropy;
+            double skew = SkewFactorUtil.calculateSkew(NUM_PARTITIONS, h.getSampleCount(), h);
+            assert(skew >= 0.0) : "Invalid skew value " + skew;
+            assert(skew <= 1.0) : "Invalid skew value " + skew;
+            if (last != null) assert(last < skew) : last + " < " + skew;
+            last = skew;
             sigma += 1d;
 //            System.err.println(h);
-//            System.err.println("[" + sigma + "] Entropy: " + entropy);
+//            System.err.println("[" + sigma + "] skew: " + skew);
 //            System.err.println("-------------------------------------");
         } // WHILE
     }
     
     /**
-     * testCalculateEntropyBest
+     * testCalculateSkewBest
      */
-    public void testCalculateEntropyBest() throws Exception {
+    public void testCalculateSkewBest() throws Exception {
         Histogram<Integer> h = new Histogram<Integer>();
         int num_queries = NUM_PARTITIONS * QUERIES_PER_PARTITION;
         for (int partition = 0; partition < NUM_PARTITIONS; partition++) {
             h.put(partition, QUERIES_PER_PARTITION);
         } // FOR
-        double entropy = EntropyUtil.calculateEntropy(NUM_PARTITIONS, num_queries, h);
-        assertEquals("Invalid entropy value " + entropy, 0.0, entropy);
+        double skew = SkewFactorUtil.calculateSkew(NUM_PARTITIONS, num_queries, h);
+        assertEquals("Invalid skew value " + skew, 0.0, skew);
     }
     
     /**
-     * testCalculateEntropyWorst
+     * testCalculateSkewWorst
      */
-    public void testCalculateEntropyWorst() throws Exception {
+    public void testCalculateSkewWorst() throws Exception {
         Histogram<Integer> h = new Histogram<Integer>();
         int num_queries = QUERIES_PER_PARTITION;
         for (int partition = 0; partition < NUM_PARTITIONS; partition++) {
             h.put(partition, (partition == 0 ? QUERIES_PER_PARTITION : 0));
         } // FOR
-        double entropy = EntropyUtil.calculateEntropy(NUM_PARTITIONS, num_queries, h);
-        assertEquals("Invalid entropy value " + entropy, 1.0, entropy);
+        double skew = SkewFactorUtil.calculateSkew(NUM_PARTITIONS, num_queries, h);
+        assertEquals("Invalid skew value " + skew, 1.0, skew, 0.000001);
     }
 }

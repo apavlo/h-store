@@ -5,6 +5,8 @@ package edu.brown.designer.generators;
 
 import java.io.File;
 import java.util.Collection;
+import java.util.HashSet;
+import java.util.Set;
 
 import org.voltdb.benchmark.tpcc.procedures.paymentByCustomerId;
 import org.voltdb.catalog.Procedure;
@@ -15,13 +17,14 @@ import edu.brown.BaseTestCase;
 import edu.brown.designer.AccessGraph;
 import edu.brown.designer.ColumnSet;
 import edu.brown.designer.DesignerInfo;
-import edu.brown.designer.Edge;
-import edu.brown.designer.Vertex;
+import edu.brown.designer.DesignerEdge;
+import edu.brown.designer.DesignerVertex;
 import edu.brown.designer.AccessGraph.EdgeAttributes;
 import edu.brown.graphs.GraphvizExport;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.FileUtil;
 import edu.brown.utils.ProjectType;
+import edu.brown.utils.StringUtil;
 import edu.brown.workload.Workload;
 import edu.brown.workload.filters.ProcedureLimitFilter;
 import edu.brown.workload.filters.ProcedureNameFilter;
@@ -82,12 +85,33 @@ public class TestAccessGraphGenerator2 extends BaseTestCase {
         
         // Make sure it has a vertex for HISTORY
         Table catalog_tbl = this.getTable("HISTORY");
-        Vertex v = agraph.getVertex(catalog_tbl);
+        DesignerVertex v = agraph.getVertex(catalog_tbl);
         assertNotNull(v);
         
         // And make sure that it has edges
-        Collection<Edge> edges = agraph.getIncidentEdges(v); 
+        agraph.setVerbose(true);
+        Collection<DesignerEdge> edges = agraph.getIncidentEdges(v); 
         assertFalse(edges.isEmpty());
+        
+        Set<Table> expected = new HashSet<Table>();
+        CollectionUtil.addAll(expected, this.getTable("WAREHOUSE"),
+                                        this.getTable("DISTRICT"),
+                                        this.getTable("CUSTOMER"));
+        Set<Table> actual = new HashSet<Table>();
+        for (DesignerEdge e : edges) {
+            DesignerVertex other_v = agraph.getOpposite(v, e);
+            assertNotNull(other_v);
+            Table other_tbl = other_v.getCatalogItem();
+            assertNotNull(other_tbl);
+            if (other_tbl.equals(catalog_tbl)) {
+                assertEquals(v, other_v);
+            } else {
+                assert(expected.contains(other_tbl)) : other_tbl;
+                actual.add(other_tbl);
+            }
+        } // FOR
+        assertEquals(expected, actual);
+        // System.err.println(StringUtil.join("\n", edges));
     }
     
     /**
@@ -107,14 +131,14 @@ public class TestAccessGraphGenerator2 extends BaseTestCase {
         for (Table catalog_tbl : catalog_db.getTables()) {
             if (catalog_tbl.getName().equalsIgnoreCase("CUSTOMER_NAME") ||
                 catalog_tbl.getName().equalsIgnoreCase("HISTORY")) continue;
-            Vertex v = single_agraph.getVertex(catalog_tbl);
+            DesignerVertex v = single_agraph.getVertex(catalog_tbl);
             assertNotNull(catalog_tbl.getName(), v);
             System.err.println(catalog_tbl + ": " + v);
         } // FOR
         
         // Make a new ColumnSet that combines all the ColumnSets of all edges in the original AccessGraph
-        Vertex v0, v1;
-        Collection<Edge> edges;
+        DesignerVertex v0, v1;
+        Collection<DesignerEdge> edges;
         boolean found = false;
         for (Table catalog_tbl0 : catalog_db.getTables()) {
             try {
@@ -137,7 +161,7 @@ public class TestAccessGraphGenerator2 extends BaseTestCase {
                     continue;
                 }
                 found = true;
-                for (Edge e : edges) {
+                for (DesignerEdge e : edges) {
                     ColumnSet e_cset = e.getAttribute(EdgeAttributes.COLUMNSET);
                     assertNotNull(e_cset);
                     global_cset.addAll(e_cset);
@@ -146,7 +170,7 @@ public class TestAccessGraphGenerator2 extends BaseTestCase {
                 
                 // Now check to make sure that there are no edges that have some funky ColumnSet entry that
                 // wasn't in our original graph
-                for (Edge e : single_agraph.findEdgeSet(v0, v1)) {
+                for (DesignerEdge e : single_agraph.findEdgeSet(v0, v1)) {
                     ColumnSet e_cset = e.getAttribute(EdgeAttributes.COLUMNSET);
                     assertNotNull(e_cset);
                     assertEquals(e_cset.toString(), 1, e_cset.size());
@@ -201,12 +225,12 @@ public class TestAccessGraphGenerator2 extends BaseTestCase {
         this.generator.generate(agraph);
         for (int i = 0, cnt = expected.length; i < cnt; i++) {
             Pair<Table, Table> search = expected[i];
-            Vertex v0 = agraph.getVertex(search.getFirst());
+            DesignerVertex v0 = agraph.getVertex(search.getFirst());
             assertNotNull("[" + i + "]: " + search.toString(), v0);
-            Vertex v1 = agraph.getVertex(search.getSecond());
+            DesignerVertex v1 = agraph.getVertex(search.getSecond());
             assertNotNull("[" + i + "]: " + search.toString(), v1);
 
-            Edge found = agraph.findEdge(v0, v1);
+            DesignerEdge found = agraph.findEdge(v0, v1);
             assertNotNull("[" + i + "]: " + search.toString() + "\n", found);
 //            System.err.println("REMOVED: " + search + " [" + found + "]");
             agraph.removeEdge(found);

@@ -78,11 +78,17 @@ public class InnerGraphInformation<V extends AbstractVertex, E extends AbstractE
      * @param verbose
      */
     public void setVerbose(boolean verbose) {
-        for (V v : this.graph.getVertices()) {
-            v.setVerbose(verbose);
-        } // FOR
+        this.setEdgeVerbose(verbose);
+        this.setVertexVerbose(verbose);
+    }
+    public void setEdgeVerbose(boolean verbose) {
         for (E e : this.graph.getEdges()) {
             e.setVerbose(verbose);
+        } // FOR
+    }
+    public void setVertexVerbose(boolean verbose) {
+        for (V v : this.graph.getVertices()) {
+            v.setVerbose(verbose);
         } // FOR
     }
     

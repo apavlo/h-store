@@ -124,7 +124,7 @@ public class TestSingleSitedCostModel extends BaseTestCase {
         TransactionTrace multip_txn = this.getMultiPartitionTransaction();
         Procedure catalog_proc = multip_txn.getCatalogItem(catalog_db);
         for (int i = 0; i < num_txns; i++) {
-            TransactionTrace clone = multip_txn.clone();
+            TransactionTrace clone = (TransactionTrace)multip_txn.clone();
             clone.setTransactionId(i);
             new_workload.addTransaction(catalog_proc, clone);
         } // FOR
@@ -154,7 +154,7 @@ public class TestSingleSitedCostModel extends BaseTestCase {
         // but this time it only has one but with a transaction weight
         // We should get back the exact same cost
         new_workload = new Workload(catalog);
-        TransactionTrace clone = multip_txn.clone();
+        TransactionTrace clone = (TransactionTrace)multip_txn.clone();
         clone.setTransactionId(1000);
         clone.setWeight(num_txns);
         new_workload.addTransaction(catalog_proc, clone);
@@ -188,11 +188,11 @@ public class TestSingleSitedCostModel extends BaseTestCase {
         TransactionTrace multip_txn = this.getMultiPartitionTransaction();
         Procedure catalog_proc = multip_txn.getCatalogItem(catalog_db);
         
-        final TransactionTrace orig_txn = multip_txn.clone();
+        final TransactionTrace orig_txn = (TransactionTrace)multip_txn.clone();
         List<QueryTrace> clone_queries = new ArrayList<QueryTrace>();
         for (int i = 0; i < num_dupes; i++) {
             for (QueryTrace query_trace : multip_txn.getQueries()) {
-                QueryTrace clone_query = query_trace.clone();
+                QueryTrace clone_query = (QueryTrace)query_trace.clone();
                 clone_queries.add(clone_query);
             } // FOR
         } // FOR
@@ -215,10 +215,10 @@ public class TestSingleSitedCostModel extends BaseTestCase {
         // but this time it only has one but with a transaction weight
         // We should get back the exact same cost
         new_workload = new Workload(catalog);
-        final TransactionTrace new_txn = multip_txn.clone();
+        final TransactionTrace new_txn = (TransactionTrace)multip_txn.clone();
         clone_queries = new ArrayList<QueryTrace>();
         for (QueryTrace query_trace : multip_txn.getQueries()) {
-            QueryTrace clone_query = query_trace.clone();
+            QueryTrace clone_query = (QueryTrace)query_trace.clone();
             clone_query.setWeight(num_dupes);
             clone_queries.add(clone_query);
         } // FOR
@@ -269,7 +269,7 @@ public class TestSingleSitedCostModel extends BaseTestCase {
         int weight = 16;
         TransactionTrace multip_txn = this.getMultiPartitionTransaction();
         Procedure catalog_proc = multip_txn.getCatalogItem(catalog_db);
-        TransactionTrace clone = multip_txn.clone();
+        TransactionTrace clone = (TransactionTrace)multip_txn.clone();
         clone.setTransactionId(1000);
         clone.setWeight(weight);
         new_workload.addTransaction(catalog_proc, clone);
@@ -320,7 +320,7 @@ public class TestSingleSitedCostModel extends BaseTestCase {
         int weight = 6;
         TransactionTrace multip_txn = this.getMultiPartitionTransaction();
         Procedure catalog_proc = multip_txn.getCatalogItem(catalog_db);
-        TransactionTrace clone = multip_txn.clone();
+        TransactionTrace clone = (TransactionTrace)multip_txn.clone();
         clone.setTransactionId(1000);
         for (QueryTrace qt : clone.getQueries()) {
             qt.setWeight(weight);

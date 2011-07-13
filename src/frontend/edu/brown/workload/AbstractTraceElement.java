@@ -52,7 +52,7 @@ import edu.brown.catalog.CatalogUtil;
  */
 public abstract class AbstractTraceElement<T extends CatalogType> implements JSONString {
     /** java.util.logging logger. */
-    protected static final Logger LOG = Logger.getLogger(AbstractTraceElement.class.getName());
+    protected static final Logger LOG = Logger.getLogger(AbstractTraceElement.class);
     
     public enum Members {
         // Catalog Name
@@ -94,8 +94,8 @@ public abstract class AbstractTraceElement<T extends CatalogType> implements JSO
         this(catalog_item.getName(), params);
     }
     
-    public <X extends AbstractTraceElement<T>> X clone() {
-        X clone = this.cloneImpl();
+    public AbstractTraceElement<T> clone() {
+        AbstractTraceElement<T> clone = this.cloneImpl();
         clone.start_timestamp = this.start_timestamp;
         clone.stop_timestamp = this.stop_timestamp;
         clone.aborted = this.aborted;

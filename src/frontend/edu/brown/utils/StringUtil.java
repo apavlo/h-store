@@ -43,10 +43,12 @@ public abstract class StringUtil {
         for (int i = 0; i < strs.length; i++) {
             lines[i] = LINE_SPLIT.split(strs[i]);
             prefixes[i] = (i == 0 ? "" : " \u2503 ");
-            for (String line : lines[i]) {
-                max_length = Math.max(max_length, line.length());
-            } // FOR
-            max_lines = Math.max(max_lines, lines[i].length);
+            if (i+1 < strs.length) {
+                for (String line : lines[i]) {
+                    max_length = Math.max(max_length, line.length());
+                } // FOR
+                max_lines = Math.max(max_lines, lines[i].length);
+            }
         } // FOR
         
         String f = "%-" + max_length + "s";
@@ -135,11 +137,14 @@ public abstract class StringUtil {
             if (m == null) continue;
             Map<?, ?> keys = map_keys[i];
             
+            boolean first = true;
             for (Entry<?, ?> e : m.entrySet()) {
                 String k = keys.get(e.getKey()).toString();
                 String v = (e.getValue() != null ? e.getValue().toString() : "null");
                 if (upper) k = k.toUpperCase();
-                if (equalsDelimiter == false && k.trim().isEmpty() == false) k += ":";
+                if (first == false || (first && v.isEmpty() == false)) {
+                    if (equalsDelimiter == false && k.trim().isEmpty() == false) k += ":";
+                }
                 
                 // If the value is multiple lines, format them nicely!
                 String lines[] = LINE_SPLIT.split(v);
@@ -147,7 +152,8 @@ public abstract class StringUtil {
                     blocks[i].append(String.format(f, (line_i == 0 ? k : ""), lines[line_i]));
                     if (need_divider) max_value_size = Math.max(max_value_size, lines[line_i].length());
                 } // FOR
-                if (v.endsWith("\n")) blocks[i].append("\n"); 
+                if (v.endsWith("\n")) blocks[i].append("\n");
+                first = false;
             }
         } // FOR
         
@@ -363,11 +369,25 @@ public abstract class StringUtil {
      * @return
      */
     public static String join(String delimiter, Collection<?> items) {
-        if (items.isEmpty()) return ("");
-     
+        return (join("", delimiter, items));
+    }
+    
+    /**
+     * Python join() with optional prefix
+     * @param prefix
+     * @param delimiter
+     * @param items
+     * @return
+     */
+    public static String join(String prefix, String delimiter, Collection<?> items) {
+        if (items == null || items.isEmpty()) return ("");
+        if (prefix == null) prefix = "";
+        
         StringBuilder sb = new StringBuilder();
-        for (Object x : items)
+        for (Object x : items) {
+            if (prefix.isEmpty() == false) sb.append(prefix);
             sb.append(x != null ? x.toString() : x).append(delimiter);
+        }
         sb.delete(sb.length() - delimiter.length(), sb.length());
      
         return sb.toString();

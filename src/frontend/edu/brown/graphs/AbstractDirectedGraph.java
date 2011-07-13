@@ -65,6 +65,14 @@ public abstract class AbstractDirectedGraph<V extends AbstractVertex, E extends 
         this.inner.setVerbose(verbose);
     }
     @Override
+    public void setEdgeVerbose(boolean verbose) {
+        this.inner.setEdgeVerbose(verbose);
+    }
+    @Override
+    public void setVertexVerbose(boolean verbose) {
+        this.inner.setVertexVerbose(verbose);
+    }
+    @Override
     public void enableDirtyChecks() {
         this.inner.enableDirtyChecks();
     }
