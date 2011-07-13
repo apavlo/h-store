@@ -529,7 +529,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
         // return (CatalogUtil.getDatabase(clone_catalog));
 
         final Catalog clone_catalog = cloneBaseCatalog(catalog_db.getCatalog(),
-                new ArrayList<Class<? extends CatalogType>>());
+                                                       new ArrayList<Class<? extends CatalogType>>());
         Database clone_db = CatalogUtil.getDatabase(clone_catalog);
         assert (!catalog_db.equals(clone_db));
 
