@@ -30,8 +30,8 @@ public class AccessGraphGenerator extends AbstractGenerator<AccessGraph> {
     private static final boolean t = LOG.isTraceEnabled();
     
     private final Procedure catalog_proc;
-    private final Map<Statement, Set<Edge>> stmt_edge_xref = new HashMap<Statement, Set<Edge>>();
-    private final Map<Edge, Set<Set<Statement>>> multi_stmt_edge_xref = new HashMap<Edge, Set<Set<Statement>>>();
+    private final Map<Statement, Set<DesignerEdge>> stmt_edge_xref = new HashMap<Statement, Set<DesignerEdge>>();
+    private final Map<DesignerEdge, Set<Set<Statement>>> multi_stmt_edge_xref = new HashMap<DesignerEdge, Set<Set<Statement>>>();
     private final Set<Table> debug_tables = new HashSet<Table>();
     
     /**
@@ -77,19 +77,19 @@ public class AccessGraphGenerator extends AbstractGenerator<AccessGraph> {
     
     public static AccessGraph convertToSingleColumnEdges(Database catalog_db, AccessGraph orig_agraph) {
         AccessGraph agraph = new AccessGraph(catalog_db);
-        Map<ColumnSet.Entry, Edge> entry_edges = new HashMap<ColumnSet.Entry, Edge>();
+        Map<ColumnSet.Entry, DesignerEdge> entry_edges = new HashMap<ColumnSet.Entry, DesignerEdge>();
         
-        for (Vertex v : orig_agraph.getVertices()) {
+        for (DesignerVertex v : orig_agraph.getVertices()) {
             agraph.addVertex(v);
         } // FOR
         
-        for (Edge e : orig_agraph.getEdges()) {
+        for (DesignerEdge e : orig_agraph.getEdges()) {
             // Split up the ColumnSet into separate edges, one per entry
             ColumnSet cset = e.getAttribute(EdgeAttributes.COLUMNSET);
             assert(cset != null);
-            Collection<Vertex> vertices = orig_agraph.getIncidentVertices(e);
-            Vertex v0 = CollectionUtil.getFirst(vertices);
-            Vertex v1 = v0;
+            Collection<DesignerVertex> vertices = orig_agraph.getIncidentVertices(e);
+            DesignerVertex v0 = CollectionUtil.getFirst(vertices);
+            DesignerVertex v1 = v0;
             if (vertices.size() > 1) v1 = CollectionUtil.get(vertices, 1);
             assert(v1 != null);
             
@@ -101,11 +101,11 @@ public class AccessGraphGenerator extends AbstractGenerator<AccessGraph> {
             if (d) LOG.debug(String.format("%s <-> %s\n%s", v0, v1, cset));
             
             for (ColumnSet.Entry entry : cset) {
-                Edge new_e = entry_edges.get(entry);
+                DesignerEdge new_e = entry_edges.get(entry);
                 if (new_e == null) {
                     ColumnSet new_cset = new ColumnSet(cset.getStatements());
                     new_cset.add(entry);
-                    new_e = new Edge(agraph, e);
+                    new_e = new DesignerEdge(agraph, e);
                     new_e.setAttribute(EdgeAttributes.COLUMNSET, new_cset);
                     entry_edges.put(entry, new_e);
                     
@@ -259,7 +259,7 @@ public class AccessGraphGenerator extends AbstractGenerator<AccessGraph> {
      */
     protected void initialize(AccessGraph agraph) throws Exception {
         // Copy the vertices from the DependencyGraph into our graph
-        for (Vertex vertex : this.info.dgraph.getVertices()) {
+        for (DesignerVertex vertex : this.info.dgraph.getVertices()) {
             if (agraph.getVertex(vertex.getCatalogItem()) == null) agraph.addVertex(vertex);
         } // FOR
     }
@@ -298,7 +298,7 @@ public class AccessGraphGenerator extends AbstractGenerator<AccessGraph> {
             if (!cset.isEmpty()) {
                 if (debug_table) LOG.trace("Creating scan edge to " + table0 + " for " + catalog_stmt);
                 //if (debug) if (d) LOG.debug("Scan Column SET[" + table0.getName() + "]: " + cset.debug());
-                Vertex vertex = agraph.getVertex(table0);
+                DesignerVertex vertex = agraph.getVertex(table0);
                 AccessType atype = (catalog_stmt.getQuerytype() == QueryType.INSERT.getValue() ? AccessType.INSERT : AccessType.SCAN);
                 this.addEdge(agraph, atype, cset, vertex, vertex, catalog_stmt);
             }
@@ -337,13 +337,13 @@ public class AccessGraphGenerator extends AbstractGenerator<AccessGraph> {
             Set<Column> columns1 = new HashSet<Column>();
 
             if (this.stmt_edge_xref.containsKey(catalog_stmt0)) {
-                for (Edge edge : this.stmt_edge_xref.get(catalog_stmt0)) {
+                for (DesignerEdge edge : this.stmt_edge_xref.get(catalog_stmt0)) {
                     ColumnSet cset = (ColumnSet)edge.getAttribute(EdgeAttributes.COLUMNSET.name());
                     columns0.addAll(cset.findAllForOther(Column.class, param));
                 } // FOR
             }
             if (this.stmt_edge_xref.containsKey(catalog_stmt1)) {
-                for (Edge edge : this.stmt_edge_xref.get(catalog_stmt1)) {
+                for (DesignerEdge edge : this.stmt_edge_xref.get(catalog_stmt1)) {
                     ColumnSet cset = (ColumnSet)edge.getAttribute(EdgeAttributes.COLUMNSET.name());
                     columns1.addAll(cset.findAllForOther(Column.class, param));
                 } // FOR
@@ -411,8 +411,8 @@ public class AccessGraphGenerator extends AbstractGenerator<AccessGraph> {
         
         // Now create the edges between the vertices
         for (Pair<CatalogType, CatalogType> table_pair : table_csets.keySet()) {
-            Vertex vertex0 = agraph.getVertex((Table)table_pair.getFirst());
-            Vertex vertex1 = agraph.getVertex((Table)table_pair.getSecond());
+            DesignerVertex vertex0 = agraph.getVertex((Table)table_pair.getFirst());
+            DesignerVertex vertex1 = agraph.getVertex((Table)table_pair.getSecond());
             ColumnSet cset = table_csets.get(table_pair);
             
             if (t) {
@@ -421,7 +421,7 @@ public class AccessGraphGenerator extends AbstractGenerator<AccessGraph> {
                 LOG.trace("ColumnSet:\n" + cset.debug() + "\n");
             }
 
-            Edge edge = this.addEdge(agraph, AccessType.PARAM_JOIN, cset, vertex0, vertex1);
+            DesignerEdge edge = this.addEdge(agraph, AccessType.PARAM_JOIN, cset, vertex0, vertex1);
             if (!this.multi_stmt_edge_xref.containsKey(edge)) {
                 this.multi_stmt_edge_xref.put(edge, new HashSet<Set<Statement>>());
             }
@@ -445,9 +445,9 @@ public class AccessGraphGenerator extends AbstractGenerator<AccessGraph> {
      */
     protected void createImplicitEdges(AccessGraph agraph, Set<Table> proc_tables, Statement catalog_stmt0, Table catalog_tbl) throws Exception {
         // For each SCAN edge for this vertex, check whether the column has a foreign key
-        Vertex vertex = agraph.getVertex(catalog_tbl);
+        DesignerVertex vertex = agraph.getVertex(catalog_tbl);
         if (d) LOG.debug("Creating Implicit Edges for " + catalog_tbl);
-        for (Edge edge : agraph.getIncidentEdges(vertex, AccessGraph.EdgeAttributes.ACCESSTYPE.name(), AccessType.SCAN)) {
+        for (DesignerEdge edge : agraph.getIncidentEdges(vertex, AccessGraph.EdgeAttributes.ACCESSTYPE.name(), AccessType.SCAN)) {
             ColumnSet scan_cset = (ColumnSet)edge.getAttribute(AccessGraph.EdgeAttributes.COLUMNSET.name());
             if (t) LOG.trace("\tSCAN EDGE: " + edge); // + "\n" + scan_cset.debug());
             
@@ -488,10 +488,10 @@ public class AccessGraphGenerator extends AbstractGenerator<AccessGraph> {
             // Now for each table create an edge from our table to the table referenced in the foreign
             // key using all the columdns referenced by in the SCAN predicates
             for (Table catalog_fkey_tbl : fkey_column_xrefs.keySet()) {
-                Vertex other_vertex = agraph.getVertex(catalog_fkey_tbl);
+                DesignerVertex other_vertex = agraph.getVertex(catalog_fkey_tbl);
                 ColumnSet implicit_cset = fkey_column_xrefs.get(catalog_fkey_tbl);
                 if (t) LOG.trace("\t" + catalog_tbl + "->" + catalog_fkey_tbl + "\n" + implicit_cset.debug());
-                Collection<Edge> edges = agraph.findEdgeSet(vertex, other_vertex);
+                Collection<DesignerEdge> edges = agraph.findEdgeSet(vertex, other_vertex);
                 if (edges.isEmpty()) {
                     this.addEdge(agraph, AccessType.IMPLICIT_JOIN, implicit_cset, vertex, other_vertex, catalog_stmt0);
                 // Even though we don't need to create a new edge, we still need to know that
@@ -517,11 +517,11 @@ public class AccessGraphGenerator extends AbstractGenerator<AccessGraph> {
      * @param vertices
      * @param catalog_stmt
      */
-    protected Edge addEdge(AccessGraph agraph, AccessType access_type, ColumnSet cset, Vertex v0, Vertex v1, Statement... catalog_stmts) {
+    protected DesignerEdge addEdge(AccessGraph agraph, AccessType access_type, ColumnSet cset, DesignerVertex v0, DesignerVertex v1, Statement... catalog_stmts) {
         
         // Sort the vertices by their CatalogTypes
         if (v0.getCatalogItem().compareTo(v1.getCatalogItem()) > 0) {
-            Vertex temp = v0;
+            DesignerVertex temp = v0;
             v0 = v1;
             v1 = temp;
         }
@@ -538,9 +538,9 @@ public class AccessGraphGenerator extends AbstractGenerator<AccessGraph> {
         }
         
         // We need to first check whether we already have an edge representing this ColumnSet
-        Edge new_edge = null;
-        for (Edge edge : agraph.getEdges()) {
-            Collection<Vertex> vertices = agraph.getIncidentVertices(edge);
+        DesignerEdge new_edge = null;
+        for (DesignerEdge edge : agraph.getEdges()) {
+            Collection<DesignerVertex> vertices = agraph.getIncidentVertices(edge);
             ColumnSet other_cset = (ColumnSet)edge.getAttribute(EdgeAttributes.COLUMNSET.name());
             if (vertices.contains(v0) && vertices.contains(v1) && cset.equals(other_cset)) {
                 if (t) LOG.trace("FOUND DUPLICATE COLUMN SET: " + other_cset.debug() + "\n" + cset.toString() + "\n[" + edge.hashCode() + "] + " + cset.size() + " == " + other_cset.size() + "\n");
@@ -549,7 +549,7 @@ public class AccessGraphGenerator extends AbstractGenerator<AccessGraph> {
             }
         } // FOR
         if (new_edge == null) {
-            new_edge = new Edge(agraph);
+            new_edge = new DesignerEdge(agraph);
             new_edge.setAttribute(EdgeAttributes.ACCESSTYPE.name(), access_type);
             new_edge.setAttribute(EdgeAttributes.COLUMNSET.name(), cset);
             agraph.addEdge(new_edge, v0, v1, EdgeType.UNDIRECTED);
@@ -559,7 +559,7 @@ public class AccessGraphGenerator extends AbstractGenerator<AccessGraph> {
         if (catalog_stmts.length > 0) {
             for (Statement catalog_stmt : catalog_stmts) {
                 if (!this.stmt_edge_xref.containsKey(catalog_stmt)) {
-                    this.stmt_edge_xref.put(catalog_stmt, new HashSet<Edge>());
+                    this.stmt_edge_xref.put(catalog_stmt, new HashSet<DesignerEdge>());
                 }
                 this.stmt_edge_xref.get(catalog_stmt).add(new_edge);
             } // FOR
@@ -584,7 +584,7 @@ public class AccessGraphGenerator extends AbstractGenerator<AccessGraph> {
             if (!this.stmt_edge_xref.containsKey(catalog_stmt)) {
                 if (d) LOG.warn("Missing query '" + catalog_stmt.fullName() + "' in Statement-Edge Xref mapping");
             } else {
-                for (Edge edge : this.stmt_edge_xref.get(catalog_stmt)) {
+                for (DesignerEdge edge : this.stmt_edge_xref.get(catalog_stmt)) {
                     edge.addToWeight(time, 1d);
                 } // FOR
             }
@@ -593,7 +593,7 @@ public class AccessGraphGenerator extends AbstractGenerator<AccessGraph> {
         // Update the weights for any edges that required multiple statements to be
         // executed in order the edges to be updated
         Map<Statement, Integer> catalog_stmt_counts = xact.getStatementCounts(info.catalog_db);
-        for (Edge edge : this.multi_stmt_edge_xref.keySet()) {
+        for (DesignerEdge edge : this.multi_stmt_edge_xref.keySet()) {
             // For each edge in our list, there is a list of Statements that need to be executed
             // in order for the implicitly join to have occurred. Thus, we need to check whether
             // this transaction executed all the Statements. We keep the minimum count for each
@@ -616,8 +616,8 @@ public class AccessGraphGenerator extends AbstractGenerator<AccessGraph> {
      * @param agraph
      */
     protected void updateEdgeWeighModifiers(AccessGraph agraph) {
-        for (Edge edge : agraph.getEdges()) {
-            List<Vertex> vertices = new ArrayList<Vertex>(agraph.getIncidentVertices(edge));
+        for (DesignerEdge edge : agraph.getEdges()) {
+            List<DesignerVertex> vertices = new ArrayList<DesignerVertex>(agraph.getIncidentVertices(edge));
             AccessGraph.AccessType type = (AccessGraph.AccessType)edge.getAttribute(AccessGraph.EdgeAttributes.ACCESSTYPE.name());
             
             // Modifier
@@ -668,7 +668,7 @@ public class AccessGraphGenerator extends AbstractGenerator<AccessGraph> {
             assert(agraph != null);
             if (single) agraph = AccessGraphGenerator.convertToSingleColumnEdges(args.catalog_db, agraph);
             agraph.setVerbose(true);
-            GraphvizExport<Vertex, Edge> gv = new GraphvizExport<Vertex, Edge>(agraph);
+            GraphvizExport<DesignerVertex, DesignerEdge> gv = new GraphvizExport<DesignerVertex, DesignerEdge>(agraph);
             gv.setEdgeLabels(true);
             String path = "/tmp/" + args.catalog_type.toString().toLowerCase() + ".dot";
             FileUtil.writeStringToFile(path, gv.export(args.catalog_type.toString()));
@@ -683,7 +683,7 @@ public class AccessGraphGenerator extends AbstractGenerator<AccessGraph> {
                 gen.generate(agraph);
                 agraph.setVerbose(true);
                 
-                GraphvizExport<Vertex, Edge> gv = new GraphvizExport<Vertex, Edge>(agraph);
+                GraphvizExport<DesignerVertex, DesignerEdge> gv = new GraphvizExport<DesignerVertex, DesignerEdge>(agraph);
                 gv.setEdgeLabels(true);
                 String path = "/tmp/" + catalog_proc.getName() + ".dot";
                 FileUtil.writeStringToFile(path, gv.export(catalog_proc.getName()));

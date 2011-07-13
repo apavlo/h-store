@@ -30,6 +30,9 @@ public abstract class MathUtil {
     public static final boolean equals(float val0, float val1, float fudge) {
         return (Math.abs(val0 - val1) < fudge);
     }
+    public static final boolean equals(double val0, double val1, double fudge) {
+        return (Math.abs(val0 - val1) < fudge);
+    }
     
     public static final boolean greaterThanEquals(float val0, float val1, float fudge) {
         return (val0 > val1 || MathUtil.equals(val0, val1, fudge));
@@ -40,6 +43,9 @@ public abstract class MathUtil {
     }
     
     public static final boolean lessThanEquals(float val0, float val1, float fudge) {
+        return (val0 < val1 || MathUtil.equals(val0, val1, fudge));
+    }
+    public static final boolean lessThanEquals(double val0, double val1, double fudge) {
         return (val0 < val1 || MathUtil.equals(val0, val1, fudge));
     }
     

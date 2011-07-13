@@ -3,8 +3,6 @@ package edu.brown.designer.partitioners;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.LinkedList;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.Map.Entry;
@@ -23,10 +21,10 @@ import edu.brown.catalog.special.MultiColumn;
 import edu.brown.catalog.special.MultiProcParameter;
 import edu.brown.designer.AccessGraph;
 import edu.brown.designer.ColumnSet;
+import edu.brown.designer.DesignerEdge;
 import edu.brown.designer.DesignerHints;
 import edu.brown.designer.DesignerInfo;
-import edu.brown.designer.Edge;
-import edu.brown.designer.Vertex;
+import edu.brown.designer.DesignerVertex;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.StringUtil;
 
@@ -40,18 +38,16 @@ public class ConstraintPropagator {
     private final DesignerHints hints;
     private final AccessGraph agraph;
     
-    private final int num_tables;
     private final Map<CatalogType, Set<? extends CatalogType>> attributes = new HashMap<CatalogType, Set<? extends CatalogType>>();
-    private final Map<Vertex, Map<Edge, Column>> vertex_edge_col = new HashMap<Vertex, Map<Edge, Column>>();
+    private final Map<DesignerVertex, Map<DesignerEdge, Column>> vertex_edge_col = new HashMap<DesignerVertex, Map<DesignerEdge, Column>>();
     
     private final Map<Table, Set<Column>> multicolumns = new HashMap<Table, Set<Column>>();
     private final Map<Procedure, Set<ProcParameter>> multiparams = new HashMap<Procedure, Set<ProcParameter>>();
     
-    
     private final transient Set<CatalogType> isset = new HashSet<CatalogType>();
     private transient int isset_tables = 0;
     private transient int isset_procs = 0;
-    private final transient Set<Edge> marked_edges = new HashSet<Edge>();
+    private final transient Set<DesignerEdge> marked_edges = new HashSet<DesignerEdge>();
     
     public ConstraintPropagator(DesignerInfo info, DesignerHints hints, AccessGraph agraph) {
         this.catalog_db = info.catalog_db;
@@ -60,15 +56,15 @@ public class ConstraintPropagator {
         this.agraph = agraph;
         
         // Pre-populate which column we can get back for a given vertex+edge
-        Collection<Vertex> vertices = this.agraph.getVertices();
-        for (Vertex v : vertices) {
+        Collection<DesignerVertex> vertices = this.agraph.getVertices();
+        for (DesignerVertex v : vertices) {
             Table catalog_tbl = v.getCatalogItem();
             if (this.attributes.containsKey(catalog_tbl) == false) {
                 this.attributes.put(catalog_tbl, new HashSet<Column>());
             }
             
-            Map<Edge, Column> m = new HashMap<Edge, Column>();
-            for (Edge e : this.agraph.getIncidentEdges(v)) {
+            Map<DesignerEdge, Column> m = new HashMap<DesignerEdge, Column>();
+            for (DesignerEdge e : this.agraph.getIncidentEdges(v)) {
                 ColumnSet cset = e.getAttribute(AccessGraph.EdgeAttributes.COLUMNSET);
                 assert(cset != null);
                 Column catalog_col = CollectionUtil.getFirst(cset.findAllForParent(Column.class, catalog_tbl));
@@ -108,20 +104,17 @@ public class ConstraintPropagator {
                 } // FOR (entry)
             } // FOR (procedure)
         }
-        
-        
-        this.num_tables = this.catalog_db.getTables().size();
     }
     
     public AccessGraph getAccessGraph() {
         return (this.agraph);
     }
     
-    protected Map<Edge, Column> getEdgeColumns(Vertex v) {
+    protected Map<DesignerEdge, Column> getEdgeColumns(DesignerVertex v) {
         return (this.vertex_edge_col.get(v));
     }
     
-    protected boolean isMarked(Edge e) {
+    protected boolean isMarked(DesignerEdge e) {
         return (this.marked_edges.contains(e));
     }
 
@@ -146,21 +139,21 @@ public class ConstraintPropagator {
                 Column catalog_col = catalog_tbl.getPartitioncolumn();
                 assert(catalog_col != null);
                 
-                Vertex v0 = this.agraph.getVertex(catalog_tbl);
+                DesignerVertex v0 = this.agraph.getVertex(catalog_tbl);
                 if (v0 == null) throw new IllegalArgumentException("Missing vertex for " + catalog_tbl);
-                Collection<Edge> edges = this.agraph.findEdgeSet(v0, catalog_col);
+                Collection<DesignerEdge> edges = this.agraph.findEdgeSet(v0, catalog_col);
                 assert(edges != null);
-                Collection<Edge> all_edges = this.agraph.getIncidentEdges(v0);
+                Collection<DesignerEdge> all_edges = this.agraph.getIncidentEdges(v0);
                 assert(all_edges != null);
                 
                 if (t) LOG.trace(String.format("%s Edges:\nMATCHING EDGES\n%s\n===========\nALL EDGES\n%s",
                                  catalog_tbl.getName(), StringUtil.join("\n", edges), StringUtil.join("\n", all_edges)));
                 
                 // Look at v0's edges and mark any that are not in our list 
-                for (Edge e : all_edges) {
+                for (DesignerEdge e : all_edges) {
                     if (t) LOG.trace(String.format("Checking whether we can mark edge [%s]", StringUtil.join("--", this.agraph.getIncidentVertices(e))));
                     if (edges.contains(e) == false && this.marked_edges.contains(e) == false) {
-                        Vertex v1 = this.agraph.getOpposite(v0, e);
+                        DesignerVertex v1 = this.agraph.getOpposite(v0, e);
                         assert(v1 != null);
                         this.marked_edges.add(e);
                         if (t) LOG.trace("Marked edge " + e.toString(true) + " as ineligible for " + v1.getCatalogItem());
@@ -198,9 +191,9 @@ public class ConstraintPropagator {
         // ----------------------------------------------
         if (catalog_obj instanceof Table) {
             Table catalog_tbl = (Table)catalog_obj;
-            Vertex v = this.agraph.getVertex(catalog_tbl);
+            DesignerVertex v = this.agraph.getVertex(catalog_tbl);
             if (v == null) throw new IllegalArgumentException("Missing vertex for " + catalog_tbl);
-            Collection<Edge> edges = this.agraph.getIncidentEdges(v);
+            Collection<DesignerEdge> edges = this.agraph.getIncidentEdges(v);
             this.marked_edges.removeAll(edges);
             this.isset_tables--;
             
@@ -226,7 +219,7 @@ public class ConstraintPropagator {
      * @return
      */
     @SuppressWarnings("unchecked")
-    public <T extends CatalogType> Collection<T> getPossibleValues(CatalogType catalog_obj, Class<T> return_class) {
+    public <T extends CatalogType> Collection<T> getCandidateValues(CatalogType catalog_obj, Class<T> return_class) {
         Collection<T> ret = null;
         
         // ----------------------------------------------
@@ -234,17 +227,17 @@ public class ConstraintPropagator {
         // ----------------------------------------------
         if (catalog_obj instanceof Table) {
             Table catalog_tbl = (Table)catalog_obj;
-            Vertex v = this.agraph.getVertex(catalog_tbl);
+            DesignerVertex v = this.agraph.getVertex(catalog_tbl);
             if (v == null) {
                 throw new IllegalArgumentException("Missing vertex for " + catalog_tbl);
             }
             if (d) LOG.debug("Calculating possible values for " + catalog_tbl);
             
-            Map<Edge, Column> edge_cols = this.vertex_edge_col.get(v);
+            Map<DesignerEdge, Column> edge_cols = this.vertex_edge_col.get(v);
             assert(edge_cols != null);
             ret = (Set<T>)this.attributes.get(catalog_tbl);
             ret.clear();
-            for (Edge e : this.agraph.getIncidentEdges(v)) {
+            for (DesignerEdge e : this.agraph.getIncidentEdges(v)) {
                 if (this.marked_edges.contains(e)) continue;
                 Column catalog_col = edge_cols.get(e);
                 assert(catalog_col != null);
@@ -261,15 +254,15 @@ public class ConstraintPropagator {
         // ----------------------------------------------
         } else if (catalog_obj instanceof Procedure) {
             Procedure catalog_proc = (Procedure)catalog_obj;
-            List<String> attributes = null;
+            Set<String> proc_attributes = null;
             try {
-                attributes = AbstractPartitioner.generateProcParameterOrder(this.info, this.catalog_db, catalog_proc, this.hints);
+                proc_attributes = AbstractPartitioner.generateProcParameterOrder(this.info, this.catalog_db, catalog_proc, this.hints);
             } catch (Exception ex) {
                 throw new RuntimeException(ex);
             }
-            assert(attributes != null);
+            assert(proc_attributes != null);
             ret = (Set<T>)this.attributes.get(catalog_proc);
-            CatalogKey.getFromKeys(this.catalog_db, attributes, ProcParameter.class, (Set<ProcParameter>)ret);
+            CatalogKey.getFromKeys(this.catalog_db, proc_attributes, ProcParameter.class, (Set<ProcParameter>)ret);
             
             if (hints.enable_multi_partitioning && this.multiparams.containsKey(catalog_proc)) {
                 ret.addAll((Set<T>)this.multiparams.get(catalog_proc));
@@ -281,7 +274,7 @@ public class ConstraintPropagator {
             assert(false) : "Unexpected " + catalog_obj;
         }
         assert(ret != null);
-        if (d) LOG.debug(String.format("%s Possible Values [%d]: %s", catalog_obj, ret.size(), ret));
+        if (d) LOG.debug(String.format("%s Possible Values [%d]: %s", catalog_obj, ret.size(), CatalogUtil.debug(ret)));
         return (ret);
     }
 

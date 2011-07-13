@@ -2,6 +2,7 @@ package edu.brown.graphs;
 
 import java.io.File;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -12,8 +13,8 @@ import org.apache.log4j.Logger;
 import org.voltdb.catalog.CatalogType;
 
 import edu.brown.designer.DependencyGraph;
-import edu.brown.designer.Edge;
-import edu.brown.designer.Vertex;
+import edu.brown.designer.DesignerEdge;
+import edu.brown.designer.DesignerVertex;
 import edu.brown.designer.generators.DependencyGraphGenerator;
 import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.CollectionUtil;
@@ -79,6 +80,7 @@ public class GraphvizExport<V extends AbstractVertex, E extends AbstractEdge> {
     // Global Options
     private boolean edge_labels = true;
     private boolean allow_isolated = true;
+    private boolean collapse_edges = false;
     private String graph_label = null;
     
     private final AttributeValues global_graph_attrs = new AttributeValues() {
@@ -146,7 +148,15 @@ public class GraphvizExport<V extends AbstractVertex, E extends AbstractEdge> {
      * @param allowIsolated
      */
     public void setAllowIsolated(boolean allowIsolated) {
-        allow_isolated = allowIsolated;
+        this.allow_isolated = allowIsolated;
+    }
+    
+    /**
+     * If set to true, multiple edges between the same pairs of vertices will be collapsed into a single edge
+     * @param value
+     */
+    public void setCollapseEdges(boolean value) {
+        this.collapse_edges = value;
     }
 
     public AttributeValues getGlobalGraphAttributes() {
@@ -225,12 +235,23 @@ public class GraphvizExport<V extends AbstractVertex, E extends AbstractEdge> {
 
         // Edges
         Set<V> all_vertices = new HashSet<V>();
+        Set<List<V>> redundant_edges = (this.collapse_edges ? new HashSet<List<V>>() : null);
         // FORMAT: <Vertex0> <edgetype> <Vertex1>
         final String edge_f = StringUtil.SPACER + "\"%s\" %s \"%s\" ";
         for (E edge : this.graph.getEdges()) {
             List<V> edge_vertices = new ArrayList<V>(graph.getIncidentVertices(edge));
             assert(edge_vertices.isEmpty() == false) : "No vertice for edge " + edge;
             all_vertices.addAll(edge_vertices);
+            
+            // Check whether we've seen an edge between these two guys before
+            if (this.collapse_edges) {
+                Collections.sort(edge_vertices);
+                if (redundant_edges.contains(edge_vertices)) {
+                    LOG.debug("Skipping redundant edge for " + edge_vertices);
+                    continue;
+                }
+                redundant_edges.add(edge_vertices);
+            }
 
             V v0 = edge_vertices.get(0);
             assert(v0 != null) : "Source vertex is null for edge " + edge;
@@ -391,7 +412,7 @@ public class GraphvizExport<V extends AbstractVertex, E extends AbstractEdge> {
         args.require(ArgumentsParser.PARAM_CATALOG);
         
         DependencyGraph dgraph = DependencyGraphGenerator.generate(args.catalog_db);
-        GraphvizExport<Vertex, Edge> gvx = new GraphvizExport<Vertex, Edge>(dgraph);
+        GraphvizExport<DesignerVertex, DesignerEdge> gvx = new GraphvizExport<DesignerVertex, DesignerEdge>(dgraph);
         gvx.setEdgeLabels(false);
         String graphviz = gvx.export(args.catalog_type.name());
         if (!graphviz.isEmpty()) {

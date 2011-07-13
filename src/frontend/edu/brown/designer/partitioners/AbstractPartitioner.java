@@ -15,6 +15,7 @@ import java.util.TreeSet;
 import java.util.Map.Entry;
 
 import org.apache.commons.collections15.map.ListOrderedMap;
+import org.apache.commons.collections15.set.ListOrderedSet;
 import org.apache.log4j.Logger;
 import org.voltdb.catalog.CatalogType;
 import org.voltdb.catalog.Column;
@@ -40,14 +41,16 @@ import edu.brown.designer.Designer;
 import edu.brown.designer.DesignerHints;
 import edu.brown.designer.DesignerInfo;
 import edu.brown.designer.DesignerUtil;
-import edu.brown.designer.Edge;
-import edu.brown.designer.Vertex;
+import edu.brown.designer.DesignerEdge;
+import edu.brown.designer.DesignerVertex;
 import edu.brown.designer.generators.AccessGraphGenerator;
 import edu.brown.graphs.VertexTreeWalker;
 import edu.brown.statistics.Histogram;
 import edu.brown.statistics.TableStatistics;
 import edu.brown.utils.CollectionUtil;
+import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.MathUtil;
+import edu.brown.utils.LoggerUtil.LoggerBoolean;
 import edu.brown.workload.AbstractTraceElement;
 import edu.brown.workload.QueryTrace;
 import edu.brown.workload.TransactionTrace;
@@ -55,7 +58,12 @@ import edu.brown.workload.filters.Filter;
 
 public abstract class AbstractPartitioner {
     protected static final Logger LOG = Logger.getLogger(AbstractPartitioner.class);
-
+    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    static {
+        LoggerUtil.attachObserver(LOG, debug, trace);
+    }
+    
     /**
      * Why the partitioner halted its last search
      */
@@ -136,13 +144,13 @@ public abstract class AbstractPartitioner {
      */
     protected void setProcedureSinglePartitionFlags(final PartitionPlan pplan, final DesignerHints hints) throws Exception {
         pplan.apply(info.catalog_db);
-        if (LOG.isDebugEnabled()) LOG.debug("Processing workload and checking which procedures are single-partitioned");
+        if (debug.get()) LOG.debug("Processing workload and checking which procedures are single-partitioned");
         if (info.getCostModel() != null) {
             info.getCostModel().estimateCost(info.catalog_db, info.workload);
             for (Entry<Procedure, PartitionEntry> e : pplan.getProcedureEntries().entrySet()) {
                 Boolean singlepartitioned = info.getCostModel().isAlwaysSinglePartition(e.getKey());
                 if (singlepartitioned != null) {
-                    if (LOG.isTraceEnabled()) LOG.trace("Setting single-partition flag for " + e.getKey() + ":  " + singlepartitioned);
+                    if (trace.get()) LOG.trace("Setting single-partition flag for " + e.getKey() + ":  " + singlepartitioned);
                     e.getValue().setSinglePartition(singlepartitioned);
                 }
             } // FOR
@@ -157,15 +165,14 @@ public abstract class AbstractPartitioner {
      * @throws Exception
      */
     protected AccessGraph generateAccessGraph() throws Exception {
-        final boolean debug = LOG.isDebugEnabled();
-        if (debug) LOG.debug("Generating AccessGraph for entire catalog");
+        if (debug.get()) LOG.debug("Generating AccessGraph for entire catalog");
         
         AccessGraph agraph = new AccessGraph(info.catalog_db);
         for (Procedure catalog_proc : info.catalog_db.getProcedures()) {
             // Skip if there are no transactions in the workload for this procedure
             assert(info.workload != null);
             if (info.workload.getTraces(catalog_proc).isEmpty()) {
-                if (debug) LOG.debug("No " + catalog_proc + " transactions in workload. Skipping...");
+                if (debug.get()) LOG.debug("No " + catalog_proc + " transactions in workload. Skipping...");
             } else if (this.designer.getGraphs(catalog_proc) != null) {
                 this.designer.getGraphs(catalog_proc).add(agraph);
                 new AccessGraphGenerator(info, catalog_proc).generate(agraph);
@@ -183,7 +190,7 @@ public abstract class AbstractPartitioner {
      * @throws Exception
      */
     protected LinkedList<String> generateProcedureOrder(final Database catalog_db, final DesignerHints hints) throws Exception {
-        if (LOG.isDebugEnabled()) LOG.debug("Generating Procedure visit order");
+        if (debug.get()) LOG.debug("Generating Procedure visit order");
         
         final Map<Procedure, Double> proc_weights = new HashMap<Procedure, Double>();
         Histogram<String> hist = info.workload.getProcedureHistogram();
@@ -213,9 +220,7 @@ public abstract class AbstractPartitioner {
      * @return
      * @throws Exception
      */
-    protected static LinkedList<String> generateProcParameterOrder(final DesignerInfo info, final Database catalog_db, final Procedure catalog_proc, final DesignerHints hints) throws Exception {
-        final boolean debug = LOG.isDebugEnabled();
-        
+    protected static ListOrderedSet<String> generateProcParameterOrder(final DesignerInfo info, final Database catalog_db, final Procedure catalog_proc, final DesignerHints hints) throws Exception {
         // HACK: Reload the correlations file so that we can get the proper catalog objects
         ParameterCorrelations correlations = info.getCorrelations();
         assert(correlations != null);
@@ -237,6 +242,8 @@ public abstract class AbstractPartitioner {
             Column catalog_col = catalog_tbl.getPartitioncolumn();
             
             for (ProcParameter catalog_proc_param : catalog_proc.getParameters()) {
+                // Skip if this is an array
+                if (hints.allow_array_procparameter_candidates == false && catalog_proc_param.getIsarray()) continue;
                 if (!param_correlations.containsKey(catalog_proc_param)) {
                     param_correlations.put(catalog_proc_param, new ArrayList<Double>());
                 }
@@ -273,11 +280,11 @@ public abstract class AbstractPartitioner {
         } // FOR
 
         // Convert to CatalogKeys
-        LinkedList<String> ret = new LinkedList<String>();
+        ListOrderedSet<String> ret = new ListOrderedSet<String>();
         
         // If there were no matches, then we'll just include all of the attributes
         if (param_weights.isEmpty()) {
-            if (debug) LOG.warn("No parameter correlations found for " + catalog_proc.getName() + ". Returning all candidates!");
+            if (debug.get()) LOG.warn("No parameter correlations found for " + catalog_proc.getName() + ". Returning all candidates!");
             for (ProcParameter catalog_proc_param : catalog_proc.getParameters()) {
                 if (hints.enable_multi_partitioning || !(catalog_proc_param instanceof MultiProcParameter)) {
                     ret.add(CatalogKey.createKey(catalog_proc_param));    
@@ -299,9 +306,6 @@ public abstract class AbstractPartitioner {
      * @throws Exception
      */
     protected static List<String> generateTableOrder(final DesignerInfo info, final AccessGraph agraph, final DesignerHints hints) throws Exception {
-        final boolean trace = LOG.isTraceEnabled();
-        final boolean debug = LOG.isDebugEnabled();
-        
         final LinkedList<String> table_visit_order = new LinkedList<String>();
 
         // Put small read-only tables at the top of the list so that we can try everything with
@@ -314,7 +318,7 @@ public abstract class AbstractPartitioner {
                 assert(ts != null);
                 double size_ratio = ts.tuple_size_total / (double)hints.max_memory_per_partition;
                 if (ts.readonly && size_ratio <= hints.force_replication_size_limit) {
-                    if (debug) LOG.debug(CatalogUtil.getDisplayName(catalog_tbl) + " is read-only and only " + String.format("%.02f", (size_ratio * 100)) + "% of total memory. Forcing replication...");
+                    if (debug.get()) LOG.debug(CatalogUtil.getDisplayName(catalog_tbl) + " is read-only and only " + String.format("%.02f", (size_ratio * 100)) + "% of total memory. Forcing replication...");
                     replication_weights.put(catalog_tbl, size_ratio);
                     temp_list.add(catalog_tbl);
                 }
@@ -323,28 +327,28 @@ public abstract class AbstractPartitioner {
                 table_visit_order.addLast(CatalogKey.createKey(catalog_tbl));
             }
             Collections.reverse(table_visit_order);
-            if (debug) LOG.debug("Forced Replication: " + table_visit_order);
+            if (debug.get()) LOG.debug("Forced Replication: " + table_visit_order);
         }
         
-        for (Vertex root : DesignerUtil.createCandidateRoots(info, hints, agraph)) {
-            if (debug) LOG.debug("Examining edges for candidate root '" + root.getCatalogItem().getName() + "'");
+        for (DesignerVertex root : DesignerUtil.createCandidateRoots(info, hints, agraph)) {
+            if (debug.get()) LOG.debug("Examining edges for candidate root '" + root.getCatalogItem().getName() + "'");
             // From each candidate root, traverse the graph in breadth first order based on
             // the edge weights in the AccessGraph
-            new VertexTreeWalker<Vertex, Edge>(info.dgraph, VertexTreeWalker.TraverseOrder.BREADTH) {
+            new VertexTreeWalker<DesignerVertex, DesignerEdge>(info.dgraph, VertexTreeWalker.TraverseOrder.BREADTH) {
                 @Override
-                protected void populate_children(VertexTreeWalker.Children<Vertex> children, Vertex element) {
+                protected void populate_children(VertexTreeWalker.Children<DesignerVertex> children, DesignerVertex element) {
                     // For the current element, look at all of its children and count up the total
                     // weight of all the edges to each child
                     final Map<Table, Double> vertex_weights = new HashMap<Table, Double>();
                     DependencyGraph dgraph = (DependencyGraph)this.getGraph();
                     
                     if (agraph.containsVertex(element)) {
-                        for (Vertex child : dgraph.getSuccessors(element)) {
+                        for (DesignerVertex child : dgraph.getSuccessors(element)) {
                             Table child_tbl = child.getCatalogItem();
-                            Vertex child_vertex = this.getGraph().getVertex(child_tbl);
+                            DesignerVertex child_vertex = this.getGraph().getVertex(child_tbl);
                             
                             if (agraph.containsVertex(child_vertex)) {
-                                for (Edge edge : agraph.findEdgeSet(element, child_vertex)) {
+                                for (DesignerEdge edge : agraph.findEdgeSet(element, child_vertex)) {
                                     Double orig_weight = vertex_weights.get(child_tbl);
                                     if (orig_weight == null) orig_weight = 0.0d;
                                     vertex_weights.put(child_tbl, orig_weight + edge.getTotalWeight());
@@ -359,7 +363,7 @@ public abstract class AbstractPartitioner {
                     for (Table child_tbl : sorted) {
                         children.addAfter(this.getGraph().getVertex(child_tbl));
                     } // FOR
-                    if (debug) { 
+                    if (debug.get()) { 
                         LOG.debug(element);
                         LOG.debug("  sorted=" + sorted);
                         LOG.debug("  weights=" + vertex_weights);
@@ -368,7 +372,7 @@ public abstract class AbstractPartitioner {
                 };
                 
                 @Override
-                protected void callback(Vertex element) {
+                protected void callback(DesignerVertex element) {
                     Table catalog_tbl = element.getCatalogItem();
                     String table_key = CatalogKey.createKey(catalog_tbl);
                     if (!table_visit_order.contains(table_key)) {
@@ -377,25 +381,26 @@ public abstract class AbstractPartitioner {
                 }
             }.traverse(root);
         } // FOR
+        
         // Add in any missing tables to the end of the list
         // This can occur if there are tables that do not appear in the AccessGraph for whatever reason
         // Note that we have to traverse the graph so that we don't try to plan a parent before a child
-        for (Vertex root : info.dgraph.getRoots()) {
-            if (trace) LOG.trace("Creating table visit order starting from root " + root);
-            
-            new VertexTreeWalker<Vertex, Edge>(info.dgraph, VertexTreeWalker.TraverseOrder.BREADTH) {
-                protected void callback(Vertex element) {
-                    Table catalog_tbl = element.getCatalogItem();
-                    assert(catalog_tbl != null);
-                    String table_key = CatalogKey.createKey(catalog_tbl);
-                    if (!table_visit_order.contains(table_key)) {
-                        if (debug) LOG.warn("Added " + catalog_tbl + " because it does not appear in the AccessGraph");
-                        table_visit_order.add(table_key);
-                    }
-                };
-            }.traverse(root);
-            if (table_visit_order.size() == info.catalog_db.getTables().size()) break;
-        } // FOR
+//        for (DesignerVertex root : info.dgraph.getRoots()) {
+//            if (trace.get()) LOG.trace("Creating table visit order starting from root " + root);
+//            
+//            new VertexTreeWalker<DesignerVertex, DesignerEdge>(info.dgraph, VertexTreeWalker.TraverseOrder.BREADTH) {
+//                protected void callback(DesignerVertex element) {
+//                    Table catalog_tbl = element.getCatalogItem();
+//                    assert(catalog_tbl != null);
+//                    String table_key = CatalogKey.createKey(catalog_tbl);
+//                    if (!table_visit_order.contains(table_key)) {
+//                        if (debug.get()) LOG.warn("Added " + catalog_tbl + " because it does not appear in the AccessGraph");
+//                        table_visit_order.add(table_key);
+//                    }
+//                };
+//            }.traverse(root);
+//            if (table_visit_order.size() == info.catalog_db.getTables().size()) break;
+//        } // FOR
         return (table_visit_order);
     }
 
@@ -424,14 +429,13 @@ public abstract class AbstractPartitioner {
      */
     protected static LinkedList<String> generateColumnOrder(final DesignerInfo info, final AccessGraph agraph, final Table catalog_tbl, final DesignerHints hints, boolean no_replication, boolean force_replication_last) throws Exception {
         assert(agraph != null);
-        final boolean debug = LOG.isDebugEnabled();
         final LinkedList<String> ret = new LinkedList<String>();
         final String table_key = CatalogKey.createKey(catalog_tbl);
         
         // Force columns in hints
         Set<Column> force_columns = hints.getTablePartitionCandidates(catalog_tbl);
         if (!force_columns.isEmpty()) {
-            if (debug) LOG.debug("Force " + catalog_tbl + " candidates: " + force_columns);
+            if (debug.get()) LOG.debug("Force " + catalog_tbl + " candidates: " + force_columns);
             for (Column catalog_col : force_columns) {
                 ret.add(CatalogKey.createKey(catalog_col));
             }
@@ -443,14 +447,14 @@ public abstract class AbstractPartitioner {
         // best candidate first, thereby pruning other branches more quickly
         final Map<Column, Double> column_weights = new HashMap<Column, Double>(); 
         // SortedMap<Double, Collection<Column>> weighted_columnsets = new TreeMap<Double, Collection<Column>>(Collections.reverseOrder());
-        Vertex vertex = agraph.getVertex(catalog_tbl);
+        DesignerVertex vertex = agraph.getVertex(catalog_tbl);
         assert(vertex != null) : "No vertex exists in AccesGraph for " + catalog_tbl;
-        if (debug) LOG.debug("Retreiving edges for " + vertex + " from AccessGraph");
-        Collection<Edge> edges = agraph.getIncidentEdges(vertex);
+        if (debug.get()) LOG.debug("Retreiving edges for " + vertex + " from AccessGraph");
+        Collection<DesignerEdge> edges = agraph.getIncidentEdges(vertex);
         if (edges == null) {
-            if (debug) LOG.warn("No edges were found for " + vertex + " in AccessGraph");
+            if (debug.get()) LOG.warn("No edges were found for " + vertex + " in AccessGraph");
         } else {
-            for (Edge edge : agraph.getIncidentEdges(vertex)) {
+            for (DesignerEdge edge : agraph.getIncidentEdges(vertex)) {
                 ColumnSet orig_cset = (ColumnSet)edge.getAttribute(AccessGraph.EdgeAttributes.COLUMNSET.name());
                 assert(orig_cset != null);
     
@@ -473,7 +477,7 @@ public abstract class AbstractPartitioner {
         
         // Increase the weight of the columns based on the number foreign key descendants they have
         DependencyUtil dependencies = DependencyUtil.singleton(CatalogUtil.getDatabase(catalog_tbl));
-        if (debug) LOG.debug("Calculating descendants for columns");
+        if (debug.get()) LOG.debug("Calculating descendants for columns");
         for ( Entry<Column, Double> entry : column_weights.entrySet()) {
         	Column catalog_col = entry.getKey();
             Double weight = entry.getValue();
@@ -489,7 +493,7 @@ public abstract class AbstractPartitioner {
         LinkedList<Column> sorted = new LinkedList<Column>(column_weights.keySet());
         Collections.sort(sorted, new CatalogWeightComparator<Column>(column_weights));
         
-        if (debug) {
+        if (debug.get()) {
             LOG.debug(catalog_tbl);
             LOG.debug("  sorted=" + sorted);
             LOG.debug("  weights=" + column_weights);
@@ -525,12 +529,12 @@ public abstract class AbstractPartitioner {
         LOG.debug("Constructing column access histogram for " + catalog_proc.getName());
         Histogram<Column> column_histogram = new Histogram<Column>();
         for (Table catalog_tbl : CatalogUtil.getReferencedTables(catalog_proc)) {
-            Vertex v = agraph.getVertex(catalog_tbl);
-            for (Edge e : agraph.getIncidentEdges(v)) {
-                Collection<Vertex> vertices = agraph.getVertices();
+            DesignerVertex v = agraph.getVertex(catalog_tbl);
+            for (DesignerEdge e : agraph.getIncidentEdges(v)) {
+                Collection<DesignerVertex> vertices = agraph.getVertices();
                 if (vertices.size() != 1) {
-                    Vertex v0 = CollectionUtil.get(vertices, 0);
-                    Vertex v1 = CollectionUtil.get(vertices, 1);
+                    DesignerVertex v0 = CollectionUtil.get(vertices, 0);
+                    DesignerVertex v1 = CollectionUtil.get(vertices, 1);
                     if (v0.equals(v) && v1.equals(v)) continue;
                 }
                 

@@ -22,7 +22,7 @@ public class TestMarkovUtil extends BaseTestCase {
         this.addPartitions(10);
     }
     
-    private void examineVertices(Vertex v0, Vertex v1) {
+    private void examineVertices(MarkovVertex v0, MarkovVertex v1) {
         assertNotNull(v0);
         assertNotNull(v1);
         assertNotSame(v0, v1);
@@ -88,13 +88,13 @@ public class TestMarkovUtil extends BaseTestCase {
      * testSpecialVertexSerialization
      */
     public void testSpecialVertexSerialization() throws Exception {
-        Vertex.Type types[] = new Vertex.Type[] {
-                Vertex.Type.START,
-                Vertex.Type.COMMIT,
-                Vertex.Type.ABORT,
+        MarkovVertex.Type types[] = new MarkovVertex.Type[] {
+                MarkovVertex.Type.START,
+                MarkovVertex.Type.COMMIT,
+                MarkovVertex.Type.ABORT,
         };
-        for (Vertex.Type type : types) {
-            Vertex v = MarkovUtil.getSpecialVertex(catalog_db, type);
+        for (MarkovVertex.Type type : types) {
+            MarkovVertex v = MarkovUtil.getSpecialVertex(catalog_db, type);
             assertNotNull(v);
             
             String json = v.toJSONString();
@@ -107,13 +107,13 @@ public class TestMarkovUtil extends BaseTestCase {
      * testVertexDeserialization
      */
     public void testSpecialVertexDeserialization() throws Exception {
-        Vertex.Type types[] = new Vertex.Type[] {
-                Vertex.Type.START,
-                Vertex.Type.COMMIT,
-                Vertex.Type.ABORT,
+        MarkovVertex.Type types[] = new MarkovVertex.Type[] {
+                MarkovVertex.Type.START,
+                MarkovVertex.Type.COMMIT,
+                MarkovVertex.Type.ABORT,
         };
-        for (Vertex.Type type : types) {
-            Vertex v = MarkovUtil.getSpecialVertex(catalog_db, type);
+        for (MarkovVertex.Type type : types) {
+            MarkovVertex v = MarkovUtil.getSpecialVertex(catalog_db, type);
             assertNotNull(v);
             
             String json = v.toJSONString();
@@ -121,7 +121,7 @@ public class TestMarkovUtil extends BaseTestCase {
             assertNotNull(json_obj);
             //System.err.println(json_obj.toString(2));
             
-            Vertex clone = new Vertex();
+            MarkovVertex clone = new MarkovVertex();
             clone.fromJSON(json_obj, catalog_db);
             this.examineVertices(v, clone);
             

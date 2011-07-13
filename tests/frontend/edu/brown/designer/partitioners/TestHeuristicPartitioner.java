@@ -68,14 +68,14 @@ public class TestHeuristicPartitioner extends BaseTestCase {
         this.catalog_proc = this.getProcedure(TARGET_PROCEDURE);
     }
     
-    private void display(final IGraph<Vertex, Edge> graph) throws Exception {
+    private void display(final IGraph<DesignerVertex, DesignerEdge> graph) throws Exception {
         final EventObserver observer = new EventObserver() {
             @Override
             public void update(Observable o, Object arg) {
                 if (arg == null) return;
-                Vertex v = (Vertex)arg;
+                DesignerVertex v = (DesignerVertex)arg;
                 System.err.println(v);
-                for (Edge e : graph.getIncidentEdges(v)) {
+                for (DesignerEdge e : graph.getIncidentEdges(v)) {
                     System.err.println("  " + e + ": " + e.getTotalWeight());
                 } // FOR
             }
@@ -93,7 +93,7 @@ public class TestHeuristicPartitioner extends BaseTestCase {
      */
     public void testCreateCandidateRoots() throws Exception {
         final AccessGraph agraph = this.designer.getAccessGraph(this.catalog_proc);
-        List<Vertex> candidate_roots = this.partitioner.createCandidateRoots(hints, agraph);
+        List<DesignerVertex> candidate_roots = this.partitioner.createCandidateRoots(hints, agraph);
         System.err.println("ROOTS: "+ candidate_roots);
         // display(info.dgraph);
     }
@@ -106,7 +106,7 @@ public class TestHeuristicPartitioner extends BaseTestCase {
         final PartitionTree ptree = new PartitionTree(catalog_db);
         final Table catalog_tbl = this.getTable("WAREHOUSE");
         final AccessGraph agraph = this.designer.getAccessGraph(this.catalog_proc);
-        Vertex parent = agraph.getVertex(catalog_tbl);
+        DesignerVertex parent = agraph.getVertex(catalog_tbl);
         //this.partitioner.generateSinglePartitionTree(this.hints, agraph, ptree, parent);
 
         // We should have all tables in our tree except for ITEM

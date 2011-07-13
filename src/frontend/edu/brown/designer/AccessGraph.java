@@ -12,7 +12,7 @@ import edu.brown.graphs.AbstractUndirectedGraph;
  *
  */
 @SuppressWarnings("serial")
-public class AccessGraph extends AbstractUndirectedGraph<Vertex, Edge>  {
+public class AccessGraph extends AbstractUndirectedGraph<DesignerVertex, DesignerEdge>  {
     
     public enum EdgeAttributes {
         ACCESSTYPE,
@@ -55,10 +55,10 @@ public class AccessGraph extends AbstractUndirectedGraph<Vertex, Edge>  {
      * @param catalog_col
      * @return
      */
-    public Collection<Edge> findEdgeSet(Vertex v, Column catalog_col) {
+    public Collection<DesignerEdge> findEdgeSet(DesignerVertex v, Column catalog_col) {
         assert(v != null);
-        Set<Edge> edges = new HashSet<Edge>();
-        for (Edge e : this.getIncidentEdges(v)) {
+        Set<DesignerEdge> edges = new HashSet<DesignerEdge>();
+        for (DesignerEdge e : this.getIncidentEdges(v)) {
             ColumnSet cset = e.getAttribute(EdgeAttributes.COLUMNSET);
             assert(cset != null);
             if (cset.findAll(catalog_col).isEmpty() == false) {
@@ -68,16 +68,16 @@ public class AccessGraph extends AbstractUndirectedGraph<Vertex, Edge>  {
         return (edges);
     }
     
-    public <T> Collection<Edge> getIncidentEdges(Vertex vertex, String name, T value) {
-        Set<Edge> edges = new HashSet<Edge>();
-        for (Edge edge : super.getIncidentEdges(vertex)) {
+    public <T> Collection<DesignerEdge> getIncidentEdges(DesignerVertex vertex, String name, T value) {
+        Set<DesignerEdge> edges = new HashSet<DesignerEdge>();
+        for (DesignerEdge edge : super.getIncidentEdges(vertex)) {
             if (edge.getAttribute(name).equals(value)) edges.add(edge);
         } // WHILE
         return (edges);
     }
     
     @Override
-    public String toString(Edge e, boolean verbose) {
+    public String toString(DesignerEdge e, boolean verbose) {
         StringBuilder sb = new StringBuilder();
         sb.append(super.toString(e, verbose));
         

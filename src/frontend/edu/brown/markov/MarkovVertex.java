@@ -41,8 +41,8 @@ import edu.brown.utils.TableUtil;
  * @author svelagap
  * @author pavlo
  */
-public class Vertex extends AbstractVertex implements MarkovHitTrackable, Estimation {
-    private static final Logger LOG = Logger.getLogger(Vertex.class);
+public class MarkovVertex extends AbstractVertex implements MarkovHitTrackable, Estimation {
+    private static final Logger LOG = Logger.getLogger(MarkovVertex.class);
     private final static AtomicBoolean debug = new AtomicBoolean(LOG.isDebugEnabled());
     private final static AtomicBoolean trace = new AtomicBoolean(LOG.isTraceEnabled());
     static {
@@ -188,10 +188,10 @@ public class Vertex extends AbstractVertex implements MarkovHitTrackable, Estima
     /**
      * Empty constructor
      */
-    public Vertex() {
+    public MarkovVertex() {
         // This is needed for serialization
         super();
-        this.probabilities = new float[Vertex.Probability.values().length][];
+        this.probabilities = new float[MarkovVertex.Probability.values().length][];
     }
     
     /**
@@ -199,7 +199,7 @@ public class Vertex extends AbstractVertex implements MarkovHitTrackable, Estima
      * @param catalog_stmt
      * @param type
      */
-    public Vertex(Statement catalog_stmt, Vertex.Type type) {
+    public MarkovVertex(Statement catalog_stmt, MarkovVertex.Type type) {
         this(catalog_stmt, type, 0, null, null);
     }
     
@@ -209,7 +209,7 @@ public class Vertex extends AbstractVertex implements MarkovHitTrackable, Estima
      * @param partitions
      * @param xact_count
      */
-    public Vertex(Statement catalog_stmt, Integer[] partitions, Integer[] past_partitions) {
+    public MarkovVertex(Statement catalog_stmt, Integer[] partitions, Integer[] past_partitions) {
         this(catalog_stmt, Type.QUERY, 0, Arrays.asList(partitions), Arrays.asList(past_partitions));
     }
 
@@ -221,13 +221,13 @@ public class Vertex extends AbstractVertex implements MarkovHitTrackable, Estima
      * @param partitions - the partitions this procedure touches
      * @param past_partitions - the partitions that we've touched in the past
      */
-    public Vertex(Statement catalog_stmt, Vertex.Type type, int query_instance_index, Collection<Integer> partitions, Collection<Integer> past_partitions) {
+    public MarkovVertex(Statement catalog_stmt, MarkovVertex.Type type, int query_instance_index, Collection<Integer> partitions, Collection<Integer> past_partitions) {
         super(catalog_stmt);
         this.type = type;
         if (partitions != null) this.partitions.addAll(partitions);
         if (past_partitions != null) this.past_partitions.addAll(past_partitions);
         this.counter = query_instance_index;
-        this.probabilities = new float[Vertex.Probability.values().length][];
+        this.probabilities = new float[MarkovVertex.Probability.values().length][];
         this.init();
     }
     
@@ -236,13 +236,13 @@ public class Vertex extends AbstractVertex implements MarkovHitTrackable, Estima
      * Only really used for testing
      * @param v
      */
-    public Vertex(Vertex v) {
+    public MarkovVertex(MarkovVertex v) {
         super(v.getCatalogItem());
         this.type = v.type;
         this.partitions.addAll(v.partitions);
         this.past_partitions.addAll(v.past_partitions);
         this.counter = v.counter;
-        this.probabilities = new float[Vertex.Probability.values().length][];
+        this.probabilities = new float[MarkovVertex.Probability.values().length][];
         this.init();
         
         for (int i = 0; i < v.probabilities.length; i++) {
@@ -257,8 +257,8 @@ public class Vertex extends AbstractVertex implements MarkovHitTrackable, Estima
      */
     private void init() {
         int num_partitions = CatalogUtil.getNumberOfPartitions(this.catalog_item); 
-        Vertex.Probability ptypes[] = Vertex.Probability.values();
-        for (Vertex.Probability ptype : ptypes) {
+        MarkovVertex.Probability ptypes[] = MarkovVertex.Probability.values();
+        for (MarkovVertex.Probability ptype : ptypes) {
             int inner_len = (ptype.single_value ? 1 : num_partitions);
             this.probabilities[ptype.ordinal()] = new float[inner_len];
         } // FOR
@@ -275,8 +275,8 @@ public class Vertex extends AbstractVertex implements MarkovHitTrackable, Estima
     }
 
     protected void validate(MarkovGraph markov) throws InvalidGraphElementException {
-        Collection<Edge> outbound = markov.getOutEdges(this);
-        Collection<Edge> inbound = markov.getInEdges(this);
+        Collection<MarkovEdge> outbound = markov.getOutEdges(this);
+        Collection<MarkovEdge> inbound = markov.getInEdges(this);
         
         switch (this.type) {
             case START: {
@@ -299,7 +299,7 @@ public class Vertex extends AbstractVertex implements MarkovHitTrackable, Estima
                 if (inbound.isEmpty()) {
                     throw new InvalidGraphElementException(markov, this, "QUERY state does not have any inbound edges");
                 }
-                for (Vertex.Probability ptype : Vertex.Probability.values()) {
+                for (MarkovVertex.Probability ptype : MarkovVertex.Probability.values()) {
                     int idx = ptype.ordinal();
                     for (int i = 0, cnt = this.probabilities[idx].length; i < cnt; i++) {
                         float prob = this.probabilities[idx][i];
@@ -380,8 +380,8 @@ public class Vertex extends AbstractVertex implements MarkovHitTrackable, Estima
     }
 
     public boolean equals(Object o) {
-        if (o instanceof Vertex) {
-            Vertex v = (Vertex) o;
+        if (o instanceof MarkovVertex) {
+            MarkovVertex v = (MarkovVertex) o;
             if (this.to_string == null) this.toString();
             if (v.to_string == null) v.toString();
             return (this.to_string.equals(v.to_string));
@@ -465,8 +465,8 @@ public class Vertex extends AbstractVertex implements MarkovHitTrackable, Estima
             // Global Probabilities
             List<String> header = new ArrayList<String>();
             header.add(" ");
-            Vertex.Probability ptypes[] = Vertex.Probability.values();
-            for (Vertex.Probability type : ptypes) {
+            MarkovVertex.Probability ptypes[] = MarkovVertex.Probability.values();
+            for (MarkovVertex.Probability type : ptypes) {
                 if (type.single_value) {
                     float val = this.probabilities[type.ordinal()][DEFAULT_PARTITION_ID];
                     String val_str = (val == MarkovUtil.NULL_MARKER ? "<NONE>" : formatter.format(val));
@@ -477,12 +477,12 @@ public class Vertex extends AbstractVertex implements MarkovHitTrackable, Estima
             } // FOR
     
             // Partition-based Probabilities
-            int num_partitions = this.probabilities[Vertex.Probability.WRITE.ordinal()].length;
+            int num_partitions = this.probabilities[MarkovVertex.Probability.WRITE.ordinal()].length;
             Object rows[][] = new String[num_partitions][header.size()];
             for (int row_idx = 0, cnt = num_partitions; row_idx < cnt; row_idx++) {
                 int col_idx = 0;
                 rows[row_idx][col_idx++] = String.format("[%02d]", row_idx);
-                for (Vertex.Probability type : ptypes) {
+                for (MarkovVertex.Probability type : ptypes) {
                     if (type.single_value) continue;
                     float val = this.probabilities[type.ordinal()][row_idx];
                     rows[row_idx][col_idx++] = (val == MarkovUtil.NULL_MARKER ? "<NONE>" : formatter.format(val));
@@ -533,7 +533,7 @@ public class Vertex extends AbstractVertex implements MarkovHitTrackable, Estima
      * @param default_value
      * @return
      */
-    private float getSpecificProbability(Vertex.Probability ptype, int partition) {
+    private float getSpecificProbability(MarkovVertex.Probability ptype, int partition) {
         float value = this.probabilities[ptype.ordinal()][partition];
         if (value == MarkovUtil.NULL_MARKER) value = ptype.default_value;
         
@@ -549,7 +549,7 @@ public class Vertex extends AbstractVertex implements MarkovHitTrackable, Estima
      * @param name
      * @param probability
      */
-    private void addToProbability(Vertex.Probability ptype, int partition, float probability) {
+    private void addToProbability(MarkovVertex.Probability ptype, int partition, float probability) {
         // Important: If the probability is unset, then we need to set its initial value
         // to zero and to the default value
         float previous = this.probabilities[ptype.ordinal()][partition];
@@ -563,7 +563,7 @@ public class Vertex extends AbstractVertex implements MarkovHitTrackable, Estima
      * @param partition
      * @param probability
      */
-    private void setProbability(Vertex.Probability ptype, int partition, float probability) {
+    private void setProbability(MarkovVertex.Probability ptype, int partition, float probability) {
         if (trace.get()) LOG.trace("(" + ptype + ", " + partition + ") => " + probability);
         assert(MathUtil.greaterThanEquals(probability, 0.0f, MarkovGraph.PROBABILITY_EPSILON) &&
                MathUtil.lessThanEquals(probability, 1.0f, MarkovGraph.PROBABILITY_EPSILON)) :
@@ -575,7 +575,7 @@ public class Vertex extends AbstractVertex implements MarkovHitTrackable, Estima
      * Reset all probabilities. Keeps partitions in maps
      */
     public void resetAllProbabilities() {
-        for (Vertex.Probability ptype : Vertex.Probability.values()) {
+        for (MarkovVertex.Probability ptype : MarkovVertex.Probability.values()) {
             int i = ptype.ordinal();
             if (this.probabilities[i] == null) continue;
             for (int j = 0; j < this.probabilities[i].length; j++) {
@@ -722,7 +722,7 @@ public class Vertex extends AbstractVertex implements MarkovHitTrackable, Estima
      * Add another instance time to the map. We use these times to figure out how long each
      * transaction takes to execute in the on-line model.
      */
-    public Vertex addInstanceTime(long xact_id, long time){
+    public MarkovVertex addInstanceTime(long xact_id, long time){
         this.instancetimes.put(xact_id, time);
         return (this);
     }
@@ -793,7 +793,7 @@ public class Vertex extends AbstractVertex implements MarkovHitTrackable, Estima
         Set<Members> members_set = CollectionUtil.getAllExcluding(Members.values(), Members.PROBABILITIES);
         Members members[] = new Members[members_set.size()];
         members_set.toArray(members);
-        super.fieldsToJSONString(stringer, Vertex.class, members);
+        super.fieldsToJSONString(stringer, MarkovVertex.class, members);
         
         // Probabilities Map
         stringer.key(Members.PROBABILITIES.name()).object();
@@ -814,7 +814,7 @@ public class Vertex extends AbstractVertex implements MarkovHitTrackable, Estima
         Set<Members> members_set = CollectionUtil.getAllExcluding(Members.values(), Members.TYPE, Members.PROBABILITIES);
         Members members[] = new Members[members_set.size()];
         members_set.toArray(members);
-        super.fieldsFromJSONObject(object, catalog_db, Vertex.class, members);
+        super.fieldsFromJSONObject(object, catalog_db, MarkovVertex.class, members);
         
         // HACK
         this.partitions = Collections.unmodifiableSet(this.partitions);

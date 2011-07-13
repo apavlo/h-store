@@ -10,8 +10,8 @@ import org.voltdb.catalog.Table;
 
 import edu.brown.designer.AccessGraph;
 import edu.brown.designer.ColumnSet;
-import edu.brown.designer.Edge;
-import edu.brown.designer.Vertex;
+import edu.brown.designer.DesignerEdge;
+import edu.brown.designer.DesignerVertex;
 import edu.brown.designer.AccessGraph.EdgeAttributes;
 import edu.brown.designer.generators.AccessGraphGenerator;
 import edu.brown.utils.ProjectType;
@@ -39,14 +39,14 @@ public class TestConstraintPropagator extends BasePartitionerTestCase {
      * testInitialize
      */
     public void testInitialize() throws Exception {
-        for (Vertex v : agraph.getVertices()) {
+        for (DesignerVertex v : agraph.getVertices()) {
             assertNotNull(cp.getEdgeColumns(v));
             // System.err.println(v + " => " + cp.getEdgeColumns(v));
         }
         
         boolean has_multi_vertex_edge = false;
-        for (Edge e : agraph.getEdges()) {
-            Set<Vertex> vertices = new HashSet<Vertex>(agraph.getIncidentVertices(e));
+        for (DesignerEdge e : agraph.getEdges()) {
+            Set<DesignerVertex> vertices = new HashSet<DesignerVertex>(agraph.getIncidentVertices(e));
             assertFalse(vertices.isEmpty());
             has_multi_vertex_edge = has_multi_vertex_edge || (vertices.size() > 1);
 //            if (vertices.size() > 1) System.err.println(e);
@@ -86,10 +86,10 @@ public class TestConstraintPropagator extends BasePartitionerTestCase {
         Collection<Column> columns;
         for (Table catalog_tbl : catalog_db.getTables()) {
             if (targets.contains(catalog_tbl)) continue;
-            Vertex v0 = agraph.getVertex(catalog_tbl);
+            DesignerVertex v0 = agraph.getVertex(catalog_tbl);
             
             try {
-                columns = (Collection<Column>)cp.getPossibleValues(catalog_tbl, Column.class);
+                columns = (Collection<Column>)cp.getCandidateValues(catalog_tbl, Column.class);
             } catch (IllegalArgumentException ex) {
                 continue;
             }
@@ -102,14 +102,14 @@ public class TestConstraintPropagator extends BasePartitionerTestCase {
             // not pointing to one of our target tables or that it is pointing to one of target tables
             // but uses the column that the table is partitioned on
             for (Column catalog_col : columns) {
-                Collection<Edge> edges = agraph.findEdgeSet(v0, catalog_col);
+                Collection<DesignerEdge> edges = agraph.findEdgeSet(v0, catalog_col);
                 assertNotNull(catalog_col.fullName(), edges);
                 assertFalse(catalog_col.fullName(), edges.isEmpty());
                 
-                for (Edge e : edges) {
+                for (DesignerEdge e : edges) {
                     if (cp.isMarked(e)) continue;
                     
-                    Vertex v1 = agraph.getOpposite(v0, e);
+                    DesignerVertex v1 = agraph.getOpposite(v0, e);
                     assertNotNull(e.toString(), v1);
                     Table other_tbl = v1.getCatalogItem();
                     assertNotNull(other_tbl);
@@ -154,7 +154,7 @@ public class TestConstraintPropagator extends BasePartitionerTestCase {
         
         // Get the list of columns that we can use for ORDERS
         Table catalog_tbl0 = this.getTable("ORDERS");
-        Set<Column> orig_columns = new HashSet<Column>((Collection<Column>)cp.getPossibleValues(catalog_tbl0, Column.class));
+        Set<Column> orig_columns = new HashSet<Column>((Collection<Column>)cp.getCandidateValues(catalog_tbl0, Column.class));
         assertFalse(catalog_tbl0.toString(), orig_columns.isEmpty());
         
         // Reset both ORDERS and CUSTOMER
@@ -165,7 +165,7 @@ public class TestConstraintPropagator extends BasePartitionerTestCase {
         
         // Then grab the list of colunms for ORDERS again. It should be larger than our original list
         // And the original list should be a subset
-        Collection<Column> new_columns = (Collection<Column>)cp.getPossibleValues(catalog_tbl0, Column.class);
+        Collection<Column> new_columns = (Collection<Column>)cp.getCandidateValues(catalog_tbl0, Column.class);
         assert(new_columns.size() > orig_columns.size()) : orig_columns;
         assert(new_columns.containsAll(orig_columns)) : String.format("ORIG: %s\nNEW: %s", orig_columns, new_columns);
     }

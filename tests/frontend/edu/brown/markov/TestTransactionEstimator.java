@@ -48,7 +48,7 @@ public class TestTransactionEstimator extends BaseTestCase {
     private static TransactionTrace singlep_trace;
     private static TransactionTrace multip_trace;
     private static final Set<Integer> multip_partitions = new HashSet<Integer>();
-    private static final List<Vertex> multip_path = new ArrayList<Vertex>();
+    private static final List<MarkovVertex> multip_path = new ArrayList<MarkovVertex>();
     
     private TransactionEstimator t_estimator;
     private EstimationThresholds thresholds;
@@ -143,7 +143,7 @@ public class TestTransactionEstimator extends BaseTestCase {
         System.err.println(est.toString());
         
         MarkovGraph markov = markovs.get(BASE_PARTITION, this.catalog_proc);
-        List<Vertex> initial_path = state.getInitialPath();
+        List<MarkovVertex> initial_path = state.getInitialPath();
         assertFalse(initial_path.isEmpty());
         
         System.err.println("# of Vertices: " + markov.getVertexCount());
@@ -196,7 +196,7 @@ public class TestTransactionEstimator extends BaseTestCase {
             assertNotNull(est);
             
             // The last vertex in each MarkovEstimate should correspond to the last query in each batch
-            Vertex last_v = est.getVertex();
+            MarkovVertex last_v = est.getVertex();
             assertNotNull(last_v);
             assertEquals(CollectionUtil.getLast(queries).getCatalogItem(catalog_db), last_v.getCatalogItem());
         } // FOR

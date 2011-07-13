@@ -6,7 +6,7 @@ import edu.brown.designer.AccessGraph.EdgeAttributes;
 import edu.brown.graphs.AbstractEdge;
 import edu.brown.graphs.IGraph;
 
-public class Edge extends AbstractEdge {
+public class DesignerEdge extends AbstractEdge {
     
     public enum Members {
         WEIGHTS,
@@ -27,7 +27,7 @@ public class Edge extends AbstractEdge {
      * @param graph
      * @param vertices
      */
-    public Edge(IGraph<Vertex, Edge> graph) {
+    public DesignerEdge(IGraph<DesignerVertex, DesignerEdge> graph) {
         super(graph);
     }
     
@@ -36,7 +36,7 @@ public class Edge extends AbstractEdge {
      * @param graph
      * @param copy
      */
-    public Edge(IGraph<Vertex, Edge> graph, AbstractEdge copy) {
+    public DesignerEdge(IGraph<DesignerVertex, DesignerEdge> graph, AbstractEdge copy) {
         super(graph, copy);
     }
     
@@ -72,7 +72,7 @@ public class Edge extends AbstractEdge {
         this.weights.put(time, weight);
     }
     
-    public void addToWeight(Edge other) {
+    public void addToWeight(DesignerEdge other) {
         for (Integer time : other.weights.keySet()) {
             Double orig = this.weights.get(time);
             if (orig == null) orig = 0.0d;

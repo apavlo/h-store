@@ -104,8 +104,8 @@ public class TransactionEstimator implements Loggable {
      * The current state of a transaction
      */
     public static final class State implements Poolable {
-        private final List<Vertex> actual_path = new ArrayList<Vertex>();
-        private final List<Edge> actual_path_edges = new ArrayList<Edge>();
+        private final List<MarkovVertex> actual_path = new ArrayList<MarkovVertex>();
+        private final List<MarkovEdge> actual_path_edges = new ArrayList<MarkovEdge>();
         private final Set<Integer> touched_partitions = new HashSet<Integer>();
         private final Map<Statement, Integer> query_instance_cnts = new HashMap<Statement, Integer>();
         private final List<MarkovEstimate> estimates = new ArrayList<MarkovEstimate>();
@@ -119,7 +119,7 @@ public class TransactionEstimator implements Loggable {
         private MarkovEstimate initial_estimate;
         private int num_estimates;
         
-        private transient Vertex current;
+        private transient MarkovVertex current;
         private transient final Set<Integer> cache_past_partitions = new TreeSet<Integer>();
         private transient final Set<Integer> cache_last_partitions = new TreeSet<Integer>();
         
@@ -205,7 +205,7 @@ public class TransactionEstimator implements Loggable {
          * Get the next Estimate object for this State
          * @return
          */
-        protected synchronized MarkovEstimate createNextEstimate(Vertex v) {
+        protected synchronized MarkovEstimate createNextEstimate(MarkovVertex v) {
             MarkovEstimate next = null;
             if (this.num_estimates < this.estimates.size()) {
                 next = this.estimates.get(this.num_estimates);
@@ -246,14 +246,14 @@ public class TransactionEstimator implements Loggable {
         public List<MarkovEstimate> getEstimates() {
             return (Collections.unmodifiableList(this.estimates.subList(0, this.num_estimates)));
         }
-        public Vertex getCurrent() {
+        public MarkovVertex getCurrent() {
             return (this.current);
         }
         /**
          * Set the current vertex for this transaction and update the actual path
          * @param current
          */
-        public void setCurrent(Vertex current, Edge e) {
+        public void setCurrent(MarkovVertex current, MarkovEdge e) {
             if (this.current != null) assert(this.current.equals(current) == false);
             this.actual_path.add(current);
             if (e != null) this.actual_path_edges.add(e);
@@ -279,7 +279,7 @@ public class TransactionEstimator implements Loggable {
             return (cnt.intValue());
         }
         
-        public List<Vertex> getInitialPath() {
+        public List<MarkovVertex> getInitialPath() {
             return (this.initial_estimator.getVisitPath());
         }
         public float getInitialPathConfidence() {
@@ -291,7 +291,7 @@ public class TransactionEstimator implements Loggable {
         public void addTouchedPartitions(Collection<Integer> partitions) {
             this.touched_partitions.addAll(partitions);
         }
-        public List<Vertex> getActualPath() {
+        public List<MarkovVertex> getActualPath() {
             return (this.actual_path);
         }
 
@@ -421,7 +421,7 @@ public class TransactionEstimator implements Loggable {
      * @param txn_id
      * @return
      */
-    protected List<Vertex> getInitialPath(long txn_id) {
+    protected List<MarkovVertex> getInitialPath(long txn_id) {
         State s = this.txn_states.get(txn_id);
         assert(s != null) : "Unexpected Transaction #" + txn_id;
         return (s.getInitialPath());
@@ -479,7 +479,7 @@ public class TransactionEstimator implements Loggable {
             return (null);
         }
         
-        Vertex start = markov.getStartVertex();
+        MarkovVertex start = markov.getStartVertex();
         assert(start != null) : "The start vertex is null. This should never happen!";
         MarkovPathEstimator estimator = null;
         
@@ -511,7 +511,7 @@ public class TransactionEstimator implements Loggable {
                     // if (catalog_proc.getName().equalsIgnoreCase("NewBid")) throw new Exception ("Fake!");
                 } catch (Throwable e) {
                     try {
-                        GraphvizExport<Vertex, Edge> gv = MarkovUtil.exportGraphviz(markov, true, markov.getPath(estimator.getVisitPath()));
+                        GraphvizExport<MarkovVertex, MarkovEdge> gv = MarkovUtil.exportGraphviz(markov, true, markov.getPath(estimator.getVisitPath()));
                         LOG.error("GRAPH #" + markov.getGraphId() + " DUMP: " + gv.writeToTempFile(catalog_proc));
                     } catch (Exception ex) {
                         throw new RuntimeException(ex);
@@ -532,7 +532,7 @@ public class TransactionEstimator implements Loggable {
         }
         assert(estimator != null);
         if (t) {
-            List<Vertex> path = estimator.getVisitPath();
+            List<MarkovVertex> path = estimator.getVisitPath();
             LOG.trace(String.format("Estimated Path for %s [length=%d]\n%s",
                                     TransactionState.formatTxnName(catalog_proc, txn_id), path.size(),
                                     StringUtil.join("\n----------------------\n", path, "debug")));
@@ -574,9 +574,9 @@ public class TransactionEstimator implements Loggable {
         int batch_size = catalog_stmts.length;
         MarkovGraph markov = state.getMarkovGraph();
             
-        Vertex current = state.current;
-        Vertex next_v = null;
-        Edge next_e = null;
+        MarkovVertex current = state.current;
+        MarkovVertex next_v = null;
+        MarkovEdge next_e = null;
         Statement last_stmt = null;
         int stmt_idxs[] = null;
         boolean attempt_cache_lookup = false;
@@ -601,7 +601,7 @@ public class TransactionEstimator implements Loggable {
                 else state.cache_last_partitions.addAll(last_partitions);
             } // FOR
             
-            Pair<Edge, Vertex> pair = markov.getCachedBatchEnd(current, last_stmt, stmt_idxs[batch_size-1], state.cache_last_partitions, state.cache_past_partitions);
+            Pair<MarkovEdge, MarkovVertex> pair = markov.getCachedBatchEnd(current, last_stmt, stmt_idxs[batch_size-1], state.cache_last_partitions, state.cache_past_partitions);
             if (pair != null) {
                 next_e = pair.getFirst();
                 assert(next_e != null);
@@ -655,7 +655,7 @@ public class TransactionEstimator implements Loggable {
      * @param txn_id finished transaction
      */
     public State commit(long txn_id) {
-        return (this.completeTransaction(txn_id, Vertex.Type.COMMIT));
+        return (this.completeTransaction(txn_id, MarkovVertex.Type.COMMIT));
     }
 
     /**
@@ -663,7 +663,7 @@ public class TransactionEstimator implements Loggable {
      * @param txn_id
      */
     public State abort(long txn_id) {
-        return (this.completeTransaction(txn_id, Vertex.Type.ABORT));
+        return (this.completeTransaction(txn_id, MarkovVertex.Type.ABORT));
     }
 
     /**
@@ -687,7 +687,7 @@ public class TransactionEstimator implements Loggable {
      * @param vtype
      * @return
      */
-    private State completeTransaction(long txn_id, Vertex.Type vtype) {
+    private State completeTransaction(long txn_id, MarkovVertex.Type vtype) {
         State s = this.txn_states.remove(txn_id);
         if (s == null) {
             LOG.warn("No state information exists for txn #" + txn_id);
@@ -699,21 +699,21 @@ public class TransactionEstimator implements Loggable {
         // We need to update the counter information in our MarkovGraph so that we know
         // that the procedure may transition to the ABORT vertex from where ever it was before 
         MarkovGraph g = s.getMarkovGraph();
-        Vertex current = s.getCurrent();
-        Vertex next_v = g.getSpecialVertex(vtype);
+        MarkovVertex current = s.getCurrent();
+        MarkovVertex next_v = g.getSpecialVertex(vtype);
         assert(next_v != null) : "Missing " + vtype;
         
         // If no edge exists to the next vertex, then we need to create one
         synchronized (g) {
-            Edge next_e = g.findEdge(current, next_v);
+            MarkovEdge next_e = g.findEdge(current, next_v);
             if (next_e == null) next_e = g.addToEdge(current, next_v);
             s.setCurrent(next_v, next_e); // For post-txn processing...
 
             // Update counters
             // We want to update the counters for the entire path right here so that
             // nobody gets incomplete numbers if they recompute probabilities
-            for (Vertex v : s.actual_path) v.incrementInstanceHits();
-            for (Edge e : s.actual_path_edges) e.incrementInstanceHits();
+            for (MarkovVertex v : s.actual_path) v.incrementInstanceHits();
+            for (MarkovEdge e : s.actual_path_edges) e.incrementInstanceHits();
             next_v.addInstanceTime(txn_id, s.getExecutionTimeOffset(timestamp));
         } // SYNCH
         
@@ -754,17 +754,17 @@ public class TransactionEstimator implements Loggable {
         
         // Examine all of the vertices that are adjacent to our current vertex
         // and see which vertex we are going to move to next
-        Vertex current = state.getCurrent();
+        MarkovVertex current = state.getCurrent();
         assert(current != null);
-        Vertex next_v = null;
-        Edge next_e = null;
+        MarkovVertex next_v = null;
+        MarkovEdge next_e = null;
 
         // Synchronize on the single vertex so that it's more fine-grained than the entire graph
         synchronized (current) {
-            Collection<Edge> edges = markov.getOutEdges(current); 
+            Collection<MarkovEdge> edges = markov.getOutEdges(current); 
             if (t) LOG.trace("Examining " + edges.size() + " edges from " + current + " for Txn #" + state.txn_id);
-            for (Edge e : edges) {
-                Vertex v = markov.getDest(e);
+            for (MarkovEdge e : edges) {
+                MarkovVertex v = markov.getDest(e);
                 if (v.isEqual(catalog_stmt, partitions, state.touched_partitions, queryInstanceIndex)) {
                     if (t) LOG.trace("Found next vertex " + v + " for Txn #" + state.txn_id);
                     next_v = v;
@@ -777,8 +777,8 @@ public class TransactionEstimator implements Loggable {
             // one. The graph is self-managed, so we don't need to worry about whether 
             // we need to recompute probabilities.
             if (next_v == null) {
-                next_v = new Vertex(catalog_stmt,
-                                    Vertex.Type.QUERY,
+                next_v = new MarkovVertex(catalog_stmt,
+                                    MarkovVertex.Type.QUERY,
                                     queryInstanceIndex,
                                     partitions,
                                     state.touched_partitions);

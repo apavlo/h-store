@@ -6,7 +6,7 @@ import org.apache.log4j.Logger;
 import org.voltdb.catalog.*;
 import edu.brown.graphs.*;
 import edu.brown.designer.*;
-import edu.brown.designer.Edge.Members;
+import edu.brown.designer.DesignerEdge.Members;
 import edu.brown.utils.CollectionUtil;
 
 public class PartitionSets extends HashSet<PartitionSets.Entry> {
@@ -26,7 +26,7 @@ public class PartitionSets extends HashSet<PartitionSets.Entry> {
         protected double weight = 0;
         
         private final Map<Table, Set<ColumnSet>> table_cset_xref = new HashMap<Table, Set<ColumnSet>>();
-        private final Map<Table, Set<Edge>> table_edge_xref = new HashMap<Table, Set<Edge>>();
+        private final Map<Table, Set<DesignerEdge>> table_edge_xref = new HashMap<Table, Set<DesignerEdge>>();
         private final Map<Table, Set<Column>> table_partition_xref = new HashMap<Table, Set<Column>>();
         
         /**
@@ -80,8 +80,8 @@ public class PartitionSets extends HashSet<PartitionSets.Entry> {
          * @param child_table
          * @return
          */
-        public Edge getEdge(Table child_table) {
-            Edge ret = null;
+        public DesignerEdge getEdge(Table child_table) {
+            DesignerEdge ret = null;
             if (this.table_edge_xref.containsKey(child_table)) {
                 ret = CollectionUtil.getFirst(this.table_edge_xref.get(child_table));
             }
@@ -133,7 +133,7 @@ public class PartitionSets extends HashSet<PartitionSets.Entry> {
         return this.parent_table;
     }
     
-    public boolean add(Table child_table, Edge edge) {
+    public boolean add(Table child_table, DesignerEdge edge) {
         //
         // We first need to convert the ColumnSet into a set of attributes 
         // that "connect" the child table with the parent
@@ -197,7 +197,7 @@ public class PartitionSets extends HashSet<PartitionSets.Entry> {
         // Child Table -> Edges
         //
         if (!entry.table_edge_xref.containsKey(child_table)) {
-            entry.table_edge_xref.put(child_table, new HashSet<Edge>());
+            entry.table_edge_xref.put(child_table, new HashSet<DesignerEdge>());
         }
         entry.table_edge_xref.get(child_table).add(edge);
         

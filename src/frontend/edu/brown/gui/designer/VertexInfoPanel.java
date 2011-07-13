@@ -8,14 +8,14 @@ import javax.swing.*;
 import org.voltdb.catalog.CatalogType;
 import org.voltdb.catalog.Database;
 
-import edu.brown.designer.Edge;
-import edu.brown.designer.Vertex;
+import edu.brown.designer.DesignerEdge;
+import edu.brown.designer.DesignerVertex;
 import edu.brown.graphs.*;
 import edu.brown.gui.*;
 import edu.brown.gui.common.*;
 import edu.brown.utils.*;
 
-public class VertexInfoPanel extends AbstractInfoPanel<Vertex> {
+public class VertexInfoPanel extends AbstractInfoPanel<DesignerVertex> {
     private static final long serialVersionUID = -7696030449965056519L;
     
     protected final DesignerVisualization parent;
@@ -36,7 +36,7 @@ public class VertexInfoPanel extends AbstractInfoPanel<Vertex> {
 
     }
     
-    public void update(Vertex vertex) {
+    public void update(DesignerVertex vertex) {
         this.setEnabled(true);
         this.setLayout(new BorderLayout());
         JPanel panel = new JPanel();
@@ -67,7 +67,7 @@ public class VertexInfoPanel extends AbstractInfoPanel<Vertex> {
             @Override
             public void itemStateChanged(ItemEvent e) {
                 if (e.getStateChange() == ItemEvent.SELECTED) {
-                    Edge edge = (Edge)VertexInfoPanel.this.edgesCombo.getSelectedItem();
+                    DesignerEdge edge = (DesignerEdge)VertexInfoPanel.this.edgesCombo.getSelectedItem();
                     VertexInfoPanel.this.parent.getCurrentVisualizer().selectEdge(edge);
                 }
             }
@@ -76,8 +76,8 @@ public class VertexInfoPanel extends AbstractInfoPanel<Vertex> {
         panel.add(this.edgesCombo, c);
 
         
-        GraphVisualizationPanel<Vertex, Edge> visualizer = this.parent.getCurrentVisualizer();
-        IGraph<Vertex, Edge> graph = (IGraph<Vertex, Edge>)visualizer.getGraph();
+        GraphVisualizationPanel<DesignerVertex, DesignerEdge> visualizer = this.parent.getCurrentVisualizer();
+        IGraph<DesignerVertex, DesignerEdge> graph = (IGraph<DesignerVertex, DesignerEdge>)visualizer.getGraph();
         
         this.relationLabel.setText(vertex.getCatalogItem().getName());
         
@@ -94,7 +94,7 @@ public class VertexInfoPanel extends AbstractInfoPanel<Vertex> {
         //
         this.edgesCombo.removeAllItems();
         boolean enabled = false;
-        for (Edge edge : graph.getIncidentEdges(vertex)) {
+        for (DesignerEdge edge : graph.getIncidentEdges(vertex)) {
             this.edgesCombo.addItem(edge);
             enabled = true;
         } // FOR

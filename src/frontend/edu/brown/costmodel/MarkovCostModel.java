@@ -30,7 +30,7 @@ import edu.brown.markov.MarkovGraph;
 import edu.brown.markov.MarkovProbabilityCalculator;
 import edu.brown.markov.MarkovUtil;
 import edu.brown.markov.TransactionEstimator;
-import edu.brown.markov.Vertex;
+import edu.brown.markov.MarkovVertex;
 import edu.brown.markov.TransactionEstimator.State;
 import edu.brown.markov.containers.MarkovGraphContainersUtil;
 import edu.brown.markov.containers.MarkovGraphsContainer;
@@ -268,7 +268,7 @@ public class MarkovCostModel extends AbstractCostModel {
         MarkovEstimate est = s.getInitialEstimate();
         for (Integer partition : est.getTouchedPartitions(this.thresholds)) {
             if (est.isFinishedPartition(this.thresholds, partition.intValue()) == false) {
-                for (Vertex v : s.getInitialPath()) {
+                for (MarkovVertex v : s.getInitialPath()) {
                     if (v.getPartitions().contains(partition) == false) continue;
                     if (((Statement)v.getCatalogItem()).getReadonly()) {
                         this.e_read_partitions.add(partition);    
@@ -279,7 +279,7 @@ public class MarkovCostModel extends AbstractCostModel {
             }
         } // FOR
         
-        List<Vertex> actual = s.getActualPath();
+        List<MarkovVertex> actual = s.getActualPath();
         this.a_read_partitions.clear();
         this.a_write_partitions.clear();
         MarkovUtil.getReadWritePartitions(actual, this.a_read_partitions, this.a_write_partitions);
@@ -325,7 +325,7 @@ public class MarkovCostModel extends AbstractCostModel {
      * @param actual
      * @return
      */
-    protected boolean comparePathsFast(List<Vertex> estimated, List<Vertex> actual) {
+    protected boolean comparePathsFast(List<MarkovVertex> estimated, List<MarkovVertex> actual) {
         if (trace.get()) LOG.trace(String.format("Fast Path Compare: Estimated [size=%d] vs. Actual [size=%d]", estimated.size(), actual.size()));
         this.e_read_partitions.clear();
         this.e_write_partitions.clear();
@@ -342,10 +342,10 @@ public class MarkovCostModel extends AbstractCostModel {
      * @param actual
      * @return
      */
-    private boolean comparePathsFast(Vertex e_last, List<Vertex> actual) {
+    private boolean comparePathsFast(MarkovVertex e_last, List<MarkovVertex> actual) {
         // (1) Check that the MarkovEstimate's last state matches the actual path (commit vs abort) 
         assert(e_last != null);
-        Vertex a_last = CollectionUtil.getLast(actual);
+        MarkovVertex a_last = CollectionUtil.getLast(actual);
         assert(a_last != null);
         assert(a_last.isEndingVertex());
         if (trace.get()) {
@@ -384,18 +384,18 @@ public class MarkovCostModel extends AbstractCostModel {
         
         this.penalties.clear();
 
-        List<Vertex> estimated = s.getInitialPath();
+        List<MarkovVertex> estimated = s.getInitialPath();
         this.e_all_partitions.clear();
         this.e_all_partitions.addAll(this.e_read_partitions);
         this.e_all_partitions.addAll(this.e_write_partitions);
-        Vertex e_last = CollectionUtil.getLast(estimated);
+        MarkovVertex e_last = CollectionUtil.getLast(estimated);
         assert(e_last != null);
         
-        List<Vertex> actual = s.getActualPath();
+        List<MarkovVertex> actual = s.getActualPath();
         this.a_all_partitions.clear();
         this.a_all_partitions.addAll(this.a_read_partitions);
         this.a_all_partitions.addAll(this.a_write_partitions);
-        Vertex a_last = CollectionUtil.getLast(actual);
+        MarkovVertex a_last = CollectionUtil.getLast(actual);
         assert(a_last != null);
         assert(a_last.isEndingVertex());
         
@@ -416,7 +416,7 @@ public class MarkovCostModel extends AbstractCostModel {
             if (debug.get()) LOG.debug("Using " + MarkovProbabilityCalculator.class.getSimpleName() + " to calculate MarkoEstimates for " + s.getFormattedName());
             estimates = new ArrayList<MarkovEstimate>();
             for (MarkovEstimate est : s.getEstimates()) {
-                Vertex v = est.getVertex();
+                MarkovVertex v = est.getVertex();
                 MarkovEstimate new_est = MarkovProbabilityCalculator.generate(markov, v);
                 assert(new_est != null);
                 estimates.add(est);
@@ -476,11 +476,11 @@ public class MarkovCostModel extends AbstractCostModel {
         // For each MarkovEstimate, check whether there is a path in the graph for the current vertex
         // to the abort state. If there isn't, then we need to check whether 
         // This should match ExecutionSite.executeLocalPlan()
-        Vertex abort_v = markov.getAbortVertex();
+        MarkovVertex abort_v = markov.getAbortVertex();
         boolean last_hadAbortPath = true;
         first_penalty = true;
         for (MarkovEstimate est : estimates) {
-            Vertex v = est.getVertex();
+            MarkovVertex v = est.getVertex();
             assert(v != null) : "No vertex?\n" + est;
             boolean isAbortable = est.isAbortable(this.thresholds);
             boolean isReadOnly = est.isReadOnlyPartition(this.thresholds, base_partition);
@@ -585,7 +585,7 @@ public class MarkovCostModel extends AbstractCostModel {
         
         for (int i = 0; i < num_estimates; i++) {
             MarkovEstimate est = estimates.get(i);
-            Vertex est_v = est.getVertex();
+            MarkovVertex est_v = est.getVertex();
             
             // Get the path of vertices
             int start = last_est_idx;
@@ -594,7 +594,7 @@ public class MarkovCostModel extends AbstractCostModel {
             
             new_touched_partitions.clear();
             for ( ; start <= stop; start++) {
-                Vertex v = actual.get(start);
+                MarkovVertex v = actual.get(start);
                 assert(v != null);
                 
                 Statement catalog_stmt = v.getCatalogItem();

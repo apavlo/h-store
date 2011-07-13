@@ -37,7 +37,7 @@ public class Designer {
     protected PartitionTree final_graph;
     
     protected final Map<Procedure, AccessGraph> proc_access_graphs = new HashMap<Procedure, AccessGraph>();
-    protected final Map<Procedure, Set<IGraph<Vertex, Edge>>> proc_graphs = new HashMap<Procedure, Set<IGraph<Vertex, Edge>>>();
+    protected final Map<Procedure, Set<IGraph<DesignerVertex, DesignerEdge>>> proc_graphs = new HashMap<Procedure, Set<IGraph<DesignerVertex, DesignerEdge>>>();
     
     // ----------------------------------------------------
     // PARTITIONING
@@ -115,7 +115,7 @@ public class Designer {
                 continue;
             }
             this.proc_access_graphs.put(catalog_proc, agraph);
-            this.proc_graphs.put(catalog_proc, new LinkedHashSet<IGraph<Vertex, Edge>>());
+            this.proc_graphs.put(catalog_proc, new LinkedHashSet<IGraph<DesignerVertex, DesignerEdge>>());
             this.proc_graphs.get(catalog_proc).add(agraph);
         } // FOR   
     }
@@ -149,11 +149,11 @@ public class Designer {
         return (this.proc_access_graphs.get(catalog_proc));
     }
     
-    public Set<IGraph<Vertex, Edge>> getGraphs(Procedure catalog_proc) {
+    public Set<IGraph<DesignerVertex, DesignerEdge>> getGraphs(Procedure catalog_proc) {
         return (this.proc_graphs.get(catalog_proc));
     }
     
-    public IGraph<Vertex, Edge> getFinalGraph() {
+    public IGraph<DesignerVertex, DesignerEdge> getFinalGraph() {
         return (this.final_graph);
     }
     

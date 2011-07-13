@@ -19,8 +19,11 @@ import edu.brown.designer.DesignerHints;
 import edu.brown.designer.DesignerInfo;
 import edu.brown.designer.partitioners.BranchAndBoundPartitioner;
 import edu.brown.designer.partitioners.PartitionPlan;
+import edu.brown.graphs.GraphvizExport;
 import edu.brown.rand.RandomDistribution;
 import edu.brown.statistics.Histogram;
+import edu.brown.statistics.WorkloadStatistics;
+import edu.brown.utils.FileUtil;
 import edu.brown.utils.ProjectType;
 import edu.brown.workload.AbstractTraceElement;
 import edu.brown.workload.Workload;
@@ -47,8 +50,9 @@ public class TestTimeIntervalCostModel extends BaseTestCase {
     private static final int NUM_INTERVALS = 10;
     
     // Reading the workload takes a long time, so we only want to do it once
-    private static Workload multi_workload;
-    private static Workload single_workload;
+    private static Workload multip_workload;
+    private static Workload singlep_workload;
+    private static WorkloadStatistics stats;
     
     private TimeIntervalCostModel<SingleSitedCostModel> cost_model;
     private final Random rand = new Random();
@@ -59,25 +63,34 @@ public class TestTimeIntervalCostModel extends BaseTestCase {
         this.addPartitions(NUM_PARTITIONS);
         
         // Super hack! Walk back the directories and find out workload directory
-        if (multi_workload == null) {
-            File workload_file = this.getWorkloadFile(ProjectType.TM1); 
+        if (multip_workload == null) {
+            File f = this.getWorkloadFile(ProjectType.TM1); 
             
             // All Multi-Partition Txn Workload
             ProcedureNameFilter multi_filter = new ProcedureNameFilter();
             multi_filter.include(MULTIPARTITION_PROCEDURES);
             multi_filter.attach(new ProcedureLimitFilter(WORKLOAD_XACT_LIMIT));
-            multi_workload = new Workload(catalog);
-            ((Workload)multi_workload).load(workload_file.getAbsolutePath(), catalog_db, multi_filter);
-            assert(multi_workload.getTransactionCount() > 0);
+            multip_workload = new Workload(catalog);
+            ((Workload)multip_workload).load(f.getAbsolutePath(), catalog_db, multi_filter);
+            assert(multip_workload.getTransactionCount() > 0);
 
             // All Single-Partition Txn Workload
             ProcedureNameFilter single_filter = new ProcedureNameFilter();
             single_filter.include(SINGLEPARTITION_PROCEDURES);
             single_filter.attach(new ProcedureLimitFilter(WORKLOAD_XACT_LIMIT));
-            single_workload = new Workload(catalog);
-            ((Workload)single_workload).load(workload_file.getAbsolutePath(), catalog_db, single_filter);
-            assert(single_workload.getTransactionCount() > 0);
+            singlep_workload = new Workload(catalog);
+            ((Workload)singlep_workload).load(f.getAbsolutePath(), catalog_db, single_filter);
+            assert(singlep_workload.getTransactionCount() > 0);
+            
+            // Workload Statistics
+            f = this.getStatsFile(ProjectType.TM1);
+            stats = new WorkloadStatistics(catalog_db);
+            stats.load(f.getAbsolutePath(), catalog_db);
         }
+        assertNotNull(multip_workload);
+        assertNotNull(singlep_workload);
+        assertNotNull(stats);
+        
         this.cost_model = new TimeIntervalCostModel<SingleSitedCostModel>(catalog_db, SingleSitedCostModel.class, NUM_INTERVALS);
     }
     
@@ -87,13 +100,13 @@ public class TestTimeIntervalCostModel extends BaseTestCase {
     public void testEstimateCost() throws Exception {
         // For now just check whether we get the same cost back for the same
         // workload... seems simple enough
-        double cost0 = this.cost_model.estimateCost(catalog_db, multi_workload);
-        double cost1 = this.cost_model.estimateCost(catalog_db, multi_workload);
+        double cost0 = this.cost_model.estimateCost(catalog_db, multip_workload);
+        double cost1 = this.cost_model.estimateCost(catalog_db, multip_workload);
         assertEquals(cost0, cost1);
         
         // Then make a new object and make sure that returns the same as well
         AbstractCostModel new_costmodel = new TimeIntervalCostModel<SingleSitedCostModel>(catalog_db, SingleSitedCostModel.class, NUM_INTERVALS);
-        cost1 = new_costmodel.estimateCost(catalog_db, multi_workload);
+        cost1 = new_costmodel.estimateCost(catalog_db, multip_workload);
         assertEquals(cost0, cost1);
     }
     
@@ -101,18 +114,18 @@ public class TestTimeIntervalCostModel extends BaseTestCase {
      * testIntervals
      */
     public void testIntervals() throws Exception {
-        this.cost_model.estimateCost(catalog_db, multi_workload);
+        this.cost_model.estimateCost(catalog_db, multip_workload);
         for (int i = 0; i < NUM_INTERVALS; i++) {
             SingleSitedCostModel sub_model = this.cost_model.getCostModel(i);
             assertNotNull(sub_model);
             
             // Check Partition Access Histogram
-            Histogram hist_access = sub_model.getQueryPartitionAccessHistogram();
+            Histogram<Integer> hist_access = sub_model.getQueryPartitionAccessHistogram();
             assertNotNull(hist_access);
             assertEquals(NUM_PARTITIONS, hist_access.getValueCount());
             
             // Check Java Execution Histogram
-            Histogram hist_execute = sub_model.getJavaExecutionHistogram();
+            Histogram<Integer> hist_execute = sub_model.getJavaExecutionHistogram();
             assertNotNull(hist_execute);
 //            System.err.println("Interval #" + i + "\n" + hist_execute);
 //            assertEquals(1, hist_execute.getValueCount());
@@ -159,7 +172,7 @@ public class TestTimeIntervalCostModel extends BaseTestCase {
         };
 
         // Estimate the cost and examine the state of the estimation
-        double cost = this.cost_model.estimateCost(catalog_db, single_workload, filter);
+        double cost = this.cost_model.estimateCost(catalog_db, singlep_workload, filter, null);
 //        System.err.println(txn_for_partition);
         for (int i = 0; i < NUM_PARTITIONS; i++) {
             assert(txn_for_partition.containsKey(i)) : "No txn in workload for partition #" + i;
@@ -177,7 +190,7 @@ public class TestTimeIntervalCostModel extends BaseTestCase {
     public void testSinglePartitionSkewedWorkload() throws Exception {
         // First construct a zipfian-based histogram of partitions and then create a filter that
         // will selectively prune out txns based on the frequencies in the histogram
-        Histogram h = new Histogram();
+        Histogram<Integer> h = new Histogram<Integer>();
         double sigma = 3.5d;
         RandomDistribution.Zipf zipf = new RandomDistribution.Zipf(this.rand, 0, NUM_PARTITIONS, sigma);
         for (int i = 0; i < 100; i++) {
@@ -225,7 +238,7 @@ public class TestTimeIntervalCostModel extends BaseTestCase {
 
         // Estimate the cost and then check whether cost falls in our expected range
         // We expect that the entropy portion of the cost should be greater than 0.50
-        double cost = this.cost_model.estimateCost(catalog_db, single_workload, filter);
+        double cost = this.cost_model.estimateCost(catalog_db, singlep_workload, filter, null);
 //        System.err.println("Final Cost: " + cost);
 //        System.err.println("Execution:  " + this.cost_model.last_execution_cost);
 //        System.err.println("Entropy:    " + this.cost_model.last_entropy_cost);
@@ -237,7 +250,6 @@ public class TestTimeIntervalCostModel extends BaseTestCase {
     /**
      * testConsistentCost
      */
-// FIXME
 //    public void testConsistentCost() throws Exception {
 //        // We want to check that if we run the same workload multiple times that we get
 //        // the same cost each time
@@ -248,29 +260,35 @@ public class TestTimeIntervalCostModel extends BaseTestCase {
 //        hints.limit_total_time = 5;
 //        hints.enable_costmodel_caching = true;
 //        hints.enable_costmodel_java_execution = false;
+//        hints.max_memory_per_partition = Long.MAX_VALUE;
 //        final PartitionPlan initial = PartitionPlan.createFromCatalog(catalog_db);
 //        
 //        // HACK: Enable debug output in BranchAndBoundPartitioner so that it slows the
 //        // the traversal. There is a race condition since we were able to speed things up
 //        BranchAndBoundPartitioner.LOG.setLevel(Level.DEBUG);
 //        
+//        System.err.println(initial);
+//        
 //        Double last_cost = null;
 //        while (tries-- > 0) {
 //            final Database clone_db = CatalogUtil.cloneDatabase(catalog_db);
 //            // final TimeIntervalCostModel<SingleSitedCostModel> cm = new TimeIntervalCostModel<SingleSitedCostModel>(clone_db, SingleSitedCostModel.class, NUM_INTERVALS);
+////            AbstractCostModel cm = new SingleSitedCostModel(catalog_db, p_estimator);
 //            AbstractCostModel cm = this.cost_model;
 //
-//            double cost0 = cm.estimateCost(clone_db, single_workload);
+//            double cost0 = cm.estimateCost(clone_db, singlep_workload);
 //            assert(cost0 > 0) : "[0] Invalid Cost: " + cost0;
 //            if (last_cost != null) {
 //                assertEquals("[0] Try #" + tries, cost0, last_cost.doubleValue());
 //            }
 //            
-//            DesignerInfo info = new DesignerInfo(clone_db, single_workload);
+//            DesignerInfo info = new DesignerInfo(clone_db, singlep_workload);
+//            info.setStats(stats);
 //            info.setNumIntervals(NUM_INTERVALS);
 //            info.setPartitionerClass(BranchAndBoundPartitioner.class);
 //            info.setCostModel(cm);
 //            info.setCorrelationsFile(this.getCorrelationsFile(ProjectType.TM1).getAbsolutePath());
+//            
 //            Designer designer = new Designer(info, hints, info.getArgs());
 //            BranchAndBoundPartitioner local_search = (BranchAndBoundPartitioner)designer.getPartitioner();
 //            local_search.setUpperBounds(hints, initial, cost0, 12345);
@@ -278,14 +296,20 @@ public class TestTimeIntervalCostModel extends BaseTestCase {
 //            
 //            // Now shovel through the Branch&Bound partitioner without actually doing anything
 //            // We should then get the exact same PartitionPlan back as we gave it
-//            PartitionPlan pplan = local_search.generate(hints);
+//            PartitionPlan pplan = null;
+//            try {
+//                pplan = local_search.generate(hints);
+//            } catch (Exception ex) {
+//                System.err.println("GRAPH: " + FileUtil.writeStringToTempFile(GraphvizExport.export(local_search.getAcessGraph(), "tm1"), "dot"));
+//                throw ex;
+//            }
 //            assertNotNull(pplan);
 //            assertEquals(initial, pplan);
 //            
 //            // Which then means we should get the exact same cost back
 //            initial.apply(clone_db);
 //            cm.clear(true);
-//            double cost1 = cm.estimateCost(clone_db, single_workload);
+//            double cost1 = cm.estimateCost(clone_db, singlep_workload);
 //            assert(cost1 > 0) : "[1] Invalid Cost: " + cost0;
 //            assertEquals("[1] Try #" + tries, cost0, cost1);
 //            

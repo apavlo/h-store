@@ -1,9 +1,12 @@
 package edu.brown.designer.partitioners;
 
 import java.util.Collection;
-import java.util.List;
+import java.util.Set;
 
-import org.voltdb.catalog.*;
+import org.voltdb.catalog.Column;
+import org.voltdb.catalog.ProcParameter;
+import org.voltdb.catalog.Procedure;
+import org.voltdb.catalog.Table;
 import org.voltdb.types.PartitionMethodType;
 import org.voltdb.utils.CatalogUtil;
 
@@ -12,6 +15,7 @@ import edu.brown.designer.Designer;
 import edu.brown.designer.DesignerHints;
 import edu.brown.designer.DesignerInfo;
 import edu.brown.statistics.TableStatistics;
+import edu.brown.utils.CollectionUtil;
 
 public class PrimaryKeyPartitioner extends AbstractPartitioner {
 
@@ -63,8 +67,8 @@ public class PrimaryKeyPartitioner extends AbstractPartitioner {
             pplan.apply(info.catalog_db);
             for (Procedure catalog_proc : this.info.catalog_db.getProcedures()) {
                 if (catalog_proc.getSystemproc() || catalog_proc.getParameters().size() == 0) continue;
-                List<String> param_order = BranchAndBoundPartitioner.generateProcParameterOrder(info, info.catalog_db, catalog_proc, hints);
-                PartitionEntry pentry = new PartitionEntry(PartitionMethodType.HASH, CatalogKey.getFromKey(info.catalog_db, param_order.get(0), ProcParameter.class));
+                Set<String> param_order = BranchAndBoundPartitioner.generateProcParameterOrder(info, info.catalog_db, catalog_proc, hints);
+                PartitionEntry pentry = new PartitionEntry(PartitionMethodType.HASH, CatalogKey.getFromKey(info.catalog_db, CollectionUtil.getFirst(param_order), ProcParameter.class));
                 pplan.getProcedureEntries().put(catalog_proc, pentry);
             } // FOR
         }
