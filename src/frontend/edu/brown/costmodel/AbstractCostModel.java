@@ -33,7 +33,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
 
-import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
 import org.voltdb.catalog.CatalogType;

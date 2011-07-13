@@ -9,7 +9,7 @@ public class TestLoader extends AirlineBaseTestCase {
      * testLoader
      */
     public void testLoader() throws Exception {
-        loader.test();
+        
     }
  
     

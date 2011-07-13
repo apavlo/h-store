@@ -21,7 +21,7 @@ public class TestBenchmarkProfile extends TestCase {
 
     private final HashSet<FlightId> flight_ids = new HashSet<FlightId>();
     private final long num_flights = 10l;
-    private final Date flight_start_date = new Date(1262630005000l);
+    private final Date flight_start_date = new Date(1262630005000l); // Monday 01.04.2010 13:33:25
     private final int flight_past_days = 7;
     private final int flight_future_days = 14;
     
@@ -115,7 +115,7 @@ public class TestBenchmarkProfile extends TestCase {
         JSONObject jsonObject = new JSONObject(jsonString);
         
         BenchmarkProfile clone = new BenchmarkProfile();
-        clone.fromJSONObject(jsonObject);
+        clone.fromJSON(jsonObject, null);
         
         assertEquals(this.profile.getCustomerIdCount(), clone.getCustomerIdCount());
         assertEquals(this.profile.getFlightIdCount(), clone.getFlightIdCount());

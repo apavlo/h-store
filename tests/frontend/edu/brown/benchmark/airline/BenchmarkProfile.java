@@ -1,6 +1,7 @@
 package edu.brown.benchmark.airline;
 
 import java.io.FileOutputStream;
+import java.io.IOException;
 import java.lang.reflect.Field;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
@@ -12,12 +13,16 @@ import org.apache.commons.collections15.set.ListOrderedSet;
 import org.apache.log4j.Logger;
 import org.json.*;
 import org.voltdb.VoltType;
+import org.voltdb.catalog.Database;
 import org.voltdb.utils.VoltTypeUtil;
 
 import edu.brown.benchmark.airline.util.*;
+import edu.brown.correlations.Correlation;
 import edu.brown.utils.FileUtil;
+import edu.brown.utils.JSONSerializable;
+import edu.brown.utils.JSONUtil;
 
-public class BenchmarkProfile implements JSONString {
+public class BenchmarkProfile implements JSONSerializable {
     protected static final Logger LOG = Logger.getLogger(AirlineBaseClient.class.getName());
     
     public enum Members {
@@ -36,55 +41,55 @@ public class BenchmarkProfile implements JSONString {
      * Data Scale Factor
      * Range: ???
      */
-    private long scale_factor;
+    public double scale_factor;
     
     /**
      * For each airport id, store the last id of the customer that uses this airport
      * as their local airport. The customer ids will be stored as follows in the dbms:
      * <16-bit AirportId><48-bit CustomerId>
      */
-    private final Map<Long, Long> airport_max_customer_id = new HashMap<Long, Long>();
+    public final Map<Long, Long> airport_max_customer_id = new HashMap<Long, Long>();
         
     /**
      * The date when flights total data set begins
      */
-    private Date flight_start_date;
+    public Date flight_start_date;
     
     /**
      * The date for when the flights are considered upcoming and are eligible for reservations
      */
-    private Date flight_upcoming_date;
+    public Date flight_upcoming_date;
     
     /**
      * The number of days in the past that our flight data set includes.
      */
-    private long flight_past_days;
+    public long flight_past_days;
     
     /**
      * The number of days in the future (from the flight_upcoming_date) that our flight data set includes
      */
-    private long flight_future_days;
+    public long flight_future_days;
     
     /**
      * Store a list of FlightIds (encoded) and the number of seats
      * remaining for a particular flight.
      */
-    private final ListOrderedMap<Long, Short> seats_remaining = new ListOrderedMap<Long, Short>();
+    public final ListOrderedMap<Long, Short> seats_remaining = new ListOrderedMap<Long, Short>();
     
     /**
      * The offset of when upcoming flights begin in the seats_remaining list
      */
-    private Long flight_upcoming_offset = null;
+    public Long flight_upcoming_offset = null;
     
     /**
      * The offset of when reservations for upcoming flights begin
      */
-    private Long reservation_upcoming_offset = null;
+    public Long reservation_upcoming_offset = null;
     
     /**
      * The number of records loaded for each table
      */
-    private final Map<String, Long> num_records = new HashMap<String, Long>();
+    public final Map<String, Long> num_records = new HashMap<String, Long>();
 
     // -----------------------------------------------------------------
     // GENERAL METHODS
@@ -101,7 +106,7 @@ public class BenchmarkProfile implements JSONString {
      * Get the scale factor value for this benchmark profile
      * @return
      */
-    public long getScaleFactor() {
+    public double getScaleFactor() {
         return (this.scale_factor);
     }
     
@@ -109,7 +114,7 @@ public class BenchmarkProfile implements JSONString {
      * Set the scale factor for this benchmark profile
      * @param scale_factor
      */
-    public void setScaleFactor(long scale_factor) {
+    public void setScaleFactor(double scale_factor) {
         assert(this.scale_factor > 0);
         this.scale_factor = scale_factor;
     }
@@ -386,126 +391,28 @@ public class BenchmarkProfile implements JSONString {
     // SERIALIZATION
     // -----------------------------------------------------------------
     
-    public void save(String path) throws Exception {
-        LOG.debug("Writing out '" + this.getClass().getSimpleName() + "' to " + path + "'");
-        String json = this.toJSONString();
-        JSONObject jsonObject = new JSONObject(json);
-        FileOutputStream out = new FileOutputStream(path);
-        out.write(jsonObject.toString(2).getBytes());
-        out.close();
-        return;
-    }
-    
-    public void load(String path) throws Exception {
-        LOG.debug("Reading in '" + this.getClass().getSimpleName() + "' from " + path + "'");
-        String contents = FileUtil.readFile(path);
-        if (contents.isEmpty()) {
-            throw new Exception("The file '" + path + "' is empty");
-        }
-        JSONObject jsonObject = new JSONObject(contents);
-        this.fromJSONObject(jsonObject);
+    @Override
+    public void load(String input_path, Database catalog_db) throws IOException {
+        JSONUtil.load(this, catalog_db, input_path);
     }
     
     @Override
-    public String toJSONString() {
-        JSONStringer stringer = new JSONStringer();
-        try {
-            stringer.object();
-            this.toJSONString(stringer);
-            stringer.endObject();
-        } catch (JSONException e) {
-            e.printStackTrace();
-            System.exit(-1);
-        }
-        return stringer.toString();
+    public void save(String output_path) throws IOException {
+        JSONUtil.save(this, output_path);
     }
-    
-    @SuppressWarnings("unchecked")
-    public void toJSONString(JSONStringer stringer) throws JSONException {
-        Class<?> profileClass = this.getClass();
-        for (Members element : Members.values()) {
-            try {
-                Field field = profileClass.getDeclaredField(element.toString().toLowerCase());
-                Object value = field.get(this);
-                
-                if (value instanceof List) {
-                    stringer.key(element.name()).array();
-                    for (Object list_value : (List<?>)value) {
-                        stringer.value(list_value);
-                    } // FOR
-                    stringer.endArray();
-                } else if (value instanceof Map) {
-                    stringer.key(element.name()).object();
-                    for (Entry<?, ?> e : ((Map<?, ?>)value).entrySet()) {
-                        stringer.key(e.getKey().toString()).value(e.getValue());
-                    } // FOR
-                    stringer.endObject();
-                } else {
-                    stringer.key(element.name()).value(field.get(this)); 
-                }
-            } catch (Exception ex) {
-                ex.printStackTrace();
-                System.exit(1);
-            }
-        } // FOR
-    }
-    
-    @SuppressWarnings("unchecked")
-    public void fromJSONObject(JSONObject object) throws JSONException {
-        Class<?> profileClass = this.getClass();
-        for (Members element : Members.values()) {
-            try {
-                String field_name = element.toString().toLowerCase();
-                Field field = profileClass.getDeclaredField(field_name);
-                Class<?> field_class = field.getType();
-                Object value = field.get(this);
-                
-                if (value instanceof List) {
-                    LOG.debug("[LIST] " + element.name() + " ==> " + value.getClass());
-                    JSONArray jsonArray = object.getJSONArray(element.name());
-                    List list = (List)value;
-                    Type type = field.getGenericType();
-                    assert(type instanceof ParameterizedType);
-                    ParameterizedType pType = (ParameterizedType) type;
-                    VoltType volt_type = VoltType.typeFromClass((Class<?>) pType.getActualTypeArguments()[0]);
 
-                    for (int i = 0, cnt = jsonArray.length(); i < cnt; i++) {
-                        Object json_value = jsonArray.get(i);
-                        list.add(VoltTypeUtil.getObjectFromString(volt_type, json_value.toString()));
-                    } // FOR
-                    System.out.println(list.toString());
-                    
-                } else if (value instanceof Map) {
-                    LOG.debug("[MAP] " + element.name() + " ==> " + value.getClass());
-                    JSONObject jsonObject = object.getJSONObject(element.name());
-                    Map map = (Map)value;
-                    
-                    Type type = field.getGenericType();
-                    assert(type instanceof ParameterizedType);
-                    ParameterizedType pType = (ParameterizedType) type;
-                    VoltType key_type = VoltType.typeFromClass((Class<?>) pType.getActualTypeArguments()[0]);
-                    VoltType val_type = VoltType.typeFromClass((Class<?>) pType.getActualTypeArguments()[1]);
-                    
-                    Iterator<String> keys_it = jsonObject.keys();
-                    while (keys_it.hasNext()) {
-                        String key = keys_it.next();
-                        Object key_obj = VoltTypeUtil.getObjectFromString(key_type, key);
-                        Object val_obj = VoltTypeUtil.getObjectFromString(val_type, jsonObject.getString(key));
-                        LOG.debug(element + ": " + key_obj + " -> " + val_obj);
-                        map.put(key_obj, val_obj);
-                    } // WHILE
-                    
-                } else {
-                    Object json_value = object.get(element.name());
-                    LOG.debug(element + " -> " + json_value + " -> " + field.getType());
-                    VoltType volt_type = VoltType.typeFromClass(field_class);
-                    field.set(this, VoltTypeUtil.getObjectFromString(volt_type, json_value.toString()));
-                }
-            } catch (Exception ex) {
-                LOG.error("Unable to deserialize field '" + element + "'");
-                ex.printStackTrace();
-                System.exit(1);
-            }
-        } // FOR
-    }    
+    @Override
+    public String toJSONString() {
+        return (JSONUtil.toJSONString(this));
+    }
+
+    @Override
+    public void toJSON(JSONStringer stringer) throws JSONException {
+        JSONUtil.fieldsToJSON(stringer, this, BenchmarkProfile.class, BenchmarkProfile.Members.values());
+    }
+    
+    @Override
+    public void fromJSON(JSONObject json_object, Database catalog_db) throws JSONException {
+        JSONUtil.fieldsFromJSON(json_object, catalog_db, this, BenchmarkProfile.class, BenchmarkProfile.Members.values());
+    }
 }

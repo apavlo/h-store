@@ -867,7 +867,7 @@ public abstract class ClientMain {
      * @return
      * @throws Exception
      */
-    public Catalog getCatalog() throws Exception {
+    public Catalog getCatalog() {
         // Read back the catalog and populate catalog object
         if (m_catalog == null) {
             m_catalog =  CatalogUtil.loadCatalogFromJar(m_catalogPath.getAbsolutePath());
