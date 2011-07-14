@@ -725,7 +725,9 @@ public class PartitionEstimator {
                 int mpp_param_idx = mpp.get(i).getIndex();
                 assert(mpp_param_idx >= 0) : "Invalid Partitioning MultiProcParameter #" + mpp_param_idx;
                 assert(mpp_param_idx < params.length) : CatalogUtil.getDisplayName(mpp) + " < " + params.length;
-                hashes[i] = this.calculatePartition(catalog_proc, params[mpp_param_idx], is_array);
+                Integer hash = this.calculatePartition(catalog_proc, params[mpp_param_idx], is_array);
+                if (hash == null) hash = 0;
+                hashes[i] = hash.intValue(); 
                 if (d) LOG.debug(mpp.get(i) + " value[" + params[mpp_param_idx] + "] => hash[" + hashes[i] + "]");
             } // FOR
             partition = this.hasher.multiValueHash(hashes);

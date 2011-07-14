@@ -350,7 +350,7 @@ public class TimeIntervalCostModel<T extends AbstractCostModel> extends Abstract
                     // Update the histogram for this interval to keep track of how many times we need to
                     // increase the partition access histogram
                     incomplete_txn_histogram[i].putAll(tmp_missingPartitions);
-                    if (i == 0) LOG.debug(String.format("Marking %s as incomplete in interval #%d [examinedQ=%d, totalQ=%d, touchedP:%s, missingP: %s]",
+                    if (debug) LOG.debug(String.format("Marking %s as incomplete in interval #%d [examinedQ=%d, totalQ=%d, touchedP:%s, missingP: %s]",
                                                         txn_trace, i, txn_entry.getExaminedQueryCount(), txn_entry.getTotalQueryCount(), txn_entry.getTouchedPartitions(), tmp_missingPartitions));
                 }
             } catch (Exception ex) {
@@ -403,7 +403,7 @@ public class TimeIntervalCostModel<T extends AbstractCostModel> extends Abstract
             tmp_touched.add(partitions_touched[i]);
             tmp_potential.add(potential_txn_touches);
             
-            if (i == 0) {
+            if (debug) {
                 sb.append("Interval #" + i + ": ")
                   .append("PartTouched=" + partitions_touched[i] + ", ")
                   .append("PotentialTouched="  + potential_txn_touches + ", ")
@@ -499,7 +499,7 @@ public class TimeIntervalCostModel<T extends AbstractCostModel> extends Abstract
             // look uniform. Then as more information is added, we will
             // This is an attempt to make sure that the entropy cost never decreases but only increases
             long total_txns_in_interval = histogram_proc_intervals.get(i, 0);
-            if (i == 0) {
+            if (debug) {
                 debug_histograms.put("Incomplete Txns", incomplete_txn_histogram[i]);
                 debug_histograms.put("Missing Txns", missing_txn_histogram[i]);
                 debug_histograms.put("Target Partitions (BEFORE)", new Histogram<Integer>(target_histogram));
@@ -519,7 +519,7 @@ public class TimeIntervalCostModel<T extends AbstractCostModel> extends Abstract
                 "Maximum Potential Touched Count [" + tmp_potential.get(i) + "]";
 
             
-            if (i == 0) {
+            if (debug) {
                 Map<String, Object> m = new ListOrderedMap<String, Object>();
                 for (String key : debug_histograms.keySet()) {
                     Histogram<?> h = debug_histograms.get(key);

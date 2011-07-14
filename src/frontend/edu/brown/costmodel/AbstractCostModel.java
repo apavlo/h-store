@@ -333,7 +333,7 @@ public abstract class AbstractCostModel {
         this.setCachingEnabled(hints.enable_costmodel_caching);
         
         this.setEntropyEnabled(hints.enable_costmodel_skew);
-        this.setEntropyWeight(hints.weight_costmodel_entropy);
+        this.setEntropyWeight(hints.weight_costmodel_skew);
         
         this.setExecutionCostEnabled(hints.enable_costmodel_execution);
         this.setExecutionWeight(hints.weight_costmodel_execution);
