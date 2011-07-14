@@ -174,7 +174,8 @@ public class TestCatalogUtil extends BaseTestCase {
         assertEquals(NUM_PARTITIONS, CatalogUtil.getNumberOfPartitions(clone_db));
         Collection<Integer> clone_partitions = CatalogUtil.getAllPartitionIds(clone_db);
         assertNotNull(clone_partitions);
-        assertEquals(all_partitions, clone_partitions);
+        assertEquals(all_partitions.size(), clone_partitions.size());
+        assert(all_partitions.containsAll(clone_partitions));
         
         for (Table catalog_tbl : catalog_db.getTables()) {
             Table clone_tbl = clone_db.getTables().get(catalog_tbl.getName());

@@ -3,11 +3,10 @@ package edu.brown.designer;
 import java.io.File;
 import java.lang.reflect.Field;
 
+import edu.brown.BaseTestCase;
 import edu.brown.utils.FileUtil;
 
-import junit.framework.TestCase;
-
-public class TestDesignerHints extends TestCase {
+public class TestDesignerHints extends BaseTestCase {
 
     final DesignerHints hints = new DesignerHints();
     
@@ -17,6 +16,7 @@ public class TestDesignerHints extends TestCase {
         hints.ignore_procedures.add("neworder");
         
         File temp = FileUtil.getTempFile("hints", true);
+        System.err.println(temp);
         hints.save(temp.getAbsolutePath());
 
         DesignerHints clone = new DesignerHints();

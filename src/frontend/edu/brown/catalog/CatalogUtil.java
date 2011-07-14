@@ -618,6 +618,8 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
                     // children.addAfter(((Cluster)element).getPartitions().values());
                     children.addAfter(((Cluster) element).getSites().values());
                     // children.addAfter(((Cluster)element).getElhosts().values());
+                } else if (element instanceof Site) {
+                    children.addAfter(((Site) element).getPartitions().values());
                 } else if (element instanceof Database) {
                     children.addAfter(((Database) element).getProcedures().values());
                     children.addAfter(((Database) element).getPrograms().values());

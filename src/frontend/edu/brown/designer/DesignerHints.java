@@ -42,7 +42,7 @@ public class DesignerHints implements Cloneable, JSONSerializable {
         ALLOW_ARRAY_PROCPARAMETER_CANDIDATES,
         ENABLE_MULTI_PARTITIONING,
         ENABLE_COSTMODEL_CACHING,
-        ENABLE_COSTMODEL_ENTROPY,
+        ENABLE_COSTMODEL_SKEW,
         ENABLE_COSTMODEL_EXECUTION,
         ENABLE_COSTMODEL_JAVA_EXECUTION,
         ENABLE_COSTMODEL_MULTIPARTITION_PENALTY,
@@ -51,7 +51,7 @@ public class DesignerHints implements Cloneable, JSONSerializable {
         ENABLE_LOCAL_SEARCH_INCREASE,
         ENABLE_CHECKPOINTS,
         WEIGHT_COSTMODEL_EXECUTION,
-        WEIGHT_COSTMODEL_ENTROPY,
+        WEIGHT_COSTMODEL_SKEW,
         WEIGHT_COSTMODEL_JAVA_EXECUTION,
         WEIGHT_COSTMODEL_MULTIPARTITION_PENALTY,
         FORCE_REPLICATION,
@@ -204,7 +204,7 @@ public class DesignerHints implements Cloneable, JSONSerializable {
      * Cost Model Weights
      */
     public double weight_costmodel_execution = 1.0;
-    public double weight_costmodel_entropy = 1.0;
+    public double weight_costmodel_skew = 1.0;
     public double weight_costmodel_multipartition_penalty = 1.0;
     public int weight_costmodel_java_execution = 1;
 

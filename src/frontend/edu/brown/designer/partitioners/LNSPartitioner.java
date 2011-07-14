@@ -158,7 +158,7 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
         // Set the limits initially from the hints file
         if (hints.limit_back_tracks != null) this.last_backtrack_limit = new Double(hints.limit_back_tracks);
         if (hints.limit_total_time != null) this.last_localtime_limit = new Double(hints.limit_local_time);
-        this.last_entropy_weight = hints.weight_costmodel_entropy;
+        this.last_entropy_weight = hints.weight_costmodel_skew;
         
         // HACK: Reload the correlations file so that we can get the proper catalog objects
         this.correlations.load(info.getCorrelationsFile(), info.catalog_db);
@@ -366,7 +366,7 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
                 
                 // Important! We need to update the hints based on what's in the checkpoint
                 // We really need to link the hints and the checkpoints better...
-                hints.weight_costmodel_entropy = this.last_entropy_weight;
+                hints.weight_costmodel_skew = this.last_entropy_weight;
                 
             } else if (this.checkpoint != null) {
                 LOG.info("Not loading non-existent checkpoint file: " + this.checkpoint);
@@ -497,7 +497,7 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
                 // 2010-11-27: Actually no! We want to make sure we put it in the local object so that it gets written
                 //             out when we checkpoint and then load the checkpoint back in
                 this.last_entropy_weight = entropy_weight;
-                hints.weight_costmodel_entropy = this.last_entropy_weight;
+                hints.weight_costmodel_skew = this.last_entropy_weight;
                 
                 LOG.info("Initial Solution has " + untouched_partitions.size() + " unused partitions. New Entropy Weight: " + entropy_weight);
                 this.costmodel.applyDesignerHints(hints);
