@@ -3,8 +3,25 @@ package edu.brown.benchmark.airline;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-public class TestLoader extends AirlineBaseTestCase {
+import org.voltdb.catalog.Table;
 
+public class TestAirlineLoader extends AirlineBaseTestCase {
+
+    protected static class MockAuctionMarkLoader extends AirlineLoader {
+
+        public MockAuctionMarkLoader(String[] args) {
+            super(args);
+            // TODO Auto-generated constructor stub
+        }
+        
+        @Override
+        public void loadTable(Table catalogTbl, Iterable<Object[]> iterable, int batchSize) {
+            // TODO Auto-generated method stub
+            super.loadTable(catalogTbl, iterable, batchSize);
+        }
+        
+    }
+    
     /**
      * testLoader
      */
