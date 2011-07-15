@@ -15,7 +15,7 @@ import org.voltdb.types.ExpressionType;
 
 import edu.brown.BaseTestCase;
 import edu.brown.catalog.CatalogUtil;
-import edu.brown.correlations.ParameterCorrelations;
+import edu.brown.mappings.ParameterMappingsSet;
 import edu.brown.markov.containers.MarkovGraphContainersUtil;
 import edu.brown.markov.containers.MarkovGraphsContainer;
 import edu.brown.utils.MathUtil;
@@ -40,7 +40,7 @@ public class TestMarkovPathEstimator extends BaseTestCase {
     
     private static Workload workload;
     private static MarkovGraphsContainer markovs;
-    private static ParameterCorrelations correlations;
+    private static ParameterMappingsSet correlations;
     private static TransactionTrace singlep_trace;
     private static TransactionTrace multip_trace;
     private static final Set<Integer> multip_partitions = new HashSet<Integer>();
@@ -56,8 +56,8 @@ public class TestMarkovPathEstimator extends BaseTestCase {
         this.catalog_proc = this.getProcedure(TARGET_PROCEDURE);
         
         if (markovs == null) {
-            File file = this.getCorrelationsFile(ProjectType.TPCC);
-            correlations = new ParameterCorrelations();
+            File file = this.getParameterMappingsFile(ProjectType.TPCC);
+            correlations = new ParameterMappingsSet();
             correlations.load(file.getAbsolutePath(), catalog_db);
             
             // Workload Filter:

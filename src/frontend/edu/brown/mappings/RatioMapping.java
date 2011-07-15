@@ -1,13 +1,14 @@
-package edu.brown.correlations;
+package edu.brown.mappings;
 
-public class RatioCorrelation extends AbstractCorrelation {
+
+public class RatioMapping extends AbstractMapping {
     private int num_equal = 0;
     
 
     /**
      * Constructor
      */
-    public RatioCorrelation() {
+    public RatioMapping() {
         // Nothing for now...
     }
 

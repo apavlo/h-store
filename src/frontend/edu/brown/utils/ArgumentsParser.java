@@ -42,7 +42,6 @@ import org.voltdb.utils.VoltTypeUtil;
 
 import edu.brown.benchmark.AbstractProjectBuilder;
 import edu.brown.catalog.CatalogUtil;
-import edu.brown.correlations.ParameterCorrelations;
 import edu.brown.costmodel.AbstractCostModel;
 import edu.brown.costmodel.SingleSitedCostModel;
 import edu.brown.costmodel.TimeIntervalCostModel;
@@ -51,6 +50,7 @@ import edu.brown.designer.indexselectors.*;
 import edu.brown.designer.mappers.*;
 import edu.brown.designer.partitioners.*;
 import edu.brown.hashing.*;
+import edu.brown.mappings.ParameterMappingsSet;
 import edu.brown.markov.EstimationThresholds;
 import edu.brown.statistics.*;
 import edu.brown.workload.*;
@@ -98,9 +98,9 @@ public class ArgumentsParser {
     public static final String PARAM_STATS_OUTPUT           = PARAM_STATS + ".output";
     public static final String PARAM_STATS_SCALE_FACTOR     = PARAM_STATS + ".scalefactor";
 
-    public static final String PARAM_CORRELATIONS           = "correlations";
-    public static final String PARAM_CORRELATIONS_OUTPUT    = PARAM_CORRELATIONS + ".output";
-    public static final String PARAM_CORRELATIONS_THRESHOLD    = PARAM_CORRELATIONS + ".threshold";
+    public static final String PARAM_MAPPINGS               = "mappings";
+    public static final String PARAM_MAPPINGS_OUTPUT        = PARAM_MAPPINGS + ".output";
+    public static final String PARAM_MAPPINGS_THRESHOLD     = PARAM_MAPPINGS + ".threshold";
     
     public static final String PARAM_MARKOV                 = "markov";
     public static final String PARAM_MARKOV_OUTPUT          = PARAM_MARKOV + ".output";
@@ -247,7 +247,7 @@ public class ArgumentsParser {
     /**
      * Transaction Estimation Stuff
      */
-    public final ParameterCorrelations param_correlations = new ParameterCorrelations();
+    public final ParameterMappingsSet param_mappings = new ParameterMappingsSet();
     public EstimationThresholds thresholds;
     
     /**
@@ -804,11 +804,11 @@ public class ArgumentsParser {
         // -------------------------------------------------------
         // TRANSACTION ESTIMATION COMPONENTS
         // -------------------------------------------------------
-        if (this.params.containsKey(PARAM_CORRELATIONS)) {
+        if (this.params.containsKey(PARAM_MAPPINGS)) {
             assert(this.catalog_db != null);
-            File path = new File(this.params.get(PARAM_CORRELATIONS));
+            File path = new File(this.params.get(PARAM_MAPPINGS));
             if (path.exists()) {
-                this.param_correlations.load(path.getAbsolutePath(), this.catalog_db);
+                this.param_mappings.load(path.getAbsolutePath(), this.catalog_db);
             } else {
                 LOG.warn("The parameter correlations file '" + path + "' does not exist");
             }

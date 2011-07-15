@@ -1,10 +1,12 @@
-package edu.brown.correlations;
+package edu.brown.mappings;
 
 import java.util.Random;
 
+import edu.brown.mappings.PearsonCorrelationMapping;
+
 import junit.framework.TestCase;
 
-public class TestRatioCorrelation extends TestCase {
+public class TestPearsonCorrelationMapping extends TestCase {
     
     private final Random rand = new Random(0);
     private final int num_samples = 1000;
@@ -17,7 +19,7 @@ public class TestRatioCorrelation extends TestCase {
      * testNoSamples
      */
     public void testNoSamples() {
-        RatioCorrelation p = new RatioCorrelation();
+        PearsonCorrelationMapping p = new PearsonCorrelationMapping();
         assertNull(p.calculate());
     }
     
@@ -25,7 +27,7 @@ public class TestRatioCorrelation extends TestCase {
      * testClear
      */
     public void testClear() {
-        RatioCorrelation p = new RatioCorrelation();
+        PearsonCorrelationMapping p = new PearsonCorrelationMapping();
         for (int i = 0; i < num_samples; i++) {
             p.addOccurrence(i, i);
         } // FOR
@@ -38,7 +40,7 @@ public class TestRatioCorrelation extends TestCase {
      * testSingleSample
      */
     public void testSingleSample() {
-        RatioCorrelation p = new RatioCorrelation();
+        PearsonCorrelationMapping p = new PearsonCorrelationMapping();
         p.addOccurrence(1, 1);
         Double result = p.calculate();
         assertNotNull(result);
@@ -49,7 +51,7 @@ public class TestRatioCorrelation extends TestCase {
      * testIntegers
      */
     public void testIntegers() {
-        RatioCorrelation p = new RatioCorrelation();
+        PearsonCorrelationMapping p = new PearsonCorrelationMapping();
         for (int i = 0; i < num_samples; i++) {
             p.addOccurrence(Integer.MAX_VALUE, Integer.MAX_VALUE);
         }
@@ -66,7 +68,7 @@ public class TestRatioCorrelation extends TestCase {
      * testLongs
      */
     public void testLongs() {
-        RatioCorrelation p = new RatioCorrelation();
+        PearsonCorrelationMapping p = new PearsonCorrelationMapping();
         for (int i = 0; i < num_samples; i++) {
             p.addOccurrence(Long.MAX_VALUE, Long.MAX_VALUE);
         }
@@ -83,7 +85,7 @@ public class TestRatioCorrelation extends TestCase {
      * testDoubles
      */
     public void testDoubles() {
-        RatioCorrelation p = new RatioCorrelation();
+        PearsonCorrelationMapping p = new PearsonCorrelationMapping();
         for (int i = 0; i < num_samples; i++) {
             p.addOccurrence(Double.MAX_VALUE, Double.MAX_VALUE);
         }
@@ -95,12 +97,34 @@ public class TestRatioCorrelation extends TestCase {
         }
         assertEquals(1.0d, roundToDecimals(p.calculate(), 1));
     }
-
+    
+    /**
+     * testAbsolutePositive
+     */
+    public void testAbsolutePositive() {
+        PearsonCorrelationMapping p = new PearsonCorrelationMapping();
+        for (int i = 0; i < num_samples; i++) {
+            p.addOccurrence(i, i);
+        }
+        assertEquals(1.0d, roundToDecimals(p.calculate(), 1));
+    }
+    
+    /**
+     * testAbsoluteNegative
+     */
+    public void testAbsoluteNegative() {
+        PearsonCorrelationMapping p = new PearsonCorrelationMapping();
+        for (int i = 0; i < num_samples; i++) {
+            p.addOccurrence(i, -i);
+        }
+        assertEquals(-1.0d, roundToDecimals(p.calculate(), 1));
+    }
+    
     /**
      * testRandomCorrelation
      */
     public void testRandomCorrelation() {
-        RatioCorrelation p = new RatioCorrelation();
+        PearsonCorrelationMapping p = new PearsonCorrelationMapping();
         for (int i = 0; i < num_samples; i++) {
             p.addOccurrence(i, (this.rand.nextDouble() - 0.5) * i);
         }
@@ -108,16 +132,14 @@ public class TestRatioCorrelation extends TestCase {
     }
 
     /**
-     * testHalf
+     * testPositiveCorrelation
      */
-    public void testHalf() {
-        RatioCorrelation p = new RatioCorrelation();
+    public void testPositiveCorrelation() {
+        PearsonCorrelationMapping p = new PearsonCorrelationMapping();
         for (int i = 0; i < num_samples; i++) {
-            p.addOccurrence(-1, (this.rand.nextDouble()) * i);
+            p.addOccurrence(i, (this.rand.nextDouble()) * i);
         }
-        for (int i = 0; i < num_samples; i++) {
-            p.addOccurrence(i, i);
-        }
-        assertEquals(0.5, roundToDecimals(p.calculate(), 1));
+        assertTrue(Math.abs(p.calculate()) > 0.4);
     }
+   
 }

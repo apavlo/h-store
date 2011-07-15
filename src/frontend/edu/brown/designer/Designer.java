@@ -247,7 +247,7 @@ public class Designer {
             ArgumentsParser.PARAM_CATALOG,
             ArgumentsParser.PARAM_WORKLOAD,
             ArgumentsParser.PARAM_STATS,
-            ArgumentsParser.PARAM_CORRELATIONS
+            ArgumentsParser.PARAM_MAPPINGS
         );
         
         // Create the container object that will hold all the information that

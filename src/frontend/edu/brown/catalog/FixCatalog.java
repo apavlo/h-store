@@ -8,7 +8,7 @@ import org.apache.log4j.Logger;
 import org.voltdb.VoltDB;
 import org.voltdb.catalog.*;
 
-import edu.brown.correlations.ParameterCorrelations;
+import edu.brown.mappings.ParameterMappingsSet;
 import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.FileUtil;
@@ -134,7 +134,7 @@ public abstract class FixCatalog {
         //
         // StmtParameter->ProcParameter Mapping
         //
-        Map<String, ParametersUtil.ParameterMapping> param_map = ParametersUtil.getParameterMapping(type);
+        Map<String, ParametersUtil.DefaultParameterMapping> param_map = ParametersUtil.getParameterMapping(type);
         if (param_map != null) {
             try {
                 ParametersUtil.populateCatalog(catalog_db, param_map);
@@ -163,10 +163,10 @@ public abstract class FixCatalog {
         String dtxnOutputPath = args.getParam(ArgumentsParser.PARAM_DTXN_CONF_OUTPUT);
         
         // Populate Parameter Mappings
-        if (args.hasParam(ArgumentsParser.PARAM_CORRELATIONS)) {
-            File input_path = new File(args.getParam(ArgumentsParser.PARAM_CORRELATIONS));
+        if (args.hasParam(ArgumentsParser.PARAM_MAPPINGS)) {
+            File input_path = new File(args.getParam(ArgumentsParser.PARAM_MAPPINGS));
             if (input_path.exists()) {
-                ParameterCorrelations correlations = new ParameterCorrelations();
+                ParameterMappingsSet correlations = new ParameterMappingsSet();
                 correlations.load(input_path.getAbsolutePath(), args.catalog_db);
                 ParametersUtil.applyParameterCorrelations(args.catalog_db, correlations);
                 LOG.info("Applied correlations file to '" + input_path + "' catalog parameter mappings...");

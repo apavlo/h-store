@@ -730,7 +730,7 @@ public class MarkovCostModel extends AbstractCostModel {
             ArgumentsParser.PARAM_CATALOG, 
             ArgumentsParser.PARAM_MARKOV,
             ArgumentsParser.PARAM_WORKLOAD,
-            ArgumentsParser.PARAM_CORRELATIONS,
+            ArgumentsParser.PARAM_MAPPINGS,
             ArgumentsParser.PARAM_MARKOV_THRESHOLDS
         );
         HStoreConf.init(args, null);
@@ -863,7 +863,7 @@ public class MarkovCostModel extends AbstractCostModel {
                     MarkovCostModel costmodels[] = thread_costmodels[thread_id];
                     for (int p = 0; p < num_partitions; p++) {
                         MarkovGraphsContainer markovs = (global ? thread_markovs[thread_id].get(MarkovUtil.GLOBAL_MARKOV_CONTAINER_ID) : thread_markovs[thread_id].get(p));
-                        TransactionEstimator t_estimator = new TransactionEstimator(p_estimator, args.param_correlations, markovs);
+                        TransactionEstimator t_estimator = new TransactionEstimator(p_estimator, args.param_mappings, markovs);
                         costmodels[p] = new MarkovCostModel(args.catalog_db, p_estimator, t_estimator, args.thresholds);
                         if (force_fullpath) thread_costmodels[thread_id][p].forceFullPathComparison();
                         if (force_regenerate) thread_costmodels[thread_id][p].forceRegenerateMarkovEstimates();

@@ -17,7 +17,7 @@ import org.voltdb.catalog.Database;
 import org.voltdb.utils.VoltTypeUtil;
 
 import edu.brown.benchmark.airline.util.*;
-import edu.brown.correlations.Correlation;
+import edu.brown.mappings.ParameterMapping;
 import edu.brown.utils.FileUtil;
 import edu.brown.utils.JSONSerializable;
 import edu.brown.utils.JSONUtil;

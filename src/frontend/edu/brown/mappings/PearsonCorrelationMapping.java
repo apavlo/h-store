@@ -1,13 +1,14 @@
-package edu.brown.correlations;
+package edu.brown.mappings;
 
 import java.util.*;
+
 
 /**
  * 
  * @author svelagap
  * 
  */
-public class PearsonCorrelation extends AbstractCorrelation {
+public class PearsonCorrelationMapping extends AbstractMapping {
     private static final long serialVersionUID = 1L;
     
     private final Vector<Number> values0 = new Vector<Number>();
@@ -16,7 +17,7 @@ public class PearsonCorrelation extends AbstractCorrelation {
     /**
      * Constructor
      */
-    public PearsonCorrelation() {
+    public PearsonCorrelationMapping() {
         super();
     }
 

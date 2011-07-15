@@ -17,7 +17,7 @@ import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Statement;
 
 import edu.brown.BaseTestCase;
-import edu.brown.correlations.ParameterCorrelations;
+import edu.brown.mappings.ParameterMappingsSet;
 import edu.brown.markov.MarkovVertex.Type;
 import edu.brown.markov.containers.MarkovGraphContainersUtil;
 import edu.brown.markov.containers.MarkovGraphsContainer;
@@ -39,7 +39,7 @@ public class TestMarkovGraph extends BaseTestCase {
 
     private static Workload workload;
     private static MarkovGraphsContainer markovs;
-    private static ParameterCorrelations correlations;
+    private static ParameterMappingsSet correlations;
 
     private Procedure catalog_proc;
 
@@ -50,8 +50,8 @@ public class TestMarkovGraph extends BaseTestCase {
         this.catalog_proc = this.getProcedure(TARGET_PROCEDURE);
 
         if (markovs == null) {
-            File file = this.getCorrelationsFile(ProjectType.TPCC);
-            correlations = new ParameterCorrelations();
+            File file = this.getParameterMappingsFile(ProjectType.TPCC);
+            correlations = new ParameterMappingsSet();
             correlations.load(file.getAbsolutePath(), catalog_db);
 
             file = this.getWorkloadFile(ProjectType.TPCC);

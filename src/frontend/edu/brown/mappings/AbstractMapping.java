@@ -1,6 +1,6 @@
-package edu.brown.correlations;
+package edu.brown.mappings;
 
-public abstract class AbstractCorrelation {
+public abstract class AbstractMapping {
     protected int num_entries = 0;
     protected Double last_calculation = null;
 

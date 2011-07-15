@@ -15,7 +15,7 @@ import edu.brown.BaseTestCase;
 import edu.brown.benchmark.tm1.procedures.GetAccessData;
 import edu.brown.benchmark.tm1.procedures.UpdateLocation;
 import edu.brown.catalog.QueryPlanUtil;
-import edu.brown.correlations.ParameterCorrelations;
+import edu.brown.mappings.ParameterMappingsSet;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.ProjectType;
 
@@ -26,7 +26,7 @@ public class TestWorkloadSummarizer extends BaseTestCase {
     private static final int NUM_QUERIES = 5;
     private static final Object PARAMS[] = { new Long(100), new String("ABC123") };
     
-    private static ParameterCorrelations mappings;
+    private static ParameterMappingsSet mappings;
     private WorkloadSummarizer summarizer;
     private Workload workload;
     private Procedure catalog_proc;
@@ -38,8 +38,8 @@ public class TestWorkloadSummarizer extends BaseTestCase {
         this.addPartitions(NUM_PARTITIONS);
 
         if (mappings == null) {
-            File f = this.getCorrelationsFile(ProjectType.TM1);
-            mappings = new ParameterCorrelations();
+            File f = this.getParameterMappingsFile(ProjectType.TM1);
+            mappings = new ParameterMappingsSet();
             mappings.load(f.getAbsolutePath(), catalog_db);
         }
         

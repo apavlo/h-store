@@ -32,8 +32,6 @@ import edu.brown.catalog.DependencyUtil;
 import edu.brown.catalog.special.MultiColumn;
 import edu.brown.catalog.special.MultiProcParameter;
 import edu.brown.catalog.special.ReplicatedColumn;
-import edu.brown.correlations.Correlation;
-import edu.brown.correlations.ParameterCorrelations;
 import edu.brown.designer.AccessGraph;
 import edu.brown.designer.ColumnSet;
 import edu.brown.designer.DependencyGraph;
@@ -45,6 +43,8 @@ import edu.brown.designer.DesignerEdge;
 import edu.brown.designer.DesignerVertex;
 import edu.brown.designer.generators.AccessGraphGenerator;
 import edu.brown.graphs.VertexTreeWalker;
+import edu.brown.mappings.ParameterMapping;
+import edu.brown.mappings.ParameterMappingsSet;
 import edu.brown.statistics.Histogram;
 import edu.brown.statistics.TableStatistics;
 import edu.brown.utils.CollectionUtil;
@@ -222,7 +222,7 @@ public abstract class AbstractPartitioner {
      */
     protected static ListOrderedSet<String> generateProcParameterOrder(final DesignerInfo info, final Database catalog_db, final Procedure catalog_proc, final DesignerHints hints) throws Exception {
         // HACK: Reload the correlations file so that we can get the proper catalog objects
-        ParameterCorrelations correlations = info.getCorrelations();
+        ParameterMappingsSet correlations = info.getCorrelations();
         assert(correlations != null);
 //        ParameterCorrelations correlations = new ParameterCorrelations();
 //        assert(info.getCorrelationsFile() != null) : "The correlations file path was not set";
@@ -253,13 +253,13 @@ public abstract class AbstractPartitioner {
                         MultiProcParameter mpp = (MultiProcParameter)catalog_proc_param;
                         for (ProcParameter inner : mpp) {
                             // Divide the values by the number of attributes in mpp so that we take the average
-                            for (Correlation c : correlations.get(inner, catalog_col)) {
+                            for (ParameterMapping c : correlations.get(inner, catalog_col)) {
                                 param_correlations.get(catalog_proc_param).add(c.getCoefficient() / (double)mpp.size());
                             } // FOR (Correlation)
                         } // FOR
                     }
                 } else {
-                    for (Correlation c : correlations.get(catalog_proc_param, catalog_col)) {
+                    for (ParameterMapping c : correlations.get(catalog_proc_param, catalog_col)) {
                         param_correlations.get(catalog_proc_param).add(c.getCoefficient());
                     } // FOR (Correlation)
                 }

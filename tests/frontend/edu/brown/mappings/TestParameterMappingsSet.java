@@ -1,4 +1,4 @@
-package edu.brown.correlations;
+package edu.brown.mappings;
 
 import java.util.Random;
 
@@ -7,13 +7,15 @@ import org.voltdb.catalog.*;
 
 import edu.brown.BaseTestCase;
 import edu.brown.catalog.CatalogKey;
+import edu.brown.mappings.ParameterMapping;
+import edu.brown.mappings.ParameterMappingsSet;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.ProjectType;
 
-public class TestParameterCorrelations extends BaseTestCase {
+public class TestParameterMappingsSet extends BaseTestCase {
 
     private final Random rand = new Random();
-    private ParameterCorrelations pc;
+    private ParameterMappingsSet pc;
     private Procedure catalog_proc;
     private ProcParameter catalog_proc_param;
     
@@ -21,7 +23,7 @@ public class TestParameterCorrelations extends BaseTestCase {
     protected void setUp() throws Exception {
         super.setUp(ProjectType.TM1);
         
-        this.pc = new ParameterCorrelations();
+        this.pc = new ParameterMappingsSet();
         this.catalog_proc = catalog_db.getProcedures().get("GetNewDestination");
         this.catalog_proc_param = this.catalog_proc.getParameters().get(0);
         
@@ -30,7 +32,7 @@ public class TestParameterCorrelations extends BaseTestCase {
             for (StmtParameter catalog_stmt_param : catalog_stmt.getParameters()) {
                 int num_correlations = rand.nextInt(3) + 1;
                 for (int i = 0; i < num_correlations; i++) {
-                    Correlation c = new Correlation(
+                    ParameterMapping c = new ParameterMapping(
                             catalog_stmt,
                             0,
                             catalog_stmt_param,
@@ -49,9 +51,9 @@ public class TestParameterCorrelations extends BaseTestCase {
      * testGet
      */
     public void testGet() throws Exception {
-        Correlation c = CollectionUtil.get(this.pc, 2);
+        ParameterMapping c = CollectionUtil.get(this.pc, 2);
         assertNotNull(c);
-        Correlation other = CollectionUtil.getFirst(this.pc.get(c.getStatement(), c.getStatementIndex(), c.getStmtParameter()));
+        ParameterMapping other = CollectionUtil.getFirst(this.pc.get(c.getStatement(), c.getStatementIndex(), c.getStmtParameter()));
         assert(other != null);
         assert(c.equals(other));
     }
@@ -81,13 +83,13 @@ public class TestParameterCorrelations extends BaseTestCase {
 
         JSONObject json_object = new JSONObject(json_string);
         assertNotNull(json_object);
-        ParameterCorrelations clone = new ParameterCorrelations();
+        ParameterMappingsSet clone = new ParameterMappingsSet();
         clone.fromJSON(json_object, catalog_db);
         
         // System.err.println(json_object.toString(2));
         
         assertEquals(this.pc.size(), clone.size());
-        for (Correlation c : this.pc) {
+        for (ParameterMapping c : this.pc) {
             assert(clone.contains(c));
         } // FOR
         

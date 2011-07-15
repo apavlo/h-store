@@ -13,9 +13,9 @@ import org.voltdb.types.QueryType;
 import org.voltdb.utils.Pair;
 
 import edu.brown.catalog.CatalogUtil;
-import edu.brown.correlations.Correlation;
-import edu.brown.correlations.ParameterCorrelations;
 import edu.brown.graphs.VertexTreeWalker;
+import edu.brown.mappings.ParameterMapping;
+import edu.brown.mappings.ParameterMappingsSet;
 import edu.brown.markov.containers.MarkovGraphsContainer;
 import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.CollectionUtil;
@@ -65,7 +65,7 @@ public class MarkovPathEstimator extends VertexTreeWalker<MarkovVertex, MarkovEd
     
     private final int num_partitions;
     private TransactionEstimator t_estimator;
-    private ParameterCorrelations correlations;
+    private ParameterMappingsSet correlations;
     private PartitionEstimator p_estimator;
     private int base_partition;
     private Object args[];
@@ -355,7 +355,7 @@ public class MarkovPathEstimator extends VertexTreeWalker<MarkovVertex, MarkovEd
             
             // Get the correlation objects (if any) for next
             // This is the only way we can predict what partitions we will touch
-            SortedMap<StmtParameter, SortedSet<Correlation>> param_correlations = this.correlations.get(catalog_stmt, catalog_stmt_index);
+            SortedMap<StmtParameter, SortedSet<ParameterMapping>> param_correlations = this.correlations.get(catalog_stmt, catalog_stmt_index);
             if (param_correlations == null) {
                 if (t) {
                     LOG.warn("No parameter correlations for " + pair);
@@ -373,7 +373,7 @@ public class MarkovPathEstimator extends VertexTreeWalker<MarkovVertex, MarkovEd
                 assert(catalog_stmt_param != null);
                 if (t) LOG.trace("Examining " + CatalogUtil.getDisplayName(catalog_stmt_param, true));
                 
-                SortedSet<Correlation> correlations = param_correlations.get(catalog_stmt_param);
+                SortedSet<ParameterMapping> correlations = param_correlations.get(catalog_stmt_param);
                 if (correlations == null || correlations.isEmpty()) {
                     if (t) LOG.trace("No parameter correlations for " + CatalogUtil.getDisplayName(catalog_stmt_param, true) + " from " + pair);
                     continue;
@@ -392,12 +392,12 @@ public class MarkovPathEstimator extends VertexTreeWalker<MarkovVertex, MarkovEd
                     if (d) LOG.warn("Multiple parameter correlations for " + CatalogUtil.getDisplayName(catalog_stmt_param, true));
                     if (t) {
                         int ctr = 0;
-                        for (Correlation c : correlations) {
+                        for (ParameterMapping c : correlations) {
                             LOG.trace("[" + (ctr++) + "] Correlation: " + c);
                         } // FOR
                     }
                 }
-                for (Correlation c : correlations) {
+                for (ParameterMapping c : correlations) {
                     if (t) LOG.trace("Correlation: " + c);
                     ProcParameter catalog_proc_param = c.getProcParameter();
                     if (catalog_proc_param.getIsarray()) {
@@ -666,7 +666,7 @@ public class MarkovPathEstimator extends VertexTreeWalker<MarkovVertex, MarkovEd
         args.require(
             ArgumentsParser.PARAM_CATALOG,
             ArgumentsParser.PARAM_WORKLOAD,
-            ArgumentsParser.PARAM_CORRELATIONS,
+            ArgumentsParser.PARAM_MAPPINGS,
             ArgumentsParser.PARAM_MARKOV
         );
         
@@ -680,7 +680,7 @@ public class MarkovPathEstimator extends VertexTreeWalker<MarkovVertex, MarkovEd
         // Blah blah blah...
         Map<Integer, TransactionEstimator> t_estimators = new HashMap<Integer, TransactionEstimator>();
         for (Integer id : m.keySet()) {
-            t_estimators.put(id, new TransactionEstimator(p_estimator, args.param_correlations, m.get(id)));
+            t_estimators.put(id, new TransactionEstimator(p_estimator, args.param_mappings, m.get(id)));
         } // FOR
         
         final Set<String> skip = new HashSet<String>();
