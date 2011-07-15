@@ -34,7 +34,8 @@ public class TestCompilerUtil extends TestCase {
      * testCompileCatalog
      */
     public void testCompileCatalog() throws Exception {
-        Catalog new_catalog = CompilerUtil.compileCatalog(TPCCProjectBuilder.ddlURL.getFile());
+        TPCCProjectBuilder builder = new TPCCProjectBuilder();
+        Catalog new_catalog = CompilerUtil.compileCatalog(builder.getDDLURL(true).getFile());
         assertNotNull(new_catalog);
         
         for (Cluster orig_cluster : catalog.getClusters()) {

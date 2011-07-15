@@ -131,7 +131,7 @@ public class AffinityMapper extends AbstractMapper {
         for (AbstractTraceElement<?> element : this.info.workload) {
             if (! (element instanceof TransactionTrace) ) continue;
             TransactionTrace xact = (TransactionTrace)element;
-            SingleSitedCostModel.TransactionCacheEntry xact_cost = cost_model.getTransactionCacheEntry(xact);
+            SingleSitedCostModel.TransactionCacheEntry xact_cost = null; // FIXME cost_model.getTransactionCacheEntry(xact);
             if (xact_cost.isSingleSited()) continue;
             multisite_xacts.add(xact);
             

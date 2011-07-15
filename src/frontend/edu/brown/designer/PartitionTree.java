@@ -12,7 +12,7 @@ import java.util.*;
  * @author Andy Pavlo <pavlo@cs.brown.edu>
  *
  */
-public class PartitionTree extends AbstractDirectedTree<Vertex, Edge> {
+public class PartitionTree extends AbstractDirectedTree<DesignerVertex, DesignerEdge> {
     private static final long serialVersionUID = -7005176921187161150L;
 
     public enum EdgeAttributes {
@@ -33,8 +33,8 @@ public class PartitionTree extends AbstractDirectedTree<Vertex, Edge> {
         super(catalog_db);
     }
     
-    public Edge createEdge(Vertex parent, Vertex child, Edge orig_edge) {
-        Edge new_edge = new Edge(this, orig_edge);
+    public DesignerEdge createEdge(DesignerVertex parent, DesignerVertex child, DesignerEdge orig_edge) {
+        DesignerEdge new_edge = new DesignerEdge(this, orig_edge);
         this.addEdge(new_edge, parent, child);
         this.addVertex(child);
         return (new_edge);
@@ -52,7 +52,7 @@ public class PartitionTree extends AbstractDirectedTree<Vertex, Edge> {
         this.weight = weight;
     }
     
-    public boolean isReplicated(Vertex vertex) {
+    public boolean isReplicated(DesignerVertex vertex) {
         assert(vertex != null);
         if (vertex.hasAttribute(this, VertexAttributes.METHOD.name())) {
             return (vertex.getAttribute(this, VertexAttributes.METHOD.name()).equals(PartitionMethodType.REPLICATION));

@@ -133,7 +133,8 @@ public class QueryPlanner {
         try {
             initialParsedStmt = AbstractParsedStmt.parse(sql, xmlSQL, m_db);
         }
-        catch (Exception e) {
+        catch (Throwable e) {
+            LOG.error(String.format("Failed to parse SQL for %s.%s", procName, stmtName), e);
             m_recentErrorMsg = e.getMessage();
             return null;
         }

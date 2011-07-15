@@ -62,7 +62,7 @@ public abstract class MarkovUtil {
      */
     public static class StatementWrapper extends Statement {
         private final Catalog catalog;
-        private final Vertex.Type type;
+        private final MarkovVertex.Type type;
         private String id;
         private final Procedure parent = new Procedure() {
             public String getName() {
@@ -73,13 +73,13 @@ public abstract class MarkovUtil {
             };
         };
 
-        public StatementWrapper(Catalog catalog, Vertex.Type type) {
+        public StatementWrapper(Catalog catalog, MarkovVertex.Type type) {
             this.catalog = catalog;
             this.type = type;
             this.id="";
             this.setReadonly(true);
         }
-        public StatementWrapper(Catalog catalog, Vertex.Type type, boolean readonly, String id) {
+        public StatementWrapper(Catalog catalog, MarkovVertex.Type type, boolean readonly, String id) {
             this.catalog = catalog;
             this.type = type;
             this.id = id;
@@ -109,10 +109,10 @@ public abstract class MarkovUtil {
      * @param type
      * @return
      */
-    public static Statement getSpecialStatement(Database catalog_db, Vertex.Type type) {
-        Map<Vertex.Type, Statement> cache = CACHE_specialStatements.get(catalog_db);
+    public static Statement getSpecialStatement(Database catalog_db, MarkovVertex.Type type) {
+        Map<MarkovVertex.Type, Statement> cache = CACHE_specialStatements.get(catalog_db);
         if (cache == null) {
-            cache = new HashMap<Vertex.Type, Statement>();
+            cache = new HashMap<MarkovVertex.Type, Statement>();
             CACHE_specialStatements.put(catalog_db, cache);
         }
         
@@ -123,23 +123,23 @@ public abstract class MarkovUtil {
         }
         return (catalog_stmt);
     }
-    private final static Map<Database, Map<Vertex.Type, Statement>> CACHE_specialStatements = new HashMap<Database, Map<Vertex.Type, Statement>>();
+    private final static Map<Database, Map<MarkovVertex.Type, Statement>> CACHE_specialStatements = new HashMap<Database, Map<MarkovVertex.Type, Statement>>();
     
     /**
      * For the given Vertex type, return a unique Vertex instance
      * @param type
      * @return
      */
-    public static Vertex getSpecialVertex(Database catalog_db, Vertex.Type type) {
+    public static MarkovVertex getSpecialVertex(Database catalog_db, MarkovVertex.Type type) {
         Statement catalog_stmt = MarkovUtil.getSpecialStatement(catalog_db, type);
         assert(catalog_stmt != null);
 
-        Vertex v = new Vertex(catalog_stmt, type);
+        MarkovVertex v = new MarkovVertex(catalog_stmt, type);
         
-        if (type == Vertex.Type.ABORT) {
+        if (type == MarkovVertex.Type.ABORT) {
             v.setAbortProbability(1.0f);
         }
-        if (type != Vertex.Type.START) {
+        if (type != MarkovVertex.Type.START) {
             for (int i : CatalogUtil.getAllPartitionIds(catalog_db)) {
                 v.setDoneProbability(i, 1.0f);
             } // FOR
@@ -152,22 +152,22 @@ public abstract class MarkovUtil {
      * Return a new instance of the special start vertex
      * @return
      */
-    public static Vertex getStartVertex(Database catalog_db) {
-        return (MarkovUtil.getSpecialVertex(catalog_db, Vertex.Type.START));
+    public static MarkovVertex getStartVertex(Database catalog_db) {
+        return (MarkovUtil.getSpecialVertex(catalog_db, MarkovVertex.Type.START));
     }
     /**
      * A stop vertex has done probability of 1.0 at all partitions
      * @return a stop Vertex
      */
-    public static Vertex getCommitVertex(Database catalog_db) {
-        return (MarkovUtil.getSpecialVertex(catalog_db, Vertex.Type.COMMIT));
+    public static MarkovVertex getCommitVertex(Database catalog_db) {
+        return (MarkovUtil.getSpecialVertex(catalog_db, MarkovVertex.Type.COMMIT));
     }
     /**
      * An aborted vertex has an abort and done probability of 1.0 at all partitions
      * @return an abort Vertex
      */
-    public static Vertex getAbortVertex(Database catalog_db) {
-        return (MarkovUtil.getSpecialVertex(catalog_db, Vertex.Type.ABORT));
+    public static MarkovVertex getAbortVertex(Database catalog_db) {
+        return (MarkovUtil.getSpecialVertex(catalog_db, MarkovVertex.Type.ABORT));
     }
     
     /**
@@ -195,9 +195,9 @@ public abstract class MarkovUtil {
      * @param vertices
      * @return
      */
-    public static Set<Statement> getStatements(Collection<Vertex> vertices) {
+    public static Set<Statement> getStatements(Collection<MarkovVertex> vertices) {
         Set<Statement> ret = new HashSet<Statement>();
-        for (Vertex v : vertices) {
+        for (MarkovVertex v : vertices) {
             Statement catalog_stmt = v.getCatalogItem();
             assert(catalog_stmt != null);
             ret.add(catalog_stmt);
@@ -235,7 +235,7 @@ public abstract class MarkovUtil {
      * @return
      * @throws Exception
      */
-    public static GraphvizExport<Vertex, Edge> exportGraphviz(MarkovGraph markov, boolean use_full_output, List<Edge> path) {
+    public static GraphvizExport<MarkovVertex, MarkovEdge> exportGraphviz(MarkovGraph markov, boolean use_full_output, List<MarkovEdge> path) {
         return MarkovUtil.exportGraphviz(markov, use_full_output, false, false, path);
     }
     
@@ -250,14 +250,14 @@ public abstract class MarkovUtil {
      * @return
      * @throws Exception
      */
-    public static GraphvizExport<Vertex, Edge> exportGraphviz(MarkovGraph markov, boolean use_full_output, boolean use_vldb_output, boolean highlight_invalid, List<Edge> path) {
-        GraphvizExport<Vertex, Edge> graphviz = new GraphvizExport<Vertex, Edge>(markov);
+    public static GraphvizExport<MarkovVertex, MarkovEdge> exportGraphviz(MarkovGraph markov, boolean use_full_output, boolean use_vldb_output, boolean highlight_invalid, List<MarkovEdge> path) {
+        GraphvizExport<MarkovVertex, MarkovEdge> graphviz = new GraphvizExport<MarkovVertex, MarkovEdge>(markov);
         graphviz.setEdgeLabels(true);
         graphviz.getGlobalGraphAttributes().put(Attribute.PACK, "true");
         graphviz.getGlobalVertexAttributes().put(Attribute.FONTNAME, "Courier");
         graphviz.setGlobalLabel(String.format("MarkovGraph %s - GraphId:%d", markov.getProcedure().getName(), markov.getGraphId()));
         
-        Vertex v = markov.getStartVertex();
+        MarkovVertex v = markov.getStartVertex();
         graphviz.getAttributes(v).put(Attribute.FILLCOLOR, "blue");
         graphviz.getAttributes(v).put(Attribute.FONTCOLOR, "white");
         graphviz.getAttributes(v).put(Attribute.STYLE, "filled");
@@ -282,13 +282,13 @@ public abstract class MarkovUtil {
             final String empty_set = "\u2205";
             
             if (use_full_output) {
-                for (Edge e : markov.getEdges()) {
+                for (MarkovEdge e : markov.getEdges()) {
                     AttributeValues av = graphviz.getAttributes(e);
                     av.put(Attribute.LABEL, e.toString(true));
                 } // FOR
             }
             
-            for (Vertex v0 : markov.getVertices()) {
+            for (MarkovVertex v0 : markov.getVertices()) {
                 AttributeValues av = graphviz.getAttributes(v0);
                 
                 if (highlight_invalid && v0.isValid(markov) == false) {
@@ -355,9 +355,9 @@ public abstract class MarkovUtil {
      * @param path
      * @return
      */
-    public static Set<Integer> getTouchedPartitions(List<Vertex> path) {
+    public static Set<Integer> getTouchedPartitions(List<MarkovVertex> path) {
         Set<Integer> partitions = new HashSet<Integer>();
-        for (Vertex v : path) {
+        for (MarkovVertex v : path) {
             partitions.addAll(v.getPartitions());
         } // FOR
         return (partitions);
@@ -368,7 +368,7 @@ public abstract class MarkovUtil {
      * @param path
      * @return Set<ReadPartitions>, Set<WritePartitions>
      */
-    public static Pair<Set<Integer>, Set<Integer>> getReadWritePartitions(List<Vertex> path) {
+    public static Pair<Set<Integer>, Set<Integer>> getReadWritePartitions(List<MarkovVertex> path) {
         Set<Integer> read_p = new HashSet<Integer>();
         Set<Integer> write_p = new HashSet<Integer>();
         MarkovUtil.getReadWritePartitions(path, read_p, write_p);
@@ -381,8 +381,8 @@ public abstract class MarkovUtil {
      * @param read_p
      * @param write_p
      */
-    public static void getReadWritePartitions(List<Vertex> path, Set<Integer> read_p, Set<Integer> write_p) {
-        for (Vertex v : path) {
+    public static void getReadWritePartitions(List<MarkovVertex> path, Set<Integer> read_p, Set<Integer> write_p) {
+        for (MarkovVertex v : path) {
             if (v.isQueryVertex() == false) continue;
             
             Statement catalog_stmt = v.getCatalogItem();

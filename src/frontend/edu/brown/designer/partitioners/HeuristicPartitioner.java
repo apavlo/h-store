@@ -32,12 +32,12 @@ public class HeuristicPartitioner extends AbstractPartitioner {
      * Used to sort vertices when constructing a PartitionTree 
      * @author pavlo
      */
-    protected class VertexComparator implements Comparator<Vertex> {
-        private final IGraph<Vertex, Edge> graph;
-        private final Vertex parent;
-        private final Map<Vertex, Double> cache = new HashMap<Vertex, Double>();
+    protected class VertexComparator implements Comparator<DesignerVertex> {
+        private final IGraph<DesignerVertex, DesignerEdge> graph;
+        private final DesignerVertex parent;
+        private final Map<DesignerVertex, Double> cache = new HashMap<DesignerVertex, Double>();
         
-        public VertexComparator(IGraph<Vertex, Edge> graph, Vertex parent) {
+        public VertexComparator(IGraph<DesignerVertex, DesignerEdge> graph, DesignerVertex parent) {
             this.graph = graph;
             this.parent = parent;
         }
@@ -55,13 +55,13 @@ public class HeuristicPartitioner extends AbstractPartitioner {
         }
         */
         
-        private double getWeight(Vertex v) {
+        private double getWeight(DesignerVertex v) {
             double weight = 0;
             if (this.cache.containsKey(v)) {
                 weight = this.cache.get(v);
             } else {
                 // Take the sum of all the edge weights for all time buckets
-                for (Edge edge : this.graph.findEdgeSet(this.parent, v)) {
+                for (DesignerEdge edge : this.graph.findEdgeSet(this.parent, v)) {
                     weight += edge.getTotalWeight(); 
                 } // FOR
                 this.cache.put(v, weight);
@@ -70,7 +70,7 @@ public class HeuristicPartitioner extends AbstractPartitioner {
         }
         
         @Override
-        public int compare(Vertex v0, Vertex v1) {
+        public int compare(DesignerVertex v0, DesignerVertex v1) {
             double weight0 = this.getWeight(v0);
             double weight1 = this.getWeight(v1);
             int diff = (int)Math.round(weight1 - weight0);
@@ -157,7 +157,7 @@ public class HeuristicPartitioner extends AbstractPartitioner {
         WorkloadFilter filter = null;
         Set<Table> proc_tables = null;
         try {
-            filter = new WorkloadFilter(catalog_proc);
+            filter = new WorkloadFilter(CatalogUtil.getDatabase(catalog_proc), catalog_proc);
             proc_tables = CatalogUtil.getReferencedTables(catalog_proc);
         } catch (Exception ex) {
             LOG.fatal(ex.getLocalizedMessage());
@@ -176,7 +176,7 @@ public class HeuristicPartitioner extends AbstractPartitioner {
             if (++round > round_limit) break;
             
             // Get the list of candidate roots and create a partition tree
-            List<Vertex> candidate_roots = null;
+            List<DesignerVertex> candidate_roots = null;
             try {
                 candidate_roots = this.createCandidateRoots(proc_hints, agraph);
             } catch (Exception ex) {
@@ -190,12 +190,12 @@ public class HeuristicPartitioner extends AbstractPartitioner {
             // Make sure we include the replicated tables
             //
             for (String table_name : proc_hints.force_replication) {
-                Vertex vertex = agraph.getVertex(info.catalog_db.getTables().get(table_name));
+                DesignerVertex vertex = agraph.getVertex(info.catalog_db.getTables().get(table_name));
                 ptree.addVertex(vertex);
                 vertex.setAttribute(ptree, PartitionTree.VertexAttributes.METHOD.name(), PartitionMethodType.REPLICATION);
             } // FOR
             try {
-                for (Vertex root : candidate_roots) {
+                for (DesignerVertex root : candidate_roots) {
                     buildPartitionTree(ptree, root, agraph, proc_hints);
                 } // FOR
             } catch (Exception ex) {
@@ -217,7 +217,7 @@ public class HeuristicPartitioner extends AbstractPartitioner {
             //
             LOG.debug("Invoking replication tree generation...");
             
-            AbstractDirectedGraph<Vertex, Edge> rtree = new AbstractDirectedGraph<Vertex, Edge>(info.catalog_db) {
+            AbstractDirectedGraph<DesignerVertex, DesignerEdge> rtree = new AbstractDirectedGraph<DesignerVertex, DesignerEdge>(info.catalog_db) {
                 private static final long serialVersionUID = 1L; 
             };
             rtree.setName("RepTree-Round" + round);
@@ -243,7 +243,7 @@ public class HeuristicPartitioner extends AbstractPartitioner {
             List<Table> candidates = new ArrayList<Table>();
             candidates.addAll(replication_check.getReplicationCandidates());
             boolean forced_dependency = false;
-            for (Vertex conflict_vertex : replication_check.getConflictVertices()) {
+            for (DesignerVertex conflict_vertex : replication_check.getConflictVertices()) {
                 Table conflict_tbl = conflict_vertex.getCatalogItem();
                 //
                 // For each edge in the replication tree that is coming into this conflict vertex, 
@@ -253,7 +253,7 @@ public class HeuristicPartitioner extends AbstractPartitioner {
                 int max_count = 0;
                 Column max_column = null;
                 Column max_conflict_column = null;
-                for (Edge conflict_edge : rtree.getInEdges(conflict_vertex)) {
+                for (DesignerEdge conflict_edge : rtree.getInEdges(conflict_vertex)) {
                     ColumnSet cset = (ColumnSet)conflict_edge.getAttribute(AccessGraph.EdgeAttributes.COLUMNSET.name());
                     for (Column conflict_column : cset.findAllForParent(Column.class, conflict_tbl)) {
                         Column ancestor_column = CollectionUtil.getLast(info.dependencies.getAncestors(conflict_column));
@@ -325,7 +325,7 @@ public class HeuristicPartitioner extends AbstractPartitioner {
                 
                 Catalog new_catalog = CatalogUtil.cloneBaseCatalog(info.catalog_db.getCatalog());
                 for (Table catalog_tbl : proc_tables) {
-                    Vertex vertex = ptree.getVertex(catalog_tbl);
+                    DesignerVertex vertex = ptree.getVertex(catalog_tbl);
                     assert(vertex != null) : "PartitionTree is missing a vertex for " + catalog_tbl + " " + ptree.getVertices();
                     Table new_catalog_tbl = CatalogUtil.clone(catalog_tbl, new_catalog);
                     
@@ -352,7 +352,7 @@ public class HeuristicPartitioner extends AbstractPartitioner {
                 
                 double cost = 0d;
                 try {
-                    cost_model.estimateCost(new_catalog_db, info.workload, filter);
+                    cost_model.estimateCost(new_catalog_db, info.workload, filter, null);
                 } catch (Exception ex) {
                     LOG.fatal(ex.getLocalizedMessage());
                     ex.printStackTrace();
@@ -398,7 +398,7 @@ public class HeuristicPartitioner extends AbstractPartitioner {
      * @param ptree
      * @param parent
      */
-    protected void buildPartitionTree(final PartitionTree ptree, final Vertex parent, final AccessGraph agraph, final DesignerHints hints) throws Exception {
+    protected void buildPartitionTree(final PartitionTree ptree, final DesignerVertex parent, final AccessGraph agraph, final DesignerHints hints) throws Exception {
         boolean is_root = false;
         if (!ptree.containsVertex(parent)) {
             LOG.info("Starting heuristic PartitionTree generation at root '" + parent + "'");
@@ -423,7 +423,7 @@ public class HeuristicPartitioner extends AbstractPartitioner {
         // --------------------------------------------------------
         
         // Starting at the current vertex, get all vertices at the next depth level
-        SortedSet<Vertex> next = new TreeSet<Vertex>(new VertexComparator(agraph, parent));
+        SortedSet<DesignerVertex> next = new TreeSet<DesignerVertex>(new VertexComparator(agraph, parent));
         int parent_depth = ptree.getDepth(parent);
         Table parent_table = parent.getCatalogItem();
         
@@ -434,8 +434,8 @@ public class HeuristicPartitioner extends AbstractPartitioner {
         
         // Look through all the vertices that our parent is adjacent to in the AccessGraph
         // and come up with a list of the next vertices to visit
-        Vertex parent_root = ptree.getRoot(parent);
-        for (Vertex vertex : agraph.getSuccessors(parent)) {
+        DesignerVertex parent_root = ptree.getRoot(parent);
+        for (DesignerVertex vertex : agraph.getSuccessors(parent)) {
             boolean force = false;
             Table vertex_tbl = vertex.getCatalogItem();
             
@@ -471,7 +471,7 @@ public class HeuristicPartitioner extends AbstractPartitioner {
             // We then need to check whether the current parent table is a descendant of
             // the other vertex in the DependencyGraph. This to check that you don't violate
             // a foreign key dependency that may be several vertices removed
-            List<Edge> path = info.dgraph.getPath(vertex, parent);
+            List<DesignerEdge> path = info.dgraph.getPath(vertex, parent);
             if (!path.isEmpty()) {
                 LOG.debug("Skipping " + vertex + " because it is an ancestor of " + parent + " in the DependencyGraph");
                 continue;
@@ -494,17 +494,17 @@ public class HeuristicPartitioner extends AbstractPartitioner {
                 // Now look to whether there is a new Edge in the AccessGraph with a greater
                 // weight than the one that is currently being used in the PartitionTree
                 // We will only move the vertex if it's in the same tree
-                Vertex vertex_orig_parent = ptree.getParent(vertex);
+                DesignerVertex vertex_orig_parent = ptree.getParent(vertex);
                 if (vertex_orig_parent != null) {
                     // Check whether these guys have the same root
                     // If they don't, then we won't move the child.
-                    Vertex child_root = ptree.getRoot(vertex); 
+                    DesignerVertex child_root = ptree.getRoot(vertex); 
                     if (!child_root.equals(parent_root)) {
                         LOG.debug("Skipping " + vertex + " because it's in a different partition tree (" + child_root + "<->" + parent_root + ")");
                         continue;
                     }
                     
-                    Edge orig_edge = null;
+                    DesignerEdge orig_edge = null;
                     Double max_weight = null;
                     try {
                         orig_edge = ptree.findEdge(vertex_orig_parent, vertex);
@@ -521,8 +521,8 @@ public class HeuristicPartitioner extends AbstractPartitioner {
                         ex.printStackTrace();
                         System.exit(1);
                     }
-                    Edge max_edge = orig_edge;
-                    for (Edge candidate_edge : agraph.findEdgeSet(parent, vertex)) {
+                    DesignerEdge max_edge = orig_edge;
+                    for (DesignerEdge candidate_edge : agraph.findEdgeSet(parent, vertex)) {
                         Double candidate_weight = (Double)candidate_edge.getAttribute(PartitionTree.EdgeAttributes.WEIGHT.name());
                         if (candidate_weight > max_weight) {
                             max_edge = candidate_edge;
@@ -566,14 +566,14 @@ public class HeuristicPartitioner extends AbstractPartitioner {
             if (is_root) {
                 PartitionSets attributes = new PartitionSets((Table)parent.getCatalogItem());
                 boolean debug = parent.getCatalogItem().getName().equals("STOCK");
-                for (Vertex child : next) {              
+                for (DesignerVertex child : next) {              
                     //
                     // We now need to pick what edge from the AccessGraph to use as the dependency edge
                     // in our partition mapping
                     //
                     Table catalog_child_tbl = child.getCatalogItem();
                     LOG.debug("Looking for edge between " + parent + " and " + child + ": " + agraph.findEdgeSet(parent, child));
-                    for (Edge edge : agraph.findEdgeSet(parent, child)) {
+                    for (DesignerEdge edge : agraph.findEdgeSet(parent, child)) {
                         LOG.debug("Creating AttributeSet entry for " + edge);
                         //
                         // We only want to use edges that are used in joins.
@@ -643,10 +643,10 @@ public class HeuristicPartitioner extends AbstractPartitioner {
             // This AttributeSet determines how we want to partition the parent node.
             // Therefore, we can only attach those children that have edges that use these attributes
             //
-            List<Vertex> next_to_visit = new ArrayList<Vertex>();
+            List<DesignerVertex> next_to_visit = new ArrayList<DesignerVertex>();
             Column parent_attribute = (Column)parent.getAttribute(ptree, PartitionTree.VertexAttributes.ATTRIBUTE.name());
-            for (Vertex child : next) {
-                for (Edge edge : agraph.findEdgeSet(parent, child)) {
+            for (DesignerVertex child : next) {
+                for (DesignerEdge edge : agraph.findEdgeSet(parent, child)) {
                     //
                     // Find the edge that links parent to this child
                     // If no edge exists, then the child can't be linked to the parent
@@ -659,7 +659,7 @@ public class HeuristicPartitioner extends AbstractPartitioner {
                         try {
                             if (!ptree.containsVertex(parent)) ptree.addVertex(parent);
     
-                            Edge new_edge = ptree.createEdge(parent, child, edge);
+                            DesignerEdge new_edge = ptree.createEdge(parent, child, edge);
                             LOG.debug("Creating new edge " + new_edge + " in PartitionTree");
                             LOG.debug(new_edge.debug(ptree));
                             
@@ -686,7 +686,7 @@ public class HeuristicPartitioner extends AbstractPartitioner {
                     }
                 } // FOR
             } // FOR
-            for (Vertex child : next_to_visit) {
+            for (DesignerVertex child : next_to_visit) {
                 this.buildPartitionTree(ptree, child, agraph, hints);
             }
         //
@@ -695,9 +695,9 @@ public class HeuristicPartitioner extends AbstractPartitioner {
         //
         } else if (is_root || !ptree.containsVertex(parent)) {
             LOG.debug("Parent " + parent + " does not have any children");
-            Edge partition_edge = null;
+            DesignerEdge partition_edge = null;
             double max_weight = 0;
-            for (Edge edge : agraph.getIncidentEdges(parent)) {
+            for (DesignerEdge edge : agraph.getIncidentEdges(parent)) {
                 AccessGraph.AccessType type = (AccessGraph.AccessType)edge.getAttribute(AccessGraph.EdgeAttributes.ACCESSTYPE.name()); 
                 if (type != AccessGraph.AccessType.SCAN) continue;
                 Double weight = 0.0d; // FIXME (Double)edge.getAttribute(AccessGraph.EdgeAttributes.WEIGHT.name());
@@ -739,12 +739,12 @@ public class HeuristicPartitioner extends AbstractPartitioner {
             // A PartitionTree may have multiple roots because some vertices could be isolated
             // for replication or failed to be important enough to be linked in the "main" tree
             //
-            for (Vertex root : ptree.getRoots()) {
+            for (DesignerVertex root : ptree.getRoots()) {
 //                System.out.println("ROOT: " + root);
-                new VertexTreeWalker<Vertex, Edge>(ptree) {
+                new VertexTreeWalker<DesignerVertex, DesignerEdge>(ptree) {
                     @Override
-                    protected void populate_children(VertexTreeWalker.Children<Vertex> children, Vertex element) {
-                      for (Vertex v : this.getGraph().getSuccessors(element)) {
+                    protected void populate_children(VertexTreeWalker.Children<DesignerVertex> children, DesignerVertex element) {
+                      for (DesignerVertex v : this.getGraph().getSuccessors(element)) {
                           if (!this.hasVisited(v)) {
                               children.addAfter(v);
                           }
@@ -752,9 +752,9 @@ public class HeuristicPartitioner extends AbstractPartitioner {
                       return;
                     }
                     @Override
-                    protected void callback(Vertex element) {
+                    protected void callback(DesignerVertex element) {
                         LOG.debug("SimpleCountingMapper.CALLBACK -> " + element.getCatalogItem());
-                        Vertex parent = this.getPrevious();
+                        DesignerVertex parent = this.getPrevious();
 
                         PartitionMethodType method = (PartitionMethodType)(element.getAttribute(ptree, PartitionTree.VertexAttributes.METHOD.name()));
                         Column attribute = null;
@@ -770,7 +770,7 @@ public class HeuristicPartitioner extends AbstractPartitioner {
                             // mapping of columns
                             //
                             if (parent != null) {
-                                Edge edge = ptree.findEdge(parent, element);
+                                DesignerEdge edge = ptree.findEdge(parent, element);
                                 if (edge == null) {
                                     LOG.fatal("Failed to find edge between parent '" + parent + "' and child '" + element + "'");
                                     this.stop();
@@ -931,17 +931,17 @@ public class HeuristicPartitioner extends AbstractPartitioner {
      * @return
      * @throws Exception
      */
-    protected List<Vertex> createCandidateRoots(final DesignerHints hints, final IGraph<Vertex, Edge> agraph) throws Exception {
+    protected List<DesignerVertex> createCandidateRoots(final DesignerHints hints, final IGraph<DesignerVertex, DesignerEdge> agraph) throws Exception {
         LOG.debug("Searching for candidate roots...");
         if (agraph == null) throw new NullPointerException("AccessGraph is Null");
 
         // For each vertex, we are going come up with a weight that determines the order
         // in which we will try to partition their descendant tables. We want to 
         // sort the vertices in descending order by their weight.
-        final Map<Vertex, Double> root_weights = new HashMap<Vertex, Double>();
-        Comparator<Vertex> root_comparator = new Comparator<Vertex>() {
+        final Map<DesignerVertex, Double> root_weights = new HashMap<DesignerVertex, Double>();
+        Comparator<DesignerVertex> root_comparator = new Comparator<DesignerVertex>() {
             @Override
-            public int compare(Vertex v0, Vertex v1) {
+            public int compare(DesignerVertex v0, DesignerVertex v1) {
                 Double w0 = root_weights.get(v0);
                 Double w1 = root_weights.get(v1);
                 
@@ -954,9 +954,9 @@ public class HeuristicPartitioner extends AbstractPartitioner {
         
         // Loop through all of the vertices in our DependencyGraph and calculate 
         // the weight of the edges from the candidate root to their descendants
-        final List<Vertex> roots = new ArrayList<Vertex>();
-        final TreeSet<Vertex> candidates = new TreeSet<Vertex>(root_comparator);
-        for (final Vertex vertex : info.dgraph.getVertices()) {
+        final List<DesignerVertex> roots = new ArrayList<DesignerVertex>();
+        final TreeSet<DesignerVertex> candidates = new TreeSet<DesignerVertex>(root_comparator);
+        for (final DesignerVertex vertex : info.dgraph.getVertices()) {
             // Skip if this table isn't even used in this procedure
             if (!agraph.containsVertex(vertex)) continue;
             // Also skip if this table is marked for replication
@@ -966,8 +966,8 @@ public class HeuristicPartitioner extends AbstractPartitioner {
             // none of its parents (if it even has any) are used in the AccessGraph or are 
             // not marked for replication
             boolean valid = true;
-            Collection<Vertex> parents = info.dgraph.getPredecessors(vertex);
-            for (Vertex other : agraph.getNeighbors(vertex)) {
+            Collection<DesignerVertex> parents = info.dgraph.getPredecessors(vertex);
+            for (DesignerVertex other : agraph.getNeighbors(vertex)) {
                 if (parents.contains(other) && !hints.force_replication.contains(other.getCatalogItem().getName())) {
                     LOG.debug("SKIP " + vertex + " [" + other + "]");
                     valid = false;
@@ -981,22 +981,22 @@ public class HeuristicPartitioner extends AbstractPartitioner {
             // We now need to set the weight of the candidate.
             // The first way I did this was to count the number of outgoing edges from the candidate
             // Now I'm going to use the weights of the outgoing edges in the AccessGraph.
-            new VertexTreeWalker<Vertex, Edge>(info.dgraph) {
+            new VertexTreeWalker<DesignerVertex, DesignerEdge>(info.dgraph) {
                 @Override
-                protected void callback(Vertex element) {
+                protected void callback(DesignerVertex element) {
                     // Get the total weights from this vertex to all of its descendants
                     if (agraph.containsVertex(element)) {
                         double total_weight = root_weights.get(vertex);
-                        Collection<Vertex> descedents = info.dgraph.getDescendants(element);
+                        Collection<DesignerVertex> descedents = info.dgraph.getDescendants(element);
                         // LOG.debug(" -> " + element + ": " + descedents);
-                        for (Vertex descendent : descedents) {
+                        for (DesignerVertex descendent : descedents) {
                              if (descendent != element && agraph.containsVertex(descendent)) {
                                  // QUESTION:
                                  // Do we care whether edges are all reference the same attributes?
                                  // How would this work in TPC-E, since there a bunch of root tables
                                  // that are referenced but do not have long paths along the same
                                  // foreign key dependencies that we have in TPC-C (e.g., W_ID)
-                                 for (Edge edge : agraph.findEdgeSet(element, descendent)) {
+                                 for (DesignerEdge edge : agraph.findEdgeSet(element, descendent)) {
                                      // XXX: 2010-05-07
                                      // We multiply the edge weights by the distance of the destination vertex
                                      // to the root of the candidate root. This means that we will weight
@@ -1017,7 +1017,7 @@ public class HeuristicPartitioner extends AbstractPartitioner {
         StringBuilder buffer = new StringBuilder();
         buffer.append("Found ").append(candidates.size()).append(" candidate roots and ranked them as follows:\n");
         int ctr = 0;
-        for (Vertex vertex : candidates) {
+        for (DesignerVertex vertex : candidates) {
             buffer.append("\t[").append(ctr++).append("] ")
                   .append(vertex).append("  Weight=").append(root_weights.get(vertex)).append("\n");
             roots.add(vertex);

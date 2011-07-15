@@ -27,11 +27,12 @@ import java.io.IOException;
 
 import org.voltdb.types.TimestampType;
 import org.voltdb.client.ClientResponse;
-import org.voltdb.benchmark.ClientMain;
 import org.voltdb.benchmark.Clock;
 import org.voltdb.client.BulkClient;
 import org.voltdb.client.ProcedureCallback;
 import org.voltdb.compiler.VoltProjectBuilder;
+
+import edu.brown.benchmark.BenchmarkComponent;
 
 public class BulkTPCCClient extends BulkClient {
     private final ScaleParameters m_scaleParams;
@@ -46,7 +47,7 @@ public class BulkTPCCClient extends BulkClient {
     /**
      * Retrieved via reflection by BenchmarkController
      */
-    public static final Class<? extends ClientMain> m_loaderClass =
+    public static final Class<? extends BenchmarkComponent> m_loaderClass =
         org.voltdb.benchmark.tpcc.MultiLoader.class;
     /**
      * Retrieved via reflection by BenchmarkController

@@ -11,15 +11,15 @@ import edu.brown.utils.ProjectType;
 
 public class TestDirectedGraph extends BaseTestCase {
     
-    protected static AbstractDirectedGraph<Vertex, Edge> graph;
-    protected static Map<String, Vertex> vertex_xref = new HashMap<String, Vertex>();
+    protected static AbstractDirectedGraph<DesignerVertex, DesignerEdge> graph;
+    protected static Map<String, DesignerVertex> vertex_xref = new HashMap<String, DesignerVertex>();
     protected static String path[] = { "WAREHOUSE", "DISTRICT", "CUSTOMER", "ORDERS" };
     
     @Override
     protected void setUp() throws Exception {
         super.setUp(ProjectType.TPCC);
         if (graph == null) {
-            graph = new AbstractDirectedGraph<Vertex, Edge>(catalog_db) {
+            graph = new AbstractDirectedGraph<DesignerVertex, DesignerEdge>(catalog_db) {
                 private static final long serialVersionUID = 1L;
                 // Nothing...
             };
@@ -27,7 +27,7 @@ public class TestDirectedGraph extends BaseTestCase {
             for (Table catalog_tbl : catalog_db.getTables()) {
                 for (String table_name : path) {
                     if (table_name.equals(catalog_tbl.getName())) {
-                        Vertex v = new Vertex(catalog_tbl);
+                        DesignerVertex v = new DesignerVertex(catalog_tbl);
                         graph.addVertex(v);
                         vertex_xref.put(catalog_tbl.getName(), v);
                         break;
@@ -35,11 +35,11 @@ public class TestDirectedGraph extends BaseTestCase {
                 } // FOR
             } // FOR
             
-            Vertex previous = null;
+            DesignerVertex previous = null;
             for (String item : path) {
-                Vertex v = vertex_xref.get(item);
+                DesignerVertex v = vertex_xref.get(item);
                 if (previous != null) {
-                    graph.addEdge(new Edge(graph), previous, v);
+                    graph.addEdge(new DesignerEdge(graph), previous, v);
                 }
                 previous = v;
             } // FOR
@@ -48,7 +48,7 @@ public class TestDirectedGraph extends BaseTestCase {
     
     public void testGetVertex() throws Exception {
         String table_name = "WAREHOUSE";
-        Vertex v = graph.getVertex(catalog_db.getTables().get(table_name));
+        DesignerVertex v = graph.getVertex(catalog_db.getTables().get(table_name));
         assertNotNull(v);
         assertEquals(table_name, v.getCatalogItem().getName());
     }
@@ -57,14 +57,14 @@ public class TestDirectedGraph extends BaseTestCase {
      * testGetPath
      */
     public void testGetPath() throws Exception {
-        Vertex v0 = vertex_xref.get(path[0]);
-        Vertex v1 = vertex_xref.get(path[path.length - 1]);
+        DesignerVertex v0 = vertex_xref.get(path[0]);
+        DesignerVertex v1 = vertex_xref.get(path[path.length - 1]);
         
-        List<Edge> ret_path = graph.getPath(v0, v1);
+        List<DesignerEdge> ret_path = graph.getPath(v0, v1);
         assertNotNull(ret_path);
         assertEquals(path.length - 1, ret_path.size());
         for (int i = 0, cnt = ret_path.size(); i < cnt; i++) {
-            Edge e = ret_path.get(i);
+            DesignerEdge e = ret_path.get(i);
             assertEquals(vertex_xref.get(path[i]), graph.getSource(e));
         } // FOR
     }
@@ -73,8 +73,8 @@ public class TestDirectedGraph extends BaseTestCase {
      * testGetAncestors
      */
     public void testGetAncestors() throws Exception {
-        Vertex v = vertex_xref.get(path[path.length - 1]);
-        List<Vertex> ancestors = graph.getAncestors(v);
+        DesignerVertex v = vertex_xref.get(path[path.length - 1]);
+        List<DesignerVertex> ancestors = graph.getAncestors(v);
         assertEquals(path.length - 1, ancestors.size());
 //        System.out.println("Ancestors: " + ancestors);
         
@@ -88,8 +88,8 @@ public class TestDirectedGraph extends BaseTestCase {
      * testGetDescendants
      */
     public void testGetDescendants() throws Exception {
-        Vertex v = vertex_xref.get(path[0]);
-        Set<Vertex> descendants = graph.getDescendants(v);
+        DesignerVertex v = vertex_xref.get(path[0]);
+        Set<DesignerVertex> descendants = graph.getDescendants(v);
 //        System.out.println("Descedants: " + descendants);
         assertEquals(path.length, descendants.size());
         
@@ -102,7 +102,7 @@ public class TestDirectedGraph extends BaseTestCase {
      * testGetRoots
      */
     public void testGetRoots() throws Exception {
-        Set<Vertex> roots = graph.getRoots();
+        Set<DesignerVertex> roots = graph.getRoots();
 //        System.out.println("ROOTS: " + roots);
         assertEquals(1, roots.size());
         assertTrue(roots.contains(vertex_xref.get(path[0])));

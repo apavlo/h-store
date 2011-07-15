@@ -32,10 +32,21 @@
  ***************************************************************************/
 package edu.brown.benchmark.tm1;
 
+
 import edu.brown.benchmark.AbstractProjectBuilder;
+import edu.brown.benchmark.BenchmarkComponent;
 import edu.brown.benchmark.tm1.procedures.*;
 
 public class TM1ProjectBuilder extends AbstractProjectBuilder {
+    
+    /**
+     * Retrieved via reflection by BenchmarkController
+     */
+    public static final Class<? extends BenchmarkComponent> m_clientClass = TM1Client.class;
+    /**
+     * Retrieved via reflection by BenchmarkController
+     */
+    public static final Class<? extends BenchmarkComponent> m_loaderClass = TM1Loader.class;
 
     public static final Class<?> PROCEDURES[] = new Class<?>[] {
         // Benchmark Specification
@@ -70,12 +81,8 @@ public class TM1ProjectBuilder extends AbstractProjectBuilder {
             {"SPECIAL_FACILITY", "S_ID"},
             {"CALL_FORWARDING", "S_ID"},
         };
-    
-    public static final Class<?> SUPPLMENTALS[] = new Class<?>[] {
-        // Nothing
-    };
-    
+
     public TM1ProjectBuilder() {
-        super("tm1", TM1ProjectBuilder.class, PROCEDURES, PARTITIONING, SUPPLMENTALS, true);
+        super("tm1", TM1ProjectBuilder.class, PROCEDURES, PARTITIONING);
     }
 }

@@ -47,7 +47,7 @@ public class TestDependencyGraphGenerator extends BaseTestCase {
         expected.add(CatalogKey.createKey(item_table));
         expected.add(CatalogKey.createKey(warehouse_table));
         
-        for (Vertex v : dgraph.getRoots()) {
+        for (DesignerVertex v : dgraph.getRoots()) {
             //System.out.println(v.getCatalogItem());
             assertTrue(expected.contains(v.getCatalogKey()));
         } // FOR
@@ -56,9 +56,9 @@ public class TestDependencyGraphGenerator extends BaseTestCase {
         //
         // Then make sure that DISTRICT is attached to WAREHOUSE
         //
-        Vertex warehouse_v = dgraph.getVertex(warehouse_table);
+        DesignerVertex warehouse_v = dgraph.getVertex(warehouse_table);
         assertNotNull(warehouse_v);
-        Vertex district_v = dgraph.getVertex(district_table);
+        DesignerVertex district_v = dgraph.getVertex(district_table);
         assertNotNull(district_v);
         
         assertTrue(dgraph.getSuccessors(warehouse_v).contains(district_v));

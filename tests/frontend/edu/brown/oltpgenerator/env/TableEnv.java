@@ -19,7 +19,7 @@ import org.voltdb.catalog.Table;
 
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.designer.DependencyGraph;
-import edu.brown.designer.Vertex;
+import edu.brown.designer.DesignerVertex;
 import edu.brown.designer.generators.DependencyGraphGenerator;
 import edu.brown.oltpgenerator.env.RandomDistribution.RandomDistributionEnv;
 import edu.brown.oltpgenerator.exception.CycleInDagException;
@@ -169,11 +169,11 @@ public abstract class TableEnv
         Table[] ret = new Table[size];
 
         // zero_list: vertices whose in-degree is zero
-        List<Vertex> zero_list = new LinkedList<Vertex>();
-        List<Vertex> non_zero_list = new LinkedList<Vertex>();
+        List<DesignerVertex> zero_list = new LinkedList<DesignerVertex>();
+        List<DesignerVertex> non_zero_list = new LinkedList<DesignerVertex>();
 
         // initialize two lists
-        for (Vertex v : dgraph.getVertices())
+        for (DesignerVertex v : dgraph.getVertices())
         {
             if (dgraph.getPredecessorCount(v) == 0)
             {
@@ -198,15 +198,15 @@ public abstract class TableEnv
                 throw new CycleInDagException();
             }
 
-            Vertex cur = zero_list.remove(0);
+            DesignerVertex cur = zero_list.remove(0);
             ret[cnt++] = (Table) (cur.getCatalogItem());
 
             // System.out.println("Next ver: " + cur);
 
-            Collection<Vertex> successors = dgraph.getSuccessors(cur);
+            Collection<DesignerVertex> successors = dgraph.getSuccessors(cur);
             dgraph.removeVertex(cur);
 
-            for (Vertex successor : successors)
+            for (DesignerVertex successor : successors)
             {
                 if (dgraph.getPredecessorCount(successor) == 0)
                 {

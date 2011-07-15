@@ -28,7 +28,7 @@ public class SchemaVisualization extends AbstractViewer {
     public static final Integer WINDOW_WIDTH  = 800;
     public static final Integer WINDOW_HEIGHT = 650;
 
-    protected GraphVisualizationPanel<Vertex, Edge> graph_panel;
+    protected GraphVisualizationPanel<DesignerVertex, DesignerEdge> graph_panel;
     
     public SchemaVisualization(Database catalog_db) {
         super(new ArgumentsParser(), "DB Schema Visualizer");

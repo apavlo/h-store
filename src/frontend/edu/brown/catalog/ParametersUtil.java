@@ -6,8 +6,8 @@ import org.apache.log4j.Logger;
 
 import org.voltdb.catalog.*;
 
-import edu.brown.correlations.Correlation;
-import edu.brown.correlations.ParameterCorrelations;
+import edu.brown.mappings.ParameterMapping;
+import edu.brown.mappings.ParameterMappingsSet;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.ProjectType;
 
@@ -21,14 +21,14 @@ public class ParametersUtil {
     /**
      *
      */
-    public static class ParameterMapping extends HashMap<String, Map<Integer, Integer>> {
+    public static class DefaultParameterMapping extends HashMap<String, Map<Integer, Integer>> {
         private static final long serialVersionUID = 1L;
         private final Map<String, Map<Integer, String>> stmt_param_names = new HashMap<String, Map<Integer, String>>();
         private final Map<String, Map<String, Integer>> stmt_param_idxs = new HashMap<String, Map<String, Integer>>();
         private final Map<Integer, String> proc_param_names = new HashMap<Integer, String>();
         private final Map<String, Integer> proc_param_idxs = new HashMap<String, Integer>();
 
-        public ParameterMapping() {
+        public DefaultParameterMapping() {
             super();
         }
 
@@ -108,22 +108,8 @@ public class ParametersUtil {
      * @param project_type
      * @return
      */
-    public static Map<String, ParametersUtil.ParameterMapping> getParameterMapping(ProjectType project_type) {
+    public static Map<String, ParametersUtil.DefaultParameterMapping> getParameterMapping(ProjectType project_type) {
         return (ParametersUtil.getCachedObject().PARAMETER_MAPS.get(project_type));
-    }
-
-    /**
-     * Return a ParameterMapping for a particular procedure
-     * 
-     * @param project_type
-     * @param proc_name
-     * @return
-     */
-    public static ParametersUtil.ParameterMapping getParameterMapping(ProjectType project_type, String proc_name) {
-        ParametersUtil putil = ParametersUtil.getCachedObject();
-        Map<String, ParameterMapping> map = putil.PARAMETER_MAPS.get(project_type);
-        assert (map != null) : "Invalid catalog type '" + project_type + "'";
-        return (map.get(proc_name));
     }
 
     /**
@@ -138,10 +124,10 @@ public class ParametersUtil {
      */
     public static String getStmtParameterName(ProjectType project_type, String proc_name, String stmt_name, int idx) {
         ParametersUtil putil = ParametersUtil.getCachedObject();
-        Map<String, ParameterMapping> map = putil.PARAMETER_MAPS.get(project_type);
+        Map<String, DefaultParameterMapping> map = putil.PARAMETER_MAPS.get(project_type);
         assert (map != null) : "Invalid catalog type '" + project_type + "'";
         if (map.containsKey(proc_name)) {
-            ParameterMapping param_map = map.get(proc_name);
+            DefaultParameterMapping param_map = map.get(proc_name);
             return (param_map.getStmtParamName(stmt_name, idx));
         }
         return (null);
@@ -160,10 +146,10 @@ public class ParametersUtil {
     public static Integer getStmtParameterIndex(ProjectType project_type, String proc_name, String stmt_name,
             String param_name) {
         ParametersUtil putil = ParametersUtil.getCachedObject();
-        Map<String, ParameterMapping> map = putil.PARAMETER_MAPS.get(project_type);
+        Map<String, DefaultParameterMapping> map = putil.PARAMETER_MAPS.get(project_type);
         assert (map != null) : "Invalid catalog type '" + project_type + "'";
         if (map.containsKey(proc_name)) {
-            ParameterMapping param_map = map.get(proc_name);
+            DefaultParameterMapping param_map = map.get(proc_name);
             return (param_map.getStmtParamIndex(stmt_name, param_name));
         }
         return (null);
@@ -178,7 +164,7 @@ public class ParametersUtil {
      */
     public static Set<String> getProcParameterNames(ProjectType project_type, String proc_name) {
         ParametersUtil putil = ParametersUtil.getCachedObject();
-        Map<String, ParameterMapping> map = putil.PARAMETER_MAPS.get(project_type);
+        Map<String, DefaultParameterMapping> map = putil.PARAMETER_MAPS.get(project_type);
         assert (map != null) : "Invalid catalog type '" + project_type + "'";
         return (map.get(proc_name).getProcParamNames());
     }
@@ -193,10 +179,10 @@ public class ParametersUtil {
      */
     public static String getProcParameterName(ProjectType project_type, String proc_name, int idx) {
         ParametersUtil putil = ParametersUtil.getCachedObject();
-        Map<String, ParameterMapping> map = putil.PARAMETER_MAPS.get(project_type);
+        Map<String, DefaultParameterMapping> map = putil.PARAMETER_MAPS.get(project_type);
         assert (map != null) : "Invalid catalog type '" + project_type + "'";
         if (map.containsKey(proc_name)) {
-            ParameterMapping param_map = map.get(proc_name);
+            DefaultParameterMapping param_map = map.get(proc_name);
             return (param_map.getProcParamName(idx));
         }
         return (null);
@@ -212,10 +198,10 @@ public class ParametersUtil {
      */
     public static Integer getProcParameterIndex(ProjectType project_type, String proc_name, String param_name) {
         ParametersUtil putil = ParametersUtil.getCachedObject();
-        Map<String, ParameterMapping> map = putil.PARAMETER_MAPS.get(project_type);
+        Map<String, DefaultParameterMapping> map = putil.PARAMETER_MAPS.get(project_type);
         assert (map != null) : "Invalid catalog type '" + project_type + "'";
         if (map.containsKey(proc_name)) {
-            ParameterMapping param_map = map.get(proc_name);
+            DefaultParameterMapping param_map = map.get(proc_name);
             return (param_map.getProcParamIndex(param_name));
         }
         return (null);
@@ -230,29 +216,29 @@ public class ParametersUtil {
      * @return
      * @throws Exception
      */
-    public static Map<String, ParameterMapping> generateMappingFromCorrelations(Database catalog_db,
-            ParameterCorrelations correlations) throws Exception {
+    public static Map<String, DefaultParameterMapping> generateMappingFromCorrelations(Database catalog_db,
+            ParameterMappingsSet correlations) throws Exception {
         assert (catalog_db != null);
         assert (correlations != null);
-        Map<String, ParameterMapping> mappings = new HashMap<String, ParameterMapping>();
+        Map<String, DefaultParameterMapping> mappings = new HashMap<String, DefaultParameterMapping>();
 
         for (Procedure catalog_proc : catalog_db.getProcedures()) {
             String proc_name = catalog_proc.getName();
-            ParameterMapping map = new ParameterMapping();
+            DefaultParameterMapping map = new DefaultParameterMapping();
 
             for (Statement catalog_stmt : catalog_proc.getStatements()) {
                 String stmt_name = catalog_stmt.getName();
 
                 for (StmtParameter catalog_stmt_param : catalog_stmt.getParameters()) {
                     String stmt_param_name = catalog_stmt_param.getName();
-                    SortedSet<Correlation> param_correlations = correlations.get(catalog_stmt, catalog_stmt_param);
+                    SortedSet<ParameterMapping> param_correlations = correlations.get(catalog_stmt, catalog_stmt_param);
 
                     if (param_correlations.isEmpty()) {
                         LOG.debug("No correlations found for " + CatalogUtil.getDisplayName(catalog_stmt_param) + ". Skipping...");
                         continue;
                     }
                     // HACK: I'm lazy, just take the first one for now
-                    Correlation c = CollectionUtil.getFirst(param_correlations);
+                    ParameterMapping c = CollectionUtil.getFirst(param_correlations);
                     assert (c != null);
 
                     Integer proc_param = c.getProcParameter().getIndex();
@@ -266,8 +252,8 @@ public class ParametersUtil {
         return (mappings);
     }
     
-    public static void applyParameterCorrelations(Database catalog_db, ParameterCorrelations correlations) throws Exception {
-        Map<String, ParameterMapping> proc_mapping = ParametersUtil.generateMappingFromCorrelations(catalog_db, correlations);
+    public static void applyParameterCorrelations(Database catalog_db, ParameterMappingsSet correlations) throws Exception {
+        Map<String, DefaultParameterMapping> proc_mapping = ParametersUtil.generateMappingFromCorrelations(catalog_db, correlations);
         ParametersUtil.populateCatalog(catalog_db, proc_mapping, true);
         return;
     }
@@ -277,11 +263,11 @@ public class ParametersUtil {
      * @param proc_mapping
      * @throws Exception
      */
-    public static void populateCatalog(Database catalog_db, Map<String, ParameterMapping> proc_mapping) throws Exception {
+    public static void populateCatalog(Database catalog_db, Map<String, DefaultParameterMapping> proc_mapping) throws Exception {
         populateCatalog(catalog_db, proc_mapping, false);
     }
     
-    public static void populateCatalog(Database catalog_db, Map<String, ParameterMapping> proc_mapping, boolean force) throws Exception {
+    public static void populateCatalog(Database catalog_db, Map<String, DefaultParameterMapping> proc_mapping, boolean force) throws Exception {
         //
         // For each Procedure in the catalog, we need to find the matching record
         // in the mapping and update the catalog elements as necessary
@@ -290,7 +276,7 @@ public class ParametersUtil {
             String proc_name = catalog_proc.getName();
             if (proc_mapping.containsKey(proc_name)) {
                 LOG.debug("Updating parameter mapping for Procedure '" + proc_name + "'");
-                ParameterMapping map = proc_mapping.get(proc_name);
+                DefaultParameterMapping map = proc_mapping.get(proc_name);
                 for (String stmt_name : map.keySet()) {
                     Statement catalog_stmt = catalog_proc.getStatements().get(stmt_name);
                     if (catalog_stmt == null) {
@@ -325,11 +311,11 @@ public class ParametersUtil {
     // -------------------------------------------------------
     // TPC-C Parameter Mapping
     // -------------------------------------------------------
-    public final Map<String, ParameterMapping> TPCC_PARAMS = new HashMap<String, ParameterMapping>();
+    public final Map<String, DefaultParameterMapping> TPCC_PARAMS = new HashMap<String, DefaultParameterMapping>();
     {
         String proc_name;
         String stmt_name;
-        ParameterMapping map;
+        DefaultParameterMapping map;
 
         //
         // NEWORDER:
@@ -342,7 +328,7 @@ public class ParametersUtil {
         // quantity[] [6]
         //
         proc_name = "neworder";
-        map = new ParameterMapping();
+        map = new DefaultParameterMapping();
 
         stmt_name = "getWarehouseTaxRate";
         map.add(stmt_name, 0, "w_id", 0, "w_id");
@@ -398,7 +384,7 @@ public class ParametersUtil {
         // threshold [2]
         //
         proc_name = "slev";
-        map = new ParameterMapping();
+        map = new DefaultParameterMapping();
 
         stmt_name = "GetOId";
         map.add(stmt_name, 0, "d_w_id", 0, "w_id");
@@ -419,7 +405,7 @@ public class ParametersUtil {
         // timestamp [2]
         //
         proc_name = "delivery";
-        map = new ParameterMapping();
+        map = new DefaultParameterMapping();
 
         stmt_name = "getNewOrder";
         map.add(stmt_name, 1, "no_w_id", 0, "w_id");
@@ -453,7 +439,7 @@ public class ParametersUtil {
         // c_id [2]
         //
         proc_name = "ostatByCustomerId";
-        map = new ParameterMapping();
+        map = new DefaultParameterMapping();
 
         stmt_name = "getCustomerByCustomerId";
         map.add(stmt_name, 0, "w_id", 0, "c_w_id");
@@ -479,7 +465,7 @@ public class ParametersUtil {
         // c_last [2]
         //
         proc_name = "ostatByCustomerName";
-        map = new ParameterMapping();
+        map = new DefaultParameterMapping();
 
         stmt_name = "getCustomersByLastName";
         map.add(stmt_name, 0, "w_id", 0, "c_w_id");
@@ -507,7 +493,7 @@ public class ParametersUtil {
         // timestamp [6]
         //
         proc_name = "paymentByCustomerIdC";
-        map = new ParameterMapping();
+        map = new DefaultParameterMapping();
 
         stmt_name = "getCustomersByCustomerId";
         map.add(stmt_name, 0, "c_id", 5, "c_id");
@@ -531,7 +517,7 @@ public class ParametersUtil {
         // timestamp [6]
         //
         proc_name = "paymentByCustomerName";
-        map = new ParameterMapping();
+        map = new DefaultParameterMapping();
 
         stmt_name = "getWarehouse";
         map.add(stmt_name, 0, "w_id", 0, "w_id");
@@ -610,7 +596,7 @@ public class ParametersUtil {
         // timestamp [6]
         //
         proc_name = "paymentByCustomerId";
-        map = new ParameterMapping();
+        map = new DefaultParameterMapping();
 
         stmt_name = "getCustomersByCustomerId";
         map.add(stmt_name, 0, "c_id", 5, "c_id");
@@ -699,11 +685,11 @@ public class ParametersUtil {
     // -------------------------------------------------------
     // TM1 Parameter Mapping
     // -------------------------------------------------------
-    public final Map<String, ParameterMapping> TM1_PARAMS = new HashMap<String, ParameterMapping>();
+    public final Map<String, DefaultParameterMapping> TM1_PARAMS = new HashMap<String, DefaultParameterMapping>();
     {
         String proc_name;
         String stmt_name;
-        ParameterMapping map;
+        DefaultParameterMapping map;
 
         //
         // DeleteCallForwarding
@@ -712,7 +698,7 @@ public class ParametersUtil {
         // start_time [2]
         //
         proc_name = "DeleteCallForwarding";
-        map = new ParameterMapping();
+        map = new DefaultParameterMapping();
 
         stmt_name = "query";
         map.add(stmt_name, 0, "sub_nbr", 0, "sub_nbr");
@@ -728,7 +714,7 @@ public class ParametersUtil {
         // ai_type [1]
         //
         proc_name = "GetAccessData";
-        map = new ParameterMapping();
+        map = new DefaultParameterMapping();
 
         stmt_name = "GetData";
         map.add(stmt_name, 0, "s_id", 0, "s_id");
@@ -744,7 +730,7 @@ public class ParametersUtil {
         // end_time [3]
         //
         proc_name = "GetNewDestination";
-        map = new ParameterMapping();
+        map = new DefaultParameterMapping();
 
         stmt_name = "GetData";
         map.add(stmt_name, 0, "s_id", 0, "s_id");
@@ -759,7 +745,7 @@ public class ParametersUtil {
         // s_id [0]
         //
         proc_name = "GetSubscriberData";
-        map = new ParameterMapping();
+        map = new DefaultParameterMapping();
 
         stmt_name = "GetData";
         map.add(stmt_name, 0, "s_id", 0, "s_id");
@@ -775,7 +761,7 @@ public class ParametersUtil {
         // numberx [4]
         //
         proc_name = "InsertCallForwarding";
-        map = new ParameterMapping();
+        map = new DefaultParameterMapping();
 
         stmt_name = "query1";
         map.add(stmt_name, 0, "sub_nbr", 0, "sub_nbr");
@@ -801,7 +787,7 @@ public class ParametersUtil {
         // sub_nbr [1]
         //
         proc_name = "UpdateLocation";
-        map = new ParameterMapping();
+        map = new DefaultParameterMapping();
 
         stmt_name = "update";
         map.add(stmt_name, 0, "location", 0, "location");
@@ -815,7 +801,7 @@ public class ParametersUtil {
         // sf_type [3]
         //
         proc_name = "UpdateSubscriberData";
-        map = new ParameterMapping();
+        map = new DefaultParameterMapping();
 
         stmt_name = "update1";
         map.add(stmt_name, 0, "bit_1", 0, "bit_1");
@@ -833,7 +819,7 @@ public class ParametersUtil {
     // Mappings between param names and procparam->stmtparam
     // Nasty I know, but what else can I do?
     //
-    public final Map<ProjectType, Map<String, ParameterMapping>> PARAMETER_MAPS = new HashMap<ProjectType, Map<String, ParameterMapping>>();
+    public final Map<ProjectType, Map<String, DefaultParameterMapping>> PARAMETER_MAPS = new HashMap<ProjectType, Map<String, DefaultParameterMapping>>();
     {
         PARAMETER_MAPS.put(ProjectType.TPCC, TPCC_PARAMS);
         PARAMETER_MAPS.put(ProjectType.TM1, TM1_PARAMS);

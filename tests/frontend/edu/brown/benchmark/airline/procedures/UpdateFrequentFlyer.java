@@ -34,8 +34,8 @@ public class UpdateFrequentFlyer extends VoltProcedure {
     
     public final SQLStmt UPDATE = new SQLStmt(
             "UPDATE " + AirlineConstants.TABLENAME_FREQUENT_FLYER +
-            "   SET FF_IATTR00 = ? " +
-            "   SET FF_IATTR01 = FF_IATTR01 + ? " +
+            "   SET FF_IATTR00 = ?, " +
+            "       FF_IATTR01 = FF_IATTR01 + ? " +
             " WHERE FF_C_ID = ? " + 
             "   AND FF_AL_ID = ? ");
     

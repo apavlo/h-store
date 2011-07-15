@@ -25,10 +25,17 @@
  ***************************************************************************/
 package edu.brown.benchmark.markov;
 
+
 import edu.brown.benchmark.AbstractProjectBuilder;
+import edu.brown.benchmark.BenchmarkComponent;
 import edu.brown.benchmark.markov.procedures.*;
 
 public class MarkovProjectBuilder extends AbstractProjectBuilder {
+
+    /** Retrieved via reflection by BenchmarkController */
+    public static final Class<? extends BenchmarkComponent> m_clientClass = MarkovClient.class;
+    /** Retrieved via reflection by BenchmarkController */
+    public static final Class<? extends BenchmarkComponent> m_loaderClass = MarkovLoader.class;
 
     public static final Class<?> PROCEDURES[] = new Class<?>[] {
         DoneAtPartition.class,

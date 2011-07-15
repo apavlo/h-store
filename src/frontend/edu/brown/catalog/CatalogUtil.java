@@ -35,7 +35,7 @@ import edu.brown.utils.LoggerUtil.LoggerBoolean;
  * @author pavlo
  */
 public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
-    static final Logger LOG = Logger.getLogger(CatalogUtil.class);
+    private static final Logger LOG = Logger.getLogger(CatalogUtil.class);
     private final static LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private final static LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
     static {
@@ -207,6 +207,34 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
             Column catalog_col = ref.getColumn();
             ret.set(catalog_col.getIndex(), catalog_col);
         }
+        return (ret);
+    }
+
+    /**
+     * Construct a collection of all the Columns in the catalog
+     * @param catalog_obj
+     * @return
+     */
+    public static Collection<Column> getAllColumns(CatalogType catalog_obj) {
+        Database catalog_db = CatalogUtil.getDatabase(catalog_obj);
+        Set<Column> ret = new HashSet<Column>();
+        for (Table catalog_tbl : catalog_db.getTables()) {
+            ret.addAll(catalog_tbl.getColumns());
+        } // FOR
+        return (ret);
+    }
+    
+    /**
+     * Construct a collection of all the Statements in the catalog
+     * @param catalog_obj
+     * @return
+     */
+    public static Collection<Statement> getAllStatements(CatalogType catalog_obj) {
+        Database catalog_db = CatalogUtil.getDatabase(catalog_obj);
+        Set<Statement> ret = new HashSet<Statement>();
+        for (Procedure catalog_proc : catalog_db.getProcedures()) {
+            ret.addAll(catalog_proc.getStatements());
+        } // FOR
         return (ret);
     }
 
@@ -501,7 +529,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
         // return (CatalogUtil.getDatabase(clone_catalog));
 
         final Catalog clone_catalog = cloneBaseCatalog(catalog_db.getCatalog(),
-                new ArrayList<Class<? extends CatalogType>>());
+                                                       new ArrayList<Class<? extends CatalogType>>());
         Database clone_db = CatalogUtil.getDatabase(clone_catalog);
         assert (!catalog_db.equals(clone_db));
 
@@ -590,6 +618,8 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
                     // children.addAfter(((Cluster)element).getPartitions().values());
                     children.addAfter(((Cluster) element).getSites().values());
                     // children.addAfter(((Cluster)element).getElhosts().values());
+                } else if (element instanceof Site) {
+                    children.addAfter(((Site) element).getPartitions().values());
                 } else if (element instanceof Database) {
                     children.addAfter(((Database) element).getProcedures().values());
                     children.addAfter(((Database) element).getPrograms().values());
@@ -959,39 +989,37 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
      */
     public static String getDisplayName(CatalogType item, boolean include_class) {
         if (item != null) {
-            StringBuilder sb = new StringBuilder();
+            String ret = null;
             
-            // Column/Statement
+            // Column/Statement/Constraint/Index
             // Format: <Parent>.<Item>
-            if (item instanceof Column || item instanceof Statement) {
-                sb.append(item.getParent().getName()).append(".").append(item.getName());
+            if (item instanceof Column || item instanceof Statement || item instanceof Constraint || item instanceof Index) {
+                ret = String.format("%s.%s", item.getParent().getName(), item.getName());
                 
             // ProcParameter/StmtParameter
             // Format: <Parent>.<Item>
             } else if (item instanceof ProcParameter || item instanceof StmtParameter) {
-                sb.append(item.getParent().getName()).append(".").append(include_class ? item : item.getName());
+                ret = String.format("%s.%s", item.getParent().getName(), (include_class ? item : item.getName()));
                 
             // PlanFragment
             // Format: <Procedure>.<Statement>.[Fragment #XYZ]
             } else if (item instanceof PlanFragment) {
-                sb.append(item.getParent().getParent().getName())
-                  .append(".")
-                  .append(item.getParent().getName())
-                  .append("[Fragment #").append(item.getName()).append("]");
+                ret = String.format("%s.%s.[Fragment #%s]", item.getParent().getParent().getName(),
+                                                            item.getParent().getName(),
+                                                            item.getName());
             
             // ConstantValue
             // Format: ConstantValue{XYZ}
             } else if (item instanceof ConstantValue) {
-                sb.append(item.getClass().getSimpleName())
-                  .append("{").append(((ConstantValue) item).getValue()).append("}");
+                ret = String.format("%s{%s}", item.getClass().getSimpleName(), ((ConstantValue) item).getValue());
                 
             // Everything Else
             // Format: <OptionalClassName>.<Item>
             } else {
-                sb.append(include_class ? item.getClass().getSimpleName() + ":" : "")
-                  .append(item.getName());
+                ret = String.format("%s%s", (include_class ? item.getClass().getSimpleName() + ":" : ""),
+                                            item.getName());
             }
-            return (sb.toString());
+            return (ret);
         }
         return (null);
     }
@@ -1743,6 +1771,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
     }
 
     public static String debug(Collection<? extends CatalogType> items) {
+        if (items == null) return (null);
         String ret = "";
         String add = "";
         for (CatalogType item : items) {

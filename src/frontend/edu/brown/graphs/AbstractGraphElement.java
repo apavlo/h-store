@@ -15,7 +15,7 @@ import org.voltdb.utils.NotImplementedException;
 import edu.brown.utils.JSONSerializable;
 import edu.brown.utils.JSONUtil;
 
-public abstract class AbstractGraphElement implements JSONSerializable {
+public abstract class AbstractGraphElement implements JSONSerializable, Comparable<AbstractGraphElement> {
 //    private static final Logger LOG = Logger.getLogger(AbstractGraphElement.class.getName());
     public static final String DEBUG_SPACER = "  ";
     
@@ -26,19 +26,6 @@ public abstract class AbstractGraphElement implements JSONSerializable {
     
     public AbstractGraphElement() {
         // Nothing...
-    }
-    
-    private long computeElementId() {
-        return (NEXT_ELEMENT_ID.getAndIncrement());
-    }
-    
-    public Long getElementId() {
-        if (this.element_id == null) {
-            synchronized (this) {
-                if (this.element_id == null) this.element_id = computeElementId();
-            } // SYNCH
-        }
-        return this.element_id;
     }
     
     /**
@@ -59,6 +46,30 @@ public abstract class AbstractGraphElement implements JSONSerializable {
         }
     }
     
+    @Override
+    public int compareTo(AbstractGraphElement o) {
+        if (o != null) {
+            Long id0 = this.getElementId();
+            Long id1 = o.getElementId();
+            return (id0.compareTo(id1));
+        }
+        return -1;
+    }
+    
+    private long computeElementId() {
+        return (NEXT_ELEMENT_ID.getAndIncrement());
+    }
+    
+    public Long getElementId() {
+        if (this.element_id == null) {
+            synchronized (this) {
+                if (this.element_id == null) this.element_id = computeElementId();
+            } // SYNCH
+        }
+        return this.element_id;
+    }
+    
+
     public Set<String> getAttributes(IGraph<?, ?> graph) {
         Set<String> ret = null;
         if (this.attributes.containsKey(graph)) {

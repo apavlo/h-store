@@ -27,7 +27,7 @@ public abstract class VerifyWorkload {
                 txn_ids.add(txn_id);
             }
             ctr++;
-            if (ctr > 1 && ctr % 1000 == 0) LOG.info("Examined " + ctr + " trace elements...");  
+            if (ctr > 1 && ctr % 1000 == 0) LOG.debug("Examined " + ctr + " trace elements...");  
         } // WHILE
         if (txn_ids.isEmpty()) {
             LOG.fatal("No txns were found in workload?");

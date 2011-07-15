@@ -46,7 +46,7 @@ public class DesignerVisualization extends AbstractViewer {
     JCheckBox showErrorsBox;
     
     JTabbedPane tabbedPane;
-    Vector<GraphVisualizationPanel<Vertex, Edge>> visualizers = new Vector<GraphVisualizationPanel<Vertex, Edge>>();
+    Vector<GraphVisualizationPanel<DesignerVertex, DesignerEdge>> visualizers = new Vector<GraphVisualizationPanel<DesignerVertex, DesignerEdge>>();
     
     protected DesignerVisualization.MenuHandler menuHandler = new DesignerVisualization.MenuHandler();
     protected Map<Integer, JMenuItem> menuItems = new HashMap<Integer, JMenuItem>();
@@ -56,12 +56,12 @@ public class DesignerVisualization extends AbstractViewer {
     // ----------------------------------------------
     protected final EventObserver OBSERVER_VERTEX = new EventObserver() {
         public void update(Observable o, Object arg) {
-            DesignerVisualization.this.showVertexInformation((Vertex)arg);
+            DesignerVisualization.this.showVertexInformation((DesignerVertex)arg);
         }
     };
     protected final EventObserver OBSERVER_EDGE = new EventObserver() {
         public void update(Observable o, Object arg) {
-            DesignerVisualization.this.showEdgeInformation((Edge)arg);
+            DesignerVisualization.this.showEdgeInformation((DesignerEdge)arg);
         }
     };
     
@@ -200,10 +200,10 @@ public class DesignerVisualization extends AbstractViewer {
         int selected_idx = this.tabbedPane.getSelectedIndex();
         final int extra_graphs = 2; //(this.designer.getTempGraph() != null ? 3 : 2);
         
-        GraphVisualizationPanel<Vertex, Edge> gpanel = null;
+        GraphVisualizationPanel<DesignerVertex, DesignerEdge> gpanel = null;
         if (this.tabbedPane.getTabCount() == 0) {
             if (this.designer.getFinalGraph() != null) {
-                IGraph<Vertex, Edge> final_graph = this.designer.getFinalGraph();
+                IGraph<DesignerVertex, DesignerEdge> final_graph = this.designer.getFinalGraph();
                 gpanel = GraphVisualizationPanel.factory(final_graph, this.OBSERVER_VERTEX, this.OBSERVER_EDGE);
                 this.visualizers.add(gpanel);
                 JPanel final_panel = new JPanel(new BorderLayout());
@@ -212,7 +212,7 @@ public class DesignerVisualization extends AbstractViewer {
                 this.tabbedPane.add(final_panel, "Final");
             }
 
-            AbstractDirectedGraph<Vertex, Edge> dgraph = this.designer.getDesignerInfo().dgraph;
+            AbstractDirectedGraph<DesignerVertex, DesignerEdge> dgraph = this.designer.getDesignerInfo().dgraph;
             this.visualizers.add(GraphVisualizationPanel.factory(dgraph, this.OBSERVER_VERTEX, this.OBSERVER_EDGE));
             this.tabbedPane.add(this.visualizers.lastElement(), dgraph.getClass().getSimpleName());
 
@@ -223,11 +223,11 @@ public class DesignerVisualization extends AbstractViewer {
             } // WHILE
         }
         
-        java.util.List<IGraph<Vertex, Edge>> graphs = new ArrayList<IGraph<Vertex, Edge>>();
+        java.util.List<IGraph<DesignerVertex, DesignerEdge>> graphs = new ArrayList<IGraph<DesignerVertex, DesignerEdge>>();
         graphs.addAll(this.designer.getGraphs(catalog_proc));
         if (graphs != null) {
             for (int ctr = 0; ctr < graphs.size(); ctr++) {
-                IGraph<Vertex, Edge> graph = graphs.get(ctr);
+                IGraph<DesignerVertex, DesignerEdge> graph = graphs.get(ctr);
                 this.visualizers.add(GraphVisualizationPanel.factory(graph, this.OBSERVER_VERTEX, this.OBSERVER_EDGE));
                 String name = (graph.getName() != null ? graph.getName() : graph.getClass().getSimpleName());
                 this.tabbedPane.add(this.visualizers.lastElement(), name);
@@ -243,8 +243,8 @@ public class DesignerVisualization extends AbstractViewer {
         //
         // Select a random vertex and edge
         //
-        IGraph<Vertex, Edge> graph = (IGraph<Vertex, Edge>)this.visualizers.get(selected_idx).getGraph();
-        for (Vertex v : graph.getVertices()) {
+        IGraph<DesignerVertex, DesignerEdge> graph = (IGraph<DesignerVertex, DesignerEdge>)this.visualizers.get(selected_idx).getGraph();
+        for (DesignerVertex v : graph.getVertices()) {
             if (!graph.getIncidentEdges(v).isEmpty()) {
                 this.visualizers.get(selected_idx).selectVertex(v);
                 this.visualizers.get(selected_idx).selectEdge(CollectionUtil.getFirst(graph.getIncidentEdges(v)));
@@ -287,15 +287,15 @@ public class DesignerVisualization extends AbstractViewer {
         return;
     }
     
-    public GraphVisualizationPanel<Vertex, Edge> getCurrentVisualizer() {
+    public GraphVisualizationPanel<DesignerVertex, DesignerEdge> getCurrentVisualizer() {
         return (this.visualizers.get(this.tabbedPane.getSelectedIndex()));
     }
 
-    public void showVertexInformation(Vertex vertex) {
+    public void showVertexInformation(DesignerVertex vertex) {
         this.vertexInfoPanel.update(vertex);
     }
     
-    public void showEdgeInformation(Edge edge) {
+    public void showEdgeInformation(DesignerEdge edge) {
         this.edgeInfoPanel.update(edge);
     }
 

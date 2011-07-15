@@ -13,9 +13,9 @@ import org.voltdb.types.QueryType;
 import org.voltdb.utils.Pair;
 
 import edu.brown.catalog.CatalogUtil;
-import edu.brown.correlations.Correlation;
-import edu.brown.correlations.ParameterCorrelations;
 import edu.brown.graphs.VertexTreeWalker;
+import edu.brown.mappings.ParameterMapping;
+import edu.brown.mappings.ParameterMappingsSet;
 import edu.brown.markov.containers.MarkovGraphsContainer;
 import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.CollectionUtil;
@@ -32,7 +32,7 @@ import edu.mit.hstore.interfaces.Loggable;
  * Path Estimator for TransactionEstimator
  * @author pavlo
  */
-public class MarkovPathEstimator extends VertexTreeWalker<Vertex, Edge> implements Loggable {
+public class MarkovPathEstimator extends VertexTreeWalker<MarkovVertex, MarkovEdge> implements Loggable {
     private static final Logger LOG = Logger.getLogger(MarkovPathEstimator.class);
     private final static LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private final static LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
@@ -65,7 +65,7 @@ public class MarkovPathEstimator extends VertexTreeWalker<Vertex, Edge> implemen
     
     private final int num_partitions;
     private TransactionEstimator t_estimator;
-    private ParameterCorrelations correlations;
+    private ParameterMappingsSet correlations;
     private PartitionEstimator p_estimator;
     private int base_partition;
     private Object args[];
@@ -88,7 +88,7 @@ public class MarkovPathEstimator extends VertexTreeWalker<Vertex, Edge> implemen
      * These are the vertices that we weren't sure about.
      * This only gets populated when force_traversal is set to true 
      */
-    private final Set<Vertex> forced_vertices = new HashSet<Vertex>();
+    private final Set<MarkovVertex> forced_vertices = new HashSet<MarkovVertex>();
     
     /**
      * This is how confident we are 
@@ -112,9 +112,9 @@ public class MarkovPathEstimator extends VertexTreeWalker<Vertex, Edge> implemen
     
     private final transient Set<Integer> past_partitions = new HashSet<Integer>();
     
-    private final transient SortedSet<Edge> candidates = new TreeSet<Edge>();
+    private final transient SortedSet<MarkovEdge> candidates = new TreeSet<MarkovEdge>();
     
-    private transient Edge candidate_edge = null;
+    private transient MarkovEdge candidate_edge = null;
     
     private final transient Set<Pair<Statement, Integer>> next_statements = new HashSet<Pair<Statement, Integer>>();
     
@@ -252,7 +252,7 @@ public class MarkovPathEstimator extends VertexTreeWalker<Vertex, Edge> implemen
      * 
      * @return
      */
-    public Set<Vertex> getForcedVertices() {
+    public Set<MarkovVertex> getForcedVertices() {
         return this.forced_vertices;
     }
     
@@ -291,7 +291,7 @@ public class MarkovPathEstimator extends VertexTreeWalker<Vertex, Edge> implemen
     /**
      * This is the main part of where we figure out the path that this transaction will take
      */
-    protected void populate_children(Children<Vertex> children, Vertex element) {
+    protected void populate_children(Children<MarkovVertex> children, MarkovVertex element) {
 //        if (element.isAbortVertex() || element.isCommitVertex()) {
 //            return;
 //        }
@@ -308,7 +308,7 @@ public class MarkovPathEstimator extends VertexTreeWalker<Vertex, Edge> implemen
         
         // At our current vertex we need to gather all of our neighbors
         // and get unique Statements that we could be executing next
-        Collection<Vertex> next_vertices = markov.getSuccessors(element);
+        Collection<MarkovVertex> next_vertices = markov.getSuccessors(element);
         if (t) LOG.trace("Successors: " + next_vertices);
         if (next_vertices == null) {
             this.stop();
@@ -319,7 +319,7 @@ public class MarkovPathEstimator extends VertexTreeWalker<Vertex, Edge> implemen
         // Get all of the unique Statement+StatementInstanceIndex pairs for the vertices
         // that are adjacent to our current vertex
         // XXX: Why do we use the pairs rather than just look at the vertices?
-        for (Vertex next : next_vertices) {
+        for (MarkovVertex next : next_vertices) {
             Statement next_catalog_stmt = next.getCatalogItem();
             int next_catalog_stmt_index = next.getQueryInstanceIndex();
             
@@ -338,7 +338,7 @@ public class MarkovPathEstimator extends VertexTreeWalker<Vertex, Edge> implemen
             
             // Check whether it's COMMIT/ABORT
             if (next.isCommitVertex() || next.isAbortVertex()) {
-                Edge candidate = markov.findEdge(element, next);
+                MarkovEdge candidate = markov.findEdge(element, next);
                 assert(candidate != null);
                 this.candidates.add(candidate);
             } else {
@@ -355,7 +355,7 @@ public class MarkovPathEstimator extends VertexTreeWalker<Vertex, Edge> implemen
             
             // Get the correlation objects (if any) for next
             // This is the only way we can predict what partitions we will touch
-            SortedMap<StmtParameter, SortedSet<Correlation>> param_correlations = this.correlations.get(catalog_stmt, catalog_stmt_index);
+            SortedMap<StmtParameter, SortedSet<ParameterMapping>> param_correlations = this.correlations.get(catalog_stmt, catalog_stmt_index);
             if (param_correlations == null) {
                 if (t) {
                     LOG.warn("No parameter correlations for " + pair);
@@ -373,7 +373,7 @@ public class MarkovPathEstimator extends VertexTreeWalker<Vertex, Edge> implemen
                 assert(catalog_stmt_param != null);
                 if (t) LOG.trace("Examining " + CatalogUtil.getDisplayName(catalog_stmt_param, true));
                 
-                SortedSet<Correlation> correlations = param_correlations.get(catalog_stmt_param);
+                SortedSet<ParameterMapping> correlations = param_correlations.get(catalog_stmt_param);
                 if (correlations == null || correlations.isEmpty()) {
                     if (t) LOG.trace("No parameter correlations for " + CatalogUtil.getDisplayName(catalog_stmt_param, true) + " from " + pair);
                     continue;
@@ -392,12 +392,12 @@ public class MarkovPathEstimator extends VertexTreeWalker<Vertex, Edge> implemen
                     if (d) LOG.warn("Multiple parameter correlations for " + CatalogUtil.getDisplayName(catalog_stmt_param, true));
                     if (t) {
                         int ctr = 0;
-                        for (Correlation c : correlations) {
+                        for (ParameterMapping c : correlations) {
                             LOG.trace("[" + (ctr++) + "] Correlation: " + c);
                         } // FOR
                     }
                 }
-                for (Correlation c : correlations) {
+                for (ParameterMapping c : correlations) {
                     if (t) LOG.trace("Correlation: " + c);
                     ProcParameter catalog_proc_param = c.getProcParameter();
                     if (catalog_proc_param.getIsarray()) {
@@ -446,7 +446,7 @@ public class MarkovPathEstimator extends VertexTreeWalker<Vertex, Edge> implemen
                 // that has the same partitions
                 if (this.stmt_partitions != null && !this.stmt_partitions.isEmpty()) {
                     this.candidate_edge = null;
-                    for (Vertex next : next_vertices) {
+                    for (MarkovVertex next : next_vertices) {
                         if (next.isEqual(catalog_stmt, this.stmt_partitions, this.past_partitions, catalog_stmt_index)) {
                             // BINGO!!!
                             assert(this.candidate_edge == null);
@@ -485,7 +485,7 @@ public class MarkovPathEstimator extends VertexTreeWalker<Vertex, Edge> implemen
 //                this.candidates.add(candidate_edge);
 //                LOG.info("Created a new vertex " + v);
 //            } else {
-            Collection<Edge> out_edges = markov.getOutEdges(element);
+            Collection<MarkovEdge> out_edges = markov.getOutEdges(element);
             if (out_edges != null) this.candidates.addAll(out_edges);
 //            }
             num_candidates = this.candidates.size();
@@ -496,8 +496,8 @@ public class MarkovPathEstimator extends VertexTreeWalker<Vertex, Edge> implemen
         // since they will be sorted by their probability
         if (t) LOG.trace("Candidate Edges: " + this.candidates);
         if (num_candidates > 0) {
-            Edge next_edge = CollectionUtil.getFirst(this.candidates);
-            Vertex next_vertex = markov.getOpposite(element, next_edge);
+            MarkovEdge next_edge = CollectionUtil.getFirst(this.candidates);
+            MarkovVertex next_vertex = markov.getOpposite(element, next_edge);
             children.addAfter(next_vertex);
             if (was_forced) this.forced_vertices.add(next_vertex);
             
@@ -506,8 +506,8 @@ public class MarkovPathEstimator extends VertexTreeWalker<Vertex, Edge> implemen
             double total_probability = 0.0;
             if (d) LOG.debug("CANDIDATES:");
             int i = 0;
-            for (Edge e : this.candidates) {
-                Vertex v = markov.getOpposite(element, e);
+            for (MarkovEdge e : this.candidates) {
+                MarkovVertex v = markov.getOpposite(element, e);
                 total_probability += e.getProbability();
                 if (d) {
                     LOG.debug(String.format("  [%d] %s  --[%s]--> %s%s",
@@ -583,7 +583,7 @@ public class MarkovPathEstimator extends VertexTreeWalker<Vertex, Edge> implemen
     }
     
     @Override
-    protected void callback(Vertex element) {
+    protected void callback(MarkovVertex element) {
         if (element.isQueryVertex() == false) {
             if (element.isCommitVertex()) {
                 if (t) LOG.trace("Reached COMMIT. Stopping...");
@@ -597,10 +597,10 @@ public class MarkovPathEstimator extends VertexTreeWalker<Vertex, Edge> implemen
     
     @Override
     protected void callback_stop() {
-        Vertex last_v = this.getVisitPath().get(this.getVisitPath().size()-1);
+        MarkovVertex last_v = this.getVisitPath().get(this.getVisitPath().size()-1);
         if (d) LOG.debug("Callback Stop! Last Element = " + last_v);
         MarkovGraph markov = (MarkovGraph)this.getGraph();
-        Vertex first_v = markov.getStartVertex();
+        MarkovVertex first_v = markov.getStartVertex();
         
         // Confidence
         this.estimate.setConfidenceProbability(this.confidence);
@@ -666,7 +666,7 @@ public class MarkovPathEstimator extends VertexTreeWalker<Vertex, Edge> implemen
         args.require(
             ArgumentsParser.PARAM_CATALOG,
             ArgumentsParser.PARAM_WORKLOAD,
-            ArgumentsParser.PARAM_CORRELATIONS,
+            ArgumentsParser.PARAM_MAPPINGS,
             ArgumentsParser.PARAM_MARKOV
         );
         
@@ -680,7 +680,7 @@ public class MarkovPathEstimator extends VertexTreeWalker<Vertex, Edge> implemen
         // Blah blah blah...
         Map<Integer, TransactionEstimator> t_estimators = new HashMap<Integer, TransactionEstimator>();
         for (Integer id : m.keySet()) {
-            t_estimators.put(id, new TransactionEstimator(p_estimator, args.param_correlations, m.get(id)));
+            t_estimators.put(id, new TransactionEstimator(p_estimator, args.param_mappings, m.get(id)));
         } // FOR
         
         final Set<String> skip = new HashSet<String>();
@@ -722,10 +722,10 @@ public class MarkovPathEstimator extends VertexTreeWalker<Vertex, Edge> implemen
             }
             
             // Check whether we predict the same path
-            List<Vertex> actual_path = markov.processTransaction(xact, p_estimator);
+            List<MarkovVertex> actual_path = markov.processTransaction(xact, p_estimator);
             MarkovPathEstimator m_estimator = MarkovPathEstimator.predictPath(markov, t_estimators.get(partition), xact.getParams());
             assert(m_estimator != null);
-            List<Vertex> predicted_path = m_estimator.getVisitPath();
+            List<MarkovVertex> predicted_path = m_estimator.getVisitPath();
             if (actual_path.equals(predicted_path)) correct_path_txns.get(catalog_proc).incrementAndGet();
             
             LOG.info("MarkovEstimate:\n" + m_estimator.getEstimate());

@@ -3,20 +3,23 @@
  */
 package edu.brown.benchmark.airline;
 
-import java.util.*;
+import java.util.Collection;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
 import java.util.Map.Entry;
 
 import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.log4j.Logger;
-import org.voltdb.VoltDB;
-import org.voltdb.benchmark.ClientMain;
 import org.voltdb.catalog.Catalog;
 import org.voltdb.catalog.Column;
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Table;
-import org.voltdb.utils.JarReader;
 import org.voltdb.utils.Pair;
 
+import edu.brown.benchmark.BenchmarkComponent;
 import edu.brown.benchmark.airline.util.CustomerId;
 import edu.brown.benchmark.airline.util.FlightId;
 import edu.brown.benchmark.airline.util.HistogramUtil;
@@ -28,8 +31,8 @@ import edu.brown.statistics.Histogram;
  * @author pavlo
  *
  */
-public abstract class AirlineBaseClient extends ClientMain {
-    protected static final Logger LOG = Logger.getLogger(AirlineBaseClient.class);
+public abstract class AirlineBaseClient extends BenchmarkComponent {
+    private static final Logger LOG = Logger.getLogger(AirlineBaseClient.class);
     
     protected int m_days_past = 7;
     protected int m_days_future = 14;
@@ -37,7 +40,7 @@ public abstract class AirlineBaseClient extends ClientMain {
     /**
      * Benchmark Profile
      */
-    protected BenchmarkProfile m_profile;
+    protected BenchmarkProfile profile;
     
     protected final String AIRLINE_DATA_DIR;
    
@@ -79,27 +82,19 @@ public abstract class AirlineBaseClient extends ClientMain {
     protected final AbstractRandomGenerator m_rng;
     
     /**
-     * Base catalog objects that we can reference to figure out how to access Volt
-     */
-    protected final Catalog catalog;
-    protected final Database catalog_db;
-
-    /**
      * @param args
      */
     public AirlineBaseClient(String[] args) {
         super(args);
         
-        Integer scale_factor = null;
+        Double scale_factor = 1.0;
         String profile_file = null;
         
         int seed = 0;
         String randGenClassName = RandomGenerator.class.getName();
         String randGenProfilePath = null;
         
-        //
         // Data Path
-        //
         if (!m_extraParams.containsKey(AirlineConstants.AIRLINE_DATA_PARAM)) {
             LOG.error("Unable to start benchmark. Missing '" + AirlineConstants.AIRLINE_DATA_PARAM + "' parameter");
             System.exit(1);
@@ -111,7 +106,7 @@ public abstract class AirlineBaseClient extends ClientMain {
 
             // Scale Factor
             if (key.equals("scalefactor")) {
-                scale_factor = Integer.parseInt(value);
+                scale_factor = Double.parseDouble(value);
             // Benchmark Profile File
             } else if (key.equals("benchmarkprofile")) {
                 profile_file = value;
@@ -127,23 +122,18 @@ public abstract class AirlineBaseClient extends ClientMain {
             }
         } // FOR
         
-        //
         // Create BenchmarkProfile
-        //
-        this.m_profile = new BenchmarkProfile();
+        this.profile = new BenchmarkProfile();
+        this.profile.setScaleFactor(scale_factor);
         if (profile_file != null) {
             try {
-                this.m_profile.load(profile_file);
+                this.profile.load(profile_file, null);
             } catch (Exception ex) {
-                LOG.error("Failed to load benchmark profile file '" + profile_file + "'", ex);
-                System.exit(1);
+                throw new RuntimeException("Failed to load benchmark profile file '" + profile_file + "'", ex);
             }
         }
-        if (scale_factor != null) this.m_profile.setScaleFactor(scale_factor);
         
-        //
         // Load Random Generator
-        //
         AbstractRandomGenerator rng = null;
         try {
             rng = AbstractRandomGenerator.factory(randGenClassName, seed);
@@ -153,17 +143,6 @@ public abstract class AirlineBaseClient extends ClientMain {
             System.exit(1);
         }
         this.m_rng = rng;
-        
-        // Load pre-compiled Catalog
-        Catalog _catalog = null;
-        try {
-            _catalog = this.getCatalog();
-        } catch (Exception ex) {
-            LOG.error("Failed to retrieve already compiled catalog", ex);
-            System.exit(1);
-        }
-        this.catalog = _catalog;
-        this.catalog_db = CatalogUtil.getDatabase(this.catalog);
         
         // Tuple Code to Tuple Id Mapping
         // For some tables, we want to store a unique code that can be used to map
@@ -189,7 +168,7 @@ public abstract class AirlineBaseClient extends ClientMain {
         // key reference to COUNTRY.CO_ID, then the data file for AIRPORT will have a value
         // 'USA' in the AP_CO_ID column. We can use mapping to get the id number for 'USA'.
         // Long winded and kind of screwy, but hey what else are you going to do?
-        for (Table catalog_tbl : this.catalog_db.getTables()) {
+        for (Table catalog_tbl : CatalogUtil.getDatabase(this.getCatalog()).getTables()) {
             for (Column catalog_col : catalog_tbl.getColumns()) {
                 Column catalog_fkey_col = CatalogUtil.getForeignKeyParent(catalog_col);
                 if (catalog_fkey_col != null && this.code_id_xref.containsKey(catalog_fkey_col.getName())) {
@@ -206,6 +185,11 @@ public abstract class AirlineBaseClient extends ClientMain {
      */
     public Histogram<String> getHistogram(String name) {
         return (this.histograms.get(name));
+    }
+    
+    public Histogram<String> getTotalAirportFlightsHistogram() {
+        // TODO
+        return (null);
     }
     
     /**
@@ -307,10 +291,10 @@ public abstract class AirlineBaseClient extends ClientMain {
      * @return
      */
     protected FlightId getRandomFlightId() {
-        int start_idx = (int)this.m_profile.getFlightIdStartingOffset();
-        int end_idx = (int)this.m_profile.getFlightIdCount();
+        int start_idx = (int)this.profile.getFlightIdStartingOffset();
+        int end_idx = (int)this.profile.getFlightIdCount();
         int idx = this.m_rng.number(start_idx, end_idx - 1);
-        FlightId id = this.m_profile.getFlightId(idx);
+        FlightId id = this.profile.getFlightId(idx);
         assert(id == null) : "Invalid FlightId offset '" + idx + "'";
         return (id);
     }
@@ -321,7 +305,7 @@ public abstract class AirlineBaseClient extends ClientMain {
      * @return
      */
     protected CustomerId getRandomCustomerId(long airport_id) {
-        int max_id = this.m_profile.getCustomerIdCount(airport_id).intValue();
+        int max_id = this.profile.getCustomerIdCount(airport_id).intValue();
         int base_id = this.m_rng.nextInt(max_id);
         return (new CustomerId(base_id, airport_id));
     }
@@ -331,7 +315,7 @@ public abstract class AirlineBaseClient extends ClientMain {
      * @return
      */
     protected long getRandomAirportId() {
-        return (m_rng.nextInt((int)this.m_profile.getAirportCount()));
+        return (m_rng.nextInt((int)this.profile.getAirportCount()));
     }
     
     /**
@@ -339,7 +323,7 @@ public abstract class AirlineBaseClient extends ClientMain {
      * @return
      */
     protected long getRandomAirlineId() {
-        return (m_rng.nextInt(this.m_profile.getRecordCount(AirlineConstants.TABLENAME_AIRLINE).intValue()));
+        return (m_rng.nextInt(this.profile.getRecordCount(AirlineConstants.TABLENAME_AIRLINE).intValue()));
     }
     
     public long getRandomReservationId() {
@@ -351,8 +335,8 @@ public abstract class AirlineBaseClient extends ClientMain {
      * @return
      */
     public Date getRandomUpcomingDate() {
-        Date upcoming_start_date = this.m_profile.getFlightUpcomingDate();
-        int offset = m_rng.nextInt((int)this.m_profile.getFlightFutureDays());
+        Date upcoming_start_date = this.profile.getFlightUpcomingDate();
+        int offset = m_rng.nextInt((int)this.profile.getFlightFutureDays());
         return (new Date(upcoming_start_date.getTime() + (offset * AirlineConstants.MILISECONDS_PER_DAY)));
     }
 }

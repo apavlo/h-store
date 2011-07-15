@@ -25,25 +25,19 @@
  ***************************************************************************/
 package edu.brown.benchmark.markov;
 
-import java.io.*;
-import java.util.*;
+import java.io.IOException;
+import java.util.EnumSet;
+import java.util.HashMap;
+import java.util.Map;
 
-import org.voltdb.client.*;
-import org.voltdb.compiler.VoltProjectBuilder;
-import org.voltdb.benchmark.*;
+import org.voltdb.client.ClientResponse;
+import org.voltdb.client.NoConnectionsException;
+import org.voltdb.client.ProcedureCallback;
 
+import edu.brown.benchmark.BenchmarkComponent;
 import edu.brown.rand.AbstractRandomGenerator;
 
-public class MarkovClient extends ClientMain {
-
-    /** Retrieved via reflection by BenchmarkController */
-    public static final Class<? extends VoltProjectBuilder> m_projectBuilderClass = MarkovProjectBuilder.class;
-
-    /** Retrieved via reflection by BenchmarkController */
-    public static final Class<? extends ClientMain> m_loaderClass = MarkovLoader.class;
-
-    /** Retrieved via reflection by BenchmarkController */
-    public static final String m_jarFileName = "markov.jar";
+public class MarkovClient extends BenchmarkComponent {
     
     // --------------------------------------------------------------------
     // DATA MEMBERS
@@ -196,7 +190,7 @@ public class MarkovClient extends ClientMain {
     }
 
     public static void main(String args[]) {
-        org.voltdb.benchmark.ClientMain.main(MarkovClient.class, args, false);
+        edu.brown.benchmark.BenchmarkComponent.main(MarkovClient.class, args, false);
     }
 
     /**
@@ -308,14 +302,4 @@ public class MarkovClient extends ClientMain {
             }
         }
     } // END CLASS
-    
-    @Override
-    public String getApplicationName() {
-        return "Markov Benchmark";
-    }
-
-    @Override
-    public String getSubApplicationName() {
-        return "Client";
-    }
 }

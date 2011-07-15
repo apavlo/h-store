@@ -9,7 +9,7 @@ import org.voltdb.catalog.Statement;
 import edu.brown.BaseTestCase;
 import edu.brown.benchmark.tm1.procedures.UpdateSubscriberData;
 import edu.brown.catalog.CatalogUtil;
-import edu.brown.correlations.ParameterCorrelations;
+import edu.brown.mappings.ParameterMappingsSet;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.ProjectType;
 import edu.brown.workload.TransactionTrace;
@@ -29,7 +29,7 @@ public class TestMarkovGraphProbabilities extends BaseTestCase {
     private static Procedure catalog_proc;
     private static Statement catalog_stmt;
     private static Workload workload;
-    private static ParameterCorrelations correlations;
+    private static ParameterMappingsSet correlations;
     private static MarkovGraph markov;
 //    private static EstimationThresholds thresholds = new EstimationThresholds();
     
@@ -43,8 +43,8 @@ public class TestMarkovGraphProbabilities extends BaseTestCase {
             catalog_stmt = CollectionUtil.getFirst(catalog_proc.getStatements());
             assertNotNull(catalog_stmt);
             
-            File file = this.getCorrelationsFile(ProjectType.TM1);
-            correlations = new ParameterCorrelations();
+            File file = this.getParameterMappingsFile(ProjectType.TM1);
+            correlations = new ParameterMappingsSet();
             correlations.load(file.getAbsolutePath(), catalog_db);
 
             file = this.getWorkloadFile(ProjectType.TM1);
@@ -76,7 +76,7 @@ public class TestMarkovGraphProbabilities extends BaseTestCase {
      */
     public void testVertexProbabilities() {
         // There should only be one query vertex and it should be marked as single-partitioned
-        Vertex v = markov.getVertex(catalog_stmt);
+        MarkovVertex v = markov.getVertex(catalog_stmt);
         assertNotNull(v);
         
         System.err.println(v.debug());

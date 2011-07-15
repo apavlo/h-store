@@ -439,7 +439,7 @@ public class PartitionPlan implements JSONSerializable {
         //
         // Create partition entries
         //
-        for (Vertex vertex : ptree.getVertices()) {
+        for (DesignerVertex vertex : ptree.getVertices()) {
             Table catalog_tbl = vertex.getCatalogItem();
             PartitionEntry entry = new PartitionEntry();
             
@@ -457,7 +457,7 @@ public class PartitionPlan implements JSONSerializable {
             // Parent Mapping
             //
             if (ptree.getParent(vertex) != null) {
-                Edge edge = ptree.getParentEdge(vertex);
+                DesignerEdge edge = ptree.getParentEdge(vertex);
                 assert(edge != null);
                 Table parent_table = ptree.getParent(vertex).getCatalogItem();
                 Column parent_column = (Column)vertex.getAttribute(ptree, PartitionTree.VertexAttributes.PARENT_ATTRIBUTE.name());

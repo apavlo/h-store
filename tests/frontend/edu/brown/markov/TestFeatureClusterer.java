@@ -20,7 +20,7 @@ import weka.filters.Filter;
 import weka.filters.unsupervised.attribute.NumericToNominal;
 import edu.brown.BaseTestCase;
 import edu.brown.catalog.CatalogUtil;
-import edu.brown.correlations.ParameterCorrelations;
+import edu.brown.mappings.ParameterMappingsSet;
 import edu.brown.markov.FeatureClusterer.SplitType;
 import edu.brown.markov.features.BasePartitionFeature;
 import edu.brown.markov.features.FeatureUtil;
@@ -46,7 +46,7 @@ public class TestFeatureClusterer extends BaseTestCase {
     private static Procedure catalog_proc;
     private static Workload workload;
     private static Instances data;
-    private static ParameterCorrelations correlations;
+    private static ParameterMappingsSet correlations;
     
     private FeatureClusterer fclusterer;
     
@@ -60,8 +60,8 @@ public class TestFeatureClusterer extends BaseTestCase {
         if (workload == null) {
             catalog_proc = this.getProcedure(TARGET_PROCEDURE);
             
-            File file = this.getCorrelationsFile(ProjectType.TPCC);
-            correlations = new ParameterCorrelations();
+            File file = this.getParameterMappingsFile(ProjectType.TPCC);
+            correlations = new ParameterMappingsSet();
             correlations.load(file.getAbsolutePath(), catalog_db);
 
             file = this.getWorkloadFile(ProjectType.TPCC);

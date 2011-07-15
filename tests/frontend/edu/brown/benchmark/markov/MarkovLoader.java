@@ -33,13 +33,14 @@ import org.apache.log4j.Logger;
 import org.voltdb.*;
 import org.voltdb.benchmark.*;
 
+import edu.brown.benchmark.BenchmarkComponent;
 import edu.brown.rand.AbstractRandomGenerator;
 import edu.brown.rand.RandomDistribution;
 import edu.brown.rand.WrappingRandomDistribution;
 import edu.brown.statistics.Histogram;
 import edu.brown.utils.StringUtil;
 
-public class MarkovLoader extends ClientMain {
+public class MarkovLoader extends BenchmarkComponent {
     private static final Logger LOG = Logger.getLogger(MarkovLoader.class.getSimpleName());
     
     // Composite Id
@@ -68,7 +69,7 @@ public class MarkovLoader extends ClientMain {
     private final Map<String, AtomicLong> table_sizes = new HashMap<String, AtomicLong>();
     
     public static void main(String args[]) throws Exception {
-        org.voltdb.benchmark.ClientMain.main(MarkovLoader.class, args, true);
+        edu.brown.benchmark.BenchmarkComponent.main(MarkovLoader.class, args, true);
     }
     
     /**
@@ -486,16 +487,6 @@ public class MarkovLoader extends ClientMain {
             e.printStackTrace();
             System.exit(-1);
         }
-    }
-    
-    @Override
-    public String getApplicationName() {
-        return "Markov Benchmark";
-    }
-
-    @Override
-    public String getSubApplicationName() {
-        return "Loader";
     }
 }
 

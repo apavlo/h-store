@@ -4,7 +4,6 @@
 package edu.brown.designer.partitioners;
 
 import java.util.Collection;
-import java.util.List;
 import java.util.Observable;
 import java.util.Set;
 
@@ -21,10 +20,10 @@ import edu.brown.catalog.special.ReplicatedColumn;
 import edu.brown.designer.AccessGraph;
 import edu.brown.designer.ColumnSet;
 import edu.brown.designer.Designer;
+import edu.brown.designer.DesignerEdge;
 import edu.brown.designer.DesignerHints;
 import edu.brown.designer.DesignerInfo;
-import edu.brown.designer.Edge;
-import edu.brown.designer.Vertex;
+import edu.brown.designer.DesignerVertex;
 import edu.brown.gui.common.GraphVisualizationPanel;
 import edu.brown.statistics.Histogram;
 import edu.brown.statistics.TableStatistics;
@@ -68,7 +67,7 @@ public class MostPopularPartitioner extends AbstractPartitioner {
         
         double total_memory_ratio = 0.0;
         long total_memory_bytes = 0l;
-        for (Vertex v : agraph.getVertices()) {
+        for (DesignerVertex v : agraph.getVertices()) {
             Table catalog_tbl = v.getCatalogItem();
             String table_key = CatalogKey.createKey(catalog_tbl);
             
@@ -108,7 +107,7 @@ public class MostPopularPartitioner extends AbstractPartitioner {
             // -------------------------------
             } else {
                 // If there are no edges, then we'll just randomly pick a column since it doesn't matter
-                final Collection<Edge> edges = agraph.getIncidentEdges(v);
+                final Collection<DesignerEdge> edges = agraph.getIncidentEdges(v);
                 if (edges.isEmpty()) {
                     continue;
                 }
@@ -118,10 +117,10 @@ public class MostPopularPartitioner extends AbstractPartitioner {
                 Histogram<Column> join_column_histogram = new Histogram<Column>();
                 Histogram<Column> self_column_histogram = new Histogram<Column>();
                 // Map<Column, Double> unsorted = new HashMap<Column, Double>();
-                for (Edge e : edges) {
-                    Collection<Vertex> vertices = agraph.getIncidentVertices(e);
-                    Vertex v0 = CollectionUtil.get(vertices, 0);
-                    Vertex v1 = CollectionUtil.get(vertices, 1);
+                for (DesignerEdge e : edges) {
+                    Collection<DesignerVertex> vertices = agraph.getIncidentVertices(e);
+                    DesignerVertex v0 = CollectionUtil.get(vertices, 0);
+                    DesignerVertex v1 = CollectionUtil.get(vertices, 1);
                     boolean self = (v0.equals(v) && v1.equals(v));
                     column_histogram = (self ? self_column_histogram : join_column_histogram);
                     
@@ -150,9 +149,9 @@ public class MostPopularPartitioner extends AbstractPartitioner {
                     EventObserver observer = new EventObserver() {
                         @Override
                         public void update(Observable o, Object arg) {
-                            Vertex v = (Vertex)arg;
+                            DesignerVertex v = (DesignerVertex)arg;
                             
-                            for (Edge e : agraph.getIncidentEdges(v)) {
+                            for (DesignerEdge e : agraph.getIncidentEdges(v)) {
                                 System.err.println(e.getAttribute(AccessGraph.EdgeAttributes.COLUMNSET));
                             }
                             System.err.println(StringUtil.repeat("-", 100));
@@ -200,9 +199,9 @@ public class MostPopularPartitioner extends AbstractPartitioner {
             for (Procedure catalog_proc : this.info.catalog_db.getProcedures()) {
                 if (AbstractPartitioner.shouldIgnoreProcedure(hints, catalog_proc)) continue;
                 
-                List<String> param_order = BranchAndBoundPartitioner.generateProcParameterOrder(info, info.catalog_db, catalog_proc, hints);
+                Set<String> param_order = BranchAndBoundPartitioner.generateProcParameterOrder(info, info.catalog_db, catalog_proc, hints);
                 if (param_order.isEmpty() == false) {
-                    ProcParameter catalog_proc_param = CatalogKey.getFromKey(info.catalog_db, param_order.get(0), ProcParameter.class);
+                    ProcParameter catalog_proc_param = CatalogKey.getFromKey(info.catalog_db, CollectionUtil.getFirst(param_order), ProcParameter.class);
                     if (debug) LOG.debug(String.format("PARTITION %-25s%s", catalog_proc.getName(), CatalogUtil.getDisplayName(catalog_proc_param)));
                     
                     // Create a new PartitionEntry for this procedure and set it to be always single-partitioned

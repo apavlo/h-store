@@ -43,7 +43,7 @@ public class MarkovEstimate implements Poolable, Estimation {
     private final float write[];
     private Set<Integer> write_partitions;
 
-    private transient Vertex vertex;
+    private transient MarkovVertex vertex;
     private transient int batch;
     private transient Long time;
     private transient boolean initializing = true;
@@ -66,7 +66,7 @@ public class MarkovEstimate implements Poolable, Estimation {
      * @param estimate the Estimate object which will be filled in
      * @param v the Vertex we are currently at in the MarkovGraph
      */
-    public MarkovEstimate init(Vertex v, int batch) {
+    public MarkovEstimate init(MarkovVertex v, int batch) {
         assert(v != null);
         assert(this.initializing == false);
         assert(this.vertex == null) : "Trying to initialize the same object twice!";
@@ -147,7 +147,7 @@ public class MarkovEstimate implements Poolable, Estimation {
      * The last vertex in this batch
      * @return
      */
-    public Vertex getVertex() {
+    public MarkovVertex getVertex() {
         return vertex;
     }
     

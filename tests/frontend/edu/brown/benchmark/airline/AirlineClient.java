@@ -26,6 +26,7 @@ package edu.brown.benchmark.airline;
 import java.io.IOException;
 import java.util.*;
 
+import org.apache.log4j.Logger;
 import org.voltdb.client.ProcedureCallback;
 import org.voltdb.client.NoConnectionsException;
 import org.voltdb.client.ClientResponse;
@@ -41,6 +42,7 @@ import edu.brown.statistics.Histogram;
 import edu.brown.utils.StringUtil;
 
 public class AirlineClient extends AirlineBaseClient {
+    private static final Logger LOG = Logger.getLogger(AirlineClient.class);
 
     /**
      * Airline Benchmark Transactions
@@ -90,19 +92,6 @@ public class AirlineClient extends AirlineBaseClient {
     }
     
     // -----------------------------------------------------------------
-    // REQUIRED DATA MEMBERS
-    // -----------------------------------------------------------------
-
-    /** Retrieved via reflection by BenchmarkController */
-    public static final Class<? extends VoltProjectBuilder> m_projectBuilderClass = AirlineProjectBuilder.class;
-
-    /** Retrieved via reflection by BenchmarkController */
-    public static final Class<? extends ClientMain> m_loaderClass = AirlineLoader.class;
-
-    /** Retrieved via reflection by BenchmarkController */
-    public static final String m_jarFileName = "airline.jar";    
-    
-    // -----------------------------------------------------------------
     // ADDITIONAL DATA MEMBERS
     // -----------------------------------------------------------------
     
@@ -136,7 +125,7 @@ public class AirlineClient extends AirlineBaseClient {
     // -----------------------------------------------------------------
 
     public static void main(String args[]) {
-        org.voltdb.benchmark.ClientMain.main(AirlineClient.class, args, false);
+        edu.brown.benchmark.BenchmarkComponent.main(AirlineClient.class, args, false);
     }
 
     public AirlineClient(String[] args) {
@@ -165,11 +154,11 @@ public class AirlineClient extends AirlineBaseClient {
         
         // Make sure we have the information we need in the BenchmarkProfile
         String error_msg = null;
-        if (this.m_profile.getFlightIdCount() == 0) {
+        if (this.profile.getFlightIdCount() == 0) {
             error_msg = "The benchmark profile does not have any flight ids.";
-        } else if (this.m_profile.getCustomerIdCount() == 0) {
+        } else if (this.profile.getCustomerIdCount() == 0) {
             error_msg = "The benchmark profile does not have any customer ids.";
-        } else if (this.m_profile.getFlightStartDate() == null) {
+        } else if (this.profile.getFlightStartDate() == null) {
             error_msg = "The benchmark profile does not have a valid flight start date.";
         }
         if (error_msg != null) {
@@ -192,7 +181,7 @@ public class AirlineClient extends AirlineBaseClient {
         LOG.info("Loading data files for histograms");
         this.loadHistograms();
         
-        Histogram<String> histogram = this.getHistogram(AirlineConstants.HISTOGRAM_POPULATION_PER_AIRPORT);
+        Histogram<String> histogram = this.getTotalAirportFlightsHistogram();
         this.airport_rand = new RandomDistribution.FlatHistogram<String>(m_rng, histogram);
     }
 
@@ -321,7 +310,7 @@ public class AirlineClient extends AirlineBaseClient {
 
     private void executeNewReservation() throws IOException {
         Reservation r = this.pending_reservations.remove();
-        long r_id = this.m_profile.getRecordCount(AirlineConstants.TABLENAME_RESERVATION);
+        long r_id = this.profile.getRecordCount(AirlineConstants.TABLENAME_RESERVATION);
         
         // Generate random attributes
         long attributes[] = new long[9];
@@ -381,7 +370,7 @@ public class AirlineClient extends AirlineBaseClient {
 
     private void executeUpdateReservation() throws IOException {
         // Pick a random reservation id
-        long r_id = this.m_rng.number(this.m_profile.getReservationUpcomingOffset(), this.m_profile.getRecordCount(AirlineConstants.TABLENAME_RESERVATION));
+        long r_id = this.m_rng.number(this.profile.getReservationUpcomingOffset(), this.profile.getRecordCount(AirlineConstants.TABLENAME_RESERVATION));
         long value = m_rng.number(1, 1 << 20);
         long attribute_idx = m_rng.number(0, UpdateReservation.NUM_UPDATES);
 
@@ -482,15 +471,5 @@ public class AirlineClient extends AirlineBaseClient {
         m_voltClient.callProcedure(new FindFlightByAirportCallback(),
                                    FindFlightByAirportCallback.class.getSimpleName(),
                                    depart_airport_id, arrive_airport_id, start_date, stop_date);
-    }
-    
-    @Override
-    public String getApplicationName() {
-        return "Airline Benchmark";
-    }
-
-    @Override
-    public String getSubApplicationName() {
-        return "Client";
     }
 }

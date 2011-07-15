@@ -52,20 +52,20 @@ public class MarkovViewer extends AbstractViewer {
     }
     
 
-    public static GraphVisualizationPanel<Vertex, Edge> getPanel(
-            Graph<Vertex, Edge> test_graph) {
-        GraphVisualizationPanel<Vertex, Edge> graph_panel = GraphVisualizationPanel
+    public static GraphVisualizationPanel<MarkovVertex, MarkovEdge> getPanel(
+            Graph<MarkovVertex, MarkovEdge> test_graph) {
+        GraphVisualizationPanel<MarkovVertex, MarkovEdge> graph_panel = GraphVisualizationPanel
                 .factory(test_graph);
-        Transformer<Vertex, Paint> transformer = new VertexTransformer<Vertex, Paint>();
+        Transformer<MarkovVertex, Paint> transformer = new VertexTransformer<MarkovVertex, Paint>();
         graph_panel.getRenderContext().setVertexFillPaintTransformer(
                 transformer);
         graph_panel.getRenderContext().setEdgeLabelTransformer(
-                new ToStringLabeller<Edge>());
+                new ToStringLabeller<MarkovEdge>());
         PluggableGraphMouse gm = new PluggableGraphMouse();
         gm.add(new PopupMousePlugin());
         gm.add(new TranslatingGraphMousePlugin(MouseEvent.BUTTON1_MASK));
         graph_panel.setGraphMouse(gm);
-        Transformer<Vertex, String> labelTransform = new VertexLabelTransformer<Vertex, String>();
+        Transformer<MarkovVertex, String> labelTransform = new VertexLabelTransformer<MarkovVertex, String>();
         graph_panel.getRenderContext()
                 .setVertexLabelTransformer(labelTransform);
         return graph_panel;
@@ -120,7 +120,7 @@ public class MarkovViewer extends AbstractViewer {
             MarkovGraph g = procedureGraphs.get(
                     proc);
             assert (g != null);
-            GraphVisualizationPanel<Vertex, Edge> graph_panel = MarkovViewer.getPanel(g);
+            GraphVisualizationPanel<MarkovVertex, MarkovEdge> graph_panel = MarkovViewer.getPanel(g);
             graph_panel.add(cb);
             frame.setContentPane(graph_panel);
             frame.setBounds(50, 50, 500, 500);
@@ -143,7 +143,7 @@ public class MarkovViewer extends AbstractViewer {
             Pair<Procedure, Integer> proc = (Pair<Procedure, Integer>) cb.getSelectedItem();
             MarkovGraph g = partitionGraphs.get(proc);
             assert (g != null);
-            GraphVisualizationPanel<Vertex, Edge> graph_panel = MarkovViewer.getPanel(g);
+            GraphVisualizationPanel<MarkovVertex, MarkovEdge> graph_panel = MarkovViewer.getPanel(g);
             graph_panel.add(cb);
             frame.setContentPane(graph_panel);
             frame.setBounds(50, 50, 500, 500);
@@ -163,7 +163,7 @@ public class MarkovViewer extends AbstractViewer {
             Point2D p = e.getPoint();
             vertex = vv.getPickSupport().getVertex(layout,p.getX(), p.getY());
             if(vertex != null){
-                Vertex v = (Vertex)vertex;
+                MarkovVertex v = (MarkovVertex)vertex;
 /**                JPopupMenu j = new JPopupMenu(v.toString());
                 j.setLightWeightPopupEnabled(false);
                 j.addSeparator();
@@ -219,10 +219,10 @@ public class MarkovViewer extends AbstractViewer {
         }
     }
     public static class VertexTransformer<T1, T2> implements
-            Transformer<Vertex, Paint> {
+            Transformer<MarkovVertex, Paint> {
 
         @Override
-        public Paint transform(Vertex v) {
+        public Paint transform(MarkovVertex v) {
             Color ret = Color.GREEN;
             if(v.isReadOnly()){
                 ret = Color.GRAY;
@@ -244,10 +244,10 @@ public class MarkovViewer extends AbstractViewer {
     }
 
     public static class VertexLabelTransformer<T1, T2> implements
-            Transformer<Vertex, String> {
+            Transformer<MarkovVertex, String> {
 
         @Override
-        public String transform(Vertex arg0) {
+        public String transform(MarkovVertex arg0) {
             return arg0.getCatalogKey()+"\n"+arg0.getPartitions().toString();
         }
 

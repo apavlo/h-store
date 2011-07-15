@@ -27,7 +27,7 @@ import edu.brown.utils.ProjectType;
  */
 public class TestCatalogUtil extends BaseTestCase {
 
-    private static final int NUM_PARTITIONS = 4;
+    private static final int NUM_PARTITIONS = 6;
     
     /**
      * ClassName.FieldName
@@ -133,6 +133,10 @@ public class TestCatalogUtil extends BaseTestCase {
      * testCloneDatabase
      */
     public void testCloneDatabase() throws Exception {
+        assertEquals(NUM_PARTITIONS, CatalogUtil.getNumberOfPartitions(catalog_db));
+        Collection<Integer> all_partitions = CatalogUtil.getAllPartitionIds(catalog_db);
+        assertNotNull(all_partitions);
+        
         // We want to make sure that it clones MultiProcParameters too!
         Procedure target_proc = this.getProcedure(neworder.class);
         List<MultiProcParameter> expected = new ArrayList<MultiProcParameter>();
@@ -151,6 +155,28 @@ public class TestCatalogUtil extends BaseTestCase {
         Database clone_db = CatalogUtil.cloneDatabase(catalog_db);
         assertNotNull(clone_db);
 
+        Cluster catalog_cluster = CatalogUtil.getCluster(catalog_db);
+        assertNotNull(catalog_cluster);
+        Cluster clone_cluster = CatalogUtil.getCluster(clone_db);
+        assertNotNull(clone_cluster);
+        for (Host catalog_host : catalog_cluster.getHosts()) {
+            Host clone_host = clone_cluster.getHosts().get(catalog_host.getName());
+            assertNotNull(clone_host);
+            checkFields(Host.class, catalog_host, clone_host);
+        } // FOR
+        
+        for (Site catalog_site : catalog_cluster.getSites()) {
+            Site clone_site = clone_cluster.getSites().get(catalog_site.getName());
+            assertNotNull(clone_site);
+            checkFields(Site.class, catalog_site, clone_site);
+        }
+        
+        assertEquals(NUM_PARTITIONS, CatalogUtil.getNumberOfPartitions(clone_db));
+        Collection<Integer> clone_partitions = CatalogUtil.getAllPartitionIds(clone_db);
+        assertNotNull(clone_partitions);
+        assertEquals(all_partitions.size(), clone_partitions.size());
+        assert(all_partitions.containsAll(clone_partitions));
+        
         for (Table catalog_tbl : catalog_db.getTables()) {
             Table clone_tbl = clone_db.getTables().get(catalog_tbl.getName());
             assertNotNull(catalog_tbl.toString(), clone_tbl);

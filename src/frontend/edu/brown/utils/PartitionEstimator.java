@@ -68,8 +68,6 @@ public class PartitionEstimator {
      */
     private final Map<String, Set<CacheEntry>> table_cache_xref = new HashMap<String, Set<CacheEntry>>();
     
-    private final Random rand = new Random(100);
-    
     /**
      * CacheEntry
      * ColumnKey -> Set<StmtParameterIndex>
@@ -727,7 +725,9 @@ public class PartitionEstimator {
                 int mpp_param_idx = mpp.get(i).getIndex();
                 assert(mpp_param_idx >= 0) : "Invalid Partitioning MultiProcParameter #" + mpp_param_idx;
                 assert(mpp_param_idx < params.length) : CatalogUtil.getDisplayName(mpp) + " < " + params.length;
-                hashes[i] = this.calculatePartition(catalog_proc, params[mpp_param_idx], is_array);
+                Integer hash = this.calculatePartition(catalog_proc, params[mpp_param_idx], is_array);
+                if (hash == null) hash = 0;
+                hashes[i] = hash.intValue(); 
                 if (d) LOG.debug(mpp.get(i) + " value[" + params[mpp_param_idx] + "] => hash[" + hashes[i] + "]");
             } // FOR
             partition = this.hasher.multiValueHash(hashes);
@@ -1167,19 +1167,19 @@ public class PartitionEstimator {
      * @return
      * @throws Exception
      */
-    private int calculatePartition(Procedure catalog_proc, Object partition_param_val, boolean is_array) throws Exception {
+    private Integer calculatePartition(Procedure catalog_proc, Object partition_param_val, boolean is_array) throws Exception {
         // If the parameter is an array, then just use the first value
         if (is_array) {
             int num_elements = Array.getLength(partition_param_val);
             if (num_elements == 0) {
                 if (d) LOG.debug("Empty partitioning parameter array for " + catalog_proc);
-                partition_param_val = rand.nextInt(); // Why??
+                return (null); // partition_param_val = rand.nextInt(); // Why??
             } else {
                 partition_param_val = Array.get(partition_param_val, 0);
             }
         } else if (partition_param_val == null) {
             if (d) LOG.warn("Null ProcParameter value: " + catalog_proc);
-            partition_param_val = rand.nextInt();
+            return (null); // partition_param_val = rand.nextInt();
         }
         return (this.hasher.hash(partition_param_val, catalog_proc));
     }
