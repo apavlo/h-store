@@ -32,8 +32,8 @@ public abstract class AbstractProjectBuilder extends VoltProjectBuilder {
     protected final Class<?> supplementals[];
     protected final String partitioning[][];
     
-    protected final URL ddlURL;
-    protected final URL ddlFkeysURL;
+    private final URL ddlURL;
+    private final URL ddlFkeysURL;
     
     protected final TransactionFrequencies txn_frequencies = new TransactionFrequencies();
 
@@ -101,7 +101,8 @@ public abstract class AbstractProjectBuilder extends VoltProjectBuilder {
     
     
     public final String getDDLName(boolean fkeys) {
-        return (this.project_name + "-ddl" + (fkeys ? "-fkeys" : "") + ".sql");
+//        return (this.project_name + "-ddl" + (fkeys ? "-fkeys" : "") + ".sql");
+        return (this.project_name + "-ddl" + ".sql");
     }
     
     /**

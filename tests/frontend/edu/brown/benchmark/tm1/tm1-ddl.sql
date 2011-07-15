@@ -42,7 +42,8 @@ CREATE TABLE Access_Info (
    data2 SMALLINT,
    data3 VARCHAR(3),
    data4 VARCHAR(5),
-   PRIMARY KEY(s_id, ai_type)
+   PRIMARY KEY(s_id, ai_type),
+   FOREIGN KEY (s_id) REFERENCES Subscriber (s_id)
 );
 
 CREATE TABLE Special_Facility (
@@ -52,7 +53,8 @@ CREATE TABLE Special_Facility (
    error_cntrl SMALLINT,
    data_a SMALLINT,
    data_b VARCHAR(5),
-   PRIMARY KEY (s_id, sf_type)
+   PRIMARY KEY (s_id, sf_type),
+   FOREIGN KEY (s_id) REFERENCES Subscriber (s_id)
 );
 
 CREATE TABLE Call_Forwarding (
@@ -61,5 +63,7 @@ CREATE TABLE Call_Forwarding (
    start_time TINYINT NOT NULL,
    end_time TINYINT,
    numberx VARCHAR(15),
-   PRIMARY KEY (s_id, sf_type, start_time)
+   PRIMARY KEY (s_id, sf_type, start_time),
+   FOREIGN KEY (s_id, sf_type) REFERENCES Special_Facility(s_id, sf_type)
 );
+CREATE INDEX IDX_CF ON Call_Forwarding (S_ID);
