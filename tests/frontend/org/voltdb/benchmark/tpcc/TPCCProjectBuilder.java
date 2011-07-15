@@ -176,7 +176,7 @@ public class TPCCProjectBuilder extends AbstractProjectBuilder {
     public Catalog createTPCCSchemaCatalog(boolean fkeys) throws IOException {
         // compile a catalog
         String testDir = BuildDirectoryUtils.getBuildDirectoryPath();
-        String catalogJar = testDir + File.separator + "tpcc-jni.jar";
+        String catalogJar = testDir + File.separator + this.getJarName(true);
 
         addSchema(this.getDDLURL(fkeys));
         addDefaultPartitioning();
