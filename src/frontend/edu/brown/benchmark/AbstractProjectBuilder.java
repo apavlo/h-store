@@ -99,7 +99,9 @@ public abstract class AbstractProjectBuilder extends VoltProjectBuilder {
         return (sb.toString());
     }
     
-    
+    public final URL getDDLURL(boolean fkeys) {
+        return (fkeys ? this.ddlFkeysURL : this.ddlURL);
+    }
     public final String getDDLName(boolean fkeys) {
 //        return (this.project_name + "-ddl" + (fkeys ? "-fkeys" : "") + ".sql");
         return (this.project_name + "-ddl" + ".sql");

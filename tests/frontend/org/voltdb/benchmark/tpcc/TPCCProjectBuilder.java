@@ -103,9 +103,6 @@ public class TPCCProjectBuilder extends AbstractProjectBuilder {
 //        {"ITEM", "I_ID"},
     };
 
-    public static final URL ddlURL = TPCCProjectBuilder.class.getResource("tpcc-ddl.sql");
-    public static final URL ddlFkeysURL = TPCCProjectBuilder.class.getResource("tpcc-ddl-fkeys.sql");
-
     public TPCCProjectBuilder() {
         super("tpcc", TPCCProjectBuilder.class, PROCEDURES, partitioning);
     }
@@ -140,7 +137,7 @@ public class TPCCProjectBuilder extends AbstractProjectBuilder {
      * Add the TPC-C schema to the VoltProjectBuilder base class.
      */
     public void addDefaultSchema() {
-        addSchema(ddlFkeysURL);
+        addSchema(this.getDDLURL(true));
     }
 
     public void addDefaultELT() {
@@ -181,7 +178,7 @@ public class TPCCProjectBuilder extends AbstractProjectBuilder {
         String testDir = BuildDirectoryUtils.getBuildDirectoryPath();
         String catalogJar = testDir + File.separator + "tpcc-jni.jar";
 
-        addSchema(fkeys ? ddlFkeysURL : ddlURL);
+        addSchema(this.getDDLURL(fkeys));
         addDefaultPartitioning();
         addDefaultProcedures();
         //this.addProcedures(org.voltdb.benchmark.tpcc.procedures.InsertHistory.class);
