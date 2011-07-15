@@ -1,4 +1,4 @@
-package edu.brown.correlations;
+package edu.brown.mappings;
 
 import java.io.File;
 import java.util.*;
@@ -8,7 +8,11 @@ import org.voltdb.benchmark.tpcc.procedures.neworder;
 import org.voltdb.catalog.*;
 
 import edu.brown.BaseTestCase;
-import edu.brown.correlations.CorrelationCalculator.*;
+import edu.brown.mappings.AbstractMapping;
+import edu.brown.mappings.ParameterMapping;
+import edu.brown.mappings.MappingCalculator;
+import edu.brown.mappings.ParameterMappingsSet;
+import edu.brown.mappings.MappingCalculator.*;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.ProjectType;
 import edu.brown.workload.*;
@@ -17,13 +21,13 @@ import edu.brown.workload.filters.ProcParameterValueFilter;
 import edu.brown.workload.filters.ProcedureLimitFilter;
 import edu.brown.workload.filters.ProcedureNameFilter;
 
-public class TestCorrelationCalculator extends BaseTestCase {
+public class TestMappingCalculator extends BaseTestCase {
     private static final int WORKLOAD_XACT_LIMIT = 1000;
     private static final Class<? extends VoltProcedure> TARGET_PROCEDURE = neworder.class;
     
     private static Workload workload;
     private Random rand = new Random(0);
-    private CorrelationCalculator pc;
+    private MappingCalculator pc;
     private Procedure catalog_proc;
     
     @Override
@@ -43,7 +47,7 @@ public class TestCorrelationCalculator extends BaseTestCase {
         
         // Setup
         this.catalog_proc = this.getProcedure(TARGET_PROCEDURE);
-        this.pc = new CorrelationCalculator(catalog_db);
+        this.pc = new MappingCalculator(catalog_db);
     }
     
     /**
@@ -79,7 +83,7 @@ public class TestCorrelationCalculator extends BaseTestCase {
         assertNotNull(query_instance);
         assertEquals(0, query_instance.getSecond().intValue());
         for (StmtParameter catalog_stmt_param : catalog_stmt.getParameters()) {
-            Set<AbstractCorrelation> previous = new HashSet<AbstractCorrelation>();
+            Set<AbstractMapping> previous = new HashSet<AbstractMapping>();
             
             for (ProcParameter catalog_proc_param : this.catalog_proc.getParameters()) {
                 ProcParameterCorrelation ppc = query_instance.getProcParameterCorrelation(catalog_stmt_param, catalog_proc_param);
@@ -89,7 +93,7 @@ public class TestCorrelationCalculator extends BaseTestCase {
                 
                 int cnt = (ppc.getIsArray() ? rand.nextInt(10) : 1);
                 for (int i = 0; i < cnt; i++) {
-                    AbstractCorrelation correlation = ppc.getAbstractCorrelation(i);
+                    AbstractMapping correlation = ppc.getAbstractCorrelation(i);
                     assertFalse(previous.contains(correlation));
                     previous.add(correlation);
                 } // FOR
@@ -118,14 +122,14 @@ public class TestCorrelationCalculator extends BaseTestCase {
         assertNotNull(catalog_stmt);
         
         double threshold = 1.0d;
-        ParameterCorrelations pc = procc.getCorrelations(threshold);
+        ParameterMappingsSet pc = procc.getCorrelations(threshold);
         assertNotNull(pc);
 //        System.err.println(pc.debug());
-        SortedMap<Integer, SortedMap<StmtParameter, SortedSet<Correlation>>> stmt_correlations = pc.get(catalog_stmt);
+        SortedMap<Integer, SortedMap<StmtParameter, SortedSet<ParameterMapping>>> stmt_correlations = pc.get(catalog_stmt);
         assertNotNull(stmt_correlations);
         assertFalse(stmt_correlations.isEmpty());
 //        assertEquals(1, stmt_correlations.size());
-        SortedMap<StmtParameter, SortedSet<Correlation>> param_correlations = stmt_correlations.get(0);
+        SortedMap<StmtParameter, SortedSet<ParameterMapping>> param_correlations = stmt_correlations.get(0);
         assertEquals(catalog_stmt.getParameters().size(), param_correlations.size());
         
 //        System.err.println(procc.debug(catalog_stmt));
@@ -151,7 +155,7 @@ public class TestCorrelationCalculator extends BaseTestCase {
         for (int i = 0, cnt = catalog_stmt.getParameters().size(); i < cnt; i++) {
             StmtParameter catalog_param = catalog_stmt.getParameters().get(i);
             assertNotNull(catalog_param);
-            Correlation c = CollectionUtil.getFirst(param_correlations.get(catalog_param));
+            ParameterMapping c = CollectionUtil.getFirst(param_correlations.get(catalog_param));
             assertNotNull(c);
             
             assert(c.getCoefficient() >= threshold);

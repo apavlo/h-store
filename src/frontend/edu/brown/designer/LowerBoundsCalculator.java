@@ -58,7 +58,7 @@ public class LowerBoundsCalculator {
             ArgumentsParser.PARAM_CATALOG,
             ArgumentsParser.PARAM_WORKLOAD,
             ArgumentsParser.PARAM_STATS,
-            ArgumentsParser.PARAM_CORRELATIONS
+            ArgumentsParser.PARAM_MAPPINGS
         );
         
         // If given a PartitionPlan, then update the catalog

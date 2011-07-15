@@ -3,10 +3,10 @@ package edu.brown.designer.partitioners;
 import java.io.File;
 
 import edu.brown.BaseTestCase;
-import edu.brown.correlations.ParameterCorrelations;
 import edu.brown.designer.Designer;
 import edu.brown.designer.DesignerHints;
 import edu.brown.designer.DesignerInfo;
+import edu.brown.mappings.ParameterMappingsSet;
 import edu.brown.statistics.WorkloadStatistics;
 import edu.brown.utils.ProjectType;
 import edu.brown.workload.Workload;
@@ -23,7 +23,7 @@ public abstract class BasePartitionerTestCase extends BaseTestCase {
     // Reading the workload takes a long time, so we only want to do it once
     protected static Workload workload;
     protected static WorkloadStatistics stats;
-    protected static ParameterCorrelations correlations;
+    protected static ParameterMappingsSet correlations;
     protected static File correlations_file;
 
     protected Designer designer;
@@ -57,10 +57,10 @@ public abstract class BasePartitionerTestCase extends BaseTestCase {
                 throw ex;
             }
             this.applyCatalogCorrelations(type);
-            correlations_file = this.getCorrelationsFile(type);
+            correlations_file = this.getParameterMappingsFile(type);
             assertNotNull(correlations_file);
             assert(correlations_file.exists());
-            correlations = new ParameterCorrelations();
+            correlations = new ParameterMappingsSet();
             correlations.load(correlations_file.getAbsolutePath(), catalog_db);
         }
         

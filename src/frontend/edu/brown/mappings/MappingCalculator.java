@@ -1,4 +1,4 @@
-package edu.brown.correlations;
+package edu.brown.mappings;
 
 import java.text.ParseException;
 import java.util.HashMap;
@@ -30,8 +30,8 @@ import edu.brown.workload.AbstractTraceElement;
 import edu.brown.workload.QueryTrace;
 import edu.brown.workload.TransactionTrace;
 
-public class CorrelationCalculator {
-    private static final Logger LOG = Logger.getLogger(CorrelationCalculator.class);
+public class MappingCalculator {
+    private static final Logger LOG = Logger.getLogger(MappingCalculator.class);
     
     public static final String DEFAULT_SPACER = StringUtil.SPACER;
     public static final String DEFAULT_DOUBLE_LINE = StringUtil.DOUBLE_LINE;
@@ -136,9 +136,9 @@ public class CorrelationCalculator {
          * @param threshold
          * @return
          */
-        public ParameterCorrelations getCorrelations(double threshold) {
+        public ParameterMappingsSet getCorrelations(double threshold) {
             if (LOG.isTraceEnabled()) LOG.trace("Extracting correlations above " + threshold + " for " + this.catalog_proc);
-            ParameterCorrelations results = new ParameterCorrelations();
+            ParameterMappingsSet results = new ParameterMappingsSet();
             for (Entry<Statement, Map<Integer, QueryInstance>> e : this.query_instances.entrySet()) {
                 if (LOG.isTraceEnabled()) LOG.trace(CatalogUtil.getDisplayName(e.getKey()) + ": " + e.getValue().size() + " query instances"); 
                 for (QueryInstance query_instance : e.getValue().values()) {
@@ -225,8 +225,8 @@ public class CorrelationCalculator {
          * @param threshold
          * @return
          */
-        public ParameterCorrelations getCorrelations(double threshold) {
-            ParameterCorrelations results = new ParameterCorrelations();
+        public ParameterMappingsSet getCorrelations(double threshold) {
+            ParameterMappingsSet results = new ParameterMappingsSet();
             if (LOG.isTraceEnabled()) LOG.trace("Extracting correlations for " + this.correlations.size() + " StmtParameters in " + this.getFirst());
             
             for (Entry<StmtParameter, Map<ProcParameter, ProcParameterCorrelation>> e : this.correlations.entrySet()) {
@@ -235,7 +235,7 @@ public class CorrelationCalculator {
                 // Correlation objects for any results that we get back from each of them 
                 for (ProcParameterCorrelation ppc : e.getValue().values()) {
                     for (Pair<Integer, Double> pair : ppc.getCorrelations(threshold)) {
-                        Correlation c = new Correlation(
+                        ParameterMapping c = new ParameterMapping(
                                 this.getFirst(),
                                 this.getSecond(),
                                 e.getKey(),
@@ -275,7 +275,7 @@ public class CorrelationCalculator {
      * For the given ProcParameter, this class maintains a AbstractCorrelation calculation for a QueryInstance 
      * Provides a wrapper to handle array values
      */
-    protected class ProcParameterCorrelation extends TreeMap<Integer, AbstractCorrelation> {
+    protected class ProcParameterCorrelation extends TreeMap<Integer, AbstractMapping> {
         private static final long serialVersionUID = 1L;
         private final ProcParameter catalog_proc_param;
         private final boolean is_array;
@@ -286,15 +286,15 @@ public class CorrelationCalculator {
             this.is_array = catalog_param.getIsarray(); 
         }
         
-        public AbstractCorrelation getAbstractCorrelation() {
+        public AbstractMapping getAbstractCorrelation() {
             return (this.get(0));
         }
         
-        public AbstractCorrelation getAbstractCorrelation(int index) {
+        public AbstractMapping getAbstractCorrelation(int index) {
             assert(index == 0 || (this.is_array && index > 0));
-            AbstractCorrelation p = this.get(index);
+            AbstractMapping p = this.get(index);
             if (p == null) {
-                p = new RatioCorrelation();
+                p = new RatioMapping();
                 this.put(index, p);
             }
             return (p);
@@ -310,7 +310,7 @@ public class CorrelationCalculator {
         
         public void calculate() {
             if (LOG.isTraceEnabled()) LOG.trace("Calculating correlation coefficients for " + this.size() + " ProcParameters instances");
-            for (AbstractCorrelation p : this.values()) {
+            for (AbstractMapping p : this.values()) {
                 p.calculate();
             } // FOR
             if (LOG.isTraceEnabled()) LOG.trace(this.toString());
@@ -324,7 +324,7 @@ public class CorrelationCalculator {
         public Set<Pair<Integer, Double>> getCorrelations(double threshold) {
             Set<Pair<Integer, Double>> ret = new HashSet<Pair<Integer,Double>>();
             for (Integer index : this.keySet()) {
-                AbstractCorrelation p = this.get(index);
+                AbstractMapping p = this.get(index);
                 Double result = p.calculate();
                 if (result != null && result >= threshold) {
                     ret.add(Pair.of(index, result));
@@ -368,7 +368,7 @@ public class CorrelationCalculator {
      * Constructor
      * @param catalog_db
      */
-    public CorrelationCalculator(Database catalog_db) {
+    public MappingCalculator(Database catalog_db) {
         this.catalog_db = catalog_db;
         
         for (Procedure catalog_proc : this.catalog_db.getProcedures()) {
@@ -485,8 +485,8 @@ public class CorrelationCalculator {
      * @param threshold
      * @return
      */
-    public ParameterCorrelations getParameterCorrelations(double threshold) {
-        ParameterCorrelations ret = new ParameterCorrelations();
+    public ParameterMappingsSet getParameterCorrelations(double threshold) {
+        ParameterMappingsSet ret = new ParameterMappingsSet();
         LOG.debug("Extracting ParameterCorrelations above threshold " + threshold + " [# of correlations=" + this.correlations.size() + "]");
         for (ProcedureCorrelations pc : this.correlations.values()) {
             ret.addAll(pc.getCorrelations(threshold));
@@ -538,7 +538,7 @@ public class CorrelationCalculator {
         );
         LOG.info("Starting CorrelationCalculator...");
         
-        CorrelationCalculator cc = new CorrelationCalculator(args.catalog_db);
+        MappingCalculator cc = new MappingCalculator(args.catalog_db);
         int ctr = 0;
         for (AbstractTraceElement<?> element : args.workload) {
             if (element instanceof TransactionTrace) {
@@ -560,14 +560,14 @@ public class CorrelationCalculator {
 //            System.err.println(cc.getProcedureCorrelations(catalog_proc));
 //        } // FOR
         
-        if (args.hasParam(ArgumentsParser.PARAM_CORRELATIONS_OUTPUT)) {
+        if (args.hasParam(ArgumentsParser.PARAM_MAPPINGS_OUTPUT)) {
             double threshold = 1.0d;
-            if (args.hasDoubleParam(ArgumentsParser.PARAM_CORRELATIONS_THRESHOLD)) {
-                threshold = args.getDoubleParam(ArgumentsParser.PARAM_CORRELATIONS_THRESHOLD);
+            if (args.hasDoubleParam(ArgumentsParser.PARAM_MAPPINGS_THRESHOLD)) {
+                threshold = args.getDoubleParam(ArgumentsParser.PARAM_MAPPINGS_THRESHOLD);
             }
             
-            ParameterCorrelations pc = cc.getParameterCorrelations(threshold);
-            String output_path = args.getParam(ArgumentsParser.PARAM_CORRELATIONS_OUTPUT);
+            ParameterMappingsSet pc = cc.getParameterCorrelations(threshold);
+            String output_path = args.getParam(ArgumentsParser.PARAM_MAPPINGS_OUTPUT);
             assert(!pc.isEmpty());
             if (LOG.isDebugEnabled()) LOG.debug("DEBUG DUMP:\n" + pc.debug());
             pc.save(output_path);

@@ -24,8 +24,8 @@ import org.voltdb.catalog.Statement;
 import org.voltdb.utils.Pair;
 
 import edu.brown.catalog.CatalogUtil;
-import edu.brown.correlations.ParameterCorrelations;
 import edu.brown.graphs.GraphvizExport;
+import edu.brown.mappings.ParameterMappingsSet;
 import edu.brown.markov.containers.MarkovGraphsContainer;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.CountingPoolableObjectFactory;
@@ -83,7 +83,7 @@ public class TransactionEstimator implements Loggable {
     private final Database catalog_db;
     private final int num_partitions;
     private final PartitionEstimator p_estimator;
-    private final ParameterCorrelations correlations;
+    private final ParameterMappingsSet correlations;
     private final MarkovGraphsContainer markovs;
     private final Map<Long, State> txn_states = new ConcurrentHashMap<Long, State>();
     private final AtomicInteger txn_count = new AtomicInteger(0);
@@ -337,12 +337,12 @@ public class TransactionEstimator implements Loggable {
      * @param correlations
      * @param markovs
      */
-    public TransactionEstimator(PartitionEstimator p_estimator, ParameterCorrelations correlations, MarkovGraphsContainer markovs) {
+    public TransactionEstimator(PartitionEstimator p_estimator, ParameterMappingsSet correlations, MarkovGraphsContainer markovs) {
         this.p_estimator = p_estimator;
         this.markovs = markovs;
         this.catalog_db = this.p_estimator.getDatabase();
         this.num_partitions = CatalogUtil.getNumberOfPartitions(this.catalog_db);
-        this.correlations = (correlations == null ? new ParameterCorrelations() : correlations);
+        this.correlations = (correlations == null ? new ParameterMappingsSet() : correlations);
         this.hstore_conf = HStoreConf.singleton();
         if (this.markovs != null && this.markovs.getHasher() == null) this.markovs.setHasher(this.p_estimator.getHasher());
         
@@ -382,7 +382,7 @@ public class TransactionEstimator implements Loggable {
        this.enable_recomputes = true;
     }
     
-    public ParameterCorrelations getCorrelations() {
+    public ParameterMappingsSet getCorrelations() {
         return this.correlations;
     }
 

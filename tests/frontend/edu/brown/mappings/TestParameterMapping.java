@@ -1,14 +1,15 @@
-package edu.brown.correlations;
+package edu.brown.mappings;
 
 import org.json.*;
 import org.voltdb.catalog.*;
 
 import edu.brown.BaseTestCase;
 import edu.brown.catalog.CatalogUtil;
+import edu.brown.mappings.ParameterMapping;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.ProjectType;
 
-public class TestCorrelation extends BaseTestCase {
+public class TestParameterMapping extends BaseTestCase {
 
     private static final double DEFAULT_CORRELATION_COEFFCIENT = 0.5d;
     
@@ -16,7 +17,7 @@ public class TestCorrelation extends BaseTestCase {
     private Procedure catalog_other_proc;
     private ProcParameter catalog_proc_param;
     private Statement catalog_other_stmt;
-    private Correlation correlation;
+    private ParameterMapping correlation;
     
     @Override
     protected void setUp() throws Exception {
@@ -31,7 +32,7 @@ public class TestCorrelation extends BaseTestCase {
         assertNotNull(this.catalog_other_stmt);
         
         for (Statement stmt : this.catalog_proc.getStatements()) {
-            this.correlation = new Correlation(
+            this.correlation = new ParameterMapping(
                     stmt,                           // Statement
                     0,                              // Statement Instance Index
                     stmt.getParameters().get(0),    // StmtParameter
@@ -44,7 +45,7 @@ public class TestCorrelation extends BaseTestCase {
         this.examineCorrelation(this.correlation);
     }
     
-    private void examineCorrelation(Correlation c) {
+    private void examineCorrelation(ParameterMapping c) {
         assertNotNull(c);
         assertNotNull(c.getStatement());
         assertNotNull(c.getStatementIndex());
@@ -62,7 +63,7 @@ public class TestCorrelation extends BaseTestCase {
      * testCompareTo
      */
     public void testCompareTo() {
-        Correlation clone = null;
+        ParameterMapping clone = null;
         
         double coefficients[] = {
                 this.correlation.getCoefficient(),
@@ -72,7 +73,7 @@ public class TestCorrelation extends BaseTestCase {
         int expected_results[] = { 0, 1, -1 };
         
         for (int i = 0; i < coefficients.length; i++) {
-            clone = new Correlation(
+            clone = new ParameterMapping(
                     this.correlation.getStatement(),
                     this.correlation.getStatementIndex(),
                     this.correlation.getStmtParameter(),
@@ -82,7 +83,7 @@ public class TestCorrelation extends BaseTestCase {
             assertEquals("i=" + i, expected_results[i], this.correlation.compareTo(clone));
         } // FOR
         
-        clone = new Correlation(
+        clone = new ParameterMapping(
                 catalog_other_stmt,
                 0,
                 catalog_other_stmt.getParameters().get(0),
@@ -97,9 +98,9 @@ public class TestCorrelation extends BaseTestCase {
      * testEquals
      */
     public void testEquals() {
-        Correlation clone = null;
+        ParameterMapping clone = null;
 
-        clone = new Correlation(
+        clone = new ParameterMapping(
                 this.correlation.getStatement(),
                 this.correlation.getStatementIndex(),
                 this.correlation.getStmtParameter(),
@@ -108,7 +109,7 @@ public class TestCorrelation extends BaseTestCase {
                 0.99999d);
         assert(this.correlation.equals(clone));
         
-        clone = new Correlation(
+        clone = new ParameterMapping(
                 catalog_other_stmt,
                 0,
                 catalog_other_stmt.getParameters().get(0),
@@ -123,9 +124,9 @@ public class TestCorrelation extends BaseTestCase {
      * testHashCode
      */
     public void testHashCode() {
-        Correlation clone = null;
+        ParameterMapping clone = null;
 
-        clone = new Correlation(
+        clone = new ParameterMapping(
                 this.correlation.getStatement(),
                 this.correlation.getStatementIndex(),
                 this.correlation.getStmtParameter(),
@@ -134,7 +135,7 @@ public class TestCorrelation extends BaseTestCase {
                 0.99999d);
         assertEquals(this.correlation.hashCode(), clone.hashCode());
         
-        clone = new Correlation(
+        clone = new ParameterMapping(
                 catalog_other_stmt,
                 0,
                 catalog_other_stmt.getParameters().get(0),
@@ -167,7 +168,7 @@ public class TestCorrelation extends BaseTestCase {
         
         // System.err.println(json_obj.toString(2));
         
-        Correlation clone = new Correlation();
+        ParameterMapping clone = new ParameterMapping();
         clone.fromJSON(json_obj, catalog_db);
         this.examineCorrelation(clone);
 

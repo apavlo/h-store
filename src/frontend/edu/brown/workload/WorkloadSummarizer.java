@@ -24,9 +24,9 @@ import org.voltdb.catalog.StmtParameter;
 
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.catalog.QueryPlanUtil;
-import edu.brown.correlations.Correlation;
-import edu.brown.correlations.ParameterCorrelations;
 import edu.brown.hashing.AbstractHasher;
+import edu.brown.mappings.ParameterMapping;
+import edu.brown.mappings.ParameterMappingsSet;
 import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.PartitionEstimator;
@@ -40,7 +40,7 @@ public class WorkloadSummarizer {
 
     private final Database catalog_db;
     private final PartitionEstimator p_estimator;
-    private final ParameterCorrelations mappings;
+    private final ParameterMappingsSet mappings;
     private final Collection<Procedure> target_procedures;
     private final Collection<Column> candidate_columns;
     private final Map<Statement, List<StmtParameter>> target_stmt_params = new HashMap<Statement, List<StmtParameter>>();
@@ -102,7 +102,7 @@ public class WorkloadSummarizer {
      * @param procedures
      * @param candidate_columns
      */
-    public WorkloadSummarizer(Database catalog_db, PartitionEstimator p_estimator, ParameterCorrelations mappings, Collection<Procedure> procedures, Collection<Column> candidate_columns) {
+    public WorkloadSummarizer(Database catalog_db, PartitionEstimator p_estimator, ParameterMappingsSet mappings, Collection<Procedure> procedures, Collection<Column> candidate_columns) {
         assert(procedures != null);
         assert(candidate_columns != null);
         
@@ -114,7 +114,7 @@ public class WorkloadSummarizer {
         this.buildTargetParameters();
     }
     
-    protected WorkloadSummarizer(Database catalog_db, PartitionEstimator p_estimator, ParameterCorrelations mappings) {
+    protected WorkloadSummarizer(Database catalog_db, PartitionEstimator p_estimator, ParameterMappingsSet mappings) {
         this(catalog_db, p_estimator, mappings,
              CollectionUtil.addAll(new HashSet<Procedure>(), catalog_db.getProcedures()),
              CatalogUtil.getAllColumns(catalog_db));
@@ -158,7 +158,7 @@ public class WorkloadSummarizer {
             List<ProcParameter> proc_params = new ArrayList<ProcParameter>();
             for (ProcParameter catalog_param : catalog_proc.getParameters()) {
                 boolean matched = false;
-                for (Correlation c : mappings.get(catalog_param)) {
+                for (ParameterMapping c : mappings.get(catalog_param)) {
                     assert(c.getStatementColumn() != null);
                     if (this.candidate_columns.contains(c.getStatementColumn())) {
                         matched = true;
@@ -296,11 +296,11 @@ public class WorkloadSummarizer {
         args.require(
             ArgumentsParser.PARAM_CATALOG,
             ArgumentsParser.PARAM_WORKLOAD,
-            ArgumentsParser.PARAM_CORRELATIONS
+            ArgumentsParser.PARAM_MAPPINGS
         );
         
         PartitionEstimator p_estimator = new PartitionEstimator(args.catalog_db);
-        WorkloadSummarizer ws = new WorkloadSummarizer(args.catalog_db, p_estimator, args.param_correlations);
+        WorkloadSummarizer ws = new WorkloadSummarizer(args.catalog_db, p_estimator, args.param_mappings);
         Workload new_workload = ws.process(args.workload);
         assert(new_workload != null);
     }

@@ -16,8 +16,8 @@ import org.voltdb.types.ExpressionType;
 
 import edu.brown.BaseTestCase;
 import edu.brown.catalog.CatalogUtil;
-import edu.brown.correlations.ParameterCorrelations;
 import edu.brown.costmodel.MarkovCostModel.Penalty;
+import edu.brown.mappings.ParameterMappingsSet;
 import edu.brown.markov.EstimationThresholds;
 import edu.brown.markov.MarkovGraph;
 import edu.brown.markov.TransactionEstimator;
@@ -48,7 +48,7 @@ public class TestMarkovCostModel extends BaseTestCase {
 
     private static Workload workload;
     private static MarkovGraphsContainer markovs;
-    private static ParameterCorrelations correlations;
+    private static ParameterMappingsSet correlations;
     private static Procedure catalog_proc;
     private static TransactionEstimator t_estimator;
 
@@ -67,8 +67,8 @@ public class TestMarkovCostModel extends BaseTestCase {
         if (markovs == null) {
             catalog_proc = this.getProcedure(TARGET_PROCEDURE);
             
-            File file = this.getCorrelationsFile(ProjectType.TPCC);
-            correlations = new ParameterCorrelations();
+            File file = this.getParameterMappingsFile(ProjectType.TPCC);
+            correlations = new ParameterMappingsSet();
             correlations.load(file.getAbsolutePath(), catalog_db);
 
             file = this.getWorkloadFile(ProjectType.TPCC);

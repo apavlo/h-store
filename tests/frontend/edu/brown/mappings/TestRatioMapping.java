@@ -1,10 +1,12 @@
-package edu.brown.correlations;
+package edu.brown.mappings;
 
 import java.util.Random;
 
+import edu.brown.mappings.RatioMapping;
+
 import junit.framework.TestCase;
 
-public class TestPearsonCorrelation extends TestCase {
+public class TestRatioMapping extends TestCase {
     
     private final Random rand = new Random(0);
     private final int num_samples = 1000;
@@ -17,7 +19,7 @@ public class TestPearsonCorrelation extends TestCase {
      * testNoSamples
      */
     public void testNoSamples() {
-        PearsonCorrelation p = new PearsonCorrelation();
+        RatioMapping p = new RatioMapping();
         assertNull(p.calculate());
     }
     
@@ -25,7 +27,7 @@ public class TestPearsonCorrelation extends TestCase {
      * testClear
      */
     public void testClear() {
-        PearsonCorrelation p = new PearsonCorrelation();
+        RatioMapping p = new RatioMapping();
         for (int i = 0; i < num_samples; i++) {
             p.addOccurrence(i, i);
         } // FOR
@@ -38,7 +40,7 @@ public class TestPearsonCorrelation extends TestCase {
      * testSingleSample
      */
     public void testSingleSample() {
-        PearsonCorrelation p = new PearsonCorrelation();
+        RatioMapping p = new RatioMapping();
         p.addOccurrence(1, 1);
         Double result = p.calculate();
         assertNotNull(result);
@@ -49,7 +51,7 @@ public class TestPearsonCorrelation extends TestCase {
      * testIntegers
      */
     public void testIntegers() {
-        PearsonCorrelation p = new PearsonCorrelation();
+        RatioMapping p = new RatioMapping();
         for (int i = 0; i < num_samples; i++) {
             p.addOccurrence(Integer.MAX_VALUE, Integer.MAX_VALUE);
         }
@@ -66,7 +68,7 @@ public class TestPearsonCorrelation extends TestCase {
      * testLongs
      */
     public void testLongs() {
-        PearsonCorrelation p = new PearsonCorrelation();
+        RatioMapping p = new RatioMapping();
         for (int i = 0; i < num_samples; i++) {
             p.addOccurrence(Long.MAX_VALUE, Long.MAX_VALUE);
         }
@@ -83,7 +85,7 @@ public class TestPearsonCorrelation extends TestCase {
      * testDoubles
      */
     public void testDoubles() {
-        PearsonCorrelation p = new PearsonCorrelation();
+        RatioMapping p = new RatioMapping();
         for (int i = 0; i < num_samples; i++) {
             p.addOccurrence(Double.MAX_VALUE, Double.MAX_VALUE);
         }
@@ -95,34 +97,12 @@ public class TestPearsonCorrelation extends TestCase {
         }
         assertEquals(1.0d, roundToDecimals(p.calculate(), 1));
     }
-    
-    /**
-     * testAbsolutePositive
-     */
-    public void testAbsolutePositive() {
-        PearsonCorrelation p = new PearsonCorrelation();
-        for (int i = 0; i < num_samples; i++) {
-            p.addOccurrence(i, i);
-        }
-        assertEquals(1.0d, roundToDecimals(p.calculate(), 1));
-    }
-    
-    /**
-     * testAbsoluteNegative
-     */
-    public void testAbsoluteNegative() {
-        PearsonCorrelation p = new PearsonCorrelation();
-        for (int i = 0; i < num_samples; i++) {
-            p.addOccurrence(i, -i);
-        }
-        assertEquals(-1.0d, roundToDecimals(p.calculate(), 1));
-    }
-    
+
     /**
      * testRandomCorrelation
      */
     public void testRandomCorrelation() {
-        PearsonCorrelation p = new PearsonCorrelation();
+        RatioMapping p = new RatioMapping();
         for (int i = 0; i < num_samples; i++) {
             p.addOccurrence(i, (this.rand.nextDouble() - 0.5) * i);
         }
@@ -130,14 +110,16 @@ public class TestPearsonCorrelation extends TestCase {
     }
 
     /**
-     * testPositiveCorrelation
+     * testHalf
      */
-    public void testPositiveCorrelation() {
-        PearsonCorrelation p = new PearsonCorrelation();
+    public void testHalf() {
+        RatioMapping p = new RatioMapping();
         for (int i = 0; i < num_samples; i++) {
-            p.addOccurrence(i, (this.rand.nextDouble()) * i);
+            p.addOccurrence(-1, (this.rand.nextDouble()) * i);
         }
-        assertTrue(Math.abs(p.calculate()) > 0.4);
+        for (int i = 0; i < num_samples; i++) {
+            p.addOccurrence(i, i);
+        }
+        assertEquals(0.5, roundToDecimals(p.calculate(), 1));
     }
-   
 }

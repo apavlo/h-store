@@ -57,7 +57,7 @@ import edu.brown.catalog.CatalogUtil;
 import edu.brown.catalog.ClusterConfiguration;
 import edu.brown.catalog.FixCatalog;
 import edu.brown.catalog.ParametersUtil;
-import edu.brown.correlations.ParameterCorrelations;
+import edu.brown.mappings.ParameterMappingsSet;
 import edu.brown.utils.FileUtil;
 import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.PartitionEstimator;
@@ -279,9 +279,9 @@ public abstract class BaseTestCase extends TestCase {
     protected void applyCatalogCorrelations(ProjectType type) throws Exception {
         // We need the correlations file in order to make sure the parameters 
         // get mapped properly
-        File correlations_path = this.getCorrelationsFile(type);
+        File correlations_path = this.getParameterMappingsFile(type);
         if (correlations_path != null) {
-            ParameterCorrelations correlations = new ParameterCorrelations();
+            ParameterMappingsSet correlations = new ParameterMappingsSet();
             correlations.load(correlations_path.getAbsolutePath(), catalog_db);
             ParametersUtil.applyParameterCorrelations(catalog_db, correlations);
         }
@@ -468,8 +468,8 @@ public abstract class BaseTestCase extends TestCase {
      * @return
      * @throws IOException
      */
-    public File getCorrelationsFile(ProjectType type) throws IOException {
-        return (this.getProjectFile(new File(".").getCanonicalFile(), type, "correlations", ".correlations"));
+    public File getParameterMappingsFile(ProjectType type) throws IOException {
+        return (this.getProjectFile(new File(".").getCanonicalFile(), type, "mappings", ".mappings"));
     }
     
     /**

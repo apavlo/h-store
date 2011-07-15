@@ -7,7 +7,6 @@ import org.voltdb.catalog.*;
 
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.catalog.DependencyUtil;
-import edu.brown.correlations.ParameterCorrelations;
 import edu.brown.costmodel.AbstractCostModel;
 import edu.brown.costmodel.SingleSitedCostModel;
 import edu.brown.designer.generators.DependencyGraphGenerator;
@@ -16,6 +15,7 @@ import edu.brown.designer.mappers.*;
 import edu.brown.designer.partitioners.*;
 import edu.brown.graphs.*;
 import edu.brown.hashing.DefaultHasher;
+import edu.brown.mappings.ParameterMappingsSet;
 import edu.brown.statistics.WorkloadStatistics;
 import edu.brown.utils.ArgumentsParser;
 import edu.brown.workload.*;
@@ -65,7 +65,7 @@ public class DesignerInfo {
     /**
      * ProcParameter Correlations
      */
-    private ParameterCorrelations correlations;
+    private ParameterMappingsSet correlations;
     private String correlations_file;
     
     /**
@@ -155,9 +155,9 @@ public class DesignerInfo {
         this.m_estimator = new MemoryEstimator(this.stats, new DefaultHasher(this.catalog_db, this.num_partitions));
         
         // Correlations (smoke 'em if you got 'em)
-        if (args.param_correlations != null) {
-            this.correlations = args.param_correlations;
-            this.correlations_file = args.getParam(ArgumentsParser.PARAM_CORRELATIONS);
+        if (args.param_mappings != null) {
+            this.correlations = args.param_mappings;
+            this.correlations_file = args.getParam(ArgumentsParser.PARAM_MAPPINGS);
         }
         
         if (!DesignerInfo.DGRAPH_CACHE.containsKey(this.catalog_db)) {
@@ -203,10 +203,10 @@ public class DesignerInfo {
     }
 
     /** Parameter Correlations **/
-    public void setCorrelations(ParameterCorrelations correlations) {
+    public void setCorrelations(ParameterMappingsSet correlations) {
         this.correlations = correlations;
     }
-    public ParameterCorrelations getCorrelations() {
+    public ParameterMappingsSet getCorrelations() {
         return correlations;
     }
     public void setCorrelationsFile(String correlationsFile) {

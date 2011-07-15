@@ -1,4 +1,4 @@
-package edu.brown.correlations;
+package edu.brown.mappings;
 
 import java.io.IOException;
 import java.util.*;
@@ -11,7 +11,7 @@ import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.JSONSerializable;
 import edu.brown.utils.JSONUtil;
 
-public class ParameterCorrelations extends TreeSet<Correlation> implements JSONSerializable {
+public class ParameterMappingsSet extends TreeSet<ParameterMapping> implements JSONSerializable {
     private static final long serialVersionUID = 1L;
 //    private static final Logger LOG = Logger.getLogger(ParameterCorrelations.class.getName());
 
@@ -19,14 +19,14 @@ public class ParameterCorrelations extends TreeSet<Correlation> implements JSONS
      * Dear son,
      * This right here is nasty old boy! Don't do what Daddy did...
      **/
-    private final transient HashMap<Statement, SortedMap<Integer, SortedMap<StmtParameter, SortedSet<Correlation>>>> stmt_correlations = new HashMap<Statement, SortedMap<Integer,SortedMap<StmtParameter, SortedSet<Correlation>>>>();
-    private final transient HashMap<Procedure, SortedMap<ProcParameter, SortedSet<Correlation>>> proc_correlations = new HashMap<Procedure, SortedMap<ProcParameter,SortedSet<Correlation>>>();
+    private final transient HashMap<Statement, SortedMap<Integer, SortedMap<StmtParameter, SortedSet<ParameterMapping>>>> stmt_correlations = new HashMap<Statement, SortedMap<Integer,SortedMap<StmtParameter, SortedSet<ParameterMapping>>>>();
+    private final transient HashMap<Procedure, SortedMap<ProcParameter, SortedSet<ParameterMapping>>> proc_correlations = new HashMap<Procedure, SortedMap<ProcParameter,SortedSet<ParameterMapping>>>();
     
     /**
      * Constructor
      * @param catalog_db
      */
-    public ParameterCorrelations() {
+    public ParameterMappingsSet() {
         super();
         // Nothing for now...
     }
@@ -46,7 +46,7 @@ public class ParameterCorrelations extends TreeSet<Correlation> implements JSONS
      * @param c
      */
     @Override
-    public boolean add(Correlation c) {
+    public boolean add(ParameterMapping c) {
         assert(c != null);
         Statement catalog_stmt = c.getStatement();
         assert(catalog_stmt != null);
@@ -58,22 +58,22 @@ public class ParameterCorrelations extends TreeSet<Correlation> implements JSONS
         
         // Procedure Index
         if (!this.proc_correlations.containsKey(catalog_proc)) {
-            this.proc_correlations.put(catalog_proc, new TreeMap<ProcParameter, SortedSet<Correlation>>());
+            this.proc_correlations.put(catalog_proc, new TreeMap<ProcParameter, SortedSet<ParameterMapping>>());
         }
         if (!this.proc_correlations.get(catalog_proc).containsKey(catalog_proc_param)) {
-            this.proc_correlations.get(catalog_proc).put(catalog_proc_param, new TreeSet<Correlation>());
+            this.proc_correlations.get(catalog_proc).put(catalog_proc_param, new TreeSet<ParameterMapping>());
         }
         this.proc_correlations.get(catalog_proc).get(catalog_proc_param).add(c);
         
         // Statement Index
         if (!this.stmt_correlations.containsKey(catalog_stmt)) {
-            this.stmt_correlations.put(catalog_stmt, new TreeMap<Integer, SortedMap<StmtParameter, SortedSet<Correlation>>>());
+            this.stmt_correlations.put(catalog_stmt, new TreeMap<Integer, SortedMap<StmtParameter, SortedSet<ParameterMapping>>>());
         }
         if (!this.stmt_correlations.get(catalog_stmt).containsKey(c.getStatementIndex())) {
-            this.stmt_correlations.get(catalog_stmt).put(c.getStatementIndex(), new TreeMap<StmtParameter, SortedSet<Correlation>>());
+            this.stmt_correlations.get(catalog_stmt).put(c.getStatementIndex(), new TreeMap<StmtParameter, SortedSet<ParameterMapping>>());
         }
         if (!this.stmt_correlations.get(catalog_stmt).get(c.getStatementIndex()).containsKey(catalog_stmt_param)) {
-            this.stmt_correlations.get(catalog_stmt).get(c.getStatementIndex()).put(catalog_stmt_param, new TreeSet<Correlation>());
+            this.stmt_correlations.get(catalog_stmt).get(c.getStatementIndex()).put(catalog_stmt_param, new TreeSet<ParameterMapping>());
         }
         this.stmt_correlations.get(catalog_stmt).get(c.getStatementIndex()).get(catalog_stmt_param).add(c);
         
@@ -88,12 +88,12 @@ public class ParameterCorrelations extends TreeSet<Correlation> implements JSONS
      * @param catalog_stmt_param
      * @return
      */
-    public SortedSet<Correlation> get(Statement catalog_stmt, int catalog_stmt_index, StmtParameter catalog_stmt_param) {
+    public SortedSet<ParameterMapping> get(Statement catalog_stmt, int catalog_stmt_index, StmtParameter catalog_stmt_param) {
         assert(catalog_stmt != null);
         assert(catalog_stmt_index >= 0);
         assert(catalog_stmt_param != null);
         
-        SortedSet<Correlation> set = new TreeSet<Correlation>();
+        SortedSet<ParameterMapping> set = new TreeSet<ParameterMapping>();
         if (this.stmt_correlations.containsKey(catalog_stmt)) {
             if (this.stmt_correlations.get(catalog_stmt).containsKey(catalog_stmt_index)) {
                 set.addAll(this.stmt_correlations.get(catalog_stmt).get(catalog_stmt_index).get(catalog_stmt_param));
@@ -108,13 +108,13 @@ public class ParameterCorrelations extends TreeSet<Correlation> implements JSONS
      * @param catalog_stmt_param
      * @return
      */
-    public SortedSet<Correlation> get(Statement catalog_stmt, StmtParameter catalog_stmt_param) {
+    public SortedSet<ParameterMapping> get(Statement catalog_stmt, StmtParameter catalog_stmt_param) {
         assert(catalog_stmt != null);
         assert(catalog_stmt_param != null);
         
-        SortedSet<Correlation> set = new TreeSet<Correlation>();
+        SortedSet<ParameterMapping> set = new TreeSet<ParameterMapping>();
         if (this.stmt_correlations.containsKey(catalog_stmt)) {
-            for (SortedMap<StmtParameter, SortedSet<Correlation>> m : this.stmt_correlations.get(catalog_stmt).values()) {
+            for (SortedMap<StmtParameter, SortedSet<ParameterMapping>> m : this.stmt_correlations.get(catalog_stmt).values()) {
                 if (m.containsKey(catalog_stmt_param)) {
                     set.addAll(m.get(catalog_stmt_param));
                 }
@@ -128,12 +128,12 @@ public class ParameterCorrelations extends TreeSet<Correlation> implements JSONS
      * @param catalog_proc_param
      * @return
      */
-    public SortedSet<Correlation> get(ProcParameter catalog_proc_param) {
+    public SortedSet<ParameterMapping> get(ProcParameter catalog_proc_param) {
         assert(catalog_proc_param != null);
         Procedure catalog_proc = catalog_proc_param.getParent();
         assert(catalog_proc != null);
         
-        SortedSet<Correlation> set = new TreeSet<Correlation>();
+        SortedSet<ParameterMapping> set = new TreeSet<ParameterMapping>();
         if (this.proc_correlations.containsKey(catalog_proc) && this.proc_correlations.get(catalog_proc).containsKey(catalog_proc_param)) {
             set.addAll(this.proc_correlations.get(catalog_proc).get(catalog_proc_param));
         }
@@ -148,18 +148,18 @@ public class ParameterCorrelations extends TreeSet<Correlation> implements JSONS
      * @param catalog_col
      * @return
      */
-    public SortedSet<Correlation> get(ProcParameter catalog_proc_param, Column catalog_col) {
+    public SortedSet<ParameterMapping> get(ProcParameter catalog_proc_param, Column catalog_col) {
         assert(catalog_proc_param != null);
         assert(catalog_col != null);
         
         Pair<ProcParameter, Column> p = Pair.of(catalog_proc_param, catalog_col);
-        SortedSet<Correlation> set = CACHE_ProcParameter_Column.get(p);
+        SortedSet<ParameterMapping> set = CACHE_ProcParameter_Column.get(p);
         if (set == null) {
             Procedure catalog_proc = catalog_proc_param.getParent();
             assert(catalog_proc != null);
-            set = new TreeSet<Correlation>();
+            set = new TreeSet<ParameterMapping>();
             if (this.proc_correlations.containsKey(catalog_proc) && this.proc_correlations.get(catalog_proc).containsKey(catalog_proc_param)) {
-                for (Correlation c : this.proc_correlations.get(catalog_proc).get(catalog_proc_param)) {
+                for (ParameterMapping c : this.proc_correlations.get(catalog_proc).get(catalog_proc_param)) {
                     if (c.getColumn().equals(catalog_col)) set.add(c);
                 } // FOR
             }
@@ -167,7 +167,7 @@ public class ParameterCorrelations extends TreeSet<Correlation> implements JSONS
         }
         return (set);
     }
-    private final Map<Pair<ProcParameter, Column>, SortedSet<Correlation>> CACHE_ProcParameter_Column = new HashMap<Pair<ProcParameter,Column>, SortedSet<Correlation>>();
+    private final Map<Pair<ProcParameter, Column>, SortedSet<ParameterMapping>> CACHE_ProcParameter_Column = new HashMap<Pair<ProcParameter,Column>, SortedSet<ParameterMapping>>();
 
     /**
      * Return all of the correlation objects where the StmtParameter in the Statement
@@ -175,9 +175,9 @@ public class ParameterCorrelations extends TreeSet<Correlation> implements JSONS
      * @param catalog_col
      * @return
      */
-    public SortedSet<Correlation> get(Column catalog_col) {
-        SortedSet<Correlation> set = new TreeSet<Correlation>();
-        for (Correlation c : this) {
+    public SortedSet<ParameterMapping> get(Column catalog_col) {
+        SortedSet<ParameterMapping> set = new TreeSet<ParameterMapping>();
+        for (ParameterMapping c : this) {
             if (c.getColumn().equals(catalog_col)) set.add(c);
         } // FOR
         return (set);
@@ -188,7 +188,7 @@ public class ParameterCorrelations extends TreeSet<Correlation> implements JSONS
      * @param catalog_stmt
      * @return
      */
-    public SortedMap<Integer, SortedMap<StmtParameter, SortedSet<Correlation>>> get(Statement catalog_stmt) {
+    public SortedMap<Integer, SortedMap<StmtParameter, SortedSet<ParameterMapping>>> get(Statement catalog_stmt) {
         return (this.stmt_correlations.get(catalog_stmt));
     }
     
@@ -198,7 +198,7 @@ public class ParameterCorrelations extends TreeSet<Correlation> implements JSONS
      * @param catalog_stmt_index
      * @return
      */
-    public SortedMap<StmtParameter, SortedSet<Correlation>> get(Statement catalog_stmt, Integer catalog_stmt_index) {
+    public SortedMap<StmtParameter, SortedSet<ParameterMapping>> get(Statement catalog_stmt, Integer catalog_stmt_index) {
         if (this.stmt_correlations.containsKey(catalog_stmt)) {
             return (this.stmt_correlations.get(catalog_stmt).get(catalog_stmt_index));
         }
@@ -223,9 +223,9 @@ public class ParameterCorrelations extends TreeSet<Correlation> implements JSONS
                     if (num_instances > 1) sb.append(String.format("   Instance #%02d:\n", catalog_stmt_index));
     
                     if (this.stmt_correlations.get(catalog_stmt).containsKey(catalog_stmt_index)) {
-                        SortedMap<StmtParameter, SortedSet<Correlation>> params = this.stmt_correlations.get(catalog_stmt).get(catalog_stmt_index);
+                        SortedMap<StmtParameter, SortedSet<ParameterMapping>> params = this.stmt_correlations.get(catalog_stmt).get(catalog_stmt_index);
                         for (StmtParameter catalog_stmt_param : params.keySet()) {
-                            for (Correlation c : params.get(catalog_stmt_param)) {
+                            for (ParameterMapping c : params.get(catalog_stmt_param)) {
                                 sb.append("   " + c + "\n");
                             } // FOR (correlation)
                         } // FOR (catalog_stmt_param)
@@ -233,7 +233,7 @@ public class ParameterCorrelations extends TreeSet<Correlation> implements JSONS
                         sb.append("   <NONE>\n");
                     }
                 } // FOR (catalog_stmt_index)
-                sb.append(CorrelationCalculator.DEFAULT_SINGLE_LINE);
+                sb.append(MappingCalculator.DEFAULT_SINGLE_LINE);
             }
         } // FOR (catalot_stmt)
         return (sb.toString());
@@ -259,8 +259,8 @@ public class ParameterCorrelations extends TreeSet<Correlation> implements JSONS
     }
     
     public void toJSON(JSONStringer stringer) throws JSONException {
-        stringer.key("CORRELATIONS").array();
-        for (Correlation c : this) {
+        stringer.key("MAPPINGS").array();
+        for (ParameterMapping c : this) {
             assert(c != null);
             stringer.value(c);   
         } // FOR
@@ -268,10 +268,10 @@ public class ParameterCorrelations extends TreeSet<Correlation> implements JSONS
     }
     
     public void fromJSON(JSONObject object, Database catalog_db) throws JSONException {
-        JSONArray json_array = object.getJSONArray("CORRELATIONS");
+        JSONArray json_array = object.getJSONArray("MAPPINGS");
         for (int i = 0, cnt = json_array.length(); i < cnt; i++) {
             JSONObject json_object = json_array.getJSONObject(i);
-            Correlation c = new Correlation();
+            ParameterMapping c = new ParameterMapping();
             c.fromJSON(json_object, catalog_db);
             this.add(c);
         } // FOR

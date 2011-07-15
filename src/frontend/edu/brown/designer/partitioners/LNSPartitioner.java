@@ -22,8 +22,6 @@ import edu.brown.catalog.special.MultiColumn;
 import edu.brown.catalog.special.MultiProcParameter;
 import edu.brown.catalog.special.NullProcParameter;
 import edu.brown.catalog.special.ReplicatedColumn;
-import edu.brown.correlations.Correlation;
-import edu.brown.correlations.ParameterCorrelations;
 import edu.brown.costmodel.AbstractCostModel;
 import edu.brown.designer.AccessGraph;
 import edu.brown.designer.Designer;
@@ -33,6 +31,8 @@ import edu.brown.designer.DesignerInfo;
 import edu.brown.designer.DesignerVertex;
 import edu.brown.designer.generators.AccessGraphGenerator;
 import edu.brown.graphs.GraphvizExport;
+import edu.brown.mappings.ParameterMapping;
+import edu.brown.mappings.ParameterMappingsSet;
 import edu.brown.rand.RandomDistribution;
 import edu.brown.statistics.Histogram;
 import edu.brown.statistics.TableStatistics;
@@ -79,7 +79,7 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
     
     protected final Random rng = new Random();
     protected final AbstractCostModel costmodel;
-    protected final ParameterCorrelations correlations;
+    protected final ParameterMappingsSet correlations;
     protected AccessGraph agraph;
     protected AccessGraph single_agraph;
 
@@ -140,7 +140,7 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
         super(designer, info);
         this.costmodel = info.getCostModel();
         assert(this.costmodel != null) : "CostModel is null!";
-        this.correlations = new ParameterCorrelations();
+        this.correlations = new ParameterMappingsSet();
         assert(info.getCorrelationsFile() != null) : "The correlations file path was not set";
     }
     
@@ -816,7 +816,7 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
                     param_weights.put(catalog_proc_param, new ArrayList<Double>());
                 }
                 List<Double> weights_list = param_weights.get(catalog_proc_param);
-                for (Correlation c : correlations.get(catalog_proc_param, catalog_col)) {
+                for (ParameterMapping c : correlations.get(catalog_proc_param, catalog_col)) {
                     weights_list.add(c.getCoefficient() * col_access_cnt);
                 } // FOR
                 if (debug.get()) LOG.debug("  " + catalog_proc_param + ": " + weights_list);

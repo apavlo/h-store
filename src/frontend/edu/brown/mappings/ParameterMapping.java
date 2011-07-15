@@ -1,4 +1,4 @@
-package edu.brown.correlations;
+package edu.brown.mappings;
 
 import java.io.IOException;
 
@@ -10,7 +10,7 @@ import edu.brown.catalog.QueryPlanUtil;
 import edu.brown.utils.JSONSerializable;
 import edu.brown.utils.JSONUtil;
 
-public class Correlation implements Comparable<Correlation>, JSONSerializable {
+public class ParameterMapping implements Comparable<ParameterMapping>, JSONSerializable {
     enum Members {
         STATEMENT,
         STATEMENT_INDEX,
@@ -33,7 +33,7 @@ public class Correlation implements Comparable<Correlation>, JSONSerializable {
     /**
      * Constructor
      */
-    protected Correlation() {
+    protected ParameterMapping() {
         // Needed for deserialization
     }
 
@@ -43,7 +43,7 @@ public class Correlation implements Comparable<Correlation>, JSONSerializable {
      * @param index
      * @param coefficient
      */
-    public Correlation(Statement catalog_stmt, Integer catalog_stmt_index, StmtParameter catalog_stmt_param, ProcParameter catalog_proc_param, Integer catalog_proc_param_index, Double coefficient) {
+    public ParameterMapping(Statement catalog_stmt, Integer catalog_stmt_index, StmtParameter catalog_stmt_param, ProcParameter catalog_proc_param, Integer catalog_proc_param_index, Double coefficient) {
         this.statement = catalog_stmt;
         this.statement_index = catalog_stmt_index.intValue();
         this.statement_parameter = catalog_stmt_param;
@@ -111,9 +111,9 @@ public class Correlation implements Comparable<Correlation>, JSONSerializable {
      */
     @SuppressWarnings("unchecked")
     @Override
-    public int compareTo(Correlation o) {
+    public int compareTo(ParameterMapping o) {
         assert(o != null);
-        assert(o instanceof Correlation);
+        assert(o instanceof ParameterMapping);
         
         // Sort them by their attributes as they appear in the catalog
         // No! We want to sort them by their coefficients!
@@ -143,8 +143,8 @@ public class Correlation implements Comparable<Correlation>, JSONSerializable {
     
     @Override
     public boolean equals(Object obj) {
-        if (obj instanceof Correlation) {
-            Correlation c = (Correlation)obj;
+        if (obj instanceof ParameterMapping) {
+            ParameterMapping c = (ParameterMapping)obj;
             return (this.statement.equals(c.statement) &&
                     this.statement_index.equals(c.statement_index) &&
                     this.statement_parameter.equals(c.statement_parameter) &&
@@ -187,12 +187,12 @@ public class Correlation implements Comparable<Correlation>, JSONSerializable {
 
     @Override
     public void toJSON(JSONStringer stringer) throws JSONException {
-        JSONUtil.fieldsToJSON(stringer, this, Correlation.class, Correlation.Members.values());
+        JSONUtil.fieldsToJSON(stringer, this, ParameterMapping.class, ParameterMapping.Members.values());
     }
     
     @Override
     public void fromJSON(JSONObject json_object, Database catalog_db) throws JSONException {
-        JSONUtil.fieldsFromJSON(json_object, catalog_db, this, Correlation.class, Correlation.Members.values());
+        JSONUtil.fieldsFromJSON(json_object, catalog_db, this, ParameterMapping.class, ParameterMapping.Members.values());
         
         // Hack for the column
         if (this.statement_column == null) {
