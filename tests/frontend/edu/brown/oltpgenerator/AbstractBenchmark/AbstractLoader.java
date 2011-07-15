@@ -4,6 +4,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 
+import edu.brown.benchmark.BenchmarkComponent;
 import edu.brown.oltpgenerator.RandUtil;
 import edu.brown.oltpgenerator.env.TableEnv;
 import edu.brown.oltpgenerator.velocity.CodeGenerator;
@@ -12,11 +13,10 @@ import edu.brown.utils.TableDataIterable;
 import org.voltdb.VoltTable;
 import org.voltdb.VoltTableRow;
 import org.voltdb.VoltType;
-import org.voltdb.benchmark.ClientMain;
 import org.voltdb.catalog.*;
 import org.voltdb.client.NoConnectionsException;
 
-public abstract class AbstractLoader extends ClientMain
+public abstract class AbstractLoader extends BenchmarkComponent
 {
     protected AbstractLoader(String[] args)
     {

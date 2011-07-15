@@ -33,12 +33,22 @@
  ***************************************************************************/
 package edu.brown.benchmark.tpce;
 
+
 import edu.brown.benchmark.AbstractProjectBuilder;
+import edu.brown.benchmark.BenchmarkComponent;
 import edu.brown.benchmark.tpce.procedures.*;
-import edu.brown.benchmark.tpce.util.ProcedureUtil;
 
 public class TPCEProjectBuilder extends AbstractProjectBuilder {
 	
+    /**
+     * Retrieved via reflection by BenchmarkController
+     */
+    public static final Class<? extends BenchmarkComponent> m_clientClass = TPCEClient.class;
+    /**
+     * Retrieved via reflection by BenchmarkController
+     */
+    public static final Class<? extends BenchmarkComponent> m_loaderClass = TPCELoader.class;
+    
     public static final Class<?> PROCEDURES[] = {
         TradeCleanup.class,
         DataMaintenance.class,
@@ -70,10 +80,6 @@ public class TPCEProjectBuilder extends AbstractProjectBuilder {
         addTransactionFrequency(DataMaintenance.class, -1); // TPCEConstants.FREQUENCY_DATA_MAINTENANCE);
         addTransactionFrequency(TradeCleanup.class, -1); // TPCEConstants.FREQUENCY_TRADE_CLEANUP);
     }
-
-    public static final Class<?> EXTRAS[] = {
-        ProcedureUtil.class
-    };
 	
     public static String PARTITIONING[][] = new String[][] {
         // TODO(pavlo)
@@ -81,6 +87,6 @@ public class TPCEProjectBuilder extends AbstractProjectBuilder {
     };
 
     public TPCEProjectBuilder() {
-        super("tpce", TPCEProjectBuilder.class, PROCEDURES, PARTITIONING, EXTRAS, true);
+        super("tpce", TPCEProjectBuilder.class, PROCEDURES, PARTITIONING);
     }
 }

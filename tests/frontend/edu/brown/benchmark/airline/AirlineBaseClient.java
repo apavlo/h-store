@@ -13,13 +13,13 @@ import java.util.Map.Entry;
 
 import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.log4j.Logger;
-import org.voltdb.benchmark.ClientMain;
 import org.voltdb.catalog.Catalog;
 import org.voltdb.catalog.Column;
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Table;
 import org.voltdb.utils.Pair;
 
+import edu.brown.benchmark.BenchmarkComponent;
 import edu.brown.benchmark.airline.util.CustomerId;
 import edu.brown.benchmark.airline.util.FlightId;
 import edu.brown.benchmark.airline.util.HistogramUtil;
@@ -31,7 +31,7 @@ import edu.brown.statistics.Histogram;
  * @author pavlo
  *
  */
-public abstract class AirlineBaseClient extends ClientMain {
+public abstract class AirlineBaseClient extends BenchmarkComponent {
     private static final Logger LOG = Logger.getLogger(AirlineBaseClient.class);
     
     protected int m_days_past = 7;

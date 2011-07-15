@@ -21,9 +21,11 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
-package org.voltdb.benchmark;
+package edu.brown.benchmark;
 
-import org.voltdb.benchmark.BenchmarkResults.Result;
+import edu.brown.benchmark.BenchmarkResults.Result;
+
+
 
 public class ResultsPrinter implements BenchmarkController.BenchmarkInterest {
 

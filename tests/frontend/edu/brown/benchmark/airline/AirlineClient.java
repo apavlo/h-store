@@ -92,19 +92,6 @@ public class AirlineClient extends AirlineBaseClient {
     }
     
     // -----------------------------------------------------------------
-    // REQUIRED DATA MEMBERS
-    // -----------------------------------------------------------------
-
-    /** Retrieved via reflection by BenchmarkController */
-    public static final Class<? extends VoltProjectBuilder> m_projectBuilderClass = AirlineProjectBuilder.class;
-
-    /** Retrieved via reflection by BenchmarkController */
-    public static final Class<? extends ClientMain> m_loaderClass = AirlineLoader.class;
-
-    /** Retrieved via reflection by BenchmarkController */
-    public static final String m_jarFileName = "airline.jar";    
-    
-    // -----------------------------------------------------------------
     // ADDITIONAL DATA MEMBERS
     // -----------------------------------------------------------------
     
@@ -138,7 +125,7 @@ public class AirlineClient extends AirlineBaseClient {
     // -----------------------------------------------------------------
 
     public static void main(String args[]) {
-        org.voltdb.benchmark.ClientMain.main(AirlineClient.class, args, false);
+        edu.brown.benchmark.BenchmarkComponent.main(AirlineClient.class, args, false);
     }
 
     public AirlineClient(String[] args) {
@@ -484,15 +471,5 @@ public class AirlineClient extends AirlineBaseClient {
         m_voltClient.callProcedure(new FindFlightByAirportCallback(),
                                    FindFlightByAirportCallback.class.getSimpleName(),
                                    depart_airport_id, arrive_airport_id, start_date, stop_date);
-    }
-    
-    @Override
-    public String getApplicationName() {
-        return "Airline Benchmark";
-    }
-
-    @Override
-    public String getSubApplicationName() {
-        return "Client";
     }
 }

@@ -40,8 +40,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.log4j.Logger;
-import org.voltdb.benchmark.ClientMain.Command;
 
+import edu.brown.benchmark.BenchmarkComponent.Command;
 import edu.brown.utils.EventObservable;
 import edu.brown.utils.EventObserver;
 import edu.brown.utils.LoggerUtil;

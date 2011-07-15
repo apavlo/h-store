@@ -56,10 +56,11 @@ import org.voltdb.VoltTable;
 import org.voltdb.VoltType;
 import org.voltdb.client.NoConnectionsException;
 import org.voltdb.client.SyncCallback;
-import org.voltdb.benchmark.ClientMain;
+
+import edu.brown.benchmark.BenchmarkComponent;
 
 
-public class Loader extends ClientMain {
+public class Loader extends BenchmarkComponent {
 
     // @244 bytes per row, approximately 24MB chunks
     private static int kCustomerBatchSize = 100000;
@@ -80,7 +81,7 @@ public class Loader extends ClientMain {
     private final Random m_rng;
 
     public static void main(String args[]) {
-        org.voltdb.benchmark.ClientMain.main(Loader.class, args, true);
+        edu.brown.benchmark.BenchmarkComponent.main(Loader.class, args, true);
     }
 
     public Loader(String[] args) {
@@ -444,16 +445,6 @@ public class Loader extends ClientMain {
         } catch (InterruptedException e) {
             e.printStackTrace();
         };
-    }
-
-    @Override
-    public String getApplicationName() {
-        return "Multisite Benchmark";
-    }
-
-    @Override
-    public String getSubApplicationName() {
-        return "Loader";
     }
 }
 

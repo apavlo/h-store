@@ -1,3 +1,28 @@
+/***************************************************************************
+ *   Copyright (C) 2011 by H-Store Project                                 *
+ *   Brown University                                                      *
+ *   Massachusetts Institute of Technology                                 *
+ *   Yale University                                                       *
+ *                                                                         *
+ *   Permission is hereby granted, free of charge, to any person obtaining *
+ *   a copy of this software and associated documentation files (the       *
+ *   "Software"), to deal in the Software without restriction, including   *
+ *   without limitation the rights to use, copy, modify, merge, publish,   *
+ *   distribute, sublicense, and/or sell copies of the Software, and to    *
+ *   permit persons to whom the Software is furnished to do so, subject to *
+ *   the following conditions:                                             *
+ *                                                                         *
+ *   The above copyright notice and this permission notice shall be        *
+ *   included in all copies or substantial portions of the Software.       *
+ *                                                                         *
+ *   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,       *
+ *   EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF    *
+ *   MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.*
+ *   IN NO EVENT SHALL THE AUTHORS BE LIABLE FOR ANY CLAIM, DAMAGES OR     *
+ *   OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, *
+ *   ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR *
+ *   OTHER DEALINGS IN THE SOFTWARE.                                       *
+ ***************************************************************************/
 /* This file is part of VoltDB.
  * Copyright (C) 2008-2010 VoltDB L.L.C.
  *
@@ -21,7 +46,7 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
-package org.voltdb.benchmark;
+package edu.brown.benchmark;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -41,6 +66,8 @@ import java.util.concurrent.atomic.AtomicLong;
 
 import org.apache.log4j.Logger;
 import org.voltdb.VoltTable;
+import org.voltdb.benchmark.BlockingClient;
+import org.voltdb.benchmark.Verification;
 import org.voltdb.benchmark.Verification.Expression;
 import org.voltdb.catalog.Catalog;
 import org.voltdb.client.Client;
@@ -60,8 +87,8 @@ import edu.mit.hstore.HStoreConf;
  * Base class for clients that will work with the multi-host multi-process
  * benchmark framework that is driven from stdin
  */
-public abstract class ClientMain {
-    private static final Logger LOG = Logger.getLogger(ClientMain.class);
+public abstract class BenchmarkComponent {
+    private static final Logger LOG = Logger.getLogger(BenchmarkComponent.class);
     
     static {
         // log4j hack!
@@ -178,23 +205,24 @@ public abstract class ClientMain {
     /**
      * Client Id
      */
-    protected final int m_id;
+    private final int m_id;
     
     /**
      * Total # of Clients
      */
-    protected final int m_numClients;
+    private final int m_numClients;
     
     /**
      * Total # of Partitions
      */
-    protected final int m_numPartitions;
+    private final int m_numPartitions;
 
     /**
      * Path to catalog jar
      */
-    protected final File m_catalogPath;
-    protected Catalog m_catalog;
+    private final File m_catalogPath;
+    private Catalog m_catalog;
+    private final String m_projectName;
     
     private final boolean m_exitOnCompletion;
     
@@ -294,7 +322,7 @@ public abstract class ClientMain {
                         
                         // Call tick on the client!
                         // if (LOG.isDebugEnabled()) LOG.debug("Got poll message! Calling tick()!");
-                        ClientMain.this.tick();
+                        BenchmarkComponent.this.tick();
                         break;
                     }
                     case CLEAR: {
@@ -531,7 +559,7 @@ public abstract class ClientMain {
      */
     protected void tick() {
         // Default is to do nothing!
-//        System.out.println("ClientMain.tick()");
+//        System.out.println("BenchmarkComponent.tick()");
     }
     
 
@@ -541,7 +569,7 @@ public abstract class ClientMain {
 
     /**
      * Implemented by derived classes. Invoke a single procedure without running
-     * the network. This allows ClientMain to control the rate at which
+     * the network. This allows BenchmarkComponent to control the rate at which
      * transactions are generated.
      *
      * @return True if an invocation was queued and false otherwise
@@ -569,7 +597,7 @@ public abstract class ClientMain {
      */
     abstract protected String[] getTransactionDisplayNames();
 
-    public ClientMain(final Client client) {
+    public BenchmarkComponent(final Client client) {
         m_voltClient = client;
         m_exitOnCompletion = false;
         m_host = "localhost";
@@ -579,6 +607,7 @@ public abstract class ClientMain {
         m_blocking = false;
         m_txnsPerMillisecond = 0;
         m_catalogPath = null;
+        m_projectName = null;
         m_id = 0;
         m_numClients = 1;
         m_numPartitions = 0;
@@ -594,9 +623,6 @@ public abstract class ClientMain {
         
     }
 
-    abstract protected String getApplicationName();
-    abstract protected String getSubApplicationName();
-
     /**
      * Constructor that initializes the framework portions of the client.
      * Creates a Volt client and connects it to all the hosts provided on the
@@ -604,7 +630,7 @@ public abstract class ClientMain {
      *
      * @param args
      */
-    public ClientMain(String args[]) {
+    public BenchmarkComponent(String args[]) {
         /*
          * Input parameters: HOST=host:port (may occur multiple times)
          * USER=username PASSWORD=password
@@ -626,6 +652,7 @@ public abstract class ClientMain {
 //        String statsDatabaseURL = null;
 //        int statsPollInterval = 10000;
         File catalogPath = null;
+        String projectName = null;
 
         // HStoreConf Path
         String hstore_conf_path = null;
@@ -660,6 +687,9 @@ public abstract class ClientMain {
             if (parts[0].equalsIgnoreCase("CATALOG")) {
                 catalogPath = new File(parts[1]);
                 assert(catalogPath.exists()) : "The catalog file '" + catalogPath.getAbsolutePath() + " does not exist";
+            }
+            else if (parts[0].equalsIgnoreCase("NAME")) {
+                projectName = parts[1];
             }
             else if (parts[0].equalsIgnoreCase("USER")) {
                 username = parts[1];
@@ -738,6 +768,7 @@ public abstract class ClientMain {
                 statsSettings);
 
         m_catalogPath = catalogPath;
+        m_projectName = projectName;
         m_id = id;
         m_numClients = num_clients;
         m_numPartitions = num_partitions;
@@ -817,14 +848,14 @@ public abstract class ClientMain {
      * @param startImmediately
      *            Whether to start the client thread immediately or not.
      */
-    public static ClientMain main(final Class<? extends ClientMain> clientClass, final String args[], final boolean startImmediately) {
+    public static BenchmarkComponent main(final Class<? extends BenchmarkComponent> clientClass, final String args[], final boolean startImmediately) {
         return main(clientClass, null, args, startImmediately);
     }
         
-    protected static ClientMain main(final Class<? extends ClientMain> clientClass, final BenchmarkClientFileUploader uploader, final String args[], final boolean startImmediately) {
-        ClientMain clientMain = null;
+    protected static BenchmarkComponent main(final Class<? extends BenchmarkComponent> clientClass, final BenchmarkClientFileUploader uploader, final String args[], final boolean startImmediately) {
+        BenchmarkComponent clientMain = null;
         try {
-            final Constructor<? extends ClientMain> constructor =
+            final Constructor<? extends BenchmarkComponent> constructor =
                 clientClass.getConstructor(new Class<?>[] { new String[0].getClass() });
             clientMain = constructor.newInstance(new Object[] { args });
             if (uploader != null) clientMain.uploader = uploader;
@@ -850,16 +881,40 @@ public abstract class ClientMain {
         m_controlPipe.run();
     }
 
+    /**
+     * Return the number of partitions in the cluster for this benchmark invocation
+     * @return
+     */
+    public final int getNumPartitions() {
+        return (m_numPartitions);
+    }
+    /**
+     * Return the unique client id for this invocation of BenchmarkComponent
+     * @return
+     */
     public final int getClientId() {
         return (m_id);
     }
-    
+    /**
+     * Return the total number of clients for this benchmark invocation
+     * @return
+     */
     public final int getNumClients() {
         return (m_numClients);
     }
-    
+    /**
+     * Return the file path to the catalog that was loaded for this benchmark invocation
+     * @return
+     */
     public File getCatalogPath() {
         return (m_catalogPath);
+    }
+    /**
+     * Return the project name of this benchmark
+     * @return
+     */
+    public final String getProjectName() {
+        return (m_projectName);
     }
 
     /**

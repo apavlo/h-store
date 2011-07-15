@@ -49,11 +49,11 @@ import java.util.concurrent.Semaphore;
 import org.apache.log4j.Logger;
 import org.voltdb.VoltTable;
 import org.voltdb.VoltType;
-import org.voltdb.benchmark.ClientMain;
 import org.voltdb.client.NoConnectionsException;
 import org.voltdb.client.ProcCallException;
 import org.voltdb.types.TimestampType;
 
+import edu.brown.benchmark.BenchmarkComponent;
 import edu.brown.catalog.CatalogUtil;
 
 /**
@@ -64,7 +64,7 @@ import edu.brown.catalog.CatalogUtil;
  * uses (o_w_id, o_d_id, o_id), whereas the order table is defined as (o_id,
  * o_d_id, o_w_id).
  */
-public class MultiLoader extends ClientMain {
+public class MultiLoader extends BenchmarkComponent {
     private static final Logger LOG = Logger.getLogger(MultiLoader.class);
 
     /**
@@ -150,7 +150,7 @@ public class MultiLoader extends ClientMain {
     }
 
     public static void main(String[] args) {
-        ClientMain.main(MultiLoader.class, args, true);
+        BenchmarkComponent.main(MultiLoader.class, args, true);
     }
 
     /**
@@ -606,7 +606,7 @@ public class MultiLoader extends ClientMain {
                                             new VoltTable.ColumnInfo("I_DATA", VoltType.STRING));
             
             // Scale the MAX_BATCH_SIZE based on the number of partitions
-            int replicated_batch_size = MAX_BATCH_SIZE / CatalogUtil.getNumberOfPartitions(m_catalog);
+            int replicated_batch_size = MAX_BATCH_SIZE / CatalogUtil.getNumberOfPartitions(getCatalog());
             
             // items.ensureRowCapacity(parameters.items);
             // items.ensureStringCapacity(parameters.items * 96);
@@ -902,15 +902,5 @@ public class MultiLoader extends ClientMain {
         }
         LOG.info("Finished loading all warehouses");
         m_voltClient.drain();
-    }
-
-    @Override
-    public String getApplicationName() {
-        return "TPC-C";
-    }
-
-    @Override
-    public String getSubApplicationName() {
-        return "Loader";
     }
 }

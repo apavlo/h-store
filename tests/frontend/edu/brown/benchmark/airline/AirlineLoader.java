@@ -29,7 +29,7 @@ public class AirlineLoader extends AirlineBaseClient {
      * @throws Exception
      */
     public static void main(String args[]) throws Exception {
-        org.voltdb.benchmark.ClientMain.main(AirlineLoader.class, args, true);
+        edu.brown.benchmark.BenchmarkComponent.main(AirlineLoader.class, args, true);
     }
     
     /**
@@ -1070,15 +1070,5 @@ public class AirlineLoader extends AirlineBaseClient {
             return (value);
         }
     } // END CLASS
-    
-    @Override
-    public String getApplicationName() {
-        return "Airline Benchmark";
-    }
-
-    @Override
-    public String getSubApplicationName() {
-        return "Loader";
-    }
 }
 

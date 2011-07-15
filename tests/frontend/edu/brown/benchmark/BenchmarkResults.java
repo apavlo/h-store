@@ -21,12 +21,12 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
-package org.voltdb.benchmark;
+package edu.brown.benchmark;
 
 import java.util.*;
 import java.util.Map.Entry;
 
-class BenchmarkResults {
+public class BenchmarkResults {
 
     public static class Error {
         public Error(String clientName, String message, int pollIndex) {

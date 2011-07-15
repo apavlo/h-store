@@ -27,10 +27,21 @@ package org.voltdb.benchmark.blobtorture;
 import org.voltdb.benchmark.blobtorture.procedures.*;
 import org.voltdb.compiler.VoltProjectBuilder;
 
+import edu.brown.benchmark.BenchmarkComponent;
+
 import java.net.URL;
 
 public class BlobTortureProjectBuilder extends VoltProjectBuilder {
 
+    /**
+     * Retrieved via reflection by BenchmarkController
+     */
+    public static final Class<? extends BenchmarkComponent> m_clientClass = BlobTortureClient.class;
+    /**
+     * Retrieved via reflection by BenchmarkController
+     */
+    public static final Class<? extends BenchmarkComponent> m_loaderClass = null;
+    
     private static final URL ddlURL =
         BlobTortureProjectBuilder.class.getResource("blobtorture-ddl.sql");
 

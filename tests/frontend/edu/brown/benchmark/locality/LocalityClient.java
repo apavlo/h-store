@@ -30,35 +30,20 @@ import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.Map;
 
-import javax.lang.model.type.ExecutableType;
-
 import org.voltdb.TheHashinator;
-import org.voltdb.benchmark.ClientMain;
 import org.voltdb.catalog.Catalog;
-import org.voltdb.catalog.CatalogType;
 import org.voltdb.catalog.Cluster;
-import org.voltdb.catalog.Host;
-import org.voltdb.catalog.Partition;
 import org.voltdb.catalog.Site;
 import org.voltdb.client.ClientResponse;
 import org.voltdb.client.NoConnectionsException;
 import org.voltdb.client.ProcedureCallback;
-import org.voltdb.compiler.VoltProjectBuilder;
 
+import edu.brown.benchmark.BenchmarkComponent;
 import edu.brown.benchmark.locality.LocalityConstants.ExecutionType;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.rand.AbstractRandomGenerator;
 
-public class LocalityClient extends ClientMain {
-
-    /** Retrieved via reflection by BenchmarkController */
-    public static final Class<? extends VoltProjectBuilder> m_projectBuilderClass = LocalityProjectBuilder.class;
-
-    /** Retrieved via reflection by BenchmarkController */
-    public static final Class<? extends ClientMain> m_loaderClass = LocalityLoader.class;
-
-    /** Retrieved via reflection by BenchmarkController */
-    public static final String m_jarFileName = "locality.jar";
+public class LocalityClient extends BenchmarkComponent {
     
     // --------------------------------------------------------------------
     // DATA MEMBERS
@@ -194,7 +179,6 @@ public class LocalityClient extends ClientMain {
             case SAME_SITE: {
                 int partition_num = TheHashinator.hashToPartition(a_id, catalog_clus.getNum_partitions());
                 Site site = CatalogUtil.getPartitionById(catalog, partition_num).getParent();
-                Host host = site.getHost();
                 int num_sites_per_host = CatalogUtil.getSitesPerHost(site).get(site.getHost()).size();
                 int num_partitions_per_site = site.getPartitions().size();
                 double a_id_site_num = Math.floor((double)partition_num / (double)num_partitions_per_site);
@@ -211,7 +195,6 @@ public class LocalityClient extends ClientMain {
             case SAME_HOST: {
                 int partition_num = TheHashinator.hashToPartition(a_id, catalog_clus.getNum_partitions());
                 Site site = CatalogUtil.getPartitionById(catalog, partition_num).getParent();
-                Host host = site.getHost();
                 int num_sites_per_host = CatalogUtil.getSitesPerHost(site).get(site.getHost()).size();
                 int num_partitions_per_site = site.getPartitions().size();
 
@@ -278,7 +261,7 @@ public class LocalityClient extends ClientMain {
     }
     
     public static void main(String args[]) {
-        org.voltdb.benchmark.ClientMain.main(LocalityClient.class, args, false);
+        edu.brown.benchmark.BenchmarkComponent.main(LocalityClient.class, args, false);
     }
 
     public void setType(ExecutionType type)
@@ -292,7 +275,7 @@ public class LocalityClient extends ClientMain {
      */
     public LocalityClient(String[] args) {
         super(args);
-        assert(m_catalog != null);
+        assert(this.getCatalog() != null);
         // Sanity check
         assert(LocalityClient.TOTAL_WEIGHT == 100);
 
@@ -365,7 +348,7 @@ public class LocalityClient extends ClientMain {
     protected boolean runOnce() throws IOException {
         LocalityClient.Transaction txn_type = XACT_WEIGHTS[m_rng.number(0, 99)];
         assert(txn_type != null);
-        Object params[] = txn_type.params(m_rng,m_type, m_catalog);
+        Object params[] = txn_type.params(m_rng,m_type, this.getCatalog());
         boolean ret = m_voltClient.callProcedure(new LocalityCallback(txn_type), txn_type.name(), params);
         return (ret);
     }
@@ -386,14 +369,4 @@ public class LocalityClient extends ClientMain {
             LocalityClient.this.m_counts[this.txn.ordinal()].incrementAndGet();
         }
     } // END CLASS
-    
-    @Override
-    public String getApplicationName() {
-        return "Locality Benchmark";
-    }
-
-    @Override
-    public String getSubApplicationName() {
-        return "Client";
-    }
 }

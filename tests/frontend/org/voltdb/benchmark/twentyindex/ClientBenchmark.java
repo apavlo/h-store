@@ -28,19 +28,20 @@ import java.util.Random;
 import java.util.concurrent.atomic.AtomicLong;
 
 import org.voltdb.VoltTable;
-import org.voltdb.benchmark.ClientMain;
 import org.voltdb.client.ClientResponse;
 import org.voltdb.client.NoConnectionsException;
 import org.voltdb.client.ProcedureCallback;
 import org.voltdb.compiler.VoltProjectBuilder;
 import org.voltdb.types.TimestampType;
 
-public class ClientBenchmark extends ClientMain {
+import edu.brown.benchmark.BenchmarkComponent;
+
+public class ClientBenchmark extends BenchmarkComponent {
     public static final AtomicLong globalMainId = new AtomicLong(1);
     public static final Random rand = new java.util.Random(1l);
 
     public static void main(String args[]) {
-        org.voltdb.benchmark.ClientMain.main(ClientBenchmark.class, args, false);
+        edu.brown.benchmark.BenchmarkComponent.main(ClientBenchmark.class, args, false);
     }
 
     public ClientBenchmark(String[] args) {
@@ -52,7 +53,7 @@ public class ClientBenchmark extends ClientMain {
 
     // Retrieved via reflection by BenchmarkController
     //public static final Class<? extends ClientMain> m_loaderClass = anyLoader.class;
-    public static final Class<? extends ClientMain> m_loaderClass = null;
+    public static final Class<? extends BenchmarkComponent> m_loaderClass = null;
 
     public static final String m_jarFileName = "20index.jar";
 
@@ -80,16 +81,6 @@ public class ClientBenchmark extends ClientMain {
         String countDisplayNames[] = new String[1];
         countDisplayNames[0] = "Inserts";
         return countDisplayNames;
-    }
-
-    @Override
-    public String getApplicationName() {
-        return "20 Indexes";
-    }
-
-    @Override
-    public String getSubApplicationName() {
-        return "Client";
     }
 
     public void doOne() throws IOException {

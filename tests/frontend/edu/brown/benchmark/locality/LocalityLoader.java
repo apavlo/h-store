@@ -34,9 +34,10 @@ import java.util.concurrent.atomic.AtomicLong;
 
 import org.apache.log4j.Logger;
 import org.voltdb.VoltTable;
-import org.voltdb.benchmark.ClientMain;
 
-public class LocalityLoader extends ClientMain {
+import edu.brown.benchmark.BenchmarkComponent;
+
+public class LocalityLoader extends BenchmarkComponent {
     private static final Logger LOG = Logger.getLogger(LocalityLoader.class);
     
     // Composite Id
@@ -58,7 +59,7 @@ public class LocalityLoader extends ClientMain {
     private final Map<String, AtomicLong> table_sizes = new HashMap<String, AtomicLong>();
     
     public static void main(String args[]) throws Exception {
-        org.voltdb.benchmark.ClientMain.main(LocalityLoader.class, args, true);
+        edu.brown.benchmark.BenchmarkComponent.main(LocalityLoader.class, args, true);
     }
     
     /**
@@ -330,16 +331,6 @@ public class LocalityLoader extends ClientMain {
             e.printStackTrace();
             System.exit(-1);
         }
-    }
-    
-    @Override
-    public String getApplicationName() {
-        return "Locality Benchmark";
-    }
-
-    @Override
-    public String getSubApplicationName() {
-        return "Loader";
     }
 }
 

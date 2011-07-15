@@ -62,18 +62,6 @@ public abstract class AbstractProjectBuilder extends VoltProjectBuilder {
     }
     
     /**
-     * Constructor
-     * @param project_name
-     * @param base_class
-     * @param procedures
-     * @param partitioning
-     * @param supplementals
-     */
-    public AbstractProjectBuilder(String project_name, Class<? extends AbstractProjectBuilder> base_class, Class<?> procedures[], String partitioning[][], Class<?> supplementals[]) {
-       this(project_name, base_class, procedures, partitioning, supplementals, false);
-    }
-    
-    /**
      * Full Constructor
      * @param project_name
      * @param base_class
@@ -112,16 +100,28 @@ public abstract class AbstractProjectBuilder extends VoltProjectBuilder {
     }
     
     
-    public String getDDLName(boolean fkeys) {
+    public final String getDDLName(boolean fkeys) {
         return (this.project_name + "-ddl" + (fkeys ? "-fkeys" : "") + ".sql");
     }
     
-    public String getJarName() {
-        return (this.project_name + "-jni.jar");
+    /**
+     * Get the base file name for this benchmark's project jar
+     * The file name will include a test suffix if it is being used in unit tests
+     * @param unitTest
+     * @return
+     */
+    public final String getJarName(boolean unitTest) {
+        return (this.project_name + (unitTest ? "-test" : "") + ".jar");
     }
-    public File getJarPath() {
+    
+    /**
+     * Get the full jar path for this project
+     * @param unitTest
+     * @return
+     */
+    public final File getJarPath(boolean unitTest) {
         String testDir = BuildDirectoryUtils.getBuildDirectoryPath();
-        return (new File(testDir + File.separator + this.getJarName()));
+        return (new File(testDir + File.separator + this.getJarName(unitTest)));
     }
     
     public void addPartitions() {
@@ -152,7 +152,7 @@ public abstract class AbstractProjectBuilder extends VoltProjectBuilder {
         addSchema(fkeys ? this.ddlFkeysURL : this.ddlURL);
         addPartitions();
 
-        String catalogJar = this.getJarPath().getAbsolutePath();
+        String catalogJar = this.getJarPath(true).getAbsolutePath();
         try {
             boolean status = compile(catalogJar);
             assert (status);
