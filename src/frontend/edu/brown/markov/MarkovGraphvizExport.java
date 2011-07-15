@@ -62,7 +62,7 @@ public class MarkovGraphvizExport {
             for (Entry<Integer, MarkovGraph> e : markov_set.entrySet()) {
                 MarkovGraph markov = e.getValue();
                 assert(markov.isValid()) : "The graph for " + catalog_proc + " is not initialized!";
-                GraphvizExport<Vertex, Edge> gv = MarkovUtil.exportGraphviz(markov, full_output, vldb_output, false, null);
+                GraphvizExport<MarkovVertex, MarkovEdge> gv = MarkovUtil.exportGraphviz(markov, full_output, vldb_output, false, null);
                 
                 File f = null;
                 if (markov_set.size() == 1) {

@@ -1,6 +1,7 @@
 package edu.brown.markov;
 
 import java.io.File;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -61,7 +62,7 @@ public class TestFeatureExtractor extends BaseTestCase {
     public void testTransactionLookup() throws Exception {
         int txn_id_idx = FeatureExtractor.TXNID_ATTRIBUTE_IDX;
         assertEquals(workload.getTransactionCount(), data.numInstances());
-        List<TransactionTrace> txns = workload.getTransactions();
+        List<TransactionTrace> txns = new ArrayList<TransactionTrace>(workload.getTransactions());
 //        System.err.println(StringUtil.join("\n", txns));
 //        System.err.println();
         for (int i = 0, cnt = data.numInstances(); i < cnt; i++) {

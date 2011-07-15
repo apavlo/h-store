@@ -84,13 +84,13 @@ import edu.brown.catalog.CatalogUtil;
 import edu.brown.catalog.QueryPlanUtil;
 import edu.brown.graphs.GraphvizExport;
 import edu.brown.hashing.AbstractHasher;
-import edu.brown.markov.Edge;
+import edu.brown.markov.MarkovEdge;
 import edu.brown.markov.EstimationThresholds;
 import edu.brown.markov.MarkovEstimate;
 import edu.brown.markov.MarkovGraph;
 import edu.brown.markov.MarkovUtil;
 import edu.brown.markov.TransactionEstimator;
-import edu.brown.markov.Vertex;
+import edu.brown.markov.MarkovVertex;
 import edu.brown.markov.containers.MarkovGraphContainersUtil;
 import edu.brown.markov.containers.MarkovGraphsContainer;
 import edu.brown.statistics.Histogram;
@@ -1034,7 +1034,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
             } catch (Throwable ex) {
                 if (t_state != null) {
                     MarkovGraph markov = t_state.getMarkovGraph();
-                    GraphvizExport<Vertex, Edge> gv = MarkovUtil.exportGraphviz(markov, true, markov.getPath(t_state.getInitialPath()));
+                    GraphvizExport<MarkovVertex, MarkovEdge> gv = MarkovUtil.exportGraphviz(markov, true, markov.getPath(t_state.getInitialPath()));
                     gv.highlightPath(markov.getPath(t_state.getActualPath()), "blue");
                     System.err.println("WROTE MARKOVGRAPH: " + gv.writeToTempFile(catalog_proc));
                 }
@@ -1998,7 +1998,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
             // Load in all the partition-specific TransactionEstimators and ExecutionSites in order to 
             // stick them into the HStoreSite
             LOG.debug("Creating Estimator for " + HStoreSite.formatSiteName(site_id));
-            TransactionEstimator t_estimator = new TransactionEstimator(p_estimator, args.param_correlations, local_markovs);
+            TransactionEstimator t_estimator = new TransactionEstimator(p_estimator, args.param_mappings, local_markovs);
 
             // setup the EE
             LOG.debug("Creating ExecutionSite for Partition #" + local_partition);

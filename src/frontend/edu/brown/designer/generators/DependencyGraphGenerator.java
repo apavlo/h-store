@@ -16,7 +16,7 @@ import edu.uci.ics.jung.graph.util.EdgeType;
  * @author pavlo
  *
  */
-public class DependencyGraphGenerator extends AbstractGenerator<AbstractDirectedGraph<Vertex, Edge>> {
+public class DependencyGraphGenerator extends AbstractGenerator<AbstractDirectedGraph<DesignerVertex, DesignerEdge>> {
     private static final Logger LOG = Logger.getLogger(DependencyGraphGenerator.class);
     
     public DependencyGraphGenerator(DesignerInfo info) {
@@ -40,19 +40,19 @@ public class DependencyGraphGenerator extends AbstractGenerator<AbstractDirected
         return (dgraph);
     }
     
-    public void generate(AbstractDirectedGraph<Vertex, Edge> graph) throws Exception {
+    public void generate(AbstractDirectedGraph<DesignerVertex, DesignerEdge> graph) throws Exception {
         for (Table catalog_table : this.info.catalog_db.getTables()) {
-            graph.addVertex(new Vertex(catalog_table));
+            graph.addVertex(new DesignerVertex(catalog_table));
         } // FOR
 
         //
         // We first need to generate the list of candidate root tables
         // These are the tables that do not have any foreign key references
         //
-        Map<Vertex, List<Column>> fkey_ref_cols = new HashMap<Vertex, List<Column>>();
-        Map<Vertex, List<Constraint>> fkey_ref_consts = new HashMap<Vertex, List<Constraint>>();
+        Map<DesignerVertex, List<Column>> fkey_ref_cols = new HashMap<DesignerVertex, List<Column>>();
+        Map<DesignerVertex, List<Constraint>> fkey_ref_consts = new HashMap<DesignerVertex, List<Constraint>>();
         for (Table catalog_table : this.info.catalog_db.getTables()) {
-            Vertex vertex = graph.getVertex(catalog_table);
+            DesignerVertex vertex = graph.getVertex(catalog_table);
             fkey_ref_cols.put(vertex, new ArrayList<Column>());
             fkey_ref_consts.put(vertex, new ArrayList<Constraint>());
 
@@ -92,7 +92,7 @@ public class DependencyGraphGenerator extends AbstractGenerator<AbstractDirected
             // For each vertex, get the list of foreign key references to point to it and
             // make a new edge between the parent and child
             //
-            Vertex vertex = graph.getVertex(catalog_table);
+            DesignerVertex vertex = graph.getVertex(catalog_table);
             for (int ctr = 0, cnt = fkey_ref_consts.get(vertex).size(); ctr < cnt; ctr++) {
                 Constraint catalog_const = fkey_ref_consts.get(vertex).get(ctr);
                 Column catalog_col = fkey_ref_cols.get(vertex).get(ctr);
@@ -102,13 +102,13 @@ public class DependencyGraphGenerator extends AbstractGenerator<AbstractDirected
                 // We then get the vertex that we're using to represent it
                 //
                 Table catalog_fkey_table = catalog_const.getForeignkeytable();
-                Vertex other_vertex = graph.getVertex(catalog_fkey_table);
+                DesignerVertex other_vertex = graph.getVertex(catalog_fkey_table);
                 if (other_vertex == null) {
                     throw new Exception("ERROR: The constraint '" + catalog_const + "' on '" + vertex + "' uses an unknown table '" + catalog_fkey_table.getName() + "'");
                 }
                 ColumnSet cset = new ColumnSet();
                 // FIXME cset.add(catalog_const.getFkeycolumn, catalog_col);
-                Edge edge = new Edge(graph);
+                DesignerEdge edge = new DesignerEdge(graph);
                 edge.setAttribute(DependencyGraph.EdgeAttributes.CONSTRAINT.name(), catalog_const);
                 edge.setAttribute(DependencyGraph.EdgeAttributes.COLUMNSET.name(), cset);
                 graph.addEdge(edge, other_vertex, vertex, EdgeType.DIRECTED);

@@ -965,8 +965,9 @@ public final class HStoreConf {
         } // FOR
     }
     
-    public String makeHTML() {
-        StringBuilder sb = new StringBuilder();
+    public String makeHTML(String group) {
+        StringBuilder inner = new StringBuilder();
+        StringBuilder top = new StringBuilder();
         
         // Parameters:
         //  (1) parameter
@@ -985,60 +986,63 @@ public final class HStoreConf {
         final Pattern regex = Pattern.compile("\\$\\{([\\w]+)\\.([\\w\\_]+)\\}");
         final String regex_replace = "<a href=\"/documentation/configuration/properties-file/$1#$2\" class=\"property\">\\${$1.$2}</a>";
         
-        for (String group : this.confHandles.keySet()) {
-            Conf handle = this.confHandles.get(group);
-            
-            sb.append(String.format("<h2>%s Parameters</h2>\n", StringUtil.title(group)));
-            sb.append("<ul class=\"property-list\">\n\n");
-            
-            Map<String, String> values = new HashMap<String, String>();
-            for (Field f : handle.properties.keySet()) {
-                ConfigProperty cp = handle.properties.get(f);
-
-                // PROP
-                values.put("PROP", f.getName());
-                values.put("PROPFULL", String.format("%s.%s", group, f.getName()));
-                
-                // DEFAULT
-                Object defaultValue = this.getDefaultValue(f, cp);
-                if (defaultValue != null) {
-                    String value = defaultValue.toString();
-                    Matcher m = regex.matcher(value);
-                    if (m.find()) value = m.replaceAll(regex_replace);
-                    defaultValue = value;
-                }
-                values.put("DEFAULT", (defaultValue != null ? defaultValue.toString() : "null"));
-                
-                // TYPE
-                values.put("TYPE", f.getType().getSimpleName().toLowerCase());
-                
-                // EXPERIMENTAL
-                if (cp.experimental()) {
-                    values.put("EXP", " <b class=\"experimental\">Experimental</b>");
-                } else {
-                    values.put("EXP", "");   
-                }
-                
-                // DESC
-                String desc = cp.description();
-                Matcher m = regex.matcher(desc);
-                if (m.find()) {
-                    desc = m.replaceAll(regex_replace);
-                }
-                values.put("DESC", desc);
-                
-                // CREATE HTML FROM TEMPLATE
-                String copy = template;
-                for (String key : values.keySet()) {
-                    copy = copy.replace("@@" + key.toUpperCase() + "@@", values.get(key));
-                }
-                sb.append(copy);
-            } // FOR
-            
-            sb.append("</ul>\n\n");
-        } // FOR
+        Conf handle = this.confHandles.get(group);
         
-        return (sb.toString());
+        top.append(String.format("<h2>%s Parameters</h2>\n<ul>\n", StringUtil.title(group)));
+        inner.append("<ul class=\"property-list\">\n\n");
+        
+        Map<String, String> values = new HashMap<String, String>();
+        for (Field f : handle.properties.keySet()) {
+            ConfigProperty cp = handle.properties.get(f);
+
+            // PROP
+            values.put("PROP", f.getName());
+            values.put("PROPFULL", String.format("%s.%s", group, f.getName()));
+            
+            // DEFAULT
+            Object defaultValue = this.getDefaultValue(f, cp);
+            if (defaultValue != null) {
+                String value = defaultValue.toString();
+                Matcher m = regex.matcher(value);
+                if (m.find()) value = m.replaceAll(regex_replace);
+                defaultValue = value;
+            }
+            values.put("DEFAULT", (defaultValue != null ? defaultValue.toString() : "null"));
+            
+            // TYPE
+            values.put("TYPE", f.getType().getSimpleName().toLowerCase());
+            
+            // EXPERIMENTAL
+            if (cp.experimental()) {
+                values.put("EXP", " <b class=\"experimental\">Experimental</b>");
+            } else {
+                values.put("EXP", "");   
+            }
+            
+            // DESC
+            String desc = cp.description();
+            Matcher m = regex.matcher(desc);
+            if (m.find()) {
+                desc = m.replaceAll(regex_replace);
+            }
+            values.put("DESC", desc);
+            
+            // CREATE HTML FROM TEMPLATE
+            String copy = template;
+            for (String key : values.keySet()) {
+                copy = copy.replace("@@" + key.toUpperCase() + "@@", values.get(key));
+            }
+            inner.append(copy);
+            
+            // INDEX
+            copy = regex_replace;
+            copy = copy.replace("$1", group).replace("$2", f.getName()).replace("\\$", "$");
+            top.append("  <li>  ").append(copy).append("\n");
+        } // FOR
+        inner.append("</ul>\n\n");
+        top.append("</ul>\n\n");
+        
+        return (top.toString() + inner.toString());
     }
     
     

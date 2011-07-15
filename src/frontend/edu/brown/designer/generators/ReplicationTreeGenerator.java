@@ -16,14 +16,14 @@ import edu.uci.ics.jung.graph.util.EdgeType;
  * @author pavlo
  *
  */
-public class ReplicationTreeGenerator extends AbstractGenerator<AbstractDirectedGraph<Vertex, Edge>> {
+public class ReplicationTreeGenerator extends AbstractGenerator<AbstractDirectedGraph<DesignerVertex, DesignerEdge>> {
     private static final Logger LOG = Logger.getLogger(ReplicationTreeGenerator.class);
 
     private final PartitionTree ptree;
     private final AccessGraph agraph;
     private Set<Table> replication_candidates = new HashSet<Table>();
-    private Set<Edge> conflict_edges = new HashSet<Edge>();
-    private Set<Vertex> conflict_vertices = new HashSet<Vertex>();
+    private Set<DesignerEdge> conflict_edges = new HashSet<DesignerEdge>();
+    private Set<DesignerVertex> conflict_vertices = new HashSet<DesignerVertex>();
     
     public ReplicationTreeGenerator(DesignerInfo info, AccessGraph agraph, PartitionTree ptree) {
         super(info);
@@ -43,7 +43,7 @@ public class ReplicationTreeGenerator extends AbstractGenerator<AbstractDirected
      * Return the list of edges that were added to the partition tree
      * @return
      */
-    public Set<Edge> getConflictEdges() {
+    public Set<DesignerEdge> getConflictEdges() {
         return (this.conflict_edges);
     }
     
@@ -51,17 +51,17 @@ public class ReplicationTreeGenerator extends AbstractGenerator<AbstractDirected
      * Return the list of vertices that cause conflict edges to be added to the tree
      * @return
      */
-    public Set<Vertex> getConflictVertices() {
+    public Set<DesignerVertex> getConflictVertices() {
         return (this.conflict_vertices);
     }
     
     @Override
-    public void generate(AbstractDirectedGraph<Vertex, Edge> graph) throws Exception {
+    public void generate(AbstractDirectedGraph<DesignerVertex, DesignerEdge> graph) throws Exception {
         //
         // First clone the original partition tree
         //
         graph.clone(this.ptree);
-        for (Vertex vertex : graph.getVertices()) {
+        for (DesignerVertex vertex : graph.getVertices()) {
             vertex.copyAttributes(this.ptree, graph);
         } // FOR
         
@@ -70,19 +70,19 @@ public class ReplicationTreeGenerator extends AbstractGenerator<AbstractDirected
         // and check to see that for each pair of adjacent vertices in the AccessGraph
         // that there is a path from one vertex to another
         //
-        List<Vertex> ptree_vertices = new ArrayList<Vertex>();
+        List<DesignerVertex> ptree_vertices = new ArrayList<DesignerVertex>();
         ptree_vertices.addAll(this.ptree.getVertices());
     
-        Set<Vertex> modified = new HashSet<Vertex>();
+        Set<DesignerVertex> modified = new HashSet<DesignerVertex>();
         for (int ctr0 = 0, cnt = ptree_vertices.size(); ctr0 < cnt; ctr0++) {
-            Vertex v0 = ptree_vertices.get(ctr0);
+            DesignerVertex v0 = ptree_vertices.get(ctr0);
             if (this.ptree.isReplicated(v0)) continue;
             
             LOG.debug("v0: " + v0 + "\n");
             for (int ctr1 = ctr0 + 1; ctr1 < cnt; ctr1++) {
-                Vertex v1 = ptree_vertices.get(ctr1);
+                DesignerVertex v1 = ptree_vertices.get(ctr1);
                 LOG.debug("  |- v1: " + v1 + "\n");
-                Edge ag_edge = this.agraph.findEdge(v0, v1);
+                DesignerEdge ag_edge = this.agraph.findEdge(v0, v1);
                 
                 if (((v0.getCatalogItem().getName().equals("WAREHOUSE") && v1.getCatalogItem().getName().equals("STOCK")) ||
                     (v1.getCatalogItem().getName().equals("WAREHOUSE") && v0.getCatalogItem().getName().equals("STOCK"))) && 
@@ -113,7 +113,7 @@ public class ReplicationTreeGenerator extends AbstractGenerator<AbstractDirected
                     boolean found = false;
                     for (int ctr = 0; ctr < 2; ctr++) {
                         if (ctr == 1) {
-                            Vertex temp = v0;
+                            DesignerVertex temp = v0;
                             v0 = v1;
                             v1 = temp;
                         }
@@ -121,7 +121,7 @@ public class ReplicationTreeGenerator extends AbstractGenerator<AbstractDirected
                         //Edge dg_edge = this.agraph.findEdge(v0, v1);
                         if (this.info.dependencies.getDescendants((Table)v0.getCatalogItem()).contains(v1.getCatalogItem())) {
                             LOG.debug("CREATED EDGE: " + v0 + " -> " + v1 + "\n");
-                            Edge new_edge = new Edge(graph, ag_edge);
+                            DesignerEdge new_edge = new DesignerEdge(graph, ag_edge);
                             graph.addEdge(new_edge, v0, v1, EdgeType.DIRECTED);
                             this.conflict_edges.add(new_edge);
                             this.conflict_vertices.add(v1);
@@ -141,15 +141,15 @@ public class ReplicationTreeGenerator extends AbstractGenerator<AbstractDirected
         //
         // Now for each vertex that was modified, we mark their roots as candidates
         //
-        Map<Vertex, Set<Vertex>> descendants = new HashMap<Vertex, Set<Vertex>>();
-        for (Vertex root : graph.getRoots()) {
+        Map<DesignerVertex, Set<DesignerVertex>> descendants = new HashMap<DesignerVertex, Set<DesignerVertex>>();
+        for (DesignerVertex root : graph.getRoots()) {
             descendants.put(root, graph.getDescendants(root));
             LOG.debug(root + ": " + descendants.get(root) + "\n");
         } // FOR
         
-        for (Vertex vertex : modified) {
+        for (DesignerVertex vertex : modified) {
             LOG.debug("Checking: " + vertex + "\n");
-            for (Vertex root : descendants.keySet()) {
+            for (DesignerVertex root : descendants.keySet()) {
                 if (descendants.get(root).contains(vertex)) {
                     LOG.debug("Found in " + descendants.get(root) + "\n");
                     this.replication_candidates.add((Table)root.getCatalogItem());

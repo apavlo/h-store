@@ -32,8 +32,8 @@ public abstract class AbstractProjectBuilder extends VoltProjectBuilder {
     protected final Class<?> supplementals[];
     protected final String partitioning[][];
     
-    protected final URL ddlURL;
-    protected final URL ddlFkeysURL;
+    private final URL ddlURL;
+    private final URL ddlFkeysURL;
     
     protected final TransactionFrequencies txn_frequencies = new TransactionFrequencies();
 
@@ -59,18 +59,6 @@ public abstract class AbstractProjectBuilder extends VoltProjectBuilder {
      */
     public AbstractProjectBuilder(String project_name, Class<? extends AbstractProjectBuilder> base_class, Class<?> procedures[], String partitioning[][]) {
         this(project_name, base_class, procedures, partitioning, new Class<?>[0], true);
-    }
-    
-    /**
-     * Constructor
-     * @param project_name
-     * @param base_class
-     * @param procedures
-     * @param partitioning
-     * @param supplementals
-     */
-    public AbstractProjectBuilder(String project_name, Class<? extends AbstractProjectBuilder> base_class, Class<?> procedures[], String partitioning[][], Class<?> supplementals[]) {
-       this(project_name, base_class, procedures, partitioning, supplementals, false);
     }
     
     /**
@@ -111,17 +99,32 @@ public abstract class AbstractProjectBuilder extends VoltProjectBuilder {
         return (sb.toString());
     }
     
-    
-    public String getDDLName(boolean fkeys) {
-        return (this.project_name + "-ddl" + (fkeys ? "-fkeys" : "") + ".sql");
+    public final URL getDDLURL(boolean fkeys) {
+        return (fkeys ? this.ddlFkeysURL : this.ddlURL);
+    }
+    public final String getDDLName(boolean fkeys) {
+//        return (this.project_name + "-ddl" + (fkeys ? "-fkeys" : "") + ".sql");
+        return (this.project_name + "-ddl" + ".sql");
     }
     
-    public String getJarName() {
-        return (this.project_name + "-jni.jar");
+    /**
+     * Get the base file name for this benchmark's project jar
+     * The file name will include a test suffix if it is being used in unit tests
+     * @param unitTest
+     * @return
+     */
+    public final String getJarName(boolean unitTest) {
+        return (this.project_name + (unitTest ? "-test" : "") + ".jar");
     }
-    public File getJarPath() {
+    
+    /**
+     * Get the full jar path for this project
+     * @param unitTest
+     * @return
+     */
+    public final File getJarPath(boolean unitTest) {
         String testDir = BuildDirectoryUtils.getBuildDirectoryPath();
-        return (new File(testDir + File.separator + this.getJarName()));
+        return (new File(testDir + File.separator + this.getJarName(unitTest)));
     }
     
     public void addPartitions() {
@@ -152,7 +155,7 @@ public abstract class AbstractProjectBuilder extends VoltProjectBuilder {
         addSchema(fkeys ? this.ddlFkeysURL : this.ddlURL);
         addPartitions();
 
-        String catalogJar = this.getJarPath().getAbsolutePath();
+        String catalogJar = this.getJarPath(true).getAbsolutePath();
         try {
             boolean status = compile(catalogJar);
             assert (status);

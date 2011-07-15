@@ -32,7 +32,7 @@ import org.json.*;
 import org.voltdb.catalog.*;
 
 import edu.brown.catalog.CatalogKey;
-import edu.brown.correlations.AbstractCorrelation;
+import edu.brown.mappings.AbstractMapping;
 import edu.brown.workload.*;
 
 /**
@@ -63,7 +63,7 @@ public class QueryStatistics extends AbstractStatistics<Statement> {
     
     public final SortedMap<Integer, Histogram> param_histograms = new TreeMap<Integer, Histogram>();
     
-    public final SortedMap<Integer, SortedMap<Integer, AbstractCorrelation>> param_proc_corelations = new TreeMap<Integer, SortedMap<Integer,AbstractCorrelation>>();
+    public final SortedMap<Integer, SortedMap<Integer, AbstractMapping>> param_proc_corelations = new TreeMap<Integer, SortedMap<Integer,AbstractMapping>>();
     
     /**
      * Constructor

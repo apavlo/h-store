@@ -15,7 +15,7 @@ import org.voltdb.types.ExpressionType;
 
 import edu.brown.BaseTestCase;
 import edu.brown.catalog.CatalogUtil;
-import edu.brown.correlations.ParameterCorrelations;
+import edu.brown.mappings.ParameterMappingsSet;
 import edu.brown.markov.containers.MarkovGraphContainersUtil;
 import edu.brown.markov.containers.MarkovGraphsContainer;
 import edu.brown.utils.MathUtil;
@@ -40,11 +40,11 @@ public class TestMarkovPathEstimator extends BaseTestCase {
     
     private static Workload workload;
     private static MarkovGraphsContainer markovs;
-    private static ParameterCorrelations correlations;
+    private static ParameterMappingsSet correlations;
     private static TransactionTrace singlep_trace;
     private static TransactionTrace multip_trace;
     private static final Set<Integer> multip_partitions = new HashSet<Integer>();
-    private static final List<Vertex> multip_path = new ArrayList<Vertex>();
+    private static final List<MarkovVertex> multip_path = new ArrayList<MarkovVertex>();
     
     private TransactionEstimator t_estimator;
     private Procedure catalog_proc;
@@ -56,8 +56,8 @@ public class TestMarkovPathEstimator extends BaseTestCase {
         this.catalog_proc = this.getProcedure(TARGET_PROCEDURE);
         
         if (markovs == null) {
-            File file = this.getCorrelationsFile(ProjectType.TPCC);
-            correlations = new ParameterCorrelations();
+            File file = this.getParameterMappingsFile(ProjectType.TPCC);
+            correlations = new ParameterMappingsSet();
             correlations.load(file.getAbsolutePath(), catalog_db);
             
             // Workload Filter:
@@ -169,15 +169,15 @@ public class TestMarkovPathEstimator extends BaseTestCase {
      * testSinglePartition
      */
     public void testSinglePartition() throws Exception {
-        Vertex start = this.graph.getStartVertex();
-        Vertex commit = this.graph.getCommitVertex();
-        Vertex abort = this.graph.getAbortVertex();
+        MarkovVertex start = this.graph.getStartVertex();
+        MarkovVertex commit = this.graph.getCommitVertex();
+        MarkovVertex abort = this.graph.getAbortVertex();
         
 //        MarkovPathEstimator.LOG.setLevel(Level.DEBUG);
         MarkovPathEstimator estimator = new MarkovPathEstimator(this.graph, this.t_estimator, BASE_PARTITION, singlep_trace.getParams());
         estimator.enableForceTraversal(true);
         estimator.traverse(this.graph.getStartVertex());
-        Vector<Vertex> path = new Vector<Vertex>(estimator.getVisitPath());
+        Vector<MarkovVertex> path = new Vector<MarkovVertex>(estimator.getVisitPath());
         float confidence = estimator.getConfidence();
         
 //        System.err.println("INITIAL PATH:\n" + StringUtil.join("\n", path));
@@ -191,7 +191,7 @@ public class TestMarkovPathEstimator extends BaseTestCase {
         
         // All of the vertices should only have the base partition in their partition set
         for (int i = 1, cnt = path.size() - 1; i < cnt; i++) {
-            Vertex v = path.get(i);
+            MarkovVertex v = path.get(i);
             assertEquals(1, v.getPartitions().size());
             assert(v.getPartitions().contains(BASE_PARTITION));
         } // FOR
@@ -207,14 +207,14 @@ public class TestMarkovPathEstimator extends BaseTestCase {
     public void testMultiPartition() throws Exception {
 //        System.err.println("MULTI-PARTITION: " + multip_trace);
 
-        Vertex start = this.graph.getStartVertex();
-        Vertex commit = this.graph.getCommitVertex();
-        Vertex abort = this.graph.getAbortVertex();
+        MarkovVertex start = this.graph.getStartVertex();
+        MarkovVertex commit = this.graph.getCommitVertex();
+        MarkovVertex abort = this.graph.getAbortVertex();
         
         MarkovPathEstimator estimator = new MarkovPathEstimator(this.graph, this.t_estimator, BASE_PARTITION, multip_trace.getParams());
         estimator.enableForceTraversal(true);
         estimator.traverse(this.graph.getStartVertex());
-        Vector<Vertex> path = new Vector<Vertex>(estimator.getVisitPath());
+        Vector<MarkovVertex> path = new Vector<MarkovVertex>(estimator.getVisitPath());
         
 //        System.err.println("INITIAL PATH:\n" + StringUtil.join("\n", path));
         
@@ -224,7 +224,7 @@ public class TestMarkovPathEstimator extends BaseTestCase {
         
         // All of the vertices should only have the base partition in their partition set
         Set<Integer> touched_partitions = new HashSet<Integer>();
-        for (Vertex v : path) {
+        for (MarkovVertex v : path) {
             touched_partitions.addAll(v.getPartitions());
         } // FOR
 //        System.err.println("Expected Partitions: " + multip_partitions);

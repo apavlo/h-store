@@ -294,4 +294,57 @@ public final class CatalogMap<T extends CatalogType> implements Iterable<T> {
     public String toString() {
         return CatalogUtil.debug(this);
     }
+
+    @Override
+    public boolean addAll(Collection<? extends T> c) {
+        boolean ret = true;
+        for (T t : c) {
+            ret = this.add(t) || ret;
+        }
+        return (ret);
+    }
+
+    @Override
+    public void clear() {
+        this.m_items.clear();
+    }
+
+    @Override
+    public boolean contains(Object o) {
+        return (this.m_items.values().contains(o));
+    }
+
+    @Override
+    public boolean containsAll(Collection<?> c) {
+        return (this.m_items.values().containsAll(c));
+    }
+
+    @Override
+    public boolean remove(Object o) {
+        if (o instanceof CatalogType) {
+            return this.delete(((CatalogType)o).getName());
+        }
+        return false;
+    }
+
+    @Override
+    public boolean removeAll(Collection<?> c) {
+        boolean ret = true;
+        for (Object o : c) {
+            ret = this.remove(o) || ret;
+        }
+        return (ret);
+    }
+
+    @Override
+    public boolean retainAll(Collection<?> c) {
+        // TODO Auto-generated method stub
+        return false;
+    }
+
+    @Override
+    public Object[] toArray() {
+        // TODO Auto-generated method stub
+        return null;
+    }
 }

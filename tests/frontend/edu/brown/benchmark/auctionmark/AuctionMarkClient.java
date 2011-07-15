@@ -40,12 +40,10 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 import org.voltdb.VoltTable;
-import org.voltdb.benchmark.ClientMain;
 import org.voltdb.client.ClientResponse;
 import org.voltdb.client.NoConnectionsException;
 import org.voltdb.client.ProcCallException;
 import org.voltdb.client.ProcedureCallback;
-import org.voltdb.compiler.VoltProjectBuilder;
 import org.voltdb.types.TimestampType;
 
 import edu.brown.rand.AbstractRandomGenerator;
@@ -542,19 +540,6 @@ public class AuctionMarkClient extends AuctionMarkBaseClient {
         	return (this.generator.generate(rng, profile, voltTable));
         }
     }
-    
-    // -----------------------------------------------------------------
-    // REQUIRED DATA MEMBERS
-    // -----------------------------------------------------------------
-
-    /** Retrieved via reflection by BenchmarkController */
-    public static final Class<? extends VoltProjectBuilder> m_projectBuilderClass = AuctionMarkProjectBuilder.class;
-
-    /** Retrieved via reflection by BenchmarkController */
-    public static final Class<? extends ClientMain> m_loaderClass = AuctionMarkLoader.class;
-
-    /** Retrieved via reflection by BenchmarkController */
-    public static final String m_jarFileName = "auctionmark.jar";
 
     // -----------------------------------------------------------------
     // ADDITIONAL DATA MEMBERS
@@ -571,7 +556,7 @@ public class AuctionMarkClient extends AuctionMarkBaseClient {
     // -----------------------------------------------------------------
 
     public static void main(String args[]) {
-        org.voltdb.benchmark.ClientMain.main(AuctionMarkClient.class, args, false);
+        edu.brown.benchmark.BenchmarkComponent.main(AuctionMarkClient.class, args, false);
     }
 
     /**
@@ -871,15 +856,4 @@ public class AuctionMarkClient extends AuctionMarkBaseClient {
         	} // SWITCH
         }
     } // END CLASS
-    
-    
-    @Override
-    public String getApplicationName() {
-        return "AuctionMark Benchmark";
-    }
-
-    @Override
-    public String getSubApplicationName() {
-        return "Client";
-    }
 }

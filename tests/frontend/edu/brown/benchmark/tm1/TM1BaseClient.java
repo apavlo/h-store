@@ -2,10 +2,11 @@ package edu.brown.benchmark.tm1;
 
 import java.util.Random;
 
-import org.voltdb.benchmark.ClientMain;
 import org.voltdb.client.Client;
 
-public abstract class TM1BaseClient extends ClientMain {
+import edu.brown.benchmark.BenchmarkComponent;
+
+public abstract class TM1BaseClient extends BenchmarkComponent {
 
     protected double scaleFactor = 1.0;
     protected long subscriberSize = 100000l;

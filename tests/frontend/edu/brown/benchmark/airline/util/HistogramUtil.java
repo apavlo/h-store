@@ -18,20 +18,29 @@ public abstract class HistogramUtil {
 
     private static final Pattern p = Pattern.compile("\\|");
     
+    public static Histogram<String> collapseAirportFlights(Map<String, Histogram<String>> m) {
+        Histogram<String> h = new Histogram<String>();
+        for (String depart : m.keySet()) {
+            Histogram<String> depart_h = m.get(depart);
+            for (String arrive : depart_h.values()) {
+                String key = depart + "-" + arrive;
+                h.put(key, depart_h.get(arrive));
+            } // FOR (arrival airport)
+        } // FOR (depart airport)
+        return (h);
+    }
+    
     /**
      * Returns the Flights Per Airport Histogram
      * @param data_path
      * @return
      * @throws Exception
      */
-    public static Map<String, Histogram<String>> loadAirportFlights(String data_path) throws Exception {
-        Map<String, Histogram<String>> m = new TreeMap<String, Histogram<String>>();
-        
+    public static Map<String, Histogram<String>> loadAirportFlights(String filename) throws Exception {
         Histogram<String> h = new Histogram<String>();
-        String filename = data_path + File.separator + "histogram." + AirlineConstants.HISTOGRAM_FLIGHTS_PER_AIRPORT.toLowerCase() + ".csv";
-        if (FileUtil.exists(filename) == false) filename += ".gz";
         h.load(filename, null);
         
+        Map<String, Histogram<String>> m = new TreeMap<String, Histogram<String>>();
         Pattern pattern = Pattern.compile("-");
         Set<String> values = h.values();
         for (String value : values) {

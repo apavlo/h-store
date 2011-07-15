@@ -1,17 +1,20 @@
 package edu.brown.benchmark.airline.procedures;
 
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.List;
 
-import org.voltdb.*;
+import org.voltdb.ProcInfo;
+import org.voltdb.SQLStmt;
+import org.voltdb.VoltProcedure;
+import org.voltdb.VoltTable;
+import org.voltdb.types.TimestampType;
 
 import edu.brown.benchmark.airline.AirlineConstants;
 
 @ProcInfo(
     singlePartition = false
 )
-public class FindFlightByNearbyAirport extends FindFlightByAirport {
+public class FindFlightByNearbyAirport extends VoltProcedure {
     
     public final SQLStmt GET_NEARBY = new SQLStmt(
             "SELECT * " +
@@ -21,17 +24,17 @@ public class FindFlightByNearbyAirport extends FindFlightByAirport {
     );
  
     public final String NEARBY_FLIGHTS =
-            "SELECT F_ID, F_DEPART_A_ID, F_DEPART_TIME, F_ARRIVE_A_ID, F_ARRIVE_TIME " +
+            "SELECT F_ID, F_DEPART_AP_ID, F_DEPART_TIME, F_ARRIVE_AP_ID, F_ARRIVE_TIME " +
             "  FROM " + AirlineConstants.TABLENAME_FLIGHT + 
-            " WHERE F_DEPART_A_ID = ? " +
+            " WHERE F_DEPART_AP_ID = ? " +
             "   AND F_DEPART_TIME >= ? " +
             "   AND F_DEPART_TIME <= ?";
     
-    public final SQLStmt GET_NEARBY_FLIGHTS1 = new SQLStmt(NEARBY_FLIGHTS + " AND F_ARRIVE_A_ID IN (?)");
-    public final SQLStmt GET_NEARBY_FLIGHTS2 = new SQLStmt(NEARBY_FLIGHTS + " AND F_ARRIVE_A_ID IN (?, ?)");
-    public final SQLStmt GET_NEARBY_FLIGHTS3 = new SQLStmt(NEARBY_FLIGHTS + " AND F_ARRIVE_A_ID IN (?, ?, ?)");
+    public final SQLStmt GET_NEARBY_FLIGHTS1 = new SQLStmt(NEARBY_FLIGHTS + " AND F_ARRIVE_AP_ID = ?");
+    public final SQLStmt GET_NEARBY_FLIGHTS2 = new SQLStmt(NEARBY_FLIGHTS + " AND (F_ARRIVE_AP_ID = ? OR F_ARRIVE_AP_ID = ?)");
+    public final SQLStmt GET_NEARBY_FLIGHTS3 = new SQLStmt(NEARBY_FLIGHTS + " AND (F_ARRIVE_AP_ID = ? OR F_ARRIVE_AP_ID = ? OR F_ARRIVE_AP_ID = ?)");
      
-    public VoltTable[] run(long depart_aid, long arrive_aid, Date start_date, Date end_date, long distance) {
+    public VoltTable[] run(long depart_aid, long arrive_aid, TimestampType start_date, TimestampType end_date, long distance) {
         
         //
         // First get the nearby airports for the departure and arrival cities

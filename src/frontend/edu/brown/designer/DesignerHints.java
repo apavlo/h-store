@@ -39,9 +39,10 @@ public class DesignerHints implements Cloneable, JSONSerializable {
         PROC_EXCLUDE,
         ALLOW_REPLICATION_READONLY,
         ALLOW_REPLICATION_READMOSTLY,
+        ALLOW_ARRAY_PROCPARAMETER_CANDIDATES,
         ENABLE_MULTI_PARTITIONING,
         ENABLE_COSTMODEL_CACHING,
-        ENABLE_COSTMODEL_ENTROPY,
+        ENABLE_COSTMODEL_SKEW,
         ENABLE_COSTMODEL_EXECUTION,
         ENABLE_COSTMODEL_JAVA_EXECUTION,
         ENABLE_COSTMODEL_MULTIPARTITION_PENALTY,
@@ -50,7 +51,7 @@ public class DesignerHints implements Cloneable, JSONSerializable {
         ENABLE_LOCAL_SEARCH_INCREASE,
         ENABLE_CHECKPOINTS,
         WEIGHT_COSTMODEL_EXECUTION,
-        WEIGHT_COSTMODEL_ENTROPY,
+        WEIGHT_COSTMODEL_SKEW,
         WEIGHT_COSTMODEL_JAVA_EXECUTION,
         WEIGHT_COSTMODEL_MULTIPARTITION_PENALTY,
         FORCE_REPLICATION,
@@ -114,6 +115,11 @@ public class DesignerHints implements Cloneable, JSONSerializable {
     public boolean allow_replication_readmostly = true;
     
     /**
+     * Allow array ProcParameters to be used as partitioning candidates
+     */
+    public boolean allow_array_procparameter_candidates = false;
+    
+    /**
      * Mark tables as read-only/mostly
      */
     public final Set<String> readonly_tables = new HashSet<String>();
@@ -130,9 +136,9 @@ public class DesignerHints implements Cloneable, JSONSerializable {
     public boolean enable_costmodel_caching = true;
     
     /**
-     * Enable entropy calculations in cost models
+     * Enable skew calculations in cost models
      */
-    public boolean enable_costmodel_entropy = true;
+    public boolean enable_costmodel_skew = true;
 
     /**
      * Enable execution calculations in cost models
@@ -198,7 +204,7 @@ public class DesignerHints implements Cloneable, JSONSerializable {
      * Cost Model Weights
      */
     public double weight_costmodel_execution = 1.0;
-    public double weight_costmodel_entropy = 1.0;
+    public double weight_costmodel_skew = 1.0;
     public double weight_costmodel_multipartition_penalty = 1.0;
     public int weight_costmodel_java_execution = 1;
 
@@ -229,6 +235,20 @@ public class DesignerHints implements Cloneable, JSONSerializable {
         this.start_time = System.currentTimeMillis();
     }
     
+    /**
+     * Copy Constructor
+     * @param orig
+     */
+    private DesignerHints(DesignerHints orig) {
+        this.start_time = orig.start_time;
+        this.source_file = orig.source_file;
+    }
+    
+    @Override
+    public int hashCode() {
+        return this.toString().hashCode();
+    }
+    
     @Override
     public String toString() {
         Class<?> hints_class = this.getClass();
@@ -245,15 +265,7 @@ public class DesignerHints implements Cloneable, JSONSerializable {
         } // FOR
         return (StringUtil.formatMaps(m));
     }
-    
-    /**
-     * Copy Constructor
-     * @param orig
-     */
-    private DesignerHints(DesignerHints orig) {
-        this.start_time = orig.start_time;
-        this.source_file = orig.source_file;
-    }
+
     
     public String getSourceFile() {
         return (this.source_file);
@@ -404,6 +416,9 @@ public class DesignerHints implements Cloneable, JSONSerializable {
     // SERIALIZATION METHODS
     // ----------------------------------------------------------------------------
 
+    /**
+     * Load with the ability to override values
+     */
     public void load(String input_path, Database catalog_db, Map<String, String> override) throws IOException {
         // First call the regular load() method to bring all of our options
         this.load(input_path, catalog_db);

@@ -55,15 +55,38 @@ public class TransactionTrace extends AbstractTraceElement<Procedure> {
     public TransactionTrace() {
         super();
     }
+
+    private TransactionTrace(long xact_id, String proc_name, Object params[]) {
+        super(proc_name, params);
+        this.txn_id = xact_id;
+    }
     
     public TransactionTrace(long xact_id, Procedure catalog_proc, Object params[]) {
-        super(catalog_proc, params);
-        this.txn_id = xact_id;
+        this(xact_id, catalog_proc.getName(), params);
+    }
+    
+    @SuppressWarnings("unchecked")
+    @Override
+    public TransactionTrace cloneImpl() {
+        TransactionTrace clone = new TransactionTrace(this.txn_id, this.catalog_item_name, this.params);
+        for (QueryTrace qt : this.queries) {
+            QueryTrace clone_q = (QueryTrace)qt.clone();
+            clone.addQuery(clone_q);
+        } // FOR
+        return (clone);
     }
     
     @Override
     public String toString() {
         return (this.getClass().getSimpleName() + "[" + this.catalog_item_name + ":#" + this.txn_id + "]");
+    }
+    
+    /**
+     * Change this TransactionTrace's txn id. Should only be used for testing
+     * @param txn_id
+     */
+    public void setTransactionId(long txn_id) {
+        this.txn_id = txn_id;
     }
 
     /**
@@ -78,6 +101,19 @@ public class TransactionTrace extends AbstractTraceElement<Procedure> {
     public Procedure getCatalogItem(Database catalog_db) {
         assert(catalog_db != null);
         return (catalog_db.getProcedures().get(this.catalog_item_name));
+    }
+    
+    /**
+     * Set the given list of queries as the queries executed by this transaction
+     * This should only be used for testing
+     * @param queries
+     */
+    public void setQueries(Collection<QueryTrace> queries) {
+        this.queries.clear();
+        this.query_batches.clear();
+        for (QueryTrace q : queries) {
+            this.addQuery(q);
+        } // FOR
     }
     
     public void addQuery(QueryTrace query) {
@@ -159,6 +195,14 @@ public class TransactionTrace extends AbstractTraceElement<Procedure> {
         return (this.queries.size());
     }
     
+    public int getWeightedQueryCount() {
+        int ctr = 0;
+        for (QueryTrace qt : this.queries) {
+            ctr += qt.getWeight();
+        }
+        return (ctr);
+    }
+    
     public QueryTrace getQuery(int idx) {
         return (this.queries.get(idx));
     }
@@ -230,7 +274,7 @@ public class TransactionTrace extends AbstractTraceElement<Procedure> {
                 continue;
             }
             try {
-                QueryTrace query = QueryTrace.loadFromJSONObject(jsonQuery, db);
+                QueryTrace query = QueryTrace.loadFromJSONObject(jsonQuery, catalog_proc);
                 this.addQuery(query);
             } catch (JSONException ex) {
                 LOG.fatal("Failed to load query trace #" + i + " for transaction record on " + this.catalog_item_name + "]");

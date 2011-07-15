@@ -27,28 +27,13 @@ import java.io.File;
 import java.io.IOException;
 import java.net.URL;
 
-import org.voltdb.benchmark.tpcc.procedures.GetTableCounts;
-import org.voltdb.benchmark.tpcc.procedures.LoadWarehouse;
-import org.voltdb.benchmark.tpcc.procedures.LoadWarehouseReplicated;
-import org.voltdb.benchmark.tpcc.procedures.ResetWarehouse;
-import org.voltdb.benchmark.tpcc.procedures.SelectAll;
-import org.voltdb.benchmark.tpcc.procedures.delivery;
-import org.voltdb.benchmark.tpcc.procedures.neworder;
-import org.voltdb.benchmark.tpcc.procedures.noop;
-import org.voltdb.benchmark.tpcc.procedures.ostatByCustomerId;
-import org.voltdb.benchmark.tpcc.procedures.ostatByCustomerName;
-import org.voltdb.benchmark.tpcc.procedures.paymentByCustomerId;
-import org.voltdb.benchmark.tpcc.procedures.paymentByCustomerIdC;
-import org.voltdb.benchmark.tpcc.procedures.paymentByCustomerIdW;
-import org.voltdb.benchmark.tpcc.procedures.paymentByCustomerName;
-import org.voltdb.benchmark.tpcc.procedures.paymentByCustomerNameC;
-import org.voltdb.benchmark.tpcc.procedures.paymentByCustomerNameW;
-import org.voltdb.benchmark.tpcc.procedures.slev;
+import org.voltdb.benchmark.tpcc.procedures.*;
 import org.voltdb.catalog.Catalog;
 import org.voltdb.utils.BuildDirectoryUtils;
 import org.voltdb.utils.CatalogUtil;
 
 import edu.brown.benchmark.AbstractProjectBuilder;
+import edu.brown.benchmark.BenchmarkComponent;
 
 /**
  * A subclass of VoltProjectBuilder that already knows about all of the
@@ -57,6 +42,15 @@ import edu.brown.benchmark.AbstractProjectBuilder;
  *
  */
 public class TPCCProjectBuilder extends AbstractProjectBuilder {
+    
+    /**
+     * Retrieved via reflection by BenchmarkController
+     */
+    public static final Class<? extends BenchmarkComponent> m_clientClass = TPCCClient.class;
+    /**
+     * Retrieved via reflection by BenchmarkController
+     */
+    public static final Class<? extends BenchmarkComponent> m_loaderClass = MultiLoader.class;
 
     /**
      * All procedures needed for TPC-C tests + benchmark
@@ -109,11 +103,8 @@ public class TPCCProjectBuilder extends AbstractProjectBuilder {
 //        {"ITEM", "I_ID"},
     };
 
-    public static final URL ddlURL = TPCCProjectBuilder.class.getResource("tpcc-ddl.sql");
-    public static final URL ddlFkeysURL = TPCCProjectBuilder.class.getResource("tpcc-ddl-fkeys.sql");
-
     public TPCCProjectBuilder() {
-        super("tpcc", TPCCProjectBuilder.class, PROCEDURES, partitioning, null, true);
+        super("tpcc", TPCCProjectBuilder.class, PROCEDURES, partitioning);
     }
     
     /**
@@ -146,7 +137,7 @@ public class TPCCProjectBuilder extends AbstractProjectBuilder {
      * Add the TPC-C schema to the VoltProjectBuilder base class.
      */
     public void addDefaultSchema() {
-        addSchema(ddlFkeysURL);
+        addSchema(this.getDDLURL(true));
     }
 
     public void addDefaultELT() {
@@ -185,9 +176,9 @@ public class TPCCProjectBuilder extends AbstractProjectBuilder {
     public Catalog createTPCCSchemaCatalog(boolean fkeys) throws IOException {
         // compile a catalog
         String testDir = BuildDirectoryUtils.getBuildDirectoryPath();
-        String catalogJar = testDir + File.separator + "tpcc-jni.jar";
+        String catalogJar = testDir + File.separator + this.getJarName(true);
 
-        addSchema(fkeys ? ddlFkeysURL : ddlURL);
+        addSchema(this.getDDLURL(fkeys));
         addDefaultPartitioning();
         addDefaultProcedures();
         //this.addProcedures(org.voltdb.benchmark.tpcc.procedures.InsertHistory.class);

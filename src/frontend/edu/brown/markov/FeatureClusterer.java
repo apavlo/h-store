@@ -29,8 +29,8 @@ import weka.core.Instances;
 import weka.filters.Filter;
 import weka.filters.unsupervised.attribute.NumericToNominal;
 import edu.brown.catalog.CatalogUtil;
-import edu.brown.correlations.ParameterCorrelations;
 import edu.brown.costmodel.MarkovCostModel;
+import edu.brown.mappings.ParameterMappingsSet;
 import edu.brown.markov.containers.MarkovGraphContainersUtil;
 import edu.brown.markov.containers.MarkovGraphsContainer;
 import edu.brown.markov.features.BasePartitionFeature;
@@ -287,7 +287,7 @@ public class FeatureClusterer {
     private final Procedure catalog_proc;
     private final Workload workload;
     private final EstimationThresholds thresholds;
-    private final ParameterCorrelations correlations;
+    private final ParameterMappingsSet correlations;
     private final PartitionEstimator p_estimator;
     private final Random rand = new Random(); // FIXME
     private final Collection<Integer> all_partitions;
@@ -311,7 +311,7 @@ public class FeatureClusterer {
      * @param all_partitions
      * @param num_threads
      */
-    public FeatureClusterer(Procedure catalog_proc, Workload workload, ParameterCorrelations correlations, Collection<Integer> all_partitions, int num_threads) {
+    public FeatureClusterer(Procedure catalog_proc, Workload workload, ParameterMappingsSet correlations, Collection<Integer> all_partitions, int num_threads) {
         this.catalog_proc = catalog_proc;
         this.catalog_db = CatalogUtil.getDatabase(catalog_proc);
         this.workload = workload;
@@ -336,7 +336,7 @@ public class FeatureClusterer {
     /**
      * Constructor
      */
-    public FeatureClusterer(Procedure catalog_proc, Workload workload, ParameterCorrelations correlations, Collection<Integer> all_partitions) {
+    public FeatureClusterer(Procedure catalog_proc, Workload workload, ParameterMappingsSet correlations, Collection<Integer> all_partitions) {
         this(catalog_proc, workload, correlations, all_partitions, DEFAULT_NUM_THREADS);
     }
 
@@ -344,7 +344,7 @@ public class FeatureClusterer {
      * Constructor
      * @param catalog_db
      */
-    public FeatureClusterer(Procedure catalog_proc, Workload workload, ParameterCorrelations correlations, int num_threads) {
+    public FeatureClusterer(Procedure catalog_proc, Workload workload, ParameterMappingsSet correlations, int num_threads) {
         this(catalog_proc, workload, correlations, CatalogUtil.getAllPartitionIds(catalog_proc), num_threads);
     }
     
@@ -352,7 +352,7 @@ public class FeatureClusterer {
      * Constructor
      * @param catalog_db
      */
-    public FeatureClusterer(Procedure catalog_proc, Workload workload, ParameterCorrelations correlations) {
+    public FeatureClusterer(Procedure catalog_proc, Workload workload, ParameterMappingsSet correlations) {
         this(catalog_proc, workload, correlations, DEFAULT_NUM_THREADS);
     }
     
@@ -1092,7 +1092,7 @@ public class FeatureClusterer {
         args.require(
             ArgumentsParser.PARAM_CATALOG,
             ArgumentsParser.PARAM_WORKLOAD,
-            ArgumentsParser.PARAM_CORRELATIONS
+            ArgumentsParser.PARAM_MAPPINGS
         );
         
         // Number of threads
@@ -1138,9 +1138,9 @@ public class FeatureClusterer {
 //            System.exit(1);
 //            
             Set<Integer> partitions = h.values();
-            fclusterer = new FeatureClusterer(catalog_proc, args.workload, args.param_correlations, partitions, num_threads);
+            fclusterer = new FeatureClusterer(catalog_proc, args.workload, args.param_mappings, partitions, num_threads);
         } else {
-            fclusterer = new FeatureClusterer(catalog_proc, args.workload, args.param_correlations, num_threads);    
+            fclusterer = new FeatureClusterer(catalog_proc, args.workload, args.param_mappings, num_threads);    
         }
         
         // Update split configuration variables

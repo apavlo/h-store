@@ -37,7 +37,7 @@ public abstract class DesignerUtil {
     //
     private static final Map<Pair<String, Set<String>>, ColumnSet> CACHE_extractColumnSet = new HashMap<Pair<String, Set<String>>, ColumnSet>();
     
-    public static List<Vertex> createCandidateRoots(DesignerInfo info, DesignerHints hints) throws Exception {
+    public static List<DesignerVertex> createCandidateRoots(DesignerInfo info, DesignerHints hints) throws Exception {
         return (DesignerUtil.createCandidateRoots(info, hints, info.dgraph));
     }
     
@@ -48,15 +48,15 @@ public abstract class DesignerUtil {
      * @return
      * @throws Exception
      */
-    public static List<Vertex> createCandidateRoots(final DesignerInfo info, final DesignerHints hints, final IGraph<Vertex, Edge> agraph) throws Exception {
+    public static List<DesignerVertex> createCandidateRoots(final DesignerInfo info, final DesignerHints hints, final IGraph<DesignerVertex, DesignerEdge> agraph) throws Exception {
         LOG.debug("Searching for candidate roots...");
         if (agraph == null) throw new NullPointerException("AccessGraph is Null");
         //
         // For each vertex, count the number of edges that point to it
         //
-        List<Vertex> roots = new ArrayList<Vertex>();
-        SortedMap<Double, Set<Vertex>> candidates = new TreeMap<Double, Set<Vertex>>(Collections.reverseOrder());
-        for (Vertex vertex : info.dgraph.getVertices()) {
+        List<DesignerVertex> roots = new ArrayList<DesignerVertex>();
+        SortedMap<Double, Set<DesignerVertex>> candidates = new TreeMap<Double, Set<DesignerVertex>>(Collections.reverseOrder());
+        for (DesignerVertex vertex : info.dgraph.getVertices()) {
             if (!agraph.containsVertex(vertex)) continue;
             
             if (hints.force_replication.contains(vertex.getCatalogItem().getName())) continue;
@@ -66,8 +66,8 @@ public abstract class DesignerUtil {
             // not marked for replication
             //
             boolean valid = true;
-            Collection<Vertex> parents = info.dgraph.getPredecessors(vertex);
-            for (Vertex other : agraph.getNeighbors(vertex)) {
+            Collection<DesignerVertex> parents = info.dgraph.getPredecessors(vertex);
+            for (DesignerVertex other : agraph.getNeighbors(vertex)) {
                 if (parents.contains(other) && !hints.force_replication.contains(other.getCatalogItem().getName())) {
                     LOG.debug("SKIP " + vertex + " [" + other + "]");
                     valid = false;
@@ -83,17 +83,17 @@ public abstract class DesignerUtil {
             // Now I'm going to use the weights of the outgoing edges in the AccessGraph.
             //
             final List<Double> weights = new ArrayList<Double>(); 
-            new VertexTreeWalker<Vertex, Edge>(info.dgraph) {
+            new VertexTreeWalker<DesignerVertex, DesignerEdge>(info.dgraph) {
                 @Override
-                protected void callback(Vertex element) {
+                protected void callback(DesignerVertex element) {
                     // Get the total weights from this vertex to all of its descendants
                     if (agraph.containsVertex(element)) {
                         double total_weight = 0d;
-                        Collection<Vertex> descedents = info.dgraph.getDescendants(element);
+                        Collection<DesignerVertex> descedents = info.dgraph.getDescendants(element);
                         //System.out.println(element + ": " + descedents);
-                        for (Vertex descendent : descedents) {
+                        for (DesignerVertex descendent : descedents) {
                              if (descendent != element && agraph.containsVertex(descendent)) {
-                                for (Edge edge : agraph.findEdgeSet(element, descendent)) {
+                                for (DesignerEdge edge : agraph.findEdgeSet(element, descendent)) {
                                     Double weight = edge.getTotalWeight();
                                     if (weight != null) total_weight += weight;
                                     //System.out.println(element + "->" + descendent);
@@ -114,7 +114,7 @@ public abstract class DesignerUtil {
             }.traverse(vertex);
             double weight = 0d;
             for (Double _weight : weights) weight+= _weight;
-            if (!candidates.containsKey(weight)) candidates.put(weight, new HashSet<Vertex>());
+            if (!candidates.containsKey(weight)) candidates.put(weight, new HashSet<DesignerVertex>());
             candidates.get(weight).add(vertex);
             /*
             int count = info.dgraph.getOutEdges(vertex).size();
@@ -129,7 +129,7 @@ public abstract class DesignerUtil {
         buffer.append("Found ").append(candidates.size()).append(" candidate roots and ranked them as follows:\n");
         int ctr = 0;
         for (Double weight : candidates.keySet()) {
-            for (Vertex vertex : candidates.get(weight)) {
+            for (DesignerVertex vertex : candidates.get(weight)) {
                 buffer.append("\t[").append(ctr++).append("] ")
                       .append(vertex).append("  Weight=").append(weight).append("\n");
                 roots.add(vertex);

@@ -26,7 +26,6 @@ package org.voltdb.benchmark.bingo;
 import java.util.Random;
 
 import org.voltdb.client.ClientResponse;
-import org.voltdb.benchmark.ClientMain;
 import org.voltdb.benchmark.Verification;
 import org.voltdb.benchmark.Verification.Expression;
 
@@ -36,10 +35,12 @@ import org.voltdb.client.NullCallback;
 import org.voltdb.compiler.VoltProjectBuilder;
 import org.voltdb.types.ExpressionType;
 
+import edu.brown.benchmark.BenchmarkComponent;
+
 import java.util.ArrayDeque;
 import java.io.IOException;
 
-public class BingoClient extends ClientMain {
+public class BingoClient extends BenchmarkComponent {
 
     public static enum Transaction {
         CREATE("Create Tournament"),
@@ -59,7 +60,7 @@ public class BingoClient extends ClientMain {
     /**
      * Retrieved via reflection by BenchmarkController
      */
-    public static final Class<? extends ClientMain> m_loaderClass = null;
+    public static final Class<? extends BenchmarkComponent> m_loaderClass = null;
     /**
      * Retrieved via reflection by BenchmarkController
      */
@@ -122,7 +123,7 @@ public class BingoClient extends ClientMain {
     private final ArrayDeque<Tourney> tournaments = new ArrayDeque<Tourney>();
 
     public static void main(String[] args) {
-        ClientMain.main(BingoClient.class, args, false);
+        BenchmarkComponent.main(BingoClient.class, args, false);
     }
 
     public BingoClient(String args[]) {
@@ -130,7 +131,7 @@ public class BingoClient extends ClientMain {
         Random r = new Random();
         for (int i=0; i < maxTournaments; i++) {
             final Tourney t = new Tourney();
-            t.tid = (i | (m_id << 24));
+            t.tid = (i | (getClientId() << 24));
             t.initialized = false;
             t.round = java.lang.Math.abs(r.nextInt() % maxRounds);
             tournaments.offer(t);
@@ -375,15 +376,5 @@ public class BingoClient extends ClientMain {
         }
 
         return queued;
-    }
-
-    @Override
-    public String getApplicationName() {
-        return "Bingo Benchmark";
-    }
-
-    @Override
-    public String getSubApplicationName() {
-        return "Client";
     }
 }

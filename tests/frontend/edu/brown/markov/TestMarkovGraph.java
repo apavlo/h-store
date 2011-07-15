@@ -17,8 +17,8 @@ import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Statement;
 
 import edu.brown.BaseTestCase;
-import edu.brown.correlations.ParameterCorrelations;
-import edu.brown.markov.Vertex.Type;
+import edu.brown.mappings.ParameterMappingsSet;
+import edu.brown.markov.MarkovVertex.Type;
 import edu.brown.markov.containers.MarkovGraphContainersUtil;
 import edu.brown.markov.containers.MarkovGraphsContainer;
 import edu.brown.utils.CollectionUtil;
@@ -39,7 +39,7 @@ public class TestMarkovGraph extends BaseTestCase {
 
     private static Workload workload;
     private static MarkovGraphsContainer markovs;
-    private static ParameterCorrelations correlations;
+    private static ParameterMappingsSet correlations;
 
     private Procedure catalog_proc;
 
@@ -50,8 +50,8 @@ public class TestMarkovGraph extends BaseTestCase {
         this.catalog_proc = this.getProcedure(TARGET_PROCEDURE);
 
         if (markovs == null) {
-            File file = this.getCorrelationsFile(ProjectType.TPCC);
-            correlations = new ParameterCorrelations();
+            File file = this.getParameterMappingsFile(ProjectType.TPCC);
+            correlations = new ParameterMappingsSet();
             correlations.load(file.getAbsolutePath(), catalog_db);
 
             file = this.getWorkloadFile(ProjectType.TPCC);
@@ -81,7 +81,7 @@ public class TestMarkovGraph extends BaseTestCase {
         }
     }
 
-    private void validateProbabilities(Vertex v) {
+    private void validateProbabilities(MarkovVertex v) {
         assertNotNull(v.toString(), v.getSingleSitedProbability());
         assert (v.getSingleSitedProbability() >= 0.0) : "Invalid SingleSited for " + v + ": "
                 + v.getSingleSitedProbability();
@@ -97,15 +97,15 @@ public class TestMarkovGraph extends BaseTestCase {
             final float write = v.getWriteProbability(partition);
             final float read_only = v.getReadOnlyProbability(partition);
 
-            Map<Vertex.Probability, Float> probabilities = new HashMap<Vertex.Probability, Float>() {
+            Map<MarkovVertex.Probability, Float> probabilities = new HashMap<MarkovVertex.Probability, Float>() {
                 private static final long serialVersionUID = 1L;
                 {
-                    this.put(Vertex.Probability.DONE, done);
-                    this.put(Vertex.Probability.WRITE, write);
-                    this.put(Vertex.Probability.READ_ONLY, read_only);
+                    this.put(MarkovVertex.Probability.DONE, done);
+                    this.put(MarkovVertex.Probability.WRITE, write);
+                    this.put(MarkovVertex.Probability.READ_ONLY, read_only);
                 }
             };
-            for (Entry<Vertex.Probability, Float> e : probabilities.entrySet()) {
+            for (Entry<MarkovVertex.Probability, Float> e : probabilities.entrySet()) {
                 assertNotNull("Null " + e.getKey() + " => " + v.toString() + " Partition #" + partition, e.getValue());
                 assert (e.getValue() >= 0.0) : "Invalid " + e.getKey() + " for " + v + " at Partition #" + partition + ": " + e.getValue();
                 if (e.getValue() > 1) {
@@ -124,7 +124,7 @@ public class TestMarkovGraph extends BaseTestCase {
             } else {
                 double sum = write + read_only;
                 if (sum == 0) {
-                    System.err.println("DONE at Partition #" + partition + " => " + done + " -- " + v.probabilities[Vertex.Probability.DONE.ordinal()][partition]);
+                    System.err.println("DONE at Partition #" + partition + " => " + done + " -- " + v.probabilities[MarkovVertex.Probability.DONE.ordinal()][partition]);
                     System.err.println(v.debug());
                 }
                 assert (sum > 0) : v + " Partition #" + partition + " [" + sum + "]";
@@ -153,8 +153,8 @@ public class TestMarkovGraph extends BaseTestCase {
         assertNotNull(markov);
 
         // We want to check that the read/write/finish probabilities are properly set
-        Vertex start = markov.getStartVertex();
-        Vertex commit = markov.getCommitVertex();
+        MarkovVertex start = markov.getStartVertex();
+        MarkovVertex commit = markov.getCommitVertex();
         assertNotNull(start);
         assertNotNull(commit);
         // System.err.println(start.debug());
@@ -164,14 +164,14 @@ public class TestMarkovGraph extends BaseTestCase {
 
 //        MarkovUtil.exportGraphviz(markov, true, null).writeToTempFile(catalog_proc);
 
-        for (Vertex v : markov.getVertices()) {
+        for (MarkovVertex v : markov.getVertices()) {
             validateProbabilities(v);
         }
         
         // Double-check that all of the vertices adjacent to the COMMIT vertex have their DONE
         // probability set to 1.0 if they don't touch the partition. And if they have only one 
         // partition then it should be single-partitioned
-        for (Vertex v : markov.getPredecessors(commit)) {
+        for (MarkovVertex v : markov.getPredecessors(commit)) {
             Set<Integer> partitions = v.getPartitions();
             assertFalse(v.toString(), partitions.isEmpty());
             
@@ -199,8 +199,8 @@ public class TestMarkovGraph extends BaseTestCase {
     public void testAddToEdge() throws Exception {
         MarkovGraph testGraph = new MarkovGraph(this.catalog_proc);
         testGraph.initialize();
-        Vertex start = testGraph.getStartVertex();
-        Vertex stop = testGraph.getCommitVertex();
+        MarkovVertex start = testGraph.getStartVertex();
+        MarkovVertex stop = testGraph.getCommitVertex();
 
         Statement catalog_stmt = CollectionUtil.getFirst(this.catalog_proc.getStatements());
         Set<Integer> all_previous = new HashSet<Integer>();
@@ -209,12 +209,12 @@ public class TestMarkovGraph extends BaseTestCase {
             partitions.add(i % NUM_PARTITIONS);
             Set<Integer> previous = new HashSet<Integer>(all_previous);
             
-            Vertex current = new Vertex(catalog_stmt, Vertex.Type.QUERY, i, partitions, previous);
+            MarkovVertex current = new MarkovVertex(catalog_stmt, MarkovVertex.Type.QUERY, i, partitions, previous);
             testGraph.addVertex(current);
             
             long startcount = start.getInstanceHits();
             testGraph.addToEdge(start, current);
-            Edge e = testGraph.addToEdge(current, stop);
+            MarkovEdge e = testGraph.addToEdge(current, stop);
             
             start.incrementInstanceHits();
             current.incrementInstanceHits();
@@ -243,14 +243,14 @@ public class TestMarkovGraph extends BaseTestCase {
          MarkovGraph graph = new MarkovGraph(catalog_proc);
          graph.initialize();
                 
-         Vertex v0 = graph.getStartVertex();
-         Vertex v1 = new Vertex(catalog_stmt, Vertex.Type.QUERY, 0, CollectionUtil.addAll(new ArrayList<Integer>(), BASE_PARTITION),
+         MarkovVertex v0 = graph.getStartVertex();
+         MarkovVertex v1 = new MarkovVertex(catalog_stmt, MarkovVertex.Type.QUERY, 0, CollectionUtil.addAll(new ArrayList<Integer>(), BASE_PARTITION),
                                                                     CollectionUtil.addAll(new ArrayList<Integer>(), BASE_PARTITION));
-         Vertex v2 = new Vertex(catalog_stmt, Vertex.Type.QUERY, 1, CollectionUtil.addAll(new ArrayList<Integer>(), BASE_PARTITION),
+         MarkovVertex v2 = new MarkovVertex(catalog_stmt, MarkovVertex.Type.QUERY, 1, CollectionUtil.addAll(new ArrayList<Integer>(), BASE_PARTITION),
                                                                     CollectionUtil.addAll(new ArrayList<Integer>(), BASE_PARTITION));
 
-         Vertex last = null;
-         for (Vertex v : new Vertex[]{v0, v1, v2, graph.getCommitVertex(), null}) {
+         MarkovVertex last = null;
+         for (MarkovVertex v : new MarkovVertex[]{v0, v1, v2, graph.getCommitVertex(), null}) {
              if (v == null) break;
              
              if (v.isQueryVertex()) graph.addVertex(v);
@@ -279,7 +279,7 @@ public class TestMarkovGraph extends BaseTestCase {
         
          // It's lame, but we'll just have to use toString() to match things up
          Map<String, Set<String>> edges = new HashMap<String, Set<String>>();
-         for (Edge e : graph.getEdges()) {
+         for (MarkovEdge e : graph.getEdges()) {
              v0 = graph.getSource(e);
              assertNotNull(v0);
              String s0 = v0.toString();
@@ -293,7 +293,7 @@ public class TestMarkovGraph extends BaseTestCase {
              System.err.println(v0 + " -> " + v1);
          } // FOR
          System.err.println("--------------");
-         for (Edge e : clone.getEdges()) {
+         for (MarkovEdge e : clone.getEdges()) {
              v0 = clone.getSource(e);
              assertNotNull(v0);
              String s0 = v0.toString();

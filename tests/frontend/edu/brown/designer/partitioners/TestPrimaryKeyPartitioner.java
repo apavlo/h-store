@@ -9,10 +9,10 @@ import org.voltdb.types.PartitionMethodType;
 import org.voltdb.utils.CatalogUtil;
 
 import edu.brown.BaseTestCase;
-import edu.brown.correlations.ParameterCorrelations;
 import edu.brown.designer.Designer;
 import edu.brown.designer.DesignerHints;
 import edu.brown.designer.DesignerInfo;
+import edu.brown.mappings.ParameterMappingsSet;
 import edu.brown.utils.ProjectType;
 import edu.brown.workload.Workload;
 import edu.brown.workload.Workload;
@@ -25,7 +25,7 @@ public class TestPrimaryKeyPartitioner extends BaseTestCase {
     private DesignerInfo info;
     private DesignerHints hints;
     
-    private static ParameterCorrelations correlations;
+    private static ParameterMappingsSet correlations;
     private static File correlations_file;
     
     @Override
@@ -33,10 +33,10 @@ public class TestPrimaryKeyPartitioner extends BaseTestCase {
         super.setUp(ProjectType.TPCC, true);
         
         if (correlations == null) {
-            correlations_file = this.getCorrelationsFile(ProjectType.TPCC);
+            correlations_file = this.getParameterMappingsFile(ProjectType.TPCC);
             assertNotNull(correlations_file);
             assert(correlations_file.exists());
-            correlations = new ParameterCorrelations();
+            correlations = new ParameterMappingsSet();
             correlations.load(correlations_file.getAbsolutePath(), catalog_db);
         }
         

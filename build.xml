@@ -55,6 +55,13 @@
 <property name='m1catalog'                   location='${src.test.dir}/org/voltdb/catalog/catalog.txt' />
 <property name='depcache'                    value='.depcache' />
 
+<!-- Supplmental H-Store Files -->
+<property name='files.dir'                   location='${base.dir}/files' />
+<property name='files.stats.dir'             location='${files.dir}/stats' />
+<property name='files.workloads.dir'         location='${files.dir}/workloads' />
+<property name='files.markovs.dir'           location='${files.dir}/markovs' />
+<property name='files.hints.dir'             location='${files.dir}/designhints' />
+
 <!-- ProtocolBuffer Source -->
 <property name="src.protobuf.dir"            location="third_party/cpp/protobuf" />
 <property name="build.protobuf.dir"          location="${build.dir}/protobuf" />
@@ -96,7 +103,7 @@
     <not><isset property="benchmark.conf"/></not>
 </condition>
 <property file="${benchmark.conf}" prefix="benchmark" />
-<fail message="Invalid benchmark project '${project}'" unless="benchmark.client" />
+<fail message="Invalid benchmark project '${project}'" unless="benchmark.builder" />
 
 <property name="benchmark.jar" location="${project}.jar" />
 <condition property="jar" value="${benchmark.jar}">
@@ -1432,7 +1439,7 @@ BENCHMARKS
     description="Deploy a cluster and run a benchmark">
 	
     <java fork="true" failonerror="true"
-        classname="org.voltdb.benchmark.BenchmarkController">
+        classname="edu.brown.benchmark.BenchmarkController">
         <classpath refid='project.classpath' />
         <jvmarg value="-server" />
         <jvmarg value="-Xmx2048m" />
@@ -1481,7 +1488,7 @@ BENCHMARKS
 
         <!-- Benchmark Parameters -->
         <arg value="benchmark.conf=${benchmark.conf}" />
-        <arg value="benchmark.client=${benchmark.client}" />
+        <arg value="benchmark.builder=${benchmark.builder}" />
         <arg value="benchmark.initial_polling_delay=${benchmark.initial_polling_delay}" />
         <arg value="benchmark.datadir=${benchmark.datadir}"/>
         
@@ -1715,7 +1722,7 @@ DESIGNER
         <arg value="catalog.cluster=${cluster}" />
         <arg value="catalog.output=${global.temp_dir}/fixcatalog/catalog.txt" />
         <arg value="dtxn.conf.output=${global.temp_dir}/fixcatalog/dtxn.conf" />
-        <arg value="correlations=${correlations}" />
+        <arg value="mappings=${mappings}" />
         <arg value="simulator.host=${hosts}" />
         <arg value="simulator.numhosts=${numhosts}" />
         <arg value="simulator.host.numsites=${numsites}" />
@@ -1863,7 +1870,7 @@ DESIGNER
         <arg value="workload.procexclude=${exclude}" />
         <arg value="workload.procinclude=${include}" />
         <arg value="workload.procinclude.multiplier=${multiplier}" />
-        <arg value="correlations=files/correlations/${project}.correlations" />
+        <arg value="mappings=files/mappings/${project}.mappings" />
         <arg value="markov=${markov}" />
         <arg value="markov.thresholds=${markov.thresholds}" />
         <arg value="markov.thresholds.value=${markov.thresholds.value}" />
@@ -1895,7 +1902,7 @@ DESIGNER
         <arg value="workload.procexclude=${exclude}" />
         <arg value="workload.procinclude=${include}" />
         <arg value="workload.procinclude.multiplier=${multiplier}" />
-        <arg value="correlations=./files/correlations/${project}.correlations" />
+        <arg value="mappings=./files/mappings/${project}.mappings" />
         <classpath refid='project.classpath' />
         <assertions><enable /></assertions>
     </java>
@@ -1918,7 +1925,7 @@ DESIGNER
         <arg value="workload.xactoffset=${offset}" />
         <arg value="workload.procinclude=${procedure}" />
         <arg value="workload.procinclude.multiplier=${multiplier}" />
-        <arg value="correlations=./files/correlations/${project}.correlations" />
+        <arg value="mappings=./files/mappings/${project}.mappings" />
         <arg value="markov.split.training=${training}" />
         <arg value="markov.split.validation=${validation}" />
         <arg value="markov.split.testing=${testing}" />
@@ -1933,9 +1940,9 @@ DESIGNER
     </java>
 </target>
 
-<target name='correlations'
-        description="Generate Parameter Correlations">
-    <java fork="yes" classname="edu.brown.correlations.CorrelationCalculator" failonerror='true'>
+<target name='mappings-generate'
+        description="Generate Parameter Mappings">
+    <java fork="yes" classname="edu.brown.mappings.MappingCalculator" failonerror='true'>
         <jvmarg value="-Xmx${volt.client.memory}m" />
         <jvmarg value="-Dlog4j.configuration=${basedir}/log4j.properties"/>
         <arg value="catalog.jar=${jar}" />
@@ -1945,8 +1952,8 @@ DESIGNER
         <arg value="workload.procexclude=${exclude}" />
         <arg value="workload.procinclude=${include}" />
         <arg value="workload.procinclude.multiplier=${multiplier}" />
-        <arg value="correlations.output=${output}" />
-        <arg value="correlations.threshold=${threshold}" />
+        <arg value="mappings.output=${output}" />
+        <arg value="mappings.threshold=${threshold}" />
         <classpath refid='project.classpath' />
         <assertions><enable /></assertions>
     </java>
@@ -1974,18 +1981,18 @@ DESIGNER
     <echo>Creating stats file for ${target.workload}...</echo>
     <antcall target="stats">
         <param name="jar" value="${benchmark.jar}" />
-        <param name="workload" value="files/workloads/${target.workload}.trace.gz" />
+        <param name="workload" value="${files.workloads.dir}/${target.workload}.trace.gz" />
         <param name="stats" value="${benchmark.tablestats}" />
-        <param name="output" value="files/workloads/${target.workload}.stats" />
+        <param name="output" value="${files.stats.dir}/${target.workload}.stats" />
     </antcall>
-    <gzip src="files/workloads/${target.workload}.stats" destfile="files/workloads/${target.workload}.stats.gz"/>
+    <gzip src="${files.stats.dir}/${target.workload}.stats" destfile="${files.stats.dir}/${target.workload}.stats.gz"/>
     <delete file="${benchmark.tablestats}" />
     
-    <echo>Creating correlations file for ${workload}...</echo>
-    <antcall target="correlations">
+    <echo>Creating mappings file for ${workload}...</echo>
+    <antcall target="mappings-generate">
         <param name="jar" value="${benchmark.jar}" />
-        <param name="workload" value="./files/workloads/${target.workload}.trace.gz" />
-        <param name="output" value="./files/correlations/${target.workload}.correlations" />
+        <param name="workload" value="${files.workloads.dir}/${target.workload}.trace.gz" />
+        <param name="output" value="${files.mappings.dir}/${target.workload}.mappings" />
     </antcall>
 </target>
 
@@ -1996,7 +2003,7 @@ DESIGNER
     <antcall target="catalog-fix">
         <param name="jar" value="${project}-designer-benchmark.jar" />
         <param name="type" value="${project}" />
-        <param name="correlations" value="./files/correlations/${project}.correlations" />
+        <param name="mappings" value="${files.mappings.dir}/${project}.mappings" />
         <param name="numhosts" value="25" />
         <param name="numsites" value="2" />
         <param name="numpartitions" value="2" />
@@ -2024,7 +2031,7 @@ DESIGNER
         <arg value="workload.procexclude=${exclude}" />
         <arg value="workload.procinclude=${include}" />
         <arg value="workload.procinclude.multiplier=${multiplier}" />
-        <arg value="correlations=${correlations}" />
+        <arg value="mappings=${mappings}" />
         <arg value="stats=${stats}" />
         <arg value="designer.partitioner=${partitioner}" />
         <arg value="designer.threads=${threads}" />
@@ -2083,7 +2090,7 @@ DESIGNER
         <arg value="workload.procexclude=${exclude}" />
         <arg value="workload.procinclude=${include}" />
         <arg value="workload.procinclude.multiplier=${multiplier}" />
-        <arg value="correlations=${correlations}" />
+        <arg value="mappings=${mappings}" />
         <arg value="stats=${stats}" />
         <arg value="designer.partitioner=${partitioner}" />
         <arg value="designer.costmodel=${costmodel}" />
@@ -2230,11 +2237,11 @@ H-STORE REMIX
         </patternset>
     </unzip>
 
-    <condition property="markov" value="files/markovs/${project}.markovs">
+    <condition property="markov" value="${files.markovs.dir}/${project}.markovs">
         <not><isset property="markov"/></not>
     </condition>
-    <condition property="correlations" value="files/correlations/${project}.correlations">
-        <not><isset property="correlations"/></not>
+    <condition property="mappings" value="${files.mappings.dir}/${project}.mappings">
+        <not><isset property="mappings"/></not>
     </condition>
 
     <java fork="yes" classname="edu.mit.hstore.HStoreSite">
@@ -2266,7 +2273,7 @@ H-STORE REMIX
         <arg value="markov=${markov}" />
         <arg value="markov.thresholds=${markov.thresholds}" />
         <arg value="markov.thresholds.value=${markov.thresholds.value}" />
-        <arg value="correlations=${correlations}" />
+        <arg value="mappings=${mappings}" />
         <arg value="partitionplan=${partitionplan}" />
         <arg value="partitionplan.apply=true" />
         <arg value="workload.output=${workload.output}" />
@@ -2302,7 +2309,7 @@ H-STORE REMIX
 <target name="hstore-jar" description="H-Store JAR Setup">
     <antcall target="catalog-fix">
         <param name="jar" value="${benchmark.jar}" />
-        <param name="correlations" value="./files/correlations/${project}.correlations" />
+        <param name="mappings" value="${files.mappings.dir}/${project}.mappings" />
         
         <!-- FORMAT: <hostname>:<site#>:<partition#> -->
 <!--         <param name="hosts" value="${global.defaulthost}:0:0,${global.defaulthost}:1:1" /> -->

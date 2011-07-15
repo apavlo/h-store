@@ -16,12 +16,12 @@ import org.voltdb.types.ExpressionType;
 
 import edu.brown.BaseTestCase;
 import edu.brown.catalog.CatalogUtil;
-import edu.brown.correlations.ParameterCorrelations;
 import edu.brown.costmodel.MarkovCostModel.Penalty;
+import edu.brown.mappings.ParameterMappingsSet;
 import edu.brown.markov.EstimationThresholds;
 import edu.brown.markov.MarkovGraph;
 import edu.brown.markov.TransactionEstimator;
-import edu.brown.markov.Vertex;
+import edu.brown.markov.MarkovVertex;
 import edu.brown.markov.TransactionEstimator.State;
 import edu.brown.markov.containers.MarkovGraphContainersUtil;
 import edu.brown.markov.containers.MarkovGraphsContainer;
@@ -48,7 +48,7 @@ public class TestMarkovCostModel extends BaseTestCase {
 
     private static Workload workload;
     private static MarkovGraphsContainer markovs;
-    private static ParameterCorrelations correlations;
+    private static ParameterMappingsSet correlations;
     private static Procedure catalog_proc;
     private static TransactionEstimator t_estimator;
 
@@ -56,8 +56,8 @@ public class TestMarkovCostModel extends BaseTestCase {
     private MarkovGraph markov;
     private TransactionTrace txn_trace;
     private State txn_state;
-    private List<Vertex> estimated_path;
-    private List<Vertex> actual_path;
+    private List<MarkovVertex> estimated_path;
+    private List<MarkovVertex> actual_path;
     
     @Before
     public void setUp() throws Exception {
@@ -67,8 +67,8 @@ public class TestMarkovCostModel extends BaseTestCase {
         if (markovs == null) {
             catalog_proc = this.getProcedure(TARGET_PROCEDURE);
             
-            File file = this.getCorrelationsFile(ProjectType.TPCC);
-            correlations = new ParameterCorrelations();
+            File file = this.getParameterMappingsFile(ProjectType.TPCC);
+            correlations = new ParameterMappingsSet();
             correlations.load(file.getAbsolutePath(), catalog_db);
 
             file = this.getWorkloadFile(ProjectType.TPCC);
@@ -105,7 +105,7 @@ public class TestMarkovCostModel extends BaseTestCase {
                 @Override
                 protected void resetImpl() { }
             });
-            assert(workload.getTransactions().get(0).getTransactionId() != clone.getTransactions().get(0).getTransactionId());
+            assert(CollectionUtil.getFirst(workload.getTransactions()).getTransactionId() != CollectionUtil.getFirst(clone.getTransactions()).getTransactionId());
             
             // assertEquals(WORKLOAD_XACT_LIMIT, workload.getTransactionCount());
 
@@ -126,7 +126,7 @@ public class TestMarkovCostModel extends BaseTestCase {
         this.costmodel = new MarkovCostModel(catalog_db, p_estimator, t_estimator, thresholds);
         
         // Take a TransactionTrace and throw it at the estimator to get our path info
-        this.txn_trace = workload.getTransactions().get(0);
+        this.txn_trace = CollectionUtil.getFirst(workload.getTransactions());
         assertNotNull(this.txn_trace);
         
         this.txn_state = t_estimator.processTransactionTrace(txn_trace);
@@ -147,7 +147,7 @@ public class TestMarkovCostModel extends BaseTestCase {
      */
     @Test
     public void testComparePathsFast() throws Exception {
-        List<Vertex> clone = new ArrayList<Vertex>(this.actual_path);
+        List<MarkovVertex> clone = new ArrayList<MarkovVertex>(this.actual_path);
         
         // At the very least the exact clone should be equal
         assert(costmodel.comparePathsFast(clone, this.actual_path));
@@ -175,8 +175,8 @@ public class TestMarkovCostModel extends BaseTestCase {
         // We don't care what the outcome is here...
         costmodel.comparePathsFast(this.txn_state.getInitialPath(), this.txn_state.getActualPath());
         
-        Vertex abort_v = markov.getAbortVertex();
-        List<Vertex> actual = this.txn_state.getActualPath();
+        MarkovVertex abort_v = markov.getAbortVertex();
+        List<MarkovVertex> actual = this.txn_state.getActualPath();
         actual.set(actual.size()-1, abort_v);
         double cost = costmodel.comparePathsFull(this.txn_state);
         
@@ -219,7 +219,7 @@ public class TestMarkovCostModel extends BaseTestCase {
     @Test
     public void testCompareIncompletePath() throws Exception {
         // Then make sure that our cost model can handle paths where the estimated path isn't complete
-        List<Vertex> tester = new ArrayList<Vertex>(this.actual_path);
+        List<MarkovVertex> tester = new ArrayList<MarkovVertex>(this.actual_path);
         tester.removeAll(this.actual_path.subList(this.actual_path.size() - 5, this.actual_path.size()));
         /* FIXME
         double cost = costmodel.comparePathsFast(tester, this.actual_path);

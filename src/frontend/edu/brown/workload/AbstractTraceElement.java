@@ -52,7 +52,7 @@ import edu.brown.catalog.CatalogUtil;
  */
 public abstract class AbstractTraceElement<T extends CatalogType> implements JSONString {
     /** java.util.logging logger. */
-    protected static final Logger LOG = Logger.getLogger(AbstractTraceElement.class.getName());
+    protected static final Logger LOG = Logger.getLogger(AbstractTraceElement.class);
     
     public enum Members {
         // Catalog Name
@@ -77,15 +77,44 @@ public abstract class AbstractTraceElement<T extends CatalogType> implements JSO
     protected Object output[][][];
     protected VoltType output_types[][];
     
+    protected transient int weight = 1;
+    
     public AbstractTraceElement() {
         // Nothing to do...
     }
     
-    public AbstractTraceElement(T catalog_item, Object params[]) {
+    public AbstractTraceElement(String catalog_item_name, Object params[]) {
         this.params = params;
-        this.catalog_item_name = catalog_item.getName();
+        this.catalog_item_name = catalog_item_name;
         this.start_timestamp = System.nanoTime();
         //this.stop_timestamp = -1l;
+    }
+    
+    public AbstractTraceElement(T catalog_item, Object params[]) {
+        this(catalog_item.getName(), params);
+    }
+    
+    public AbstractTraceElement<T> clone() {
+        AbstractTraceElement<T> clone = this.cloneImpl();
+        clone.start_timestamp = this.start_timestamp;
+        clone.stop_timestamp = this.stop_timestamp;
+        clone.aborted = this.aborted;
+        clone.output = this.output;
+        clone.output_types = this.output_types;
+        clone.weight = this.weight;
+        return (clone);
+    }
+    
+    public abstract <X> X cloneImpl();
+    
+    public void setWeight(int weight) {
+        this.weight = weight;
+    }
+    public void incrementWeight(int delta) {
+        this.weight += delta;
+    }
+    public int getWeight() {
+        return (this.weight);
     }
     
     @Override

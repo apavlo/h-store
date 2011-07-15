@@ -89,7 +89,7 @@ public abstract class MarkovGraphContainersUtil {
         runnables.add(new Runnable() {
             @Override
             public void run() {
-                List<TransactionTrace> all_txns = workload.getTransactions();
+                List<TransactionTrace> all_txns = new ArrayList<TransactionTrace>(workload.getTransactions());
                 Collections.shuffle(all_txns);
                 int ctr = 0;
                 for (TransactionTrace txn_trace : all_txns) {

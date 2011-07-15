@@ -41,7 +41,7 @@ public class NewReservation extends VoltProcedure {
             ")");
     
     public final SQLStmt SELECT_FLIGHT = new SQLStmt(
-            "SELECT F_AL_ID, SEATS_LEFT FROM " + AirlineConstants.TABLENAME_FLIGHT + " WHERE F_ID = ?");
+            "SELECT F_AL_ID, F_SEATS_LEFT FROM " + AirlineConstants.TABLENAME_FLIGHT + " WHERE F_ID = ?");
     
     public final SQLStmt UPDATE_FLIGHT = new SQLStmt(
             "UPDATE " + AirlineConstants.TABLENAME_FLIGHT +
@@ -51,17 +51,17 @@ public class NewReservation extends VoltProcedure {
     public final SQLStmt UPDATE_CUSTOMER = new SQLStmt(
             "UPDATE " + AirlineConstants.TABLENAME_CUSTOMER +
             "   SET C_IATTR10 = ?, " + 
-            "       C_IATTR10 = ?, " +
-            "       C_IATTR10 = ?, " +
-            "       C_IATTR10 = ? " +
+            "       C_IATTR11 = ?, " +
+            "       C_IATTR12 = ?, " +
+            "       C_IATTR13 = ? " +
             " WHERE C_ID = ? ");
     
     public final SQLStmt UPDATE_FREQUENTFLYER = new SQLStmt(
             "UPDATE " + AirlineConstants.TABLENAME_FREQUENT_FLYER +
             "   SET FF_IATTR10 = ?, " + 
-            "       FF_IATTR10 = ?, " +
-            "       FF_IATTR10 = ?, " +
-            "       FF_IATTR10 = ? " +
+            "       FF_IATTR11 = ?, " +
+            "       FF_IATTR12 = ?, " +
+            "       FF_IATTR13 = ? " +
             " WHERE FF_C_ID = ? " +
             "   AND FF_AL_ID = ?");
     

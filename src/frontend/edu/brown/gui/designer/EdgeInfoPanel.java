@@ -18,7 +18,7 @@ import edu.brown.gui.common.GraphVisualizationPanel;
 import edu.brown.utils.StringUtil;
 import edu.uci.ics.jung.graph.util.EdgeType;
 
-public class EdgeInfoPanel extends AbstractInfoPanel<Edge> {
+public class EdgeInfoPanel extends AbstractInfoPanel<DesignerEdge> {
     private static final long serialVersionUID = 1L;
     
     protected final DesignerVisualization parent;
@@ -41,19 +41,19 @@ public class EdgeInfoPanel extends AbstractInfoPanel<Edge> {
         this.add(panel, BorderLayout.NORTH);
     }
     
-    public void update(Edge edge) {
+    public void update(DesignerEdge edge) {
         this.setEnabled(true);
         this.element = edge;
         
-        GraphVisualizationPanel<Vertex, Edge> visualizer = this.parent.getCurrentVisualizer();
-        IGraph<Vertex, Edge> graph = (IGraph<Vertex, Edge>)visualizer.getGraph();
-        Vertex source = null;
-        Vertex dest = null;
+        GraphVisualizationPanel<DesignerVertex, DesignerEdge> visualizer = this.parent.getCurrentVisualizer();
+        IGraph<DesignerVertex, DesignerEdge> graph = (IGraph<DesignerVertex, DesignerEdge>)visualizer.getGraph();
+        DesignerVertex source = null;
+        DesignerVertex dest = null;
         if (graph.getEdgeType(edge) == EdgeType.DIRECTED) {
             source = graph.getSource(edge);
             dest = graph.getDest(edge); 
         } else {
-            ArrayList<Vertex> vertices = new ArrayList<Vertex>(graph.getIncidentVertices(edge));
+            ArrayList<DesignerVertex> vertices = new ArrayList<DesignerVertex>(graph.getIncidentVertices(edge));
             source = vertices.get(0);
             dest = vertices.get(1);
         }

@@ -132,7 +132,7 @@ public class FeatureExtractor {
         args.require(
             ArgumentsParser.PARAM_CATALOG,
             ArgumentsParser.PARAM_WORKLOAD,
-            ArgumentsParser.PARAM_CORRELATIONS
+            ArgumentsParser.PARAM_MAPPINGS
         );
         
         FeatureExtractor extractor = new FeatureExtractor(args.catalog_db);

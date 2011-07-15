@@ -29,12 +29,13 @@ import org.voltdb.client.NoConnectionsException;
 import org.voltdb.client.ClientResponse;
 import org.voltdb.VoltTable;
 import org.voltdb.compiler.VoltProjectBuilder;
-import org.voltdb.benchmark.ClientMain;
 import org.voltdb.benchmark.multisite.procedures.ChangeSeat;
 import org.voltdb.benchmark.multisite.procedures.FindOpenSeats;
 import org.voltdb.benchmark.multisite.procedures.UpdateReservation;
 
-public class MultisiteClient extends ClientMain {
+import edu.brown.benchmark.BenchmarkComponent;
+
+public class MultisiteClient extends BenchmarkComponent {
 
     /*
      * BenchmarkController and ClientMain requirements
@@ -49,7 +50,7 @@ public class MultisiteClient extends ClientMain {
     }
 
     public static void main(String args[]) {
-        org.voltdb.benchmark.ClientMain.main(MultisiteClient.class, args, false);
+        edu.brown.benchmark.BenchmarkComponent.main(MultisiteClient.class, args, false);
     }
 
     public MultisiteClient(String[] args)
@@ -102,7 +103,7 @@ public class MultisiteClient extends ClientMain {
         m_projectBuilderClass = MultisiteProjectBuilder.class;
 
     /** Retrieved via reflection by BenchmarkController */
-    public static final Class<? extends ClientMain>
+    public static final Class<? extends BenchmarkComponent>
         m_loaderClass = org.voltdb.benchmark.multisite.Loader.class;
 
     /** Retrieved via reflection by BenchmarkController */
@@ -230,15 +231,5 @@ public class MultisiteClient extends ClientMain {
         return m_voltClient.callProcedure(new RunFindOpenSeats(),
                                    FindOpenSeats.class.getSimpleName(),
                                    fid);
-    }
-
-    @Override
-    public String getApplicationName() {
-        return "Multisite Benchmark";
-    }
-
-    @Override
-    public String getSubApplicationName() {
-        return "Client";
     }
 }

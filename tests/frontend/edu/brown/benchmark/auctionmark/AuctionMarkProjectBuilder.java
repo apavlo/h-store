@@ -31,16 +31,21 @@
  ***************************************************************************/
 package edu.brown.benchmark.auctionmark;
 
+
 import edu.brown.benchmark.AbstractProjectBuilder;
+import edu.brown.benchmark.BenchmarkComponent;
 import edu.brown.benchmark.auctionmark.procedures.*;
-import edu.brown.utils.ProjectType;
 
 /**
  * @author pavlo
  */
 public class AuctionMarkProjectBuilder extends AbstractProjectBuilder {
-    
-    public static final ProjectType type = ProjectType.AUCTIONMARK;
+
+    /** Retrieved via reflection by BenchmarkController */
+    public static final Class<? extends BenchmarkComponent> m_clientClass = AuctionMarkClient.class;
+
+    /** Retrieved via reflection by BenchmarkController */
+    public static final Class<? extends BenchmarkComponent> m_loaderClass = AuctionMarkLoader.class;
 
     public static final Class<?> PROCEDURES[] = new Class<?>[] {
         CheckWinningBids.class,
@@ -92,11 +97,7 @@ public class AuctionMarkProjectBuilder extends AbstractProjectBuilder {
         {AuctionMarkConstants.TABLENAME_ITEM_PURCHASE, "IP_IB_U_ID"},
     };
     
-    public static final Class<?> SUPPLMENTALS[] = new Class<?>[] {
-        // TODO(visawee)
-    };
-    
     public AuctionMarkProjectBuilder() {
-        super("auctionmark", AuctionMarkProjectBuilder.class, PROCEDURES, PARTITIONING, SUPPLMENTALS, true);
+        super("auctionmark", AuctionMarkProjectBuilder.class, PROCEDURES, PARTITIONING);
     }
 }

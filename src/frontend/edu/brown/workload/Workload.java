@@ -29,6 +29,7 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.OutputStream;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -98,12 +99,12 @@ public class Workload implements WorkloadTrace, Iterable<TransactionTrace> {
     private Database catalog_db;
 
     // The following data structures are specific to Transactions
-    private final transient List<TransactionTrace> xact_trace = new ArrayList<TransactionTrace>();
-    private final transient ListOrderedMap<Long, TransactionTrace> xact_trace_xref = new ListOrderedMap<Long, TransactionTrace>();
+    private final transient ListOrderedMap<Long, TransactionTrace> xact_trace = new ListOrderedMap<Long, TransactionTrace>();
     private final transient Map<TransactionTrace, Integer> trace_bach_id = new HashMap<TransactionTrace, Integer>();
 
     // Reverse mapping from QueryTraces to TxnIds
     private final transient Map<QueryTrace, Long> query_txn_xref = new ConcurrentHashMap<QueryTrace, Long>();
+    private transient int query_ctr = 0;
    
     // List of running queries in each batch per transaction
     // TXN_ID -> <BATCHID, COUNTER>
@@ -207,13 +208,13 @@ public class Workload implements WorkloadTrace, Iterable<TransactionTrace> {
             // Now figure out what the next element should be the next time next() is called
             int size = Workload.this.xact_trace.size();
             while (this.peek == null && this.idx++ < size) {
-                Long next_id = Workload.this.xact_trace_xref.get(this.idx - 1);
-                TransactionTrace element = Workload.this.xact_trace_xref.get(next_id);
+                Long next_id = Workload.this.xact_trace.get(this.idx - 1);
+                TransactionTrace element = Workload.this.xact_trace.get(next_id);
                 if (element == null) {
                     LOG.warn("idx: " + this.idx);
                     LOG.warn("next_id: " + next_id);
                     // System.err.println("elements: " + Workload.this.element_id_xref);
-                    LOG.warn("size: " + Workload.this.xact_trace_xref.size());
+                    LOG.warn("size: " + Workload.this.xact_trace.size());
                 }
                 if (this.filter == null || (this.filter != null && this.filter.apply(element) == Filter.FilterResult.ALLOW)) {
                     this.peek = element;
@@ -269,7 +270,7 @@ public class Workload implements WorkloadTrace, Iterable<TransactionTrace> {
         Iterator<TransactionTrace> it = workload.iterator(filter);
         while (it.hasNext()) {
             TransactionTrace txn = it.next();
-            this.addTransaction(txn.getCatalogItem(CatalogUtil.getDatabase(this.catalog)), txn);
+            this.addTransaction(txn.getCatalogItem(CatalogUtil.getDatabase(this.catalog)), txn, false);
         } // WHILE
     }
     
@@ -476,11 +477,19 @@ public class Workload implements WorkloadTrace, Iterable<TransactionTrace> {
     }
     
     /**
-     * Returns the number of transactions loaded into this AbstractWorkload object
+     * Returns the number of transactions loaded into this Workload object
      * @return
      */
     public int getTransactionCount() {
         return (this.xact_trace.size());
+    }
+    
+    /**
+     * Returns the number of queries loaded into this Workload object
+     * @return
+     */
+    public int getQueryCount() {
+        return (this.query_ctr);
     }
     
     /**
@@ -553,17 +562,17 @@ public class Workload implements WorkloadTrace, Iterable<TransactionTrace> {
     
     public Histogram<Integer> getTimeIntervalProcedureHistogram(int num_intervals) {
         final Histogram<Integer> h = new Histogram<Integer>();
-        for (TransactionTrace xact : this.getTransactions()) {
-            h.put(this.getTimeInterval(xact, num_intervals));
+        for (TransactionTrace txn_trace : this.getTransactions()) {
+            h.put(this.getTimeInterval(txn_trace, num_intervals));
         }
         return (h);
     }
     
     public Histogram<Integer> getTimeIntervalQueryHistogram(int num_intervals) {
         final Histogram<Integer> h = new Histogram<Integer>();
-        for (TransactionTrace xact : this.getTransactions()) {
-            int interval = this.getTimeInterval(xact, num_intervals);
-            int num_queries = xact.getQueryCount();
+        for (TransactionTrace txn_trace : this.getTransactions()) {
+            int interval = this.getTimeInterval(txn_trace, num_intervals);
+            int num_queries = txn_trace.getQueryCount();
             h.put(interval, num_queries);
         } // FOR
         return (h);
@@ -583,13 +592,12 @@ public class Workload implements WorkloadTrace, Iterable<TransactionTrace> {
     /**
      * Utility method to remove a transaction from the various data structures that
      * we have to keep track of it.
-     * @param xact the transaction handle to remove
+     * @param txn_trace the transaction handle to remove
      */
-    protected void removeTransaction(TransactionTrace xact) {
-        this.xact_trace.remove(xact);
-        this.xact_trace_xref.remove(xact.getTransactionId());
-        this.xact_open_queries.remove(xact.getTransactionId());
-        this.trace_bach_id.remove(xact);
+    protected void removeTransaction(TransactionTrace txn_trace) {
+        this.xact_trace.remove(txn_trace.getTransactionId());
+        this.xact_open_queries.remove(txn_trace.getTransactionId());
+        this.trace_bach_id.remove(txn_trace);
     }
     
     /**
@@ -604,36 +612,36 @@ public class Workload implements WorkloadTrace, Iterable<TransactionTrace> {
     /**
      * 
      * @param catalog_proc
-     * @param xact
+     * @param txn_trace
      * @param force_index_update
      */
-    protected synchronized void addTransaction(Procedure catalog_proc, TransactionTrace xact, boolean force_index_update) {
-        long txn_id = xact.getTransactionId();
-        this.xact_trace.add(xact);
-        this.xact_trace_xref.put(txn_id, xact);
+    protected synchronized void addTransaction(Procedure catalog_proc, TransactionTrace txn_trace, boolean force_index_update) {
+        long txn_id = txn_trace.getTransactionId();
+        this.xact_trace.put(txn_id, txn_trace);
         this.xact_open_queries.put(txn_id, new HashMap<Integer, AtomicInteger>());
         
         String proc_key = CatalogKey.createKey(catalog_proc);
         if (!this.proc_xact_xref.containsKey(proc_key)) {
             this.proc_xact_xref.put(proc_key, new ArrayList<TransactionTrace>());
         }
-        this.proc_xact_xref.get(proc_key).add(xact);
+        this.proc_xact_xref.get(proc_key).add(txn_trace);
         this.proc_histogram.put(proc_key);
         
-        if (this.min_start_timestamp == null || this.min_start_timestamp > xact.getStartTimestamp()) {
-            this.min_start_timestamp = xact.getStartTimestamp();
+        if (this.min_start_timestamp == null || this.min_start_timestamp > txn_trace.getStartTimestamp()) {
+            this.min_start_timestamp = txn_trace.getStartTimestamp();
         }
-        if (this.max_start_timestamp == null || this.max_start_timestamp < xact.getStartTimestamp()) {
-            this.max_start_timestamp = xact.getStartTimestamp();
+        if (this.max_start_timestamp == null || this.max_start_timestamp < txn_trace.getStartTimestamp()) {
+            this.max_start_timestamp = txn_trace.getStartTimestamp();
         }
+        this.query_ctr += txn_trace.getQueryCount();
     }
     
     /**
      * Returns an ordered collection of all the transactions
      * @return
      */
-    public List<TransactionTrace> getTransactions() {
-        return (this.xact_trace);
+    public Collection<TransactionTrace> getTransactions() {
+        return (this.xact_trace.values());
     }
     
     /**
@@ -642,7 +650,7 @@ public class Workload implements WorkloadTrace, Iterable<TransactionTrace> {
      * @return
      */
     public TransactionTrace getTransaction(long txn_id) { 
-        return this.xact_trace_xref.get(txn_id);
+        return this.xact_trace.get(txn_id);
     }
     
     /**
@@ -789,7 +797,7 @@ public class Workload implements WorkloadTrace, Iterable<TransactionTrace> {
         // Procedures we want to trace
         } else {
             xact_handle = new TransactionTrace(xact_id, catalog_proc, args);
-            this.addTransaction(catalog_proc, xact_handle);
+            this.addTransaction(catalog_proc, xact_handle, false);
             if (debug.get()) LOG.debug(String.format("Created %s TransactionTrace with %d parameters", proc_name, args.length));
             
             // HACK
@@ -1004,7 +1012,7 @@ public class Workload implements WorkloadTrace, Iterable<TransactionTrace> {
      */
     public String debug(Database catalog_db) {
         StringBuilder builder = new StringBuilder();
-        for (TransactionTrace xact : this.xact_trace) {
+        for (TransactionTrace xact : this.xact_trace.values()) {
             builder.append(xact.toJSONString(catalog_db));
         } // FOR
         JSONObject jsonObject = null;

@@ -11,7 +11,7 @@ import org.voltdb.types.ExpressionType;
 
 import edu.brown.BaseTestCase;
 import edu.brown.catalog.CatalogUtil;
-import edu.brown.correlations.ParameterCorrelations;
+import edu.brown.mappings.ParameterMappingsSet;
 import edu.brown.markov.TransactionEstimator.State;
 import edu.brown.markov.containers.MarkovGraphContainersUtil;
 import edu.brown.markov.containers.MarkovGraphsContainer;
@@ -44,11 +44,11 @@ public class TestTransactionEstimator extends BaseTestCase {
 
     private static Workload workload;
     private static MarkovGraphsContainer markovs;
-    private static ParameterCorrelations correlations;
+    private static ParameterMappingsSet correlations;
     private static TransactionTrace singlep_trace;
     private static TransactionTrace multip_trace;
     private static final Set<Integer> multip_partitions = new HashSet<Integer>();
-    private static final List<Vertex> multip_path = new ArrayList<Vertex>();
+    private static final List<MarkovVertex> multip_path = new ArrayList<MarkovVertex>();
     
     private TransactionEstimator t_estimator;
     private EstimationThresholds thresholds;
@@ -63,8 +63,8 @@ public class TestTransactionEstimator extends BaseTestCase {
         this.catalog_proc = this.getProcedure(TARGET_PROCEDURE);
         
         if (markovs == null) {
-            File file = this.getCorrelationsFile(ProjectType.TPCC);
-            correlations = new ParameterCorrelations();
+            File file = this.getParameterMappingsFile(ProjectType.TPCC);
+            correlations = new ParameterMappingsSet();
             correlations.load(file.getAbsolutePath(), catalog_db);
             
             Filter filter = new ProcedureNameFilter()
@@ -143,7 +143,7 @@ public class TestTransactionEstimator extends BaseTestCase {
         System.err.println(est.toString());
         
         MarkovGraph markov = markovs.get(BASE_PARTITION, this.catalog_proc);
-        List<Vertex> initial_path = state.getInitialPath();
+        List<MarkovVertex> initial_path = state.getInitialPath();
         assertFalse(initial_path.isEmpty());
         
         System.err.println("# of Vertices: " + markov.getVertexCount());
@@ -180,7 +180,7 @@ public class TestTransactionEstimator extends BaseTestCase {
      */
     @Test
     public void testProcessTransactionTrace() throws Exception {
-        TransactionTrace txn_trace = workload.getTransactions().get(0);
+        TransactionTrace txn_trace = CollectionUtil.getFirst(workload.getTransactions());
         assertNotNull(txn_trace);
         State s = this.t_estimator.processTransactionTrace(txn_trace);
         assertNotNull(s);
@@ -196,7 +196,7 @@ public class TestTransactionEstimator extends BaseTestCase {
             assertNotNull(est);
             
             // The last vertex in each MarkovEstimate should correspond to the last query in each batch
-            Vertex last_v = est.getVertex();
+            MarkovVertex last_v = est.getVertex();
             assertNotNull(last_v);
             assertEquals(CollectionUtil.getLast(queries).getCatalogItem(catalog_db), last_v.getCatalogItem());
         } // FOR

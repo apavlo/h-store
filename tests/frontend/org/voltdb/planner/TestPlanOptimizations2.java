@@ -12,7 +12,6 @@ import org.voltdb.catalog.Column;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Statement;
 import org.voltdb.catalog.Table;
-import org.voltdb.compiler.VoltProjectBuilder;
 import org.voltdb.expressions.AbstractExpression;
 import org.voltdb.expressions.TupleValueExpression;
 import org.voltdb.plannodes.AbstractJoinPlanNode;
@@ -27,6 +26,7 @@ import org.voltdb.types.ExpressionType;
 import org.voltdb.types.PlanNodeType;
 
 import edu.brown.BaseTestCase;
+import edu.brown.benchmark.AbstractProjectBuilder;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.catalog.QueryPlanUtil;
 import edu.brown.expressions.ExpressionTreeWalker;
@@ -39,7 +39,7 @@ import edu.brown.utils.CollectionUtil;
  */
 public class TestPlanOptimizations2 extends BaseTestCase {
 
-    private VoltProjectBuilder pb = new VoltProjectBuilder("test-planopt") {
+    private AbstractProjectBuilder pb = new AbstractProjectBuilder("test-planopt", AbstractProjectBuilder.class, null, null) {
         {
             File schema = new File(TestPlanOptimizations2.class.getResource("testopt-ddl.sql").getFile());
             assert (schema.exists()) : "Schema: " + schema;
@@ -50,7 +50,9 @@ public class TestPlanOptimizations2 extends BaseTestCase {
             this.addPartitionInfo("TABLEC", "C_A_ID");
 
             this.addStmtProcedure("DistinctAggregate",
-            "SELECT COUNT(DISTINCT(TABLEB.B_ID)) AS DISTINCTNUMBER FROM TABLEA, TABLEB WHERE TABLEA.A_ID = TABLEB.B_A_ID AND TABLEA.A_ID = ? AND TABLEB.B_ID < ?");
+                                  "SELECT COUNT(DISTINCT(TABLEB.B_ID)) AS DISTINCTNUMBER " +
+                                  "FROM TABLEA, TABLEB " +
+                                  "WHERE TABLEA.A_ID = TABLEB.B_A_ID AND TABLEA.A_ID = ? AND TABLEB.B_ID < ?");
             this.addStmtProcedure("DistinctCount", "SELECT COUNT(DISTINCT(TABLEB.B_A_ID)) FROM TABLEB");
             this.addStmtProcedure("MaxGroup", "SELECT B_ID, Max(TABLEB.B_A_ID) FROM TABLEB GROUP BY B_ID");
             this.addStmtProcedure("Max", "SELECT Max(TABLEB.B_A_ID) FROM TABLEB");
@@ -58,13 +60,16 @@ public class TestPlanOptimizations2 extends BaseTestCase {
             this.addStmtProcedure("Aggregate", "SELECT COUNT(TABLEB.B_A_ID) AS cnt FROM TABLEB");
             this.addStmtProcedure("Limit", "SELECT * FROM TABLEA WHERE TABLEA.A_ID > ? AND TABLEA.A_ID <= ? AND TABLEA.A_VALUE0 != ? LIMIT 15");
             this.addStmtProcedure("LimitJoin", "SELECT TABLEA.A_ID,TABLEB.B_ID FROM TABLEA, TABLEB WHERE TABLEA.A_ID > ? AND TABLEA.A_ID = TABLEB.B_A_ID LIMIT 15");
-            this
-                    .addStmtProcedure(
-                            "ThreeWayJoin",
-                            "SELECT TABLEA.A_VALUE0, TABLEB.B_VALUE0, ((TABLEC.C_VALUE0 + TABLEC.C_VALUE1) / TABLEB.B_A_ID) AS blah FROM TABLEA, TABLEB, TABLEC WHERE TABLEA.A_ID = TABLEB.B_A_ID AND TABLEA.A_ID = TABLEC.C_A_ID AND TABLEA.A_VALUE3 = ? AND TABLEC.C_A_ID = ? AND TABLEC.C_VALUE0 != ? AND TABLEC.C_VALUE1 != ?");
+            this.addStmtProcedure("ThreeWayJoin",
+                                  "SELECT TABLEA.A_VALUE0, TABLEB.B_VALUE0, ((TABLEC.C_VALUE0 + TABLEC.C_VALUE1) / TABLEB.B_A_ID) AS blah " +
+                                  "FROM TABLEA, TABLEB, TABLEC " +
+                                  "WHERE TABLEA.A_ID = TABLEB.B_A_ID AND TABLEA.A_ID = TABLEC.C_A_ID AND TABLEA.A_VALUE3 = ? " +
+                                  "  AND TABLEC.C_A_ID = ? AND TABLEC.C_VALUE0 != ? AND TABLEC.C_VALUE1 != ?");
             this.addStmtProcedure("SingleProjection", "SELECT TABLEA.A_VALUE0 FROM TABLEA WHERE TABLEA.A_ID = ?");
             this.addStmtProcedure("JoinProjection",
-                    "SELECT TABLEA.A_ID, TABLEA.A_VALUE0, TABLEA.A_VALUE1, TABLEA.A_VALUE2, TABLEA.A_VALUE3, TABLEA.A_VALUE4 FROM TABLEA,TABLEB WHERE TABLEA.A_ID = ? AND TABLEA.A_ID = TABLEB.B_A_ID");
+                                  "SELECT TABLEA.A_ID, TABLEA.A_VALUE0, TABLEA.A_VALUE1, TABLEA.A_VALUE2, TABLEA.A_VALUE3, TABLEA.A_VALUE4 " +
+                                  "FROM TABLEA,TABLEB " +
+                                  "WHERE TABLEA.A_ID = ? AND TABLEA.A_ID = TABLEB.B_A_ID");
             this.addStmtProcedure("AggregateColumnAddition", "SELECT AVG(TABLEC.C_VALUE0), C_A_ID FROM TABLEC WHERE TABLEC.C_ID = ? GROUP BY C_A_ID");
             this.addStmtProcedure("OrderBy", "SELECT TABLEC.C_A_ID FROM TABLEC ORDER BY TABLEC.C_A_ID, TABLEC.C_VALUE0");
             this.addStmtProcedure("GroupBy", "SELECT MAX(TABLEC.C_ID) FROM TABLEC GROUP BY TABLEC.C_A_ID, TABLEC.C_VALUE0");

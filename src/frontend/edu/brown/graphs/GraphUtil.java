@@ -238,6 +238,9 @@ public abstract class GraphUtil {
         
         // Vertices
         String v_className = jsonObject.getString(Members.VERTEX_CLASS.name());
+        
+        // 2011-07-13: Fix for MarkovVertex
+        v_className = v_className.replace("markov.Vertex", "markov.MarkovVertex");
         Class<V> v_class = (Class<V>)ClassUtil.getClass(v_className);
         if (debug.get()) LOG.debug("Vertex class is '" + v_class.getName() + "'");
         
@@ -259,6 +262,9 @@ public abstract class GraphUtil {
         // If the EDGE_CLASS is missing, don't bother loading any edges
         if (jsonObject.has(Members.EDGE_CLASS.name())) {
             String e_className = jsonObject.getString(Members.EDGE_CLASS.name());
+            
+            // 2011-07-13: Fix for MarkovVertex
+            e_className = e_className.replace("markov.Edge", "markov.MarkovEdge");
             Class<E> e_class = (Class<E>)ClassUtil.getClass(e_className);
             if (debug.get()) LOG.debug("Edge class is '" + v_class.getName() + "'");
             

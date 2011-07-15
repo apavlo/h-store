@@ -1,3 +1,28 @@
+/***************************************************************************
+ *   Copyright (C) 2011 by H-Store Project                                 *
+ *   Brown University                                                      *
+ *   Massachusetts Institute of Technology                                 *
+ *   Yale University                                                       *
+ *                                                                         *
+ *   Permission is hereby granted, free of charge, to any person obtaining *
+ *   a copy of this software and associated documentation files (the       *
+ *   "Software"), to deal in the Software without restriction, including   *
+ *   without limitation the rights to use, copy, modify, merge, publish,   *
+ *   distribute, sublicense, and/or sell copies of the Software, and to    *
+ *   permit persons to whom the Software is furnished to do so, subject to *
+ *   the following conditions:                                             *
+ *                                                                         *
+ *   The above copyright notice and this permission notice shall be        *
+ *   included in all copies or substantial portions of the Software.       *
+ *                                                                         *
+ *   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,       *
+ *   EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF    *
+ *   MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.*
+ *   IN NO EVENT SHALL THE AUTHORS BE LIABLE FOR ANY CLAIM, DAMAGES OR     *
+ *   OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, *
+ *   ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR *
+ *   OTHER DEALINGS IN THE SOFTWARE.                                       *
+ ***************************************************************************/
 package edu.brown;
 
 import java.io.File;
@@ -32,11 +57,12 @@ import edu.brown.catalog.CatalogUtil;
 import edu.brown.catalog.ClusterConfiguration;
 import edu.brown.catalog.FixCatalog;
 import edu.brown.catalog.ParametersUtil;
-import edu.brown.correlations.ParameterCorrelations;
+import edu.brown.mappings.ParameterMappingsSet;
 import edu.brown.utils.FileUtil;
 import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.PartitionEstimator;
 import edu.brown.utils.ProjectType;
+import edu.brown.utils.ThreadUtil;
 import edu.mit.hstore.HStoreConf;
 
 /**
@@ -62,6 +88,9 @@ public abstract class BaseTestCase extends TestCase {
         
         // HStoreConf Hack
         HStoreConf.init(null, null);
+        
+        // Force everything to be single-threaded
+        ThreadUtil.setMaxGlobalThreads(2);
     }
     
     
@@ -100,7 +129,7 @@ public abstract class BaseTestCase extends TestCase {
         this.setUp(type, fkeys, true);
     }
     
-    protected void setUp(VoltProjectBuilder projectBuilder) throws Exception {
+    protected void setUp(AbstractProjectBuilder projectBuilder) throws Exception {
         super.setUp();
         this.last_type = ProjectType.TEST;
         catalog = project_catalogs.get(this.last_type);
@@ -109,7 +138,7 @@ public abstract class BaseTestCase extends TestCase {
         
         
         if (catalog == null) {
-            String catalogJar = new File(projectBuilder.getProjectName() + ".jar").getAbsolutePath();
+            String catalogJar = new File(projectBuilder.getJarName(true)).getAbsolutePath();
             try {
                 boolean status = projectBuilder.compile(catalogJar);
                 assert (status);
@@ -148,7 +177,7 @@ public abstract class BaseTestCase extends TestCase {
         if (catalog == null) {
             AbstractProjectBuilder projectBuilder = AbstractProjectBuilder.getProjectBuilder(type);
             if (ENABLE_JAR_REUSE) {
-                File jar_path = projectBuilder.getJarPath();
+                File jar_path = projectBuilder.getJarPath(true);
                 if (jar_path.exists()) {
                     LOG.debug("LOAD CACHE JAR: " + jar_path.getAbsolutePath());
                     catalog = CatalogUtil.loadCatalogFromJar(jar_path.getAbsolutePath());
@@ -225,7 +254,7 @@ public abstract class BaseTestCase extends TestCase {
                 assert(false) : "Invalid project type - " + type;
         } // SWITCH
         assert(projectBuilder != null);
-        return (projectBuilder.getJarPath());
+        return (projectBuilder.getJarPath(true));
     }
     
     /**
@@ -250,9 +279,9 @@ public abstract class BaseTestCase extends TestCase {
     protected void applyCatalogCorrelations(ProjectType type) throws Exception {
         // We need the correlations file in order to make sure the parameters 
         // get mapped properly
-        File correlations_path = this.getCorrelationsFile(type);
+        File correlations_path = this.getParameterMappingsFile(type);
         if (correlations_path != null) {
-            ParameterCorrelations correlations = new ParameterCorrelations();
+            ParameterMappingsSet correlations = new ParameterMappingsSet();
             correlations.load(correlations_path.getAbsolutePath(), catalog_db);
             ParametersUtil.applyParameterCorrelations(catalog_db, correlations);
         }
@@ -439,8 +468,8 @@ public abstract class BaseTestCase extends TestCase {
      * @return
      * @throws IOException
      */
-    public File getCorrelationsFile(ProjectType type) throws IOException {
-        return (this.getProjectFile(new File(".").getCanonicalFile(), type, "correlations", ".correlations"));
+    public File getParameterMappingsFile(ProjectType type) throws IOException {
+        return (this.getProjectFile(new File(".").getCanonicalFile(), type, "mappings", ".mappings"));
     }
     
     /**

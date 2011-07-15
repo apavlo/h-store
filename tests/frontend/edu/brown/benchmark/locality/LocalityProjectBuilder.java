@@ -25,10 +25,17 @@
  ***************************************************************************/
 package edu.brown.benchmark.locality;
 
+
 import edu.brown.benchmark.AbstractProjectBuilder;
+import edu.brown.benchmark.BenchmarkComponent;
 import edu.brown.benchmark.locality.procedures.*;
 
 public class LocalityProjectBuilder extends AbstractProjectBuilder {
+
+    /** Retrieved via reflection by BenchmarkController */
+    public static final Class<? extends BenchmarkComponent> m_clientClass = LocalityClient.class;
+    /** Retrieved via reflection by BenchmarkController */
+    public static final Class<? extends BenchmarkComponent> m_loaderClass = LocalityLoader.class;
 
     public static final Class<?> PROCEDURES[] = new Class<?>[] {
         GetLocal.class,

@@ -26,17 +26,19 @@
 package edu.brown.benchmark.locality;
 
 import java.lang.reflect.Field;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
 
 import org.apache.log4j.Logger;
-import org.voltdb.*;
-import org.voltdb.benchmark.*;
+import org.voltdb.VoltTable;
 
-import edu.brown.statistics.Histogram;
+import edu.brown.benchmark.BenchmarkComponent;
 
-public class LocalityLoader extends ClientMain {
-    private static final Logger LOG = Logger.getLogger(LocalityLoader.class.getSimpleName());
+public class LocalityLoader extends BenchmarkComponent {
+    private static final Logger LOG = Logger.getLogger(LocalityLoader.class);
     
     // Composite Id
     private static final long COMPOSITE_ID_MASK = 4294967295l; // (2^32)-1
@@ -48,10 +50,6 @@ public class LocalityLoader extends ClientMain {
     // When set to true, all operations will run single-threaded
     private boolean debug = true;
     
-    // Histograms
-    // TableName -> Histogram for A_ID
-    private final Map<String, Histogram> histograms = new HashMap<String, Histogram>();
-    
     // Data Generator Classes
     // TableName -> AbstactTableGenerator
     private final Map<String, AbstractTableGenerator> generators = new HashMap<String, AbstractTableGenerator>();
@@ -61,7 +59,7 @@ public class LocalityLoader extends ClientMain {
     private final Map<String, AtomicLong> table_sizes = new HashMap<String, AtomicLong>();
     
     public static void main(String args[]) throws Exception {
-        org.voltdb.benchmark.ClientMain.main(LocalityLoader.class, args, true);
+        edu.brown.benchmark.BenchmarkComponent.main(LocalityLoader.class, args, true);
     }
     
     /**
@@ -83,7 +81,6 @@ public class LocalityLoader extends ClientMain {
         
         // Histograms + Table Sizes + Generators
         for (String tableName : LocalityConstants.TABLENAMES) {
-            this.histograms.put(tableName, new Histogram());
             this.table_sizes.put(tableName, new AtomicLong(0l));
             
             if (tableName.equals(LocalityConstants.TABLENAME_TABLEA)) {
@@ -127,7 +124,7 @@ public class LocalityLoader extends ClientMain {
             System.exit(-1);
         }
 
-        System.err.println("Finished generating data for all tables");
+        LOG.info("Finished generating data for all tables");
     }
     
     /**
@@ -135,30 +132,31 @@ public class LocalityLoader extends ClientMain {
      * @param tableName
      */
     protected void generateTableData(String tableName) {
-        System.out.println("Starting data generator for '" + tableName + "'");
+        LOG.debug("Starting data generator for '" + tableName + "'");
         final AbstractTableGenerator generator = this.generators.get(tableName);
         assert(generator != null);
         long tableSize = generator.getTableSize();
         long batchSize = generator.getBatchSize();
+        final AtomicLong table_ctr = this.table_sizes.get(tableName); 
         VoltTable table = generator.getVoltTable();
         
-        System.out.println("Loading " + tableSize + " tuples for table '" + tableName + "'");
+        LOG.info("Loading " + tableSize + " tuples for table '" + tableName + "'");
         while (generator.hasMore()) {
             generator.addRow();
             if (table.getRowCount() >= batchSize) {
-                System.err.println(String.format(tableName + ": loading %d rows (id %d of %d)", table.getRowCount(), generator.getCount(), tableSize));
+                if (table_ctr.get() % 100000 == 0) LOG.info(String.format(tableName + ": loading %d rows (id %d of %d)", table.getRowCount(), generator.getCount(), tableSize));
                 loadTable(tableName, table);
-                this.table_sizes.get(tableName).addAndGet(table.getRowCount());
+                table_ctr.addAndGet(table.getRowCount());
                 table.clearRowData();
             }
         } // WHILE
         if (table.getRowCount() > 0) {
-            System.err.println(tableName + ": loading final " + table.getRowCount() + " rows.");
+            LOG.info(tableName + ": loading final " + table.getRowCount() + " rows.");
             loadTable(tableName, table);
             this.table_sizes.get(tableName).addAndGet(table.getRowCount());
             table.clearRowData();
         }
-        System.out.println(tableName + ": Inserted " + this.table_sizes.get(tableName) + " tuples");
+        LOG.info(tableName + ": Inserted " + this.table_sizes.get(tableName) + " tuples");
     }
     
     /**
@@ -193,7 +191,6 @@ public class LocalityLoader extends ClientMain {
     protected abstract class AbstractTableGenerator {
         protected final String tableName;
         protected final VoltTable table;
-        protected final Histogram hist;
         protected Long tableSize;
         protected Long batchSize;
         
@@ -203,9 +200,6 @@ public class LocalityLoader extends ClientMain {
         public AbstractTableGenerator(String tableName, VoltTable table) {
             this.tableName = tableName;
             this.table = table;
-            this.hist = LocalityLoader.this.histograms.get(this.tableName);
-            assert(hist != null);
-            
             this.row = new Object[this.table.getColumnCount()];
             
             // Initialize dynamic parameters
@@ -223,7 +217,7 @@ public class LocalityLoader extends ClientMain {
                 LOG.error(ex);
                 System.exit(1);
             }
-            System.out.println("Preparing to load " + this.tableSize + " tuples for '" + this.tableName + "' [batchSize=" + this.batchSize + "]");
+            LOG.info("Preparing to load " + this.tableSize + " tuples for '" + this.tableName + "' [batchSize=" + this.batchSize + "]");
         }
         
         public boolean hasMore() {
@@ -337,16 +331,6 @@ public class LocalityLoader extends ClientMain {
             e.printStackTrace();
             System.exit(-1);
         }
-    }
-    
-    @Override
-    public String getApplicationName() {
-        return "Locality Benchmark";
-    }
-
-    @Override
-    public String getSubApplicationName() {
-        return "Loader";
     }
 }
 

@@ -70,23 +70,17 @@ public abstract class AirlineConstants {
     /**
      * Histogram Data Set Names
      */
-    public static final String HISTOGRAM_FLIGHTS_PER_AIRLINE = "AIRLINE_FLIGHTS";
-    public static final String HISTOGRAM_POPULATION_PER_AIRPORT = "AIRPORT_POPULATION";
-    public static final String HISTOGRAM_FLIGHTS_PER_AIRPORT = "AIRPORT_FLIGHTS";
-    public static final String HISTOGRAM_FLIGHT_DEPART_TIMES = "FLIGHT_DEPART_TIMES";
+    public static final String HISTOGRAM_FLIGHTS_PER_AIRPORT = "flights_per_airport";
+    public static final String HISTOGRAM_FLIGHTS_PER_DEPART_TIMES = "flights_per_time";
     
-    //
     // Tables that are loaded from data files
-    //
     public static final String TABLE_DATA_FILES[] = {
         AirlineConstants.TABLENAME_COUNTRY,
         AirlineConstants.TABLENAME_AIRPORT,
         AirlineConstants.TABLENAME_AIRLINE,
     };
     
-    //
     // Tables generated from random data
-    //
     public static final String TABLE_SCALING[] = {
         AirlineConstants.TABLENAME_CUSTOMER,
         AirlineConstants.TABLENAME_FREQUENT_FLYER,
@@ -95,13 +89,9 @@ public abstract class AirlineConstants {
         AirlineConstants.TABLENAME_RESERVATION,
     };
     
-    //
     // Histograms generated from data files
-    //
     public static final String HISTOGRAM_DATA_FILES[] = {
-        AirlineConstants.HISTOGRAM_POPULATION_PER_AIRPORT,
-        AirlineConstants.HISTOGRAM_FLIGHTS_PER_AIRLINE,
         AirlineConstants.HISTOGRAM_FLIGHTS_PER_AIRPORT,
-        AirlineConstants.HISTOGRAM_FLIGHT_DEPART_TIMES,
+        AirlineConstants.HISTOGRAM_FLIGHTS_PER_DEPART_TIMES,
     };
 }

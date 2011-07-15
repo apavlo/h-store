@@ -9,12 +9,12 @@ import org.voltdb.catalog.Statement;
 import org.voltdb.types.QueryType;
 
 import edu.brown.graphs.VertexTreeWalker;
-import edu.brown.markov.Vertex.Type;
+import edu.brown.markov.MarkovVertex.Type;
 import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.StringUtil;
 import edu.brown.utils.LoggerUtil.LoggerBoolean;
 
-public class MarkovProbabilityCalculator extends VertexTreeWalker<Vertex, Edge> {
+public class MarkovProbabilityCalculator extends VertexTreeWalker<MarkovVertex, MarkovEdge> {
     private static final Logger LOG = Logger.getLogger(MarkovProbabilityCalculator.class);
     private final static LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private final static LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
@@ -22,7 +22,7 @@ public class MarkovProbabilityCalculator extends VertexTreeWalker<Vertex, Edge> 
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
     
-    private final Set<Edge> visited_edges = new HashSet<Edge>();
+    private final Set<MarkovEdge> visited_edges = new HashSet<MarkovEdge>();
     private final Collection<Integer> all_partitions;
     private MarkovEstimate markov_est;
     
@@ -47,7 +47,7 @@ public class MarkovProbabilityCalculator extends VertexTreeWalker<Vertex, Edge> 
     }
     
     @Override
-    protected void callback(Vertex element) {
+    protected void callback(MarkovVertex element) {
         MarkovGraph markov = (MarkovGraph)this.getGraph();
         // HACK
         Estimation est = (this.markov_est != null ? this.markov_est : element);
@@ -57,7 +57,7 @@ public class MarkovProbabilityCalculator extends VertexTreeWalker<Vertex, Edge> 
         Type vtype = element.getType(); 
         
         // COMMIT/ABORT is always single-partitioned!
-        if (vtype == Vertex.Type.COMMIT || vtype == Vertex.Type.ABORT) {
+        if (vtype == MarkovVertex.Type.COMMIT || vtype == MarkovVertex.Type.ABORT) {
             if (trace.get()) LOG.trace(element + " is single-partitioned!");
             est.setSingleSitedProbability(1.0f);
             
@@ -70,7 +70,7 @@ public class MarkovProbabilityCalculator extends VertexTreeWalker<Vertex, Edge> 
             } // FOR
             
             // Abort Probability
-            if (vtype == Vertex.Type.ABORT) {
+            if (vtype == MarkovVertex.Type.ABORT) {
                 est.setAbortProbability(1.0f);
             } else {
                 est.setAbortProbability(0.0f);
@@ -93,10 +93,10 @@ public class MarkovProbabilityCalculator extends VertexTreeWalker<Vertex, Edge> 
             Statement catalog_stmt = element.getCatalogItem();
             QueryType qtype = QueryType.get(catalog_stmt.getQuerytype());
             
-            Collection<Edge> edges = markov.getOutEdges(element);
-            for (Edge e : edges) {
+            Collection<MarkovEdge> edges = markov.getOutEdges(element);
+            for (MarkovEdge e : edges) {
                 if (visited_edges.contains(e)) continue;
-                Vertex successor = markov.getDest(e);
+                MarkovVertex successor = markov.getDest(e);
                 assert(successor != null);
                 assert(successor.isSingleSitedProbabilitySet()) : "Setting " + element + " BEFORE " + successor;
 
@@ -161,7 +161,7 @@ public class MarkovProbabilityCalculator extends VertexTreeWalker<Vertex, Edge> 
         this.markov_est = null;
     }
     
-    public static MarkovEstimate generate(MarkovGraph markov, Vertex v) {
+    public static MarkovEstimate generate(MarkovGraph markov, MarkovVertex v) {
         MarkovProbabilityCalculator calc = new MarkovProbabilityCalculator(markov);
         calc.stopAtElement(v);
         MarkovEstimate est = new MarkovEstimate(calc.all_partitions.size());

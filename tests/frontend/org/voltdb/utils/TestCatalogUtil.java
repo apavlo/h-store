@@ -80,6 +80,9 @@ public class TestCatalogUtil extends TestCase {
             for (Constraint catalog_const : catalog_tbl.getConstraints()) {
                 ConstraintType const_type = ConstraintType.get(catalog_const.getType());
                 Index catalog_idx = catalog_const.getIndex();
+                // 2011-07-15: Skip all foreign keys
+                if (catalog_const.getType() == ConstraintType.FOREIGN_KEY.getValue()) continue;
+                assertNotNull("Missing index for " + catalog_const.fullName(), catalog_idx);
                 List<ColumnRef> columns = CatalogUtil.getSortedCatalogItems(catalog_idx.getColumns(), "index");
 
                 if (!columns.isEmpty()) {

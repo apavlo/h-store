@@ -26,8 +26,10 @@
 package edu.brown.costmodel;
 
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -80,7 +82,7 @@ public abstract class AbstractCostModel {
     /**
      * Enable Entropy Calculations (if supported)
      */
-    protected boolean use_entropy = true;
+    protected boolean use_skew = true;
     protected boolean use_entropy_txns = true;
     protected boolean use_entropy_java = false;
     
@@ -94,7 +96,7 @@ public abstract class AbstractCostModel {
      * Weights
      */
     protected double execution_weight = 1.0;
-    protected double entropy_weight = 1.0;
+    protected double skew_weight = 1.0;
     protected double entropy_weight_txn = 1.0;
     protected int entropy_weight_java = 1;
     protected double multipartition_penalty = 1.0;
@@ -330,8 +332,8 @@ public abstract class AbstractCostModel {
     public void applyDesignerHints(DesignerHints hints) {
         this.setCachingEnabled(hints.enable_costmodel_caching);
         
-        this.setEntropyEnabled(hints.enable_costmodel_entropy);
-        this.setEntropyWeight(hints.weight_costmodel_entropy);
+        this.setEntropyEnabled(hints.enable_costmodel_skew);
+        this.setEntropyWeight(hints.weight_costmodel_skew);
         
         this.setExecutionCostEnabled(hints.enable_costmodel_execution);
         this.setExecutionWeight(hints.weight_costmodel_execution);
@@ -400,18 +402,18 @@ public abstract class AbstractCostModel {
     // ----------------------------------------------------------------------------
     
     public boolean isEntropyEnabled() {
-        return use_entropy;
+        return use_skew;
     }
     public void setEntropyEnabled(boolean entropy) {
         LOG.debug("Cost Model Entropy: " + (entropy ? "ENABLED" : "DISABLED"));
-        this.use_entropy = entropy;
+        this.use_skew = entropy;
     }
     public void setEntropyWeight(double weight) {
         LOG.debug("Entropy Cost Weight: " + weight);
-        this.entropy_weight = weight;
+        this.skew_weight = weight;
     }
     public double getEntropyWeight() {
-        return (this.entropy_weight);
+        return (this.skew_weight);
     }
     
     // ----------------------------------------------------------------------------
@@ -513,7 +515,7 @@ public abstract class AbstractCostModel {
      * Invalidate a table's cache entry
      * @param catalog_tbl
      */
-    public <T extends CatalogType> void invalidateCache(T catalog_item) {
+    public void invalidateCache(CatalogType catalog_item) {
         this.invalidateCache(CatalogKey.createKey(catalog_item));
     }
     
@@ -534,10 +536,11 @@ public abstract class AbstractCostModel {
     /**
      * 
      * @param workload
+     * @param upper_bound TODO
      * @return
      * @throws Exception
      */
-    public double estimateCost(Database catalog_db, Workload workload, Filter filter) throws Exception {
+    public double estimateCost(Database catalog_db, Workload workload, Filter filter, Double upper_bound) throws Exception {
         this.prepare(catalog_db);
         double cost = 0.0d;
         
@@ -551,6 +554,10 @@ public abstract class AbstractCostModel {
                 LOG.error("Failed to estimate cost for " + xact.getCatalogItemName());
                 CatalogUtil.saveCatalog(catalog_db.getCatalog(), "catalog.txt");
                 throw ex;
+            }
+            if (upper_bound != null && cost > upper_bound.doubleValue()) {
+                LOG.debug("Exceeded upper bound. Halting estimation early!");
+                break;
             }
         } // WHILE
         return (cost);
@@ -574,7 +581,7 @@ public abstract class AbstractCostModel {
      * @throws Exception
      */
     public final double estimateCost(Database catalog_db, Workload workload) throws Exception {
-        return (this.estimateCost(catalog_db, workload, null));
+        return (this.estimateCost(catalog_db, workload, null, null));
     }
 
     /**
@@ -602,27 +609,30 @@ public abstract class AbstractCostModel {
      * Debug string of all the histograms
      * @return
      */
+    @SuppressWarnings("unchecked")
     public String debugHistograms() {
-        StringBuilder sb = new StringBuilder();
-        
-        // Execution
-        sb.append("Java Execution Partitions Histogram\n")
-          .append(StringUtil.SINGLE_LINE)
-          .append(this.histogram_java_partitions)
-          .append("\n");
+        int num_histograms = 6;
+        Map<String, Object> maps[] = new Map[num_histograms];
+        int i = -1;
 
-        // Transaction Access
-        sb.append("Txn Partition Access Histogram\n")
-          .append(StringUtil.SINGLE_LINE)
-          .append(this.histogram_txn_partitions)
-          .append("\n");
+        maps[++i] = new HashMap<String, Object>();
+        maps[i].put("Procedures", this.histogram_procs);
 
-        // Query Access
-        sb.append("Query Partition Access Histogram\n")
-          .append(StringUtil.SINGLE_LINE)
-          .append(this.histogram_query_partitions)
-          .append("\n");
+        maps[++i] = new HashMap<String, Object>();
+        maps[i].put("Single Partition Txns", this.histogram_sp_procs);
         
-        return (sb.toString());
+        maps[++i] = new HashMap<String, Object>();
+        maps[i].put("Multi Partition Txns", this.histogram_mp_procs);
+        
+        maps[++i] = new HashMap<String, Object>();
+        maps[i].put("Java Execution Partitions", this.histogram_java_partitions);
+        
+        maps[++i] = new HashMap<String, Object>();
+        maps[i].put("Txn Partition Access", this.histogram_txn_partitions);
+        
+        maps[++i] = new HashMap<String, Object>();
+        maps[i].put("Query Partition Access", this.histogram_query_partitions);
+        
+        return (StringUtil.formatMaps(maps));
     }
 }

@@ -119,7 +119,8 @@ public class TestDesignerUtil extends BaseTestCase {
             assertNotNull(catalog_col);
             expected_columns.add(Pair.of(catalog_col, catalog_col.getIndex()));
         } // FOR
-        // System.err.println("EXPECTED:\n" + StringUtil.join("\n", expected_columns));
+        System.err.println(StringUtil.columns("EXPECTED:\n" + StringUtil.join("\n", expected_columns),
+                                              "ACTUAL:\n" + StringUtil.join("\n", cset)));
         
         this.checkColumnSet(cset, expected_columns);
     }

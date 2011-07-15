@@ -1,9 +1,17 @@
 package edu.brown.benchmark.airline;
 
+
 import edu.brown.benchmark.AbstractProjectBuilder;
+import edu.brown.benchmark.BenchmarkComponent;
 import edu.brown.benchmark.airline.procedures.*;
 
 public class AirlineProjectBuilder extends AbstractProjectBuilder {
+    
+    /** Retrieved via reflection by BenchmarkController */
+    public static final Class<? extends BenchmarkComponent> m_clientClass = AirlineClient.class;
+
+    /** Retrieved via reflection by BenchmarkController */
+    public static final Class<? extends BenchmarkComponent> m_loaderClass = AirlineLoader.class;
 
     public static final Class<?> PROCEDURES[] = new Class<?>[] {
         ChangeSeat.class,
