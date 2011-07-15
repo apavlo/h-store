@@ -33,8 +33,10 @@ import org.voltdb.compiler.VoltProjectBuilder;
 import org.voltdb.client.ClientResponse;
 import org.voltdb.VoltTable;
 
+import edu.brown.benchmark.BenchmarkComponent;
+
 /** TPC-C client load generator. */
-public class BlobTortureClient extends ClientMain {
+public class BlobTortureClient extends BenchmarkComponent {
     @SuppressWarnings("unused")
     private static final Logger LOG = Logger.getLogger(BlobTortureClient.class.getName());
 
@@ -57,7 +59,7 @@ public class BlobTortureClient extends ClientMain {
     }
 
     public static void main(String[] args) {
-        ClientMain.main(BlobTortureClient.class, args, false);
+        BenchmarkComponent.main(BlobTortureClient.class, args, false);
     }
 
     @Override
@@ -146,26 +148,6 @@ public class BlobTortureClient extends ClientMain {
         return m_voltClient.callProcedure( m_callback, "SelectBlob", blobId);
     }
 
-    /**
-     * Retrieved via reflection by BenchmarkController
-     */
-    public static final Class<? extends VoltProjectBuilder> m_projectBuilderClass = BlobTortureProjectBuilder.class;
-    /**
-     * Retrieved via reflection by BenchmarkController
-     */
-    public static final Class<? extends ClientMain> m_loaderClass = null;
-    /**
-     * Retrieved via reflection by BenchmarkController
-     */
-    public static final String m_jarFileName = "blobtorture.jar";
 
-    @Override
-    public String getApplicationName() {
-        return "Blob Torture";
-    }
 
-    @Override
-    public String getSubApplicationName() {
-        return "Client";
-    }
 }

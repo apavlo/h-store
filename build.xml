@@ -96,7 +96,7 @@
     <not><isset property="benchmark.conf"/></not>
 </condition>
 <property file="${benchmark.conf}" prefix="benchmark" />
-<fail message="Invalid benchmark project '${project}'" unless="benchmark.client" />
+<fail message="Invalid benchmark project '${project}'" unless="benchmark.builder" />
 
 <property name="benchmark.jar" location="${project}.jar" />
 <condition property="jar" value="${benchmark.jar}">
@@ -1432,7 +1432,7 @@ BENCHMARKS
     description="Deploy a cluster and run a benchmark">
 	
     <java fork="true" failonerror="true"
-        classname="org.voltdb.benchmark.BenchmarkController">
+        classname="edu.brown.benchmark.BenchmarkController">
         <classpath refid='project.classpath' />
         <jvmarg value="-server" />
         <jvmarg value="-Xmx2048m" />
@@ -1481,7 +1481,7 @@ BENCHMARKS
 
         <!-- Benchmark Parameters -->
         <arg value="benchmark.conf=${benchmark.conf}" />
-        <arg value="benchmark.client=${benchmark.client}" />
+        <arg value="benchmark.builder=${benchmark.builder}" />
         <arg value="benchmark.initial_polling_delay=${benchmark.initial_polling_delay}" />
         <arg value="benchmark.datadir=${benchmark.datadir}"/>
         

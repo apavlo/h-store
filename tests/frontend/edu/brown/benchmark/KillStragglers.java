@@ -21,7 +21,7 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
-package org.voltdb.benchmark;
+package edu.brown.benchmark;
 
 import java.util.Arrays;
 

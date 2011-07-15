@@ -54,7 +54,7 @@ public class TM1Loader extends TM1BaseClient {
 
     public static void main(String[] args) {
         if (d) LOG.debug("MAIN: " + TM1Loader.class.getName());
-        org.voltdb.benchmark.ClientMain.main(TM1Loader.class, args, true);
+        edu.brown.benchmark.BenchmarkComponent.main(TM1Loader.class, args, true);
     }
 
     public TM1Loader(String[] args) {
@@ -367,15 +367,5 @@ public class TM1Loader extends TM1BaseClient {
             LOG.fatal("Failed to load data for table " + tablename, e);
             System.exit(1);
         }
-    }
-    
-    @Override
-    public String getApplicationName() {
-        return "TM1 Benchmark";
-    }
-
-    @Override
-    public String getSubApplicationName() {
-        return "Loader";
     }
 }

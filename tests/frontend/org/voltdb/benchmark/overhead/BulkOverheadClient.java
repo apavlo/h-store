@@ -27,10 +27,11 @@ import java.io.IOException;
 
 import org.voltdb.client.ClientResponse;
 import org.voltdb.client.BulkClient;
-import org.voltdb.benchmark.ClientMain;
 import org.voltdb.benchmark.overhead.OverheadClient.Transaction;
 import org.voltdb.compiler.VoltProjectBuilder;
 import org.voltdb.client.ProcedureCallback;
+
+import edu.brown.benchmark.BenchmarkComponent;
 
 public class BulkOverheadClient extends BulkClient {
 
@@ -41,7 +42,7 @@ public class BulkOverheadClient extends BulkClient {
     /**
      * Retrieved via reflection by BenchmarkController
      */
-    public static final Class<? extends ClientMain> m_loaderClass = null;
+    public static final Class<? extends BenchmarkComponent> m_loaderClass = null;
     /**
      * Retrieved via reflection by BenchmarkController
      */

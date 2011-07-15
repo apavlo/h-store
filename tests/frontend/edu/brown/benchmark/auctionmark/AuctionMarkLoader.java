@@ -100,7 +100,7 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
      * @throws Exception
      */
     public static void main(String args[]) throws Exception {
-        org.voltdb.benchmark.ClientMain.main(AuctionMarkLoader.class, args, true);
+        edu.brown.benchmark.BenchmarkComponent.main(AuctionMarkLoader.class, args, true);
     }
 
     /**
@@ -1653,15 +1653,5 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
             System.exit(-1);
         }
         this.profile.addToTableSize(tableName, count);
-    }
-    
-    @Override
-    public String getApplicationName() {
-        return "AuctionMark Benchmark";
-    }
-
-    @Override
-    public String getSubApplicationName() {
-        return "Loader";
     }
 } // END CLASS

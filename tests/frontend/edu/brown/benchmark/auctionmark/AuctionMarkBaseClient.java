@@ -35,9 +35,9 @@ import java.io.File;
 import java.io.IOException;
 
 import org.apache.log4j.Logger;
-import org.voltdb.benchmark.ClientMain;
 import org.voltdb.catalog.*;
 
+import edu.brown.benchmark.BenchmarkComponent;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.rand.AbstractRandomGenerator;
 import edu.brown.rand.DefaultRandomGenerator;
@@ -46,7 +46,7 @@ import edu.brown.utils.FileUtil;
 /**
  *
  */
-public abstract class AuctionMarkBaseClient extends ClientMain {
+public abstract class AuctionMarkBaseClient extends BenchmarkComponent {
     protected final Logger LOG;
     
     /**

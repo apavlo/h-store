@@ -35,10 +35,10 @@ package edu.brown.benchmark.tm1;
 import java.io.IOException;
 
 import org.apache.log4j.Logger;
-import org.voltdb.benchmark.*;
-import org.voltdb.client.*;
-import org.voltdb.compiler.VoltProjectBuilder;
 import org.voltdb.client.ClientResponse;
+import org.voltdb.client.ProcedureCallback;
+
+import edu.brown.benchmark.BenchmarkComponent;
 
 /**
  * TM1Client
@@ -187,7 +187,7 @@ public class TM1Client extends TM1BaseClient {
      * @param args
      */
     public static void main(String[] args) {
-        ClientMain.main(TM1Client.class, args, false);
+        BenchmarkComponent.main(TM1Client.class, args, false);
     }
 
     /**
@@ -266,28 +266,5 @@ public class TM1Client extends TM1BaseClient {
             names[ii++] = transaction.displayName;
         }
         return names;
-    }
-
-    /**
-     * Retrieved via reflection by BenchmarkController
-     */
-    public static final Class<? extends VoltProjectBuilder> m_projectBuilderClass = TM1ProjectBuilder.class;
-    /**
-     * Retrieved via reflection by BenchmarkController
-     */
-    public static final Class<? extends ClientMain> m_loaderClass = TM1Loader.class;
-    /**
-     * Retrieved via reflection by BenchmarkController
-     */
-    public static final String m_jarFileName = "tm1.jar";
-    
-    @Override
-    public String getApplicationName() {
-        return "TM1 Benchmark";
-    }
-
-    @Override
-    public String getSubApplicationName() {
-        return "Client";
     }
 }

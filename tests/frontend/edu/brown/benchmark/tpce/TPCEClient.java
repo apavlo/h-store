@@ -40,12 +40,11 @@ import java.util.concurrent.CountDownLatch;
 import org.apache.log4j.Logger;
 import org.voltdb.SysProcSelector;
 import org.voltdb.VoltTable;
-import org.voltdb.benchmark.ClientMain;
 import org.voltdb.client.ClientResponse;
 import org.voltdb.client.NoConnectionsException;
 import org.voltdb.client.ProcedureCallback;
-import org.voltdb.compiler.VoltProjectBuilder;
 
+import edu.brown.benchmark.BenchmarkComponent;
 import edu.brown.benchmark.tpce.util.RandUtil;
 import edu.brown.benchmark.tpce.util.TableStatistics;
 
@@ -53,27 +52,21 @@ import edu.brown.benchmark.tpce.util.TableStatistics;
  * 
  * @author pavlo
  */
-public class TPCEClient extends ClientMain {
+public class TPCEClient extends BenchmarkComponent {
     private static final Logger LOG = Logger.getLogger(TPCEClient.class);
 
     public static final int STATUS_SUCCESS = 0;
 
     private static Transaction XTRANS[] = Transaction.values();
 
-    //
     // Storing the ordinals of transaction per tpce probability distribution
-    //
     private static final int[] SAMPLE_TABLE = new int[100];
 
-    //
     // Mapping from thread id to the index value of the xact that thread invoked
-    //
     protected final Map<Long, Integer> thread_xact_xref = new HashMap<Long, Integer>();
     protected final TPCECallback callback = new TPCECallback();
     
-    //
     // EGen Drivers
-    //
     protected final EGenClientDriver egen_clientDriver;
     
     /**
@@ -278,29 +271,6 @@ public class TPCEClient extends ClientMain {
      */
     public static void main(String[] args) {
         initSampleTable();
-        ClientMain.main(TPCEClient.class, args, false);
-    }
-
-    /**
-     * Retrieved via reflection by BenchmarkController
-     */
-    public static final Class<? extends VoltProjectBuilder> m_projectBuilderClass = TPCEProjectBuilder.class;
-    /**
-     * Retrieved via reflection by BenchmarkController
-     */
-    public static final Class<? extends ClientMain> m_loaderClass = TPCELoader.class;
-    /**
-     * Retrieved via reflection by BenchmarkController
-     */
-    public static final String m_jarFileName = "tpce.jar";
-    
-    @Override
-    public String getApplicationName() {
-        return "TPC-E Benchmark";
-    }
-
-    @Override
-    public String getSubApplicationName() {
-        return "Loader";
+        BenchmarkComponent.main(TPCEClient.class, args, false);
     }
 }

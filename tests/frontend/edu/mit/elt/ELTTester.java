@@ -23,10 +23,12 @@
 
 package edu.mit.elt;
 
-import org.voltdb.benchmark.ClientMain;
 import org.voltdb.client.Client;
 import org.voltdb.client.ProcCallException;
 import org.voltdb.utils.Pair;
+
+import edu.brown.benchmark.BenchmarkComponent;
+
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.ResultSet;
@@ -37,7 +39,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Hashtable;
 
-public class ELTTester extends ClientMain {
+public class ELTTester extends BenchmarkComponent {
 
     private Client client;
     private int m_idA;
@@ -353,17 +355,5 @@ public class ELTTester extends ClientMain {
     public void runLoop() {
         // TODO Auto-generated method stub
 
-    }
-    
-    @Override
-    protected String getApplicationName() {
-        // TODO Auto-generated method stub
-        return null;
-    }
-    
-    @Override
-    protected String getSubApplicationName() {
-        // TODO Auto-generated method stub
-        return null;
     }
 }

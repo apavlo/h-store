@@ -18,6 +18,7 @@ import org.voltdb.plannodes.AbstractPlanNode;
 import org.voltdb.regressionsuites.matviewprocs.AddThing;
 
 import edu.brown.BaseTestCase;
+import edu.brown.benchmark.AbstractProjectBuilder;
 import edu.brown.catalog.QueryPlanUtil;
 import edu.brown.plannodes.PlanNodeTreeWalker;
 import edu.brown.utils.CollectionUtil;
@@ -28,7 +29,7 @@ import edu.brown.utils.CollectionUtil;
  */
 public class TestPlanOptimizer extends BaseTestCase {
     private static final Logger LOG = Logger.getLogger(TestPlanOptimizer.class);
-    private VoltProjectBuilder pb = new VoltProjectBuilder("test-planopt") {
+    private AbstractProjectBuilder pb = new AbstractProjectBuilder("test-planopt", AbstractProjectBuilder.class, null, null) {
         {
             File schema = new File(TestPlanOptimizations2.class.getResource("testopt-ddl.sql").getFile());
             assert(schema.exists()) : "Schema: " + schema;

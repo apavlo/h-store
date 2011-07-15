@@ -21,7 +21,7 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
-package org.voltdb.benchmark;
+package edu.brown.benchmark;
 
 import java.io.File;
 import java.lang.reflect.Field;
@@ -44,7 +44,8 @@ public class BenchmarkConfig {
     public String hstore_conf_path;
     public String benchmark_conf_path;
     
-    public String client;
+    public String projectBuilderClass;
+    
     public String backend;
     public String[] hosts;
     public int sitesPerHost;
@@ -203,7 +204,7 @@ public class BenchmarkConfig {
         this.hstore_conf_path = hstore_conf_path;
         this.benchmark_conf_path = benchmark_conf_path;
         
-        this.client = benchmarkClient;
+        this.projectBuilderClass = benchmarkClient;
         this.backend = backend;
         this.coordinatorHost = coordinatorHost;
         this.noCoordinator = noCoordinator;

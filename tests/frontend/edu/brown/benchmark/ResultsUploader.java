@@ -21,7 +21,7 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
-package org.voltdb.benchmark;
+package edu.brown.benchmark;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -30,8 +30,10 @@ import java.sql.Statement;
 import java.util.HashMap;
 import java.util.Map.Entry;
 
-import org.voltdb.benchmark.BenchmarkResults.Result;
 import org.voltdb.processtools.SSHTools;
+
+import edu.brown.benchmark.BenchmarkResults.Result;
+
 
 public class ResultsUploader implements BenchmarkController.BenchmarkInterest {
 

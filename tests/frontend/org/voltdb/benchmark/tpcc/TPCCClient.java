@@ -23,28 +23,28 @@
 
 package org.voltdb.benchmark.tpcc;
 
-import org.apache.log4j.Logger;
-import org.voltdb.VoltTable;
-import org.voltdb.VoltType;
-import org.voltdb.types.TimestampType;
-import org.voltdb.client.ClientResponse;
-import org.voltdb.benchmark.ClientMain;
-import org.voltdb.benchmark.Clock;
-import org.voltdb.benchmark.Verification;
-import org.voltdb.benchmark.Verification.Expression;
-import org.voltdb.client.ProcedureCallback;
-import org.voltdb.compiler.VoltProjectBuilder;
-import org.voltdb.client.Client;
-import org.voltdb.client.NoConnectionsException;
-import org.voltdb.types.ExpressionType;
-
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-public class TPCCClient extends org.voltdb.benchmark.ClientMain implements TPCCSimulation.ProcCaller {
+import org.apache.log4j.Logger;
+import org.voltdb.VoltTable;
+import org.voltdb.VoltType;
+import org.voltdb.benchmark.Clock;
+import org.voltdb.benchmark.Verification;
+import org.voltdb.benchmark.Verification.Expression;
+import org.voltdb.client.Client;
+import org.voltdb.client.ClientResponse;
+import org.voltdb.client.NoConnectionsException;
+import org.voltdb.client.ProcedureCallback;
+import org.voltdb.types.ExpressionType;
+import org.voltdb.types.TimestampType;
+
+import edu.brown.benchmark.BenchmarkComponent;
+
+public class TPCCClient extends BenchmarkComponent implements TPCCSimulation.ProcCaller {
     private static final Logger LOG = Logger.getLogger(TPCCClient.class);
     final TPCCSimulation m_tpccSim;
     final TPCCSimulation m_tpccSim2;
@@ -204,7 +204,7 @@ public class TPCCClient extends org.voltdb.benchmark.ClientMain implements TPCCS
 
     /** Complies with our benchmark client remote controller scheme */
     public static void main(String args[]) {
-        org.voltdb.benchmark.ClientMain.main(TPCCClient.class, args, false);
+        edu.brown.benchmark.BenchmarkComponent.main(TPCCClient.class, args, false);
     }
 
     public TPCCClient(
@@ -933,30 +933,5 @@ public class TPCCClient extends org.voltdb.benchmark.ClientMain implements TPCCS
             countDisplayNames[ii] = TPCCSimulation.Transaction.values()[ii].displayName;
         }
         return countDisplayNames;
-    }
-
-    /**
-     * Retrieved via reflection by BenchmarkController
-     */
-    public static final Class<? extends VoltProjectBuilder> m_projectBuilderClass =
-        TPCCProjectBuilder.class;
-    /**
-     * Retrieved via reflection by BenchmarkController
-     */
-    public static final Class<? extends ClientMain> m_loaderClass =
-        org.voltdb.benchmark.tpcc.MultiLoader.class;
-    /**
-     * Retrieved via reflection by BenchmarkController
-     */
-    public static final String m_jarFileName = "tpcc.jar";
-
-    @Override
-    public String getApplicationName() {
-        return "TPC-C";
-    }
-
-    @Override
-    public String getSubApplicationName() {
-        return "Client";
     }
 }

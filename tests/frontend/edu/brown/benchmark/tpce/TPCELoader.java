@@ -35,16 +35,16 @@ package edu.brown.benchmark.tpce;
 import org.apache.log4j.Logger;
 import org.voltdb.catalog.*;
 import org.voltdb.utils.CatalogUtil;
-import org.voltdb.utils.JarReader;
-import org.voltdb.benchmark.ClientMain;
 import org.voltdb.VoltTable;
+
+import edu.brown.benchmark.BenchmarkComponent;
 
 /**
  * 
  * @author pavlo
  *
  */
-public class TPCELoader extends ClientMain {
+public class TPCELoader extends BenchmarkComponent {
     private static final Logger LOG = Logger.getLogger(TPCELoader.class);
     protected final EGenLoader egenloader;
     
@@ -70,7 +70,7 @@ public class TPCELoader extends ClientMain {
 	}
 
 	public static void main(String[] args) {
-		org.voltdb.benchmark.ClientMain.main(TPCELoader.class, args, true);
+		edu.brown.benchmark.BenchmarkComponent.main(TPCELoader.class, args, true);
 	}
 
 	@Override
@@ -199,14 +199,4 @@ public class TPCELoader extends ClientMain {
 			System.exit(1);
 		}
 	}
-	
-    @Override
-    public String getApplicationName() {
-        return "TPC-E Benchmark";
-    }
-
-    @Override
-    public String getSubApplicationName() {
-        return "Loader";
-    }
 }

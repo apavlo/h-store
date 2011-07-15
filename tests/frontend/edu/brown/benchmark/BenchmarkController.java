@@ -1,3 +1,28 @@
+/***************************************************************************
+ *   Copyright (C) 2011 by H-Store Project                                 *
+ *   Brown University                                                      *
+ *   Massachusetts Institute of Technology                                 *
+ *   Yale University                                                       *
+ *                                                                         *
+ *   Permission is hereby granted, free of charge, to any person obtaining *
+ *   a copy of this software and associated documentation files (the       *
+ *   "Software"), to deal in the Software without restriction, including   *
+ *   without limitation the rights to use, copy, modify, merge, publish,   *
+ *   distribute, sublicense, and/or sell copies of the Software, and to    *
+ *   permit persons to whom the Software is furnished to do so, subject to *
+ *   the following conditions:                                             *
+ *                                                                         *
+ *   The above copyright notice and this permission notice shall be        *
+ *   included in all copies or substantial portions of the Software.       *
+ *                                                                         *
+ *   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,       *
+ *   EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF    *
+ *   MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.*
+ *   IN NO EVENT SHALL THE AUTHORS BE LIABLE FOR ANY CLAIM, DAMAGES OR     *
+ *   OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, *
+ *   ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR *
+ *   OTHER DEALINGS IN THE SOFTWARE.                                       *
+ ***************************************************************************/
 /* This file is part of VoltDB.
  * Copyright (C) 2008-2010 VoltDB L.L.C.
  *
@@ -21,7 +46,7 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
-package org.voltdb.benchmark;
+package edu.brown.benchmark;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -47,8 +72,7 @@ import org.apache.log4j.Logger;
 import org.voltdb.ServerThread;
 import org.voltdb.VoltDB;
 import org.voltdb.VoltTable;
-import org.voltdb.benchmark.BenchmarkResults.Result;
-import org.voltdb.benchmark.ClientMain.Command;
+import org.voltdb.benchmark.tpcc.TPCCProjectBuilder;
 import org.voltdb.catalog.Catalog;
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Site;
@@ -56,12 +80,14 @@ import org.voltdb.client.Client;
 import org.voltdb.client.ClientFactory;
 import org.voltdb.client.ClientResponse;
 import org.voltdb.client.ProcCallException;
-import org.voltdb.compiler.VoltProjectBuilder;
 import org.voltdb.processtools.ProcessSetManager;
 import org.voltdb.processtools.SSHTools;
 import org.voltdb.utils.LogKeys;
 import org.voltdb.utils.Pair;
 
+import edu.brown.benchmark.AbstractProjectBuilder;
+import edu.brown.benchmark.BenchmarkComponent.Command;
+import edu.brown.benchmark.BenchmarkResults.Result;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.markov.containers.MarkovGraphContainersUtil;
 import edu.brown.utils.ArgumentsParser;
@@ -136,12 +162,12 @@ public class BenchmarkController {
     final BenchmarkConfig m_config;
     ResultsUploader resultsUploader = null;
 
-    Class<? extends ClientMain> m_clientClass = null;
-    Class<? extends VoltProjectBuilder> m_builderClass = null;
-    Class<? extends ClientMain> m_loaderClass = null;
+    Class<? extends BenchmarkComponent> m_clientClass = null;
+    Class<? extends AbstractProjectBuilder> m_builderClass = null;
+    Class<? extends BenchmarkComponent> m_loaderClass = null;
 
-    VoltProjectBuilder m_projectBuilder;
-    String m_jarFileName = null;
+    final AbstractProjectBuilder m_projectBuilder;
+    final String m_jarFileName;
     ServerThread m_localserver = null;
     
     /**
@@ -176,13 +202,13 @@ public class BenchmarkController {
                 // assume stdout at this point
 
                 // General Debug Output
-                if (line.value.startsWith(ClientMain.CONTROL_PREFIX) == false) {
+                if (line.value.startsWith(BenchmarkComponent.CONTROL_PREFIX) == false) {
                     System.out.println(line.value);
                     
                 // BenchmarkController Coordination Message
                 } else {
                     // split the string on commas and strip whitespace
-                    String control_line = line.value.substring(ClientMain.CONTROL_PREFIX.length());
+                    String control_line = line.value.substring(BenchmarkComponent.CONTROL_PREFIX.length());
                     String[] parts = control_line.split(",");
                     for (int i = 0; i < parts.length; i++)
                         parts[i] = parts[i].trim();
@@ -270,29 +296,48 @@ public class BenchmarkController {
         m_sitePSM = new ProcessSetManager(hstore_conf.site.log_dir, config.client_initialPollingDelay, this.failure_observer);
         m_coordPSM = new ProcessSetManager(hstore_conf.coordinator.log_dir, config.client_initialPollingDelay, this.failure_observer);
 
+        Map<String, Field> builderFields = new HashMap<String, Field>();
+        builderFields.put("m_clientClass", null);
+        builderFields.put("m_loaderClass", null);
+        
         try {
-            m_clientClass = (Class<? extends ClientMain>)Class.forName(m_config.client);
-            //Hackish, client expected to have these field as a static member
-            Field builderClassField = m_clientClass.getField("m_projectBuilderClass");
-            Field loaderClassField = m_clientClass.getField("m_loaderClass");
-            Field jarFileNameField = m_clientClass.getField("m_jarFileName");
-            m_builderClass = (Class<? extends VoltProjectBuilder>)builderClassField.get(null);
-            m_loaderClass = (Class<? extends ClientMain>)loaderClassField.get(null);
-            m_jarFileName = (String)jarFileNameField.get(null);
+            m_builderClass = (Class<? extends AbstractProjectBuilder>)Class.forName(m_config.projectBuilderClass);
+        } catch (Exception ex) {
+            LOG.fatal(String.format("Failed load class for ProjectBuilder '%s'", m_config.projectBuilderClass), ex);
+            throw new RuntimeException(ex);
+        }
+            
+        for (String fieldName : builderFields.keySet()) {
+            try {
+                //Hackish, client expected to have these field as a static member
+                Field f = m_builderClass.getField(fieldName);
+                builderFields.put(fieldName, f);
+            } catch (NoSuchFieldError ex) {
+                LOG.fatal(String.format("ProjectBuilder '%s' is missing field '%s'", m_config.projectBuilderClass, fieldName), ex);
+                throw new RuntimeException(ex);
+            } catch (Exception ex) {
+                LOG.fatal(String.format("Unexpected error in ProjectBuilder '%s' when retrieving field '%s'", m_config.projectBuilderClass, fieldName), ex);
+                throw new RuntimeException(ex);
+            }
+        }
+        try {
+            m_clientClass = (Class<? extends BenchmarkComponent>)builderFields.get("m_clientClass").get(null);
+            m_loaderClass = (Class<? extends BenchmarkComponent>)builderFields.get("m_loaderClass").get(null);
 //            if (m_config.localmode == false) {
 //                m_jarFileName = config.hosts[0] + "." + m_jarFileName;
 //            }
         } catch (Exception e) {
             LogKeys logkey = LogKeys.benchmark_BenchmarkController_ErrorDuringReflectionForClient;
             LOG.l7dlog( Level.FATAL, logkey.name(),
-                    new Object[] { m_config.client }, e);
+                    new Object[] { m_config.projectBuilderClass }, e);
             System.exit(-1);
         }
 
-        resultsUploader = new ResultsUploader(m_config.client, config);
+        resultsUploader = new ResultsUploader(m_config.projectBuilderClass, config);
 
+        AbstractProjectBuilder tempBuilder = null;
         try {
-            m_projectBuilder = m_builderClass.newInstance();
+            tempBuilder = m_builderClass.newInstance();
         } catch (Exception e) {
             LogKeys logkey =
                 LogKeys.benchmark_BenchmarkController_UnableToInstantiateProjectBuilder;
@@ -300,7 +345,11 @@ public class BenchmarkController {
                     new Object[] { m_builderClass.getSimpleName() }, e);
             System.exit(-1);
         }
+        assert(tempBuilder != null);
+        m_projectBuilder = tempBuilder;
         m_projectBuilder.addAllDefaults();
+        m_jarFileName = m_projectBuilder.getJarName(false);
+        assert(m_jarFileName != null) : "Invalid ProjectJar file name";
 
         if (config.snapshotFrequency != null
                 && config.snapshotPath != null
@@ -569,6 +618,7 @@ public class BenchmarkController {
             if (trace.get()) LOG.trace(String.format("HStoreSite %s: %s", HStoreSite.formatSiteName(catalog_site.getId()), address));
         } // FOR
 
+        allArgs.add("BENCHMARK.NAME=" + m_projectBuilder.getProjectName());
         allArgs.add("BENCHMARK.CONF=" + m_config.benchmark_conf_path);
         allArgs.add("NUMCLIENTS=" + numClients);
         allArgs.add("STATSDATABASEURL=" + m_config.statsDatabaseURL);
@@ -586,7 +636,7 @@ public class BenchmarkController {
 //        if (true || m_config.localmode) {
             allArgs.add("EXITONCOMPLETION=false");
             
-            ClientMain.main(m_loaderClass, m_clientFileUploader, allArgs.toArray(new String[0]), true);
+            BenchmarkComponent.main(m_loaderClass, m_clientFileUploader, allArgs.toArray(new String[0]), true);
             
 //        }
 //        else {
@@ -640,6 +690,7 @@ public class BenchmarkController {
         }
 
         allClientArgs.add("CONF=" + m_config.hstore_conf_path);
+        allClientArgs.add("BENCHMARK.NAME=" + m_projectBuilder.getProjectName());
         allClientArgs.add("BENCHMARK.CONF=" + m_config.benchmark_conf_path);
         allClientArgs.add("CHECKTRANSACTION=" + m_config.checkTransaction);
         allClientArgs.add("CHECKTABLES=" + m_config.checkTables);
@@ -1130,7 +1181,7 @@ public class BenchmarkController {
         String sshOptions = "";
         String remotePath = "voltbin/";
         String remoteUser = null; // null implies current local username
-        String clientClassname = m_tpccClientClassName;
+        String projectBuilderClassname = TPCCProjectBuilder.class.getCanonicalName();
         File catalogPath = null;
         boolean listenForDebugger = false;
         int serverHeapSize = 2048;
@@ -1281,15 +1332,11 @@ public class BenchmarkController {
                  * Amount of warmup time in milliseconds
                  */
                 warmup = Integer.parseInt(parts[1]);
-            } else if (parts[0].equalsIgnoreCase(BENCHMARK_PARAM_PREFIX +  "CLIENT")) {
+            } else if (parts[0].equalsIgnoreCase(BENCHMARK_PARAM_PREFIX +  "BUILDER")) {
                 /*
-                 * Name of the client class for this benchmark.
-                 *
-                 * This is a class that extends ClientMain and has associated
-                 * with it a VoltProjectBuilder implementation and possibly a
-                 * Loader that also extends ClientMain
+                 * Name of the ProjectBuilder class for this benchmark.
                  */
-                clientClassname = parts[1];
+                projectBuilderClassname = parts[1];
             } else if (parts[0].equalsIgnoreCase("SSHOPTIONS")) {
                 /*
                  * Options used when logging into client/server hosts
@@ -1505,7 +1552,7 @@ public class BenchmarkController {
         BenchmarkConfig config = new BenchmarkConfig(
                 hstore_conf_path,
                 benchmark_conf_path,
-                clientClassname,
+                projectBuilderClassname,
                 backend, 
                 coordinatorHost,
                 noCoordinator,

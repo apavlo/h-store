@@ -1,4 +1,4 @@
-package org.voltdb.benchmark;
+package edu.brown.benchmark;
 
 import java.io.File;
 import java.io.IOException;

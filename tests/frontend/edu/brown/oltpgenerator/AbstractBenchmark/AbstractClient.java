@@ -1,13 +1,13 @@
 package edu.brown.oltpgenerator.AbstractBenchmark;
 
-import org.voltdb.benchmark.ClientMain;
 import org.voltdb.client.ClientResponse;
 import org.voltdb.client.ProcedureCallback;
 
+import edu.brown.benchmark.BenchmarkComponent;
 import edu.brown.oltpgenerator.RandUtil;
 import edu.brown.oltpgenerator.AbstractBenchmark.RandomGenerator.AbstractRandomGenerator;
 
-public abstract class AbstractClient extends ClientMain
+public abstract class AbstractClient extends BenchmarkComponent
 {
     private AbstractTransaction[] m_xacts;
 

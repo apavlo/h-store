@@ -32,8 +32,10 @@ import org.voltdb.client.*;
 import org.voltdb.compiler.VoltProjectBuilder;
 import org.voltdb.client.ClientResponse;
 
+import edu.brown.benchmark.BenchmarkComponent;
+
 /** TPC-C client load generator. */
-public class OverheadClient extends ClientMain {
+public class OverheadClient extends BenchmarkComponent {
     @SuppressWarnings("unused")
     private static final Logger LOG = Logger.getLogger(OverheadClient.class.getName());
 
@@ -88,7 +90,7 @@ public class OverheadClient extends ClientMain {
     }
 
     public static void main(String[] args) {
-        ClientMain.main(OverheadClient.class, args, false);
+        BenchmarkComponent.main(OverheadClient.class, args, false);
     }
 
     /**
@@ -189,19 +191,10 @@ public class OverheadClient extends ClientMain {
     /**
      * Retrieved via reflection by BenchmarkController
      */
-    public static final Class<? extends ClientMain> m_loaderClass = null;
+    public static final Class<? extends BenchmarkComponent> m_loaderClass = null;
     /**
      * Retrieved via reflection by BenchmarkController
      */
     public static final String m_jarFileName = "measureoverhead.jar";
 
-    @Override
-    public String getApplicationName() {
-        return "Measure Overhead";
-    }
-
-    @Override
-    public String getSubApplicationName() {
-        return "Client";
-    }
 }
