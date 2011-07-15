@@ -56,6 +56,23 @@ public class AirlineLoader extends AirlineBaseClient {
         
         // Load the first tables from data files
         LOG.info("Loading data files for fixed-sized tables");
+        this.loadFixedTables(catalog_db);
+        
+        // Once we have those mofos, let's go get make our flight data tables
+        LOG.info("Loading data files for scaling tables");
+        this.loadScalingTables(catalog_db);
+        
+        // Save the benchmark profile out to disk
+        try {
+            this.profile.save("airline.profile");
+        } catch (Exception ex) {
+            throw new RuntimeException("Unable to save benchmark profile", ex);
+        }
+
+        LOG.info("Airline loader done.");
+    }
+    
+    protected void loadFixedTables(Database catalog_db) {
         try {
             for (String table_name : AirlineConstants.TABLE_DATA_FILES) {
                 Table catalog_tbl = catalog_db.getTables().get(table_name);
@@ -66,9 +83,9 @@ public class AirlineLoader extends AirlineBaseClient {
         } catch (Exception ex) {
             throw new RuntimeException("Failed to load data files for fixed-sized tables", ex);
         }
-        
-        // Once we have those mofos, let's go get make our flight data tables
-        LOG.info("Loading data files for scaling tables");
+    }
+    
+    protected void loadScalingTables(Database catalog_db) {
         try {
             for (String table_name : AirlineConstants.TABLE_SCALING) {
                 Table catalog_tbl = catalog_db.getTables().get(table_name);
@@ -79,15 +96,6 @@ public class AirlineLoader extends AirlineBaseClient {
         } catch (Exception ex) {
             throw new RuntimeException("Failed to load data files for fixed-sized tables", ex);
         }
-        
-        // Save the benchmark profile out to disk
-        try {
-            this.profile.save("airline.profile");
-        } catch (Exception ex) {
-            throw new RuntimeException("Unable to save benchmark profile", ex);
-        }
-
-        LOG.info("Airline loader done.");
     }
 
     /**
