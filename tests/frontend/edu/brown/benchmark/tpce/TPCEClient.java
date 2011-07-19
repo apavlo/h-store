@@ -82,7 +82,7 @@ public class TPCEClient extends BenchmarkComponent {
             Integer xact_idx = TPCEClient.this.thread_xact_xref.get(Thread
                     .currentThread().getId());
             assert (xact_idx != null);
-            TPCEClient.this.m_counts[xact_idx].incrementAndGet();
+            incrementTransactionCounter(xact_idx);
             assert(latch != null);
             latch.countDown();
         }

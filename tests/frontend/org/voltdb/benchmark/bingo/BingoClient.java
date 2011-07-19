@@ -114,7 +114,7 @@ public class BingoClient extends BenchmarkComponent {
                     tournaments.offer(Tourney.this);
                     tournaments.notifyAll();
                 }
-                m_counts[t.ordinal()].incrementAndGet();
+                incrementTransactionCounter(t.ordinal());
             }
 
         }

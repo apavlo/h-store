@@ -115,7 +115,7 @@ public class OverheadClient extends BenchmarkComponent {
         @Override
         public void clientCallback(ClientResponse clientResponse) {
             if (checkTransaction(transactionToInvoke.callName, clientResponse, false, false))
-                m_counts[transactionToInvoke.ordinal()].incrementAndGet();
+                incrementTransactionCounter(transactionToInvoke.ordinal());
         }
 
     }
