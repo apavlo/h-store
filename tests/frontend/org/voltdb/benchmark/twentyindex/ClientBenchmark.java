@@ -155,7 +155,7 @@ public class ClientBenchmark extends BenchmarkComponent {
             }
         }
 
-        m_counts[0].getAndIncrement();
+        incrementTransactionCounter(0);
     }
 
     @Override
