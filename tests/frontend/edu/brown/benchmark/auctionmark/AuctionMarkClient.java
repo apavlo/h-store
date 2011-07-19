@@ -764,7 +764,7 @@ public class AuctionMarkClient extends AuctionMarkBaseClient {
             final boolean trace = LOG.isTraceEnabled(); 
         	if (trace) LOG.trace("clientCallback(cid = " + _clientId + "):: txn = " + txn.getDisplayName());
         	
-        	AuctionMarkClient.this.m_counts[this.txn.ordinal()].incrementAndGet();
+        	incrementTransactionCounter(this.txn.ordinal());
         	VoltTable[] results = clientResponse.getResults();
         	
         	// Update the next_id lists for any txn that depends on the output of this txn

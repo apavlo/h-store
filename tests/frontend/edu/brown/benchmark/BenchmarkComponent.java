@@ -195,12 +195,12 @@ public abstract class BenchmarkComponent {
      * Count of transactions invoked by this client. This is updated by derived
      * classes directly
      */
-    protected final AtomicLong m_counts[];
+    private final AtomicLong m_counts[];
 
     /**
      * Display names for each transaction.
      */
-    protected final String m_countDisplayNames[];
+    private final String m_countDisplayNames[];
 
     /**
      * Client Id
@@ -596,6 +596,17 @@ public abstract class BenchmarkComponent {
      * @return
      */
     abstract protected String[] getTransactionDisplayNames();
+    
+    /**
+     * Increment the internal transaction counter. This should be invoked
+     * after the client has received a ClientResponse from the DBMS cluster
+     * The txn_index is the offset of the transaction that was executed. This offset
+     * is the same order as the array returned by getTransactionDisplayNames
+     * @param txn_idx
+     */
+    protected final void incrementTransactionCounter(int txn_idx) {
+        this.m_counts[txn_idx].incrementAndGet();
+    }
 
     public BenchmarkComponent(final Client client) {
         m_voltClient = client;
@@ -887,6 +898,14 @@ public abstract class BenchmarkComponent {
      */
     public final int getNumPartitions() {
         return (m_numPartitions);
+    }
+    /**
+     * Return the DBMS client handle
+     * This Client will already be connected to the database cluster
+     * @return
+     */
+    public final Client getClientHandle() {
+        return (m_voltClient);
     }
     /**
      * Return the unique client id for this invocation of BenchmarkComponent

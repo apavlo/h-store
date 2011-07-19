@@ -294,7 +294,7 @@ public class MarkovClient extends BenchmarkComponent {
         
         @Override
         public void clientCallback(ClientResponse clientResponse) {
-            MarkovClient.this.m_counts[this.txn.ordinal()].incrementAndGet();
+            incrementTransactionCounter(this.txn.ordinal());
             if (MarkovClient.this.blockingLock != null) {
                 synchronized (MarkovClient.this.blockingLock) {
                     MarkovClient.this.blockingLock.notifyAll();    

@@ -141,7 +141,7 @@ public class MultisiteClient extends BenchmarkComponent {
             if (clientResponse.getStatus() == ClientResponse.CONNECTION_LOST){
                 return;
             }
-            m_counts[Transaction.kChangeSeat.ordinal()].incrementAndGet();
+            incrementTransactionCounter(Transaction.kChangeSeat.ordinal());
             if (clientResponse.getStatus() == ClientResponse.SUCCESS) {
                 assert(clientResponse.getResults().length == 1);
                 assert(clientResponse.getResults()[0].getRowCount() == 1);
@@ -183,7 +183,7 @@ public class MultisiteClient extends BenchmarkComponent {
             if (clientResponse.getStatus() == ClientResponse.CONNECTION_LOST){
                 return;
             }
-            m_counts[Transaction.kUpdateReservation.ordinal()].incrementAndGet();
+            incrementTransactionCounter(Transaction.kUpdateReservation.ordinal());
             VoltTable[] results = clientResponse.getResults();
             if (m_rid < (150 * .5 * m_maxfid)) {
                 assert (results.length == 1);
@@ -212,7 +212,7 @@ public class MultisiteClient extends BenchmarkComponent {
             if (clientResponse.getStatus() == ClientResponse.CONNECTION_LOST){
                 return;
             }
-            m_counts[Transaction.kFindOpenSeats.ordinal()].incrementAndGet();
+            incrementTransactionCounter(Transaction.kFindOpenSeats.ordinal());
             VoltTable[] results = clientResponse.getResults();
             assert (results.length == 1);
             assert (results[0].getRowCount() < 150);

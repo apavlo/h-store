@@ -19,7 +19,7 @@ public abstract class AbstractClient extends BenchmarkComponent
                                                     @Override
                                                     public void clientCallback(ClientResponse clientResponse)
                                                     {
-                                                        m_counts[m_xactToInvoke.getIndex()].incrementAndGet();
+                                                        incrementTransactionCounter(m_xactToInvoke.getIndex());
                                                     }
                                                 };
 
