@@ -62,7 +62,6 @@ public class ProcessSetManager implements Shutdownable {
     final EventObservable failure_observable = new EventObservable();
     final LinkedBlockingQueue<OutputLine> m_output = new LinkedBlockingQueue<OutputLine>();
     final Map<String, ProcessData> m_processes = new HashMap<String, ProcessData>();
-    final Map<String, StreamWatcher> m_watchers = new HashMap<String, StreamWatcher>();
     final ProcessSetPoller poller = new ProcessSetPoller();
     boolean shutting_down = false;
     
@@ -222,11 +221,18 @@ public class ProcessSetManager implements Shutdownable {
         this(null, 10000, null);
     }
     
+    public void prepareShutdown(String name) {
+        ProcessData pd = this.m_processes.get(name);
+        assert(pd!= null) : "Invalid process name '" + name + "'";
+        pd.out.m_expectDeath.set(true);
+        pd.err.m_expectDeath.set(true);
+    }
+    
     @Override
     public void prepareShutdown() {
         this.shutting_down = true;
-        for (StreamWatcher sw : this.m_watchers.values()) {
-            sw.m_expectDeath.set(true);
+        for (String name : this.m_processes.keySet()) {
+            this.prepareShutdown(name);
         } // FOR
     }
     

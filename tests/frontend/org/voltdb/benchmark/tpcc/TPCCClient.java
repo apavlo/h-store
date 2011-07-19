@@ -885,7 +885,7 @@ public class TPCCClient extends BenchmarkComponent implements TPCCSimulation.Pro
     @Override
     public void callbackStop() {
         if (m_tpccConfig.neworder_skew_warehouse) {
-            LOG.info("WAREHOUSE DISTRIBUTION:\n" + m_tpccSim.getWarehouseZipf());
+            LOG.info("WAREHOUSE DISTRIBUTION:\n" + m_tpccSim.getWarehouseZipf().getHistory());
         }
     }
     
