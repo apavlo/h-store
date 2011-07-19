@@ -80,7 +80,7 @@ public class ClientTest extends TestCase {
     private static final int SMALL_CUSTOMERS = 20;
     private void makeSmallWarehouseClient() {
         client = new TPCCClient(mockClient, generator, new Clock.Mock(),
-                new ScaleParameters(SMALL_ITEMS, 1, SMALL_DISTRICTS, SMALL_CUSTOMERS, 0));
+                new ScaleParameters(SMALL_ITEMS, 1, 1, SMALL_DISTRICTS, SMALL_CUSTOMERS, 0));
     }
 
     public void testStockLevel() throws IOException {

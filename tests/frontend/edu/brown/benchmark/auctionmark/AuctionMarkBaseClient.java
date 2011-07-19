@@ -42,6 +42,7 @@ import edu.brown.catalog.CatalogUtil;
 import edu.brown.rand.AbstractRandomGenerator;
 import edu.brown.rand.DefaultRandomGenerator;
 import edu.brown.utils.FileUtil;
+import edu.mit.hstore.HStoreConf;
 
 /**
  *
@@ -84,7 +85,6 @@ public abstract class AuctionMarkBaseClient extends BenchmarkComponent {
         LOG = Logger.getLogger(child_class);
         this.debug = LOG.isDebugEnabled();
         
-        Double scale_factor = 1.0;
         String profile_file = null;
         int seed = 0;
         String randGenClassName = DefaultRandomGenerator.class.getName();
@@ -94,11 +94,8 @@ public abstract class AuctionMarkBaseClient extends BenchmarkComponent {
         for (String key : m_extraParams.keySet()) {
             String value = m_extraParams.get(key);
 
-            // Scale Factor
-            if (key.equalsIgnoreCase("SCALEFACTOR")) {
-                scale_factor = Double.parseDouble(value);
             // Benchmark Profile File
-            } else if (key.equalsIgnoreCase("BENCHMARKPROFILE")) {
+            if (key.equalsIgnoreCase("BENCHMARKPROFILE")) {
                 profile_file = value;
             // Random Generator Seed
             } else if (key.equalsIgnoreCase("RANDOMSEED")) {
@@ -114,7 +111,6 @@ public abstract class AuctionMarkBaseClient extends BenchmarkComponent {
                 dataDir = value;
             }
         } // FOR
-        assert(scale_factor != null);
         
         // BenchmarkProfile
         // Only load from the file for AuctionMarkClient
@@ -133,7 +129,8 @@ public abstract class AuctionMarkBaseClient extends BenchmarkComponent {
         } else {
             this.profile_path = null;
         }
-        if (scale_factor != null) this.profile.setScaleFactor(scale_factor);
+        HStoreConf hstore_conf = this.getHStoreConf();
+        this.profile.setScaleFactor(hstore_conf.client.scalefactor);
         
         // Data Directory Path
         if (dataDir == null) {

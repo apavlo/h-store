@@ -137,7 +137,7 @@ public class Loader extends BenchmarkComponent {
             C.join();
             F.join();
             R.join();
-            m_voltClient.drain();
+            this.getClientHandle().drain();
         } catch (InterruptedException e) {
             e.printStackTrace();
             System.exit(-1);
@@ -434,7 +434,7 @@ public class Loader extends BenchmarkComponent {
     void loadTable(String tablename, VoltTable table) {
         SyncCallback cb = new SyncCallback();
         try {
-            m_voltClient.callProcedure(cb, "@LoadMultipartitionTable", tablename, table);
+            this.getClientHandle().callProcedure(cb, "@LoadMultipartitionTable", tablename, table);
         } catch (IOException e) {
             e.printStackTrace();
             System.exit(-1);

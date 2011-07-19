@@ -99,11 +99,11 @@ public class ClientBenchmark extends BenchmarkComponent {
         while (!queued) {
             //long callTime = System.currentTimeMillis();
 
-            queued = m_voltClient.callProcedure(new AsyncCallback(), "Insert", playerId, gameId, socialId, clientId, visitTimeMillis, visitTimeMillis);
+            queued = this.getClientHandle().callProcedure(new AsyncCallback(), "Insert", playerId, gameId, socialId, clientId, visitTimeMillis, visitTimeMillis);
 
             if (!queued) {
                 try {
-                    m_voltClient.backpressureBarrier();
+                    this.getClientHandle().backpressureBarrier();
                 } catch (Exception e) {
                     e.printStackTrace();
                 }

@@ -1931,7 +1931,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         final Site catalog_site = CatalogUtil.getSiteFromId(args.catalog_db, site_id);
         if (catalog_site == null) throw new RuntimeException("Invalid site #" + site_id);
         
-        HStoreConf.init(args, catalog_site);
+        HStoreConf.initArgumentsParser(args, catalog_site);
         if (d) LOG.info("HStoreConf Parameters:\n" + HStoreConf.singleton().toString(true, true));
 
         // HStoreSite Stuff

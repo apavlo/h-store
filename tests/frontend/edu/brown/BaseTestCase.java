@@ -44,7 +44,6 @@ import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Site;
 import org.voltdb.catalog.Statement;
 import org.voltdb.catalog.Table;
-import org.voltdb.compiler.VoltProjectBuilder;
 import org.voltdb.utils.JarReader;
 
 import edu.brown.benchmark.AbstractProjectBuilder;

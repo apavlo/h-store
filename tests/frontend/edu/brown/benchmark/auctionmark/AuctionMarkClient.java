@@ -637,7 +637,7 @@ public class AuctionMarkClient extends AuctionMarkBaseClient {
     protected boolean runOnce() throws IOException {
         try {
             executeTransaction();
-            m_voltClient.backpressureBarrier();
+            this.getClientHandle().backpressureBarrier();
         } catch (InterruptedException e) {
             e.printStackTrace();
             return (false);
@@ -675,7 +675,7 @@ public class AuctionMarkClient extends AuctionMarkBaseClient {
         	if(txn.next_params.peek().getRowCount() > 0){
         	    params = txn.params(this.rng, this.clientProfile, txn.next_params.remove());
 	        	if (this.debug) LOG.debug("EXECUTING POST_AUCTION ------------------------");
-	            m_voltClient.callProcedure(new AuctionMarkCallback(txn, this.rng, this.clientProfile), txn.getCallName(), params);
+	            this.getClientHandle().callProcedure(new AuctionMarkCallback(txn, this.rng, this.clientProfile), txn.getCallName(), params);
 	            return;
         	} else {
         		if (this.debug) LOG.trace("POST_AUCTION ::: no executiong (rows to process = " + txn.next_params.remove().getRowCount() + ") ");
@@ -699,7 +699,7 @@ public class AuctionMarkClient extends AuctionMarkBaseClient {
         			AuctionMarkConstants.MAXIMUM_CLIENT_IDS
         	};
             if (this.debug) LOG.trace("EXECUTING CHECK_WINNING BID------------------------");
-            m_voltClient.callProcedure(new AuctionMarkCallback(txn, this.rng, this.clientProfile), txn.getCallName(), params);
+            this.getClientHandle().callProcedure(new AuctionMarkCallback(txn, this.rng, this.clientProfile), txn.getCallName(), params);
             return;
         }
         
@@ -738,7 +738,7 @@ public class AuctionMarkClient extends AuctionMarkBaseClient {
         } // SYNC
 		if (params != null) {
             if (debug) LOG.debug("Executing new invocation of transaction " + txn + " : callname = " + txn.getCallName());
-            m_voltClient.callProcedure(new AuctionMarkCallback(txn, this.rng, this.clientProfile), txn.getCallName(), params);
+            this.getClientHandle().callProcedure(new AuctionMarkCallback(txn, this.rng, this.clientProfile), txn.getCallName(), params);
 		} else {
 		    LOG.warn("Failed to execute " + txn + " because the parameters were null?");
 		}

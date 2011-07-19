@@ -108,7 +108,7 @@ public class TM1Loader extends TM1BaseClient {
                 for (Thread t : threads)
                     t.join();
             }
-            m_voltClient.drain();
+            this.getClientHandle().drain();
         } catch (Exception e) {
             e.printStackTrace();
             System.exit(-1);
@@ -123,7 +123,7 @@ public class TM1Loader extends TM1BaseClient {
         if (d) LOG.debug("Getting table counts");
         VoltTable results[] = null;
         try {
-            results = m_voltClient.callProcedure(GetTableCounts.class.getSimpleName()).getResults();
+            results = this.getClientHandle().callProcedure(GetTableCounts.class.getSimpleName()).getResults();
         } catch (Exception e) {
             e.printStackTrace();
             System.exit(1);
@@ -361,7 +361,7 @@ public class TM1Loader extends TM1BaseClient {
     private void loadTable(String tablename, VoltTable table) {
         if (d) LOG.debug("Calling LoadMultipartitionTable for '" + tablename + "' with " + table.getRowCount() + " tuples");
         try {
-            m_voltClient.callProcedure("@LoadMultipartitionTable", tablename, table);
+            this.getClientHandle().callProcedure("@LoadMultipartitionTable", tablename, table);
             this.table_counts.put(tablename, this.table_counts.get(tablename) + table.getRowCount());
         } catch (Exception e) {
             LOG.fatal("Failed to load data for table " + tablename, e);

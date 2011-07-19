@@ -137,7 +137,7 @@ public abstract class BenchmarkComponent {
     /**
      * Client initialized here and made available for use in derived classes
      */
-    protected final Client m_voltClient;
+    private final Client m_voltClient;
 
     /**
      * Manage input and output to the framework
@@ -244,9 +244,7 @@ public abstract class BenchmarkComponent {
     /**
      * Configuration
      */
-    protected final HStoreConf m_hstoreConf;
-    protected final BenchmarkConfig m_benchmarkConf;
-    
+    private final HStoreConf m_hstoreConf;
     
 
     public static void printControlMessage(ControlState state) {
@@ -360,6 +358,7 @@ public abstract class BenchmarkComponent {
                     }
                     case STOP: {
                         if (m_controlState == ControlState.RUNNING || m_controlState == ControlState.PAUSED) {
+                            callbackStop();
                             try {
                                 if (m_sampler != null) {
                                     m_sampler.setShouldStop();
@@ -555,6 +554,23 @@ public abstract class BenchmarkComponent {
     abstract protected void runLoop() throws IOException;
     
     /**
+     * Get the display names of the transactions that will be invoked by the
+     * dervied class. As a side effect this also retrieves the number of
+     * transactions that can be invoked.
+     *
+     * @return
+     */
+    abstract protected String[] getTransactionDisplayNames();
+    
+    /**
+     * Optional callback for when this BenchmarkComponent has been told to stop
+     * This is not a reliable callback and should only be used for testing
+     */
+    public void callbackStop() {
+        
+    }
+    
+    /**
      * Is called every time the interval time is reached
      */
     protected void tick() {
@@ -587,15 +603,6 @@ public abstract class BenchmarkComponent {
     protected int getExpectedOutgoingMessageSize() {
         return 128;
     }
-
-    /**
-     * Get the display names of the transactions that will be invoked by the
-     * dervied class. As a side effect this also retrieves the number of
-     * transactions that can be invoked.
-     *
-     * @return
-     */
-    abstract protected String[] getTransactionDisplayNames();
     
     /**
      * Increment the internal transaction counter. This should be invoked
@@ -630,8 +637,6 @@ public abstract class BenchmarkComponent {
         
         // FIXME
         m_hstoreConf = null;
-        m_benchmarkConf = null;
-        
     }
 
     /**
@@ -668,9 +673,6 @@ public abstract class BenchmarkComponent {
         // HStoreConf Path
         String hstore_conf_path = null;
         
-        // Benchmark Conf Path
-        String benchmark_conf_path = null;
-        
         // scan the inputs once to read everything but host names
         for (int i = 0; i < args.length; i++) {
             final String arg = args[i];
@@ -682,20 +684,16 @@ public abstract class BenchmarkComponent {
             } else if (parts[1].startsWith("${")) {
                 continue;
             }
-            
-            if (parts[0].equalsIgnoreCase("CONF")) {
-                hstore_conf_path = parts[1];
-            } else if (parts[0].equalsIgnoreCase(BenchmarkController.BENCHMARK_PARAM_PREFIX + "CONF")) {
-                benchmark_conf_path = parts[1];
-            }
-                
             // Strip out benchmark prefix  
             if (parts[0].toLowerCase().startsWith(BenchmarkController.BENCHMARK_PARAM_PREFIX)) {
                 parts[0] = parts[0].substring(BenchmarkController.BENCHMARK_PARAM_PREFIX.length());
                 args[i] = parts[0] + "=" + parts[1]; // HACK
             }
             
-            if (parts[0].equalsIgnoreCase("CATALOG")) {
+            if (parts[0].equalsIgnoreCase("CONF")) {
+                hstore_conf_path = parts[1];
+            }
+            else if (parts[0].equalsIgnoreCase("CATALOG")) {
                 catalogPath = new File(parts[1]);
                 assert(catalogPath.exists()) : "The catalog file '" + catalogPath.getAbsolutePath() + " does not exist";
             }
@@ -739,19 +737,14 @@ public abstract class BenchmarkComponent {
                 m_extraParams.put(parts[0], parts[1]);
             }
         }
+        if (LOG.isDebugEnabled()) LOG.debug("Extra Client Parameters:\n" + StringUtil.formatMaps(m_extraParams));
         
         // Initialize HStoreConf
         if (HStoreConf.isInitialized() == false) {
             assert(hstore_conf_path != null) : "Missing HStoreConf file";
-            HStoreConf.init(new File(hstore_conf_path));
+            HStoreConf.init(new File(hstore_conf_path), args);
         }
         m_hstoreConf = HStoreConf.singleton();
-        
-        if (benchmark_conf_path != null) {
-            m_benchmarkConf = new BenchmarkConfig(new File(benchmark_conf_path));
-        } else {
-            m_benchmarkConf = null;
-        }
         
         // Thread.currentThread().setName(String.format("client-%02d", id));
         
@@ -948,9 +941,16 @@ public abstract class BenchmarkComponent {
         }
         return (m_catalog);
     }
-    
     public void setCatalog(Catalog catalog) {
-    	m_catalog = catalog;
+        m_catalog = catalog;
+    }
+
+    /**
+     * Get the HStoreConf handle
+     * @return
+     */
+    public HStoreConf getHStoreConf() {
+        return (m_hstoreConf);
     }
 
     public void setState(final ControlState state, final String reason) {

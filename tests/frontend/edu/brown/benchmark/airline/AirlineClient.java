@@ -27,6 +27,7 @@ import java.io.IOException;
 import java.util.*;
 
 import org.apache.log4j.Logger;
+import org.voltdb.client.Client;
 import org.voltdb.client.ProcedureCallback;
 import org.voltdb.client.NoConnectionsException;
 import org.voltdb.client.ClientResponse;
@@ -197,13 +198,13 @@ public class AirlineClient extends AirlineBaseClient {
 
     @Override
     public void runLoop() {
-        //
+        final Client client = this.getClientHandle();
+        
         // Execute Transactions
-        //
         try {
             while (true) {
                 executeTransaction();
-                m_voltClient.backpressureBarrier();
+                client.backpressureBarrier();
             } // WHILE
         } catch (InterruptedException e) {
             e.printStackTrace();
@@ -288,7 +289,7 @@ public class AirlineClient extends AirlineBaseClient {
     private void executeChangeSeat() throws IOException {
         // Pull off the first pending seat change and throw that ma at the server
         Reservation r = this.pending_seatchanges.remove();
-        m_voltClient.callProcedure(new ChangeSeatCallback(), ChangeSeat.class.getSimpleName(), 
+        this.getClientHandle().callProcedure(new ChangeSeatCallback(), ChangeSeat.class.getSimpleName(), 
                                    r.flight_id.encode(), r.customer_id.encode(), r.seatnum);
     }
     
@@ -318,7 +319,7 @@ public class AirlineClient extends AirlineBaseClient {
             attributes[i] = m_rng.nextLong();
         } // FOR
 
-        m_voltClient.callProcedure(new NewReservationCallback(),
+        this.getClientHandle().callProcedure(new NewReservationCallback(),
                                    NewReservation.class.getSimpleName(),
                                    r_id, r.flight_id.encode(), r.customer_id.encode(), r.seatnum, attributes);
     }
@@ -347,7 +348,7 @@ public class AirlineClient extends AirlineBaseClient {
         long attr0 = this.m_rng.nextLong();
         long attr1 = this.m_rng.nextLong();
 
-        m_voltClient.callProcedure(new UpdateFrequentFlyerCallback(),
+        this.getClientHandle().callProcedure(new UpdateFrequentFlyerCallback(),
                                    UpdateFrequentFlyer.class.getSimpleName(),
                                    customer_id.encode(), airline_id, attr0, attr1);
     }
@@ -374,7 +375,7 @@ public class AirlineClient extends AirlineBaseClient {
         long value = m_rng.number(1, 1 << 20);
         long attribute_idx = m_rng.number(0, UpdateReservation.NUM_UPDATES);
 
-        m_voltClient.callProcedure(new UpdateReservationCallback(),
+        this.getClientHandle().callProcedure(new UpdateReservationCallback(),
                                    UpdateReservation.class.getSimpleName(),
                                    r_id, value, attribute_idx);
     }
@@ -428,7 +429,7 @@ public class AirlineClient extends AirlineBaseClient {
     private void runFindOpenSeats() throws IOException {
         FlightId flight_id = this.getRandomFlightId();
         assert(flight_id != null);
-        m_voltClient.callProcedure(new FindOpenSeatsCallback(), FindOpenSeats.class.getSimpleName(), flight_id.encode());
+        this.getClientHandle().callProcedure(new FindOpenSeatsCallback(), FindOpenSeats.class.getSimpleName(), flight_id.encode());
     }
     
     // ----------------------------------------------------------------
@@ -468,7 +469,7 @@ public class AirlineClient extends AirlineBaseClient {
         Date start_date = this.getRandomUpcomingDate();
         Date stop_date = new Date(start_date.getTime() + AirlineConstants.MILISECONDS_PER_DAY);
         
-        m_voltClient.callProcedure(new FindFlightByAirportCallback(),
+        this.getClientHandle().callProcedure(new FindFlightByAirportCallback(),
                                    FindFlightByAirportCallback.class.getSimpleName(),
                                    depart_airport_id, arrive_airport_id, start_date, stop_date);
     }

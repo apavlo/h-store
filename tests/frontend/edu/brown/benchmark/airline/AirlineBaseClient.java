@@ -13,9 +13,7 @@ import java.util.Map.Entry;
 
 import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.log4j.Logger;
-import org.voltdb.catalog.Catalog;
 import org.voltdb.catalog.Column;
-import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Table;
 import org.voltdb.utils.Pair;
 
@@ -26,6 +24,7 @@ import edu.brown.benchmark.airline.util.HistogramUtil;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.rand.AbstractRandomGenerator;
 import edu.brown.statistics.Histogram;
+import edu.mit.hstore.HStoreConf;
 
 /**
  * @author pavlo
@@ -87,9 +86,7 @@ public abstract class AirlineBaseClient extends BenchmarkComponent {
     public AirlineBaseClient(String[] args) {
         super(args);
         
-        Double scale_factor = 1.0;
         String profile_file = null;
-        
         int seed = 0;
         String randGenClassName = RandomGenerator.class.getName();
         String randGenProfilePath = null;
@@ -104,11 +101,8 @@ public abstract class AirlineBaseClient extends BenchmarkComponent {
         for (String key : m_extraParams.keySet()) {
             String value = m_extraParams.get(key);
 
-            // Scale Factor
-            if (key.equals("scalefactor")) {
-                scale_factor = Double.parseDouble(value);
             // Benchmark Profile File
-            } else if (key.equals("benchmarkprofile")) {
+            if (key.equals("benchmarkprofile")) {
                 profile_file = value;
             // Random Generator Seed
             } else if (key.equals("randomseed")) {
@@ -121,10 +115,11 @@ public abstract class AirlineBaseClient extends BenchmarkComponent {
                 randGenProfilePath = value;
             }
         } // FOR
+        HStoreConf hstore_conf = this.getHStoreConf();
         
         // Create BenchmarkProfile
         this.profile = new BenchmarkProfile();
-        this.profile.setScaleFactor(scale_factor);
+        this.profile.setScaleFactor(hstore_conf.client.scalefactor);
         if (profile_file != null) {
             try {
                 this.profile.load(profile_file, null);

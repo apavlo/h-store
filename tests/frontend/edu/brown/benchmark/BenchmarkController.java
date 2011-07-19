@@ -690,8 +690,7 @@ public class BenchmarkController {
         }
 
         allClientArgs.add("CONF=" + m_config.hstore_conf_path);
-        allClientArgs.add("BENCHMARK.NAME=" + m_projectBuilder.getProjectName());
-        allClientArgs.add("BENCHMARK.CONF=" + m_config.benchmark_conf_path);
+        allClientArgs.add("NAME=" + m_projectBuilder.getProjectName());
         allClientArgs.add("CHECKTRANSACTION=" + m_config.checkTransaction);
         allClientArgs.add("CHECKTABLES=" + m_config.checkTables);
         allClientArgs.add("STATSDATABASEURL=" + m_config.statsDatabaseURL);
@@ -1468,15 +1467,21 @@ public class BenchmarkController {
             } else if (parts[0].equalsIgnoreCase("SITE.LOG_DIR")) {
                 siteLogDir = parts[1];
                 FileUtil.makeDirIfNotExists(siteLogDir);
+                
             } else {
                 clientParams.put(parts[0].toLowerCase(), parts[1]);
             }
+            
+            if (parts[0].startsWith(BENCHMARK_PARAM_PREFIX)) {
+                clientParams.put(parts[0].replace(BENCHMARK_PARAM_PREFIX, "").toLowerCase(), parts[1]);
+            }
+
         }
         assert(coordinatorHost != null) : "Missing CoordinatorHost";
 
         // Initialize HStoreConf
         assert(hstore_conf_path != null) : "Missing HStoreConf file";
-        HStoreConf.init(new File(hstore_conf_path));
+        HStoreConf.init(new File(hstore_conf_path), vargs);
         
         if (duration < 1000) {
             System.err.println("Duration is specified in milliseconds");

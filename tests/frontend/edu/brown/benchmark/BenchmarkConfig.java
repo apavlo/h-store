@@ -105,8 +105,12 @@ public class BenchmarkConfig {
      * 
      * @param benchmark_conf_path
      */
-    @SuppressWarnings("unchecked")
     public BenchmarkConfig(File benchmark_conf_path) {
+        this.loadConfigFile(benchmark_conf_path);
+    }
+
+    @SuppressWarnings("unchecked")
+    public void loadConfigFile(File path) {
         try {
             this.config = new PropertiesConfiguration(benchmark_conf_path);
         } catch (Exception ex) {
@@ -115,8 +119,12 @@ public class BenchmarkConfig {
         
         Class<?> confClass = this.getClass();
         for (Object key : CollectionUtil.wrapIterator(this.config.getKeys())) {
-            Field f = null;
             String f_name = key.toString();
+            
+            // Always store whatever the property as a client parameter
+            clientParameters.put(f_name, this.config.getString(f_name));
+            
+            Field f = null;
             try {
                 f = confClass.getField(f_name);
             } catch (Exception ex) {
@@ -144,7 +152,7 @@ public class BenchmarkConfig {
             
             try {
                 f.set(this, value);
-                LOG.debug(String.format("SET %s = %s", f_name, value));
+                LOG.info(String.format("SET %s = %s", f_name, value));
             } catch (Exception ex) {
                 throw new RuntimeException("Failed to set value '" + value + "' for field '" + f_name + "'", ex);
             }
@@ -201,9 +209,6 @@ public class BenchmarkConfig {
             String dumpDatabaseDir
         ) {
 
-        this.hstore_conf_path = hstore_conf_path;
-        this.benchmark_conf_path = benchmark_conf_path;
-        
         this.projectBuilderClass = benchmarkClient;
         this.backend = backend;
         this.coordinatorHost = coordinatorHost;
@@ -255,6 +260,12 @@ public class BenchmarkConfig {
         
         this.dumpDatabase = dumpDatabase;
         this.dumpDatabaseDir = dumpDatabaseDir;
+        
+        this.hstore_conf_path = hstore_conf_path;
+        this.benchmark_conf_path = benchmark_conf_path;
+        if (this.benchmark_conf_path.isEmpty() == false) {
+            this.loadConfigFile(new File(this.benchmark_conf_path));
+        }
     }
 
     @Override
