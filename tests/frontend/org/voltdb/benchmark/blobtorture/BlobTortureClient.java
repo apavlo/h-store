@@ -127,7 +127,7 @@ public class BlobTortureClient extends BenchmarkComponent {
                 System.out.println(clientResponse.getException());
                 System.exit(-1);
             }
-            m_counts[0].incrementAndGet();
+            incrementTransactionCounter(0);
             final VoltTable vt = clientResponse.getResults()[0];
             if (!vt.advanceRow()) {
                 System.err.println("No rows returned by SelectBlob");

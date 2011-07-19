@@ -168,7 +168,7 @@ public class TM1Client extends TM1BaseClient {
         
         @Override
         public void clientCallback(ClientResponse clientResponse) {
-            TM1Client.this.m_counts[this.txn_id].incrementAndGet();
+            incrementTransactionCounter(this.txn_id);
         }
     } // END CLASS
 

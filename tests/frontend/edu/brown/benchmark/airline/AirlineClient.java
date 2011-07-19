@@ -275,7 +275,7 @@ public class AirlineClient extends AirlineBaseClient {
     private class ChangeSeatCallback implements ProcedureCallback {
         @Override
         public void clientCallback(ClientResponse clientResponse) {
-            m_counts[Transaction.CHANGE_SEAT.ordinal()].incrementAndGet();
+            incrementTransactionCounter(Transaction.CHANGE_SEAT.ordinal());
             if (clientResponse.getStatus() == ClientResponse.SUCCESS) {
                 assert (clientResponse.getResults().length == 1);
                 assert (clientResponse.getResults()[0].getRowCount() == 1);
@@ -300,7 +300,7 @@ public class AirlineClient extends AirlineBaseClient {
 
         @Override
         public void clientCallback(ClientResponse clientResponse) {
-            m_counts[Transaction.NEW_RESERVATION.ordinal()].incrementAndGet();
+            incrementTransactionCounter(Transaction.NEW_RESERVATION.ordinal());
             VoltTable[] results = clientResponse.getResults();
             assert (results.length == 1);
             assert (results[0].getRowCount() == 1);
@@ -332,7 +332,7 @@ public class AirlineClient extends AirlineBaseClient {
 
         @Override
         public void clientCallback(ClientResponse clientResponse) {
-            m_counts[Transaction.UPDATE_FREQUENT_FLYER.ordinal()].incrementAndGet();
+            incrementTransactionCounter(Transaction.UPDATE_FREQUENT_FLYER.ordinal());
             VoltTable[] results = clientResponse.getResults();
             assert (results.length == 1);
             assert (results[0].getRowCount() == 1);
@@ -360,7 +360,7 @@ public class AirlineClient extends AirlineBaseClient {
 
         @Override
         public void clientCallback(ClientResponse clientResponse) {
-            m_counts[Transaction.UPDATE_RESERVATION.ordinal()].incrementAndGet();
+            incrementTransactionCounter(Transaction.UPDATE_RESERVATION.ordinal());
             VoltTable[] results = clientResponse.getResults();
             assert (results.length == 1);
             assert (results[0].getRowCount() == 1);
@@ -387,7 +387,7 @@ public class AirlineClient extends AirlineBaseClient {
 
         @Override
         public void clientCallback(ClientResponse clientResponse) {
-            m_counts[Transaction.FIND_OPEN_SEATS.ordinal()].incrementAndGet();
+            incrementTransactionCounter(Transaction.FIND_OPEN_SEATS.ordinal());
             VoltTable[] results = clientResponse.getResults();
             assert (results.length == 1);
             assert (results[0].getRowCount() < 150);
@@ -439,7 +439,7 @@ public class AirlineClient extends AirlineBaseClient {
 
         @Override
         public void clientCallback(ClientResponse clientResponse) {
-            m_counts[Transaction.FIND_OPEN_SEATS.ordinal()].incrementAndGet();
+            incrementTransactionCounter(Transaction.FIND_OPEN_SEATS.ordinal());
             VoltTable[] results = clientResponse.getResults();
             assert (results.length == 1);
             assert (results[0].getRowCount() < 150);
