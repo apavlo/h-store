@@ -290,14 +290,14 @@ public abstract class BenchmarkComponent {
                 
                 try {
                     command = Command.get(in.readLine());
-                    if (debug) LOG.debug(String.format("Recieved Command: '%s'", command));
+                    if (debug) LOG.info(String.format("Recieved Message: '%s'", command));
                 } catch (final IOException e) {
                     // Hm. quit?
                     LOG.fatal("Error on standard input", e);
                     System.exit(-1);
                 }
                 if (command == null) continue;
-                if (debug) LOG.debug("Command = " + command);
+                if (debug) LOG.debug("ControlPipe Command = " + command);
 
                 switch (command) {
                     case START: {
@@ -347,6 +347,7 @@ public abstract class BenchmarkComponent {
                     }
                     case SHUTDOWN: {
                         if (m_controlState == ControlState.RUNNING || m_controlState == ControlState.PAUSED) {
+                            callbackStop();
                             try {
                                 m_voltClient.callProcedure("@Shutdown");
                             } catch (Exception ex) {

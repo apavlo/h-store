@@ -935,7 +935,6 @@ public class BenchmarkController {
         }
 
         this.stop = true;
-        m_clientPSM.prepareShutdown();
         m_sitePSM.prepareShutdown();
         m_coordPSM.prepareShutdown();
         
@@ -948,6 +947,7 @@ public class BenchmarkController {
             } else {
                 m_clientPSM.writeToProcess(clientName, Command.STOP);
             }
+            m_clientPSM.prepareShutdown(clientName);
         }
         LOG.info("Waiting for " + m_clients.size() + " clients to finish");
         for (String clientName : m_clients)
